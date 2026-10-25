@@ -54,17 +54,18 @@ var resourceMap = map[string]string{
 
 // List of allowed RBAC resources
 var validRBACResourcesActions = map[string]actionTraitMap{
-	rbac.ResourceAccounts:        accountsActions,
-	rbac.ResourceApplications:    applicationsActions,
-	rbac.ResourceApplicationSets: defaultCRUDActions,
-	rbac.ResourceCertificates:    defaultCRDActions,
-	rbac.ResourceClusters:        defaultCRUDActions,
-	rbac.ResourceExtensions:      extensionActions,
-	rbac.ResourceGPGKeys:         defaultCRDActions,
-	rbac.ResourceLogs:            logsActions,
-	rbac.ResourceExec:            execActions,
-	rbac.ResourceProjects:        defaultCRUDActions,
-	rbac.ResourceRepositories:    defaultCRUDActions,
+	rbac.ResourceAccounts:          accountsActions,
+	rbac.ResourceApplications:      applicationsActions,
+	rbac.ResourceApplicationSets:   defaultCRUDActions,
+	rbac.ResourceCertificates:      defaultCRDActions,
+	rbac.ResourceClusters:          defaultCRUDActions,
+	rbac.ResourceExtensions:        extensionActions,
+	rbac.ResourceGPGKeys:           defaultCRDActions,
+	rbac.ResourceLogs:              logsActions,
+	rbac.ResourceExec:              execActions,
+	rbac.ResourceProjects:          defaultCRUDActions,
+	rbac.ResourceRepositories:      defaultCRUDActions,
+	rbac.ResourceWriteRepositories: defaultCRUDActions,
 }
 
 // List of allowed RBAC actions

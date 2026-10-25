@@ -102,6 +102,14 @@ func Test_validateRBACResourceAction(t *testing.T) {
 			},
 			valid: false,
 		},
+		{
+			name: "Test valid action for write-repositories",
+			args: args{
+				resource: rbac.ResourceWriteRepositories,
+				action:   rbac.ActionGet,
+			},
+			valid: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -113,6 +121,12 @@ func Test_validateRBACResourceAction(t *testing.T) {
 				assert.Error(t, result)
 			}
 		})
+	}
+}
+
+func Test_validRBACResourcesActionsCoversAllResources(t *testing.T) {
+	for _, resource := range rbac.Resources {
+		assert.Contains(t, validRBACResourcesActions, resource, "RBAC resource %q is missing from validRBACResourcesActions", resource)
 	}
 }
 
