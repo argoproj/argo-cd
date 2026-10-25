@@ -295,9 +295,10 @@ For GRPC metrics to show up environment variable ARGOCD_ENABLE_GRPC_TIME_HISTOGR
 
 ## Repo Server Metrics
 
-Metrics about the Repo Server. The `grpc_*` gRPC metrics are not exposed by default; they can be enabled using
-the `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM=true` environment variable. `argocd_repo_server_active_requests` is an
-exception: it is always exposed (it is meant to drive HPA scale-out) and does not require that variable.
+Metrics about the Repo Server. The gRPC handling-time histogram (`grpc_server_handling_seconds`) is not
+exposed by default; enable it with the `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM=true` environment variable. The
+standard `grpc_server_*` counters and `argocd_repo_server_active_requests` are always exposed and do not
+require that variable (the latter is meant to drive HPA scale-out).
 Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 
 | Metric                                          |   Type    | Description                                                                                                                                                                                    |
