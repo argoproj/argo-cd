@@ -254,6 +254,8 @@ func TestStripAnsi(t *testing.T) {
 		{name: "empty string", input: "", expected: ""},
 		{name: "plain text", input: "plain text", expected: "plain text"},
 		{name: "color codes", input: "\x1b[1;31mError\x1b[0m: oops", expected: "Error: oops"},
+		{name: "colon-separated params", input: "\x1b[38:2::255:0:0mred\x1b[0m", expected: "red"},
+		{name: "non-letter final byte", input: "a\x1b[2~b", expected: "ab"},
 		{name: "erase in line", input: "\x1b[KNo newline clear", expected: "No newline clear"},
 	}
 	for _, tc := range cases {

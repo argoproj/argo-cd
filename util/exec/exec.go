@@ -26,11 +26,13 @@ var (
 	timeout      time.Duration
 	fatalTimeout time.Duration
 	Unredacted   = Redact(nil)
-	// ansiEscapeRegex matches ANSI escape sequences (CSI-style, e.g. "\x1b[1;31m")
-	// produced by tools that assume a color-capable terminal. These bytes render
-	// as garbage like "^[[1;31m" in the UI, so they are stripped from captured
-	// command output before it is surfaced in errors or logs. See issue #4770.
-	ansiEscapeRegex = regexp.MustCompile(`\x1b\[[0-9;?]*[a-zA-Z]`)
+	// ansiEscapeRegex matches ANSI CSI escape sequences per ECMA-48: ESC [, parameter
+	// bytes (0x30-0x3F, incl. ';' and ':'), intermediate bytes (0x20-0x2F), then a
+	// final byte (0x40-0x7E), e.g. "\x1b[1;31m" or "\x1b[38:2::255:0:0m". Tools that
+	// assume a color-capable terminal emit these; they render as garbage like
+	// "^[[1;31m" in the UI, so they are stripped from captured command output
+	// before it is surfaced in errors or logs. See issue #4770.
+	ansiEscapeRegex = regexp.MustCompile(`\x1b\[[\x30-\x3f]*[\x20-\x2f]*[\x40-\x7e]`)
 )
 
 // StripAnsi removes ANSI escape sequences from s.
