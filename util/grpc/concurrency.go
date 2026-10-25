@@ -63,7 +63,6 @@ func (l *ConcurrencyLimiter) UnaryServerInterceptor() grpc.UnaryServerIntercepto
 // Client-streaming RPCs (info.IsClientStream, which also covers bidi) are exempt: the client only
 // retries server-streaming calls (RetryOnlyForServerStreamInterceptor), so rejecting a client stream
 // like GenerateManifestWithFiles would be a hard failure rather than a retry on another replica.
-// --parallelism-limit-fail-fast provides backpressure for that manifest path instead.
 func (l *ConcurrencyLimiter) StreamServerInterceptor() grpc.StreamServerInterceptor {
 	return func(srv any, ss grpc.ServerStream, info *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
 		if isHealthCheckMethod(info.FullMethod) || info.IsClientStream {

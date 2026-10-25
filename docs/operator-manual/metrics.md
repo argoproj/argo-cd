@@ -309,7 +309,7 @@ Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 | `argocd_redis_request_total`                    |  counter  | Number of redis requests executed during application reconciliation, labeled by `command` and `failed`.                                                                                        |
 | `argocd_repo_pending_request_total`             |   gauge   | Number of pending requests requiring repository lock                                                                                                                                           |
 | `argocd_repo_parallelism_wait_duration_seconds` | histogram | Time spent waiting for the repo-server manifest generation parallelism semaphore (`--parallelismlimit`). Observed on every acquire attempt, including those that fail (e.g. context canceled). |
-| `argocd_repo_server_active_requests`            |   gauge   | Number of in-flight gRPC requests admitted and counted by the concurrency limiter (`--max-concurrent-grpc-requests`). Health-check and client-streaming RPCs (including `GenerateManifestWithFiles`) are excluded, so an HPA driven by this gauge may under-scale under client-streaming load.                |
+| `argocd_repo_server_active_requests`            |   gauge   | Number of in-flight gRPC requests admitted and counted by the concurrency limiter (`--max-concurrent-grpc-requests`). Health-check, client-streaming, and bidirectional-streaming RPCs (including `GenerateManifestWithFiles`) are excluded.                |
 | `argocd_oci_request_total`                      |  counter  | Number of OCI requests performed by repo server                                                                                                                                                |
 | `argocd_oci_request_duration_seconds`           | histogram | Duration of OCI requests performed by the repo server.                                                                                                                                         |
 | `argocd_oci_test_repo_fail_total`               |  counter  | Number of OCI test repo requests failures by repo server                                                                                                                                       |
@@ -317,6 +317,11 @@ Scraped at the `argocd-repo-server:8084/metrics` endpoint.
 | `argocd_oci_digest_metadata_fail_total`         |  counter  | Number of OCI digest metadata failures by repo server                                                                                                                                          |
 | `argocd_oci_resolve_revision_fail_total`        |  counter  | Number of OCI resolve revision failures by repo server                                                                                                                                         |
 | `argocd_oci_extract_fail_total`                 |  counter  | Number of OCI extract requests failures by repo server                                                                                                                                         |
+
+> [!NOTE]
+> `argocd_repo_server_active_requests` counts only requests the concurrency limiter admits. Health-check,
+> client-streaming, and bidirectional-streaming RPCs (such as `GenerateManifestWithFiles`) are excluded, so an
+> HPA driven by this gauge may under-scale while those requests are in flight.
 
 ## Commit Server Metrics
 
