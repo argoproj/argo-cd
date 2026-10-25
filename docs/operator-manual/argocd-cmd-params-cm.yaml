@@ -276,9 +276,9 @@ data:
   reposerver.log.level: "info"
   # Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
   reposerver.parallelism.limit: "1"
-  # When true, manifest generation requests that exceed reposerver.parallelism.limit are rejected immediately with ResourceExhausted instead of queuing until a slot is free, so clients can retry on a different replica (graceful scale-out). Defaults to false, which preserves the previous blocking behaviour.
+  # When true, manifest generation requests that exceed reposerver.parallelism.limit are rejected immediately with ResourceExhausted instead of queuing until a slot is free, so clients can retry on a different replica (graceful scale-out). File-streamed requests (GenerateManifestWithFiles) do not acquire the parallelism semaphore, so this setting does not apply to them. Defaults to false, which preserves the previous blocking behaviour.
   reposerver.parallelism.limit.fail.fast: "false"
-  # Maximum number of concurrent gRPC requests the repo server will handle. Requests exceeding this limit are rejected with ResourceExhausted so clients can retry on a different replica, enabling graceful scale-out. 0 means no limit.
+  # Maximum number of concurrent gRPC requests the repo server will handle. Requests exceeding this limit are rejected with ResourceExhausted so clients can retry on a different replica, enabling graceful scale-out. Health-check and client-streaming RPCs (including GenerateManifestWithFiles) are exempt and never counted or rejected. 0 means no limit.
   reposerver.max.concurrent.grpc.requests: "0"
   # Disable TLS on the gRPC endpoint
   reposerver.disable.tls: "false"
