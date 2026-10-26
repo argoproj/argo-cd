@@ -480,7 +480,7 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 
 	commonMockExpectations := func(c *gitmocks.Client) {
 		c.EXPECT().Init().Return(nil).Once()
-		c.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		c.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		c.EXPECT().SetAuthor(mock.Anything, "Argo CD", "argo-cd@example.com").Return("", nil).Once()
 		c.EXPECT().CheckoutOrOrphan(mock.Anything, "env/test", false).Return("", nil).Once()
 		c.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
