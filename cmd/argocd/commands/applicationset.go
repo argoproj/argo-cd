@@ -495,23 +495,23 @@ func printApplicationSetTable(apps []argoappsetv1.ApplicationSet, output *string
 }
 
 func FormatConditions(conditions []argoappsetv1.ApplicationSetCondition) string {
-	fmtStr := "{%s\t%s\t%s\t%s\t%s\t%d}"
-	res := make([]string, len(conditions))
-	for index, condition := range conditions {
+	fmtStr := "{%s %s %s %s %s %d}"
+	res := make([]string, 0)
+	for _, condition := range conditions {
 		if condition.Status == argoappsetv1.ApplicationSetConditionStatusTrue {
 			lastTransitionTime := "<nil>"
 			if condition.LastTransitionTime != nil {
 				lastTransitionTime = condition.LastTransitionTime.UTC().Format(time.RFC3339)
 			}
 
-			res[index] = fmt.Sprintf(fmtStr,
+			res = append(res, fmt.Sprintf(fmtStr,
 				condition.Type,
 				condition.Message,
 				lastTransitionTime,
 				condition.Status,
 				condition.Reason,
 				condition.ObservedGeneration,
-			)
+			))
 		}
 	}
 	return "[" + strings.Join(res, ", ") + "]"

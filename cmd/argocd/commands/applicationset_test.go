@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -185,8 +186,53 @@ func TestPrintApplicationSetTable(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
-	expectation := "NAME               PROJECT  SYNCPOLICY  HEALTH  CONDITIONS\napp-name           default  nil                 [{ResourcesUpToDate    <nil>  True    0}]\nteam-two/app-name  default  nil                 [{ResourcesUpToDate    <nil>  True    2}]\n"
+	expectation := "NAME               PROJECT  SYNCPOLICY  HEALTH  CONDITIONS\napp-name           default  nil                 [{ResourcesUpToDate  <nil> True  0}]\nteam-two/app-name  default  nil                 [{ResourcesUpToDate  <nil> True  2}]\n"
 	assert.Equal(t, expectation, output)
+}
+
+func TestFormatConditions(t *testing.T) {
+	transitionTime := metav1.NewTime(time.Date(2024, time.March, 1, 10, 30, 0, 0, time.UTC))
+
+	for _, tt := range []struct {
+		name       string
+		conditions []v1alpha1.ApplicationSetCondition
+		expected   string
+	}{
+		{
+			name:       "no conditions",
+			conditions: nil,
+			expected:   "[]",
+		},
+		{
+			name: "condition with only a type set",
+			conditions: []v1alpha1.ApplicationSetCondition{
+				{
+					Status: v1alpha1.ApplicationSetConditionStatusTrue,
+					Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
+				},
+			},
+			expected: "[{ResourcesUpToDate  <nil> True  0}]",
+		},
+		{
+			name: "condition with all fields set",
+			conditions: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
+					Message:            "some error",
+					LastTransitionTime: &transitionTime,
+					Status:             v1alpha1.ApplicationSetConditionStatusTrue,
+					Reason:             v1alpha1.ApplicationSetReasonApplicationValidationError,
+					ObservedGeneration: 3,
+				},
+			},
+			expected: "[{ErrorOccurred some error 2024-03-01T10:30:00Z True ApplicationValidationError 3}]",
+		},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			out := FormatConditions(tt.conditions)
+			assert.Equal(t, tt.expected, out)
+		})
+	}
 }
 
 func TestPrintAppSetSummaryTable(t *testing.T) {
