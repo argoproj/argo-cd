@@ -34,7 +34,7 @@ var projectWithSignedRevisionOnly = AppProjectSpec{
 	SourceIntegrity: &SourceIntegrity{
 		Git: &SourceIntegrityGit{
 			Policies: []*SourceIntegrityGitPolicy{{
-				Repos:          []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				Repos:              []SourceIntegrityGitPolicyRepo{{URL: "*"}},
 				SignedRevisionOnly: true, // Verifying annotated tags
 				GPG: &SourceIntegrityGitPolicyGPG{
 					Keys: []string{fixture.GpgGoodKeyID},

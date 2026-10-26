@@ -684,7 +684,7 @@ func TestSignedRevisionOnly(t *testing.T) {
 	si := func(signedTagsOnly bool) *v1alpha1.SourceIntegrity {
 		return &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
 			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
-				Repos:          []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
+				Repos:              []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
 				SignedRevisionOnly: signedTagsOnly,
 				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
@@ -786,9 +786,9 @@ func TestSignedRevisionOnlyWithoutGPGCheck(t *testing.T) {
 	si := func(gpg *v1alpha1.SourceIntegrityGitPolicyGPG) *v1alpha1.SourceIntegrity {
 		return &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
 			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
-				Repos:          []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
+				Repos:              []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
 				SignedRevisionOnly: true,
-				GPG:            gpg,
+				GPG:                gpg,
 			}},
 		}}
 	}
