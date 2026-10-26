@@ -2021,3 +2021,38 @@ func TestSourceIPLoggingThroughGateway(t *testing.T) {
 		assert.Equal(t, "9.9.9.9, 198.51.100.7", fields["forwarded.for"], "the address the gateway appends is dropped")
 	})
 }
+
+func TestAPIResponsesAreNotCacheable(t *testing.T) {
+	s, closer := fakeServer(t)
+	defer closer()
+	defer test.StartInformer(s.projInformer)()
+	defer test.StartInformer(s.appInformer)()
+	defer test.StartInformer(s.appsetInformer)()
+	defer test.StartInformer(s.clusterInformer)()
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	var wg gosync.WaitGroup
+	wg.Go(func() { s.Run(t.Context(), lns) })
+	defer func() {
+		s.stopCh <- syscall.SIGINT
+		wg.Wait()
+	}()
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	for _, path := range []string{"/api/version", "/api/v1/applications", "/api/v1/applications/does-not-exist"} {
+		t.Run(path, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d%s", s.ListenPort, path), http.NoBody)
+			require.NoError(t, err)
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			require.NoError(t, resp.Body.Close())
+
+			for k, v := range noCacheHeaders {
+				assert.Equal(t, v, resp.Header.Get(k), "unexpected %s header", k)
+			}
+		})
+	}
+}

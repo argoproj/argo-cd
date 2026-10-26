@@ -13,6 +13,14 @@ if obj.status ~= nil then
 
     for i, condition in ipairs(obj.status.conditions) do
       if condition.type == "Ready" and condition.status == "False" then
+        -- Check if the message indicates issuing is in progress.
+        -- This handles a race condition where Ready=False is set before
+        -- the Issuing condition is added by cert-manager.
+        if condition.message ~= nil and string.find(condition.message, "Issuing") then
+          hs.status = "Progressing"
+          hs.message = condition.message
+          return hs
+        end
         hs.status = "Degraded"
         hs.message = condition.message
         return hs
