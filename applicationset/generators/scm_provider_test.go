@@ -390,3 +390,75 @@ func TestGithubProvider_ProxyWithoutMetrics(t *testing.T) {
 		assert.Nil(t, httpClient.Transport) // bare &http.Client{} — uses DefaultTransport
 	})
 }
+
+func TestSCMProviderBitbucketCloudRequiresAuth(t *testing.T) {
+	t.Parallel()
+
+	generator := &SCMProviderGenerator{enableSCMProviders: true}
+
+	t.Run("neither bearerToken nor appPasswordRef", func(t *testing.T) {
+		t.Parallel()
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			Name: "set",
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+					SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
+						Bitbucket: &argoprojiov1alpha1.SCMProviderGeneratorBitbucket{
+							Owner: "myorg",
+						},
+					},
+				}},
+			},
+		}
+
+		_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "bitbucket scm provider requires either bearerToken or appPasswordRef")
+	})
+
+	t.Run("both bearerToken and appPasswordRef", func(t *testing.T) {
+		t.Parallel()
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			Name: "set",
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+					SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
+						Bitbucket: &argoprojiov1alpha1.SCMProviderGeneratorBitbucket{
+							Owner:          "myorg",
+							BearerToken:    &argoprojiov1alpha1.BearerTokenBitbucketCloud{TokenRef: &argoprojiov1alpha1.SecretRef{SecretName: "s", Key: "k"}},
+							AppPasswordRef: &argoprojiov1alpha1.SecretRef{SecretName: "s", Key: "k"},
+						},
+					},
+				}},
+			},
+		}
+
+		_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "bitbucket scm provider bearerToken and appPasswordRef are mutually exclusive")
+	})
+
+	t.Run("appPasswordRef without user", func(t *testing.T) {
+		t.Parallel()
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			Name: "set",
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+					SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
+						Bitbucket: &argoprojiov1alpha1.SCMProviderGeneratorBitbucket{
+							Owner:          "myorg",
+							AppPasswordRef: &argoprojiov1alpha1.SecretRef{SecretName: "s", Key: "k"},
+						},
+					},
+				}},
+			},
+		}
+
+		_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "bitbucket scm provider requires user when using appPasswordRef")
+	})
+}
