@@ -71,9 +71,9 @@ const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSou
     return configuredSections.map(section => <section.View key={section.key} {...section.getProps(sourceIntegrity)} />);
 };
 
-const LegacyGPGSignatureKeysPanel = ({proj, saveProject}: {proj: Project; saveProject: (proj: Project) => Promise<void>}) => {
-    const deprecatedFeatureMessage = 'This feature is deprecated, migrate to Source Integrity instead.';
+const SIGNATURE_KEYS_DEPRECATION_MESSAGE = 'This feature is deprecated, migrate to Source Integrity instead.';
 
+const LegacyGPGSignatureKeysPanel = ({proj, saveProject}: {proj: Project; saveProject: (proj: Project) => Promise<void>}) => {
     return (
         <EditablePanel
             save={saveProject}
@@ -83,7 +83,7 @@ const LegacyGPGSignatureKeysPanel = ({proj, saveProject}: {proj: Project; savePr
             }
             view={
                 <React.Fragment>
-                    <p>{deprecatedFeatureMessage}</p>
+                    <p>{SIGNATURE_KEYS_DEPRECATION_MESSAGE}</p>
                     {(proj.spec.signatureKeys?.length ?? 0) > 0 ? (
                         proj.spec.signatureKeys.map((key, i) => (
                             <div className='row white-box__details-row' key={i}>
@@ -105,6 +105,7 @@ const SignatureKeysEdit = ({formApi}: {formApi: FormApi}) => {
     const {data: keys = []} = useQuery(gpgkeyQueries.list());
     return (
         <React.Fragment>
+            <p>{SIGNATURE_KEYS_DEPRECATION_MESSAGE}</p>
             {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
                 <div className='row white-box__details-row' key={i}>
                     <div className='columns small-12'>
