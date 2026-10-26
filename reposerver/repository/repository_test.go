@@ -770,6 +770,7 @@ func TestHelmChartReferencingSameRepoAndRevision_ResolvesRevisionOnce(t *testing
 	require.NoError(t, err)
 	service, gitClient, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(true)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().LsRemote(branch).Return(oldSHA, nil).Once()
@@ -4071,6 +4072,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client := gitmocks.Client{}
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
+				client.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				client.EXPECT().IsRevisionPresent(mock.Anything, sha).Return(true)
 				client.EXPECT().Checkout(mock.Anything, sha, false, true).Return("", nil)
 				return &client, nil
@@ -4104,6 +4106,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client := gitmocks.Client{}
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
+				client.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				client.EXPECT().IsRevisionPresent(mock.Anything, sha).Return(true)
 				client.EXPECT().Checkout(mock.Anything, sha, false, true).Return("", nil)
 				return &client, nil
