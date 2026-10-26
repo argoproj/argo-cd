@@ -30,7 +30,7 @@ require (
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-openapi/validate v0.20.3 // indirect
 	github.com/go-stack/stack v1.8.1 // indirect
-	github.com/go-swagger/go-swagger v0.28.0 // indirect
+	github.com/go-swagger/go-swagger v0.36.6 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gobuffalo/flect v1.0.3 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
