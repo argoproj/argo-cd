@@ -3651,6 +3651,47 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCheckoutRevisionEnsureNotShallow(t *testing.T) {
+	t.Parallel()
+
+	revision := "0123456789012345678901234567890123456789"
+
+	t.Run("calls EnsureNotShallow when depth is 0", func(t *testing.T) {
+		t.Parallel()
+
+		gitClient := gitmocks.NewClient(t)
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil).Once()
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, revision).Return(true)
+		gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", nil)
+
+		err := checkoutRevision(t.Context(), gitClient, revision, false, 0, true)
+		require.NoError(t, err)
+	})
+	t.Run("skips EnsureNotShallow when depth is greater than 0", func(t *testing.T) {
+		t.Parallel()
+
+		gitClient := gitmocks.NewClient(t)
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, revision).Return(true)
+		gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", nil)
+
+		err := checkoutRevision(t.Context(), gitClient, revision, false, 1, true)
+		require.NoError(t, err)
+	})
+	t.Run("returns error when EnsureNotShallow fails", func(t *testing.T) {
+		t.Parallel()
+
+		gitClient := gitmocks.NewClient(t)
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(errors.New("ensure not shallow failed")).Once()
+
+		err := checkoutRevision(t.Context(), gitClient, revision, false, 0, true)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Failed to ensure repo is not shallow: ensure not shallow failed")
+	})
+}
+
 func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	revision := "0123456789012345678901234567890123456789"
 

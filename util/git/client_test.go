@@ -3261,6 +3261,114 @@ func Test_LsSignatures_ShallowRepo(t *testing.T) {
 	})
 }
 
+func Test_EnsureNotShallow(t *testing.T) {
+	t.Parallel()
+
+	prepareCloneAndClient := func(t *testing.T, ctx context.Context, shallow bool) (Client, string) {
+		t.Helper()
+
+		tempDir, err := _createEmptyGitRepo(ctx)
+		t.Cleanup(func() { os.RemoveAll(tempDir) })
+		require.NoError(t, err)
+		require.NoError(t, runCmd(ctx, tempDir, "git", "commit", "--allow-empty", "-m", "second commit"))
+
+		cloneDir := t.TempDir() // cleanup already registered by t.TempDir()
+
+		args := []string{"clone"}
+		if shallow {
+			args = append(args, "--depth=1")
+		}
+		args = append(args, "file://"+tempDir, ".")
+
+		require.NoError(t, runCmd(ctx, cloneDir, "git", args...))
+
+		client, err := NewClientExt("file://"+tempDir, cloneDir, NopCreds{}, true, false, "", "")
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+
+		return client, cloneDir
+	}
+
+	t.Run("unshallows shallow repo", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		client, shallowDir := prepareCloneAndClient(t, ctx, true)
+
+		out, err := outputCmd(ctx, shallowDir, "git", "rev-parse", "--is-shallow-repository")
+		require.NoError(t, err)
+		require.Equal(t, "true", strings.TrimSpace(string(out)))
+
+		err = client.EnsureNotShallow(ctx)
+		require.NoError(t, err)
+
+		out, err = outputCmd(ctx, shallowDir, "git", "rev-parse", "--is-shallow-repository")
+		require.NoError(t, err)
+		require.Equal(t, "false", strings.TrimSpace(string(out)))
+	})
+
+	t.Run("no-op on normal repo", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		client, cloneDir := prepareCloneAndClient(t, ctx, false)
+
+		out, err := outputCmd(ctx, cloneDir, "git", "rev-parse", "--is-shallow-repository")
+		require.NoError(t, err)
+		require.Equal(t, "false", strings.TrimSpace(string(out)))
+
+		// EnsureNotShallow should not call git fetch - remove remote to cause error if it wrongly does
+		require.NoError(t, runCmd(ctx, cloneDir, "git", "remote", "remove", "origin"))
+
+		err = client.EnsureNotShallow(ctx)
+		require.NoError(t, err)
+
+		out, err = outputCmd(ctx, cloneDir, "git", "rev-parse", "--is-shallow-repository")
+		require.NoError(t, err)
+		require.Equal(t, "false", strings.TrimSpace(string(out)))
+	})
+
+	t.Run("returns error when EnsureNotShallow fails to fetch", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		client, shallowDir := prepareCloneAndClient(t, ctx, true)
+
+		out, err := outputCmd(ctx, shallowDir, "git", "rev-parse", "--is-shallow-repository")
+		require.NoError(t, err)
+		require.Equal(t, "true", strings.TrimSpace(string(out)))
+
+		// force EnsureNotShallow error in fetching by removing remote
+		require.NoError(t, runCmd(ctx, shallowDir, "git", "remote", "remove", "origin"))
+
+		err = client.EnsureNotShallow(ctx)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "failed to unshallow repo")
+
+		out, err = outputCmd(ctx, shallowDir, "git", "rev-parse", "--is-shallow-repository")
+		require.NoError(t, err)
+		require.Equal(t, "true", strings.TrimSpace(string(out)))
+	})
+
+	t.Run("returns error when EnsureNotShallow fails to check if repo is shallow", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		client, shallowDir := prepareCloneAndClient(t, ctx, true)
+
+		out, err := outputCmd(ctx, shallowDir, "git", "rev-parse", "--is-shallow-repository")
+		require.NoError(t, err)
+		require.Equal(t, "true", strings.TrimSpace(string(out)))
+
+		// force EnsureNotShallow error in checking if repo is shallow by removing .git directory
+		require.NoError(t, os.RemoveAll(filepath.Join(shallowDir, ".git")))
+
+		err = client.EnsureNotShallow(ctx)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "failed to check if repository is shallow")
+	})
+}
+
 func Test_humanizeAuthPromptError(t *testing.T) {
 	repoURL := "https://github.com/argoproj/argo-cd.git"
 
