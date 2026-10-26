@@ -158,7 +158,7 @@ func listGitGpgPolicies(out io.Writer, proj *v1alpha1.AppProject) {
 			}
 			repoURLs = strings.Join(urls, ", ")
 		}
-		signedTagOnly := policy.SignedTagsOnly
+		signedTagOnly := policy.SignedRevisionOnly
 
 		_, _ = fmt.Fprintf(w, "%d\t%s\t%s\t%s\t%t\n", i, gpgMode, gpgKeys, repoURLs, signedTagOnly)
 	}
@@ -258,10 +258,10 @@ func cleanupSourceIntegrityIfEmpty(proj *v1alpha1.AppProject) {
 // NewProjectSourceIntegrityGitPoliciesAddCommand returns a new instance of an `argocd proj source-integrity git policies add` command
 func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		repoURLs      []string
-		signedTagOnly bool
-		gpgMode       string
-		gpgKeys       []string
+		repoURLs           []string
+		signedRevisionOnly bool
+		gpgMode            string
+		gpgKeys            []string
 	)
 	command := &cobra.Command{
 		Use:   "add PROJECT",
@@ -294,7 +294,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 			if err != nil {
 				return err
 			}
-			newPolicy := v1alpha1.SourceIntegrityGitPolicy{SignedTagsOnly: signedTagOnly, GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: mode}}
+			newPolicy := v1alpha1.SourceIntegrityGitPolicy{SignedRevisionOnly: signedRevisionOnly, GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: mode}}
 			for _, url := range repoURLs {
 				newPolicy.Repos = append(newPolicy.Repos, v1alpha1.SourceIntegrityGitPolicyRepo{URL: url})
 			}
@@ -331,7 +331,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 		}),
 	}
 	command.Flags().StringSliceVar(&repoURLs, "repo-url", []string{}, "Repository URL pattern (can be repeated)")
-	command.Flags().BoolVar(&signedTagOnly, "signed-tags-only", false, "Only permit syncing from annotated tags")
+	command.Flags().BoolVar(&signedRevisionOnly, "signed-tags-only", false, "Only permit syncing from annotated tags")
 	command.Flags().StringVar(&gpgMode, "gpg-mode", "", "GPG verification mode (strict, head, or none)")
 	command.Flags().StringSliceVar(&gpgKeys, "gpg-key", []string{}, "GPG key ID (can be repeated)")
 	return command
@@ -353,15 +353,15 @@ func validateGpgMode(gpgMode string) (v1alpha1.SourceIntegrityGitPolicyGPGMode, 
 // NewProjectSourceIntegrityGitPoliciesUpdateCommand returns a new instance of an `argocd proj source-integrity git policies update` command
 func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
-		repoURLs       []string
-		deleteRepoURLs []string
-		addRepoURLs    []string
-		signedTagsOnly bool
-		gpgMode        string
-		gpgKeys        []string
-		deleteGPGKeys  []string
-		addGPGKeys     []string
-		yes            bool
+		repoURLs           []string
+		deleteRepoURLs     []string
+		addRepoURLs        []string
+		signedRevisionOnly bool
+		gpgMode            string
+		gpgKeys            []string
+		deleteGPGKeys      []string
+		addGPGKeys         []string
+		yes                bool
 	)
 	command := &cobra.Command{
 		Use:   "update PROJECT POLICY_ID",
@@ -453,7 +453,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 			}
 
 			if c.Flags().Changed("signed-tags-only") {
-				policy.SignedTagsOnly = signedTagsOnly
+				policy.SignedRevisionOnly = signedRevisionOnly
 			}
 
 			// There are no other types for now, so turning GPG on is the only sensible thing
@@ -536,7 +536,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 	command.Flags().StringSliceVar(&repoURLs, "repo-url", []string{}, "Set repository URL pattern (replaces existing)")
 	command.Flags().StringSliceVar(&addRepoURLs, "add-repo-url", []string{}, "Add repository URL pattern")
 	command.Flags().StringSliceVar(&deleteRepoURLs, "delete-repo-url", []string{}, "Delete repository URL pattern")
-	command.Flags().BoolVar(&signedTagsOnly, "signed-tags-only", false, "Only permit syncing from annotated tags")
+	command.Flags().BoolVar(&signedRevisionOnly, "signed-tags-only", false, "Only permit syncing from annotated tags")
 	command.Flags().StringSliceVar(&gpgKeys, "gpg-key", []string{}, "Set GPG key ID (replaces existing)")
 	command.Flags().StringSliceVar(&addGPGKeys, "add-gpg-key", []string{}, "Add GPG key ID")
 	command.Flags().StringSliceVar(&deleteGPGKeys, "delete-gpg-key", []string{}, "Delete GPG key ID")

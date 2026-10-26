@@ -310,7 +310,7 @@ spec:
                                 - url
                                 type: object
                               type: array
-                            signedTagsOnly:
+                            signedRevisionOnly:
                               description: Only permit syncing from annotated tags,
                                 un-annotated tags cannot be signed
                               type: boolean

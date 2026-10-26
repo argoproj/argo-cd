@@ -83,7 +83,7 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 		}
 	}
 
-	noGuardSet := !policy.SignedTagsOnly
+	noGuardSet := !policy.SignedRevisionOnly
 	if check == nil && noGuardSet {
 		log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
 		return nil
@@ -93,19 +93,19 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 }
 
 func verifyWithGuard(policy *v1alpha1.SourceIntegrityGitPolicy, check gitFunc) gitFunc {
-	const signedTagsCheckName = "GIT"
+	const signedRevisionCheckName = "GIT"
 
 	return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
-		if policy.SignedTagsOnly && !gitClient.IsAnnotatedTag(ctx, verifiedRevision) {
+		if policy.SignedRevisionOnly && !gitClient.IsAnnotatedTag(ctx, verifiedRevision) {
 			msg := fmt.Sprintf("SignedTagsOnly is enabled, %s is not annotated. Un-annotated tags cannot be verified", verifiedRevision)
 			return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-				Name:     signedTagsCheckName,
+				Name:     signedRevisionCheckName,
 				Problems: []string{msg},
 			}}}, msg, nil
 		}
 		if check == nil {
 			return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-				Name: signedTagsCheckName,
+				Name: signedRevisionCheckName,
 			}}}, "", nil
 		}
 		return check(ctx, gitClient, verifiedRevision)
