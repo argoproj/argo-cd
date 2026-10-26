@@ -1890,9 +1890,8 @@ func TestSyncWithInfos(t *testing.T) {
 // TestSyncWithRetryAndRefreshEnabled verifies that sync+refresh picks up new commits automatically on the original source
 // at the time the sync was triggered
 func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
-	Given(t).
-		Timeout(2). // Quick timeout since Sync operation is expected to retry forever
-		Path(guestbookPath).
+	ctx := Given(t).Path(guestbookPath)
+	ctx.
 		When().
 		CreateFromFile(func(app *Application) {
 			app.Spec.SyncPolicy = &SyncPolicy{
@@ -1912,6 +1911,9 @@ func TestSyncWithRetryAndRefreshEnabled(t *testing.T) {
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
+		And(func() {
+			ctx.Timeout(2) // Quick timeout since Sync operation is expected to retry forever
+		}).
 		PatchFile("guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": "badValue"}]`).
 		Refresh(RefreshTypeNormal).
 		IgnoreErrors().

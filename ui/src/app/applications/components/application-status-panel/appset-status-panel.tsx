@@ -3,7 +3,8 @@ import * as React from 'react';
 import {ARGO_GRAY6_COLOR} from '../../../shared/components';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
-import {getAppSetConditionCategory, getAppSetHealthStatus, HealthStatusIcon} from '../utils';
+import {getAppSetConditionCategory, getAppSetHealthStatus, getHealthStatusColor, HealthStatusIcon} from '../utils';
+import {ConditionCounters} from './condition-counters';
 
 import './application-status-panel.scss';
 
@@ -45,39 +46,20 @@ export const ApplicationSetStatusPanel = ({appSet, collapsed, showConditions}: P
     const conditions = appSet.status?.conditions || [];
     const conditionCounts = getConditionCounts(conditions);
     const latestCondition = conditions.length > 0 ? conditions[conditions.length - 1] : null;
+    // Unknown's palette color is too low-contrast for text; inherit the themed color there
+    const healthTextColor = healthStatus === 'Unknown' ? undefined : getHealthStatusColor(healthStatus);
 
     if (collapsed) {
         return (
             <div className='application-status-panel application-status-panel--collapsed row'>
-                <div className='application-status-panel__collapsed-item' title='AppSet Health'>
+                <div className='application-status-panel__collapsed-item' title='AppSet Health' style={{color: healthTextColor}}>
                     <HealthStatusIcon state={{status: healthStatus, message: ''}} />
                     &nbsp;
                     {healthStatus}
                 </div>
                 {conditions.length > 0 && (
                     <div className='application-status-panel__collapsed-item application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
-                        {conditionCounts.info > 0 && (
-                            <a className='info'>
-                                <i className='fa fa-info-circle application-status-panel__item-value__status-button' />
-                                <span className='sync-condition-details'>{conditionCounts.info} Info</span>
-                            </a>
-                        )}
-                        {conditionCounts.warning > 0 && (
-                            <a className='warning'>
-                                <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' />
-                                <span className='sync-condition-details'>
-                                    {conditionCounts.warning} Warning{conditionCounts.warning !== 1 && 's'}
-                                </span>
-                            </a>
-                        )}
-                        {conditionCounts.error > 0 && (
-                            <a className='error'>
-                                <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' />
-                                <span className='sync-condition-details'>
-                                    {conditionCounts.error} Error{conditionCounts.error !== 1 && 's'}
-                                </span>
-                            </a>
-                        )}
+                        <ConditionCounters infos={conditionCounts.info} warnings={conditionCounts.warning} errors={conditionCounts.error} />
                     </div>
                 )}
             </div>
@@ -88,7 +70,7 @@ export const ApplicationSetStatusPanel = ({appSet, collapsed, showConditions}: P
         <div className='application-status-panel row'>
             <div className='application-status-panel__item'>
                 {sectionLabel({title: 'APPSET HEALTH', helpContent: 'The health status of your ApplicationSet derived from its conditions'})}
-                <div className='application-status-panel__item-value'>
+                <div className='application-status-panel__item-value' style={{color: healthTextColor}}>
                     <HealthStatusIcon state={{status: healthStatus, message: ''}} />
                     &nbsp;
                     {healthStatus}
@@ -100,28 +82,7 @@ export const ApplicationSetStatusPanel = ({appSet, collapsed, showConditions}: P
                 <div className='application-status-panel__item'>
                     {sectionLabel({title: 'CONDITIONS'})}
                     <div className='application-status-panel__item-value application-status-panel__conditions' onClick={() => showConditions && showConditions()}>
-                        {conditionCounts.info > 0 && (
-                            <a className='info'>
-                                <i className='fa fa-info-circle application-status-panel__item-value__status-button' />
-                                <span className='sync-condition-details'>{conditionCounts.info} Info</span>
-                            </a>
-                        )}
-                        {conditionCounts.warning > 0 && (
-                            <a className='warning'>
-                                <i className='fa fa-exclamation-triangle application-status-panel__item-value__status-button' />
-                                <span className='sync-condition-details'>
-                                    {conditionCounts.warning} Warning{conditionCounts.warning !== 1 && 's'}
-                                </span>
-                            </a>
-                        )}
-                        {conditionCounts.error > 0 && (
-                            <a className='error'>
-                                <i className='fa fa-exclamation-circle application-status-panel__item-value__status-button' />
-                                <span className='sync-condition-details'>
-                                    {conditionCounts.error} Error{conditionCounts.error !== 1 && 's'}
-                                </span>
-                            </a>
-                        )}
+                        <ConditionCounters infos={conditionCounts.info} warnings={conditionCounts.warning} errors={conditionCounts.error} />
                     </div>
                 </div>
             )}

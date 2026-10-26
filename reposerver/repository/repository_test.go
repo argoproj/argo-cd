@@ -564,9 +564,11 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	require.NoError(t, err)
 	_, err = service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
+	// The ref source has the same repository and revision as the application source, so the git refs are only
+	// looked up once to resolve the revision of both sources.
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 2,
-		ExternalGets: 4,
+		ExternalGets: 3,
 	})
 }
 
@@ -754,6 +756,58 @@ func TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored(t *testing.T
 	assert.NotNil(t, response)
 }
 
+func TestHelmChartReferencingSameRepoAndRevision_ResolvesRevisionOnce(t *testing.T) {
+	const (
+		repoURL   = "https://git.example.com/test/repo"
+		oldSHA    = "1111111111111111111111111111111111111111"
+		newSHA    = "2222222222222222222222222222222222222222"
+		branch    = "main"
+		chartPath = "testdata/my-chart"
+	)
+	root, err := filepath.Abs(".")
+	require.NoError(t, err)
+	service, gitClient, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(true)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote(branch).Return(oldSHA, nil).Once()
+		gitClient.EXPECT().LsRemote(branch).Return(newSHA, nil).Once()
+		gitClient.EXPECT().LsRemote(newSHA).Return(newSHA, nil).Maybe()
+		gitClient.EXPECT().Root().Return(root)
+		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
+
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	}, root)
+
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: repoURL, Path: chartPath, TargetRevision: branch, Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/my-chart/my-chart-values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: repoURL, TargetRevision: branch},
+		},
+	}
+	for _, noCache := range []bool{true, false} {
+		t.Run(fmt.Sprintf("noCache=%t", noCache), func(t *testing.T) {
+			refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{Repo: repoURL}, nil
+			}, []string{})
+			require.NoError(t, err)
+			request := &apiclient.ManifestRequest{
+				Repo: &v1alpha1.Repository{Repo: repoURL}, ApplicationSource: &spec.Sources[0], Revision: branch, NoCache: noCache, RefSources: refSources, HasMultipleSources: true,
+				ProjectName: "something", ProjectSourceRepos: []string{"*"},
+			}
+			response, err := service.GenerateManifest(t.Context(), request)
+			require.NoError(t, err)
+			require.NotNil(t, response)
+		})
+	}
+	gitClient.AssertExpectations(t)
+}
+
 func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
 	service := newService(t, ".")
 	err := os.Mkdir("testdata/oob-symlink", 0o755)
@@ -927,6 +981,69 @@ func TestGenerateJsonnetLibOutside(t *testing.T) {
 	}
 	_, err := service.GenerateManifest(t.Context(), &q)
 	require.ErrorContains(t, err, "file '../../../testdata/jsonnet/vendor' resolved to outside repository root")
+}
+
+func TestGenerateJsonnetImportAbsoluteOutsideRepoRoot(t *testing.T) {
+	service := newService(t, ".")
+
+	q := apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:      "./testdata/jsonnet-import-abs-outside",
+			Directory: &v1alpha1.ApplicationSourceDirectory{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.ErrorContains(t, err, "resolves outside repository root")
+}
+
+func TestGenerateJsonnetImportTraversalOutsideRepoRoot(t *testing.T) {
+	service := newService(t, ".")
+
+	q := apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:      "./testdata/jsonnet-import-traversal-outside",
+			Directory: &v1alpha1.ApplicationSourceDirectory{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	_, err := service.GenerateManifest(t.Context(), &q)
+	require.ErrorContains(t, err, "resolves outside repository root")
+}
+
+// A non-terminating virtual file like /dev/zero must be rejected before it
+// is read: go-jsonnet's FileImporter reads the whole file into memory
+// unconditionally, so validating only after that read would let an import
+// of /dev/zero hang and exhaust repo-server memory rather than error out.
+func TestGenerateJsonnetImportDeviceFileOutsideRepoRoot(t *testing.T) {
+	service := newService(t, ".")
+
+	q := apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			Path:      "./testdata/jsonnet-import-device-outside",
+			Directory: &v1alpha1.ApplicationSourceDirectory{},
+		},
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := service.GenerateManifest(t.Context(), &q)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		require.ErrorContains(t, err, "resolves outside repository root")
+	case <-time.After(10 * time.Second):
+		t.Fatal("GenerateManifest did not return: import of /dev/zero must be rejected before it is read")
+	}
 }
 
 func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
@@ -3280,12 +3397,16 @@ func Test_findManifests(t *testing.T) {
 	})
 
 	t.Run("jsonnet isn't counted against size limit", func(t *testing.T) {
+		// repoRoot must be absolute: the jsonnet importer confines resolved imports to repoRoot.
+		repoRoot, err := filepath.Abs("./testdata/jsonnet-and-json")
+		require.NoError(t, err)
+
 		// Each file is 36 bytes. Only the 36-byte json file should be counted against the limit.
-		manifests, err := findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, nil, resource.MustParse("36"))
+		manifests, err := findManifests(logCtx, repoRoot, repoRoot, nil, noRecurse, nil, resource.MustParse("36"))
 		assert.Len(t, manifests, 2)
 		require.NoError(t, err)
 
-		manifests, err = findManifests(logCtx, "./testdata/jsonnet-and-json", "./testdata/jsonnet-and-json", nil, noRecurse, nil, resource.MustParse("35"))
+		manifests, err = findManifests(logCtx, repoRoot, repoRoot, nil, noRecurse, nil, resource.MustParse("35"))
 		assert.Empty(t, manifests)
 		assert.ErrorIs(t, err, ErrExceededMaxCombinedManifestFileSize)
 	})
@@ -3876,6 +3997,74 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				expMsg := fmt.Sprintf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q", refName, refTargetRevision2, refSha, targetRevision, sha)
 				require.Error(t, err)
 				require.ErrorContains(t, err, expMsg)
+			},
+		},
+		{
+			name: "same_repo_same_revision_reuses_commit_sha",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				query := queryTemplate
+				query.Source = query.Source.DeepCopy()
+				query.Source.TargetRevision = targetRevision
+				query.RefSources = map[string]*v1alpha1.RefTarget{
+					refName: {
+						Repo: v1alpha1.Repository{
+							Type: "git",
+							Repo: repoURL,
+						},
+						TargetRevision: targetRevision,
+					},
+				}
+				return query
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(repoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(repoURL).Return(refRoot)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(mock.Anything, sha).Return(true)
+				client.EXPECT().Checkout(mock.Anything, sha, false, true).Return("", nil)
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
+			},
+		},
+		{
+			name: "same_repo_empty_source_revision_falls_back_to_revision_arg",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				query := queryTemplate
+				query.RefSources = map[string]*v1alpha1.RefTarget{
+					refName: {
+						Repo: v1alpha1.Repository{
+							Type: "git",
+							Repo: repoURL,
+						},
+						TargetRevision: targetRevision,
+					},
+				}
+				return query
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(repoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(repoURL).Return(refRoot)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(mock.Anything, sha).Return(true)
+				client.EXPECT().Checkout(mock.Anything, sha, false, true).Return("", nil)
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
 			},
 		},
 		{
@@ -5699,6 +5888,45 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 			Revision: "632039659e542ed7de0c170a4fcc1c571b288fc0",
 			Changes:  false,
 		}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
+			ExternalRenames: 0,
+			ExternalGets:    0,
+			ExternalSets:    0,
+		}},
+		{name: "UntypedHelmSingleSourceShortCircuits", fields: func() fields {
+			// Regression test for issue #29388: a single source application with an
+			// untyped Helm chart source (Type is empty, no ref sources at all) and the
+			// manifest-generate-paths annotation must not be treated as git. Before the
+			// fix, Normalize defaulted the empty type to git and the chart version was
+			// resolved as a git revision against the Helm repository URL, failing with
+			// "unable to resolve git revision : failed to list refs: repository not
+			// found". The mocks below make any git resolution fail so that the test only
+			// passes when the git path is skipped entirely.
+			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+				gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("failed to list refs: repository not found"))
+				gitClient.EXPECT().Root().Return("")
+				paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+				paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+			}, ".")
+			return fields{
+				service: s,
+				cache:   c,
+			}
+		}(), args: args{
+			ctx: t.Context(),
+			request: &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: "https://charts.example.com"},
+				Revision:          "1.2.3",
+				SyncedRevision:    "1.2.2",
+				Paths:             []string{"."},
+				AppLabelKey:       "app.kubernetes.io/name",
+				AppName:           "untyped-helm-single-source",
+				Namespace:         "default",
+				TrackingMethod:    "annotation+label",
+				ApplicationSource: &v1alpha1.ApplicationSource{Chart: "my-chart", Helm: &v1alpha1.ApplicationSourceHelm{ReleaseName: "test"}},
+				KubeVersion:       "v1.16.0",
+			},
+		}, want: &apiclient.UpdateRevisionForPathsResponse{}, wantErr: assert.NoError, cacheCallCount: &repositorymocks.CacheCallCounts{
 			ExternalRenames: 0,
 			ExternalGets:    0,
 			ExternalSets:    0,

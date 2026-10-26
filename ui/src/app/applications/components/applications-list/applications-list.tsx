@@ -24,8 +24,8 @@ import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {appProject, countByProject, ProjectGrouping} from './project-groups';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
-import {useQuery, useObservableQuery} from '../../../shared/hooks/query';
-import {isInvalidRegex, queryParamsChanged} from '../../../shared/utils';
+import {useSearchParams, useObservableQuery} from '../../../shared/hooks/query';
+import {isInvalidRegex} from '../../../shared/utils';
 
 import './applications-list.scss';
 
@@ -356,7 +356,7 @@ const useViewPreferences = (): ViewPreferences | undefined => {
 };
 
 export const ApplicationsList = (props: RouteComponentProps<any>) => {
-    const query = useQuery();
+    const query = useSearchParams();
     const observableQuery$ = useObservableQuery();
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
@@ -405,10 +405,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
         // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
         // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
         // once the cap is hit, so only navigate when the query string actually changes.
-        if (!queryParamsChanged(window.location.search, params)) {
-            return;
-        }
-        ctx.navigation.goto('.', params, {replace: true});
+        ctx.navigation.goto('.', params, {replace: true, skipIfUnchanged: true});
     }
 
     function getPageTitle(view: string) {
