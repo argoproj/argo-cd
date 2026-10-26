@@ -136,7 +136,10 @@ type RepoServerInitConstants struct {
 	HelmChartCacheExpiration                     time.Duration // Cache expiration for repo
 }
 
-var manifestGenerateLock = sync.NewKeyLock()
+var (
+	manifestGenerateLock    = sync.NewKeyLock()
+	syncedRevisionFetchLock = sync.NewKeyLock()
+)
 
 // NewService returns a new instance of the Manifest service
 func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initConstants RepoServerInitConstants, gitCredsStore git.CredsStore, rootDir string) *Service {
@@ -3478,8 +3481,16 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		}
 		defer utilio.Close(closer)
 
-		if err := s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth); err != nil {
-			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+		// Concurrent holders of the shared lock above may all miss syncedRevision; parallel shallow
+		// fetches into one repo fail on .git/shallow.lock. Later holders find it present and skip.
+		// Checked before locking so callers don't queue when it is already present.
+		if !gitClient.IsRevisionPresent(ctx, syncedRevision) {
+			syncedRevisionFetchLock.Lock(gitClient.Root())
+			err = s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth)
+			syncedRevisionFetchLock.Unlock(gitClient.Root())
+			if err != nil {
+				return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+			}
 		}
 
 		files, err = gitClient.ChangedFiles(ctx, syncedRevision, revision)
