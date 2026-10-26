@@ -2248,11 +2248,9 @@ func TestGetRepoObjs_CallUpdateRevisionForPaths_ForShallowClone(t *testing.T) {
 	}
 
 	repoSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "shallow-repo",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
-		},
+		Name:      "shallow-repo",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
 		Data: map[string][]byte{
 			"type":  []byte("git"),
 			"url":   []byte(app.Spec.GetSource().RepoURL),
