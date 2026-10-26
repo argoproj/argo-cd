@@ -6,14 +6,14 @@ import {DataLoader, EmptyState, ErrorNotification, IconColumn, Page, Paginate, S
 import {Context} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {useQuery} from '../../../shared/hooks/query';
+import {useSearchParams} from '../../../shared/hooks/query';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 
 export function ProjectsList() {
     const formApiRef = React.useRef<FormApi | null>(null);
     const ctx = React.useContext(Context);
-    const query = useQuery();
+    const query = useSearchParams();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
 
