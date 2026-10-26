@@ -2076,8 +2076,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 		}),
 	}
-	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster. If omitted, syncPolicy.manualDefaults.dryRun is used")
-	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources. If omitted, syncPolicy.manualDefaults.prune is used")
+	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster. If omitted, syncPolicy.manualDefaults.dryRun is used when manualDefaults is set; otherwise false")
+	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources. If omitted, syncPolicy.manualDefaults.prune is used when manualDefaults is set; otherwise false")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")

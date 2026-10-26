@@ -46,7 +46,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --apply-out-of-sync-only                            Sync only out-of-sync resources
       --assumeYes                                         Assume yes as answer for all user queries or prompts
       --async                                             Do not wait for application to sync before continuing
-      --dry-run                                           Preview apply without affecting cluster. If omitted, syncPolicy.manualDefaults.dryRun is used
+      --dry-run                                           Preview apply without affecting cluster. If omitted, syncPolicy.manualDefaults.dryRun is used when manualDefaults is set; otherwise false
       --force                                             Use a force apply. If omitted while --strategy is set, syncPolicy.manualDefaults.force is used; if both are omitted, the server applies manualDefaults
   -h, --help                                              help for sync
       --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
@@ -57,7 +57,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
   -o, --output string                                     Output format. One of: json|yaml|wide|tree|tree=detailed (default "wide")
       --preview-changes                                   Preview difference against the target and live state before syncing app and wait for user confirmation
       --project stringArray                               Sync apps that belong to the specified projects. This option may be specified repeatedly.
-      --prune                                             Allow deleting unexpected resources. If omitted, syncPolicy.manualDefaults.prune is used
+      --prune                                             Allow deleting unexpected resources. If omitted, syncPolicy.manualDefaults.prune is used when manualDefaults is set; otherwise false
       --replace                                           Use a kubectl create/replace instead apply
       --resource stringArray                              Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
       --retry-backoff-duration duration                   Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
