@@ -2013,8 +2013,8 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "config", "--file=.gitmodules", "submodule.bar.url", bar+"baz")
 	require.NoError(t, err)
 
-	// Call Submodule()
-	err = client.Submodule(t.Context())
+	// Call submodule()
+	err = client.(*nativeGitClient).submodule(t.Context())
 	require.NoError(t, err)
 
 	// Check if the URL change in .gitmodule is reflected in .git/config
