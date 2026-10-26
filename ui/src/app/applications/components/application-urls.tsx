@@ -18,7 +18,8 @@ export class ExternalLink {
         // A raw URL may contain pipe characters in its path (for example, an
         // Ingress path using a regular expression). Only interpret a pipe as
         // the title/URL separator when the complete value is not itself a URL.
-        const parts = isValidURL(url) ? [url] : url.split('|');
+        const isAbsoluteHttpUrl = /^https?:\/\//i.test(url);
+        const parts = isAbsoluteHttpUrl ? [url] : url.split('|');
         if (parts.length === 2) {
             this.title = parts[0];
             this.ref = parts[1];
