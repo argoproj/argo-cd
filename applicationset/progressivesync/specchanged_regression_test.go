@@ -2,11 +2,14 @@ package progressivesync
 
 import (
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -190,6 +193,61 @@ func TestSpecChangedKeepsWaitingWhenLiveAppStillSynced(t *testing.T) {
 	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
 		"a spec change detected in this pass must stay Waiting even though the live app "+
 			"is Synced and Healthy for the old spec: %s", statuses[0].Message)
+	assert.Contains(t, statuses[0].Message, "spec differs")
+}
+
+// A spec change detected while the previous progressive status is Progressing must also
+// stay Waiting: the current-revision progress evaluation must not promote the app to
+// Healthy off the live app's Synced/Healthy state, which still describes the old spec.
+func TestSpecChangedKeepsWaitingFromProgressing(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	appSet.Status.ApplicationStatus[0].Status = argov1alpha1.ProgressiveSyncProgressing
+	live := regressionApp("refs/heads/does-not-exist", new(false))
+	live.Status.Sync.Status = argov1alpha1.SyncStatusCodeSynced
+	desired := regressionApp("HEAD", new(false))
+
+	m := regressionManager(t, &appSet)
+	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+		map[string]int{"storm-a": 0})
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
+		"a spec change detected in this pass must stay Waiting even when the previous status "+
+			"is Progressing and the live app is Synced and Healthy for the old spec: %s", statuses[0].Message)
+	assert.Contains(t, statuses[0].Message, "spec differs")
+}
+
+// A spec change detected while the previous progressive status is Pending must also stay
+// Waiting: a sync operation that started after the Pending transition belongs to the old
+// spec, so it must not move the app to Progressing before the new spec has been synced.
+func TestSpecChangedKeepsWaitingFromPending(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	transitioned := metav1.NewTime(time.Now().Add(-time.Hour))
+	appSet.Status.ApplicationStatus[0].Status = argov1alpha1.ProgressiveSyncPending
+	appSet.Status.ApplicationStatus[0].LastTransitionTime = &transitioned
+	live := regressionApp("refs/heads/does-not-exist", new(false))
+	live.Status.OperationState = &argov1alpha1.OperationState{
+		Phase:     synccommon.OperationRunning,
+		StartedAt: metav1.NewTime(time.Now().Add(-time.Minute)),
+	}
+	desired := regressionApp("HEAD", new(false))
+
+	m := regressionManager(t, &appSet)
+	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+		map[string]int{"storm-a": 0})
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
+		"a spec change detected in this pass must stay Waiting even when the previous status "+
+			"is Pending and a sync of the old spec has started: %s", statuses[0].Message)
 	assert.Contains(t, statuses[0].Message, "spec differs")
 }
 

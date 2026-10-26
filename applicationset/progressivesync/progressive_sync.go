@@ -527,8 +527,10 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 					newAppStatus.Message = "Application resource has synced, updating status to Progressing"
 				}
 			}
-		} else {
-			// The target revision is the same, so we need to evaluate the current revision progress
+		} else if !specChanged {
+			// The target revision is the same, so we need to evaluate the current revision progress.
+			// Skipped when a spec change was detected in this pass: the progress below is
+			// evaluated against the old spec and must not override the Waiting status above.
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {
 				// No need to evaluate status health further if the application did not change since our last transition
 				if app.Status.ReconciledAt == nil || (newAppStatus.LastTransitionTime != nil && app.Status.ReconciledAt.After(newAppStatus.LastTransitionTime.Time)) {
