@@ -42,14 +42,15 @@ function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
-// When pods are grouped into their parent's pod group (compact view), a Pod is not
+// When pods are grouped into their parent's pod group (compact view), a grouped Pod is not
 // rendered as its own node. Resources owned by such a Pod (e.g. LeaderWorkerSet worker
-// StatefulSets, which are owned by the leader Pod) would otherwise be unreachable, so
-// attach them to the Pod's own parent instead.
-export function getEffectiveParentKey(parent: ResourceTreeNode, nodeByKey: Map<string, ResourceTreeNode>, showCompactNodes: boolean): string {
+// StatefulSets, which are owned by the leader Pod) would otherwise be unreachable, so attach
+// them to the nearest ancestor that is rendered. isGroupedPod must match the rule the tree
+// uses to fold a Pod into its parent's pod group.
+export function getEffectiveParentKey(parent: ResourceTreeNode, nodeByKey: Map<string, ResourceTreeNode>, isGroupedPod: (node: ResourceTreeNode) => boolean): string {
     let current = parent;
     const seen = new Set<string>();
-    while (showCompactNodes && current?.kind === 'Pod' && (current.parentRefs || []).length > 0) {
+    while (current && isGroupedPod(current)) {
         const key = treeNodeKey(current);
         if (seen.has(key)) {
             break;
@@ -1310,6 +1311,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
               ? new Set((props.app as models.ApplicationSet).status.resources.map(nodeKey))
               : new Set<string>();
         const orphanedKeys = isApp(props.app) ? new Set(props.tree.orphanedNodes?.map(nodeKey)) : new Set<string>();
+        // A Pod is folded into its parent's pod group only in compact view, when it has a parent and
+        // is not a managed (root) resource. Such Pods are not rendered as their own nodes.
+        const isGroupedPod = (n: ResourceTreeNode) => props.showCompactNodes && n.kind === 'Pod' && (n.parentRefs || []).length > 0 && !managedKeys.has(nodeKey(n));
         const orphans: ResourceTreeNode[] = [];
         let allChildNodes: ResourceTreeNode[] = [];
         nodesHavingChildren.set(appNode.uid, 1);
@@ -1324,7 +1328,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                     }
                     node.parentRefs.forEach(parent => {
                         const parentNode = nodeByKey.get(treeNodeKey(parent));
-                        const parentId = parentNode && node.kind !== 'Pod' ? getEffectiveParentKey(parentNode, nodeByKey, props.showCompactNodes) : treeNodeKey(parent);
+                        const parentId = parentNode && node.kind !== 'Pod' ? getEffectiveParentKey(parentNode, nodeByKey, isGroupedPod) : treeNodeKey(parent);
                         const children = childrenByParentKey.get(parentId) || [];
                         if (nodesHavingChildren.has(parentId)) {
                             nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
