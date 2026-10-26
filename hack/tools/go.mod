@@ -29,7 +29,6 @@ require (
 	github.com/go-openapi/strfmt v0.20.3 // indirect
 	github.com/go-openapi/swag v0.23.0 // indirect
 	github.com/go-openapi/validate v0.20.3 // indirect
-	github.com/go-stack/stack v1.8.1 // indirect
 	github.com/go-swagger/go-swagger v0.28.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.5.0 // indirect
 	github.com/gobuffalo/flect v1.0.3 // indirect
@@ -80,7 +79,7 @@ require (
 	github.com/xeipuuv/gojsonpointer v0.0.0-20190905194746-02993c407bfb // indirect
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
-	go.mongodb.org/mongo-driver v1.7.3 // indirect
+	go.mongodb.org/mongo-driver v1.17.7 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp v0.0.0-20260212183809-81e46e3db34a // indirect
 	golang.org/x/mod v0.41.0 // indirect
