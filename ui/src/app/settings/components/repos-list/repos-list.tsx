@@ -1126,10 +1126,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
-                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
-                                                </div>
+                                                {formApi.getFormState().values.write === false && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                        <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {method === ConnectionMethod.HTTPS && (
@@ -1306,10 +1308,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
-                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
-                                                </div>
+                                                {formApi.getFormState().values.write === false && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                        <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {method === ConnectionMethod.GOOGLECLOUD && (
@@ -1330,10 +1334,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
-                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
-                                                </div>
+                                                {formApi.getFormState().values.write === false && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                        <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {method === ConnectionMethod.AZURESERVICEPRINCIPAL && (
