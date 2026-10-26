@@ -203,6 +203,27 @@ func TestFormatConditions(t *testing.T) {
 			conditions: nil,
 			expected:   "[]",
 		},
+ 		{
+ 			name:       "no conditions",
+ 			conditions: nil,
+ 			expected:   "[]",
+ 		},
+		{
+			name: "filters false conditions",
+			conditions: []v1alpha1.ApplicationSetCondition{
+				{
+					Type:   v1alpha1.ApplicationSetConditionErrorOccurred,
+					Status: v1alpha1.ApplicationSetConditionStatusFalse,
+				},
+				{
+					Type:   v1alpha1.ApplicationSetConditionResourcesUpToDate,
+					Status: v1alpha1.ApplicationSetConditionStatusTrue,
+				},
+			},
+			expected: "[{ResourcesUpToDate  <nil> True  0}]",
+		},
+ 		{
+ 			name: "condition with only a type set",
 		{
 			name: "condition with only a type set",
 			conditions: []v1alpha1.ApplicationSetCondition{
