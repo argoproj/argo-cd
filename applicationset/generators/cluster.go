@@ -125,6 +125,28 @@ func (p *paramHolder) consolidate() []map[string]any {
 	return p.params
 }
 
+// excludedClusterAnnotations are written onto cluster Secrets by Argo CD or kubectl as their
+// own state, or are one-shot Application triggers. Copied into a generated Application they
+// cause loops (e.g. the cache-invalidation timestamp in argocd.argoproj.io/refresh) or leak
+// the Secret's data (last-applied-configuration), so they are not exposed as parameters.
+var excludedClusterAnnotations = map[string]bool{
+	argoappsetv1alpha1.AnnotationKeyRefresh: true,
+	argoappsetv1alpha1.AnnotationKeyHydrate: true,
+	common.AnnotationKeyAppInstance:         true,
+	common.AnnotationInstallationID:         true,
+	corev1.LastAppliedConfigAnnotation:      true,
+}
+
+func clusterAnnotationParams(annotations map[string]string) map[string]string {
+	params := make(map[string]string, len(annotations))
+	for key, value := range annotations {
+		if !excludedClusterAnnotations[key] {
+			params[key] = value
+		}
+	}
+	return params
+}
+
 func (g *ClusterGenerator) getClusterParameters(cluster corev1.Secret, appSet *argoappsetv1alpha1.ApplicationSet) map[string]any {
 	params := map[string]any{}
 
@@ -139,11 +161,13 @@ func (g *ClusterGenerator) getClusterParameters(cluster corev1.Secret, appSet *a
 		params["project"] = ""
 	}
 
+	annotations := clusterAnnotationParams(cluster.Annotations)
 	if appSet.Spec.GoTemplate {
 		meta := map[string]any{}
 
+		// Gate on the unfiltered map so the key exists whenever it did before filtering.
 		if len(cluster.Annotations) > 0 {
-			meta["annotations"] = cluster.Annotations
+			meta["annotations"] = annotations
 		}
 		if len(cluster.Labels) > 0 {
 			meta["labels"] = cluster.Labels
@@ -151,7 +175,7 @@ func (g *ClusterGenerator) getClusterParameters(cluster corev1.Secret, appSet *a
 
 		params["metadata"] = meta
 	} else {
-		for key, value := range cluster.Annotations {
+		for key, value := range annotations {
 			params["metadata.annotations."+key] = value
 		}
 
