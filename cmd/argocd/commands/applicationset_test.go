@@ -222,8 +222,6 @@ func TestFormatConditions(t *testing.T) {
 			},
 			expected: "[{ResourcesUpToDate  <nil> True  0}]",
 		},
- 		{
- 			name: "condition with only a type set",
 		{
 			name: "condition with only a type set",
 			conditions: []v1alpha1.ApplicationSetCondition{
