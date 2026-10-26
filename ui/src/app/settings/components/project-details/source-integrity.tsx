@@ -1,8 +1,10 @@
 import * as React from 'react';
-import {DataLoader, EditablePanel} from '../../../shared/components';
+import {EditablePanel} from '../../../shared/components';
 import {helpTip} from '../../../applications/components/utils';
-import {GnuPGPublicKey, Project, ProjectSignatureKey, ProjectSourceIntegrity, SourceIntegrityGit} from '../../../shared/models';
-import {AutocompleteField, FormField} from 'argo-ui';
+import {Project, ProjectSourceIntegrity, SourceIntegrityGit} from '../../../shared/models';
+import {AutocompleteField, FormApi, FormField} from 'argo-ui';
+import {useQuery} from '@tanstack/react-query';
+import {gpgkeyQueries} from '../../../shared/queries';
 
 require('./source-integrity.scss');
 
@@ -23,20 +25,12 @@ const SOURCE_INTEGRITY_SECTIONS: SourceIntegritySection<ProjectSourceIntegrity>[
     // Add other sections here as new source integrity types are added
 ];
 
-export const SourceIntegrityTab = ({
-    proj,
-    loadSignatureKeys,
-    saveProject
-}: {
-    proj: Project;
-    loadSignatureKeys: () => Promise<GnuPGPublicKey[]>;
-    saveProject: (proj: Project) => Promise<void>;
-}) => (
+export const SourceIntegrityTab = ({proj, saveProject}: {proj: Project; saveProject: (proj: Project) => Promise<void>}) => (
     <>
         <SourceIntegrityInfoBanner />
         <div className='argo-container source-integrity-tab-container'>
             <SourceIntegrityPanel proj={proj} />
-            <LegacyGPGSignatureKeysPanel proj={proj} saveProject={saveProject} loadSignatureKeys={loadSignatureKeys} />
+            <LegacyGPGSignatureKeysPanel proj={proj} saveProject={saveProject} />
         </div>
     </>
 );
@@ -77,15 +71,7 @@ const SourceIntegrityContent = ({sourceIntegrity}: {sourceIntegrity?: ProjectSou
     return configuredSections.map(section => <section.View key={section.key} {...section.getProps(sourceIntegrity)} />);
 };
 
-const LegacyGPGSignatureKeysPanel = ({
-    proj,
-    saveProject,
-    loadSignatureKeys
-}: {
-    proj: Project;
-    saveProject: (proj: Project) => Promise<void>;
-    loadSignatureKeys: () => Promise<GnuPGPublicKey[]>;
-}) => {
+const LegacyGPGSignatureKeysPanel = ({proj, saveProject}: {proj: Project; saveProject: (proj: Project) => Promise<void>}) => {
     const deprecatedFeatureMessage = 'This feature is deprecated, migrate to Source Integrity instead.';
 
     return (
@@ -109,42 +95,37 @@ const LegacyGPGSignatureKeysPanel = ({
                     )}
                 </React.Fragment>
             }
-            edit={formApi => (
-                <DataLoader load={loadSignatureKeys}>
-                    {(keys: GnuPGPublicKey[]) => (
-                        <React.Fragment>
-                            <p>{deprecatedFeatureMessage}</p>
-                            {(formApi.values.spec.signatureKeys || []).map((_: ProjectSignatureKey, i: number) => (
-                                <div className='row white-box__details-row' key={i}>
-                                    <div className='columns small-12'>
-                                        <FormField
-                                            formApi={formApi}
-                                            field={`spec.signatureKeys[${i}].keyID`}
-                                            component={AutocompleteField}
-                                            componentProps={{items: keys.map(key => key.keyID)}}
-                                        />
-                                    </div>
-                                    <i className='fa fa-times' onClick={() => formApi.setValue('spec.signatureKeys', removeEl(formApi.values.spec.signatureKeys, i))} />
-                                </div>
-                            ))}
-                            <button
-                                className='argo-button argo-button--short'
-                                onClick={() =>
-                                    formApi.setValue(
-                                        'spec.signatureKeys',
-                                        (formApi.values.spec.signatureKeys || []).concat({
-                                            keyID: ''
-                                        })
-                                    )
-                                }>
-                                ADD KEY
-                            </button>
-                        </React.Fragment>
-                    )}
-                </DataLoader>
-            )}
+            edit={formApi => <SignatureKeysEdit formApi={formApi} />}
             items={[]}
         />
+    );
+};
+
+const SignatureKeysEdit = ({formApi}: {formApi: FormApi}) => {
+    const {data: keys = []} = useQuery(gpgkeyQueries.list());
+    return (
+        <React.Fragment>
+            {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
+                <div className='row white-box__details-row' key={i}>
+                    <div className='columns small-12'>
+                        <FormField formApi={formApi} field={`spec.signatureKeys[${i}].keyID`} component={AutocompleteField} componentProps={{items: keys.map(key => key.keyID)}} />
+                    </div>
+                    <i className='fa fa-times' onClick={() => formApi.setValue('spec.signatureKeys', removeEl(formApi.values.spec.signatureKeys, i))} />
+                </div>
+            ))}
+            <button
+                className='argo-button argo-button--short'
+                onClick={() =>
+                    formApi.setValue(
+                        'spec.signatureKeys',
+                        (formApi.values.spec.signatureKeys || []).concat({
+                            keyID: ''
+                        })
+                    )
+                }>
+                ADD KEY
+            </button>
+        </React.Fragment>
     );
 };
 
