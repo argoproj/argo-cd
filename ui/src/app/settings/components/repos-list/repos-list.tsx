@@ -2,7 +2,7 @@ import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, Notifi
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
-import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'argo-ui';
+import {Form, FormValues, FormApi, Text, TextArea, FormErrors, ReactForm} from 'argo-ui';
 import {Context} from '../../../shared/context';
 import {
     ActionMenu,
@@ -1081,7 +1081,19 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     feature until you've read its documentation and understand the security implications.
                                                 </p>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Save as write credential' field='write' component={CheckboxField} />
+                                                    <FormField
+                                                        formApi={formApi}
+                                                        label='Save as write credential'
+                                                        field='write'
+                                                        component={ReactForm.Checkbox}
+                                                        componentProps={{
+                                                            onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
+                                                                if (event.currentTarget.checked) {
+                                                                    formApi.setValue('type', 'git');
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
                                                 </div>
                                             </div>
                                         )}
