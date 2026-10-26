@@ -2,6 +2,7 @@ package git
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"crypto/tls"
 	"encoding/csv"
@@ -21,6 +22,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 	"unicode/utf8"
@@ -54,6 +56,18 @@ var (
 	ErrNoNoteFound      = errors.New("no note found")
 	ErrRevisionNotFound = errors.New("revision not found")
 )
+
+// Values returned by CommitSignatureStatus for the GPG signature status code
+// (git's %G? placeholder). The full set is documented under PRETTY FORMATS
+// in git-log(1); only G and U represent good signatures that callers should
+// accept (U = good but unknown trust, expected when the signing key has not
+// been ultimately trusted in the local keyring).
+const (
+	SignatureStatusGood             = "G"
+	SignatureStatusGoodUnknownTrust = "U"
+)
+
+const headRevision = "HEAD"
 
 // builtinGitConfig configuration contains statements that are needed
 // for correct ArgoCD operation. These settings will override any
@@ -138,12 +152,10 @@ type Client interface {
 	FetchSparseBlobs(revision string, paths []string) error
 	ConfigureSparseCheckout(paths []string) error
 	DisableSparseCheckout() error
-	Submodule(ctx context.Context) error
 	Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error)
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(ctx context.Context, path string, enableNewGitFileGlobbing bool) ([]string, error)
-	LsLargeFiles(ctx context.Context) ([]string, error)
 	CommitSHA(ctx context.Context) (string, error)
 	RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error)
 	// Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
@@ -166,13 +178,25 @@ type Client interface {
 	CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error)
 	// RemoveContents removes all files from the given paths in the git repository.
 	RemoveContents(ctx context.Context, paths []string) (string, error)
-	// CommitAndPush commits and pushes changes to the target branch.
-	CommitAndPush(ctx context.Context, branch, message string) (string, error)
+	// Commit stages all changes and creates a single commit. If signingKeyID
+	// is non-empty, the commit is GPG-signed with the given key from the
+	// shared GNUPGHOME (common.GetGnuPGHomePath()); the key's passphrase, if
+	// any, must already be cached in gpg-agent. Returns the git output.
+	Commit(message, signingKeyID string) (string, error)
+	// Push pushes the target branch to origin.
+	Push(branch string) (string, error)
+	// CommitSignatureStatus returns git's signature status code (%G?) and the
+	// long key ID used to sign the given revision (%GK). Used to assert a
+	// freshly created signed commit was produced by the expected key before
+	// pushing. Pass an exact commit SHA so the check is pinned to the commit
+	// being verified. See the SignatureStatus* constants for the values that
+	// indicate a usable signature.
+	CommitSignatureStatus(ctx context.Context, revision string) (status, keyID string, err error)
 	// GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
 	GetCommitNote(ctx context.Context, sha string, namespace string) (string, error)
 	// AddAndPushNote adds a note to a DRY sha and then pushes it.
 	AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error
-	// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+	// HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 	HasFileChanged(ctx context.Context, filePath string) (bool, error)
 }
 
@@ -209,11 +233,16 @@ type nativeGitClient struct {
 	// tagPrefix filters git tags to only those with this prefix when resolving semver constraints.
 	// The prefix is stripped before comparison and re-added to the resolved tag name.
 	tagPrefix string
+	// optimizedLsRemoteEnabled uses native git ls-remote with server-side ref narrowing when possible.
+	optimizedLsRemoteEnabled bool
 }
 
 type runOpts struct {
 	SkipErrorLogging bool
 	CaptureStderr    bool
+	Dir              string
+	Redactor         func(string) string
+	StderrWriter     io.Writer
 }
 
 var (
@@ -280,6 +309,13 @@ func WithTagPrefix(prefix string) ClientOpts {
 	}
 }
 
+// WithOptimizedLsRemote enables native Git ref resolution for HEAD, branches, and tags.
+func WithOptimizedLsRemote(enabled bool) ClientOpts {
+	return func(c *nativeGitClient) {
+		c.optimizedLsRemoteEnabled = enabled
+	}
+}
+
 func NewClient(rawRepoURL string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...ClientOpts) (Client, error) {
 	r := regexp.MustCompile(`([/:])`)
 	normalizedGitURL := NormalizeGitURL(rawRepoURL)
@@ -311,6 +347,14 @@ func NewClientExt(rawRepoURL string, root string, creds Creds, insecure bool, en
 }
 
 var gitClientTimeout = env.ParseDurationFromEnv("ARGOCD_GIT_REQUEST_TIMEOUT", 15*time.Second, 0, math.MaxInt64)
+
+func newGitRequestContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+	// Match http.Client semantics: a zero timeout means no timeout.
+	if timeout == 0 {
+		return context.WithCancel(context.Background())
+	}
+	return context.WithTimeout(context.Background(), timeout)
+}
 
 // gitCleanupGracePeriod is the minimum age a temporary pack file must reach
 // before cleanupOrphanedTempPackfiles will remove it. A fetch is killed at
@@ -740,7 +784,7 @@ func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int6
 	// When we have LFS support enabled, check for large files and fetch them too.
 	// Note: LFS and partial clone don't work well together, so we skip LFS fetch when using partial clone
 	if m.IsLFSEnabled() && !usePartialClone {
-		largeFiles, err := m.LsLargeFiles(ctx)
+		largeFiles, err := m.lsLargeFiles(ctx)
 		if err == nil && len(largeFiles) > 0 {
 			err = m.runCredentialedCmd(ctx, "lfs", "fetch", "--all")
 			if err != nil {
@@ -922,7 +966,7 @@ func (m *nativeGitClient) LsFiles(ctx context.Context, path string, enableNewGit
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
-func (m *nativeGitClient) LsLargeFiles(ctx context.Context) ([]string, error) {
+func (m *nativeGitClient) lsLargeFiles(ctx context.Context) ([]string, error) {
 	out, err := m.runCmd(ctx, "lfs", "ls-files", "-n")
 	if err != nil {
 		return nil, err
@@ -932,7 +976,7 @@ func (m *nativeGitClient) LsLargeFiles(ctx context.Context) ([]string, error) {
 }
 
 // Submodule embed other repositories into this repository
-func (m *nativeGitClient) Submodule(ctx context.Context) error {
+func (m *nativeGitClient) submodule(ctx context.Context) error {
 	if err := m.runCredentialedCmd(ctx, "submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
@@ -955,13 +999,13 @@ func (m *nativeGitClient) isPartialClone() bool {
 // we don't mint OAuth/JWT tokens (GitHub App, GCP, Azure WorkloadIdentity) on
 // every checkout — a no-op that adds latency and consumes provider rate limits.
 func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error) {
-	if revision == "" || revision == "HEAD" {
+	if revision == "" || revision == headRevision {
 		revision = "origin/HEAD"
 	}
 	var out string
 	var err error
 	if m.isPartialClone() {
-		out, err = m.runCredentialedCmdWithOutput(ctx, "checkout", "--force", revision)
+		out, err = m.runCredentialedCmdOutput(ctx, runOpts{}, "checkout", "--force", revision)
 	} else {
 		out, err = m.runCmd(ctx, "checkout", "--force", revision)
 	}
@@ -971,7 +1015,7 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.
 	if m.IsLFSEnabled() {
-		largeFiles, err := m.LsLargeFiles(ctx)
+		largeFiles, err := m.lsLargeFiles(ctx)
 		if err != nil {
 			return "", fmt.Errorf("failed to list LFS files: %w", err)
 		}
@@ -983,7 +1027,7 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled {
-			if err := m.Submodule(ctx); err != nil {
+			if err := m.submodule(ctx); err != nil {
 				return "", fmt.Errorf("failed to update submodules: %w", err)
 			}
 		}
@@ -1001,70 +1045,74 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 	return "", nil
 }
 
-func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
-	myLockUUID, err := uuid.NewRandom()
-	myLockId := ""
-	if err != nil {
-		log.Debug("Error generating git references cache lock id: ", err)
-	} else {
-		myLockId = myLockUUID.String()
-	}
-	// Prevent an additional get call to cache if we know our state isn't stale
-	needsUnlock := true
+func (m *nativeGitClient) getRefsFromCacheOrFetch(cacheKey string, logPrefix string, fetch func() ([]*plumbing.Reference, error)) ([]*plumbing.Reference, error) {
+	needsUnlock := false
 	if m.gitRefCache != nil && m.loadRefFromCache {
-		var res []*plumbing.Reference
-		foundLockId, err := m.gitRefCache.GetOrLockGitReferences(m.repoURL, myLockId, &res)
-		isLockOwner := myLockId == foundLockId
-		if !isLockOwner && err == nil {
-			// Valid value already in cache
-			return res, nil
-		} else if !isLockOwner && err != nil {
-			// Error getting value from cache
-			log.Debugf("Error getting git references from cache: %v", err)
-			return nil, err
-		}
-		// Defer a soft reset of the cache lock, if the value is set this call will be ignored
-		defer func() {
-			if needsUnlock {
-				err := m.gitRefCache.UnlockGitReferences(m.repoURL, myLockId)
-				if err != nil {
-					log.Debugf("Error unlocking git references from cache: %v", err)
-				}
+		myLockUUID, err := uuid.NewRandom()
+		if err != nil {
+			log.Debugf("Error generating %s git references cache lock id, bypassing cache lock: %v", logPrefix, err)
+		} else {
+			myLockID := myLockUUID.String()
+			var res []*plumbing.Reference
+			foundLockID, err := m.gitRefCache.GetOrLockGitReferences(cacheKey, myLockID, &res)
+			isLockOwner := myLockID == foundLockID
+			if !isLockOwner && err == nil {
+				// Valid value already in cache
+				return res, nil
+			} else if !isLockOwner && err != nil {
+				// Error getting value from cache
+				log.Debugf("Error getting %s git references from cache: %v", logPrefix, err)
+				return nil, err
 			}
-		}()
+			needsUnlock = true
+			// Defer a soft reset of the cache lock, if the value is set this call will be ignored
+			defer func() {
+				if needsUnlock {
+					err := m.gitRefCache.UnlockGitReferences(cacheKey, myLockID)
+					if err != nil {
+						log.Debugf("Error unlocking %s git references from cache: %v", logPrefix, err)
+					}
+				}
+			}()
+		}
 	}
 
-	if m.OnLsRemote != nil {
-		done := m.OnLsRemote(m.repoURL)
-		defer done()
-	}
-
-	repo, err := git.Init(memory.NewStorage(), nil)
-	if err != nil {
-		return nil, err
-	}
-	remote, err := repo.CreateRemote(&config.RemoteConfig{
-		Name: git.DefaultRemoteName,
-		URLs: []string{m.repoURL},
-	})
-	if err != nil {
-		return nil, err
-	}
-	auth, err := newAuth(m.repoURL, m.creds)
-	if err != nil {
-		return nil, err
-	}
-	res, err := listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy, m.noProxy)
+	res, err := fetch()
 	if err == nil && m.gitRefCache != nil {
-		if err := m.gitRefCache.SetGitReferences(m.repoURL, res); err != nil {
-			log.Warnf("Failed to store git references to cache: %v", err)
+		if err := m.gitRefCache.SetGitReferences(cacheKey, res); err != nil {
+			log.Warnf("Failed to store %s git references to cache: %v", logPrefix, err)
 		} else {
 			// Since we successfully overwrote the lock with valid data, we don't need to unlock
 			needsUnlock = false
 		}
-		return res, nil
 	}
 	return res, err
+}
+
+func (m *nativeGitClient) getRefs() ([]*plumbing.Reference, error) {
+	return m.getRefsFromCacheOrFetch(m.repoURL, "full", func() ([]*plumbing.Reference, error) {
+		if m.OnLsRemote != nil {
+			done := m.OnLsRemote(m.repoURL)
+			defer done()
+		}
+
+		repo, err := git.Init(memory.NewStorage(), nil)
+		if err != nil {
+			return nil, err
+		}
+		remote, err := repo.CreateRemote(&config.RemoteConfig{
+			Name: git.DefaultRemoteName,
+			URLs: []string{m.repoURL},
+		})
+		if err != nil {
+			return nil, err
+		}
+		auth, err := newAuth(m.repoURL, m.creds)
+		if err != nil {
+			return nil, err
+		}
+		return listRemote(remote, &git.ListOptions{Auth: auth}, m.insecure, m.creds, m.proxy, m.noProxy)
+	})
 }
 
 func (m *nativeGitClient) LsRefs() (*Refs, error) {
@@ -1110,7 +1158,7 @@ func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
 			// Formula: timeToWait = duration * factor^retry_number
 			// Note that timeToWait should equal to duration for the first retry attempt.
 			// When timeToWait is more than maxDuration retry should be performed at maxDuration.
-			timeToWait := float64(retryDuration) * (math.Pow(float64(factor), float64(attempt)))
+			timeToWait := float64(retryDuration) * math.Pow(float64(factor), float64(attempt))
 			if maxRetryDuration > 0 {
 				timeToWait = math.Min(float64(maxRetryDuration), timeToWait)
 			}
@@ -1130,9 +1178,272 @@ func getGitTags(refs []*plumbing.Reference) []string {
 	return tags
 }
 
+func (m *nativeGitClient) optimizedLsRemoteCacheKey() string {
+	return fmt.Sprintf("ls-remote-optimized|%s|HEAD,heads,tags", m.repoURL)
+}
+
+func (m *nativeGitClient) getOptimizedLsRemoteRefs() ([]*plumbing.Reference, error) {
+	return m.getRefsFromCacheOrFetch(m.optimizedLsRemoteCacheKey(), "optimized", func() ([]*plumbing.Reference, error) {
+		if m.OnLsRemote != nil {
+			done := m.OnLsRemote(m.repoURL)
+			defer done()
+		}
+
+		var refs []*plumbing.Reference
+		var refsErr error
+		var headRef *plumbing.Reference
+		var headErr error
+		// Neither remote query depends on the other, so overlap them to avoid
+		// holding the cache lock for the sum of both request durations.
+		var wg sync.WaitGroup
+		wg.Go(func() {
+			refs, refsErr = m.runLsRemote("ls-remote", "--heads", "--tags", "--", m.repoURL)
+		})
+		wg.Go(func() {
+			headRef, headErr = m.runTargetedHeadFetch()
+		})
+		wg.Wait()
+
+		if refsErr != nil {
+			return nil, refsErr
+		}
+		if headErr != nil {
+			// A missing remote HEAD does not prevent branch and tag resolution. Keep
+			// the non-empty narrowed snapshot and represent HEAD by its absence.
+			if errors.Is(headErr, ErrRevisionNotFound) && len(refs) > 0 {
+				return refs, nil
+			}
+			return nil, headErr
+		}
+		return append(refs, headRef), nil
+	})
+}
+
+func (m *nativeGitClient) lsRemoteOptimized(revision string) (string, bool, error) {
+	if !m.optimizedLsRemoteEnabled {
+		return "", false, nil
+	}
+	// The default resolver must see the complete advertisement before treating a
+	// hexadecimal name as a truncated SHA, because it may instead name a ref.
+	if IsTruncatedCommitSHA(revision) {
+		return "", false, nil
+	}
+
+	isHeadRevision := revision == "" || revision == headRevision
+	isCoveredFullRef := false
+	if strings.HasPrefix(revision, "refs/") {
+		refName := plumbing.ReferenceName(revision)
+		if !refName.IsBranch() && !refName.IsTag() {
+			return "", false, nil
+		}
+		isCoveredFullRef = true
+	}
+
+	refs, err := m.getOptimizedLsRemoteRefs()
+	if err != nil {
+		if errors.Is(err, ErrRevisionNotFound) && (isHeadRevision || isCoveredFullRef) {
+			if revision == "" {
+				revision = headRevision
+			}
+			return "", true, fmt.Errorf("unable to resolve '%s' to a commit SHA: %w", revision, ErrRevisionNotFound)
+		}
+		return "", false, err
+	}
+	res, err := m.resolveRevisionWithoutTruncatedSHAFallback(revision, refs)
+	if err != nil {
+		if isHeadRevision {
+			return "", true, err
+		}
+		// Short names can refer to refs outside the narrowed namespaces. Preserve
+		// the full resolver for those cases.
+		if !strings.HasPrefix(revision, "refs/") {
+			return "", false, nil
+		}
+		return "", true, err
+	}
+	return res, true, nil
+}
+
+func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
+	ctx, cancel := newGitRequestContext(gitClientTimeout)
+	defer cancel()
+
+	gitDir, err := os.MkdirTemp("", "argocd-ls-remote-head-")
+	if err != nil {
+		return nil, fmt.Errorf("failed to create temporary Git directory for HEAD resolution: %w", err)
+	}
+	defer func() {
+		if err := os.RemoveAll(gitDir); err != nil {
+			log.Debugf("Failed to remove temporary Git directory for HEAD resolution: %v", err)
+		}
+	}()
+
+	// git ls-remote cannot combine HEAD with --heads and --tags while retaining
+	// protocol v2 server-side narrowing. A dry-run fetch from a fresh bare
+	// repository sends a bounded set of HEAD-related ref-prefix values. Git still
+	// transfers a pack during a dry-run, so depth limits it to the tip commit and
+	// the tree filter omits trees and blobs when the server supports filtering.
+	// This runs inside the shared optimized cache fill, so concurrent callers
+	// produce one bulk query and one HEAD query per cache refresh.
+	initCmd := exec.CommandContext(ctx, "git", "init", "--bare", "--quiet", ".")
+	if _, err := m.runCmdOutput(initCmd, runOpts{Dir: gitDir}); err != nil {
+		return nil, fmt.Errorf("failed to initialize temporary Git directory for HEAD resolution: %w", err)
+	}
+
+	var stderr bytes.Buffer
+	out, err := m.runCredentialedCmdOutput(ctx, runOpts{
+		Dir:          gitDir,
+		Redactor:     repoURLRedactor(m.repoURL),
+		StderrWriter: &stderr,
+	},
+		"--git-dir=.",
+		"-c", "protocol.version=2",
+		"fetch",
+		"--dry-run",
+		"--porcelain",
+		"--no-tags",
+		"--depth=1",
+		"--filter=tree:0",
+		"--",
+		m.repoURL,
+		headRevision,
+	)
+	stderrOutput := stderr.String()
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("targeted Git HEAD query timed out after %s: %w", gitClientTimeout, ctxErr)
+		}
+		if strings.Contains(stderrOutput, "couldn't find remote ref") {
+			return nil, fmt.Errorf("targeted Git HEAD query returned no ref: %w", ErrRevisionNotFound)
+		}
+		return nil, err
+	}
+	if strings.Contains(stderrOutput, "filtering not recognized by server") {
+		log.Warnf("Git server for %s ignored object filtering; targeted HEAD resolution may transfer the full tip tree", SanitizeRepoURL(m.repoURL))
+	}
+	headRef, err := parseTargetedHeadFetchOutput(out)
+	if err != nil {
+		return nil, err
+	}
+
+	// The fetch output contains the tag object hash when HEAD points to an
+	// annotated tag. Peel it to a commit to match the existing go-git resolver.
+	peelCmd := exec.CommandContext(ctx, "git", "--git-dir=.", "rev-parse", "--verify", headRef.Hash().String()+"^{commit}")
+	peeledOutput, err := m.runCmdOutput(peelCmd, runOpts{Dir: gitDir})
+	if err != nil {
+		return nil, fmt.Errorf("failed to peel targeted Git HEAD query result: %w", err)
+	}
+	peeledHash := strings.TrimSpace(peeledOutput)
+	if !plumbing.IsHash(peeledHash) {
+		return nil, fmt.Errorf("targeted Git HEAD query returned malformed peeled hash: %q", peeledHash)
+	}
+	return plumbing.NewHashReference(headRevision, plumbing.NewHash(peeledHash)), nil
+}
+
+func parseTargetedHeadFetchOutput(out string) (*plumbing.Reference, error) {
+	scanner := bufio.NewScanner(strings.NewReader(out))
+	var headRef *plumbing.Reference
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) != 4 || fields[3] != "FETCH_HEAD" || !plumbing.IsHash(fields[2]) {
+			return nil, fmt.Errorf("malformed targeted Git HEAD query line: %q", line)
+		}
+		if headRef != nil {
+			return nil, errors.New("targeted Git HEAD query returned multiple refs")
+		}
+		headRef = plumbing.NewHashReference(headRevision, plumbing.NewHash(fields[2]))
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	if headRef == nil {
+		return nil, fmt.Errorf("targeted Git HEAD query returned no ref: %w", ErrRevisionNotFound)
+	}
+	return headRef, nil
+}
+
+func (m *nativeGitClient) runLsRemote(args ...string) ([]*plumbing.Reference, error) {
+	ctx, cancel := newGitRequestContext(gitClientTimeout)
+	defer cancel()
+
+	// ls-remote does not need a local repository. Disable repository discovery so
+	// config found under the shared temp directory cannot influence the command.
+	args = append([]string{"--git-dir=" + os.DevNull, "-c", "protocol.version=2"}, args...)
+	out, err := m.runCredentialedCmdOutput(ctx, runOpts{Dir: os.TempDir(), Redactor: repoURLRedactor(m.repoURL)}, args...)
+	if err != nil {
+		if ctxErr := ctx.Err(); ctxErr != nil {
+			return nil, fmt.Errorf("git ls-remote timed out after %s: %w", gitClientTimeout, ctxErr)
+		}
+		return nil, err
+	}
+	return parseLsRemoteOutput(out)
+}
+
+func parseLsRemoteOutput(out string) ([]*plumbing.Reference, error) {
+	refsByName := map[plumbing.ReferenceName]*plumbing.Reference{}
+	var orderedNames []plumbing.ReferenceName
+
+	addRef := func(ref *plumbing.Reference) {
+		name := ref.Name()
+		if _, ok := refsByName[name]; !ok {
+			orderedNames = append(orderedNames, name)
+		}
+		refsByName[name] = ref
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(out))
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" {
+			continue
+		}
+		if after, ok := strings.CutPrefix(line, "ref: "); ok {
+			targetName, refName, ok := strings.Cut(after, "\t")
+			if !ok {
+				return nil, fmt.Errorf("malformed ls-remote symbolic ref line: %q", line)
+			}
+			addRef(plumbing.NewSymbolicReference(plumbing.ReferenceName(refName), plumbing.ReferenceName(targetName)))
+			continue
+		}
+
+		hash, refName, ok := strings.Cut(line, "\t")
+		if !ok || !plumbing.IsHash(hash) {
+			return nil, fmt.Errorf("malformed ls-remote ref line: %q", line)
+		}
+		refName = strings.TrimSuffix(refName, "^{}")
+		addRef(plumbing.NewHashReference(plumbing.ReferenceName(refName), plumbing.NewHash(hash)))
+	}
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	refs := make([]*plumbing.Reference, 0, len(orderedNames))
+	for _, name := range orderedNames {
+		refs = append(refs, refsByName[name])
+	}
+	return refs, nil
+}
+
+func repoURLRedactor(repoURL string) func(string) string {
+	sanitizedRepoURL := SanitizeRepoURL(repoURL)
+	return func(text string) string {
+		return strings.ReplaceAll(text, repoURL, sanitizedRepoURL)
+	}
+}
+
 func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	if IsCommitSHA(revision) {
 		return revision, nil
+	}
+
+	if res, handled, err := m.lsRemoteOptimized(revision); handled {
+		return res, err
+	} else if err != nil {
+		log.Debugf("optimized ls-remote failed for revision '%s', falling back to default resolver: %v", revision, err)
 	}
 
 	refs, err := m.getRefs()
@@ -1140,8 +1451,20 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 		return "", fmt.Errorf("failed to list refs: %w", err)
 	}
 
+	return m.resolveRevision(revision, refs)
+}
+
+func (m *nativeGitClient) resolveRevision(revision string, refs []*plumbing.Reference) (string, error) {
+	return m.resolveRevisionWithOptions(revision, refs, true)
+}
+
+func (m *nativeGitClient) resolveRevisionWithoutTruncatedSHAFallback(revision string, refs []*plumbing.Reference) (string, error) {
+	return m.resolveRevisionWithOptions(revision, refs, false)
+}
+
+func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*plumbing.Reference, allowTruncatedSHAFallback bool) (string, error) {
 	if revision == "" {
-		revision = "HEAD"
+		revision = headRevision
 	}
 
 	maxV, err := versions.MaxVersion(revision, getGitTags(refs), m.tagPrefix)
@@ -1188,7 +1511,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 	}
 
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)
-	if IsTruncatedCommitSHA(revision) {
+	if allowTruncatedSHAFallback && IsTruncatedCommitSHA(revision) {
 		log.Debugf("revision '%s' assumed to be commit sha", revision)
 		return revision, nil
 	}
@@ -1200,7 +1523,7 @@ func (m *nativeGitClient) lsRemote(revision string) (string, error) {
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
 func (m *nativeGitClient) CommitSHA(ctx context.Context) (string, error) {
-	out, err := m.runCmd(ctx, "rev-parse", "HEAD")
+	out, err := m.runCmd(ctx, "rev-parse", headRevision)
 	if err != nil {
 		return "", err
 	}
@@ -1523,14 +1846,11 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 
 	// Resolve eventual semantic tag constraint before annotated tag detection
 	if versions.IsConstraint(unresolvedRevision) {
-		refs, err := m.getRefs()
+		resolvedRevision, err := m.resolveSemverRevisionForSignature(ctx, unresolvedRevision)
 		if err != nil {
 			return nil, "", err
 		}
-		unresolvedRevision, err = versions.MaxVersion(unresolvedRevision, getGitTags(refs), m.tagPrefix)
-		if err != nil {
-			return nil, "", err
-		}
+		unresolvedRevision = resolvedRevision
 	}
 
 	// Partial-clone fetches omit --tags, so an annotated-tag revision may have no
@@ -1598,6 +1918,51 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 	}
 
 	return signatures, legacyVerification, nil
+}
+
+func (m *nativeGitClient) resolveSemverRevisionForSignature(ctx context.Context, constraint string) (string, error) {
+	resolve := func(refs []*plumbing.Reference) (string, error) {
+		return versions.MaxVersion(constraint, getGitTags(refs), m.tagPrefix)
+	}
+	validate := func(resolvedRevision string, refs []*plumbing.Reference) (string, error) {
+		resolvedSHA, err := m.resolveRevisionWithoutTruncatedSHAFallback(resolvedRevision, refs)
+		if err != nil {
+			return "", err
+		}
+		checkedOutSHA, err := m.CommitSHA(ctx)
+		if err != nil {
+			return "", fmt.Errorf("failed to read checked out commit while verifying semantic version constraint %q: %w", constraint, err)
+		}
+		if resolvedSHA != checkedOutSHA {
+			return "", fmt.Errorf("semantic version constraint %q resolved to tag %q at %s, but the checked out commit is %s", constraint, resolvedRevision, resolvedSHA, checkedOutSHA)
+		}
+		return resolvedRevision, nil
+	}
+
+	if m.optimizedLsRemoteEnabled {
+		refs, err := m.getOptimizedLsRemoteRefs()
+		if err == nil {
+			resolvedRevision, resolveErr := resolve(refs)
+			if resolveErr == nil {
+				return validate(resolvedRevision, refs)
+			}
+			err = resolveErr
+		}
+		log.Debugf("optimized ls-remote failed to resolve semantic version constraint %q for signature verification, falling back to default resolver: %v", constraint, err)
+	}
+
+	refs, err := m.getRefs()
+	if err != nil {
+		return "", err
+	}
+	resolvedRevision, err := resolve(refs)
+	if err != nil {
+		return "", err
+	}
+	if m.optimizedLsRemoteEnabled {
+		return validate(resolvedRevision, refs)
+	}
+	return resolvedRevision, nil
 }
 
 // newRevisionSignatureInfo builds valid RevisionSignatureInfo
@@ -1846,32 +2211,75 @@ func (m *nativeGitClient) RemoveContents(ctx context.Context, paths []string) (s
 	return "", nil
 }
 
-// CommitAndPush commits and pushes changes to the target branch.
-func (m *nativeGitClient) CommitAndPush(ctx context.Context, branch, message string) (string, error) {
-	out, err := m.runCmd(ctx, "add", ".")
-	if err != nil {
+// Commit stages all changes and creates a single commit. If signingKeyID is
+// non-empty, the commit is GPG-signed with that key from the shared GNUPGHOME;
+// the key's passphrase, if any, must already be cached in gpg-agent so gpg can
+// sign non-interactively.
+func (m *nativeGitClient) Commit(message, signingKeyID string) (string, error) {
+	ctx := context.Background()
+	if out, err := m.runCmd(ctx, "add", "."); err != nil {
 		return out, fmt.Errorf("failed to add files: %w", err)
 	}
 
-	out, err = m.runCmd(ctx, "commit", "-m", message)
-	if err != nil {
-		if strings.Contains(out, "nothing to commit, working tree clean") {
-			return out, nil
+	if signingKeyID == "" {
+		out, err := m.runCmd(ctx, "commit", "-m", message)
+		if err != nil {
+			if strings.Contains(out, "nothing to commit, working tree clean") {
+				return out, nil
+			}
+			return out, fmt.Errorf("failed to commit: %w", err)
 		}
-		return out, fmt.Errorf("failed to commit: %w", err)
+		return out, nil
 	}
 
+	// Signed commit: configure the signing key on this invocation only (no
+	// persistent git config writes) and route through cmdWithGPG so gpg sees
+	// the configured GNUPGHOME.
+	args := []string{
+		"-c", "user.signingkey=" + signingKeyID,
+		"-c", "commit.gpgsign=true",
+		"commit", "-m", message,
+	}
+	cmd := m.cmdWithGPG(ctx, "git", args...)
+	out, err := m.runCmdOutput(cmd, runOpts{})
+	if err != nil {
+		// Unlike the unsigned path we do NOT swallow "nothing to commit": a
+		// signed commit is only requested when we expect a real change, and
+		// silently returning would leave the caller verifying the signature of
+		// a stale HEAD it never created.
+		return out, fmt.Errorf("failed to create signed commit: %w", err)
+	}
+	return out, nil
+}
+
+// Push pushes the target branch to origin.
+func (m *nativeGitClient) Push(branch string) (string, error) {
 	if m.OnPush != nil {
 		done := m.OnPush(m.repoURL)
 		defer done()
 	}
-
-	err = m.runCredentialedCmd(ctx, "push", "origin", branch)
-	if err != nil {
+	if err := m.runCredentialedCmd(context.Background(), "push", "origin", branch); err != nil {
 		return "", fmt.Errorf("failed to push: %w", err)
 	}
-
 	return "", nil
+}
+
+// CommitSignatureStatus returns the GPG signature status code (%G?) and the
+// signing key ID (%GK) for the given revision. Status is "N" (and keyID "")
+// when the commit carries no signature. See man git-log under PRETTY FORMATS
+// for codes; for our purposes "G" (good) and "U" (good but unknown trust) are
+// acceptable and everything else — including "N" — must be rejected.
+func (m *nativeGitClient) CommitSignatureStatus(ctx context.Context, revision string) (string, string, error) {
+	cmd := m.cmdWithGPG(ctx, "git", "log", "-1", "--pretty=format:%G?:%GK", revision, "--")
+	out, err := m.runCmdOutput(cmd, runOpts{})
+	if err != nil {
+		return "", "", fmt.Errorf("failed to read signature status of %q: %w", revision, err)
+	}
+	parts := strings.SplitN(strings.TrimSpace(out), ":", 2)
+	if len(parts) != 2 {
+		return "", "", fmt.Errorf("unexpected signature status output: %q", out)
+	}
+	return parts[0], parts[1], nil
 }
 
 // GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
@@ -1910,6 +2318,7 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 	b.MaxInterval = 1 * time.Second
 
 	attempt := 0
+	permanent := false
 	operation := func() (struct{}, error) {
 		attempt++
 
@@ -1945,6 +2354,7 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 
 		// Check if this is a retryable error
 		if !isRetryableNotePushError(err.Error()) {
+			permanent = true
 			return struct{}{}, backoff.Permanent(fmt.Errorf("failed to push note: %w", err))
 		}
 
@@ -1956,7 +2366,11 @@ func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namesp
 		backoff.WithMaxElapsedTime(5*time.Second),
 	)
 	if err != nil {
-		return fmt.Errorf("failed to push note after retries: %w", err)
+		if permanent {
+			// The operation already prefixed this error; prefixing again would duplicate it.
+			return err
+		}
+		return fmt.Errorf("failed to push note after %d attempts: %w", attempt, err)
 	}
 	return nil
 }
@@ -1975,7 +2389,7 @@ func isRetryableNotePushError(errStr string) bool {
 		strings.Contains(errStr, "cannot lock ref") // Server could not lock the notes ref because a concurrent push from another shard holds it
 }
 
-// HasFileChanged returns the outout of git diff considering whether it is tracked or un-tracked
+// HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (bool, error) {
 	// Step 1: Is it UNTRACKED? (file is new to git)
 	_, err := m.runCmd(ctx, "ls-files", "--error-unmatch", filePath)
@@ -2009,24 +2423,7 @@ func (m *nativeGitClient) runCmd(ctx context.Context, args ...string) (string, e
 	return m.runCmdOutput(cmd, runOpts{})
 }
 
-// runCredentialedCmd is a convenience function to run a git command with username/password credentials
-func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string) error {
-	_, err := m.runCredentialedCmdWithOutput(ctx, args...)
-	return err
-}
-
-// runCredentialedCmdWithOutput runs a git command with credentials and returns the output.
-// This is needed for commands like checkout that may trigger lazy blob fetches in partial
-// clone repos and need credentials to authenticate with the remote.
-func (m *nativeGitClient) runCredentialedCmdWithOutput(ctx context.Context, args ...string) (string, error) {
-	closer, environ, err := m.creds.Environ()
-	if err != nil {
-		return "", err
-	}
-	defer func() { _ = closer.Close() }()
-
-	// If a basic auth header is explicitly set, tell Git to send it to the
-	// server to force use of basic auth instead of negotiating the auth scheme
+func credentialedGitArgs(args []string, environ []string) []string {
 	for _, e := range environ {
 		if strings.HasPrefix(e, forceBasicAuthHeaderEnv+"=") {
 			args = append([]string{"--config-env", "http.extraHeader=" + forceBasicAuthHeaderEnv}, args...)
@@ -2034,14 +2431,13 @@ func (m *nativeGitClient) runCredentialedCmdWithOutput(ctx context.Context, args
 			args = append([]string{"--config-env", "http.extraHeader=" + bearerAuthHeaderEnv}, args...)
 		}
 	}
+	return args
+}
 
-	cmd := exec.CommandContext(ctx, "git", args...)
-	cmd.Env = append(cmd.Env, environ...)
-	output, err := m.runCmdOutput(cmd, runOpts{})
-	if err != nil {
-		return "", humanizeAuthPromptError(m.repoURL, err)
-	}
-	return output, nil
+// runCredentialedCmd is a convenience function to run a git command with username/password credentials
+func (m *nativeGitClient) runCredentialedCmd(ctx context.Context, args ...string) error {
+	_, err := m.runCredentialedCmdOutput(ctx, runOpts{}, args...)
+	return humanizeAuthPromptError(m.repoURL, err)
 }
 
 // gitTerminalPromptDisabledMsg is the substring Git prints when it needs
@@ -2061,8 +2457,42 @@ func humanizeAuthPromptError(repoURL string, err error) error {
 	return fmt.Errorf("failed to authenticate to git repository %q: no credentials matched this URL: %w", SanitizeRepoURL(repoURL), err)
 }
 
+// runCredentialedCmdOutput is a convenience function to run a git command with credentials and return its output.
+func (m *nativeGitClient) runCredentialedCmdOutput(ctx context.Context, ropts runOpts, args ...string) (string, error) {
+	closer, environ, err := m.creds.Environ()
+	if err != nil {
+		return "", err
+	}
+	defer func() { _ = closer.Close() }()
+
+	args = credentialedGitArgs(args, environ)
+
+	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd.Env = append(cmd.Env, environ...)
+	return m.runCmdOutput(cmd, ropts)
+}
+
+// gitCancelGracePeriod is how long a cancelled git command has to exit after
+// SIGTERM before it is killed. It reads ARGOCD_EXEC_FATAL_TIMEOUT, the same
+// env var util/exec uses to bound its own timeout-then-SIGKILL escalation, so
+// one knob governs both. Duplicating the read here instead of sharing an
+// accessor with util/exec is a shortcut; a later layer should clean it up.
+//
+// Unlike util/exec, where ARGOCD_EXEC_FATAL_TIMEOUT=0 intentionally disables
+// the fatal-SIGKILL escalation, a zero result here would become cmd.WaitDelay,
+// which disables os/exec's own bound on waiting for inherited pipes to close.
+// Reject zero (and negative) so it falls back to the default instead of
+// removing the bound entirely.
+func gitCancelGracePeriod() time.Duration {
+	return env.ParseDurationFromEnv("ARGOCD_EXEC_FATAL_TIMEOUT", 10*time.Second, time.Nanosecond, math.MaxInt64)
+}
+
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {
-	cmd.Dir = m.root
+	if ropts.Dir == "" {
+		cmd.Dir = m.root
+	} else {
+		cmd.Dir = ropts.Dir
+	}
 	cmd.Env = append(os.Environ(), cmd.Env...)
 	// Set $HOME to nowhere, so we can execute Git regardless of any external
 	// authentication keys (e.g. in ~/.ssh) -- this is especially important for
@@ -2095,6 +2525,10 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 		}
 	}
 	cmd.Env = proxy.UpsertEnv(cmd, m.proxy, m.noProxy)
+	// On context cancellation, send SIGTERM (not os/exec's default SIGKILL) so git can
+	// remove its lock files; os/exec sends SIGKILL if git is still running after WaitDelay.
+	cmd.Cancel = func() error { return cmd.Process.Signal(syscall.SIGTERM) }
+	cmd.WaitDelay = gitCancelGracePeriod()
 	opts := executil.ExecRunOpts{
 		TimeoutBehavior: executil.TimeoutBehavior{
 			Signal:     syscall.SIGTERM,
@@ -2102,6 +2536,8 @@ func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, er
 		},
 		SkipErrorLogging: ropts.SkipErrorLogging,
 		CaptureStderr:    ropts.CaptureStderr,
+		Redactor:         ropts.Redactor,
+		StderrWriter:     ropts.StderrWriter,
 	}
 	return executil.RunWithExecRunOpts(cmd, opts)
 }

@@ -13,75 +13,77 @@ recent minor releases.
 
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
-| [go.mod](master/argocd-test.html) | 0 | 0 | 1 | 0 |
-| [ui/pnpm-lock.yaml](master/argocd-test.html) | 1 | 2 | 11 | 1 |
-| [dex:v2.45.0](master/ghcr.io_dexidp_dex_v2.45.0.html) | 1 | 4 | 1 | 19 |
-| [haproxy:3.0.8-alpine](master/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 1 | 5 | 1 | 17 |
-| [redis:8.2.3-alpine](master/public.ecr.aws_docker_library_redis_8.2.3-alpine.html) | 1 | 4 | 1 | 19 |
-| [argocd:latest](master/quay.io_argoproj_argocd_latest.html) | 0 | 0 | 16 | 7 |
+| [gitops-engine/go.mod](master/argocd-test.html) | 0 | 1 | 1 | 0 |
+| [go.mod](master/argocd-test.html) | 0 | 1 | 7 | 0 |
+| [ui/package.json](master/argocd-test.html) | 0 | 9 | 7 | 0 |
+| [ui/pnpm-lock.yaml](master/argocd-test.html) | 0 | 0 | 0 | 0 |
+| [dex:v2.46.1](master/ghcr.io_dexidp_dex_v2.46.1.html) | 0 | 1 | 0 | 1 |
+| [haproxy:3.0.8-alpine](master/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 1 | 8 | 4 | 43 |
+| [redis:8.10.2-alpine](master/public.ecr.aws_docker_library_redis_8.10.2-alpine.html) | 0 | 0 | 0 | 0 |
+| [argocd:latest](master/quay.io_argoproj_argocd_latest.html) | 0 | 0 | 45 | 3 |
 | [install.yaml](master/argocd-iac-install.html) | - | - | - | - |
 | [namespace-install.yaml](master/argocd-iac-namespace-install.html) | - | - | - | - |
 
-### v3.5.0-rc2
+### v3.6.0-rc4
 
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
-| [gitops-engine/go.mod](v3.5.0-rc2/argocd-test.html) | 1 | 3 | 1 | 0 |
-| [go.mod](v3.5.0-rc2/argocd-test.html) | 0 | 2 | 2 | 0 |
-| [ui/pnpm-lock.yaml](v3.5.0-rc2/argocd-test.html) | 1 | 2 | 11 | 1 |
-| [dex:v2.45.0](v3.5.0-rc2/ghcr.io_dexidp_dex_v2.45.0.html) | 1 | 4 | 1 | 19 |
-| [haproxy:3.0.8-alpine](v3.5.0-rc2/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 1 | 5 | 1 | 17 |
-| [redis:8.2.3-alpine](v3.5.0-rc2/public.ecr.aws_docker_library_redis_8.2.3-alpine.html) | 1 | 4 | 1 | 19 |
-| [argocd:v3.5.0-rc2](v3.5.0-rc2/quay.io_argoproj_argocd_v3.5.0-rc2.html) | 0 | 0 | 17 | 7 |
-| [install.yaml](v3.5.0-rc2/argocd-iac-install.html) | - | - | - | - |
-| [namespace-install.yaml](v3.5.0-rc2/argocd-iac-namespace-install.html) | - | - | - | - |
+| [gitops-engine/go.mod](v3.6.0-rc4/argocd-test.html) | 0 | 1 | 1 | 0 |
+| [go.mod](v3.6.0-rc4/argocd-test.html) | 0 | 1 | 7 | 0 |
+| [ui/package.json](v3.6.0-rc4/argocd-test.html) | 0 | 9 | 7 | 0 |
+| [ui/pnpm-lock.yaml](v3.6.0-rc4/argocd-test.html) | 0 | 0 | 0 | 0 |
+| [dex:v2.46.0](v3.6.0-rc4/ghcr.io_dexidp_dex_v2.46.0.html) | 0 | 1 | 0 | 1 |
+| [haproxy:3.0.8-alpine](v3.6.0-rc4/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 1 | 8 | 4 | 43 |
+| [redis:8.10.1-alpine](v3.6.0-rc4/public.ecr.aws_docker_library_redis_8.10.1-alpine.html) | 0 | 1 | 0 | 1 |
+| [argocd:v3.6.0-rc4](v3.6.0-rc4/quay.io_argoproj_argocd_v3.6.0-rc4.html) | 0 | 0 | 46 | 3 |
+| [install.yaml](v3.6.0-rc4/argocd-iac-install.html) | - | - | - | - |
+| [namespace-install.yaml](v3.6.0-rc4/argocd-iac-namespace-install.html) | - | - | - | - |
 
-### v3.4.4
-
-|    | Critical | High | Medium | Low |
-|---:|:--------:|:----:|:------:|:---:|
-| [gitops-engine/go.mod](v3.4.4/argocd-test.html) | 1 | 12 | 12 | 0 |
-| [go.mod](v3.4.4/argocd-test.html) | 1 | 22 | 33 | 2 |
-| [hack/get-previous-release/go.mod](v3.4.4/argocd-test.html) | 0 | 0 | 1 | 0 |
-| [ui-test/yarn.lock](v3.4.4/argocd-test.html) | 4 | 15 | 15 | 0 |
-| [ui/pnpm-lock.yaml](v3.4.4/argocd-test.html) | 0 | 0 | 0 | 0 |
-| [ui/yarn.lock](v3.4.4/argocd-test.html) | 0 | 10 | 17 | 3 |
-| [dex:v2.45.0](v3.4.4/ghcr.io_dexidp_dex_v2.45.0.html) | 1 | 4 | 1 | 19 |
-| [haproxy:3.0.8-alpine](v3.4.4/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 1 | 5 | 1 | 17 |
-| [redis:8.2.3-alpine](v3.4.4/public.ecr.aws_docker_library_redis_8.2.3-alpine.html) | 1 | 4 | 1 | 19 |
-| [argocd:v3.4.4](v3.4.4/quay.io_argoproj_argocd_v3.4.4.html) | 0 | 0 | 70 | 17 |
-| [install.yaml](v3.4.4/argocd-iac-install.html) | - | - | - | - |
-| [namespace-install.yaml](v3.4.4/argocd-iac-namespace-install.html) | - | - | - | - |
-
-### v3.3.12
+### v3.5.6
 
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
-| [gitops-engine/go.mod](v3.3.12/argocd-test.html) | 1 | 11 | 13 | 1 |
-| [go.mod](v3.3.12/argocd-test.html) | 1 | 19 | 32 | 3 |
-| [hack/get-previous-release/go.mod](v3.3.12/argocd-test.html) | 0 | 0 | 1 | 0 |
-| [ui-test/yarn.lock](v3.3.12/argocd-test.html) | 4 | 17 | 16 | 0 |
-| [ui/pnpm-lock.yaml](v3.3.12/argocd-test.html) | 0 | 0 | 0 | 0 |
-| [ui/yarn.lock](v3.3.12/argocd-test.html) | 0 | 10 | 17 | 3 |
-| [dex:v2.43.0](v3.3.12/ghcr.io_dexidp_dex_v2.43.0.html) | 1 | 5 | 1 | 17 |
-| [haproxy:3.0.8-alpine](v3.3.12/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 1 | 5 | 1 | 17 |
-| [redis:8.2.3-alpine](v3.3.12/public.ecr.aws_docker_library_redis_8.2.3-alpine.html) | 1 | 4 | 1 | 19 |
-| [argocd:v3.3.12](v3.3.12/quay.io_argoproj_argocd_v3.3.12.html) | 0 | 0 | 70 | 19 |
-| [install.yaml](v3.3.12/argocd-iac-install.html) | - | - | - | - |
-| [namespace-install.yaml](v3.3.12/argocd-iac-namespace-install.html) | - | - | - | - |
+| [gitops-engine/go.mod](v3.5.6/argocd-test.html) | 1 | 10 | 2 | 0 |
+| [go.mod](v3.5.6/argocd-test.html) | 0 | 11 | 10 | 3 |
+| [hack/get-previous-release/go.mod](v3.5.6/argocd-test.html) | 0 | 1 | 0 | 0 |
+| [ui/pnpm-lock.yaml](v3.5.6/argocd-test.html) | 2 | 13 | 10 | 1 |
+| [dex:v2.45.1](v3.5.6/ghcr.io_dexidp_dex_v2.45.1.html) | 1 | 5 | 1 | 30 |
+| [haproxy:3.0.8-alpine](v3.5.6/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 1 | 8 | 4 | 43 |
+| [redis:8.2.3-alpine](v3.5.6/public.ecr.aws_docker_library_redis_8.2.3-alpine.html) | 1 | 8 | 2 | 34 |
+| [argocd:v3.5.6](v3.5.6/quay.io_argoproj_argocd_v3.5.6.html) | 0 | 0 | 46 | 3 |
+| [install.yaml](v3.5.6/argocd-iac-install.html) | - | - | - | - |
+| [namespace-install.yaml](v3.5.6/argocd-iac-namespace-install.html) | - | - | - | - |
 
-### v3.2.12
+### v3.4.12
 
 |    | Critical | High | Medium | Low |
 |---:|:--------:|:----:|:------:|:---:|
-| [go.mod](v3.2.12/argocd-test.html) | 2 | 26 | 30 | 3 |
-| [hack/get-previous-release/go.mod](v3.2.12/argocd-test.html) | 0 | 0 | 1 | 0 |
-| [ui-test/yarn.lock](v3.2.12/argocd-test.html) | 4 | 17 | 18 | 0 |
-| [ui/pnpm-lock.yaml](v3.2.12/argocd-test.html) | 0 | 0 | 0 | 0 |
-| [ui/yarn.lock](v3.2.12/argocd-test.html) | 0 | 10 | 26 | 4 |
-| [dex:v2.43.0](v3.2.12/ghcr.io_dexidp_dex_v2.43.0.html) | 1 | 5 | 1 | 17 |
-| [haproxy:3.0.8-alpine](v3.2.12/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 1 | 5 | 1 | 17 |
-| [redis:8.2.2-alpine](v3.2.12/public.ecr.aws_docker_library_redis_8.2.2-alpine.html) | 1 | 5 | 1 | 32 |
-| [argocd:v3.2.12](v3.2.12/quay.io_argoproj_argocd_v3.2.12.html) | 0 | 0 | 0 | 0 |
-| [install.yaml](v3.2.12/argocd-iac-install.html) | - | - | - | - |
-| [namespace-install.yaml](v3.2.12/argocd-iac-namespace-install.html) | - | - | - | - |
+| [gitops-engine/go.mod](v3.4.12/argocd-test.html) | 1 | 19 | 13 | 0 |
+| [go.mod](v3.4.12/argocd-test.html) | 0 | 23 | 21 | 4 |
+| [hack/get-previous-release/go.mod](v3.4.12/argocd-test.html) | 0 | 1 | 1 | 0 |
+| [ui-test/yarn.lock](v3.4.12/argocd-test.html) | 4 | 20 | 33 | 0 |
+| [ui/pnpm-lock.yaml](v3.4.12/argocd-test.html) | 0 | 0 | 0 | 0 |
+| [ui/yarn.lock](v3.4.12/argocd-test.html) | 1 | 11 | 13 | 2 |
+| [dex:v2.45.0](v3.4.12/ghcr.io_dexidp_dex_v2.45.0.html) | 1 | 5 | 1 | 30 |
+| [haproxy:3.0.8-alpine](v3.4.12/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 1 | 8 | 4 | 43 |
+| [redis:8.2.3-alpine](v3.4.12/public.ecr.aws_docker_library_redis_8.2.3-alpine.html) | 1 | 8 | 2 | 34 |
+| [argocd:v3.4.12](v3.4.12/quay.io_argoproj_argocd_v3.4.12.html) | 0 | 0 | 46 | 3 |
+| [install.yaml](v3.4.12/argocd-iac-install.html) | - | - | - | - |
+| [namespace-install.yaml](v3.4.12/argocd-iac-namespace-install.html) | - | - | - | - |
+
+### v3.3.18
+
+|    | Critical | High | Medium | Low |
+|---:|:--------:|:----:|:------:|:---:|
+| [gitops-engine/go.mod](v3.3.18/argocd-test.html) | 1 | 17 | 14 | 1 |
+| [go.mod](v3.3.18/argocd-test.html) | 0 | 26 | 21 | 5 |
+| [hack/get-previous-release/go.mod](v3.3.18/argocd-test.html) | 0 | 1 | 1 | 0 |
+| [ui-test/yarn.lock](v3.3.18/argocd-test.html) | 4 | 19 | 33 | 0 |
+| [ui/pnpm-lock.yaml](v3.3.18/argocd-test.html) | 0 | 0 | 0 | 0 |
+| [ui/yarn.lock](v3.3.18/argocd-test.html) | 1 | 14 | 12 | 2 |
+| [dex:v2.43.0](v3.3.18/ghcr.io_dexidp_dex_v2.43.0.html) | 1 | 6 | 1 | 41 |
+| [haproxy:3.0.8-alpine](v3.3.18/public.ecr.aws_docker_library_haproxy_3.0.8-alpine.html) | 1 | 8 | 4 | 43 |
+| [redis:8.2.3-alpine](v3.3.18/public.ecr.aws_docker_library_redis_8.2.3-alpine.html) | 1 | 8 | 2 | 34 |
+| [argocd:v3.3.18](v3.3.18/quay.io_argoproj_argocd_v3.3.18.html) | 0 | 0 | 1 | 0 |
+| [install.yaml](v3.3.18/argocd-iac-install.html) | - | - | - | - |
+| [namespace-install.yaml](v3.3.18/argocd-iac-namespace-install.html) | - | - | - | - |

@@ -1,17 +1,19 @@
 import {AutocompleteField, FormField, HelpIcon, NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
+import {useQuery, useQueryClient} from '@tanstack/react-query';
 import classNames from 'classnames';
 import * as React from 'react';
 import {FormApi, Text} from 'argo-ui';
 import {RouteComponentProps} from 'react-router';
 import {Link} from 'react-router-dom';
 
-import {BadgePanel, CheckboxField, DataLoader, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
+import {BadgePanel, CheckboxField, EditablePanel, ErrorNotification, MapInputField, Page, Query} from '../../../shared/components';
 import {Context, ContextApis, AuthSettingsCtx} from '../../../shared/context';
 import {ClusterResourceRestrictionItem, GroupKind, Groups, Project, DetailedProjectsResponse, ProjectSpec, ResourceKinds} from '../../../shared/models';
 import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services} from '../../../shared/services';
 
-import {SyncWindowStatusIcon} from '../../../applications/components/utils';
-import {ProjectSyncWindowsParams} from '../../../shared/services/projects-service';
+import {SyncWindowStatusIcon} from '../../../shared/components/app-utils';
+import {ProjectSyncWindowsParams} from '../../../shared/services';
+import {applicationQueries, clusterQueries, gpgkeyQueries, projectQueries, repoQueries} from '../../../shared/queries';
 import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
@@ -143,19 +145,273 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
     );
 }
 
+const loading = <p style={{padding: '0.5em', textAlign: 'center'}}>Loading...</p>;
+
+function loadFailed(retry: () => void) {
+    return (
+        <p style={{padding: '0.5em', textAlign: 'center'}}>
+            Failed to load data, please <a onClick={() => retry()}>try again</a>.
+        </p>
+    );
+}
+
+const ProjectLinks = ({name}: {name: string}) => {
+    const {data} = useQuery(projectQueries.links(name));
+    return data ? <DeepLinks links={data.items} /> : null;
+};
+
+const ProjectApplicationsCount = ({name, objectListKind}: {name: string; objectListKind: string}) => {
+    const {data} = useQuery(applicationQueries.list([name], objectListKind));
+    return data ? <Link to={'/applications?proj=' + name}>{data.items.length}</Link> : null;
+};
+
+const SyncWindowsTable = ({proj, ctx}: {proj: Project; ctx: ContextApis}) => {
+    const {data, isError, refetch} = useQuery(projectQueries.syncWindows(proj.metadata.name));
+    if (isError) {
+        return loadFailed(refetch);
+    }
+    if (!data) {
+        return loading;
+    }
+    return (
+        <div className='argo-table-list argo-table-list--clickable'>
+            <div className='argo-table-list__head'>
+                <div className='row'>
+                    <div className='columns small-8-elements'>
+                        STATUS
+                        {helpTip(
+                            'If a window is active or inactive and what the current ' +
+                                'effect would be if it was assigned to an application, namespace or cluster. ' +
+                                'Red: no syncs allowed. ' +
+                                'Yellow: manual syncs allowed. ' +
+                                'Green: all syncs allowed'
+                        )}
+                    </div>
+                    <div className='columns small-8-elements'>
+                        WINDOW
+                        {helpTip('The kind, start time and duration of the window')}
+                    </div>
+                    <div className='columns small-8-elements'>
+                        APPLICATIONS
+                        {helpTip('The applications assigned to the window, wildcards are supported')}
+                    </div>
+                    <div className='columns small-8-elements'>
+                        NAMESPACES
+                        {helpTip('The namespaces assigned to the window, wildcards are supported')}
+                    </div>
+                    <div className='columns small-8-elements'>
+                        CLUSTERS
+                        {helpTip('The clusters assigned to the window, wildcards are supported')}
+                    </div>
+                    <div className='columns small-8-elements'>
+                        MANUALSYNC
+                        {helpTip('If the window allows manual syncs')}
+                    </div>
+                    <div className='columns small-8-elements'>
+                        SYNC OVERRUN
+                        {helpTip('Allows syncs to continue: for deny windows, syncs that started before the window; for allow windows, syncs that started during the window')}
+                    </div>
+                    <div className='columns small-8-elements'>
+                        USE AND OPERATOR
+                        {helpTip('Use AND operator while selecting the apps that match the configured selectors')}
+                    </div>
+                    <div className='columns small-8-elements'>
+                        DESCRIPTION
+                        {helpTip('Add a description to your sync window (eg "Ticket 12345")')}
+                    </div>
+                </div>
+            </div>
+            {(proj.spec.syncWindows || []).map((window, i) => (
+                <div className='argo-table-list__row' key={`${i}`} onClick={() => ctx.navigation.goto(`.`, {editWindow: `${i}`})}>
+                    <div className='row'>
+                        <div className='columns small-8-elements'>
+                            <span>
+                                <SyncWindowStatusIcon state={data} window={window} />
+                            </span>
+                        </div>
+                        <div className='columns small-8-elements'>
+                            {window.kind}:{window.schedule}:{window.duration}:{window.timeZone}
+                        </div>
+                        <div className='columns small-8-elements'>{(window.applications || ['-']).join(',')}</div>
+                        <div className='columns small-8-elements'>{(window.namespaces || ['-']).join(',')}</div>
+                        <div className='columns small-8-elements'>{(window.clusters || ['-']).join(',')}</div>
+                        <div className='columns small-8-elements'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
+                        <div className='columns small-8-elements'>{window.syncOverrun ? 'Enabled' : 'Disabled'}</div>
+                        <div className='columns small-8-elements'>{window.andOperator ? 'Enabled' : 'Disabled'}</div>
+                        <div className='columns small-8-elements'>{window.description || ''}</div>
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+};
+
+const SourceReposEdit = ({formApi}: {formApi: FormApi}) => {
+    const {data: repos = []} = useQuery(repoQueries.list());
+    return (
+        <React.Fragment>
+            {(formApi.values.spec.sourceRepos || []).map((_: Project, i: number) => (
+                <div className='row white-box__details-row' key={i}>
+                    <div className='columns small-12'>
+                        <FormField formApi={formApi} field={`spec.sourceRepos[${i}]`} component={AutocompleteField} componentProps={{items: repos.map(repo => repo.repo)}} />
+                        <i className='fa fa-times' onClick={() => formApi.setValue('spec.sourceRepos', removeEl(formApi.values.spec.sourceRepos, i))} />
+                    </div>
+                </div>
+            ))}
+            <button className='argo-button argo-button--short' onClick={() => formApi.setValue('spec.sourceRepos', (formApi.values.spec.sourceRepos || []).concat('*'))}>
+                ADD SOURCE
+            </button>
+        </React.Fragment>
+    );
+};
+
+const DestinationsEdit = ({formApi}: {formApi: FormApi}) => {
+    const {data: clusters = []} = useQuery(clusterQueries.list());
+    return (
+        <React.Fragment>
+            <div className='row white-box__details-row'>
+                <div className='columns small-4'>Server</div>
+                <div className='columns small-3'>Name</div>
+                <div className='columns small-5'>Namespace</div>
+            </div>
+            {(formApi.values.spec.destinations || []).map((_: Project, i: number) => (
+                <div className='row white-box__details-row' key={i}>
+                    <div className='columns small-4'>
+                        <FormField
+                            formApi={formApi}
+                            field={`spec.destinations[${i}].server`}
+                            component={AutocompleteField}
+                            componentProps={{items: clusters.map(cluster => cluster.server)}}
+                        />
+                    </div>
+                    <div className='columns small-3'>
+                        <FormField
+                            formApi={formApi}
+                            field={`spec.destinations[${i}].name`}
+                            component={AutocompleteField}
+                            componentProps={{items: clusters.map(cluster => cluster.name)}}
+                        />
+                    </div>
+                    <div className='columns small-5'>
+                        <FormField formApi={formApi} field={`spec.destinations[${i}].namespace`} component={AutocompleteField} />
+                    </div>
+                    <i className='fa fa-times' onClick={() => formApi.setValue('spec.destinations', removeEl(formApi.values.spec.destinations, i))} />
+                </div>
+            ))}
+            <button
+                className='argo-button argo-button--short'
+                onClick={() =>
+                    formApi.setValue(
+                        'spec.destinations',
+                        (formApi.values.spec.destinations || []).concat({
+                            server: '*',
+                            namespace: '*',
+                            name: '*'
+                        })
+                    )
+                }>
+                ADD DESTINATION
+            </button>
+        </React.Fragment>
+    );
+};
+
+const DestinationServiceAccountsEdit = ({formApi}: {formApi: FormApi}) => {
+    const {data: clusters = []} = useQuery(clusterQueries.list());
+    return (
+        <React.Fragment>
+            <div className='row white-box__details-row'>
+                <div className='columns small-4'>Server</div>
+                <div className='columns small-3'>Namespace</div>
+                <div className='columns small-5'>ServiceAccount</div>
+            </div>
+            {(formApi.values.spec.destinationServiceAccounts || []).map((_: Project, i: number) => (
+                <div className='row white-box__details-row' key={i}>
+                    <div className='columns small-4'>
+                        <FormField
+                            formApi={formApi}
+                            field={`spec.destinationServiceAccounts[${i}].server`}
+                            component={AutocompleteField}
+                            componentProps={{items: clusters.map(cluster => cluster.server)}}
+                        />
+                    </div>
+                    <div className='columns small-3'>
+                        <FormField formApi={formApi} field={`spec.destinationServiceAccounts[${i}].namespace`} component={AutocompleteField} />
+                    </div>
+                    <div className='columns small-5'>
+                        <FormField
+                            formApi={formApi}
+                            field={`spec.destinationServiceAccounts[${i}].defaultServiceAccount`}
+                            component={AutocompleteField}
+                            componentProps={{items: clusters.map(cluster => cluster.name)}}
+                        />
+                    </div>
+                    <i className='fa fa-times' onClick={() => formApi.setValue('spec.destinationServiceAccounts', removeEl(formApi.values.spec.destinationServiceAccounts, i))} />
+                </div>
+            ))}
+
+            <button
+                className='argo-button argo-button--short'
+                onClick={() =>
+                    formApi.setValue(
+                        'spec.destinationServiceAccounts',
+                        (formApi.values.spec.destinationServiceAccounts || []).concat({
+                            server: '*',
+                            namespace: '*',
+                            defaultServiceAccount: '*'
+                        })
+                    )
+                }>
+                ADD DESTINATION SERVICE ACCOUNTS
+            </button>
+        </React.Fragment>
+    );
+};
+
+const SignatureKeysEdit = ({formApi}: {formApi: FormApi}) => {
+    const {data: keys = []} = useQuery(gpgkeyQueries.list());
+    return (
+        <React.Fragment>
+            {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
+                <div className='row white-box__details-row' key={i}>
+                    <div className='columns small-12'>
+                        <FormField formApi={formApi} field={`spec.signatureKeys[${i}].keyID`} component={AutocompleteField} componentProps={{items: keys.map(key => key.keyID)}} />
+                    </div>
+                    <i className='fa fa-times' onClick={() => formApi.setValue('spec.signatureKeys', removeEl(formApi.values.spec.signatureKeys, i))} />
+                </div>
+            ))}
+            <button
+                className='argo-button argo-button--short'
+                onClick={() =>
+                    formApi.setValue(
+                        'spec.signatureKeys',
+                        (formApi.values.spec.signatureKeys || []).concat({
+                            keyID: ''
+                        })
+                    )
+                }>
+                ADD KEY
+            </button>
+        </React.Fragment>
+    );
+};
+
 export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {objectListKind?: string}> = props => {
     const [token, setToken] = React.useState('');
     const projectRoleFormApi = React.useRef<FormApi>(null);
     const projectSyncWindowsFormApi = React.useRef<FormApi>(null);
-    const loader = React.useRef<DataLoader>(null);
     const ctx = React.useContext(Context) as ContextApis;
     const objectListKind = props.objectListKind || 'application';
+    const queryClient = useQueryClient();
+    const name = props.match.params.name;
+    const detailed = useQuery(projectQueries.detailed(name));
+    // Prefix also covers the sync window states and links queries below.
+    const refreshProject = () => queryClient.invalidateQueries({queryKey: projectQueries.byName(name)});
 
     const deleteJWTToken = async (params: DeleteJWTTokenParams, notifications: NotificationsApi) => {
         try {
             await services.projects.deleteJWTToken(params);
-            const info = await services.projects.getDetailed(props.match.params.name);
-            loader.current.setData(info);
+            await refreshProject();
         } catch (e) {
             notifications.show({
                 content: <ErrorNotification title='Unable to delete JWT token' e={e} />,
@@ -167,8 +423,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
     const createJWTToken = async (params: CreateJWTTokenParams, notifications: NotificationsApi) => {
         try {
             const jwtToken = await services.projects.createJWTToken(params);
-            const info = await services.projects.getDetailed(props.match.params.name);
-            loader.current.setData(info);
+            await refreshProject();
             setToken(jwtToken.token);
         } catch (e) {
             notifications.show({
@@ -218,88 +473,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
     const SyncWindowsTab = (proj: Project, ctx: any) => {
         return (
             <div className='argo-container'>
-                {((proj.spec.syncWindows || []).length > 0 && (
-                    <DataLoader
-                        noLoaderOnInputChange={true}
-                        input={proj.spec.syncWindows}
-                        load={async () => {
-                            return await services.projects.getSyncWindows(proj.metadata.name);
-                        }}>
-                        {data => (
-                            <div className='argo-table-list argo-table-list--clickable'>
-                                <div className='argo-table-list__head'>
-                                    <div className='row'>
-                                        <div className='columns small-8-elements'>
-                                            STATUS
-                                            {helpTip(
-                                                'If a window is active or inactive and what the current ' +
-                                                    'effect would be if it was assigned to an application, namespace or cluster. ' +
-                                                    'Red: no syncs allowed. ' +
-                                                    'Yellow: manual syncs allowed. ' +
-                                                    'Green: all syncs allowed'
-                                            )}
-                                        </div>
-                                        <div className='columns small-8-elements'>
-                                            WINDOW
-                                            {helpTip('The kind, start time and duration of the window')}
-                                        </div>
-                                        <div className='columns small-8-elements'>
-                                            APPLICATIONS
-                                            {helpTip('The applications assigned to the window, wildcards are supported')}
-                                        </div>
-                                        <div className='columns small-8-elements'>
-                                            NAMESPACES
-                                            {helpTip('The namespaces assigned to the window, wildcards are supported')}
-                                        </div>
-                                        <div className='columns small-8-elements'>
-                                            CLUSTERS
-                                            {helpTip('The clusters assigned to the window, wildcards are supported')}
-                                        </div>
-                                        <div className='columns small-8-elements'>
-                                            MANUALSYNC
-                                            {helpTip('If the window allows manual syncs')}
-                                        </div>
-                                        <div className='columns small-8-elements'>
-                                            SYNC OVERRUN
-                                            {helpTip(
-                                                'Allows syncs to continue: for deny windows, syncs that started before the window; for allow windows, syncs that started during the window'
-                                            )}
-                                        </div>
-                                        <div className='columns small-8-elements'>
-                                            USE AND OPERATOR
-                                            {helpTip('Use AND operator while selecting the apps that match the configured selectors')}
-                                        </div>
-                                        <div className='columns small-8-elements'>
-                                            DESCRIPTION
-                                            {helpTip('Add a description to your sync window (eg "Ticket 12345")')}
-                                        </div>
-                                    </div>
-                                </div>
-                                {(proj.spec.syncWindows || []).map((window, i) => (
-                                    <div className='argo-table-list__row' key={`${i}`} onClick={() => ctx.navigation.goto(`.`, {editWindow: `${i}`})}>
-                                        <div className='row'>
-                                            <div className='columns small-8-elements'>
-                                                <span>
-                                                    <SyncWindowStatusIcon state={data} window={window} />
-                                                </span>
-                                            </div>
-                                            <div className='columns small-8-elements'>
-                                                {window.kind}:{window.schedule}:{window.duration}:{window.timeZone}
-                                            </div>
-                                            <div className='columns small-8-elements'>{(window.applications || ['-']).join(',')}</div>
-                                            <div className='columns small-8-elements'>{(window.namespaces || ['-']).join(',')}</div>
-                                            <div className='columns small-8-elements'>{(window.clusters || ['-']).join(',')}</div>
-                                            <div className='columns small-8-elements'>{window.manualSync ? 'Enabled' : 'Disabled'}</div>
-                                            <div className='columns small-8-elements'>{window.syncOverrun ? 'Enabled' : 'Disabled'}</div>
-                                            <div className='columns small-8-elements'>{window.andOperator ? 'Enabled' : 'Disabled'}</div>
-                                            <div className='columns small-8-elements'>{window.description || ''}</div>
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
-                        )}
-                    </DataLoader>
-                )) || (
+                {((proj.spec.syncWindows || []).length > 0 && <SyncWindowsTable proj={proj} ctx={ctx} />) || (
                     <div className='white-box'>
                         <p>Project has no sync windows</p>
                     </div>
@@ -315,8 +489,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
             proj.spec = updatedProj.spec;
 
             await services.projects.update(proj);
-            const scopedProj = await services.projects.getDetailed(props.match.params.name);
-            loader.current.setData(scopedProj);
+            await refreshProject();
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to update project' e={e} />,
@@ -357,7 +530,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                             title: 'LINKS',
                             view: (
                                 <div style={{margin: '8px 0'}}>
-                                    <DataLoader load={() => services.projects.getLinks(proj.metadata.name)}>{links => <DeepLinks links={links.items} />}</DataLoader>
+                                    <ProjectLinks name={proj.metadata.name} />
                                 </div>
                             )
                         },
@@ -365,9 +538,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                             title: 'APPLICATIONS',
                             view: (
                                 <div>
-                                    <DataLoader load={() => services.applications.list([proj.metadata.name], objectListKind)}>
-                                        {apps => <Link to={'/applications?proj=' + proj.metadata.name}>{apps.items.length}</Link>}
-                                    </DataLoader>
+                                    <ProjectApplicationsCount name={proj.metadata.name} objectListKind={objectListKind} />
                                 </div>
                             )
                         }
@@ -389,38 +560,18 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                 : emptyMessage('source repositories')}
                         </React.Fragment>
                     }
-                    edit={formApi => (
-                        <DataLoader load={() => services.repos.list()}>
-                            {repos => (
-                                <React.Fragment>
-                                    {(formApi.values.spec.sourceRepos || []).map((_: Project, i: number) => (
-                                        <div className='row white-box__details-row' key={i}>
-                                            <div className='columns small-12'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.sourceRepos[${i}]`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: repos.map(repo => repo.repo)}}
-                                                />
-                                                <i className='fa fa-times' onClick={() => formApi.setValue('spec.sourceRepos', removeEl(formApi.values.spec.sourceRepos, i))} />
-                                            </div>
-                                        </div>
-                                    ))}
-                                    <button
-                                        className='argo-button argo-button--short'
-                                        onClick={() => formApi.setValue('spec.sourceRepos', (formApi.values.spec.sourceRepos || []).concat('*'))}>
-                                        ADD SOURCE
-                                    </button>
-                                </React.Fragment>
-                            )}
-                        </DataLoader>
-                    )}
+                    edit={formApi => <SourceReposEdit formApi={formApi} />}
                     items={[]}
                 />
 
                 <EditablePanel
                     values={scopedProj}
-                    title={<React.Fragment>SCOPED REPOSITORIES{helpTip('Git repositories where application manifests are permitted to be retrieved from')}</React.Fragment>}
+                    title={
+                        <React.Fragment>
+                            SCOPED REPOSITORIES
+                            {helpTip('Git repositories configured specifically for this project and available only to applications and ApplicationSets in the project')}
+                        </React.Fragment>
+                    }
                     view={
                         <React.Fragment>
                             {scopedProj.repositories && scopedProj.repositories.length
@@ -429,7 +580,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                           <div className='columns small-12'>{repo.repo}</div>
                                       </div>
                                   ))
-                                : emptyMessage('source repositories')}
+                                : emptyMessage('scoped repositories')}
                         </React.Fragment>
                     }
                     items={[]}
@@ -505,57 +656,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                             )}
                         </React.Fragment>
                     }
-                    edit={formApi => (
-                        <DataLoader load={() => services.clusters.list()}>
-                            {clusters => (
-                                <React.Fragment>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-4'>Server</div>
-                                        <div className='columns small-3'>Name</div>
-                                        <div className='columns small-5'>Namespace</div>
-                                    </div>
-                                    {(formApi.values.spec.destinations || []).map((_: Project, i: number) => (
-                                        <div className='row white-box__details-row' key={i}>
-                                            <div className='columns small-4'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.destinations[${i}].server`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: clusters.map(cluster => cluster.server)}}
-                                                />
-                                            </div>
-                                            <div className='columns small-3'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.destinations[${i}].name`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: clusters.map(cluster => cluster.name)}}
-                                                />
-                                            </div>
-                                            <div className='columns small-5'>
-                                                <FormField formApi={formApi} field={`spec.destinations[${i}].namespace`} component={AutocompleteField} />
-                                            </div>
-                                            <i className='fa fa-times' onClick={() => formApi.setValue('spec.destinations', removeEl(formApi.values.spec.destinations, i))} />
-                                        </div>
-                                    ))}
-                                    <button
-                                        className='argo-button argo-button--short'
-                                        onClick={() =>
-                                            formApi.setValue(
-                                                'spec.destinations',
-                                                (formApi.values.spec.destinations || []).concat({
-                                                    server: '*',
-                                                    namespace: '*',
-                                                    name: '*'
-                                                })
-                                            )
-                                        }>
-                                        ADD DESTINATION
-                                    </button>
-                                </React.Fragment>
-                            )}
-                        </DataLoader>
-                    )}
+                    edit={formApi => <DestinationsEdit formApi={formApi} />}
                     items={[]}
                 />
 
@@ -609,61 +710,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                             )}
                         </React.Fragment>
                     }
-                    edit={formApi => (
-                        <DataLoader load={() => services.clusters.list()}>
-                            {clusters => (
-                                <React.Fragment>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-4'>Server</div>
-                                        <div className='columns small-3'>Namespace</div>
-                                        <div className='columns small-5'>ServiceAccount</div>
-                                    </div>
-                                    {(formApi.values.spec.destinationServiceAccounts || []).map((_: Project, i: number) => (
-                                        <div className='row white-box__details-row' key={i}>
-                                            <div className='columns small-4'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.destinationServiceAccounts[${i}].server`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: clusters.map(cluster => cluster.server)}}
-                                                />
-                                            </div>
-                                            <div className='columns small-3'>
-                                                <FormField formApi={formApi} field={`spec.destinationServiceAccounts[${i}].namespace`} component={AutocompleteField} />
-                                            </div>
-                                            <div className='columns small-5'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.destinationServiceAccounts[${i}].defaultServiceAccount`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: clusters.map(cluster => cluster.name)}}
-                                                />
-                                            </div>
-                                            <i
-                                                className='fa fa-times'
-                                                onClick={() => formApi.setValue('spec.destinationServiceAccounts', removeEl(formApi.values.spec.destinationServiceAccounts, i))}
-                                            />
-                                        </div>
-                                    ))}
-
-                                    <button
-                                        className='argo-button argo-button--short'
-                                        onClick={() =>
-                                            formApi.setValue(
-                                                'spec.destinationServiceAccounts',
-                                                (formApi.values.spec.destinationServiceAccounts || []).concat({
-                                                    server: '*',
-                                                    namespace: '*',
-                                                    defaultServiceAccount: '*'
-                                                })
-                                            )
-                                        }>
-                                        ADD DESTINATION SERVICE ACCOUNTS
-                                    </button>
-                                </React.Fragment>
-                            )}
-                        </DataLoader>
-                    )}
+                    edit={formApi => <DestinationServiceAccountsEdit formApi={formApi} />}
                     items={[]}
                 />
 
@@ -690,39 +737,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                 : emptyMessage('signature keys')}
                         </React.Fragment>
                     }
-                    edit={formApi => (
-                        <DataLoader load={() => services.gpgkeys.list()}>
-                            {keys => (
-                                <React.Fragment>
-                                    {(formApi.values.spec.signatureKeys || []).map((_: Project, i: number) => (
-                                        <div className='row white-box__details-row' key={i}>
-                                            <div className='columns small-12'>
-                                                <FormField
-                                                    formApi={formApi}
-                                                    field={`spec.signatureKeys[${i}].keyID`}
-                                                    component={AutocompleteField}
-                                                    componentProps={{items: keys.map(key => key.keyID)}}
-                                                />
-                                            </div>
-                                            <i className='fa fa-times' onClick={() => formApi.setValue('spec.signatureKeys', removeEl(formApi.values.spec.signatureKeys, i))} />
-                                        </div>
-                                    ))}
-                                    <button
-                                        className='argo-button argo-button--short'
-                                        onClick={() =>
-                                            formApi.setValue(
-                                                'spec.signatureKeys',
-                                                (formApi.values.spec.signatureKeys || []).concat({
-                                                    keyID: ''
-                                                })
-                                            )
-                                        }>
-                                        ADD KEY
-                                    </button>
-                                </React.Fragment>
-                            )}
-                        </DataLoader>
-                    )}
+                    edit={formApi => <SignatureKeysEdit formApi={formApi} />}
                     items={[]}
                 />
 
@@ -882,212 +897,209 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                     ]
                 }
             }}>
-            <DataLoader
-                load={() => {
-                    return services.projects.getDetailed(props.match.params.name);
-                }}
-                ref={loader}>
-                {scopedProj => (
-                    <Query>
-                        {params => {
-                            const {project: proj, globalProjects: globalProj} = scopedProj;
-                            return (
-                                <div className='project-details'>
-                                    <Tabs
-                                        selectedTabKey={params.get('tab') || 'summary'}
-                                        onTabSelected={tab => ctx.navigation.goto('.', {tab}, {replace: true})}
-                                        navCenter={true}
-                                        tabs={[
-                                            {
-                                                key: 'summary',
-                                                title: 'Summary',
-                                                content: summaryTab(proj, reduceGlobal(globalProj), scopedProj)
-                                            },
-                                            {
-                                                key: 'roles',
-                                                title: 'Roles',
-                                                content: rolesTab(proj, ctx)
-                                            },
-                                            {
-                                                key: 'windows',
-                                                title: 'Sync Windows',
-                                                content: SyncWindowsTab(proj, ctx)
-                                            },
-                                            {
-                                                key: 'events',
-                                                title: 'Events',
-                                                content: eventsTab(proj)
-                                            }
-                                        ].map(tab => ({...tab, isOnlyContentScrollable: true, extraVerticalScrollPadding: 160}))}
-                                    />
-                                    <SlidingPanel
-                                        isMiddle={true}
-                                        isShown={params.get('editRole') !== null || params.get('newRole') !== null}
-                                        onClose={() => {
-                                            setToken('');
-                                            ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
-                                        }}
-                                        header={
-                                            <div>
-                                                <button onClick={() => projectRoleFormApi.current.submitForm(null)} className='argo-button argo-button--base'>
-                                                    {params.get('newRole') != null ? 'Create' : 'Update'}
-                                                </button>{' '}
+            {detailed.isError && loadFailed(detailed.refetch)}
+            {!detailed.isError && !detailed.data && loading}
+            {detailed.data && (
+                <Query>
+                    {params => {
+                        const scopedProj = detailed.data;
+                        const {project: proj, globalProjects: globalProj} = scopedProj;
+                        return (
+                            <div className='project-details'>
+                                <Tabs
+                                    selectedTabKey={params.get('tab') || 'summary'}
+                                    onTabSelected={tab => ctx.navigation.goto('.', {tab}, {replace: true})}
+                                    navCenter={true}
+                                    tabs={[
+                                        {
+                                            key: 'summary',
+                                            title: 'Summary',
+                                            content: summaryTab(proj, reduceGlobal(globalProj), scopedProj)
+                                        },
+                                        {
+                                            key: 'roles',
+                                            title: 'Roles',
+                                            content: rolesTab(proj, ctx)
+                                        },
+                                        {
+                                            key: 'windows',
+                                            title: 'Sync Windows',
+                                            content: SyncWindowsTab(proj, ctx)
+                                        },
+                                        {
+                                            key: 'events',
+                                            title: 'Events',
+                                            content: eventsTab(proj)
+                                        }
+                                    ].map(tab => ({...tab, isOnlyContentScrollable: true, extraVerticalScrollPadding: 160}))}
+                                />
+                                <SlidingPanel
+                                    isMiddle={true}
+                                    isShown={params.get('editRole') !== null || params.get('newRole') !== null}
+                                    onClose={() => {
+                                        setToken('');
+                                        ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
+                                    }}
+                                    header={
+                                        <div>
+                                            <button onClick={() => projectRoleFormApi.current.submitForm(null)} className='argo-button argo-button--base'>
+                                                {params.get('newRole') != null ? 'Create' : 'Update'}
+                                            </button>{' '}
+                                            <button
+                                                onClick={() => {
+                                                    setToken('');
+                                                    ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
+                                                }}
+                                                className='argo-button argo-button--base-o'>
+                                                Cancel
+                                            </button>{' '}
+                                            {params.get('newRole') === null ? (
                                                 <button
-                                                    onClick={() => {
-                                                        setToken('');
-                                                        ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
-                                                    }}
-                                                    className='argo-button argo-button--base-o'>
-                                                    Cancel
-                                                </button>{' '}
-                                                {params.get('newRole') === null ? (
-                                                    <button
-                                                        onClick={async () => {
-                                                            const confirmed = await ctx.popup.confirm('Delete project role', 'Are you sure you want to delete project role?');
-                                                            if (confirmed) {
-                                                                try {
-                                                                    projectRoleFormApi.current.setValue('deleteRole', true);
-                                                                    projectRoleFormApi.current.submitForm(null);
-                                                                    ctx.navigation.goto('.', {editRole: null}, {replace: true});
-                                                                } catch (e) {
-                                                                    ctx.notifications.show({
-                                                                        content: <ErrorNotification title='Unable to delete project role' e={e} />,
-                                                                        type: NotificationType.Error
-                                                                    });
-                                                                }
+                                                    onClick={async () => {
+                                                        const confirmed = await ctx.popup.confirm('Delete project role', 'Are you sure you want to delete project role?');
+                                                        if (confirmed) {
+                                                            try {
+                                                                projectRoleFormApi.current.setValue('deleteRole', true);
+                                                                projectRoleFormApi.current.submitForm(null);
+                                                                ctx.navigation.goto('.', {editRole: null}, {replace: true});
+                                                            } catch (e) {
+                                                                ctx.notifications.show({
+                                                                    content: <ErrorNotification title='Unable to delete project role' e={e} />,
+                                                                    type: NotificationType.Error
+                                                                });
                                                             }
-                                                        }}
-                                                        className='argo-button argo-button--base'>
-                                                        Delete
-                                                    </button>
-                                                ) : null}
-                                            </div>
-                                        }>
-                                        {(params.get('editRole') !== null || params.get('newRole') === 'true') && (
-                                            <ProjectRoleEditPanel
-                                                nameReadonly={params.get('newRole') === null ? true : false}
-                                                defaultParams={{
-                                                    newRole: params.get('newRole') === null ? false : true,
-                                                    deleteRole: false,
-                                                    projName: proj.metadata.name,
-                                                    role:
-                                                        params.get('newRole') === null && proj.spec.roles !== undefined
-                                                            ? proj.spec.roles.find((x: any) => params.get('editRole') === x.name)
-                                                            : undefined,
-                                                    jwtTokens:
-                                                        params.get('newRole') === null && proj.spec.roles !== undefined && proj.status.jwtTokensByRole !== undefined
-                                                            ? proj.status.jwtTokensByRole[params.get('editRole')].items
-                                                            : undefined
-                                                }}
-                                                getApi={(api: FormApi) => {
-                                                    projectRoleFormApi.current = api;
-                                                }}
-                                                submit={async (projRoleParams: ProjectRoleParams) => {
-                                                    try {
-                                                        await services.projects.updateRole(projRoleParams);
-                                                        ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
-                                                        loader.current.reload();
-                                                    } catch (e) {
-                                                        ctx.notifications.show({
-                                                            content: <ErrorNotification title='Unable to edit project' e={e} />,
-                                                            type: NotificationType.Error
-                                                        });
-                                                    }
-                                                }}
-                                                token={token}
-                                                createJWTToken={async (jwtTokenParams: CreateJWTTokenParams) => createJWTToken(jwtTokenParams, ctx.notifications)}
-                                                deleteJWTToken={async (jwtTokenParams: DeleteJWTTokenParams) => deleteJWTToken(jwtTokenParams, ctx.notifications)}
-                                                hideJWTToken={() => setToken('')}
-                                            />
-                                        )}
-                                    </SlidingPanel>
-                                    <SlidingPanel
-                                        isNarrow={false}
-                                        isMiddle={false}
-                                        isShown={params.get('editWindow') !== null || params.get('newWindow') !== null}
-                                        onClose={() => {
-                                            setToken('');
-                                            ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
-                                        }}
-                                        header={
-                                            <div>
-                                                <button
-                                                    onClick={() => {
-                                                        if (params.get('newWindow') === null) {
-                                                            projectSyncWindowsFormApi.current.setValue('id', Number(params.get('editWindow')));
                                                         }
-                                                        projectSyncWindowsFormApi.current.submitForm(null);
                                                     }}
                                                     className='argo-button argo-button--base'>
-                                                    {params.get('newWindow') != null ? 'Create' : 'Update'}
-                                                </button>{' '}
-                                                <button
-                                                    onClick={() => {
-                                                        setToken('');
-                                                        ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
-                                                    }}
-                                                    className='argo-button argo-button--base-o'>
-                                                    Cancel
-                                                </button>{' '}
-                                                {params.get('newWindow') === null ? (
-                                                    <button
-                                                        onClick={async () => {
-                                                            const confirmed = await ctx.popup.confirm('Delete sync window', 'Are you sure you want to delete sync window?');
-                                                            if (confirmed) {
-                                                                try {
-                                                                    projectSyncWindowsFormApi.current.setValue('id', Number(params.get('editWindow')));
-                                                                    projectSyncWindowsFormApi.current.setValue('deleteWindow', true);
-                                                                    projectSyncWindowsFormApi.current.submitForm(null);
-                                                                    ctx.navigation.goto('.', {editWindow: null}, {replace: true});
-                                                                } catch (e) {
-                                                                    ctx.notifications.show({
-                                                                        content: <ErrorNotification title='Unable to delete sync window' e={e} />,
-                                                                        type: NotificationType.Error
-                                                                    });
-                                                                }
-                                                            }
-                                                        }}
-                                                        className='argo-button argo-button--base'>
-                                                        Delete
-                                                    </button>
-                                                ) : null}
-                                            </div>
-                                        }>
-                                        {(params.get('editWindow') !== null || params.get('newWindow') === 'true') && (
-                                            <ProjectSyncWindowsEditPanel
-                                                defaultParams={{
-                                                    newWindow: params.get('newWindow') === null ? false : true,
-                                                    projName: proj.metadata.name,
-                                                    window:
-                                                        params.get('newWindow') === null && proj.spec.syncWindows !== undefined
-                                                            ? proj.spec.syncWindows[Number(params.get('editWindow'))]
-                                                            : undefined,
-                                                    id: params.get('newWindow') === null && proj.spec.syncWindows !== undefined ? Number(params.get('editWindow')) : undefined
-                                                }}
-                                                getApi={(api: FormApi) => {
-                                                    projectSyncWindowsFormApi.current = api;
-                                                }}
-                                                submit={async (projectSyncWindowsParams: ProjectSyncWindowsParams) => {
-                                                    try {
-                                                        await services.projects.updateWindow(projectSyncWindowsParams);
-                                                        ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
-                                                        loader.current.reload();
-                                                    } catch (e) {
-                                                        ctx.notifications.show({
-                                                            content: <ErrorNotification title='Unable to edit project' e={e} />,
-                                                            type: NotificationType.Error
-                                                        });
+                                                    Delete
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    }>
+                                    {(params.get('editRole') !== null || params.get('newRole') === 'true') && (
+                                        <ProjectRoleEditPanel
+                                            nameReadonly={params.get('newRole') === null ? true : false}
+                                            defaultParams={{
+                                                newRole: params.get('newRole') === null ? false : true,
+                                                deleteRole: false,
+                                                projName: proj.metadata.name,
+                                                role:
+                                                    params.get('newRole') === null && proj.spec.roles !== undefined
+                                                        ? proj.spec.roles.find((x: any) => params.get('editRole') === x.name)
+                                                        : undefined,
+                                                jwtTokens:
+                                                    params.get('newRole') === null && proj.spec.roles !== undefined && proj.status.jwtTokensByRole !== undefined
+                                                        ? proj.status.jwtTokensByRole[params.get('editRole')].items
+                                                        : undefined
+                                            }}
+                                            getApi={(api: FormApi) => {
+                                                projectRoleFormApi.current = api;
+                                            }}
+                                            submit={async (projRoleParams: ProjectRoleParams) => {
+                                                try {
+                                                    await services.projects.updateRole(projRoleParams);
+                                                    ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
+                                                    refreshProject();
+                                                } catch (e) {
+                                                    ctx.notifications.show({
+                                                        content: <ErrorNotification title='Unable to edit project' e={e} />,
+                                                        type: NotificationType.Error
+                                                    });
+                                                }
+                                            }}
+                                            token={token}
+                                            createJWTToken={async (jwtTokenParams: CreateJWTTokenParams) => createJWTToken(jwtTokenParams, ctx.notifications)}
+                                            deleteJWTToken={async (jwtTokenParams: DeleteJWTTokenParams) => deleteJWTToken(jwtTokenParams, ctx.notifications)}
+                                            hideJWTToken={() => setToken('')}
+                                        />
+                                    )}
+                                </SlidingPanel>
+                                <SlidingPanel
+                                    isNarrow={false}
+                                    isMiddle={false}
+                                    isShown={params.get('editWindow') !== null || params.get('newWindow') !== null}
+                                    onClose={() => {
+                                        setToken('');
+                                        ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
+                                    }}
+                                    header={
+                                        <div>
+                                            <button
+                                                onClick={() => {
+                                                    if (params.get('newWindow') === null) {
+                                                        projectSyncWindowsFormApi.current.setValue('id', Number(params.get('editWindow')));
                                                     }
+                                                    projectSyncWindowsFormApi.current.submitForm(null);
                                                 }}
-                                            />
-                                        )}
-                                    </SlidingPanel>
-                                </div>
-                            );
-                        }}
-                    </Query>
-                )}
-            </DataLoader>
+                                                className='argo-button argo-button--base'>
+                                                {params.get('newWindow') != null ? 'Create' : 'Update'}
+                                            </button>{' '}
+                                            <button
+                                                onClick={() => {
+                                                    setToken('');
+                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
+                                                }}
+                                                className='argo-button argo-button--base-o'>
+                                                Cancel
+                                            </button>{' '}
+                                            {params.get('newWindow') === null ? (
+                                                <button
+                                                    onClick={async () => {
+                                                        const confirmed = await ctx.popup.confirm('Delete sync window', 'Are you sure you want to delete sync window?');
+                                                        if (confirmed) {
+                                                            try {
+                                                                projectSyncWindowsFormApi.current.setValue('id', Number(params.get('editWindow')));
+                                                                projectSyncWindowsFormApi.current.setValue('deleteWindow', true);
+                                                                projectSyncWindowsFormApi.current.submitForm(null);
+                                                                ctx.navigation.goto('.', {editWindow: null}, {replace: true});
+                                                            } catch (e) {
+                                                                ctx.notifications.show({
+                                                                    content: <ErrorNotification title='Unable to delete sync window' e={e} />,
+                                                                    type: NotificationType.Error
+                                                                });
+                                                            }
+                                                        }
+                                                    }}
+                                                    className='argo-button argo-button--base'>
+                                                    Delete
+                                                </button>
+                                            ) : null}
+                                        </div>
+                                    }>
+                                    {(params.get('editWindow') !== null || params.get('newWindow') === 'true') && (
+                                        <ProjectSyncWindowsEditPanel
+                                            defaultParams={{
+                                                newWindow: params.get('newWindow') !== null,
+                                                projName: proj.metadata.name,
+                                                window:
+                                                    params.get('newWindow') === null && proj.spec.syncWindows !== undefined
+                                                        ? proj.spec.syncWindows[Number(params.get('editWindow'))]
+                                                        : undefined,
+                                                id: params.get('newWindow') === null && proj.spec.syncWindows !== undefined ? Number(params.get('editWindow')) : undefined
+                                            }}
+                                            getApi={(api: FormApi) => {
+                                                projectSyncWindowsFormApi.current = api;
+                                            }}
+                                            submit={async (projectSyncWindowsParams: ProjectSyncWindowsParams) => {
+                                                try {
+                                                    await services.projects.updateWindow(projectSyncWindowsParams);
+                                                    ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
+                                                    refreshProject();
+                                                } catch (e) {
+                                                    ctx.notifications.show({
+                                                        content: <ErrorNotification title='Unable to edit project' e={e} />,
+                                                        type: NotificationType.Error
+                                                    });
+                                                }
+                                            }}
+                                        />
+                                    )}
+                                </SlidingPanel>
+                            </div>
+                        );
+                    }}
+                </Query>
+            )}
         </Page>
     );
 };

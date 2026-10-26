@@ -268,7 +268,26 @@ func TestCustomHTTPClient(t *testing.T) {
 
 func TestLsRemote(t *testing.T) {
 	setupGitEnv(t)
-	clnt, err := NewClientExt("https://github.com/argoproj/argo-cd.git", "/tmp", NopCreds{}, false, false, "", "")
+	ctx := t.Context()
+
+	// A local repository with the branch and tags the cases below resolve, so the
+	// test does not depend on reaching github.com.
+	repoDir := t.TempDir()
+	require.NoError(t, runCmd(ctx, repoDir, "git", "init", "--initial-branch=master"))
+	commit := func(message string) string {
+		require.NoError(t, runCmd(ctx, repoDir, "git", "commit", "--allow-empty", "-m", message))
+		out, err := outputCmd(ctx, repoDir, "git", "rev-parse", "HEAD")
+		require.NoError(t, err)
+		return strings.TrimSpace(string(out))
+	}
+	tags := map[string]string{}
+	for _, tag := range []string{"release-0.8", "v0.8.0", "v0.8.1", "v0.8.2", "v2.9.0", "v2.10.3", "v2.10.4", "v2.11.0-rc1"} {
+		tags[tag] = commit(tag)
+		require.NoError(t, runCmd(ctx, repoDir, "git", "tag", tag))
+	}
+	head := commit("head")
+
+	clnt, err := NewClientExt("file://"+repoDir, t.TempDir(), NopCreds{}, false, false, "", "")
 	require.NoError(t, err)
 
 	testCases := []struct {
@@ -277,50 +296,54 @@ func TestLsRemote(t *testing.T) {
 		expectedCommit string
 	}{
 		{
-			name:     "should resolve symbolic link reference",
-			revision: "HEAD",
+			name:           "should resolve symbolic link reference",
+			revision:       "HEAD",
+			expectedCommit: head,
 		},
 		{
-			name:     "should resolve branch name",
-			revision: "master",
+			name:           "should resolve branch name",
+			revision:       "master",
+			expectedCommit: head,
 		},
 		{
 			name:           "should resolve tag without semantic versioning",
 			revision:       "release-0.8",
-			expectedCommit: "ff87d8cb9e669d3738434733ecba3c6dd2c64d70",
+			expectedCommit: tags["release-0.8"],
 		},
 		{
 			name:           "should resolve a pinned tag with semantic versioning",
 			revision:       "v0.8.0",
-			expectedCommit: "d7c04ae24c16f8ec611b0331596fbc595537abe9",
+			expectedCommit: tags["v0.8.0"],
 		},
 		{
 			name:           "should resolve a range tag with semantic versioning",
 			revision:       "v0.8.*", // it should resolve to v0.8.2
-			expectedCommit: "e5eefa2b943ae14a3e4491d4e35ef082e1c2a3f4",
+			expectedCommit: tags["v0.8.2"],
 		},
 		{
 			name:           "should resolve a range tag with semantic versioning without the 'v' prefix",
 			revision:       "0.8.*", // it should resolve to v0.8.2
-			expectedCommit: "e5eefa2b943ae14a3e4491d4e35ef082e1c2a3f4",
+			expectedCommit: tags["v0.8.2"],
 		},
 		{
 			name:           "should resolve a conditional range tag with semantic versioning",
 			revision:       ">=v2.9.0 <2.10.4", // it should resolve to v2.10.3
-			expectedCommit: "0fd6344537eb948cff602824a1d060421ceff40e",
+			expectedCommit: tags["v2.10.3"],
 		},
 		{
-			name:     "should resolve a star range tag with semantic versioning",
-			revision: "*",
+			name:           "should resolve a star range tag with semantic versioning",
+			revision:       "*", // it should resolve to v2.10.4, skipping the pre-release
+			expectedCommit: tags["v2.10.4"],
 		},
 		{
-			name:     "should resolve a star range suffixed tag with semantic versioning",
-			revision: "*-0",
+			name:           "should resolve a star range suffixed tag with semantic versioning",
+			revision:       "*-0", // pre-releases included: it should resolve to v2.11.0-rc1
+			expectedCommit: tags["v2.11.0-rc1"],
 		},
 		{
 			name:           "should resolve commit sha",
-			revision:       "4e22a3cb21fa447ca362a05a505a69397c8a0d44",
-			expectedCommit: "4e22a3cb21fa447ca362a05a505a69397c8a0d44",
+			revision:       tags["v0.8.1"],
+			expectedCommit: tags["v0.8.1"],
 		},
 	}
 
@@ -329,15 +352,13 @@ func TestLsRemote(t *testing.T) {
 			commitSHA, err := clnt.LsRemote(tc.revision)
 			require.NoError(t, err)
 			assert.True(t, IsCommitSHA(commitSHA))
-			if tc.expectedCommit != "" {
-				assert.Equal(t, tc.expectedCommit, commitSHA)
-			}
+			assert.Equal(t, tc.expectedCommit, commitSHA)
 		})
 	}
 
 	// We do not resolve truncated git hashes and return the commit as-is if it appears to be a commit
 	t.Run("truncated commit", func(t *testing.T) {
-		commitSHA, err := clnt.LsRemote("4e22a3c")
+		commitSHA, err := clnt.LsRemote(head[:7])
 		require.NoError(t, err)
 		assert.False(t, IsCommitSHA(commitSHA))
 		assert.True(t, IsTruncatedCommitSHA(commitSHA))
@@ -346,7 +367,7 @@ func TestLsRemote(t *testing.T) {
 	t.Run("unresolvable revisions", func(t *testing.T) {
 		xfail := []string{
 			"unresolvable",
-			"4e22a3", // too short (6 characters)
+			head[:6], // too short (6 characters)
 		}
 
 		for _, revision := range xfail {
@@ -382,7 +403,7 @@ func TestLFSClient(t *testing.T) {
 	_, err = client.Checkout(t.Context(), commitSHA, true, true)
 	require.NoError(t, err)
 
-	largeFiles, err := client.LsLargeFiles(t.Context())
+	largeFiles, err := client.(*nativeGitClient).lsLargeFiles(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, largeFiles, 3)
 

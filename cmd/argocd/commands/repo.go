@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"context"
 	stderrors "errors"
 	"fmt"
 	"os"
@@ -114,7 +115,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:     "add REPOURL",
 		Short:   "Add git, oci or helm repository connection parameters",
 		Example: repoAddExamples,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -215,7 +216,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
 			}
 
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			// If the user set a username, but didn't supply password via --password,
@@ -276,7 +277,7 @@ func NewRepoAddCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			createdRepo, err := repoIf.CreateRepository(ctx, &repoCreateReq)
 			errors.CheckError(err)
 			fmt.Printf("Repository '%s' added\n", createdRepo.Repo)
-		},
+		}),
 	}
 	command.Flags().BoolVar(&repoOpts.Upsert, "upsert", false, "Override an existing repository with the same name even if the spec differs")
 	cmdutil.AddRepoFlags(command, &repoOpts)
@@ -302,14 +303,14 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
   # Remove repository using SSH URL
   argocd repo rm git@github.com:yourusername/your-repo.git
 `,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) == 0 {
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
 			promptUtil := utils.NewPrompt(clientOpts.PromptsEnabled)
@@ -323,7 +324,7 @@ func NewRepoRemoveCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command
 					fmt.Printf("The command to delete '%s' was cancelled.\n", repoURL)
 				}
 			}
-		},
+		}),
 	}
 	command.Flags().StringVar(&project, "project", "", "project of the repository")
 	return command
@@ -381,10 +382,10 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
   # Force refresh of cached repository connection status
   argocd repo list --refresh hard
 `,
-		Run: func(c *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			forceRefresh := false
 
@@ -412,7 +413,7 @@ func NewRepoListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s. Supported formats: yaml|json|url|wide", output))
 			}
-		},
+		}),
 	}
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. Supported formats: yaml|json|url|wide")
 	command.Flags().StringVar(&refresh, "refresh", "", "Force a cache refresh on connection status. Supported values: hard")
@@ -446,7 +447,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		Use:     "get REPO",
 		Short:   "Get a configured repository by URL",
 		Example: repoGetExamples,
-		Run: func(c *cobra.Command, args []string) {
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			if len(args) != 1 {
@@ -456,7 +457,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 
 			// Repository URL
 			repoURL := args[0]
-			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDie()
+			conn, repoIf := headless.NewClientOrDie(clientOpts, c).NewRepoClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 			forceRefresh := false
 			switch refresh {
@@ -482,7 +483,7 @@ func NewRepoGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 			default:
 				errors.CheckError(fmt.Errorf("unknown output format: %s. Supported formats: yaml|json|url|wide", output))
 			}
-		},
+		}),
 	}
 
 	command.Flags().StringVar(&project, "project", "", "project of the repository")

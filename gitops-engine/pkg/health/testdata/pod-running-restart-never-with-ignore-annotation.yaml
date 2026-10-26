@@ -1,0 +1,87 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  creationTimestamp: 2018-12-02T09:15:16Z
+  name: my-pod
+  namespace: argocd
+  resourceVersion: "151053"
+  selfLink: /api/v1/namespaces/argocd/pods/my-pod
+  uid: c86e909c-f612-11e8-a057-fe5f49266390
+  annotations:
+    argocd.argoproj.io/ignore-restart-policy: "true"
+spec:
+  containers:
+  - command:
+    - sh
+    - -c
+    - sleep 10
+    image: alpine:3.21
+    imagePullPolicy: Always
+    name: main
+    resources:
+      requests:
+        ephemeral-storage: "100Mi"
+        memory: "128Mi"
+        cpu: "250m"
+      limits:
+        memory: "256Mi"
+        cpu: "500m"
+    terminationMessagePath: /dev/termination-log
+    terminationMessagePolicy: File
+    volumeMounts:
+    - mountPath: /var/run/secrets/kubernetes.io/serviceaccount
+      name: default-token-f9jvj
+      readOnly: true
+  dnsPolicy: ClusterFirst
+  nodeName: minikube
+  restartPolicy: Never
+  schedulerName: default-scheduler
+  securityContext: {}
+  serviceAccount: default
+  serviceAccountName: default
+  automountServiceAccountToken: false
+  terminationGracePeriodSeconds: 30
+  tolerations:
+  - effect: NoExecute
+    key: node.kubernetes.io/not-ready
+    operator: Exists
+    tolerationSeconds: 300
+  - effect: NoExecute
+    key: node.kubernetes.io/unreachable
+    operator: Exists
+    tolerationSeconds: 300
+  volumes:
+  - name: default-token-f9jvj
+    secret:
+      defaultMode: 420
+      secretName: default-token-f9jvj
+status:
+  conditions:
+  - lastProbeTime: null
+    lastTransitionTime: 2018-12-02T09:15:16Z
+    status: "True"
+    type: Initialized
+  - lastProbeTime: null
+    lastTransitionTime: 2018-12-02T09:15:19Z
+    status: "True"
+    type: Ready
+  - lastProbeTime: null
+    lastTransitionTime: 2018-12-02T09:15:16Z
+    status: "True"
+    type: PodScheduled
+  containerStatuses:
+  - containerID: containerd://adc73c2c0ae3f1fd9bf294abd834e740042ee375de680c0cfcdd90d863a73b8b
+    image: alpine:3.21
+    imageID: docker.io/library/alpine@sha256:a8560b36e8b8210634f77d9f7f9efd7ffa463e380b75e2e74aff4511df3ef88c
+    lastState: {}
+    name: main
+    ready: true
+    restartCount: 0
+    state:
+      running:
+        startedAt: 2018-12-02T09:15:19Z
+  hostIP: 192.168.64.41
+  phase: Running
+  podIP: 172.17.0.9
+  qosClass: BestEffort
+  startTime: 2018-12-02T09:15:16Z

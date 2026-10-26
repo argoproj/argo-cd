@@ -114,9 +114,7 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		}
 	default:
 		argocdSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDSecretName,
-			},
+			Name: common.ArgoCDSecretName,
 			Data: map[string][]byte{
 				"admin.password":   []byte("test"),
 				"server.secretkey": []byte("test"),

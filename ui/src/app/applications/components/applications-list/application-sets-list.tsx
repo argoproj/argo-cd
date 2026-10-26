@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
-import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 import {DataLoader, EmptyState, Page, Paginate, SearchBar} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -18,13 +18,18 @@ import {createMatcher} from './applications-list-search';
 import {AppSetsStatusBar} from './applications-status-bar';
 import {AppSetTile} from './appset-tile';
 import {AppSetTableRow} from './appset-table-row';
-import {ApplicationSetsSummary} from './application-sets-summary';
 import {FlexTopBar} from '../../../shared/components';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {ViewTypeSwitcher} from './view-type-switcher';
 
 import './applications-list.scss';
 import './applications-table.scss';
 import './applications-tiles.scss';
+
+const ApplicationSetsSummary = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "appset-summary" */ './application-sets-summary').then(m => ({default: m.ApplicationSetsSummary}))),
+    'Failed to load application sets summary. Please reload and try again.'
+);
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
@@ -54,7 +59,7 @@ function loadApplicationSets(projects: string[]): Observable<models.ApplicationS
                 services.applications
                     .watch('applicationset', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APPSET_WATCH_FIELDS})
                     .pipe(repeat())
-                    .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
+                    .pipe(retry({delay: WATCH_RETRY_TIMEOUT}))
                     .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
                     .pipe(
                         map(appChanges => {
@@ -230,11 +235,10 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
     const [itemsPer, setItemsPer] = React.useState(0);
 
     React.useEffect(() => {
+        let timeoutId: ReturnType<typeof setTimeout>;
         const handleResize = () => {
-            let timeoutId: any;
             clearTimeout(timeoutId);
             timeoutId = setTimeout(() => {
-                timeoutId = null;
                 const itemWidth = itemRef.current ? itemRef.current.offsetWidth : -1;
                 const containerWidth = containerRef.current ? containerRef.current.offsetWidth : -1;
                 const curItemsPer = containerWidth > 0 && itemWidth > 0 ? Math.floor(containerWidth / itemWidth) : 1;
@@ -246,6 +250,7 @@ const useItemsPerContainer = (itemRef: any, containerRef: any): number => {
         window.addEventListener('resize', handleResize);
         handleResize();
         return () => {
+            clearTimeout(timeoutId);
             window.removeEventListener('resize', handleResize);
         };
     }, []);
@@ -372,15 +377,15 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
 
     function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref as AppsListPreferences});
-        ctx.navigation.goto(
-            '.',
-            {
-                health: newPref.healthFilter.join(','),
-                labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-                showFavorites: newPref.showFavorites ? 'true' : null
-            },
-            {replace: true}
-        );
+        const params = {
+            health: newPref.healthFilter.join(','),
+            labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
+            showFavorites: newPref.showFavorites ? 'true' : null
+        };
+        // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
+        // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
+        // once the cap is hit, so only navigate when the query string actually changes.
+        ctx.navigation.goto('.', params, {replace: true, skipIfUnchanged: true});
     }
 
     function getPageTitle(view: string) {

@@ -65,12 +65,10 @@ func NewRedisInitialPasswordCommand() *cobra.Command {
 				redisInitialCredentialsKey: []byte(randomPassword),
 			}
 			secret := &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      redisInitialCredentials,
-					Namespace: namespace,
-				},
-				Data: data,
-				Type: corev1.SecretTypeOpaque,
+				Name:      redisInitialCredentials,
+				Namespace: namespace,
+				Data:      data,
+				Type:      corev1.SecretTypeOpaque,
 			}
 			_, err = kubeClientset.CoreV1().Secrets(namespace).Create(c.Context(), secret, metav1.CreateOptions{})
 			if err != nil && !apierrors.IsAlreadyExists(err) {

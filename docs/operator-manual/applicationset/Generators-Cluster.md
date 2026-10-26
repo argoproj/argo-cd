@@ -14,6 +14,9 @@ It automatically provides the following parameter values to the Application temp
 - `metadata.annotations.<key>` *(for each annotation in the Secret)*
 
 > [!NOTE]
+> Annotations that Argo CD or kubectl write onto the Secret as their own state, or that trigger actions on an Application, are not exposed: `argocd.argoproj.io/refresh`, `argocd.argoproj.io/refresh-timestamp`, `argocd.argoproj.io/hydrate`, `argocd.argoproj.io/hydrate-timestamp`, `argocd.argoproj.io/tracking-id`, `argocd.argoproj.io/installation-id` and `kubectl.kubernetes.io/last-applied-configuration`. For example, invalidating a cluster's cache stores a timestamp in `argocd.argoproj.io/refresh`, which would otherwise make every generated Application refresh in a loop.
+
+> [!NOTE]
 > Use the `nameNormalized` parameter if your cluster name contains characters (such as underscores) that are not valid for Kubernetes resource names. This prevents rendering invalid Kubernetes resources with names like `my_cluster-app1`, and instead would convert them to `my-cluster-app1`.
 
 
@@ -46,7 +49,7 @@ spec:
   - clusters: {} # Automatically use all clusters defined within Argo CD
   template:
     metadata:
-      name: '{{.name}}-guestbook' # 'name' field of the Secret
+      name: '{{.name}}-guestbook' # 'name' field of the cluster
     spec:
       project: "my-project"
       source:
@@ -54,7 +57,7 @@ spec:
         targetRevision: HEAD
         path: guestbook
       destination:
-        server: '{{.server}}' # 'server' field of the secret
+        server: '{{.server}}' # 'server' field of the cluster
         namespace: guestbook
 ```
 (*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/cluster).*)
