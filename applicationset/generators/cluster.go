@@ -145,13 +145,11 @@ func (p *paramHolder) consolidate() []map[string]any {
 // cause loops (e.g. the cache-invalidation timestamp in argocd.argoproj.io/refresh) or leak
 // the Secret's data (last-applied-configuration), so they are not exposed as parameters.
 var excludedClusterAnnotations = map[string]bool{
-	argoappsetv1alpha1.AnnotationKeyRefresh:          true,
-	argoappsetv1alpha1.AnnotationKeyRefreshTimestamp: true,
-	argoappsetv1alpha1.AnnotationKeyHydrate:          true,
-	argoappsetv1alpha1.AnnotationKeyHydrateTimestamp: true,
-	common.AnnotationKeyAppInstance:                  true,
-	common.AnnotationInstallationID:                  true,
-	corev1.LastAppliedConfigAnnotation:               true,
+	argoappsetv1alpha1.AnnotationKeyRefresh: true,
+	argoappsetv1alpha1.AnnotationKeyHydrate: true,
+	common.AnnotationKeyAppInstance:         true,
+	common.AnnotationInstallationID:         true,
+	corev1.LastAppliedConfigAnnotation:      true,
 }
 
 func clusterAnnotationParams(annotations map[string]string) map[string]string {

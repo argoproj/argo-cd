@@ -894,16 +894,16 @@ func TestSanitizeClusterName(t *testing.T) {
 
 func TestGetClusterParametersExcludesReservedAnnotations(t *testing.T) {
 	cluster := corev1.Secret{
-		Name: "staging-01",
-		Annotations: map[string]string{
-			"my-custom-annotation":                             "keep",
-			"argocd.argoproj.io/refresh":                       "2026-10-17T03:59:07Z",
-			"argocd.argoproj.io/refresh-timestamp":             "1",
-			"argocd.argoproj.io/hydrate":                       "normal",
-			"argocd.argoproj.io/hydrate-timestamp":             "1",
-			"argocd.argoproj.io/tracking-id":                   "clusters:/Secret:argocd/staging-01",
-			"argocd.argoproj.io/installation-id":               "id",
-			"kubectl.kubernetes.io/last-applied-configuration": `{"data":{"config":"c2VjcmV0"}}`,
+		ObjectMeta: metav1.ObjectMeta{
+			Name: "staging-01",
+			Annotations: map[string]string{
+				"my-custom-annotation":                             "keep",
+				"argocd.argoproj.io/refresh":                       "2026-10-17T03:59:07Z",
+				"argocd.argoproj.io/hydrate":                       "normal",
+				"argocd.argoproj.io/tracking-id":                   "clusters:/Secret:argocd/staging-01",
+				"argocd.argoproj.io/installation-id":               "id",
+				"kubectl.kubernetes.io/last-applied-configuration": `{"data":{"config":"c2VjcmV0"}}`,
+			},
 		},
 		Data: map[string][]byte{
 			"name":   []byte("staging-01"),
