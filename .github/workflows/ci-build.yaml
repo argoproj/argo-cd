@@ -14,7 +14,7 @@ on:
 env:
   # Golang version to use across CI steps
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.27.2'
+  GOLANG_VERSION: '1.27.3'
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
 
@@ -196,7 +196,7 @@ jobs:
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
           # renovate: datasource=go packageName=github.com/golangci/golangci-lint/v2 versioning=regex:^v(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)?$
-          version: v2.14.0
+          version: v2.15.0
           args: --verbose
 
   lint-actions:
@@ -502,7 +502,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           # renovate: datasource=node-version packageName=node versioning=node
-          node-version: '24.22.0'
+          node-version: '24.22.1'
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
       - name: Install node dependencies
@@ -716,7 +716,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           # renovate: datasource=node-version packageName=node versioning=node
-          node-version: '24.22.0'
+          node-version: '24.22.1'
       - name: Install pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
@@ -771,7 +771,7 @@ jobs:
       - name: Pull Docker image required for tests
         run: |
           # renovate: datasource=github-releases depName=dexidp/dex
-          docker pull ghcr.io/dexidp/dex:v2.46.0
+          docker pull ghcr.io/dexidp/dex:v2.46.1
           docker pull argoproj/argo-cd-ci-builder:v1.0.0
           # renovate: datasource=docker packageName=docker.io/library/redis
           docker pull redis:8.10.2-alpine
@@ -818,7 +818,8 @@ jobs:
           path: /tmp/coverage
         if: ${{ matrix.k3s.latest }}
       - name: Upload e2e test timings
-        # Feeds hack/e2e-shard-weights.sh, which regenerates test/e2e/shard-weights.txt.
+        # Feeds the shard coverage check in the composite job below and the e2e-shard-weights.yaml
+        # workflow; keep the artifact name in sync with both and hack/e2e-shard-weights-download.sh.
         # Only the "latest" k3s version is needed: one full pass over the suite.
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
