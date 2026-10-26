@@ -25,7 +25,7 @@ type SourceIntegrityGitPolicy struct {
 	Repos []SourceIntegrityGitPolicyRepo `json:"repos" protobuf:"bytes,1,name=repos"`
 	// Verify GPG commit/tag signatures
 	GPG *SourceIntegrityGitPolicyGPG `json:"gpg" protobuf:"bytes,2,name=gpg"` // A mandatory field until there are alternatives
-	// Only permit syncing from annotated tags, un-annotated tags cannot be signed
+	// Only permit syncing from annotated tags, un-annotated tags cannot be verified
 	SignedRevisionOnly bool `json:"signedRevisionOnly,omitempty" protobuf:"varint,3,opt,name=signedRevisionOnly"`
 }
 

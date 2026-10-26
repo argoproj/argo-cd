@@ -10969,7 +10969,7 @@
         },
         "signedRevisionOnly": {
           "type": "boolean",
-          "title": "Only permit syncing from annotated tags, un-annotated tags cannot be signed"
+          "title": "Only permit syncing from annotated tags, un-annotated tags cannot be verified"
         }
       }
     },

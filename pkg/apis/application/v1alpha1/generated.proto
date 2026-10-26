@@ -2787,7 +2787,7 @@ message SourceIntegrityGitPolicy {
   // Verify GPG commit/tag signatures
   optional SourceIntegrityGitPolicyGPG gpg = 2;
 
-  // Only permit syncing from annotated tags, un-annotated tags cannot be signed
+  // Only permit syncing from annotated tags, un-annotated tags cannot be verified
   optional bool signedRevisionOnly = 3;
 }
 

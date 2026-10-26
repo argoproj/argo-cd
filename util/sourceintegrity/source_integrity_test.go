@@ -722,13 +722,13 @@ func TestSignedRevisionOnly(t *testing.T) {
 			name:            "lightweight tag is rejected before verification",
 			signedTagsOnly:  true,
 			revision:        "v1.0-lightweight",
-			expectedProblem: "SignedRevisionOnly is enabled, v1.0-lightweight is not annotated. Un-annotated revisions cannot be signed",
+			expectedProblem: "SignedRevisionOnly is enabled, v1.0-lightweight is not annotated. Un-annotated tags cannot be verified",
 		},
 		{
 			name:            "commit sha is rejected before verification",
 			signedTagsOnly:  true,
 			revision:        sha,
-			expectedProblem: "SignedRevisionOnly is enabled, " + sha + " is not annotated. Un-annotated revisions cannot be signed",
+			expectedProblem: "SignedRevisionOnly is enabled, " + sha + " is not annotated. Un-annotated tags cannot be verified",
 		},
 		{
 			name:           "gate is not applied when SignedRevisionOnly is off",
@@ -781,7 +781,7 @@ func TestSignedRevisionOnly(t *testing.T) {
 func TestSignedRevisionOnlyWithoutGPGCheck(t *testing.T) {
 	const repoURL = "https://github.com/group/app.git"
 	const keyID = "4cfe068f80b1681b"
-	const problem = "SignedRevisionOnly is enabled, main is not annotated. Un-annotated revisions cannot be signed"
+	const problem = "SignedRevisionOnly is enabled, main is not annotated. Un-annotated tags cannot be verified"
 
 	si := func(gpg *v1alpha1.SourceIntegrityGitPolicyGPG) *v1alpha1.SourceIntegrity {
 		return &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
@@ -846,7 +846,7 @@ func TestSignedRevisionOnlyWithoutGPGCheck(t *testing.T) {
 			assert.Empty(t, legacy)
 			annotated.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
 
-			// Anything that cannot be signed is still rejected
+			// Anything that cannot be verified is still rejected
 			lightweight := &gitmocks.Client{}
 			lightweight.EXPECT().RepoURL().Return(repoURL)
 			lightweight.EXPECT().IsAnnotatedTag(mock.Anything, "main").Return(false)
