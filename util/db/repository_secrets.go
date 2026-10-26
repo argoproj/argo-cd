@@ -413,7 +413,7 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.WebhookManifestCacheWarmDisabled = webhookManifestCacheWarmDisabled
 
-	repository.SparsePaths = stringArrayOrEmpty(secret, "sparsePaths")
+	repository.SparsePaths = stringArrayOrNil(secret, "sparsePaths")
 
 	return repository, nil
 }

@@ -3763,12 +3763,11 @@ func TestCheckoutRevisionReconfiguresSparseOnEveryCall(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestCheckoutRevisionConfigureSparseFailureFallsBackToFullFetch verifies the
-// fallback path when ConfigureSparseCheckout fails: DisableSparseCheckout is
-// called, FetchSparseBlobs is NOT called (sparse is off), and Fetch runs in
-// non-partial mode. testify-mock fails on unexpected calls, so the absence of
-// an expectation on FetchSparseBlobs is what enforces "not called".
-func TestCheckoutRevisionConfigureSparseFailureFallsBackToFullFetch(t *testing.T) {
+// TestCheckoutRevisionConfigureSparseFailureFails verifies that an invalid sparse
+// configuration fails the checkout instead of silently fetching the whole repo.
+// testify-mock fails on unexpected calls, so the absence of a Fetch expectation
+// is what enforces "no fetch".
+func TestCheckoutRevisionConfigureSparseFailureFails(t *testing.T) {
 	revision := "0123456789012345678901234567890123456789"
 	sparsePaths := []string{"charts"}
 	ctx := t.Context()
@@ -3777,13 +3776,10 @@ func TestCheckoutRevisionConfigureSparseFailureFallsBackToFullFetch(t *testing.T
 	gitClient.EXPECT().Init().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent(ctx, revision).Return(false)
 	gitClient.EXPECT().ConfigureSparseCheckout(sparsePaths).Return(errors.New("boom")).Once()
-	gitClient.EXPECT().DisableSparseCheckout().Return(nil).Once()
-	// Non-partial fetch (third arg false) after the sparse-config fallback.
-	gitClient.EXPECT().Fetch(ctx, "", int64(0), false).Return(nil).Once()
-	gitClient.EXPECT().Checkout(ctx, revision, mock.Anything, mock.Anything).Return("", nil)
 
 	err := checkoutRevision(ctx, gitClient, revision, false, 0, sparsePaths, true)
-	require.NoError(t, err)
+	require.ErrorContains(t, err, "boom")
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
 // TestCheckoutRevisionSparseExplicitFetchFallsBackToDefaultRefspec verifies

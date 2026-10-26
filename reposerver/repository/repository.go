@@ -3267,24 +3267,17 @@ func checkoutRevision(ctx context.Context, gitClient git.Client, revision string
 		"sparsePathsCount": len(sparsePaths),
 	}).Debugf("Checking out revision %v", revision)
 
-	// Reconcile sparse-checkout state on every invocation, in both directions,
-	// not just when revisionPresent==false. Scenarios that depend on this:
-	//   1. A previous run hit the ConfigureSparseCheckout-failure fallback below,
-	//      which calls DisableSparseCheckout(). If we only re-applied the sparse
-	//      config inside the !revisionPresent branch, subsequent checkouts of the
-	//      same revision would silently produce a full working tree.
-	//   2. A workdir may be re-used (e.g. after an Init() recovery hash mismatch
-	//      between user-supplied and git-normalized paths) with stale on-disk
-	//      sparse state. Without the disable below, a non-sparse checkout would
-	//      silently generate manifests from the leftover truncated tree.
+	// Reconcile sparse-checkout state on every invocation, in both directions, not
+	// just when revisionPresent==false: a re-used workdir (e.g. after an Init()
+	// recovery hash mismatch between user-supplied and git-normalized paths) may
+	// carry stale sparse state, and a non-sparse checkout would then silently
+	// generate manifests from the leftover truncated tree.
 	useSparse := len(sparsePaths) > 0
 	if useSparse {
-		if cfgErr := gitClient.ConfigureSparseCheckout(sparsePaths); cfgErr != nil {
-			log.Warnf("Failed to configure sparse checkout, falling back to full checkout: %v", cfgErr)
-			// Disable sparse-checkout so the fallback full fetch isn't constrained by
-			// a partially-configured sparse-checkout that would produce an incomplete tree.
-			_ = gitClient.DisableSparseCheckout()
-			useSparse = false
+		// Fail rather than fall back to a full fetch of what is presumably a large
+		// mono-repo, which is what the user configured sparse paths to avoid.
+		if err := gitClient.ConfigureSparseCheckout(sparsePaths); err != nil {
+			return status.Errorf(codes.InvalidArgument, "Failed to configure sparse checkout: %v", err)
 		}
 	} else if err := gitClient.DisableSparseCheckout(); err != nil {
 		// Failing open here would silently generate manifests from a truncated tree,
@@ -3313,14 +3306,6 @@ func checkoutRevision(ctx context.Context, gitClient git.Client, revision string
 				}
 			} else {
 				err = gitClient.Fetch(ctx, "", depth, true)
-			}
-		case len(sparsePaths) > 0:
-			// Sparse paths were requested but ConfigureSparseCheckout failed above.
-			// Fall back to a regular fetch so the working tree is still populated.
-			if depth > 0 {
-				err = gitClient.Fetch(ctx, revision, depth, false)
-			} else {
-				err = gitClient.Fetch(ctx, "", depth, false)
 			}
 		case depth > 0:
 			err = gitClient.Fetch(ctx, revision, depth, false)

@@ -698,6 +698,42 @@ func Test_ChangedFiles(t *testing.T) {
 	assert.ElementsMatch(t, []string{"README"}, changedFiles)
 }
 
+// Rename detection reads blobs; on a partial clone that lazily fetches from the
+// promisor remote, which fails when it is unreachable (or needs credentials).
+func Test_ChangedFiles_PartialCloneRenameNoLazyFetch(t *testing.T) {
+	ctx := t.Context()
+	srcDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+
+	content := strings.Repeat("line\n", 20)
+	require.NoError(t, os.WriteFile(path.Join(srcDir, "old.yaml"), []byte(content), 0o644))
+	require.NoError(t, runCmd(ctx, srcDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, srcDir, "git", "commit", "-m", "add"))
+	out, err := outputCmd(ctx, srcDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	before := strings.TrimSpace(string(out))
+
+	// Inexact rename: an exact one is detected by OID without reading blobs.
+	require.NoError(t, runCmd(ctx, srcDir, "git", "mv", "old.yaml", "new.yaml"))
+	require.NoError(t, os.WriteFile(path.Join(srcDir, "new.yaml"), []byte(content+"extra\n"), 0o644))
+	require.NoError(t, runCmd(ctx, srcDir, "git", "commit", "-am", "rename"))
+	out, err = outputCmd(ctx, srcDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	after := strings.TrimSpace(string(out))
+
+	client, err := NewClient("file://"+srcDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(client.Root()) })
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, after, 0, false))
+	simulatePartialClone(ctx, t, client.Root(), after)
+	require.NoError(t, runCmd(ctx, client.Root(), "git", "remote", "set-url", "origin", "file://"+path.Join(t.TempDir(), "gone")))
+
+	changedFiles, err := client.ChangedFiles(ctx, before, after)
+	require.NoError(t, err)
+	assert.ElementsMatch(t, []string{"old.yaml", "new.yaml"}, changedFiles)
+}
+
 func Test_SemverTags(t *testing.T) {
 	tempDir := t.TempDir()
 	ctx := t.Context()
@@ -3557,6 +3593,51 @@ func Test_nativeGitClient_FetchSparseBlobs(t *testing.T) {
 	content, err := os.ReadFile(path.Join(clientRoot, "subdir", "file1.txt"))
 	require.NoError(t, err)
 	assert.Equal(t, "content1", string(content))
+}
+
+// FetchSparseBlobs must fetch only the blobs in the tree at the revision, not
+// every historical version of the files under the sparse paths.
+func Test_nativeGitClient_FetchSparseBlobs_SkipsHistoricalBlobs(t *testing.T) {
+	ctx := t.Context()
+	tempDir, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "subdir"), 0o755))
+
+	var oldBlobs []string
+	for i := range 5 {
+		require.NoError(t, os.WriteFile(path.Join(tempDir, "subdir", "file.txt"), []byte(fmt.Sprintf("v%d", i)), 0o644))
+		require.NoError(t, runCmd(ctx, tempDir, "git", "add", "."))
+		require.NoError(t, runCmd(ctx, tempDir, "git", "commit", "-m", fmt.Sprintf("v%d", i)))
+		out, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD:subdir/file.txt")
+		require.NoError(t, err)
+		oldBlobs = append(oldBlobs, strings.TrimSpace(string(out)))
+	}
+	currentBlob := oldBlobs[len(oldBlobs)-1]
+	oldBlobs = oldBlobs[:len(oldBlobs)-1]
+
+	out, err := outputCmd(ctx, tempDir, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	revision := strings.TrimSpace(string(out))
+
+	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	t.Cleanup(func() { os.RemoveAll(client.Root()) })
+	require.NoError(t, client.Init())
+	require.NoError(t, client.Fetch(ctx, revision, 0, false))
+	simulatePartialClone(ctx, t, client.Root(), revision)
+
+	require.NoError(t, client.FetchSparseBlobs(revision, []string{"subdir"}))
+
+	present := func(sha string) bool {
+		cmd := exec.CommandContext(ctx, "git", "cat-file", "-e", sha)
+		cmd.Dir = client.Root()
+		cmd.Env = append(os.Environ(), "GIT_NO_LAZY_FETCH=1")
+		return cmd.Run() == nil
+	}
+	assert.True(t, present(currentBlob), "blob at the revision should be fetched")
+	for _, sha := range oldBlobs {
+		assert.False(t, present(sha), "historical blob %s should not be fetched", sha)
+	}
 }
 
 func Test_nativeGitClient_ConfigureSparseCheckout_RejectsFlagInjection(t *testing.T) {

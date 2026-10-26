@@ -89,23 +89,16 @@ func updateSecretStringArray(secret *corev1.Secret, key string, value []string) 
 	}
 }
 
-func stringArrayOrEmpty(secret *corev1.Secret, key string) []string {
-	if val, present := secret.Data[key]; present && len(val) > 0 {
-		// Parse comma-separated values
-		str := string(val)
-		if str == "" {
-			return []string{}
+// stringArrayOrNil returns nil, not an empty slice, when the key is absent or
+// empty so the result DeepEquals a request that omitted the field (CreateRepository).
+func stringArrayOrNil(secret *corev1.Secret, key string) []string {
+	var result []string
+	for p := range strings.SplitSeq(string(secret.Data[key]), ",") {
+		if trimmed := strings.TrimSpace(p); trimmed != "" {
+			result = append(result, trimmed)
 		}
-		parts := strings.Split(str, ",")
-		result := make([]string, 0, len(parts))
-		for _, p := range parts {
-			if trimmed := strings.TrimSpace(p); trimmed != "" {
-				result = append(result, trimmed)
-			}
-		}
-		return result
 	}
-	return []string{}
+	return result
 }
 
 func (db *db) createSecret(ctx context.Context, secret *corev1.Secret) (*corev1.Secret, error) {

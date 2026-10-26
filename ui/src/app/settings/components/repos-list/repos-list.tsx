@@ -151,7 +151,6 @@ interface NewSSHRepoCredsParams {
     sshPrivateKey: string;
     // write should be true if saving as a write credential.
     write: boolean;
-    sparsePaths?: string;
 }
 
 interface NewHTTPSRepoCredsParams {
@@ -170,7 +169,6 @@ interface NewHTTPSRepoCredsParams {
     // write should be true if saving as a write credential.
     write: boolean;
     useAzureWorkloadIdentity: boolean;
-    sparsePaths?: string;
 }
 
 interface NewGitHubAppRepoCredsParams {
@@ -478,7 +476,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     // Connect a new repository or create a repository credentials for SSH repositories
     const connectSSHRepo = async (params: NewSSHRepoParams) => {
         if (credsTemplate.current) {
-            createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey, write: params.write, sparsePaths: params.sparsePaths});
+            createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey, write: params.write});
         } else {
             setConnecting(true);
             try {
@@ -517,8 +515,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 enableOCI: params.enableOCI,
                 write: params.write,
                 useAzureWorkloadIdentity: params.useAzureWorkloadIdentity,
-                insecureOCIForceHttp: params.insecureOCIForceHttp,
-                sparsePaths: params.sparsePaths
+                insecureOCIForceHttp: params.insecureOCIForceHttp
             });
         } else {
             setConnecting(true);
@@ -1132,7 +1129,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 {formApi.getFormState().values.write === false && (
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
-                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
+                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out. Ignored when saving as a credentials template.' />
                                                     </div>
                                                 )}
                                             </div>
@@ -1246,7 +1243,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 {formApi.getFormState().values.type === 'git' && formApi.getFormState().values.write === false && (
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Sparse paths (optional, comma-separated)' field='sparsePaths' component={Text} />
-                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
+                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out. Ignored when saving as a credentials template.' />
                                                     </div>
                                                 )}
                                             </div>
@@ -1324,7 +1321,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 {formApi.getFormState().values.write === false && (
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Sparse paths (comma-separated)' field='sparsePaths' component={Text} />
-                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out.' />
+                                                        <HelpIcon title='Specify paths for sparse checkout (comma-separated). Only specified paths will be checked out. Ignored when saving as a credentials template.' />
                                                     </div>
                                                 )}
                                             </div>

@@ -3,6 +3,7 @@ package git
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"path"
 	"sort"
 	"strings"
@@ -26,6 +27,28 @@ func ComputePathHash(paths []string) string {
 
 	// 16 hex chars = 8 bytes = 2^64 distinct values, ample for this use.
 	return hex.EncodeToString(hash[:])[:16]
+}
+
+// NormalizeSparsePaths validates cone-mode sparse paths and returns their
+// canonical form. Entries git would reject (escaping the repo, globs, flags)
+// make `git sparse-checkout set` fail, so they are rejected up front.
+func NormalizeSparsePaths(paths []string) ([]string, error) {
+	for _, p := range paths {
+		cleaned := path.Clean(strings.TrimSpace(p))
+		switch {
+		case strings.HasPrefix(p, "-"):
+			return nil, fmt.Errorf("invalid sparse path %q: must not start with '-'", p)
+		case cleaned == ".." || strings.HasPrefix(cleaned, "../"):
+			return nil, fmt.Errorf("invalid sparse path %q: must not reference a parent directory", p)
+		case strings.ContainsAny(p, "*?[\\"):
+			return nil, fmt.Errorf("invalid sparse path %q: must be a directory, not a pattern", p)
+		}
+	}
+	normalized := normalizeSparsePaths(paths)
+	if len(paths) > 0 && len(normalized) == 0 {
+		return nil, fmt.Errorf("invalid sparse paths %q: no directory given", paths)
+	}
+	return normalized, nil
 }
 
 // normalizeSparsePaths returns a canonical, hash-stable form of the input:

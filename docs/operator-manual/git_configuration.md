@@ -44,8 +44,8 @@ environment.
 
 ## Sparse Checkout (Partial Clone)
 
-For very large repositories where each Application only needs a small subset of
-the tree, you can configure sparse paths on a repository. When sparse paths are
+For very large repositories where Argo CD only needs a small subset of the
+tree, you can configure sparse paths on a repository. When sparse paths are
 configured, `argocd-repo-server` performs a partial clone (`--filter=blob:none`)
 and uses Git's [sparse checkout][1] (cone mode) so that only the matching paths
 are materialised on disk. Blobs outside the configured paths are fetched lazily
@@ -60,6 +60,19 @@ on demand from the promisor remote.
 
 If your Applications already render most of the repository, sparse checkout
 will not save meaningful bandwidth or disk space.
+
+Sparse paths are set per repository, not per Application. Every Application
+that uses the repository URL sees only the configured paths, so the list must
+cover the directories of all of them, including any Helm value files or
+Kustomize bases they reference elsewhere in the repository.
+
+> [!WARNING]
+> Adding sparse paths to a repository that existing Applications already use
+> makes any Application whose path reaches outside the configured paths render
+> a partial set of manifests. With automated sync and pruning enabled, Argo CD
+> then deletes the live resources that are missing from those manifests.
+> Check every Application using the repository before adding or narrowing
+> sparse paths.
 
 ### Enabling
 
@@ -96,17 +109,21 @@ stringData:
 ```
 
 Paths must be directories relative to the repository root (e.g. `charts` or
-`apps/foo`); leading slashes are rejected by git's cone-mode parser. Cone mode
-(`git sparse-checkout init --cone --sparse-index`) is used, so each entry must
-be a directory rather than a glob.
+`apps/foo`). Cone mode (`git sparse-checkout init --cone --sparse-index`) is
+used, so each entry must be a directory rather than a glob. Leading and
+trailing slashes are stripped. Globs, paths that start with `-`, and paths
+that reference a parent directory (`..`) are rejected when the repository is
+created or updated. If Git still refuses the configuration (for example
+because an entry names a file), manifest generation fails with an error
+rather than falling back to a full checkout.
 
 ### Incompatibilities and caveats
 
 > [!WARNING]
-> **Git LFS:** Partial clone is incompatible with Git LFS. When sparse paths
-> are configured, the LFS fetch step is skipped even if `enableLfs` is set on
-> the repository. Repositories that rely on LFS for the files Argo CD renders
-> should not be configured with sparse paths.
+> **Git LFS:** Partial clone is incompatible with Git LFS, so a repository
+> cannot have both sparse paths and `enableLfs` set. The API rejects the
+> combination, and manifest generation fails if it is set through a
+> Repository secret.
 
 > [!NOTE]
 > **Server-side support:** Partial clone requires the Git server to advertise

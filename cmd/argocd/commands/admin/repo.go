@@ -150,6 +150,7 @@ func NewGenRepoSpecCommand() *cobra.Command {
 			repoOpts.Repo.UseAzureWorkloadIdentity = repoOpts.UseAzureWorkloadIdentity
 			repoOpts.Repo.InsecureOCIForceHttp = repoOpts.InsecureOCIForceHTTP
 			repoOpts.Repo.WebhookManifestCacheWarmDisabled = repoOpts.WebhookManifestCacheWarmDisabled
+			repoOpts.Repo.SparsePaths = repoOpts.SparsePaths
 
 			if repoOpts.Repo.Type == "helm" && repoOpts.Repo.Name == "" {
 				errors.CheckError(stderrors.New("must specify --name for repos of type 'helm'"))

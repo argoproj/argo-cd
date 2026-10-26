@@ -603,6 +603,30 @@ func TestLsFiles(t *testing.T) {
 	}
 }
 
+// Files outside the sparse cone are in the index but not on disk; listing them
+// makes the git files generator fail reading them.
+func TestLsFiles_SparseCheckoutSkipsOutOfCone(t *testing.T) {
+	setupGitEnv(t)
+	tmpDir := t.TempDir()
+	ctx := t.Context()
+
+	client, err := NewClientExt("", tmpDir, NopCreds{}, false, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "init"))
+	for _, dir := range []string{"in", "out"} {
+		require.NoError(t, os.MkdirAll(filepath.Join(tmpDir, dir), 0o755))
+		require.NoError(t, os.WriteFile(filepath.Join(tmpDir, dir, "config.json"), []byte("{}"), 0o644))
+	}
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "add", "."))
+	require.NoError(t, runCmd(ctx, tmpDir, "git", "commit", "-m", "Initial commit"))
+	require.NoError(t, client.ConfigureSparseCheckout([]string{"in"}))
+	require.NoFileExists(t, filepath.Join(tmpDir, "out", "config.json"))
+
+	files, err := client.LsFiles(ctx, "**/config.json", false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"in/config.json"}, files)
+}
+
 func TestLsFilesForGitFileGeneratorGlobbingPatterns(t *testing.T) {
 	setupGitEnv(t)
 	tmpDir := t.TempDir()
@@ -1051,6 +1075,34 @@ func TestComputePathHashNormalization(t *testing.T) {
 	t.Run("distinct paths still produce distinct hashes", func(t *testing.T) {
 		assert.NotEqual(t, ComputePathHash([]string{"app-a"}), ComputePathHash([]string{"app-b"}))
 	})
+}
+
+func TestNormalizeSparsePaths(t *testing.T) {
+	got, err := NormalizeSparsePaths([]string{"/charts/", "apps/./foo", "charts"})
+	require.NoError(t, err)
+	assert.Equal(t, []string{"apps/foo", "charts"}, got)
+
+	got, err = NormalizeSparsePaths(nil)
+	require.NoError(t, err)
+	assert.Nil(t, got)
+
+	for _, bad := range []string{"../x", "a/../../x", "a/*.yaml", "a?", "[ab]", `a\b`, "--no-cone", "/", "."} {
+		t.Run(bad, func(t *testing.T) {
+			_, err := NormalizeSparsePaths([]string{"ok", bad})
+			if bad == "/" || bad == "." {
+				// Dropped entries are fine alongside a valid one; only an all-empty list is rejected.
+				require.NoError(t, err)
+				_, err = NormalizeSparsePaths([]string{bad})
+			}
+			require.Error(t, err)
+		})
+	}
+}
+
+func TestConfigureSparseCheckout_RejectsLFS(t *testing.T) {
+	client, err := NewClientExt("", t.TempDir(), NopCreds{}, false, true, "", "")
+	require.NoError(t, err)
+	require.ErrorContains(t, client.ConfigureSparseCheckout([]string{"charts"}), "Git LFS")
 }
 
 // TestComputePathHashRoundTripsThroughGit exercises the canonical-form contract

@@ -84,6 +84,23 @@ func (s *Server) getWriteRepo(ctx context.Context, url, project string) (*v1alph
 	return repo, nil
 }
 
+// normalizeSparsePaths rejects sparse paths git would refuse, so a bad value
+// fails here instead of on every manifest generation.
+func normalizeSparsePaths(repo *v1alpha1.Repository) error {
+	if len(repo.SparsePaths) == 0 {
+		return nil
+	}
+	if repo.EnableLFS {
+		return status.Error(codes.InvalidArgument, "sparse paths cannot be used with Git LFS")
+	}
+	paths, err := git.NormalizeSparsePaths(repo.SparsePaths)
+	if err != nil {
+		return status.Error(codes.InvalidArgument, err.Error())
+	}
+	repo.SparsePaths = paths
+	return nil
+}
+
 func createRBACObject(project string, repo string) string {
 	if project != "" {
 		return project + "/" + repo
@@ -437,6 +454,9 @@ func (s *Server) CreateRepository(ctx context.Context, q *repositorypkg.RepoCrea
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
+	if err := normalizeSparsePaths(q.Repo); err != nil {
+		return nil, err
+	}
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceRepositories, rbac.ActionCreate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
 		return nil, err
@@ -500,6 +520,9 @@ func (s *Server) CreateWriteRepository(ctx context.Context, q *repositorypkg.Rep
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
+	if err := normalizeSparsePaths(q.Repo); err != nil {
+		return nil, err
+	}
 
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceWriteRepositories, rbac.ActionCreate, createRBACObject(q.Repo.Project, q.Repo.Repo)); err != nil {
 		return nil, err
@@ -548,6 +571,9 @@ func (s *Server) UpdateRepository(ctx context.Context, q *repositorypkg.RepoUpda
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
 	}
+	if err := normalizeSparsePaths(q.Repo); err != nil {
+		return nil, err
+	}
 
 	repo, err := s.getRepo(ctx, q.Repo.Repo, q.Repo.Project)
 	if err != nil {
@@ -574,6 +600,9 @@ func (s *Server) UpdateWriteRepository(ctx context.Context, q *repositorypkg.Rep
 
 	if q.Repo == nil {
 		return nil, status.Errorf(codes.InvalidArgument, "missing payload in request")
+	}
+	if err := normalizeSparsePaths(q.Repo); err != nil {
+		return nil, err
 	}
 
 	repo, err := s.getWriteRepo(ctx, q.Repo.Repo, q.Repo.Project)

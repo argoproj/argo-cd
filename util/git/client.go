@@ -803,14 +803,13 @@ func (m *nativeGitClient) ConfigureSparseCheckout(paths []string) error {
 		return errors.New("sparse checkout requires at least one path")
 	}
 
-	// Reject paths that would be interpreted as flags by `git sparse-checkout set`.
-	// Cone-mode paths are directory names; a leading "-" is never valid and bypassing
-	// this check lets a SparsePaths entry like "--stdin" or "--no-cone" silently
-	// reconfigure the command (e.g. set zero patterns, producing an empty working tree).
-	for _, p := range paths {
-		if strings.HasPrefix(p, "-") {
-			return fmt.Errorf("invalid sparse checkout path %q: must not start with '-'", p)
-		}
+	paths, err := NormalizeSparsePaths(paths)
+	if err != nil {
+		return err
+	}
+	// Partial clone skips the LFS fetch, so LFS files would stay pointer files.
+	if m.enableLfs {
+		return errors.New("sparse paths cannot be used with Git LFS")
 	}
 
 	ctx := context.Background()
@@ -875,21 +874,37 @@ func (m *nativeGitClient) FetchSparseBlobs(revision string, paths []string) erro
 
 	ctx := context.Background()
 
-	// List all objects under the sparse paths and identify which are missing locally.
-	// --missing=print outputs missing objects with a "?" prefix (e.g. "?<sha>"), while
-	// present objects are listed normally. In a --filter=blob:none partial clone, commits
-	// and trees are always present — only blobs are missing. This lets us identify exactly
-	// which blobs need to be fetched without a separate cat-file step.
-	revListArgs := append([]string{"rev-list", "--objects", "--no-object-names", "--missing=print", revision, "--"}, paths...)
-	objectList, err := m.runCmd(ctx, revListArgs...)
+	// List only the blobs in the tree at this revision; rev-list --objects would walk
+	// history and fetch every past version of every file under the sparse paths.
+	// Gitlinks (submodules) are commits, not blobs, so filter by type.
+	lsTreeArgs := append([]string{"ls-tree", "-r", "--format=%(objecttype) %(objectname)", revision, "--"}, paths...)
+	treeList, err := m.runCmd(ctx, lsTreeArgs...)
 	if err != nil {
 		log.Warnf("Failed to list objects for sparse paths; falling back to on-demand lazy fetching from the promisor remote during checkout: %v", err)
 		return nil // Non-fatal: checkout will still work via lazy fetching
 	}
+	var blobs []string
+	for line := range strings.SplitSeq(treeList, "\n") {
+		if sha, found := strings.CutPrefix(line, "blob "); found {
+			blobs = append(blobs, sha)
+		}
+	}
+	if len(blobs) == 0 {
+		return nil
+	}
 
+	// GIT_NO_LAZY_FETCH=1 makes cat-file report missing blobs instead of fetching them one by one.
+	cmd := exec.CommandContext(ctx, "git", "cat-file", "--batch-check=%(objectname)")
+	cmd.Env = append(cmd.Env, "GIT_NO_LAZY_FETCH=1")
+	cmd.Stdin = strings.NewReader(strings.Join(blobs, "\n") + "\n")
+	checkOut, err := m.runCmdOutput(cmd, runOpts{})
+	if err != nil {
+		log.Warnf("Failed to check for missing blobs for sparse paths; falling back to on-demand lazy fetching from the promisor remote during checkout: %v", err)
+		return nil
+	}
 	var missingBlobs []string
-	for line := range strings.SplitSeq(strings.TrimSpace(objectList), "\n") {
-		if sha, found := strings.CutPrefix(line, "?"); found && sha != "" {
+	for line := range strings.SplitSeq(checkOut, "\n") {
+		if sha, found := strings.CutSuffix(line, " missing"); found {
 			missingBlobs = append(missingBlobs, sha)
 		}
 	}
@@ -956,13 +971,21 @@ func (m *nativeGitClient) LsFiles(ctx context.Context, path string, enableNewGit
 		return files, nil
 	}
 	// This is the old and default way
-	out, err := m.runCmd(ctx, "ls-files", "--full-name", "-z", "--", path)
+	// -t tags each entry; "S" (skip-worktree) entries are outside the sparse cone
+	// and not on disk, so callers reading them would fail.
+	out, err := m.runCmd(ctx, "ls-files", "-t", "--full-name", "-z", "--", path)
 	if err != nil {
 		return nil, err
 	}
-	// remove last element, which is blank regardless of whether we're using nullbyte or newline
-	ss := strings.Split(out, "\000")
-	return ss[:len(ss)-1], nil
+	var files []string
+	for entry := range strings.SplitSeq(out, "\000") {
+		tag, file, ok := strings.Cut(entry, " ")
+		if !ok || tag == "S" {
+			continue
+		}
+		files = append(files, file)
+	}
+	return files, nil
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
@@ -2107,7 +2130,9 @@ func (m *nativeGitClient) ChangedFiles(ctx context.Context, revision string, tar
 		return []string{}, errors.New("invalid revision provided, must be SHA")
 	}
 
-	out, err := m.runCmd(ctx, "diff", "--name-only", fmt.Sprintf("%s..%s", revision, targetRevision))
+	// --no-renames: rename detection reads blob contents, which on a partial clone
+	// triggers an uncredentialed lazy fetch. It also reports both old and new paths.
+	out, err := m.runCmd(ctx, "diff", "--name-only", "--no-renames", fmt.Sprintf("%s..%s", revision, targetRevision))
 	if err != nil {
 		return nil, fmt.Errorf("failed to diff %s..%s: %w", revision, targetRevision, err)
 	}

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -291,6 +292,22 @@ func TestCreateExistingRepository(t *testing.T) {
 	assert.Equal(t, codes.AlreadyExists, status.Convert(err).Code())
 }
 
+// The API server treats a re-create as idempotent only if the stored repo DeepEquals the request.
+func TestCreateRepository_RoundTripsNilSparsePaths(t *testing.T) {
+	clientset := getClientset()
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+
+	for _, sparsePaths := range [][]string{nil, {"charts", "apps"}} {
+		repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/repo-" + strconv.Itoa(len(sparsePaths)), SparsePaths: sparsePaths}
+		_, err := db.CreateRepository(t.Context(), repo)
+		require.NoError(t, err)
+
+		got, err := db.GetRepository(t.Context(), repo.Repo, "")
+		require.NoError(t, err)
+		assert.Equal(t, sparsePaths, got.SparsePaths)
+	}
+}
+
 func TestGetRepository(t *testing.T) {
 	clientset := getClientset(&corev1.Secret{
 		Namespace: testNamespace,
@@ -346,12 +363,12 @@ func TestGetRepository(t *testing.T) {
 		{
 			name:    "TestKnownRepo",
 			repoURL: "https://known/repo",
-			want:    &v1alpha1.Repository{Repo: "https://known/repo", SparsePaths: []string{}},
+			want:    &v1alpha1.Repository{Repo: "https://known/repo"},
 		},
 		{
 			name:    "TestSecuredRepo",
 			repoURL: "https://secured/repo",
-			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password", InheritedCreds: true, SparsePaths: []string{}},
+			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password", InheritedCreds: true},
 		},
 	}
 	for _, tt := range tests {
@@ -418,12 +435,12 @@ func TestGetWriteRepository(t *testing.T) {
 		{
 			name:    "TestKnownRepo",
 			repoURL: "https://known/repo",
-			want:    &v1alpha1.Repository{Repo: "https://known/repo", SparsePaths: []string{}},
+			want:    &v1alpha1.Repository{Repo: "https://known/repo"},
 		},
 		{
 			name:    "TestSecuredRepo",
 			repoURL: "https://secured/repo",
-			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password", InheritedCreds: true, SparsePaths: []string{}},
+			want:    &v1alpha1.Repository{Repo: "https://secured/repo", Username: "test-username", Password: "test-password", InheritedCreds: true},
 		},
 	}
 	for _, tt := range tests {
