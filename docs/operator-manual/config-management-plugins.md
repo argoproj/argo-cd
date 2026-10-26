@@ -356,7 +356,7 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 For each manifest generation request, the sidecar extracts the repository files it received into a new temporary
 directory under `/tmp/_cmp_server` and runs the `init` and `generate` commands in the Application source directory
 inside it. The directory is deleted as soon as the request completes, and `/tmp/_cmp_server` is also cleared whenever
-the sidecar starts, so you can't inspect it afterwards.
+the sidecar starts, so you can't inspect it later.
 
 To keep a copy of the files, add a copy step to the beginning of your `generate` command that writes to a directory
 outside `/tmp/_cmp_server`:
@@ -380,6 +380,10 @@ spec:
 Copying before generating the manifests keeps the files even if generation fails, includes any changes made by
 the `init` command, and doesn't change the exit code of the `generate` command. The copy step must not write anything
 to stdout, because the output of `generate` is parsed as manifests.
+
+Each manifest generation for the Application replaces the previous copy. If several requests for the same Application
+run at the same time, or several Applications share the same name, the copy may mix their files, so debug one
+Application at a time.
 
 After the next manifest generation (do a "Hard Refresh" to force one), open a shell in the sidecar and run your
 commands from the copied directory:
