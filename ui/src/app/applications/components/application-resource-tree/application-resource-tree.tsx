@@ -42,6 +42,28 @@ function treeNodeKey(node: NodeId & {uid?: string}) {
     return node.uid || nodeKey(node);
 }
 
+// When pods are grouped into their parent's pod group (compact view), a Pod is not
+// rendered as its own node. Resources owned by such a Pod (e.g. LeaderWorkerSet worker
+// StatefulSets, which are owned by the leader Pod) would otherwise be unreachable, so
+// attach them to the Pod's own parent instead.
+export function getEffectiveParentKey(parent: ResourceTreeNode, nodeByKey: Map<string, ResourceTreeNode>, showCompactNodes: boolean): string {
+    let current = parent;
+    const seen = new Set<string>();
+    while (showCompactNodes && current?.kind === 'Pod' && (current.parentRefs || []).length > 0) {
+        const key = treeNodeKey(current);
+        if (seen.has(key)) {
+            break;
+        }
+        seen.add(key);
+        const grandParent = nodeByKey.get(treeNodeKey(current.parentRefs[0]));
+        if (!grandParent) {
+            break;
+        }
+        current = grandParent;
+    }
+    return treeNodeKey(current);
+}
+
 export function nodeIdMatchesResourceKey(nodeId: string, targetKey: string, nodes: ResourceTreeNode[]): boolean {
     if (nodeId === targetKey) {
         return true;
@@ -1301,7 +1323,8 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                         orphans.push(node);
                     }
                     node.parentRefs.forEach(parent => {
-                        const parentId = treeNodeKey(parent);
+                        const parentNode = nodeByKey.get(treeNodeKey(parent));
+                        const parentId = parentNode && node.kind !== 'Pod' ? getEffectiveParentKey(parentNode, nodeByKey, props.showCompactNodes) : treeNodeKey(parent);
                         const children = childrenByParentKey.get(parentId) || [];
                         if (nodesHavingChildren.has(parentId)) {
                             nodesHavingChildren.set(parentId, nodesHavingChildren.get(parentId) + children.length);
