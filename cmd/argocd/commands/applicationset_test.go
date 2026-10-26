@@ -203,11 +203,6 @@ func TestFormatConditions(t *testing.T) {
 			conditions: nil,
 			expected:   "[]",
 		},
- 		{
- 			name:       "no conditions",
- 			conditions: nil,
- 			expected:   "[]",
- 		},
 		{
 			name: "filters false conditions",
 			conditions: []v1alpha1.ApplicationSetCondition{
