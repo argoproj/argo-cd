@@ -43,7 +43,7 @@ Argo CD considers an `Ingress` healthy once its ingress controller has written a
 kubectl get ingress <name> -n <namespace> -o jsonpath='{.status.loadBalancer}'
 ```
 
-If the output is `{}`, the ingress controller has not published an address. Ingress controllers usually copy the address
+If the output is empty or `{}`, the ingress controller has not published an address. Ingress controllers usually copy the address
 from their own `Service`, so this happens when that `Service` has no external address, for example:
 
 * a `LoadBalancer` `Service` whose `EXTERNAL-IP` stays `<pending>` (no load balancer implementation in the cluster),
@@ -94,10 +94,18 @@ for limitations, including how it interacts with sync waves.
 
 ### Override the `Ingress` health check
 
-To change how Argo CD assesses every `Ingress`, override the built-in health check in `argocd-cm`. For example, to
-always consider an `Ingress` healthy:
+To change how Argo CD assesses every `networking.k8s.io/Ingress`, override the built-in health check in `argocd-cm`.
+For example, to always consider an `Ingress` healthy:
 
 ```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
 data:
   resource.customizations.health.networking.k8s.io_Ingress: |
     hs = {}
