@@ -676,7 +676,7 @@ gpg: Good signature from "%s" [ultimate]`, "Wed Feb 26 23:22:34 2020 CET", ret[0
 	}
 }
 
-func TestSignedTagsOnly(t *testing.T) {
+func TestSignedRevisionOnly(t *testing.T) {
 	const repoURL = "https://github.com/group/app.git"
 	const keyID = "4cfe068f80b1681b"
 	const sha = "0c7a9c3f939c1f19b518bcdd11e2fce9703c4901"
@@ -685,7 +685,7 @@ func TestSignedTagsOnly(t *testing.T) {
 		return &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
 			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
 				Repos:          []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
-				SignedTagsOnly: signedTagsOnly,
+				SignedRevisionOnly: signedTagsOnly,
 				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
 					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
 					Keys: []string{keyID},
@@ -722,16 +722,16 @@ func TestSignedTagsOnly(t *testing.T) {
 			name:            "lightweight tag is rejected before verification",
 			signedTagsOnly:  true,
 			revision:        "v1.0-lightweight",
-			expectedProblem: "SignedTagsOnly is enabled, v1.0-lightweight is not annotated. Un-annotated revisions cannot be signed",
+			expectedProblem: "SignedRevisionOnly is enabled, v1.0-lightweight is not annotated. Un-annotated revisions cannot be signed",
 		},
 		{
 			name:            "commit sha is rejected before verification",
 			signedTagsOnly:  true,
 			revision:        sha,
-			expectedProblem: "SignedTagsOnly is enabled, " + sha + " is not annotated. Un-annotated revisions cannot be signed",
+			expectedProblem: "SignedRevisionOnly is enabled, " + sha + " is not annotated. Un-annotated revisions cannot be signed",
 		},
 		{
-			name:           "gate is not applied when SignedTagsOnly is off",
+			name:           "gate is not applied when SignedRevisionOnly is off",
 			signedTagsOnly: false,
 			revision:       sha,
 		},
@@ -778,16 +778,16 @@ func TestSignedTagsOnly(t *testing.T) {
 	}
 }
 
-func TestSignedTagsOnlyWithoutGPGCheck(t *testing.T) {
+func TestSignedRevisionOnlyWithoutGPGCheck(t *testing.T) {
 	const repoURL = "https://github.com/group/app.git"
 	const keyID = "4cfe068f80b1681b"
-	const problem = "SignedTagsOnly is enabled, main is not annotated. Un-annotated revisions cannot be signed"
+	const problem = "SignedRevisionOnly is enabled, main is not annotated. Un-annotated revisions cannot be signed"
 
 	si := func(gpg *v1alpha1.SourceIntegrityGitPolicyGPG) *v1alpha1.SourceIntegrity {
 		return &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
 			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
 				Repos:          []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
-				SignedTagsOnly: true,
+				SignedRevisionOnly: true,
 				GPG:            gpg,
 			}},
 		}}
@@ -859,7 +859,7 @@ func TestSignedTagsOnlyWithoutGPGCheck(t *testing.T) {
 			assert.Equal(t, problem, legacy)
 			lightweight.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
 
-			// SignedTagsOnly is a criteria
+			// SignedRevisionOnly is a criteria
 			assert.True(t, HasCriteria(si(tc.gpg), v1alpha1.ApplicationSource{RepoURL: repoURL}))
 
 			assert.Equal(t, tc.expectedLogs, logger.GetEntries())

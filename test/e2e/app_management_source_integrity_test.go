@@ -28,14 +28,14 @@ var projectWithNoKeys = AppProjectSpec{
 	},
 }
 
-var projectWithSignedTagsOnly = AppProjectSpec{
+var projectWithSignedRevisionOnly = AppProjectSpec{
 	SourceRepos:  []string{"*"},
 	Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
 	SourceIntegrity: &SourceIntegrity{
 		Git: &SourceIntegrityGit{
 			Policies: []*SourceIntegrityGitPolicy{{
 				Repos:          []SourceIntegrityGitPolicyRepo{{URL: "*"}},
-				SignedTagsOnly: true, // Verifying annotated tags
+				SignedRevisionOnly: true, // Verifying annotated tags
 				GPG: &SourceIntegrityGitPolicyGPG{
 					Keys: []string{fixture.GpgGoodKeyID},
 					Mode: "head",
@@ -473,11 +473,11 @@ func TestArtifactCacheInvalidatedOnSourceIntegrityChange(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key (key_id="+fixture.GpgGoodKeyID+")"))
 }
 
-func TestSignedTagsOnlyRejectsLightweightTag(t *testing.T) {
+func TestSignedRevisionOnlyRejectsLightweightTag(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
 	fixture.EnsureCleanState(t)
 	Given(t).
-		ProjectSpec(projectWithSignedTagsOnly).
+		ProjectSpec(projectWithSignedRevisionOnly).
 		Revision("lightweight-tag").
 		Path(guestbookPath).
 		GPGPublicKeyAdded().
@@ -492,14 +492,14 @@ func TestSignedTagsOnlyRejectsLightweightTag(t *testing.T) {
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
-		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedTagsOnly is enabled, lightweight-tag is not annotated"))
+		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedRevisionOnly is enabled, lightweight-tag is not annotated"))
 }
 
-func TestSignedTagsOnlyRejectsBranch(t *testing.T) {
+func TestSignedRevisionOnlyRejectsBranch(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
 	fixture.EnsureCleanState(t)
 	Given(t).
-		ProjectSpec(projectWithSignedTagsOnly).
+		ProjectSpec(projectWithSignedRevisionOnly).
 		Revision("master").
 		Path(guestbookPath).
 		GPGPublicKeyAdded().
@@ -513,14 +513,14 @@ func TestSignedTagsOnlyRejectsBranch(t *testing.T) {
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
-		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedTagsOnly is enabled"))
+		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedRevisionOnly is enabled"))
 }
 
-func TestSignedTagsOnlyAcceptsSignedAnnotatedTag(t *testing.T) {
+func TestSignedRevisionOnlyAcceptsSignedAnnotatedTag(t *testing.T) {
 	fixture.SkipOnEnv(t, "GPG")
 	fixture.EnsureCleanState(t)
 	Given(t).
-		ProjectSpec(projectWithSignedTagsOnly).
+		ProjectSpec(projectWithSignedRevisionOnly).
 		Revision("v2.0").
 		Path(guestbookPath).
 		GPGPublicKeyAdded().

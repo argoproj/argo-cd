@@ -47,14 +47,14 @@ func dummySourceIntegrity() *appsv1.SourceIntegrity {
 	}}
 }
 
-func dummySourceIntegritySignedTagsOnly() *appsv1.SourceIntegrity {
+func dummySourceIntegritySignedRevisionOnly() *appsv1.SourceIntegrity {
 	return &appsv1.SourceIntegrity{Git: &appsv1.SourceIntegrityGit{
 		Policies: []*appsv1.SourceIntegrityGitPolicy{
 			{
 				Repos: []appsv1.SourceIntegrityGitPolicyRepo{{
 					URL: "*",
 				}},
-				SignedTagsOnly: true,
+				SignedRevisionOnly: true,
 				GPG: &appsv1.SourceIntegrityGitPolicyGPG{
 					Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
 					Keys: []string{"ABCD1234ABCD1234"},
@@ -224,7 +224,7 @@ func TestProjectSourceIntegrityAddCommand(t *testing.T) {
 			Repos: []appsv1.SourceIntegrityGitPolicyRepo{{
 				URL: "*",
 			}},
-			SignedTagsOnly: true,
+			SignedRevisionOnly: true,
 			GPG: &appsv1.SourceIntegrityGitPolicyGPG{
 				Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
 				Keys: []string{"ABCD1234ABCD1234"},
@@ -250,7 +250,7 @@ func TestProjectSourceIntegrityAddCommand(t *testing.T) {
 		updatedProject := captureProjectUpdate(t, projects, projectName)
 		require.NotNil(t, updatedProject)
 		require.NotNil(t, updatedProject.Spec.SourceIntegrity)
-		assert.False(t, updatedProject.Spec.SourceIntegrity.Git.Policies[0].SignedTagsOnly)
+		assert.False(t, updatedProject.Spec.SourceIntegrity.Git.Policies[0].SignedRevisionOnly)
 	})
 
 	t.Run("Add source integrity verification policy - warn existing", func(t *testing.T) {
@@ -307,7 +307,7 @@ func TestProjectSourceIntegrityListCommand(t *testing.T) {
 		},
 		{
 			name:            "with signed tags only policy",
-			sourceIntegrity: dummySourceIntegritySignedTagsOnly(),
+			sourceIntegrity: dummySourceIntegritySignedRevisionOnly(),
 			projectName:     projectName,
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
 0	head	ABCD1234ABCD1234	*	true
@@ -504,7 +504,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 				}, {
 					URL: "!https://github.com/argoproj/argo-cd.git",
 				}},
-				SignedTagsOnly: true,
+				SignedRevisionOnly: true,
 				GPG: &appsv1.SourceIntegrityGitPolicyGPG{
 					Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
 					Keys: []string{"ABCD1234ABCD1234"},
@@ -513,7 +513,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 		},
 		{
 			name:            "Disable signed tags only",
-			sourceIntegrity: dummySourceIntegritySignedTagsOnly(),
+			sourceIntegrity: dummySourceIntegritySignedRevisionOnly(),
 			args:            []string{projectName, "0", "--signed-tags-only=false", "--yes"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
 0	head	ABCD1234ABCD1234	*	false
@@ -523,7 +523,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 				Repos: []appsv1.SourceIntegrityGitPolicyRepo{{
 					URL: "*",
 				}},
-				SignedTagsOnly: false,
+				SignedRevisionOnly: false,
 				GPG: &appsv1.SourceIntegrityGitPolicyGPG{
 					Mode: appsv1.SourceIntegrityGitPolicyGPGModeHead,
 					Keys: []string{"ABCD1234ABCD1234"},
@@ -532,7 +532,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 		},
 		{
 			name:            "Keep signed tags only when the flag is not given",
-			sourceIntegrity: dummySourceIntegritySignedTagsOnly(),
+			sourceIntegrity: dummySourceIntegritySignedRevisionOnly(),
 			args:            []string{projectName, "0", "--gpg-mode=strict", "--yes"},
 			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
 0	strict	ABCD1234ABCD1234	*	true
@@ -542,7 +542,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 				Repos: []appsv1.SourceIntegrityGitPolicyRepo{{
 					URL: "*",
 				}},
-				SignedTagsOnly: true,
+				SignedRevisionOnly: true,
 				GPG: &appsv1.SourceIntegrityGitPolicyGPG{
 					Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
 					Keys: []string{"ABCD1234ABCD1234"},
