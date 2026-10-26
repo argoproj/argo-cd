@@ -167,7 +167,8 @@ func (g *ClusterGenerator) getClusterParameters(cluster corev1.Secret, appSet *a
 	if appSet.Spec.GoTemplate {
 		meta := map[string]any{}
 
-		if len(annotations) > 0 {
+		// Gate on the unfiltered map so the key exists whenever it did before filtering.
+		if len(cluster.Annotations) > 0 {
 			meta["annotations"] = annotations
 		}
 		if len(cluster.Labels) > 0 {

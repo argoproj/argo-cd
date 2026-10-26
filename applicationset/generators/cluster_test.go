@@ -893,6 +893,15 @@ func TestGetClusterParametersExcludesReservedAnnotations(t *testing.T) {
 		assert.Equal(t, map[string]string{"my-custom-annotation": "keep"}, meta["annotations"])
 	})
 
+	t.Run("go template keeps annotations when all are excluded", func(t *testing.T) {
+		onlyReserved := cluster
+		onlyReserved.Annotations = map[string]string{"argocd.argoproj.io/refresh": "2026-10-17T03:59:07Z"}
+		params := g.getClusterParameters(onlyReserved, &argoprojiov1alpha1.ApplicationSet{Spec: argoprojiov1alpha1.ApplicationSetSpec{GoTemplate: true}})
+		meta, ok := params["metadata"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, map[string]string{}, meta["annotations"])
+	})
+
 	t.Run("flat", func(t *testing.T) {
 		params := g.getClusterParameters(cluster, &argoprojiov1alpha1.ApplicationSet{})
 		assert.Equal(t, "keep", params["metadata.annotations.my-custom-annotation"])
