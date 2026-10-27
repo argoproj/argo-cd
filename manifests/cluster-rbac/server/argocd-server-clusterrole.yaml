@@ -35,6 +35,12 @@ rules:
   verbs:
   - get     # supports viewing pod logs from UI
 - apiGroups:
+  - ""
+  resources:
+  - pods/attach
+  verbs:
+  - create
+- apiGroups:
   - "argoproj.io"
   resources:
   - "applications"

@@ -31,6 +31,7 @@ import './application-status-panel.scss';
 interface Props {
     application: models.Application;
     collapsed?: boolean;
+    hasDebugContainer?: boolean;
     showDiff?: () => any;
     showOperation?: () => any;
     showHydrateOperation?: () => any;
@@ -224,7 +225,17 @@ const ProgressiveSyncStatus = ({application, collapsed}: {application: models.Ap
     );
 };
 
-export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOperation, showHydrateOperation, showConditions, showExtension, showMetadataInfo}: Props) => {
+export const ApplicationStatusPanel = ({
+    application,
+    collapsed,
+    hasDebugContainer,
+    showDiff,
+    showOperation,
+    showHydrateOperation,
+    showConditions,
+    showExtension,
+    showMetadataInfo
+}: Props) => {
     // Keep the full panel mounted once shown: unmounting it on collapse would re-run its
     // data loaders (and re-fire their requests) on every expand.
     const [everExpanded, setEverExpanded] = React.useState(!collapsed);
@@ -295,6 +306,12 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
         </div>
     );
 
+    const debugContainerStatus = (
+        <span role='status' className='application-status-panel__item-name' style={hasDebugContainer ? {marginLeft: '5px'} : undefined}>
+            {hasDebugContainer && '(Debug Container Attached)'}
+        </span>
+    );
+
     const collapsedSummary = collapsed && (
         <div className='application-status-panel application-status-panel--collapsed row'>
             <div className='application-status-panel__collapsed-item' title='App Health' style={{color: healthTextColor}}>
@@ -322,6 +339,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                         <ComparisonStatusIcon status={application.status.sync.status} label={true} />
                     </span>
                 )}
+                {debugContainerStatus}
             </div>
             {appOperationState && (
                 <div
@@ -417,6 +435,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                                 ) : (
                                     <ComparisonStatusIcon status={application.status.sync.status} label={true} />
                                 )}
+                                {debugContainerStatus}
                             </div>
                             <div className='application-status-panel__item-value__revision show-for-large'>{renderSyncStatusRevision(application)}</div>
                         </div>
