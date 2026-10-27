@@ -418,6 +418,22 @@ func TestCanI_PathActionAllow(t *testing.T) {
 	assert.Equal(t, "no", resp.Value)
 }
 
+func TestCanI_BareDebugGrantAllowsImageQualifiedAction(t *testing.T) {
+	t.Parallel()
+	accountServer, _ := newTestAccountServerExt(t, t.Context(), nil)
+	require.NoError(t, accountServer.enf.SetBuiltinPolicy("p, role:debugger, exec, debug, */*, allow"))
+	accountServer.enf.SetDefaultRole("role:debugger")
+	ctx := adminContext(t.Context())
+
+	resp, err := accountServer.CanI(ctx, &account.CanIRequest{Resource: "exec", Action: "debug/docker.io/library/busybox:1.36", Subresource: "myproject/myapp"})
+	require.NoError(t, err)
+	assert.Equal(t, "yes", resp.Value)
+
+	resp, err = accountServer.CanI(ctx, &account.CanIRequest{Resource: "exec", Action: "create", Subresource: "myproject/myapp"})
+	require.NoError(t, err)
+	assert.Equal(t, "no", resp.Value)
+}
+
 func TestCanI_UnknownBaseActionRejected(t *testing.T) {
 	t.Parallel()
 	accountServer, _ := newTestAccountServerExt(t, t.Context(), nil)
