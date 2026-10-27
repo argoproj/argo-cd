@@ -504,7 +504,14 @@ jobs:
           DOCKER=podman ./hack/test-build-ui.sh
       - name: Test repeated UI builds with rootless Docker
         run: |
-          docker run -d --privileged --name build-ui-rootless \
+          # Ubuntu 24.04 requires an AppArmor profile allowing rootless user namespaces.
+          sudo apparmor_parser -r /dev/stdin <<'EOF'
+          abi <abi/4.0>,
+          profile build-ui-rootless flags=(unconfined) {
+            userns,
+          }
+          EOF
+          docker run -d --privileged --security-opt apparmor=build-ui-rootless --name build-ui-rootless \
             -e DOCKER_HOST=unix:///run/user/1000/docker.sock \
             docker:29-dind-rootless@sha256:ae083cc7de51e7a8e5a597f8fb774ca7914c408a95fc0f1477826a913479518a
           trap 'docker logs build-ui-rootless; docker rm -fv build-ui-rootless' EXIT
