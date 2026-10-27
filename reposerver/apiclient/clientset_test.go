@@ -187,6 +187,11 @@ func TestNewConnection_ReloadsClientCertificateWhenFileChanges(t *testing.T) {
 		ClientCertKeyFile: tempKeyFile,
 	}
 
+	// Consecutive writes can share a timestamp, so cache an explicitly older version.
+	oldTime := time.Now().Add(-time.Hour)
+	require.NoError(t, os.Chtimes(tempCertFile, oldTime, oldTime))
+	require.NoError(t, os.Chtimes(tempKeyFile, oldTime, oldTime))
+
 	// First call: loads and caches the cert.
 	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
 	require.NoError(t, err)
@@ -227,6 +232,11 @@ func TestNewConnection_ErrorWhenRotatedCertIsInvalid(t *testing.T) {
 		ClientCertFile:    tempCertFile,
 		ClientCertKeyFile: tempKeyFile,
 	}
+
+	// Consecutive writes can share a timestamp, so cache an explicitly older version.
+	oldTime := time.Now().Add(-time.Hour)
+	require.NoError(t, os.Chtimes(tempCertFile, oldTime, oldTime))
+	require.NoError(t, os.Chtimes(tempKeyFile, oldTime, oldTime))
 
 	// First call: succeeds and populates the cache.
 	conn, err := apiclient.NewConnection("example.com:443", 10, &tlsConfig)
