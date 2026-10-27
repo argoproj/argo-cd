@@ -365,7 +365,7 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 			Phase: synccommon.OperationTerminating,
 		}
 		// when
-		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+		f.controller.appStateManager.SyncAppState(f.application, f.project, opState)
 
 		// then the termination is not blocked by the sync window and the operation is not left
 		// in the terminating phase forever
