@@ -445,12 +445,15 @@ func (c *nativeHelmChart) getCachedChartPath(chart string, version string) (stri
 
 // Ensures that given OCI registries URL does not have protocol
 func IsHelmOciRepo(repoURL string) bool {
-	if repoURL == "" {
+	if repoURL == "" || strings.Contains(repoURL, "://") {
 		return false
 	}
-	parsed, err := url.Parse(repoURL)
-	// the URL parser treat hostname as either path or opaque if scheme is not specified, so hostname must be empty
-	return err == nil && parsed.Host == ""
+	// A scheme-less registry reference such as "demo.goharbor.io:8080" or
+	// "192.168.100.150:1843" cannot be parsed as a URL on its own, so prepend a
+	// dummy scheme and require a host, the same way oras-go validates a registry
+	// (registry.Reference.ValidateRegistry).
+	parsed, err := url.ParseRequestURI("dummy://" + repoURL)
+	return err == nil && parsed.Host != ""
 }
 
 func getIndexURL(rawURL string) (string, error) {
