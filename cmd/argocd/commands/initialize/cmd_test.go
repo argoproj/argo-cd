@@ -106,6 +106,7 @@ func Test_InitCommand_FiltersUnsupportedKubectlFlags(t *testing.T) {
 	assert.NotNil(t, cmd.Flags().Lookup("namespace"))
 }
 
+// TestInitCommandKubeConfigInheritedBySubcommands checks kubeconfig flags before and after subcommand names.
 func TestInitCommandKubeConfigInheritedBySubcommands(t *testing.T) {
 	for _, args := range [][]string{
 		{"list"},

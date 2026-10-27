@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestCoreKubeConfigRoundTrip checks that serialization preserves per-context paths and older configurations.
 func TestCoreKubeConfigRoundTrip(t *testing.T) {
 	configPath := filepath.Join(t.TempDir(), "argocd-config")
 	cfg := LocalConfig{

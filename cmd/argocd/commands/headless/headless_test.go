@@ -44,6 +44,7 @@ func TestKubeContextName(t *testing.T) {
 	})
 }
 
+// TestNewClientConfig verifies that Kubernetes context overrides select the cluster and namespace.
 func TestNewClientConfig(t *testing.T) {
 	t.Run("applies KubeOverrides.CurrentContext to REST config", func(t *testing.T) {
 		tempDir := t.TempDir()
@@ -101,6 +102,7 @@ users:
 	})
 }
 
+// writeTestKubeConfig writes an isolated kubeconfig whose API host identifies the selected file.
 func writeTestKubeConfig(t *testing.T, name string) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "config")
@@ -126,6 +128,7 @@ users:
 	return path
 }
 
+// TestConfigureKubeConfig checks saved paths, explicit overrides, defaults, and missing-file errors.
 func TestConfigureKubeConfig(t *testing.T) {
 	for _, tc := range []struct {
 		name           string
@@ -217,6 +220,7 @@ func TestConfigureKubeConfig(t *testing.T) {
 	}
 }
 
+// TestNewClientConfigExplicitPath verifies explicit paths override the environment and fail when missing.
 func TestNewClientConfigExplicitPath(t *testing.T) {
 	t.Setenv("KUBECONFIG", writeTestKubeConfig(t, "environment"))
 	path := writeTestKubeConfig(t, "explicit")

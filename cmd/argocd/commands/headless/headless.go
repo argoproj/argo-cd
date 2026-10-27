@@ -342,7 +342,8 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	return client
 }
 
-// newClientConfig creates a new clientcmd.ClientConfig based on the provided overrides.
+// newClientConfig creates a deferred Kubernetes client configuration using the
+// supplied overrides and explicit kubeconfig path, or the normal loading rules when the path is empty.
 func newClientConfig(overrides *clientcmd.ConfigOverrides, kubeConfigPath string) clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig

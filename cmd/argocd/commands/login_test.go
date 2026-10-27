@@ -241,6 +241,7 @@ type coreLoginConfig struct {
 	} `json:"contexts"`
 }
 
+// coreLogin executes a core-mode login and reads the resulting CLI configuration.
 func coreLogin(t *testing.T, configPath string, args ...string) coreLoginConfig {
 	t.Helper()
 	cmd := NewLoginCommand(&apiclient.ClientOptions{Core: true, ConfigPath: configPath})
@@ -258,6 +259,7 @@ func coreLogin(t *testing.T, configPath string, args ...string) coreLoginConfig 
 	return cfg
 }
 
+// TestLoginCoreKubeConfigPath checks absolute path persistence without copying kubeconfig credentials.
 func TestLoginCoreKubeConfigPath(t *testing.T) {
 	for _, relative := range []bool{false, true} {
 		name := "absolute"
@@ -285,6 +287,7 @@ func TestLoginCoreKubeConfigPath(t *testing.T) {
 	}
 }
 
+// TestLoginCoreKubeConfigContexts verifies that named core contexts retain independent kubeconfig paths.
 func TestLoginCoreKubeConfigContexts(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "argocd-config")
@@ -298,6 +301,7 @@ func TestLoginCoreKubeConfigContexts(t *testing.T) {
 	assert.Equal(t, second, cfg.Contexts[1].KubeConfig)
 }
 
+// TestLoginCoreWithoutKubeConfig verifies that omitting the flag clears a previously saved path.
 func TestLoginCoreWithoutKubeConfig(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "argocd-config")

@@ -57,6 +57,7 @@ func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	return newDashboardCommand(NewDashboard(), clientOpts)
 }
 
+// newDashboardCommand builds the local dashboard command and applies the selected core kubeconfig.
 func newDashboardCommand(ds *dashboard, clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	config := &DashboardConfig{ClientOpts: clientOpts}
 	cmd := &cobra.Command{

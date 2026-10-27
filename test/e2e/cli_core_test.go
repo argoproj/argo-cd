@@ -19,6 +19,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
 
+// TestCliCoreKubeConfigPersistence probes real CLI processes to verify saved paths and one-off overrides.
 func TestCliCoreKubeConfigPersistence(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "argocd-config")
