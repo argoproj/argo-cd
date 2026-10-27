@@ -296,8 +296,7 @@ func (e *legacyEngine) stopWatching(gk schema.GroupKind, ns string) {
 }
 
 // onInvalidate cancels every watch and retires the batched-event channel.
-// Invalidate calls it under c.lock after applying its opts, so
-// batchEventsProcessing is current.
+// Invalidate calls it under c.lock, before applying its opts.
 func (e *legacyEngine) onInvalidate() {
 	for i := range e.c.apisMeta {
 		e.c.apisMeta[i].watchCancel()

@@ -706,13 +706,12 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	c.syncStatus.syncTime = nil
 	c.syncStatus.lock.Unlock()
 
+	// Before the opts, as master cancelled watches: the engine tears down its
+	// runtime state under the settings it was started with.
+	c.engine.onInvalidate()
 	for i := range opts {
 		opts[i](c)
 	}
-
-	// After the opts, so the engine sees any change they made to its settings.
-	// The engine cancels its watches here.
-	c.engine.onInvalidate()
 	c.apisMeta = nil
 	c.namespacedResources.Store(nil)
 	c.log.Info("Invalidated cluster")
