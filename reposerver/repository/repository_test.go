@@ -3467,14 +3467,31 @@ func Test_findManifests(t *testing.T) {
 
 func TestTestRepoHelmOCI(t *testing.T) {
 	service := newService(t, ".")
-	_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
-		Repo: &v1alpha1.Repository{
-			Repo:      "https://demo.goharbor.io",
-			Type:      "helm",
-			EnableOCI: true,
-		},
-	})
-	assert.ErrorContains(t, err, "OCI Helm repository URL should include hostname and port only")
+	tests := []struct {
+		repoURL string
+		wantErr string
+	}{
+		{repoURL: "demo.goharbor.io", wantErr: ""},
+		{repoURL: "192.168.100.150:1843", wantErr: ""},
+		{repoURL: "https://demo.goharbor.io", wantErr: "OCI Helm repository URL should include hostname and port only"},
+		{repoURL: "https://192.168.100.150:1843", wantErr: "OCI Helm repository URL should include hostname and port only"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.repoURL, func(t *testing.T) {
+			_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
+				Repo: &v1alpha1.Repository{
+					Repo:      tt.repoURL,
+					Type:      "helm",
+					EnableOCI: true,
+				},
+			})
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
 }
 
 func TestTestRepositoryUnsupportedType(t *testing.T) {
@@ -6258,9 +6275,10 @@ func TestGetRevisionChartDetails(t *testing.T) {
 		service := newService(t, root)
 		_, err := service.GetRevisionChartDetails(t.Context(), &apiclient.RepoServerRevisionChartDetailsRequest{
 			Repo: &v1alpha1.Repository{
-				Repo: "file://" + root,
-				Name: "test-repo-name",
-				Type: "helm",
+				Repo:      "file://" + root,
+				Name:      "test-repo-name",
+				Type:      "helm",
+				EnableOCI: true,
 			},
 			Name:     "test-name",
 			Revision: "test-revision",
