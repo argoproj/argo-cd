@@ -24,7 +24,7 @@ func main() {
 
 	errors.CheckError(err)
 	kubeConfigPath := "/tmp/kubeconfig"
-	if len(os.Args) > 2 {
+	if len(os.Args) > 1 {
 		kubeConfigPath = os.Args[1]
 	}
 

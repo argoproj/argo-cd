@@ -18,6 +18,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
@@ -404,8 +405,8 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	t.Run("with additional base URL", func(t *testing.T) {
 		cdSettings := &settings.ArgoCDSettings{
-			URL:                       "https://argocd.example.com",
-			AdditionalURLs:            []string{"https://localhost:8080", "https://other.argocd.example.com"},
+			URL:                       "https://argocd.example.com/argocd",
+			AdditionalURLs:            []string{"https://localhost:8080/argocd", "https://other.argocd.example.com/argocd"},
 			OIDCTLSInsecureSkipVerify: true,
 			DexConfig: `connectors:
 			- type: github
@@ -423,14 +424,14 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "/argocd", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		t.Run("should accept login redirecting on the main domain", func(t *testing.T) {
-			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/argocd/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://argocd.example.com/applications"},
+				"return_url": []string{"https://argocd.example.com/argocd/applications"},
 			}.Encode()
 
 			w := httptest.NewRecorder()
@@ -442,14 +443,14 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			require.NoError(t, err)
 			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
 			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://argocd.example.com/auth/callback", location.Query().Get("redirect_uri"))
+			assert.Equal(t, "https://argocd.example.com/argocd/auth/callback", location.Query().Get("redirect_uri"))
 		})
 
 		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:8080/auth/login", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:8080/argocd/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://localhost:8080/applications"},
+				"return_url": []string{"https://localhost:8080/argocd/applications"},
 			}.Encode()
 
 			w := httptest.NewRecorder()
@@ -461,14 +462,14 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			require.NoError(t, err)
 			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
 			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://localhost:8080/auth/callback", location.Query().Get("redirect_uri"))
+			assert.Equal(t, "https://localhost:8080/argocd/auth/callback", location.Query().Get("redirect_uri"))
 		})
 
 		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://other.argocd.example.com/auth/login", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://other.argocd.example.com/argocd/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://other.argocd.example.com/applications"},
+				"return_url": []string{"https://other.argocd.example.com/argocd/applications"},
 			}.Encode()
 
 			w := httptest.NewRecorder()
@@ -480,7 +481,25 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			require.NoError(t, err)
 			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
 			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://other.argocd.example.com/auth/callback", location.Query().Get("redirect_uri"))
+			assert.Equal(t, "https://other.argocd.example.com/argocd/auth/callback", location.Query().Get("redirect_uri"))
+		})
+
+		t.Run("should preserve alternative domain after root path stripping", func(t *testing.T) {
+			requestURL := "https://localhost:8080/argocd/auth/login?" + url.Values{
+				"return_url": []string{"https://localhost:8080/argocd/applications"},
+			}.Encode()
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, requestURL, http.NoBody)
+			w := httptest.NewRecorder()
+			handler := http.StripPrefix("/argocd", http.HandlerFunc(app.HandleLogin))
+
+			handler.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusSeeOther, w.Code)
+			location, err := url.Parse(w.Header().Get("Location"))
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
+			assert.Equal(t, "/auth", location.Path)
+			assert.Equal(t, "https://localhost:8080/argocd/auth/callback", location.Query().Get("redirect_uri"))
 		})
 
 		t.Run("should deny login redirecting on the alternative domains", func(t *testing.T) {
@@ -1880,4 +1899,115 @@ func TestClientApp_getRedirectURIForRequest(t *testing.T) {
 			assert.Equal(t, expectedRedirectURI, redirectURI, "expected URI")
 		})
 	}
+}
+
+func findLoginEntry(t *testing.T, hook *logtest.Hook) *log.Entry {
+	t.Helper()
+	for _, e := range hook.AllEntries() {
+		if e.Data["login.type"] == "sso" {
+			return e
+		}
+	}
+	t.Fatal("expected an sso login log entry")
+	return nil
+}
+
+func TestHandleCallback_LogsLoginAttempt(t *testing.T) {
+	oidcTestServer := test.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+	}
+
+	t.Run("successful login", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+		app.HandleLogin(w, req)
+		redirectURL, err := w.Result().Location()
+		require.NoError(t, err)
+		state := redirectURL.Query().Get("state")
+
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), http.NoBody)
+		for _, cookie := range w.Result().Cookies() {
+			req.AddCookie(cookie)
+		}
+		w = httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusSeeOther, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.InfoLevel, entry.Level)
+		assert.Equal(t, "Web login successful", entry.Message)
+		// sub of the token issued by the OIDC test server
+		assert.Equal(t, "1234567890", entry.Data["username"])
+		assert.NotEmpty(t, entry.Data["claims"])
+	})
+
+	t.Run("failed login", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus&code=abc", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+		assert.NotContains(t, entry.Data, "username")
+	})
+
+	t.Run("failed implicit flow login", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusBadRequest, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+	})
+
+	t.Run("failed provider setup", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		t.Cleanup(hook.Reset)
+		// the OIDC test server uses a self-signed certificate, so provider discovery fails without OIDCTLSInsecureSkipVerify
+		strictSettings := *cdSettings
+		strictSettings.OIDCTLSInsecureSkipVerify = false
+		app, err := NewClientApp(&strictSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback?state=bogus&code=abc", http.NoBody)
+		w := httptest.NewRecorder()
+		app.HandleCallback(w, req)
+		require.Equal(t, http.StatusInternalServerError, w.Code)
+
+		entry := findLoginEntry(t, hook)
+		assert.Equal(t, log.WarnLevel, entry.Level)
+		assert.Equal(t, "Login failed", entry.Message)
+		assert.NotEmpty(t, entry.Data["error"])
+	})
 }

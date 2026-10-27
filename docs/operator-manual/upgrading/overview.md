@@ -39,6 +39,7 @@ kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubuse
 
 <hr/>
 
+- [v3.6 to v3.7](./3.6-3.7.md)
 - [v3.5 to v3.6](./3.5-3.6.md)
 - [v3.4 to v3.5](./3.4-3.5.md)
 - [v3.3 to v3.4](./3.3-3.4.md)
