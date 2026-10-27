@@ -143,10 +143,35 @@ func Test_normalizeChartName(t *testing.T) {
 }
 
 func TestIsHelmOciRepo(t *testing.T) {
-	assert.True(t, IsHelmOciRepo("demo.goharbor.io"))
-	assert.True(t, IsHelmOciRepo("demo.goharbor.io:8080"))
-	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io"))
-	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io:8080"))
+	tests := []struct {
+		name    string
+		repoURL string
+		want    bool
+	}{
+		{name: "hostname", repoURL: "demo.goharbor.io", want: true},
+		{name: "hostname with port", repoURL: "demo.goharbor.io:8080", want: true},
+		{name: "hostname with path", repoURL: "demo.goharbor.io/library", want: true},
+		{name: "IPv4", repoURL: "192.168.100.150", want: true},
+		{name: "IPv4 with port", repoURL: "192.168.100.150:1843", want: true},
+		{name: "IPv4 with port and path", repoURL: "192.168.100.150:1843/library", want: true},
+		{name: "IPv6 with port", repoURL: "[::1]:5000", want: true},
+		{name: "empty", repoURL: "", want: false},
+		{name: "https hostname", repoURL: "https://demo.goharbor.io", want: false},
+		{name: "https hostname with port", repoURL: "https://demo.goharbor.io:8080", want: false},
+		{name: "https hostname with path", repoURL: "https://demo.goharbor.io/library", want: false},
+		{name: "https IPv4 with port", repoURL: "https://192.168.100.150:1843", want: false},
+		{name: "oci IPv4 with port", repoURL: "oci://192.168.100.150:1843", want: false},
+		// Unlikely inputs in practice; they document the boundary of what the check rejects.
+		{name: "non-numeric port", repoURL: "demo.goharbor.io:abc", want: false},
+		{name: "whitespace", repoURL: "demo.goharbor.io ", want: false},
+		{name: "fragment", repoURL: "demo.goharbor.io#latest", want: false},
+		{name: "path without host", repoURL: "/192.168.100.150:1843", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsHelmOciRepo(tt.repoURL))
+		})
+	}
 }
 
 func TestGetIndexURL(t *testing.T) {
