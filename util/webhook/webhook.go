@@ -104,6 +104,7 @@ type ArgoCDWebhookHandler struct {
 	maxWebhookPayloadSizeB        int64
 	webhookRefreshJitter          time.Duration
 	webhookRefreshJitterThreshold int
+	adoHTTPClientFactory          func(repo *v1alpha1.Repository) *http.Client
 }
 
 // ArgoCDParserOptions returns the webhook events the Argo CD API server handles.
@@ -146,9 +147,13 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		appProjectsLister:             appProjectsLister,
 		webhookRefreshJitter:          webhookRefreshJitter,
 		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
+		adoHTTPClientFactory:          newADOHTTPClient,
 	}
 
-	StartWorkers(&acdWebhook.WaitGroup, webhookParallelism, acdWebhook.queue, acdWebhook.HandleEvent, "api-server-webhook", panicMsgServer)
+	// Payloads are processed after the HTTP request has completed, so the request context
+	// cannot be propagated to the workers.
+	handleEvent := func(payload any) { acdWebhook.HandleEvent(context.Background(), payload) }
+	StartWorkers(&acdWebhook.WaitGroup, webhookParallelism, acdWebhook.queue, handleEvent, "api-server-webhook", panicMsgServer)
 	acdWebhook.startRefreshWorkers(webhookRefreshWorkers)
 
 	return &acdWebhook
@@ -197,14 +202,23 @@ func ParseRevision(ref string) string {
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
 // the revision, and whether, or not this affected origin/HEAD (the default branch of the repository)
-func (a *ArgoCDWebhookHandler) affectedRevisionInfo(payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+func (a *ArgoCDWebhookHandler) affectedRevisionInfo(ctx context.Context, payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
 	info := ParsePushEvent(payloadIf)
 	if info == nil {
 		return nil, "", changeInfo{}, false, nil
 	}
-	// Bitbucket payloads don't say whether the default branch moved or which files
-	// changed, so ask the provider API, but only for authenticated webhooks.
+	// Azure DevOps and Bitbucket payloads don't say which files changed, and Bitbucket
+	// payloads don't say whether the default branch moved, so ask the provider API, but
+	// only for authenticated webhooks.
 	switch payload := payloadIf.(type) {
+	case azuredevops.GitPushEvent:
+		// When the Azure DevOps webhook username or password is set in argocd-secret,
+		// basic auth is validated before the payload is parsed.
+		if a.azureDevOpsWebhookAuthConfigured() {
+			info.ChangedFiles = append(info.ChangedFiles, a.lookupAndFetchADOChangedFiles(ctx, payload.Resource.Repository.RemoteURL, payload.Resource.Repository.ID, info.SHABefore, info.SHAAfter)...)
+		} else {
+			log.Debugf("skipping Azure DevOps changed files lookup for URL %s because Azure DevOps webhook authentication is not configured", payload.Resource.Repository.RemoteURL)
+		}
 	case bitbucket.RepoPushPayload:
 		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
 		// signature is validated before payload is parsed.
@@ -276,7 +290,7 @@ type changeInfo struct {
 }
 
 // HandleEvent handles webhook events for repo push events
-func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
+func (a *ArgoCDWebhookHandler) HandleEvent(ctx context.Context, payload any) {
 	webhookHandlersInFlight.Inc()
 	defer webhookHandlersInFlight.Dec()
 
@@ -290,7 +304,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(payload any) {
 		a.HandleRegistryEvent(e)
 		return
 	}
-	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(payload)
+	webURLs, revision, change, touchedHead, changedFiles := a.affectedRevisionInfo(ctx, payload)
 	// NOTE: the webURL does not include the .git extension
 	if len(webURLs) == 0 {
 		log.Info("Ignoring webhook event")
@@ -547,6 +561,27 @@ func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL str
 		}
 	}
 	return repository, nil
+}
+
+// lookupRepositoryWithCredsTemplate returns a repository with its credentials for a given URL, falling
+// back to the best matching credentials template when no repository secret matches. If neither is
+// found, then nil repository is returned.
+func (a *ArgoCDWebhookHandler) lookupRepositoryWithCredsTemplate(ctx context.Context, repoURL string) (*v1alpha1.Repository, error) {
+	repo, err := a.lookupRepository(ctx, repoURL)
+	if err != nil || repo != nil {
+		return repo, err
+	}
+	creds, err := a.db.GetRepositoryCredentials(ctx, repoURL)
+	if err != nil {
+		return nil, fmt.Errorf("error getting repository credentials for %q: %w", repoURL, err)
+	}
+	if creds == nil {
+		return nil, nil
+	}
+	log.Debugf("found a matching credentials template for URL %s", repoURL)
+	repo = &v1alpha1.Repository{Repo: repoURL}
+	repo.CopyCredentialsFrom(creds)
+	return repo, nil
 }
 
 // RevisionHasChanged reports whether a webhook payload for revision affects targetRevision.

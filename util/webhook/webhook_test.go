@@ -216,7 +216,7 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	h.Handler(w, req)
 	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
+	expectedLogResult := "Received push event repo: https://dev.azure.com/my-org/my-project/_git/my-repo, revision: master, touchedHead: true"
 	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
@@ -644,7 +644,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			h := NewMockHandler(nil, []string{})
-			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(testCopy.hookPayload)
+			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(t.Context(), testCopy.hookPayload)
 			if got := RevisionHasChanged(testCopy.targetRevision, revisionFromHook, false); got != testCopy.hasChanged {
 				t.Errorf("RevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
 			}
@@ -1588,7 +1588,7 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			h := NewMockHandlerForBitbucketCallback(nil, []string{})
-			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(testCase.hookPayload)
+			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(t.Context(), testCase.hookPayload)
 			require.Equal(t, testCase.revision, revisionFromHook)
 			require.Equal(t, testCase.expectedTouchHead, touchHead)
 			require.Equal(t, testCase.expectedChangedFiles, changedFiles)
@@ -2347,7 +2347,7 @@ func Test_affectedRevisionInfo_bbserver_changed_files(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			h := testCase.handler()
-			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(testCase.hookPayload)
+			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(t.Context(), testCase.hookPayload)
 			require.Equal(t, testCase.revision, revisionFromHook)
 			require.Equal(t, testCase.expectedTouchHead, touchHead)
 			require.Equal(t, testCase.expectedChangedFiles, changedFiles)
