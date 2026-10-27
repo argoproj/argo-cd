@@ -6,6 +6,8 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {getAppUrl, getApplicationSetOwnerRef} from '../utils';
 
+const MAX_RESULTS = 100; // cap results after filtering to avoid performance issues
+
 function resourceIconClass(objectListKind: string): string {
     return objectListKind === 'applicationset' ? 'argo-icon-applicationset' : 'argo-icon-application';
 }
@@ -47,19 +49,21 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                     </li>
                     <DataLoader
                         load={async () => {
-                            const [appsResult, appSetResult] = await Promise.allSettled([
+                            const [apps, appSet] = await Promise.all([
                                 services.applications.list([], props.objectListKind, {fields: ['items.metadata.name', 'items.metadata.namespace']}),
-                                appSetRef ? services.applications.getApplicationSet(appSetRef.name, props.application.metadata.namespace) : Promise.reject(new Error('no appset'))
+                                appSetRef
+                                    ? services.applications.getApplicationSet(appSetRef.name, props.application.metadata.namespace).catch((): models.ApplicationSet => null)
+                                    : null
                             ]);
-                            const apps = appsResult.status === 'fulfilled' ? appsResult.value : ({items: []} as models.AbstractApplicationList);
-                            const appSet = appSetResult.status === 'fulfilled' ? appSetResult.value : null;
                             const siblings = appSet?.status?.resources?.filter(r => r.kind === 'Application') ?? [];
                             return {apps, siblings};
                         }}>
                         {({apps, siblings}: {apps: models.AbstractApplicationList; siblings: models.ApplicationSetResource[]}) => {
                             const siblingKeys = new Set(siblings.map(s => `${s.namespace}/${s.name}`));
                             const filteredSiblings =
-                                appSetRef && siblings.length > 0 ? siblings.filter(s => appFilter.length === 0 || s.name.toLowerCase().includes(appFilter.toLowerCase())) : [];
+                                appSetRef && siblings.length > 0
+                                    ? siblings.filter(s => appFilter.length === 0 || s.name.toLowerCase().includes(appFilter.toLowerCase())).slice(0, MAX_RESULTS)
+                                    : [];
                             return (
                                 <>
                                     {filteredSiblings.length > 0 && (
@@ -83,7 +87,7 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                                     {apps.items
                                         .filter(app => !siblingKeys.has(`${app.metadata.namespace}/${app.metadata.name}`))
                                         .filter(app => appFilter.length === 0 || app.metadata.name.toLowerCase().includes(appFilter.toLowerCase()))
-                                        .slice(0, 100)
+                                        .slice(0, MAX_RESULTS)
                                         .map(app => (
                                             <li
                                                 className='application-details-app-dropdown__item'
