@@ -5171,6 +5171,75 @@ func TestSetOperationStateTooLargeRequest_EmitsCompletionTelemetryOnFinalFallbac
 		"fallback finalizing as OperationError must increment the sync counter, same as the normal terminal path")
 }
 
+func TestRecordOperationCompletion_EventMessageRevision(t *testing.T) {
+	tests := []struct {
+		name       string
+		app        *v1alpha1.Application
+		state      *v1alpha1.OperationState
+		wantMsg    string
+		wantEvType string
+	}{
+		{
+			name: "single source",
+			app:  newFakeApp(),
+			state: &v1alpha1.OperationState{
+				Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+				Phase:      synccommon.OperationSucceeded,
+				SyncResult: &v1alpha1.SyncOperationResult{Revision: "abc123"},
+			},
+			wantMsg:    "Sync operation to abc123 succeeded",
+			wantEvType: corev1.EventTypeNormal,
+		},
+		{
+			name: "multi source",
+			app:  newFakeMultiSourceApp(),
+			state: &v1alpha1.OperationState{
+				Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+				Phase:      synccommon.OperationSucceeded,
+				SyncResult: &v1alpha1.SyncOperationResult{Revisions: []string{"abc123", "def456"}},
+			},
+			wantMsg:    "Sync operation to abc123,def456 succeeded",
+			wantEvType: corev1.EventTypeNormal,
+		},
+		{
+			name: "multi source partial sync failed",
+			app:  newFakeMultiSourceApp(),
+			state: &v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{
+					Resources: []v1alpha1.SyncOperationResource{{Kind: "ConfigMap", Name: "cm"}},
+				}},
+				Phase:      synccommon.OperationFailed,
+				Message:    "boom",
+				SyncResult: &v1alpha1.SyncOperationResult{Revisions: []string{"abc123", "def456"}},
+			},
+			wantMsg:    "Partial sync operation to abc123,def456 failed: boom",
+			wantEvType: corev1.EventTypeWarning,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{tt.app}}, nil)
+
+			ctrl.recordOperationCompletion(t.Context(), tt.app, logrus.WithField("test", t.Name()), tt.state)
+
+			var completionEvent *corev1.Event
+			for _, action := range ctrl.kubeClientset.(*fake.Clientset).Actions() {
+				createAction, ok := action.(kubetesting.CreateAction)
+				if !ok || createAction.GetResource().Resource != "events" {
+					continue
+				}
+				if event, ok := createAction.GetObject().(*corev1.Event); ok && event.Reason == string(argo.EventReasonOperationCompleted) {
+					completionEvent = event
+					break
+				}
+			}
+			require.NotNil(t, completionEvent)
+			assert.Equal(t, tt.wantMsg, completionEvent.Message)
+			assert.Equal(t, tt.wantEvType, completionEvent.Type)
+		})
+	}
+}
+
 func TestSetOperationStateTooLargeRequest_FallbackAlsoTooLarge(t *testing.T) {
 	newState := &v1alpha1.OperationState{
 		Operation: v1alpha1.Operation{
