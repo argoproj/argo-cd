@@ -1,17 +1,22 @@
 package headless
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"path/filepath"
 	"testing"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	runtimeUtil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
@@ -229,4 +234,102 @@ func TestNewClientConfigExplicitPath(t *testing.T) {
 	assert.Equal(t, "https://explicit.example.com", config.Host)
 	_, err = newClientConfig(nil, filepath.Join(t.TempDir(), "missing")).ClientConfig()
 	require.Error(t, err)
+}
+
+// TestConfigureKubeConfigErrors verifies unsupported commands and configuration errors leave options unchanged.
+func TestConfigureKubeConfigErrors(t *testing.T) {
+	t.Run("command without a kubeconfig flag skips configuration", func(t *testing.T) {
+		opts := &apiclient.ClientOptions{Core: true, ConfigPath: t.TempDir()}
+		require.NoError(t, ConfigureKubeConfig(opts, &cobra.Command{}))
+		assert.Empty(t, opts.KubeConfigPath)
+	})
+	t.Run("malformed local configuration", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "config")
+		require.NoError(t, os.WriteFile(path, []byte("contexts: [\n"), 0o600))
+		cmd := &cobra.Command{}
+		cli.AddKubectlFlagsToSet(cmd.Flags())
+		opts := &apiclient.ClientOptions{ConfigPath: path}
+		require.ErrorContains(t, ConfigureKubeConfig(opts, cmd), "error reading local config")
+		assert.False(t, opts.Core)
+		assert.Empty(t, opts.KubeConfigPath)
+	})
+	t.Run("unknown Argo CD context", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "config")
+		require.NoError(t, localconfig.WriteLocalConfig(localconfig.LocalConfig{}, path))
+		cmd := &cobra.Command{}
+		cli.AddKubectlFlagsToSet(cmd.Flags())
+		opts := &apiclient.ClientOptions{ConfigPath: path, Context: "missing"}
+		err := ConfigureKubeConfig(opts, cmd)
+		require.ErrorContains(t, err, "error resolving context")
+		require.ErrorContains(t, err, "missing")
+		assert.False(t, opts.Core)
+	})
+	t.Run("flag rejects the selected path", func(t *testing.T) {
+		path := filepath.Join(t.TempDir(), "config")
+		cfg := localconfig.LocalConfig{
+			CurrentContext: "core",
+			Servers:        []localconfig.Server{{Server: "kubernetes", Core: true}},
+			Users:          []localconfig.User{{Name: "core"}},
+			Contexts:       []localconfig.ContextRef{{Name: "core", Server: "kubernetes", User: "core", KubeConfigPath: "saved.yaml"}},
+		}
+		require.NoError(t, localconfig.WriteLocalConfig(cfg, path))
+		cmd := &cobra.Command{}
+		cmd.Flags().Int("kubeconfig", 0, "")
+		opts := &apiclient.ClientOptions{ConfigPath: path}
+		require.ErrorContains(t, ConfigureKubeConfig(opts, cmd), "error configuring kubeconfig path")
+		assert.False(t, opts.Core)
+		assert.Empty(t, opts.KubeConfigPath)
+	})
+}
+
+// TestMaybeStartLocalServerKubeConfig verifies path selection and failures before core server startup.
+func TestMaybeStartLocalServerKubeConfig(t *testing.T) {
+	t.Run("invalid environment path", func(t *testing.T) {
+		t.Setenv("KUBECONFIG", "original")
+		opts := &apiclient.ClientOptions{Core: true, KubeConfigPath: "invalid\x00path"}
+		shutdown, err := MaybeStartLocalServer(t.Context(), opts, "", nil, nil, nil)
+		require.ErrorContains(t, err, "error setting kubeconfig path")
+		assert.Nil(t, shutdown)
+		assert.Equal(t, "original", os.Getenv("KUBECONFIG"))
+	})
+	t.Run("missing selected file does not fall back to environment", func(t *testing.T) {
+		t.Setenv("KUBECONFIG", writeTestKubeConfig(t, "environment"))
+		t.Setenv(v1alpha1.EnvVarFakeInClusterConfig, os.Getenv(v1alpha1.EnvVarFakeInClusterConfig))
+		t.Setenv(common.EnvLogLevel, os.Getenv(common.EnvLogLevel))
+		handlers, level := runtimeUtil.ErrorHandlers, log.GetLevel()
+		t.Cleanup(func() {
+			runtimeUtil.ErrorHandlers = handlers
+			log.SetLevel(level)
+		})
+		path := filepath.Join(t.TempDir(), "missing")
+		opts := &apiclient.ClientOptions{Core: true, KubeConfigPath: path}
+		port := 8080
+		shutdown, err := MaybeStartLocalServer(t.Context(), opts, "", &port, nil, nil)
+		require.ErrorContains(t, err, "error creating client config")
+		require.ErrorContains(t, err, path)
+		assert.Nil(t, shutdown)
+		assert.Equal(t, path, os.Getenv("KUBECONFIG"))
+	})
+}
+
+// TestNewClientOrDieKubeConfigError verifies invalid CLI configuration stops client creation immediately.
+func TestNewClientOrDieKubeConfigError(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "config")
+	require.NoError(t, os.WriteFile(path, []byte("contexts: [\n"), 0o600))
+	cmd := &cobra.Command{}
+	cmd.SetContext(t.Context())
+	cli.AddKubectlFlagsToSet(cmd.Flags())
+	logger := log.StandardLogger()
+	exit, output := logger.ExitFunc, logger.Out
+	t.Cleanup(func() {
+		logger.ExitFunc = exit
+		logger.SetOutput(output)
+	})
+	var logs bytes.Buffer
+	logger.SetOutput(&logs)
+	logger.ExitFunc = func(code int) { panic(code) }
+	require.PanicsWithValue(t, 1, func() {
+		NewClientOrDie(&apiclient.ClientOptions{ConfigPath: path}, cmd)
+	})
+	assert.Contains(t, logs.String(), "error reading local config")
 }
