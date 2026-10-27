@@ -146,11 +146,58 @@ export interface PaginateProps<T> {
     getItemKey?: (item: T) => string;
     /** Keeps items with the same key together, ahead of the selected sort. */
     groupBy?: (item: T) => string;
+    /** With `groupBy`: collapsed groups keep one item (for the heading); the rest are dropped before paging. */
+    isGroupCollapsed?: (group: string) => boolean;
 }
 
 /** Stable: groups ordered A-Z, incoming order kept inside each group. */
 export function groupItems<T>(items: T[], groupBy: (item: T) => string): T[] {
     return [...items].sort((a, b) => groupBy(a).localeCompare(groupBy(b)));
+}
+
+export function collapseGroups<T>(items: T[], groupBy: (item: T) => string, isGroupCollapsed: (group: string) => boolean): {items: T[]; placeholders: Set<T>} {
+    const seen = new Set<string>();
+    const placeholders = new Set<T>();
+    const kept = items.filter(item => {
+        const group = groupBy(item);
+        if (!isGroupCollapsed(group)) {
+            return true;
+        }
+        if (seen.has(group)) {
+            return false;
+        }
+        seen.add(group);
+        placeholders.add(item);
+        return true;
+    });
+    return {items: kept, placeholders};
+}
+
+/** Splits items into pages of `pageSize`; placeholders do not count towards the page size. */
+export function paginateItems<T>(items: T[], pageSize: number, placeholders: Set<T>): T[][] {
+    const pages: T[][] = [];
+    let page: T[] = [];
+    let size = 0;
+    let pending: T[] = [];
+    for (const item of items) {
+        if (placeholders.has(item)) {
+            pending.push(item);
+            continue;
+        }
+        if (size === pageSize) {
+            pages.push(page);
+            page = [];
+            size = 0;
+        }
+        page.push(...pending, item);
+        pending = [];
+        size++;
+    }
+    page.push(...pending);
+    if (page.length > 0) {
+        pages.push(page);
+    }
+    return pages;
 }
 
 export function Paginate<T>({
@@ -165,7 +212,8 @@ export function Paginate<T>({
     sortOptions,
     focusItemKey,
     getItemKey,
-    groupBy
+    groupBy,
+    isGroupCollapsed
 }: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
@@ -182,6 +230,7 @@ export function Paginate<T>({
                     focusItemKey={focusItemKey}
                     getItemKey={getItemKey}
                     groupBy={groupBy}
+                    isGroupCollapsed={isGroupCollapsed}
                     pref={pref}>
                     {children}
                 </PaginateContent>
@@ -203,14 +252,12 @@ function PaginateContent<T>({
     focusItemKey,
     getItemKey,
     groupBy,
+    isGroupCollapsed,
     pref
 }: PaginateProps<T> & {pref: ViewPreferences}) {
     const pageSize = pref.pageSizes[preferencesKey] || 10;
     const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
-    const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
-    const currentPage = pageCount <= page ? pageCount - 1 : page;
-
-    const sortedData = React.useMemo(() => {
+    const {sortedData, placeholders} = React.useMemo(() => {
         const next = [...data];
         if (sortOption && sortOptions) {
             const selectedSort = sortOptions.find(o => o.title === sortOption);
@@ -222,8 +269,20 @@ function PaginateContent<T>({
                 });
             }
         }
-        return groupBy ? groupItems(next, groupBy) : next;
-    }, [data, sortOption, sortOptions, pref.sortDirections, preferencesKey, groupBy]);
+        if (!groupBy) {
+            return {sortedData: next, placeholders: new Set<T>()};
+        }
+        const grouped = groupItems(next, groupBy);
+        if (!isGroupCollapsed) {
+            return {sortedData: grouped, placeholders: new Set<T>()};
+        }
+        const collapsed = collapseGroups(grouped, groupBy, isGroupCollapsed);
+        return {sortedData: collapsed.items, placeholders: collapsed.placeholders};
+    }, [data, sortOption, sortOptions, pref.sortDirections, preferencesKey, groupBy, isGroupCollapsed]);
+
+    const pages = React.useMemo(() => (pageSize === -1 ? [sortedData] : paginateItems(sortedData, pageSize, placeholders)), [sortedData, pageSize, placeholders]);
+    const pageCount = pages.length;
+    const currentPage = pageCount <= page ? pageCount - 1 : page;
 
     // Deep-link highlight: when `focusItemKey` is set (e.g. opening an Application from the
     // Resources page with `?highlight=group/kind/namespace/name`), keep the displayed page in
@@ -260,7 +319,7 @@ function PaginateContent<T>({
         if (index < 0) {
             return;
         }
-        const targetPage = pageSize === -1 ? 0 : Math.floor(index / pageSize);
+        const targetPage = pages.findIndex(p => p.includes(sortedData[index]));
         if (targetPage < 0 || targetPage >= pageCount) {
             return;
         }
@@ -268,7 +327,7 @@ function PaginateContent<T>({
         if (targetPage !== currentPageRef.current) {
             onPageChangeRef.current(targetPage);
         }
-    }, [focusItemKey, pageCount, pageSize, sortedData, sortOption]);
+    }, [focusItemKey, pageCount, pages, sortedData, sortOption]);
 
     const handlePageChange = React.useCallback(
         (newPage: number) => {
@@ -336,7 +395,7 @@ function PaginateContent<T>({
     }
 
     const useVirtualScrolling = pageSize === -1;
-    const paginatedData = useVirtualScrolling ? sortedData : sortedData.slice(pageSize * currentPage, pageSize * (currentPage + 1));
+    const paginatedData = pages[currentPage] ?? [];
 
     return (
         <React.Fragment>

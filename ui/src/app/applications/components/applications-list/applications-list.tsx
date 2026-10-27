@@ -596,6 +596,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         ]}
                                                                         data={filteredApps}
                                                                         groupBy={grouping ? appProject : undefined}
+                                                                        isGroupCollapsed={grouping ? project => grouping.collapsed.includes(project) : undefined}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                         {(data, useVirtualScrolling) =>
                                                                             (pref.view === 'tiles' && (
