@@ -42,6 +42,7 @@ jobs:
             registry-1.docker.io:443
             auth.docker.io:443
             proxy.golang.org:443
+            sum.golang.org:443
             nodejs.org:443
             pypi.org:443
             get.helm.sh:443
