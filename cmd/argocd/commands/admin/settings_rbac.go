@@ -417,7 +417,8 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 	// Some project scoped resources have a special notation - for simplicity's sake,
 	// if user gives no sub-resource (or specifies simple '*'), we construct
 	// the required notation by setting subresource to '*/*'.
-	if rbac.ProjectScoped[realResource] {
+	// write-repositories uses the same '<project>/<repo>' object format as repositories.
+	if rbac.ProjectScoped[realResource] || realResource == rbac.ResourceWriteRepositories {
 		if subResource == "*" || subResource == "" {
 			subResource = "*/*"
 		}

@@ -130,6 +130,24 @@ func Test_validRBACResourcesActionsCoversAllResources(t *testing.T) {
 	}
 }
 
+func Test_checkPolicyWriteRepositoriesWildcard(t *testing.T) {
+	policy := "p, role:writer, write-repositories, get, */*, allow"
+	tests := []struct {
+		name        string
+		subResource string
+	}{
+		{name: "empty", subResource: ""},
+		{name: "star", subResource: "*"},
+		{name: "star/star", subResource: "*/*"},
+		{name: "project/repo", subResource: "my-proj/https://github.com/org/repo"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.True(t, checkPolicy("role:writer", "get", "write-repositories", tt.subResource, "", policy, "", "", true))
+		})
+	}
+}
+
 func Test_PolicyFromCSV(t *testing.T) {
 	ctx := t.Context()
 
