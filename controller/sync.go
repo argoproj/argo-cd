@@ -125,7 +125,10 @@ func (m *appStateManager) SyncAppState(app *v1alpha1.Application, project *v1alp
 		state.SyncResult = newSyncOperationResult(app, syncOp)
 	}
 
-	if isBlocked, err := syncWindowPreventsSync(app, project); isBlocked {
+	// A terminate request must not be blocked by a sync window. Otherwise an operation that is
+	// no longer allowed to sync by its window can never be terminated and stays in the
+	// terminating phase forever.
+	if isBlocked, err := syncWindowPreventsSync(app, project); isBlocked && state.Phase != common.OperationTerminating {
 		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
 		if state.Phase == common.OperationRunning {
 			state.Message = "Sync operation blocked by sync window"
