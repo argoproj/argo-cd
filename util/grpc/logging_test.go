@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/account"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -59,7 +60,7 @@ func Test_JSONLogging_EmbeddedKubernetesType(t *testing.T) {
 	// ApplicationService/Update sends *v1alpha1.Application directly; it embeds metav1.ObjectMeta,
 	// which is what gogo jsonpb can no longer marshal (see the issue for the underlying k8s change).
 	req := &v1alpha1.Application{
-		Name: "my-app",
+		ObjectMeta: metav1.ObjectMeta{Name: "my-app"},
 	}
 	info := &grpc.UnaryServerInfo{}
 	handler := func(_ context.Context, _ any) (any, error) {
