@@ -22,6 +22,22 @@
       "enabled": true
     },
     {
+      "description": "Update the codegen tools in hack/tools/go.mod. Renovate emits no dependency for a `tool` directive; it instead clears the `indirect` flag on the require line that provides the tool, so these are matched as `indirect` by module path. Listing them by name keeps the file's ~96 other transitive requires disabled. The module has no packages, so `go get -t ./...` alone leaves out the tools' go.sum hashes; `gomodTidy` adds them.",
+      "matchFileNames": [
+        "hack/tools/go.mod"
+      ],
+      "matchDepTypes": [
+        "indirect"
+      ],
+      "matchPackageNames": [
+        "github.com/go-swagger/go-swagger",
+        "github.com/vektra/mockery/v3",
+        "sigs.k8s.io/controller-tools"
+      ],
+      "postUpdateOptions": ["gomodTidy"],
+      "enabled": true
+    },
+    {
       "description": "Run make mockgen after updating mockery",
       "matchDatasources": [
         "go"
@@ -31,6 +47,9 @@
       ],
       "postUpgradeTasks": {
         "commands": ["make mockgen"],
+        "installTools": {
+          "golang": {}
+        },
         "fileFilters": ["**/*.go"],
         "executionMode": "branch"
       }
