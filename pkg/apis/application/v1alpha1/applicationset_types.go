@@ -699,6 +699,8 @@ type PullRequestGeneratorGitea struct {
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// ExcludedLabels is used to exclude PRs with these labels
+	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,7,rep,name=excludedLabels"`
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.
@@ -715,6 +717,8 @@ type PullRequestGeneratorAzureDevOps struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,5,opt,name=tokenRef"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// ExcludedLabels is used to exclude PRs with these labels
+	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,7,rep,name=excludedLabels"`
 }
 
 // PullRequestGeneratorGithub defines connection info specific to GitHub.
@@ -731,6 +735,8 @@ type PullRequestGeneratorGithub struct {
 	AppSecretName string `json:"appSecretName,omitempty" protobuf:"bytes,5,opt,name=appSecretName"`
 	// Labels is used to filter the PRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
+	// ExcludedLabels is used to exclude PRs with these labels
+	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,7,rep,name=excludedLabels"`
 }
 
 // PullRequestGeneratorGitLab defines connection info specific to GitLab.
@@ -743,6 +749,8 @@ type PullRequestGeneratorGitLab struct {
 	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,3,opt,name=tokenRef"`
 	// Labels is used to filter the MRs that you want to target
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,4,rep,name=labels"`
+	// ExcludedLabels is used to exclude MRs with these labels
+	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,8,rep,name=excludedLabels"`
 	// PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
 	// Valid values: opened, closed, merged, locked".
 	PullRequestState string `json:"pullRequestState,omitempty" protobuf:"bytes,5,rep,name=pullRequestState"`
