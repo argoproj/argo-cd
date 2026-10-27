@@ -132,7 +132,7 @@ require (
 	k8s.io/streaming v0.37.0
 	k8s.io/utils v0.0.0-20260626114624-be93311217bd
 	layeh.com/gopher-json v0.0.0-20190114024228-97fed8db8427
-	oras.land/oras-go/v2 v2.6.4
+	oras.land/oras-go/v2 v2.7.0
 	sigs.k8s.io/controller-runtime v0.25.2
 	sigs.k8s.io/kustomize/api v0.21.2
 	sigs.k8s.io/structured-merge-diff/v6 v6.4.2
