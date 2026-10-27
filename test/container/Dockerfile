@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.10.2@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3 AS redis
+FROM docker.io/library/redis:8.10.3@sha256:0c257ce8b2f31f9f7595f587edf8ac259a248ba3ced82badc8c7aa826a85224f AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -67,6 +67,8 @@ ENV GRPC_ENABLE_TXT_SERVICE_CONFIG=false
 COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
 COPY gitops-engine/go.* ./gitops-engine/
+# Module files for the isolated codegen tool module; see hack/tools/go.mod.
+COPY hack/tools/go.* ./hack/tools/
 
 RUN ./install.sh helm && \
     ./install.sh kustomize && \
