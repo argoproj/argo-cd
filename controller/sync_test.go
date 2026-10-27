@@ -350,6 +350,28 @@ func TestSyncWindowDeniesSync(t *testing.T) {
 		assert.Equal(t, synccommon.OperationRunning, opState.Phase)
 		assert.Contains(t, opState.Message, opMessage)
 	})
+
+	t.Run("will terminate an operation that is blocked by a sync window", func(t *testing.T) {
+		// given a project with an active deny sync window and an operation that is terminating
+		t.Parallel()
+		f := setup()
+
+		opState := &v1alpha1.OperationState{
+			Operation: v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{
+					Source: &v1alpha1.ApplicationSource{},
+				},
+			},
+			Phase: synccommon.OperationTerminating,
+		}
+		// when
+		f.controller.appStateManager.SyncAppState(t.Context(), f.application, f.project, opState)
+
+		// then the termination is not blocked by the sync window and the operation is not left
+		// in the terminating phase forever
+		assert.Equal(t, synccommon.OperationFailed, opState.Phase)
+		assert.Equal(t, "Operation terminated", opState.Message)
+	})
 }
 
 func TestNormalizeTargetResources(t *testing.T) {
