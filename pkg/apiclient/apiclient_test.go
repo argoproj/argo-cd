@@ -53,7 +53,7 @@ func Test_parseGRPCHeaders(t *testing.T) {
 func TestNewClient_GRPCWebTransportUsesProxyFromEnvironment(t *testing.T) {
 	t.Parallel()
 
-	c, err := NewClientWithContext(t.Context(), &ClientOptions{
+	c, err := NewClient(&ClientOptions{
 		ServerAddr: "argocd.example.com:443",
 		Insecure:   true, // TLS client which does not require a real CA
 		GRPCWeb:    true, // skip the plain gRPC probe, which would try to reach the server
