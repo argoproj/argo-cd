@@ -4651,6 +4651,14 @@ func TestResyncAppsAfterShardChange_InvalidatesLocalCache(t *testing.T) {
 
 	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	// The informer's add handler for the app reads the cache client, then queues the app. Wait for
+	// it before SetClient replaces the client (#30384); this also empties the queue for the check
+	// at the end.
+	require.Eventually(t, func() bool { return ctrl.appRefreshQueue.Len() > 0 }, 2*time.Second, 5*time.Millisecond, "expected the app to be enqueued")
+	key, _ := ctrl.appRefreshQueue.Get()
+	ctrl.appRefreshQueue.Done(key)
+	assert.Contains(t, key, "my-app")
+	require.Zero(t, ctrl.appRefreshQueue.Len())
 	// Give ctrl a two-level cache client, like the real controller, backed by an external cache that a
 	// second controller also writes to.
 	external := cacheutil.NewInMemoryCache(time.Hour) // stands in for Redis
