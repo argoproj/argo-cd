@@ -1294,7 +1294,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	dh := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, debugHandler.WithFeatureFlagMiddleware())
 	mux.Handle("/debug", dh)
 	// /debug-images returns the images the user may attach (allowlist ∩ RBAC) for the UI dropdown.
-	dih := util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, http.HandlerFunc(debugHandler.ListDebugImages))
+	dih := withNoCacheHeaders(util_session.WithAuthMiddleware(server.DisableAuth, server.settings.IsSSOConfigured(), server.ssoClientApp, server.sessionMgr, http.HandlerFunc(debugHandler.ListDebugImages)))
 	mux.Handle("/debug-images", dih)
 
 	// Proxy extension is currently an alpha feature and is disabled

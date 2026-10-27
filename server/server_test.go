@@ -2042,7 +2042,7 @@ func TestAPIResponsesAreNotCacheable(t *testing.T) {
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	for _, path := range []string{"/api/version", "/api/v1/applications", "/api/v1/applications/does-not-exist"} {
+	for _, path := range []string{"/api/version", "/api/v1/applications", "/api/v1/applications/does-not-exist", "/debug-images"} {
 		t.Run(path, func(t *testing.T) {
 			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d%s", s.ListenPort, path), http.NoBody)
 			require.NoError(t, err)

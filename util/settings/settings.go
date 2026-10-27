@@ -1827,8 +1827,10 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	}
 	settings.DebugEnabled = argoCDCM.Data[debugEnabledKey] == "true"
 	// No default allowlist: operators must explicitly set exec.debug.images (enforced at the debug endpoint).
-	if debugImages := argoCDCM.Data[debugImagesKey]; debugImages != "" {
-		settings.DebugImages = strings.Split(debugImages, ",")
+	for image := range strings.SplitSeq(argoCDCM.Data[debugImagesKey], ",") {
+		if image = strings.TrimSpace(image); image != "" {
+			settings.DebugImages = append(settings.DebugImages, image)
+		}
 	}
 	settings.TrackingMethod = argoCDCM.Data[settingsResourceTrackingMethodKey]
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
