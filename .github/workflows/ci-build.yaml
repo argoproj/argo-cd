@@ -507,7 +507,7 @@ jobs:
           docker run -d --privileged --name build-ui-rootless \
             -e DOCKER_HOST=unix:///run/user/1000/docker.sock \
             docker:29-dind-rootless@sha256:ae083cc7de51e7a8e5a597f8fb774ca7914c408a95fc0f1477826a913479518a
-          trap 'docker rm -fv build-ui-rootless' EXIT
+          trap 'docker logs build-ui-rootless; docker rm -fv build-ui-rootless' EXIT
           docker exec --user root build-ui-rootless apk add --no-cache bash make
           tar -cf - Makefile VERSION hack/test-build-ui.sh | docker exec -i -w /home/rootless build-ui-rootless tar xf -
           timeout 60 bash -c 'until docker exec build-ui-rootless docker info > /dev/null 2>&1; do sleep 1; done'
