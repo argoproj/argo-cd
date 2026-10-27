@@ -2,18 +2,23 @@ package webhook
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	certutil "github.com/argoproj/argo-cd/v3/util/cert"
 	"github.com/argoproj/argo-cd/v3/util/git"
 )
 
@@ -37,6 +42,16 @@ const (
 
 	// adoAPITimeout is the timeout for outbound Azure DevOps REST API calls made during webhook processing.
 	adoAPITimeout = 10 * time.Second
+
+	// adoRespDrainLimit bounds how much of an unread response body is discarded so that the
+	// connection can be returned to the pool of a cached client.
+	adoRespDrainLimit = 512 * 1024
+
+	// adoHTTPClientCacheLimit bounds the number of cached HTTP clients. Clients are keyed by the
+	// transport settings of a repository, which usually resolve to a single entry per Azure DevOps
+	// host, so the limit is only reached after many TLS or proxy configuration changes without a
+	// restart. Beyond it, clients are created per request without keep-alives.
+	adoHTTPClientCacheLimit = 64
 )
 
 var errNoADOCredentials = errors.New("no supported Azure DevOps REST API credentials configured")
@@ -137,6 +152,64 @@ func setADOAuthHeader(req *http.Request, repo *v1alpha1.Repository) bool {
 	return false
 }
 
+// adoHTTPClientCache reuses HTTP clients, and therefore their connections, across Azure DevOps
+// REST API calls made for repositories that share the same transport settings.
+type adoHTTPClientCache struct {
+	mu      sync.Mutex
+	clients map[string]*http.Client
+}
+
+func newADOHTTPClientCache() *adoHTTPClientCache {
+	return &adoHTTPClientCache{clients: map[string]*http.Client{}}
+}
+
+// get returns an HTTP client honoring the TLS and proxy settings of the repository. Credentials are
+// not part of the client and are set on each request, so repositories with different credentials
+// can share a client.
+func (c *adoHTTPClientCache) get(repo *v1alpha1.Repository) *http.Client {
+	key := adoHTTPClientCacheKey(repo)
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if client, ok := c.clients[key]; ok {
+		return client
+	}
+	client := newADOHTTPClient(repo)
+	if len(c.clients) >= adoHTTPClientCacheLimit {
+		log.Debugf("Azure DevOps HTTP client cache is full, creating an uncached client for %s", repo.Repo)
+		return client
+	}
+	// Repository HTTP clients disable keep-alives because they are created per request, which would
+	// otherwise leave idle connections behind. A cached client is reused, so keep-alives let it
+	// reuse connections, and idle ones are closed by the transport's idle timeout.
+	if transport, ok := client.Transport.(*http.Transport); ok {
+		transport.DisableKeepAlives = false
+	}
+	c.clients[key] = client
+	return client
+}
+
+// adoHTTPClientCacheKey identifies the settings newADOHTTPClient builds a client from, including
+// the custom server certificates, so that TLS and proxy configuration changes take effect without
+// a restart.
+func adoHTTPClientCacheKey(repo *v1alpha1.Repository) string {
+	var host string
+	var serverCerts []string
+	if u, err := url.Parse(repo.Repo); err == nil {
+		host = u.Host
+		if !repo.IsInsecure() {
+			// Errors are ignored, as newADOHTTPClient falls back to the system roots on error.
+			serverCerts, _ = certutil.GetCertificateForConnect(host)
+		}
+	}
+	h := sha256.New()
+	parts := append([]string{host, strconv.FormatBool(repo.IsInsecure()), repo.Proxy, repo.NoProxy, repo.TLSClientCertData, repo.TLSClientCertKey}, serverCerts...)
+	for _, part := range parts {
+		h.Write([]byte(part))
+		h.Write([]byte{0})
+	}
+	return hex.EncodeToString(h.Sum(nil))
+}
+
 func newADOHTTPClient(repo *v1alpha1.Repository) *http.Client {
 	return git.GetRepoHTTPClient(repo.Repo, repo.IsInsecure(), repo.GetGitCreds(&git.NoopCredsStore{}), repo.Proxy, repo.NoProxy)
 }
@@ -171,7 +244,10 @@ func fetchChangedFilesFromADO(ctx context.Context, httpClient *http.Client, repo
 	if err != nil {
 		return nil, fmt.Errorf("error calling Azure DevOps diffs API: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() {
+		_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, adoRespDrainLimit))
+		_ = resp.Body.Close()
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("azure DevOps diffs API returned unexpected status %d", resp.StatusCode)
 	}

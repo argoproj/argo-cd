@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strconv"
 	"testing"
 
@@ -16,6 +17,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/runtime"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db/mocks"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -507,6 +509,60 @@ func TestFetchChangedFilesFromADO_BearerTokenAuth(t *testing.T) {
 	require.Equal(t, []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}, changedFiles)
 }
 
+// eofTrackingBody records whether the response body was read to the end, which is required for
+// the transport to reuse the connection.
+type eofTrackingBody struct {
+	reader  io.Reader
+	readEOF bool
+	closed  bool
+}
+
+func (b *eofTrackingBody) Read(p []byte) (int, error) {
+	n, err := b.reader.Read(p)
+	if errors.Is(err, io.EOF) {
+		b.readEOF = true
+	}
+	return n, err
+}
+
+func (b *eofTrackingBody) Close() error {
+	b.closed = true
+	return nil
+}
+
+func TestFetchChangedFilesFromADO_DrainsResponseBody(t *testing.T) {
+	respBody, err := json.Marshal(adoDiffsTestResponse())
+	require.NoError(t, err)
+
+	tests := []struct {
+		name       string
+		statusCode int
+		expectErr  bool
+	}{
+		{name: "successful response", statusCode: http.StatusOK},
+		{name: "error response", statusCode: http.StatusUnauthorized, expectErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Trailing data after the JSON document is left unread by the decoder.
+			body := &eofTrackingBody{reader: bytes.NewReader(append(respBody, "\n\n"...))}
+			client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: tt.statusCode, Header: make(http.Header), Body: body, Request: req}, nil
+			})}
+			repo := &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat"}
+
+			_, err := fetchChangedFilesFromADO(t.Context(), client, repo, testADORepoID, testADOShaBefore, testADOShaAfter)
+			if tt.expectErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.True(t, body.readEOF, "response body should be read to EOF so that the connection can be reused")
+			require.True(t, body.closed)
+		})
+	}
+}
+
 func TestSetADOAuthHeader(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -599,4 +655,62 @@ func TestNewADOHTTPClientUsesRepositoryTransportSettings(t *testing.T) {
 	proxyURL, err = transport.Proxy(noProxyReq)
 	require.NoError(t, err)
 	require.Nil(t, proxyURL)
+}
+
+func requireKeepAlivesEnabled(t *testing.T, client *http.Client, enabled bool) {
+	t.Helper()
+	transport, ok := client.Transport.(*http.Transport)
+	require.True(t, ok)
+	require.Equal(t, enabled, !transport.DisableKeepAlives)
+}
+
+func TestADOHTTPClientCache(t *testing.T) {
+	t.Setenv(common.EnvVarTLSDataPath, t.TempDir())
+
+	t.Run("reuses the client for repositories with the same transport settings", func(t *testing.T) {
+		c := newADOHTTPClientCache()
+		client := c.get(&v1alpha1.Repository{Repo: testADORepoURL, Username: "user-a", Password: "pat-a"})
+		other := c.get(&v1alpha1.Repository{Repo: "https://dev.azure.com/my-org/other-project/_git/other-repo", Password: "pat-b"})
+		require.Same(t, client, other)
+		requireKeepAlivesEnabled(t, client, true)
+	})
+
+	t.Run("creates a new client when the transport settings differ", func(t *testing.T) {
+		c := newADOHTTPClientCache()
+		base := &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat"}
+		client := c.get(base)
+		for name, repo := range map[string]*v1alpha1.Repository{
+			"host":       {Repo: "https://my-org.visualstudio.com/my-project/_git/my-repo", Password: "test-pat"},
+			"insecure":   {Repo: testADORepoURL, Password: "test-pat", Insecure: true},
+			"proxy":      {Repo: testADORepoURL, Password: "test-pat", Proxy: "http://proxy.example.com:8080"},
+			"noProxy":    {Repo: testADORepoURL, Password: "test-pat", NoProxy: "localhost"},
+			"clientCert": {Repo: testADORepoURL, Password: "test-pat", TLSClientCertData: "cert", TLSClientCertKey: "key"},
+		} {
+			require.NotSame(t, client, c.get(repo), name)
+		}
+	})
+
+	t.Run("creates a new client when the server certificates change", func(t *testing.T) {
+		tlsDataPath := t.TempDir()
+		t.Setenv(common.EnvVarTLSDataPath, tlsDataPath)
+		repo := &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat"}
+		c := newADOHTTPClientCache()
+		client := c.get(repo)
+
+		certPEM := "-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----\n"
+		require.NoError(t, os.WriteFile(filepath.Join(tlsDataPath, "dev.azure.com"), []byte(certPEM), 0o600))
+		require.NotSame(t, client, c.get(repo))
+	})
+
+	t.Run("does not cache clients beyond the limit", func(t *testing.T) {
+		c := newADOHTTPClientCache()
+		for i := range adoHTTPClientCacheLimit {
+			c.get(&v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat", Proxy: "http://proxy" + strconv.Itoa(i) + ".example.com:8080"})
+		}
+		repo := &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat"}
+		client := c.get(repo)
+		require.NotSame(t, client, c.get(repo))
+		require.Len(t, c.clients, adoHTTPClientCacheLimit)
+		requireKeepAlivesEnabled(t, client, false)
+	})
 }

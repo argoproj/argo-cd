@@ -147,7 +147,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		appProjectsLister:             appProjectsLister,
 		webhookRefreshJitter:          webhookRefreshJitter,
 		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
-		adoHTTPClientFactory:          newADOHTTPClient,
+		adoHTTPClientFactory:          newADOHTTPClientCache().get,
 	}
 
 	// Payloads are processed after the HTTP request has completed, so the request context
