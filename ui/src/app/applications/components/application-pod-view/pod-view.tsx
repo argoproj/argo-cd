@@ -23,6 +23,10 @@ interface PodViewProps {
     app: Application;
     nodeMenu?: (node: ResourceNode) => ReactNode;
     quickStarts?: (node: ResourceNode) => ReactNode;
+    // podFilter decides which pods are displayed. Groups without any matching pod are hidden.
+    podFilter?: (pod: ResourceNode) => boolean;
+    filtered?: boolean;
+    onClearFilter?: () => void;
 }
 
 export type PodGroupType = 'topLevelResource' | 'parentResource' | 'node';
@@ -53,7 +57,7 @@ export function PodView(props: PodViewProps) {
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {prefs => {
                 const podPrefs = prefs.appDetails.podView || ({} as PodViewPreferences);
-                const groups = processTree(podPrefs.sortMode, props.tree.hosts || [], props.tree, props.app, props.nodeMenu, props.quickStarts) || [];
+                const groups = processTree(podPrefs.sortMode, props.tree.hosts || [], props.tree, props.app, props.nodeMenu, props.quickStarts, props.podFilter) || [];
 
                 if (podPrefs.sortMode !== 'node' && podPrefs.sortOrder) {
                     // Sort the groups in place based on precomputed timestamps
@@ -252,6 +256,16 @@ export function PodView(props: PodViewProps) {
                                     );
                                 })}
                             </div>
+                        ) : props.filtered && (props.tree.nodes || []).some(node => node.kind === 'Pod') ? (
+                            <EmptyState icon=' fa fa-filter'>
+                                <h4>No matching pods</h4>
+                                <h5>No pods match the current filters</h5>
+                                {props.onClearFilter && (
+                                    <button className='argo-button argo-button--base' onClick={() => props.onClearFilter()}>
+                                        CLEAR FILTER
+                                    </button>
+                                )}
+                            </EmptyState>
                         ) : (
                             <EmptyState icon=' fa fa-th'>
                                 <h4>Your application has no pod groups</h4>
@@ -300,13 +314,14 @@ function menuItemsFor(modes: PodGroupType[], prefs: ViewPreferences, ctx: Contex
     }));
 }
 
-function processTree(
+export function processTree(
     sortMode: PodGroupType,
     initNodes: Node[],
     tree: ApplicationTree,
     app: Application,
     nodeMenu: (node: ResourceNode) => ReactNode,
-    quickStarts: (node: ResourceNode) => ReactNode
+    quickStarts: (node: ResourceNode) => ReactNode,
+    podFilter?: (pod: ResourceNode) => boolean
 ): PodGroup[] {
     if (!tree) {
         return [];
@@ -362,7 +377,7 @@ function processTree(
         }
     });
     (tree.nodes || []).forEach((rnode: ResourceTreeNode) => {
-        if (rnode.kind !== 'Pod') {
+        if (rnode.kind !== 'Pod' || (podFilter && !podFilter(rnode))) {
             return;
         }
 

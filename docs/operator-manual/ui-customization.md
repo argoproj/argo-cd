@@ -19,6 +19,25 @@ application.allowedNodeLabels: topology.kubernetes.io/zone,karpenter.sh/capacity
 Would result in:
 ![Node Labels in Pod View](../assets/application-pod-view-node-labels.png)
 
+## Filtering the Pods View
+
+The Pods view shows the **Resource filters** sidebar, so you can focus on the pods that need attention, for example pods in `CreateContainerConfigError`, or every pod except the `Completed` ones left by CronJobs. The following filters are available:
+
+* **Name**: matches the pod name. Use `*` as a wildcard.
+* **Sync Status**: matches the sync status of the pod's top-level resource, such as its Deployment, because pods are not synced directly. The counts next to the options are the numbers of those top-level resources, as in the other views.
+* **Health Status**: matches the health of the pod itself.
+* **Pod Status**: matches the pod status reason, which is the value that `kubectl get pods` shows in the `STATUS` column, for example `Running`, `Completed`, `CrashLoopBackOff` or `Init:Error`. The options are the statuses of the application's pods.
+* **Namespaces**: shown when the pods span more than one namespace.
+
+Values selected in the same filter are combined with OR, and different filters are combined with AND. The filters are stored in the `resource` query parameter of the URL, so you can share a link to a filtered view:
+
+```text
+/applications/argocd/my-app?view=pods&resource=podStatus:CrashLoopBackOff,podStatus:Error
+```
+
+> [!NOTE]
+> The Kinds filter does not apply to the Pods view, and the Pod Status filter only applies to the Pods view.
+
 ## CLI Download Links
 
 The **Help** page (linked from the bottom of the sidebar) always shows a download button for the Linux CLI binary that is embedded in the Argo CD server, so users can fetch a working CLI without any configuration.
