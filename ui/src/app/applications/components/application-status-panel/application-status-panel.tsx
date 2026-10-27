@@ -306,6 +306,12 @@ export const ApplicationStatusPanel = ({
         </div>
     );
 
+    const debugContainerStatus = (
+        <span role='status' className='application-status-panel__item-name' style={hasDebugContainer ? {marginLeft: '5px'} : undefined}>
+            {hasDebugContainer && '(Debug Container Attached)'}
+        </span>
+    );
+
     const collapsedSummary = collapsed && (
         <div className='application-status-panel application-status-panel--collapsed row'>
             <div className='application-status-panel__collapsed-item' title='App Health' style={{color: healthTextColor}}>
@@ -333,6 +339,7 @@ export const ApplicationStatusPanel = ({
                         <ComparisonStatusIcon status={application.status.sync.status} label={true} />
                     </span>
                 )}
+                {debugContainerStatus}
             </div>
             {appOperationState && (
                 <div
@@ -428,11 +435,7 @@ export const ApplicationStatusPanel = ({
                                 ) : (
                                     <ComparisonStatusIcon status={application.status.sync.status} label={true} />
                                 )}
-                                {hasDebugContainer && (
-                                    <span className='application-status-panel__item-name' style={{marginLeft: '5px'}}>
-                                        (Debug Container Attached)
-                                    </span>
-                                )}
+                                {debugContainerStatus}
                             </div>
                             <div className='application-status-panel__item-value__revision show-for-large'>{renderSyncStatusRevision(application)}</div>
                         </div>

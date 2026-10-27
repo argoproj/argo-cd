@@ -88,6 +88,20 @@ describe('ApplicationStatusPanel', () => {
         expect(screen.queryByText('SYNC STATUS')).toBeNull();
     });
 
+    it.each([false, true])('shows the debug container indicator in a live region (collapsed=%s)', collapsed => {
+        render(<ApplicationStatusPanel application={application} collapsed={collapsed} hasDebugContainer={true} />);
+        expect(screen.getByRole('status')).toHaveTextContent('(Debug Container Attached)');
+    });
+
+    it('keeps the debug container live region mounted so attaching is announced', () => {
+        const {rerender} = render(<ApplicationStatusPanel application={application} hasDebugContainer={false} />);
+        const region = screen.getByRole('status');
+        expect(region).toBeEmptyDOMElement();
+        rerender(<ApplicationStatusPanel application={application} hasDebugContainer={true} />);
+        expect(screen.getByRole('status')).toBe(region);
+        expect(region).toHaveTextContent('(Debug Container Attached)');
+    });
+
     it('opens the diff when the collapsed sync status is clicked', () => {
         const showDiff = jest.fn();
         render(<ApplicationStatusPanel application={application} collapsed={true} showDiff={showDiff} />);
