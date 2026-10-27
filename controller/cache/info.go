@@ -3,6 +3,7 @@ package cache
 import (
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -205,12 +206,9 @@ func populateIngressInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 							continue
 						}
 						if hosts := tlsline["hosts"]; hosts != nil {
-							tlshosts, ok := tlsline["hosts"].(map[string]any)
-							if ok {
-								for j := range tlshosts {
-									if tlshosts[j] == host {
-										stringPort = "https"
-									}
+							if hostSlice, ok := hosts.([]any); ok {
+								if slices.Contains(hostSlice, host) {
+									stringPort = "https"
 								}
 							}
 						}
