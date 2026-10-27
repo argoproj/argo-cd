@@ -164,6 +164,9 @@ func (s *Server) CanI(ctx context.Context, r *account.CanIRequest) (*account.Can
 	}
 
 	ok := s.enf.Enforce(ctx.Value("claims"), r.Resource, r.Action, subresource)
+	if !ok && r.Resource == rbac.ResourceExec && baseAction == rbac.ActionDebug && r.Action != rbac.ActionDebug {
+		ok = s.enf.Enforce(ctx.Value("claims"), r.Resource, rbac.ActionDebug, subresource)
+	}
 	if ok {
 		return &account.CanIResponse{Value: "yes"}, nil
 	}

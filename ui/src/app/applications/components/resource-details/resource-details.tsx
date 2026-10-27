@@ -407,9 +407,8 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
                         const debugEnabled = settings.debugEnabled;
-                        const appRBACName = application.spec.project + '/' + application.metadata.name;
-                        const logsAllowed = await services.accounts.canI('logs', 'get', appRBACName);
-                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', appRBACName));
+                        const logsAllowed = await services.accounts.canI('logs', 'get', AppUtils.appRBACName(application));
+                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
                         // Dropdown = allowlist ∩ RBAC, computed server-side. Per-image canI can't work
                         // here: the CanI REST path splits the '/' in a debug/<image> action.
                         const debugImages: string[] = debugEnabled

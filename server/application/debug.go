@@ -295,14 +295,14 @@ func (s *debugHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	debugContainerName, err := startDebugProcess(ctx, kubeClientset, namespace, podName, image, targetContainer)
 	if err != nil {
 		fieldLog.Errorf("error starting ephemeral container: %s", err)
-		http.Error(w, "Failed to start debug container: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Failed to start debug container", http.StatusInternalServerError)
 		return
 	}
 
 	// Wait for ephemeral container to be running
 	if err := waitForEphemeralContainer(ctx, kubeClientset, namespace, podName, debugContainerName); err != nil {
 		fieldLog.Errorf("error waiting for ephemeral container: %s", err)
-		http.Error(w, "Debug container failed to start: "+err.Error(), http.StatusInternalServerError)
+		http.Error(w, "Debug container failed to start", http.StatusInternalServerError)
 		return
 	}
 
