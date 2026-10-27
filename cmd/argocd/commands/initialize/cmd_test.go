@@ -1,11 +1,13 @@
 package initialize
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/spf13/cobra"
 	flag "github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 type StringFlag struct {
@@ -102,4 +104,32 @@ func Test_InitCommand_FiltersUnsupportedKubectlFlags(t *testing.T) {
 
 	assert.NotNil(t, cmd.Flags().Lookup("context"))
 	assert.NotNil(t, cmd.Flags().Lookup("namespace"))
+}
+
+func TestInitCommandKubeConfigInheritedBySubcommands(t *testing.T) {
+	for _, args := range [][]string{
+		{"list"},
+		{"list", "--kubeconfig", "custom.yaml"},
+		{"--kubeconfig", "custom.yaml", "list"},
+	} {
+		t.Run(fmt.Sprint(args), func(t *testing.T) {
+			cmd := InitCommand(&cobra.Command{Use: "app"})
+			called := false
+			cmd.AddCommand(&cobra.Command{
+				Use: "list",
+				Run: func(child *cobra.Command, _ []string) {
+					called = true
+					kubeconfig := child.Flag("kubeconfig")
+					require.NotNil(t, kubeconfig)
+					assert.Equal(t, len(args) > 1, kubeconfig.Changed)
+					if kubeconfig.Changed {
+						assert.Equal(t, "custom.yaml", kubeconfig.Value.String())
+					}
+				},
+			})
+			cmd.SetArgs(args)
+			require.NoError(t, cmd.ExecuteContext(t.Context()))
+			assert.True(t, called)
+		})
+	}
 }

@@ -89,6 +89,38 @@ kubectl config set-context --current --namespace=argocd # change current kube co
 argocd login --core
 ```
 
+### Custom Kubernetes configuration
+
+Save a custom kubeconfig path in a named Argo CD context:
+
+```bash
+argocd login --core --name k3s --kubeconfig /etc/rancher/k3s/k3s.yaml
+argocd app list
+```
+
+The path is stored in the Argo CD CLI configuration, not the kubeconfig contents.
+Relative paths are saved as absolute paths so later commands can run from a different directory.
+Each Argo CD context can reference a different kubeconfig. Select a saved context with
+`--argocd-context`:
+
+```bash
+argocd app list --argocd-context k3s
+```
+
+An explicit `--kubeconfig` overrides the saved path for that command without changing the context:
+
+```bash
+argocd app list --argocd-context k3s --kubeconfig /path/to/another-kubeconfig
+```
+
+If no path was saved, core mode uses the usual Kubernetes loading rules, including
+`KUBECONFIG` and `~/.kube/config`. To return a context to those defaults, log in again
+with the same name and omit `--kubeconfig`:
+
+```bash
+argocd login --core --name k3s
+```
+
 Similarly, users can also run the Web UI locally if they prefer to
 interact with Argo CD using this method. The Web UI can be started
 locally by running the following command:

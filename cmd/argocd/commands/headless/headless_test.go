@@ -84,7 +84,7 @@ users:
 
 		clientConfig := newClientConfig(&clientcmd.ConfigOverrides{
 			CurrentContext: "target-context",
-		})
+		}, "")
 		require.NotNil(t, clientConfig)
 
 		restConfig, err := clientConfig.ClientConfig()

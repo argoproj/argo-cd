@@ -63,6 +63,8 @@ func newDashboardCommand(ds *dashboard, clientOpts *argocdclient.ClientOptions) 
 		Use:   "dashboard",
 		Short: "Starts Argo CD Web UI locally",
 		Run: cli.WithSignalContext(func(cmd *cobra.Command, _ []string, _ context.CancelFunc) {
+			clientOpts.Core = true
+			errors.CheckError(headless.ConfigureKubeConfig(clientOpts, cmd))
 			config.Context = initialize.RetrieveContextIfChanged(cmd.Flag("context"))
 			errors.CheckError(ds.Run(cmd.Context(), config))
 		}),

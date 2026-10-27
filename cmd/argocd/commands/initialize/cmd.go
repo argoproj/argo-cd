@@ -44,6 +44,11 @@ func InitCommand(cmd *cobra.Command) *cobra.Command {
 		if slices.Contains(unsupportedFlags, flag.Name) {
 			return
 		}
+		// Core-mode subcommands must be able to override a saved kubeconfig path.
+		if flag.Name == "kubeconfig" {
+			cmd.PersistentFlags().AddFlag(flag)
+			return
+		}
 		cmd.Flags().AddFlag(flag)
 	})
 
