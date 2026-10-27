@@ -1260,7 +1260,7 @@ func TestServerSideDiff(t *testing.T) {
 		opts = append(opts, WithIgnoreMutationWebhook(false))
 
 		// when
-		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+		result, err := serverSideDiff(desiredState, liveState, opts...)
 
 		// then
 		require.NoError(t, err)
