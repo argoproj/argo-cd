@@ -940,6 +940,16 @@ func (server *ArgoCDServer) useTLS() bool {
 	return true
 }
 
+// healthServer serves the standard gRPC health checking protocol, which load balancers call without credentials.
+type healthServer struct {
+	*health.Server
+}
+
+// AuthFuncOverride allows the health check to be called without auth
+func (*healthServer) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
+	return ctx, nil
+}
+
 func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registry) (*grpc.Server, application.AppResourceTreeFn) {
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
@@ -1018,7 +1028,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	sOpts = append(sOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	grpcS := grpc.NewServer(sOpts...)
 
-	healthService := health.NewServer()
+	healthService := &healthServer{Server: health.NewServer()}
 	grpc_health_v1.RegisterHealthServer(grpcS, healthService)
 
 	versionpkg.RegisterVersionServiceServer(grpcS, server.serviceSet.VersionService)
@@ -1274,6 +1284,7 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	} else {
 		log.WithField(common.SecurityField, common.SecurityHigh).Warnf("Content-Type enforcement is disabled, which may make your API vulnerable to CSRF attacks")
 	}
+	handler = withNoCacheHeaders(handler)
 	mux.Handle("/api/", handler)
 
 	terminalOpts := application.TerminalOptions{
@@ -1345,6 +1356,17 @@ func (server *ArgoCDServer) newHTTPServer(ctx context.Context, port int, grpcWeb
 	}
 	mux.Handle("/", assetsHandler)
 	return &httpS
+}
+
+// withNoCacheHeaders marks responses as uncacheable. API responses may contain sensitive data, and without
+// an explicit Cache-Control header, intermediate proxies or CDNs may cache them and serve them to other users.
+func withNoCacheHeaders(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		for k, v := range noCacheHeaders {
+			w.Header().Set(k, v)
+		}
+		handler.ServeHTTP(w, r)
+	})
 }
 
 func enforceContentTypes(handler http.Handler, types []string) http.Handler {

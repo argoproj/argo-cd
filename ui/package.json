@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@fortawesome/fontawesome-free": "^6.7.2",
+    "@tanstack/react-query": "5.104.0",
     "ansi-to-react": "^6.1.6",
     "argo-ui": "git+https://github.com/argoproj/argo-ui.git#28927a57027a361505ff91d0498a4bc9670bd882",
     "buffer": "^6.0.3",

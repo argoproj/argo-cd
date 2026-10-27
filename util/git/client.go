@@ -145,12 +145,10 @@ type Client interface {
 	RepoURL() string
 	Init() error
 	Fetch(ctx context.Context, revision string, depth int64) error
-	Submodule(ctx context.Context) error
 	Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error)
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(ctx context.Context, path string, enableNewGitFileGlobbing bool) ([]string, error)
-	LsLargeFiles(ctx context.Context) ([]string, error)
 	CommitSHA(ctx context.Context) (string, error)
 	RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error)
 	// Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
@@ -733,7 +731,7 @@ func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int6
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if m.IsLFSEnabled() {
-		largeFiles, err := m.LsLargeFiles(ctx)
+		largeFiles, err := m.lsLargeFiles(ctx)
 		if err == nil && len(largeFiles) > 0 {
 			err = m.runCredentialedCmd(ctx, "lfs", "fetch", "--all")
 			if err != nil {
@@ -795,7 +793,7 @@ func (m *nativeGitClient) LsFiles(ctx context.Context, path string, enableNewGit
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
-func (m *nativeGitClient) LsLargeFiles(ctx context.Context) ([]string, error) {
+func (m *nativeGitClient) lsLargeFiles(ctx context.Context) ([]string, error) {
 	out, err := m.runCmd(ctx, "lfs", "ls-files", "-n")
 	if err != nil {
 		return nil, err
@@ -805,7 +803,7 @@ func (m *nativeGitClient) LsLargeFiles(ctx context.Context) ([]string, error) {
 }
 
 // Submodule embed other repositories into this repository
-func (m *nativeGitClient) Submodule(ctx context.Context) error {
+func (m *nativeGitClient) submodule(ctx context.Context) error {
 	if err := m.runCredentialedCmd(ctx, "submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
@@ -823,7 +821,7 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.
 	if m.IsLFSEnabled() {
-		largeFiles, err := m.LsLargeFiles(ctx)
+		largeFiles, err := m.lsLargeFiles(ctx)
 		if err != nil {
 			return "", fmt.Errorf("failed to list LFS files: %w", err)
 		}
@@ -835,7 +833,7 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled {
-			if err := m.Submodule(ctx); err != nil {
+			if err := m.submodule(ctx); err != nil {
 				return "", fmt.Errorf("failed to update submodules: %w", err)
 			}
 		}
@@ -2229,8 +2227,14 @@ func (m *nativeGitClient) runCredentialedCmdOutput(ctx context.Context, ropts ru
 // env var util/exec uses to bound its own timeout-then-SIGKILL escalation, so
 // one knob governs both. Duplicating the read here instead of sharing an
 // accessor with util/exec is a shortcut; a later layer should clean it up.
+//
+// Unlike util/exec, where ARGOCD_EXEC_FATAL_TIMEOUT=0 intentionally disables
+// the fatal-SIGKILL escalation, a zero result here would become cmd.WaitDelay,
+// which disables os/exec's own bound on waiting for inherited pipes to close.
+// Reject zero (and negative) so it falls back to the default instead of
+// removing the bound entirely.
 func gitCancelGracePeriod() time.Duration {
-	return env.ParseDurationFromEnv("ARGOCD_EXEC_FATAL_TIMEOUT", 10*time.Second, 0, math.MaxInt64)
+	return env.ParseDurationFromEnv("ARGOCD_EXEC_FATAL_TIMEOUT", 10*time.Second, time.Nanosecond, math.MaxInt64)
 }
 
 func (m *nativeGitClient) runCmdOutput(cmd *exec.Cmd, ropts runOpts) (string, error) {

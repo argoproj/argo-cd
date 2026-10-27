@@ -586,11 +586,16 @@ func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 
 func Test_gitCancelGracePeriod(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "")
 		assert.Equal(t, 10*time.Second, gitCancelGracePeriod())
 	})
 	t.Run("respects ARGOCD_EXEC_FATAL_TIMEOUT", func(t *testing.T) {
 		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "500ms")
 		assert.Equal(t, 500*time.Millisecond, gitCancelGracePeriod())
+	})
+	t.Run("rejects a zero grace period, falling back to the default", func(t *testing.T) {
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "0s")
+		assert.Equal(t, 10*time.Second, gitCancelGracePeriod())
 	})
 }
 
@@ -2008,8 +2013,8 @@ func Test_nativeGitClient_Submodule(t *testing.T) {
 	err = runCmd(ctx, client.Root(), "git", "config", "--file=.gitmodules", "submodule.bar.url", bar+"baz")
 	require.NoError(t, err)
 
-	// Call Submodule()
-	err = client.Submodule(t.Context())
+	// Call submodule()
+	err = client.(*nativeGitClient).submodule(t.Context())
 	require.NoError(t, err)
 
 	// Check if the URL change in .gitmodule is reflected in .git/config
