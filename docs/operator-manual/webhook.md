@@ -155,6 +155,33 @@ kubectl patch secret argocd-secret -n argocd \
 > [!NOTE]
 > If changed-file detection fails for any reason, Argo CD falls back to refreshing all apps pointing to the repository — the same behavior as when no secret is configured.
 
+### Special handling for Azure DevOps
+
+Azure DevOps does not include the list of changed files in the push webhook payload.
+This prevents the [Manifest Paths Annotation](high_availability.md#manifest-paths-annotation) feature from working correctly for monorepos hosted on Azure DevOps.
+To determine the changed files, the Argo CD webhook handler calls the [Azure DevOps Git Diffs API](https://learn.microsoft.com/en-us/rest/api/azure/devops/git/diffs/get?view=azure-devops-rest-7.1) to compare the commits before and after the push.
+
+To enable changed-file detection, set the webhook basic auth credentials in `argocd-secret`:
+
+```bash
+kubectl patch secret argocd-secret -n argocd \
+  --type=merge \
+  -p '{"stringData": {"webhook.azuredevops.username": "<your-username>", "webhook.azuredevops.password": "<your-password>"}}'
+```
+
+**Requirements:**
+
+- The webhook **must be authenticated**: `webhook.azuredevops.username` or `webhook.azuredevops.password` must be set in `argocd-secret`. Argo CD will only fetch changed files when the incoming webhook has been verified against these credentials (required to prevent SSRF).
+- The repository, or a credential template matching its URL, **must have credentials** stored in Argo CD for its HTTPS URL: a personal access token as the password, or a bearer token. The token needs the `Code (Read)` scope. Repositories connected over SSH, or authenticated with Azure Workload Identity or a Service Principal, are not supported.
+
+The API call honors the TLS and proxy settings of the repository and times out after 10 seconds.
+
+> [!NOTE]
+> If changed-file detection fails for any reason, Argo CD falls back to refreshing all apps pointing to the repository — the same behavior as when no credentials are configured. This includes branch creation and deletion events, and pushes that change more than 2000 files.
+
+> [!NOTE]
+> Argo CD uses version 7.1 of the Azure DevOps REST API. Support for later versions requires a change in Argo CD.
+
 
 ## 3. Webhook Configuration for OCI-Compliant Registries
 
