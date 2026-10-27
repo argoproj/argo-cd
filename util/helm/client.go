@@ -165,6 +165,12 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	if err != nil {
 		return fmt.Errorf("error getting cached chart path: %w", err)
 	}
+
+	// ExtractChart reads and extracts the cached archive while holding this key lock.
+	// Acquire it here as well so a hard refresh cannot delete the archive mid-extraction.
+	c.repoLock.Lock(cachePath)
+	defer c.repoLock.Unlock(cachePath)
+
 	if err := os.RemoveAll(cachePath); err != nil {
 		return fmt.Errorf("error removing chart cache at %s: %w", cachePath, err)
 	}

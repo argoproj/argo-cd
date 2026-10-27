@@ -160,7 +160,10 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 				opts = append(opts, helm.WithUserAgent(initConstants.HelmUserAgent))
 			}
 			opts = append(opts, helm.WithHelmChartCacheExpiration(initConstants.HelmChartCacheExpiration))
-			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
+			// Use helm.NewClient so that every repo-server request shares the process-wide lock,
+			// exactly like oci.NewClient does. Without a shared lock, a hard refresh in one request
+			// (CleanChartCache) can delete a chart archive that another request is still extracting.
+			return helm.NewClient(repoURL, creds, enableOci, proxy, noProxy, opts...)
 		},
 		initConstants:      initConstants,
 		now:                time.Now,
