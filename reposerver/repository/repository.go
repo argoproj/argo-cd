@@ -12,6 +12,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"reflect"
 	"regexp"
 	"slices"
 	"sort"
@@ -3184,7 +3185,11 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
 			if err := gitClient.Fetch(ctx, revision, 0); err != nil {
-				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
+				// Only git's missing-object answers mean the remote no longer has the revision.
+				if msg := err.Error(); strings.Contains(msg, "not our ref") || strings.Contains(msg, "unadvertised object") || strings.Contains(msg, "couldn't find remote ref") {
+					return fmt.Errorf("failed to fetch revision %s: %w: %w", revision, git.ErrRevisionNotFound, err)
+				}
+				return fmt.Errorf("failed to fetch revision %s: %w", revision, err)
 			}
 		}
 	}
@@ -3478,7 +3483,11 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 	}, nil
 }
 
-func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, gitClientOpts git.ClientOpts) (string, string, bool, error) {
+// gitSourceHasChanges reports whether files under refreshPaths changed between syncedRevision and
+// revision. With composeVia set, it unions the cached (base..composeVia) and (composeVia..revision)
+// sets instead of diffing, so per-app last-synced bases share the repo-wide diff. The union may
+// over-report a reverted change, never under-report, so it is not cached.
+func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, gitClientOpts git.ClientOpts, composeVia string) (string, string, bool, error) {
 	if repo == nil {
 		return revision, syncedRevision, true, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
@@ -3519,7 +3528,7 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		defer utilio.Close(closer)
 
 		if err := s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth); err != nil {
-			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+			return files, fmt.Errorf("unable to fetch git repo %s with syncedRevisions %s: %w", repo.Repo, syncedRevision, err)
 		}
 
 		files, err = gitClient.ChangedFiles(ctx, syncedRevision, revision)
@@ -3529,16 +3538,24 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		return files, nil
 	}
 
+	composed := false
 	files, err := s.cache.GetGitFilesChanges(repo.Repo, revision, syncedRevision)
 	if err != nil {
-		files, err = getGitFilesChanges()
+		files, err = composeGitFilesChanges(s.cache, repo.Repo, revision, composeVia, syncedRevision)
+		composed = err == nil
 		if err != nil {
-			return revision, syncedRevision, true, err
+			files, err = getGitFilesChanges()
+			if err != nil {
+				return revision, syncedRevision, true, err
+			}
 		}
 	}
 
-	if err := s.cache.SetGitFilesChanges(repo.Repo, revision, syncedRevision, files); err != nil {
-		log.Warnf("Failed to store git files changes for `%s` repo in `%s...%s` with: %v", repo.Repo, revision, syncedRevision, err)
+	// The key is shared repo-wide, so an over-reported union must not stand in for a real diff.
+	if !composed {
+		if err := s.cache.SetGitFilesChanges(repo.Repo, revision, syncedRevision, files); err != nil {
+			log.Warnf("Failed to store git files changes for `%s` repo in `%s...%s` with: %v", repo.Repo, revision, syncedRevision, err)
+		}
 	}
 
 	changed := false
@@ -3549,86 +3566,63 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 	return revision, syncedRevision, changed, nil
 }
 
-// UpdateRevisionForPaths compares git revisions for single and multi-source applications
-// and determines whether files in the specified paths have changed.
-//
-// For single-source applications, only the main git repository revision is compared.
-// For multi-source applications, all related ref sources are compared (multiple git repositories
-// referenced via `ref` in Helm value files).
-//
-// If no changes are detected, but revisions have advanced, the already cached manifest is copied
-// from the old revision key to the new one, avoiding unnecessary regeneration.
-//
-// Example: cache contains manifest "x" under revision "a1a1a1". If the revision moves to "b2b2b2"
-// and no relevant files have changed, "x" will be stored again under the new revision key.
-func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient.UpdateRevisionForPathsRequest) (*apiclient.UpdateRevisionForPathsResponse, error) {
-	logCtx := log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace})
+// composeGitFilesChanges errors when either cached set is missing or there is no usable intermediate.
+func composeGitFilesChanges(c *cache.Cache, repoURL, revision, composeVia, syncedRevision string) ([]string, error) {
+	if composeVia == "" || composeVia == revision || composeVia == syncedRevision {
+		return nil, errors.New("no intermediate revision to compose changed files from")
+	}
+	headFiles, err := c.GetGitFilesChanges(repoURL, revision, composeVia)
+	if err != nil {
+		return nil, err
+	}
+	tailFiles, err := c.GetGitFilesChanges(repoURL, composeVia, syncedRevision)
+	if err != nil {
+		return nil, err
+	}
+	return append(headFiles, tailFiles...), nil
+}
 
-	// Store resolved revisions for cache update
-	newRepoRefs := make(map[string]string, 0)
-	oldRepoRefs := make(map[string]string, 0)
-	rRevision := request.Revision
-	sRevision := request.SyncedRevision
-	revisionsAreDifferent := false
-	repo := request.GetRepo()
+// baseRevisionEvaluation is the result of comparing the requested revision against one base.
+type baseRevisionEvaluation struct {
+	// resolvedRevision is the requested revision as a SHA, or as-is when no diff ran.
+	resolvedRevision      string
+	resolvedBase          string
+	changes               bool
+	revisionsAreDifferent bool
+	// oldRepoRefs/newRepoRefs map normalized ref repo URLs to resolved revisions, for cache keys.
+	oldRepoRefs map[string]string
+	newRepoRefs map[string]string
+}
+
+// evaluateChangesSinceRevision diffs the refresh paths between a base (with its ref sources) and the
+// requested revision. For a malformed ref it returns an evaluation alongside the error.
+func (s *Service) evaluateChangesSinceRevision(ctx context.Context, request *apiclient.UpdateRevisionForPathsRequest, baseRevision string, baseRefSources map[string]*v1alpha1.RefTarget, composeVia string, composeRefSources map[string]*v1alpha1.RefTarget, isGitSource bool, gitClientOpts git.ClientOpts, logCtx *log.Entry) (*baseRevisionEvaluation, error) {
+	eval := &baseRevisionEvaluation{
+		resolvedRevision: request.Revision,
+		resolvedBase:     baseRevision,
+		oldRepoRefs:      map[string]string{},
+		newRepoRefs:      map[string]string{},
+	}
 	refreshPaths := request.GetPaths()
 
-	if repo == nil {
-		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
-	}
-	// Remember whether the type was set by the caller before normalizing: Normalize
-	// infers oci from an oci:// URL and otherwise defaults the type to git, so after the
-	// call an empty type is indistinguishable from an explicit git type.
-	typeWasUnset := repo.Type == ""
-	// Normalize the repository in the request to ensure all fields are correctly set
-	repo = repo.Normalize()
+	if isGitSource && baseRevision != request.Revision {
+		resolvedRevision, resolvedBase, sourceHasChanges, err := s.gitSourceHasChanges(ctx, request.Repo, request.Revision, baseRevision, refreshPaths, gitClientOpts, composeVia)
+		if err != nil {
+			return nil, err
+		}
+		eval.resolvedRevision = resolvedRevision
+		eval.resolvedBase = resolvedBase
 
-	// Determine whether the main source is a git source. A type that Normalize defaulted
-	// to git must not be trusted on its own: an untyped Helm chart source would then have
-	// its revision resolved against the chart repository URL as if it were a git repo and
-	// fail with "repository not found" (issue #28890). In that case fall back to the
-	// application source type.
-	isGitSource := repo.Type == "git"
-	if isGitSource && typeWasUnset && request.ApplicationSource != nil &&
-		(request.ApplicationSource.IsHelm() || request.ApplicationSource.IsOCI()) {
-		isGitSource = false
-	}
+		eval.revisionsAreDifferent = resolvedRevision != resolvedBase
 
-	if len(refreshPaths) == 0 {
-		// Always refresh if path is not specified
-		return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
-	}
-
-	if !isGitSource && len(request.RefSources) == 0 {
-		return &apiclient.UpdateRevisionForPathsResponse{}, nil
-	}
-
-	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
-
-	if isGitSource {
-		if request.SyncedRevision != request.Revision {
-			resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(ctx, request.Repo, request.Revision, request.SyncedRevision, refreshPaths, gitClientOpts)
-			if err != nil {
-				return nil, err
-			}
-			rRevision = resolvedRevision
-			sRevision = syncedRevision
-
-			if resolvedRevision != syncedRevision {
-				revisionsAreDifferent = true
-			}
-
-			if sourceHasChanges {
-				logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, request.Repo.Repo, syncedRevision, resolvedRevision)
-				return &apiclient.UpdateRevisionForPathsResponse{
-					Revision: rRevision,
-					Changes:  true,
-				}, nil
-			}
+		if sourceHasChanges {
+			logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, request.Repo.Repo, resolvedBase, resolvedRevision)
+			eval.changes = true
+			return eval, nil
 		}
 	}
 
-	// Only SyncedRefSources that refer to a specific source should be compared
+	// Only base ref sources that refer to a specific source should be compared
 	refsToCompare := v1alpha1.RefTargetRevisionMapping{}
 
 	refCandidates := make([]string, 0)
@@ -3648,9 +3642,10 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		if _, ok := refsToCompare[refName]; ok {
 			continue
 		}
-		sRefSource, ok := request.SyncedRefSources[refName]
+		sRefSource, ok := baseRefSources[refName]
 		if !ok {
-			return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: rRevision}, fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refName)
+			eval.changes = true
+			return eval, fmt.Errorf("source referenced %q, but no source has a 'ref' field defined", refName)
 		}
 		refsToCompare[refName] = sRefSource
 	}
@@ -3662,58 +3657,188 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		var err error
 
 		if sRefSource.TargetRevision != request.RefSources[refName].TargetRevision {
-			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
+			composeRef := ""
+			if composeRefSource, ok := composeRefSources[refName]; ok && composeRefSource != nil {
+				composeRef = composeRefSource.TargetRevision
+			}
+			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts, composeRef)
 			if err != nil {
 				return nil, err
 			}
 
 			if resolvedRevision != syncedRevision {
-				revisionsAreDifferent = true
+				eval.revisionsAreDifferent = true
 			}
 
 			if sourceHasChanges {
 				logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, sRefSource.Repo.Repo, syncedRevision, resolvedRevision)
-				return &apiclient.UpdateRevisionForPathsResponse{
-					Revision: rRevision,
-					Changes:  true,
-				}, nil
+				eval.changes = true
+				return eval, nil
 			}
 		}
 		// Store resolved revision for cache update
 		normalizedURL := git.NormalizeGitURL(sRefSource.Repo.Repo)
-		newRepoRefs[normalizedURL] = resolvedRevision
-		oldRepoRefs[normalizedURL] = syncedRevision
+		eval.newRepoRefs[normalizedURL] = resolvedRevision
+		eval.oldRepoRefs[normalizedURL] = syncedRevision
 	}
 
-	// this check is necessary to ensure that revisions have changed since the last sync
-	if !revisionsAreDifferent {
-		return &apiclient.UpdateRevisionForPathsResponse{
-			Changes:  false,
-			Revision: rRevision,
-		}, nil
+	return eval, nil
+}
+
+// UpdateRevisionForPaths compares git revisions for single and multi-source applications
+// and determines whether files in the specified paths have changed.
+//
+// For single-source applications, only the main git repository revision is compared.
+// For multi-source applications, all related ref sources are compared (multiple git repositories
+// referenced via `ref` in Helm value files).
+//
+// Changes is computed against lastSyncedRevision when set, else syncedRevision. If the last-synced
+// base is gone from the remote it reports changes; other errors on it fall back to syncedRevision.
+//
+// Independently, if nothing changed since syncedRevision, the cached manifest is copied from the old
+// revision key to the new one, avoiding unnecessary regeneration.
+//
+// Example: cache contains manifest "x" under revision "a1a1a1". If the revision moves to "b2b2b2"
+// and no relevant files have changed, "x" will be stored again under the new revision key.
+func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient.UpdateRevisionForPathsRequest) (*apiclient.UpdateRevisionForPathsResponse, error) {
+	logCtx := log.WithFields(log.Fields{"application": request.AppName, "appNamespace": request.Namespace})
+
+	repo := request.GetRepo()
+	refreshPaths := request.GetPaths()
+
+	if repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
+	}
+	// Remember whether the type was set by the caller before normalizing: Normalize
+	// infers oci from an oci:// URL and otherwise defaults the type to git, so after the
+	// call an empty type is indistinguishable from an explicit git type.
+	typeWasUnset := repo.Type == ""
+	// Normalize the repository in the request to ensure all fields are correctly set
+	repo = repo.Normalize()
+	request.Repo = repo
+
+	// Determine whether the main source is a git source. A type that Normalize defaulted
+	// to git must not be trusted on its own: an untyped Helm chart source would then have
+	// its revision resolved against the chart repository URL as if it were a git repo and
+	// fail with "repository not found" (issue #28890). In that case fall back to the
+	// application source type.
+	isGitSource := repo.Type == "git"
+	if isGitSource && typeWasUnset && request.ApplicationSource != nil &&
+		(request.ApplicationSource.IsHelm() || request.ApplicationSource.IsOCI()) {
+		isGitSource = false
 	}
 
-	// No changes detected, update the cache using resolved revisions
-	err := s.updateCachedRevision(logCtx, sRevision, rRevision, request, oldRepoRefs, newRepoRefs)
+	if len(refreshPaths) == 0 {
+		// Always refresh if path is not specified
+		return &apiclient.UpdateRevisionForPathsResponse{Changes: true}, nil
+	}
+
+	// Non-git contents are never diffed, so a version move since the last sync counts as a change.
+	// Resolve Revision first: it may be a constraint ("15.*") or a tag, never equal to a resolved version.
+	nonGitVersionMoved := false
+	if !isGitSource && request.LastSyncedRevision != "" && request.ApplicationSource != nil {
+		resolved := request.SyncedRevision
+		var err error
+		switch {
+		case request.ApplicationSource.IsOCI():
+			_, resolved, err = s.newOCIClientResolveRevision(ctx, repo, request.Revision, request.NoRevisionCache)
+		case request.ApplicationSource.IsHelm():
+			_, resolved, err = s.newHelmClientResolveRevision(ctx, repo, request.Revision, request.ApplicationSource.Chart, request.NoRevisionCache)
+		}
+		if err != nil {
+			// A transient registry error must not look like a version move; fall back to the last compared version.
+			logCtx.Warnf("error resolving revision %s, comparing last compared version instead: %v", request.Revision, err)
+			resolved = request.SyncedRevision
+		}
+		nonGitVersionMoved = resolved != request.LastSyncedRevision
+	}
+
+	if !isGitSource && len(request.RefSources) == 0 {
+		if nonGitVersionMoved {
+			return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: request.Revision}, nil
+		}
+		return &apiclient.UpdateRevisionForPathsResponse{}, nil
+	}
+
+	gitClientOpts := git.WithCache(s.cache, !request.NoRevisionCache)
+
+	// Must match the base alreadyAttemptedSync compares desired revisions against.
+	syncBaseRevision := request.SyncedRevision
+	syncBaseRefSources := request.SyncedRefSources
+	if request.LastSyncedRevision != "" {
+		syncBaseRevision = request.LastSyncedRevision
+		syncBaseRefSources = request.LastSyncedRefSources
+	}
+	basesDiverge := syncBaseRevision != request.SyncedRevision || !reflect.DeepEqual(syncBaseRefSources, request.SyncedRefSources)
+
+	// The cache transfer is keyed on syncedRevision, so diverging bases need a separate diff. Run it first:
+	// it is shared repo-wide and seeds the composition below. It only serves the transfer, so errors are logged.
+	var cacheEval *baseRevisionEvaluation
+	composeVia := ""
+	var composeRefSources map[string]*v1alpha1.RefTarget
+	if basesDiverge {
+		if isGitSource {
+			// Resolve once so both evaluations diff the same commit.
+			_, resolved, err := s.newClientResolveRevision(repo, request.Revision, gitClientOpts)
+			if err != nil {
+				return nil, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", request.Revision, err)
+			}
+			request.Revision = resolved
+		}
+		composeVia = request.SyncedRevision
+		composeRefSources = request.SyncedRefSources
+		var cacheErr error
+		cacheEval, cacheErr = s.evaluateChangesSinceRevision(ctx, request, request.SyncedRevision, request.SyncedRefSources, "", nil, isGitSource, gitClientOpts, logCtx)
+		if cacheErr != nil {
+			logCtx.Warnf("error evaluating changes against compared revision %s (cache transfer skipped): %v", request.SyncedRevision, cacheErr)
+			cacheEval = nil
+		}
+	}
+
+	// forceChanges marks a verdict that did not come from the sync base, so it must not reach the gate.
+	forceChanges := false
+
+	syncEval, err := s.evaluateChangesSinceRevision(ctx, request, syncBaseRevision, syncBaseRefSources, composeVia, composeRefSources, isGitSource, gitClientOpts, logCtx)
 	if err != nil {
-		// Path filtering already established that no relevant files changed. A cache
-		// rename failure (miss, Redis unreachable, etc.) must not flip Changes to true,
-		// or automated sync will treat the revision advance as an application change
-		// and sync unrelated sibling apps in a mono-repo (issue #29430).
+		if cacheEval == nil {
+			if syncEval != nil {
+				return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: syncEval.resolvedRevision}, err
+			}
+			return nil, err
+		}
+		syncEval = cacheEval
+		if errors.Is(err, git.ErrRevisionNotFound) {
+			// A base gone from the remote (e.g. force-pushed away) can only be replaced by a sync; report
+			// changes so one can happen.
+			logCtx.Warnf("last synced revision %s is gone from the remote, reporting changes: %v", syncBaseRevision, err)
+			forceChanges = true
+		} else {
+			// Possibly transient: answer from the compared base rather than fail the comparison or report
+			// spurious changes (#29430).
+			logCtx.Warnf("error evaluating changes against last synced revision %s, using compared revision: %v", syncBaseRevision, err)
+		}
+	}
+
+	// The refs were diffed, but a non-git main source's version never is (see above).
+	syncChanges := syncEval.changes || forceChanges || nonGitVersionMoved
+
+	transferEval := cacheEval
+	if !basesDiverge {
+		transferEval = syncEval
+	}
+	// Best-effort: a failure costs one regeneration and never influences Changes.
+	if transferEval != nil && !transferEval.changes && transferEval.revisionsAreDifferent {
+		err := s.updateCachedRevision(logCtx, transferEval.resolvedBase, transferEval.resolvedRevision, request, transferEval.oldRepoRefs, transferEval.newRepoRefs)
 		if errors.Is(err, cache.ErrCacheMiss) {
 			logCtx.Info("manifest cache miss while moving manifests cache to the new revision")
-		} else {
-			logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, rRevision, err)
+		} else if err != nil {
+			logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, transferEval.resolvedRevision, err)
 		}
-		return &apiclient.UpdateRevisionForPathsResponse{
-			Revision: rRevision,
-			Changes:  false,
-		}, nil
 	}
 
 	return &apiclient.UpdateRevisionForPathsResponse{
-		Revision: rRevision,
-		Changes:  false,
+		Revision: syncEval.resolvedRevision,
+		Changes:  syncChanges,
 	}, nil
 }
 
