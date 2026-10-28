@@ -26,8 +26,8 @@ func getApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 	// the app path must be the lower possible value
 	commonParts := strings.Split(appPath, string(filepath.Separator))
 
-	var disjoint bool
 	for _, path := range paths {
+		var disjoint bool
 		parts := strings.Split(path, string(filepath.Separator))
 		// find the minimum length between the current common parts and the current path
 		minLen := func(a, b int) int {

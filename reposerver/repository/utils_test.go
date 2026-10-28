@@ -35,6 +35,10 @@ func TestGetCommonRootPath(t *testing.T) {
 		{"duplicate slashes", "//services/shared/*-secret.yaml", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services/helloworld", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services"},
 		// whitespace around the separator
 		{"whitespace", ". ; /services", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services/helloworld", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services"},
+		// an ancestor of the common root must widen it, whatever the order
+		{"ancestor after a diverging path", "../shared;/", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services/helloworld", repoRoot},
+		{"ancestor before a diverging path", "/;../shared", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services/helloworld", repoRoot},
+		{"intermediate ancestor after a diverging path", "../shared;/services", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services/team/helloworld", "/tmp/_argocd-repo/7a58c52a-0030-4fd9-8cc5-35b2d8b4e731/services"},
 	}
 
 	for _, tt := range tests {
@@ -69,6 +73,7 @@ func TestGetManifestGenerateIncludePaths(t *testing.T) {
 		{"duplicated paths", ".;.;./", appPath, []string{"."}},
 		{"whitespace around the separator", ". ; /infra", appPath, []string{"services/helloworld", "infra"}},
 		{"app path is always included", "/infra", appPath, []string{"services/helloworld", "infra"}},
+		{"ancestor after a diverging path", "../shared;/", appPath, []string{"services/helloworld", "services/shared", "."}},
 	}
 
 	for _, tt := range tests {
