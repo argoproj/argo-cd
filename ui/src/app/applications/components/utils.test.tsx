@@ -1353,6 +1353,12 @@ describe('formatCreationTimestamp', () => {
         expect(html).toMatch(/ago/i);
         expect(html).not.toContain('<time');
     });
+
+    it('uses an unambiguous year-month-day format', () => {
+        const html = renderMarkup(formatCreationTimestamp('2026-09-03T12:00:00Z') as React.ReactElement);
+        expect(html).toMatch(/2026-09-03 \d{2}:\d{2}:\d{2}/);
+        expect(html).not.toContain('09/03/2026');
+    });
 });
 
 describe('getClusterOptions', () => {
