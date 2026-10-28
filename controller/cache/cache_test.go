@@ -1240,6 +1240,58 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 	})
 }
 
+func TestInvalidate_ClustersChangeConcurrently(t *testing.T) {
+	t.Parallel()
+	const server = "https://unknown"
+
+	tests := []struct {
+		name       string
+		invalidate func(c *liveStateCache)
+	}{
+		{
+			name:       "invalidate",
+			invalidate: func(c *liveStateCache) { c.invalidate(cacheSettings{}, true) },
+		},
+		{
+			name:       "invalidateClustersUsingDefaultCABundle",
+			invalidate: func(c *liveStateCache) { c.invalidateClustersUsingDefaultCABundle(cacheSettings{}) },
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			db := &dbmocks.ArgoDB{}
+			db.EXPECT().GetCluster(mock.Anything, server).Return(nil, errors.New("not found")).Maybe()
+			clusterCache := &mocks.ClusterCache{}
+			clusterCache.EXPECT().Invalidate(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return().Maybe()
+			c := &liveStateCache{db: db, clusters: map[string]cache.ClusterCache{server: clusterCache}}
+
+			stop := make(chan struct{})
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				for {
+					select {
+					case <-stop:
+						return
+					default:
+					}
+					c.lock.Lock()
+					delete(c.clusters, server)
+					c.clusters[server] = clusterCache
+					c.lock.Unlock()
+				}
+			}()
+
+			for range 100 {
+				tt.invalidate(c)
+			}
+			close(stop)
+			<-done
+		})
+	}
+}
+
 func TestLoadCacheSettings_InvalidClusterCABundleIsIgnored(t *testing.T) {
 	t.Parallel()
 	kubeClient, settingsManager := fixtures(t.Context(), nil)
