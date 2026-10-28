@@ -247,6 +247,27 @@ stringData:
   `100ms`.
   The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
 
+* `ARGOCD_CLUSTER_CACHE_USE_INFORMERS` - experimental. Environment variable that switches the cluster cache to an
+  engine built on Kubernetes shared informers instead of the legacy list/watch implementation
+  (see [#19199](https://github.com/argoproj/argo-cd/issues/19199)). The default value is `false`. The
+  `argocd_cluster_cache_informer_mode_enabled` metric reports which engine is in use.
+  In informer mode:
+    * `ARGOCD_CLUSTER_CACHE_INFORMER_SYNC_TIMEOUT` controls how long a cluster cache sync waits for the informers'
+      initial lists before failing; the failed sync is retried. The valid value is in the format of Go time duration
+      string. The default value is `5m`.
+    * These cluster cache settings are ignored, and the controller logs the ones set to a non-default value on the
+      first sync: list page size (`ARGOCD_CLUSTER_CACHE_LIST_PAGE_SIZE`), list page buffer size
+      (`ARGOCD_CLUSTER_CACHE_LIST_PAGE_BUFFER_SIZE`), list retry limit (`ARGOCD_CLUSTER_CACHE_ATTEMPT_LIMIT`), list
+      retry backoff (`ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF`), the list retry function, watch resync timeout
+      (`ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION`), batch events processing
+      (`ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING`) and the events processing interval
+      (`ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL`). `ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE` is honoured.
+    * Events are processed one at a time, so each `argocd_resource_events_processing` sample covers a single event.
+
+  > [!WARNING]
+  > In informer mode the Kubernetes client-go cache mutation detector (`KUBE_CACHE_MUTATION_DETECTOR`) cannot detect
+  > mutations of cached resources, because the cache stores shallow copies that share the underlying resource data.
+
 * `resource.manifest.storage` - `argocd-cm` setting controlling the serialization format for cached resource
   manifests when manifest compression is enabled. Valid values: `json` (default), `msgpack`.
 
