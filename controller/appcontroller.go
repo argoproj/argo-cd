@@ -2547,18 +2547,24 @@ func (ctrl *ApplicationController) refreshAppConditions(ctx context.Context, app
 	return proj, len(errorConditions) > 0
 }
 
-// normalizeApplication normalizes an application.spec and additionally persists updates if it changed
+// normalizeApplication normalizes an application.spec and additionally persists the defaulted project if it changed
 func (ctrl *ApplicationController) normalizeApplication(app *appv1.Application) {
 	origSpec := app.Spec.DeepCopy()
 	app.Spec = *argo.NormalizeApplicationSpec(&app.Spec)
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
+
+	// Only the defaulted project is persisted. The rest of the normalization (e.g. dropping an empty
+	// spec.source.directory or spec.syncPolicy) is kept in memory: writing it back would remove
+	// fields the user declared and cause a perpetual diff with the user's manifest.
+	persistedSpec := origSpec.DeepCopy()
+	persistedSpec.Project = app.Spec.Project
 
 	// Only the spec can differ, so the patch is built from the spec alone rather than from the
 	// whole application. status.resources and status.history would otherwise be marshaled twice
 	// on every refresh.
 	patch, modified, err := diff.CreateTwoWayMergePatch(
 		appv1.Application{Spec: *origSpec},
-		appv1.Application{Spec: app.Spec},
+		appv1.Application{Spec: *persistedSpec},
 		appv1.Application{})
 
 	if err != nil {

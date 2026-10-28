@@ -2,6 +2,7 @@ package argo
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"path/filepath"
@@ -1425,6 +1426,62 @@ func TestSetAppOperations(t *testing.T) {
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
 		require.NoError(t, err)
 		assert.NotNil(t, app)
+	})
+
+	t.Run("Patches operation without touching the spec", func(t *testing.T) {
+		t.Parallel()
+		a := argoappv1.Application{
+			Name:            "someapp",
+			Namespace:       "default",
+			ResourceVersion: "5",
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{Helm: &argoappv1.ApplicationSourceHelm{ReleaseName: "foo"}},
+			},
+			Status: argoappv1.ApplicationStatus{OperationState: &argoappv1.OperationState{Phase: common.OperationSucceeded}},
+		}
+		clientset := appclientset.NewSimpleClientset(&a)
+		var patches []string
+		clientset.PrependReactor("*", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+			switch action := action.(type) {
+			case kubetesting.UpdateAction:
+				t.Errorf("unexpected update of application %s", action.GetObject().(*argoappv1.Application).Name)
+			case kubetesting.PatchAction:
+				patches = append(patches, string(action.GetPatch()))
+			}
+			return false, nil, nil
+		})
+
+		app, err := SetAppOperation(clientset.ArgoprojV1alpha1().Applications("default"), "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		require.NoError(t, err)
+		require.Len(t, patches, 1)
+		var patch map[string]any
+		require.NoError(t, json.Unmarshal([]byte(patches[0]), &patch))
+		assert.NotContains(t, patch, "spec")
+		assert.Equal(t, map[string]any{"resourceVersion": "5"}, patch["metadata"])
+		assert.Equal(t, map[string]any{"operationState": nil}, patch["status"])
+		assert.Contains(t, patch, "operation")
+		assert.Equal(t, "aaa", app.Operation.Sync.Revision)
+		assert.Nil(t, app.Status.OperationState)
+		assert.Equal(t, "foo", app.Spec.Source.Helm.ReleaseName)
+	})
+
+	t.Run("Retries on conflict", func(t *testing.T) {
+		t.Parallel()
+		a := argoappv1.Application{Name: "someapp", Namespace: "default"}
+		clientset := appclientset.NewSimpleClientset(&a)
+		patchCalls := 0
+		clientset.PrependReactor("patch", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+			patchCalls++
+			if patchCalls == 1 {
+				return true, nil, apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, "someapp", errors.New("the object has been modified"))
+			}
+			return false, nil, nil
+		})
+
+		app, err := SetAppOperation(clientset.ArgoprojV1alpha1().Applications("default"), "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
+		require.NoError(t, err)
+		assert.Equal(t, 2, patchCalls)
+		assert.Equal(t, "aaa", app.Operation.Sync.Revision)
 	})
 }
 
