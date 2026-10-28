@@ -161,6 +161,9 @@ Rollback-aware automated sync removes those manual steps. When it is enabled, a 
 sync stays on, and Argo CD remembers the revision it rolled back from. Automated sync then skips that revision until
 the application source moves to a different one.
 
+> [!WARNING]
+> The pause relies on the recorded revision alone, so it ends as soon as the application source resolves to a new revision, whether or not that revision contains the fix. In a monorepo an unrelated commit is enough, and in a multi-source application a change to any one of the sources is enough. Read [Semantics and edge cases](#semantics-and-edge-cases) before relying on the pause.
+
 The feature is off by default. Enable it instance-wide in the `argocd-cm` ConfigMap:
 
 ```yaml
@@ -249,6 +252,13 @@ condition as a Prometheus metric. See
 * Only the revision is remembered, not the rest of the application source. If a rollback targets a history entry with
   the same revision but different source settings, such as different Helm values, nothing is recorded and the next
   automated sync will re-apply the current settings. Disable automated sync for that rollback instead.
+* For the same reason, the pause ends when the application source resolves to any new revision, whether or not that
+  revision changes anything for this application. In a monorepo, a commit to an unrelated directory is enough to end
+  the pause and deploy the manifests you rolled back from, because only the revision is recorded and not the
+  manifests it produced. If you need the pause to hold until you decide, disable automated sync for the application.
+* For a multi-source application, the pause ends when any one of the sources resolves to a new revision. If the fix
+  needs changes in more than one source, automated sync resumes after the first change lands, before the fix is
+  complete.
 * Automated sync also stays paused while Argo CD cannot resolve the application source at all, for example during a
   repository outage. The record is kept until a successful comparison shows which revision the source points at.
 * The record is written whenever rollback-aware automated sync is enabled for the application, even if automated sync
