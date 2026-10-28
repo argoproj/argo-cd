@@ -2568,9 +2568,11 @@ func TestValidateRepo_GenerateManifestInterrupted(t *testing.T) {
 		db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
 
 		cm := corev1.ConfigMap{
-			Name:      "argocd-cm",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-cm",
+				Namespace: test.FakeArgoCDNamespace,
+				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			},
 		}
 		kubeClient := fake.NewClientset(&cm)
 		return fixtures{
@@ -2650,9 +2652,11 @@ func TestValidateRepo_TestRepositoryInterrupted(t *testing.T) {
 		db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
 
 		cm := corev1.ConfigMap{
-			Name:      "argocd-cm",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "argocd-cm",
+				Namespace: test.FakeArgoCDNamespace,
+				Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+			},
 		}
 		kubeClient := fake.NewClientset(&cm)
 		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
