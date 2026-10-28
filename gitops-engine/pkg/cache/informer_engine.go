@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"reflect"
 	"sync"
 	"time"
 
@@ -40,10 +41,11 @@ type informerEngine struct {
 	// engine's private companion to store.apisMeta — entries are added and
 	// removed together with the corresponding apiMeta under store.lock, and
 	// the index is cleared by onInvalidate when the facade nils apisMeta.
-	// All of a GroupKind's informers share apiMeta.watchCancel's context, so
-	// a single cancel tears them all down — matching legacy semantics where
-	// one context covers every namespace-fanout watch. Lives here rather than
-	// on apiMeta so the shared store layer carries no informer-only state.
+	// Each informer runs on its own child of apiMeta.watchCancel's context:
+	// cancelling the GroupKind context tears them all down (Invalidate, full
+	// resync), while stopWatching can stop a single namespace. Lives here
+	// rather than on apiMeta so the shared store layer carries no
+	// informer-only state.
 	informers map[schema.GroupKind]map[string]sharedInformer
 
 	// firstSyncCompleted is set true after the first sync completes.
@@ -67,6 +69,50 @@ type informerEngine struct {
 	// store.lock; never held by any other code path (notably NOT by
 	// Invalidate, which must be able to interrupt an in-progress sync).
 	syncMu sync.Mutex
+
+	// ignoredSettingsLogged is set once logIgnoredSettings has run, so the
+	// line is logged on the first ensureSynced only. Guarded by syncMu.
+	ignoredSettingsLogged bool
+}
+
+// logIgnoredSettings logs, once, the legacy-only settings that differ from
+// their gitops-engine default. Informer mode does not read them: the
+// reflector does its own paging, retry and resync, and events are processed
+// one at a time. listSemaphore is honoured (see buildInformer) and not listed.
+func (e *informerEngine) logIgnoredSettings() {
+	if e.ignoredSettingsLogged {
+		return
+	}
+	e.ignoredSettingsLogged = true
+	c := e.c
+	var ignored []string
+	if c.listPageSize != defaultListPageSize {
+		ignored = append(ignored, "listPageSize")
+	}
+	if c.listPageBufferSize != defaultListPageBufferSize {
+		ignored = append(ignored, "listPageBufferSize")
+	}
+	if c.listRetryLimit != 1 {
+		ignored = append(ignored, "listRetryLimit")
+	}
+	if c.listRetryUseBackoff {
+		ignored = append(ignored, "listRetryUseBackoff")
+	}
+	if c.listRetryFunc == nil || reflect.ValueOf(c.listRetryFunc).Pointer() != reflect.ValueOf(ListRetryFuncNever).Pointer() {
+		ignored = append(ignored, "listRetryFunc")
+	}
+	if c.watchResyncTimeout != defaultWatchResyncTimeout {
+		ignored = append(ignored, "watchResyncTimeout")
+	}
+	if c.batchEventsProcessing {
+		ignored = append(ignored, "batchEventsProcessing")
+	}
+	if c.eventProcessingInterval != defaultEventProcessingInterval {
+		ignored = append(ignored, "eventProcessingInterval")
+	}
+	if len(ignored) > 0 {
+		c.log.Info("Informer mode ignores these legacy cluster cache settings", "settings", ignored)
+	}
 }
 
 // errCacheInvalidatedMidSync signals that an Invalidate fired during the
@@ -86,6 +132,7 @@ func (e *informerEngine) ensureSynced() error {
 
 	e.syncMu.Lock()
 	defer e.syncMu.Unlock()
+	e.logIgnoredSettings()
 
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -324,21 +371,25 @@ func (e *informerEngine) startMissingWatches() error {
 	return nil
 }
 
-// stopWatching tears down every informer for a GroupKind and purges all of
-// its namespaces' resources. Every per-(GK, namespace) informer shares the
-// parent watchCancel — cancelling for one ns terminates them all — so we
-// must purge every watched namespace, not just the failing one, or the
-// others would keep stale resources forever with no informer feeding updates.
-func (e *informerEngine) stopWatching(gk schema.GroupKind, _ string) {
+// stopWatching stops the informer for one (GroupKind, namespace) and purges
+// that namespace's resources; other namespaces' informers keep running. When
+// the last namespace goes, the GroupKind itself is dropped: its context is
+// cancelled and it leaves apisMeta and namespacedResources.
+func (e *informerEngine) stopWatching(gk schema.GroupKind, ns string) {
 	c := e.c
 	c.lock.Lock()
 	defer c.lock.Unlock()
-	if info, ok := c.apisMeta[gk]; ok {
+	info, ok := c.apisMeta[gk]
+	if !ok {
+		return
+	}
+	if si, ok := e.informers[gk][ns]; ok {
+		si.cancel()
+		delete(e.informers[gk], ns)
+		c.replaceResourceCache(gk, nil, ns)
+	}
+	if len(e.informers[gk]) == 0 {
 		info.watchCancel()
-		nsToPurge := make([]string, 0, len(e.informers[gk]))
-		for watchedNs := range e.informers[gk] {
-			nsToPurge = append(nsToPurge, watchedNs)
-		}
 		delete(c.apisMeta, gk)
 		delete(e.informers, gk)
 		// Keep namespacedResources consistent with apisMeta: a GroupKind we no
@@ -346,11 +397,8 @@ func (e *informerEngine) stopWatching(gk schema.GroupKind, _ string) {
 		namespacedResources := maps.Clone(c.loadNamespacedResources())
 		delete(namespacedResources, gk)
 		c.namespacedResources.Store(&namespacedResources)
-		for _, n := range nsToPurge {
-			c.replaceResourceCache(gk, nil, n)
-		}
-		c.log.Info(fmt.Sprintf("Stop watching: %s not found", gk))
 	}
+	c.log.Info(fmt.Sprintf("Stop watching: %s not found", gk), "namespace", namespaceDescription(ns))
 }
 
 // startInformersForAPI is the public entrypoint for starting the informer
@@ -366,10 +414,10 @@ func (e *informerEngine) startInformersForAPI(ctx context.Context, api kube.APIR
 
 // startInformersForAPILocked builds and starts one SharedIndexInformer per
 // (GroupKind, namespace) implied by processApi, installs transformForInformer
-// as the TransformFunc, and attaches informerEventHandler. The informers
-// share a single context derived from ctx; cancelling that context stops
-// every namespace watch for the GroupKind together, matching legacy
-// semantics.
+// as the TransformFunc, and attaches informerEventHandler. Each informer runs
+// on its own child of a GroupKind context derived from ctx; cancelling the
+// GroupKind context stops every namespace watch together, and stopWatching
+// cancels one namespace's child alone.
 //
 // Idempotent — if apisMeta already has an entry for this GroupKind, the
 // call is a no-op. Also a no-op while apisMeta is nil (between Invalidate and
@@ -401,8 +449,9 @@ func (e *informerEngine) startInformersForAPILocked(ctx context.Context, api kub
 	// Build every informer up front so a partial failure doesn't leave
 	// apisMeta half-populated.
 	err = c.processApi(client, api, func(resClient dynamic.ResourceInterface, ns string) error {
-		informer, registration := e.buildInformer(watchCtx, client, resClient, api, ns)
-		informers[ns] = sharedInformer{informer: informer, registration: registration}
+		nsCtx, nsCancel := context.WithCancel(watchCtx)
+		informer, registration := e.buildInformer(nsCtx, client, resClient, api, ns)
+		informers[ns] = sharedInformer{informer: informer, registration: registration, ctx: nsCtx, cancel: nsCancel}
 		return nil
 	})
 	if err != nil {
@@ -420,15 +469,17 @@ func (e *informerEngine) startInformersForAPILocked(ctx context.Context, api kub
 	c.namespacedResources.Store(&namespacedResources)
 
 	for _, si := range informers {
-		go si.informer.RunWithContext(watchCtx)
+		go si.informer.RunWithContext(si.ctx)
 	}
 	return nil
 }
 
 // sharedInformer couples a SharedIndexInformer with the engine event
-// handler's registration on it. Every entry for a GroupKind shares the parent
-// apiMeta.watchCancel, so there is no per-entry cancel.
+// handler's registration on it and the informer's own context, a child of the
+// GroupKind's apiMeta.watchCancel context.
 type sharedInformer struct {
+	ctx      context.Context
+	cancel   context.CancelFunc
 	informer cache.SharedIndexInformer
 	// registration is the engine event handler's registration on the
 	// informer. Its HasSynced only flips true once the initial events have
@@ -559,9 +610,11 @@ func (e *informerEngine) buildInformer(ctx context.Context, client dynamic.Inter
 				return nil, fmt.Errorf("acquire list semaphore for %s[%s]: %w", api.GroupKind, namespaceDescription(ns), err)
 			}
 			defer c.listSemaphore.Release(1)
+			o.LabelSelector = api.LabelSelector
 			return resClient.List(ctx, o)
 		},
 		WatchFuncWithContext: func(ctx context.Context, o metav1.ListOptions) (watch.Interface, error) {
+			o.LabelSelector = api.LabelSelector
 			return resClient.Watch(ctx, o)
 		},
 	}
@@ -763,6 +816,12 @@ func (e *informerEngine) dispatchEvent(event watch.EventType, un *unstructured.U
 // every per-(GroupKind, namespace) informer (see issue #19199). It translates
 // Add/Update/Delete into onInformerChange, unwrapping tombstones and
 // tolerating unexpected object types defensively.
+//
+// Events are processed one at a time: each takes c.lock for its own storage
+// update (an informer delivers its events serially), and
+// OnProcessEventsHandler, which feeds the argocd_resource_events_processing
+// histogram, observes one event per sample with count=1. The legacy
+// batchEventsProcessing and eventProcessingInterval settings do not apply.
 //
 // Test-only entrypoint: production callers go through buildInformer ->
 // informerEventHandlerForCtx so that events arriving after the informer's
@@ -991,6 +1050,11 @@ type cachedResource struct {
 // snapshot — including the client-go cache mutation detector — must copy
 // OwnerRefs themselves; the detector is therefore incompatible with this
 // mode and should not be enabled together with ModeInformer.
+//
+// ponytail: the mutation detector (KUBE_CACHE_MUTATION_DETECTOR) cannot see
+// *Resource mutations, because the store mutates owner refs in place on the
+// shared pointer. Deep-copy Resource here only if a consumer needs isolated
+// copies and can afford the per-object memory.
 func (cr *cachedResource) DeepCopyObject() runtime.Object {
 	if cr == nil {
 		return nil
