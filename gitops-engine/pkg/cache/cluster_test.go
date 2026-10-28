@@ -7,11 +7,13 @@ import (
 	"maps"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
 	"golang.org/x/sync/semaphore"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
+	apiregistrationv1 "k8s.io/kube-aggregator/pkg/apis/apiregistration/v1"
 
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
@@ -41,6 +43,7 @@ import (
 )
 
 func init() {
+	_ = apiregistrationv1.AddToScheme(scheme.Scheme)
 	err := apiextensions.AddToScheme(scheme.Scheme)
 	if err != nil {
 		panic(err)
@@ -1203,6 +1206,151 @@ func TestIsAPIServiceAvailable(t *testing.T) {
 			assert.Equal(t, tc.expected, isAPIServiceAvailable(tc.obj))
 		})
 	}
+}
+
+func TestUpdateAPIServiceAvailability(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t)
+
+	// Initial transition from unavailable to available reports true.
+	assert.True(t, cluster.updateAPIServiceAvailability("v1beta1.metrics.k8s.io", true))
+
+	// Subsequent event with unchanged Available=True condition must report false to prevent redundant reconciles.
+	assert.False(t, cluster.updateAPIServiceAvailability("v1beta1.metrics.k8s.io", true))
+
+	// Becoming unavailable reports false.
+	assert.False(t, cluster.updateAPIServiceAvailability("v1beta1.metrics.k8s.io", false))
+
+	// Staying unavailable reports false.
+	assert.False(t, cluster.updateAPIServiceAvailability("v1beta1.metrics.k8s.io", false))
+
+	// Transitioning back to Available=True reports true.
+	assert.True(t, cluster.updateAPIServiceAvailability("v1beta1.metrics.k8s.io", true))
+
+	// Deletion clears tracking so a re-added APIService will trigger reconcile.
+	cluster.deleteAPIService("v1beta1.metrics.k8s.io")
+	assert.True(t, cluster.updateAPIServiceAvailability("v1beta1.metrics.k8s.io", true))
+}
+
+func TestLoadInitialState_RecordsAPIServiceAvailability(t *testing.T) {
+	apiService := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apiregistration.k8s.io/v1",
+		"kind":       "APIService",
+		"metadata":   map[string]any{"name": "v1beta1.metrics.k8s.io"},
+		"spec":       map[string]any{"group": "metrics.k8s.io", "version": "v1beta1"},
+		"status": map[string]any{
+			"conditions": []any{
+				map[string]any{"type": "Available", "status": "True"},
+			},
+		},
+	}}
+	apiResource := kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: "apiregistration.k8s.io", Kind: "APIService"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "apiregistration.k8s.io", Version: "v1", Resource: "apiservices"},
+		Meta:                 metav1.APIResource{Name: "apiservices", Kind: "APIService", Namespaced: false, Verbs: []string{"list", "watch"}},
+	}
+	cluster := newCluster(t, apiService)
+	cluster.WithAPIResources([]kube.APIResourceInfo{apiResource})
+	require.NoError(t, cluster.EnsureSynced())
+
+	// Initial sync records the initial APIService as available, so a subsequent
+	// MODIFIED event with unchanged Available condition reports false (ignored).
+	assert.False(t, cluster.updateAPIServiceAvailability("v1beta1.metrics.k8s.io", true))
+}
+
+func TestReconcileAPIServiceWatches_UnwatchableGroupStopsImmediately(t *testing.T) {
+	cluster := newCluster(t)
+	require.NoError(t, cluster.EnsureSynced())
+
+	mockKube := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	serverResources, err := mockKube.GetServerResources(nil, false)
+	require.NoError(t, err)
+	mockKube.ServerResources = append(serverResources, &metav1.APIResourceList{
+		GroupVersion: "metrics.k8s.io/v1beta1",
+		APIResources: []metav1.APIResource{{
+			Name:  "nodes",
+			Kind:  "NodeMetrics",
+			Verbs: []string{"get", "list"},
+		}},
+	})
+
+	// A group with no watchable kinds should stop in a single attempt rather than retrying 9 times.
+	start := time.Now()
+	cluster.reconcileAPIServiceWatches("metrics.k8s.io", true)
+	assert.Less(t, time.Since(start), 2*time.Second, "Reconcile for served unwatchable group should complete immediately without retrying")
+	assert.False(t, cluster.isGroupWatched("metrics.k8s.io"))
+	assert.True(t, cluster.isGroupDiscovered("metrics.k8s.io"))
+}
+
+func TestReconcileAPIServiceWatches_GroupServedAfterWatchPassIsWatched(t *testing.T) {
+	cluster := newCluster(t)
+	require.NoError(t, cluster.EnsureSynced())
+
+	// LoadOpenAPISchema runs after the watch pass, so the group is served mid-attempt.
+	mockKube := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	var served atomic.Bool
+	mockKube.WithLoadOpenAPISchemaFunc(func(_ *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+		if served.CompareAndSwap(false, true) {
+			cluster.WithAPIResources([]kube.APIResourceInfo{{
+				GroupKind:            schema.GroupKind{Group: "batch", Kind: "Job"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "batch", Version: "v1", Resource: "jobs"},
+				Meta:                 metav1.APIResource{Name: "jobs", Kind: "Job", Namespaced: true, Verbs: []string{"list", "watch"}},
+			}})
+		}
+		return nil, nil, nil
+	})
+
+	cluster.reconcileAPIServiceWatches("batch", true)
+	assert.True(t, cluster.isGroupWatched("batch"), "a group served after the watch pass should be watched on the next attempt")
+}
+
+func TestReconcileAPIServiceWatches_Singleflight(t *testing.T) {
+	cluster := newCluster(t)
+	require.NoError(t, cluster.EnsureSynced())
+
+	mockKube := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	serverResources, err := mockKube.GetServerResources(nil, false)
+	require.NoError(t, err)
+	mockKube.ServerResources = append(serverResources, &metav1.APIResourceList{
+		GroupVersion: "metrics.k8s.io/v1beta1",
+		APIResources: []metav1.APIResource{{
+			Name:  "nodes",
+			Kind:  "NodeMetrics",
+			Verbs: []string{"get", "list"},
+		}},
+	})
+
+	// Hold the first run open so the other callers overlap it; without
+	// singleflight each of them would reach LoadOpenAPISchema too.
+	var calls atomic.Int32
+	firstCall := make(chan struct{})
+	release := make(chan struct{})
+	mockKube.WithLoadOpenAPISchemaFunc(func(_ *rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+		if calls.Add(1) == 1 {
+			close(firstCall)
+		}
+		<-release
+		return nil, nil, nil
+	})
+
+	const callers = 5
+	var started, done sync.WaitGroup
+	started.Add(callers)
+	done.Add(callers)
+	for range callers {
+		go func() {
+			defer done.Done()
+			started.Done()
+			cluster.reconcileAPIServiceWatches("metrics.k8s.io", true)
+		}()
+	}
+	<-firstCall
+	started.Wait()
+	time.Sleep(100 * time.Millisecond) // let the other callers join the in-flight call
+	close(release)
+	done.Wait()
+
+	assert.Less(t, calls.Load(), int32(callers), "concurrent reconciles of one group should share one run")
 }
 
 func ExampleNewClusterCache_resourceUpdatedEvents() {
