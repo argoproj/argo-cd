@@ -14,6 +14,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -899,6 +901,94 @@ func TestUpdateCluster_DefaultCABundle(t *testing.T) {
 	})
 	require.NoError(t, err)
 	db.AssertExpectations(t)
+}
+
+func TestCreateCluster_InvalidCATrust(t *testing.T) {
+	db := &dbmocks.ArgoDB{}
+	server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+	for _, upsert := range []bool{false, true} {
+		_, err := server.Create(t.Context(), &cluster.ClusterCreateRequest{
+			Upsert: upsert,
+			Cluster: &appv1.Cluster{
+				Name:   "bad-ca-trust",
+				Server: "https://bad-ca-trust",
+				Config: appv1.ClusterConfig{
+					BearerToken:     "token",
+					TLSClientConfig: appv1.TLSClientConfig{CATrust: "both"},
+				},
+			},
+		})
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), `invalid caTrust "both"`)
+	}
+	db.AssertNotCalled(t, "CreateCluster", mock.Anything, mock.Anything)
+	db.AssertNotCalled(t, "UpdateCluster", mock.Anything, mock.Anything)
+}
+
+func TestCreateCluster_ValidCATrust(t *testing.T) {
+	caBundle := []byte(test.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt"))
+	for _, trust := range []appv1.ClusterCATrust{appv1.ClusterCATrustBundle, appv1.ClusterCATrustSystem, appv1.ClusterCATrustBundleAndSystem} {
+		t.Run(string(trust), func(t *testing.T) {
+			db := &dbmocks.ArgoDB{}
+			db.EXPECT().GetClusterCABundle(mock.Anything).Return(caBundle, nil)
+			db.EXPECT().CreateCluster(mock.Anything, mock.MatchedBy(func(c *appv1.Cluster) bool {
+				return c.Config.CATrust == trust
+			})).RunAndReturn(func(_ context.Context, c *appv1.Cluster) (*appv1.Cluster, error) {
+				return c, nil
+			})
+			server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+			_, err := server.Create(t.Context(), &cluster.ClusterCreateRequest{
+				Cluster: &appv1.Cluster{
+					Name:   "valid-ca-trust",
+					Server: "https://valid-ca-trust",
+					Config: appv1.ClusterConfig{
+						BearerToken:     "token",
+						TLSClientConfig: appv1.TLSClientConfig{CATrust: trust},
+					},
+				},
+			})
+			require.NoError(t, err)
+			db.AssertExpectations(t)
+		})
+	}
+}
+
+func TestUpdateCluster_InvalidCATrust(t *testing.T) {
+	newDB := func() *dbmocks.ArgoDB {
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().ListClusters(mock.Anything).Return(&appv1.ClusterList{
+			Items: []appv1.Cluster{{Name: "bad-ca-trust", Server: "https://bad-ca-trust"}},
+		}, nil)
+		return db
+	}
+	badCluster := func() *appv1.Cluster {
+		return &appv1.Cluster{
+			Name: "bad-ca-trust",
+			Config: appv1.ClusterConfig{
+				BearerToken:     "token",
+				TLSClientConfig: appv1.TLSClientConfig{CATrust: "both"},
+			},
+		}
+	}
+
+	for name, updatedFields := range map[string][]string{
+		"full update":          nil,
+		"config field updated": {"config"},
+	} {
+		t.Run(name, func(t *testing.T) {
+			db := newDB()
+			server := NewServer(db, newNoopEnforcer(), newServerInMemoryCache(), &kubetest.MockKubectlCmd{})
+
+			_, err := server.Update(t.Context(), &cluster.ClusterUpdateRequest{Cluster: badCluster(), UpdatedFields: updatedFields})
+			require.Error(t, err)
+			assert.Equal(t, codes.InvalidArgument, status.Code(err))
+			assert.Contains(t, err.Error(), `invalid caTrust "both"`)
+			db.AssertNotCalled(t, "UpdateCluster", mock.Anything, mock.Anything)
+		})
+	}
 }
 
 func TestCreateCluster_InsecureClusterIgnoresDefaultCABundle(t *testing.T) {
