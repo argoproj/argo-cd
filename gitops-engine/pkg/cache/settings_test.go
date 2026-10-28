@@ -79,3 +79,19 @@ func TestSetEventsProcessingInterval(t *testing.T) {
 	cache.Invalidate(SetEventProcessingInterval(interval))
 	assert.Equal(t, interval, cache.eventProcessingInterval)
 }
+
+// TestSetMode_RefusedAfterConstruction pins the construction-time-only
+// contract: once NewClusterCache returns, SetMode must keep the current engine
+// rather than swap in a fresh one, since a swap would leave the old engine's
+// still-draining goroutines re-entering the lifecycle alongside the new one.
+func TestSetMode_RefusedAfterConstruction(t *testing.T) {
+	t.Parallel()
+
+	cache := NewClusterCache(&rest.Config{}, SetMode(ModeInformer))
+	assert.IsType(t, &informerEngine{}, cache.engine, "construction-time SetMode must install the requested engine")
+
+	cluster := newCluster(t)
+	engine := cluster.engine
+	cluster.Invalidate(SetMode(ModeInformer))
+	assert.Same(t, engine, cluster.engine, "SetMode after construction must keep the current engine")
+}

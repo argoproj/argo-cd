@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -206,5 +207,38 @@ func SetManifestStorageType(storageType ManifestStorageType) UpdateSettingsFunc 
 func SetManifestCompressionType(compressionType ManifestCompressionType) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
 		cache.manifestCompressionType = normalizeManifestCompressionType(compressionType)
+	}
+}
+
+// Mode selects the cluster cache implementation.
+type Mode int
+
+const (
+	// ModeLegacy uses the hand-rolled list/watch loop (current behavior).
+	ModeLegacy Mode = iota
+	// ModeInformer uses client-go's SharedIndexInformer per (GroupKind,
+	// namespace) with a TransformFunc that converts incoming objects to
+	// cachedResource at intake. Experimental — see
+	// https://github.com/argoproj/argo-cd/issues/19199.
+	ModeInformer
+)
+
+// SetMode selects which cluster cache implementation to use. Defaults to
+// ModeLegacy when unset.
+//
+// Construction-time only: pass it to NewClusterCache. Swapping the engine on
+// a constructed cache is not supported: goroutines spawned by the replaced
+// engine can still be draining and would re-enter the old engine's lifecycle
+// (handleCRDEvent and handleAPIServiceEvent pass the engine they were born
+// under), running its watch machinery alongside the replacement's. Applying
+// it later (e.g. via Invalidate(SetMode(...))) is therefore refused with an
+// error log, keeping the current engine.
+func SetMode(mode Mode) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		if cache.constructed {
+			cache.log.Error(errors.New("cluster cache mode cannot change after construction"), "SetMode ignored", "mode", mode)
+			return
+		}
+		cache.engine = newSyncEngine(mode, cache.store)
 	}
 }
