@@ -151,17 +151,32 @@
             color: $argo-color-teal-6;
         }
 
+        // Foundation darkens links on :focus, which is hard to read on the dark theme, and argo-ui
+        // removes the outline. Keep each link's color when focused and underline it instead.
+        a:focus {
+            color: $argo-color-teal-6;
+        }
+
+        a:focus-visible {
+            text-decoration: underline;
+        }
+
         &--Running a,
-        &--Terminating a {
+        &--Running a:focus,
+        &--Terminating a,
+        &--Terminating a:focus {
             color: $argo-running-color;
         }
 
         &--Error a,
-        &--Failed a {
+        &--Error a:focus,
+        &--Failed a,
+        &--Failed a:focus {
             color: $argo-failed-color;
         }
 
-        &--Succeeded a {
+        &--Succeeded a,
+        &--Succeeded a:focus {
             color: $argo-success-color;
         }
 
