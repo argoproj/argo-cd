@@ -132,9 +132,11 @@ to that API server (TLS configuration/certs, AWS role-arn, etc...).
 The information is used to reconstruct a REST config and kubeconfig to the cluster used by Argo CD
 services.
 
-Clusters whose secret does not set `tlsClientConfig.caData` are verified against the system trust
-store and the default CA bundle in the `argocd-cluster-ca-cm` ConfigMap, if one is configured. See the
-[declarative setup documentation](declarative-setup.md#default-ca-bundle-for-cluster-connections) for how the bundle is used.
+Clusters whose secret does not set `tlsClientConfig.caData` are verified against the default CA bundle in
+the `argocd-cluster-ca-cm` ConfigMap if one is configured, and against the system trust store otherwise. The
+`tlsClientConfig.caTrust` field of the cluster secret can change this to the system trust store only, or to both.
+See the [declarative setup documentation](declarative-setup.md#default-ca-bundle-for-cluster-connections) for how
+the bundle is used.
 
 This bundle decides which API server certificates Argo CD accepts for all of those clusters. A user
 who can edit the ConfigMap, and who can also intercept traffic to a cluster API server, could add
