@@ -155,6 +155,9 @@ func (s *Server) Create(ctx context.Context, q *cluster.ClusterCreateRequest) (*
 		return nil, fmt.Errorf("permission denied while creating cluster: %w", err)
 	}
 	c := q.Cluster
+	if err := c.Config.CATrust.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
+	}
 	s.withDefaultCABundle(ctx, c)
 	clusterRESTConfig, err := c.RESTConfig()
 	if err != nil {
@@ -328,6 +331,9 @@ func (s *Server) Update(ctx context.Context, q *cluster.ClusterUpdateRequest) (*
 			}
 		}
 		q.Cluster = c
+	}
+	if err := q.Cluster.Config.CATrust.Validate(); err != nil {
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	s.withDefaultCABundle(ctx, q.Cluster)
 	clusterRESTConfig, err := q.Cluster.RESTConfig()
