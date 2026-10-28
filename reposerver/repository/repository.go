@@ -162,7 +162,10 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 				opts = append(opts, helm.WithUserAgent(initConstants.HelmUserAgent))
 			}
 			opts = append(opts, helm.WithHelmChartCacheExpiration(initConstants.HelmChartCacheExpiration))
-			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
+			// Use helm.NewClient so that every repo-server request shares the process-wide lock,
+			// exactly like oci.NewClient does. Without a shared lock, a hard refresh in one request
+			// (CleanChartCache) can delete a chart archive that another request is still extracting.
+			return helm.NewClient(repoURL, creds, enableOci, proxy, noProxy, opts...)
 		},
 		initConstants:      initConstants,
 		now:                time.Now,
@@ -366,6 +369,7 @@ func (s *Service) runRepoOperation(
 	var ociClient oci.Client
 	var gitClient git.Client
 	var helmClient helm.Client
+	var gitRepoURL string
 	var err error
 	gitClientOpts := git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache)
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
@@ -377,6 +381,7 @@ func (s *Service) runRepoOperation(
 	case source.IsHelm():
 		helmClient, revision, err = s.newHelmClientResolveRevision(ctx, repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
 	default:
+		gitRepoURL = source.RepoURL
 		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts, git.WithTagPrefix(source.TagPrefix))
 	}
 
@@ -384,7 +389,7 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
-	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
+	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts, gitRepoURL, unresolvedRevision, revision)
 	if err != nil {
 		return err
 	}
@@ -579,7 +584,7 @@ type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...gi
 //
 // Much of this logic is duplicated in runManifestGenAsync. If making changes here, check whether runManifestGenAsync
 // should be updated.
-func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts git.ClientOpts) (map[string]string, error) {
+func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts git.ClientOpts, sourceRepoURL, sourceRevision, sourceCommitSHA string) (map[string]string, error) {
 	repoRefs := make(map[string]string)
 	if !hasMultipleSources || source == nil {
 		return repoRefs, nil
@@ -614,6 +619,10 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 		normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
 		_, ok = repoRefs[normalizedRepoURL]
 		if !ok {
+			if isSameRepoAndRevision(sourceRepoURL, sourceRevision, refSourceMapping) {
+				repoRefs[normalizedRepoURL] = sourceCommitSHA
+				continue
+			}
 			_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
 			if err != nil {
 				log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
@@ -624,6 +633,14 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 		}
 	}
 	return repoRefs, nil
+}
+
+// isSameRepoAndRevision returns true if the referenced source points to the same git repository and revision as the
+// source referencing it.
+func isSameRepoAndRevision(sourceRepoURL, sourceRevision string, refTarget *v1alpha1.RefTarget) bool {
+	return sourceRepoURL != "" && sourceRevision != "" &&
+		refTarget.TargetRevision == sourceRevision &&
+		git.NormalizeGitURL(refTarget.Repo.Repo) == git.NormalizeGitURL(sourceRepoURL)
 }
 
 // checkOutOfBoundsSymlinks validates symlinks and caches validation result in memory
@@ -867,6 +884,11 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		// check whether they should be replicated in resolveReferencedSources.
 		if q.HasMultipleSources {
 			if q.ApplicationSource.Helm != nil {
+				var sourceRepoURL string
+				if !q.ApplicationSource.IsOCI() && !q.ApplicationSource.IsHelm() {
+					sourceRepoURL = q.ApplicationSource.RepoURL
+				}
+				sourceRevision := textutils.FirstNonEmpty(q.Revision, q.ApplicationSource.TargetRevision)
 				refFileParams := make([]string, 0)
 				for _, fileParam := range q.ApplicationSource.Helm.FileParameters {
 					refFileParams = append(refFileParams, fileParam.Path)
@@ -904,7 +926,16 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 					} else {
-						gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+						var gitClient git.Client
+						var referencedCommitSHA string
+						var err error
+						gitClientOpts := git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache)
+						if isSameRepoAndRevision(sourceRepoURL, sourceRevision, refSourceMapping) {
+							gitClient, err = s.newClient(&refSourceMapping.Repo, gitClientOpts)
+							referencedCommitSHA = commitSHA
+						} else {
+							gitClient, referencedCommitSHA, err = s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
+						}
 						if err != nil {
 							log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 							ch.errCh <- fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
@@ -2651,6 +2682,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 		if q.Repo.Type == "git" {
 			mainRepoURL = git.NormalizeGitURL(q.Repo.Repo)
 		}
+		sourceRevision := textutils.FirstNonEmpty(q.Source.TargetRevision, revision)
 		refNames := []string{}
 		for refName := range getReferencedSources(selectedValueFiles, q.RefSources) {
 			refNames = append(refNames, refName)
@@ -2662,7 +2694,15 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 				continue
 			}
 			log.Debugf("Checking out repos for ref source %s  -> %s [%s]", refName, refSource.Repo.Repo, refSource.TargetRevision)
-			gitClient, refSHA, err := s.newClientResolveRevision(&refSource.Repo, refSource.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+			var gitClient git.Client
+			var refSHA string
+			gitClientOpts := git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache)
+			if isSameRepoAndRevision(mainRepoURL, sourceRevision, refSource) {
+				gitClient, err = s.newClient(&refSource.Repo, gitClientOpts)
+				refSHA = commitSHA
+			} else {
+				gitClient, refSHA, err = s.newClientResolveRevision(&refSource.Repo, refSource.TargetRevision, gitClientOpts)
+			}
 			if err != nil {
 				return fmt.Errorf("error setting up git client for %s and resolving revision %s: %w", refSource.Repo.Repo, refSource.TargetRevision, err)
 			}

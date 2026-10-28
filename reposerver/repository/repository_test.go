@@ -564,9 +564,11 @@ func TestGenerateManifestsHelmWithRefs_CachedNoLsRemote(t *testing.T) {
 	require.NoError(t, err)
 	_, err = service.GenerateManifest(t.Context(), &q)
 	require.NoError(t, err)
+	// The ref source has the same repository and revision as the application source, so the git refs are only
+	// looked up once to resolve the revision of both sources.
 	cacheMocks.mockCache.AssertCacheCalledTimes(t, &repositorymocks.CacheCallCounts{
 		ExternalSets: 2,
-		ExternalGets: 4,
+		ExternalGets: 3,
 	})
 }
 
@@ -752,6 +754,58 @@ func TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored(t *testing.T
 	response, err := service.GenerateManifest(t.Context(), request)
 	require.NoError(t, err)
 	assert.NotNil(t, response)
+}
+
+func TestHelmChartReferencingSameRepoAndRevision_ResolvesRevisionOnce(t *testing.T) {
+	const (
+		repoURL   = "https://git.example.com/test/repo"
+		oldSHA    = "1111111111111111111111111111111111111111"
+		newSHA    = "2222222222222222222222222222222222222222"
+		branch    = "main"
+		chartPath = "testdata/my-chart"
+	)
+	root, err := filepath.Abs(".")
+	require.NoError(t, err)
+	service, gitClient, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(true)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote(branch).Return(oldSHA, nil).Once()
+		gitClient.EXPECT().LsRemote(branch).Return(newSHA, nil).Once()
+		gitClient.EXPECT().LsRemote(newSHA).Return(newSHA, nil).Maybe()
+		gitClient.EXPECT().Root().Return(root)
+		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
+
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	}, root)
+
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: repoURL, Path: chartPath, TargetRevision: branch, Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/my-chart/my-chart-values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: repoURL, TargetRevision: branch},
+		},
+	}
+	for _, noCache := range []bool{true, false} {
+		t.Run(fmt.Sprintf("noCache=%t", noCache), func(t *testing.T) {
+			refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{Repo: repoURL}, nil
+			}, []string{})
+			require.NoError(t, err)
+			request := &apiclient.ManifestRequest{
+				Repo: &v1alpha1.Repository{Repo: repoURL}, ApplicationSource: &spec.Sources[0], Revision: branch, NoCache: noCache, RefSources: refSources, HasMultipleSources: true,
+				ProjectName: "something", ProjectSourceRepos: []string{"*"},
+			}
+			response, err := service.GenerateManifest(t.Context(), request)
+			require.NoError(t, err)
+			require.NotNil(t, response)
+		})
+	}
+	gitClient.AssertExpectations(t)
 }
 
 func TestHelmChartReferencingExternalValues_OutOfBounds_Symlink(t *testing.T) {
@@ -3413,14 +3467,31 @@ func Test_findManifests(t *testing.T) {
 
 func TestTestRepoHelmOCI(t *testing.T) {
 	service := newService(t, ".")
-	_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
-		Repo: &v1alpha1.Repository{
-			Repo:      "https://demo.goharbor.io",
-			Type:      "helm",
-			EnableOCI: true,
-		},
-	})
-	assert.ErrorContains(t, err, "OCI Helm repository URL should include hostname and port only")
+	tests := []struct {
+		repoURL string
+		wantErr string
+	}{
+		{repoURL: "demo.goharbor.io", wantErr: ""},
+		{repoURL: "192.168.100.150:1843", wantErr: ""},
+		{repoURL: "https://demo.goharbor.io", wantErr: "OCI Helm repository URL should include hostname and port only"},
+		{repoURL: "https://192.168.100.150:1843", wantErr: "OCI Helm repository URL should include hostname and port only"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.repoURL, func(t *testing.T) {
+			_, err := service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{
+				Repo: &v1alpha1.Repository{
+					Repo:      tt.repoURL,
+					Type:      "helm",
+					EnableOCI: true,
+				},
+			})
+			if tt.wantErr == "" {
+				require.NoError(t, err)
+			} else {
+				assert.ErrorContains(t, err, tt.wantErr)
+			}
+		})
+	}
 }
 
 func TestTestRepositoryUnsupportedType(t *testing.T) {
@@ -3943,6 +4014,74 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				expMsg := fmt.Sprintf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q", refName, refTargetRevision2, refSha, targetRevision, sha)
 				require.Error(t, err)
 				require.ErrorContains(t, err, expMsg)
+			},
+		},
+		{
+			name: "same_repo_same_revision_reuses_commit_sha",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				query := queryTemplate
+				query.Source = query.Source.DeepCopy()
+				query.Source.TargetRevision = targetRevision
+				query.RefSources = map[string]*v1alpha1.RefTarget{
+					refName: {
+						Repo: v1alpha1.Repository{
+							Type: "git",
+							Repo: repoURL,
+						},
+						TargetRevision: targetRevision,
+					},
+				}
+				return query
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(repoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(repoURL).Return(refRoot)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(mock.Anything, sha).Return(true)
+				client.EXPECT().Checkout(mock.Anything, sha, false, true).Return("", nil)
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
+			},
+		},
+		{
+			name: "same_repo_empty_source_revision_falls_back_to_revision_arg",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				query := queryTemplate
+				query.RefSources = map[string]*v1alpha1.RefTarget{
+					refName: {
+						Repo: v1alpha1.Repository{
+							Type: "git",
+							Repo: repoURL,
+						},
+						TargetRevision: targetRevision,
+					},
+				}
+				return query
+			},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(repoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(repoURL).Return(refRoot)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(mock.Anything, sha).Return(true)
+				client.EXPECT().Checkout(mock.Anything, sha, false, true).Return("", nil)
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
 			},
 		},
 		{
@@ -6136,9 +6275,10 @@ func TestGetRevisionChartDetails(t *testing.T) {
 		service := newService(t, root)
 		_, err := service.GetRevisionChartDetails(t.Context(), &apiclient.RepoServerRevisionChartDetailsRequest{
 			Repo: &v1alpha1.Repository{
-				Repo: "file://" + root,
-				Name: "test-repo-name",
-				Type: "helm",
+				Repo:      "file://" + root,
+				Name:      "test-repo-name",
+				Type:      "helm",
+				EnableOCI: true,
 			},
 			Name:     "test-name",
 			Revision: "test-revision",

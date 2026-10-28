@@ -145,12 +145,10 @@ type Client interface {
 	RepoURL() string
 	Init() error
 	Fetch(ctx context.Context, revision string, depth int64) error
-	Submodule(ctx context.Context) error
 	Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error)
 	LsRefs() (*Refs, error)
 	LsRemote(revision string) (string, error)
 	LsFiles(ctx context.Context, path string, enableNewGitFileGlobbing bool) ([]string, error)
-	LsLargeFiles(ctx context.Context) ([]string, error)
 	CommitSHA(ctx context.Context) (string, error)
 	RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error)
 	// Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
@@ -733,7 +731,7 @@ func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int6
 
 	// When we have LFS support enabled, check for large files and fetch them too.
 	if m.IsLFSEnabled() {
-		largeFiles, err := m.LsLargeFiles(ctx)
+		largeFiles, err := m.lsLargeFiles(ctx)
 		if err == nil && len(largeFiles) > 0 {
 			err = m.runCredentialedCmd(ctx, "lfs", "fetch", "--all")
 			if err != nil {
@@ -795,7 +793,7 @@ func (m *nativeGitClient) LsFiles(ctx context.Context, path string, enableNewGit
 }
 
 // LsLargeFiles lists all files that have references to LFS storage
-func (m *nativeGitClient) LsLargeFiles(ctx context.Context) ([]string, error) {
+func (m *nativeGitClient) lsLargeFiles(ctx context.Context) ([]string, error) {
 	out, err := m.runCmd(ctx, "lfs", "ls-files", "-n")
 	if err != nil {
 		return nil, err
@@ -805,7 +803,7 @@ func (m *nativeGitClient) LsLargeFiles(ctx context.Context) ([]string, error) {
 }
 
 // Submodule embed other repositories into this repository
-func (m *nativeGitClient) Submodule(ctx context.Context) error {
+func (m *nativeGitClient) submodule(ctx context.Context) error {
 	if err := m.runCredentialedCmd(ctx, "submodule", "sync", "--recursive"); err != nil {
 		return err
 	}
@@ -823,7 +821,7 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 	// We must populate LFS content by using lfs checkout, if we have at least
 	// one LFS reference in the current revision.
 	if m.IsLFSEnabled() {
-		largeFiles, err := m.LsLargeFiles(ctx)
+		largeFiles, err := m.lsLargeFiles(ctx)
 		if err != nil {
 			return "", fmt.Errorf("failed to list LFS files: %w", err)
 		}
@@ -835,7 +833,7 @@ func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submodu
 	}
 	if _, err := os.Stat(m.root + "/.gitmodules"); !os.IsNotExist(err) {
 		if submoduleEnabled {
-			if err := m.Submodule(ctx); err != nil {
+			if err := m.submodule(ctx); err != nil {
 				return "", fmt.Errorf("failed to update submodules: %w", err)
 			}
 		}
@@ -1288,6 +1286,13 @@ func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*pl
 	// symbolic reference (like HEAD), in which case we will resolve it from the refToHash map
 	refToResolve := ""
 
+	// A remote can carry a branch literally named "HEAD" alongside the symbolic HEAD. Git follows the
+	// symbolic ref, so "HEAD" must not resolve to refs/heads/HEAD. HEAD is the only advertised ref
+	// living outside refs/, so it is also the only revision whose short name match can be outranked by
+	// a later ref; shortMatch defers that decision. Every other revision still resolves on first match.
+	mayShadowHead := revision == "HEAD"
+	shortMatch := ""
+
 	isShortRef := IsShortRef(revision)
 	log.Debugf("Attempting to resolve revision '%s' (is short ref: %t)", revision, isShortRef)
 
@@ -1300,8 +1305,15 @@ func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*pl
 		// log.Debugf("%s\t%s", hash, refName)
 		if (isShortRef && ref.Name().Short() == revision) || refName == revision {
 			if ref.Type() == plumbing.HashReference {
-				log.Debugf("revision '%s' resolved to '%s'", revision, hash)
-				return hash, nil
+				// No other ref can carry this exact name, so nothing later in the listing can outrank
+				// it - not even a symbolic reference, which would have to be this very ref.
+				if refName == revision || !mayShadowHead {
+					log.Debugf("revision '%s' resolved to '%s'", revision, hash)
+					return hash, nil
+				}
+				if shortMatch == "" {
+					shortMatch = hash
+				}
 			}
 			if ref.Type() == plumbing.SymbolicReference {
 				refToResolve = ref.Target().String()
@@ -1316,6 +1328,11 @@ func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*pl
 			log.Debugf("symbolic reference '%s' (%s) resolved to '%s'", revision, refToResolve, hash)
 			return hash, nil
 		}
+	}
+
+	if shortMatch != "" {
+		log.Debugf("revision '%s' resolved to '%s'", revision, shortMatch)
+		return shortMatch, nil
 	}
 
 	// We support the ability to use a truncated commit-SHA (e.g. first 7 characters of a SHA)

@@ -276,8 +276,11 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 				logCtx.Error(err.Error())
 				return strings.TrimSuffix(output, "\n"), err
 			}
+		} else {
+			// Join the pipe-copy goroutines before reading the buffers. Reading them
+			// here used to race with os/exec still copying command output.
+			<-done //nolint:errcheck // the timeout error replaces the process exit error
 		}
-		// either did not wait for timeout or cmd did respect SIGTERM
 		output := stdout.String()
 		if opts.CaptureStderr {
 			output += stderr.String()

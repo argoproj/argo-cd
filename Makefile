@@ -239,7 +239,7 @@ endif
 all: cli image
 
 .PHONY: mockgen
-mockgen:
+mockgen: codegen-go-tools-local
 	./hack/generate-mock.sh
 
 .PHONY: gogen
@@ -251,12 +251,12 @@ gogen:
 protogen: mod-vendor-local protogen-fast
 
 .PHONY: protogen-fast
-protogen-fast:
+protogen-fast: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
-openapigen:
+openapigen: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
@@ -275,7 +275,7 @@ notification-docs:
 
 
 .PHONY: clientgen
-clientgen:
+clientgen: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
@@ -595,6 +595,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_SERVER_OTLP_SAMPLE_RATIO=0 \
 	ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO=0 \
 	ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO=0 \
+	ARGOCD_CMP_SERVER_OTLP_SAMPLE_RATIO=0 \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 	ls -lrt /tmp/coverage
 
@@ -697,14 +698,19 @@ install-test-tools-local:
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
-install-codegen-tools-local:
+install-codegen-tools-local: codegen-go-tools-local
 	./hack/install.sh codegen-tools
+
+# Rebuilds the Go codegen CLIs in dist/ from go.mod and hack/tools/go.mod. Every target that runs a
+# generator depends on this, so the binaries can never be older than the versions they are pinned
+# by. It is a no-op beyond a cache lookup once they are current.
+.PHONY: codegen-go-tools-local
+codegen-go-tools-local:
 	./hack/install.sh codegen-go-tools
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local
-install-go-tools-local:
-	./hack/install.sh codegen-go-tools
+install-go-tools-local: codegen-go-tools-local
 	./hack/install.sh lint-tools
 	./hack/install.sh actionlint
 	./hack/install.sh kubeconform

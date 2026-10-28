@@ -1,4 +1,4 @@
-FROM docker.io/library/redis:8.10.2@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc739b05c0f426335161ea6c23f3b3 AS redis
+FROM docker.io/library/redis:8.10.3@sha256:0c257ce8b2f31f9f7595f587edf8ac259a248ba3ced82badc8c7aa826a85224f AS redis
 
 # There are libraries we will want to copy from here in the final stage of the
 # build, but the COPY directive does not have a way to determine system
@@ -6,7 +6,7 @@ FROM docker.io/library/redis:8.10.2@sha256:d5ac52db24d4e70566fe9944f22cf5bdc2bc7
 RUN ln -s /usr/lib/$(uname -m)-linux-gnu /usr/lib/linux-gnu
 
 # Please make sure to also check the contained yarn version and update the references below when upgrading this image's version
-FROM docker.io/library/node:24.22.1@sha256:5630d96570d4ca4a8523fda3d169d0114554d0f48293e1ae3db6be7c79b42a17 AS node
+FROM docker.io/library/node:26.12.1@sha256:b5f0e27e7423ea242b37af44c8c856e28f7e37d4fac23cb430cb618874ff8517 AS node
 
 FROM docker.io/library/golang:1.27.3@sha256:f24164268fc1e741bbdc0066dbadcf1c8426c5a8489f0729c02c3905a53032fd AS golang
 
@@ -67,6 +67,8 @@ ENV GRPC_ENABLE_TXT_SERVICE_CONFIG=false
 COPY hack/install.sh hack/tool-versions.sh go.* ./
 COPY hack/installers installers
 COPY gitops-engine/go.* ./gitops-engine/
+# Module files for the isolated codegen tool module; see hack/tools/go.mod.
+COPY hack/tools/go.* ./hack/tools/
 
 RUN ./install.sh helm && \
     ./install.sh kustomize && \
