@@ -735,7 +735,12 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings, refreshRESTConf
 	for server, clust := range clusters {
 		var extraUpdates []clustercache.UpdateSettingsFunc
 		if refreshRESTConfigs {
-			if restConfig := c.restConfigUsingDefaultCABundle(server); restConfig != nil {
+			restConfig, err := c.restConfigUsingDefaultCABundle(server)
+			if err != nil {
+				c.dropClusterUsingDefaultCABundle(server, clust, err)
+				continue
+			}
+			if restConfig != nil {
 				extraUpdates = append(extraUpdates, clustercache.SetConfig(restConfig))
 			}
 		}
@@ -756,7 +761,11 @@ func (c *liveStateCache) invalidateClustersUsingDefaultCABundle(cacheSettings ca
 	c.lock.Unlock()
 
 	for server, cluster := range clusters {
-		restConfig := c.restConfigUsingDefaultCABundle(server)
+		restConfig, err := c.restConfigUsingDefaultCABundle(server)
+		if err != nil {
+			c.dropClusterUsingDefaultCABundle(server, cluster, err)
+			continue
+		}
 		if restConfig == nil {
 			continue
 		}
@@ -795,21 +804,26 @@ func compareCacheSettings(prev, next cacheSettings) (otherSettingsChanged, caBun
 	return !reflect.DeepEqual(prev, next), caBundleChanged
 }
 
-func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) *rest.Config {
+func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) (*rest.Config, error) {
 	cluster, err := c.db.GetCluster(context.Background(), server)
 	if err != nil {
 		log.Warnf("Failed to get cluster %s to refresh its REST config after a default CA bundle change: %v", server, err)
-		return nil
+		return nil, nil
 	}
-	if cluster.Server == appv1.KubernetesInternalAPIServerAddr || len(cluster.Config.CAData) > 0 || cluster.Config.Insecure {
-		return nil
+	if !cluster.DependsOnDefaultCABundle() {
+		return nil, nil
 	}
-	restConfig, err := clusterCacheRESTConfig(cluster)
-	if err != nil {
-		log.Warnf("Failed to build REST config of cluster %s after a default CA bundle change: %v", server, err)
-		return nil
+	return clusterCacheRESTConfig(cluster)
+}
+
+func (c *liveStateCache) dropClusterUsingDefaultCABundle(server string, cluster clustercache.ClusterCache, err error) {
+	log.Warnf("Failed to build REST config of cluster %s after a default CA bundle change, dropping its cache: %v", server, err)
+	cluster.Invalidate()
+	c.lock.Lock()
+	if c.clusters[server] == cluster {
+		delete(c.clusters, server)
 	}
-	return restConfig
+	c.lock.Unlock()
 }
 
 func clusterCacheRESTConfig(cluster *appv1.Cluster) (*rest.Config, error) {
