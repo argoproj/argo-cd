@@ -651,7 +651,7 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 func (g GitHubAppCreds) getAccessToken() (string, error) {
 	// Timeout
 	ctx, cancel := context.WithTimeoutCause(context.Background(), gitClientTimeout,
-		fmt.Errorf("GitHub App access token request timed out after %s", gitClientTimeout))
+		fmt.Errorf("GitHub App access token request timed out after %s: %w", gitClientTimeout, context.DeadlineExceeded))
 	defer cancel()
 
 	itr, err := g.getInstallationTransport()
@@ -700,7 +700,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 		}
 
 		ctx, cancel := context.WithTimeoutCause(context.Background(), githubAppInstallationDiscoveryTimeout,
-			fmt.Errorf("GitHub App installation ID discovery timed out after %s", githubAppInstallationDiscoveryTimeout))
+			fmt.Errorf("GitHub App installation ID discovery timed out after %s: %w", githubAppInstallationDiscoveryTimeout, context.DeadlineExceeded))
 		defer cancel()
 
 		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)
@@ -1240,7 +1240,7 @@ func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
 	}
 
 	ctx, cancel := context.WithTimeoutCause(context.Background(), azureServicePrincipalTokenTimeout,
-		fmt.Errorf("token request for Azure Service Principal timed out after %s", azureServicePrincipalTokenTimeout))
+		fmt.Errorf("token request for Azure Service Principal timed out after %s: %w", azureServicePrincipalTokenTimeout, context.DeadlineExceeded))
 	defer cancel()
 
 	opts := azcore.ClientOptions{}

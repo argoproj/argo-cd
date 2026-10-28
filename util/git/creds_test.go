@@ -657,6 +657,7 @@ func TestAzureServicePrincipalCreds_GetAccessTokenTimeout(t *testing.T) {
 	_, err = creds.getAccessToken()
 
 	require.ErrorContains(t, err, "token request for Azure Service Principal timed out after 100ms")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 func TestAzureWorkloadIdentityCreds_FetchNewTokenIfExistingIsExpired(t *testing.T) {
@@ -1122,6 +1123,7 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 			"gitClientTimeout (1s) should cause timeout for a 3s response, but "+
 				"it does not because only the transport is passed to ghinstallation")
 		require.ErrorContains(t, err, "GitHub App access token request timed out after 1s")
+		require.ErrorIs(t, err, context.DeadlineExceeded)
 		if err == nil {
 			require.Equal(t, "ghs_despite_timeout", token,
 				"token was returned despite delay exceeding gitClientTimeout")
