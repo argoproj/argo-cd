@@ -288,6 +288,45 @@ func TestSpecChangedSecondPassStaleSyncStatusKeepsWaiting(t *testing.T) {
 		"sync status computed for the old spec must not promote the app: %s", statuses[0].Message)
 }
 
+// Pass 2 of a managed-namespace-metadata change: the new spec has been written (live ==
+// desired, so specChanged is false) and comparedTo still matches, because comparedTo does
+// not record managed namespace metadata. The last sync result still holds the old
+// metadata, which is exactly what the application controller treats as a stale sync
+// status in needRefreshAppStatus (HasChangedManagedNamespaceMetadata), so the stale
+// Synced status must not promote the app to Healthy.
+func TestSpecChangedSecondPassStaleManagedNamespaceMetadataKeepsWaiting(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	appSet.Status.ApplicationStatus[0].Status = argov1alpha1.ProgressiveSyncWaiting
+	appSet.Status.ApplicationStatus[0].Message = specChangedMsg
+
+	live := regressionApp("HEAD", new(false))
+	live.Spec.SyncPolicy.ManagedNamespaceMetadata = &argov1alpha1.ManagedNamespaceMetadata{
+		Labels: map[string]string{"team": "new"},
+	}
+	live.Status.Sync.Status = argov1alpha1.SyncStatusCodeSynced
+	live.Status.Sync.ComparedTo = argov1alpha1.ComparedTo{Source: *live.Spec.Source, Destination: live.Spec.Destination}
+	live.Status.OperationState = &argov1alpha1.OperationState{
+		SyncResult: &argov1alpha1.SyncOperationResult{
+			ManagedNamespaceMetadata: &argov1alpha1.ManagedNamespaceMetadata{
+				Labels: map[string]string{"team": "old"},
+			},
+		},
+	}
+	desired := live.DeepCopy()
+
+	m := regressionManager(t, &appSet)
+	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{*desired},
+		map[string]int{"storm-a": 0})
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
+		"sync status computed before the managed namespace metadata change must not promote the app: %s", statuses[0].Message)
+}
+
 // A revision change alone, where the Application has already synced the new revision,
 // must still be promoted from Waiting to Healthy in the same pass.
 func TestRevisionChangedStillPromotesToHealthy(t *testing.T) {

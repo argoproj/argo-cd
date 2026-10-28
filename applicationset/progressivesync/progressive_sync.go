@@ -701,7 +701,9 @@ func GetLatestWaitingTransitionTimeOfAppset(appset *argov1alpha1.ApplicationSet)
 // syncStatusMatchesSpec reports whether the Application's sync status was computed for its
 // current spec, using the same fields the application controller checks in needRefreshAppStatus.
 // status.sync.comparedTo records what the comparison used; if it differs from the current spec,
-// the sync status describes an older spec and must not promote the app.
+// the sync status describes an older spec and must not promote the app. Managed namespace
+// metadata is not part of comparedTo, so it is checked the way the controller checks it:
+// against the metadata recorded by the last sync.
 func syncStatusMatchesSpec(app *argov1alpha1.Application) bool {
 	comparedTo := app.Status.Sync.ComparedTo
 	if app.Spec.HasMultipleSources() {
@@ -712,7 +714,8 @@ func syncStatusMatchesSpec(app *argov1alpha1.Application) bool {
 		return false
 	}
 	return reflect.DeepEqual(app.Spec.Destination, comparedTo.Destination) &&
-		app.Spec.IgnoreDifferences.Equals(comparedTo.IgnoreDifferences)
+		app.Spec.IgnoreDifferences.Equals(comparedTo.IgnoreDifferences) &&
+		!app.HasChangedManagedNamespaceMetadata()
 }
 
 func hasPendingChanges(appStatus argov1alpha1.ApplicationSetApplicationStatus) bool {
