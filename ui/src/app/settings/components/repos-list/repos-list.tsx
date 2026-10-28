@@ -2,7 +2,7 @@ import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, Notifi
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
-import {Form, FormValues, FormApi, Text, TextArea, FormErrors, ReactForm} from 'argo-ui';
+import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'argo-ui';
 import {Context} from '../../../shared/context';
 import {
     ActionMenu,
@@ -1085,11 +1085,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                         formApi={formApi}
                                                         label='Save as write credential'
                                                         field='write'
-                                                        component={ReactForm.Checkbox}
+                                                        component={CheckboxField}
                                                         componentProps={{
-                                                            onChange: (event: React.ChangeEvent<HTMLInputElement>) => {
-                                                                if (event.currentTarget.checked) {
+                                                            onChange: (checked: boolean) => {
+                                                                if (checked) {
                                                                     formApi.setValue('type', 'git');
+                                                                    formApi.setValue('depth', undefined);
                                                                 }
                                                             }
                                                         }}
