@@ -89,7 +89,7 @@ spec:
   generators:
   - pullRequest:
       gitlab:
-        # The GitLab project ID.
+        # The GitLab project ID or full path.
         project: "12341234"
         # For self-hosted GitLab (optional)
         api: https://git.example.com/
@@ -113,7 +113,7 @@ spec:
   # ...
 ```
 
-* `project`: Required project ID of the GitLab project.
+* `project`: Required project ID or full path (e.g. `group/subgroup/project`) of the GitLab project.
 * `api`: If using self-hosted GitLab, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
