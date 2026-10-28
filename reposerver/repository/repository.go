@@ -3504,9 +3504,9 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		return revision, syncedRevision, false, nil
 	}
 
-	getGitFilesChanges := func() ([]string, error) {
-		var files []string
-
+	// compared is false when syncedRevision could not be compared (e.g. the server refuses to serve it
+	// by SHA, or it was force-pushed away); the caller then treats the source as changed.
+	getGitFilesChanges := func() (files []string, compared bool, err error) {
 		s.metricsServer.IncPendingRepoRequest(repo.Repo)
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
@@ -3514,7 +3514,7 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 			return s.checkoutRevision(ctx, gitClient, revision, false, repo.Depth, clean)
 		})
 		if err != nil {
-			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+			return nil, false, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
 		defer utilio.Close(closer)
 
@@ -3526,22 +3526,29 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 			err = s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth)
 			syncedRevisionFetchLock.Unlock(gitClient.Root())
 			if err != nil {
-				return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+				log.Warnf("Unable to fetch synced revision %s of repo %s, treating source as changed: %v", syncedRevision, repo.Repo, err)
+				return nil, false, nil
 			}
 		}
 
 		files, err = gitClient.ChangedFiles(ctx, syncedRevision, revision)
 		if err != nil {
-			return files, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+			log.Warnf("Unable to get changed files for repo %s from %s to %s, treating source as changed: %v", repo.Repo, syncedRevision, revision, err)
+			return nil, false, nil
 		}
-		return files, nil
+		return files, true, nil
 	}
 
 	files, err := s.cache.GetGitFilesChanges(repo.Repo, revision, syncedRevision)
 	if err != nil {
-		files, err = getGitFilesChanges()
+		var compared bool
+		files, compared, err = getGitFilesChanges()
 		if err != nil {
 			return revision, syncedRevision, true, err
+		}
+		if !compared {
+			// Not cached: an empty file list would read as "no changes" on the next lookup.
+			return revision, syncedRevision, true, nil
 		}
 	}
 

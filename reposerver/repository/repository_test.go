@@ -6029,6 +6029,39 @@ func TestUpdateRevisionForPaths_ConcurrentColdCache(t *testing.T) {
 	}
 }
 
+// A synced revision that cannot be fetched (e.g. force-pushed away) falls back to treating the
+// source as changed instead of failing the comparison, and the fallback is not cached.
+func TestUpdateRevisionForPaths_UnfetchableSyncedRevision(t *testing.T) {
+	repoPath := filepath.Join(t.TempDir(), "remote")
+	repoURL := "file://" + repoPath
+	revision := initGitRepo(t, newGitRepoOptions{path: repoPath, createPath: true, remote: repoURL, addEmptyCommit: true})
+	syncedRevision := strings.Repeat("a", 40)
+
+	for _, depth := range []int64{0, 1} {
+		t.Run(fmt.Sprintf("depth=%d", depth), func(t *testing.T) {
+			cacheMocks := newCacheMocks()
+			t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+			s := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, t.TempDir())
+			s.gitRepoInitializer = func(_ string) goio.Closer { return utilio.NopCloser }
+
+			res, err := s.UpdateRevisionForPaths(t.Context(), &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: repoURL, Type: "git", Depth: depth},
+				Revision:          revision,
+				SyncedRevision:    syncedRevision,
+				Paths:             []string{"."},
+				AppName:           "app",
+				ApplicationSource: &v1alpha1.ApplicationSource{RepoURL: repoURL, Path: "."},
+			})
+			require.NoError(t, err)
+			assert.True(t, res.Changes)
+			assert.Equal(t, revision, res.Revision)
+
+			_, err = cacheMocks.cache.GetGitFilesChanges(repoURL, revision, syncedRevision)
+			require.ErrorIs(t, err, cache.ErrCacheMiss)
+		})
+	}
+}
+
 func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) {
 	// UpdateRevisionForPaths renames the manifest cache entry from the synced
 	// revision to the resolved revision. Callers are expected to persist the
