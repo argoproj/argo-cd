@@ -706,7 +706,7 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings, refreshRESTConf
 func (c *liveStateCache) invalidateClustersUsingDefaultCABundle(cacheSettings cacheSettings) {
 	c.lock.Lock()
 	c.cacheSettings = cacheSettings
-	clusters := c.clusters
+	clusters := maps.Clone(c.clusters)
 	c.lock.Unlock()
 
 	for server, cluster := range clusters {
