@@ -145,6 +145,40 @@ func setFakeAppInstance(t *testing.T, ctrl *ApplicationController, obj *unstruct
 	return argo.NewResourceTracking().SetAppInstance(obj, appLabelKey, appName, test.FakeArgoCDNamespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
 }
 
+// newAlreadyExistsController returns a controller with an empty cluster cache
+// whose API server answers AlreadyExists when the hook in manifest is created.
+func newAlreadyExistsController(t *testing.T, app *v1alpha1.Application, manifest string) *ApplicationController {
+	t.Helper()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		manifestResponses: []*apiclient.ManifestResponse{{Manifests: []string{manifest}}},
+		apps:              []runtime.Object{app, &defaultProj},
+		managedLiveObjs:   map[kube.ResourceKey]*unstructured.Unstructured{},
+	}, nil)
+	ctrl.kubectl.(*MockKubectl).CreateError = apierrors.NewAlreadyExists(schema.GroupResource{}, "hook")
+	return ctrl
+}
+
+// finalizeAndCheckPatched runs finalizeApplicationDeletion and reports whether
+// the application was patched, which is how a deletion finalizer is removed.
+func finalizeAndCheckPatched(t *testing.T, ctrl *ApplicationController, app *v1alpha1.Application) (bool, error) {
+	t.Helper()
+	patched := false
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return defaultReactor.React(action)
+	})
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, &v1alpha1.Application{}, nil
+	})
+	err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		return []*v1alpha1.Cluster{}, nil
+	})
+	return patched, err
+}
+
 // recordingOperationQueue embeds a real rate-limiting queue but records every
 // AddAfter call so tests can assert the self-requeue (item and delay) without
 // having to wait for the delaying queue's timer to fire.
@@ -1385,164 +1419,181 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
 	})
 
-	t.Run("PostDelete_HookAlreadyExistsIsNotTreatedAsComplete", func(t *testing.T) {
-		// Reproduces the race where a hook created by an earlier finalization
-		// pass is not in the cluster cache yet: the create returns AlreadyExists
-		// and the hook is therefore absent from both the cache and the created
-		// set. The phase must not be reported as complete, otherwise the
-		// finalizer is removed and cascade deletion destroys the hook before it
-		// ever runs.
-		app := newFakeApp()
-		app.SetPostDeleteFinalizer()
-		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-		ctrl := newFakeController(t.Context(), &fakeData{
-			manifestResponses: []*apiclient.ManifestResponse{{
-				Manifests: []string{fakePostDeleteHook},
-			}},
-			apps: []runtime.Object{app, &defaultProj},
-			// The hook exists on the cluster but the cache has not observed it.
-			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
-		}, nil)
-		ctrl.kubectl.(*MockKubectl).CreateError = apierrors.NewAlreadyExists(schema.GroupResource{Group: "batch", Resource: "jobs"}, "post-delete-hook")
-		// The API server reports the hook that the earlier pass created, carrying
-		// this application's tracking identity.
-		existingHook := &unstructured.Unstructured{Object: newFakePostDeleteHook()}
-		require.NoError(t, setFakeAppInstance(t, ctrl, existingHook, app.InstanceName(test.FakeArgoCDNamespace)))
-		ctrl.kubectl.(*MockKubectl).GetResourceResult = existingHook
-
-		patched := false
-		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
-		fakeAppCs.ReactionChain = nil
-		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
-		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
-			return true, &v1alpha1.Application{}, nil
-		})
-		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
-			return []*v1alpha1.Cluster{}, nil
-		})
-		require.NoError(t, err)
-		// The finalizer must still be in place, so the hook is not deleted by
-		// cascade deletion while it is still starting.
-		assert.False(t, patched, "post-delete finalizer must not be removed while a hook is unaccounted for")
-	})
-
-	t.Run("PostDelete_HookNameTakenByAnotherAppDoesNotBlockDeletion", func(t *testing.T) {
-		// An AlreadyExists response does not prove the existing resource is this
-		// application's hook. A resource owned by someone else never appears in
-		// this application's cluster cache, so waiting for it would block the
-		// deletion forever. It has to be skipped instead.
-		app := newFakeApp()
-		app.SetPostDeleteFinalizer()
-		app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-		ctrl := newFakeController(t.Context(), &fakeData{
-			manifestResponses: []*apiclient.ManifestResponse{{
-				Manifests: []string{fakePostDeleteHook},
-			}},
-			apps:            []runtime.Object{app, &defaultProj},
-			managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
-		}, nil)
-		ctrl.kubectl.(*MockKubectl).CreateError = apierrors.NewAlreadyExists(schema.GroupResource{Group: "batch", Resource: "jobs"}, "post-delete-hook")
-		// The name is taken by a resource belonging to a different application.
-		foreignHook := &unstructured.Unstructured{Object: newFakePostDeleteHook()}
-		require.NoError(t, setFakeAppInstance(t, ctrl, foreignHook, "some-other-app"))
-		ctrl.kubectl.(*MockKubectl).GetResourceResult = foreignHook
-
-		patched := false
-		fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-		defaultReactor := fakeAppCs.ReactionChain[0]
-		fakeAppCs.ReactionChain = nil
-		fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			return defaultReactor.React(action)
-		})
-		fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-			patched = true
-			return true, &v1alpha1.Application{}, nil
-		})
-		err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
-			return []*v1alpha1.Cluster{}, nil
-		})
-		require.NoError(t, err)
-		// Deletion proceeds: the finalizer is removed rather than waiting for a
-		// resource this application will never observe.
-		assert.True(t, patched, "deletion must not block on a hook name owned by another application")
-	})
-
-	t.Run("PostDelete_HookAlreadyExistsOwnershipLookup", func(t *testing.T) {
-		// Covers how the ownership lookup behaves when the API server does not
-		// return an object that can be inspected.
-		tests := []struct {
-			name        string
-			getErr      error
-			getResult   *unstructured.Unstructured
-			expectErr   string
-			expectPatch bool
-		}{
-			{
-				// The hook was deleted between the create attempt and the
-				// lookup, so there is nothing left to wait for.
-				name:        "hook disappeared before the lookup",
-				getErr:      apierrors.NewNotFound(schema.GroupResource{Group: "batch", Resource: "jobs"}, "post-delete-hook"),
-				expectPatch: true,
+	// The cases below reproduce a hook that an earlier finalization pass created
+	// but the cluster cache has not observed (or never will): creating it again
+	// returns AlreadyExists, and the controller has to read it back.
+	deleteHookPhases := []struct {
+		hookType     HookType
+		manifest     string
+		newHook      func() map[string]any
+		running      func(*unstructured.Unstructured)
+		succeeded    func(*unstructured.Unstructured)
+		failed       func(*unstructured.Unstructured)
+		setFinalizer func(*v1alpha1.Application)
+	}{
+		{
+			hookType: PreDeleteHookType,
+			manifest: fakePreDeleteHook,
+			newHook:  newFakePreDeleteHook,
+			running: func(u *unstructured.Unstructured) { // just created, not scheduled yet
+				require.NoError(t, unstructured.SetNestedField(u.Object, "Pending", "status", "phase"))
 			},
-			{
-				// Ownership cannot be established, so the phase must fail rather
-				// than guess. Failing keeps the finalizer in place.
-				name:      "lookup fails",
-				getErr:    errors.New("connection refused"),
-				expectErr: "failed to check ownership of existing PostDelete hook",
+			succeeded: func(u *unstructured.Unstructured) {
+				require.NoError(t, unstructured.SetNestedField(u.Object, "Succeeded", "status", "phase"))
 			},
-			{
-				// Nothing came back to inspect; treat it as not ours so deletion
-				// is not blocked.
-				name:        "lookup returns nothing",
-				expectPatch: true,
+			failed: func(u *unstructured.Unstructured) {
+				require.NoError(t, unstructured.SetNestedField(u.Object, "Failed", "status", "phase"))
 			},
+			setFinalizer: func(a *v1alpha1.Application) { a.SetPreDeleteFinalizer() },
+		},
+		{
+			hookType: PostDeleteHookType,
+			manifest: fakePostDeleteHook,
+			newHook:  newFakePostDeleteHook,
+			running:  func(*unstructured.Unstructured) {}, // a Job without conditions is progressing
+			succeeded: func(u *unstructured.Unstructured) {
+				require.NoError(t, unstructured.SetNestedField(u.Object, []any{map[string]any{"type": "Complete", "status": "True"}}, "status", "conditions"))
+			},
+			failed: func(u *unstructured.Unstructured) {
+				require.NoError(t, unstructured.SetNestedField(u.Object, []any{map[string]any{"type": "Failed", "status": "True"}}, "status", "conditions"))
+			},
+			setFinalizer: func(a *v1alpha1.Application) { a.SetPostDeleteFinalizer() },
+		},
+	}
+
+	for _, phase := range deleteHookPhases {
+		newApp := func() *v1alpha1.Application {
+			app := newFakeApp()
+			phase.setFinalizer(app)
+			app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+			return app
 		}
 
-		for _, tt := range tests {
-			t.Run(tt.name, func(t *testing.T) {
-				app := newFakeApp()
-				app.SetPostDeleteFinalizer()
-				app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
-				ctrl := newFakeController(t.Context(), &fakeData{
-					manifestResponses: []*apiclient.ManifestResponse{{
-						Manifests: []string{fakePostDeleteHook},
-					}},
-					apps:            []runtime.Object{app, &defaultProj},
-					managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{},
-				}, nil)
-				ctrl.kubectl.(*MockKubectl).CreateError = apierrors.NewAlreadyExists(schema.GroupResource{Group: "batch", Resource: "jobs"}, "post-delete-hook")
-				ctrl.kubectl.(*MockKubectl).GetResourceError = tt.getErr
-				ctrl.kubectl.(*MockKubectl).GetResourceResult = tt.getResult
+		t.Run(string(phase.hookType)+"_HookAlreadyExistsIsJudgedByItsLiveState", func(t *testing.T) {
+			tests := []struct {
+				name        string
+				state       func(*unstructured.Unstructured)
+				expectPatch bool
+				expectErr   string
+			}{
+				// Still running: the finalizer stays, so cascade deletion does not
+				// remove the hook before it finishes. Before the fix the phase was
+				// reported complete here.
+				{name: "running", state: phase.running},
+				// Finished: deletion proceeds even though the cache never saw it.
+				{name: "succeeded", state: phase.succeeded, expectPatch: true},
+				// Failed: deleted for a retry, like a failed hook from the cache.
+				{name: "failed", state: phase.failed, expectErr: string(phase.hookType) + " hook(s) failed"},
+			}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					app := newApp()
+					ctrl := newAlreadyExistsController(t, app, phase.manifest)
+					existing := &unstructured.Unstructured{Object: phase.newHook()}
+					require.NoError(t, setFakeAppInstance(t, ctrl, existing, app.InstanceName(test.FakeArgoCDNamespace)))
+					tt.state(existing)
+					ctrl.kubectl.(*MockKubectl).GetResourceResult = existing
 
-				patched := false
-				fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
-				defaultReactor := fakeAppCs.ReactionChain[0]
-				fakeAppCs.ReactionChain = nil
-				fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-					return defaultReactor.React(action)
+					patched, err := finalizeAndCheckPatched(t, ctrl, app)
+					if tt.expectErr != "" {
+						require.ErrorContains(t, err, tt.expectErr)
+						assert.Contains(t, ctrl.kubectl.(*MockKubectl).DeletedResources, kube.GetResourceKey(existing))
+					} else {
+						require.NoError(t, err)
+					}
+					assert.Equal(t, tt.expectPatch, patched)
 				})
-				fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-					patched = true
-					return true, &v1alpha1.Application{}, nil
+			}
+		})
+
+		t.Run(string(phase.hookType)+"_HookNameTakenBySomethingElseDoesNotBlockDeletion", func(t *testing.T) {
+			// None of these will ever run as this application's hook, and none
+			// show up in its cluster cache, so waiting would block deletion
+			// forever. They are skipped and deletion proceeds.
+			otherPhase := PostDeleteHookType
+			if phase.hookType == PostDeleteHookType {
+				otherPhase = PreDeleteHookType
+			}
+			tests := []struct {
+				name     string
+				existing func(t *testing.T, ctrl *ApplicationController, app *v1alpha1.Application) *unstructured.Unstructured
+			}{
+				{
+					name: "another application's resource",
+					existing: func(t *testing.T, ctrl *ApplicationController, _ *v1alpha1.Application) *unstructured.Unstructured {
+						t.Helper()
+						u := &unstructured.Unstructured{Object: phase.newHook()}
+						require.NoError(t, setFakeAppInstance(t, ctrl, u, "some-other-app"))
+						return u
+					},
+				},
+				{
+					name: "untracked resource",
+					existing: func(*testing.T, *ApplicationController, *v1alpha1.Application) *unstructured.Unstructured {
+						u := &unstructured.Unstructured{Object: phase.newHook()}
+						u.SetLabels(nil)
+						return u
+					},
+				},
+				{
+					// e.g. a resource turned into a hook in Git whose old object
+					// was never pruned.
+					name: "this application's resource, but not a hook of this phase",
+					existing: func(t *testing.T, ctrl *ApplicationController, app *v1alpha1.Application) *unstructured.Unstructured {
+						t.Helper()
+						u := &unstructured.Unstructured{Object: phase.newHook()}
+						require.NoError(t, setFakeAppInstance(t, ctrl, u, app.InstanceName(test.FakeArgoCDNamespace)))
+						annotations := u.GetAnnotations() // keep the tracking annotation, if any
+						annotations["argocd.argoproj.io/hook"] = string(otherPhase)
+						u.SetAnnotations(annotations)
+						return u
+					},
+				},
+			}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					app := newApp()
+					ctrl := newAlreadyExistsController(t, app, phase.manifest)
+					ctrl.kubectl.(*MockKubectl).GetResourceResult = tt.existing(t, ctrl, app)
+
+					patched, err := finalizeAndCheckPatched(t, ctrl, app)
+					require.NoError(t, err)
+					assert.True(t, patched, "deletion must not wait on a resource that is not this application's hook")
 				})
-				err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
-					return []*v1alpha1.Cluster{}, nil
+			}
+		})
+
+		t.Run(string(phase.hookType)+"_HookAlreadyExistsLookupWithoutAnObject", func(t *testing.T) {
+			tests := []struct {
+				name      string
+				getErr    error
+				expectErr string
+			}{
+				// Deleted between the create attempt and the lookup: the hook has
+				// not run, so keep waiting and recreate it on the next pass.
+				{name: "not found", getErr: apierrors.NewNotFound(schema.GroupResource{Group: "batch", Resource: "jobs"}, "hook")},
+				// Nothing to inspect: no evidence the hook ran, keep waiting.
+				{name: "no object returned"},
+				// The state is unknown: fail the phase rather than guess.
+				{name: "lookup fails", getErr: errors.New("connection refused"), expectErr: "failed to get existing " + string(phase.hookType) + " hook"},
+			}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					app := newApp()
+					ctrl := newAlreadyExistsController(t, app, phase.manifest)
+					ctrl.kubectl.(*MockKubectl).GetResourceError = tt.getErr
+
+					patched, err := finalizeAndCheckPatched(t, ctrl, app)
+					if tt.expectErr != "" {
+						require.ErrorContains(t, err, tt.expectErr)
+					} else {
+						require.NoError(t, err)
+					}
+					assert.False(t, patched, "finalizer must stay while there is no evidence the hook ran")
 				})
-				if tt.expectErr != "" {
-					require.ErrorContains(t, err, tt.expectErr)
-					assert.False(t, patched, "finalizer must stay while ownership is unknown")
-					return
-				}
-				require.NoError(t, err)
-				assert.Equal(t, tt.expectPatch, patched)
-			})
-		}
-	})
+			}
+		})
+	}
 
 	t.Run("PostDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
 		// Post-delete counterpart of PreDelete_HookIsCreatedForLongAppName; see
