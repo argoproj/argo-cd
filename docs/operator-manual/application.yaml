@@ -233,8 +233,10 @@ spec:
       allowEmpty: false # Allows deleting all application resources during automatic syncing ( false by default ).
     # manualDefaults is optional. When unset, manual sync behavior is unchanged from previous releases.
     # When set, omitted sync-request fields use these defaults (explicit request values always win).
+    # WARNING: creating manualDefaults for any field opts into prune by default. Set prune: false
+    # explicitly if you only want dryRun/applyOnly/force (CLI/UI do this automatically).
     manualDefaults:
-      prune: true # Prune by default on manual syncs when this field is set ( true by default ). Explicit prune on a sync request always takes precedence.
+      prune: true # Prune by default on manual syncs when manualDefaults is set, even if only another field is written ( true when omitted ). Set prune: false to disable. Explicit prune on a sync request always takes precedence.
       dryRun: false # Dry-run by default on manual syncs when this field is set ( false by default ).
       applyOnly: false # Apply-only strategy by default on manual syncs when this field is set ( false by default ).
       force: false # Force by default on manual syncs when this field is set ( false by default ).

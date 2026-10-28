@@ -75,6 +75,15 @@ When `manualDefaults` is set and a sync request omits a value, Argo CD uses thes
 | `applyOnly` | `false` | Use apply strategy instead of hooks |
 | `force` | `false` | Pass `--force` to kubectl |
 
+> [!WARNING]
+> The `prune: true` default applies whenever the `manualDefaults` object is present — including
+> when you only set another field (for example `manualDefaults: {force: true}` or
+> `{dryRun: true}`). Manual syncs then prune unless you set `prune: false` explicitly.
+> The CLI (`argocd app create` / `app set` with `--sync-dry-run` / `--sync-force` /
+> `--sync-apply-only`) and UI write `prune: false` in those cases so enabling force, dry-run,
+> or apply-only alone does not opt into pruning. Declarative Git manifests must set
+> `prune: false` themselves if that is the intended behavior.
+
 An explicit value on the sync request always takes precedence. These settings are independent of
 `syncPolicy.automated.*`.
 
