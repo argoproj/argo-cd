@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"regexp"
@@ -11,6 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
 	authenticationv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
@@ -396,8 +399,9 @@ func TestClusterDefaultCABundle(t *testing.T) {
 	ctx := clusterFixture.Given(t)
 	server := kubeConfig.Host
 
+	bearerToken := createClusterAdminToken(t, ctx.DeploymentNamespace())
 	setClusterCABundle(t, string(kubeConfig.CAData))
-	registerCluster(t, ctx, server, createClusterAdminToken(t, ctx.DeploymentNamespace()))
+	registerCluster(t, ctx, server, bearerToken, "")
 
 	appCtx := app.GivenWithSameState(ctx)
 	appCtx.Path(guestbookPath).
@@ -417,9 +421,31 @@ func TestClusterDefaultCABundle(t *testing.T) {
 
 	setClusterCABundle(t, string(kubeConfig.CAData))
 	refreshUntilClusterTrusted(t, appCtx, true)
+
+	setClusterCATrust(t, server, ClusterCATrustSystem)
+	refreshUntilClusterTrusted(t, appCtx, false)
+
+	registerCluster(t, ctx, server, bearerToken, ClusterCATrustBundleAndSystem)
+	refreshUntilClusterTrusted(t, appCtx, true)
+
+	_, clusterClient, err := fixture.ArgoCDClientset.NewClusterClient()
+	require.NoError(t, err)
+	_, err = clusterClient.Create(t.Context(), &clusterpkg.ClusterCreateRequest{
+		Cluster: &Cluster{
+			Server: server,
+			Name:   ctx.GetName(),
+			Config: ClusterConfig{
+				BearerToken:     bearerToken,
+				TLSClientConfig: TLSClientConfig{CATrust: ClusterCATrust("both")},
+			},
+		},
+		Upsert: true,
+	})
+	require.Error(t, err)
+	assert.Equal(t, codes.InvalidArgument, status.Code(err))
 }
 
-func registerCluster(t *testing.T, ctx *clusterFixture.Context, server, bearerToken string) {
+func registerCluster(t *testing.T, ctx *clusterFixture.Context, server, bearerToken string, caTrust ClusterCATrust) {
 	t.Helper()
 	_, clusterClient, err := fixture.ArgoCDClientset.NewClusterClient()
 	require.NoError(t, err)
@@ -428,7 +454,10 @@ func registerCluster(t *testing.T, ctx *clusterFixture.Context, server, bearerTo
 			Cluster: &Cluster{
 				Server: server,
 				Name:   ctx.GetName(),
-				Config: ClusterConfig{BearerToken: bearerToken},
+				Config: ClusterConfig{
+					BearerToken:     bearerToken,
+					TLSClientConfig: TLSClientConfig{CATrust: caTrust},
+				},
 			},
 			Upsert: true,
 		})
@@ -477,6 +506,26 @@ func setClusterCABundle(t *testing.T, caBundle string) {
 		Labels: map[string]string{"app.kubernetes.io/part-of": "argocd"},
 		Data:   map[string]string{common.ArgoCDClusterCAConfigMapKey: caBundle},
 	}, metav1.CreateOptions{})
+	require.NoError(t, err)
+}
+
+func setClusterCATrust(t *testing.T, server string, caTrust ClusterCATrust) {
+	t.Helper()
+	secrets, err := fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).List(t.Context(), metav1.ListOptions{
+		LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeCluster,
+	})
+	require.NoError(t, err)
+	index := slices.IndexFunc(secrets.Items, func(secret corev1.Secret) bool {
+		return string(secret.Data["server"]) == strings.TrimRight(server, "/")
+	})
+	require.NotEqual(t, -1, index, "no cluster secret for %s", server)
+	secret := secrets.Items[index]
+	var config ClusterConfig
+	require.NoError(t, json.Unmarshal(secret.Data["config"], &config))
+	config.CATrust = caTrust
+	secret.Data["config"], err = json.Marshal(config)
+	require.NoError(t, err)
+	_, err = fixture.KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Update(t.Context(), &secret, metav1.UpdateOptions{})
 	require.NoError(t, err)
 }
 
