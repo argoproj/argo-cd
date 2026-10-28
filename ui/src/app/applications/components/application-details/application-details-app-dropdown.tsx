@@ -55,7 +55,8 @@ export const ApplicationsDetailsAppDropdown = (props: {appName: string; objectLi
                                     ? services.applications.getApplicationSet(appSetRef.name, props.application.metadata.namespace).catch((): models.ApplicationSet => null)
                                     : null
                             ]);
-                            const siblings = appSet?.status?.resources?.filter(r => r.kind === 'Application') ?? [];
+                            const accessibleKeys = new Set(apps.items.map(app => `${app.metadata.namespace}/${app.metadata.name}`));
+                            const siblings = appSet?.status?.resources?.filter(r => r.kind === 'Application' && accessibleKeys.has(`${r.namespace}/${r.name}`)) ?? [];
                             return {apps, siblings};
                         }}>
                         {({apps, siblings}: {apps: models.AbstractApplicationList; siblings: models.ApplicationSetResource[]}) => {
