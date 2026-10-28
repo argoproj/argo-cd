@@ -21,7 +21,12 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -32,6 +37,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
@@ -1895,4 +1901,44 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
+}
+
+func TestGRPCHealthCheckWithoutAuth(t *testing.T) {
+	s, closer := fakeServer(t)
+	defer closer()
+	s.DisableAuth = false
+	defer test.StartInformer(s.projInformer)()
+	defer test.StartInformer(s.appInformer)()
+	defer test.StartInformer(s.appsetInformer)()
+	defer test.StartInformer(s.clusterInformer)()
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	var wg gosync.WaitGroup
+	wg.Go(func() { s.Run(t.Context(), lns) })
+	defer func() {
+		s.stopCh <- syscall.SIGINT
+		wg.Wait()
+	}()
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	conn, err := grpc.NewClient(fmt.Sprintf("127.0.0.1:%d", s.ListenPort), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer conn.Close()
+
+	_, err = applicationpkg.NewApplicationServiceClient(conn).List(t.Context(), &applicationpkg.ApplicationQuery{})
+	require.Equal(t, codes.Unauthenticated, status.Code(err), "other services should still require auth")
+
+	healthClient := grpc_health_v1.NewHealthClient(conn)
+	resp, err := healthClient.Check(t.Context(), &grpc_health_v1.HealthCheckRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, resp.GetStatus())
+
+	stream, err := healthClient.Watch(t.Context(), &grpc_health_v1.HealthCheckRequest{})
+	require.NoError(t, err)
+	resp, err = stream.Recv()
+	require.NoError(t, err)
+	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, resp.GetStatus())
 }
