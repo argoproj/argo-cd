@@ -229,6 +229,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 	for i := range opts {
 		opts[i](cache)
 	}
+	cache.constructed = true
 	return cache
 }
 
@@ -317,6 +318,9 @@ type clusterCache struct {
 
 	// engine lives here rather than on store, so store never depends on it.
 	engine syncEngine
+	// constructed is set once NewClusterCache has applied its opts. SetMode
+	// refuses to swap the engine after that (see SetMode).
+	constructed bool
 }
 
 type clusterCacheSync struct {
