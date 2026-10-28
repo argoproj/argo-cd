@@ -1,0 +1,11 @@
+# An EnvironmentConfig is data. It has no controller and no status
+# subresource, so nothing will ever write one -- it is only ever Healthy
+# via the has_no_conditions list.
+apiVersion: apiextensions.crossplane.io/v1beta1
+kind: EnvironmentConfig
+metadata:
+  name: example-environment
+data:
+  locations:
+    us: us-west-2
+    eu: eu-north-1

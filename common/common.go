@@ -141,7 +141,7 @@ const (
 	// SP tokens are valid for 60 minutes, so cache for 59 minutes to avoid issues with token expiration when taking the cleanup interval of 1 minute into account
 	AzureServicePrincipalCredsExpirationDuration = time.Minute * 59
 
-	// PasswordPatten is the default password patten
+	// PasswordPatten is the default password pattern
 	PasswordPatten = `^.{8,32}$`
 
 	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
@@ -171,6 +171,11 @@ const (
 	CallbackEndpoint = "/auth/callback"
 	// DexCallbackEndpoint is Argo CD's final callback endpoint when Dex is configured
 	DexCallbackEndpoint = "/api/dex/callback"
+	// DexDeviceCallbackEndpoint is the Dex-internal device authorization callback
+	// endpoint (RFC 8628). Dex uses this as the redirect_uri when forwarding the
+	// user to the upstream connector (e.g. GitHub) during a device flow, so it
+	// must be registered in the argo-cd-cli static client's redirectURIs.
+	DexDeviceCallbackEndpoint = "/api/dex/device/callback"
 	// ArgoCDClientAppName is name of the Oauth client app used when registering our web app to dex
 	ArgoCDClientAppName = "Argo CD"
 	// ArgoCDClientAppID is the Oauth client ID we will use when registering our app to dex
@@ -247,6 +252,14 @@ const (
 	// AnnotationKeyAppSkipReconcile tells the Application to skip the Application controller reconcile.
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
+
+	// AnnotationKeyIgnoreDifferences allows resources to specify ignore-differences rules as inline YAML.
+	// The value must be a YAML list, currently only supports jsonPointers key listing RFC6901 JSON Pointer paths.
+	// Example:
+	//   argocd.argoproj.io/ignore-differences: |-
+	//     jsonPointers:
+	//     - /spec/replicas
+	AnnotationKeyIgnoreDifferences = "argocd.argoproj.io/ignore-differences"
 
 	// LabelKeyComponentRepoServer is the label key to identify the component as repo-server
 	LabelKeyComponentRepoServer = "app.kubernetes.io/component"

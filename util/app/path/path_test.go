@@ -8,8 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	fileutil "github.com/argoproj/argo-cd/v3/test/fixture/path"
 )
@@ -121,9 +119,7 @@ func TestAbsSymlink(t *testing.T) {
 
 func getApp(annotation *string, sourcePath *string) *v1alpha1.Application {
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "test-app",
-		},
+		Name: "test-app",
 	}
 	if annotation != nil {
 		app.Annotations = make(map[string]string)
@@ -256,4 +252,29 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 			assert.ElementsMatch(t, ttc.expectedPaths, GetSourceRefreshPaths(ttc.app, ttc.source), "GetAppRefreshPath()")
 		})
 	}
+}
+
+func TestAppFilesHaveChanged_MonoRepoSiblingPaths(t *testing.T) {
+	t.Parallel()
+
+	app1Paths := GetSourceRefreshPaths(
+		getApp(new("."), new("app/testargo1")),
+		v1alpha1.ApplicationSource{Path: "app/testargo1"},
+	)
+	app2Paths := GetSourceRefreshPaths(
+		getApp(new("."), new("app/testargo2")),
+		v1alpha1.ApplicationSource{Path: "app/testargo2"},
+	)
+
+	changedFiles := []string{"app/testargo2/values.yaml"}
+
+	assert.False(t, AppFilesHaveChanged(app1Paths, changedFiles), "sibling app path change must not affect testargo1")
+	assert.True(t, AppFilesHaveChanged(app2Paths, changedFiles), "testargo2 must refresh when its own path changes")
+}
+
+func TestAppFilesHaveChanged_EmptyChangedFilesAssumesRefresh(t *testing.T) {
+	t.Parallel()
+
+	paths := []string{"app/testargo1"}
+	assert.True(t, AppFilesHaveChanged(paths, nil))
 }

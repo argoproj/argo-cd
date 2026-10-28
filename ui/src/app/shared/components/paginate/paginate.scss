@@ -26,6 +26,7 @@
         margin-bottom: 0;
         margin-left: 0;
         font-variant-numeric: tabular-nums;
+        user-select: none;
 
         li {
             display: inline-block;
@@ -62,6 +63,10 @@
 
     &__size-menu {
         margin-left: auto;
+        display: flex;
+        align-items: center;
+        gap: 1em;
+
         li {
             display: block;
         }

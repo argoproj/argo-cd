@@ -310,8 +310,7 @@ func TestPluginStatusCode(t *testing.T) {
 				assert.Empty(t, errMsg)
 			} else {
 				require.Error(t, pluginErr)
-				var exitErr *exec.ExitError
-				if errors.As(pluginErr, &exitErr) {
+				if exitErr, ok := errors.AsType[*exec.ExitError](pluginErr); ok {
 					assert.Equal(t, tt.wantStatus, exitErr.ExitCode(), "unexpected exit code")
 				} else {
 					t.Fatalf("expected an exit error, got: %v", pluginErr)

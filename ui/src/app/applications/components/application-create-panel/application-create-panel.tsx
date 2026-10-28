@@ -4,7 +4,7 @@ import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormFieldHOC as ReactFormField, Text} from 'argo-ui';
 import {cloneDeep, debounce} from 'lodash-es';
-import {YamlEditor} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {AuthSettingsCtx} from '../../../shared/context';
@@ -16,7 +16,7 @@ import {HydratorSourcePanel} from './hydrator-source-panel';
 import {CollapsibleMultiSourceSection} from './collapsible-multi-source-section';
 import {SourcePanel} from './source-panel';
 import './application-create-panel.scss';
-import {getAppDefaultSource} from '../utils';
+import {getAppDefaultSource, getClusterOptions} from '../utils';
 import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -225,7 +225,7 @@ export const ApplicationCreatePanel = (props: {
             load={() =>
                 Promise.all([
                     services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort()),
-                    services.clusters.list().then(clusters => clusters.sort()),
+                    services.clusters.list(),
                     services.repos.list()
                 ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
             }>
@@ -464,7 +464,7 @@ export const ApplicationCreatePanel = (props: {
                                                             qeId='application-create-field-cluster-url'
                                                             field='spec.destination.server'
                                                             componentProps={{
-                                                                items: clusters.map(cluster => cluster.server),
+                                                                items: getClusterOptions(clusters, 'server'),
                                                                 filterSuggestions: true
                                                             }}
                                                             component={AutocompleteField}
@@ -478,7 +478,7 @@ export const ApplicationCreatePanel = (props: {
                                                             qeId='application-create-field-cluster-name'
                                                             field='spec.destination.name'
                                                             componentProps={{
-                                                                items: clusters.map(cluster => cluster.name),
+                                                                items: getClusterOptions(clusters, 'name'),
                                                                 filterSuggestions: true
                                                             }}
                                                             component={AutocompleteField}

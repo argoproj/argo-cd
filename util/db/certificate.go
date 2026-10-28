@@ -22,10 +22,8 @@ type SSHKnownHostsEntry struct {
 	Host string
 	// The type of the key
 	SubType string
-	// The data of the key, including the type
+	// The base64 encoded key data, without the key type
 	Data string
-	// The SHA256 fingerprint of the key
-	Fingerprint string
 }
 
 // TLSCertificate represents a TLS certificate.
@@ -73,12 +71,12 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 		}
 
 		for _, entry := range sshKnownHosts {
-			if certutil.MatchHostName(entry.Host, selector.HostNamePattern) && (selector.CertSubType == "" || selector.CertSubType == "*" || selector.CertSubType == entry.SubType) {
+			if matchSSHKnownHostsEntry(entry, selector) {
 				certificates = append(certificates, appsv1.RepositoryCertificate{
 					ServerName:  entry.Host,
 					CertType:    "ssh",
 					CertSubType: entry.SubType,
-					CertInfo:    "SHA256:" + certutil.SSHFingerprintSHA256FromString(fmt.Sprintf("%s %s", entry.Host, entry.Data)),
+					CertInfo:    sshKnownHostsFingerprint(entry),
 				})
 			}
 		}
@@ -122,29 +120,24 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 	}, nil
 }
 
-// GetRepoCertificate returns a single certificate from the datastore
-func (db *db) GetRepoCertificate(_ context.Context, serverType string, serverName string) (*appsv1.RepositoryCertificate, error) {
-	if serverType == "ssh" {
-		sshKnownHostsList, err := db.getSSHKnownHostsData()
-		if err != nil {
-			return nil, err
-		}
-		for _, entry := range sshKnownHostsList {
-			if entry.Host == serverName {
-				repo := &appsv1.RepositoryCertificate{
-					ServerName:  entry.Host,
-					CertType:    "ssh",
-					CertSubType: entry.SubType,
-					CertData:    []byte(entry.Data),
-					CertInfo:    entry.Fingerprint,
-				}
-				return repo, nil
-			}
-		}
-	}
+// sshFingerprintSHA256 returns the fingerprint of an SSH public key in the
+// format emitted by ssh-keygen(1), i.e. the base64 encoded SHA256 hash of the
+// key prefixed with "SHA256:".
+func sshFingerprintSHA256(key ssh.PublicKey) string {
+	return "SHA256:" + certutil.SSHFingerprintSHA256(key)
+}
 
-	// Fail
-	return nil, nil
+// sshKnownHostsFingerprint returns the fingerprint of the key held by an SSH
+// known hosts entry. Entries are only validated syntactically when they are
+// read from the ConfigMap, so the key data may still be unparseable - in that
+// case we return an empty string rather than a bare "SHA256:" prefix.
+func sshKnownHostsFingerprint(entry *SSHKnownHostsEntry) string {
+	_, pubKey, err := certutil.TokenizedDataToPublicKey(entry.Host, entry.SubType, entry.Data)
+	if err != nil {
+		log.Warnf("Could not parse SSH known hosts key for host %q of type %q: %v", entry.Host, entry.SubType, err)
+		return ""
+	}
+	return sshFingerprintSHA256(pubKey)
 }
 
 // CreateRepoCertificate creates one or more repository certificates and returns a list of certificates
@@ -238,7 +231,7 @@ func (db *db) CreateRepoCertificate(ctx context.Context, certificates *appsv1.Re
 			// If we created a new entry, or if we upserted an existing one, we need
 			// to save the data and notify the consumer about the operation.
 			if newEntry || upserted {
-				certificate.CertInfo = certutil.SSHFingerprintSHA256(rawKeyData)
+				certificate.CertInfo = sshFingerprintSHA256(rawKeyData)
 				created = append(created, certificate)
 				saveSSHData = true
 			}
