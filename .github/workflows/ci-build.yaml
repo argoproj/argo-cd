@@ -682,8 +682,8 @@ jobs:
           CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
   test-e2e:
     # Without an explicit name GitHub builds one from every matrix value, which leaks
-    # the meaningless `latest` boolean into all 16 check names, e.g. "(v1.34.11, false, 1)".
-    name: e2e (k8s ${{ matrix.k3s.version }}, shard ${{ matrix.shard }})
+    # the meaningless `latest` boolean into every check name, e.g. "(v1.34.11, false, 1)".
+    name: e2e (k8s ${{ matrix.k3s.version }}, ${{ matrix.cluster-cache }} cache, shard ${{ matrix.shard }})
     if: ${{ needs.changes.outputs.e2e == 'true' }}
     runs-on: ${{ github.repository == 'argoproj/argo-cd' && 'oracle-vm-16cpu-64gb-x86-64' || 'ubuntu-24.04' }}
     strategy:
@@ -703,6 +703,15 @@ jobs:
         # The e2e suite is one serial package; splitting it across jobs is the only way to
         # cut its wall-clock time. Legs and count both come from the changes job.
         shard: ${{ fromJSON(needs.changes.outputs.e2e_shards) }}
+        # The experimental informer cluster cache runs on the latest k3s version only.
+        cluster-cache: [legacy, informer]
+        exclude:
+          - k3s: {version: v1.36.4, latest: false}
+            cluster-cache: informer
+          - k3s: {version: v1.35.8, latest: false}
+            cluster-cache: informer
+          - k3s: {version: v1.34.11, latest: false}
+            cluster-cache: informer
     needs:
       - build-go
       - changes
@@ -713,6 +722,7 @@ jobs:
       ARGOCD_E2E_APISERVER_PORT: '8088'
       ARGOCD_E2E_SHARD: ${{ matrix.shard }}
       ARGOCD_E2E_SHARD_COUNT: ${{ needs.changes.outputs.e2e_shard_count }}
+      ARGOCD_CLUSTER_CACHE_USE_INFORMERS: ${{ matrix.cluster-cache == 'informer' }}
       ARGOCD_APPLICATION_NAMESPACES: 'argocd-e2e-external,argocd-e2e-external-2'
       ARGOCD_SERVER: '127.0.0.1:8088'
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
@@ -851,22 +861,22 @@ jobs:
         with:
           name: e2e-code-coverage-shard${{ matrix.shard }}
           path: /tmp/coverage
-        if: ${{ matrix.k3s.latest }}
+        if: ${{ matrix.k3s.latest && matrix.cluster-cache == 'legacy' }}
       - name: Upload e2e test timings
         # Feeds the shard coverage check in the composite job below and the e2e-shard-weights.yaml
         # workflow; keep the artifact name in sync with both and hack/e2e-shard-weights-download.sh.
-        # Only the "latest" k3s version is needed: one full pass over the suite.
+        # Only the "latest" k3s version with the legacy cache is needed: one full pass over the suite.
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: e2e-test-timings-shard${{ matrix.shard }}
           path: test-results/junit.xml
-        if: ${{ matrix.k3s.latest }}
+        if: ${{ matrix.k3s.latest && matrix.cluster-cache == 'legacy' }}
       - name: Upload e2e-server logs
         # Also kept when a test only failed on its first attempt: without this the logs
         # for a retried-then-passed flake are discarded and it cannot be diagnosed.
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: e2e-server-k8s${{ matrix.k3s.version }}-shard${{ matrix.shard }}.log
+          name: e2e-server-k8s${{ matrix.k3s.version }}-${{ matrix.cluster-cache }}-shard${{ matrix.shard }}.log
           path: |
             /tmp/e2e-server.log
             rerunreport.txt
