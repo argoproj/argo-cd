@@ -445,6 +445,34 @@ func TestRepositoryServer(t *testing.T) {
 		assert.Equal(t, "repo", repo.Repo)
 	})
 
+	t.Run("Test_CreateRepositoryNormalizesSparsePaths", func(t *testing.T) {
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetRepositoryCredentials(mock.Anything, mock.Anything).Return(nil, nil).Maybe()
+		db.EXPECT().CreateRepository(mock.Anything, mock.MatchedBy(func(r *appsv1.Repository) bool {
+			return assert.ObjectsAreEqual([]string{"apps", "charts"}, r.SparsePaths)
+		})).Return(&appsv1.Repository{Repo: "test"}, nil)
+		repoServerClient := &mocks.RepoServerServiceClient{}
+		repoServerClient.EXPECT().TestRepository(mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+
+		s := NewServer(&mocks.Clientset{RepoServerServiceClient: repoServerClient}, db, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
+		_, err := s.CreateRepository(t.Context(), &repository.RepoCreateRequest{
+			Repo: &appsv1.Repository{Repo: "test", Username: "test", SparsePaths: []string{"/charts/", "apps"}},
+		})
+		require.NoError(t, err)
+	})
+
+	t.Run("Test_CreateRepositoryRejectsInvalidSparsePaths", func(t *testing.T) {
+		s := NewServer(&mocks.Clientset{}, &dbmocks.ArgoDB{}, enforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
+		for _, repo := range []*appsv1.Repository{
+			{Repo: "test", SparsePaths: []string{"../x"}},
+			{Repo: "test", SparsePaths: []string{"charts/*.yaml"}},
+			{Repo: "test", SparsePaths: []string{"charts"}, EnableLFS: true},
+		} {
+			_, err := s.CreateRepository(t.Context(), &repository.RepoCreateRequest{Repo: repo})
+			assert.Equal(t, codes.InvalidArgument, status.Code(err), "%v", repo)
+		}
+	})
+
 	t.Run("Test_CreateRepositoryWithUpsert", func(t *testing.T) {
 		repoServerClient := &mocks.RepoServerServiceClient{}
 		repoServerClient.EXPECT().TestRepository(mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)

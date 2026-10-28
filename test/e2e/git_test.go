@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 	"k8s.io/apimachinery/pkg/util/wait"
 
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
@@ -308,4 +310,64 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 			})
 			require.Error(t, waitErr, "A timeout error should occur, indicating that revisionHistoryLimit never changed from 9")
 		})
+}
+
+func TestGitPartialCloneWithEmptySparsePaths(t *testing.T) {
+	// The multi-dir-app test data has 3 directories (app-a, app-b, app-c), each with a deployment.
+	// Since we don't configure any sparse-paths, this counts as a full checkout where all three apps
+	// will be synced
+	Given(t).
+		Path("multi-dir-app").
+		Recurse().
+		DirectoryInclude("**/*.yaml").
+		HTTPSInsecureRepoURLAdded(true, repos.WithSparsePaths()).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceResultNumbering(3)).
+		Expect(ResourceHealthIs("Deployment", "app-a-deployment", health.HealthStatusHealthy)).
+		Expect(ResourceHealthIs("Deployment", "app-b-deployment", health.HealthStatusHealthy)).
+		Expect(ResourceHealthIs("Deployment", "app-c-deployment", health.HealthStatusHealthy)).
+		When().
+		PatchFile("app-a/deployment.yaml", `[{"op": "add", "path": "/metadata/labels", "value": {"foo": "bar"}}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestGitPartialCloneWithSparsePaths(t *testing.T) {
+	// This test verifies that sparse checkout actually restricts what gets checked out.
+	// The multi-dir-app test data has 3 directories (app-a, app-b, app-c), each with a deployment.
+	// We configure sparse paths to only check out /app-a, then create an app pointing to multi-dir-app.
+	// We verify that only 1 resource (app-a's deployment) is synced, proving that
+	// app-b and app-c were not checked out.
+	Given(t).
+		Path("multi-dir-app").
+		Recurse().
+		DirectoryInclude("**/*.yaml").
+		HTTPSInsecureRepoURLAdded(true, repos.WithSparsePaths("multi-dir-app/app-a")).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(ResourceResultNumbering(1)).
+		Expect(ResourceHealthIs("Deployment", "app-a-deployment", health.HealthStatusHealthy)).
+		When().
+		PatchFile("app-a/deployment.yaml", `[{"op": "add", "path": "/metadata/labels", "value": {"foo": "bar"}}]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }

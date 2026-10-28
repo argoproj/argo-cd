@@ -1,6 +1,7 @@
 package db
 
 import (
+	"strconv"
 	"testing"
 	"time"
 
@@ -289,6 +290,22 @@ func TestCreateExistingRepository(t *testing.T) {
 	})
 	require.Error(t, err)
 	assert.Equal(t, codes.AlreadyExists, status.Convert(err).Code())
+}
+
+// The API server treats a re-create as idempotent only if the stored repo DeepEquals the request.
+func TestCreateRepository_RoundTripsNilSparsePaths(t *testing.T) {
+	clientset := getClientset()
+	db := NewDB(testNamespace, settings.NewSettingsManager(t.Context(), clientset, testNamespace), clientset)
+
+	for _, sparsePaths := range [][]string{nil, {"charts", "apps"}} {
+		repo := &v1alpha1.Repository{Repo: "https://github.com/argoproj/repo-" + strconv.Itoa(len(sparsePaths)), SparsePaths: sparsePaths}
+		_, err := db.CreateRepository(t.Context(), repo)
+		require.NoError(t, err)
+
+		got, err := db.GetRepository(t.Context(), repo.Repo, "")
+		require.NoError(t, err)
+		assert.Equal(t, sparsePaths, got.SparsePaths)
+	}
 }
 
 func TestGetRepository(t *testing.T) {

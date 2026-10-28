@@ -105,6 +105,14 @@ export const RepoDetails = (props: {item: UnifiedRepo; save?: (params: NewHTTPSR
             });
         }
 
+        if (repository.type === 'git') {
+            items.push({
+                title: 'Sparse paths (comma-separated)',
+                view: repository.sparsePaths ? repository.sparsePaths.join(',') : '',
+                edit: (formApi: FormApi) => <FormField formApi={formApi} field='sparsePaths' component={Text} />
+            });
+        }
+
         if (connectionState) {
             items.push({
                 title: 'Connection State Details',
@@ -120,7 +128,8 @@ export const RepoDetails = (props: {item: UnifiedRepo; save?: (params: NewHTTPSR
         username,
         password: '',
         bearerToken: repository?.bearerToken || '',
-        depth: repository?.depth || 0
+        depth: repository?.depth || 0,
+        sparsePaths: repository?.sparsePaths ? repository.sparsePaths.join(',') : ''
     };
 
     const baseUpdateParams = repository && {
@@ -141,7 +150,8 @@ export const RepoDetails = (props: {item: UnifiedRepo; save?: (params: NewHTTPSR
         forceHttpBasicAuth: repository.forceHttpBasicAuth || false,
         useAzureWorkloadIdentity: repository.useAzureWorkloadIdentity || false,
         insecureOCIForceHttp: repository.insecureOCIForceHttp || false,
-        depth: repository.depth || 0
+        depth: repository.depth || 0,
+        sparsePaths: repository.sparsePaths ? repository.sparsePaths.join(',') : ''
     };
 
     return (
@@ -163,6 +173,7 @@ export const RepoDetails = (props: {item: UnifiedRepo; save?: (params: NewHTTPSR
                           params.password = input.password || '';
                           params.bearerToken = input.bearerToken || '';
                           params.depth = input.depth || 0;
+                          params.sparsePaths = input.sparsePaths || '';
                           await save(params);
                       }
             }
