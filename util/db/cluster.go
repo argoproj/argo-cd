@@ -73,7 +73,7 @@ func (db *db) getLocalCluster() *appv1.Cluster {
 func (db *db) applyClusterCABundle(clusters ...*appv1.Cluster) {
 	caBundle, err := db.settingsMgr.GetClusterCABundle()
 	if err != nil {
-		log.Warnf("Failed to load default cluster CA bundle, clusters without their own caData will use system roots: %v", err)
+		log.Warnf("Failed to load default cluster CA bundle, treating it as absent for the clusters relying on it: %v", err)
 		return
 	}
 	for _, c := range clusters {

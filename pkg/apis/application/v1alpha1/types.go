@@ -2513,6 +2513,7 @@ func (c *Cluster) Sanitized() *Cluster {
 			TLSClientConfig: TLSClientConfig{
 				Insecure:   c.Config.Insecure,
 				ServerName: c.Config.ServerName,
+				CATrust:    c.Config.CATrust,
 			},
 			// We can't know what the user has put into args or
 			// env vars on the exec provider that might be sensitive
@@ -4451,9 +4452,14 @@ func (c *Cluster) rawRestConfig() (*rest.Config, error) {
 			config.BearerTokenFile = ""
 		}
 	default:
+		var trust *defaultCABundleTrust
+		trust, err = c.defaultCABundleTrust()
+		if err != nil {
+			return nil, fmt.Errorf("unable to create K8s REST config: %w", err)
+		}
 		caData := c.Config.CAData
-		if c.usesDefaultCABundle() {
-			caData = trustForDefaultCABundle(c.DefaultCABundle).caData
+		if trust != nil {
+			caData = trust.caData
 		}
 		tlsClientConfig := rest.TLSClientConfig{
 			Insecure:   c.Config.Insecure,
@@ -4558,9 +4564,13 @@ func (c *Cluster) RESTConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
 	}
+	trust, err := c.defaultCABundleTrust()
+	if err != nil {
+		return nil, fmt.Errorf("unable to get K8s RAW REST config: %w", err)
+	}
 	var rootCAs *x509.CertPool
-	if c.usesDefaultCABundle() {
-		rootCAs = trustForDefaultCABundle(c.DefaultCABundle).pool
+	if trust != nil {
+		rootCAs = trust.pool
 		config.CAData = nil
 	}
 	err = setK8SConfigDefaults(config, rootCAs)
