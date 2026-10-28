@@ -3,6 +3,7 @@ package applicationset
 import (
 	"sort"
 	"testing"
+	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	cr_fake "sigs.k8s.io/controller-runtime/pkg/client/fake"
@@ -195,6 +196,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		enforcer,
 		nil,
 		fakeAppsClientset,
+		factory.Argoproj().V1alpha1().Applications().Lister(),
 		appsetInformer,
 		factory.Argoproj().V1alpha1().ApplicationSets().Lister(),
 		nil,
@@ -729,6 +731,51 @@ func TestResourceTree(t *testing.T) {
 
 		_, err := appSetServer.ResourceTree(t.Context(), &appsetQuery)
 		assert.EqualError(t, err, "namespace 'NOT-ALLOWED' is not permitted")
+	})
+
+	t.Run("ResourceTree sets createdAt from the generated Application", func(t *testing.T) {
+		createdAt := metav1.NewTime(time.Date(2026, 6, 22, 13, 37, 43, 0, time.UTC))
+		app1 := &appsv1.Application{
+			Name:              "app1",
+			Namespace:         "default",
+			CreationTimestamp: createdAt,
+		}
+		appSetServer := newTestAppSetServer(t, appSet1, appSet2, appSet3, app1)
+
+		appsetQuery := applicationset.ApplicationSetTreeQuery{Name: "AppSet1"}
+
+		res, err := appSetServer.ResourceTree(t.Context(), &appsetQuery)
+		require.NoError(t, err)
+		require.Len(t, res.Nodes, 1)
+		require.NotNil(t, res.Nodes[0].CreatedAt)
+		assert.Equal(t, createdAt, *res.Nodes[0].CreatedAt)
+	})
+
+	t.Run("ResourceTree falls back to the AppSet namespace and leaves createdAt unset without a matching Application", func(t *testing.T) {
+		createdAt := metav1.NewTime(time.Date(2026, 6, 22, 13, 37, 43, 0, time.UTC))
+		appSet4 := newTestAppSet(func(appset *appsv1.ApplicationSet) {
+			appset.Name = "AppSet4"
+			appset.Status.Resources = []appsv1.ResourceStatus{
+				// No namespace set: must fall back to the ApplicationSet namespace.
+				{Name: "app-without-namespace", Kind: "Application", Group: "argoproj.io", Version: "v1alpha1"},
+				{Name: "app-missing", Kind: "Application", Group: "argoproj.io", Version: "v1alpha1", Namespace: "default"},
+			}
+		})
+		app := &appsv1.Application{Name: "app-without-namespace", Namespace: testNamespace, CreationTimestamp: createdAt}
+		appSetServer := newTestAppSetServer(t, appSet4, app)
+
+		res, err := appSetServer.ResourceTree(t.Context(), &applicationset.ApplicationSetTreeQuery{Name: "AppSet4"})
+		require.NoError(t, err)
+		require.Len(t, res.Nodes, 2)
+		nodesByName := map[string]appsv1.ResourceNode{}
+		for _, node := range res.Nodes {
+			nodesByName[node.Name] = node
+		}
+		require.Contains(t, nodesByName, "app-without-namespace")
+		require.NotNil(t, nodesByName["app-without-namespace"].CreatedAt)
+		assert.Equal(t, createdAt, *nodesByName["app-without-namespace"].CreatedAt)
+		require.Contains(t, nodesByName, "app-missing")
+		assert.Nil(t, nodesByName["app-missing"].CreatedAt)
 	})
 }
 

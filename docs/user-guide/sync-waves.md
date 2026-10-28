@@ -137,6 +137,8 @@ Once the order is defined:
 3. It repeats this process until all phases and waves are in-sync and healthy.
 
 Because an application can have resources that are unhealthy in the first wave, it may be that the app can never get to healthy.
+A resource annotated with `argocd.argoproj.io/sync-options: SkipHealthCheck=true` is considered synced as soon as it has been
+applied, so later waves do not wait for it to become healthy. See [Skip Health Check During Sync](sync-options.md#skip-health-check-during-sync).
 
 ## How Do I Configure Phases?
 

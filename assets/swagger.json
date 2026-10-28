@@ -5693,6 +5693,9 @@
         "clientID": {
           "type": "string"
         },
+        "deviceURL": {
+          "type": "string"
+        },
         "enablePKCEAuthentication": {
           "type": "boolean"
         },
@@ -5713,6 +5716,9 @@
           "items": {
             "type": "string"
           }
+        },
+        "tokenURL": {
+          "type": "string"
         }
       }
     },
@@ -8329,6 +8335,11 @@
           "description": "Server requires Bearer authentication. This client will not attempt to use\nrefresh tokens for an OAuth2 flow.\nTODO: demonstrate an OAuth2 compatible client.",
           "type": "string"
         },
+        "burst": {
+          "description": "Burst allows extra queries to accumulate for a rapid burst of requests to this cluster.",
+          "type": "integer",
+          "format": "int64"
+        },
         "disableCompression": {
           "description": "DisableCompression bypasses automatic GZip compression requests to the server.",
           "type": "boolean"
@@ -8342,6 +8353,11 @@
         "proxyUrl": {
           "type": "string",
           "title": "ProxyURL is the URL to the proxy to be used for all requests send to the server"
+        },
+        "qps": {
+          "description": "QPS controls the number of queries per second allowed for this cluster.",
+          "type": "number",
+          "format": "float"
         },
         "tlsClientConfig": {
           "$ref": "#/definitions/v1alpha1TLSClientConfig"
@@ -9587,6 +9603,13 @@
           "description": "The Azure DevOps API URL to talk to. If blank, use https://dev.azure.com/.",
           "type": "string"
         },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude PRs with these labels",
+          "items": {
+            "type": "string"
+          }
+        },
         "labels": {
           "type": "array",
           "title": "Labels is used to filter the PRs that you want to target",
@@ -9692,6 +9715,13 @@
         "caRef": {
           "$ref": "#/definitions/v1alpha1ConfigMapKeyRef"
         },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude MRs with these labels",
+          "items": {
+            "type": "string"
+          }
+        },
         "insecure": {
           "type": "boolean",
           "title": "Skips validating the SCM provider's TLS certificate - useful for self-signed certificates.; default: false"
@@ -9723,6 +9753,13 @@
         "api": {
           "type": "string",
           "title": "The Gitea API URL to talk to. Required"
+        },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude PRs with these labels",
+          "items": {
+            "type": "string"
+          }
         },
         "insecure": {
           "description": "Allow insecure tls, for self-signed certificates; default: false.",
@@ -9759,6 +9796,13 @@
         "appSecretName": {
           "description": "AppSecretName is a reference to a GitHub App repo-creds secret with permission to access pull requests.",
           "type": "string"
+        },
+        "excludedLabels": {
+          "type": "array",
+          "title": "ExcludedLabels is used to exclude PRs with these labels",
+          "items": {
+            "type": "string"
+          }
         },
         "labels": {
           "type": "array",

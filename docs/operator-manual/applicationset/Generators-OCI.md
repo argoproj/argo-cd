@@ -145,6 +145,120 @@ The file contents are parsed as YAML/JSON, and the top-level fields become avail
 - `{{.path.basename}}`: Directory name
 - `{{.path.basenameNormalized}}`: Directory name with special characters replaced
 
+## Webhook Configuration
+
+By default, the ApplicationSet controller polls the OCI generator's registry every `requeueAfterSeconds`
+interval (defaulting to every 3 minutes) to detect changes. To eliminate the polling delay, the
+ApplicationSet webhook server can be configured to receive registry webhook events. The ApplicationSet
+webhook currently supports registry webhook events from GitHub Container Registry (GHCR).
+
+> [!NOTE]
+> The ApplicationSet controller webhook does not use the same [API server webhook](../webhook.md). ApplicationSet
+> exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be
+> created to expose this service to the webhook source.
+
+When an artifact is pushed, the ApplicationSet controller refreshes every ApplicationSet with an OCI generator
+whose `repoURL` and `revision` match the push. This includes OCI generators nested inside Matrix and Merge
+generators.
+
+- **`repoURL`** matches when it points at the pushed repository. Before comparing, the `oci://` prefix and any
+  trailing `/` are removed and the URL is lowercased. For example, `oci://ghcr.io/my-org/platform` and
+  `oci://GHCR.IO/My-Org/Platform/` both match a push to `ghcr.io/my-org/platform`.
+- **`revision`** matches when it is the pushed tag, or a [semver constraint](https://github.com/Masterminds/semver#checking-version-constraints)
+  that the pushed tag satisfies.
+
+The `revision` decides whether a webhook is useful:
+
+| `revision` | Webhook refreshes the ApplicationSet on push of                  |
+|------------|------------------------------------------------------------------|
+| `v1.2.3`   | Only `v1.2.3`, for example when the tag is overwritten           |
+| `^1.2.0`   | `>=1.2.0` and `<2.0.0` (e.g., `1.2.1`, `1.9.0`)                  |
+| `~1.2.0`   | `>=1.2.0` and `<1.3.0` (e.g., `1.2.1`, `1.2.9`)                  |
+| `>=1.0.0`  | Any version `>=1.0.0`                                            |
+
+For example, this ApplicationSet is refreshed whenever a new `1.x` tag of `ghcr.io/my-org/platform` is
+published, and the new artifact is used to generate the Applications:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: platform-apps
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - oci:
+      repoURL: oci://ghcr.io/my-org/platform
+      revision: ^1.0.0
+      directories:
+      - path: platform/*
+  template:
+    metadata:
+      name: '{{.path.basename}}'
+    spec:
+      project: "default"
+      source:
+        repoURL: oci://ghcr.io/my-org/platform
+        targetRevision: ^1.0.0
+        path: '{{.path.path}}'
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: '{{.path.basename}}'
+```
+
+> [!NOTE]
+> The webhook refreshes the ApplicationSet, which regenerates its Applications. Applications that point at the
+> same artifact, as in the template above, are refreshed by the [API server webhook](../webhook.md#3-webhook-configuration-for-oci-compliant-registries).
+> To refresh both on the same push, configure a webhook for each.
+
+### GitHub Container Registry (GHCR)
+
+Webhooks cannot be registered directly on a GHCR image repository. Instead, `package` events are delivered from
+the associated GitHub repository.
+
+> [!NOTE]
+> If your GHCR image repository is not yet linked to a GitHub repository, see [Connecting a repository to a package](https://docs.github.com/en/packages/learn-github-packages/connecting-a-repository-to-a-package).
+
+#### 1. Create the webhook in GitHub
+
+1. Go to your GitHub repository **Settings** → **Webhooks** → **Add webhook**
+2. Set **Payload URL** to the `/api/webhook` endpoint of your ApplicationSet instance (e.g. `https://applicationset.example.com/api/webhook`)
+3. Set **Content type** to `application/json`
+4. Set **Secret** to a secure value
+5. Under **Events**, select **Let me select individual events** and enable **Packages**
+
+> [!NOTE]
+> Only `published` events for `container` package types trigger a refresh. Other package types (npm, maven, etc.)
+> and actions are ignored.
+
+> [!WARNING]
+> GitHub does not send `package` webhook events for artifacts with unknown media types. If your OCI artifact uses a
+> custom or non-standard media type, the webhook will not be triggered. See [GitHub documentation on supported package types](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages).
+
+#### 2. Configure ApplicationSet with the webhook secret (Optional)
+
+GHCR webhooks use the same secret as GitHub Git webhooks (`webhook.github.secret`) in the `argocd-secret`
+Kubernetes secret. When the secret is set, the ApplicationSet webhook rejects GHCR events without a valid
+signature with `401 Unauthorized`.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-secret
+  namespace: argocd
+type: Opaque
+stringData:
+  webhook.github.secret: <your-webhook-secret>
+```
+
+After saving, restart the ApplicationSet controller for the changes to take effect.
+
+The ApplicationSet webhook also rejects payloads larger than `webhook.maxPayloadSizeMB` in the `argocd-cm`
+ConfigMap. See [Git generator webhook configuration](Generators-Git.md#1-create-the-webhook-in-the-git-provider) for details.
+
 ## Authentication
 
 OCI generator uses the same authentication mechanisms as regular OCI-based Argo CD Applications. Configure repository credentials in the Argo CD UI or using repository secrets with `enableOCI: true`.

@@ -101,6 +101,14 @@ func NewMockHandlerWithPayloadLimit(reactor *reactorDef, applicationNamespaces [
 	return newMockHandler(reactor, applicationNamespaces, maxPayloadSize, mockDB, &settings.ArgoCDSettings{}, objects...)
 }
 
+func NewMockHandlerWithDockerHubSecret(secret string, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil).Maybe()
+	argoSettings := settings.ArgoCDSettings{WebhookDockerHubSecret: secret}
+	defaultMaxPayloadSize := int64(50) * 1024 * 1024
+	return newMockHandler(nil, applicationNamespaces, defaultMaxPayloadSize, mockDB, &argoSettings, objects...)
+}
+
 func NewMockHandlerForBitbucketCallback(reactor *reactorDef, applicationNamespaces []string, objects ...runtime.Object) *ArgoCDWebhookHandler {
 	mockDB := &mocks.ArgoDB{}
 	mockDB.EXPECT().ListRepositories(mock.Anything).Return(
@@ -466,39 +474,35 @@ func TestUnknownEvent(t *testing.T) {
 func TestAppRevisionHasChanged(t *testing.T) {
 	t.Parallel()
 
-	getSource := func(targetRevision string) v1alpha1.ApplicationSource {
-		return v1alpha1.ApplicationSource{TargetRevision: targetRevision}
-	}
-
 	testCases := []struct {
 		name             string
-		source           v1alpha1.ApplicationSource
+		targetRevision   string
 		revision         string
 		touchedHead      bool
 		expectHasChanged bool
 	}{
-		{"no target revision, master, touched head", getSource(""), "master", true, true},
-		{"no target revision, master, did not touch head", getSource(""), "master", false, false},
-		{"dev target revision, master, touched head", getSource("dev"), "master", true, false},
-		{"dev target revision, dev, did not touch head", getSource("dev"), "dev", false, true},
-		{"refs/heads/dev target revision, master, touched head", getSource("refs/heads/dev"), "master", true, false},
-		{"refs/heads/dev target revision, dev, did not touch head", getSource("refs/heads/dev"), "dev", false, true},
-		{"refs/tags/dev target revision, dev, did not touch head", getSource("refs/tags/dev"), "dev", false, true},
-		{"env/test target revision, env/test, did not touch head", getSource("env/test"), "env/test", false, true},
-		{"refs/heads/env/test target revision, env/test, did not touch head", getSource("refs/heads/env/test"), "env/test", false, true},
-		{"refs/tags/env/test target revision, env/test, did not touch head", getSource("refs/tags/env/test"), "env/test", false, true},
-		{"three/part/rev target revision, rev, did not touch head", getSource("three/part/rev"), "rev", false, false},
-		{"1.* target revision (matching), 1.1.0, did not touch head", getSource("1.*"), "1.1.0", false, true},
-		{"refs/tags/1.* target revision (matching), 1.1.0, did not touch head", getSource("refs/tags/1.*"), "1.1.0", false, true},
-		{"1.* target revision (not matching), 2.0.0, did not touch head", getSource("1.*"), "2.0.0", false, false},
-		{"1.* target revision, dev (not semver), did not touch head", getSource("1.*"), "dev", false, false},
+		{"no target revision, master, touched head", "", "master", true, true},
+		{"no target revision, master, did not touch head", "", "master", false, false},
+		{"dev target revision, master, touched head", "dev", "master", true, false},
+		{"dev target revision, dev, did not touch head", "dev", "dev", false, true},
+		{"refs/heads/dev target revision, master, touched head", "refs/heads/dev", "master", true, false},
+		{"refs/heads/dev target revision, dev, did not touch head", "refs/heads/dev", "dev", false, true},
+		{"refs/tags/dev target revision, dev, did not touch head", "refs/tags/dev", "dev", false, true},
+		{"env/test target revision, env/test, did not touch head", "env/test", "env/test", false, true},
+		{"refs/heads/env/test target revision, env/test, did not touch head", "refs/heads/env/test", "env/test", false, true},
+		{"refs/tags/env/test target revision, env/test, did not touch head", "refs/tags/env/test", "env/test", false, true},
+		{"three/part/rev target revision, rev, did not touch head", "three/part/rev", "rev", false, false},
+		{"1.* target revision (matching), 1.1.0, did not touch head", "1.*", "1.1.0", false, true},
+		{"refs/tags/1.* target revision (matching), 1.1.0, did not touch head", "refs/tags/1.*", "1.1.0", false, true},
+		{"1.* target revision (not matching), 2.0.0, did not touch head", "1.*", "2.0.0", false, false},
+		{"1.* target revision, dev (not semver), did not touch head", "1.*", "dev", false, false},
 	}
 
 	for _, tc := range testCases {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			changed := sourceRevisionHasChanged(tcc.source, tcc.revision, tcc.touchedHead)
+			changed := RevisionHasChanged(tcc.targetRevision, tcc.revision, tcc.touchedHead)
 			assert.Equal(t, tcc.expectHasChanged, changed)
 		})
 	}
@@ -506,10 +510,6 @@ func TestAppRevisionHasChanged(t *testing.T) {
 
 func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 	t.Parallel()
-
-	sourceWithRevision := func(targetRevision string) v1alpha1.ApplicationSource {
-		return v1alpha1.ApplicationSource{TargetRevision: targetRevision}
-	}
 
 	githubPushPayload := func(branchName string) github.PushPayload {
 		// This payload's "ref" member always has the full git ref, according to the field description.
@@ -645,8 +645,8 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 			t.Parallel()
 			h := NewMockHandler(nil, []string{})
 			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(testCopy.hookPayload)
-			if got := sourceRevisionHasChanged(sourceWithRevision(testCopy.targetRevision), revisionFromHook, false); got != testCopy.hasChanged {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
+			if got := RevisionHasChanged(testCopy.targetRevision, revisionFromHook, false); got != testCopy.hasChanged {
+				t.Errorf("RevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
 			}
 		})
 	}
@@ -697,7 +697,7 @@ func Test_GetWebURLRegex(t *testing.T) {
 			regexp, err := GetWebURLRegex(testCopy.webURL)
 			require.NoError(t, err)
 			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
+				t.Errorf("GetWebURLRegex() = %v, want %v", matches, testCopy.shouldMatch)
 			}
 		})
 	}
@@ -737,7 +737,7 @@ func Test_GetAPIURLRegex(t *testing.T) {
 			regexp, err := GetAPIURLRegex(testCopy.apiURL)
 			require.NoError(t, err)
 			if matches := regexp.MatchString(testCopy.repo); matches != testCopy.shouldMatch {
-				t.Errorf("sourceRevisionHasChanged() = %v, want %v", matches, testCopy.shouldMatch)
+				t.Errorf("GetAPIURLRegex() = %v, want %v", matches, testCopy.shouldMatch)
 			}
 		})
 	}
@@ -1245,6 +1245,39 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			errExpected:  false,
 		},
 		{
+			name: "application outside the control plane namespace is keyed by its instance name",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd-apps",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "https://github.com/test/repo",
+						TargetRevision: "main",
+					},
+				},
+			},
+			project: &v1alpha1.AppProject{
+				Name:      "default",
+				Namespace: "argocd",
+				Spec: v1alpha1.AppProjectSpec{
+					SourceRepos: []string{"*"},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "*",
+							Namespace: "*",
+						},
+					},
+				},
+			},
+			seedCache:    true,
+			cacheUpdated: true,
+			errExpected:  false,
+		},
+		{
 			name: "single source rename cache miss is not an error",
 			app: &v1alpha1.Application{
 				Name:      "test-app",
@@ -1372,7 +1405,7 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			)
 
 			if tt.seedCache {
-				setupTestCache(t, repoCache, tt.app.Name, source, tt.project.EffectiveSourceIntegrity(), []string{"test-manifest"})
+				setupTestCache(t, repoCache, tt.app.InstanceName("argocd"), source, tt.project.EffectiveSourceIntegrity(), []string{"test-manifest"})
 			}
 			logger, _ := test.NewNullLogger()
 			logCtx := logger.WithField("application", tt.app.Name)
@@ -1390,7 +1423,7 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 				if tt.project != nil {
 					sourceIntegrity = tt.project.EffectiveSourceIntegrity()
 				}
-				key := cache.NewManifestKey(testAfterSHA, source, nil, "", "", testAppLabelKey, tt.app.Name, "", sourceIntegrity, clusterInfo, nil)
+				key := cache.NewManifestKey(testAfterSHA, source, nil, "", "", testAppLabelKey, tt.app.InstanceName("argocd"), "", sourceIntegrity, clusterInfo, nil)
 				err = repoCache.GetManifests(key, &cache.CachedManifestResponse{})
 				require.NoError(t, err)
 			}
@@ -2482,6 +2515,49 @@ func TestIsBBServerHeadTouched(t *testing.T) {
 				require.Contains(t, err.Error(), test.expectedErrString)
 				require.False(t, touchedHead)
 			}
+		})
+	}
+}
+
+func TestRepoURLMatches(t *testing.T) {
+	repoRegexp, err := GetWebURLRegex("https://github.com/argoproj/argo-cd")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name     string
+		repoURL  string
+		expected bool
+	}{
+		{
+			name:     "exact match",
+			repoURL:  "https://github.com/argoproj/argo-cd",
+			expected: true,
+		},
+		{
+			name:     "git extension",
+			repoURL:  "https://github.com/argoproj/argo-cd.git",
+			expected: true,
+		},
+		{
+			name:     "ssh form",
+			repoURL:  "git@github.com:argoproj/argo-cd.git",
+			expected: true,
+		},
+		{
+			name:     "different repo",
+			repoURL:  "https://github.com/argoproj/argo-rollouts",
+			expected: false,
+		},
+		{
+			name:     "different host",
+			repoURL:  "https://gitlab.com/argoproj/argo-cd",
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, RepoURLMatches(tt.repoURL, repoRegexp))
 		})
 	}
 }

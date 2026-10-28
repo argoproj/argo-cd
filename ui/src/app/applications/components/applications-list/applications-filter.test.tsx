@@ -72,12 +72,12 @@ describe('favorites filter', () => {
         }) as unknown as AppsListPreferences;
 
     test('a namespace qualified favorite does not match the same name in another namespace', () => {
-        const results = getAppFilterResults([appInNamespace('ns1'), appInNamespace('ns2')], prefWithFavorites(['ns1/guestbook']));
+        const results = getAppFilterResults([appInNamespace('ns1'), appInNamespace('ns2')], prefWithFavorites(['ns1/guestbook']), false);
         expect(results.map(result => result.filterResult.favourite)).toEqual([true, false]);
     });
 
     test('a favorite stored before the list became namespace-qualified still matches', () => {
-        const results = getAppFilterResults([appInNamespace('ns1'), appInNamespace('ns2')], prefWithFavorites(['guestbook']));
+        const results = getAppFilterResults([appInNamespace('ns1'), appInNamespace('ns2')], prefWithFavorites(['guestbook']), false);
         expect(results.map(result => result.filterResult.favourite)).toEqual([true, true]);
     });
 });
