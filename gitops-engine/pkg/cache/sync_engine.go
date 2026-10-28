@@ -39,9 +39,10 @@ type syncEngine interface {
 }
 
 // stopWatching isn't on syncEngine: only the engine calls it, and what it tears
-// down depends on how the engine watches. legacyEngine stops one (GroupKind,
-// namespace) watch; informerEngine currently stops every namespace's informer
-// for the GroupKind, since they share one watch context.
+// down depends on how the engine watches. informerEngine stops and purges one
+// (GroupKind, namespace) informer, dropping the GroupKind only when its last
+// namespace goes. legacyEngine cancels the GroupKind's shared watch context,
+// stopping every namespace, and purges only the given namespace.
 
 // newSyncEngine returns the engine for mode, bound to s. Any mode other than
 // ModeInformer gets the legacy engine.

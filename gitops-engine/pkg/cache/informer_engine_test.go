@@ -517,6 +517,100 @@ func TestEnsureSynced_InformerMode_RetryKeepsInformers(t *testing.T) {
 	assert.True(t, hasPod, "the completed initial list should populate c.resources")
 }
 
+// A periodic resync rebuilds the informers; if that rebuild's initial list
+// outlasts informerSyncTimeout, the retry must resume it like a first sync
+// rather than rebuild again (which would restart the list every retry).
+func TestEnsureSynced_InformerMode_ResyncTimeoutResumes(t *testing.T) {
+	client := fake.NewSimpleDynamicClient(scheme.Scheme, unstructuredPod("nginx", "default"))
+	defaultReactor := client.ReactionChain[0]
+
+	// Block the second pods list (the resync's) until listProceed is closed.
+	listEntered := make(chan struct{})
+	listProceed := make(chan struct{})
+	releaseList := sync.OnceFunc(func() { close(listProceed) })
+	t.Cleanup(releaseList)
+	var listMu sync.Mutex
+	listCount := 0
+	client.PrependReactor("list", "pods", func(action testcore.Action) (bool, runtime.Object, error) {
+		listMu.Lock()
+		listCount++
+		second := listCount == 2
+		listMu.Unlock()
+		if second {
+			close(listEntered)
+			<-listProceed
+		}
+		handled, ret, err := defaultReactor.React(action)
+		if !handled || err != nil {
+			return handled, ret, err
+		}
+		ret.(metav1.ListInterface).SetResourceVersion("1")
+		return handled, ret, nil
+	})
+
+	c := NewClusterCache(
+		&rest.Config{Host: "https://test"},
+		SetMode(ModeInformer),
+		SetInformerSyncTimeout(500*time.Millisecond),
+		SetClusterSyncRetryTimeout(100*time.Millisecond),
+		SetResyncTimeout(time.Hour),
+		SetKubectl(&kubetest.MockKubectlCmd{
+			APIResources:  []kube.APIResourceInfo{podsAPI()},
+			DynamicClient: client,
+		}),
+	)
+	t.Cleanup(func() { c.Invalidate() })
+	require.NoError(t, c.EnsureSynced())
+
+	// Backdate the sync so the next EnsureSynced does a periodic resync.
+	c.syncStatus.lock.Lock()
+	past := time.Now().Add(-2 * time.Hour)
+	c.syncStatus.syncTime = &past
+	c.syncStatus.lock.Unlock()
+
+	err := c.EnsureSynced()
+	require.Error(t, err, "the resync's list is blocked, so the resync must time out")
+	select {
+	case <-listEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the resync's pods List was never invoked")
+	}
+
+	informersOf := func() map[string]cache.SharedIndexInformer {
+		c.lock.RLock()
+		defer c.lock.RUnlock()
+		out := map[string]cache.SharedIndexInformer{}
+		for ns, si := range informerEngineOf(c).informers[podsGVK.GroupKind()] {
+			out[ns] = si.informer
+		}
+		return out
+	}
+	before := informersOf()
+	require.NotEmpty(t, before)
+
+	// Let the cached error expire so the next EnsureSynced retries.
+	time.Sleep(150 * time.Millisecond)
+
+	done := make(chan error, 1)
+	go func() { done <- c.EnsureSynced() }()
+	releaseList()
+	select {
+	case err = <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("EnsureSynced retry did not return")
+	}
+	require.NoError(t, err, "the retry must succeed once the blocked resync list completes")
+
+	after := informersOf()
+	require.Len(t, after, len(before))
+	for ns, informer := range before {
+		assert.Same(t, informer, after[ns], "the retry must keep the running informer for %q", ns)
+	}
+	listMu.Lock()
+	defer listMu.Unlock()
+	assert.Equal(t, 2, listCount, "the retry must not restart the resync's initial list")
+}
+
 // TestEnsureSynced_InformerMode_TeardownMidSyncDoesNotFailSync: when a GVR
 // disappears between discovery and its informer's initial list (CRD deleted),
 // the reflector's NotFound routes through informerWatchErrorHandler ->
