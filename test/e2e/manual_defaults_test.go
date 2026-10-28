@@ -18,6 +18,9 @@ import (
 // when the CLI omits --prune (request Prune stays nil).
 func TestManualDefaultsPruneOnSync(t *testing.T) {
 	Given(t).
+		// Fixture defaults Prune(true); disable so Sync() omits --prune and
+		// manualDefaults.prune is what enables pruning.
+		Prune(false).
 		Path("two-nice-pods").
 		When().
 		CreateFromFile(func(app *Application) {
