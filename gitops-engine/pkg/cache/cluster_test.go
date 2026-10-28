@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
 	"sync"
 	"sync/atomic"
@@ -3270,4 +3271,159 @@ func TestAPIResourceLabelSelectorIsAppliedToList(t *testing.T) {
 	})
 	assert.Len(t, resources, 1)
 	assert.Contains(t, resources, kube.NewResourceKey("", "Pod", "default", "matching"))
+}
+
+func TestGetManagedLiveObjs_BothEngines(t *testing.T) {
+	t.Parallel()
+	targetDeploy := func(namespace string) *unstructured.Unstructured {
+		un := strToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helm-guestbook
+  labels:
+    app: helm-guestbook`)
+		un.SetNamespace(namespace)
+		return un
+	}
+	wantDeploy := map[kube.ResourceKey]*unstructured.Unstructured{
+		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
+	}
+	tests := []struct {
+		name             string
+		namespaces       []string
+		clusterResources bool
+		target           *unstructured.Unstructured
+		want             map[kube.ResourceKey]*unstructured.Unstructured
+		wantErr          string
+	}{
+		{name: "all namespaces", target: targetDeploy(""), want: wantDeploy},
+		{name: "valid namespace", namespaces: []string{"default", "production"}, target: targetDeploy("production"), want: wantDeploy},
+		{name: "invalid namespace", namespaces: []string{"default", "develop"}, target: targetDeploy("production"), wantErr: "namespace \"production\" for Deployment \"helm-guestbook\" is not managed"},
+		{name: "namespaced mode cluster level resource", namespaces: []string{"default", "production"}, target: targetDeploy(""), wantErr: "cluster level Deployment \"helm-guestbook\" can not be managed when in namespaced mode"},
+		{name: "namespaced mode cluster resources enabled", namespaces: []string{"default", "production"}, clusterResources: true, target: targetDeploy(""), want: wantDeploy},
+		{name: "namespaced mode cluster resources enabled other namespace", namespaces: []string{"default", "production"}, clusterResources: true, target: targetDeploy("some-other-namespace"), wantErr: "namespace \"some-other-namespace\" for Deployment \"helm-guestbook\" is not managed"},
+	}
+	modes := []struct {
+		name string
+		mode Mode
+	}{{"legacy", ModeLegacy}, {"informer", ModeInformer}}
+	for _, m := range modes {
+		for _, tt := range tests {
+			t.Run(m.name+"/"+tt.name, func(t *testing.T) {
+				t.Parallel()
+				cluster := newClusterWithOptions(t, []UpdateSettingsFunc{
+					SetMode(m.mode),
+					SetNamespaces(tt.namespaces),
+					SetClusterResources(tt.clusterResources),
+					SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
+						return nil, true
+					}),
+				}, testPod1(), testRS(), testDeploy())
+				t.Cleanup(func() { cluster.Invalidate() })
+				require.NoError(t, cluster.EnsureSynced())
+
+				managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{tt.target}, func(r *Resource) bool {
+					return len(r.OwnerRefs) == 0
+				})
+				if tt.wantErr != "" {
+					assert.Nil(t, managedObjs)
+					assert.EqualError(t, err, tt.wantErr)
+					return
+				}
+				require.NoError(t, err)
+				assert.Equal(t, tt.want, managedObjs)
+			})
+		}
+	}
+}
+
+func TestIterateHierarchyV2_ClusterScopedParent_BothEngines(t *testing.T) {
+	t.Parallel()
+	modes := []struct {
+		name string
+		mode Mode
+	}{{"legacy", ModeLegacy}, {"informer", ModeInformer}}
+	for _, m := range modes {
+		t.Run(m.name, func(t *testing.T) {
+			t.Parallel()
+			cluster := newClusterWithOptions(t, []UpdateSettingsFunc{SetMode(m.mode)},
+				testClusterParent(), testNamespacedChild(), testClusterChild()).WithAPIResources([]kube.APIResourceInfo{{
+				GroupKind:            schema.GroupKind{Group: "", Kind: "Namespace"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "namespaces"},
+				Meta:                 metav1.APIResource{Namespaced: false},
+			}, {
+				GroupKind:            schema.GroupKind{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"},
+				GroupVersionResource: schema.GroupVersionResource{Group: "rbac.authorization.k8s.io", Version: "v1", Resource: "clusterroles"},
+				Meta:                 metav1.APIResource{Namespaced: false},
+			}})
+			t.Cleanup(func() { cluster.Invalidate() })
+			require.NoError(t, cluster.EnsureSynced())
+
+			keys := []kube.ResourceKey{}
+			cluster.IterateHierarchyV2(
+				[]kube.ResourceKey{kube.GetResourceKey(mustToUnstructured(testClusterParent()))},
+				func(resource *Resource, _ map[kube.ResourceKey]*Resource) bool {
+					keys = append(keys, resource.ResourceKey())
+					return true
+				},
+			)
+			assert.ElementsMatch(t, []kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testClusterParent())),
+				kube.GetResourceKey(mustToUnstructured(testClusterChild())),
+				kube.GetResourceKey(mustToUnstructured(testNamespacedChild())),
+			}, keys)
+		})
+	}
+}
+
+func TestGetChildren_BothEngines(t *testing.T) {
+	t.Parallel()
+	modes := []struct {
+		name string
+		mode Mode
+	}{{"legacy", ModeLegacy}, {"informer", ModeInformer}}
+	for _, m := range modes {
+		t.Run(m.name, func(t *testing.T) {
+			t.Parallel()
+			cluster := newClusterWithOptions(t, []UpdateSettingsFunc{SetMode(m.mode)}, testPod1(), testRS(), testDeploy())
+			t.Cleanup(func() { cluster.Invalidate() })
+			require.NoError(t, cluster.EnsureSynced())
+
+			refs := func(resources []*Resource) []string {
+				names := make([]string, 0, len(resources))
+				for _, r := range resources {
+					names = append(names, r.Ref.Kind+"/"+r.Ref.Name)
+				}
+				return names
+			}
+			assert.Equal(t, []string{"Pod/helm-guestbook-pod-1"}, refs(getChildren(cluster, mustToUnstructured(testRS()))))
+			assert.Equal(t, []string{"ReplicaSet/helm-guestbook-rs", "Pod/helm-guestbook-pod-1"}, refs(getChildren(cluster, mustToUnstructured(testDeploy()))))
+		})
+	}
+}
+
+func TestFindResources_BothEngines(t *testing.T) {
+	t.Parallel()
+	modes := []struct {
+		name string
+		mode Mode
+	}{{"legacy", ModeLegacy}, {"informer", ModeInformer}}
+	for _, m := range modes {
+		t.Run(m.name, func(t *testing.T) {
+			t.Parallel()
+			cluster := newClusterWithOptions(t, []UpdateSettingsFunc{SetMode(m.mode)}, testPod1(), testRS(), testDeploy())
+			t.Cleanup(func() { cluster.Invalidate() })
+			require.NoError(t, cluster.EnsureSynced())
+
+			assert.ElementsMatch(t, []kube.ResourceKey{
+				kube.GetResourceKey(mustToUnstructured(testPod1())),
+				kube.GetResourceKey(mustToUnstructured(testRS())),
+				kube.GetResourceKey(mustToUnstructured(testDeploy())),
+			}, slices.Collect(maps.Keys(cluster.FindResources("default"))))
+			assert.Empty(t, cluster.FindResources("other"))
+			pods := cluster.FindResources("default", func(r *Resource) bool { return r.Ref.Kind == "Pod" })
+			assert.Len(t, pods, 1)
+		})
+	}
 }
