@@ -118,6 +118,21 @@ func (e *informerEngine) ensureSynced() error {
 
 // sync performs the informer-mode full (re)sync. Called with c.lock held; it
 // releases and re-acquires c.lock while waiting for the initial lists.
+//
+// A rebuild cancels every informer, wipes the resource index and refreshes the
+// server metadata. It runs on the first sync, after Invalidate, and on the
+// periodic resyncTimeout rebuild. A retry after a timed-out initial sync does
+// not rebuild: the running informers keep their list progress, sync only starts
+// informers for newly discovered APIs and waits again, so a cluster whose
+// initial list outlasts informerSyncTimeout still converges.
+//
+// The wipe happens under c.lock, but c.lock is released during the wait, so a
+// reader that does not go through EnsureSynced (which serializes on syncMu)
+// can see a partially loaded cache until the wait completes. Argo CD reads
+// only after EnsureSynced, so it is unaffected; library callers that read
+// directly should call EnsureSynced first.
+// ponytail: no swap-in of a fully loaded index; build the new maps aside and
+// swap them in at the end if a library consumer needs consistent reads mid-sync.
 func (e *informerEngine) sync() (err error) {
 	c := e.c
 	c.log.Info("Start syncing cluster (informer mode)")
@@ -140,6 +155,18 @@ func (e *informerEngine) sync() (err error) {
 			log.Info("Cluster successfully synced (informer mode)")
 		}
 	}()
+
+	// The previous initial sync timed out with its informers still running:
+	// keep them so in-flight lists keep their progress, start informers for any
+	// newly discovered API, and wait again.
+	if c.apisMeta != nil && !e.firstSyncCompleted && len(e.informers) > 0 {
+		c.log.Info("Resuming initial informer sync")
+		if err := e.startMissingWatches(); err != nil {
+			return err
+		}
+		discoveryEnd = time.Now()
+		return e.waitForInitialLists()
+	}
 
 	// Cancel any existing informers before rebuilding. watchCancel stops
 	// every namespace watch for a GroupKind (shared context).
@@ -185,17 +212,24 @@ func (e *informerEngine) sync() (err error) {
 	// Informers start without blocking, so everything up to here is discovery
 	// and the wait below is the initial list.
 	discoveryEnd = time.Now()
+	return e.waitForInitialLists()
+}
 
-	// Bound the wait by clusterSyncRetryTimeout so a single broken API
-	// (forbidden, misbehaving aggregated API server, transient list
-	// failure) does not block all reconciliation. Reflectors that haven't
-	// synced keep retrying with backoff in the background; if the
-	// underlying cause clears (e.g., RBAC granted), HasSynced flips true
-	// and c.resources populates via the event handler — no further sync
-	// work needed. The outer EnsureSynced loop runs again after
-	// clusterSyncRetryTimeout, which tears these informers down and
-	// starts a fresh attempt.
-	waitCtx, cancelWait := context.WithTimeout(context.Background(), c.clusterSyncRetryTimeout)
+// waitForInitialLists waits until every watched informer has delivered its
+// initial list, then reports the outcome via resolveSyncResult. Called with
+// c.lock held; it releases c.lock during each wait slice.
+//
+// The wait is bounded by informerSyncTimeout so a single broken API
+// (forbidden, misbehaving aggregated API server, transient list failure)
+// does not block all reconciliation. Reflectors that haven't synced keep
+// retrying with backoff in the background; if the underlying cause clears
+// (e.g., RBAC granted), HasSynced flips true and c.resources populates via
+// the event handler. The outer EnsureSynced loop retries after
+// clusterSyncRetryTimeout, and that retry keeps these informers and waits
+// again (see sync).
+func (e *informerEngine) waitForInitialLists() error {
+	c := e.c
+	waitCtx, cancelWait := context.WithTimeout(context.Background(), c.informerSyncTimeout)
 	defer cancelWait()
 
 	// Wait in short slices, re-snapshotting the watched informers between
@@ -252,10 +286,11 @@ func (e *informerEngine) onInvalidate() {
 }
 
 // startMissingWatches discovers the API surface and starts an informer set
-// for every GroupKind not already watched. Both informer start paths route
-// here: CRD-driven registration (via handleCRDEvent) and the full sync
-// (sync, where the preceding apisMeta reset makes the
-// skip-already-watched check a no-op). Caller holds store.lock.
+// for every GroupKind not already watched. Every informer start path routes
+// here: CRD-driven registration (via handleCRDEvent), the full sync (sync,
+// where the preceding apisMeta reset makes the skip-already-watched check a
+// no-op), and the retry after a timed-out initial sync (which keeps the
+// already-watched GroupKinds). Caller holds store.lock.
 //
 // Runs serially — the per-API work is mostly informer setup, not blocking
 // operations; parallelism can come later if discovery-heavy clusters show it
@@ -481,8 +516,8 @@ func (e *informerEngine) resolveSyncResult(synced bool, watched []watchedInforme
 
 	// Return an error so callers don't operate against a partially
 	// populated cache. ensureSynced caches the error for
-	// clusterSyncRetryTimeout, then retries sync() — which tears
-	// these informers down and starts fresh. Stricter than legacy
+	// clusterSyncRetryTimeout, then retries sync(), which keeps these
+	// informers and waits for them again. Stricter than legacy
 	// (which silently drops forbidden GVRs from apisMeta and reports
 	// success), but it prevents app reconciliation from running
 	// against a half-loaded cluster view. Future work: lazy GVK
@@ -494,7 +529,7 @@ func (e *informerEngine) resolveSyncResult(synced bool, watched []watchedInforme
 			pending = append(pending, fmt.Sprintf("%s[%s]", w.gk, namespaceDescription(w.ns)))
 		}
 	}
-	return fmt.Errorf("informers did not complete initial list within %s: %v", c.clusterSyncRetryTimeout, pending)
+	return fmt.Errorf("informers did not complete initial list within the informer sync timeout (%s): %v", c.informerSyncTimeout, pending)
 }
 
 // buildInformer creates a SharedIndexInformer wired with the engine's
