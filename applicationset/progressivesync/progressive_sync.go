@@ -511,61 +511,66 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 
 		// A spec change detected in this pass must keep the app Waiting: the live
 		// sync status still describes the old spec, which is only replaced later
-		// in the reconcile, so it cannot show that the new spec has synced.
-		if newAppStatus.Status == argov1alpha1.ProgressiveSyncWaiting && !specChanged {
-			// App has changed to waiting because the TargetRevisions changed or it is a new selected app
-			// This does not mean we should always sync the app. The app may not be OutOfSync
-			// and may not require a sync if it does not have differences.
-			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
-				if app.Status.Health.Status == health.HealthStatusHealthy {
-					newAppStatus.LastTransitionTime = &now
-					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
-					newAppStatus.Message = "Application resource has synced, updating status to Healthy"
-				} else {
-					newAppStatus.LastTransitionTime = &now
-					newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
-					newAppStatus.Message = "Application resource has synced, updating status to Progressing"
-				}
-			}
-		} else if !specChanged {
-			// The target revision is the same, so we need to evaluate the current revision progress.
-			// Skipped when a spec change was detected in this pass: the progress below is
-			// evaluated against the old spec and must not override the Waiting status above.
-			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {
-				// No need to evaluate status health further if the application did not change since our last transition
-				if app.Status.ReconciledAt == nil || (newAppStatus.LastTransitionTime != nil && app.Status.ReconciledAt.After(newAppStatus.LastTransitionTime.Time)) {
-					// Validate that at least one sync was triggered after the pending transition time
-					if app.Status.OperationState != nil && app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
-						statusLogCtx = statusLogCtx.WithField("app.operation", app.Status.OperationState.Phase)
+		// in the reconcile, so it cannot show that the new spec has synced. The
+		// pass after the write needs the comparedTo check in syncStatusMatchesSpec
+		// for the same reason: specChanged is false by then, but the sync status
+		// may still have been computed for the old spec.
+		if !specChanged {
+			if newAppStatus.Status == argov1alpha1.ProgressiveSyncWaiting {
+				// App has changed to waiting because the TargetRevisions changed or it is a new selected app
+				// This does not mean we should always sync the app. The app may not be OutOfSync
+				// and may not require a sync if it does not have differences.
+				if appSyncStatus == argov1alpha1.SyncStatusCodeSynced && syncStatusMatchesSpec(&app) {
+					if app.Status.Health.Status == health.HealthStatusHealthy {
+						newAppStatus.LastTransitionTime = &now
+						newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
+						newAppStatus.Message = "Application resource has synced, updating status to Healthy"
+					} else {
 						newAppStatus.LastTransitionTime = &now
 						newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
-
-						switch {
-						case app.Status.OperationState.Phase.Successful():
-							newAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing"
-						case app.Status.OperationState.Phase.Completed():
-							newAppStatus.Message = "Application resource completed a sync, updating status from Pending to Progressing"
-						default:
-							// If a sync fails or has errors, the Application should be configured with retry. It is not the appset's job to retry failed syncs
-							newAppStatus.Message = "Application resource became Progressing, updating status from Pending to Progressing"
-						}
-					} else if isApplicationWithError(app) {
-						// Validate if the application has errors preventing it to be reconciled and perform syncs
-						// If it does, we move it to progressing.
-						newAppStatus.LastTransitionTime = &now
-						newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
-						newAppStatus.Message = "Application resource has error and cannot sync, updating status to Progressing"
+						newAppStatus.Message = "Application resource has synced, updating status to Progressing"
 					}
 				}
-			}
+			} else {
+				// The target revision is the same, so we need to evaluate the current revision progress.
+				// Skipped when a spec change was detected in this pass: the progress below is
+				// evaluated against the old spec and must not override the Waiting status above.
+				if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {
+					// No need to evaluate status health further if the application did not change since our last transition
+					if app.Status.ReconciledAt == nil || (newAppStatus.LastTransitionTime != nil && app.Status.ReconciledAt.After(newAppStatus.LastTransitionTime.Time)) {
+						// Validate that at least one sync was triggered after the pending transition time
+						if app.Status.OperationState != nil && app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
+							statusLogCtx = statusLogCtx.WithField("app.operation", app.Status.OperationState.Phase)
+							newAppStatus.LastTransitionTime = &now
+							newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
 
-			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
-				// If the status has reached progressing, we know a sync has been triggered. No matter the result of that operation,
-				// we want an the app to reach the Healthy state for the current revision.
-				if appHealthStatus == health.HealthStatusHealthy && appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
-					newAppStatus.LastTransitionTime = &now
-					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
-					newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
+							switch {
+							case app.Status.OperationState.Phase.Successful():
+								newAppStatus.Message = "Application resource completed a sync successfully, updating status from Pending to Progressing"
+							case app.Status.OperationState.Phase.Completed():
+								newAppStatus.Message = "Application resource completed a sync, updating status from Pending to Progressing"
+							default:
+								// If a sync fails or has errors, the Application should be configured with retry. It is not the appset's job to retry failed syncs
+								newAppStatus.Message = "Application resource became Progressing, updating status from Pending to Progressing"
+							}
+						} else if isApplicationWithError(app) {
+							// Validate if the application has errors preventing it to be reconciled and perform syncs
+							// If it does, we move it to progressing.
+							newAppStatus.LastTransitionTime = &now
+							newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
+							newAppStatus.Message = "Application resource has error and cannot sync, updating status to Progressing"
+						}
+					}
+				}
+
+				if currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
+					// If the status has reached progressing, we know a sync has been triggered. No matter the result of that operation,
+					// we want an the app to reach the Healthy state for the current revision.
+					if appHealthStatus == health.HealthStatusHealthy && appSyncStatus == argov1alpha1.SyncStatusCodeSynced && syncStatusMatchesSpec(&app) {
+						newAppStatus.LastTransitionTime = &now
+						newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
+						newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
+					}
 				}
 			}
 		}
@@ -691,6 +696,23 @@ func GetLatestWaitingTransitionTimeOfAppset(appset *argov1alpha1.ApplicationSet)
 		}
 	}
 	return latest
+}
+
+// syncStatusMatchesSpec reports whether the Application's sync status was computed for its
+// current spec, using the same fields the application controller checks in needRefreshAppStatus.
+// status.sync.comparedTo records what the comparison used; if it differs from the current spec,
+// the sync status describes an older spec and must not promote the app.
+func syncStatusMatchesSpec(app *argov1alpha1.Application) bool {
+	comparedTo := app.Status.Sync.ComparedTo
+	if app.Spec.HasMultipleSources() {
+		if !app.Spec.Sources.Equals(comparedTo.Sources) {
+			return false
+		}
+	} else if source := app.Spec.GetSource(); !source.Equals(&comparedTo.Source) {
+		return false
+	}
+	return reflect.DeepEqual(app.Spec.Destination, comparedTo.Destination) &&
+		app.Spec.IgnoreDifferences.Equals(comparedTo.IgnoreDifferences)
 }
 
 func hasPendingChanges(appStatus argov1alpha1.ApplicationSetApplicationStatus) bool {
