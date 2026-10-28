@@ -16493,6 +16493,10 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -16638,6 +16642,10 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       insecure:
                                         type: boolean
                                       labels:
@@ -16669,6 +16677,10 @@ spec:
                                         type: string
                                       appSecretName:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -16705,6 +16717,10 @@ spec:
                                         - configMapName
                                         - key
                                         type: object
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       insecure:
                                         type: boolean
                                       labels:
@@ -25189,6 +25205,10 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -25334,6 +25354,10 @@ spec:
                                     properties:
                                       api:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       insecure:
                                         type: boolean
                                       labels:
@@ -25365,6 +25389,10 @@ spec:
                                         type: string
                                       appSecretName:
                                         type: string
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       labels:
                                         items:
                                           type: string
@@ -25401,6 +25429,10 @@ spec:
                                         - configMapName
                                         - key
                                         type: object
+                                      excludedLabels:
+                                        items:
+                                          type: string
+                                        type: array
                                       insecure:
                                         type: boolean
                                       labels:
@@ -30214,6 +30246,10 @@ spec:
                           properties:
                             api:
                               type: string
+                            excludedLabels:
+                              items:
+                                type: string
+                              type: array
                             labels:
                               items:
                                 type: string
@@ -30359,6 +30395,10 @@ spec:
                           properties:
                             api:
                               type: string
+                            excludedLabels:
+                              items:
+                                type: string
+                              type: array
                             insecure:
                               type: boolean
                             labels:
@@ -30390,6 +30430,10 @@ spec:
                               type: string
                             appSecretName:
                               type: string
+                            excludedLabels:
+                              items:
+                                type: string
+                              type: array
                             labels:
                               items:
                                 type: string
@@ -30426,6 +30470,10 @@ spec:
                               - configMapName
                               - key
                               type: object
+                            excludedLabels:
+                              items:
+                                type: string
+                              type: array
                             insecure:
                               type: boolean
                             labels:
@@ -36404,7 +36452,7 @@ spec:
               key: dexserver.connector.failure.continue
               name: argocd-cmd-params-cm
               optional: true
-        image: ghcr.io/dexidp/dex:v2.46.0
+        image: ghcr.io/dexidp/dex:v2.46.1
         imagePullPolicy: Always
         name: dex
         ports:
@@ -36942,6 +36990,18 @@ spec:
               key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_METRICS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_REPO_SERVER_OTLP_METRICS_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.interval
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
           valueFrom:
             configMapKeyRef:
@@ -37030,6 +37090,12 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: reposerver.git.request.timeout
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_GIT_LS_REMOTE_OPTIMIZED_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.git.lsremote.optimized.enabled
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG
@@ -37547,6 +37613,18 @@ spec:
           valueFrom:
             configMapKeyRef:
               key: otlp.sample.ratio
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_OTLP_METRICS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_OTLP_METRICS_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.interval
               name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
@@ -38088,6 +38166,18 @@ spec:
               key: otlp.sample.ratio
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.enabled
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              key: otlp.metrics.interval
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:
             configMapKeyRef:
@@ -38185,6 +38275,8 @@ spec:
           name: argocd-home
         - mountPath: /home/argocd/params
           name: argocd-cmd-params-cm
+        - mountPath: /app/config/tls
+          name: tls-certs
         - mountPath: /tmp
           name: argocd-application-controller-tmp
         workingDir: /home/argocd
@@ -38194,6 +38286,9 @@ spec:
       volumes:
       - emptyDir: {}
         name: argocd-home
+      - configMap:
+          name: argocd-tls-certs-cm
+        name: tls-certs
       - emptyDir: {}
         name: argocd-application-controller-tmp
       - name: argocd-repo-server-tls
@@ -38267,7 +38362,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.2-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.3-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           preStop:
@@ -38338,7 +38433,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.2-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.3-alpine
         imagePullPolicy: IfNotPresent
         lifecycle:
           postStart:
@@ -38413,7 +38508,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.2-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.3-alpine
         imagePullPolicy: IfNotPresent
         livenessProbe:
           exec:
@@ -38469,7 +38564,7 @@ spec:
             secretKeyRef:
               key: auth
               name: argocd-redis
-        image: public.ecr.aws/docker/library/redis:8.10.2-alpine
+        image: public.ecr.aws/docker/library/redis:8.10.3-alpine
         imagePullPolicy: IfNotPresent
         name: config-init
         securityContext:

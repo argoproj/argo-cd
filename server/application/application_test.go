@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	goruntime "runtime"
 	"slices"
 	"strconv"
 	"strings"
@@ -3535,6 +3536,47 @@ func TestMaxPodLogsRender(t *testing.T) {
 		assert.Equal(t, codes.InvalidArgument, statusCode.Code())
 		assert.EqualError(t, err, "rpc error: code = InvalidArgument desc = max pods to view logs are reached. Please provide more granular query")
 	})
+}
+
+// disconnectingPodLogsServer simulates a client that disconnects mid-stream: Send cancels the
+// stream context and fails only after PodLogs has returned, so nothing reads done anymore.
+type disconnectingPodLogsServer struct {
+	TestPodLogsServer
+	cancel          context.CancelFunc
+	podLogsReturned chan struct{}
+}
+
+func (s *disconnectingPodLogsServer) Send(_ *application.LogEntry) error {
+	s.cancel()
+	<-s.podLogsReturned
+	return errors.New("client disconnected")
+}
+
+func TestPodLogsNoGoroutineLeakOnSendError(t *testing.T) {
+	appServer, adminCtx := createAppServerWithMaxLodLogs(t, 1)
+	ctx, cancel := context.WithCancel(adminCtx)
+	defer cancel()
+	ws := &disconnectingPodLogsServer{TestPodLogsServer{ctx: ctx}, cancel, make(chan struct{})}
+
+	// Send blocks until podLogsReturned is closed, so PodLogs can only return via ctx.Done().
+	err := appServer.PodLogs(&application.ApplicationPodLogsQuery{Name: new("test")}, ws)
+	close(ws.podLogsReturned)
+	require.NoError(t, err)
+
+	// The log-sending goroutine must exit once its Send fails, even though nobody reads done anymore.
+	podLogsGoroutines := func() []string {
+		buf := make([]byte, 1<<22)
+		n := goruntime.Stack(buf, true)
+		var found []string
+		for g := range strings.SplitSeq(string(buf[:n]), "\n\n") {
+			if strings.Contains(g, "(*Server).PodLogs.func") {
+				found = append(found, g)
+			}
+		}
+		return found
+	}
+	assert.Eventually(t, func() bool { return len(podLogsGoroutines()) == 0 }, 5*time.Second, 50*time.Millisecond,
+		"PodLogs goroutines still running after PodLogs returned: %v", podLogsGoroutines())
 }
 
 // createAppServerWithMaxLodLogs creates a new app server with given number of pods and resources

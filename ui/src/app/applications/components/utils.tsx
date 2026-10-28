@@ -593,14 +593,15 @@ export async function getResourceActionsMenuItems(resource: ResourceTreeNode, me
                 iconClassName: action.iconClass,
                 action: async () => {
                     const confirmed = false;
-                    const title = action.params ? `Enter input parameters for action: ${action.name}` : `Perform ${action.name} action?`;
+                    const actionLabel = action.displayName ?? action.name;
+                    const title = action.params ? `Enter input parameters for action: ${actionLabel}` : `Perform ${actionLabel} action?`;
                     await apis.popup.prompt(
                         title,
                         api => (
                             <div>
                                 {!action.params && (
                                     <div className='argo-form-row'>
-                                        <div> Are you sure you want to perform {action.name} action?</div>
+                                        <div> Are you sure you want to perform {actionLabel} action?</div>
                                     </div>
                                 )}
                                 {action.params &&
@@ -2045,4 +2046,8 @@ export function formatResourceInfo(name: string, value: string): {displayValue: 
         displayValue: value,
         tooltipValue: `${name}: ${value}`
     };
+}
+
+export function getClusterOptions(clusters: appModels.Cluster[], field: 'server' | 'name'): string[] {
+    return clusters.map(cluster => cluster[field]).sort();
 }

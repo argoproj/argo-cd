@@ -3408,6 +3408,11 @@ func (in *PullRequestGeneratorAzureDevOps) DeepCopyInto(out *PullRequestGenerato
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ExcludedLabels != nil {
+		in, out := &in.ExcludedLabels, &out.ExcludedLabels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -3522,6 +3527,11 @@ func (in *PullRequestGeneratorGitLab) DeepCopyInto(out *PullRequestGeneratorGitL
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ExcludedLabels != nil {
+		in, out := &in.ExcludedLabels, &out.ExcludedLabels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	if in.CARef != nil {
 		in, out := &in.CARef, &out.CARef
 		*out = new(ConfigMapKeyRef)
@@ -3553,6 +3563,11 @@ func (in *PullRequestGeneratorGitea) DeepCopyInto(out *PullRequestGeneratorGitea
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
+	if in.ExcludedLabels != nil {
+		in, out := &in.ExcludedLabels, &out.ExcludedLabels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
@@ -3576,6 +3591,11 @@ func (in *PullRequestGeneratorGithub) DeepCopyInto(out *PullRequestGeneratorGith
 	}
 	if in.Labels != nil {
 		in, out := &in.Labels, &out.Labels
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
+	if in.ExcludedLabels != nil {
+		in, out := &in.ExcludedLabels, &out.ExcludedLabels
 		*out = make([]string, len(*in))
 		copy(*out, *in)
 	}
