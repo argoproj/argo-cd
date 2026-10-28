@@ -397,7 +397,10 @@ unrelated change happens in the external source.
 
 > [!NOTE]
 > The comparison also works with shallow cloning (`depth` greater than `0`). Argo CD fetches the previously synced commit
-> at the configured depth and compares it directly with the new commit.
+> at the configured depth and compares it directly with the new commit. This requires the Git server to allow fetching
+> commits by SHA (for self-hosted servers, `uploadpack.allowReachableSHA1InWant` or `uploadpack.allowAnySHA1InWant`).
+> If that fetch fails, Argo CD treats the application as changed and regenerates manifests, retrying the fetch on each
+> refresh.
 
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
