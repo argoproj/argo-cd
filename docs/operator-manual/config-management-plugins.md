@@ -395,7 +395,16 @@ application path, additionally enable one of:
 3. Directly setting `ARGOCD_REPO_SERVER_PLUGIN_TAR_MANIFEST_GENERATE_PATHS_ONLY` environment variable on the repo server to `true`.
 
 With this enabled, files that the annotation does not name are not sent to the plugin. This option has no effect unless
-`--plugin-use-manifest-generate-paths` is enabled.
+`--plugin-use-manifest-generate-paths` is enabled. It also changes the following:
+
+* A symlink is sent as a link only. Its target is sent only when the annotation names the target too.
+* A glob that matches a directory sends that whole directory, like `tar czf - envs/*` would. Note that refresh matches a
+  glob against each changed file path only, so `envs/*` does not trigger a refresh when `envs/a/values.yaml` changes.
+* Manifest generation fails with `no files to send` when the annotation selects no regular file.
+* Applications without the annotation still send the whole repository.
+* Plugin discovery still sends the whole repository. A plugin with a `discover` section receives the whole repository
+  once before manifest generation, so the full benefit applies only to applications that name a plugin without a
+  `discover` section.
 
 ## Migrating from argocd-cm plugins
 
