@@ -737,7 +737,7 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings, refreshRESTConf
 		if refreshRESTConfigs {
 			restConfig, err := c.restConfigUsingDefaultCABundle(server)
 			if err != nil {
-				c.dropClusterUsingDefaultCABundle(server, clust, err)
+				c.dropClusterCache(server, clust, err)
 				continue
 			}
 			if restConfig != nil {
@@ -763,7 +763,7 @@ func (c *liveStateCache) invalidateClustersUsingDefaultCABundle(cacheSettings ca
 	for server, cluster := range clusters {
 		restConfig, err := c.restConfigUsingDefaultCABundle(server)
 		if err != nil {
-			c.dropClusterUsingDefaultCABundle(server, cluster, err)
+			c.dropClusterCache(server, cluster, err)
 			continue
 		}
 		if restConfig == nil {
@@ -816,8 +816,8 @@ func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) (*rest.Co
 	return clusterCacheRESTConfig(cluster)
 }
 
-func (c *liveStateCache) dropClusterUsingDefaultCABundle(server string, cluster clustercache.ClusterCache, err error) {
-	log.Warnf("Failed to build REST config of cluster %s after a default CA bundle change, dropping its cache: %v", server, err)
+func (c *liveStateCache) dropClusterCache(server string, cluster clustercache.ClusterCache, err error) {
+	log.Warnf("Failed to build REST config of cluster %s, dropping its cache: %v", server, err)
 	cluster.Invalidate()
 	c.lock.Lock()
 	if c.clusters[server] == cluster {
@@ -1087,11 +1087,11 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 		var updateSettings []clustercache.UpdateSettingsFunc
 		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
 			newClusterRESTConfig, err := clusterCacheRESTConfig(newCluster)
-			if err == nil {
-				updateSettings = append(updateSettings, clustercache.SetConfig(newClusterRESTConfig))
-			} else {
-				log.Errorf("error getting cluster REST config: %v", err)
+			if err != nil {
+				c.dropClusterCache(newCluster.Server, cluster, err)
+				return
 			}
+			updateSettings = append(updateSettings, clustercache.SetConfig(newClusterRESTConfig))
 		}
 		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
 			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))

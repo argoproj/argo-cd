@@ -133,6 +133,32 @@ func TestHandleModEvent_ClusterExcluded(t *testing.T) {
 	assert.Len(t, clustersCache.clusters, 1)
 }
 
+func TestHandleModEvent_ConfigError(t *testing.T) {
+	t.Parallel()
+	clusterCache := &mocks.ClusterCache{}
+	clusterCache.EXPECT().Invalidate().Return().Once()
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(1)
+	clustersCache := liveStateCache{
+		clusters: map[string]cache.ClusterCache{
+			"https://mycluster": clusterCache,
+		},
+		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
+	}
+
+	clustersCache.handleModEvent(&appv1.Cluster{
+		Server: "https://mycluster",
+		Config: appv1.ClusterConfig{Username: "foo"},
+	}, &appv1.Cluster{
+		Server:     "https://mycluster",
+		Config:     appv1.ClusterConfig{Username: "foo", TLSClientConfig: appv1.TLSClientConfig{CATrust: "both"}},
+		Namespaces: []string{"default"},
+	})
+
+	clusterCache.AssertExpectations(t)
+	assert.NotContains(t, clustersCache.clusters, "https://mycluster", "a cluster whose new config cannot be built must not keep its old connection")
+}
+
 func TestHandleModEvent_NoChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.EXPECT().Invalidate(mock.Anything).Panic("should not invalidate").Maybe()
