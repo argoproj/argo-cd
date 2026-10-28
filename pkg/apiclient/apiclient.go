@@ -262,6 +262,10 @@ func NewClient(opts *ClientOptions) (Client, error) {
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
+	if _, err := parseHeaders(opts.Headers); err != nil {
+		return nil, err
+	}
+	c.Headers = opts.Headers
 
 	if opts.HttpRetryMax > 0 {
 		retryClient := retryablehttp.NewClient()
@@ -314,7 +318,6 @@ func NewClient(opts *ClientOptions) (Client, error) {
 			return nil, err
 		}
 	}
-	c.Headers = opts.Headers
 
 	return &c, nil
 }
