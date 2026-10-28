@@ -15,6 +15,7 @@ up automatically.
 
 In core mode, --kubeconfig records a Kubernetes configuration file path in the Argo CD context.
 Subsequent core-mode commands reuse that file unless --kubeconfig overrides it.
+The flag requires --core and must reference an existing file.
 
 ```
 argocd login SERVER [flags]

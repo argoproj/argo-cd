@@ -93,6 +93,8 @@ argocd login --core
 
 Save a custom kubeconfig path in a named Argo CD context:
 
+The file must already exist. The login command rejects `--kubeconfig` unless `--core` is set.
+
 ```bash
 argocd login --core --name k3s --kubeconfig /etc/rancher/k3s/k3s.yaml
 argocd app list
@@ -112,6 +114,9 @@ An explicit `--kubeconfig` overrides the saved path for that command without cha
 ```bash
 argocd app list --argocd-context k3s --kubeconfig /path/to/another-kubeconfig
 ```
+
+For `argocd cluster add`, `--kubeconfig` selects the cluster being registered.
+The core-mode management cluster continues to use the saved Argo CD context path or the normal Kubernetes defaults.
 
 If no path was saved, core mode uses the usual Kubernetes loading rules, including
 `KUBECONFIG` and `~/.kube/config`. To return a context to those defaults, log in again

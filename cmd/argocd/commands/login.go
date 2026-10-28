@@ -63,7 +63,8 @@ by path and read on every invocation, which means certificates rotated by an ext
 up automatically.
 
 In core mode, --kubeconfig records a Kubernetes configuration file path in the Argo CD context.
-Subsequent core-mode commands reuse that file unless --kubeconfig overrides it.`,
+Subsequent core-mode commands reuse that file unless --kubeconfig overrides it.
+The flag requires --core and must reference an existing file.`,
 		Example: `# Login to Argo CD using a username and password
 argocd login cd.argoproj.io
 
@@ -81,6 +82,21 @@ argocd login cd.argoproj.io --core
 
 # Save a custom Kubernetes configuration for a named core-mode context
 argocd login --core --name k3s --kubeconfig /etc/rancher/k3s/k3s.yaml`,
+		PreRunE: func(c *cobra.Command, _ []string) error {
+			if !clientOpts.Core && (c.Flags().Changed("kubeconfig") || clientOpts.KubeConfigPath != "") {
+				return stderrors.New("--kubeconfig requires --core")
+			}
+			if clientOpts.Core && clientOpts.KubeConfigPath != "" {
+				info, err := os.Stat(clientOpts.KubeConfigPath)
+				if err != nil {
+					return fmt.Errorf("cannot access kubeconfig %q: %w", clientOpts.KubeConfigPath, err)
+				}
+				if info.IsDir() {
+					return fmt.Errorf("kubeconfig %q is a directory", clientOpts.KubeConfigPath)
+				}
+			}
+			return nil
+		},
 		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 

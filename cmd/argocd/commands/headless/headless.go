@@ -368,9 +368,11 @@ func ConfigureKubeConfig(opts *apiclient.ClientOptions, cmd *cobra.Command) erro
 	if flag == nil {
 		return nil
 	}
+	coreFlag := initialize.IsCoreKubeConfigFlag(flag)
+	explicitCorePath := coreFlag && flag.Changed
 
 	var configCtx *localconfig.Context
-	if !opts.Core || !flag.Changed {
+	if !opts.Core || !explicitCorePath {
 		localCfg, err := localconfig.ReadLocalConfig(opts.ConfigPath)
 		if err != nil {
 			return fmt.Errorf("error reading local config: %w", err)
@@ -387,13 +389,15 @@ func ConfigureKubeConfig(opts *apiclient.ClientOptions, cmd *cobra.Command) erro
 	}
 
 	path := opts.KubeConfigPath
-	if flag.Changed {
+	if explicitCorePath {
 		path = flag.Value.String()
 	} else if path == "" && configCtx != nil && configCtx.Server.Core {
 		path = configCtx.KubeConfigPath
 	}
-	if err := flag.Value.Set(path); err != nil {
-		return fmt.Errorf("error configuring kubeconfig path: %w", err)
+	if coreFlag {
+		if err := flag.Value.Set(path); err != nil {
+			return fmt.Errorf("error configuring kubeconfig path: %w", err)
+		}
 	}
 	opts.KubeConfigPath = path
 	opts.Core = true

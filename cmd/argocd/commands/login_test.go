@@ -293,6 +293,8 @@ func TestLoginCoreKubeConfigContexts(t *testing.T) {
 	configPath := filepath.Join(dir, "argocd-config")
 	first := filepath.Join(dir, "first.yaml")
 	second := filepath.Join(dir, "second.yaml")
+	require.NoError(t, os.WriteFile(first, nil, 0o600))
+	require.NoError(t, os.WriteFile(second, nil, 0o600))
 	coreLogin(t, configPath, "--name", "first", "--kubeconfig", first)
 	cfg := coreLogin(t, configPath, "--name", "second", "--kubeconfig", second)
 	require.Len(t, cfg.Contexts, 2)
@@ -306,11 +308,49 @@ func TestLoginCoreWithoutKubeConfig(t *testing.T) {
 	dir := t.TempDir()
 	configPath := filepath.Join(dir, "argocd-config")
 	t.Setenv("KUBECONFIG", filepath.Join(dir, "environment.yaml"))
-	coreLogin(t, configPath, "--name", "core", "--kubeconfig", filepath.Join(dir, "saved.yaml"))
+	saved := filepath.Join(dir, "saved.yaml")
+	require.NoError(t, os.WriteFile(saved, nil, 0o600))
+	coreLogin(t, configPath, "--name", "core", "--kubeconfig", saved)
 	cfg := coreLogin(t, configPath, "--name", "core")
 	require.Len(t, cfg.Contexts, 1)
 	assert.Empty(t, cfg.Contexts[0].KubeConfig)
 	data, err := os.ReadFile(configPath)
 	require.NoError(t, err)
 	assert.NotContains(t, string(data), "kubeconfig:")
+}
+
+// TestLoginKubeConfigValidation rejects unusable explicit paths and flags outside core mode before writing configuration.
+func TestLoginKubeConfigValidation(t *testing.T) {
+	dir := t.TempDir()
+	existing := filepath.Join(dir, "kubeconfig")
+	require.NoError(t, os.WriteFile(existing, nil, 0o600))
+	for _, tc := range []struct {
+		name      string
+		core      bool
+		path      string
+		wantError string
+	}{
+		{name: "missing file", core: true, path: filepath.Join(dir, "missing"), wantError: "cannot access kubeconfig"},
+		{name: "directory", core: true, path: dir, wantError: "is a directory"},
+		{name: "flag without core mode", path: existing, wantError: "--kubeconfig requires --core"},
+		{name: "empty flag without core mode", wantError: "--kubeconfig requires --core"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			configPath := filepath.Join(t.TempDir(), "argocd-config")
+			before := []byte("existing configuration must remain unchanged\n")
+			require.NoError(t, os.WriteFile(configPath, before, 0o600))
+			cmd := NewLoginCommand(&apiclient.ClientOptions{Core: tc.core, ConfigPath: configPath})
+			cmd.SetArgs([]string{"--kubeconfig", tc.path})
+			cmd.SetOut(io.Discard)
+			cmd.SetErr(io.Discard)
+			require.ErrorContains(t, cmd.ExecuteContext(t.Context()), tc.wantError)
+			after, err := os.ReadFile(configPath)
+			require.NoError(t, err)
+			assert.Equal(t, before, after)
+		})
+	}
+	t.Run("ordinary login does not require kubeconfig", func(t *testing.T) {
+		cmd := NewLoginCommand(&apiclient.ClientOptions{})
+		require.NoError(t, cmd.PreRunE(cmd, nil))
+	})
 }

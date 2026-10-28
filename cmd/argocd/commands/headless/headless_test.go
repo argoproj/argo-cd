@@ -14,6 +14,7 @@ import (
 	runtimeUtil "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/client-go/tools/clientcmd"
 
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/initialize"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -136,16 +137,17 @@ users:
 // TestConfigureKubeConfig checks saved paths, explicit overrides, defaults, and missing-file errors.
 func TestConfigureKubeConfig(t *testing.T) {
 	for _, tc := range []struct {
-		name           string
-		context        string
-		core           bool
-		explicit       bool
-		emptyFlag      bool
-		missing        bool
-		noConfig       bool
-		wantPath       string
-		wantCore       bool
-		wantConfigHost string
+		name             string
+		context          string
+		core             bool
+		explicit         bool
+		emptyFlag        bool
+		missing          bool
+		noConfig         bool
+		registrationFlag bool
+		wantPath         string
+		wantCore         bool
+		wantConfigHost   string
 	}{
 		{name: "current Argo CD context supplies its path", wantPath: "first", wantCore: true, wantConfigHost: "first"},
 		{name: "saved path overrides environment", context: "first", wantPath: "first", wantCore: true, wantConfigHost: "first"},
@@ -158,6 +160,9 @@ func TestConfigureKubeConfig(t *testing.T) {
 		{name: "empty explicit flag bypasses the saved path", context: "first", explicit: true, emptyFlag: true, wantCore: true, wantConfigHost: "environment"},
 		{name: "missing saved file does not fall back", context: "first", missing: true, wantPath: "first", wantCore: true},
 		{name: "no Argo CD config retains environment loading", core: true, noConfig: true, wantCore: true, wantConfigHost: "environment"},
+		{name: "registration flag does not override saved core path", context: "first", registrationFlag: true, explicit: true, wantPath: "first", wantCore: true, wantConfigHost: "override"},
+		{name: "registration flag preserves default core loading", context: "default", registrationFlag: true, explicit: true, wantCore: true, wantConfigHost: "override"},
+		{name: "saved core path does not rewrite registration defaults", context: "first", registrationFlag: true, wantPath: "first", wantCore: true, wantConfigHost: "environment"},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			paths := map[string]string{}
@@ -194,6 +199,9 @@ func TestConfigureKubeConfig(t *testing.T) {
 			}
 			cmd := &cobra.Command{}
 			clientConfig := cli.AddKubectlFlagsToSet(cmd.Flags())
+			if !tc.registrationFlag {
+				initialize.MarkCoreKubeConfigFlag(cmd.Flag("kubeconfig"))
+			}
 			if tc.explicit {
 				path := paths["override"]
 				if tc.emptyFlag {
@@ -248,6 +256,7 @@ func TestConfigureKubeConfigErrors(t *testing.T) {
 		require.NoError(t, os.WriteFile(path, []byte("contexts: [\n"), 0o600))
 		cmd := &cobra.Command{}
 		cli.AddKubectlFlagsToSet(cmd.Flags())
+		initialize.MarkCoreKubeConfigFlag(cmd.Flag("kubeconfig"))
 		opts := &apiclient.ClientOptions{ConfigPath: path}
 		require.ErrorContains(t, ConfigureKubeConfig(opts, cmd), "error reading local config")
 		assert.False(t, opts.Core)
@@ -258,6 +267,7 @@ func TestConfigureKubeConfigErrors(t *testing.T) {
 		require.NoError(t, localconfig.WriteLocalConfig(localconfig.LocalConfig{}, path))
 		cmd := &cobra.Command{}
 		cli.AddKubectlFlagsToSet(cmd.Flags())
+		initialize.MarkCoreKubeConfigFlag(cmd.Flag("kubeconfig"))
 		opts := &apiclient.ClientOptions{ConfigPath: path, Context: "missing"}
 		err := ConfigureKubeConfig(opts, cmd)
 		require.ErrorContains(t, err, "error resolving context")
@@ -275,6 +285,7 @@ func TestConfigureKubeConfigErrors(t *testing.T) {
 		require.NoError(t, localconfig.WriteLocalConfig(cfg, path))
 		cmd := &cobra.Command{}
 		cmd.Flags().Int("kubeconfig", 0, "")
+		initialize.MarkCoreKubeConfigFlag(cmd.Flag("kubeconfig"))
 		opts := &apiclient.ClientOptions{ConfigPath: path}
 		require.ErrorContains(t, ConfigureKubeConfig(opts, cmd), "error configuring kubeconfig path")
 		assert.False(t, opts.Core)
@@ -319,6 +330,7 @@ func TestNewClientOrDieKubeConfigError(t *testing.T) {
 	cmd := &cobra.Command{}
 	cmd.SetContext(t.Context())
 	cli.AddKubectlFlagsToSet(cmd.Flags())
+	initialize.MarkCoreKubeConfigFlag(cmd.Flag("kubeconfig"))
 	logger := log.StandardLogger()
 	exit, output := logger.ExitFunc, logger.Out
 	t.Cleanup(func() {

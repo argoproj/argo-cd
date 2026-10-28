@@ -5,6 +5,7 @@ import (
 	"context"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"os/exec"
 	"path/filepath"
 	"sync/atomic"
@@ -64,7 +65,17 @@ func TestCliCoreKubeConfigPersistence(t *testing.T) {
 	}
 	// An unusable default makes reaching the endpoint prove that the saved file was used.
 	t.Setenv("KUBECONFIG", filepath.Join(dir, "missing-default"))
-	output, err := runCLI(dir, "login", "--core", "--name", "custom-core", "--config", configPath, "--kubeconfig", "kubeconfig")
+	output, err := runCLI(dir, "login", "--core", "--config", configPath, "--kubeconfig", filepath.Join(dir, "missing"))
+	require.Error(t, err)
+	assert.Contains(t, output, "cannot access kubeconfig")
+	_, err = os.Stat(configPath)
+	require.ErrorIs(t, err, os.ErrNotExist)
+	output, err = runCLI(dir, "login", "--config", configPath, "--kubeconfig", kubeConfigPath)
+	require.Error(t, err)
+	assert.Contains(t, output, "--kubeconfig requires --core")
+	_, err = os.Stat(configPath)
+	require.ErrorIs(t, err, os.ErrNotExist)
+	output, err = runCLI(dir, "login", "--core", "--name", "custom-core", "--config", configPath, "--kubeconfig", "kubeconfig")
 	require.NoError(t, err, "output: %s", output)
 	localCfg, err := localconfig.ReadLocalConfig(configPath)
 	require.NoError(t, err)

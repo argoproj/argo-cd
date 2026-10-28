@@ -134,3 +134,17 @@ func TestInitCommandKubeConfigInheritedBySubcommands(t *testing.T) {
 		})
 	}
 }
+
+// TestCoreKubeConfigFlagMarker keeps core-mode and command-specific kubeconfig flags distinct.
+func TestCoreKubeConfigFlagMarker(t *testing.T) {
+	assert.False(t, IsCoreKubeConfigFlag(nil))
+	kubeconfig := &flag.Flag{}
+	assert.False(t, IsCoreKubeConfigFlag(kubeconfig))
+	MarkCoreKubeConfigFlag(kubeconfig)
+	assert.True(t, IsCoreKubeConfigFlag(kubeconfig))
+	kubeconfig.Annotations["other"] = []string{"preserved"}
+	MarkCoreKubeConfigFlag(kubeconfig)
+	assert.Equal(t, []string{"preserved"}, kubeconfig.Annotations["other"])
+	kubeconfig.Annotations[coreKubeConfigAnnotation] = []string{"false"}
+	assert.False(t, IsCoreKubeConfigFlag(kubeconfig))
+}
