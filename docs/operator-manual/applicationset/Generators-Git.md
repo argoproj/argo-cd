@@ -467,7 +467,7 @@ annotation from the UI with the built-in **Refresh ApplicationSet** resource act
 
 To eliminate the polling delay, the ApplicationSet webhook
 server can be configured to receive webhook events. ApplicationSet
-supports Git webhook notifications from GitHub, GitLab and Azure DevOps. The
+supports Git webhook notifications from GitHub and GitLab. The
 following explains how to configure a Git webhook for GitHub, but the
 same process should be applicable to other providers.
 
