@@ -78,6 +78,8 @@ const (
 	defaultListSemaphoreWeight = 50
 	// defaultEventProcessingInterval is the default interval for processing events
 	defaultEventProcessingInterval = 100 * time.Millisecond
+	// defaultInformerSyncTimeout is how long an informer-mode sync waits for the initial lists
+	defaultInformerSyncTimeout = 5 * time.Minute
 )
 
 const (
@@ -210,6 +212,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		},
 		watchResyncTimeout:      defaultWatchResyncTimeout,
 		clusterSyncRetryTimeout: ClusterRetryTimeout,
+		informerSyncTimeout:     defaultInformerSyncTimeout,
 		eventProcessingInterval: defaultEventProcessingInterval,
 		resourceUpdatedHandlers: map[uint64]OnResourceUpdatedHandler{},
 		eventHandlers:           map[uint64]OnEventHandler{},
@@ -260,6 +263,8 @@ type store struct {
 	watchResyncTimeout time.Duration
 	// sync retry timeout for cluster when sync error happens
 	clusterSyncRetryTimeout time.Duration
+	// how long an informer-mode sync waits for the initial lists (ModeInformer only)
+	informerSyncTimeout time.Duration
 	// ticker interval for events processing
 	eventProcessingInterval time.Duration
 

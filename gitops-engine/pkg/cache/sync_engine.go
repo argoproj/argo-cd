@@ -22,6 +22,11 @@ type syncEngine interface {
 	// release c.lock during the load (informerEngine does, around its
 	// initial-list wait), but must never hold syncStatus.lock while c.lock is
 	// released, because GetClusterInfo takes them in that order.
+	//
+	// Because informerEngine releases c.lock after wiping the index, a reader
+	// that skips EnsureSynced can see a partially loaded cache during an
+	// informer-mode rebuild (first sync, after Invalidate, periodic resync).
+	// Readers that call EnsureSynced first wait for the sync to finish.
 	ensureSynced() error
 	// startMissingWatches starts a watch for every discovered GroupKind not
 	// already watched, so new CRDs sync without a full resync. Caller must hold

@@ -131,6 +131,15 @@ func SetClusterSyncRetryTimeout(timeout time.Duration) UpdateSettingsFunc {
 	}
 }
 
+// SetInformerSyncTimeout sets how long an informer-mode sync waits for the
+// informers' initial lists before failing. Only ModeInformer reads it; the
+// failed sync is retried after the cluster sync retry timeout.
+func SetInformerSyncTimeout(timeout time.Duration) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.informerSyncTimeout = timeout
+	}
+}
+
 // SetLogr sets the logger to use.
 func SetLogr(log logr.Logger) UpdateSettingsFunc {
 	return func(cache *clusterCache) {

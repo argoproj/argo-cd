@@ -394,11 +394,11 @@ func TestEnsureSynced_InformerMode_PartialSyncReturnsWithinTimeout(t *testing.T)
 	})
 
 	// Short timeout so the test runs quickly; the production default
-	// (10s via ClusterRetryTimeout) is too slow for a unit test.
+	// (defaultInformerSyncTimeout) is too slow for a unit test.
 	c := NewClusterCache(
 		&rest.Config{Host: "https://test"},
 		SetMode(ModeInformer),
-		SetClusterSyncRetryTimeout(1*time.Second),
+		SetInformerSyncTimeout(1*time.Second),
 		SetKubectl(&kubetest.MockKubectlCmd{
 			APIResources:  []kube.APIResourceInfo{podsAPI(), configmapsAPI},
 			DynamicClient: client,
@@ -417,11 +417,104 @@ func TestEnsureSynced_InformerMode_PartialSyncReturnsWithinTimeout(t *testing.T)
 	}
 	require.Error(t, err, "EnsureSynced must error so callers don't operate against a partial cache")
 	assert.Contains(t, err.Error(), "ConfigMap", "error should name the pending GVR")
+	assert.Contains(t, err.Error(), "informer sync timeout (1s)", "error should name the timeout that expired")
 	// Sanity: we should return roughly at the configured timeout, not
 	// immediately (which would mean the wait was skipped) and not at the
 	// full 5s test deadline.
 	assert.GreaterOrEqual(t, time.Since(start), 800*time.Millisecond, "expected to wait near the configured timeout")
 	assert.Less(t, time.Since(start), 4*time.Second, "expected to return shortly after the configured timeout")
+}
+
+// A retry after a timed-out initial sync must keep the running informers so
+// an initial list that outlasts informerSyncTimeout still completes. Tearing
+// them down on every retry restarts the list each time, and a cluster whose
+// list takes longer than the timeout never syncs.
+func TestEnsureSynced_InformerMode_RetryKeepsInformers(t *testing.T) {
+	client := fake.NewSimpleDynamicClient(scheme.Scheme, unstructuredPod("nginx", "default"))
+	defaultReactor := client.ReactionChain[0]
+
+	// Block the first pods list until listProceed is closed; count every list.
+	listEntered := make(chan struct{})
+	listProceed := make(chan struct{})
+	releaseList := sync.OnceFunc(func() { close(listProceed) })
+	t.Cleanup(releaseList)
+	var listMu sync.Mutex
+	listCount := 0
+	client.PrependReactor("list", "pods", func(action testcore.Action) (bool, runtime.Object, error) {
+		listMu.Lock()
+		listCount++
+		first := listCount == 1
+		listMu.Unlock()
+		if first {
+			close(listEntered)
+			<-listProceed
+		}
+		handled, ret, err := defaultReactor.React(action)
+		if !handled || err != nil {
+			return handled, ret, err
+		}
+		ret.(metav1.ListInterface).SetResourceVersion("1")
+		return handled, ret, nil
+	})
+
+	c := NewClusterCache(
+		&rest.Config{Host: "https://test"},
+		SetMode(ModeInformer),
+		SetInformerSyncTimeout(500*time.Millisecond),
+		SetClusterSyncRetryTimeout(100*time.Millisecond),
+		SetKubectl(&kubetest.MockKubectlCmd{
+			APIResources:  []kube.APIResourceInfo{podsAPI()},
+			DynamicClient: client,
+		}),
+	)
+	t.Cleanup(func() { c.Invalidate() })
+
+	err := c.EnsureSynced()
+	require.Error(t, err, "the initial list is blocked, so the first sync must time out")
+	assert.Contains(t, err.Error(), "Pod")
+	select {
+	case <-listEntered:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the initial pods List was never invoked")
+	}
+
+	informersOf := func() map[string]cache.SharedIndexInformer {
+		c.lock.RLock()
+		defer c.lock.RUnlock()
+		out := map[string]cache.SharedIndexInformer{}
+		for ns, si := range informerEngineOf(c).informers[podsGVK.GroupKind()] {
+			out[ns] = si.informer
+		}
+		return out
+	}
+	before := informersOf()
+	require.NotEmpty(t, before)
+
+	// Let the cached error expire so the next EnsureSynced retries.
+	time.Sleep(150 * time.Millisecond)
+
+	done := make(chan error, 1)
+	go func() { done <- c.EnsureSynced() }()
+	releaseList()
+	select {
+	case err = <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("EnsureSynced retry did not return")
+	}
+	require.NoError(t, err, "the retry must succeed once the blocked initial list completes")
+
+	after := informersOf()
+	require.Len(t, after, len(before))
+	for ns, informer := range before {
+		assert.Same(t, informer, after[ns], "the retry must keep the running informer for %q", ns)
+	}
+	listMu.Lock()
+	defer listMu.Unlock()
+	assert.Equal(t, 1, listCount, "the retry must not restart the initial list")
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	_, hasPod := c.resources[kube.NewResourceKey("", "Pod", "default", "nginx")]
+	assert.True(t, hasPod, "the completed initial list should populate c.resources")
 }
 
 // TestEnsureSynced_InformerMode_TeardownMidSyncDoesNotFailSync: when a GVR
@@ -469,7 +562,7 @@ func TestEnsureSynced_InformerMode_TeardownMidSyncDoesNotFailSync(t *testing.T) 
 	c := NewClusterCache(
 		&rest.Config{Host: "https://test"},
 		SetMode(ModeInformer),
-		SetClusterSyncRetryTimeout(30*time.Second),
+		SetInformerSyncTimeout(30*time.Second),
 		SetKubectl(&kubetest.MockKubectlCmd{
 			APIResources:  []kube.APIResourceInfo{podsAPI(), crontabsAPI},
 			DynamicClient: client,
@@ -938,7 +1031,7 @@ func TestSyncInformers_InvalidateDuringWaitReportsTransient(t *testing.T) {
 		SetMode(ModeInformer),
 		// Short timeout so even if the wait isn't cut short by Invalidate
 		// detection, the test returns quickly.
-		SetClusterSyncRetryTimeout(500*time.Millisecond),
+		SetInformerSyncTimeout(500*time.Millisecond),
 		SetKubectl(&kubetest.MockKubectlCmd{
 			APIResources:  []kube.APIResourceInfo{podsAPI()},
 			DynamicClient: client,
@@ -1153,6 +1246,8 @@ func TestResolveSyncResult_NotSyncedReportsPending(t *testing.T) {
 
 	err := c.resolveSyncResult(false, pending)
 	require.Error(t, err)
+	assert.Contains(t, err.Error(), "informer sync timeout ("+defaultInformerSyncTimeout.String()+")",
+		"the message must name the timeout that expired")
 	assert.Contains(t, err.Error(), "Pod[cluster-scope]")
 	assert.NotContains(t, err.Error(), "ConfigMap[ns=default]",
 		"already-synced informers should not appear in the pending list")
@@ -1202,7 +1297,7 @@ func TestEnsureSynced_SingleFlightPreventsConcurrentSync(t *testing.T) {
 	c := NewClusterCache(
 		&rest.Config{Host: "https://test"},
 		SetMode(ModeInformer),
-		SetClusterSyncRetryTimeout(5*time.Second),
+		SetInformerSyncTimeout(5*time.Second),
 		SetKubectl(&kubetest.MockKubectlCmd{
 			APIResources:  []kube.APIResourceInfo{podsAPI()},
 			DynamicClient: client,
