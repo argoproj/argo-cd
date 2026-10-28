@@ -8,7 +8,7 @@ import {ActionMenu, DataLoader, EmptyState, ErrorNotification, Page, Paginate, S
 import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {useQuery} from '../../../shared/hooks/query';
+import {useSearchParams} from '../../../shared/hooks/query';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -22,7 +22,7 @@ interface NewGnuPGPublicKeyParams {
 
 export const GpgKeysList = ({match, location}: RouteComponentProps) => {
     const ctx = React.useContext(Context);
-    const query = useQuery();
+    const query = useSearchParams();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
     const sidebarTarget = useSidebarTarget();

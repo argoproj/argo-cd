@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
+	"net/http/httptest"
 	"regexp"
 	"strconv"
 	"strings"
@@ -26,6 +28,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
+	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
@@ -3272,6 +3275,9 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	}
 	app.Status.OperationState.Operation = *app.Operation
 	app.Status.OperationState.Phase = synccommon.OperationTerminating
+	// No termination reason recorded on the operation state; the final message should not
+	// gain a spurious "triggered by" suffix from unrelated leftover state.
+	app.Status.OperationState.Message = ""
 
 	data := &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -3291,6 +3297,72 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	require.NotNil(t, patchedApp.Status.OperationState)
 	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
 	assert.Equal(t, "Operation terminated", patchedApp.Status.OperationState.Message)
+}
+
+func TestProcessRequestedAppOperation_HasRetriesTerminatedWithUnrelatedMessage(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{Limit: 10},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationTerminating
+	// The Terminate UI/API action only sets Phase to Terminating; it does not update
+	// Message. This leftover message (e.g. from a prior sync attempt) must not be
+	// mislabeled as the termination reason.
+	app.Status.OperationState.Message = "dummy operation state message"
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(t.Context(), data, nil)
+
+	ctrl.processRequestedAppOperation(app)
+
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "Operation terminated", patchedApp.Status.OperationState.Message)
+}
+
+func TestProcessRequestedAppOperation_HasRetriesTerminatedWithSizeLimitCause(t *testing.T) {
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{
+		Sync:  &v1alpha1.SyncOperation{},
+		Retry: v1alpha1.RetryStrategy{Limit: 10},
+	}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationTerminating
+	// Only the size-limit fallback message (set by setOperationState when the operation
+	// state could not be persisted) should be surfaced as the termination cause.
+	sizeLimitMessage := operationStateSizeLimitMessagePrefix + " and could not be persisted. error: request entity too large"
+	app.Status.OperationState.Message = sizeLimitMessage
+
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+	}
+	ctrl := newFakeController(t.Context(), data, nil)
+
+	ctrl.processRequestedAppOperation(app)
+
+	patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, patchedApp.Status.OperationState)
+	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
+	assert.Equal(t, "Operation terminated, triggered by "+sizeLimitMessage, patchedApp.Status.OperationState.Message)
 }
 
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
@@ -4685,9 +4757,601 @@ func TestHandleRefreshAnnotation(t *testing.T) {
 	})
 }
 
+func TestIsOperationStatePayloadTooLargeError(t *testing.T) {
+	// "etcdserver: request is too large" — carried by rpctypes.ErrGRPCRequestTooLarge
+	t.Run("etcdserver: request is too large", func(t *testing.T) {
+		assert.True(t, isOperationStatePayloadTooLargeError(
+			&apierrors.StatusError{
+				ErrStatus: metav1.Status{
+					Status:  metav1.StatusFailure,
+					Reason:  "",
+					Message: "etcdserver: request is too large",
+				},
+			},
+		))
+	})
+
+	// "rpc error: code = ResourceExhausted desc = trying to send message larger than max" —
+	// arrives as a plain string after being unwrapped through the REST layer
+	t.Run("rpc error: code = ResourceExhausted desc = trying to send message larger than max", func(t *testing.T) {
+		err := errors.New("rpc error: code = ResourceExhausted desc = trying to send message larger than max")
+		assert.True(t, isOperationStatePayloadTooLargeError(err))
+	})
+
+	// "Request entity too large: limit is 3145728" — HTTP 413 from kube-apiserver
+	t.Run("Request entity too large: limit is 3145728", func(t *testing.T) {
+		err := apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+		assert.True(t, isOperationStatePayloadTooLargeError(err))
+	})
+
+	t.Run("unrelated error returns false", func(t *testing.T) {
+		assert.False(t, isOperationStatePayloadTooLargeError(errors.New("some other error")))
+	})
+
+	t.Run("error is nil, returns false", func(t *testing.T) {
+		assert.False(t, isOperationStatePayloadTooLargeError(nil))
+	})
+}
+
+// newFakeControllerWithFailingPatch builds a fake controller whose "patch" reactor fails with
+// a 413 (request entity too large) whenever shouldFail returns true for the patch action, and
+// otherwise passes the action through to the default reactor. "get" always passes through.
+func newFakeControllerWithFailingPatch(t *testing.T, data *fakeData, shouldFail func(kubetesting.PatchAction) bool) *ApplicationController {
+	t.Helper()
+	ctrl := newFakeController(t.Context(), data, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return defaultReactor.React(action)
+	})
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patchAction := action.(kubetesting.PatchAction)
+		if shouldFail(patchAction) {
+			return true, nil, apierrors.NewRequestEntityTooLargeError("limit is 3145728")
+		}
+		return defaultReactor.React(action)
+	})
+
+	return ctrl
+}
+
+// newFakeControllerWithTooLargeFirstPatch builds a fake controller for app where the first
+// application patch fails with a 413 (request entity too large) and the second patch
+// succeeds. It returns the controller, a pointer to the running patch call count, and a
+// pointer that is set to the raw bytes of the second (fallback) patch once it happens.
+func newFakeControllerWithTooLargeFirstPatch(t *testing.T, app *v1alpha1.Application) (*ApplicationController, *int, *[]byte) {
+	t.Helper()
+	callCount := 0
+	var capturedPatch []byte
+	ctrl := newFakeControllerWithFailingPatch(t, &fakeData{apps: []runtime.Object{app}}, func(patchAction kubetesting.PatchAction) bool {
+		callCount++
+		if callCount == 1 {
+			return true
+		}
+		capturedPatch = patchAction.GetPatch()
+		return false
+	})
+	return ctrl, &callCount, &capturedPatch
+}
+
+// decodeJSONPatchOps decodes a JSON Patch (RFC 6902) document into a map keyed by the
+// operation's path, with the op's "value" as the map value. Fallback patches now use
+// JSON Patch (replacing the whole /status/operationState) rather than a merge patch, so
+// tests inspect the operations through this helper.
+func decodeJSONPatchOps(t *testing.T, patch []byte) map[string]any {
+	t.Helper()
+	var ops []map[string]any
+	require.NoError(t, json.Unmarshal(patch, &ops))
+	byPath := make(map[string]any, len(ops))
+	for _, op := range ops {
+		path, _ := op["path"].(string)
+		byPath[path] = op["value"]
+	}
+	return byPath
+}
+
+// jsonPatchOperationStateMessage extracts the "message" of the /status/operationState value
+// from a JSON Patch (RFC 6902) body, or "" if the patch does not replace operationState. Used
+// by test fakes to tell a real setOperationState patch from a size-limit fallback patch.
+func jsonPatchOperationStateMessage(patch []byte) string {
+	var ops []map[string]any
+	if err := json.Unmarshal(patch, &ops); err != nil {
+		return ""
+	}
+	for _, op := range ops {
+		if path, _ := op["path"].(string); path != "/status/operationState" {
+			continue
+		}
+		opState, ok := op["value"].(map[string]any)
+		if !ok {
+			return ""
+		}
+		msg, _ := opState["message"].(string)
+		return msg
+	}
+	return ""
+}
+
+// newFakeControllerWithAlwaysTooLargeRealPatch builds a fake controller for app where every
+// "real" operation-state patch (the JSONPatch setOperationState issues to persist the actual
+// state) fails with a 413 (request entity too large), while every fallback patch (the
+// MergePatch setOperationState issues once it strips SyncResult.Resources) succeeds. This
+// models an operation state that is permanently too large to persist as-is, so it can be used
+// to drive processRequestedAppOperation across multiple reconciles and verify the fallback
+// state machine (Running -> Terminating -> OperationError) terminates within a bounded number
+// of reconciles instead of retrying forever.
+func newFakeControllerWithAlwaysTooLargeRealPatch(t *testing.T, app *v1alpha1.Application) (*ApplicationController, *int) {
+	t.Helper()
+	realPatchAttempts := 0
+	data := &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		// One response per reconcile: each processRequestedAppOperation call performs a full
+		// compare/sync regardless of whether it ends up terminating, since the too-large
+		// fallback never mutates the in-memory state processRequestedAppOperation continues
+		// with after the initial setOperationState call.
+		manifestResponses: []*apiclient.ManifestResponse{
+			{Manifests: []string{}},
+			{Manifests: []string{}},
+			{Manifests: []string{}},
+		},
+	}
+	// realPatchAttempts only counts the "real" setOperationState patches that persist the
+	// actual (too-large) state, i.e. one per reconcile. Both the real patch and the fallback
+	// patches are now JSONPatch, so they are distinguished by the operationState.message they
+	// replace: a fallback patch's message starts with the size-limit prefix, while a real
+	// patch's message does not (a terminated real patch may *reference* the prefix in its
+	// "triggered by" text, so we match the prefix only at the start). We fail only the real
+	// patches (modeling a permanently-too-large state) and let the smaller fallbacks succeed,
+	// so the count reflects only the retry behavior under test.
+	ctrl := newFakeControllerWithFailingPatch(t, data, func(patchAction kubetesting.PatchAction) bool {
+		if patchAction.GetPatchType() != types.JSONPatchType {
+			return false
+		}
+		if strings.HasPrefix(jsonPatchOperationStateMessage(patchAction.GetPatch()), operationStateSizeLimitMessagePrefix) {
+			// A fallback patch; let it succeed so the fallback state machine can make progress.
+			return false
+		}
+		realPatchAttempts++
+		return true
+	})
+	return ctrl, &realPatchAttempts
+}
+
+func TestProcessRequestedAppOperation_TooLargeRequestTerminatesWithinBoundedReconciles(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Project = "default"
+	app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.Message = "running"
+	app.Status.OperationState.FinishedAt = nil
+
+	ctrl, realPatchAttempts := newFakeControllerWithAlwaysTooLargeRealPatch(t, app)
+
+	// Bound well below what an infinite retry loop would need, so this test fails loudly
+	// (instead of hanging) if the fallback logic regresses into looping forever.
+	const maxReconciles = 3
+	var finalPhase synccommon.OperationPhase
+	for range maxReconciles {
+		ctrl.processRequestedAppOperation(app)
+
+		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		app = patchedApp
+		finalPhase = app.Status.OperationState.Phase
+		if finalPhase.Completed() {
+			break
+		}
+	}
+
+	require.True(t, finalPhase.Completed(), "operation must reach a terminal phase within %d reconciles, not loop forever", maxReconciles)
+	assert.Equal(t, synccommon.OperationError, finalPhase)
+	assert.Nil(t, app.Operation, "operation must be cleared once finalized, so the controller stops re-queuing it")
+	assert.Contains(t, app.Status.OperationState.Message, "exceeds the Kubernetes resource size limit")
+	assert.Equal(t, 2, *realPatchAttempts, "each reconcile must attempt the real patch exactly once before falling back, not retry it in a loop")
+}
+
+func TestSetOperationStateTooLargeRequest(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		},
+		Phase:   synccommon.OperationRunning,
+		Message: "running",
+	}
+
+	tests := []struct {
+		name          string
+		setupApp      func() *v1alpha1.Application
+		wantPhase     string
+		wantOperation bool // whether "operation" should remain set (not cleared) in the patch
+	}{
+		{
+			name: "operationState is nil",
+			setupApp: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.OperationState = nil
+				return app
+			},
+			// First time we see the size error, we ask the operation to terminate instead of
+			// erroring out immediately, so the operation is left in place.
+			wantPhase:     string(synccommon.OperationTerminating),
+			wantOperation: true,
+		},
+		{
+			name:          "operationState is not nil and not already terminating",
+			setupApp:      newFakeApp,
+			wantPhase:     string(synccommon.OperationTerminating),
+			wantOperation: true,
+		},
+		{
+			name: "operationState is already terminating",
+			setupApp: func() *v1alpha1.Application {
+				app := newFakeApp()
+				app.Status.OperationState.Phase = synccommon.OperationTerminating
+				return app
+			},
+			// Once termination has already been requested and the patch still fails, we give up
+			// and finalize as an error, clearing the operation so the controller stops retrying.
+			wantPhase:     string(synccommon.OperationError),
+			wantOperation: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := tt.setupApp()
+			ctrl, patchCallCount, capturedPatch := newFakeControllerWithTooLargeFirstPatch(t, app)
+
+			ctrl.setOperationState(t.Context(), app, newState)
+
+			assert.Equal(t, 2, *patchCallCount)
+
+			// Inspect the JSON Patch operations: the fallback replaces the whole
+			// /status/operationState rather than merging into it.
+			ops := decodeJSONPatchOps(t, *capturedPatch)
+			opState, ok := ops["/status/operationState"].(map[string]any)
+			require.True(t, ok, "fallback must replace the whole /status/operationState")
+			phase, _, _ := unstructured.NestedString(opState, "phase")
+			message, _, _ := unstructured.NestedString(opState, "message")
+			assert.Equal(t, tt.wantPhase, phase)
+			assert.Contains(t, message, "exceeds the Kubernetes resource size limit")
+
+			_, clearsOperation := ops["/operation"]
+			if tt.wantOperation {
+				assert.False(t, clearsOperation, "operation should not be cleared while termination is still pending")
+			} else {
+				assert.True(t, clearsOperation, "operation should be cleared once the operation has finalized")
+				assert.Nil(t, ops["/operation"])
+			}
+
+			// Inspect the stored object to confirm the replace took effect on the server and no
+			// omitted fields survived from the previous state.
+			stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, stored.Status.OperationState)
+			assert.Equal(t, tt.wantPhase, string(stored.Status.OperationState.Phase))
+			assert.Contains(t, stored.Status.OperationState.Message, "exceeds the Kubernetes resource size limit")
+			if !tt.wantOperation {
+				assert.Nil(t, stored.Operation, "operation should be cleared once the operation has finalized")
+			}
+			if stored.Status.OperationState.SyncResult != nil {
+				assert.Nil(t, stored.Status.OperationState.SyncResult.Resources)
+			}
+			require.NotNil(t, stored.Status.OperationState.Operation.Sync)
+			assert.Equal(t, "HEAD", stored.Status.OperationState.Operation.Sync.Revision, "fallback patch must retain the attempted operation, not just phase/message")
+		})
+	}
+}
+
+// TestSetOperationStateTooLargeRequest_PreservesHookResultsForTermination verifies that the
+// size-limit fallback keeps hook results while dropping the bulky non-hook resource results.
+// When the fallback routes the operation through Terminating, the next reconcile seeds the sync
+// context's initial state from SyncResult.Resources; Terminate can only clean up hooks it sees
+// there, so dropping hook results would make termination a silent no-op.
+func TestSetOperationStateTooLargeRequest_PreservesHookResultsForTermination(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		},
+		Phase:   synccommon.OperationRunning,
+		Message: "running",
+		SyncResult: &v1alpha1.SyncOperationResult{
+			Resources: v1alpha1.ResourceResults{
+				{Kind: "ConfigMap", Name: "bulky-non-hook", Status: synccommon.ResultCodeSynced},
+				{Kind: "Job", Name: "running-presync-hook", HookType: synccommon.HookTypePreSync, HookPhase: synccommon.OperationRunning},
+			},
+		},
+	}
+
+	app := newFakeApp()
+	ctrl, patchCallCount, capturedPatch := newFakeControllerWithTooLargeFirstPatch(t, app)
+
+	ctrl.setOperationState(t.Context(), app, newState)
+
+	assert.Equal(t, 2, *patchCallCount)
+
+	// The fallback routes through Terminating (not already terminating), so the hook must survive.
+	ops := decodeJSONPatchOps(t, *capturedPatch)
+	opState, ok := ops["/status/operationState"].(map[string]any)
+	require.True(t, ok, "fallback must replace the whole /status/operationState")
+	assert.Equal(t, string(synccommon.OperationTerminating), opState["phase"])
+
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	require.NotNil(t, stored.Status.OperationState.SyncResult)
+	results := stored.Status.OperationState.SyncResult.Resources
+	require.Len(t, results, 1, "only hook results should survive the size-limit fallback")
+	assert.Equal(t, "running-presync-hook", results[0].Name)
+	assert.Equal(t, synccommon.HookTypePreSync, results[0].HookType, "hook results needed for termination must be retained")
+}
+
+func TestSetOperationStateTooLargeRequest_PreservesFinishedAtOnCompletion(t *testing.T) {
+	finishedAt := metav1.Now()
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		},
+		Phase:      synccommon.OperationSucceeded,
+		Message:    "succeeded",
+		FinishedAt: &finishedAt,
+	}
+
+	app := newFakeApp()
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.FinishedAt = nil
+
+	ctrl, patchCallCount, capturedPatch := newFakeControllerWithTooLargeFirstPatch(t, app)
+
+	ctrl.setOperationState(t.Context(), app, newState)
+
+	assert.Equal(t, 2, *patchCallCount)
+
+	ops := decodeJSONPatchOps(t, *capturedPatch)
+	opState, ok := ops["/status/operationState"].(map[string]any)
+	require.True(t, ok, "fallback must replace the whole /status/operationState")
+	finishedAtStr, _, _ := unstructured.NestedString(opState, "finishedAt")
+	assert.NotEmpty(t, finishedAtStr, "fallback patch must retain FinishedAt from the attempted (completed) state")
+
+	// The replace must also land on the server.
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	assert.NotNil(t, stored.Status.OperationState.FinishedAt, "stored state must retain FinishedAt from the attempted (completed) state")
+}
+
+func TestSetOperationStateTooLargeRequest_EmitsCompletionTelemetryOnFinalFallback(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
+		},
+		Phase:   synccommon.OperationTerminating,
+		Message: "terminating",
+	}
+
+	app := newFakeApp()
+	// Use a name unique to this test so its sync metrics don't collide with values
+	// recorded by other tests that share the same package-level Prometheus vectors.
+	app.Name = "too-large-request-completion-telemetry-test"
+	app.Status.OperationState.Phase = synccommon.OperationTerminating
+
+	ctrl, patchCallCount, _ := newFakeControllerWithTooLargeFirstPatch(t, app)
+
+	ctrl.setOperationState(t.Context(), app, newState)
+
+	assert.Equal(t, 2, *patchCallCount)
+
+	// The fallback finalized as OperationError (the "already terminating, giving up" branch),
+	// so it should emit the same completion event and sync metrics as the normal terminal
+	// path, not just return silently after the patch.
+	kubeClient := ctrl.kubeClientset.(*fake.Clientset)
+	var completionEvent *corev1.Event
+	for _, action := range kubeClient.Actions() {
+		createAction, ok := action.(kubetesting.CreateAction)
+		if !ok || createAction.GetResource().Resource != "events" {
+			continue
+		}
+		event, ok := createAction.GetObject().(*corev1.Event)
+		if ok && event.Reason == string(argo.EventReasonOperationCompleted) {
+			completionEvent = event
+			break
+		}
+	}
+	require.NotNil(t, completionEvent, "fallback finalizing as OperationError must emit an OperationCompleted event")
+	assert.Equal(t, corev1.EventTypeWarning, completionEvent.Type)
+	assert.Contains(t, completionEvent.Message, "failed")
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, metrics.MetricsPath, http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	ctrl.metricsServer.Handler.ServeHTTP(rr, req)
+	assert.Equal(t, http.StatusOK, rr.Code)
+	body := rr.Body.String()
+	assert.Contains(t, body, fmt.Sprintf(`argocd_app_sync_total{dest_server="https://localhost:6443",dry_run="false",name=%q,namespace=%q,phase="Error",project="default"} 1`, app.Name, app.Namespace),
+		"fallback finalizing as OperationError must increment the sync counter, same as the normal terminal path")
+}
+
+func TestRecordOperationCompletion_EventMessageRevision(t *testing.T) {
+	tests := []struct {
+		name       string
+		app        *v1alpha1.Application
+		state      *v1alpha1.OperationState
+		wantMsg    string
+		wantEvType string
+	}{
+		{
+			name: "single source",
+			app:  newFakeApp(),
+			state: &v1alpha1.OperationState{
+				Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+				Phase:      synccommon.OperationSucceeded,
+				SyncResult: &v1alpha1.SyncOperationResult{Revision: "abc123"},
+			},
+			wantMsg:    "Sync operation to abc123 succeeded",
+			wantEvType: corev1.EventTypeNormal,
+		},
+		{
+			name: "multi source",
+			app:  newFakeMultiSourceApp(),
+			state: &v1alpha1.OperationState{
+				Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
+				Phase:      synccommon.OperationSucceeded,
+				SyncResult: &v1alpha1.SyncOperationResult{Revisions: []string{"abc123", "def456"}},
+			},
+			wantMsg:    "Sync operation to abc123,def456 succeeded",
+			wantEvType: corev1.EventTypeNormal,
+		},
+		{
+			name: "multi source partial sync failed",
+			app:  newFakeMultiSourceApp(),
+			state: &v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{
+					Resources: []v1alpha1.SyncOperationResource{{Kind: "ConfigMap", Name: "cm"}},
+				}},
+				Phase:      synccommon.OperationFailed,
+				Message:    "boom",
+				SyncResult: &v1alpha1.SyncOperationResult{Revisions: []string{"abc123", "def456"}},
+			},
+			wantMsg:    "Partial sync operation to abc123,def456 failed: boom",
+			wantEvType: corev1.EventTypeWarning,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{tt.app}}, nil)
+
+			ctrl.recordOperationCompletion(t.Context(), tt.app, logrus.WithField("test", t.Name()), tt.state)
+
+			var completionEvent *corev1.Event
+			for _, action := range ctrl.kubeClientset.(*fake.Clientset).Actions() {
+				createAction, ok := action.(kubetesting.CreateAction)
+				if !ok || createAction.GetResource().Resource != "events" {
+					continue
+				}
+				if event, ok := createAction.GetObject().(*corev1.Event); ok && event.Reason == string(argo.EventReasonOperationCompleted) {
+					completionEvent = event
+					break
+				}
+			}
+			require.NotNil(t, completionEvent)
+			assert.Equal(t, tt.wantMsg, completionEvent.Message)
+			assert.Equal(t, tt.wantEvType, completionEvent.Type)
+		})
+	}
+}
+
+func TestSetOperationStateTooLargeRequest_FallbackAlsoTooLarge(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD", Manifests: []string{"huge-manifest"}},
+		},
+		Phase:   synccommon.OperationRunning,
+		Message: "running",
+	}
+
+	app := newFakeApp()
+	app.Status.OperationState.Phase = synccommon.OperationTerminating
+
+	var callCount int
+	var capturedPatch []byte
+	ctrl := newFakeControllerWithFailingPatch(t, &fakeData{apps: []runtime.Object{app}}, func(patchAction kubetesting.PatchAction) bool {
+		callCount++
+		if callCount <= 2 {
+			return true
+		}
+		capturedPatch = patchAction.GetPatch()
+		return false
+	})
+
+	ctrl.setOperationState(t.Context(), app, newState)
+
+	assert.Equal(t, 3, callCount, "expected real patch + fallback patch + minimal fallback patch, all rejected until the minimal one")
+
+	// Inspect the JSON Patch operations of the minimal fallback.
+	ops := decodeJSONPatchOps(t, capturedPatch)
+	opState, ok := ops["/status/operationState"].(map[string]any)
+	require.True(t, ok, "minimal fallback must replace the whole /status/operationState")
+	phase, _, _ := unstructured.NestedString(opState, "phase")
+	assert.Equal(t, string(synccommon.OperationError), phase, "minimal fallback must finalize the operation, not loop back to Terminating")
+
+	_, clearsOperation := ops["/operation"]
+	assert.True(t, clearsOperation, "minimal fallback must clear the top-level requested operation")
+	assert.Nil(t, ops["/operation"])
+
+	_, syncFound, err := unstructured.NestedMap(opState, "operation", "sync")
+	require.NoError(t, err)
+	assert.False(t, syncFound, "minimal fallback must omit the bulky attempted operation (e.g. local manifests)")
+
+	// Confirm the replace landed on the server with none of the stale fields surviving.
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	assert.Equal(t, synccommon.OperationError, stored.Status.OperationState.Phase)
+	assert.Nil(t, stored.Operation, "minimal fallback must clear the top-level requested operation on the server")
+	assert.Nil(t, stored.Status.OperationState.SyncResult, "minimal fallback must not leave a stale syncResult on the server")
+	assert.Nil(t, stored.Status.OperationState.Operation.Sync, "minimal fallback must drop the bulky attempted operation on the server")
+}
+
+// TestSetOperationStateTooLargeRequest_MinimalFallbackClearsSyncResult covers the
+// not-already-terminating path: the fallback patch carries Phase=Terminating (not yet a
+// completed phase), so if it also fails as too large, the minimal fallback built on top of it
+// must still (a) drop any stale, oversized syncResult already on the server - the JSON Patch
+// replace of the whole /status/operationState guarantees omitted fields cannot survive - and
+// (b) set a non-nil finishedAt despite the intermediate fallbackStatus never having reached a
+// completed phase.
+func TestSetOperationStateTooLargeRequest_MinimalFallbackClearsSyncResult(t *testing.T) {
+	newState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync: &v1alpha1.SyncOperation{Revision: "HEAD", Manifests: []string{"huge-manifest"}},
+		},
+		Phase:   synccommon.OperationRunning,
+		Message: "running",
+	}
+
+	app := newFakeApp()
+
+	var callCount int
+	var capturedPatch []byte
+	ctrl := newFakeControllerWithFailingPatch(t, &fakeData{apps: []runtime.Object{app}}, func(patchAction kubetesting.PatchAction) bool {
+		callCount++
+		if callCount <= 2 {
+			return true
+		}
+		capturedPatch = patchAction.GetPatch()
+		return false
+	})
+
+	ctrl.setOperationState(t.Context(), app, newState)
+
+	require.Equal(t, 3, callCount, "expected real patch + fallback patch + minimal fallback patch, all rejected until the minimal one")
+
+	// Inspect the JSON Patch operations of the minimal fallback.
+	ops := decodeJSONPatchOps(t, capturedPatch)
+	opState, ok := ops["/status/operationState"].(map[string]any)
+	require.True(t, ok, "minimal fallback must replace the whole /status/operationState")
+
+	_, hasSyncResult := opState["syncResult"]
+	assert.False(t, hasSyncResult, "minimal fallback replaces the whole operationState, so the oversized syncResult is dropped entirely")
+
+	finishedAt, _, err := unstructured.NestedString(opState, "finishedAt")
+	require.NoError(t, err)
+	assert.NotEmpty(t, finishedAt, "minimal fallback finalizes as OperationError, so finishedAt must be set even though the intermediate fallback never reached a completed phase")
+
+	// Confirm the replace landed on the server: the stale syncResult from newFakeApp must be gone.
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	assert.Nil(t, stored.Status.OperationState.SyncResult, "minimal fallback must clear any stale syncResult on the server")
+	assert.NotNil(t, stored.Status.OperationState.FinishedAt, "minimal fallback finalizes as OperationError, so finishedAt must be set on the server")
+}
+
 func TestWriteBackToInformer(t *testing.T) {
 	t.Run("updates an application that is still in the store", func(t *testing.T) {
 		app := newFakeApp()
+		app.ResourceVersion = "1"
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
 
 		updated := app.DeepCopy()
@@ -4730,6 +5394,41 @@ func TestWriteBackToInformer(t *testing.T) {
 		require.NoError(t, err)
 		require.True(t, exists)
 		assert.Equal(t, types.UID("new"), obj.(*v1alpha1.Application).UID)
+	})
+
+	t.Run("does not overwrite a newer version the reflector already stored", func(t *testing.T) {
+		app := newFakeApp()
+		app.ResourceVersion = "4"
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		newer := app.DeepCopy()
+		newer.ResourceVersion = "5"
+		newer.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+		require.NoError(t, ctrl.appInformer.GetStore().Update(newer))
+
+		ctrl.writeBackToInformer(app.DeepCopy())
+
+		obj, exists, err := ctrl.appInformer.GetStore().GetByKey(app.QualifiedName())
+		require.NoError(t, err)
+		require.True(t, exists)
+		stored := obj.(*v1alpha1.Application)
+		assert.Equal(t, "5", stored.ResourceVersion)
+		assert.NotNil(t, stored.Operation, "write-back must not drop an operation the API server set after the patch")
+	})
+
+	t.Run("writes back when resource versions are not numeric", func(t *testing.T) {
+		app := newFakeApp()
+		app.ResourceVersion = "b"
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		updated := app.DeepCopy()
+		updated.ResourceVersion = "a"
+		ctrl.writeBackToInformer(updated)
+
+		obj, exists, err := ctrl.appInformer.GetStore().GetByKey(app.QualifiedName())
+		require.NoError(t, err)
+		require.True(t, exists)
+		assert.Equal(t, "a", obj.(*v1alpha1.Application).ResourceVersion)
 	})
 }
 

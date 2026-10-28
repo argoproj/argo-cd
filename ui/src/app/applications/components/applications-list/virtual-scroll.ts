@@ -15,6 +15,47 @@ export function useWindowScrollerPosition(scrollerRef: React.RefObject<WindowScr
     }, [enabled, layoutKey, scrollerRef]);
 }
 
+/**
+ * Columns-per-row for non-virtual tile keyboard navigation.
+ * Shared by Applications and ApplicationSets tiles.
+ *
+ * When `enabled` is false (virtualized mode), always returns 1 so callers that
+ * briefly read this value do not keep a stale step from the last paginated layout.
+ * On re-enable, measures on the next tick (resize events stay debounced at 1s).
+ */
+export function useItemsPerContainer(itemRef: React.RefObject<HTMLDivElement | null>, containerRef: React.RefObject<HTMLElement | null>, enabled: boolean = true): number {
+    const [itemsPer, setItemsPer] = React.useState(0);
+
+    React.useEffect(() => {
+        if (!enabled) {
+            const clearId = setTimeout(() => setItemsPer(0), 0);
+            return () => clearTimeout(clearId);
+        }
+        let timeoutId: ReturnType<typeof setTimeout>;
+        const measure = () => {
+            const itemWidth = itemRef.current ? itemRef.current.offsetWidth : -1;
+            const containerWidth = containerRef.current ? containerRef.current.offsetWidth : -1;
+            const curItemsPer = containerWidth > 0 && itemWidth > 0 ? Math.floor(containerWidth / itemWidth) : 1;
+            setItemsPer(prev => (curItemsPer !== prev ? curItemsPer : prev));
+        };
+        const handleResize = () => {
+            clearTimeout(timeoutId);
+            timeoutId = setTimeout(measure, 1000);
+        };
+        window.addEventListener('resize', handleResize);
+        timeoutId = setTimeout(measure, 0);
+        return () => {
+            clearTimeout(timeoutId);
+            window.removeEventListener('resize', handleResize);
+        };
+    }, [itemRef, containerRef, enabled]);
+
+    if (!enabled) {
+        return 1;
+    }
+    return itemsPer || 1;
+}
+
 /** Virtualize only when "Items per page: all" is selected and list is greater than this. */
 export const VIRTUAL_THRESHOLD = 50;
 
@@ -136,4 +177,27 @@ export function appsLayoutKey(apps: models.AbstractApplication[]): string {
         hash = Math.imul(hash, 16777619);
     }
     return `${apps.length}:${hash >>> 0}`;
+}
+
+/** Hash of resource identities. Used to refresh WindowScroller when the list set or order changes. */
+export function resourcesLayoutKey(
+    resources: Array<{
+        name?: string;
+        namespace?: string;
+        kind?: string;
+        group?: string;
+        appName?: string;
+        appNamespace?: string;
+    }>
+): string {
+    let hash = 2166136261;
+    for (let i = 0; i < resources.length; i++) {
+        const r = resources[i];
+        const id = `${r.appNamespace || ''}/${r.appName || ''}/${r.group || ''}/${r.kind || ''}/${r.namespace || ''}/${r.name || ''}`;
+        for (let j = 0; j < id.length; j++) {
+            hash ^= id.charCodeAt(j);
+            hash = Math.imul(hash, 16777619);
+        }
+    }
+    return `${resources.length}:${hash >>> 0}`;
 }
