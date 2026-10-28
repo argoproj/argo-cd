@@ -23,6 +23,7 @@ const (
 var syncTestSources = map[string]string{
 	"F7842A5CEAA9C0B1": "testdata/janedoe.asc",
 	"FDC79815400D88A9": "testdata/johndoe.asc",
+	"B6CB0E2A5167FEF3": "testdata/johndoe-ecc.asc",
 	"4AEE18F83AFDEB23": "testdata/github.asc",
 }
 
@@ -337,6 +338,27 @@ func Test_KeyID(t *testing.T) {
 	}
 }
 
+func Test_PrimaryKeyID(t *testing.T) {
+	initTempDir(t)
+	err := InitializeGnuPG()
+	require.NoError(t, err)
+
+	_, err = ImportPGPKeys("testdata/github.asc")
+	require.NoError(t, err)
+
+	t.Run("returns the primary key id for an imported key", func(t *testing.T) {
+		res, err := PrimaryKeyID(shortKeyID)
+		require.NoError(t, err)
+		assert.Equal(t, shortKeyID, res)
+	})
+
+	t.Run("errors for a key that is not in the keyring", func(t *testing.T) {
+		res, err := PrimaryKeyID("DEADBEEFDEADBEEF")
+		require.Error(t, err)
+		assert.Empty(t, res)
+	})
+}
+
 func Test_IsShortKeyID(t *testing.T) {
 	assert.True(t, IsShortKeyID(shortKeyID))
 	assert.False(t, IsShortKeyID(longKeyID))
@@ -418,7 +440,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 
 		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Len(t, newKeys, 3)
+		assert.Len(t, newKeys, 4)
 		assert.Empty(t, removed)
 
 		installed, err := GetInstalledPGPKeys(newKeys)
