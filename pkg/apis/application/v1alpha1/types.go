@@ -2715,7 +2715,23 @@ type TLSClientConfig struct {
 	// CAData holds PEM-encoded bytes (typically read from a root certificates bundle).
 	// CAData takes precedence over CAFile
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
+	// CATrust selects the certificate authorities trusted when CAData is empty. "bundle" trusts only the CAs in the
+	// argocd-cluster-ca-cm ConfigMap, "system" trusts only the system roots, and "bundle-and-system" trusts both.
+	// When empty, the CAs in argocd-cluster-ca-cm are trusted if it has any, and the system roots otherwise.
+	CATrust ClusterCATrust `json:"caTrust,omitempty" protobuf:"bytes,6,opt,name=caTrust"`
 }
+
+// ClusterCATrust selects the certificate authorities a cluster without its own CA data trusts
+type ClusterCATrust string
+
+const (
+	// ClusterCATrustBundle trusts only the CAs in argocd-cluster-ca-cm, and fails when it has none
+	ClusterCATrustBundle ClusterCATrust = "bundle"
+	// ClusterCATrustSystem trusts only the system roots and ignores argocd-cluster-ca-cm
+	ClusterCATrustSystem ClusterCATrust = "system"
+	// ClusterCATrustBundleAndSystem trusts both the CAs in argocd-cluster-ca-cm and the system roots
+	ClusterCATrustBundleAndSystem ClusterCATrust = "bundle-and-system"
+)
 
 // KnownTypeField contains a mapping between a Custom Resource Definition (CRD) field
 // and a well-known Kubernetes type. This mapping is primarily used for unit conversions
