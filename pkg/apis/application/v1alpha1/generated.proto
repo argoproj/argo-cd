@@ -949,6 +949,12 @@ message ClusterConfig {
 
   // ProxyURL is the URL to the proxy to be used for all requests send to the server
   optional string proxyUrl = 8;
+
+  // QPS controls the number of queries per second allowed for this cluster.
+  optional float qps = 9;
+
+  // Burst allows extra queries to accumulate for a rapid burst of requests to this cluster.
+  optional int64 burst = 10;
 }
 
 // ClusterGenerator defines a generator to match against clusters registered with ArgoCD.
@@ -1802,6 +1808,9 @@ message PullRequestGeneratorAzureDevOps {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+
+  // ExcludedLabels is used to exclude PRs with these labels
+  repeated string excludedLabels = 7;
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
@@ -1871,6 +1880,9 @@ message PullRequestGeneratorGitLab {
   // Labels is used to filter the MRs that you want to target
   repeated string labels = 4;
 
+  // ExcludedLabels is used to exclude MRs with these labels
+  repeated string excludedLabels = 8;
+
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
   // Valid values: opened, closed, merged, locked".
   optional string pullRequestState = 5;
@@ -1901,6 +1913,9 @@ message PullRequestGeneratorGitea {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+
+  // ExcludedLabels is used to exclude PRs with these labels
+  repeated string excludedLabels = 7;
 }
 
 // PullRequestGeneratorGithub defines connection info specific to GitHub.
@@ -1922,6 +1937,9 @@ message PullRequestGeneratorGithub {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+
+  // ExcludedLabels is used to exclude PRs with these labels
+  repeated string excludedLabels = 7;
 }
 
 message RefTarget {
