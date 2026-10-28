@@ -132,10 +132,11 @@ func (e *informerEngine) ensureSynced() error {
 
 	e.syncMu.Lock()
 	defer e.syncMu.Unlock()
-	e.logIgnoredSettings()
 
 	c.lock.Lock()
 	defer c.lock.Unlock()
+	// Under c.lock: Invalidate(opts...) writes these settings under c.lock.
+	e.logIgnoredSettings()
 
 	// before doing any work, check once again now that we have the lock, to see if it got
 	// synced between the first check and now
@@ -224,6 +225,9 @@ func (e *informerEngine) sync() (err error) {
 	}
 	c.apisMeta = map[schema.GroupKind]*apiMeta{}
 	e.informers = map[schema.GroupKind]map[string]sharedInformer{}
+	// A rebuild is a fresh initial sync: if it times out, the next retry
+	// resumes it, and its initial-list events don't dispatch OnResourceUpdated.
+	e.firstSyncCompleted = false
 	c.resources = map[kube.ResourceKey]*Resource{}
 	c.namespacedResources.Store(&map[schema.GroupKind]bool{})
 	c.nsIndex = map[string]map[kube.ResourceKey]*Resource{}
@@ -383,7 +387,8 @@ func (e *informerEngine) stopWatching(gk schema.GroupKind, ns string) {
 	if !ok {
 		return
 	}
-	if si, ok := e.informers[gk][ns]; ok {
+	si, stopped := e.informers[gk][ns]
+	if stopped {
 		si.cancel()
 		delete(e.informers[gk], ns)
 		c.replaceResourceCache(gk, nil, ns)
@@ -398,7 +403,9 @@ func (e *informerEngine) stopWatching(gk schema.GroupKind, ns string) {
 		delete(namespacedResources, gk)
 		c.namespacedResources.Store(&namespacedResources)
 	}
-	c.log.Info(fmt.Sprintf("Stop watching: %s not found", gk), "namespace", namespaceDescription(ns))
+	if stopped {
+		c.log.Info(fmt.Sprintf("Stopped watching %s", gk), "namespace", namespaceDescription(ns))
+	}
 }
 
 // startInformersForAPI is the public entrypoint for starting the informer
