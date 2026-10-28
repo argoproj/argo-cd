@@ -39,7 +39,8 @@ func withSystemRootCAs(t *testing.T, roots []byte) {
 func resetDefaultCABundleTrust() {
 	defaultCABundleTrustCache.Lock()
 	defer defaultCABundleTrustCache.Unlock()
-	defaultCABundleTrustCache.trust = nil
+	defaultCABundleTrustCache.bundleOnly = nil
+	defaultCABundleTrustCache.withSystemRoots = nil
 }
 
 type testCA struct {
@@ -105,37 +106,50 @@ func get(t *testing.T, config *rest.Config) error {
 	return resp.Body.Close()
 }
 
-func TestCluster_DefaultCABundle_AddedToSystemRoots(t *testing.T) {
+func TestCluster_DefaultCABundle_CATrust(t *testing.T) {
 	publicCA := newTestCA(t, "public-ca")
 	privateCA := newTestCA(t, "private-ca")
 	withSystemRootCAs(t, publicCA.pem)
 	publicServer := publicCA.newTLSServer(t)
 	privateServer := privateCA.newTLSServer(t)
 
+	tests := []struct {
+		name          string
+		caTrust       ClusterCATrust
+		caData        []byte
+		trustsPublic  bool
+		trustsPrivate bool
+	}{
+		{name: "unset trusts only the default bundle", trustsPrivate: true},
+		{name: "bundle trusts only the default bundle", caTrust: ClusterCATrustBundle, trustsPrivate: true},
+		{name: "system ignores the default bundle", caTrust: ClusterCATrustSystem},
+		{name: "bundle-and-system trusts the system roots and the default bundle", caTrust: ClusterCATrustBundleAndSystem, trustsPublic: true, trustsPrivate: true},
+		{name: "a cluster with its own caData trusts only that CA", caTrust: ClusterCATrustBundleAndSystem, caData: publicCA.pem, trustsPublic: true},
+	}
 	restConfigs := map[string]func(*Cluster) (*rest.Config, error){
 		"RESTConfig":    (*Cluster).RESTConfig,
 		"RawRestConfig": (*Cluster).RawRestConfig,
 	}
 	for name, restConfig := range restConfigs {
 		t.Run(name, func(t *testing.T) {
-			t.Run("a cluster without caData trusts the system roots and the default bundle", func(t *testing.T) {
-				for _, server := range []*httptest.Server{publicServer, privateServer} {
-					config, err := restConfig(&Cluster{Server: server.URL, DefaultCABundle: privateCA.pem})
-					require.NoError(t, err)
-					assert.NoError(t, get(t, config), server.URL)
-				}
-			})
-			t.Run("a cluster with its own caData trusts only that CA", func(t *testing.T) {
-				cluster := &Cluster{
-					Server:          publicServer.URL,
-					DefaultCABundle: privateCA.pem,
-					Config:          ClusterConfig{TLSClientConfig: TLSClientConfig{CAData: privateCA.pem}},
-				}
-				config, err := restConfig(cluster)
-				require.NoError(t, err)
-				var unknownAuthority x509.UnknownAuthorityError
-				assert.ErrorAs(t, get(t, config), &unknownAuthority)
-			})
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					for server, trusted := range map[*httptest.Server]bool{publicServer: tt.trustsPublic, privateServer: tt.trustsPrivate} {
+						config, err := restConfig(&Cluster{
+							Server:          server.URL,
+							DefaultCABundle: privateCA.pem,
+							Config:          ClusterConfig{TLSClientConfig: TLSClientConfig{CAData: tt.caData, CATrust: tt.caTrust}},
+						})
+						require.NoError(t, err)
+						if trusted {
+							assert.NoError(t, get(t, config), server.URL)
+						} else {
+							var verificationErr *tls.CertificateVerificationError
+							assert.ErrorAs(t, get(t, config), &verificationErr, server.URL)
+						}
+					}
+				})
+			}
 		})
 	}
 }
@@ -144,17 +158,24 @@ func TestCluster_RESTConfig_SharesDefaultCABundlePool(t *testing.T) {
 	withSystemRootCAs(t, generateSelfSignedCertPEM(t, "system-root-ca"))
 	bundle := generateSelfSignedCertPEM(t, "default-ca")
 
-	var pools []*x509.CertPool
-	for _, server := range []string{"https://cluster-1", "https://cluster-2"} {
-		config, err := (&Cluster{Server: server, DefaultCABundle: bytes.Clone(bundle)}).RESTConfig()
-		require.NoError(t, err)
-		tlsConfig, err := utilnet.TLSClientConfig(config.Transport)
-		require.NoError(t, err)
-		require.NotNil(t, tlsConfig)
-		pools = append(pools, tlsConfig.RootCAs)
+	poolsByTrust := map[ClusterCATrust][]*x509.CertPool{}
+	for _, caTrust := range []ClusterCATrust{"", ClusterCATrustBundle, ClusterCATrustBundleAndSystem} {
+		for _, server := range []string{"https://cluster-1", "https://cluster-2"} {
+			cluster := &Cluster{Server: server, DefaultCABundle: bytes.Clone(bundle), Config: ClusterConfig{TLSClientConfig: TLSClientConfig{CATrust: caTrust}}}
+			config, err := cluster.RESTConfig()
+			require.NoError(t, err)
+			tlsConfig, err := utilnet.TLSClientConfig(config.Transport)
+			require.NoError(t, err)
+			require.NotNil(t, tlsConfig)
+			poolsByTrust[caTrust] = append(poolsByTrust[caTrust], tlsConfig.RootCAs)
+		}
 	}
-	assert.Same(t, trustForDefaultCABundle(bundle).pool, pools[0], "the REST config must use the shared pool")
-	assert.Same(t, pools[0], pools[1], "clusters using the same bundle must not each parse the system roots")
+	assert.Same(t, trustForDefaultCABundle(bundle, false).pool, poolsByTrust[""][0], "the REST config must use the shared pool")
+	assert.Same(t, poolsByTrust[""][0], poolsByTrust[""][1], "clusters using the same bundle must not each parse it")
+	assert.Same(t, poolsByTrust[""][0], poolsByTrust[ClusterCATrustBundle][0], "unset and bundle must share the bundle only pool")
+	assert.Same(t, trustForDefaultCABundle(bundle, true).pool, poolsByTrust[ClusterCATrustBundleAndSystem][0], "the REST config must use the shared pool")
+	assert.Same(t, poolsByTrust[ClusterCATrustBundleAndSystem][0], poolsByTrust[ClusterCATrustBundleAndSystem][1], "clusters using the same bundle must not each parse the system roots")
+	assert.NotSame(t, poolsByTrust[""][0], poolsByTrust[ClusterCATrustBundleAndSystem][0], "bundle only and bundle-and-system must not share a pool")
 }
 
 func TestTrustForDefaultCABundle(t *testing.T) {
@@ -162,17 +183,66 @@ func TestTrustForDefaultCABundle(t *testing.T) {
 	withSystemRootCAs(t, roots)
 	bundle := generateSelfSignedCertPEM(t, "default-ca")
 
-	trust := trustForDefaultCABundle(bundle)
-	assert.Equal(t, slices.Concat(roots, []byte("\n"), bundle), trust.caData)
-	expectedPool := x509.NewCertPool()
-	require.True(t, expectedPool.AppendCertsFromPEM(trust.caData))
-	assert.True(t, trust.pool.Equal(expectedPool), "the shared pool must trust exactly the system roots and the bundle")
-	assert.Same(t, trust, trustForDefaultCABundle(bytes.Clone(bundle)), "clusters using the same bundle must share one parsed pool")
+	for _, withSystemRoots := range []bool{false, true} {
+		expectedCAData := func(bundle []byte) []byte {
+			if withSystemRoots {
+				return slices.Concat(roots, []byte("\n"), bundle)
+			}
+			return bundle
+		}
+		trust := trustForDefaultCABundle(bundle, withSystemRoots)
+		assert.Equal(t, expectedCAData(bundle), trust.caData)
+		expectedPool := x509.NewCertPool()
+		require.True(t, expectedPool.AppendCertsFromPEM(trust.caData))
+		assert.True(t, trust.pool.Equal(expectedPool), "the shared pool must trust exactly the expected CAs")
+		assert.Same(t, trust, trustForDefaultCABundle(bytes.Clone(bundle), withSystemRoots), "clusters using the same bundle must share one parsed pool")
 
-	rotated := generateSelfSignedCertPEM(t, "rotated-default-ca")
-	rotatedTrust := trustForDefaultCABundle(rotated)
-	assert.NotSame(t, trust, rotatedTrust, "a rotated bundle must not reuse the pool of the previous one")
-	assert.Equal(t, slices.Concat(roots, []byte("\n"), rotated), rotatedTrust.caData)
+		rotated := generateSelfSignedCertPEM(t, "rotated-default-ca")
+		rotatedTrust := trustForDefaultCABundle(rotated, withSystemRoots)
+		assert.NotSame(t, trust, rotatedTrust, "a rotated bundle must not reuse the pool of the previous one")
+		assert.Equal(t, expectedCAData(rotated), rotatedTrust.caData)
+	}
+}
+
+func TestTrustForDefaultCABundle_ModesAreCachedSeparately(t *testing.T) {
+	withSystemRootCAs(t, generateSelfSignedCertPEM(t, "system-root-ca"))
+	bundle := generateSelfSignedCertPEM(t, "default-ca")
+
+	bundleOnly := trustForDefaultCABundle(bundle, false)
+	withSystemRoots := trustForDefaultCABundle(bundle, true)
+	assert.NotSame(t, bundleOnly, withSystemRoots)
+	assert.Same(t, bundleOnly, trustForDefaultCABundle(bundle, false))
+	assert.Same(t, withSystemRoots, trustForDefaultCABundle(bundle, true))
+}
+
+func TestClusterCATrust_Validate(t *testing.T) {
+	for _, caTrust := range []ClusterCATrust{"", ClusterCATrustBundle, ClusterCATrustSystem, ClusterCATrustBundleAndSystem} {
+		require.NoError(t, caTrust.Validate(), caTrust)
+	}
+	for _, caTrust := range []ClusterCATrust{"Bundle", "system ", "both"} {
+		assert.ErrorContains(t, caTrust.Validate(), "invalid caTrust", caTrust)
+	}
+}
+
+func TestCluster_DependsOnDefaultCABundle(t *testing.T) {
+	tests := []struct {
+		name     string
+		cluster  Cluster
+		expected bool
+	}{
+		{name: "unset", cluster: Cluster{Server: "https://1.2.3.4"}, expected: true},
+		{name: "bundle", cluster: Cluster{Server: "https://1.2.3.4", Config: ClusterConfig{TLSClientConfig: TLSClientConfig{CATrust: ClusterCATrustBundle}}}, expected: true},
+		{name: "bundle-and-system", cluster: Cluster{Server: "https://1.2.3.4", Config: ClusterConfig{TLSClientConfig: TLSClientConfig{CATrust: ClusterCATrustBundleAndSystem}}}, expected: true},
+		{name: "system", cluster: Cluster{Server: "https://1.2.3.4", Config: ClusterConfig{TLSClientConfig: TLSClientConfig{CATrust: ClusterCATrustSystem}}}},
+		{name: "own caData", cluster: Cluster{Server: "https://1.2.3.4", Config: ClusterConfig{TLSClientConfig: TLSClientConfig{CAData: []byte("ca")}}}},
+		{name: "insecure", cluster: Cluster{Server: "https://1.2.3.4", Config: ClusterConfig{TLSClientConfig: TLSClientConfig{Insecure: true}}}},
+		{name: "in-cluster", cluster: Cluster{Server: KubernetesInternalAPIServerAddr}},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.cluster.DependsOnDefaultCABundle())
+		})
+	}
 }
 
 func TestLoadSystemRootCAsPEM(t *testing.T) {

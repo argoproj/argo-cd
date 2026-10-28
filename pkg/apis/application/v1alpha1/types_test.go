@@ -6140,6 +6140,7 @@ func TestSanitized(t *testing.T) {
 				CertData:   []byte("random bytes we don't want to show in the API response"),
 				KeyData:    []byte("random bytes we don't want to show in the API response"),
 				CAData:     []byte("random bytes we don't want to show in the API response"),
+				CATrust:    ClusterCATrustSystem,
 			},
 			ExecProviderConfig: &ExecProviderConfig{
 				Command:    "this should be omitted in API",
@@ -6172,6 +6173,7 @@ func TestSanitized(t *testing.T) {
 			TLSClientConfig: TLSClientConfig{
 				Insecure:   true,
 				ServerName: "server",
+				CATrust:    ClusterCATrustSystem,
 			},
 		},
 	}, cluster.Sanitized())
@@ -7644,8 +7646,10 @@ func TestCluster_RESTConfig_DefaultCABundle(t *testing.T) {
 		name            string
 		caData          []byte
 		insecure        bool
+		caTrust         ClusterCATrust
 		defaultCABundle []byte
 		expectedCAData  []byte
+		expectedErr     string
 	}{
 		{
 			name:            "cluster caData takes precedence and the default bundle is ignored (no merging)",
@@ -7654,9 +7658,54 @@ func TestCluster_RESTConfig_DefaultCABundle(t *testing.T) {
 			expectedCAData:  clusterCA,
 		},
 		{
-			name:            "default bundle is added to the system roots when cluster caData is empty",
+			name:            "only the default bundle is trusted when cluster caData is empty",
+			defaultCABundle: defaultCA,
+			expectedCAData:  defaultCA,
+		},
+		{
+			name:            "bundle trusts only the default bundle",
+			caTrust:         ClusterCATrustBundle,
+			defaultCABundle: defaultCA,
+			expectedCAData:  defaultCA,
+		},
+		{
+			name:        "bundle fails without a default bundle",
+			caTrust:     ClusterCATrustBundle,
+			expectedErr: `caTrust is "bundle" but there is no CA bundle in the ca.crt key of the argocd-cluster-ca-cm ConfigMap`,
+		},
+		{
+			name:            "system ignores the default bundle",
+			caTrust:         ClusterCATrustSystem,
+			defaultCABundle: defaultCA,
+		},
+		{
+			name:            "bundle-and-system adds the default bundle to the system roots",
+			caTrust:         ClusterCATrustBundleAndSystem,
 			defaultCABundle: defaultCA,
 			expectedCAData:  slices.Concat(systemRootCA, []byte("\n"), defaultCA),
+		},
+		{
+			name:    "bundle-and-system without a default bundle uses the system roots",
+			caTrust: ClusterCATrustBundleAndSystem,
+		},
+		{
+			name:            "cluster caData takes precedence over bundle",
+			caData:          clusterCA,
+			caTrust:         ClusterCATrustBundle,
+			expectedCAData:  clusterCA,
+			defaultCABundle: defaultCA,
+		},
+		{
+			name:            "unknown caTrust fails",
+			caTrust:         "both",
+			defaultCABundle: defaultCA,
+			expectedErr:     `invalid caTrust "both"`,
+		},
+		{
+			name:        "unknown caTrust fails even with cluster caData",
+			caData:      clusterCA,
+			caTrust:     "both",
+			expectedErr: `invalid caTrust "both"`,
 		},
 		{
 			name: "no CA is set when neither is configured",
@@ -7680,7 +7729,14 @@ func TestCluster_RESTConfig_DefaultCABundle(t *testing.T) {
 			c := &Cluster{
 				Server:          "https://1.2.3.4",
 				DefaultCABundle: tt.defaultCABundle,
-				Config:          ClusterConfig{CAData: tt.caData, Insecure: tt.insecure},
+				Config:          ClusterConfig{TLSClientConfig: TLSClientConfig{CAData: tt.caData, Insecure: tt.insecure, CATrust: tt.caTrust}},
+			}
+			if tt.expectedErr != "" {
+				_, err := c.RawRestConfig()
+				require.ErrorContains(t, err, tt.expectedErr)
+				_, err = c.RESTConfig()
+				require.ErrorContains(t, err, tt.expectedErr)
+				return
 			}
 			rawConfig, err := c.RawRestConfig()
 			require.NoError(t, err)

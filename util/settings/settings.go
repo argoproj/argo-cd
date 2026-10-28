@@ -2098,7 +2098,7 @@ func parseClusterCABundle(raw string) []byte {
 		return nil
 	}
 	if ok := x509.NewCertPool().AppendCertsFromPEM([]byte(caBundle)); !ok {
-		log.Warnf("Ignoring key %q of ConfigMap %q: it does not contain any valid PEM encoded certificate. Clusters without their own caData will use system roots.", common.ArgoCDClusterCAConfigMapKey, common.ArgoCDClusterCAConfigMapName)
+		log.Warnf("Ignoring key %q of ConfigMap %q: it does not contain any valid PEM encoded certificate. The default cluster CA bundle is treated as absent.", common.ArgoCDClusterCAConfigMapKey, common.ArgoCDClusterCAConfigMapName)
 		return nil
 	}
 	return []byte(caBundle)
