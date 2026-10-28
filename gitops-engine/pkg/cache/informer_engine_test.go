@@ -616,6 +616,90 @@ func TestInformerStopWatching_RemovesNamespacedResourcesEntry(t *testing.T) {
 	assert.False(t, indexed, "stopWatching must drop the GK from the engine's informer index")
 }
 
+// TestInformerStopWatching_PurgesOnlyNamespace verifies that stopping one
+// namespace's informer leaves the other namespaces watched and their
+// resources cached, and that stopping the last namespace drops the GroupKind.
+func TestInformerStopWatching_PurgesOnlyNamespace(t *testing.T) {
+	c, _ := newInformerTestCache(t, unstructuredPod("pod-a", "ns-a"), unstructuredPod("pod-b", "ns-b"))
+	c.namespaces = []string{"ns-a", "ns-b"}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.NoError(t, c.startInformersForAPI(ctx, podsAPI()))
+
+	gk := podsGVK.GroupKind()
+	keyA := kube.NewResourceKey("", "Pod", "ns-a", "pod-a")
+	keyB := kube.NewResourceKey("", "Pod", "ns-b", "pod-b")
+	require.Eventually(t, func() bool {
+		c.lock.RLock()
+		defer c.lock.RUnlock()
+		return c.resources[keyA] != nil && c.resources[keyB] != nil
+	}, 5*time.Second, 10*time.Millisecond)
+
+	e := informerEngineOf(c)
+	c.lock.RLock()
+	stoppedA := e.informers[gk]["ns-a"]
+	c.lock.RUnlock()
+
+	e.stopWatching(gk, "ns-a")
+
+	c.lock.RLock()
+	require.Error(t, stoppedA.ctx.Err(), "the stopped namespace's informer is cancelled")
+	remaining := e.informers[gk]
+	require.Len(t, remaining, 1)
+	require.Contains(t, remaining, "ns-b")
+	require.NoError(t, remaining["ns-b"].ctx.Err(), "other namespaces' informers keep running")
+	assert.Nil(t, c.resources[keyA], "the stopped namespace's resources are purged")
+	assert.NotNil(t, c.resources[keyB], "other namespaces' resources stay")
+	assert.Contains(t, c.apisMeta, gk)
+	assert.Contains(t, c.loadNamespacedResources(), gk)
+	c.lock.RUnlock()
+
+	e.stopWatching(gk, "ns-b")
+
+	c.lock.RLock()
+	defer c.lock.RUnlock()
+	assert.Nil(t, c.resources[keyB])
+	assert.NotContains(t, c.apisMeta, gk, "the last namespace removes the GroupKind")
+	assert.NotContains(t, e.informers, gk)
+	assert.NotContains(t, c.loadNamespacedResources(), gk)
+}
+
+// TestBuildInformer_PassesLabelSelector verifies that the informer's list and
+// watch calls carry the API's label selector, as legacy listResources and
+// watchEvents do.
+func TestBuildInformer_PassesLabelSelector(t *testing.T) {
+	c, client := newInformerTestCache(t, unstructuredPod("nginx", "default"))
+	api := podsAPI()
+	api.LabelSelector = "app=argo"
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	informer, _ := c.buildInformer(ctx, client, client.Resource(podsGVR), api, "")
+	go informer.RunWithContext(ctx)
+	require.True(t, cache.WaitForCacheSync(ctx.Done(), informer.HasSynced))
+
+	var lists, watches []string
+	require.Eventually(t, func() bool {
+		lists, watches = nil, nil
+		for _, a := range client.Actions() {
+			switch act := a.(type) {
+			case testcore.ListActionImpl:
+				lists = append(lists, act.GetListRestrictions().Labels.String())
+			case testcore.WatchActionImpl:
+				watches = append(watches, act.GetWatchRestrictions().Labels.String())
+			}
+		}
+		return len(lists) > 0 && len(watches) > 0
+	}, 5*time.Second, 10*time.Millisecond, "informer should issue a list and a watch")
+	for _, l := range lists {
+		assert.Equal(t, api.LabelSelector, l, "list label selector")
+	}
+	for _, w := range watches {
+		assert.Equal(t, api.LabelSelector, w, "watch label selector")
+	}
+}
+
 func TestInvalidate_InformerModeCancelsWatches(t *testing.T) {
 	client := fake.NewSimpleDynamicClient(scheme.Scheme, unstructuredPod("nginx", "default"))
 	reactor := client.ReactionChain[0]

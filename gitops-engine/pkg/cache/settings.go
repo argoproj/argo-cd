@@ -229,6 +229,11 @@ const (
 	// namespace) with a TransformFunc that converts incoming objects to
 	// cachedResource at intake. Experimental — see
 	// https://github.com/argoproj/argo-cd/issues/19199.
+	//
+	// ModeInformer ignores listPageSize, listPageBufferSize, listRetryLimit,
+	// listRetryUseBackoff, listRetryFunc, watchResyncTimeout,
+	// batchEventsProcessing and eventProcessingInterval, and logs the ones set
+	// to a non-default value on the first sync. listSemaphore is honoured.
 	ModeInformer
 )
 
