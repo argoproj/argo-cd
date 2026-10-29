@@ -1,4 +1,5 @@
 import {fireEvent, render, screen} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import * as React from 'react';
 import {TagsInput} from './tags-input';
 
@@ -37,5 +38,61 @@ describe('TagsInput', () => {
 
         expect(onChange).not.toHaveBeenCalled();
         expect(screen.getAllByText('values.yaml')).toHaveLength(1);
+    });
+
+    test.each([
+        {selection: 'default highlight', key: '', expected: 'values.yaml'},
+        {selection: 'keyboard highlight', key: '{ArrowDown}', expected: 'values-dev.yaml'}
+    ])('commits only the $selection on Tab and clears the input', async ({key, expected}) => {
+        const onChange = jest.fn();
+        const user = userEvent.setup();
+        render(<TagsInput tags={[]} autocomplete={['values.yaml', 'values-dev.yaml']} onChange={onChange} />);
+
+        const input = screen.getByRole('combobox');
+        await user.click(input);
+        await user.type(input, 'values');
+        if (key) {
+            await user.keyboard(key);
+        }
+        await user.tab();
+
+        expect(onChange).toHaveBeenCalledTimes(1);
+        expect(onChange).toHaveBeenLastCalledWith([expected]);
+        expect(input).toHaveValue('');
+
+        // Reopening starts with every suggestion, and selecting the same file is a no-op.
+        await user.click(input);
+        expect(screen.getAllByRole('option')).toHaveLength(2);
+        await user.type(input, expected);
+        await user.tab();
+
+        expect(onChange).toHaveBeenCalledTimes(1);
+        expect(screen.getAllByText(expected)).toHaveLength(1);
+        expect(input).toHaveValue('');
+    });
+
+    test.each(['$values/path/to/values.yaml', 'values.yaml'])('saves %s when clicking Save directly without Enter', async value => {
+        const onSave = jest.fn();
+        const user = userEvent.setup();
+        const ValuesFilesForm = () => {
+            const [tags, setTags] = React.useState<string[]>([]);
+            return (
+                <>
+                    <TagsInput tags={tags} autocomplete={['values.yaml']} onChange={setTags} />
+                    <button type='button' onClick={() => onSave(tags)}>
+                        Save
+                    </button>
+                </>
+            );
+        };
+        render(<ValuesFilesForm />);
+
+        const input = screen.getByRole('combobox');
+        await user.click(input);
+        await user.type(input, value);
+        await user.click(screen.getByRole('button', {name: 'Save'}));
+
+        expect(onSave).toHaveBeenCalledWith([value]);
+        expect(input).toHaveValue('');
     });
 });

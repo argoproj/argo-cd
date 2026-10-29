@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import * as React from 'react';
-import {useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 
 import {Autocomplete, AutocompleteApi, AutocompleteOption} from 'argo-ui';
 
@@ -24,6 +24,7 @@ export function TagsInput(props: TagsInputProps) {
 
     const inputEl = useRef<HTMLInputElement | null>(null);
     const autocompleteApi = useRef<AutocompleteApi | null>(null);
+    const pendingBlurInput = useRef<string | null>(null);
 
     const onTagsChange = (tags: string[]) => {
         if (props.onChange) {
@@ -43,6 +44,16 @@ export function TagsInput(props: TagsInputProps) {
         setState({...state, input: '', focused, tags: newTags});
         onTagsChange(newTags);
     };
+
+    useEffect(() => {
+        // Autocomplete selects a highlighted suggestion in its effect after blur.
+        // Commit free text only if that selection did not consume the input.
+        const input = pendingBlurInput.current;
+        pendingBlurInput.current = null;
+        if (input) {
+            addTag(input, false);
+        }
+    });
 
     return (
         <div className={classNames('tags-input argo-field', {'tags-input--focused': state.focused || !!state.input})} onClick={() => inputEl.current && inputEl.current.focus()}>
@@ -67,6 +78,7 @@ export function TagsInput(props: TagsInputProps) {
                 items={props.autocomplete}
                 onChange={e => setState({...state, input: e.target.value})}
                 onSelect={value => {
+                    pendingBlurInput.current = null;
                     addTag(value);
                 }}
                 renderInput={inputProps => (
@@ -80,20 +92,18 @@ export function TagsInput(props: TagsInputProps) {
                             }
                         }}
                         onFocus={e => {
+                            pendingBlurInput.current = null;
                             if (inputProps.onFocus) {
                                 inputProps.onFocus(e);
                             }
                             setState({...state, focused: true});
                         }}
                         onBlur={e => {
+                            pendingBlurInput.current = state.input;
                             if (inputProps.onBlur) {
                                 inputProps.onBlur(e);
                             }
-                            if (state.input) {
-                                addTag(state.input, false);
-                            } else {
-                                setState({...state, focused: false});
-                            }
+                            setState({...state, focused: false});
                         }}
                         onKeyDown={e => {
                             if (e.keyCode === 8 && state.tags.length > 0 && state.input === '') {
