@@ -1,0 +1,25 @@
+apiVersion: k8s.keycloak.org/v2beta1
+kind: KeycloakRealmImport
+metadata:
+  creationTimestamp: "2026-10-29T17:55:14Z"
+  generation: 1
+  name: lab-realm
+  namespace: keycloak
+  resourceVersion: "3080"
+  uid: 0140b761-1b16-4b24-b884-5f798efac45e
+spec:
+  keycloakCRName: keycloak
+  realm:
+    enabled: true
+    realm: lab
+status:
+  conditions:
+  - message: ""
+    status: "False"
+    type: Done
+  - message: Import Job will start soon
+    status: "False"
+    type: Started
+  - message: Deployment not yet ready
+    status: "True"
+    type: HasErrors
