@@ -942,6 +942,73 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_UnknownOutputFormat(t *test
 	assert.Contains(t, stderr, "unknown output format: unknown")
 }
 
+func TestProjectSourceIntegrityGpgInspectRepoCommand_SealSignHint(t *testing.T) {
+	projectName := "test-project"
+	applicationName := "test-app"
+	emptyNamespace := ""
+
+	getSampleResponse := func(withProblems bool, errorMessage string) *application.InspectGitGPGSourceIntegrityListResponse {
+		commits := []*application.GitGPGCommitInfo{}
+		if withProblems {
+			commits = []*application.GitGPGCommitInfo{
+				prepareGitGPGCommitInfo("abcd1234", "Fri, 02 Jan 2026 15:55:44 +0200", "Jim Smith <jim.smith@example.com>", "Add test commit", "unsigned(key_id=)"),
+			}
+		}
+		return &application.InspectGitGPGSourceIntegrityListResponse{
+			Items: []*application.InspectGitGPGSourceIntegrityResponse{
+				prepareInspectGitGPGSourceIntegrityResponse(
+					"https://github.com/argoproj/argo-cd.git",
+					"v1.0.0",
+					"abcd1234",
+					&appsv1.SourceIntegrityGitPolicyGPG{
+						Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
+						Keys: []string{"ABCD1234ABCD1234"},
+					},
+					commits,
+					errorMessage,
+				),
+			},
+		}
+	}
+
+	t.Run("no problems shows no hint", func(t *testing.T) {
+		mockSetup := func(appClient *applicationmocks.ApplicationServiceClient) {
+			appClient.EXPECT().
+				InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+				Return(getSampleResponse(false, ""), nil)
+		}
+
+		stdout, _, _ := setupAndRunInspectCmdAsSubprocess(t, mockSetup, []string{projectName, applicationName})
+
+		assert.NotContains(t, stdout, "To create seal commit (this will trust all problematic commits before the seal commit):")
+		assert.NotContains(t, stdout, "git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"")
+	})
+	t.Run("wrong config shows no hint", func(t *testing.T) {
+		mockSetup := func(appClient *applicationmocks.ApplicationServiceClient) {
+			appClient.EXPECT().
+				InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+				Return(getSampleResponse(false, "ERROR message"), nil)
+		}
+
+		stdout, _, _ := setupAndRunInspectCmdAsSubprocess(t, mockSetup, []string{projectName, applicationName})
+
+		assert.NotContains(t, stdout, "To create seal commit (this will trust all problematic commits before the seal commit):")
+		assert.NotContains(t, stdout, "git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"")
+	})
+	t.Run("problematic commits shows hint", func(t *testing.T) {
+		mockSetup := func(appClient *applicationmocks.ApplicationServiceClient) {
+			appClient.EXPECT().
+				InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+				Return(getSampleResponse(true, ""), nil)
+		}
+
+		stdout, _, _ := setupAndRunInspectCmdAsSubprocess(t, mockSetup, []string{projectName, applicationName})
+
+		assert.Contains(t, stdout, "To create seal commit (this will trust all problematic commits before the seal commit):")
+		assert.Contains(t, stdout, "git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"")
+	})
+}
+
 func TestProjectSourceIntegrityGpgInspectRepoCommand_SinglePassingSource(t *testing.T) {
 	projectName := "test-project"
 	applicationName := "test-app"

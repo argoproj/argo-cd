@@ -612,7 +612,7 @@ Exit codes:
 					os.Exit(1)
 				}
 			case "wide", "":
-				printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems(), hasSourceIntegrityProblems)
+				printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
 			}
 
 			if hasSourceIntegrityProblems {
@@ -636,7 +636,9 @@ func hasSourceIntegrityProblems(items []*applicationpkg.InspectGitGPGSourceInteg
 	return false
 }
 
-func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitGPGSourceIntegrityResponse, hasSourceIntegrityProblems bool) {
+func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitGPGSourceIntegrityResponse) {
+	showSealSignHint := false
+
 	for i, item := range items {
 		gpgPolicy := item.GetGitGpgPolicy()
 		isStrictMode := gpgPolicy != nil && gpgPolicy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
@@ -655,6 +657,8 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 		}
 
 		if len(item.GetCommits()) > 0 {
+			showSealSignHint = true
+
 			fmt.Fprintln(w, "\nPROBLEMATIC COMMITS:")
 			tabW := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 			fmt.Fprint(tabW, "  Revision\tDate\tAuthor\tSubject\tResult\n")
@@ -684,7 +688,7 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 		}
 	}
 
-	if hasSourceIntegrityProblems {
+	if showSealSignHint {
 		fmt.Fprintln(w)
 		fmt.Fprintln(w, "To create seal commit (this will trust all problematic commits before the seal commit):")
 		fmt.Fprintln(w, `  git commit --allow-empty --signoff --gpg-sign --trailer="Argocd-gpg-seal: <justification>"`)
