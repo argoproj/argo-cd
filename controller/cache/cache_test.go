@@ -1062,3 +1062,54 @@ func TestAppsToNotify(t *testing.T) {
 		assert.Empty(t, (&liveStateCache{}).appsToNotify("https://cluster-a", crdRef, crd, nil, nil))
 	})
 }
+
+func TestHandleResourceUpdated(t *testing.T) {
+	const crdName = "dummies.argoproj.io"
+	crdRef := corev1.ObjectReference{APIVersion: "apiextensions.k8s.io/v1", Kind: kube.CustomResourceDefinitionKind, Name: crdName}
+
+	appInformer := toolscache.NewSharedIndexInformer(&toolscache.ListWatch{}, &appv1.Application{}, 0, toolscache.Indexers{ManagedCRDIndex: ManagedCRDIndexFunc})
+	require.NoError(t, appInformer.GetIndexer().Add(newAppManagingCRD("crd-app", "https://cluster-a", crdName)))
+
+	newCache := func(notified *[]map[string]bool, ignoreResourceUpdatesEnabled bool) *liveStateCache {
+		return &liveStateCache{
+			db:            &dbmocks.ArgoDB{},
+			appInformer:   appInformer,
+			cacheSettings: cacheSettings{ignoreResourceUpdatesEnabled: ignoreResourceUpdatesEnabled},
+			onObjectUpdated: func(managedByApp map[string]bool, _ corev1.ObjectReference) {
+				*notified = append(*notified, managedByApp)
+			},
+		}
+	}
+
+	t.Run("untracked CRD update refreshes the apps managing it", func(t *testing.T) {
+		var notified []map[string]bool
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		newCache(&notified, true).handleResourceUpdated("https://cluster-a", crd, crd, nil)
+		assert.Equal(t, []map[string]bool{{"argocd/crd-app": true}}, notified)
+	})
+
+	t.Run("untracked CRD delete refreshes the apps managing it", func(t *testing.T) {
+		var notified []map[string]bool
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		newCache(&notified, true).handleResourceUpdated("https://cluster-a", nil, crd, nil)
+		assert.Equal(t, []map[string]bool{{"argocd/crd-app": true}}, notified)
+	})
+
+	t.Run("update with an unchanged manifest hash is ignored", func(t *testing.T) {
+		var notified []map[string]bool
+		ref := corev1.ObjectReference{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "guestbook"}
+		oldRes := &cache.Resource{Ref: ref, Info: &ResourceInfo{AppName: "guestbook", manifestHash: "hash"}}
+		newRes := &cache.Resource{Ref: ref, Info: &ResourceInfo{AppName: "guestbook", manifestHash: "hash"}}
+		newCache(&notified, true).handleResourceUpdated("https://cluster-a", newRes, oldRes, nil)
+		assert.Empty(t, notified)
+	})
+
+	t.Run("update with an unchanged manifest hash refreshes the app when ignoring updates is disabled", func(t *testing.T) {
+		var notified []map[string]bool
+		ref := corev1.ObjectReference{APIVersion: "apps/v1", Kind: "Deployment", Namespace: "default", Name: "guestbook"}
+		oldRes := &cache.Resource{Ref: ref, Info: &ResourceInfo{AppName: "guestbook", manifestHash: "hash"}}
+		newRes := &cache.Resource{Ref: ref, Info: &ResourceInfo{AppName: "guestbook", manifestHash: "hash"}}
+		newCache(&notified, false).handleResourceUpdated("https://cluster-a", newRes, oldRes, nil)
+		assert.Equal(t, []map[string]bool{{"guestbook": true}}, notified)
+	})
+}

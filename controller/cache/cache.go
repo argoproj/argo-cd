@@ -628,37 +628,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
-		var ref corev1.ObjectReference
-		if newRes != nil {
-			ref = newRes.Ref
-		} else {
-			ref = oldRes.Ref
-		}
-
-		c.lock.RLock()
-		cacheSettings := c.cacheSettings
-		c.lock.RUnlock()
-
-		if cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
-			// Additional check for debug level so we don't need to evaluate the
-			// format string in case of non-debug scenarios
-			if log.GetLevel() >= log.DebugLevel {
-				namespace := ref.Namespace
-				if ref.Namespace == "" {
-					namespace = "(cluster-scoped)"
-				}
-				log.WithFields(log.Fields{
-					"server":      cluster.Server,
-					"namespace":   namespace,
-					"name":        ref.Name,
-					"api-version": ref.APIVersion,
-					"kind":        ref.Kind,
-				}).Debug("Ignoring change of object because none of the watched resource fields have changed")
-			}
-			return
-		}
-
-		c.onObjectUpdated(c.appsToNotify(cluster.Server, ref, newRes, oldRes, namespaceResources), ref)
+		c.handleResourceUpdated(cluster.Server, newRes, oldRes, namespaceResources)
 	})
 
 	_ = clusterCache.OnEvent(func(_ watch.EventType, un *unstructured.Unstructured) {
@@ -773,6 +743,40 @@ func (c *liveStateCache) GetVersionsInfo(server *appv1.Cluster) (string, []kube.
 		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", server.Server, err)
 	}
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
+}
+
+func (c *liveStateCache) handleResourceUpdated(server string, newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
+	var ref corev1.ObjectReference
+	if newRes != nil {
+		ref = newRes.Ref
+	} else {
+		ref = oldRes.Ref
+	}
+
+	c.lock.RLock()
+	cacheSettings := c.cacheSettings
+	c.lock.RUnlock()
+
+	if cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
+		// Additional check for debug level so we don't need to evaluate the
+		// format string in case of non-debug scenarios
+		if log.GetLevel() >= log.DebugLevel {
+			namespace := ref.Namespace
+			if ref.Namespace == "" {
+				namespace = "(cluster-scoped)"
+			}
+			log.WithFields(log.Fields{
+				"server":      server,
+				"namespace":   namespace,
+				"name":        ref.Name,
+				"api-version": ref.APIVersion,
+				"kind":        ref.Kind,
+			}).Debug("Ignoring change of object because none of the watched resource fields have changed")
+		}
+		return
+	}
+
+	c.onObjectUpdated(c.appsToNotify(server, ref, newRes, oldRes, namespaceResources), ref)
 }
 
 func (c *liveStateCache) appsToNotify(server string, ref corev1.ObjectReference, newRes, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) map[string]bool {

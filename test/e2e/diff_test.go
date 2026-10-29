@@ -652,6 +652,26 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+// TestCRDChangeRefreshesApp verifies that a change to a live CRD managed by an application, which carries no
+// tracking metadata, refreshes the application without waiting for the periodic reconciliation.
+func TestCRDChangeRefreshesApp(t *testing.T) {
+	crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
+
+	Given(t).
+		Path("crd-creation").
+		When().CreateApp().Sync().Then().
+		Expect(OperationPhaseIs(synccommon.OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		And(func() {
+			patchData := []byte(`[{"op":"remove","path":"/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/memory"}]`)
+			errors.NewHandler(t).FailOnErr(fixture.DynamicClientset.Resource(crdGVR).Patch(t.Context(), "dummies.argoproj.io", types.JSONPatchType, patchData, metav1.PatchOptions{}))
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+}
+
 // TestIgnoreDifferencesAnnotation verifies that the argocd.argoproj.io/ignore-differences annotation
 // on a resource in git causes the specified JSON pointer fields to be ignored during diff comparison.
 // Changes to annotated fields leave the app Synced; changes to non-annotated fields cause OutOfSync.
