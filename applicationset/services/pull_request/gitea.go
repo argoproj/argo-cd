@@ -8,42 +8,46 @@ import (
 	"os"
 
 	"code.gitea.io/sdk/gitea"
+
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 type GiteaService struct {
-	client *gitea.Client
-	owner  string
-	repo   string
-	labels []string
+	client         *gitea.Client
+	owner          string
+	repo           string
+	labels         []string
+	excludedLabels []string
 }
 
 var _ PullRequestService = (*GiteaService)(nil)
 
-func NewGiteaService(token, url, owner, repo string, labels []string, insecure bool) (PullRequestService, error) {
+func NewGiteaService(token, url, owner, repo string, labels []string, excludedLabels []string, insecure bool, proxyURL, noProxy string) (PullRequestService, error) {
 	if token == "" {
 		token = os.Getenv("GITEA_TOKEN")
 	}
-	httpClient := &http.Client{}
+	cookieJar, _ := cookiejar.New(nil)
+
+	tr := http.DefaultTransport.(*http.Transport).Clone()
 	if insecure {
-		cookieJar, _ := cookiejar.New(nil)
-
-		tr := http.DefaultTransport.(*http.Transport).Clone()
 		tr.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+	}
+	tr.Proxy = proxy.GetCallback(proxyURL, noProxy)
 
-		httpClient = &http.Client{
-			Jar:       cookieJar,
-			Transport: tr,
-		}
+	httpClient := &http.Client{
+		Jar:       cookieJar,
+		Transport: tr,
 	}
 	client, err := gitea.NewClient(url, gitea.SetToken(token), gitea.SetHTTPClient(httpClient))
 	if err != nil {
 		return nil, err
 	}
 	return &GiteaService{
-		client: client,
-		owner:  owner,
-		repo:   repo,
-		labels: labels,
+		client:         client,
+		owner:          owner,
+		repo:           repo,
+		labels:         labels,
+		excludedLabels: excludedLabels,
 	}, nil
 }
 
@@ -67,13 +71,17 @@ func (g *GiteaService) List(ctx context.Context) ([]*PullRequest, error) {
 		if !giteaContainLabels(g.labels, pr.Labels) {
 			continue
 		}
+		labelNames := getGiteaPRLabelNames(pr.Labels)
+		if containsAnyExcludedLabels(g.excludedLabels, labelNames) {
+			continue
+		}
 		list = append(list, &PullRequest{
 			Number:       int64(pr.Index),
 			Title:        pr.Title,
 			Branch:       pr.Head.Ref,
 			TargetBranch: pr.Base.Ref,
 			HeadSHA:      pr.Head.Sha,
-			Labels:       getGiteaPRLabelNames(pr.Labels),
+			Labels:       labelNames,
 			Author:       pr.Poster.UserName,
 		})
 	}

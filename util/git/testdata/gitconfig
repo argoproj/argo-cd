@@ -1,0 +1,5 @@
+[user]
+	name = argo
+	email = argoproj@example.com
+[init]
+	defaultBranch = master

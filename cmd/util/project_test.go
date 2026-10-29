@@ -3,13 +3,19 @@ package util
 import (
 	"testing"
 
+	log "github.com/sirupsen/logrus"
+	"github.com/spf13/pflag"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	"github.com/argoproj/argo-cd/v3/util/test"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestProjectOpts_ResourceLists(t *testing.T) {
+	t.Parallel()
 	opts := ProjectOpts{
 		allowedNamespacedResources: []string{"ConfigMap"},
 		deniedNamespacedResources:  []string{"apps/DaemonSet"},
@@ -24,6 +30,7 @@ func TestProjectOpts_ResourceLists(t *testing.T) {
 }
 
 func TestProjectOpts_GetDestinationServiceAccounts(t *testing.T) {
+	t.Parallel()
 	opts := ProjectOpts{
 		destinationServiceAccounts: []string{
 			"https://192.168.99.100:8443,test-ns,test-sa",
@@ -45,4 +52,24 @@ func TestProjectOpts_GetDestinationServiceAccounts(t *testing.T) {
 			},
 		}, opts.GetDestinationServiceAccounts(),
 	)
+}
+
+// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+func TestProjectOpts_SetProjSpecOptions_SignatureKeysWarns(t *testing.T) {
+	spec := &v1alpha1.AppProjectSpec{}
+	opts := ProjectOpts{}
+
+	flags := pflag.NewFlagSet("test", pflag.ContinueOnError)
+	flags.StringSliceVar(&opts.SignatureKeys, "signature-keys", []string{}, "")
+	require.NoError(t, flags.Set("signature-keys", "1234ABCD1234ABCD"))
+
+	hook := test.NewLogHook(log.WarnLevel)
+	log.AddHook(hook)
+	t.Cleanup(hook.CleanupHook)
+
+	visited := SetProjSpecOptions(flags, spec, &opts)
+
+	assert.Equal(t, 1, visited)
+	assert.Equal(t, []v1alpha1.SignatureKey{{KeyID: "1234ABCD1234ABCD"}}, spec.SignatureKeys) // nolint:staticcheck
+	assert.Equal(t, []string{"Warning: --signature-keys option is deprecated. Configure Source Integrity instead with: argocd proj source-integrity git policies ..."}, hook.GetEntries())
 }

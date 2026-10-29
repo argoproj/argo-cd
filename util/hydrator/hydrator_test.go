@@ -11,6 +11,7 @@ import (
 )
 
 func TestGetCommitMetadata(t *testing.T) {
+	t.Parallel()
 	repoURL := "https://github.com/test/argocd-example-apps"
 	drySHA := "3ff41cc5247197a6caf50216c4c76cc29d78a97d"
 	date := &metav1.Time{Time: metav1.Now().Time}
@@ -61,6 +62,7 @@ func TestGetCommitMetadata(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := GetCommitMetadata(tt.args.repoURL, tt.args.drySha, tt.args.dryCommitMetadata)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetCommitMetadata() error = %v, wantErr %v", err, tt.wantErr)

@@ -2,13 +2,16 @@ package apiclient
 
 import (
 	"crypto/tls"
-	"crypto/x509"
+	"errors"
 	"fmt"
 	"math"
+	"os"
+	"sync"
 	"time"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	utiltls "github.com/argoproj/argo-cd/v3/util/tls"
 
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	"github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/timeout"
@@ -25,16 +28,6 @@ import (
 // MaxGRPCMessageSize contains max grpc message size
 var MaxGRPCMessageSize = env.ParseNumFromEnv(common.EnvGRPCMaxSizeMB, 100, 0, math.MaxInt32) * 1024 * 1024
 
-// TLSConfiguration describes parameters for TLS configuration to be used by a repo server API client
-type TLSConfiguration struct {
-	// Whether to disable TLS for connections
-	DisableTLS bool
-	// Whether to enforce strict validation of TLS certificates
-	StrictValidation bool
-	// List of certificates to validate the peer against (if StrictCerts is true)
-	Certificates *x509.CertPool
-}
-
 // Clientset represents repository server api clients
 type Clientset interface {
 	NewRepoServerClient() (utilio.Closer, RepoServerServiceClient, error)
@@ -43,7 +36,78 @@ type Clientset interface {
 type clientSet struct {
 	address        string
 	timeoutSeconds int
-	tlsConfig      TLSConfiguration
+	tlsConfig      utiltls.Configuration
+}
+
+type clientCertEntry struct {
+	cert        tls.Certificate
+	certModTime time.Time
+	keyModTime  time.Time
+}
+
+var clientCertCache = struct {
+	mu      sync.RWMutex
+	entries map[string]*clientCertEntry
+}{
+	entries: map[string]*clientCertEntry{},
+}
+
+// ResetClientCertCache clears the client certificate cache. // Intended for tests.
+func ResetClientCertCache() {
+	clientCertCache.mu.Lock()
+	defer clientCertCache.mu.Unlock()
+	clear(clientCertCache.entries)
+}
+
+func getClientCertFromCache(certFile, keyFile string) (tls.Certificate, error) {
+	cacheKey := certFile + "\x00" + keyFile
+
+	// Stat both files before acquiring the write lock.
+	// os.Stat is cheap; we do it outside the lock to minimise contention.
+	certInfo, err := os.Stat(certFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("cannot stat client cert file %s: %w", certFile, err)
+	}
+	keyInfo, err := os.Stat(keyFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("cannot stat client cert key file %s: %w", keyFile, err)
+	}
+
+	// Fast path: read lock, return cached cert if still fresh.
+	clientCertCache.mu.RLock()
+	if entry, ok := clientCertCache.entries[cacheKey]; ok {
+		if !certInfo.ModTime().After(entry.certModTime) && !keyInfo.ModTime().After(entry.keyModTime) {
+			cert := entry.cert
+			clientCertCache.mu.RUnlock()
+			return cert, nil
+		}
+	}
+	clientCertCache.mu.RUnlock()
+
+	// Slow path: files changed or not yet cached — reload from disk.
+	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
+	if err != nil {
+		return tls.Certificate{}, fmt.Errorf("failed to load client certificate: %w", err)
+	}
+
+	clientCertCache.mu.Lock()
+	// Double-check: another goroutine may have loaded between our RUnlock and Lock.
+	if entry, ok := clientCertCache.entries[cacheKey]; ok {
+		if !certInfo.ModTime().After(entry.certModTime) && !keyInfo.ModTime().After(entry.keyModTime) {
+			cert := entry.cert
+			clientCertCache.mu.Unlock()
+			return cert, nil
+		}
+	}
+	clientCertCache.entries[cacheKey] = &clientCertEntry{
+		cert:        cert,
+		certModTime: certInfo.ModTime(),
+		keyModTime:  keyInfo.ModTime(),
+	}
+	clientCertCache.mu.Unlock()
+
+	log.Infof("Client certificate reloaded from %s (mtime changed)", certFile)
+	return cert, nil
 }
 
 func (c *clientSet) NewRepoServerClient() (utilio.Closer, RepoServerServiceClient, error) {
@@ -54,7 +118,7 @@ func (c *clientSet) NewRepoServerClient() (utilio.Closer, RepoServerServiceClien
 	return conn, NewRepoServerServiceClient(conn), nil
 }
 
-func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfiguration) (*grpc.ClientConn, error) {
+func NewConnection(address string, timeoutSeconds int, tlsConfig *utiltls.Configuration) (*grpc.ClientConn, error) {
 	retryOpts := []grpc_retry.CallOption{
 		grpc_retry.WithMax(3),
 		grpc_retry.WithBackoff(grpc_retry.BackoffLinear(1000 * time.Millisecond)),
@@ -70,16 +134,14 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 		grpc.WithStatsHandler(otelgrpc.NewClientHandler()),
 	}
 
-	tlsC := &tls.Config{}
-	if !tlsConfig.DisableTLS {
-		if !tlsConfig.StrictValidation {
-			tlsC.InsecureSkipVerify = true
-		} else {
-			tlsC.RootCAs = tlsConfig.Certificates
+	if tlsConfig.DisableTLS {
+		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	} else {
+		tlsC, err := buildTLSClientConfig(tlsConfig)
+		if err != nil {
+			return nil, err
 		}
 		opts = append(opts, grpc.WithTransportCredentials(credentials.NewTLS(tlsC)))
-	} else {
-		opts = append(opts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
 	conn, err := grpc.NewClient(address, opts...)
@@ -91,6 +153,58 @@ func NewConnection(address string, timeoutSeconds int, tlsConfig *TLSConfigurati
 }
 
 // NewRepoServerClientset creates new instance of repo server Clientset
-func NewRepoServerClientset(address string, timeoutSeconds int, tlsConfig TLSConfiguration) Clientset {
-	return &clientSet{address: address, timeoutSeconds: timeoutSeconds, tlsConfig: tlsConfig}
+func NewRepoServerClientset(address string, timeoutSeconds int, tlsConfig utiltls.Configuration) Clientset {
+	return &clientSet{
+		address:        address,
+		timeoutSeconds: timeoutSeconds,
+		tlsConfig:      tlsConfig,
+	}
+}
+
+func buildTLSClientConfig(tlsConfig *utiltls.Configuration) (*tls.Config, error) {
+	tlsC := &tls.Config{}
+
+	strictValidation := tlsConfig.StrictValidation || tlsConfig.Certificates != nil
+	if !strictValidation {
+		tlsC.InsecureSkipVerify = true
+	} else {
+		tlsC.RootCAs = tlsConfig.Certificates
+	}
+
+	if tlsConfig.ClientCertFile != "" && tlsConfig.ClientCertKeyFile != "" {
+		certFile := tlsConfig.ClientCertFile
+		keyFile := tlsConfig.ClientCertKeyFile
+
+		// Check whether the cert files actually exist before installing the callback. If they don't, mTLS is skipped.
+		if _, err := os.Stat(certFile); err != nil {
+			if !errors.Is(err, os.ErrNotExist) {
+				return nil, fmt.Errorf("could not stat client cert file %s: %w", certFile, err)
+			}
+			log.Debugf("Client cert file %s does not exist — skipping mTLS client certificate", certFile)
+		} else {
+			// File exists: do an eager load to catch configuration errors at startup.
+			if _, err := getClientCertFromCache(certFile, keyFile); err != nil {
+				return nil, fmt.Errorf("failed to load initial client certificate: %w", err)
+			}
+
+			tlsC.GetClientCertificate = func(_ *tls.CertificateRequestInfo) (*tls.Certificate, error) {
+				if _, statErr := os.Stat(certFile); statErr != nil {
+					if errors.Is(statErr, os.ErrNotExist) {
+						log.Debugf("Client cert file %s no longer exists — skipping mTLS client certificate", certFile)
+						return new(tls.Certificate), nil
+					}
+					return nil, fmt.Errorf("could not stat client cert file %s: %w", certFile, statErr)
+				}
+				cert, err := getClientCertFromCache(certFile, keyFile)
+				if err != nil {
+					return nil, err
+				}
+				return &cert, nil
+			}
+		}
+	} else if len(tlsConfig.ClientCertificates) > 0 {
+		tlsC.Certificates = tlsConfig.ClientCertificates
+	}
+
+	return tlsC, nil
 }

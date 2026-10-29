@@ -1,0 +1,34 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: LLMInferenceService
+metadata:
+  name: llama-3-8b
+  namespace: kserve-test
+  generation: 2
+spec:
+  model:
+    uri: hf://meta-llama/Meta-Llama-3-8B-Instruct
+status:
+  observedGeneration: 2
+  conditions:
+  - type: MainWorkloadReady
+    status: "False"
+    reason: WorkloadFailed
+    message: 'pod "llama-3-8b-kserve-0" is in CrashLoopBackOff'
+    lastTransitionTime: "2026-09-07T10:20:00Z"
+    severity: Info
+  - type: PresetsCombined
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:14:30Z"
+  - type: Ready
+    status: "False"
+    reason: WorkloadsReadyNotReady
+    message: 'pod "llama-3-8b-kserve-0" is in CrashLoopBackOff'
+    lastTransitionTime: "2026-09-07T10:20:00Z"
+  - type: RouterReady
+    status: "True"
+    lastTransitionTime: "2026-09-07T10:14:40Z"
+  - type: WorkloadsReady
+    status: "False"
+    reason: WorkloadFailed
+    message: 'pod "llama-3-8b-kserve-0" is in CrashLoopBackOff'
+    lastTransitionTime: "2026-09-07T10:20:00Z"

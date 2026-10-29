@@ -3,8 +3,8 @@ package e2e
 import (
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -41,6 +41,7 @@ func TestOCIWithOCIHelmRegistryDependencies(t *testing.T) {
 		PushImageToOCIRegistry("testdata/helm-oci-with-dependencies", "1.0.0").
 		OCIRegistry(fixture.OCIHostURL).
 		OCIRepoAdded("helm-oci-with-dependencies", "helm-oci-with-dependencies").
+		OCIRepoAdded("helm-values", "myrepo").
 		OCIRegistryPath("helm-oci-with-dependencies").
 		Revision("1.0.0").
 		Path(".").
@@ -90,5 +91,5 @@ func TestOCIImageWithOutOfBoundsSymlink(t *testing.T) {
 		IgnoreErrors().
 		CreateApp().
 		Then().
-		Expect(Error("", "could not decompress layer: illegal filepath in symlink"))
+		Expect(ErrorRegex("", "could not decompress layer: error checking symlink .* target: .* path escapes from parent"))
 }

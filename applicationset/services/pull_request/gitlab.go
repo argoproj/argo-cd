@@ -10,18 +10,20 @@ import (
 	gitlab "gitlab.com/gitlab-org/api/client-go"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 )
 
 type GitLabService struct {
 	client           *gitlab.Client
 	project          string
 	labels           []string
+	excludedLabels   []string
 	pullRequestState string
 }
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(token, url, project string, labels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewGitLabService(token, url, project string, labels []string, excludedLabels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -35,6 +37,7 @@ func NewGitLabService(token, url, project string, labels []string, pullRequestSt
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
+	tr.Proxy = proxy.GetCallback(proxyURL, noProxy)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = tr
@@ -50,6 +53,7 @@ func NewGitLabService(token, url, project string, labels []string, pullRequestSt
 		client:           client,
 		project:          project,
 		labels:           labels,
+		excludedLabels:   excludedLabels,
 		pullRequestState: pullRequestState,
 	}, nil
 }
@@ -63,9 +67,7 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 	}
 
 	snippetsListOptions := gitlab.ExploreSnippetsOptions{
-		ListOptions: gitlab.ListOptions{
-			PerPage: 100,
-		},
+		PerPage: 100,
 	}
 	opts := &gitlab.ListProjectMergeRequestsOptions{
 		ListOptions: snippetsListOptions.ListOptions,
@@ -88,6 +90,9 @@ func (g *GitLabService) List(ctx context.Context) ([]*PullRequest, error) {
 			return nil, fmt.Errorf("error listing merge requests for project '%s': %w", g.project, err)
 		}
 		for _, mr := range mrs {
+			if containsAnyExcludedLabels(g.excludedLabels, mr.Labels) {
+				continue
+			}
 			pullRequests = append(pullRequests, &PullRequest{
 				Number:       mr.IID,
 				Title:        mr.Title,

@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	yaml "gopkg.in/yaml.v3"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	yaml "go.yaml.in/yaml/v3"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 

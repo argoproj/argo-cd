@@ -8,7 +8,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 	jsonpatch "github.com/evanphx/json-patch"
 	"github.com/itchyny/gojq"
 	log "github.com/sirupsen/logrus"
@@ -150,12 +150,10 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 				return nil, err
 			}
 			patches = append(patches, &jsonPatchNormalizerPatch{
-				baseNormalizerPatch: baseNormalizerPatch{
-					groupKind: schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
-					name:      ignore[i].Name,
-					namespace: ignore[i].Namespace,
-				},
-				patch: &patch,
+				groupKind: schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
+				name:      ignore[i].Name,
+				namespace: ignore[i].Namespace,
+				patch:     &patch,
 			})
 		}
 		for _, pathExpression := range ignore[i].JQPathExpressions {
@@ -168,11 +166,9 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 				return nil, err
 			}
 			patches = append(patches, &jqNormalizerPatch{
-				baseNormalizerPatch: baseNormalizerPatch{
-					groupKind: schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
-					name:      ignore[i].Name,
-					namespace: ignore[i].Namespace,
-				},
+				groupKind:          schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
+				name:               ignore[i].Name,
+				namespace:          ignore[i].Namespace,
 				code:               jqDeletionCode,
 				jqExecutionTimeout: opts.getJQExecutionTimeout(),
 			})
@@ -210,7 +206,13 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 		patchedDocData, err := patch.Apply(docData)
 		if err != nil {
 			if shouldLogError(err) {
-				log.Debugf("Failed to apply normalization: %v", err)
+				gvk := un.GroupVersionKind()
+				log.WithFields(log.Fields{
+					"group":     gvk.Group,
+					"kind":      gvk.Kind,
+					"name":      un.GetName(),
+					"namespace": un.GetNamespace(),
+				}).Debugf("Failed to apply normalization patch: %v", err)
 			}
 			continue
 		}

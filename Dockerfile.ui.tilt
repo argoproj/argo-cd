@@ -1,9 +1,10 @@
-FROM node:20
+FROM docker.io/library/node:26.12.1@sha256:b5f0e27e7423ea242b37af44c8c856e28f7e37d4fac23cb430cb618874ff8517
 
 WORKDIR /app/ui
 
 COPY ui /app/ui
 
-RUN yarn install
+RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
 
-ENTRYPOINT ["yarn", "start"]
+ENTRYPOINT ["pnpm", "start"]
+

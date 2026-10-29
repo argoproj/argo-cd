@@ -13,13 +13,17 @@ argocd appset generate [flags]
 ```
   # Generate apps of ApplicationSet rendered templates
   argocd appset generate <filename or URL> (<filename or URL>...)
+  
+  # Generate apps of ApplicationSet rendered templates in a specific namespace
+  argocd appset generate --appset-namespace=APPSET_NAMESPACE <filename or URL> (<filename or URL>...)
 ```
 
 ### Options
 
 ```
-  -h, --help            help for generate
-  -o, --output string   Output format. One of: json|yaml|wide (default "wide")
+  -N, --appset-namespace string   Namespace used for generating Applications (ignored when provided YAML file has namespace set in metadata)
+  -h, --help                      help for generate
+  -o, --output string             Output format. One of: json|yaml|wide (default "wide")
 ```
 
 ### Options inherited from parent commands

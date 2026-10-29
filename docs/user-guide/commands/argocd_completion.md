@@ -2,7 +2,7 @@
 
 ## argocd completion
 
-output shell completion code for the specified shell (bash, zsh or fish)
+Output shell completion code for the specified shell (bash, zsh or fish)
 
 ### Synopsis
 
@@ -95,5 +95,5 @@ $ . $PROFILE
 
 ### SEE ALSO
 
-* [argocd](argocd.md)	 - argocd controls a Argo CD server
+* [argocd](argocd.md)	 - argocd controls an Argo CD server
 

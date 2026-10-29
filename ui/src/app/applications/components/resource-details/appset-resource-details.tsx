@@ -1,6 +1,7 @@
 import {MockupList, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
-import {DataLoader, EventsList, Expandable, YamlEditor} from '../../../shared/components';
+import {EventsList, Expandable} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -8,6 +9,8 @@ import {Context} from '../../../shared/context';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
 import {HealthStatusIcon, getAppSetHealthStatus, getAppSetConditionCategory} from '../utils';
+import {AppSetPreviewTab} from './appset-preview-tab';
+import {usePolledEvents} from './use-polled-events';
 import './resource-details.scss';
 
 interface AppSetResourceDetailsProps {
@@ -24,10 +27,18 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
     const conditions = appSet.status?.conditions || [];
     const conditionCounts = getConditionCounts(conditions);
 
+    // Load ApplicationSet events so both the EVENTS tab list and its badge (number of warning/error events) share a single fetch
+    const appSetEvents = usePolledEvents(() => services.applications.appSetEvents(appSet.metadata.name, appSet.metadata.namespace), true, [
+        appSet.metadata.name,
+        appSet.metadata.namespace
+    ]);
+    const numEventErrors = (appSetEvents || []).filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
+
     const getTabs = (): Tab[] => {
         const tabs: Tab[] = [
             {
                 title: 'SUMMARY',
+                icon: 'fa fa-align-justify',
                 key: 'summary',
                 content: (
                     <div className='applicationset-summary'>
@@ -97,21 +108,25 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
             },
             {
                 title: 'MANIFEST',
+                icon: 'fa fa-file-alt',
                 key: 'manifest',
-                content: <YamlEditor minHeight={800} input={appSet.spec} hideModeButtons={true} />
+                // Show full appSet object since it is not editable
+                content: <YamlEditor minHeight={800} input={appSet} hideModeButtons={true} />
             },
             {
                 title: 'EVENTS',
+                icon: 'fa fa-calendar-alt',
+                badge: (numEventErrors > 0 && numEventErrors) || null,
                 key: 'event',
                 content: (
-                    <div className='application-resource-events'>
-                        <DataLoader
-                            load={() => services.applications.appSetEvents(appSet.metadata.name, appSet.metadata.namespace)}
-                            loadingRenderer={() => <MockupList height={50} marginTop={10} />}>
-                            {events => <EventsList events={events} />}
-                        </DataLoader>
-                    </div>
+                    <div className='application-resource-events'>{appSetEvents === null ? <MockupList height={50} marginTop={10} /> : <EventsList events={appSetEvents} />}</div>
                 )
+            },
+            {
+                title: 'PREVIEW',
+                icon: 'fa fa-eye',
+                key: 'preview',
+                content: <AppSetPreviewTab appSet={appSet} />
             }
         ];
 
@@ -132,10 +147,20 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                     <ResourceIcon group='argoproj.io' kind='ApplicationSet' />
                     {ResourceLabel({kind: 'ApplicationSet'})}
                 </div>
-                <h1>{appSet.metadata.name}</h1>
-                <HealthStatusIcon state={{status: healthStatus, message: ''}} />
+                <div className='resource-details__header-name'>
+                    <h1 className='resource-details__header-title'>{appSet.metadata.name}</h1>
+                    <span className='resource-details__header-status'>
+                        <HealthStatusIcon state={{status: healthStatus, message: ''}} />
+                    </span>
+                </div>
             </div>
-            <Tabs navTransparent={true} tabs={getTabs()} selectedTabKey={tab} onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})} />
+            <Tabs
+                key={tab || 'default'}
+                navTransparent={true}
+                tabs={getTabs()}
+                selectedTabKey={tab}
+                onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+            />
         </div>
     );
 };

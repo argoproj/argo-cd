@@ -120,6 +120,56 @@ func TestGitSemverResolutionUsingConstraintWithLeadingZero(t *testing.T) {
 		Expect(Pod(func(p corev1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
 }
 
+func TestGitSemverResolutionWithTagPrefix(t *testing.T) {
+	Given(t).
+		Path("deployment").
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.*").
+		TagPrefix("component-a/").
+		When().
+		AddTag("component-a/v0.1.0").
+		AddTag("v9.9.9").
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Equal(t, "component-a/", app.Spec.Source.TagPrefix)
+			require.NotEmpty(t, app.Status.Sync.Revision)
+		})
+}
+
+func TestGitSemverResolutionWithTagPrefixMultipleTags(t *testing.T) {
+	Given(t).
+		Path("deployment").
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.*").
+		TagPrefix("component-a/").
+		When().
+		AddTag("component-a/v0.1.0").
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Equal(t, "component-a/", app.Spec.Source.TagPrefix)
+		}).
+		When().
+		PatchFile("deployment.yaml", `[
+	{"op": "replace", "path": "/metadata/name", "value": "new-app"},
+	{"op": "replace", "path": "/spec/replicas", "value": 1}
+]`).
+		AddTag("component-a/v0.1.2").
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Pod(func(p corev1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
+}
+
 func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -129,7 +179,7 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 		// Create Application targeting annotated-tag, with automatedSync: true
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.TargetRevision = "annotated-tag"
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: true, SelfHeal: false}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: new(true), SelfHeal: new(false)}}
 		}).
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
@@ -164,10 +214,9 @@ func TestAutomatedSelfHealingAgainstAnnotatedTag(t *testing.T) {
 		// App should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.TargetRevision = "annotated-tag"
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: true, SelfHeal: false}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: new(true), SelfHeal: new(false)}}
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		ExpectConsistently(SyncStatusIs(SyncStatusCodeSynced), WaitDuration, time.Second*10).
 		When().
 		// Update the annotated tag to a new git commit, that has a new revisionHistoryLimit.
@@ -217,10 +266,9 @@ func TestAutomatedSelfHealingAgainstLightweightTag(t *testing.T) {
 		// App should be auto-synced once created
 		CreateFromFile(func(app *Application) {
 			app.Spec.Source.TargetRevision = "annotated-tag"
-			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: true, SelfHeal: false}}
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: new(true), SelfHeal: new(false)}}
 		}).
 		Then().
-		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		ExpectConsistently(SyncStatusIs(SyncStatusCodeSynced), WaitDuration, time.Second*10).
 		When().
 		// Update the annotated tag to a new git commit, that has a new revisionHistoryLimit.

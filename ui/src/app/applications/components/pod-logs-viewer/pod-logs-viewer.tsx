@@ -1,8 +1,8 @@
 import {DataLoader} from 'argo-ui';
-import * as classNames from 'classnames';
+import classNames from 'classnames';
 import * as React from 'react';
-import {useEffect, useState, useRef} from 'react';
-import {bufferTime, catchError, delay, retryWhen} from 'rxjs/operators';
+import {useEffect, useMemo, useState, useRef} from 'react';
+import {bufferTime, catchError, retry} from 'rxjs/operators';
 
 import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
@@ -10,6 +10,7 @@ import {services, ViewPreferences} from '../../../shared/services';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 
 import './pod-logs-viewer.scss';
+import {ClearLogsButton} from './clear-logs-button';
 import {CopyLogsButton} from './copy-logs-button';
 import {DownloadLogsButton} from './download-logs-button';
 import {ContainerSelector} from './container-selector';
@@ -28,7 +29,7 @@ import {AutoScrollButton} from './auto-scroll-button';
 import {WrapLinesButton} from './wrap-lines-button';
 import {MatchCaseToggleButton} from './match-case-toggle-button';
 import Ansi from 'ansi-to-react';
-import {EMPTY} from 'rxjs';
+import {EMPTY, throwError} from 'rxjs';
 
 export interface PodLogsProps {
     namespace: string;
@@ -89,6 +90,12 @@ function podColor(podName: string, isDarkMode: boolean, isSelected: boolean) {
 // https://2ality.com/2012/09/empty-regexp.html
 const matchNothing = /.^/;
 
+// matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
+// https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
+const buildHighlightRegExp = (filter: string, matchCase: boolean) =>
+    // eslint-disable-next-line no-useless-escape
+    filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g' + (matchCase ? '' : 'i'));
+
 export const PodsLogsViewer = (props: PodLogsProps) => {
     const {containerName, onClickContainer, timestamp, containerGroups, applicationName, applicationNamespace, namespace, podName, group, kind, name} = props;
     const queryParams = new URLSearchParams(location.search);
@@ -101,9 +108,10 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const [matchCase, setMatchCase] = useState(queryParams.get('matchCase') === 'true');
     const [sinceSeconds, setSinceSeconds] = useState(parseInt(queryParams.get('sinceSeconds'), 10) || 0);
     const [filter, setFilter] = useState(queryParams.get('filterText') || '');
-    const [highlight, setHighlight] = useState<RegExp>(matchNothing);
+    const highlight = useMemo(() => buildHighlightRegExp(filter, matchCase), [filter, matchCase]);
     const [scrollToBottom, setScrollToBottom] = useState(true);
     const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [receivedLogs, setReceivedLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
     const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -131,18 +139,41 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
         }
     };
 
-    useEffect(() => {
-        // https://stackoverflow.com/questions/3561493/is-there-a-regexp-escape-function-in-javascript
-        // matchNothing this is chosen instead of empty regexp, because that would match everything and break colored logs
-        // eslint-disable-next-line no-useless-escape
-        setHighlight(filter === '' ? matchNothing : new RegExp(filter.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'g' + (matchCase ? '' : 'i')));
-    }, [filter, matchCase]);
-
-    if (!containerName || containerName === '') {
-        return <div>Pod does not have container with name {containerName}</div>;
+    // Reset auto-scroll when follow is toggled. Adjusting state during render (rather than in an
+    // effect) avoids a cascading re-render. See https://react.dev/learn/you-might-not-need-an-effect
+    const [prevFollow, setPrevFollow] = useState(follow);
+    if (prevFollow !== follow) {
+        setPrevFollow(follow);
+        setScrollToBottom(true);
     }
 
-    useEffect(() => setScrollToBottom(true), [follow]);
+    // Reset logs whenever the query parameters change, so the new subscription starts from a clean
+    // slate. Done during render via the previous-value pattern to avoid a setState-in-effect.
+    const queryKey = JSON.stringify([
+        applicationName,
+        applicationNamespace,
+        namespace,
+        podName,
+        group,
+        kind,
+        name,
+        containerName,
+        tail,
+        follow,
+        sinceSeconds,
+        filter,
+        previous,
+        matchCase
+    ]);
+    const [prevQueryKey, setPrevQueryKey] = useState(queryKey);
+    if (prevQueryKey !== queryKey) {
+        setPrevQueryKey(queryKey);
+        setLogs([]);
+        setReceivedLogs([]);
+        // The highlighted pod may be absent from the new logs, and the button that clears the
+        // highlight is only shown while several pods are in view, so drop the highlight with them.
+        setSelectedPod(null);
+    }
 
     useEffect(() => {
         if (scrollToBottom) {
@@ -154,7 +185,6 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     }, [logs, scrollToBottom]);
 
     useEffect(() => {
-        setLogs([]);
         const logsSource = services.applications
             .getContainerLogs({
                 applicationName,
@@ -173,19 +203,45 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             .pipe(
                 bufferTime(100),
                 catchError((error: any) => {
-                    const errorBody = JSON.parse(error.body);
-                    if (errorBody.error && errorBody.error.message) {
-                        if (errorBody.error.message.includes('max pods to view logs are reached')) {
-                            setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
-                            return EMPTY; // Non-retryable condition, stop the stream and display the error message.
-                        }
+                    // The error may be a plain string (e.g. the stream was closed by a proxy), in
+                    // which case there is no JSON body to inspect - just retry.
+                    let errorBody: any;
+                    try {
+                        errorBody = JSON.parse(error?.body);
+                    } catch {
+                        errorBody = null;
                     }
+                    if (errorBody?.error?.message?.includes('max pods to view logs are reached')) {
+                        setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
+                        return EMPTY; // Non-retryable condition, stop the stream and display the error message.
+                    }
+                    return throwError(() => error); // Retryable condition, let retry re-subscribe.
                 }),
-                retryWhen(errors => errors.pipe(delay(500)))
+                retry({delay: 500})
             )
             .subscribe(log => {
-                if (log.length) {
+                if (!log.length) {
+                    return;
+                }
+                // getContainerLogs marks the first entry of every (re)connection with `first`. A
+                // reconnect replays the pod's logs from the start, so the buffer must be dropped
+                // rather than appended to, otherwise every reconnect duplicates the whole log.
+                // bufferTime may batch the reconnect together with trailing entries of the previous
+                // connection, so look for the last restart marker in the batch. See issue #29080.
+                let restartIdx = -1;
+                for (let i = log.length - 1; i >= 0; i--) {
+                    if (log[i].first) {
+                        restartIdx = i;
+                        break;
+                    }
+                }
+                if (restartIdx >= 0) {
+                    const replayedLogs = log.slice(restartIdx);
+                    setLogs(replayedLogs);
+                    setReceivedLogs(replayedLogs);
+                } else {
                     setLogs(previousLogs => previousLogs.concat(log));
+                    setReceivedLogs(previousLogs => previousLogs.concat(log));
                 }
             });
 
@@ -220,12 +276,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                 width,
                 height,
                 overflow: 'scroll',
-                minWidth: isWrapped ? 'fit-content' : '100%'
+                minWidth: '100%'
             }}>
             <div
                 style={{
                     width: '100%',
-                    minWidth: isWrapped ? 'fit-content' : '100%'
+                    minWidth: '100%'
                 }}>
                 {logs.map((log, lineNum) => {
                     const {podNameContent, timestampContent, logContent} = renderLog(log, lineNum, prefs.appDetails.darkMode);
@@ -234,6 +290,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             key={lineNum}
                             style={{
                                 whiteSpace: isWrapped ? 'normal' : 'pre',
+                                overflowWrap: isWrapped ? 'break-word' : 'normal',
                                 lineHeight: '1.5rem',
                                 backgroundColor: selectedPod === log.podName ? getPodBackgroundColor(log.podName, prefs.appDetails.darkMode) : 'transparent',
                                 padding: '1px 8px',
@@ -261,6 +318,11 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     );
 
     const preferenceLoader = React.useCallback(() => services.viewPreferences.getPreferences(), []);
+
+    if (!containerName || containerName === '') {
+        return <div>Pod does not have container with name {containerName}</div>;
+    }
+
     return (
         <DataLoader load={preferenceLoader}>
             {(prefs: ViewPreferences) => {
@@ -272,8 +334,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogsWithQueryParams} showPreviousLogs={previous} />
                                 <Spacer />
-                                <PodHighlightButton selectedPod={selectedPod} setSelectedPod={setSelectedPod} pods={uniquePods} darkMode={prefs.appDetails.darkMode} />
-                                <Spacer />
+                                {uniquePods.length > 1 && (
+                                    <>
+                                        <PodHighlightButton selectedPod={selectedPod} setSelectedPod={setSelectedPod} pods={uniquePods} darkMode={prefs.appDetails.darkMode} />
+                                        <Spacer />
+                                    </>
+                                )}
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />
                                 {!follow && (
@@ -294,7 +360,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                             <Spacer />
                             <span>
-                                <CopyLogsButton logs={logs} />
+                                <ClearLogsButton disabled={logs.length === 0} onClear={() => setLogs([])} />
+                                <CopyLogsButton logs={receivedLogs} />
                                 <DownloadLogsButton {...props} previous={previous} />
                                 <FullscreenButton
                                     {...props}

@@ -46,14 +46,26 @@ for _, condition in pairs(obj.status.conditions) do
     end
 
     -- Checking if CRD is established
-    if condition.type == "Established" and condition.status == "True" then
-        isEstablished = true
-        conditionMsg = condition.message
+    if condition.type == "Established" then
+        if condition.status == "True" then
+            isEstablished = true
+            conditionMsg = condition.message
+        elseif condition.reason == "InvalidCABundle" then
+            hs.status = "Degraded"
+            hs.message = "CRD is not established: " .. condition.message
+            return hs
+        elseif condition.reason == "Installing" then
+            hs.status = "Progressing"
+            hs.message = "CRD is being installed"
+            return hs
+        end
     end
 end
 
+-- Kubernetes establishes a CRD shortly after accepting its names. The checks
+-- above report the cases where it can't, so anything else is still in progress.
 if not isEstablished then
-    hs.status = "Degraded"
+    hs.status = "Progressing"
     hs.message = "CRD is not established"
     return hs
 end

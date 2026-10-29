@@ -1,6 +1,7 @@
 package localconfig
 
 import (
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"os"
@@ -48,6 +49,10 @@ type Server struct {
 	// CACertificateAuthorityData is the base64 string of a PEM encoded certificate
 	// TODO: not yet implemented
 	CACertificateAuthorityData string `json:"certificate-authority-data,omitempty"`
+	// ClientCertificate is the path to a PEM encoded certificate used to authenticate the client
+	ClientCertificate string `json:"client-certificate,omitempty"`
+	// ClientCertificateKey is the path to a PEM encoded private key of the client certificate
+	ClientCertificateKey string `json:"client-certificate-key,omitempty"`
 	// ClientCertificateData is the base64 string of a PEM encoded certificate used to authenticate the client
 	ClientCertificateData string `json:"client-certificate-data,omitempty"`
 	// ClientCertificateKeyData is the base64 string of a PEM encoded private key of the client certificate
@@ -58,6 +63,39 @@ type Server struct {
 	Core bool `json:"core,omitempty"`
 }
 
+// ClientCertPEM returns the PEM encoded client certificate and private key configured for the server,
+// or nil if none is configured. File references take precedence over the inlined data, so that
+// certificates rotated by an external tool are picked up without having to log in again.
+func (s *Server) ClientCertPEM() ([]byte, []byte, error) {
+	switch {
+	case s.ClientCertificate != "" && s.ClientCertificateKey != "":
+		cert, err := os.ReadFile(s.ClientCertificate)
+		if err != nil {
+			return nil, nil, err
+		}
+		key, err := os.ReadFile(s.ClientCertificateKey)
+		if err != nil {
+			return nil, nil, err
+		}
+		return cert, key, nil
+	case s.ClientCertificate != "" || s.ClientCertificateKey != "":
+		return nil, nil, errors.New("client-certificate and client-certificate-key must always be specified together")
+	case s.ClientCertificateData != "" && s.ClientCertificateKeyData != "":
+		cert, err := base64.StdEncoding.DecodeString(s.ClientCertificateData)
+		if err != nil {
+			return nil, nil, err
+		}
+		key, err := base64.StdEncoding.DecodeString(s.ClientCertificateKeyData)
+		if err != nil {
+			return nil, nil, err
+		}
+		return cert, key, nil
+	case s.ClientCertificateData != "" || s.ClientCertificateKeyData != "":
+		return nil, nil, errors.New("client-certificate-data and client-certificate-key-data must always be specified together")
+	}
+	return nil, nil, nil
+}
+
 // User contains user authentication information
 type User struct {
 	Name         string `json:"name"`
@@ -66,14 +104,14 @@ type User struct {
 }
 
 // Claims returns the standard claims from the JWT claims
-func (u *User) Claims() (*jwt.RegisteredClaims, error) {
+func (u *User) Claims() (jwt.MapClaims, error) {
 	parser := jwt.NewParser(jwt.WithoutClaimsValidation())
-	claims := jwt.RegisteredClaims{}
+	claims := jwt.MapClaims{}
 	_, _, err := parser.ParseUnverified(u.AuthToken, &claims)
 	if err != nil {
 		return nil, err
 	}
-	return &claims, nil
+	return claims, nil
 }
 
 // ReadLocalConfig loads up the local configuration file. Returns nil if config does not exist
@@ -217,6 +255,16 @@ func (l *LocalConfig) RemoveUser(serverName string) bool {
 		}
 	}
 	return false
+}
+
+// GetToken returns the token stored in the local file for the given server name
+func (l *LocalConfig) GetToken(serverName string) string {
+	for _, u := range l.Users {
+		if u.Name == serverName {
+			return u.AuthToken
+		}
+	}
+	return ""
 }
 
 // Returns true if user was removed successfully

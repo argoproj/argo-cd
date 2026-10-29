@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -14,7 +15,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -83,7 +84,7 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 		}
 	case "postgresql.cnpg.io":
 		if un.GetKind() == "Cluster" {
-			if err := unstructured.SetNestedStringMap(un.Object, map[string]string{"cnpg.io/reloadedAt": "0001-01-01T00:00:00Z", "kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "metadata", "annotations"); err != nil {
+			if err := setPgClusterAnnotations(un); err != nil {
 				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 			}
 			if err := unstructured.SetNestedField(un.Object, nil, "status", "targetPrimaryTimestamp"); err != nil {
@@ -122,6 +123,13 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 			}
 		}
+	case "capsule.clastix.io":
+		switch un.GetKind() {
+		case "TenantResource", "GlobalTenantResource":
+			if err := setCapsuleReconcileAnnotation(un); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
 	}
 	return nil
 }
@@ -134,6 +142,32 @@ func setRestartedAtAnnotationOnPodTemplate(un *unstructured.Unstructured) error 
 // Helper: normalize Flux requestedAt annotation across FluxCD kinds
 func setFluxRequestedAtAnnotation(un *unstructured.Unstructured) error {
 	return unstructured.SetNestedStringMap(un.Object, map[string]string{"reconcile.fluxcd.io/requestedAt": "By Argo CD at: 0001-01-01T00:00:00"}, "metadata", "annotations")
+}
+
+// Helper: normalize Capsule reconcile annotation for TenantResource / GlobalTenantResource
+func setCapsuleReconcileAnnotation(un *unstructured.Unstructured) error {
+	existingAnnotations, _, _ := unstructured.NestedStringMap(un.Object, "metadata", "annotations")
+	if existingAnnotations == nil {
+		existingAnnotations = make(map[string]string)
+	}
+	existingAnnotations["reconcile.projectcapsule.dev/requestedAt"] = "0001-01-01T00:00:00Z"
+	return unstructured.SetNestedStringMap(un.Object, existingAnnotations, "metadata", "annotations")
+}
+
+// Helper: normalize PostgreSQL CNPG Cluster annotations while preserving existing ones
+func setPgClusterAnnotations(un *unstructured.Unstructured) error {
+	// Get existing annotations or create an empty map
+	existingAnnotations, _, _ := unstructured.NestedStringMap(un.Object, "metadata", "annotations")
+	if existingAnnotations == nil {
+		existingAnnotations = make(map[string]string)
+	}
+
+	// Update only the specific keys
+	existingAnnotations["cnpg.io/reloadedAt"] = "0001-01-01T00:00:00Z"
+	existingAnnotations["kubectl.kubernetes.io/restartedAt"] = "0001-01-01T00:00:00Z"
+
+	// Set the updated annotations back
+	return unstructured.SetNestedStringMap(un.Object, existingAnnotations, "metadata", "annotations")
 }
 
 func (t testNormalizer) normalizeJob(un *unstructured.Unstructured) error {
@@ -287,8 +321,9 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						}
 					}
 
-					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
-					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
+					// Ideally, we would use assert.Equal to detect the difference, but the Lua VM returns an object with float64 instead of the original int32.
+					// As a result, assert.Equal is never true despite that the change has been applied.
+					diffResult, err := diff.Diff(t.Context(), expectedObj, result, diff.WithNormalizer(testNormalizer{}))
 					require.NoError(t, err)
 					if diffResult.Modified {
 						t.Error("Output does not match input:")
@@ -302,6 +337,25 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+// The generic action test normalizes scheduled-time away, so its format is verified here.
+func TestCronWorkflowCreateWorkflowScheduledTime(t *testing.T) {
+	vm := VM{}
+	obj := getObj(t, "../../resource_customizations/argoproj.io/CronWorkflow/actions/testdata/cronworkflow.yaml")
+	action, err := vm.GetResourceAction(obj, "create-workflow")
+	require.NoError(t, err)
+
+	before := time.Now().UTC().Truncate(time.Second)
+	impactedResources, err := vm.ExecuteResourceAction(obj, action.ActionLua, nil)
+	require.NoError(t, err)
+	after := time.Now().UTC()
+	require.Len(t, impactedResources, 1)
+
+	scheduledTime, err := time.Parse(time.RFC3339, impactedResources[0].UnstructuredObj.GetAnnotations()["workflows.argoproj.io/scheduled-time"])
+	require.NoError(t, err)
+	assert.False(t, scheduledTime.Before(before), "scheduled-time %s is before %s", scheduledTime, before)
+	assert.False(t, scheduledTime.After(after), "scheduled-time %s is after %s", scheduledTime, after)
 }
 
 // Handling backward compatibility.

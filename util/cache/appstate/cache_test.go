@@ -24,6 +24,7 @@ func newFixtures() *fixtures {
 }
 
 func TestCache_GetAppManagedResources(t *testing.T) {
+	t.Parallel()
 	cache := newFixtures().Cache
 	// cache miss
 	value := &[]*ResourceDiff{}
@@ -42,6 +43,7 @@ func TestCache_GetAppManagedResources(t *testing.T) {
 }
 
 func TestCache_GetAppResourcesTree(t *testing.T) {
+	t.Parallel()
 	cache := newFixtures().Cache
 	// cache miss
 	value := &ApplicationTree{}
@@ -60,6 +62,7 @@ func TestCache_GetAppResourcesTree(t *testing.T) {
 }
 
 func TestCache_GetClusterInfo(t *testing.T) {
+	t.Parallel()
 	cache := newFixtures().Cache
 	// cache miss
 	res := &ClusterInfo{}
@@ -78,7 +81,30 @@ func TestCache_GetClusterInfo(t *testing.T) {
 }
 
 func TestAddCacheFlagsToCmd(t *testing.T) {
+	t.Parallel()
 	cache, err := AddCacheFlagsToCmd(&cobra.Command{})()
 	require.NoError(t, err)
 	assert.Equal(t, 1*time.Hour, cache.appStateCacheExpiration)
+}
+
+func TestCache_InvalidateAppLocalState(t *testing.T) {
+	t.Parallel()
+	external := cacheutil.NewInMemoryCache(time.Hour) // stands in for Redis
+	controllerA := NewCache(cacheutil.NewCache(cacheutil.NewTwoLevelClient(external, time.Hour)), time.Hour)
+	controllerB := NewCache(cacheutil.NewCache(cacheutil.NewTwoLevelClient(external, time.Hour)), time.Hour)
+	reader := NewCache(cacheutil.NewCache(external), time.Hour) // e.g. argocd-server
+
+	healthy := &ApplicationTree{Nodes: []ResourceNode{{Kind: "Pod", Name: "pod-1"}}}
+	suspended := &ApplicationTree{Nodes: []ResourceNode{{Kind: "Deployment", Name: "deploy"}}}
+
+	// App on B, then moves to A, then back to B with an unchanged tree.
+	require.NoError(t, controllerB.SetAppResourcesTree("my-app", healthy))
+	require.NoError(t, controllerA.SetAppResourcesTree("my-app", suspended))
+	controllerB.InvalidateAppLocalState("my-app")
+	require.NoError(t, controllerB.SetAppResourcesTree("my-app", healthy))
+
+	got := &ApplicationTree{}
+	require.NoError(t, reader.GetAppResourcesTree("my-app", got))
+	require.Len(t, got.Nodes, 1)
+	assert.Equal(t, "pod-1", got.Nodes[0].Name)
 }

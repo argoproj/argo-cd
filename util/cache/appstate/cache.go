@@ -121,6 +121,21 @@ func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.Applica
 	return c.Cache.NotifyUpdated(appManagedResourcesKey(appName))
 }
 
+// InvalidateAppLocalState drops this controller's in-memory copies of the app's managed resources
+// and resource tree, so the next write always reaches the external cache. Call it when another
+// controller may have written these keys since this one last did, e.g. when the app's destination
+// moves to a cluster managed by this controller.
+func (c *Cache) InvalidateAppLocalState(appName string) {
+	c.Cache.InvalidateLocalItem(appManagedResourcesKey(appName))
+	var tree appv1.ApplicationTree
+	if err := c.Cache.GetLocalItem(appResourcesTreeKey(appName, 0), &tree); err == nil {
+		for i := int64(1); i < tree.ShardsCount; i++ {
+			c.Cache.InvalidateLocalItem(appResourcesTreeKey(appName, i))
+		}
+	}
+	c.Cache.InvalidateLocalItem(appResourcesTreeKey(appName, 0))
+}
+
 func (c *Cache) SetClusterInfo(server string, info *appv1.ClusterInfo) error {
 	return c.SetItem(clusterInfoKey(server), info, clusterInfoCacheExpiration, info == nil)
 }

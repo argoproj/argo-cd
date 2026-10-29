@@ -1,0 +1,14 @@
+actionTests:
+  - action: rolling-update
+    inputPath: testdata/strimzi-pod-set.yaml
+    expectedOutputPath: testdata/strimzi-pod-set-restarting.yaml
+
+discoveryTests:
+  - inputPath: testdata/strimzi-pod-set.yaml
+    result:
+      - name: "rolling-update"
+        disabled: false
+  - inputPath: testdata/strimzi-pod-set-restarting.yaml
+    result:
+      - name: "rolling-update"
+        disabled: true

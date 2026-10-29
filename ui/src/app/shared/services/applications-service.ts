@@ -1,31 +1,49 @@
 import * as deepMerge from 'deepmerge';
 import {Observable} from 'rxjs';
-import {filter, map, repeat, retry} from 'rxjs/operators';
+import {auditTime, filter, map, repeat, retry, switchMap} from 'rxjs/operators';
 
 import * as models from '../models';
 import {isValidURL} from '../utils';
 import requests from './requests';
-import {getRootPathByApp, isApp} from '../../applications/components/utils';
+import {getRootPathByApp, isApp} from '../components/app-utils';
+import {namespaceQuery, namespaceQueryKey} from './applications-service.namespace';
 
 interface QueryOptions {
     fields: string[];
     exclude?: boolean;
     selector?: string;
     appNamespace?: string;
+    names?: string[];
 }
 
-function optionsToSearch(options?: QueryOptions): {fields?: string; selector: string; appNamespace: string} {
+function optionsToSearch(options?: QueryOptions): {fields?: string; selector: string; appNamespace: string; names?: string[]} {
     if (options) {
-        const result: {fields?: string; selector: string; appNamespace: string} = {
+        const result: {fields?: string; selector: string; appNamespace: string; names?: string[]} = {
             selector: options.selector || '',
             appNamespace: options.appNamespace || ''
         };
         if (options.fields) {
             result.fields = (options.exclude ? '-' : '') + options.fields.join(',');
         }
+        if (options.names) {
+            result.names = options.names;
+        }
         return result;
     }
     return {selector: '', appNamespace: ''};
+}
+
+// dropStaleGeneratedAppStatus removes the health and sync (status) fields from the generated
+// Application nodes of an ApplicationSet resource tree.
+//
+// Why this is necessary: the nodes of an ApplicationSet tree are the Applications it generates.
+// Their health/sync values are mirrored from appset.status.resources, which is only refreshed when
+// the ApplicationSet reconciles. With progressive syncs disabled, an owned Application's health/sync
+// change does not trigger an ApplicationSet reconcile at all, so the mirrored values can be stale
+// and out of date compared to the Application's real status. Displaying them would be misleading.
+// Users can open the Application to see its authoritative health/sync status.
+function dropStaleGeneratedAppStatus<T extends {kind?: string; group?: string; status?: models.SyncStatusCode; health?: models.HealthStatus}>(nodes: T[]): T[] {
+    return (nodes || []).map(node => (node.kind === 'Application' && node.group === 'argoproj.io' ? {...node, status: undefined, health: undefined} : node));
 }
 
 function getQuery(projects: string[], isListOfApplications: boolean, options?: QueryOptions): any {
@@ -59,14 +77,11 @@ export class ApplicationsService {
     }
 
     public get(name: string, appNamespace: string, objectListKind: string, refresh?: 'normal' | 'hard'): Promise<models.AbstractApplication> {
-        const query: {[key: string]: string} = {};
+        const query: {[key: string]: string} = {...namespaceQuery(objectListKind, appNamespace)};
         const isApplication = objectListKind === 'application';
         const endpoint = isApplication ? '/applications' : '/applicationsets';
         if (refresh) {
             query.refresh = refresh;
-        }
-        if (appNamespace) {
-            query.appNamespace = appNamespace;
         }
         return requests
             .get(`${endpoint}/${name}`)
@@ -119,15 +134,48 @@ export class ApplicationsService {
         const endpoint = isApplication ? '/applications' : '/applicationsets';
         return requests
             .get(`${endpoint}/${name}/resource-tree`)
-            .query({appNamespace})
-            .then(res => res.body as models.AbstractApplicationTree);
+            .query(namespaceQuery(objectListKind, appNamespace))
+            .then(res => {
+                const tree = res.body as models.AbstractApplicationTree;
+                if (!isApplication && tree) {
+                    tree.nodes = dropStaleGeneratedAppStatus(tree.nodes || []);
+                }
+                return tree;
+            });
     }
 
     public watchResourceTree(name: string, appNamespace: string, objectListKind: string): Observable<models.ApplicationTree> {
         const isApplication = objectListKind === 'application';
-        const endpoint = isApplication ? 'applications' : 'applicationsets';
+        // ApplicationSet has no streaming resource-tree endpoint: re-fetch it on watch events (rate-limited, as
+        // status.resources updates can be frequent) to keep server-side fields such as createdAt, falling back
+        // to a tree derived from status.resources when the fetch fails.
+        if (!isApplication) {
+            return this.watch(objectListKind, {name, appNamespace}).pipe(
+                filter(watchEvent => watchEvent.type !== 'DELETED'),
+                auditTime(1000),
+                switchMap(
+                    watchEvent =>
+                        this.resourceTree(name, appNamespace, objectListKind).catch(
+                            () =>
+                                ({
+                                    nodes: dropStaleGeneratedAppStatus(
+                                        (watchEvent.application.status?.resources || []).map(res => ({
+                                            ...res,
+                                            parentRefs: [] as models.ResourceRef[],
+                                            info: [] as models.InfoItem[],
+                                            resourceVersion: '',
+                                            uid: ''
+                                        }))
+                                    ),
+                                    orphanedNodes: [],
+                                    hosts: []
+                                }) as models.ApplicationTree
+                        ) as Promise<models.ApplicationTree>
+                )
+            );
+        }
         return requests
-            .loadEventSource(`/stream/${endpoint}/${name}/resource-tree?appNamespace=${appNamespace}`)
+            .loadEventSource(`/stream/applications/${name}/resource-tree?appNamespace=${appNamespace}`)
             .pipe(map(data => JSON.parse(data).result as models.ApplicationTree));
     }
 
@@ -228,17 +276,20 @@ export class ApplicationsService {
                 search.set('resourceVersion', query.resourceVersion);
             }
             if (query.appNamespace) {
-                search.set('appNamespace', query.appNamespace);
+                search.set(namespaceQueryKey(objectListKind, true), query.appNamespace);
             }
         }
         if (options) {
             const searchOptions = optionsToSearch(options);
             search.set('fields', searchOptions.fields);
             search.set('selector', searchOptions.selector);
-            search.set('appNamespace', searchOptions.appNamespace);
+            if (searchOptions.appNamespace) {
+                search.set(namespaceQueryKey(objectListKind, true), searchOptions.appNamespace);
+            }
             if (isApplication) {
                 query?.projects?.forEach(project => search.append('projects', project));
             }
+            searchOptions.names?.forEach(name => search.append('names', name));
         }
         const searchStr = search.toString();
         const url = `/stream${endpoint}${(searchStr && '?' + searchStr) || ''}`;
@@ -249,7 +300,9 @@ export class ApplicationsService {
             .pipe(map(data => JSON.parse(data).result as models.ApplicationWatchEvent))
             .pipe(
                 map(watchEvent => {
-                    watchEvent.application = this.parseAppFields(watchEvent.application, isApplication) as models.Application;
+                    // ApplicationSetWatchEvent has 'applicationSet' field, normalize to 'application'
+                    const rawApp = isApplication ? watchEvent.application : (watchEvent as unknown as models.ApplicationSetWatchEvent).applicationSet;
+                    watchEvent.application = this.parseAppFields(rawApp, isApplication) as models.Application;
                     return watchEvent;
                 })
             );
@@ -264,7 +317,8 @@ export class ApplicationsService {
         strategy: models.SyncStrategy,
         resources: models.SyncOperationResource[],
         syncOptions?: string[],
-        retryStrategy?: models.RetryStrategy
+        retryStrategy?: models.RetryStrategy,
+        message?: string
     ): Promise<boolean> {
         return requests
             .post(`/applications/${name}/sync`)
@@ -276,7 +330,8 @@ export class ApplicationsService {
                 strategy,
                 resources,
                 syncOptions: syncOptions ? {items: syncOptions} : null,
-                retryStrategy
+                retryStrategy,
+                infos: message ? [{name: 'message', value: message} as models.Info] : []
             })
             .then(() => true);
     }
@@ -324,7 +379,7 @@ export class ApplicationsService {
                 try {
                     const parsed = JSON.parse(data);
                     return parsed && parsed.result ? (parsed.result as models.LogEntry) : null;
-                } catch (e) {
+                } catch {
                     return null;
                 }
             }),
@@ -582,6 +637,7 @@ export class ApplicationsService {
                 {
                     apiVersion: 'argoproj.io/v1alpha1',
                     kind: 'Application',
+                    metadata: {},
                     spec: {
                         project: 'default'
                     },
@@ -599,6 +655,8 @@ export class ApplicationsService {
                 {
                     apiVersion: 'argoproj.io/v1alpha1',
                     kind: 'ApplicationSet',
+                    metadata: {},
+                    spec: {},
                     status: {
                         resources: []
                     }
@@ -629,5 +687,14 @@ export class ApplicationsService {
             .get(`/applicationsets/${name}/events`)
             .query({appsetNamespace: appNamespace})
             .then(res => (res.body as models.EventList).items || []);
+    }
+
+    public appSetGenerate(appSet: models.ApplicationSet): Promise<models.Application[]> {
+        const {status, ...rest} = appSet as models.ApplicationSet & {status?: unknown};
+        void status;
+        return requests
+            .post(`/applicationsets/generate`)
+            .send({applicationSet: rest})
+            .then(res => (res.body as {applications?: models.Application[]}).applications || []);
     }
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"math"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -15,6 +16,8 @@ import (
 	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v3/util/env"
 )
 
 // Argo CD component names
@@ -134,8 +137,11 @@ const (
 	ChangePasswordSSOTokenMaxAge = time.Minute * 5
 	// GithubAppCredsExpirationDuration is the default time used to cache the GitHub app credentials
 	GithubAppCredsExpirationDuration = time.Minute * 60
+	// AzureServicePrincipalCredsExpirationDuration is the default time used to cache the Azure service principal credentials
+	// SP tokens are valid for 60 minutes, so cache for 59 minutes to avoid issues with token expiration when taking the cleanup interval of 1 minute into account
+	AzureServicePrincipalCredsExpirationDuration = time.Minute * 59
 
-	// PasswordPatten is the default password patten
+	// PasswordPatten is the default password pattern
 	PasswordPatten = `^.{8,32}$`
 
 	// LegacyShardingAlgorithm is the default value for Sharding Algorithm it uses an `uid` based distribution (non-uniform)
@@ -165,6 +171,11 @@ const (
 	CallbackEndpoint = "/auth/callback"
 	// DexCallbackEndpoint is Argo CD's final callback endpoint when Dex is configured
 	DexCallbackEndpoint = "/api/dex/callback"
+	// DexDeviceCallbackEndpoint is the Dex-internal device authorization callback
+	// endpoint (RFC 8628). Dex uses this as the redirect_uri when forwarding the
+	// user to the upstream connector (e.g. GitHub) during a device flow, so it
+	// must be registered in the argo-cd-cli static client's redirectURIs.
+	DexDeviceCallbackEndpoint = "/api/dex/device/callback"
 	// ArgoCDClientAppName is name of the Oauth client app used when registering our web app to dex
 	ArgoCDClientAppName = "Argo CD"
 	// ArgoCDClientAppID is the Oauth client ID we will use when registering our app to dex
@@ -242,6 +253,14 @@ const (
 	// Skip reconcile when the value is "true" or any other string values that can be strconv.ParseBool() to be true.
 	AnnotationKeyAppSkipReconcile = "argocd.argoproj.io/skip-reconcile"
 
+	// AnnotationKeyIgnoreDifferences allows resources to specify ignore-differences rules as inline YAML.
+	// The value must be a YAML list, currently only supports jsonPointers key listing RFC6901 JSON Pointer paths.
+	// Example:
+	//   argocd.argoproj.io/ignore-differences: |-
+	//     jsonPointers:
+	//     - /spec/replicas
+	AnnotationKeyIgnoreDifferences = "argocd.argoproj.io/ignore-differences"
+
 	// LabelKeyComponentRepoServer is the label key to identify the component as repo-server
 	LabelKeyComponentRepoServer = "app.kubernetes.io/component"
 	// LabelValueComponentRepoServer is the label value for the repo-server component
@@ -294,6 +313,8 @@ const (
 	EnvEnableGRPCTimeHistogramEnv = "ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM"
 	// EnvGithubAppCredsExpirationDuration controls the caching of Github app credentials. This value is in minutes (default: 60)
 	EnvGithubAppCredsExpirationDuration = "ARGOCD_GITHUB_APP_CREDS_EXPIRATION_DURATION"
+	// EnvAzureServicePrincipalCredsExpirationDuration controls the caching of Azure service principal credentials. This value is in minutes (default: 59). Any value greater than 59 will be set to 59 minutes
+	EnvAzureServicePrincipalCredsExpirationDuration = "ARGOCD_AZURE_SERVICE_PRINCIPAL_CREDS_EXPIRATION_DURATION"
 	// EnvHelmIndexCacheDuration controls how the helm repository index file is cached for (default: 0)
 	EnvHelmIndexCacheDuration = "ARGOCD_HELM_INDEX_CACHE_DURATION"
 	// EnvAppConfigPath allows to override the configuration path for repo server
@@ -368,6 +389,12 @@ const (
 const (
 	BearerTokenTimeout = 30 * time.Second
 )
+
+// TokenRevocationTimeout is the maximum time allowed for a server-side token revocation call during logout.
+const TokenRevocationTimeout = 10 * time.Second
+
+// TokenRevocationClientTimeout is the maximum time the CLI waits for the server to complete token revocation.
+const TokenRevocationClientTimeout = 15 * time.Second
 
 const (
 	DefaultGitRetryMaxDuration time.Duration = time.Second * 5        // 5s
@@ -473,6 +500,8 @@ const TokenVerificationError = "failed to verify the token"
 var ErrTokenVerification = errors.New(TokenVerificationError)
 
 var PermissionDeniedAPIError = status.Error(codes.PermissionDenied, "permission denied")
+
+var WatchAPIBufferSize = env.ParseNumFromEnv(EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
 
 // Redis password consts
 const (

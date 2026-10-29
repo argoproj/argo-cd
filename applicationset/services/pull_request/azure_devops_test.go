@@ -16,6 +16,7 @@ import (
 )
 
 func TestListPullRequest(t *testing.T) {
+	t.Parallel()
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
 	prID := 123
@@ -54,10 +55,11 @@ func TestListPullRequest(t *testing.T) {
 	gitClientMock.EXPECT().GetPullRequestsByProject(mock.Anything, args).Return(&pullRequestMock, nil)
 
 	provider := AzureDevOpsService{
-		clientFactory: clientFactoryMock,
-		project:       teamProject,
-		repo:          repoName,
-		labels:        nil,
+		clientFactory:  clientFactoryMock,
+		project:        teamProject,
+		repo:           repoName,
+		labels:         nil,
+		excludedLabels: nil,
 	}
 
 	list, err := provider.List(ctx)
@@ -71,7 +73,73 @@ func TestListPullRequest(t *testing.T) {
 	assert.Equal(t, uniqueName, list[0].Author)
 }
 
+func TestListPullRequestExcludedLabels(t *testing.T) {
+	t.Parallel()
+	teamProject := "myorg_project"
+	repoName := "myorg_project_repo"
+	prID := 123
+	prTitle := "feat(123)"
+	prHeadSha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
+	ctx := t.Context()
+	uniqueName := "testName"
+
+	// The PR matches the repo and has no required-label restriction, so only the
+	// excluded "stale" label should cause it to be filtered out.
+	pullRequestMock := []git.GitPullRequest{
+		{
+			PullRequestId: new(prID),
+			Title:         new(prTitle),
+			SourceRefName: new("refs/heads/feature-branch"),
+			TargetRefName: new("refs/heads/main"),
+			LastMergeSourceCommit: &git.GitCommitRef{
+				CommitId: new(prHeadSha),
+			},
+			Labels: &[]core.WebApiTagDefinition{
+				{Name: new("stale"), Active: new(true)},
+			},
+			Repository: &git.GitRepository{
+				Name: new(repoName),
+			},
+			CreatedBy: &webapi.IdentityRef{
+				UniqueName: new(uniqueName + "@example.com"),
+			},
+		},
+	}
+
+	args := git.GetPullRequestsByProjectArgs{
+		Project:        &teamProject,
+		SearchCriteria: &git.GitPullRequestSearchCriteria{},
+	}
+
+	gitClientMock := &azureMock.Client{}
+	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
+	clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)
+	gitClientMock.EXPECT().GetPullRequestsByProject(mock.Anything, args).Return(&pullRequestMock, nil)
+
+	provider := AzureDevOpsService{
+		clientFactory:  clientFactoryMock,
+		project:        teamProject,
+		repo:           repoName,
+		labels:         nil,
+		excludedLabels: []string{"stale"},
+	}
+
+	list, err := provider.List(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, list)
+}
+
+func TestNewAzureDevOpsService(t *testing.T) {
+	t.Parallel()
+	svc, err := NewAzureDevOpsService("", "https://dev.azure.com/", "myorg", "myproject", "myrepo", nil, []string{"stale"})
+	require.NoError(t, err)
+	azureSvc, ok := svc.(*AzureDevOpsService)
+	require.True(t, ok)
+	assert.Equal(t, []string{"stale"}, azureSvc.excludedLabels)
+}
+
 func TestConvertLabes(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		gotLabels      *[]core.WebApiTagDefinition
@@ -106,6 +174,7 @@ func TestConvertLabes(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := convertLabels(tc.gotLabels)
 			assert.Equal(t, tc.expectedLabels, got)
 		})
@@ -113,6 +182,7 @@ func TestConvertLabes(t *testing.T) {
 }
 
 func TestContainAzureDevOpsLabels(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		expectedLabels []string
@@ -147,6 +217,7 @@ func TestContainAzureDevOpsLabels(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := containAzureDevOpsLabels(tc.expectedLabels, tc.gotLabels)
 			assert.Equal(t, tc.expectedResult, got)
 		})
@@ -154,6 +225,7 @@ func TestContainAzureDevOpsLabels(t *testing.T) {
 }
 
 func TestBuildURL(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name         string
 		url          string
@@ -188,6 +260,7 @@ func TestBuildURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := buildURL(tc.url, tc.organization)
 			assert.Equal(t, tc.expected, result)
 		})
@@ -195,6 +268,7 @@ func TestBuildURL(t *testing.T) {
 }
 
 func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
 	args := git.GetPullRequestsByProjectArgs{
 		Project:        new("nonexistent"),
 		SearchCriteria: &git.GitPullRequestSearchCriteria{},
@@ -211,10 +285,11 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 		errors.New("The following project does not exist:"))
 
 	provider := AzureDevOpsService{
-		clientFactory: clientFactoryMock,
-		project:       "nonexistent",
-		repo:          "nonexistent",
-		labels:        nil,
+		clientFactory:  clientFactoryMock,
+		project:        "nonexistent",
+		repo:           "nonexistent",
+		labels:         nil,
+		excludedLabels: nil,
 	}
 
 	prs, err := provider.List(t.Context())

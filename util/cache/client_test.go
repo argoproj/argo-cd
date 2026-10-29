@@ -14,6 +14,7 @@ type testStruct struct {
 }
 
 func TestCache(t *testing.T) {
+	t.Parallel()
 	c := NewInMemoryCache(time.Hour)
 	var obj testStruct
 	err := c.Get("key", &obj)
