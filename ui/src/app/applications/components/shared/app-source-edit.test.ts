@@ -1,6 +1,7 @@
 import * as models from '../../../shared/models';
 import {
     APP_SOURCE_TYPES,
+    getConfiguredSourceType,
     inferSourceRepositoryType,
     isRefOnlySource,
     normalizeRefOnlySource,
@@ -10,6 +11,26 @@ import {
     sourceKeyForTypeOverride,
     SourceRepositoryType
 } from './app-source-edit';
+
+describe('getConfiguredSourceType', () => {
+    test.each(APP_SOURCE_TYPES)('recognizes an explicitly configured $type, including empty settings', ({type, field}) => {
+        const source = {repoURL: 'https://git.example.com/app.git', targetRevision: 'main', path: 'manifests', [field]: {}} as models.ApplicationSource;
+
+        expect(getConfiguredSourceType(source)).toBe(type);
+    });
+
+    test('leaves unconfigured sources to repository discovery', () => {
+        const source = {repoURL: 'https://git.example.com/app.git', targetRevision: 'main', path: 'manifests'} as models.ApplicationSource;
+
+        expect(getConfiguredSourceType(source)).toBeUndefined();
+    });
+
+    test('does not choose an arbitrary type when multiple generator blocks are configured', () => {
+        const source = {repoURL: 'https://git.example.com/app.git', targetRevision: 'main', path: 'manifests', kustomize: {}, directory: {}} as models.ApplicationSource;
+
+        expect(getConfiguredSourceType(source)).toBeUndefined();
+    });
+});
 
 describe('isRefOnlySource', () => {
     test.each([

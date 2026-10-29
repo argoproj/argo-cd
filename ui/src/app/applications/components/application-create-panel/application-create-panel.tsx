@@ -16,7 +16,7 @@ import {CollapsibleMultiSourceSection} from './collapsible-multi-source-section'
 import {SourcePanel} from './source-panel';
 import './application-create-panel.scss';
 import {getClusterOptions} from '../utils';
-import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource, sourceDiscoveryKey, sourceKeyForTypeOverride} from '../shared/app-source-edit';
+import {APP_SOURCE_TYPES, getConfiguredSourceType, normalizeTypeFieldsForSource, sourceDiscoveryKey, sourceKeyForTypeOverride} from '../shared/app-source-edit';
 import {validateApplicationCreate} from './application-create-panel-validation';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -490,7 +490,10 @@ export const ApplicationCreatePanel = (props: {
                                                 }}>
                                                 {(details: models.RepoAppDetails) => {
                                                     const sourceKey = sourceKeyForTypeOverride(liveSrc);
-                                                    const type = (explicitPathType && explicitPathType.sourceKey === sourceKey && explicitPathType.type) || details.type;
+                                                    const type =
+                                                        (explicitPathType && explicitPathType.sourceKey === sourceKey && explicitPathType.type) ||
+                                                        getConfiguredSourceType(liveSrc) ||
+                                                        details.type;
                                                     let d = details;
                                                     if (d.type !== type) {
                                                         switch (type) {
