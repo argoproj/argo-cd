@@ -1,0 +1,55 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: examples.example.io
+spec:
+  conversion:
+    strategy: Webhook
+    webhook:
+      clientConfig:
+        caBundle: Zm9v
+        service:
+          name: example-webhook
+          namespace: default
+          path: /convert
+          port: 443
+      conversionReviewVersions:
+        - v1
+  group: example.io
+  names:
+    kind: Example
+    listKind: ExampleList
+    plural: examples
+    shortNames:
+      - ex
+    singular: example
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+status:
+  acceptedNames:
+    kind: Example
+    listKind: ExampleList
+    plural: examples
+    shortNames:
+      - ex
+    singular: example
+  conditions:
+    - lastTransitionTime: '2024-05-19T23:35:28Z'
+      message: no conflicts found
+      reason: NoConflicts
+      status: 'True'
+      type: NamesAccepted
+    - lastTransitionTime: '2024-05-19T23:35:28Z'
+      message: The conversion webhook CABundle is invalid
+      reason: InvalidCABundle
+      status: 'False'
+      type: Established
+  storedVersions:
+    - v1alpha1
