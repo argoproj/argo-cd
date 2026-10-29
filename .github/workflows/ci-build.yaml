@@ -444,11 +444,9 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
-      - name: Download & vendor dependencies
+      - name: Download dependencies
         run: |
-          # We need to vendor go modules for codegen yet
           go mod download
-          go mod vendor -v
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
         working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
       - name: Install toolchain for codegen

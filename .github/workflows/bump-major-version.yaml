@@ -57,11 +57,9 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
-      - name: Download & vendor dependencies
+      - name: Download dependencies
         run: |
-          # We need to vendor go modules for codegen yet
           go mod download
-          go mod vendor -v
         working-directory: /home/runner/go/src/github.com/argoproj/argo-cd
       - name: Install toolchain for codegen
         run: |
