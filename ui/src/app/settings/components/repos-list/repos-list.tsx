@@ -464,7 +464,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     const refreshRepoList = async (updatedRepo?: string) => {
         try {
             await services.repos.listNoCache();
-            await queryClient.invalidateQueries({queryKey: repoQueries.all});
+            await queryClient.invalidateQueries({queryKey: repoQueries.all}, {throwOnError: true});
             ctx.notifications.show({
                 content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
                 type: NotificationType.Success
@@ -495,8 +495,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.createSSH(params);
                 }
-                await queryClient.invalidateQueries({queryKey: repoQueries.all});
                 setConnectRepo(false);
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect SSH repository' e={e} />,
@@ -535,8 +535,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.createHTTPS(params);
                 }
-                await queryClient.invalidateQueries({queryKey: repoQueries.all});
                 setConnectRepo(false);
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect HTTPS repository' e={e} />,
@@ -591,8 +591,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.createGitHubApp(params);
                 }
-                await queryClient.invalidateQueries({queryKey: repoQueries.all});
                 setConnectRepo(false);
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect GitHub App repository' e={e} />,
@@ -620,8 +620,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.createGoogleCloudSource(params);
                 }
-                await queryClient.invalidateQueries({queryKey: repoQueries.all});
                 setConnectRepo(false);
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect Google Cloud Source repository' e={e} />,
@@ -654,8 +654,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.createAzureServicePrincipal(params);
                 }
-                await queryClient.invalidateQueries({queryKey: repoQueries.all});
                 setConnectRepo(false);
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect Azure Service Principal repository' e={e} />,
@@ -674,8 +674,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repocreds.createHTTPS(params);
             }
-            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             setConnectRepo(false);
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to create HTTPS credentials' e={e} />,
@@ -691,8 +691,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repocreds.createSSH(params);
             }
-            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             setConnectRepo(false);
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to create SSH credentials' e={e} />,
@@ -708,8 +708,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repocreds.createGitHubApp(params);
             }
-            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             setConnectRepo(false);
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to create GitHub App credentials' e={e} />,
@@ -725,8 +725,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repocreds.createGoogleCloudSource(params);
             }
-            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             setConnectRepo(false);
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to create Google Cloud Source credentials' e={e} />,
@@ -742,8 +742,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repocreds.createAzureServicePrincipal(params);
             }
-            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             setConnectRepo(false);
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to create Azure Service Principal credentials' e={e} />,
@@ -1058,7 +1058,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     <RepoDetails item={currentRepo} save={(params: NewHTTPSRepoParams) => updateHTTPSRepo(params)} readonly={!isRepoUpdatable(currentRepo)} />
                 )}
                 {!displayEditPanel &&
-                    (projectsError ? (
+                    (projectsError && !projects ? (
                         loadFailed(refetchProjects)
                     ) : !projects ? (
                         loading

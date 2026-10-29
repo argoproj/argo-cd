@@ -26,7 +26,7 @@ const actions = ['get', 'create', 'update', 'delete', 'sync', 'override'];
 export const ProjectRolePoliciesEdit = (props: ProjectRolePoliciesProps) => {
     const objectListKind = props.objectListKind || 'application';
     const {data: applications, isError, refetch} = useQuery(applicationQueries.names([props.projName], objectListKind));
-    if (isError) {
+    if (isError && !applications) {
         return loadFailed(refetch);
     }
     if (!applications) {
