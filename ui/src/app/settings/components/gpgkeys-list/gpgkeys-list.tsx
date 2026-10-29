@@ -1,5 +1,5 @@
 import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
-import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {useQuery} from '@tanstack/react-query';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Form, FormApi, TextArea} from 'argo-ui';
@@ -7,7 +7,7 @@ import {withRouter, RouteComponentProps} from 'react-router-dom';
 
 import {ActionMenu, EmptyState, ErrorNotification, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
-import {services} from '../../../shared/services';
+import {useGpgKeyMutations} from '../../../shared/mutations';
 import {gpgkeyQueries} from '../../../shared/queries';
 import {loadFailed, loading} from '../../../shared/query-client';
 import {useSearchParams} from '../../../shared/hooks/query';
@@ -30,7 +30,7 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
     const sidebarTarget = useSidebarTarget();
 
     const formApi = React.useRef<FormApi | null>(null);
-    const queryClient = useQueryClient();
+    const gpgkeyMutations = useGpgKeyMutations();
 
     const [filterPref, setFilterPref] = React.useState<GpgKeysListPreferences>({
         keyTypeFilter: query.getAll('keyType') || []
@@ -84,9 +84,8 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                     message: 'Invalid GnuPG key data found - must be ASCII armored'
                 };
             }
-            await services.gpgkeys.create({keyData: params.keyData});
+            await gpgkeyMutations.create.mutateAsync({keyData: params.keyData});
             setAddGnuPGKey(false);
-            await queryClient.invalidateQueries({queryKey: gpgkeyQueries.list().queryKey});
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to add GnuPG public key' e={e} />,
@@ -99,8 +98,7 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
         const confirmed = await ctx.popup.confirm('Remove GPG public key', 'Are you sure you want to remove GPG key with ID ' + keyId + '?');
         if (confirmed) {
             try {
-                await services.gpgkeys.delete(keyId);
-                await queryClient.invalidateQueries({queryKey: gpgkeyQueries.list().queryKey});
+                await gpgkeyMutations.delete.mutateAsync(keyId);
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to remove GnuPG public key' e={e} />,
