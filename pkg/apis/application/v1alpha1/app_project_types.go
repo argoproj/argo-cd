@@ -511,7 +511,6 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 		dstNameMatched := dst.Name != "" && globMatch(item.Name, dst.Name, true)
 		dstServerMatched := dst.Server != "" && globMatch(item.Server, dst.Server, true)
 		dstNamespaceMatched := globMatch(item.Namespace, dst.Namespace, true)
-	
 
 		// A deny pattern that positively matches the cluster's name or server
 		// vetoes this entry, even when the entry's other identifier matches.
@@ -519,12 +518,12 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 		if dstNamespaceMatched {
 			if isDenyPattern(item.Name) && dst.Name != "" && glob.Match(item.Name[1:], dst.Name) {
 				return false
-				}
+			}
 			if isDenyPattern(item.Server) && dst.Server != "" && glob.Match(item.Server[1:], dst.Server) {
 				return false
-				}
 			}
-	
+		}
+
 		matched := (dstServerMatched || dstNameMatched) && dstNamespaceMatched
 		switch {
 		case matched:
