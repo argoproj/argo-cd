@@ -69,6 +69,7 @@ type prGeneratorGithubInfo struct {
 
 type prGeneratorGitlabInfo struct {
 	Project     string
+	ProjectPath string
 	APIHostname string
 }
 
@@ -265,6 +266,7 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 
 		info.Gitlab = &prGeneratorGitlabInfo{
 			Project:     strconv.FormatInt(payload.ObjectAttributes.TargetProjectID, 10),
+			ProjectPath: payload.Project.PathWithNamespace,
 			APIHostname: urlObj.Hostname(),
 		}
 	case azuredevops.GitPullRequestEvent:
@@ -356,7 +358,8 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	}
 
 	if gen.GitLab != nil && info.Gitlab != nil {
-		if gen.GitLab.Project != info.Gitlab.Project {
+		// The generator accepts either the project ID or its full path
+		if gen.GitLab.Project != info.Gitlab.Project && !strings.EqualFold(gen.GitLab.Project, info.Gitlab.ProjectPath) {
 			return false
 		}
 
