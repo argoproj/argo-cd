@@ -396,12 +396,11 @@ Similarly, applications referencing an external Helm values file will not get th
 unrelated change happens in the external source.
 
 > [!NOTE]
-> The Git-history comparison described above is skipped for repositories configured with shallow cloning (`depth` greater
-> than `0`). In that case, Argo CD may not have enough history to compare the previous synced revision with the new
-> revision, so it treats the application as potentially changed and proceeds with normal refresh and manifest generation.
-> This does not affect webhook payload filtering, which uses the changed files reported by the webhook event. The
-> annotation can also still be used to calculate a common root path and reduce the repository content sent to a Config
-> Management Plugin sidecar when `--plugin-use-manifest-generate-paths` is enabled.
+> The comparison also works with shallow cloning (`depth` greater than `0`). Argo CD fetches the previously synced commit
+> at the configured depth and compares it directly with the new commit. This requires the Git server to allow fetching
+> commits by SHA (for self-hosted servers, `uploadpack.allowReachableSHA1InWant` or `uploadpack.allowAnySHA1InWant`).
+> If that fetch fails, Argo CD treats the application as changed and regenerates manifests, retrying the fetch on each
+> refresh.
 
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
@@ -826,9 +825,3 @@ When shallow cloning, the repository is cloned with a depth of 1, which means on
 > Source integrity checks will fail for shallow clone.
 > Use full clone or `head` mode of source integrity.
 > See [Source Integrity](../user-guide/source-integrity-git-gpg.md#verification-mode-strict).
-
-> [!NOTE]
-> Shallow cloning disables the non-webhook Git-history comparison optimization provided by the
-> `argocd.argoproj.io/manifest-generate-paths` annotation. If you rely on that annotation to avoid unnecessary refreshes
-> without webhooks, use a full clone (`depth: "0"` or omit `depth`) for that repository. Webhook payload filtering and
-> Config Management Plugin sidecar path narrowing can still use the annotation with shallow clones.

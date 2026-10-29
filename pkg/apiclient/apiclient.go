@@ -326,6 +326,10 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
+	if _, err := parseHeaders(opts.Headers); err != nil {
+		return nil, err
+	}
+	c.Headers = opts.Headers
 
 	// Keep a typed reference to the TLS transport (not http.RoundTripper) so the
 	// grpc-web proxy can close idle connections on it directly: when retries are
@@ -338,6 +342,9 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 		}
 		c.tlsTransport = &http.Transport{
 			TLSClientConfig: tlsConfig,
+			// Honor HTTP_PROXY/HTTPS_PROXY/NO_PROXY, like http.DefaultTransport
+			// (which is used in the --plaintext case) and HTTPClient() already do.
+			Proxy: http.ProxyFromEnvironment,
 		}
 	}
 
@@ -408,7 +415,6 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 			return nil, err
 		}
 	}
-	c.Headers = opts.Headers
 
 	return &c, nil
 }
