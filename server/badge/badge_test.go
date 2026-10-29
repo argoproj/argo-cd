@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -293,6 +294,7 @@ func TestHandlerFeatureIsEnabledKeepFullRevisionIsEnabled(t *testing.T) {
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
 	assert.NotContains(t, response, "test-app")
 	assert.Contains(t, response, "(aa29b85ababababababab)")
+	assert.Equal(t, strconv.Itoa(svgWidthWithFullRevision), svgWidthPattern.FindStringSubmatch(response)[1])
 }
 
 func TestHandlerFeatureIsEnabledKeepFullRevisionIsDisabled(t *testing.T) {
@@ -409,6 +411,7 @@ func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
 	assert.NotContains(t, response, "test-app")
 	assert.Contains(t, response, "(aa29b85)")
+	assert.Equal(t, strconv.Itoa(svgWidthWithRevision), svgWidthPattern.FindStringSubmatch(response)[1])
 }
 
 func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {
