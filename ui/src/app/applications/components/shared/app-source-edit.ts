@@ -11,6 +11,12 @@ export const APP_SOURCE_TYPES = new Array<{field: string; type: models.AppSource
     {type: 'Plugin', field: 'plugin'}
 );
 
+/** Configured generator blocks take precedence over repository discovery on the server. */
+export function getConfiguredSourceType(source: models.ApplicationSource | undefined): models.AppSourceType | undefined {
+    const configuredTypes = APP_SOURCE_TYPES.filter(({field}) => source?.[field as keyof models.ApplicationSource]);
+    return configuredTypes.length === 1 ? configuredTypes[0].type : undefined;
+}
+
 /**
  * A ref-only source is checked out solely so another source can reference files from it.
  * It does not generate manifests and therefore has no application source type to configure.

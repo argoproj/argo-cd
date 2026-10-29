@@ -4,7 +4,7 @@ import {FormApi} from 'argo-ui';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {APP_SOURCE_TYPES, isRefOnlySource, normalizeTypeFieldsForSource, sourceDiscoveryKey, sourceKeyForTypeOverride} from '../shared/app-source-edit';
+import {APP_SOURCE_TYPES, getConfiguredSourceType, isRefOnlySource, normalizeTypeFieldsForSource, sourceDiscoveryKey, sourceKeyForTypeOverride} from '../shared/app-source-edit';
 
 function pathKeyForSource(src: models.ApplicationSource | undefined): string {
     if (!src) {
@@ -49,7 +49,7 @@ export const CreatePanelSourceTypeParameters = (props: {formApi: FormApi; source
             }}>
             {(details: models.RepoAppDetails) => {
                 const sourceKey = sourceKeyForTypeOverride(src);
-                const type = (explicitPathType && explicitPathType.sourceKey === sourceKey && explicitPathType.type) || details.type;
+                const type = (explicitPathType && explicitPathType.sourceKey === sourceKey && explicitPathType.type) || getConfiguredSourceType(src) || details.type;
                 let d = details;
                 if (d.type !== type) {
                     switch (type) {
