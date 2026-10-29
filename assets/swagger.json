@@ -10086,7 +10086,7 @@
         },
         "certInfo": {
           "type": "string",
-          "title": "CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)"
+          "title": "CertInfo will hold additional certificate info, dependent on the certificate type (e.g. SSH fingerprint, X509 CommonName)"
         },
         "certSubType": {
           "type": "string",

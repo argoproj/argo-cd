@@ -211,7 +211,7 @@ $(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=argopro
 endif
 endif
 
-# Consruct prefix for docker image
+# Construct prefix for docker image
 # Note: keeping same logic as in hacks/update_manifests.sh
 ifdef IMAGE_REGISTRY
 ifdef IMAGE_NAMESPACE
