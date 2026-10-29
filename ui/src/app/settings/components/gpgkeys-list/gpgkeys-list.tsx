@@ -98,8 +98,15 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
     const removeKey = async (keyId: string) => {
         const confirmed = await ctx.popup.confirm('Remove GPG public key', 'Are you sure you want to remove GPG key with ID ' + keyId + '?');
         if (confirmed) {
-            await services.gpgkeys.delete(keyId);
-            await queryClient.invalidateQueries({queryKey: gpgkeyQueries.list().queryKey});
+            try {
+                await services.gpgkeys.delete(keyId);
+                await queryClient.invalidateQueries({queryKey: gpgkeyQueries.list().queryKey});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to remove GnuPG public key' e={e} />,
+                    type: NotificationType.Error
+                });
+            }
         }
     };
 
