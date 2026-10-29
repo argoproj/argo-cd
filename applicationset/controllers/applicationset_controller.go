@@ -78,6 +78,8 @@ const (
 var defaultPreservedFinalizers = []string{
 	argov1alpha1.PreDeleteFinalizerName,
 	argov1alpha1.PostDeleteFinalizerName,
+	argov1alpha1.QualifiedPreDeleteFinalizerName,
+	argov1alpha1.QualifiedPostDeleteFinalizerName,
 }
 
 var defaultPreservedAnnotations = []string{
@@ -172,6 +174,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 			}
 		}
 		controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
+		controllerutil.RemoveFinalizer(&applicationSetInfo, argov1alpha1.QualifiedResourcesFinalizerName)
 		if err := r.Update(ctx, &applicationSetInfo); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -1034,7 +1037,7 @@ func (r *ApplicationSetReconciler) removeFinalizerOnInvalidDestination(ctx conte
 		// Filter out the Argo CD finalizer from the finalizer list
 		var newFinalizers []string
 		for _, existingFinalizer := range app.Finalizers {
-			if existingFinalizer != argov1alpha1.ResourcesFinalizerName { // only remove this one
+			if existingFinalizer != argov1alpha1.ResourcesFinalizerName && existingFinalizer != argov1alpha1.QualifiedResourcesFinalizerName {
 				newFinalizers = append(newFinalizers, existingFinalizer)
 			}
 		}

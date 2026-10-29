@@ -1934,8 +1934,11 @@ func TestDeleteApp(t *testing.T) {
 	fakeAppCs.ReactionChain = nil
 	patched := false
 	deleted := false
-	fakeAppCs.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	var finalizers []string
+	var finalizerPatch []byte
+	fakeAppCs.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
+		finalizerPatch = action.(kubetesting.PatchAction).GetPatch()
 		return true, nil, nil
 	})
 	fakeAppCs.AddReactor("delete", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
@@ -1943,7 +1946,7 @@ func TestDeleteApp(t *testing.T) {
 		return true, nil, nil
 	})
 	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
+		return true, &v1alpha1.Application{Finalizers: finalizers, Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
 	appServer.appclientset = fakeAppCs
 
@@ -2004,6 +2007,28 @@ func TestDeleteApp(t *testing.T) {
 		assert.True(t, deleted)
 		t.Cleanup(revertValues)
 	})
+
+	for _, tc := range []struct {
+		name       string
+		finalizers []string
+	}{
+		{"existing", []string{"resources-finalizer.argocd.argoproj.io"}},
+		{"qualified", []string{"argocd.argoproj.io/resources-finalizer"}},
+		{"mixed", []string{"resources-finalizer.argocd.argoproj.io", "argocd.argoproj.io/resources-finalizer"}},
+	} {
+		t.Run("Delete with cascade disabled and "+tc.name+" finalizers", func(t *testing.T) {
+			t.Cleanup(revertValues)
+			finalizers = append([]string{"example.com/keep"}, tc.finalizers...)
+			finalizerPatch = nil
+			_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar})
+			require.NoError(t, err)
+			assert.True(t, patched)
+			assert.True(t, deleted)
+			var patch map[string]map[string][]string
+			require.NoError(t, json.Unmarshal(finalizerPatch, &patch))
+			assert.Equal(t, []string{"example.com/keep"}, patch["metadata"]["finalizers"])
+		})
+	}
 }
 
 func TestDeleteAppAlreadyDeleting(t *testing.T) {

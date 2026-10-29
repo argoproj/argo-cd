@@ -1027,6 +1027,10 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 						v1alpha1.PreDeleteFinalizerName + "/stage1",
 						v1alpha1.PostDeleteFinalizerName,
 						v1alpha1.PostDeleteFinalizerName + "/stage2",
+						v1alpha1.QualifiedPreDeleteFinalizerName,
+						v1alpha1.QualifiedPreDeleteFinalizerName + "-stage1",
+						v1alpha1.QualifiedPostDeleteFinalizerName,
+						v1alpha1.QualifiedPostDeleteFinalizerName + "-stage2",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1054,6 +1058,10 @@ func TestCreateOrUpdateInCluster(t *testing.T) {
 						v1alpha1.PreDeleteFinalizerName + "/stage1",
 						v1alpha1.PostDeleteFinalizerName,
 						v1alpha1.PostDeleteFinalizerName + "/stage2",
+						v1alpha1.QualifiedPreDeleteFinalizerName,
+						v1alpha1.QualifiedPreDeleteFinalizerName + "-stage1",
+						v1alpha1.QualifiedPostDeleteFinalizerName,
+						v1alpha1.QualifiedPostDeleteFinalizerName + "-stage2",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Project: "project",
@@ -1467,6 +1475,16 @@ func TestRemoveFinalizerOnInvalidDestination_FinalizerTypes(t *testing.T) {
 			name:               "contains only argo finalizer",
 			existingFinalizers: []string{v1alpha1.ResourcesFinalizerName},
 			expectedFinalizers: nil,
+		},
+		{
+			name:               "contains only qualified argo finalizer",
+			existingFinalizers: []string{v1alpha1.QualifiedResourcesFinalizerName},
+			expectedFinalizers: nil,
+		},
+		{
+			name:               "contains existing qualified and non-argo finalizers",
+			existingFinalizers: []string{v1alpha1.ResourcesFinalizerName, "example.com/keep", v1alpha1.QualifiedResourcesFinalizerName},
+			expectedFinalizers: []string{"example.com/keep"},
 		},
 		{
 			name:               "contains only non-argo finalizer",
@@ -4922,6 +4940,38 @@ func TestFirstAppError(t *testing.T) {
 			assert.ErrorIs(t, firstAppError(appErrors), errA, "firstAppError must return the same error on every call")
 		}
 	})
+}
+
+func TestReconcileRemovesResourceFinalizers(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+	for _, finalizers := range [][]string{
+		{v1alpha1.ResourcesFinalizerName},
+		{v1alpha1.QualifiedResourcesFinalizerName},
+		{v1alpha1.ResourcesFinalizerName, v1alpha1.QualifiedResourcesFinalizerName},
+	} {
+		t.Run(fmt.Sprint(finalizers), func(t *testing.T) {
+			now := metav1.Now()
+			appSet := &v1alpha1.ApplicationSet{
+				Name:              "deleting-appset",
+				Namespace:         "argocd",
+				DeletionTimestamp: &now,
+				Finalizers:        append([]string{"example.com/keep"}, finalizers...),
+			}
+			client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).Build()
+			r := ApplicationSetReconciler{
+				Client:  client,
+				Policy:  v1alpha1.ApplicationsSyncPolicySync,
+				Metrics: appsetmetrics.NewFakeAppsetMetrics(),
+			}
+			req := ctrl.Request{NamespacedName: crtclient.ObjectKeyFromObject(appSet)}
+			_, err := r.Reconcile(t.Context(), req)
+			require.NoError(t, err)
+			var updated v1alpha1.ApplicationSet
+			require.NoError(t, client.Get(t.Context(), req.NamespacedName, &updated))
+			assert.Equal(t, []string{"example.com/keep"}, updated.Finalizers)
+		})
+	}
 }
 
 func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {

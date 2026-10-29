@@ -7,8 +7,9 @@ export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: 
         fieldApi: {getValue, setValue}
     } = props;
     const finalizerVal = 'resources-finalizer.argocd.argoproj.io';
+    const isDeletionFinalizer = (item: string) => item === finalizerVal || item === 'argocd.argoproj.io/resources-finalizer';
     const currentValue = getValue() || [];
-    const index = currentValue.findIndex((item: string) => item === finalizerVal);
+    const index = currentValue.findIndex(isDeletionFinalizer);
     const isChecked = index < 0 ? false : true;
     return (
         <div className='small-12 large-6' style={{borderBottom: '0'}}>
@@ -18,12 +19,7 @@ export const SetFinalizerOnApplication = ReactForm.FormField((props: {fieldApi: 
                 onChange={(state: boolean) => {
                     const value = getValue() || [];
                     if (!state) {
-                        const i = value.findIndex((item: string) => item === finalizerVal);
-                        if (i >= 0) {
-                            const tmp = value.slice();
-                            tmp.splice(i, 1);
-                            setValue(tmp);
-                        }
+                        setValue(value.filter((item: string) => !isDeletionFinalizer(item)));
                     } else {
                         const tmp = value.slice();
                         tmp.push(finalizerVal);

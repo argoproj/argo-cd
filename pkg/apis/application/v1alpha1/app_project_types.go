@@ -434,12 +434,14 @@ func (proj AppProject) IsResourcePermitted(groupKind schema.GroupKind, name stri
 
 // HasFinalizer returns true if a resource finalizer is set on an AppProject
 func (proj AppProject) HasFinalizer() bool {
-	return getFinalizerIndex(proj.ObjectMeta, ResourcesFinalizerName) > -1
+	return getFinalizerIndex(proj.ObjectMeta, ResourcesFinalizerName) > -1 ||
+		getFinalizerIndex(proj.ObjectMeta, QualifiedResourcesFinalizerName) > -1
 }
 
 // RemoveFinalizer removes a resource finalizer from an AppProject
 func (proj *AppProject) RemoveFinalizer() {
 	setFinalizer(&proj.ObjectMeta, ResourcesFinalizerName, false)
+	setFinalizer(&proj.ObjectMeta, QualifiedResourcesFinalizerName, false)
 }
 
 // globMatch matches a value with a glob pattern

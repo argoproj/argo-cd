@@ -3882,7 +3882,7 @@ func (app *Application) IsHydrateRequested() (bool, HydrateType) {
 }
 
 func (app *Application) HasPreDeleteFinalizer(stage ...string) bool {
-	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PreDeleteFinalizerName}, stage...), "/")) > -1
+	return app.hasDeleteHookFinalizer(PreDeleteFinalizerName, QualifiedPreDeleteFinalizerName, stage...)
 }
 
 func (app *Application) SetPreDeleteFinalizer(stage ...string) {
@@ -3890,19 +3890,15 @@ func (app *Application) SetPreDeleteFinalizer(stage ...string) {
 }
 
 func (app *Application) UnSetPreDeleteFinalizer(stage ...string) {
-	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PreDeleteFinalizerName}, stage...), "/"), false)
+	app.unsetDeleteHookFinalizer(PreDeleteFinalizerName, QualifiedPreDeleteFinalizerName, stage...)
 }
 
 func (app *Application) UnSetPreDeleteFinalizerAll() {
-	for _, finalizer := range app.Finalizers {
-		if strings.HasPrefix(finalizer, PreDeleteFinalizerName) {
-			setFinalizer(&app.ObjectMeta, finalizer, false)
-		}
-	}
+	app.unsetDeleteHookFinalizers(PreDeleteFinalizerName, QualifiedPreDeleteFinalizerName)
 }
 
 func (app *Application) HasPostDeleteFinalizer(stage ...string) bool {
-	return getFinalizerIndex(app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/")) > -1
+	return app.hasDeleteHookFinalizer(PostDeleteFinalizerName, QualifiedPostDeleteFinalizerName, stage...)
 }
 
 func (app *Application) SetPostDeleteFinalizer(stage ...string) {
@@ -3910,15 +3906,40 @@ func (app *Application) SetPostDeleteFinalizer(stage ...string) {
 }
 
 func (app *Application) UnSetPostDeleteFinalizerAll() {
-	for _, finalizer := range app.Finalizers {
-		if strings.HasPrefix(finalizer, PostDeleteFinalizerName) {
-			setFinalizer(&app.ObjectMeta, finalizer, false)
-		}
-	}
+	app.unsetDeleteHookFinalizers(PostDeleteFinalizerName, QualifiedPostDeleteFinalizerName)
 }
 
 func (app *Application) UnSetPostDeleteFinalizer(stage ...string) {
-	setFinalizer(&app.ObjectMeta, strings.Join(append([]string{PostDeleteFinalizerName}, stage...), "/"), false)
+	app.unsetDeleteHookFinalizer(PostDeleteFinalizerName, QualifiedPostDeleteFinalizerName, stage...)
+}
+
+func deleteHookFinalizerNames(name, qualifiedName string, stage ...string) []string {
+	return []string{
+		strings.Join(append([]string{name}, stage...), "/"),
+		strings.Join(append([]string{qualifiedName}, stage...), "-"),
+	}
+}
+
+func (app *Application) hasDeleteHookFinalizer(name, qualifiedName string, stage ...string) bool {
+	for _, finalizer := range deleteHookFinalizerNames(name, qualifiedName, stage...) {
+		if getFinalizerIndex(app.ObjectMeta, finalizer) > -1 {
+			return true
+		}
+	}
+	return false
+}
+
+func (app *Application) unsetDeleteHookFinalizer(name, qualifiedName string, stage ...string) {
+	for _, finalizer := range deleteHookFinalizerNames(name, qualifiedName, stage...) {
+		setFinalizer(&app.ObjectMeta, finalizer, false)
+	}
+}
+
+func (app *Application) unsetDeleteHookFinalizers(name, qualifiedName string) {
+	app.Finalizers = slices.DeleteFunc(app.Finalizers, func(finalizer string) bool {
+		return finalizer == name || strings.HasPrefix(finalizer, name+"/") ||
+			finalizer == qualifiedName || strings.HasPrefix(finalizer, qualifiedName+"-")
+	})
 }
 
 // SetCascadedDeletion will enable cascaded deletion by setting the propagation policy finalizer
@@ -3942,7 +3963,7 @@ func (app *Application) UnSetCascadedDeletion() {
 
 func isPropagationPolicyFinalizer(finalizer string) bool {
 	switch finalizer {
-	case ResourcesFinalizerName:
+	case ResourcesFinalizerName, QualifiedResourcesFinalizerName:
 		return true
 	case ForegroundPropagationPolicyFinalizer:
 		return true
