@@ -1388,6 +1388,11 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 		conditions := make([]v1alpha1.ApplicationCondition, 0)
 		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
+			// Keep the gRPC code of interrupted manifest generation (canceled / deadline
+			// exceeded) so the caller can tell a slow repository apart from an invalid spec.
+			if st, ok := status.FromError(err); ok && st.Code() != codes.Unknown {
+				return err
+			}
 			return fmt.Errorf("error validating the repo: %w", err)
 		}
 		conditions = append(conditions, condition...)

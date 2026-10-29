@@ -211,7 +211,7 @@ $(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=argopro
 endif
 endif
 
-# Consruct prefix for docker image
+# Construct prefix for docker image
 # Note: keeping same logic as in hacks/update_manifests.sh
 ifdef IMAGE_REGISTRY
 ifdef IMAGE_NAMESPACE
@@ -595,6 +595,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_SERVER_OTLP_SAMPLE_RATIO=0 \
 	ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO=0 \
 	ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO=0 \
+	ARGOCD_CMP_SERVER_OTLP_SAMPLE_RATIO=0 \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 	ls -lrt /tmp/coverage
 

@@ -101,7 +101,7 @@ WORKDIR /home/argocd
 ####################################################################################################
 # Argo CD UI stage
 ####################################################################################################
-FROM --platform=$BUILDPLATFORM docker.io/library/node:24.22.1@sha256:5630d96570d4ca4a8523fda3d169d0114554d0f48293e1ae3db6be7c79b42a17 AS argocd-ui
+FROM --platform=$BUILDPLATFORM docker.io/library/node:26.12.1@sha256:b5f0e27e7423ea242b37af44c8c856e28f7e37d4fac23cb430cb618874ff8517 AS argocd-ui
 
 WORKDIR /src
 COPY ["ui/package.json", "ui/pnpm-lock.yaml", "ui/pnpm-workspace.yaml", "./"]
