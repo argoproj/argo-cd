@@ -355,6 +355,8 @@ data:
   commitserver.signing.key.path: ""
   # Optional path to a file containing the passphrase for the signing key.
   commitserver.signing.key.passphrase.file: ""
+  # Timeout for git requests and GitHub App API requests (token fetch and installation ID discovery) (default "15s").
+  commitserver.git.request.timeout: "15s"
 
   # Set the logging format. One of: json|text (default "json")
   dexserver.log.format: "json"
