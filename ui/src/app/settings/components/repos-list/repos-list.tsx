@@ -464,7 +464,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     const refreshRepoList = async (updatedRepo?: string) => {
         try {
             await services.repos.listNoCache();
-            queryClient.invalidateQueries({queryKey: repoQueries.all});
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             ctx.notifications.show({
                 content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
                 type: NotificationType.Success
@@ -495,7 +495,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.createSSH(params);
                 }
-                queryClient.invalidateQueries({queryKey: repoQueries.all});
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
                 setConnectRepo(false);
             } catch (e) {
                 ctx.notifications.show({
@@ -535,7 +535,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.createHTTPS(params);
                 }
-                queryClient.invalidateQueries({queryKey: repoQueries.all});
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
                 setConnectRepo(false);
             } catch (e) {
                 ctx.notifications.show({
@@ -556,7 +556,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repos.updateHTTPS(params);
             }
-            queryClient.invalidateQueries({queryKey: repoQueries.all});
             setDisplayEditPanel(false);
             refreshRepoList(params.url);
         } catch (e) {
@@ -592,7 +591,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.createGitHubApp(params);
                 }
-                queryClient.invalidateQueries({queryKey: repoQueries.all});
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
                 setConnectRepo(false);
             } catch (e) {
                 ctx.notifications.show({
@@ -621,7 +620,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.createGoogleCloudSource(params);
                 }
-                queryClient.invalidateQueries({queryKey: repoQueries.all});
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
                 setConnectRepo(false);
             } catch (e) {
                 ctx.notifications.show({
@@ -655,7 +654,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.createAzureServicePrincipal(params);
                 }
-                queryClient.invalidateQueries({queryKey: repoQueries.all});
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
                 setConnectRepo(false);
             } catch (e) {
                 ctx.notifications.show({
@@ -675,7 +674,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repocreds.createHTTPS(params);
             }
-            queryClient.invalidateQueries({queryKey: repoQueries.all});
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             setConnectRepo(false);
         } catch (e) {
             ctx.notifications.show({
@@ -692,7 +691,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repocreds.createSSH(params);
             }
-            queryClient.invalidateQueries({queryKey: repoQueries.all});
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             setConnectRepo(false);
         } catch (e) {
             ctx.notifications.show({
@@ -709,7 +708,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repocreds.createGitHubApp(params);
             }
-            queryClient.invalidateQueries({queryKey: repoQueries.all});
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             setConnectRepo(false);
         } catch (e) {
             ctx.notifications.show({
@@ -726,7 +725,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repocreds.createGoogleCloudSource(params);
             }
-            queryClient.invalidateQueries({queryKey: repoQueries.all});
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             setConnectRepo(false);
         } catch (e) {
             ctx.notifications.show({
@@ -743,7 +742,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repocreds.createAzureServicePrincipal(params);
             }
-            queryClient.invalidateQueries({queryKey: repoQueries.all});
+            await queryClient.invalidateQueries({queryKey: repoQueries.all});
             setConnectRepo(false);
         } catch (e) {
             ctx.notifications.show({
@@ -763,7 +762,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repos.delete(repo, project || '');
                 }
-                queryClient.invalidateQueries({queryKey: repoQueries.all});
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to disconnect repository' e={e} />,
@@ -783,7 +782,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 } else {
                     await services.repocreds.delete(url);
                 }
-                queryClient.invalidateQueries({queryKey: repoQueries.all});
+                await queryClient.invalidateQueries({queryKey: repoQueries.all});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to remove repository credentials' e={e} />,
@@ -881,7 +880,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             />
             <div className='repos-list'>
                 <div className='argo-container'>
-                    {isError ? (
+                    {isError && !allRepos ? (
                         loadFailed(refetch)
                     ) : !allRepos ? (
                         loading
