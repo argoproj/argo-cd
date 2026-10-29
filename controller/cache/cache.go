@@ -158,6 +158,27 @@ type LiveStateCache interface {
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref corev1.ObjectReference)
 
+// ManagedCRDIndex is the name of the application informer index that maps a CustomResourceDefinition name to the
+// applications that list it among their managed resources.
+const ManagedCRDIndex = "managedCRD"
+
+// ManagedCRDIndexFunc indexes an application by the names of the CustomResourceDefinitions among its managed resources.
+// CustomResourceDefinitions carry no tracking metadata, so this index is how an update to one is mapped back to the
+// applications that manage it.
+func ManagedCRDIndexFunc(obj any) ([]string, error) {
+	app, ok := obj.(*appv1.Application)
+	if !ok {
+		return nil, nil
+	}
+	var crds []string
+	for _, res := range app.Status.Resources {
+		if kube.IsCRDGroupVersionKind(schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}) {
+			crds = append(crds, res.Name)
+		}
+	}
+	return crds, nil
+}
+
 type PodInfo struct {
 	NodeName         string
 	ResourceRequests corev1.ResourceList
@@ -607,7 +628,6 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
-		toNotify := make(map[string]bool)
 		var ref corev1.ObjectReference
 		if newRes != nil {
 			ref = newRes.Ref
@@ -638,17 +658,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 			return
 		}
 
-		for _, r := range []*clustercache.Resource{newRes, oldRes} {
-			if r == nil {
-				continue
-			}
-			app := getApp(r, namespaceResources)
-			if app == "" || skipAppRequeuing(r.ResourceKey()) {
-				continue
-			}
-			toNotify[app] = isRootAppNode(r) || toNotify[app]
-		}
-		c.onObjectUpdated(toNotify, ref)
+		c.onObjectUpdated(c.appsToNotify(cluster.Server, ref, newRes, oldRes, namespaceResources), ref)
 	})
 
 	_ = clusterCache.OnEvent(func(_ watch.EventType, un *unstructured.Unstructured) {
@@ -763,6 +773,54 @@ func (c *liveStateCache) GetVersionsInfo(server *appv1.Cluster) (string, []kube.
 		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", server.Server, err)
 	}
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
+}
+
+func (c *liveStateCache) appsToNotify(server string, ref corev1.ObjectReference, newRes, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) map[string]bool {
+	toNotify := make(map[string]bool)
+	for _, r := range []*clustercache.Resource{newRes, oldRes} {
+		if r == nil {
+			continue
+		}
+		app := getApp(r, namespaceResources)
+		if app == "" || skipAppRequeuing(r.ResourceKey()) {
+			continue
+		}
+		toNotify[app] = isRootAppNode(r) || toNotify[app]
+	}
+	if len(toNotify) == 0 && kube.IsCRDGroupVersionKind(ref.GroupVersionKind()) {
+		for _, app := range c.appsManagingCRD(server, ref.Name) {
+			toNotify[app] = true
+		}
+	}
+	return toNotify
+}
+
+func (c *liveStateCache) appsManagingCRD(server string, crdName string) []string {
+	if c.appInformer == nil {
+		return nil
+	}
+	objs, err := c.appInformer.GetIndexer().ByIndex(ManagedCRDIndex, crdName)
+	if err != nil {
+		log.Warnf("Failed to look up applications managing CRD %q: %v", crdName, err)
+		return nil
+	}
+	server = strings.TrimRight(server, "/")
+	var apps []string
+	for _, obj := range objs {
+		app, ok := obj.(*appv1.Application)
+		if !ok {
+			continue
+		}
+		destServer, err := argo.GetDestinationServer(context.Background(), app.Spec.Destination, c.db)
+		if err != nil {
+			log.Debugf("Failed to get destination server of application %q: %v", app.QualifiedName(), err)
+			continue
+		}
+		if destServer == server {
+			apps = append(apps, app.QualifiedName())
+		}
+	}
+	return apps
 }
 
 func (c *liveStateCache) isClusterHasApps(apps []any, cluster *appv1.Cluster) bool {

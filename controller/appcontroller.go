@@ -3149,7 +3149,8 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		&appv1.Application{},
 		refreshTimeout,
 		cache.Indexers{
-			cache.NamespaceIndex: cache.MetaNamespaceIndexFunc,
+			cache.NamespaceIndex:       cache.MetaNamespaceIndexFunc,
+			statecache.ManagedCRDIndex: statecache.ManagedCRDIndexFunc,
 			orphanedIndex: func(obj any) (i []string, e error) {
 				app, ok := obj.(*appv1.Application)
 				if !ok {

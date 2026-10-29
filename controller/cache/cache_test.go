@@ -24,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
+	toolscache "k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
@@ -980,4 +981,84 @@ func Test_asResourceNode_same_namespace_parent(t *testing.T) {
 	assert.Equal(t, "Deployment", resNode.ParentRefs[0].Kind)
 	assert.Equal(t, "my-deployment", resNode.ParentRefs[0].Name)
 	assert.Equal(t, "my-namespace", resNode.ParentRefs[0].Namespace, "Deployment parent should have same namespace")
+}
+
+func newAppManagingCRD(name, server string, crds ...string) *appv1.Application {
+	app := &appv1.Application{
+		Name: name, Namespace: "argocd",
+		Spec: appv1.ApplicationSpec{Destination: appv1.ApplicationDestination{Server: server}},
+	}
+	for _, crd := range crds {
+		app.Status.Resources = append(app.Status.Resources, appv1.ResourceStatus{Group: "apiextensions.k8s.io", Version: "v1", Kind: kube.CustomResourceDefinitionKind, Name: crd})
+	}
+	return app
+}
+
+func TestManagedCRDIndexFunc(t *testing.T) {
+	app := newAppManagingCRD("app", "https://cluster-a", "dummies.argoproj.io")
+	app.Status.Resources = append(app.Status.Resources,
+		appv1.ResourceStatus{Version: "v1", Kind: "ConfigMap", Namespace: "default", Name: "cm"},
+		appv1.ResourceStatus{Group: "example.com", Version: "v1", Kind: kube.CustomResourceDefinitionKind, Name: "not-a-crd"},
+	)
+
+	keys, err := ManagedCRDIndexFunc(app)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"dummies.argoproj.io"}, keys)
+
+	keys, err = ManagedCRDIndexFunc(&corev1.ConfigMap{})
+	require.NoError(t, err)
+	assert.Empty(t, keys)
+}
+
+func TestAppsToNotify(t *testing.T) {
+	const crdName = "dummies.argoproj.io"
+	crdRef := corev1.ObjectReference{APIVersion: "apiextensions.k8s.io/v1", Kind: kube.CustomResourceDefinitionKind, Name: crdName}
+
+	appInformer := toolscache.NewSharedIndexInformer(&toolscache.ListWatch{}, &appv1.Application{}, 0, toolscache.Indexers{ManagedCRDIndex: ManagedCRDIndexFunc})
+	byName := newAppManagingCRD("by-name", "", crdName)
+	byName.Spec.Destination.Name = "cluster-a"
+	for _, app := range []*appv1.Application{
+		newAppManagingCRD("same-cluster", "https://cluster-a/", crdName),
+		newAppManagingCRD("other-cluster", "https://cluster-b", crdName),
+		newAppManagingCRD("other-crd", "https://cluster-a", "others.argoproj.io"),
+		byName,
+	} {
+		require.NoError(t, appInformer.GetIndexer().Add(app))
+	}
+
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetClusterServersByName(mock.Anything, "cluster-a").Return([]string{"https://cluster-a"}, nil)
+	c := &liveStateCache{db: db, appInformer: appInformer}
+	want := map[string]bool{"argocd/same-cluster": true, "argocd/by-name": true}
+
+	t.Run("CRD update refreshes the apps managing it on the same cluster", func(t *testing.T) {
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		assert.Equal(t, want, c.appsToNotify("https://cluster-a", crdRef, crd, crd, nil))
+	})
+
+	t.Run("cluster server with a trailing slash", func(t *testing.T) {
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		assert.Equal(t, want, c.appsToNotify("https://cluster-a/", crdRef, crd, crd, nil))
+	})
+
+	t.Run("CRD deletion refreshes the apps managing it", func(t *testing.T) {
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		assert.Equal(t, want, c.appsToNotify("https://cluster-a", crdRef, nil, crd, nil))
+	})
+
+	t.Run("CRD tracked by an app does not fall back to the index", func(t *testing.T) {
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{AppName: "tracked"}}
+		assert.Equal(t, map[string]bool{"tracked": true}, c.appsToNotify("https://cluster-a", crdRef, crd, nil, nil))
+	})
+
+	t.Run("other resources are not looked up in the index", func(t *testing.T) {
+		cmRef := corev1.ObjectReference{APIVersion: "v1", Kind: "ConfigMap", Namespace: "default", Name: crdName}
+		cm := &cache.Resource{Ref: cmRef, Info: &ResourceInfo{}}
+		assert.Empty(t, c.appsToNotify("https://cluster-a", cmRef, cm, nil, nil))
+	})
+
+	t.Run("no app informer", func(t *testing.T) {
+		crd := &cache.Resource{Ref: crdRef, Info: &ResourceInfo{}}
+		assert.Empty(t, (&liveStateCache{}).appsToNotify("https://cluster-a", crdRef, crd, nil, nil))
+	})
 }
