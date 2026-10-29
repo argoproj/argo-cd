@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 	"testing"
@@ -1011,6 +1012,38 @@ func TestGenerateAppState(t *testing.T) {
 		assert.Equal(t, "/auth", clearCookies[1].Path)
 	})
 
+	t.Run("VerifyAppState_BrowserCookieJarAfterLogin", func(t *testing.T) {
+		key, err := app.settings.GetServerEncryptionKey()
+		require.NoError(t, err)
+		stalePayload, err := crypto.Encrypt([]byte("stale-from-legacy-path\nhttp://argocd.example.com/\n"), key)
+		require.NoError(t, err)
+		jar := map[string]*http.Cookie{
+			stateCookieJarKey("/auth"): {
+				Name:  common.StateCookieName,
+				Path:  "/auth",
+				Value: hex.EncodeToString(stalePayload),
+			},
+		}
+		applyStateCookieSetCookies(jar, generateResponse.Result().Cookies())
+		require.Len(t, jar, 1)
+		stored := jar[stateCookieJarKey("/")]
+		require.NotNil(t, stored)
+		assert.Equal(t, "/", stored.Path)
+		assert.NotEmpty(t, stored.Value)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/callback", http.NoBody)
+		for _, c := range stateCookiesForRequest(jar, req.URL.Path) {
+			req.AddCookie(c)
+		}
+		require.Len(t, req.Cookies(), 1)
+
+		verifyResponse := httptest.NewRecorder()
+		returnURL, pkceVerifier, err := app.verifyAppState(req, verifyResponse, state)
+		require.NoError(t, err)
+		assert.Equal(t, expectedReturnURL, returnURL)
+		assert.Equal(t, expectedPKCEVerifier, pkceVerifier)
+	})
+
 	t.Run("VerifyAppState_Failed", func(t *testing.T) {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 		for _, cookie := range generateResponse.Result().Cookies() {
@@ -1940,6 +1973,51 @@ func TestClientApp_getRedirectURIForRequest(t *testing.T) {
 	}
 }
 
+func stateCookieJarKey(path string) string {
+	return common.StateCookieName + "|" + path
+}
+
+// applyStateCookieSetCookies updates jar with Set-Cookie headers from generateAppState, including legacy-path deletion.
+func applyStateCookieSetCookies(jar map[string]*http.Cookie, setCookies []*http.Cookie) {
+	for _, c := range setCookies {
+		if c.Name != common.StateCookieName {
+			continue
+		}
+		key := stateCookieJarKey(c.Path)
+		if c.MaxAge < 0 || c.Value == "" {
+			delete(jar, key)
+			continue
+		}
+		jar[key] = c
+	}
+}
+
+// stateCookiesForRequest returns state cookies a browser would send, longest Path first (RFC 6265 ordering).
+func stateCookiesForRequest(jar map[string]*http.Cookie, requestPath string) []*http.Cookie {
+	var matched []*http.Cookie
+	for _, c := range jar {
+		if c.Name != common.StateCookieName || !stateCookieMatchesRequestPath(c.Path, requestPath) {
+			continue
+		}
+		matched = append(matched, c)
+	}
+	sort.Slice(matched, func(i, j int) bool {
+		return len(matched[i].Path) > len(matched[j].Path)
+	})
+	return matched
+}
+
+func stateCookieMatchesRequestPath(cookiePath, requestPath string) bool {
+	if cookiePath == "" {
+		cookiePath = "/"
+	}
+	if cookiePath == "/" {
+		return true
+	}
+	return strings.HasPrefix(requestPath, cookiePath) &&
+		(len(requestPath) == len(cookiePath) || requestPath[len(cookiePath)] == '/')
+}
+
 func findLoginEntry(t *testing.T, hook *logtest.Hook) *log.Entry {
 	t.Helper()
 	for _, e := range hook.AllEntries() {
@@ -1993,6 +2071,49 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		// sub of the token issued by the OIDC test server
 		assert.Equal(t, "1234567890", entry.Data["username"])
 		assert.NotEmpty(t, entry.Data["claims"])
+	})
+
+	t.Run("successful login with legacy state cookie path", func(t *testing.T) {
+		app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+		require.NoError(t, err)
+
+		key, err := cdSettings.GetServerEncryptionKey()
+		require.NoError(t, err)
+		stalePayload, err := crypto.Encrypt([]byte("pre-upgrade-state\nhttps://argocd.example.com/\n"), key)
+		require.NoError(t, err)
+
+		loginReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+		loginReq.AddCookie(&http.Cookie{
+			Name:  common.StateCookieName,
+			Path:  "/auth",
+			Value: hex.EncodeToString(stalePayload),
+		})
+
+		loginW := httptest.NewRecorder()
+		app.HandleLogin(loginW, loginReq)
+		require.Equal(t, http.StatusSeeOther, loginW.Code)
+
+		jar := map[string]*http.Cookie{
+			stateCookieJarKey("/auth"): loginReq.Cookies()[0],
+		}
+		applyStateCookieSetCookies(jar, loginW.Result().Cookies())
+		require.Len(t, jar, 1)
+		assert.Equal(t, "/", jar[stateCookieJarKey("/")].Path)
+
+		redirectURL, err := loginW.Result().Location()
+		require.NoError(t, err)
+		state := redirectURL.Query().Get("state")
+
+		callbackReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet,
+			fmt.Sprintf("https://argocd.example.com/auth/callback?state=%s&code=abc", state), http.NoBody)
+		for _, c := range stateCookiesForRequest(jar, callbackReq.URL.Path) {
+			callbackReq.AddCookie(c)
+		}
+		require.Len(t, callbackReq.Cookies(), 1)
+
+		callbackW := httptest.NewRecorder()
+		app.HandleCallback(callbackW, callbackReq)
+		require.Equal(t, http.StatusSeeOther, callbackW.Code)
 	})
 
 	t.Run("failed login", func(t *testing.T) {
