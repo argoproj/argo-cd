@@ -221,7 +221,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
             />
             <div className='certs-list'>
                 <div className='argo-container'>
-                    {isError ? (
+                    {isError && !certs ? (
                         loadFailed(refetch)
                     ) : !certs ? (
                         loading

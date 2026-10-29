@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {fireEvent, render, screen, waitFor, within} from '@testing-library/react';
 import '@testing-library/jest-dom';
 import {MemoryRouter, Route} from 'react-router';
 import {of} from 'rxjs';
@@ -72,8 +72,8 @@ describe('ReposList', () => {
             .mockResolvedValueOnce([]);
         renderList();
 
-        expect(await screen.findByText('write')).toBeInTheDocument();
-        fireEvent.click(screen.getAllByText('Disconnect')[1]);
+        const writeRow = (await screen.findByText('write')).closest('.argo-table-list__row') as HTMLElement;
+        fireEvent.click(within(writeRow).getByText('Disconnect'));
 
         await waitFor(() => expect(services.repos.deleteWrite).toHaveBeenCalledWith('https://github.com/argoproj/write.git', ''));
         await waitFor(() => expect(screen.queryByText('write')).not.toBeInTheDocument());

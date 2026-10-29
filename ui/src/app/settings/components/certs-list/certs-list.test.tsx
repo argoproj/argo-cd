@@ -52,4 +52,24 @@ describe('CertsList', () => {
         expect(await screen.findByText('No certificates configured')).toBeInTheDocument();
         expect(services.certs.list).toHaveBeenCalledTimes(2);
     });
+
+    it('keeps showing the certificates when a refetch fails', async () => {
+        jest.mocked(services.certs.list).mockResolvedValueOnce([cert] as any).mockRejectedValueOnce(new Error('boom'));
+        render(
+            <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
+                <Provider
+                    value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
+                    <MemoryRouter initialEntries={['/settings/certs']}>
+                        <Route path='/settings/certs' component={CertsList} />
+                    </MemoryRouter>
+                </Provider>
+            </QueryClientProvider>
+        );
+
+        fireEvent.click(await screen.findByText('Remove'));
+
+        await waitFor(() => expect(services.certs.list).toHaveBeenCalledTimes(2));
+        expect(screen.getByText('github.com')).toBeInTheDocument();
+        expect(screen.queryByText('try again')).not.toBeInTheDocument();
+    });
 });
