@@ -94,14 +94,14 @@ func NormalizeGitURL(repo string) string {
 	// it as a directory boundary.
 	for strings.HasSuffix(repoURL.Path, ".git") {
 		repoURL.Path = strings.TrimSuffix(repoURL.Path, ".git")
-			}
+	}
 	trimmed = repoURL.String()
 	// An SSH URL with an explicit port must keep its ssh:// prefix: without
 	// it, the port would be reinterpreted as a path segment when the result
 	// is normalised again, so the function would not be idempotent.
 	if repoURL.Scheme == "ssh" && repoURL.Port() != "" {
 		return trimmed
-			}
+	}
 	normalized := trimmed
 	return strings.TrimPrefix(normalized, "ssh://")
 }

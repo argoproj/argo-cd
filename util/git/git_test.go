@@ -65,7 +65,7 @@ func TestNormalizeGitURL_Idempotent(t *testing.T) {
 		"https://github.com/org/repo.git?query=.git",
 	} {
 		normalized := NormalizeGitURL(url)
-		assert.Equal(t,normalized, NormalizeGitURL(normalized), "NormalizeGitURL is not idempotent for %s", url)
+		assert.Equal(t, normalized, NormalizeGitURL(normalized), "NormalizeGitURL is not idempotent for %s", url)
 		assert.True(t, SameURL(url, normalized), "normalized form of %s should compare equal to the original", url)
 	}
 
@@ -74,7 +74,7 @@ func TestNormalizeGitURL_Idempotent(t *testing.T) {
 	assert.Equal(t, "https://github.com/org/repo?query=.git", NormalizeGitURL("https://github.com/org/repo.git?query=.git"))
 }
 
-		func TestIsSSHURL(t *testing.T) {
+func TestIsSSHURL(t *testing.T) {
 	t.Parallel()
 	data := map[string]bool{
 		"git://github.com/argoproj/test.git":     false,
