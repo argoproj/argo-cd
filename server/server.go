@@ -913,6 +913,16 @@ func (server *ArgoCDServer) useTLS() bool {
 	return true
 }
 
+// healthServer serves the standard gRPC health checking protocol, which load balancers call without credentials.
+type healthServer struct {
+	*health.Server
+}
+
+// AuthFuncOverride allows the health check to be called without auth
+func (*healthServer) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
+	return ctx, nil
+}
+
 func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registry) (*grpc.Server, application.AppResourceTreeFn) {
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
@@ -986,7 +996,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	sOpts = append(sOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	grpcS := grpc.NewServer(sOpts...)
 
-	healthService := health.NewServer()
+	healthService := &healthServer{Server: health.NewServer()}
 	grpc_health_v1.RegisterHealthServer(grpcS, healthService)
 
 	versionpkg.RegisterVersionServiceServer(grpcS, server.serviceSet.VersionService)
