@@ -1302,7 +1302,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 		app.Spec.RevisionHistoryLimit = &i
 	}
 	addHistory := func() {
-		err := manager.persistRevisionHistory(app, "my-revision", v1alpha1.ApplicationSource{}, []string{}, []v1alpha1.ApplicationSource{}, false, metav1.Time{}, v1alpha1.OperationInitiator{})
+		err := manager.persistRevisionHistory(app, "my-revision", v1alpha1.ApplicationSource{}, []string{}, []v1alpha1.ApplicationSource{}, false, &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}})
 		require.NoError(t, err)
 	}
 	addHistory()
@@ -1338,7 +1338,7 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	assert.Len(t, app.Status.History, 9)
 
 	metav1NowTime := metav1.NewTime(time.Now())
-	err := manager.persistRevisionHistory(app, "my-revision", v1alpha1.ApplicationSource{}, []string{}, []v1alpha1.ApplicationSource{}, false, metav1NowTime, v1alpha1.OperationInitiator{})
+	err := manager.persistRevisionHistory(app, "my-revision", v1alpha1.ApplicationSource{}, []string{}, []v1alpha1.ApplicationSource{}, false, &v1alpha1.OperationState{StartedAt: metav1NowTime, Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}})
 	require.NoError(t, err)
 	assert.Equal(t, app.Status.History.LastRevisionHistory().DeployStartedAt, &metav1NowTime)
 
@@ -1346,6 +1346,97 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 	setRevisionHistoryLimit(-1)
 	addHistory()
 	assert.Empty(t, app.Status.History)
+}
+
+func Test_appStateManager_persistRevisionHistory_rolledBackRevision(t *testing.T) {
+	newManager := func(t *testing.T, app *v1alpha1.Application) *appStateManager {
+		t.Helper()
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+		return ctrl.appStateManager.(*appStateManager)
+	}
+	getApp := func(t *testing.T, manager *appStateManager, app *v1alpha1.Application) *v1alpha1.Application {
+		t.Helper()
+		persisted, err := manager.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+		require.NoError(t, err)
+		return persisted
+	}
+	rollbackState := func(from string, froms []string) *v1alpha1.OperationState {
+		return &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{
+			RolledBackFromRevision:  from,
+			RolledBackFromRevisions: froms,
+		}}}
+	}
+	plainState := func() *v1alpha1.OperationState {
+		return &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}}
+	}
+
+	t.Run("rollback records the revision it rolled back from", func(t *testing.T) {
+		app := newFakeApp()
+		manager := newManager(t, app)
+
+		err := manager.persistRevisionHistory(app, "good", v1alpha1.ApplicationSource{}, nil, nil, false, rollbackState("bad", nil))
+		require.NoError(t, err)
+
+		assert.Equal(t, "bad", app.Status.RolledBackRevision)
+		assert.Empty(t, app.Status.RolledBackRevisions)
+		persisted := getApp(t, manager, app)
+		assert.Equal(t, "bad", persisted.Status.RolledBackRevision)
+		assert.Empty(t, persisted.Status.RolledBackRevisions)
+		assert.Equal(t, "good", persisted.Status.History.LastRevisionHistory().Revision)
+	})
+
+	t.Run("multi-source rollback records the revisions it rolled back from", func(t *testing.T) {
+		app := newFakeMultiSourceApp()
+		manager := newManager(t, app)
+
+		err := manager.persistRevisionHistory(app, "", v1alpha1.ApplicationSource{}, []string{"g1", "g2"}, app.Spec.Sources, true, rollbackState("", []string{"b1", "b2"}))
+		require.NoError(t, err)
+
+		assert.Empty(t, app.Status.RolledBackRevision)
+		assert.Equal(t, []string{"b1", "b2"}, app.Status.RolledBackRevisions)
+		persisted := getApp(t, manager, app)
+		assert.Equal(t, []string{"b1", "b2"}, persisted.Status.RolledBackRevisions)
+	})
+
+	t.Run("a later successful sync clears the record", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.RolledBackRevision = "bad"
+		app.Status.RolledBackRevisions = []string{"bad"}
+		manager := newManager(t, app)
+
+		err := manager.persistRevisionHistory(app, "fixed", v1alpha1.ApplicationSource{}, nil, nil, false, plainState())
+		require.NoError(t, err)
+
+		assert.Empty(t, app.Status.RolledBackRevision)
+		assert.Empty(t, app.Status.RolledBackRevisions)
+		persisted := getApp(t, manager, app)
+		assert.Empty(t, persisted.Status.RolledBackRevision)
+		assert.Empty(t, persisted.Status.RolledBackRevisions)
+	})
+
+	t.Run("a later rollback overwrites the record", func(t *testing.T) {
+		app := newFakeApp()
+		app.Status.RolledBackRevision = "bad1"
+		manager := newManager(t, app)
+
+		err := manager.persistRevisionHistory(app, "older", v1alpha1.ApplicationSource{}, nil, nil, false, rollbackState("bad2", nil))
+		require.NoError(t, err)
+
+		assert.Equal(t, "bad2", getApp(t, manager, app).Status.RolledBackRevision)
+	})
+
+	t.Run("a zero revision history limit keeps the record", func(t *testing.T) {
+		app := newFakeApp()
+		app.Spec.RevisionHistoryLimit = new(int64(0))
+		manager := newManager(t, app)
+
+		err := manager.persistRevisionHistory(app, "good", v1alpha1.ApplicationSource{}, nil, nil, false, rollbackState("bad", nil))
+		require.NoError(t, err)
+
+		persisted := getApp(t, manager, app)
+		assert.Empty(t, persisted.Status.History)
+		assert.Equal(t, "bad", persisted.Status.RolledBackRevision)
+	})
 }
 
 var projWithSourceIntegrity = v1alpha1.AppProject{
