@@ -2211,7 +2211,7 @@ func (m *nativeGitClient) EnsureNotShallow(ctx context.Context) error {
 			return fmt.Errorf("failed to check if repository is shallow after unshallowing: %w", err)
 		}
 		if isShallow {
-			return fmt.Errorf("repository is still shallow after unshallowing, origin might be shallow: %s", m.repoURL)
+			return fmt.Errorf("repository is still shallow after unshallowing, origin might be shallow: %s", SanitizeRepoURL(m.repoURL))
 		}
 	}
 	return nil
