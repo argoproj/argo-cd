@@ -149,48 +149,38 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 		}
 		namespacesByServer[destCluster.Server][app.Spec.Destination.Namespace] = true
 	}
-	clusters := make([]ClusterWithInfo, len(clustersList.Items))
-	clusterPopulated := make([]bool, len(clustersList.Items))
+	var clusters []ClusterWithInfo
+	for _, cluster := range clustersList.Items {
+		clusterShard := 0
+		if replicas > 0 {
+			clusterShard = clusterShards[cluster.Server]
+			cluster.Shard = new(int64(clusterShard))
+			log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
+		}
+		if shard != -1 && clusterShard != shard {
+			continue
+		}
+		clusters = append(clusters, ClusterWithInfo{Cluster: cluster, Shard: clusterShard})
+	}
 
 	batchSize := 10
 	batchesCount := int(math.Ceil(float64(len(clusters)) / float64(batchSize)))
 	for batchNum := range batchesCount {
 		batchStart := batchSize * batchNum
-		batchEnd := min((batchSize * (batchNum + 1)), len(clustersList.Items))
-		batch := clustersList.Items[batchStart:batchEnd]
-		err = kube.RunAllAsync(len(batch), func(i int) error {
-			clusterShard := 0
-			cluster := batch[i]
-			if replicas > 0 {
-				clusterShard = clusterShards[cluster.Server]
-				cluster.Shard = new(int64(clusterShard))
-				log.Infof("Cluster with uid: %s will be processed by shard %d", cluster.ID, clusterShard)
-			}
-			if shard != -1 && clusterShard != shard {
-				return nil
-			}
-			var namespaces []string
+		batchEnd := min((batchSize * (batchNum + 1)), len(clusters))
+		batch := clusters[batchStart:batchEnd]
+		_ = kube.RunAllAsync(len(batch), func(i int) error {
+			cluster := &batch[i]
 			for ns := range namespacesByServer[cluster.Server] {
-				namespaces = append(namespaces, ns)
+				cluster.Namespaces = append(cluster.Namespaces, ns)
 			}
 			if infoErr := cache.GetClusterInfo(cluster.Server, &cluster.Info); infoErr != nil {
 				log.Warnf("Failed to get info of cluster %q from cache, its stats will be reported as zero: %v", cluster.Server, infoErr)
 			}
-			clusters[batchStart+i] = ClusterWithInfo{cluster, clusterShard, namespaces}
-			clusterPopulated[batchStart+i] = true
 			return nil
 		})
-		if err != nil {
-			return nil, err
-		}
 	}
-	result := make([]ClusterWithInfo, 0, len(clusters))
-	for i := range clusters {
-		if clusterPopulated[i] {
-			result = append(result, clusters[i])
-		}
-	}
-	return result, nil
+	return clusters, nil
 }
 
 func getControllerReplicas(ctx context.Context, kubeClient *kubernetes.Clientset, namespace string, appControllerName string) (int, error) {
@@ -237,9 +227,6 @@ func NewClusterShardsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comm
 			}
 			clusters, err := loadClusters(ctx, kubeClient, appClient, replicas, shardingAlgorithm, namespace, portForwardRedis, cacheSrc, shard, clientOpts.RedisName, clientOpts.RedisHaProxyName, clientOpts.RedisCompression)
 			errors.CheckError(err)
-			if len(clusters) == 0 {
-				return
-			}
 
 			printStatsSummary(os.Stdout, clusters, replicas)
 		},

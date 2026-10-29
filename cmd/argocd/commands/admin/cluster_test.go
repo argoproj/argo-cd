@@ -288,6 +288,14 @@ func Test_printStatsSummary(t *testing.T) {
 			"2      300              75%         225%\n", out.String())
 	})
 
+	t.Run("no clusters", func(t *testing.T) {
+		out := &bytes.Buffer{}
+		printStatsSummary(out, nil, 2)
+		assert.Equal(t, "SHARD  RESOURCES COUNT  % OF TOTAL  % OF AVG PER SHARD (0)\n"+
+			"0      0                0%          0%\n"+
+			"1      0                0%          0%\n", out.String())
+	})
+
 	t.Run("fewer resources than replicas", func(t *testing.T) {
 		out := &bytes.Buffer{}
 		printStatsSummary(out, []ClusterWithInfo{withResources(0, 1)}, 2)
