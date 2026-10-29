@@ -849,6 +849,8 @@ func (server *ArgoCDServer) watchSettings() {
 	prevBitbucketServerSecret := server.settings.GetWebhookBitbucketServerSecret()
 	prevGogsSecret := server.settings.GetWebhookGogsSecret()
 	prevHarborSecret := server.settings.GetWebhookHarborSecret()
+	prevAzureDevOpsUsername := server.settings.GetWebhookAzureDevOpsUsername()
+	prevAzureDevOpsPassword := server.settings.GetWebhookAzureDevOpsPassword()
 	prevExtConfig := server.settings.ExtensionConfig
 	var prevCert, prevCertKey string
 	if server.settings.Certificate != nil && !server.Insecure {
@@ -906,6 +908,10 @@ func (server *ArgoCDServer) watchSettings() {
 		}
 		if prevHarborSecret != server.settings.GetWebhookHarborSecret() {
 			log.Infof("harbor secret modified. restarting")
+			break
+		}
+		if prevAzureDevOpsUsername != server.settings.GetWebhookAzureDevOpsUsername() || prevAzureDevOpsPassword != server.settings.GetWebhookAzureDevOpsPassword() {
+			log.Infof("azure devops webhook credentials modified. restarting")
 			break
 		}
 		if !reflect.DeepEqual(prevExtConfig, server.settings.ExtensionConfig) {
