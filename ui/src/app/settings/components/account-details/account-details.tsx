@@ -31,7 +31,7 @@ export const AccountDetails = (props: RouteComponentProps<{name: string}>) => {
             }}>
             <p />
             <div className='argo-container account-details'>
-                {isError ? (
+                {isError && !account ? (
                     loadFailed(refetch)
                 ) : !account ? (
                     loading

@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {fireEvent, render, screen} from '@testing-library/react';
+import {act, fireEvent, render, screen} from '@testing-library/react';
 import '@testing-library/jest-dom';
 import {MemoryRouter} from 'react-router';
 
@@ -22,9 +22,9 @@ jest.mock('../../../shared/services', () => ({
     services: {accounts: {list: jest.fn()}}
 }));
 
-const renderList = () =>
+const renderList = (client = new QueryClient({defaultOptions: {queries: {retry: false}}})) =>
     render(
-        <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
+        <QueryClientProvider client={client}>
             <Provider value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {}, history: {location: {search: ''}}} as any}>
                 <MemoryRouter>
                     <AccountsList />
@@ -53,5 +53,22 @@ describe('AccountsList', () => {
 
         expect(await screen.findByText('No accounts yet')).toBeInTheDocument();
         expect(services.accounts.list).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps showing the loaded accounts when a refetch fails', async () => {
+        jest.mocked(services.accounts.list)
+            .mockResolvedValueOnce([{name: 'alice', enabled: true, capabilities: ['login']}] as any)
+            .mockRejectedValueOnce(new Error('boom'));
+        const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+        renderList(client);
+        expect(await screen.findByText('alice')).toBeInTheDocument();
+
+        await act(() => client.invalidateQueries({queryKey: ['accounts']}));
+        // react-query notifies observers on a timeout, so let the failed refetch reach the component.
+        await act(() => new Promise(resolve => setTimeout(resolve, 0)));
+
+        expect(services.accounts.list).toHaveBeenCalledTimes(2);
+        expect(screen.getByText('alice')).toBeInTheDocument();
+        expect(screen.queryByText('try again')).not.toBeInTheDocument();
     });
 });

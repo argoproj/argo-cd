@@ -91,7 +91,7 @@ export const AccountsList = () => {
                 }}
             />
             <div className='argo-container'>
-                {isError ? (
+                {isError && !accounts ? (
                     loadFailed(refetch)
                 ) : !accounts ? (
                     loading

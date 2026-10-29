@@ -71,6 +71,20 @@ describe('AccountDetails', () => {
         expect(services.accounts.get).toHaveBeenCalledTimes(2);
     });
 
+    it('keeps the new token visible when the refetch after generating it fails', async () => {
+        jest.mocked(services.accounts.get)
+            .mockResolvedValueOnce(account([]) as any)
+            .mockRejectedValueOnce(new Error('boom'));
+        jest.mocked(services.accounts.createToken).mockResolvedValue('new-token-value');
+        renderDetails();
+
+        fireEvent.click(await screen.findByText('Generate New'));
+
+        await waitFor(() => expect(services.accounts.get).toHaveBeenCalledTimes(2));
+        expect(await screen.findByText('new-token-value')).toBeInTheDocument();
+        expect(screen.queryByText('try again')).not.toBeInTheDocument();
+    });
+
     it('offers a retry when the account fails to load', async () => {
         jest.mocked(services.accounts.get)
             .mockRejectedValueOnce(new Error('boom'))
