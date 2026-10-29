@@ -171,16 +171,16 @@ kubectl patch secret argocd-secret -n argocd \
 
 **Requirements:**
 
-- The webhook **must be authenticated**: `webhook.azuredevops.username` or `webhook.azuredevops.password` must be set in `argocd-secret`. Argo CD will only fetch changed files when the incoming webhook has been verified against these credentials (required to prevent SSRF).
-- The repository, or a credential template matching its URL, **must have credentials** stored in Argo CD for its HTTPS URL: a personal access token as the password, or a bearer token. The token needs the `Code (Read)` scope. Repositories connected over SSH, or authenticated with Azure Workload Identity or a Service Principal, are not supported.
+- The webhook **must be authenticated with a password**: `webhook.azuredevops.password` must be set in `argocd-secret`. Argo CD only fetches changed files for webhooks verified against these credentials, so that unauthenticated requests cannot make Argo CD call the Azure DevOps API.
+- The repository, or a credential template matching its URL, **must have credentials** stored in Argo CD for its HTTPS URL, with a personal access token as the password. The token needs the `Code (Read)` scope. Repositories connected over SSH, or authenticated with Azure Workload Identity or a Service Principal, are not supported.
 
-The API call honors the TLS and proxy settings of the repository and times out after 10 seconds.
-
-> [!NOTE]
-> If changed-file detection fails for any reason, Argo CD falls back to refreshing all apps pointing to the repository — the same behavior as when no credentials are configured. This includes branch creation and deletion events, and pushes that change more than 2000 files.
+The API is only called when an application of the repository uses the manifest paths annotation or the source hydrator, at most once per push. The call is made over HTTPS only, honors the TLS and proxy settings of the repository, and times out after 10 seconds. When the credentials come from a credential template, the repository URL in the webhook must have the same scheme and host as the template URL, and the template URL must not include a username, such as the `{org}@` of the clone URLs shown by Azure DevOps.
 
 > [!NOTE]
-> Argo CD uses version 7.1 of the Azure DevOps REST API. Support for later versions requires a change in Argo CD.
+> If changed-file detection fails for any reason, Argo CD falls back to refreshing all apps pointing to the repository — the same behavior as when no credentials are configured. This includes branch creation and deletion events, and pushes that change more than 2000 files and folders.
+
+> [!NOTE]
+> Argo CD uses version 7.1 of the Azure DevOps REST API. Using a later version requires a code change in Argo CD. Azure DevOps Server versions that do not support version 7.1 fall back to refreshing all apps pointing to the repository.
 
 
 ## 3. Webhook Configuration for OCI-Compliant Registries

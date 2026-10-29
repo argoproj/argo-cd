@@ -111,6 +111,7 @@ type ArgoCDWebhookHandler struct {
 	webhookRefreshJitter          time.Duration
 	webhookRefreshJitterThreshold int
 	adoHTTPClientFactory          func(repo *v1alpha1.Repository) *http.Client
+	cancelEvents                  context.CancelFunc
 }
 
 // ArgoCDParserOptions returns the webhook events the Argo CD API server handles.
@@ -136,6 +137,7 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 	log.Debugf("webhookRefreshJitter=%v", webhookRefreshJitter)
 	log.Debugf("webhookRefreshJitterThreshold=%d", webhookRefreshJitterThreshold)
 
+	eventsCtx, cancelEvents := context.WithCancel(context.Background())
 	acdWebhook := ArgoCDWebhookHandler{
 		ns:                            namespace,
 		appNs:                         applicationNamespaces,
@@ -154,11 +156,12 @@ func NewHandler(namespace string, applicationNamespaces []string, webhookParalle
 		webhookRefreshJitter:          webhookRefreshJitter,
 		webhookRefreshJitterThreshold: webhookRefreshJitterThreshold,
 		adoHTTPClientFactory:          newADOHTTPClientCache().get,
+		cancelEvents:                  cancelEvents,
 	}
 
-	// Payloads are processed after the HTTP request has completed, so the request context
-	// cannot be propagated to the workers.
-	handleEvent := func(payload any) { acdWebhook.HandleEvent(context.Background(), payload) }
+	// Payloads are processed after the HTTP request has completed, so the request context cannot be
+	// propagated to the workers. Events are processed with a context that is cancelled on Shutdown.
+	handleEvent := func(payload any) { acdWebhook.HandleEvent(eventsCtx, payload) }
 	StartWorkers(&acdWebhook.WaitGroup, webhookParallelism, acdWebhook.queue, handleEvent, "api-server-webhook", panicMsgServer)
 	acdWebhook.startRefreshWorkers(webhookRefreshWorkers)
 
@@ -207,23 +210,28 @@ func ParseRevision(ref string) string {
 }
 
 // affectedRevisionInfo examines a payload from a webhook event, and extracts the repo web URL,
-// the revision, and whether, or not this affected origin/HEAD (the default branch of the repository)
-func (a *ArgoCDWebhookHandler) affectedRevisionInfo(ctx context.Context, payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles []string) {
+// the revision, and whether, or not this affected origin/HEAD (the default branch of the repository).
+// changedFiles is a function so that changed files that require a provider API call are only
+// fetched, at most once, when an application uses them.
+func (a *ArgoCDWebhookHandler) affectedRevisionInfo(ctx context.Context, payloadIf any) (webURLs []string, revision string, change changeInfo, touchedHead bool, changedFiles func() []string) {
 	info := ParsePushEvent(payloadIf)
 	if info == nil {
-		return nil, "", changeInfo{}, false, nil
+		return nil, "", changeInfo{}, false, func() []string { return nil }
 	}
+	changedFiles = func() []string { return info.ChangedFiles }
 	// Azure DevOps and Bitbucket payloads don't say which files changed, and Bitbucket
 	// payloads don't say whether the default branch moved, so ask the provider API, but
 	// only for authenticated webhooks.
 	switch payload := payloadIf.(type) {
 	case azuredevops.GitPushEvent:
-		// When the Azure DevOps webhook username or password is set in argocd-secret,
-		// basic auth is validated before the payload is parsed.
+		// When the Azure DevOps webhook password is set in argocd-secret, basic auth is
+		// validated before the payload is parsed.
 		if a.azureDevOpsWebhookAuthConfigured() {
-			info.ChangedFiles = append(info.ChangedFiles, a.lookupAndFetchADOChangedFiles(ctx, payload.Resource.Repository.RemoteURL, payload.Resource.Repository.ID, info.SHABefore, info.SHAAfter)...)
+			changedFiles = sync.OnceValue(func() []string {
+				return a.lookupAndFetchADOChangedFiles(ctx, payload.Resource.Repository.RemoteURL, payload.Resource.Repository.ID, info.SHABefore, info.SHAAfter)
+			})
 		} else {
-			log.Debugf("skipping Azure DevOps changed files lookup for URL %s because Azure DevOps webhook authentication is not configured", payload.Resource.Repository.RemoteURL)
+			log.Debugf("skipping Azure DevOps changed files lookup for URL %s because Azure DevOps webhook authentication is not configured", git.SanitizeRepoURL(payload.Resource.Repository.RemoteURL))
 		}
 	case bitbucket.RepoPushPayload:
 		// when WebhookBitbucketUUID is set in argocd-secret, then the payload must be signed and
@@ -244,7 +252,7 @@ func (a *ArgoCDWebhookHandler) affectedRevisionInfo(ctx context.Context, payload
 			}
 		}
 	}
-	return info.WebURLs, info.Revision, changeInfo{shaBefore: info.SHABefore, shaAfter: info.SHAAfter}, info.TouchedHead, info.ChangedFiles
+	return info.WebURLs, info.Revision, changeInfo{shaBefore: info.SHABefore, shaAfter: info.SHAAfter}, info.TouchedHead, changedFiles
 }
 
 // addBitbucketChanges fills in the changed files and whether the default branch
@@ -368,7 +376,7 @@ func (a *ArgoCDWebhookHandler) HandleEvent(ctx context.Context, payload any) {
 
 		cacheWarmDisabled := webhookManifestCacheWarmDisabled
 		if !cacheWarmDisabled {
-			repo, err := a.lookupRepository(context.Background(), webURL)
+			repo, err := a.lookupRepositoryIgnoringUsername(ctx, webURL)
 			if err != nil {
 				log.Errorf("Failed to look up repository for %s: %v", webURL, err)
 			} else if repo != nil && repo.WebhookManifestCacheWarmDisabled {
@@ -391,7 +399,8 @@ func (a *ArgoCDWebhookHandler) HandleEvent(ctx context.Context, payload any) {
 			for _, source := range sources {
 				if RevisionHasChanged(source.TargetRevision, revision, touchedHead) && RepoURLMatches(source.RepoURL, repoRegexp) {
 					refreshPaths := path.GetSourceRefreshPaths(&app, source)
-					if path.AppFilesHaveChanged(refreshPaths, changedFiles) {
+					// Applications without refresh paths are refreshed regardless of the changed files.
+					if len(refreshPaths) == 0 || path.AppFilesHaveChanged(refreshPaths, changedFiles()) {
 						var hydrateType *v1alpha1.HydrateType
 						if app.Spec.SourceHydrator != nil {
 							drySource := app.Spec.SourceHydrator.GetDrySource()
@@ -569,23 +578,49 @@ func (a *ArgoCDWebhookHandler) lookupRepository(ctx context.Context, repoURL str
 	return repository, nil
 }
 
+// lookupRepositoryIgnoringUsername is like lookupRepository, but also matches repositories configured
+// with a username in their URL, such as https://{org}@dev.azure.com/..., which webhook payloads omit.
+// It must not be used to pick credentials sent to a URL taken from a webhook payload.
+func (a *ArgoCDWebhookHandler) lookupRepositoryIgnoringUsername(ctx context.Context, repoURL string) (*v1alpha1.Repository, error) {
+	repositories, err := a.db.ListRepositories(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("error listing repositories: %w", err)
+	}
+	for _, repo := range repositories {
+		if git.SameURL(repo.Repo, repoURL) {
+			return repo, nil
+		}
+	}
+	for _, repo := range repositories {
+		if git.SameURL(git.SanitizeRepoURL(repo.Repo), git.SanitizeRepoURL(repoURL)) {
+			return repo, nil
+		}
+	}
+	return nil, nil
+}
+
 // lookupRepositoryWithCredsTemplate returns a repository with its credentials for a given URL, falling
 // back to the best matching credentials template when no repository secret matches. If neither is
 // found, then nil repository is returned.
 func (a *ArgoCDWebhookHandler) lookupRepositoryWithCredsTemplate(ctx context.Context, repoURL string) (*v1alpha1.Repository, error) {
-	repo, err := a.lookupRepository(ctx, repoURL)
+	repo, err := a.lookupRepositoryIgnoringUsername(ctx, repoURL)
 	if err != nil || repo != nil {
 		return repo, err
 	}
 	creds, err := a.db.GetRepositoryCredentials(ctx, repoURL)
 	if err != nil {
-		return nil, fmt.Errorf("error getting repository credentials for %q: %w", repoURL, err)
+		return nil, fmt.Errorf("error getting repository credentials: %w", err)
 	}
 	if creds == nil {
 		return nil, nil
 	}
-	log.Debugf("found a matching credentials template for URL %s", repoURL)
-	repo = &v1alpha1.Repository{Repo: repoURL}
+	templateRepoURL, ok := repoURLOnCredsTemplateHost(creds.URL, repoURL)
+	if !ok {
+		log.Warnf("ignoring credentials template %s for URL %s because the URL does not have the template's scheme and host", git.SanitizeRepoURL(creds.URL), git.SanitizeRepoURL(repoURL))
+		return nil, nil
+	}
+	log.Debugf("found a matching credentials template for URL %s", git.SanitizeRepoURL(repoURL))
+	repo = &v1alpha1.Repository{Repo: templateRepoURL}
 	repo.CopyCredentialsFrom(creds)
 	return repo, nil
 }
@@ -877,38 +912,39 @@ func isBBServerHeadTouched(client *bitbucketv1.APIClient, projectKey, repoSlug, 
 }
 
 const (
-	// adoDiffsAPIVersion pins the Azure DevOps REST API version used for the Diffs endpoint, so the
-	// response contract does not change with the server-side default. Moving to a newer version
-	// requires a code change.
+	// adoDiffsAPIVersion pins the REST API version of the Diffs endpoint, so that the response
+	// contract does not change with the server-side default. Moving to a newer version requires a
+	// code change.
 	// See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/diffs/get?view=azure-devops-rest-7.1
 	adoDiffsAPIVersion = "7.1"
 
-	// adoDiffsMaxPageSize is the maximum number of file changes requested per call to the Diffs API.
-	// The endpoint defaults to 100; this value is aligned with the documented maximum of the related
-	// Pull Request Iteration Changes endpoint. Pushes exceeding this limit fall back to a full refresh.
-	// See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/pull-request-iteration-changes/get?view=azure-devops-rest-7.1
+	// adoDiffsMaxPageSize is the number of changes, including folders, requested from the Diffs API,
+	// which defaults to 100. Truncated responses fall back to a full refresh.
 	adoDiffsMaxPageSize = 2000
 
-	// adoNullSHA is the all-zeros object ID used by Azure DevOps to signal a non-existent commit.
-	// It appears as newObjectId on branch deletion events and as oldObjectId on branch creation events.
-	// Diffing against this SHA is not meaningful and the Diffs API returns 404 for such requests.
+	// adoNullSHA is the object ID Azure DevOps uses for the missing side of a branch creation or deletion.
 	adoNullSHA = "0000000000000000000000000000000000000000"
 
-	// adoAPITimeout is the timeout for outbound Azure DevOps REST API calls made during webhook processing.
 	adoAPITimeout = 10 * time.Second
 
+	// adoRespMaxSize bounds the size of a Diffs API response, which is about 1.5 MiB for
+	// adoDiffsMaxPageSize changes.
+	adoRespMaxSize = 4 * 1024 * 1024
+
 	// adoRespDrainLimit bounds how much of an unread response body is discarded so that the
-	// connection can be returned to the pool of a cached client.
+	// connection can be reused by a cached client.
 	adoRespDrainLimit = 512 * 1024
 
-	// adoHTTPClientCacheLimit bounds the number of cached HTTP clients. Clients are keyed by the
-	// transport settings of a repository, which usually resolve to a single entry per Azure DevOps
-	// host, so the limit is only reached after many TLS or proxy configuration changes without a
-	// restart. Beyond it, clients are created per request without keep-alives.
+	// adoHTTPClientCacheLimit bounds the number of cached HTTP clients, which usually resolve to a
+	// single entry per Azure DevOps host. Beyond the limit, clients are created per request.
 	adoHTTPClientCacheLimit = 64
 )
 
-var errNoADOCredentials = errors.New("no supported Azure DevOps REST API credentials configured")
+var (
+	errNoADOCredentials = errors.New("no supported Azure DevOps REST API credentials configured")
+
+	adoRepositoryIDRegex = regexp.MustCompile(`^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$`)
+)
 
 type adoDiffsResponse struct {
 	Changes            []adoDiffChange `json:"changes"`
@@ -916,8 +952,9 @@ type adoDiffsResponse struct {
 }
 
 type adoDiffChange struct {
-	Item       adoDiffItem `json:"item"`
-	ChangeType string      `json:"changeType"`
+	Item         adoDiffItem `json:"item"`
+	ChangeType   string      `json:"changeType"`
+	OriginalPath string      `json:"originalPath"`
 }
 
 type adoDiffItem struct {
@@ -925,18 +962,22 @@ type adoDiffItem struct {
 	IsFolder bool   `json:"isFolder"`
 }
 
+// azureDevOpsWebhookAuthConfigured reports whether Azure DevOps webhooks must authenticate with a
+// password. A username alone is not a secret, so it does not allow calling the Azure DevOps REST API.
 func (a *ArgoCDWebhookHandler) azureDevOpsWebhookAuthConfigured() bool {
-	// The Azure DevOps webhook parser requires basic auth when either value is configured.
-	return a.settings.GetWebhookAzureDevOpsUsername() != "" || a.settings.GetWebhookAzureDevOpsPassword() != ""
+	return a.settings.GetWebhookAzureDevOpsPassword() != ""
 }
 
 // lookupAndFetchADOChangedFiles returns the files changed by an Azure DevOps push event, or nil when
 // they cannot be determined, in which case all matching applications are refreshed.
-// The repository lookup acts as the SSRF guard: the Diffs API is only called for repositories, or
-// credentials templates, configured in Argo CD.
 func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(ctx context.Context, repoURL, repoID, shaBefore, shaAfter string) []string {
+	sanitizedURL := git.SanitizeRepoURL(repoURL)
 	if shaBefore == "" || shaAfter == "" || shaBefore == adoNullSHA || shaAfter == adoNullSHA {
-		log.Debugf("skipping Azure DevOps changed files lookup for URL %s because the commit range is empty or includes the null SHA used for branch creation or deletion", repoURL)
+		log.Debugf("skipping Azure DevOps changed files lookup for URL %s because the push event has no commit range, or creates or deletes a branch", sanitizedURL)
+		return nil
+	}
+	if !git.IsCommitSHA(shaBefore) || !git.IsCommitSHA(shaAfter) || !adoRepositoryIDRegex.MatchString(repoID) {
+		log.Warnf("skipping Azure DevOps changed files lookup for URL %s because the push event has an invalid repository ID or commit ID", sanitizedURL)
 		return nil
 	}
 
@@ -944,61 +985,67 @@ func (a *ArgoCDWebhookHandler) lookupAndFetchADOChangedFiles(ctx context.Context
 	defer cancel()
 	argoRepo, err := a.lookupRepositoryWithCredsTemplate(ctx, repoURL)
 	if err != nil {
-		log.Warnf("error finding repository for Azure DevOps webhook URL %s: %v", repoURL, err)
+		log.Warnf("error finding repository for Azure DevOps webhook URL %s: %v", sanitizedURL, err)
 		return nil
 	}
 	if argoRepo == nil {
-		log.Debugf("no repository or credentials template configured for Azure DevOps webhook URL %s, skipping changed files lookup", repoURL)
+		log.Debugf("no repository or credentials template configured for Azure DevOps webhook URL %s, skipping changed files lookup", sanitizedURL)
 		return nil
 	}
-	changedFiles, err := fetchChangedFilesFromADO(ctx, a.adoHTTPClientFactory(argoRepo), argoRepo, repoID, shaBefore, shaAfter)
+	changedFiles, err := fetchChangedFilesFromADO(ctx, a.adoHTTPClientFactory, argoRepo, repoID, shaBefore, shaAfter)
+	if errors.Is(err, errNoADOCredentials) {
+		log.Infof("no supported Azure DevOps REST API credentials configured for repository %s, refreshing all matching applications", sanitizedURL)
+		return nil
+	}
 	if err != nil {
-		if errors.Is(err, errNoADOCredentials) {
-			log.Warnf("no supported Azure DevOps REST API credentials configured for repository %s; falling back to full refresh", repoURL)
-			return nil
-		}
-		log.Warnf("error fetching changed files from Azure DevOps diffs API: %v", err)
+		log.Warnf("error fetching changed files from Azure DevOps diffs API for URL %s: %v", sanitizedURL, err)
 		return nil
 	}
 	return changedFiles
 }
 
-// parseADOBaseURL extracts the base URL used to construct Azure DevOps REST API requests.
-// It supports both the modern format (https://dev.azure.com/{org}/{project}/_git/{repo})
-// and the legacy format (https://{org}.visualstudio.com/{project}/_git/{repo}).
-// SSH URLs (e.g. git@ssh.dev.azure.com:v3/{org}/{project}/{repo}) are not supported
-// because SSH keys cannot be used to authenticate the Azure DevOps REST API.
+// repoURLOnCredsTemplateHost returns repoURL with the scheme and host of the credentials template
+// URL, if both are the same. Templates are matched by string prefix, so this prevents a payload URL
+// such as https://dev.azure.com.example.com/... from receiving the credentials of https://dev.azure.com.
+func repoURLOnCredsTemplateHost(templateURL, repoURL string) (string, bool) {
+	template, err := url.Parse(templateURL)
+	if err != nil {
+		return "", false
+	}
+	repo, err := url.Parse(repoURL)
+	if err != nil || repo.User != nil {
+		return "", false
+	}
+	if !strings.EqualFold(template.Scheme, repo.Scheme) || !strings.EqualFold(template.Host, repo.Host) {
+		return "", false
+	}
+	return template.Scheme + "://" + template.Host + repo.EscapedPath(), true
+}
+
+// parseADOBaseURL returns the part of a repository URL before /_git/, which Azure DevOps REST API
+// paths are relative to. SSH URLs are not supported because SSH keys cannot authenticate the REST API,
+// and only HTTPS is accepted so that credentials are never sent in cleartext.
 func parseADOBaseURL(repoURL string) (string, error) {
 	u, err := url.Parse(repoURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to parse Azure DevOps URL %q: %w", repoURL, err)
+		// The URL is not included, since credentials cannot be removed from a URL that does not parse.
+		return "", errors.New("failed to parse Azure DevOps repository URL")
 	}
-	parts := strings.SplitN(strings.TrimPrefix(u.Path, "/"), "/", 3)
-	// Legacy format: https://{org}.visualstudio.com/{project}/_git/{repo}
-	// The org is in the host; the first path segment is the project.
-	if strings.HasSuffix(u.Host, ".visualstudio.com") {
-		if len(parts) < 1 || parts[0] == "" {
-			return "", fmt.Errorf("cannot extract project from Azure DevOps URL %q", repoURL)
-		}
-		return fmt.Sprintf("%s://%s/%s", u.Scheme, u.Host, parts[0]), nil
+	sanitizedURL := git.SanitizeRepoURL(repoURL)
+	if u.Scheme != "https" {
+		return "", fmt.Errorf("unsupported scheme %q in Azure DevOps URL %q: only https is supported", u.Scheme, sanitizedURL)
 	}
-	// Modern format: https://dev.azure.com/{org}/{project}/_git/{repo}
-	if len(parts) < 2 || parts[0] == "" || parts[1] == "" {
-		return "", fmt.Errorf("cannot extract organization and project from Azure DevOps URL %q", repoURL)
+	basePath, _, found := strings.Cut(u.EscapedPath(), "/_git/")
+	if !found {
+		return "", fmt.Errorf("no /_git/ path segment in Azure DevOps URL %q", sanitizedURL)
 	}
-	return fmt.Sprintf("%s://%s/%s/%s", u.Scheme, u.Host, parts[0], parts[1]), nil
+	return "https://" + u.Host + basePath, nil
 }
 
-// setADOAuthHeader sets the Authorization header on the request based on the repository credentials,
-// with the same precedence used for Git operations over HTTPS: a bearer token takes precedence over
-// basic auth, and basic auth only needs a password, since Azure DevOps ignores the username when
-// authenticating with a personal access token.
-// Returns true if credentials were applied, false if none are configured.
+// setADOAuthHeader sets basic auth on the request when the repository has a password, which is a
+// personal access token for Azure DevOps, and reports whether it did. The username is optional, since
+// Azure DevOps ignores it.
 func setADOAuthHeader(req *http.Request, repo *v1alpha1.Repository) bool {
-	if repo.BearerToken != "" {
-		req.Header.Set("Authorization", "Bearer "+repo.BearerToken)
-		return true
-	}
 	if repo.Password != "" {
 		req.SetBasicAuth(repo.Username, repo.Password)
 		return true
@@ -1018,8 +1065,7 @@ func newADOHTTPClientCache() *adoHTTPClientCache {
 }
 
 // get returns an HTTP client honoring the TLS and proxy settings of the repository. Credentials are
-// not part of the client and are set on each request, so repositories with different credentials
-// can share a client.
+// set on each request, so repositories with different credentials can share a client.
 func (c *adoHTTPClientCache) get(repo *v1alpha1.Repository) *http.Client {
 	key := adoHTTPClientCacheKey(repo)
 	c.mu.Lock()
@@ -1029,12 +1075,11 @@ func (c *adoHTTPClientCache) get(repo *v1alpha1.Repository) *http.Client {
 	}
 	client := newADOHTTPClient(repo)
 	if len(c.clients) >= adoHTTPClientCacheLimit {
-		log.Debugf("Azure DevOps HTTP client cache is full, creating an uncached client for %s", repo.Repo)
+		log.Debugf("Azure DevOps HTTP client cache is full, creating an uncached client for %s", git.SanitizeRepoURL(repo.Repo))
 		return client
 	}
-	// Repository HTTP clients disable keep-alives because they are created per request, which would
-	// otherwise leave idle connections behind. A cached client is reused, so keep-alives let it
-	// reuse connections, and idle ones are closed by the transport's idle timeout.
+	// Repository HTTP clients disable keep-alives since they are usually created per request. A cached
+	// client is reused, so keep-alives let it reuse connections.
 	if transport, ok := client.Transport.(*http.Transport); ok {
 		transport.DisableKeepAlives = false
 	}
@@ -1042,9 +1087,8 @@ func (c *adoHTTPClientCache) get(repo *v1alpha1.Repository) *http.Client {
 	return client
 }
 
-// adoHTTPClientCacheKey identifies the settings newADOHTTPClient builds a client from, including
-// the custom server certificates, so that TLS and proxy configuration changes take effect without
-// a restart.
+// adoHTTPClientCacheKey identifies the settings newADOHTTPClient builds a client from, including the
+// custom server certificates, so that TLS and proxy changes take effect without a restart.
 func adoHTTPClientCacheKey(repo *v1alpha1.Repository) string {
 	var host string
 	var serverCerts []string
@@ -1069,9 +1113,10 @@ func newADOHTTPClient(repo *v1alpha1.Repository) *http.Client {
 }
 
 // fetchChangedFilesFromADO retrieves the list of files changed between two commits by calling
-// the Azure DevOps Diffs REST API.
+// the Azure DevOps Diffs REST API. The HTTP client is only created for requests with credentials,
+// since creating it builds the Git credentials of the repository.
 // See: https://learn.microsoft.com/en-us/rest/api/azure/devops/git/diffs/get?view=azure-devops-rest-7.1
-func fetchChangedFilesFromADO(ctx context.Context, httpClient *http.Client, repo *v1alpha1.Repository, repoID, shaBefore, shaAfter string) ([]string, error) {
+func fetchChangedFilesFromADO(ctx context.Context, newHTTPClient func(*v1alpha1.Repository) *http.Client, repo *v1alpha1.Repository, repoID, shaBefore, shaAfter string) ([]string, error) {
 	baseURL, err := parseADOBaseURL(repo.Repo)
 	if err != nil {
 		return nil, err
@@ -1081,8 +1126,11 @@ func fetchChangedFilesFromADO(ctx context.Context, httpClient *http.Client, repo
 		"baseVersionType":   {"commit"},
 		"targetVersion":     {shaAfter},
 		"targetVersionType": {"commit"},
-		"$top":              {strconv.Itoa(adoDiffsMaxPageSize)},
-		"api-version":       {adoDiffsAPIVersion},
+		// Diff the commits themselves rather than their merge base, so that the files changed by
+		// commits removed with a force push are included.
+		"diffCommonCommit": {"false"},
+		"$top":             {strconv.Itoa(adoDiffsMaxPageSize)},
+		"api-version":      {adoDiffsAPIVersion},
 	}
 	apiURL := fmt.Sprintf("%s/_apis/git/repositories/%s/diffs/commits?%s",
 		baseURL, url.PathEscape(repoID), params.Encode())
@@ -1094,7 +1142,7 @@ func fetchChangedFilesFromADO(ctx context.Context, httpClient *http.Client, repo
 		return nil, errNoADOCredentials
 	}
 	log.Debugf("fetching changed files from Azure DevOps diffs API: %s", apiURL)
-	resp, err := httpClient.Do(req)
+	resp, err := newHTTPClient(repo).Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error calling Azure DevOps diffs API: %w", err)
 	}
@@ -1103,19 +1151,32 @@ func fetchChangedFilesFromADO(ctx context.Context, httpClient *http.Client, repo
 		_ = resp.Body.Close()
 	}()
 	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("azure DevOps diffs API returned unexpected status %d", resp.StatusCode)
+		if resp.StatusCode == http.StatusNonAuthoritativeInfo {
+			// Azure DevOps answers requests with an invalid personal access token with a sign-in page.
+			return nil, fmt.Errorf("unexpected status %d from Azure DevOps diffs API, check the repository credentials", resp.StatusCode)
+		}
+		return nil, fmt.Errorf("unexpected status %d from Azure DevOps diffs API", resp.StatusCode)
 	}
 	var diffsResp adoDiffsResponse
-	if err := json.NewDecoder(resp.Body).Decode(&diffsResp); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, adoRespMaxSize)).Decode(&diffsResp); err != nil {
 		return nil, fmt.Errorf("error decoding Azure DevOps diffs API response: %w", err)
 	}
 	if !diffsResp.AllChangesIncluded {
-		return nil, fmt.Errorf("azure DevOps diffs API response was truncated (more than %d files changed); falling back to full refresh", adoDiffsMaxPageSize)
+		return nil, fmt.Errorf("truncated Azure DevOps diffs API response: more than %d changes", adoDiffsMaxPageSize)
 	}
 	changedFiles := make([]string, 0, len(diffsResp.Changes))
 	for _, c := range diffsResp.Changes {
-		if !c.Item.IsFolder && c.Item.Path != "" {
+		if c.Item.IsFolder {
+			continue
+		}
+		if c.Item.Path != "" {
 			changedFiles = append(changedFiles, strings.TrimPrefix(c.Item.Path, "/"))
+		}
+		// A renamed file also affects applications that watched its previous location.
+		if c.OriginalPath != "" && c.OriginalPath != c.Item.Path {
+			changedFiles = append(changedFiles, strings.TrimPrefix(c.OriginalPath, "/"))
+		} else if c.OriginalPath == "" && strings.Contains(strings.ToLower(c.ChangeType), "rename") {
+			return nil, fmt.Errorf("rename of %s without original path in Azure DevOps diffs API response", c.Item.Path)
 		}
 	}
 	log.Debugf("Azure DevOps diffs API returned %d changed files between %s..%s", len(changedFiles), shaBefore, shaAfter)
@@ -1128,6 +1189,7 @@ func (a *ArgoCDWebhookHandler) Handler(w http.ResponseWriter, r *http.Request) {
 
 // Shutdown gracefully shuts down the webhook handler by closing queues and waiting for workers
 func (a *ArgoCDWebhookHandler) Shutdown() {
+	a.cancelEvents()
 	close(a.queue)
 	a.refreshQueue.ShutDownWithDrain()
 	a.Wait()
