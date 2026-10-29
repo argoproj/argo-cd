@@ -81,12 +81,28 @@ func NormalizeGitURL(repo string) string {
 			repo = ensurePrefix(repo, "ssh://")
 		}
 	}
-	repo = strings.TrimSuffix(repo, ".git")
-	repoURL, err := url.Parse(repo)
+	trimmed := repo
+	repoURL, err := url.Parse(trimmed)
 	if err != nil {
 		return ""
 	}
-	normalized := repoURL.String()
+	// Trim ".git" from the parsed path only: trimming it from the raw string
+	// would corrupt a query or fragment ending in ".git" and would miss the
+	// suffix whenever a query, fragment or trailing slash follows it. Repeat
+	// to a fixed point ("repo.git.git" -> "repo"). The trailing slash itself
+	// is preserved on purpose: repository credential prefix matching treats
+	// it as a directory boundary.
+	for strings.HasSuffix(repoURL.Path, ".git") {
+		repoURL.Path = strings.TrimSuffix(repoURL.Path, ".git")
+			}
+	trimmed = repoURL.String()
+	// An SSH URL with an explicit port must keep its ssh:// prefix: without
+	// it, the port would be reinterpreted as a path segment when the result
+	// is normalised again, so the function would not be idempotent.
+	if repoURL.Scheme == "ssh" && repoURL.Port() != "" {
+		return trimmed
+			}
+	normalized := trimmed
 	return strings.TrimPrefix(normalized, "ssh://")
 }
 
