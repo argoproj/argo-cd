@@ -86,11 +86,10 @@ func NormalizeGitURL(repo string) string {
 	if err != nil {
 		return ""
 	}
-	repoURL.Path = strings.TrimSuffix(repoURL.Path, "/")
 	for strings.HasSuffix(repoURL.Path, ".git") {
 		repoURL.Path = strings.TrimSuffix(repoURL.Path, ".git")
 	}
-	trimmed = strings.TrimSuffix(repoURL.String(), "/")
+	trimmed = repoURL.String()
 	if repoURL.Scheme == "ssh" && repoURL.Port() != "" {
 		return trimmed
 	}
