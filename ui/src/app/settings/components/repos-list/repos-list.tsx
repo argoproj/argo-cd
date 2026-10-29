@@ -464,15 +464,22 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     const refreshRepoList = async (updatedRepo?: string) => {
         try {
             await services.repos.listNoCache();
-            await queryClient.invalidateQueries({queryKey: repoQueries.all}, {throwOnError: true});
-            ctx.notifications.show({
-                content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
-                type: NotificationType.Success
-            });
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Could not refresh list of repositories' e={e} />,
                 type: NotificationType.Error
+            });
+            return;
+        }
+        // The query client already notifies on refetch failures; only the success toast depends on it.
+        const refetched = await queryClient.invalidateQueries({queryKey: repoQueries.all}, {throwOnError: true}).then(
+            () => true,
+            () => false
+        );
+        if (refetched) {
+            ctx.notifications.show({
+                content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
+                type: NotificationType.Success
             });
         }
     };

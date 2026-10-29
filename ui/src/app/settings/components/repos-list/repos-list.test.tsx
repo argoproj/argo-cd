@@ -12,7 +12,12 @@ import {ReposList} from './repos-list';
 jest.mock('../../../shared/components', () => ({
     ...jest.requireActual('../../../shared/components'),
     Page: (props: {children?: React.ReactNode}) => props.children,
-    FlexTopBar: (): null => null,
+    FlexTopBar: (props: {toolbar: {actionMenu: {items: {title: string; action: () => void}[]}}}) =>
+        props.toolbar.actionMenu.items.map(item => (
+            <button key={item.title} onClick={item.action}>
+                {item.title}
+            </button>
+        )),
     Paginate: (props: {data: any[]; children: (data: any[]) => React.ReactNode}) => props.children(props.data),
     ActionMenu: (props: {items: {title: string; action: () => void}[]}) =>
         props.items.map(item => (
@@ -30,7 +35,7 @@ jest.mock('../../../sidebar/sidebar', () => ({useSidebarTarget: () => mockSideba
 jest.mock('../../../shared/services', () => ({
     services: {
         authService: {settings: jest.fn()},
-        repos: {list: jest.fn(), listWrite: jest.fn(), delete: jest.fn(() => Promise.resolve()), deleteWrite: jest.fn(() => Promise.resolve())},
+        repos: {list: jest.fn(), listNoCache: jest.fn(() => Promise.resolve([])), listWrite: jest.fn(), delete: jest.fn(() => Promise.resolve()), deleteWrite: jest.fn(() => Promise.resolve())},
         repocreds: {list: jest.fn(() => Promise.resolve([])), listWrite: jest.fn(() => Promise.resolve([]))},
         projects: {list: jest.fn(() => Promise.resolve([]))},
         viewPreferences: {getPreferences: () => of({hideSidebar: false})}
@@ -39,11 +44,11 @@ jest.mock('../../../shared/services', () => ({
 
 const repo = (name: string) => ({name, repo: `https://github.com/argoproj/${name}.git`, type: 'git', connectionState: {status: 'Successful'}});
 
-const renderList = () =>
+const renderList = (show = jest.fn()) =>
     render(
         <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
             <Provider
-                value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
+                value={{notifications: {show}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
                 <MemoryRouter initialEntries={['/settings/repos']}>
                     <Route path='/settings/repos' component={ReposList} />
                 </MemoryRouter>
@@ -94,5 +99,25 @@ describe('ReposList', () => {
         await waitFor(() => expect(services.repos.list).toHaveBeenCalledTimes(2));
         expect(screen.getByText('read')).toBeInTheDocument();
         expect(screen.queryByText('try again')).not.toBeInTheDocument();
+    });
+
+    it('only reports a refresh as successful when the refetch succeeds', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue({hydratorEnabled: false} as any);
+        jest.mocked(services.repos.list)
+            .mockResolvedValueOnce([repo('read')] as any)
+            .mockResolvedValueOnce([repo('read')] as any)
+            .mockRejectedValueOnce(new Error('boom'));
+        const show = jest.fn();
+        renderList(show);
+        await screen.findByText('read');
+
+        fireEvent.click(screen.getByText('Refresh list'));
+        await waitFor(() => expect(show).toHaveBeenCalledWith(expect.objectContaining({content: 'Successfully reloaded list of repositories'})));
+
+        show.mockClear();
+        fireEvent.click(screen.getByText('Refresh list'));
+        await waitFor(() => expect(services.repos.list).toHaveBeenCalledTimes(3));
+        await new Promise(resolve => setTimeout(resolve, 0));
+        expect(show).not.toHaveBeenCalled();
     });
 });
