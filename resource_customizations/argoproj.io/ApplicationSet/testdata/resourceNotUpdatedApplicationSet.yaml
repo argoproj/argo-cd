@@ -29,7 +29,7 @@ status:
       status: 'False'
       type: ErrorOccurred
     - lastTransitionTime: '2025-05-27T18:45:48Z'
-      message: Successfully generated parameters for all Applications
+      message: All parameters have been generated successfully
       reason: ParametersGenerated
       status: 'True'
       type: ParametersGenerated
