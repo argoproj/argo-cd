@@ -65,7 +65,8 @@ func TestNormalizeGitURL_Idempotent(t *testing.T) {
 		"https://github.com/org/repo.git?query=.git",
 	} {
 		normalized := NormalizeGitURL(url)
-		assert.Equal(t, normalized, NormalizeGitURL(normalized), "NormalizeGitURL is not idempotent for %s", url)
+		assert.Equal(t,normalized, NormalizeGitURL(normalized), "NormalizeGitURL is not idempotent for %s", url)
+
 		assert.True(t, SameURL(url, normalized), "normalized form of %s should compare equal to the original", url)
 
 	}
