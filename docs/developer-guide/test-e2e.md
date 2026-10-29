@@ -72,12 +72,18 @@ ARGOCD_E2E_SHARD=1 ARGOCD_E2E_SHARD_COUNT=4 make test-e2e-local
 
 ### Refreshing the Shard Weights
 
-The shards become unbalanced when tests are added or their durations change. Each CI shard of the latest Kubernetes version uploads its test timings as an `e2e-test-timings-shard<N>` artifact. To regenerate the weights from a green CI run:
+The shards become unbalanced when tests are added or their durations change. Each CI shard of the latest Kubernetes version uploads its test timings as an `e2e-test-timings-shard<N>` artifact. The `Refresh e2e shard weights` workflow uses these artifacts to keep `test/e2e/shard-weights.txt` up to date. It runs every Monday, and maintainers can also start it by hand from the Actions tab.
 
-```bash
-gh run download <run-id> -p 'e2e-test-timings-shard*'
-./hack/e2e-shard-weights.sh e2e-test-timings-shard*/junit.xml > test/e2e/shard-weights.txt
-```
+The workflow reads the test timings of the 10 most recent successful master builds from the last 7 days that ran the e2e tests and takes the median duration of each test. It needs at least 3 builds and does nothing otherwise. It then builds a new weights file:
+
+- A test that is missing from the file is added with its median.
+- A test that no longer exists in `test/e2e` is removed.
+- A test gets its median only if the median differs from its current duration by at least 2 seconds and at least 20%. Every other test keeps its current duration.
+
+The workflow opens a PR only if a test was added or removed, or if the slowest shard would finish at least 30 seconds sooner. The PR description lists every change and the estimated slowest shard before and after. Later runs add a commit to the same PR, or close it if the change is no longer justified.
+
+> [!NOTE]
+> Only this workflow updates `test/e2e/shard-weights.txt`, so do not edit the file by hand. A run that opens or updates the refresh PR rewrites it from CI timings on that PR branch.
 
 ## Test Isolation
 

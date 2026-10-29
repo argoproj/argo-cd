@@ -1,4 +1,4 @@
-FROM docker.io/library/node:24.22.0@sha256:14078204b6bb268c107ceff6d3c43f45a888105e5c2b18b14c32b3409d93a1b0
+FROM docker.io/library/node:26.12.1@sha256:b5f0e27e7423ea242b37af44c8c856e28f7e37d4fac23cb430cb618874ff8517
 
 WORKDIR /app/ui
 

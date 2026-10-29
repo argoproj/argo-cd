@@ -73,8 +73,8 @@ func (m *mockResourceInterface) Namespace(string) dynamic.ResourceInterface {
 // resClient.List() returns (nil, error)
 func TestListResourcesNilPointerFix(t *testing.T) {
 	t.Parallel()
-	// Create a cluster cache with proper configuration
-	cache := &clusterCache{
+	// listResources is a store method.
+	cache := &store{
 		listSemaphore:       semaphore.NewWeighted(1),
 		listPageSize:        100,
 		listPageBufferSize:  1,
