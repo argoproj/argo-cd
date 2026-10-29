@@ -13,6 +13,7 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/kballard/go-shellquote"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 
@@ -671,14 +672,14 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 			fmt.Fprintln(w)
 			fmt.Fprintln(w, "To inspect repository:")
 			fmt.Fprintln(w, "  git fetch --tags")
-			fmt.Fprintf(w, "  git checkout %s\n", item.GetResolvedRevision())
-			fmt.Fprintf(w, "  git log --oneline %s\n", item.GetResolvedRevision())
+			fmt.Fprintf(w, "  git checkout %s\n", shellquote.Join(item.GetResolvedRevision()))
+			fmt.Fprintf(w, "  git log --oneline %s\n", shellquote.Join(item.GetResolvedRevision()))
 			revisions := make([]string, 0, len(item.GetCommits()))
 			for _, commit := range item.GetCommits() {
 				revisions = append(revisions, commit.GetRevision())
 			}
 			if len(revisions) > 0 {
-				fmt.Fprintf(w, "  git log -p --no-walk %s [--show-signature]\n", strings.Join(revisions, " "))
+				fmt.Fprintf(w, "  git log -p --no-walk %s [--show-signature]\n", shellquote.Join(revisions...))
 			}
 		}
 	}

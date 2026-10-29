@@ -1047,6 +1047,71 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_SingleProblematicCommitsSou
 	assert.Equal(t, expectedStdout, stdout)
 }
 
+func TestProjectSourceIntegrityGpgInspectRepoCommand_HintsEscapeArguments(t *testing.T) {
+	projectName := "test-project"
+	applicationName := "test-app"
+	emptyNamespace := ""
+
+	stdoutParts := []string{
+		"Repo URL: https://github.com/argoproj/argo-cd.git",
+		"Target Revision: $(date)",
+		"Resolved Revision: ;",
+		"GPG Mode: strict",
+		"GPG Keys:",
+		"  ABCD1234ABCD1234",
+		"",
+		"PROBLEMATIC COMMITS:",
+		"  Revision  Date                             Author                             Subject          Result",
+		"  $(date)   Fri, 02 Jan 2026 15:55:44 +0200  Jim Smith <jim.smith@example.com>  Add test commit  unsigned(key_id=)",
+		"  ;         Sun, 14 Dec 2025 15:50:22 +0000  John Doe <john.doe@example.com>    Fix app port     unsigned(key_id=)",
+		"  |         Sun, 14 Dec 2025 15:50:22 +0000  John Doe <john.doe@example.com>    Fix app port     unsigned(key_id=)",
+		"  &         Sun, 14 Dec 2025 15:50:22 +0000  John Doe <john.doe@example.com>    Fix app port     unsigned(key_id=)",
+		"  `         Sun, 14 Dec 2025 15:50:22 +0000  John Doe <john.doe@example.com>    Fix app port     unsigned(key_id=)",
+		"",
+		"To inspect repository:",
+		"  git fetch --tags",
+		"  git checkout \\;",
+		"  git log --oneline \\;",
+		"  git log -p --no-walk \\$\\(date\\) \\; \\| \\& \\` [--show-signature]",
+		"",
+		"To create seal commit (this will trust all problematic commits before the seal commit):",
+		"  git commit --allow-empty --signoff --gpg-sign --trailer=\"Argocd-gpg-seal: <justification>\"",
+	}
+	expectedStdout := strings.Join(stdoutParts, "\n") + "\n"
+
+	mockSetup := func(appClient *applicationmocks.ApplicationServiceClient) {
+		appClient.EXPECT().
+			InspectGitGPGSourceIntegrity(mock.Anything, &application.InspectGitGPGSourceIntegrityQuery{Name: &applicationName, Project: &projectName, AppNamespace: &emptyNamespace}).
+			Return(&application.InspectGitGPGSourceIntegrityListResponse{
+				Items: []*application.InspectGitGPGSourceIntegrityResponse{
+					prepareInspectGitGPGSourceIntegrityResponse(
+						"https://github.com/argoproj/argo-cd.git",
+						";",
+						"$(date)",
+						&appsv1.SourceIntegrityGitPolicyGPG{
+							Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
+							Keys: []string{"ABCD1234ABCD1234"},
+						},
+						[]*application.GitGPGCommitInfo{
+							prepareGitGPGCommitInfo("$(date)", "Fri, 2 Jan 2026 15:55:44 +0200", "Jim Smith <jim.smith@example.com>", "Add test commit", "unsigned(key_id=)"),
+							prepareGitGPGCommitInfo(";", "Sun, 14 Dec 2025 15:50:22 +0000", "John Doe <john.doe@example.com>", "Fix app port", "unsigned(key_id=)"),
+							prepareGitGPGCommitInfo("|", "Sun, 14 Dec 2025 15:50:22 +0000", "John Doe <john.doe@example.com>", "Fix app port", "unsigned(key_id=)"),
+							prepareGitGPGCommitInfo("&", "Sun, 14 Dec 2025 15:50:22 +0000", "John Doe <john.doe@example.com>", "Fix app port", "unsigned(key_id=)"),
+							prepareGitGPGCommitInfo("`", "Sun, 14 Dec 2025 15:50:22 +0000", "John Doe <john.doe@example.com>", "Fix app port", "unsigned(key_id=)"),
+						},
+						"",
+					),
+				},
+			}, nil)
+	}
+
+	stdout, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, mockSetup, []string{projectName, applicationName})
+
+	assert.Equal(t, 2, exitCode)
+	assert.Empty(t, stderr)
+	assert.Equal(t, expectedStdout, stdout)
+}
+
 func TestProjectSourceIntegrityGpgInspectRepoCommand_MultipleSources(t *testing.T) {
 	projectName := "test-project"
 	applicationName := "test-app"
