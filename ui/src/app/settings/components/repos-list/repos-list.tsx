@@ -218,6 +218,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                             params.type != 'oci' &&
                             'Not a valid HTTP/HTTPS URL') ||
                         (credsTemplate && !isOCIUrl(validURLValues.url) && params.type == 'oci' && 'Not a valid OCI URL'),
+                    // The hydrator only pushes to git, so a write credential of any other type can never be used.
+                    type: validURLValues.write && validURLValues.type !== 'git' && 'Write credentials only support git repositories.',
                     name: validURLValues.type === 'helm' && !validURLValues.name && 'Name is required',
                     username: !validURLValues.username && validURLValues.password && 'Username is required if password is given.',
                     password: !validURLValues.password && validURLValues.username && 'Password is required if username is given.',
@@ -1072,7 +1074,19 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     feature until you've read its documentation and understand the security implications.
                                                 </p>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Save as write credential' field='write' component={CheckboxField} />
+                                                    <FormField
+                                                        formApi={formApi}
+                                                        label='Save as write credential'
+                                                        field='write'
+                                                        component={CheckboxField}
+                                                        componentProps={{
+                                                            onChange: (checked: boolean) => {
+                                                                if (checked) {
+                                                                    formApi.setValue('type', 'git');
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
                                                 </div>
                                             </div>
                                         )}
@@ -1128,7 +1142,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                         label='Type'
                                                         field='type'
                                                         component={FormSelect}
-                                                        componentProps={{options: ['git', 'helm', 'oci']}}
+                                                        componentProps={{options: formApi.getFormState().values.write ? ['git'] : ['git', 'helm', 'oci']}}
                                                     />
                                                 </div>
                                                 {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
