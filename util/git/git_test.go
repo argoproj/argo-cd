@@ -57,7 +57,24 @@ func TestEnsurePrefix(t *testing.T) {
 	}
 }
 
-func TestIsSSHURL(t *testing.T) {
+func TestNormalizeGitURL_Idempotent(t *testing.T) {
+	for _, url := range []string{
+		"ssh://git@github.com:22/org/repo.git",
+		"ssh://git@github.com:2222/org/repo",
+		"https://github.com/org/repo.git.git",
+		"https://github.com/org/repo.git?query=.git",
+	} {
+		normalized := NormalizeGitURL(url)
+		assert.Equal(t, normalized, NormalizeGitURL(normalized), "NormalizeGitURL is not idempotent for %s", url)
+		assert.True(t, SameURL(url, normalized), "normalized form of %s should compare equal to the original", url)
+
+	}
+	assert.Equal(t, "ssh://git@github.com:22/org/repo", NormalizeGitURL("ssh://git@github.com:22/org/repo.git"))
+	assert.Equal(t, "https://github.com/org/repo", NormalizeGitURL("https://github.com/org/repo.git.git"))
+	assert.Equal(t, "https://github.com/org/repo?query=.git", NormalizeGitURL("https://github.com/org/repo.git?query=.git"))
+}
+
+		func TestIsSSHURL(t *testing.T) {
 	t.Parallel()
 	data := map[string]bool{
 		"git://github.com/argoproj/test.git":     false,
