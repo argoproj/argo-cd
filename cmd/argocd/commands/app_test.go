@@ -2178,6 +2178,36 @@ func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
 	assert.Nil(t, opState)
 }
 
+// TestWaitOnApplicationStatus_DeleteOutput verifies that `argocd app wait --delete`
+// only prints the human-readable deletion message for text output formats, so that
+// json/yaml output stays machine-parseable.
+func TestWaitOnApplicationStatus_DeleteOutput(t *testing.T) {
+	ctx := t.Context()
+	watch := watchOpts{delete: true}
+
+	for _, format := range []string{"json", "yaml"} {
+		t.Run(format, func(t *testing.T) {
+			acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
+			output, err := captureOutput(func() error {
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, format)
+				return err
+			})
+			require.NoError(t, err)
+			assert.Empty(t, output)
+		})
+	}
+
+	t.Run("wide", func(t *testing.T) {
+		acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
+		output, err := captureOutput(func() error {
+			_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "wide")
+			return err
+		})
+		require.NoError(t, err)
+		assert.Contains(t, output, "Application 'argocd/test' deleted")
+	})
+}
+
 // TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesConditions
 // exercises the watch loop path: the initial Get returns an OutOfSync app so the
 // early return is skipped, and a subsequent event carries the desired state.
