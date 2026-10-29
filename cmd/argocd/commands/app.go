@@ -2504,7 +2504,9 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		finalOperationState = app.Status.OperationState
 
 		if watch.delete && appEvent.Type == k8swatch.Deleted {
-			fmt.Printf("Application '%s' deleted\n", app.QualifiedName())
+			if printSummary {
+				fmt.Printf("Application '%s' deleted\n", app.QualifiedName())
+			}
 			return nil, nil, nil
 		}
 
