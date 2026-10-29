@@ -55,8 +55,10 @@ var (
 	azureTokenCache *gocache.Cache
 
 	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
-	githubInstallationIdCache      *gocache.Cache
-	githubInstallationIdCacheMutex sync.RWMutex // For bulk API call coordination
+	githubInstallationIdCache *gocache.Cache
+	// For bulk API call coordination. Maps a lookup key to a chan struct{} with a buffer of 1, used as a lock that
+	// can be abandoned when the caller's context ends.
+	githubInstallationIdLocks sync.Map
 	// In memory cache for storing Azure Service Principal tokens
 	azureServicePrincipalTokenCache *gocache.Cache
 
@@ -809,9 +811,14 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 	var allInstallations []*github.Installation
 	opts := &github.ListOptions{PerPage: 100}
 
-	// Lock for the entire loop to avoid multiple concurrent API calls on startup
-	githubInstallationIdCacheMutex.Lock()
-	defer githubInstallationIdCacheMutex.Unlock()
+	// Lock for the entire loop to avoid multiple concurrent API calls for the same app and host on startup
+	lock, _ := githubInstallationIdLocks.LoadOrStore(fmt.Sprintf("%s:%d", domain, appId), make(chan struct{}, 1))
+	select {
+	case lock.(chan struct{}) <- struct{}{}:
+		defer func() { <-lock.(chan struct{}) }()
+	case <-ctx.Done():
+		return 0, fmt.Errorf("failed to list installations: %w", ctx.Err())
+	}
 
 	// Check cache again inside the write lock in case another goroutine already fetched it
 	if id, found := githubInstallationIdCache.Get(cacheKey); found {
