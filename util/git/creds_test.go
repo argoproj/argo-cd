@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -910,6 +911,81 @@ func TestDiscoverGitHubAppInstallationID_Locking(t *testing.T) {
 		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 		defer cancel()
 		require.ErrorIs(t, discover(t, ctx, 20001), context.DeadlineExceeded)
+	})
+}
+
+func TestDiscoverGitHubAppInstallationID_SharesConcurrentLookups(t *testing.T) {
+	// newServer returns a server that counts installation lookups and answers each with status after delay.
+	newServer := func(t *testing.T, status int, delay time.Duration) (*httptest.Server, *atomic.Int32) {
+		t.Helper()
+		var requests atomic.Int32
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasSuffix(r.URL.Path, "/orgs/test-org/installation") {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			requests.Add(1)
+			time.Sleep(delay)
+			w.WriteHeader(status)
+			//nolint:errcheck
+			json.NewEncoder(w).Encode(map[string]any{"id": 98765, "account": map[string]any{"login": "test-org"}})
+		}))
+		t.Cleanup(server.Close)
+		return server, &requests
+	}
+	discoverConcurrently := func(t *testing.T, appID int64, serverURL string) []error {
+		t.Helper()
+		t.Cleanup(func() {
+			domain, _ := domainFromBaseURL(serverURL)
+			githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, appID))
+		})
+		errs := make([]error, 10)
+		var wg sync.WaitGroup
+		for i := range errs {
+			wg.Go(func() {
+				_, errs[i] = DiscoverGitHubAppInstallationID(t.Context(), appID, fakeGitHubAppPrivateKey, serverURL, "test-org")
+			})
+		}
+		wg.Wait()
+		return errs
+	}
+
+	t.Run("concurrent lookups share one request", func(t *testing.T) {
+		server, requests := newServer(t, http.StatusOK, 200*time.Millisecond)
+		for _, err := range discoverConcurrently(t, 30001, server.URL) {
+			require.NoError(t, err)
+		}
+		assert.Equal(t, int32(1), requests.Load())
+	})
+
+	t.Run("concurrent lookups share one failed request", func(t *testing.T) {
+		server, requests := newServer(t, http.StatusForbidden, 200*time.Millisecond)
+		for _, err := range discoverConcurrently(t, 30002, server.URL) {
+			require.ErrorContains(t, err, "403")
+		}
+		assert.Equal(t, int32(1), requests.Load())
+	})
+
+	t.Run("a waiter retries when the shared request fails on the starting caller's deadline", func(t *testing.T) {
+		server, requests := newServer(t, http.StatusOK, 300*time.Millisecond)
+		t.Cleanup(func() {
+			domain, _ := domainFromBaseURL(server.URL)
+			githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 30003))
+		})
+
+		leaderErr := make(chan error, 1)
+		go func() {
+			ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+			defer cancel()
+			_, err := DiscoverGitHubAppInstallationID(ctx, 30003, fakeGitHubAppPrivateKey, server.URL, "test-org")
+			leaderErr <- err
+		}()
+		require.Eventually(t, func() bool { return requests.Load() == 1 }, time.Second, 5*time.Millisecond)
+
+		id, err := DiscoverGitHubAppInstallationID(t.Context(), 30003, fakeGitHubAppPrivateKey, server.URL, "test-org")
+		require.NoError(t, err)
+		assert.Equal(t, int64(98765), id)
+		require.ErrorIs(t, <-leaderErr, context.DeadlineExceeded)
 	})
 }
 
