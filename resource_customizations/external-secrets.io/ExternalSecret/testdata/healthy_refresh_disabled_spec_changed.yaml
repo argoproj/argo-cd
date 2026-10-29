@@ -1,0 +1,38 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  creationTimestamp: "2026-10-29T17:30:32Z"
+  finalizers:
+  - externalsecrets.external-secrets.io/externalsecret-cleanup
+  generation: 2
+  name: app-db-refresh-disabled
+  namespace: demo
+  resourceVersion: "796"
+  uid: fe5038bc-6290-431c-94fd-c12cdee21f17
+spec:
+  data:
+  - remoteRef:
+      key: /app/db
+    secretKey: password
+  - remoteRef:
+      key: /app/api
+    secretKey: apiToken
+  refreshInterval: 0s
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: fake
+  target:
+    creationPolicy: Owner
+    deletionPolicy: Retain
+    name: app-db-refresh-disabled
+status:
+  binding:
+    name: app-db-refresh-disabled
+  conditions:
+  - lastTransitionTime: "2026-10-29T17:30:32Z"
+    message: secret synced
+    reason: SecretSynced
+    status: "True"
+    type: Ready
+  refreshTime: "2026-10-29T17:30:32Z"
+  syncedResourceVersion: 1-f47fe3c0b255b6dd8047cdffa772587bb829efe7a1cb70febeda2eb2
