@@ -128,8 +128,15 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
     const removeCert = async (serverName: string, certType: string, certSubType: string) => {
         const confirmed = await ctx.popup.confirm('Remove certificate', 'Are you sure you want to remove ' + certType + ' certificate for ' + serverName + '?');
         if (confirmed) {
-            await services.certs.delete(serverName, certType, certSubType);
-            await queryClient.invalidateQueries({queryKey: certQueries.list().queryKey});
+            try {
+                await services.certs.delete(serverName, certType, certSubType);
+                await queryClient.invalidateQueries({queryKey: certQueries.list().queryKey});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to remove certificate' e={e} />,
+                    type: NotificationType.Error
+                });
+            }
         }
     };
 
