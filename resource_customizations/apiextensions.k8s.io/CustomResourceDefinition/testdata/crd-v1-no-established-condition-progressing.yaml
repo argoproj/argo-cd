@@ -1,0 +1,36 @@
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    api-approved.kubernetes.io: unapproved, experimental-only
+  name: examples.example.k8s.io
+spec:
+  conversion:
+    strategy: None
+  group: example.k8s.io
+  names:
+    kind: Example
+    listKind: ExampleList
+    plural: examples
+    singular: example
+  scope: Namespaced
+  versions:
+    - name: v1alpha1
+      schema:
+        openAPIV3Schema:
+          type: object
+          x-kubernetes-preserve-unknown-fields: true
+      served: true
+      storage: true
+status:
+  acceptedNames:
+    kind: ''
+    plural: ''
+  conditions:
+    - lastTransitionTime: '2024-05-19T23:35:28Z'
+      message: 'not approved: "unapproved, experimental-only"'
+      reason: UnapprovedAnnotation
+      status: 'False'
+      type: KubernetesAPIApprovalPolicyConformant
+  storedVersions:
+    - v1alpha1

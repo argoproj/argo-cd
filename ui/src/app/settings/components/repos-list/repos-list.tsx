@@ -22,7 +22,7 @@ import {
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {RepoDetails} from '../repo-details/repo-details';
-import {useQuery} from '../../../shared/hooks/query';
+import {useSearchParams} from '../../../shared/hooks/query';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -289,7 +289,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     const [currentRepo, setCurrentRepo] = React.useState<UnifiedRepo | null>(null);
     const [displayEditPanel, setDisplayEditPanel] = React.useState(false);
     const [authSettings, setAuthSettings] = React.useState<models.AuthSettings | null>(null);
-    const query = useQuery();
+    const query = useSearchParams();
     const name = query.get('search') || '';
     const [filterPref, setFilterPref] = React.useState<ReposListPreferences>({
         typeFilter: query.getAll('type') || [],
@@ -357,6 +357,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                             params.type != 'oci' &&
                             'Not a valid HTTP/HTTPS URL') ||
                         (credsTemplate && !isOCIUrl(validURLValues.url) && params.type == 'oci' && 'Not a valid OCI URL'),
+                    // The hydrator only pushes to git, so a write credential of any other type can never be used.
+                    type: validURLValues.write && validURLValues.type !== 'git' && 'Write credentials only support git repositories.',
                     name: validURLValues.type === 'helm' && !validURLValues.name && 'Name is required',
                     username: !validURLValues.username && validURLValues.password && 'Username is required if password is given.',
                     password: !validURLValues.password && validURLValues.username && 'Password is required if username is given.',
@@ -962,13 +964,18 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                                             {!isTemplate(repo) && (
                                                                                 <ActionMenu
                                                                                     items={[
-                                                                                        {
-                                                                                            title: 'Create application',
-                                                                                            action: () =>
-                                                                                                ctx.navigation.goto('/applications', {
-                                                                                                    new: JSON.stringify({spec: {source: {repoURL: repoUrl}}})
-                                                                                                })
-                                                                                        },
+                                                                                        // Write credentials are only used to push hydrated manifests, so apps can't be created from them.
+                                                                                        ...(isWrite(repo)
+                                                                                            ? []
+                                                                                            : [
+                                                                                                  {
+                                                                                                      title: 'Create application',
+                                                                                                      action: () =>
+                                                                                                          ctx.navigation.goto('/applications', {
+                                                                                                              new: JSON.stringify({spec: {source: {repoURL: repoUrl}}})
+                                                                                                          })
+                                                                                                  }
+                                                                                              ]),
                                                                                         {
                                                                                             title: 'Disconnect',
                                                                                             action: () => disconnectRepo(repoUrl, getRepoProject(repo), isWrite(repo))
@@ -1074,7 +1081,20 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                     feature until you've read its documentation and understand the security implications.
                                                 </p>
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Save as write credential' field='write' component={CheckboxField} />
+                                                    <FormField
+                                                        formApi={formApi}
+                                                        label='Save as write credential'
+                                                        field='write'
+                                                        component={CheckboxField}
+                                                        componentProps={{
+                                                            onChange: (checked: boolean) => {
+                                                                if (checked) {
+                                                                    formApi.setValue('type', 'git');
+                                                                    formApi.setValue('depth', undefined);
+                                                                }
+                                                            }
+                                                        }}
+                                                    />
                                                 </div>
                                             </div>
                                         )}
@@ -1119,10 +1139,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
-                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
-                                                </div>
+                                                {formApi.getFormState().values.write === false && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                        <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {method === ConnectionMethod.HTTPS && (
@@ -1134,7 +1156,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                         label='Type'
                                                         field='type'
                                                         component={FormSelect}
-                                                        componentProps={{options: ['git', 'helm', 'oci']}}
+                                                        componentProps={{options: formApi.getFormState().values.write ? ['git'] : ['git', 'helm', 'oci']}}
                                                     />
                                                 </div>
                                                 {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
@@ -1225,7 +1247,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
                                                 </div>
-                                                {formApi.getFormState().values.type === 'git' && (
+                                                {formApi.getFormState().values.type === 'git' && formApi.getFormState().values.write === false && (
                                                     <div className='argo-form-row'>
                                                         <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
                                                         <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
@@ -1299,10 +1321,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
-                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
-                                                </div>
+                                                {formApi.getFormState().values.write === false && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                        <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {method === ConnectionMethod.GOOGLECLOUD && (
@@ -1323,10 +1347,12 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
-                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
-                                                </div>
+                                                {formApi.getFormState().values.write === false && (
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                        <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
                                         {method === ConnectionMethod.AZURESERVICEPRINCIPAL && (

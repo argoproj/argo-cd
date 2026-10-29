@@ -1,0 +1,29 @@
+# An MRD just switched from Inactive to Active. Crossplane has not reconciled
+# it yet, so the condition still carries the InactiveManagedResource reason
+# from the previous generation, but the CRD does not exist yet.
+apiVersion: apiextensions.crossplane.io/v1alpha1
+kind: ManagedResourceDefinition
+metadata:
+  name: buckets.s3.aws.m.upbound.io
+  generation: 2
+spec:
+  group: s3.aws.m.upbound.io
+  names:
+    kind: Bucket
+    plural: buckets
+  scope: Namespaced
+  state: Active
+  versions:
+    - name: v1beta1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+status:
+  conditions:
+    - lastTransitionTime: "2025-11-12T08:22:32Z"
+      observedGeneration: 1
+      reason: InactiveManagedResource
+      status: "False"
+      type: Established
