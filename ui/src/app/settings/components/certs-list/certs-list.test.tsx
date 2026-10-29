@@ -30,21 +30,25 @@ jest.mock('../../../shared/services', () => ({
 
 const cert = {serverName: 'github.com', certType: 'ssh', certSubType: 'ssh-ed25519', certInfo: 'SHA256:abc'};
 
+const renderList = (show = jest.fn()) =>
+    render(
+        <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
+            <Provider value={{notifications: {show}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
+                <MemoryRouter initialEntries={['/settings/certs']}>
+                    <Route path='/settings/certs' component={CertsList} />
+                </MemoryRouter>
+            </Provider>
+        </QueryClientProvider>
+    );
+
 describe('CertsList', () => {
     beforeEach(() => jest.clearAllMocks());
 
     it('refetches the certificates after removing one', async () => {
-        jest.mocked(services.certs.list).mockResolvedValueOnce([cert] as any).mockResolvedValueOnce([]);
-        render(
-            <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
-                <Provider
-                    value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
-                    <MemoryRouter initialEntries={['/settings/certs']}>
-                        <Route path='/settings/certs' component={CertsList} />
-                    </MemoryRouter>
-                </Provider>
-            </QueryClientProvider>
-        );
+        jest.mocked(services.certs.list)
+            .mockResolvedValueOnce([cert] as any)
+            .mockResolvedValueOnce([]);
+        renderList();
 
         fireEvent.click(await screen.findByText('Remove'));
 
@@ -54,17 +58,10 @@ describe('CertsList', () => {
     });
 
     it('keeps showing the certificates when a refetch fails', async () => {
-        jest.mocked(services.certs.list).mockResolvedValueOnce([cert] as any).mockRejectedValueOnce(new Error('boom'));
-        render(
-            <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
-                <Provider
-                    value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
-                    <MemoryRouter initialEntries={['/settings/certs']}>
-                        <Route path='/settings/certs' component={CertsList} />
-                    </MemoryRouter>
-                </Provider>
-            </QueryClientProvider>
-        );
+        jest.mocked(services.certs.list)
+            .mockResolvedValueOnce([cert] as any)
+            .mockRejectedValueOnce(new Error('boom'));
+        renderList();
 
         fireEvent.click(await screen.findByText('Remove'));
 
@@ -77,15 +74,7 @@ describe('CertsList', () => {
         jest.mocked(services.certs.list).mockResolvedValue([cert] as any);
         jest.mocked(services.certs.delete).mockRejectedValueOnce(new Error('denied'));
         const show = jest.fn();
-        render(
-            <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
-                <Provider value={{notifications: {show}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
-                    <MemoryRouter initialEntries={['/settings/certs']}>
-                        <Route path='/settings/certs' component={CertsList} />
-                    </MemoryRouter>
-                </Provider>
-            </QueryClientProvider>
-        );
+        renderList(show);
 
         fireEvent.click(await screen.findByText('Remove'));
 

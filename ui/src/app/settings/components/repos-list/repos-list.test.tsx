@@ -30,7 +30,7 @@ jest.mock('../../../sidebar/sidebar', () => ({useSidebarTarget: () => mockSideba
 jest.mock('../../../shared/services', () => ({
     services: {
         authService: {settings: jest.fn()},
-        repos: {list: jest.fn(), listWrite: jest.fn(), deleteWrite: jest.fn(() => Promise.resolve())},
+        repos: {list: jest.fn(), listWrite: jest.fn(), delete: jest.fn(() => Promise.resolve()), deleteWrite: jest.fn(() => Promise.resolve())},
         repocreds: {list: jest.fn(() => Promise.resolve([])), listWrite: jest.fn(() => Promise.resolve([]))},
         projects: {list: jest.fn(() => Promise.resolve([]))},
         viewPreferences: {getPreferences: () => of({hideSidebar: false})}
@@ -80,5 +80,19 @@ describe('ReposList', () => {
         expect(screen.getByText('read')).toBeInTheDocument();
         expect(services.repos.list).toHaveBeenCalledTimes(2);
         expect(services.repos.listWrite).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps showing repositories when a refetch fails', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue({hydratorEnabled: false} as any);
+        jest.mocked(services.repos.list)
+            .mockResolvedValueOnce([repo('read')] as any)
+            .mockRejectedValueOnce(new Error('boom'));
+        renderList();
+
+        fireEvent.click(await screen.findByText('Disconnect'));
+
+        await waitFor(() => expect(services.repos.list).toHaveBeenCalledTimes(2));
+        expect(screen.getByText('read')).toBeInTheDocument();
+        expect(screen.queryByText('try again')).not.toBeInTheDocument();
     });
 });
