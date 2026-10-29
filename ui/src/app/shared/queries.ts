@@ -54,11 +54,6 @@ export const certQueries = {
     list: () => queryOptions({queryKey: ['certs', 'list'], queryFn: () => services.certs.list()})
 };
 
-export const accountQueries = {
-    list: () => queryOptions({queryKey: ['accounts', 'list'], queryFn: () => services.accounts.list()}),
-    detail: (name: string) => queryOptions({queryKey: ['accounts', 'detail', name], queryFn: () => services.accounts.get(name)})
-};
-
 export const gpgkeyQueries = {
     list: () => queryOptions({queryKey: ['gpgkeys', 'list'], queryFn: () => services.gpgkeys.list()})
 };
