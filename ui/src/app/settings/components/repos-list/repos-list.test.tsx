@@ -3,9 +3,11 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {fireEvent, render, screen, waitFor, within} from '@testing-library/react';
 import '@testing-library/jest-dom';
 import {MemoryRouter, Route} from 'react-router';
+import {NotificationType} from 'argo-ui';
 import {of} from 'rxjs';
 
 import {Provider} from '../../../shared/context';
+import {newQueryClient} from '../../../shared/query-client';
 import {services} from '../../../shared/services';
 import {ReposList} from './repos-list';
 
@@ -44,9 +46,9 @@ jest.mock('../../../shared/services', () => ({
 
 const repo = (name: string) => ({name, repo: `https://github.com/argoproj/${name}.git`, type: 'git', connectionState: {status: 'Successful'}});
 
-const renderList = (show = jest.fn()) =>
+const renderList = (show = jest.fn(), client = new QueryClient({defaultOptions: {queries: {retry: false}}})) =>
     render(
-        <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
+        <QueryClientProvider client={client}>
             <Provider
                 value={{notifications: {show}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
                 <MemoryRouter initialEntries={['/settings/repos']}>
@@ -108,7 +110,7 @@ describe('ReposList', () => {
             .mockResolvedValueOnce([repo('read')] as any)
             .mockRejectedValueOnce(new Error('boom'));
         const show = jest.fn();
-        renderList(show);
+        renderList(show, newQueryClient({show} as any));
         await screen.findByText('read');
 
         fireEvent.click(screen.getByText('Refresh list'));
@@ -118,6 +120,8 @@ describe('ReposList', () => {
         fireEvent.click(screen.getByText('Refresh list'));
         await waitFor(() => expect(services.repos.list).toHaveBeenCalledTimes(3));
         await new Promise(resolve => setTimeout(resolve, 0));
-        expect(show).not.toHaveBeenCalled();
+        // Only the query client's load-failure notification.
+        expect(show).toHaveBeenCalledTimes(1);
+        expect(show).toHaveBeenCalledWith(expect.objectContaining({type: NotificationType.Error}));
     });
 });

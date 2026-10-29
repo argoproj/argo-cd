@@ -472,10 +472,13 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             return;
         }
         // The query client already notifies on refetch failures; only the success toast depends on it.
-        const refetched = await queryClient.invalidateQueries({queryKey: repoQueries.all}, {throwOnError: true}).then(
-            () => true,
-            () => false
-        );
+        // Without auth settings the query is disabled, so invalidation resolves without refetching.
+        const refetched =
+            !!authSettings &&
+            (await queryClient.invalidateQueries({queryKey: repoQueries.all}, {throwOnError: true}).then(
+                () => true,
+                () => false
+            ));
         if (refetched) {
             ctx.notifications.show({
                 content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
