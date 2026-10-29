@@ -3516,6 +3516,30 @@ func Test_EnsureNotShallow(t *testing.T) {
 		require.Error(t, err)
 		require.ErrorContains(t, err, "failed to check if repository is shallow")
 	})
+
+	t.Run("returns error when EnsureNotShallow fetches from shallow origin", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		_, shallowCloneDir := prepareCloneAndClient(t, ctx, true)
+
+		cloneDir := t.TempDir() // cleanup already registered by t.TempDir()
+
+		// clone from shallow origin
+		require.NoError(t, runCmd(ctx, cloneDir, "git", "clone", "--depth=1", "file://"+shallowCloneDir, "."))
+
+		client, err := NewClientExt("file://"+shallowCloneDir, cloneDir, NopCreds{}, true, false, "", "")
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+
+		err = client.EnsureNotShallow(ctx)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "repository is still shallow after unshallowing, origin might be shallow")
+
+		out, err := outputCmd(ctx, cloneDir, "git", "rev-parse", "--is-shallow-repository")
+		require.NoError(t, err)
+		require.Equal(t, "true", strings.TrimSpace(string(out)))
+	})
 }
 
 func Test_humanizeAuthPromptError(t *testing.T) {

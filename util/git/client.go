@@ -2205,6 +2205,14 @@ func (m *nativeGitClient) EnsureNotShallow(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("failed to unshallow repo: %w", err)
 		}
+		// check again, if origin is also shallow --unshallow succeeds and local repo remains shallow
+		isShallow, err = m.isShallowRepo(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to check if repository is shallow after unshallowing: %w", err)
+		}
+		if isShallow {
+			return fmt.Errorf("repository is still shallow after unshallowing, origin might be shallow: %s", m.repoURL)
+		}
 	}
 	return nil
 }
