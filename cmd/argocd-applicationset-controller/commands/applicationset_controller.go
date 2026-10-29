@@ -6,12 +6,11 @@ import (
 	"net/http"
 	"os"
 	"runtime/debug"
-	"slices"
-	"strings"
 	"time"
 
 	"github.com/argoproj/pkg/v2/stats"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -30,7 +29,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	corev1 "k8s.io/api/core/v1"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
@@ -138,26 +136,14 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			// Restrict the cache to only the namespaces managed by this controller.
-			// If applicationSetNamespaces contains any glob/regex pattern, ByObject cannot be used
-			// In that case we fall back to the cluster-wide cache.
+			// Restrict the cache (ApplicationSets, Applications and Secrets) to the namespaces managed by
+			// this controller so that cluster-wide read access is not required. Globs/regexes cannot be
+			// expressed as informer namespaces, so in that case we fall back to a cluster-wide cache.
 			cacheOpt := ctrlcache.Options{SyncPeriod: &cacheSyncPeriod}
-			hasPattern := slices.ContainsFunc(applicationSetNamespaces, func(ns string) bool {
-				return strings.ContainsAny(ns, "*?[") ||
-					(strings.HasPrefix(ns, "/") && strings.HasSuffix(ns, "/"))
-			})
-			if !hasPattern {
-				appSetNsConfig := make(map[string]ctrlcache.Config, len(applicationSetNamespaces))
-				for _, ns := range applicationSetNamespaces {
-					appSetNsConfig[ns] = ctrlcache.Config{}
-				}
-				cacheOpt.ByObject = map[ctrlclient.Object]ctrlcache.ByObject{
-					&corev1.Secret{}: {
-						Namespaces: appSetNsConfig,
-					},
-				}
+			if nsConfig, err := namespaceCacheConfig(applicationSetNamespaces); err == nil {
+				cacheOpt.DefaultNamespaces = nsConfig
 			} else {
-				log.Warn("applicationset-namespaces contains a glob or regex pattern")
+				log.Warnf("%v; falling back to a cluster-wide cache", err)
 			}
 
 			cfg := ctrl.GetConfigOrDie()
@@ -330,4 +316,17 @@ func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr stri
 			os.Exit(1)
 		}
 	}()
+}
+
+// namespaceCacheConfig builds the controller-runtime cache namespace config for the given namespaces.
+// Any entry that is not a valid namespace name is treated as a glob/regex pattern and returned as an error.
+func namespaceCacheConfig(namespaces []string) (map[string]ctrlcache.Config, error) {
+	cfg := make(map[string]ctrlcache.Config, len(namespaces))
+	for _, ns := range namespaces {
+		if len(validation.IsDNS1123Label(ns)) > 0 {
+			return nil, fmt.Errorf("--applicationset-namespaces entry %q is not a literal namespace name", ns)
+		}
+		cfg[ns] = ctrlcache.Config{}
+	}
+	return cfg, nil
 }
