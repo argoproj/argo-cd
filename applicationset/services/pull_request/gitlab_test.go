@@ -375,3 +375,32 @@ func TestGitLabServiceMutualTLSRedirects(t *testing.T) {
 		})
 	}
 }
+
+// TestGitLabServiceMutualTLSRedirectLimit stops same-origin redirect loops after ten requests while preserving verified client authentication.
+func TestGitLabServiceMutualTLSRedirectLimit(t *testing.T) {
+	t.Parallel()
+	serverCert, clientCert, ca := gitLabTLSFixture(t)
+	pool := x509.NewCertPool()
+	require.True(t, pool.AppendCertsFromPEM(ca))
+	var calls atomic.Int32
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		calls.Add(1)
+		require.NotEmpty(t, r.TLS.VerifiedChains)
+		http.Redirect(w, r, r.URL.RequestURI(), http.StatusTemporaryRedirect)
+	}))
+	server.TLS = &tls.Config{Certificates: []tls.Certificate{serverCert}, ClientAuth: tls.RequireAndVerifyClientCert, ClientCAs: pool}
+	server.StartTLS()
+	defer server.Close()
+	svc, err := NewGitLabService("", server.URL, "1", nil, nil, "", "", false, ca, &clientCert, "", "")
+	require.NoError(t, err)
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, server.URL+"/api/v4/projects/1/merge_requests", http.NoBody)
+	require.NoError(t, err)
+	resp, err := svc.(*GitLabService).client.HTTPClient().Do(req)
+	if resp != nil {
+		defer resp.Body.Close()
+	}
+	require.ErrorContains(t, err, "stopped after 10 redirects")
+	assert.Equal(t, int32(10), calls.Load())
+}
