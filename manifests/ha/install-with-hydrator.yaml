@@ -36410,6 +36410,12 @@ spec:
               key: commitserver.signing.key.passphrase.file
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_GIT_REQUEST_TIMEOUT
+          valueFrom:
+            configMapKeyRef:
+              key: commitserver.git.request.timeout
+              name: argocd-cmd-params-cm
+              optional: true
         image: quay.io/argoproj/argocd:latest
         imagePullPolicy: Always
         livenessProbe:
