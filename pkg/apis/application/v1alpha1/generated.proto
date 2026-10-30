@@ -1895,7 +1895,7 @@ message PullRequestGeneratorGitLab {
 
   // Secret containing the PEM-encoded client certificate chain (tls.crt) and private key (tls.key)
   // for mutual TLS authentication. Must be in the same namespace as the ApplicationSet.
-  optional .k8s.io.api.core.v1.LocalObjectReference tlsClientCertSecretRef = 9;
+  optional TLSClientCertSecretReference tlsClientCertSecretRef = 9;
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.
@@ -2986,6 +2986,14 @@ message SyncStrategyHook {
   // Embed SyncStrategyApply type to inherit any `apply` options
   // +optional
   optional SyncStrategyApply syncStrategyApply = 1;
+}
+
+// TLSClientCertSecretReference identifies a Secret holding a TLS client certificate and private key.
+// The Secret must be in the same namespace as the ApplicationSet.
+message TLSClientCertSecretReference {
+  // Name of the Secret containing tls.crt and tls.key. Required and non-empty.
+  // +kubebuilder:validation:MinLength=1
+  optional string name = 1;
 }
 
 // TLSClientConfig contains settings to enable transport layer security

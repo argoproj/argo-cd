@@ -174,6 +174,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategyApply":                       schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategyHook":                        schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.InlineSyncWindow":                        schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
+		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TLSClientCertSecretReference":            schema_pkg_apis_application_v1alpha1_TLSClientCertSecretReference(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TLSClientConfig":                         schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TagFilter":                               schema_pkg_apis_application_v1alpha1_TagFilter(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.objectMeta":                              schema_pkg_apis_application_v1alpha1_objectMeta(ref),
@@ -5581,7 +5582,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 					"tlsClientCertSecretRef": {
 						SchemaProps: spec.SchemaProps{
 							Description: "Secret containing the PEM-encoded client certificate chain (tls.crt) and private key (tls.key) for mutual TLS authentication. Must be in the same namespace as the ApplicationSet.",
-							Ref:         ref("k8s.io/api/core/v1.LocalObjectReference"),
+							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TLSClientCertSecretReference"),
 						},
 					},
 				},
@@ -5589,7 +5590,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SecretRef", "k8s.io/api/core/v1.LocalObjectReference"},
+			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SecretRef", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TLSClientCertSecretReference"},
 	}
 }
 
@@ -8484,6 +8485,28 @@ func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallbac
 						},
 					},
 				},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_TLSClientCertSecretReference(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "TLSClientCertSecretReference identifies a Secret holding a TLS client certificate and private key. The Secret must be in the same namespace as the ApplicationSet.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Name of the Secret containing tls.crt and tls.key. Required and non-empty.",
+							Default:     "",
+							Type:        []string{"string"},
+							Format:      "",
+						},
+					},
+				},
+				Required: []string{"name"},
 			},
 		},
 	}

@@ -65,7 +65,7 @@ func GetConfigMapData(ctx context.Context, k8sClient client.Client, ref *argopro
 }
 
 // GetTLSClientCertificate loads a client certificate and key from a single Secret snapshot.
-func GetTLSClientCertificate(ctx context.Context, k8sClient client.Client, ref *corev1.LocalObjectReference, namespace string, strictMode bool) (*tls.Certificate, error) {
+func GetTLSClientCertificate(ctx context.Context, k8sClient client.Client, ref *argoprojiov1alpha1.TLSClientCertSecretReference, namespace string, strictMode bool) (*tls.Certificate, error) {
 	if ref == nil {
 		return nil, nil
 	}

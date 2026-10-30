@@ -16672,10 +16672,11 @@ spec:
                                       tlsClientCertSecretRef:
                                         properties:
                                           name:
-                                            default: ""
+                                            minLength: 1
                                             type: string
+                                        required:
+                                        - name
                                         type: object
-                                        x-kubernetes-map-type: atomic
                                       tokenRef:
                                         properties:
                                           key:
@@ -25373,10 +25374,11 @@ spec:
                                       tlsClientCertSecretRef:
                                         properties:
                                           name:
-                                            default: ""
+                                            minLength: 1
                                             type: string
+                                        required:
+                                        - name
                                         type: object
-                                        x-kubernetes-map-type: atomic
                                       tokenRef:
                                         properties:
                                           key:
@@ -30411,10 +30413,11 @@ spec:
                             tlsClientCertSecretRef:
                               properties:
                                 name:
-                                  default: ""
+                                  minLength: 1
                                   type: string
+                              required:
+                              - name
                               type: object
-                              x-kubernetes-map-type: atomic
                             tokenRef:
                               properties:
                                 key:

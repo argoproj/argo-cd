@@ -129,7 +129,7 @@ As a preferable alternative to setting `insecure` to true, you can configure sel
 ### Mutual TLS authentication
 
 For a GitLab endpoint that requires a client certificate, set `tlsClientCertSecretRef` to a Secret in the
-same namespace as the ApplicationSet. The Secret must contain a PEM-encoded client certificate chain
+same namespace as the ApplicationSet. The reference must include a non-empty `name`. The Secret must contain a PEM-encoded client certificate chain
 in `tls.crt` and its matching, unencrypted private key in `tls.key`. Include any intermediate certificates
 in `tls.crt`, after the client certificate.
 

@@ -26,6 +26,7 @@ type GitLabService struct {
 
 var _ PullRequestService = (*GitLabService)(nil)
 
+// NewGitLabService creates a GitLab API client with token authentication, server trust, proxy settings, and an optional mTLS client identity.
 func NewGitLabService(token, url, project string, labels []string, excludedLabels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte, clientCert *tls.Certificate, proxyURL, noProxy string) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
