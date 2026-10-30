@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"strings"
+	"sync"
 
 	"github.com/go-logr/logr"
 	"github.com/spf13/cobra"
@@ -31,6 +32,7 @@ import (
 	"k8s.io/kubectl/pkg/cmd/replace"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 	"k8s.io/kubectl/pkg/scheme"
+	kubectlopenapi "k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/io"
@@ -150,6 +152,9 @@ type kubectlResourceOperations struct {
 	fact          cmdutil.Factory
 	optionsRunner KubectlOptionsRunner
 	outputMode    outputMode
+
+	openAPIV2Once   sync.Once
+	openAPIV2Getter *kubectlopenapi.CachedOpenAPIGetter
 }
 
 type commandExecutor func(ioStreams genericiooptions.IOStreams, fileName string) error
@@ -478,7 +483,7 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.I
 	if validate {
 		validateDirective = metav1.FieldValidationStrict
 	}
-	o.Validator, err = k.fact.Validator(validateDirective)
+	o.Validator, err = k.newValidator(validateDirective)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create validator: %w", err)
 	}
