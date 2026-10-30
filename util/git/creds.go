@@ -17,7 +17,6 @@ import (
 	"slices"
 	"strconv"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore"
@@ -30,6 +29,7 @@ import (
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
+	"golang.org/x/sync/singleflight"
 
 	gocache "github.com/patrickmn/go-cache"
 
@@ -56,9 +56,8 @@ var (
 
 	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
 	githubInstallationIdCache *gocache.Cache
-	// For bulk API call coordination. Maps a lookup key to a chan struct{} with a buffer of 1, used as a lock that
-	// can be abandoned when the caller's context ends.
-	githubInstallationIdLocks sync.Map
+	// Coalesces concurrent installation ID lookups for the same org, host, and app into one API call
+	githubInstallationIdGroup singleflight.Group
 	// In memory cache for storing Azure Service Principal tokens
 	azureServicePrincipalTokenCache *gocache.Cache
 
@@ -806,16 +805,55 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 		}
 	}
 
-	// Lock to avoid multiple concurrent API calls for the same org on startup
-	lock, _ := githubInstallationIdLocks.LoadOrStore(cacheKey, make(chan struct{}, 1))
-	select {
-	case lock.(chan struct{}) <- struct{}{}:
-		defer func() { <-lock.(chan struct{}) }()
-	case <-ctx.Done():
-		return 0, fmt.Errorf("failed to find installation: %w", ctx.Err())
+	// Share one API call among concurrent lookups for the same org, so a burst of callers on startup makes one
+	// request and all receive its result. Each caller still stops waiting when its own context ends. The key
+	// includes a hash of the private key so that callers with different keys (for example, during key rotation)
+	// don't receive each other's errors. The cached ID doesn't depend on the key, so the cache key leaves it out.
+	keyHash := sha256.Sum256([]byte(privateKey))
+	flightKey := cacheKey + ":" + hex.EncodeToString(keyHash[:])
+	for {
+		var res singleflight.Result
+		select {
+		case res = <-githubInstallationIdGroup.DoChan(flightKey, func() (any, error) {
+			id, err := findGitHubAppInstallationID(ctx, client, domain, appId, org)
+			if err != nil && ctx.Err() != nil {
+				return nil, &sharedLookupContextError{err: err}
+			}
+			return id, err
+		}):
+		case <-ctx.Done():
+			return 0, fmt.Errorf("failed to find installation: %w", ctx.Err())
+		}
+		// The shared call runs with the context of whichever caller started it. If it failed because that context
+		// ended, try again with ours instead of failing on another caller's deadline.
+		if ctxErr, ok := errors.AsType[*sharedLookupContextError](res.Err); ok {
+			if ctx.Err() == nil {
+				continue
+			}
+			return 0, ctxErr.err
+		}
+		if res.Err != nil {
+			return 0, res.Err
+		}
+		return res.Val.(int64), nil
 	}
+}
 
-	// Check cache again inside the write lock in case another goroutine already fetched it
+// sharedLookupContextError marks a shared installation lookup that failed after the context of the caller that
+// started it ended.
+type sharedLookupContextError struct {
+	err error
+}
+
+func (e *sharedLookupContextError) Error() string { return e.err.Error() }
+
+func (e *sharedLookupContextError) Unwrap() error { return e.err }
+
+// findGitHubAppInstallationID looks up the app's installation on the org, falling back to the user account of the
+// same name, and caches the installation ID.
+func findGitHubAppInstallationID(ctx context.Context, client *github.Client, domain string, appId int64, org string) (int64, error) {
+	// Check the cache again in case another caller's lookup finished since the first check
+	cacheKey := fmt.Sprintf("%s:%s:%d", org, domain, appId)
 	if id, found := githubInstallationIdCache.Get(cacheKey); found {
 		return id.(int64), nil
 	}
