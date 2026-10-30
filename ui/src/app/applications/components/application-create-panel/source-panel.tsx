@@ -6,7 +6,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import {getAppDefaultSource} from '../utils';
-import {inferSourceRepositoryType, isRefOnlySource, normalizeRefOnlySource, normalizeSourceForRepositoryType, SourceRepositoryType} from '../shared/app-source-edit';
+import {inferSourceRepositoryType, normalizeSourceForRepositoryType, SourceRepositoryType} from '../shared/app-source-edit';
 
 function getSourceForPanel(app: models.Application, sourceIndex?: number): models.ApplicationSource | null {
     if (sourceIndex !== undefined) {
@@ -75,11 +75,10 @@ export const SourcePanel = (props: SourcePanelProps) => {
     const currentSource = getSourceForPanel(currentApp, props.sourceIndex);
     const repoType = registeredRepositoryType(props.repoInfo, currentSource);
     const currentRepoURL = currentSource?.repoURL;
-    const refOnly = isRefOnlySource(currentSource ?? undefined);
 
     React.useEffect(() => {
-        updateSource(props.formApi, props.sourceIndex, source => normalizeSourceForRepositoryType(normalizeRefOnlySource(source), repoType));
-    }, [props.formApi, props.sourceIndex, repoType, currentRepoURL, refOnly]);
+        updateSource(props.formApi, props.sourceIndex, source => normalizeSourceForRepositoryType(source, repoType));
+    }, [props.formApi, props.sourceIndex, repoType, currentRepoURL]);
 
     const idx = props.sourceIndex;
     const qeSourceN = isMulti && idx !== undefined ? idx + 1 : 0;

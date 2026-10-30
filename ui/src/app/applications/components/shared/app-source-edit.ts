@@ -69,6 +69,10 @@ export function normalizeSourceForRepositoryType(source: models.ApplicationSourc
     };
 
     if (type !== 'git') {
+        // A ref-only draft has no generator settings to carry into another repository type.
+        if (source.ref && !source.path && !source.chart) {
+            APP_SOURCE_TYPES.forEach(({field}) => remove(field));
+        }
         remove('ref');
     }
 

@@ -77,12 +77,13 @@ describe('SourcePanel', () => {
     test.each([
         ['HELM', ''],
         ['OCI', undefined]
-    ])('clears Ref when changing a ref-only Git source to %s', async (targetType, expectedChart) => {
+    ])('clears Ref and unused generator settings when changing a ref-only Git source to %s', async (targetType, expectedChart) => {
         const app = applicationWithSources([
             {
                 repoURL: 'https://git.example.com/infrastructure/values.git',
                 targetRevision: 'main',
-                ref: 'values'
+                ref: 'values',
+                plugin: {name: 'stale'}
             } as models.ApplicationSource
         ]);
         let formApi: FormApi | undefined;
@@ -98,6 +99,7 @@ describe('SourcePanel', () => {
 
         await waitFor(() => expect(formApi?.values.spec.sources[0].ref).toBeUndefined());
         expect(formApi?.values.spec.sources[0].chart).toBe(expectedChart);
+        expect(formApi?.values.spec.sources[0].plugin).toBeUndefined();
         expect(formApi?.values.spec.sources[0].repoURL).toBe(targetType === 'OCI' ? 'oci://' : 'https://git.example.com/infrastructure/values.git');
     });
 
