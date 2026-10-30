@@ -237,6 +237,9 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(ctx context
 	return res.RefreshToken, nil
 }
 
+// azureRegistryHTTPTransport is used for ACR challenge and token exchange.
+// An empty proxy URL makes GetCallback honor HTTP_PROXY / HTTPS_PROXY / NO_PROXY
+// so workload-identity auth works when repo-server is behind an HTTP proxy.
 func (creds AzureWorkloadIdentityCreds) azureRegistryHTTPTransport() *http.Transport {
 	return &http.Transport{
 		Proxy: proxy.GetCallback("", ""),

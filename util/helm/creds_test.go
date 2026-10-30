@@ -97,9 +97,17 @@ func TestGetPasswordShouldGenerateTokenIfNotPresentInCache(t *testing.T) {
 
 func TestAzureWorkloadIdentityCredsHTTPTransportUsesProxy(t *testing.T) {
 	proxy.UseTestingProxyCallback()
-	t.Setenv("http_proxy", "http://proxy-from-env:7878")
-	t.Setenv("https_proxy", "http://proxy-from-env:7878")
+	const proxyURL = "http://proxy-from-env:7878"
+	// httpproxy.FromEnvironment prefers HTTP_PROXY over http_proxy. Clear both
+	// cases so a proxied CI environment cannot override the test value.
+	t.Setenv("HTTP_PROXY", proxyURL)
+	t.Setenv("HTTPS_PROXY", proxyURL)
+	t.Setenv("http_proxy", proxyURL)
+	t.Setenv("https_proxy", proxyURL)
 	t.Setenv("ALL_PROXY", "")
+	t.Setenv("all_proxy", "")
+	t.Setenv("NO_PROXY", "")
+	t.Setenv("no_proxy", "")
 
 	workloadIdentityMock := &mocks.TokenProvider{}
 	creds := NewAzureWorkloadIdentityCreds("contoso.azurecr.io/charts", "", nil, nil, false, workloadIdentityMock)
@@ -107,12 +115,12 @@ func TestAzureWorkloadIdentityCredsHTTPTransportUsesProxy(t *testing.T) {
 	transport := creds.azureRegistryHTTPTransport()
 	require.NotNil(t, transport.Proxy)
 
-	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://proxy-from-env:7878", http.NoBody)
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://contoso.azurecr.io/v2/", http.NoBody)
 	require.NoError(t, err)
-	proxyURL, err := transport.Proxy(req)
+	got, err := transport.Proxy(req)
 	require.NoError(t, err)
-	require.NotNil(t, proxyURL)
-	assert.Equal(t, "http://proxy-from-env:7878", proxyURL.String())
+	require.NotNil(t, got)
+	assert.Equal(t, proxyURL, got.String())
 }
 
 func TestChallengeAzureContainerRegistry(t *testing.T) {
