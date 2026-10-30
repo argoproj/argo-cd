@@ -6,6 +6,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
@@ -80,7 +81,12 @@ func TestComparePaths(t *testing.T) {
 
 func deploymentSchema(t *testing.T) fieldSchema {
 	t.Helper()
-	pt := scheme.StaticParser().Type(staticTypeName(deploymentGVK))
+	return staticFieldSchema(t, deploymentGVK)
+}
+
+func staticFieldSchema(t *testing.T, gvk schema.GroupVersionKind) fieldSchema {
+	t.Helper()
+	pt := scheme.StaticParser().Type(staticTypeName(gvk))
 	require.True(t, pt.IsValid())
 	return newFieldSchema(&pt)
 }
@@ -107,6 +113,56 @@ spec:
 		require.NoError(t, err)
 		return containers
 	}
+
+	t.Run("keyed item that omits a defaulted key field is matched by the default", func(t *testing.T) {
+		// Service ports are keyed by (port, protocol); manifests omit protocol
+		// and the server defaults it to TCP. The live-only nodePort must land
+		// in git's port, not in a duplicate item.
+		live := toUnstructured(t, `
+apiVersion: v1
+kind: Service
+metadata: {name: s, namespace: default}
+spec:
+  ports:
+  - {name: http, port: 80, targetPort: 8080, protocol: TCP, nodePort: 31234}
+`)
+		target := toUnstructured(t, `
+apiVersion: v1
+kind: Service
+metadata: {name: s, namespace: default}
+spec:
+  ports:
+  - {name: http, port: 80, targetPort: 8080}
+`)
+		got, err := buildApplyTarget(live, target, [][]any{{"spec", "ports", 0, "nodePort"}}, nil, staticFieldSchema(t, serviceGVK))
+		require.NoError(t, err)
+		ports, _, err := unstructured.NestedSlice(got.Object, "spec", "ports")
+		require.NoError(t, err)
+		require.Len(t, ports, 1, "no duplicate port item")
+		assert.Equal(t, map[string]any{"name": "http", "port": int64(80), "targetPort": int64(8080), "nodePort": int64(31234)}, ports[0])
+	})
+
+	t.Run("field inside an undeclared item of a list without keys carries the whole item", func(t *testing.T) {
+		// tolerations is atomic: a partial item would be applied as is and
+		// rejected (a toleration with a value but no key).
+		live := deployment(t, `      containers: [{name: web, image: nginx}]
+      tolerations:
+      - {key: a, operator: Exists}
+      - {key: injected, operator: Equal, value: v, effect: NoSchedule}
+`)
+		target := deployment(t, `      containers: [{name: web, image: nginx}]
+      tolerations:
+      - {key: a, operator: Exists}
+`)
+		got, err := buildApplyTarget(live, target, [][]any{{"spec", "template", "spec", "tolerations", 1, "value"}}, nil, sch)
+		require.NoError(t, err)
+		tolerations, _, err := unstructured.NestedSlice(got.Object, "spec", "template", "spec", "tolerations")
+		require.NoError(t, err)
+		assert.Equal(t, []any{
+			map[string]any{"key": "a", "operator": "Exists"},
+			map[string]any{"key": "injected", "operator": "Equal", "value": "v", "effect": "NoSchedule"},
+		}, tolerations)
+	})
 
 	t.Run("server-populated metadata is never carried", func(t *testing.T) {
 		live := deployment(t, "      containers: [{name: web, image: nginx:live}]\n")

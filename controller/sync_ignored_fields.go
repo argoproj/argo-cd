@@ -71,6 +71,23 @@ func (f fieldSchema) listKeys() []string {
 	return a.Keys
 }
 
+// listKeyDefaults returns the schema defaults of a keyed list's key fields. An
+// item that omits a key field has the default, which is how the API server
+// identifies it (a Service port without protocol is the TCP port).
+func (f fieldSchema) listKeyDefaults(keys []string) map[string]any {
+	a, ok := f.item().atom()
+	if !ok || a.Map == nil {
+		return nil
+	}
+	defaults := map[string]any{}
+	for _, k := range keys {
+		if sf, ok := a.FindField(k); ok && sf.Default != nil {
+			defaults[k] = sf.Default
+		}
+	}
+	return defaults
+}
+
 // atomicList reports whether the API server replaces the whole list on apply.
 func (f fieldSchema) atomicList() bool {
 	a, ok := f.atom()
@@ -130,7 +147,7 @@ func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, target
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy target %s %s/%s: %w", target.GroupVersionKind(), target.GetNamespace(), target.GetName(), err)
 	}
-	live, err = jsonCopy(live)
+	liveCopy, err := jsonCopy(live)
 	if err != nil {
 		return nil, fmt.Errorf("failed to copy live %s %s/%s: %w", live.GroupVersionKind(), live.GetNamespace(), live.GetName(), err)
 	}
@@ -138,7 +155,7 @@ func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, target
 	// one of these fields or all of metadata: an apply that sends them is
 	// rejected (managedFields) or raced (resourceVersion, uid).
 	for _, field := range serverMetadataFields {
-		unstructured.RemoveNestedField(live.Object, "metadata", field)
+		unstructured.RemoveNestedField(liveCopy.Object, "metadata", field)
 	}
 
 	// Drop the target's ignored paths, deepest and highest index first so list
@@ -161,11 +178,11 @@ func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, target
 		if p[0] == "status" {
 			continue
 		}
-		v, ok := getPath(live.Object, p)
+		v, ok := getPath(liveCopy.Object, p)
 		if !ok {
 			continue
 		}
-		if out, ok := carryInto(result.Object, live.Object, p, v, sch).(map[string]any); ok {
+		if out, ok := carryInto(result.Object, liveCopy.Object, p, v, sch).(map[string]any); ok {
 			result.Object = out
 		}
 	}
@@ -253,7 +270,8 @@ func carryInto(res, liv any, p []any, v any, sch fieldSchema) any {
 		}
 		liveItem := ll[e]
 		keys := sch.listKeys()
-		if !scalarKeyValues(liveItem, keys) {
+		defaults := sch.listKeyDefaults(keys)
+		if !scalarKeyValues(liveItem, keys, defaults) {
 			// Keys that are not scalars (or not present on the item) cannot
 			// identify the item; fall back to position.
 			keys = nil
@@ -261,7 +279,7 @@ func carryInto(res, liv any, p []any, v any, sch fieldSchema) any {
 		if last {
 			// A whole list item. Skip it if git declares the same item.
 			if keys != nil {
-				if findByKeys(rl, liveItem, keys) >= 0 {
+				if findByKeys(rl, liveItem, keys, defaults) >= 0 {
 					return rl
 				}
 			} else if slices.ContainsFunc(rl, func(x any) bool { return reflect.DeepEqual(x, liveItem) }) {
@@ -273,7 +291,7 @@ func carryInto(res, liv any, p []any, v any, sch fieldSchema) any {
 		// position when the list has no keys.
 		pos := -1
 		if keys != nil {
-			pos = findByKeys(rl, liveItem, keys)
+			pos = findByKeys(rl, liveItem, keys, defaults)
 		} else if e < len(rl) {
 			pos = e
 		}
@@ -282,8 +300,14 @@ func carryInto(res, liv any, p []any, v any, sch fieldSchema) any {
 			if !ok {
 				return rl
 			}
+			if keys == nil {
+				// A list without keys is applied as one value, so a partial
+				// item would land in the cluster as is. Carry the whole item.
+				return insertAt(rl, min(e, len(rl)), runtime.DeepCopyJSONValue(liveItem))
+			}
 			// git does not declare the item: create it with its identity only,
-			// the carried field is added below.
+			// the carried field is added below. The server merges the rest of
+			// the item from its other managers.
 			newItem := map[string]any{}
 			for _, k := range keys {
 				if kv, ok := liveMap[k]; ok {
@@ -321,9 +345,18 @@ func insertAt(l []any, pos int, v any) []any {
 	return append(out, l[pos:]...)
 }
 
+// keyValue returns item's value for key field k, or the schema default when
+// the item omits it.
+func keyValue(item map[string]any, k string, defaults map[string]any) any {
+	if v, ok := item[k]; ok {
+		return v
+	}
+	return defaults[k]
+}
+
 // scalarKeyValues reports whether item is a map whose key fields are all
-// present and scalar, so that they can identify it in a list.
-func scalarKeyValues(item any, keys []string) bool {
+// scalar (present or defaulted), so that they can identify it in a list.
+func scalarKeyValues(item any, keys []string, defaults map[string]any) bool {
 	if keys == nil {
 		return false
 	}
@@ -332,8 +365,8 @@ func scalarKeyValues(item any, keys []string) bool {
 		return false
 	}
 	for _, k := range keys {
-		switch im[k].(type) {
-		case string, bool, int64, float64:
+		switch keyValue(im, k, defaults).(type) {
+		case string, bool, int, int64, float64:
 		default:
 			return false
 		}
@@ -342,7 +375,7 @@ func scalarKeyValues(item any, keys []string) bool {
 }
 
 // findByKeys returns the index of the item in l whose key fields equal those of item.
-func findByKeys(l []any, item any, keys []string) int {
+func findByKeys(l []any, item any, keys []string, defaults map[string]any) int {
 	im, ok := item.(map[string]any)
 	if !ok {
 		return -1
@@ -354,7 +387,7 @@ func findByKeys(l []any, item any, keys []string) int {
 		}
 		match := true
 		for _, k := range keys {
-			if !reflect.DeepEqual(xm[k], im[k]) {
+			if !scalarEqual(keyValue(xm, k, defaults), keyValue(im, k, defaults)) {
 				match = false
 				break
 			}
@@ -364,6 +397,33 @@ func findByKeys(l []any, item any, keys []string) int {
 		}
 	}
 	return -1
+}
+
+// scalarEqual compares two scalars, treating all numeric types as one: a
+// schema default is decoded as an int, a document value as an int64 or float64.
+func scalarEqual(a, b any) bool {
+	af, aok := toFloat(a)
+	bf, bok := toFloat(b)
+	if aok && bok {
+		return af == bf
+	}
+	return reflect.DeepEqual(a, b)
+}
+
+func toFloat(v any) (float64, bool) {
+	switch n := v.(type) {
+	case int:
+		return float64(n), true
+	case int32:
+		return float64(n), true
+	case int64:
+		return float64(n), true
+	case float32:
+		return float64(n), true
+	case float64:
+		return n, true
+	}
+	return 0, false
 }
 
 // getPath returns the value at path p in root.

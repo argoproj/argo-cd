@@ -148,7 +148,7 @@ var builtinGVKs = []schema.GroupVersionKind{
 	deploymentGVK,
 	{Version: "v1", Kind: "Secret"},
 	{Version: "v1", Kind: "ConfigMap"},
-	{Version: "v1", Kind: "Service"},
+	serviceGVK,
 	statefulSetGVK,
 	webhookGVK,
 	ingressGVK,
@@ -331,6 +331,7 @@ var (
 	deploymentGVK  = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "Deployment"}
 	ingressGVK     = schema.GroupVersionKind{Group: "networking.k8s.io", Version: "v1", Kind: "Ingress"}
 	rolloutGVK     = schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Rollout"}
+	serviceGVK     = schema.GroupVersionKind{Version: "v1", Kind: "Service"}
 	statefulSetGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "StatefulSet"}
 	webhookGVK     = schema.GroupVersionKind{Group: "admissionregistration.k8s.io", Version: "v1", Kind: "MutatingWebhookConfiguration"}
 )
@@ -2174,4 +2175,66 @@ func TestRespectIgnoreSemantics_WholeMetadataIgnored_ServerFieldsNotCarried(t *t
 	out := sim.live()
 	assert.Equal(t, map[string]string{"a": "live", "b": "live"}, out.GetLabels())
 	assert.Equal(t, map[string]any{"k": "git"}, out.Object["data"])
+}
+
+// Case 28: Service nodePort allocated by the server, ignored by pointer or jq.
+// Service ports are keyed by (port, protocol) and manifests omit protocol, so
+// the live item is matched to git's through the schema default (TCP). Without
+// that default the carried nodePort would land in a duplicate port item, which
+// both apply modes reject.
+//
+// Ref: found by code review of this change; protocol's default is declared in
+// the API schema (io.k8s.api.core.v1.ServicePort).
+const nodePortTarget = `
+apiVersion: v1
+kind: Service
+metadata: {name: svc, namespace: default}
+spec:
+  type: NodePort
+  selector: {app: web}
+  ports:
+  - {name: http, port: 80, targetPort: 8080}
+  - {name: https, port: 443, targetPort: 8443}
+`
+
+const nodePortLive = `
+apiVersion: v1
+kind: Service
+metadata: {name: svc, namespace: default}
+spec:
+  type: NodePort
+  selector: {app: web}
+  ports:
+  - {name: http, port: 80, targetPort: 8080, protocol: TCP, nodePort: 31080}
+  - {name: https, port: 443, targetPort: 8443, protocol: TCP, nodePort: 31443}
+`
+
+func TestRespectIgnoreSemantics_ServiceNodePort_KeyDefaultedProtocol(t *testing.T) {
+	target := toUnstructured(t, nodePortTarget)
+	live := toUnstructured(t, nodePortLive)
+	check := func(t *testing.T, ignore v1alpha1.ResourceIgnoreDifferences) {
+		t.Helper()
+		patched := applyTarget(t, nil, live, target, ignore)
+		ports, _, err := unstructured.NestedSlice(patched.Object, "spec", "ports")
+		require.NoError(t, err)
+		require.Equal(t, []string{"http", "https"}, names(ports), "no duplicate port items")
+		assert.Equal(t, int64(31080), ports[0].(map[string]any)["nodePort"])
+		assert.Equal(t, int64(31443), ports[1].(map[string]any)["nodePort"])
+		assert.NotContains(t, ports[0].(map[string]any), "protocol", "a field no rule names is not carried")
+
+		sim := newSSASim(t, builtinTypeConverter(t, serviceGVK), serviceGVK)
+		sim.apply(target, argoManager)
+		sim.update(live, otherManager)
+		sim.apply(patched, argoManager)
+		ports, _, err = unstructured.NestedSlice(sim.live().Object, "spec", "ports")
+		require.NoError(t, err)
+		require.Len(t, ports, 2)
+		assert.Equal(t, int64(31080), ports[0].(map[string]any)["nodePort"])
+	}
+	t.Run("pointer", func(t *testing.T) {
+		check(t, v1alpha1.ResourceIgnoreDifferences{Kind: "Service", JSONPointers: []string{"/spec/ports/0/nodePort", "/spec/ports/1/nodePort"}})
+	})
+	t.Run("jq", func(t *testing.T) {
+		check(t, v1alpha1.ResourceIgnoreDifferences{Kind: "Service", JQPathExpressions: []string{`.spec.ports[].nodePort`}})
+	})
 }

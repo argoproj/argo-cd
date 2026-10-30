@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
@@ -112,17 +113,39 @@ func (np *jsonPatchNormalizerPatch) Apply(data []byte) ([]byte, error) {
 
 type jqNormalizerPatch struct {
 	baseNormalizerPatch
-	code *gojq.Code
-	// pathCode is `[path(<expression>)]`: the paths that `del(<expression>)` removes.
-	pathCode           *gojq.Code
+	code               *gojq.Code
 	jqExecutionTimeout time.Duration
+
+	// pathExpression is the user's expression; pathCode, compiled on first use
+	// because only RespectIgnoreDifferences needs it, is `[path(<expression>)]`:
+	// the paths that `del(<expression>)` removes.
+	pathExpression string
+	pathOnce       sync.Once
+	pathCode       *gojq.Code
+	pathErr        error
+}
+
+func (np *jqNormalizerPatch) compilePathCode() (*gojq.Code, error) {
+	np.pathOnce.Do(func() {
+		query, err := gojq.Parse(fmt.Sprintf("[path(%s)]", np.pathExpression))
+		if err != nil {
+			np.pathErr = err
+			return
+		}
+		np.pathCode, np.pathErr = gojq.Compile(query)
+	})
+	return np.pathCode, np.pathErr
 }
 
 func (np *jqNormalizerPatch) Paths(doc any) ([][]any, error) {
+	code, err := np.compilePathCode()
+	if err != nil {
+		return nil, fmt.Errorf("JQ path query could not be compiled: %w", err)
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), np.jqExecutionTimeout)
 	defer cancel()
 
-	iter := np.pathCode.RunWithContext(ctx, doc)
+	iter := code.RunWithContext(ctx, doc)
 	first, ok := iter.Next()
 	if !ok {
 		return nil, errors.New("JQ path query did not return any data")
@@ -304,20 +327,12 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 			if err != nil {
 				return nil, err
 			}
-			jqPathQuery, err := gojq.Parse(fmt.Sprintf("[path(%s)]", pathExpression))
-			if err != nil {
-				return nil, err
-			}
-			jqPathCode, err := gojq.Compile(jqPathQuery)
-			if err != nil {
-				return nil, err
-			}
 			patches = append(patches, &jqNormalizerPatch{
 				groupKind:          schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
 				name:               ignore[i].Name,
 				namespace:          ignore[i].Namespace,
 				code:               jqDeletionCode,
-				pathCode:           jqPathCode,
+				pathExpression:     pathExpression,
 				jqExecutionTimeout: opts.getJQExecutionTimeout(),
 			})
 		}
