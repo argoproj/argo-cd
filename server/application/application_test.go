@@ -2015,7 +2015,25 @@ func TestDeleteApp(t *testing.T) {
 		{"existing", []string{"resources-finalizer.argocd.argoproj.io"}},
 		{"qualified", []string{"argocd.argoproj.io/resources-finalizer"}},
 		{"mixed", []string{"resources-finalizer.argocd.argoproj.io", "argocd.argoproj.io/resources-finalizer"}},
+		{"mixed reversed", []string{"argocd.argoproj.io/resources-finalizer", "resources-finalizer.argocd.argoproj.io"}},
 	} {
+		for _, policy := range []string{foregroundPropagationPolicy, backgroundPropagationPolicy} {
+			t.Run("Delete with "+policy+" propagation and "+tc.name+" finalizers", func(t *testing.T) {
+				t.Cleanup(revertValues)
+				finalizers = append([]string{"example.com/keep"}, tc.finalizers...)
+				finalizerPatch = nil
+				_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar, PropagationPolicy: &policy})
+				require.NoError(t, err)
+				assert.True(t, patched)
+				assert.True(t, deleted)
+				var patch map[string]map[string][]string
+				require.NoError(t, json.Unmarshal(finalizerPatch, &patch))
+				policyFinalizer := getPropagationPolicyFinalizer(policy)
+				assert.Equal(t, append(append([]string{}, finalizers...), policyFinalizer), patch["metadata"]["finalizers"])
+				patchedApp := &v1alpha1.Application{Finalizers: patch["metadata"]["finalizers"]}
+				assert.Equal(t, policyFinalizer, patchedApp.GetPropagationPolicy())
+			})
+		}
 		t.Run("Delete with cascade disabled and "+tc.name+" finalizers", func(t *testing.T) {
 			t.Cleanup(revertValues)
 			finalizers = append([]string{"example.com/keep"}, tc.finalizers...)

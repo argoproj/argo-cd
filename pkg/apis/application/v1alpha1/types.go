@@ -3974,14 +3974,20 @@ func isPropagationPolicyFinalizer(finalizer string) bool {
 	}
 }
 
-// GetPropagationPolicy returns the value of propagation policy finalizer
+// GetPropagationPolicy returns the first explicit propagation policy finalizer, falling back to the first resource finalizer.
 func (app *Application) GetPropagationPolicy() string {
+	var policy string
 	for _, finalizer := range app.Finalizers {
-		if isPropagationPolicyFinalizer(finalizer) {
+		switch finalizer {
+		case ForegroundPropagationPolicyFinalizer, BackgroundPropagationPolicyFinalizer:
 			return finalizer
+		case ResourcesFinalizerName, QualifiedResourcesFinalizerName:
+			if policy == "" {
+				policy = finalizer
+			}
 		}
 	}
-	return ""
+	return policy
 }
 
 // HasChangedManagedNamespaceMetadata checks whether app.Spec.SyncPolicy.ManagedNamespaceMetadata differs from the
