@@ -2148,7 +2148,7 @@ message RepositoryCertificate {
   // CertData contains the actual certificate data, dependent on the certificate type
   optional bytes certData = 4;
 
-  // CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
+  // CertInfo will hold additional certificate info, dependent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
   optional string certInfo = 5;
 }
 

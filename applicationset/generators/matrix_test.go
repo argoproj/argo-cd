@@ -458,8 +458,8 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 					PullRequest: pullRequestGenerator,
 				},
 			},
-			gitGetRequeueAfter: time.Duration(15 * time.Second),
-			expected:           time.Duration(15 * time.Second),
+			gitGetRequeueAfter: 15 * time.Second,
+			expected:           15 * time.Second,
 		},
 		{
 			name: "returns the default time if no requeueAfterSeconds is provided",
@@ -471,7 +471,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 					PullRequest: pullRequestGenerator,
 				},
 			},
-			expected: time.Duration(30 * time.Minute),
+			expected: 30 * time.Minute,
 		},
 		{
 			name: "returns the default time for duck type generator",
@@ -483,7 +483,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 					ClusterDecisionResource: duckTypeGenerator,
 				},
 			},
-			expected: time.Duration(3 * time.Minute),
+			expected: 3 * time.Minute,
 		},
 		{
 			name: "returns the default time for scm generator",
@@ -495,7 +495,7 @@ func TestMatrixGetRequeueAfter(t *testing.T) {
 					SCMProvider: scmGenerator,
 				},
 			},
-			expected: time.Duration(30 * time.Minute),
+			expected: 30 * time.Minute,
 		},
 	}
 

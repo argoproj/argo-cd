@@ -19,6 +19,23 @@ if obj.status ~= nil then
     end
   end
 
+  -- customize.core.cnrm.cloud.google.com kinds (ControllerReconciler, ControllerResource, ...) also use
+  -- status.healthy. Their CRDs default observedGeneration to 0 and the operator does not update it,
+  -- so 0 is treated as not set.
+  if obj.apiVersion ~= nil and string.find(obj.apiVersion, "customize.core.cnrm.cloud.google.com/", 1, true) == 1 and obj.status.healthy ~= nil then
+    if obj.status.observedGeneration == nil or obj.status.observedGeneration == 0 or obj.status.observedGeneration == obj.metadata.generation then
+      if obj.status.healthy == true then
+        hs.status = "Healthy"
+        hs.message = obj.kind .. " is healthy"
+        return hs
+      else
+        hs.status = "Degraded"
+        hs.message = obj.kind .. " is not healthy"
+        return hs
+      end
+    end
+  end
+
   if obj.status.conditions ~= nil then
     
     -- Progressing health while the resource status is stale, skip if observedGeneration is not set

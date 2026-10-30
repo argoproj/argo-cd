@@ -930,9 +930,9 @@ const (
 type ProgressiveSyncStatusCode string
 
 const (
-	// Indicates that an Application sync is waiting to be trigerred
+	// Indicates that an Application sync is waiting to be triggered
 	ProgressiveSyncWaiting ProgressiveSyncStatusCode = "Waiting"
-	// Indicates that a sync has been trigerred, but the application did not report any status
+	// Indicates that a sync has been triggered, but the application did not report any status
 	ProgressiveSyncPending ProgressiveSyncStatusCode = "Pending"
 	// Indicates that the application has not yet reached an Healthy state in regards to the requested sync
 	ProgressiveSyncProgressing ProgressiveSyncStatusCode = "Progressing"

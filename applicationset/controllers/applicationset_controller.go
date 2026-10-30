@@ -557,14 +557,9 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 					ObservedGeneration: applicationSet.Generation,
 				})
 			}
-		case argov1alpha1.ApplicationSetConditionRolloutProgressing:
+		case argov1alpha1.ApplicationSetConditionRolloutProgressing, argov1alpha1.ApplicationSetConditionInvalidRolloutConfig:
 			if !progressivesync.IsRollingSyncStrategy(applicationSet) {
 				// if the condition is a rolling sync and it is disabled, ignore it
-				evaluatedTypes[condition.Type] = false
-			}
-
-		case argov1alpha1.ApplicationSetConditionInvalidRolloutConfig:
-			if !progressivesync.IsRollingSyncStrategy(applicationSet) {
 				evaluatedTypes[condition.Type] = false
 			}
 		}
@@ -668,9 +663,7 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 		for _, g := range relevantGenerators {
 			t := g.GetRequeueAfter(&requestedGenerator)
 
-			if res == 0 {
-				res = t
-			} else if t != 0 && t < res {
+			if res == 0 || (t != 0 && t < res) {
 				res = t
 			}
 		}
