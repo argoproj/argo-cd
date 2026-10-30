@@ -79,6 +79,22 @@ The ApplicationSet needs to be created in the Argo CD namespace, placing the `Co
 
 The ClusterDecisionResource generator passes the 'name', 'server' and any other key/value in the duck-type resource's status list as parameters into the ApplicationSet template. In this example, the decision array contained an additional key `clusterName`, which is now available to the ApplicationSet template.
 
+The labels and annotations of the matched Argo CD cluster secret are also passed to the template, using the same parameters as the [Cluster generator](Generators-Cluster.md):
+
+- `metadata.labels.<key>` for each label in the cluster secret
+- `metadata.annotations.<key>` for each annotation in the cluster secret
+
+With `goTemplate: true`, these are available as the `.metadata.labels` and `.metadata.annotations` maps. For example, given a cluster secret with the label `environment: staging`:
+
+```yaml
+ template:
+   metadata:
+     name: '{{.name}}-{{.metadata.labels.environment}}'
+```
+
+> [!NOTE]
+> The `argocd.argoproj.io/secret-type` label and the `kubectl.kubernetes.io/last-applied-configuration` and `managed-by` annotations are not passed to the template.
+
 > [!NOTE]
 > **Clusters listed as `Status.Decisions` must be predefined in Argo CD**
 >
