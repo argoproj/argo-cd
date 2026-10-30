@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/hashicorp/go-retryablehttp"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -53,6 +54,25 @@ func Test_parseGRPCHeaders(t *testing.T) {
 		_, err := parseGRPCHeaders(headerString)
 		assert.ErrorContains(t, err, "additional headers must be colon(:)-separated: foo")
 	})
+}
+
+func TestNewClient_GRPCWebTransportUsesProxyFromEnvironment(t *testing.T) {
+	t.Parallel()
+
+	c, err := NewClientWithContext(t.Context(), &ClientOptions{
+		ServerAddr: "argocd.example.com:443",
+		Insecure:   true, // TLS client which does not require a real CA
+		GRPCWeb:    true, // skip the plain gRPC probe, which would try to reach the server
+	})
+	require.NoError(t, err)
+
+	cl, ok := c.(*client)
+	require.True(t, ok)
+	transport, ok := cl.httpClient.Transport.(*http.Transport)
+	require.True(t, ok, "expected *http.Transport, got %T", cl.httpClient.Transport)
+
+	assert.NotNil(t, transport.Proxy, "gRPC-web transport must honor HTTP_PROXY/HTTPS_PROXY/NO_PROXY")
+	require.NotNil(t, transport.TLSClientConfig)
 }
 
 func TestExecuteRequest_ClosesBodyOnHTTPError(t *testing.T) {
@@ -373,6 +393,47 @@ func TestNewClient_ClientCertData(t *testing.T) {
 		})
 		require.ErrorContains(t, err, "must always be specified together")
 	})
+}
+
+func TestNewClient_SendsHeadersWhenRefreshingExpiredToken(t *testing.T) {
+	var receivedHeader atomic.Value
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		receivedHeader.Store(r.Header.Get("X-Proxy-Auth"))
+		w.WriteHeader(http.StatusForbidden)
+	}))
+	defer server.Close()
+
+	expiredToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(-time.Hour)),
+	}).SignedString([]byte("test"))
+	require.NoError(t, err)
+
+	serverAddr := server.URL[7:] // Remove "http://"
+	configPath := filepath.Join(t.TempDir(), "config")
+	require.NoError(t, localconfig.WriteLocalConfig(localconfig.LocalConfig{
+		CurrentContext: serverAddr,
+		Contexts:       []localconfig.ContextRef{{Name: serverAddr, Server: serverAddr, User: serverAddr}},
+		Servers:        []localconfig.Server{{Server: serverAddr, PlainText: true, GRPCWeb: true}},
+		Users:          []localconfig.User{{Name: serverAddr, AuthToken: expiredToken, RefreshToken: "refresh-token"}},
+	}, configPath))
+
+	_, err = NewClient(&ClientOptions{
+		ConfigPath: configPath,
+		Headers:    []string{"X-Proxy-Auth: secret"},
+	})
+
+	require.Error(t, err)
+	assert.Equal(t, "secret", receivedHeader.Load())
+}
+
+func TestNewClient_ReturnsErrorForMalformedHeader(t *testing.T) {
+	_, err := NewClient(&ClientOptions{
+		ServerAddr: "localhost:1234",
+		PlainText:  true,
+		Headers:    []string{"no-colon"},
+	})
+
+	require.ErrorContains(t, err, "additional headers must be colon(:)-separated: no-colon")
 }
 
 // TestNewClient_HttpRetryMax_TLSTransport is a regression test for the bug

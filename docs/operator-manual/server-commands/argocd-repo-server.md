@@ -40,6 +40,8 @@ argocd-repo-server [flags]
       --otlp-attrs strings                             List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --otlp-headers stringToString                    List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                  OpenTelemetry collector insecure mode (default true)
+      --otlp-metrics-enabled                           Push the Prometheus metrics to the OpenTelemetry collector at --otlp-address
+      --otlp-metrics-interval duration                 Interval at which Prometheus metrics are pushed to the OpenTelemetry collector (default 30s)
       --otlp-sample-ratio float                        Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision (default 1)
       --parallelism-limit-fail-fast                    When true, manifest generation requests that exceed --parallelismlimit are rejected immediately with ResourceExhausted instead of queuing until a slot is free, so clients can retry on a different replica (graceful scale-out). File-streamed requests (GenerateManifestWithFiles) do not acquire the parallelism semaphore, so this setting does not apply to them. Defaults to false, which preserves the previous blocking behaviour.
       --parallelismlimit int                           Limit on number of concurrent manifests generate requests. Any value less the 1 means no limit.
