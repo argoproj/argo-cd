@@ -43,3 +43,19 @@ tests:
     status: Progressing
     message: "Update in progress"
   inputPath: testdata/config-connector-stale.yaml
+- healthStatus:
+    status: Healthy
+    message: "ControllerReconciler is healthy"
+  inputPath: testdata/controller-reconciler-healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "ControllerReconciler is not healthy"
+  inputPath: testdata/controller-reconciler-unhealthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Update in progress"
+  inputPath: testdata/controller-reconciler-stale.yaml
+- healthStatus:
+    status: Healthy
+    message: "NamespacedControllerReconciler is healthy"
+  inputPath: testdata/namespaced-controller-reconciler-healthy.yaml
