@@ -12,15 +12,16 @@ import (
 )
 
 type GithubService struct {
-	client *github.Client
-	owner  string
-	repo   string
-	labels []string
+	client         *github.Client
+	owner          string
+	repo           string
+	labels         []string
+	excludedLabels []string
 }
 
 var _ PullRequestService = (*GithubService)(nil)
 
-func NewGithubService(token, url, owner, repo string, labels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
+func NewGithubService(token, url, owner, repo string, labels []string, excludedLabels []string, optionalHTTPClient ...*http.Client) (PullRequestService, error) {
 	// Undocumented environment variable to set a default token, to be used in testing to dodge anonymous rate limits.
 	if token == "" {
 		token = os.Getenv("GITHUB_TOKEN")
@@ -47,18 +48,17 @@ func NewGithubService(token, url, owner, repo string, labels []string, optionalH
 		}
 	}
 	return &GithubService{
-		client: client,
-		owner:  owner,
-		repo:   repo,
-		labels: labels,
+		client:         client,
+		owner:          owner,
+		repo:           repo,
+		labels:         labels,
+		excludedLabels: excludedLabels,
 	}, nil
 }
 
 func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 	opts := &github.PullRequestListOptions{
-		ListOptions: github.ListOptions{
-			PerPage: 100,
-		},
+		PerPage: 100,
 	}
 	pullRequests := []*PullRequest{}
 	for {
@@ -75,13 +75,17 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 			if !containLabels(g.labels, pull.Labels) {
 				continue
 			}
+			labelNames := getGithubPRLabelNames(pull.Labels)
+			if containsAnyExcludedLabels(g.excludedLabels, labelNames) {
+				continue
+			}
 			pullRequests = append(pullRequests, &PullRequest{
 				Number:       int64(*pull.Number),
 				Title:        *pull.Title,
 				Branch:       *pull.Head.Ref,
 				TargetBranch: *pull.Base.Ref,
 				HeadSHA:      *pull.Head.SHA,
-				Labels:       getGithubPRLabelNames(pull.Labels),
+				Labels:       labelNames,
 				Author:       *pull.User.Login,
 			})
 		}
@@ -93,7 +97,7 @@ func (g *GithubService) List(ctx context.Context) ([]*PullRequest, error) {
 	return pullRequests, nil
 }
 
-// containLabels returns true if gotLabels contains expectedLabels
+// containLabels returns true if gotLabels contains all expectedLabels
 func containLabels(expectedLabels []string, gotLabels []*github.Label) bool {
 	for _, expected := range expectedLabels {
 		found := false

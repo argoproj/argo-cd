@@ -21,10 +21,8 @@ func testAppSetCond(t ApplicationSetConditionType, msg string, lastTransitionTim
 
 func newTestAppSet(name, namespace, repo string) *ApplicationSet {
 	a := &ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: ApplicationSetSpec{
 			Generators: []ApplicationSetGenerator{
 				{

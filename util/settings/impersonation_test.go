@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -95,7 +94,7 @@ func TestDeriveServiceAccountToImpersonate(t *testing.T) {
 			},
 		}
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{Namespace: "app-ns"},
+			Namespace: "app-ns",
 			Spec: v1alpha1.ApplicationSpec{
 				Destination: v1alpha1.ApplicationDestination{
 					Server:    "https://cluster-api.example.com",

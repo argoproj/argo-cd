@@ -1,0 +1,76 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Release branches selected by hack/supported-release-branches.sh receive patch bumps for the Go toolchain, Helm, and Kustomize.",
+  "packageRules": [
+    {
+      "description": "Disable every update on release branches. Master is unchanged.",
+      "matchBaseBranches": [
+        "/^release-\\d+\\.\\d+$/"
+      ],
+      "matchPackageNames": [
+        "*"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Re-enable the Go build toolchain on release branches and keep it on the minor that branch already ships. Update type is unknown until after lookup, so matchUpdateTypes cannot re-enable these packages in time. allowedVersions drops newer minors before a version is chosen. go.mod, golangci-lint, and mockery stay disabled.",
+      "matchBaseBranches": [
+        "/^release-\\d+\\.\\d+$/"
+      ],
+      "matchDatasources": [
+        "golang-version",
+        "docker"
+      ],
+      "matchPackageNames": [
+        "golang",
+        "docker.io/library/golang",
+        "/(?:^|/)golang$/"
+      ],
+      "allowedVersions": "~{{major}}.{{minor}}.0",
+      "enabled": true
+    },
+    {
+      "description": "Keep digest-only updates disabled for the Go toolchain. The rule above re-enables every update type so lookup can run; this puts digest updates back off once the update type is known. A tag bump still refreshes the digest.",
+      "matchBaseBranches": [
+        "/^release-\\d+\\.\\d+$/"
+      ],
+      "matchDatasources": [
+        "docker"
+      ],
+      "matchPackageNames": [
+        "golang",
+        "docker.io/library/golang",
+        "/(?:^|/)golang$/"
+      ],
+      "matchUpdateTypes": [
+        "digest"
+      ],
+      "enabled": false
+    },
+    {
+      "description": "Re-enable Helm and Kustomize on release branches and keep each on the minor that branch already ships. Checksum and manifest refresh still comes from production-binaries.json5. git-lfs stays disabled.",
+      "matchBaseBranches": [
+        "/^release-\\d+\\.\\d+$/"
+      ],
+      "matchDatasources": [
+        "github-releases"
+      ],
+      "matchPackageNames": [
+        "helm/helm",
+        "kubernetes-sigs/kustomize"
+      ],
+      "allowedVersions": "~{{major}}.{{minor}}.0",
+      "enabled": true
+    },
+    {
+      "description": "No lock file maintenance on release branches. That would bump modules outside the Go toolchain patch.",
+      "matchBaseBranches": [
+        "/^release-\\d+\\.\\d+$/"
+      ],
+      "matchUpdateTypes": [
+        "lockFileMaintenance"
+      ],
+      "enabled": false
+    }
+  ]
+}

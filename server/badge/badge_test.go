@@ -5,6 +5,7 @@ import (
 	"image/color"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -16,14 +17,13 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
 )
 
 func argoCDSecret() *corev1.Secret {
 	return &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "argocd-secret", Namespace: "default"},
+		Name: "argocd-secret", Namespace: "default",
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
@@ -33,12 +33,10 @@ func argoCDSecret() *corev1.Secret {
 
 func argoCDCm() *corev1.ConfigMap {
 	return &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{
 			"statusbadge.enabled": "true",
@@ -48,7 +46,7 @@ func argoCDCm() *corev1.ConfigMap {
 
 func testApp() *v1alpha1.Application {
 	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "default"},
+		Name: "test-app", Namespace: "default",
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
 			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
@@ -63,7 +61,7 @@ func testApp() *v1alpha1.Application {
 
 func testApp2() *v1alpha1.Application {
 	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd-test"},
+		Name: "test-app", Namespace: "argocd-test",
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
 			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
@@ -78,7 +76,7 @@ func testApp2() *v1alpha1.Application {
 
 func testApp3() *v1alpha1.Application {
 	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-app", Namespace: "argocd-test"},
+		Name: "test-app", Namespace: "argocd-test",
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
 			Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
@@ -93,8 +91,8 @@ func testApp3() *v1alpha1.Application {
 
 func testProject() *v1alpha1.AppProject {
 	return &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-project", Namespace: "default"},
-		Spec:       v1alpha1.AppProjectSpec{},
+		Name: "test-project", Namespace: "default",
+		Spec: v1alpha1.AppProjectSpec{},
 	}
 }
 
@@ -300,6 +298,7 @@ func TestHandlerFeatureIsEnabledKeepFullRevisionIsEnabled(t *testing.T) {
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
 	assert.NotContains(t, response, "test-app")
 	assert.Contains(t, response, "(aa29b85ababababababab)")
+	assert.Equal(t, strconv.Itoa(svgWidthWithFullRevision), svgWidthPattern.FindStringSubmatch(response)[1])
 }
 
 func TestHandlerFeatureIsEnabledKeepFullRevisionIsDisabled(t *testing.T) {
@@ -349,7 +348,7 @@ func TestHandlerFeatureIsEnabledKeepFullRevisionAndWidthIsEnabled(t *testing.T) 
 
 func createApplicationFeatureProjectIsEnabled(healthStatus health.HealthStatusCode, syncStatus v1alpha1.SyncStatusCode, appName, projectName, namespace string) *v1alpha1.Application {
 	return &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: namespace},
+		Name: appName, Namespace: namespace,
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: syncStatus},
 			Health: v1alpha1.AppHealthStatus{Status: healthStatus},
@@ -419,6 +418,7 @@ func TestHandlerFeatureIsEnabledRevisionIsEnabled(t *testing.T) {
 	assert.Equal(t, "Synced", rightTextPattern.FindStringSubmatch(response)[1])
 	assert.NotContains(t, response, "test-app")
 	assert.Contains(t, response, "(aa29b85)")
+	assert.Equal(t, strconv.Itoa(svgWidthWithRevision), svgWidthPattern.FindStringSubmatch(response)[1])
 }
 
 func TestHandlerRevisionIsEnabledNoOperationState(t *testing.T) {

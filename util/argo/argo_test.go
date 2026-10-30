@@ -97,17 +97,15 @@ func TestGetAppProjectWithNoProjDefined(t *testing.T) {
 	namespace := "default"
 
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 	}
 
 	testProj := &argoappv1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projName, Namespace: namespace},
+		Name: projName, Namespace: namespace,
 	}
 
 	var testApp argoappv1.Application
@@ -470,12 +468,10 @@ func TestValidateRepo(t *testing.T) {
 	})).Return(nil, nil).Maybe()
 
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{
 			"globalProjects": `
@@ -575,11 +571,9 @@ func TestValidateRepo_SourceHydrator(t *testing.T) {
 	db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return(nil, nil)
 
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: test.FakeArgoCDNamespace,
-			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
-		},
+		Name:      "argocd-cm",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
 	}
 	kubeClient := fake.NewClientset(&cm)
 	settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
@@ -795,6 +789,22 @@ func TestFilterByRepo(t *testing.T) {
 		res := FilterByRepo(apps, "git@github.com:owner/willnotmatch.git")
 		assert.Empty(t, res)
 	})
+
+	t.Run("Multi-source match on second source", func(t *testing.T) {
+		t.Parallel()
+		multiSourceApp := []argoappv1.Application{
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{RepoURL: "git@github.com:owner/first.git"},
+						{RepoURL: "git@github.com:owner/second.git"},
+					},
+				},
+			},
+		}
+		res := FilterByRepo(multiSourceApp, "git@github.com:owner/second.git")
+		assert.Len(t, res, 1)
+	})
 }
 
 func TestFilterByRepoP(t *testing.T) {
@@ -833,6 +843,22 @@ func TestFilterByRepoP(t *testing.T) {
 		res := FilterByRepoP(apps, "git@github.com:owner/willnotmatch.git")
 		assert.Empty(t, res)
 	})
+
+	t.Run("Multi-source match on second source", func(t *testing.T) {
+		t.Parallel()
+		multiSourceApp := []*argoappv1.Application{
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{RepoURL: "git@github.com:owner/first.git"},
+						{RepoURL: "git@github.com:owner/second.git"},
+					},
+				},
+			},
+		}
+		res := FilterByRepoP(multiSourceApp, "git@github.com:owner/second.git")
+		assert.Len(t, res, 1)
+	})
 }
 
 func TestFilterByPath(t *testing.T) {
@@ -870,6 +896,160 @@ func TestFilterByPath(t *testing.T) {
 		t.Parallel()
 		res := FilterByPath(apps, "example/app/non-existent")
 		assert.Empty(t, res)
+	})
+
+	t.Run("Multi-source match on second source", func(t *testing.T) {
+		t.Parallel()
+		multiSourceApp := []argoappv1.Application{
+			{
+				Spec: argoappv1.ApplicationSpec{
+					Sources: argoappv1.ApplicationSources{
+						{Path: "example/app/first"},
+						{Path: "example/app/second"},
+					},
+				},
+			},
+		}
+		res := FilterByPath(multiSourceApp, "example/app/second")
+		assert.Len(t, res, 1)
+	})
+}
+
+func TestFilterByFiles(t *testing.T) {
+	// app1: path=example/apps/foo/chart, annotation=".;.."  → resolves to [example/apps/foo/chart, example/apps/foo]
+	app1 := argoappv1.Application{
+		Annotations: map[string]string{
+			argoappv1.AnnotationKeyManifestGeneratePaths: ".;..",
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/apps/foo/chart"},
+		},
+	}
+	// app2: path=example/apps/foo, annotation="."  → resolves to [example/apps/foo]
+	app2 := argoappv1.Application{
+		Annotations: map[string]string{
+			argoappv1.AnnotationKeyManifestGeneratePaths: ".",
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/apps/foo"},
+		},
+	}
+	// app3: path=example/other, no annotation → falls back to source path
+	app3 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/other"},
+		},
+	}
+	// app4: path=example/other, annotation="."  → resolves to [example/other]
+	app4 := argoappv1.Application{
+		Annotations: map[string]string{
+			argoappv1.AnnotationKeyManifestGeneratePaths: ".",
+		},
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "example/other"},
+		},
+	}
+	apps := []argoappv1.Application{app1, app2, app3, app4}
+
+	t.Run("Empty file list returns all apps", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{})
+		assert.Len(t, res, 4)
+	})
+
+	t.Run("File under annotated parent path matches app1 and app2", func(t *testing.T) {
+		// example/apps/foo/base.yaml is under example/apps/foo/chart/.. (app1) and example/apps/foo (app2)
+		res := FilterByFiles(apps, []string{"example/apps/foo/base.yaml"})
+		names := make([]string, 0)
+		for _, a := range res {
+			names = append(names, a.Spec.GetSource().Path)
+		}
+		assert.Contains(t, names, "example/apps/foo/chart")
+		assert.Contains(t, names, "example/apps/foo")
+	})
+
+	t.Run("File under other path matches app3 and app4", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{"example/other/manifest.yaml"})
+		names := make([]string, 0)
+		for _, a := range res {
+			names = append(names, a.Spec.GetSource().Path)
+		}
+		assert.Contains(t, names, "example/other")
+		assert.Len(t, res, 2) // app3 and app4
+	})
+
+	t.Run("Unrelated file matches nothing", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{"totally/unrelated/file.yaml"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Multi-source app matches if any source path matches", func(t *testing.T) {
+		multiSourceApp := argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				Sources: argoappv1.ApplicationSources{
+					{Path: "services/backend"},
+					{Path: "services/frontend"},
+				},
+			},
+		}
+		res := FilterByFiles([]argoappv1.Application{multiSourceApp}, []string{"services/frontend/index.js"})
+		assert.Len(t, res, 1)
+
+		res = FilterByFiles([]argoappv1.Application{multiSourceApp}, []string{"totally/unrelated/file.yaml"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("Helm chart source with no path is skipped and does not match every file", func(t *testing.T) {
+		helmApp := argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{
+					RepoURL: "https://charts.example.com",
+					Chart:   "my-chart",
+					// Path is intentionally empty — Helm chart source
+				},
+			},
+		}
+		res := FilterByFiles([]argoappv1.Application{helmApp}, []string{"any/file.yaml"})
+		assert.Empty(t, res)
+	})
+}
+
+func TestFilterByPathAndFiles(t *testing.T) {
+	app1 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "services/backend"},
+		},
+	}
+	app2 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "services/frontend"},
+		},
+	}
+	app3 := argoappv1.Application{
+		Spec: argoappv1.ApplicationSpec{
+			Source: &argoappv1.ApplicationSource{Path: "infra/terraform"},
+		},
+	}
+	apps := []argoappv1.Application{app1, app2, app3}
+
+	t.Run("--path and --file combined narrow results to intersection", func(t *testing.T) {
+		// --path services/backend keeps app1; --file services/backend/main.go also matches app1
+		res := FilterByPath(apps, "services/backend")
+		res = FilterByFiles(res, []string{"services/backend/main.go"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "services/backend", res[0].Spec.GetSource().Path)
+	})
+
+	t.Run("--path and --file with no intersection returns empty", func(t *testing.T) {
+		// --path services/frontend keeps app2; --file services/backend/main.go does not match app2
+		res := FilterByPath(apps, "services/frontend")
+		res = FilterByFiles(res, []string{"services/backend/main.go"})
+		assert.Empty(t, res)
+	})
+
+	t.Run("--file only without --path returns all matching apps", func(t *testing.T) {
+		res := FilterByFiles(apps, []string{"services/frontend/index.js"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "services/frontend", res[0].Spec.GetSource().Path)
 	})
 }
 
@@ -1155,7 +1335,7 @@ func TestValidatePermissions_SourceHydratorSyncSourceRepo(t *testing.T) {
 			},
 		}
 		proj := argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "default"},
+			Name: "default",
 			Spec: argoappv1.AppProjectSpec{
 				Destinations: []argoappv1.ApplicationDestination{{
 					Server:    "*",
@@ -1213,10 +1393,8 @@ func TestSetAppOperations(t *testing.T) {
 	t.Run("Operation already in progress", func(t *testing.T) {
 		t.Parallel()
 		a := argoappv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "someapp",
-				Namespace: "default",
-			},
+			Name:      "someapp",
+			Namespace: "default",
 			Operation: &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}},
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
@@ -1228,10 +1406,8 @@ func TestSetAppOperations(t *testing.T) {
 	t.Run("Operation unspecified", func(t *testing.T) {
 		t.Parallel()
 		a := argoappv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "someapp",
-				Namespace: "default",
-			},
+			Name:      "someapp",
+			Namespace: "default",
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: nil})
@@ -1242,10 +1418,8 @@ func TestSetAppOperations(t *testing.T) {
 	t.Run("Success", func(t *testing.T) {
 		t.Parallel()
 		a := argoappv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "someapp",
-				Namespace: "default",
-			},
+			Name:      "someapp",
+			Namespace: "default",
 		}
 		appIf := appclientset.NewSimpleClientset(&a).ArgoprojV1alpha1().Applications("default")
 		app, err := SetAppOperation(appIf, "someapp", &argoappv1.Operation{Sync: &argoappv1.SyncOperation{Revision: "aaa"}})
@@ -1344,17 +1518,13 @@ func TestFilterByName(t *testing.T) {
 	t.Parallel()
 	apps := []argoappv1.Application{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "foo",
-			},
+			Name: "foo",
 			Spec: argoappv1.ApplicationSpec{
 				Project: "fooproj",
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "bar",
-			},
+			Name: "bar",
 			Spec: argoappv1.ApplicationSpec{
 				Project: "barproj",
 			},
@@ -1387,17 +1557,13 @@ func TestFilterByNameP(t *testing.T) {
 	t.Parallel()
 	apps := []*argoappv1.Application{
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "foo",
-			},
+			Name: "foo",
 			Spec: argoappv1.ApplicationSpec{
 				Project: "fooproj",
 			},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "bar",
-			},
+			Name: "bar",
 			Spec: argoappv1.ApplicationSpec{
 				Project: "barproj",
 			},
@@ -1419,6 +1585,86 @@ func TestFilterByNameP(t *testing.T) {
 	t.Run("No such app", func(t *testing.T) {
 		t.Parallel()
 		res := FilterByNameP(apps, "foobar")
+		assert.Empty(t, res)
+	})
+}
+
+func TestFilterByNamesP(t *testing.T) {
+	t.Parallel()
+	apps := []*argoappv1.Application{
+		{
+			Name: "foo",
+		},
+		{
+			Name: "bar",
+		},
+	}
+	// Applications sharing a name across namespaces, as possible with apps-in-any-namespace.
+	namespacedApps := []*argoappv1.Application{
+		{
+			Name:      "foo",
+			Namespace: "ns1",
+		},
+		{
+			Name:      "foo",
+			Namespace: "ns2",
+		},
+		{
+			Name:      "bar",
+			Namespace: "ns1",
+		},
+	}
+
+	t.Run("Empty names returns all apps", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, nil)
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Single matching name", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "foo", res[0].Name)
+	})
+
+	t.Run("Multiple matching names", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo", "bar"})
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Non-matching name is ignored", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(apps, []string{"foo", "does-not-exist"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "foo", res[0].Name)
+	})
+
+	t.Run("Namespace qualified name only matches the app in that namespace", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"ns1/foo"})
+		assert.Len(t, res, 1)
+		assert.Equal(t, "ns1", res[0].Namespace)
+	})
+
+	t.Run("Unqualified name matches the app in every namespace", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"foo"})
+		assert.Len(t, res, 2)
+	})
+
+	t.Run("Qualified and unqualified names can be mixed", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"ns2/foo", "bar"})
+		assert.Len(t, res, 2)
+		assert.Equal(t, "ns2", res[0].Namespace)
+		assert.Equal(t, "bar", res[1].Name)
+	})
+
+	t.Run("Namespace qualified name does not match a different namespace", func(t *testing.T) {
+		t.Parallel()
+		res := FilterByNamesP(namespacedApps, []string{"ns3/foo"})
 		assert.Empty(t, res)
 	})
 }
@@ -1485,12 +1731,10 @@ func TestGetGlobalProjects(t *testing.T) {
 		namespace := "default"
 
 		cm := corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-cm",
-				Namespace: test.FakeArgoCDNamespace,
-				Labels: map[string]string{
-					"app.kubernetes.io/part-of": "argocd",
-				},
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels: map[string]string{
+				"app.kubernetes.io/part-of": "argocd",
 			},
 			Data: map[string]string{
 				"globalProjects": `
@@ -1509,7 +1753,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		}
 
 		defaultX := &argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "default-x", Namespace: namespace},
+			Name: "default-x", Namespace: namespace,
 			Spec: argoappv1.AppProjectSpec{
 				ClusterResourceWhitelist: []argoappv1.ClusterResourceRestrictionItem{
 					{Group: "*", Kind: "*"},
@@ -1521,7 +1765,7 @@ func TestGetGlobalProjects(t *testing.T) {
 		}
 
 		defaultNonX := &argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "default-non-x", Namespace: namespace},
+			Name: "default-non-x", Namespace: namespace,
 			Spec: argoappv1.AppProjectSpec{
 				ClusterResourceBlacklist: []argoappv1.ClusterResourceRestrictionItem{
 					{Group: "*", Kind: "*"},
@@ -1530,17 +1774,15 @@ func TestGetGlobalProjects(t *testing.T) {
 		}
 
 		isX := &argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "is-x",
-				Namespace: namespace,
-				Labels: map[string]string{
-					"is-x": "yep",
-				},
+			Name:      "is-x",
+			Namespace: namespace,
+			Labels: map[string]string{
+				"is-x": "yep",
 			},
 		}
 
 		isNoX := &argoappv1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{Name: "is-no-x", Namespace: namespace},
+			Name: "is-no-x", Namespace: namespace,
 		}
 
 		projClientset := appclientset.NewSimpleClientset(defaultX, defaultNonX, isX, isNoX)
@@ -2205,12 +2447,10 @@ func TestGetAppEventLabels(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			cm := corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-cm",
-					Namespace: test.FakeArgoCDNamespace,
-					Labels: map[string]string{
-						"app.kubernetes.io/part-of": "argocd",
-					},
+				Name:      "argocd-cm",
+				Namespace: test.FakeArgoCDNamespace,
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
 				},
 				Data: map[string]string{
 					"resource.includeEventLabelKeys": tt.cmInEventLabelKeys,
@@ -2219,11 +2459,9 @@ func TestGetAppEventLabels(t *testing.T) {
 			}
 
 			proj := &argoappv1.AppProject{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "default",
-					Namespace: test.FakeArgoCDNamespace,
-					Labels:    tt.projLabels,
-				},
+				Name:      "default",
+				Namespace: test.FakeArgoCDNamespace,
+				Labels:    tt.projLabels,
 			}
 
 			var app argoappv1.Application
@@ -2264,10 +2502,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Valid HTTPS URL",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com",
 				},
 			},
 			wantErr: false,
@@ -2275,10 +2511,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Valid HTTP URL",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "http://argocd.example.com",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "http://argocd.example.com",
 				},
 			},
 			wantErr: false,
@@ -2286,10 +2520,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Valid localhost HTTPS URL",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "https://localhost:8081",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "https://localhost:8081",
 				},
 			},
 			wantErr: false,
@@ -2297,10 +2529,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Valid localhost HTTP URL",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "http://localhost:8081",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "http://localhost:8081",
 				},
 			},
 			wantErr: false,
@@ -2308,10 +2538,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Valid 127.0.0.1 URL",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "http://127.0.0.1:8081",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "http://127.0.0.1:8081",
 				},
 			},
 			wantErr: false,
@@ -2326,10 +2554,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Empty managed-by-url",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "",
 				},
 			},
 			wantErr: false,
@@ -2337,10 +2563,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Missing managed-by-url annotation",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						"other.annotation": "value",
-					},
+				Annotations: map[string]string{
+					"other.annotation": "value",
 				},
 			},
 			wantErr: false,
@@ -2348,10 +2572,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Invalid protocol - javascript",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "javascript:alert('xss')",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "javascript:alert('xss')",
 				},
 			},
 			wantErr:    true,
@@ -2360,10 +2582,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Invalid protocol - data",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "data:text/html,<script>alert('xss')</script>",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "data:text/html,<script>alert('xss')</script>",
 				},
 			},
 			wantErr:    true,
@@ -2372,10 +2592,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Invalid protocol - file",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "file:///etc/passwd",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "file:///etc/passwd",
 				},
 			},
 			wantErr:    true,
@@ -2384,10 +2602,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "Invalid URL format",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "not-a-url",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "not-a-url",
 				},
 			},
 			wantErr:    true,
@@ -2396,10 +2612,8 @@ func TestValidateManagedByURL(t *testing.T) {
 		{
 			name: "URL with path and query",
 			app: &argoappv1.Application{
-				ObjectMeta: metav1.ObjectMeta{
-					Annotations: map[string]string{
-						argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com/applications?namespace=default",
-					},
+				Annotations: map[string]string{
+					argoappv1.AnnotationKeyManagedByURL: "https://argocd.example.com/applications?namespace=default",
 				},
 			},
 			wantErr: false,
@@ -2561,4 +2775,169 @@ func Test_GetRefSourcesAndSyncedRefSources_SingleSourceWithRef(t *testing.T) {
 		},
 	}
 	assert.Equal(t, expected, synced)
+}
+
+// TestValidateRepo_GenerateManifestInterrupted verifies that an interrupted manifest generation
+// (canceled context or exceeded deadline) is reported as a transport error carrying its gRPC code
+// instead of an InvalidSpecError condition, because it says nothing about the spec being invalid.
+func TestValidateRepo_GenerateManifestInterrupted(t *testing.T) {
+	t.Parallel()
+
+	type fixtures struct {
+		app        *argoappv1.Application
+		proj       *argoappv1.AppProject
+		repoClient *mocks.RepoServerServiceClient
+		db         *dbmocks.ArgoDB
+		settings   *settings.SettingsManager
+	}
+	newFixtures := func(t *testing.T) fixtures {
+		t.Helper()
+		repoPath, err := filepath.Abs("./../..")
+		require.NoError(t, err)
+		repo := &argoappv1.Repository{Repo: "file://" + repoPath, Type: "git"}
+		cluster := &argoappv1.Cluster{Server: "sample server"}
+		app := &argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{RepoURL: repo.Repo, Path: "guestbook"},
+				Destination: argoappv1.ApplicationDestination{
+					Server:    cluster.Server,
+					Namespace: "default",
+				},
+			},
+		}
+		proj := &argoappv1.AppProject{Spec: argoappv1.AppProjectSpec{SourceRepos: []string{"*"}}}
+
+		repoClient := &mocks.RepoServerServiceClient{}
+		repoClient.EXPECT().TestRepository(mock.Anything, mock.Anything).
+			Return(&apiclient.TestRepositoryResponse{VerifiedRepository: true}, nil).Maybe()
+		repoClient.EXPECT().GetAppDetails(mock.Anything, mock.Anything).
+			Return(&apiclient.RepoAppDetailsResponse{}, nil).Maybe()
+
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetRepository(mock.Anything, app.Spec.Source.RepoURL, "").Return(repo, nil).Maybe()
+		db.EXPECT().ListHelmRepositories(mock.Anything).Return(nil, nil).Maybe()
+		db.EXPECT().ListOCIRepositories(mock.Anything).Return(nil, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, cluster.Server).Return(cluster, nil).Maybe()
+		db.EXPECT().GetAllHelmRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
+		db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
+
+		cm := corev1.ConfigMap{
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		}
+		kubeClient := fake.NewClientset(&cm)
+		return fixtures{
+			app:        app,
+			proj:       proj,
+			repoClient: repoClient,
+			db:         db,
+			settings:   settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace),
+		}
+	}
+
+	for _, tc := range []struct {
+		name        string
+		generateErr error
+		wantCode    codes.Code
+		wantErr     bool
+	}{
+		{name: "context canceled", generateErr: status.Error(codes.Canceled, "context canceled"), wantCode: codes.Canceled, wantErr: true},
+		{name: "deadline exceeded", generateErr: status.Error(codes.DeadlineExceeded, "context deadline exceeded"), wantCode: codes.DeadlineExceeded, wantErr: true},
+		{name: "other error stays an invalid spec condition", generateErr: status.Error(codes.NotFound, "path does not exist")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			f := newFixtures(t)
+			f.repoClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(nil, tc.generateErr).Once()
+
+			conditions, err := ValidateRepo(t.Context(), f.app, &mocks.Clientset{RepoServerServiceClient: f.repoClient}, f.db, &kubetest.MockKubectlCmd{Version: "v1.16"}, f.proj, f.settings)
+
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, tc.wantCode, status.Code(err))
+				assert.Contains(t, err.Error(), "unable to generate manifests in guestbook")
+				assert.Empty(t, conditions, "an interrupted generation must not be reported as an invalid spec")
+			} else {
+				require.NoError(t, err)
+				require.Len(t, conditions, 1)
+				assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+			}
+		})
+	}
+}
+
+// TestValidateRepo_TestRepositoryInterrupted verifies that an interrupted repository
+// accessibility check (canceled context or exceeded deadline) is reported as a transport
+// error carrying its gRPC code, the same way TestValidateRepo_GenerateManifestInterrupted
+// already handles an interrupted GenerateManifest call. Raised by ppapapetrou76 on #30272:
+// a cancellation during TestRepository took a different path and still came back as an
+// InvalidSpecError condition.
+func TestValidateRepo_TestRepositoryInterrupted(t *testing.T) {
+	t.Parallel()
+
+	newFixtures := func(t *testing.T, testRepoErr error) (*argoappv1.Application, *argoappv1.AppProject, *mocks.Clientset, *dbmocks.ArgoDB, *settings.SettingsManager) {
+		t.Helper()
+		repo := &argoappv1.Repository{Repo: "https://example.com/repo.git", Type: "git"}
+		cluster := &argoappv1.Cluster{Server: "sample server"}
+		app := &argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				Source: &argoappv1.ApplicationSource{RepoURL: repo.Repo, Path: "guestbook"},
+				Destination: argoappv1.ApplicationDestination{
+					Server:    cluster.Server,
+					Namespace: "default",
+				},
+			},
+		}
+		proj := &argoappv1.AppProject{Spec: argoappv1.AppProjectSpec{SourceRepos: []string{"*"}}}
+
+		repoClient := &mocks.RepoServerServiceClient{}
+		repoClient.EXPECT().TestRepository(mock.Anything, mock.Anything).
+			Return(nil, testRepoErr).Once()
+
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetRepository(mock.Anything, app.Spec.Source.RepoURL, "").Return(repo, nil).Maybe()
+		db.EXPECT().ListHelmRepositories(mock.Anything).Return(nil, nil).Maybe()
+		db.EXPECT().ListOCIRepositories(mock.Anything).Return(nil, nil).Maybe()
+		db.EXPECT().GetCluster(mock.Anything, cluster.Server).Return(cluster, nil).Maybe()
+		db.EXPECT().GetAllHelmRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
+		db.EXPECT().GetAllOCIRepositoryCredentials(mock.Anything).Return(nil, nil).Maybe()
+
+		cm := corev1.ConfigMap{
+			Name:      "argocd-cm",
+			Namespace: test.FakeArgoCDNamespace,
+			Labels:    map[string]string{"app.kubernetes.io/part-of": "argocd"},
+		}
+		kubeClient := fake.NewClientset(&cm)
+		settingsMgr := settings.NewSettingsManager(t.Context(), kubeClient, test.FakeArgoCDNamespace)
+		return app, proj, &mocks.Clientset{RepoServerServiceClient: repoClient}, db, settingsMgr
+	}
+
+	for _, tc := range []struct {
+		name        string
+		testRepoErr error
+		wantCode    codes.Code
+		wantErr     bool
+	}{
+		{name: "context canceled", testRepoErr: status.Error(codes.Canceled, "context canceled"), wantCode: codes.Canceled, wantErr: true},
+		{name: "deadline exceeded", testRepoErr: status.Error(codes.DeadlineExceeded, "context deadline exceeded"), wantCode: codes.DeadlineExceeded, wantErr: true},
+		{name: "other error stays an invalid spec condition", testRepoErr: status.Error(codes.Unavailable, "repo server unavailable")},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			app, proj, repoClientset, db, settingsMgr := newFixtures(t, tc.testRepoErr)
+
+			conditions, err := ValidateRepo(t.Context(), app, repoClientset, db, &kubetest.MockKubectlCmd{Version: "v1.16"}, proj, settingsMgr)
+
+			if tc.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, tc.wantCode, status.Code(err))
+				assert.Empty(t, conditions, "an interrupted repository check must not be reported as an invalid spec")
+			} else {
+				require.NoError(t, err)
+				require.Len(t, conditions, 1)
+				assert.Equal(t, argoappv1.ApplicationConditionInvalidSpecError, conditions[0].Type)
+			}
+		})
+	}
 }
