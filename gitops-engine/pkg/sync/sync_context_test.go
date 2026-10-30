@@ -1910,7 +1910,7 @@ func TestSync_HookFinalizerRemovedWhenLiveObjMissingFromCache(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{hook1}
 
-	syncCtx.Sync(context.Background())
+	syncCtx.Sync()
 	phase, message, _ := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationSucceeded, phase)
@@ -1918,7 +1918,7 @@ func TestSync_HookFinalizerRemovedWhenLiveObjMissingFromCache(t *testing.T) {
 	assert.Equal(t, 1, updatedCount, "expected the hook finalizer to be removed despite the cache miss")
 	assert.Equal(t, 1, deletedCount, "expected the HookSucceeded delete policy to be applied despite the cache miss")
 
-	_, err := syncCtx.getResource(context.Background(), &syncTask{liveObj: hook1})
+	_, err := syncCtx.getResource(&syncTask{liveObj: hook1})
 	require.Error(t, err, "Expected resource to be deleted")
 	assert.True(t, apierrors.IsNotFound(err))
 }
@@ -1957,7 +1957,7 @@ func TestSync_HookFinalizerRemovalNoopWhenHookIsGone(t *testing.T) {
 	})
 	syncCtx.hooks = []*unstructured.Unstructured{hook1}
 
-	syncCtx.Sync(context.Background())
+	syncCtx.Sync()
 	phase, message, _ := syncCtx.GetState()
 
 	assert.Equal(t, synccommon.OperationSucceeded, phase)

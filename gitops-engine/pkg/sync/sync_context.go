@@ -835,7 +835,7 @@ func (sc *syncContext) removeHookFinalizer(task *syncTask) error {
 		// still exists in the cluster. Look it up directly, so that a completed hook is not silently left
 		// behind with its finalizer, which would block its deletion and, in turn, block cascading deletion
 		// of the Application.
-		liveObj, err := sc.getResource(ctx, task)
+		liveObj, err := sc.getResource(task)
 		if err != nil {
 			if apierrors.IsNotFound(err) {
 				// no live object, so no finalizer to remove
