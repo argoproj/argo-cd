@@ -10966,6 +10966,10 @@
           "items": {
             "$ref": "#/definitions/v1alpha1SourceIntegrityGitPolicyRepo"
           }
+        },
+        "signedRevisionOnly": {
+          "type": "boolean",
+          "title": "Only permit syncing from annotated tags, un-annotated tags cannot be verified"
         }
       }
     },
