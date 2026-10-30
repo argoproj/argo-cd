@@ -3648,6 +3648,37 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 
 	// Only SyncedRefSources that refer to a specific source should be compared
 	refsToCompare := v1alpha1.RefTargetRevisionMapping{}
+	// Track which value file paths are referenced for each ref source
+	refSourcePaths := make(map[string][]string)
+
+	// Create env for variable substitution in value file paths (e.g., $ARGOCD_APP_NAME)
+	// Match the same variables available in GenerateManifest, excluding those not in UpdateRevisionForPathsRequest
+	// Use rRevision (resolved revision) instead of request.Revision to match manifest generation behavior
+	shortRevision := shortenRevision(rRevision, 7)
+	shortRevision8 := shortenRevision(rRevision, 8)
+
+	repoURL := ""
+	if request.Repo != nil {
+		repoURL = request.Repo.Repo
+	}
+
+	sourcePath := ""
+	sourceTargetRevision := ""
+	if request.ApplicationSource != nil {
+		sourcePath = request.ApplicationSource.Path
+		sourceTargetRevision = request.ApplicationSource.TargetRevision
+	}
+
+	env := &v1alpha1.Env{
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAME", Value: request.AppName},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_NAMESPACE", Value: request.Namespace},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION", Value: rRevision},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT", Value: shortRevision},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_REVISION_SHORT_8", Value: shortRevision8},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_REPO_URL", Value: repoURL},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_PATH", Value: sourcePath},
+		&v1alpha1.EnvEntry{Name: "ARGOCD_APP_SOURCE_TARGET_REVISION", Value: sourceTargetRevision},
+	}
 
 	refCandidates := make([]string, 0)
 	if request.HasMultipleSources && request.ApplicationSource.Helm != nil {
@@ -3662,7 +3693,15 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 		if !strings.HasPrefix(valueFile, "$") {
 			continue
 		}
-		refName, _, _ := strings.Cut(valueFile, "/")
+		refName, refPath, found := strings.Cut(valueFile, "/")
+		if !found {
+			continue
+		}
+		// Track the actual file path in the ref source (e.g., "app/values.yaml" from "$values/app/values.yaml")
+		// Substitute variables like $ARGOCD_APP_NAME and normalize the path
+		resolvedPath := path.Clean(env.Envsubst(refPath))
+		refSourcePaths[refName] = append(refSourcePaths[refName], resolvedPath)
+
 		if _, ok := refsToCompare[refName]; ok {
 			continue
 		}
@@ -3674,28 +3713,25 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	}
 
 	for refName, sRefSource := range refsToCompare {
-		resolvedRevision := sRefSource.TargetRevision
-		syncedRevision := sRefSource.TargetRevision
-		var sourceHasChanges bool
-		var err error
+		// Use the actual referenced value file paths for this ref source, not refreshPaths from main source
+		refPaths := refSourcePaths[refName]
+		// Always resolve revisions and check for changes (gitSourceHasChanges handles resolution)
+		resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(ctx, &sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refPaths, gitClientOpts)
+		if err != nil {
+			return nil, err
+		}
 
-		if sRefSource.TargetRevision != request.RefSources[refName].TargetRevision {
-			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
-			if err != nil {
-				return nil, err
-			}
+		if resolvedRevision != syncedRevision {
+			revisionsAreDifferent = true
+		}
 
-			if resolvedRevision != syncedRevision {
-				revisionsAreDifferent = true
-			}
-
-			if sourceHasChanges {
-				logCtx.Debugf("changes found for application %s in repo %s from revision %s to revision %s", request.AppName, sRefSource.Repo.Repo, syncedRevision, resolvedRevision)
-				return &apiclient.UpdateRevisionForPathsResponse{
-					Revision: rRevision,
-					Changes:  true,
-				}, nil
-			}
+		if sourceHasChanges {
+			// Referenced value files changed - manifests must be regenerated (fixes #30245)
+			logCtx.Debugf("referenced value files changed for application %s in repo %s from revision %s to revision %s", request.AppName, sRefSource.Repo.Repo, syncedRevision, resolvedRevision)
+			return &apiclient.UpdateRevisionForPathsResponse{
+				Revision: rRevision,
+				Changes:  true,
+			}, nil
 		}
 		// Store resolved revision for cache update
 		normalizedURL := git.NormalizeGitURL(sRefSource.Repo.Repo)
