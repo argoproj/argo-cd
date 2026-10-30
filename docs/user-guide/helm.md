@@ -108,7 +108,38 @@ spec:
 
 ### Values file from another Git repository
 
-As of Argo CD v2.6, values files do not have to live in the same repository as the chart. See [multiple sources](./multiple_sources.md#helm-value-files-from-external-git-repository).
+As of Argo CD v2.6, values files do not have to live in the same repository as the chart. You can keep the upstream chart and store only your overrides in Git, without copying the chart into your repository. See [multiple sources](./multiple_sources.md#helm-value-files-from-external-git-repository).
+
+For example, organize shared and production settings in your values repository:
+
+```text
+helm/
+  ingress-nginx/
+    values-common.yaml
+    values-production.yaml
+```
+
+In `helm/ingress-nginx/values-common.yaml`, set the defaults shared by your environments:
+
+```yaml
+controller:
+  replicaCount: 1
+  metrics:
+    enabled: true
+  service:
+    type: ClusterIP
+```
+
+In `helm/ingress-nginx/values-production.yaml`, override the production settings:
+
+```yaml
+controller:
+  replicaCount: 3
+  service:
+    type: LoadBalancer
+```
+
+Reference both files in the Application, with the environment override listed last. Replace `https://git.example.com/org/gitops-values.git` with your repository URL and `main` with the branch, tag, or commit containing the files.
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -125,8 +156,9 @@ spec:
       helm:
         releaseName: ingress-nginx
         valueFiles:
-          - $values/helm/ingress-nginx/values.yaml
-    - repoURL: https://github.com/example/gitops-values.git
+          - $values/helm/ingress-nginx/values-common.yaml
+          - $values/helm/ingress-nginx/values-production.yaml
+    - repoURL: https://git.example.com/org/gitops-values.git
       targetRevision: main
       ref: values
   destination:
@@ -136,6 +168,15 @@ spec:
     syncOptions:
       - CreateNamespace=true
 ```
+
+The rendered controller has three replicas, a `LoadBalancer` Service, and metrics enabled. Helm merges the chart defaults with the shared values, then the production values. The last values file wins for conflicting keys; settings omitted from the production file, such as `controller.metrics.enabled`, retain their shared values. See [value precedence](#helm-value-precedence) for how inline values and parameters can override these files.
+
+`ref: values` defines the `$values` prefix. Paths following it are relative to the root of the values repository, not to the chart directory. Leave `path` unset on this source when the repository only supplies values; setting `path` also asks Argo CD to generate Kubernetes resources from that directory.
+
+> [!NOTE]
+> If the values repository is private, configure its [repository credentials](./private-repositories.md#credentials) in Argo CD. Access to the public chart repository does not grant access to the private values repository. The Application's [project](./projects.md) must permit both source repositories.
+
+For another environment, create a separate Application with its own name and destination, and replace the production file with that environment's values file. Keep the chart version the same when you want to promote the same chart across environments. To manage many such Applications from a template, see [ApplicationSet](./application-set.md).
 
 ## Values Files
 

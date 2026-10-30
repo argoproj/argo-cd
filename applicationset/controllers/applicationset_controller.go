@@ -477,7 +477,7 @@ func getParametersGeneratedCondition(observedGeneration int64, parametersGenerat
 	if parametersGenerated {
 		parametersGeneratedCondition = argov1alpha1.ApplicationSetCondition{
 			Type:               argov1alpha1.ApplicationSetConditionParametersGenerated,
-			Message:            "Successfully generated parameters for all Applications",
+			Message:            "All parameters have been generated successfully",
 			Reason:             argov1alpha1.ApplicationSetReasonParametersGenerated,
 			Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
 			ObservedGeneration: observedGeneration,

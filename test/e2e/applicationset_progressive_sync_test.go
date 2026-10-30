@@ -349,7 +349,7 @@ func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 		{
 			Type:               v1alpha1.ApplicationSetConditionParametersGenerated,
 			Status:             v1alpha1.ApplicationSetConditionStatusTrue,
-			Message:            "Successfully generated parameters for all Applications",
+			Message:            "All parameters have been generated successfully",
 			Reason:             v1alpha1.ApplicationSetReasonParametersGenerated,
 			ObservedGeneration: 1,
 		},
