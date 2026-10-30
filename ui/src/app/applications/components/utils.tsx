@@ -911,6 +911,21 @@ export function isAutomatedSyncEnabled(app: appModels.Application): boolean {
 }
 
 /**
+ * The automated sync policy to write back when one of its fields is edited. Fields the editor does not
+ * own, such as `rollbackAware`, are carried over from the current policy rather than dropped. An absent
+ * `enabled` means automated sync is on, here and on the server.
+ */
+export function updatedAutomatedSyncPolicy(current: appModels.Automated | undefined, changes: Partial<appModels.Automated>): appModels.Automated {
+    return {
+        ...current,
+        prune: current?.prune ?? false,
+        selfHeal: current?.selfHeal ?? false,
+        enabled: current?.enabled ?? true,
+        ...changes
+    };
+}
+
+/**
  * Whether rollback-aware automated sync applies to this application. An explicit per-application
  * `rollbackAware` wins over `rollbackAwareDefault`, the instance-wide default served by the settings API.
  */

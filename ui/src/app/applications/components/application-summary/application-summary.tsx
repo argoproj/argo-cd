@@ -34,7 +34,8 @@ import {
     getAppSpecDefaultSource,
     getClusterOptions,
     getHydratorSyncSourceRepoURL,
-    appRBACName
+    appRBACName,
+    updatedAutomatedSyncPolicy
 } from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
@@ -574,12 +575,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     if (!updatedApp.spec.syncPolicy) {
                         updatedApp.spec.syncPolicy = {};
                     }
-                    const existingAutomated = updatedApp.spec.syncPolicy.automated;
-                    updatedApp.spec.syncPolicy.automated = {
-                        prune: existingAutomated?.prune ?? false,
-                        selfHeal: existingAutomated?.selfHeal ?? false,
-                        enabled: !isEnabled
-                    };
+                    updatedApp.spec.syncPolicy.automated = updatedAutomatedSyncPolicy(updatedApp.spec.syncPolicy.automated, {enabled: !isEnabled});
                     await updateApp(updatedApp, {validate: false});
                 } else {
                     await services.applications.runResourceAction(
@@ -618,7 +614,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     updatedApp.spec.syncPolicy = {};
                 }
 
-                updatedApp.spec.syncPolicy.automated = {prune, selfHeal, enabled: enable};
+                updatedApp.spec.syncPolicy.automated = updatedAutomatedSyncPolicy(updatedApp.spec.syncPolicy.automated, {prune, selfHeal, enabled: enable});
                 await updateApp(updatedApp, {validate: false});
             } catch (e) {
                 ctx.notifications.show({
