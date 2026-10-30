@@ -14,6 +14,8 @@ import (
 )
 
 func Test_IsDefined(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name     string
 		discover Discover
@@ -76,6 +78,8 @@ func Test_IsDefined(t *testing.T) {
 }
 
 func Test_ReadPluginConfig(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name         string
 		fileContents string
@@ -130,9 +134,7 @@ spec:
     command: [command]
 `,
 			expected: &PluginConfig{
-				TypeMeta: metav1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
+				Kind: ConfigManagementPluginKind,
 				Metadata: metav1.ObjectMeta{
 					Name: "name",
 				},
@@ -169,6 +171,8 @@ spec:
 }
 
 func Test_PluginConfig_Address(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name     string
 		config   *PluginConfig
@@ -177,9 +181,7 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "no version specified",
 			config: &PluginConfig{
-				TypeMeta: metav1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
+				Kind: ConfigManagementPluginKind,
 				Metadata: metav1.ObjectMeta{
 					Name: "name",
 				},
@@ -189,9 +191,7 @@ func Test_PluginConfig_Address(t *testing.T) {
 		{
 			name: "version specified",
 			config: &PluginConfig{
-				TypeMeta: metav1.TypeMeta{
-					Kind: ConfigManagementPluginKind,
-				},
+				Kind: ConfigManagementPluginKind,
 				Metadata: metav1.ObjectMeta{
 					Name: "name",
 				},

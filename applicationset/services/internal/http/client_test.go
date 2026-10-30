@@ -14,6 +14,7 @@ import (
 )
 
 func TestClient(t *testing.T) {
+	t.Parallel()
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		_, err := w.Write([]byte("Hello, World!"))
@@ -29,6 +30,7 @@ func TestClient(t *testing.T) {
 }
 
 func TestClientDo(t *testing.T) {
+	t.Parallel()
 	for _, c := range []struct {
 		name            string
 		params          map[string]string
@@ -112,6 +114,7 @@ func TestClientDo(t *testing.T) {
 	} {
 		cc := c
 		t.Run(cc.name, func(t *testing.T) {
+			t.Parallel()
 			defer cc.fakeServer.Close()
 
 			client, err := NewClient(cc.fakeServer.URL, cc.clientOptionFns...)
@@ -136,6 +139,7 @@ func TestClientDo(t *testing.T) {
 }
 
 func TestCheckResponse(t *testing.T) {
+	t.Parallel()
 	resp := &http.Response{
 		StatusCode: http.StatusBadRequest,
 		Body:       io.NopCloser(bytes.NewBufferString(`{"error":"invalid_request","description":"Invalid token"}`)),

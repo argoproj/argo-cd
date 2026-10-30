@@ -25,13 +25,15 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/fields"
 	"k8s.io/apimachinery/pkg/labels"
+	"k8s.io/apimachinery/pkg/util/validation"
+	clientgofeatures "k8s.io/client-go/features"
 	informersv1 "k8s.io/client-go/informers/core/v1"
 	"k8s.io/client-go/kubernetes"
 	v1listers "k8s.io/client-go/listers/core/v1"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/yaml"
 
-	enginecache "github.com/argoproj/gitops-engine/pkg/cache"
+	enginecache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	timeutil "github.com/argoproj/pkg/v2/time"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -43,6 +45,43 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/password"
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
+
+var CommitMessageTemplate = `{{.metadata.drySha | trunc 7}}: {{ .metadata.subject }}
+{{- if .metadata.body }}
+
+{{ .metadata.body }}
+{{- end }}
+{{ range $ref := .metadata.references }}
+{{- if and $ref.commit $ref.commit.author }}
+Co-authored-by: {{ $ref.commit.author }}
+{{- end }}
+{{- end }}
+{{- if .metadata.author }}
+Co-authored-by: {{ .metadata.author }}
+{{- end }}
+`
+
+var DefaultManifestHydrationReadmeTemplate = `# Manifest Hydration
+
+To hydrate the manifests in this repository, run the following commands:
+
+` + "```shell" + `
+git clone {{ .RepoURL }}
+# cd into the cloned directory
+git checkout {{ .DrySHA }}
+{{ range $command := .Commands -}}
+{{ $command }}
+{{ end -}}` + "```" + `
+{{ if .References -}}
+
+## References
+
+{{ range $ref := .References -}}
+{{ if $ref.Commit -}}
+* [{{ $ref.Commit.SHA | mustRegexFind "[0-9a-f]+" | trunc 7 }}]({{ $ref.Commit.RepoURL }}): {{ $ref.Commit.Subject }} ({{ $ref.Commit.Author }})
+{{ end -}}
+{{ end -}}
+{{ end -}}`
 
 // ArgoCDSettings holds in-memory runtime configuration options.
 type ArgoCDSettings struct {
@@ -58,6 +97,8 @@ type ArgoCDSettings struct {
 	StatusBadgeRootUrl string `json:"statusBadgeRootUrl,omitempty"` //nolint:revive //FIXME(var-naming)
 	// DexConfig contains portions of a dex config yaml
 	DexConfig string `json:"dexConfig,omitempty"`
+	// DexAuthConnectorID holds default dex auth connector ID
+	DexAuthConnectorID string `json:"dexAuthConnectorID,omitempty"`
 	// OIDCConfigRAW holds OIDC configuration as a raw string
 	OIDCConfigRAW string `json:"oidcConfig,omitempty"`
 	// ServerSignature holds the key used to generate JWT tokens.
@@ -69,6 +110,8 @@ type ArgoCDSettings struct {
 	CertificateIsExternal bool `json:"-"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitHub webhook events
 	WebhookGitHubSecret string `json:"webhookGitHubSecret,omitempty"`
+	// WebhookDockerHubSecret holds the shared secret for authenticating DockerHub webhook events
+	WebhookDockerHubSecret string `json:"webhookDockerHubSecret,omitempty"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
 	WebhookGitLabSecret string `json:"webhookGitLabSecret,omitempty"`
 	// WebhookBitbucketUUID holds the UUID for authenticating Bitbucket webhook events
@@ -77,6 +120,8 @@ type ArgoCDSettings struct {
 	WebhookBitbucketServerSecret string `json:"webhookBitbucketServerSecret,omitempty"`
 	// WebhookGogsSecret holds the shared secret for authenticating Gogs webhook events
 	WebhookGogsSecret string `json:"webhookGogsSecret,omitempty"`
+	// WebhookHarborSecret holds the shared secret for authenticating Harbor webhook events
+	WebhookHarborSecret string `json:"webhookHarborSecret,omitempty"`
 	// WebhookAzureDevOpsUsername holds the username for authenticating Azure DevOps webhook events
 	WebhookAzureDevOpsUsername string `json:"webhookAzureDevOpsUsername,omitempty"`
 	// WebhookAzureDevOpsPassword holds the password for authenticating Azure DevOps webhook events
@@ -99,12 +144,14 @@ type ArgoCDSettings struct {
 	UiBannerPermanent bool `json:"uiBannerPermanent,omitempty"` //nolint:revive //FIXME(var-naming)
 	// Position of UI Banner
 	UiBannerPosition string `json:"uiBannerPosition,omitempty"` //nolint:revive //FIXME(var-naming)
+	// ResourceViewEnabled indicates whether the managed Resources view is enabled in the UI
+	ResourceViewEnabled bool `json:"resourceViewEnabled"`
+	// UiLoginButtonText is an optional override for the SSO login button label
+	UiLoginButtonText string `json:"uiLoginButtonText,omitempty"` //nolint:revive //FIXME(var-naming)
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
 	BinaryUrls map[string]string `json:"binaryUrls,omitempty"`
-	// InClusterEnabled indicates whether to allow in-cluster server address
-	InClusterEnabled bool `json:"inClusterEnabled"`
 	// ServerRBACLogEnforceEnable temporary var indicates whether rbac will be enforced on logs
 	ServerRBACLogEnforceEnable bool `json:"serverRBACLogEnforceEnable"`
 	// MaxPodLogsToRender the maximum number of pod logs to render
@@ -128,6 +175,9 @@ type ArgoCDSettings struct {
 	// ImpersonationEnabled indicates whether Application sync privileges can be decoupled from control plane
 	// privileges using impersonation
 	ImpersonationEnabled bool `json:"impersonationEnabled"`
+	// RequireOverridePrivilegeForRevisionSync indicates whether giving an external revision during sync is considered an override.
+	// Up to revision 3.2, this was always false. It is now still false by default, in order to not breaking existing usage.
+	RequireOverridePrivilegeForRevisionSync bool `json:"requireOverridePrivilegeForRevisionSync"`
 }
 
 type GoogleAnalytics struct {
@@ -171,15 +221,19 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		ClientSecret:             o.ClientSecret,
 		Azure:                    o.Azure,
 		CLIClientID:              o.CLIClientID,
+		UserInfoBaseURL:          o.UserInfoBaseURL,
 		UserInfoPath:             o.UserInfoPath,
 		EnableUserInfoGroups:     o.EnableUserInfoGroups,
 		UserInfoCacheExpiration:  o.UserInfoCacheExpiration,
+		RefreshTokenThreshold:    o.RefreshTokenThreshold,
 		RequestedScopes:          o.RequestedScopes,
 		RequestedIDTokenClaims:   o.RequestedIDTokenClaims,
 		LogoutURL:                o.LogoutURL,
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
 		DomainHint:               o.DomainHint,
+		DeviceURL:                o.DeviceURL,
+		TokenURL:                 o.TokenURL,
 	}
 }
 
@@ -190,6 +244,7 @@ type OIDCConfig struct {
 	ClientSecret             string                 `json:"clientSecret,omitempty"`
 	CLIClientID              string                 `json:"cliClientID,omitempty"`
 	EnableUserInfoGroups     bool                   `json:"enableUserInfoGroups,omitempty"`
+	UserInfoBaseURL          string                 `json:"userInfoBaseURL,omitempty"` // the URL (without path) where the userinfo endpoint is located
 	UserInfoPath             string                 `json:"userInfoPath,omitempty"`
 	UserInfoCacheExpiration  string                 `json:"userInfoCacheExpiration,omitempty"`
 	RequestedScopes          []string               `json:"requestedScopes,omitempty"`
@@ -199,74 +254,19 @@ type OIDCConfig struct {
 	EnablePKCEAuthentication bool                   `json:"enablePKCEAuthentication,omitempty"`
 	DomainHint               string                 `json:"domainHint,omitempty"`
 	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
+	RefreshTokenThreshold    string                 `json:"refreshTokenThreshold,omitempty"`
+	DeviceURL                string                 `json:"deviceURL,omitempty"`
+	TokenURL                 string                 `json:"tokenURL,omitempty"`
 }
 
 type AzureOIDCConfig struct {
-	UseWorkloadIdentity bool `json:"useWorkloadIdentity,omitempty"`
-}
-
-// DEPRECATED. Helm repository credentials are now managed using RepoCredentials
-type HelmRepoCredentials struct {
-	URL            string                    `json:"url,omitempty"`
-	Name           string                    `json:"name,omitempty"`
-	UsernameSecret *corev1.SecretKeySelector `json:"usernameSecret,omitempty"`
-	PasswordSecret *corev1.SecretKeySelector `json:"passwordSecret,omitempty"`
-	CertSecret     *corev1.SecretKeySelector `json:"certSecret,omitempty"`
-	KeySecret      *corev1.SecretKeySelector `json:"keySecret,omitempty"`
-}
-
-// KustomizeVersion holds information about additional Kustomize version
-type KustomizeVersion struct {
-	// Name holds Kustomize version name
-	Name string
-	// Path holds corresponding binary path
-	Path string
-	// BuildOptions that are specific to Kustomize version
-	BuildOptions string
-}
-
-// KustomizeSettings holds kustomize settings
-type KustomizeSettings struct {
-	BuildOptions string
-	Versions     []KustomizeVersion
+	UseWorkloadIdentity                  bool   `json:"useWorkloadIdentity,omitempty"`
+	EnableUserGroupOverageClaim          bool   `json:"enableUserGroupOverageClaim,omitempty"`
+	GraphAPIEndpoint                     string `json:"graphApiEndpoint,omitempty"`
+	UserGroupOverageClaimCacheExpiration string `json:"userGroupOverageClaimCacheExpiration,omitempty"`
 }
 
 var (
-	ByClusterURLIndexer     = "byClusterURL"
-	byClusterURLIndexerFunc = func(obj any) ([]string, error) {
-		s, ok := obj.(*corev1.Secret)
-		if !ok {
-			return nil, nil
-		}
-		if s.Labels == nil || s.Labels[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
-			return nil, nil
-		}
-		if s.Data == nil {
-			return nil, nil
-		}
-		if url, ok := s.Data["server"]; ok {
-			return []string{strings.TrimRight(string(url), "/")}, nil
-		}
-		return nil, nil
-	}
-	ByClusterNameIndexer     = "byClusterName"
-	byClusterNameIndexerFunc = func(obj any) ([]string, error) {
-		s, ok := obj.(*corev1.Secret)
-		if !ok {
-			return nil, nil
-		}
-		if s.Labels == nil || s.Labels[common.LabelKeySecretType] != common.LabelValueSecretTypeCluster {
-			return nil, nil
-		}
-		if s.Data == nil {
-			return nil, nil
-		}
-		if name, ok := s.Data["name"]; ok {
-			return []string{string(name)}, nil
-		}
-		return nil, nil
-	}
-	ByProjectClusterIndexer   = "byProjectCluster"
 	ByProjectRepoIndexer      = "byProjectRepo"
 	ByProjectRepoWriteIndexer = "byProjectRepoWrite"
 	byProjectIndexerFunc      = func(secretType string) func(obj any) ([]string, error) {
@@ -289,29 +289,39 @@ var (
 	}
 )
 
-func (ks *KustomizeSettings) GetOptions(source v1alpha1.ApplicationSource) (*v1alpha1.KustomizeOptions, error) {
-	binaryPath := ""
-	buildOptions := ""
+// KustomizeVersionNotRegisteredError is an error type that indicates a requested Kustomize version is not registered in
+// the Kustomize options in argocd-cm.
+type KustomizeVersionNotRegisteredError struct {
+	// Version is the Kustomize version that is not registered
+	Version string
+}
+
+func (e KustomizeVersionNotRegisteredError) Error() string {
+	return fmt.Sprintf("kustomize version %s is not registered", e.Version)
+}
+
+// GetKustomizeBinaryPath returns the path to the kustomize binary based on the provided KustomizeOptions and ApplicationSource.
+func GetKustomizeBinaryPath(ks *v1alpha1.KustomizeOptions, source v1alpha1.ApplicationSource) (string, error) {
+	if ks == nil {
+		// No versions or binary path specified, stick with defaults.
+		return "", nil
+	}
+
+	if ks.BinaryPath != "" { // nolint:staticcheck // BinaryPath is deprecated, but still supported for backward compatibility
+		log.Warn("kustomizeOptions.binaryPath is deprecated, use KustomizeOptions.versions instead")
+		// nolint:staticcheck // BinaryPath is deprecated, but if it's set, we'll use it to ensure backward compatibility
+		return ks.BinaryPath, nil
+	}
+
 	if source.Kustomize != nil && source.Kustomize.Version != "" {
 		for _, ver := range ks.Versions {
 			if ver.Name == source.Kustomize.Version {
-				// add version specific path and build options
-				binaryPath = ver.Path
-				buildOptions = ver.BuildOptions
-				break
+				return ver.Path, nil
 			}
 		}
-		if binaryPath == "" {
-			return nil, fmt.Errorf("kustomize version %s is not registered", source.Kustomize.Version)
-		}
-	} else {
-		// add build options for the default version
-		buildOptions = ks.BuildOptions
+		return "", KustomizeVersionNotRegisteredError{Version: source.Kustomize.Version}
 	}
-	return &v1alpha1.KustomizeOptions{
-		BuildOptions: buildOptions,
-		BinaryPath:   binaryPath,
-	}, nil
+	return "", nil
 }
 
 // Credentials for accessing a Git repository
@@ -358,6 +368,14 @@ type Repository struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"` //nolint:revive //FIXME(var-naming)
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
+	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty"`
+	// AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientId string `json:"azureServicePrincipalClientId,omitempty"`
+	// AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientSecret string `json:"azureServicePrincipalClientSecret,omitempty"`
+	// AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty"`
 }
 
 // Credential template for accessing repositories
@@ -392,6 +410,14 @@ type RepositoryCredentials struct {
 	ForceHttpBasicAuth bool `json:"forceHttpBasicAuth,omitempty"` //nolint:revive //FIXME(var-naming)
 	// UseAzureWorkloadIdentity specifies whether to use Azure Workload Identity for authentication
 	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty"`
+	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
+	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty"`
+	// AzureServicePrincipalClientId specifies the client ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientId string `json:"azureServicePrincipalClientId,omitempty"`
+	// AzureServicePrincipalClientSecret specifies the client secret of the Azure Service Principal used to access the repo
+	AzureServicePrincipalClientSecret string `json:"azureServicePrincipalClientSecret,omitempty"`
+	// AzureServicePrincipalTenantId specifies the tenant ID of the Azure Service Principal used to access the repo
+	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty"`
 }
 
 // DeepLink structure
@@ -429,6 +455,8 @@ const (
 	settingAdditionalUrlsKey = "additionalUrls"
 	// settingDexConfigKey designates the key for the dex config
 	settingDexConfigKey = "dex.config"
+	// settingDexAuthConnectorIDKey designates the key for the default dex auth connector ID
+	settingDexAuthConnectorIDKey = "dex.auth.connectorId"
 	// settingsOIDCConfigKey designates the key for OIDC config
 	settingsOIDCConfigKey = "oidc.config"
 	// statusBadgeEnabledKey holds the key which enables of disables status badge feature
@@ -437,6 +465,8 @@ const (
 	statusBadgeRootURLKey = "statusbadge.url"
 	// settingsWebhookGitHubSecret is the key for the GitHub shared webhook secret
 	settingsWebhookGitHubSecretKey = "webhook.github.secret"
+	// settingsWebhookDockerHubSecret is the key for the DockerHub shared webhook secret
+	settingsWebhookDockerHubSecretKey = "webhook.dockerhub.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
 	settingsWebhookGitLabSecretKey = "webhook.gitlab.secret"
 	// settingsWebhookBitbucketUUID is the key for Bitbucket webhook UUID
@@ -445,16 +475,24 @@ const (
 	settingsWebhookBitbucketServerSecretKey = "webhook.bitbucketserver.secret"
 	// settingsWebhookGogsSecret is the key for Gogs webhook secret
 	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
+	// settingsWebhookHarborSecret is the key for Harbor webhook secret
+	settingsWebhookHarborSecretKey = "webhook.harbor.secret"
 	// settingsWebhookAzureDevOpsUsernameKey is the key for Azure DevOps webhook username
 	settingsWebhookAzureDevOpsUsernameKey = "webhook.azuredevops.username"
 	// settingsWebhookAzureDevOpsPasswordKey is the key for Azure DevOps webhook password
 	settingsWebhookAzureDevOpsPasswordKey = "webhook.azuredevops.password"
 	// settingsWebhookMaxPayloadSize is the key for the maximum payload size for webhooks in MB
 	settingsWebhookMaxPayloadSizeMB = "webhook.maxPayloadSizeMB"
+	// settingsWebhookRefreshJitter is the key for the maximum jitter duration for webhook-triggered refreshes
+	settingsWebhookRefreshJitter = "webhook.refresh.jitter"
+	// settingsWebhookRefreshJitterThreshold is the key for the minimum number of apps to trigger jitter
+	settingsWebhookRefreshJitterThreshold = "webhook.refresh.jitter.threshold"
 	// settingsApplicationInstanceLabelKey is the key to configure injected app instance label key
 	settingsApplicationInstanceLabelKey = "application.instanceLabelKey"
 	// settingsResourceTrackingMethodKey is the key to configure tracking method for application resources
 	settingsResourceTrackingMethodKey = "application.resourceTrackingMethod"
+	// allowedNodeLabelsKey is the key to the list of allowed node labels for the application pod view
+	allowedNodeLabelsKey = "application.allowedNodeLabels"
 	// settingsInstallationID holds the key for the instance installation ID
 	settingsInstallationID = "installationID"
 	// resourcesCustomizationsKey is the key to the map of resource overrides
@@ -463,8 +501,16 @@ const (
 	resourceExclusionsKey = "resource.exclusions"
 	// resourceInclusions is the key to the list of explicitly watched resources
 	resourceInclusionsKey = "resource.inclusions"
+	// resourceSelectorsKey is the key to the list of label selectors that narrow down the watched resources
+	resourceSelectorsKey = "resource.selectors"
 	// resourceIgnoreResourceUpdatesEnabledKey is the key to a boolean determining whether the resourceIgnoreUpdates feature is enabled
 	resourceIgnoreResourceUpdatesEnabledKey = "resource.ignoreResourceUpdatesEnabled"
+	// manifestCompressionEnabledKey is the key to a boolean determining whether manifest compression is enabled
+	manifestCompressionEnabledKey = "resource.manifest.compression.enabled"
+	// manifestStorageKey configures the serialization format for cached manifests
+	manifestStorageKey = "resource.manifest.storage"
+	// manifestCompressionKey configures the compression algorithm for cached manifests
+	manifestCompressionKey = "resource.manifest.compression"
 	// resourceSensitiveAnnotationsKey is the key to list of annotations to mask in secret resource
 	resourceSensitiveAnnotationsKey = "resource.sensitive.mask.annotations"
 	// resourceCustomLabelKey is the key to a custom label to show in node info, if present
@@ -495,8 +541,20 @@ const (
 	settingUIBannerPermanentKey = "ui.bannerpermanent"
 	// settingUIBannerPositionKey designates the key for the position of the banner
 	settingUIBannerPositionKey = "ui.bannerposition"
+	// settingUIResourcesViewDisabledKey designates the key for disabling the managed Resources view in the UI
+	settingUIResourcesViewDisabledKey = "ui.view.resources.disabled"
+	// settingUILoginButtonTextKey designates the key for the custom SSO login button label
+	settingUILoginButtonTextKey = "ui.loginButtonText"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
+	// settingsSourceHydratorCommitMessageTemplateKey is the key for the hydrator commit message template
+	settingsSourceHydratorCommitMessageTemplateKey = "sourceHydrator.commitMessageTemplate"
+	// settingsSourceHydratorReadmeMessageTemplateKey is the key to configure hydrator default commit README.md template
+	settingsSourceHydratorReadmeMessageTemplateKey = "sourceHydrator.readmeMessageTemplate"
+	// settingsCommitAuthorNameKey is the key for the commit author name
+	settingsCommitAuthorNameKey = "commit.author.name"
+	// settingsCommitAuthorEmailKey is the key for the commit author email
+	settingsCommitAuthorEmailKey = "commit.author.email"
 	// globalProjectsKey designates the key for global project settings
 	globalProjectsKey = "globalProjects"
 	// initialPasswordSecretName is the name of the secret that will hold the initial admin password
@@ -515,6 +573,8 @@ const (
 	inClusterEnabledKey = "cluster.inClusterEnabled"
 	// settingsServerRBACEDisableFineGrainedInheritance is the key to configure find-grained RBAC inheritance
 	settingsServerRBACDisableFineGrainedInheritance = "server.rbac.disableApplicationFineGrainedRBACInheritance"
+	// settingsServerRBACRollbackEnforceEnableKey enables the dedicated rollback RBAC action in argocd-cm
+	settingsServerRBACRollbackEnforceEnableKey = "server.rbac.rollback.enforce.enable"
 	// MaxPodLogsToRender the maximum number of pod logs to render
 	settingsMaxPodLogsToRender = "server.maxPodLogsToRender"
 	// helmValuesFileSchemesKey is the key to configure the list of supported helm values file schemas
@@ -538,14 +598,28 @@ const (
 	RespectRBACValueNormal = "normal"
 	// impersonationEnabledKey is the key to configure whether the application sync decoupling through impersonation feature is enabled
 	impersonationEnabledKey = "application.sync.impersonation.enabled"
+	// impersonationEnforcedKey is the key to configure whether a service account must be configured in the AppProject when impersonation is enabled
+	impersonationEnforcedKey = "application.sync.impersonation.enforced"
+	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
+	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
 )
 
 const (
 	// default max webhook payload size is 50MB
 	defaultMaxWebhookPayloadSize = int64(50) * 1024 * 1024
 
+	// default webhook refresh jitter threshold
+	defaultWebhookRefreshJitterThreshold = 10
+
 	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
+
+	// application sync with impersonation enforcement is enabled by default (applies only when defaultImpersonationEnabledFlag is enabled)
+	defaultImpersonationEnforcedFlag = true
+
+	// defaultInClusterEnabledFlag is the default value when the in-cluster setting
+	// cannot be read from the configmap or is not explicitly set by the user.
+	defaultInClusterEnabledFlag = true
 )
 
 var sourceTypeToEnableGenerationKey = map[v1alpha1.ApplicationSourceType]string{
@@ -565,11 +639,15 @@ type SettingsManager struct {
 	// subscribers is a list of subscribers to settings updates
 	subscribers []chan<- *ArgoCDSettings
 	// mutex protects concurrency sensitive parts of settings manager: access to subscribers list and initialization flag
-	mutex                 *sync.Mutex
-	initContextCancel     func()
-	reposCache            []Repository
-	repoCredsCache        []RepositoryCredentials
-	reposOrClusterChanged func()
+	mutex                     *sync.Mutex
+	initContextCancel         func()
+	reposOrClusterChanged     func()
+	tlsCertParser             func([]byte, []byte) (tls.Certificate, error)
+	tlsCertCache              *tls.Certificate
+	tlsCertCacheSecretName    string
+	tlsCertCacheSecretVersion string
+	// clusterInformer provides optimized cluster lookups using informer transforms
+	clusterInformer *ClusterInformer
 }
 
 type incompleteSettingsError struct {
@@ -630,6 +708,8 @@ func (mgr *SettingsManager) GetSecretsLister() (v1listers.SecretLister, error) {
 	if err != nil {
 		return nil, err
 	}
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	return mgr.secrets, nil
 }
 
@@ -638,7 +718,21 @@ func (mgr *SettingsManager) GetSecretsInformer() (cache.SharedIndexInformer, err
 	if err != nil {
 		return nil, fmt.Errorf("error ensuring that the secrets manager is synced: %w", err)
 	}
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
 	return mgr.secretsInformer, nil
+}
+
+// GetClusterInformer returns the cluster cache for optimized cluster lookups.
+func (mgr *SettingsManager) GetClusterInformer() (*ClusterInformer, error) {
+	if err := mgr.ensureSynced(false); err != nil {
+		return nil, fmt.Errorf("error ensuring that the settings manager is synced: %w", err)
+	}
+	// Read clusterInformer under the lock: a concurrent ResyncInformers() can be
+	// writing this field inside initialize() while we read it here.
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+	return mgr.clusterInformer, nil
 }
 
 func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) error {
@@ -649,9 +743,7 @@ func (mgr *SettingsManager) updateSecret(callback func(*corev1.Secret) error) er
 			return err
 		}
 		argoCDSecret = &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDSecretName,
-			},
+			Name: common.ArgoCDSecretName,
 			Data: make(map[string][]byte),
 		}
 		createSecret = true
@@ -687,9 +779,7 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 			return err
 		}
 		argoCDCM = &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: common.ArgoCDConfigMapName,
-			},
+			Name: common.ArgoCDConfigMapName,
 			Data: make(map[string]string),
 		}
 		createCM = true
@@ -714,8 +804,6 @@ func (mgr *SettingsManager) updateConfigMap(callback func(*corev1.ConfigMap) err
 		return err
 	}
 
-	mgr.invalidateCache()
-
 	return mgr.ResyncInformers()
 }
 
@@ -731,7 +819,10 @@ func (mgr *SettingsManager) GetConfigMapByName(configMapName string) (*corev1.Co
 	if err != nil {
 		return nil, err
 	}
-	configMap, err := mgr.configmaps.ConfigMaps(mgr.namespace).Get(configMapName)
+	mgr.mutex.Lock()
+	configmaps := mgr.configmaps
+	mgr.mutex.Unlock()
+	configMap, err := configmaps.ConfigMaps(mgr.namespace).Get(configMapName)
 	if err != nil {
 		return nil, err
 	}
@@ -746,13 +837,16 @@ func (mgr *SettingsManager) getSecret() (*corev1.Secret, error) {
 	return mgr.GetSecretByName(common.ArgoCDSecretName)
 }
 
-// Returns the Secret with the given name from the cluster.
+// GetSecretByName returns the Secret with the given name from the cluster.
 func (mgr *SettingsManager) GetSecretByName(secretName string) (*corev1.Secret, error) {
 	err := mgr.ensureSynced(false)
 	if err != nil {
 		return nil, err
 	}
-	secret, err := mgr.secrets.Secrets(mgr.namespace).Get(secretName)
+	mgr.mutex.Lock()
+	secrets := mgr.secrets
+	mgr.mutex.Unlock()
+	secret, err := secrets.Secrets(mgr.namespace).Get(secretName)
 	if err != nil {
 		return nil, err
 	}
@@ -768,20 +862,35 @@ func (mgr *SettingsManager) getSecrets() ([]*corev1.Secret, error) {
 	if err != nil {
 		return nil, err
 	}
+	mgr.mutex.Lock()
+	secrets := mgr.secrets
+	mgr.mutex.Unlock()
 
 	selector, err := labels.Parse(partOfArgoCDSelector)
 	if err != nil {
 		return nil, fmt.Errorf("error parsing Argo CD selector %w", err)
 	}
-	secrets, err := mgr.secrets.Secrets(mgr.namespace).List(selector)
+	secretList, err := secrets.Secrets(mgr.namespace).List(selector)
 	if err != nil {
 		return nil, err
 	}
 	// SecretNamespaceLister lists all Secrets in the indexer for a given namespace.
 	// Objects returned by the lister must be treated as read-only.
 	// To allow us to modify the secrets, make a copy
-	secrets = util.SliceCopy(secrets)
-	return secrets, nil
+	secretList = util.SliceCopy(secretList)
+	return secretList, nil
+}
+
+func (mgr *SettingsManager) GetHydratorReadmeTemplate() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return DefaultManifestHydrationReadmeTemplate, err
+	}
+	readmeTemplate := argoCDCM.Data[settingsSourceHydratorReadmeMessageTemplateKey]
+	if readmeTemplate == "" {
+		return DefaultManifestHydrationReadmeTemplate, nil
+	}
+	return readmeTemplate, nil
 }
 
 func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
@@ -806,6 +915,20 @@ func (mgr *SettingsManager) GetResourcesFilter() (*ResourcesFilter, error) {
 			return nil, fmt.Errorf("error unmarshalling excluded resources %w", err)
 		}
 		rf.ResourceExclusions = excludedResources
+	}
+
+	if value, ok := argoCDCM.Data[resourceSelectorsKey]; ok {
+		resourceSelectors := make([]FilteredResource, 0)
+		err := yaml.Unmarshal([]byte(value), &resourceSelectors)
+		if err != nil {
+			return nil, fmt.Errorf("error unmarshalling resource selectors %w", err)
+		}
+		for _, resourceSelector := range resourceSelectors {
+			if _, err := labels.Parse(resourceSelector.Selector); err != nil {
+				return nil, fmt.Errorf("error parsing resource selector %q: %w", resourceSelector.Selector, err)
+			}
+		}
+		rf.ResourceSelectors = resourceSelectors
 	}
 	return rf, nil
 }
@@ -865,6 +988,19 @@ func (mgr *SettingsManager) ApplicationFineGrainedRBACInheritanceDisabled() (boo
 	}
 
 	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACDisableFineGrainedInheritance])
+}
+
+func (mgr *SettingsManager) GetServerRBACRollbackEnforceEnable() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	if argoCDCM.Data[settingsServerRBACRollbackEnforceEnableKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[settingsServerRBACRollbackEnforceEnableKey])
 }
 
 func (mgr *SettingsManager) GetMaxPodLogsToRender() (int64, error) {
@@ -962,6 +1098,35 @@ func (mgr *SettingsManager) GetIsIgnoreResourceUpdatesEnabled() (bool, error) {
 	return strconv.ParseBool(argoCDCM.Data[resourceIgnoreResourceUpdatesEnabledKey])
 }
 
+func (mgr *SettingsManager) GetIsManifestCompressionEnabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, fmt.Errorf("error retrieving config map: %w", err)
+	}
+
+	if argoCDCM.Data[manifestCompressionEnabledKey] == "" {
+		return false, nil
+	}
+
+	return strconv.ParseBool(argoCDCM.Data[manifestCompressionEnabledKey])
+}
+
+func (mgr *SettingsManager) GetManifestStorage() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving config map: %w", err)
+	}
+	return argoCDCM.Data[manifestStorageKey], nil
+}
+
+func (mgr *SettingsManager) GetManifestCompression() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", fmt.Errorf("error retrieving config map: %w", err)
+	}
+	return argoCDCM.Data[manifestCompressionKey], nil
+}
+
 // GetResourceOverrides loads Resource Overrides from argocd-cm ConfigMap
 func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.ResourceOverride, error) {
 	argoCDCM, err := mgr.getConfigMap()
@@ -1006,6 +1171,34 @@ func (mgr *SettingsManager) GetResourceOverrides() (map[string]v1alpha1.Resource
 	}
 
 	return resourceOverrides, nil
+}
+
+func (mgr *SettingsManager) GetSourceHydratorCommitMessageTemplate() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+
+	if argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey] == "" {
+		return CommitMessageTemplate, nil // in case template is not defined return default
+	}
+	return argoCDCM.Data[settingsSourceHydratorCommitMessageTemplateKey], nil
+}
+
+func (mgr *SettingsManager) GetCommitAuthorName() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsCommitAuthorNameKey], nil
+}
+
+func (mgr *SettingsManager) GetCommitAuthorEmail() (string, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return "", err
+	}
+	return argoCDCM.Data[settingsCommitAuthorEmailKey], nil
 }
 
 func addStatusOverrideToGK(resourceOverrides map[string]v1alpha1.ResourceOverride, groupKind string) {
@@ -1142,7 +1335,7 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 	}
 	helmOptions := &v1alpha1.HelmOptions{}
 	if value, ok := argoCDCM.Data[helmValuesFileSchemesKey]; ok {
-		for _, item := range strings.Split(value, ",") {
+		for item := range strings.SplitSeq(value, ",") {
 			if item := strings.TrimSpace(item); item != "" {
 				helmOptions.ValuesFileSchemes = append(helmOptions.ValuesFileSchemes, item)
 			}
@@ -1154,14 +1347,14 @@ func (mgr *SettingsManager) GetHelmSettings() (*v1alpha1.HelmOptions, error) {
 }
 
 // GetKustomizeSettings loads the kustomize settings from argocd-cm ConfigMap
-func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
+func (mgr *SettingsManager) GetKustomizeSettings() (*v1alpha1.KustomizeOptions, error) {
 	argoCDCM, err := mgr.getConfigMap()
 	if err != nil {
 		return nil, fmt.Errorf("error retrieving argocd-cm: %w", err)
 	}
-	kustomizeVersionsMap := map[string]KustomizeVersion{}
+	kustomizeVersionsMap := map[string]v1alpha1.KustomizeVersion{}
 	buildOptions := map[string]string{}
-	settings := &KustomizeSettings{}
+	settings := &v1alpha1.KustomizeOptions{}
 
 	// extract build options for the default version
 	if options, ok := argoCDCM.Data[kustomizeBuildOptionsKey]; ok {
@@ -1201,12 +1394,12 @@ func (mgr *SettingsManager) GetKustomizeSettings() (*KustomizeSettings, error) {
 	return settings, nil
 }
 
-func addKustomizeVersion(prefix, name, path string, kvMap map[string]KustomizeVersion) error {
+func addKustomizeVersion(prefix, name, path string, kvMap map[string]v1alpha1.KustomizeVersion) error {
 	version := name[len(prefix)+1:]
 	if _, ok := kvMap[version]; ok {
 		return fmt.Errorf("found duplicate kustomize version: %s", version)
 	}
-	kvMap[version] = KustomizeVersion{
+	kvMap[version] = v1alpha1.KustomizeVersion{
 		Name: version,
 		Path: path,
 	}
@@ -1244,6 +1437,27 @@ func (mgr *SettingsManager) GetHelp() (*Help, error) {
 	}, nil
 }
 
+func (mgr *SettingsManager) RequireOverridePrivilegeForRevisionSync() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return false, err
+	}
+
+	// false is default in order to not break existing installations
+	if argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "" {
+		return false, nil
+	}
+
+	maybeBooleanFlagValue, err2 := strconv.ParseBool(
+		argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey],
+	)
+	if err2 != nil {
+		return false, fmt.Errorf("error parsing %s value: %w, expected true or false",
+			requireOverridePrivilegeForRevisionSyncKey, err2)
+	}
+	return maybeBooleanFlagValue, nil
+}
+
 // GetSettings retrieves settings from the ArgoCDConfigMap and secret.
 func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	argoCDCM, err := mgr.getConfigMap()
@@ -1261,10 +1475,10 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 
 	var settings ArgoCDSettings
 	var errs []error
-	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if err := mgr.updateSettingsFromSecret(&settings, argoCDSecret, secrets); err != nil {
 		errs = append(errs, err)
 	}
+	updateSettingsFromConfigMap(&settings, argoCDCM)
 	if len(errs) > 0 {
 		return &settings, errors.Join(errs...)
 	}
@@ -1272,13 +1486,147 @@ func (mgr *SettingsManager) GetSettings() (*ArgoCDSettings, error) {
 	return &settings, nil
 }
 
-// Clears cached settings on configmap/secret change
-func (mgr *SettingsManager) invalidateCache() {
-	mgr.mutex.Lock()
-	defer mgr.mutex.Unlock()
+// isRepositorySecret reports whether obj is a repository credential secret
+// (argocd.argoproj.io/secret-type=repository). Only repository credential changes
+// need to invalidate the project cache; cluster changes flow through the cluster
+// informer. Unknown types return false (fail-closed).
+func isRepositorySecret(obj any) bool {
+	repoSelector := labels.SelectorFromSet(labels.Set{common.LabelKeySecretType: common.LabelValueSecretTypeRepository})
+	if s, ok := obj.(metav1.Object); ok {
+		return repoSelector.Matches(labels.Set(s.GetLabels()))
+	}
+	return false
+}
 
-	mgr.reposCache = nil
-	mgr.repoCredsCache = nil
+// isSettingsObject reports whether obj carries app.kubernetes.io/part-of=argocd,
+// the label that identifies secrets and configmaps that participate in ArgoCD's
+// settings system (OIDC config, webhook secrets, $secretName:key template references).
+// Unknown types return false (fail-closed).
+func isSettingsObject(obj any) bool {
+	settingsSelector := labels.SelectorFromSet(labels.Set{"app.kubernetes.io/part-of": "argocd"})
+	if s, ok := obj.(metav1.Object); ok {
+		return settingsSelector.Matches(labels.Set(s.GetLabels()))
+	}
+	return false
+}
+
+// isArgoCDConfigMap reports whether obj is the argocd-cm ConfigMap. Only argocd-cm
+// carries settings that affect project cache validity (the "globalProjects" key, read
+// by GetGlobalProjectsSettings). Unknown types return false (fail-closed).
+func isArgoCDConfigMap(obj any) bool {
+	if metaObj, ok := obj.(metav1.Object); ok {
+		return metaObj.GetName() == common.ArgoCDConfigMapName
+	}
+	return false
+}
+
+// argoCDConfigMapEventHandler returns the informer event handlers for the argocd-cm
+// ConfigMap. Only argocd-cm carries settings that affect project cache validity (the
+// "globalProjects" key), so any add/update/delete of it invalidates the project cache
+// via onRepoOrClusterChanged. DeleteFunc unwraps cache.DeletedFinalStateUnknown
+// tombstones, and objects that are not argocd-cm (per isArgoCDConfigMap) are ignored.
+func (mgr *SettingsManager) argoCDConfigMapEventHandler() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(_, obj any) {
+			if isArgoCDConfigMap(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		AddFunc: func(obj any) {
+			if isArgoCDConfigMap(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if isArgoCDConfigMap(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+	}
+}
+
+// repositorySecretEventHandler returns the informer event handlers for repository
+// credential secrets. Only repository secrets (per isRepositorySecret) affect
+// project-repo bindings and need to invalidate the project cache via
+// onRepoOrClusterChanged. DeleteFunc unwraps cache.DeletedFinalStateUnknown
+// tombstones, and non-repository or unexpected objects are ignored.
+func (mgr *SettingsManager) repositorySecretEventHandler() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(_, obj any) {
+			if isRepositorySecret(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		AddFunc: func(obj any) {
+			if isRepositorySecret(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				obj = tombstone.Obj
+			}
+			if isRepositorySecret(obj) {
+				mgr.onRepoOrClusterChanged()
+			}
+		},
+	}
+}
+
+// clusterSecretEventHandler returns the informer event handlers for cluster credential
+// secrets. The cluster informer is already filtered to secret-type=cluster, so every
+// event represents a cluster credential change and always warrants a settings reload
+// via onRepoOrClusterChanged. DeleteFunc unwraps cache.DeletedFinalStateUnknown
+// tombstones for consistency, although the unwrapped object is not otherwise inspected.
+func (mgr *SettingsManager) clusterSecretEventHandler() cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		UpdateFunc: func(_, _ any) { mgr.onRepoOrClusterChanged() },
+		AddFunc:    func(_ any) { mgr.onRepoOrClusterChanged() },
+		DeleteFunc: func(obj any) {
+			// Unwrap DeletedFinalStateUnknown tombstones
+			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
+				//nolint:ineffassign,staticcheck // obj unwrapped for consistency but not used
+				obj = tombstone.Obj
+			}
+			mgr.onRepoOrClusterChanged()
+		},
+	}
+}
+
+// settingsNotificationEventHandler returns the informer event handlers that notify
+// settings subscribers (via tryNotify) of changes. It is guarded by isSettingsObject so
+// that only changes to app.kubernetes.io/part-of=argocd objects (the documented contract
+// for secrets/configmaps that participate in ArgoCD settings) trigger a full
+// GetSettings() reload. AddFunc only notifies for objects created after now, and
+// UpdateFunc only when the resource version actually changed; this prevents spurious
+// reloads caused by the informer resync period delivering synthetic events. Objects that
+// do not implement the expected metadata interfaces are ignored.
+func settingsNotificationEventHandler(now time.Time, tryNotify func()) cache.ResourceEventHandlerFuncs {
+	return cache.ResourceEventHandlerFuncs{
+		AddFunc: func(obj any) {
+			if isSettingsObject(obj) {
+				if metaObj, ok := obj.(metav1.Object); ok {
+					if metaObj.GetCreationTimestamp().After(now) {
+						tryNotify()
+					}
+				}
+			}
+		},
+		UpdateFunc: func(oldObj, newObj any) {
+			if isSettingsObject(newObj) {
+				oldMeta, oldOk := oldObj.(metav1.Common)
+				newMeta, newOk := newObj.(metav1.Common)
+				if oldOk && newOk && oldMeta.GetResourceVersion() != newMeta.GetResourceVersion() {
+					tryNotify()
+				}
+			}
+		},
+	}
 }
 
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
@@ -1287,34 +1635,43 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		options.LabelSelector = cmLabelSelector.String()
 	}
 
-	eventHandler := cache.ResourceEventHandlerFuncs{
-		UpdateFunc: func(_, _ any) {
-			mgr.invalidateCache()
-			mgr.onRepoOrClusterChanged()
-		},
-		AddFunc: func(_ any) {
-			mgr.onRepoOrClusterChanged()
-		},
-		DeleteFunc: func(_ any) {
-			mgr.onRepoOrClusterChanged()
-		},
-	}
 	indexers := cache.Indexers{
 		cache.NamespaceIndex:      cache.MetaNamespaceIndexFunc,
-		ByClusterURLIndexer:       byClusterURLIndexerFunc,
-		ByClusterNameIndexer:      byClusterNameIndexerFunc,
-		ByProjectClusterIndexer:   byProjectIndexerFunc(common.LabelValueSecretTypeCluster),
 		ByProjectRepoIndexer:      byProjectIndexerFunc(common.LabelValueSecretTypeRepository),
 		ByProjectRepoWriteIndexer: byProjectIndexerFunc(common.LabelValueSecretTypeRepositoryWrite),
 	}
 	cmInformer := informersv1.NewFilteredConfigMapInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, tweakConfigMap)
-	secretsInformer := informersv1.NewSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers)
-	_, err := cmInformer.AddEventHandler(eventHandler)
+	secretsInformer := informersv1.NewFilteredSecretInformer(mgr.clientset, mgr.namespace, 3*time.Minute, indexers, func(options *metav1.ListOptions) {
+		options.LabelSelector = common.LabelKeySecretType + "!=" + common.LabelValueSecretTypeCluster
+	})
+	clusterInformer, err := NewClusterInformer(mgr.clientset, mgr.namespace)
 	if err != nil {
 		log.Error(err)
 	}
 
-	_, err = secretsInformer.AddEventHandler(eventHandler)
+	// ConfigMap informer: filtered to app.kubernetes.io/part-of=argocd (see tweakConfigMap).
+	// Only argocd-cm carries settings that affect project cache validity: the "globalProjects"
+	// key controls which AppProjects are treated as global (merged into virtual projects via
+	// GetGlobalProjectsSettings). Other part-of=argocd configmaps (argocd-rbac-cm, etc.) have
+	// no path into project cache construction and don't need to trigger invalidation.
+	_, err = cmInformer.AddEventHandler(mgr.argoCDConfigMapEventHandler())
+	if err != nil {
+		log.Error(err)
+	}
+
+	// Secrets informer: filtered to argocd.argoproj.io/secret-type != cluster,
+	// so cluster secrets are excluded (handled by the cluster informer below).
+	// Only repository credential changes affect project-repo bindings and need
+	// to invalidate the project cache.
+	_, err = secretsInformer.AddEventHandler(mgr.repositorySecretEventHandler())
+	if err != nil {
+		log.Error(err)
+	}
+
+	// Cluster informer: filtered to argocd.argoproj.io/secret-type=cluster,
+	// so every event represents a cluster credential change, which always
+	// warrants a settings reload.
+	_, err = clusterInformer.AddEventHandler(mgr.clusterSecretEventHandler())
 	if err != nil {
 		log.Error(err)
 	}
@@ -1329,10 +1686,18 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		log.Info("secrets informer cancelled")
 	}()
 
-	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced) {
+	go func() {
+		clusterInformer.Run(ctx.Done())
+		log.Info("cluster secrets informer cancelled")
+	}()
+
+	if !cache.WaitForCacheSync(ctx.Done(), cmInformer.HasSynced, secretsInformer.HasSynced, clusterInformer.HasSynced) {
 		return errors.New("timed out waiting for settings cache to sync")
 	}
 	log.Info("Configmap/secret informer synced")
+
+	mgr.clusterInformer = clusterInformer
+	log.Info("Cluster cache informer synced")
 
 	tryNotify := func() {
 		newSettings, err := mgr.GetSettings()
@@ -1343,22 +1708,7 @@ func (mgr *SettingsManager) initialize(ctx context.Context) error {
 		}
 	}
 	now := time.Now()
-	handler := cache.ResourceEventHandlerFuncs{
-		AddFunc: func(obj any) {
-			if metaObj, ok := obj.(metav1.Object); ok {
-				if metaObj.GetCreationTimestamp().After(now) {
-					tryNotify()
-				}
-			}
-		},
-		UpdateFunc: func(oldObj, newObj any) {
-			oldMeta, oldOk := oldObj.(metav1.Common)
-			newMeta, newOk := newObj.(metav1.Common)
-			if oldOk && newOk && oldMeta.GetResourceVersion() != newMeta.GetResourceVersion() {
-				tryNotify()
-			}
-		},
-	}
+	handler := settingsNotificationEventHandler(now, tryNotify)
 	_, err = secretsInformer.AddEventHandler(handler)
 	if err != nil {
 		log.Error(err)
@@ -1402,6 +1752,15 @@ func getDownloadBinaryUrlsFromConfigMap(argoCDCM *corev1.ConfigMap) map[string]s
 func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.ConfigMap) {
 	settings.DexConfig = argoCDCM.Data[settingDexConfigKey]
 	settings.OIDCConfigRAW = argoCDCM.Data[settingsOIDCConfigKey]
+	// connector_id is only meaningful when the bundled Dex server is the active SSO provider.
+	// When external OIDC is configured it takes precedence over Dex (see NewClientApp), so leave
+	// DexAuthConnectorID empty to avoid appending a Dex-specific parameter to an external IdP.
+	if settings.OIDCConfigRAW == "" {
+		settings.DexAuthConnectorID = getDexAuthConnectorID(argoCDCM.Data)
+	}
+	if err := validateOIDCConfigWithSecrets(settings.OIDCConfigRAW, settings.Secrets); err != nil {
+		log.Warnf("Failed to validate OIDC config: %v", err)
+	}
 	settings.KustomizeBuildOptions = argoCDCM.Data[kustomizeBuildOptionsKey]
 	settings.StatusBadgeEnabled = argoCDCM.Data[statusBadgeEnabledKey] == "true"
 	settings.StatusBadgeRootUrl = argoCDCM.Data[statusBadgeRootURLKey]
@@ -1410,12 +1769,14 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerContent = argoCDCM.Data[settingUIBannerContentKey]
 	settings.UiBannerPermanent = argoCDCM.Data[settingUIBannerPermanentKey] == "true"
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
+	settings.ResourceViewEnabled = argoCDCM.Data[settingUIResourcesViewDisabledKey] != "true"
+	settings.UiLoginButtonText = argoCDCM.Data[settingUILoginButtonTextKey]
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
-	if err := validateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
+	if err := ValidateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
 	}
 	settings.URL = argoCDCM.Data[settingURLKey]
-	if err := validateExternalURL(argoCDCM.Data[settingUIBannerURLKey]); err != nil {
+	if err := ValidateExternalURL(argoCDCM.Data[settingUIBannerURLKey]); err != nil {
 		log.Warnf("Failed to validate UI banner URL in configmap: %v", err)
 	}
 	if argoCDCM.Data[settingAdditionalUrlsKey] != "" {
@@ -1424,7 +1785,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 		}
 	}
 	for _, url := range settings.AdditionalURLs {
-		if err := validateExternalURL(url); err != nil {
+		if err := ValidateExternalURL(url); err != nil {
 			log.Warnf("Failed to validate external URL in configmap: %v", err)
 		}
 	}
@@ -1448,7 +1809,6 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 			settings.MaxPodLogsToRender = val
 		}
 	}
-	settings.InClusterEnabled = argoCDCM.Data[inClusterEnabledKey] != "false"
 	settings.ExecEnabled = argoCDCM.Data[execEnabledKey] == "true"
 	execShells := argoCDCM.Data[execShellsKey]
 	if execShells != "" {
@@ -1461,21 +1821,54 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.OIDCTLSInsecureSkipVerify = argoCDCM.Data[oidcTLSInsecureSkipVerifyKey] == "true"
 	settings.ExtensionConfig = getExtensionConfigs(argoCDCM.Data)
 	settings.ImpersonationEnabled = argoCDCM.Data[impersonationEnabledKey] == "true"
+	settings.RequireOverridePrivilegeForRevisionSync = argoCDCM.Data[requireOverridePrivilegeForRevisionSyncKey] == "true"
 }
 
 func getExtensionConfigs(cmData map[string]string) map[string]string {
 	result := make(map[string]string)
 	for k, v := range cmData {
-		if strings.HasPrefix(k, extensionConfig) {
-			extName := strings.TrimPrefix(strings.TrimPrefix(k, extensionConfig), ".")
+		if extName, found := strings.CutPrefix(k, extensionConfig); found {
+			extName = strings.TrimPrefix(extName, ".")
 			result[extName] = v
 		}
 	}
 	return result
 }
 
-// validateExternalURL ensures the external URL that is set on the configmap is valid
-func validateExternalURL(u string) error {
+func getDexAuthConnectorID(cmData map[string]string) string {
+	dexConfig := cmData[settingDexConfigKey]
+	if dexConfig == "" {
+		return ""
+	}
+	dexAuthConnectorID := cmData[settingDexAuthConnectorIDKey]
+	if dexAuthConnectorID == "" {
+		return ""
+	}
+	dexCfg, err := UnmarshalDexConfig(dexConfig)
+	if err != nil {
+		log.Warnf("invalid dex.config YAML: %v", err)
+		return ""
+	}
+	connectors, ok := dexCfg["connectors"].([]any)
+	if !ok {
+		return ""
+	}
+	for _, c := range connectors {
+		connector, ok := c.(map[string]any)
+		if !ok {
+			continue
+		}
+		connID, ok := connector["id"].(string)
+		if ok && connID == dexAuthConnectorID {
+			return dexAuthConnectorID
+		}
+	}
+	log.Warnf("dex.auth.connectorId is not found in dex connectors: %s", dexAuthConnectorID)
+	return ""
+}
+
+// ValidateExternalURL ensures the external URL that is set on the configmap is valid
+func ValidateExternalURL(u string) error {
 	if u == "" {
 		return nil
 	}
@@ -1502,28 +1895,16 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	// The TLS certificate may be externally managed. We try to load it from an
 	// external secret first. If the external secret doesn't exist, we either
 	// load it from argocd-secret or generate (and persist) a self-signed one.
-	cert, err := mgr.externalServerTLSCertificate()
-	if err != nil {
+	externalSecret, err := mgr.GetSecretByName(externalServerTLSSecretName)
+	if err != nil && !apierrors.IsNotFound(err) {
 		errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("could not read from secret %s/%s: %v", mgr.namespace, externalServerTLSSecretName, err)})
 	} else {
-		if cert != nil {
-			settings.Certificate = cert
-			settings.CertificateIsExternal = true
-			log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, externalServerTLSSecretName)
-		} else {
-			serverCert, certOk := argoCDSecret.Data[settingServerCertificate]
-			serverKey, keyOk := argoCDSecret.Data[settingServerPrivateKey]
-			if certOk && keyOk {
-				cert, err := tls.X509KeyPair(serverCert, serverKey)
-				if err != nil {
-					errs = append(errs, &incompleteSettingsError{message: fmt.Sprintf("invalid x509 key pair %s/%s in secret: %s", settingServerCertificate, settingServerPrivateKey, err)})
-				} else {
-					settings.Certificate = &cert
-					settings.CertificateIsExternal = false
-				}
-			}
+		err = mgr.loadTLSCertificate(settings, externalSecret, argoCDSecret)
+		if err != nil {
+			errs = append(errs, err)
 		}
 	}
+
 	secretValues := make(map[string]string, len(argoCDSecret.Data))
 	for _, s := range secrets {
 		for k, v := range s.Data {
@@ -1534,103 +1915,79 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 		secretValues[k] = string(v)
 	}
 	settings.Secrets = secretValues
+
+	settings.WebhookGitHubSecret = string(argoCDSecret.Data[settingsWebhookGitHubSecretKey])
+	settings.WebhookDockerHubSecret = string(argoCDSecret.Data[settingsWebhookDockerHubSecretKey])
+	settings.WebhookGitLabSecret = string(argoCDSecret.Data[settingsWebhookGitLabSecretKey])
+	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
+	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
+	settings.WebhookGogsSecret = string(argoCDSecret.Data[settingsWebhookGogsSecretKey])
+	settings.WebhookHarborSecret = string(argoCDSecret.Data[settingsWebhookHarborSecretKey])
+	settings.WebhookAzureDevOpsUsername = string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey])
+	settings.WebhookAzureDevOpsPassword = string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey])
+
 	if len(errs) > 0 {
 		return errors.Join(errs...)
 	}
 
-	settings.WebhookGitHubSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitHubSecretKey]), settings.Secrets)
-	settings.WebhookGitLabSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGitLabSecretKey]), settings.Secrets)
-	settings.WebhookBitbucketUUID = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey]), settings.Secrets)
-	settings.WebhookBitbucketServerSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey]), settings.Secrets)
-	settings.WebhookGogsSecret = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookGogsSecretKey]), settings.Secrets)
-	settings.WebhookAzureDevOpsUsername = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey]), settings.Secrets)
-	settings.WebhookAzureDevOpsPassword = ReplaceStringSecret(string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey]), settings.Secrets)
-
 	return nil
 }
 
-// externalServerTLSCertificate will try and load a TLS certificate from an
-// external secret, instead of tls.crt and tls.key in argocd-secret. If both
-// return values are nil, no external secret has been configured.
-func (mgr *SettingsManager) externalServerTLSCertificate() (*tls.Certificate, error) {
-	var cert tls.Certificate
-	secret, err := mgr.GetSecretByName(externalServerTLSSecretName)
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return nil, nil
+func (mgr *SettingsManager) loadTLSCertificate(settings *ArgoCDSettings, externalSecret *corev1.Secret, argoCDSecret *corev1.Secret) error {
+	mgr.mutex.Lock()
+	defer mgr.mutex.Unlock()
+	if externalSecret != nil {
+		cert, err := mgr.loadTLSCertificateFromSecret(externalSecret)
+
+		if err != nil {
+			return err
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = true
 		}
 	}
+	// if there was no external cert found, check internal
+	if !settings.CertificateIsExternal {
+		cert, err := mgr.loadTLSCertificateFromSecret(argoCDSecret)
+
+		if err != nil {
+			return err
+		} else if cert != nil {
+			settings.Certificate = cert
+			settings.CertificateIsExternal = false
+		}
+	}
+	return nil
+}
+
+func (mgr *SettingsManager) loadTLSCertificateFromSecret(secret *corev1.Secret) (*tls.Certificate, error) {
+	if mgr.tlsCertCache != nil && mgr.tlsCertCacheSecretName == secret.Name && mgr.tlsCertCacheSecretVersion == secret.ResourceVersion {
+		return mgr.tlsCertCache, nil
+	}
+
 	tlsCert, certOK := secret.Data[settingServerCertificate]
 	tlsKey, keyOK := secret.Data[settingServerPrivateKey]
-	if certOK && keyOK {
-		cert, err = tls.X509KeyPair(tlsCert, tlsKey)
-		if err != nil {
-			return nil, err
-		}
+	if !certOK || !keyOK {
+		return nil, nil
 	}
+
+	log.Infof("Loading TLS configuration from secret %s/%s", mgr.namespace, secret.Name)
+	cert, err := mgr.tlsCertParser(tlsCert, tlsKey)
+	if err != nil {
+		return nil, err
+	}
+
+	mgr.tlsCertCache = &cert
+	mgr.tlsCertCacheSecretName = secret.Name
+	mgr.tlsCertCacheSecretVersion = secret.ResourceVersion
+
 	return &cert, nil
 }
 
-// SaveSettings serializes ArgoCDSettings and upserts it into K8s secret/configmap
-func (mgr *SettingsManager) SaveSettings(settings *ArgoCDSettings) error {
-	err := mgr.updateConfigMap(func(argoCDCM *corev1.ConfigMap) error {
-		if settings.URL != "" {
-			argoCDCM.Data[settingURLKey] = settings.URL
-		} else {
-			delete(argoCDCM.Data, settingURLKey)
-		}
-		if settings.DexConfig != "" {
-			argoCDCM.Data[settingDexConfigKey] = settings.DexConfig
-		} else {
-			delete(argoCDCM.Data, settings.DexConfig)
-		}
-		if settings.OIDCConfigRAW != "" {
-			argoCDCM.Data[settingsOIDCConfigKey] = settings.OIDCConfigRAW
-		} else {
-			delete(argoCDCM.Data, settingsOIDCConfigKey)
-		}
-		if settings.UiCssURL != "" {
-			argoCDCM.Data[settingUICSSURLKey] = settings.UiCssURL
-		}
-		if settings.UiBannerContent != "" {
-			argoCDCM.Data[settingUIBannerContentKey] = settings.UiBannerContent
-		} else {
-			delete(argoCDCM.Data, settingUIBannerContentKey)
-		}
-		if settings.UiBannerURL != "" {
-			argoCDCM.Data[settingUIBannerURLKey] = settings.UiBannerURL
-		} else {
-			delete(argoCDCM.Data, settingUIBannerURLKey)
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-
+// saveSignatureAndCertificate serializes the server Signature and Certificate ArgoCDSettings and upserts it into the secret
+func (mgr *SettingsManager) saveSignatureAndCertificate(settings *ArgoCDSettings) error {
 	return mgr.updateSecret(func(argoCDSecret *corev1.Secret) error {
 		argoCDSecret.Data[settingServerSignatureKey] = settings.ServerSignature
-		if settings.WebhookGitHubSecret != "" {
-			argoCDSecret.Data[settingsWebhookGitHubSecretKey] = []byte(settings.WebhookGitHubSecret)
-		}
-		if settings.WebhookGitLabSecret != "" {
-			argoCDSecret.Data[settingsWebhookGitLabSecretKey] = []byte(settings.WebhookGitLabSecret)
-		}
-		if settings.WebhookBitbucketUUID != "" {
-			argoCDSecret.Data[settingsWebhookBitbucketUUIDKey] = []byte(settings.WebhookBitbucketUUID)
-		}
-		if settings.WebhookBitbucketServerSecret != "" {
-			argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey] = []byte(settings.WebhookBitbucketServerSecret)
-		}
-		if settings.WebhookGogsSecret != "" {
-			argoCDSecret.Data[settingsWebhookGogsSecretKey] = []byte(settings.WebhookGogsSecret)
-		}
-		if settings.WebhookAzureDevOpsUsername != "" {
-			argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey] = []byte(settings.WebhookAzureDevOpsUsername)
-		}
-		if settings.WebhookAzureDevOpsPassword != "" {
-			argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey] = []byte(settings.WebhookAzureDevOpsPassword)
-		}
 		// we only write the certificate to the secret if it's not externally
 		// managed.
 		if settings.Certificate != nil && !settings.CertificateIsExternal {
@@ -1703,10 +2060,11 @@ func WithRepoOrClusterChangedHandler(handler func()) SettingsManagerOpts {
 // NewSettingsManager generates a new SettingsManager pointer and returns it
 func NewSettingsManager(ctx context.Context, clientset kubernetes.Interface, namespace string, opts ...SettingsManagerOpts) *SettingsManager {
 	mgr := &SettingsManager{
-		ctx:       ctx,
-		clientset: clientset,
-		namespace: namespace,
-		mutex:     &sync.Mutex{},
+		ctx:           ctx,
+		clientset:     clientset,
+		namespace:     namespace,
+		mutex:         &sync.Mutex{},
+		tlsCertParser: tls.X509KeyPair,
 	}
 	for i := range opts {
 		opts[i](mgr)
@@ -1788,6 +2146,51 @@ func (a *ArgoCDSettings) OIDCConfig() *OIDCConfig {
 	return config.toExported()
 }
 
+// GetWebhookGitHubSecret returns the resolved GitHub webhook secret
+func (a *ArgoCDSettings) GetWebhookGitHubSecret() string {
+	return ReplaceStringSecret(a.WebhookGitHubSecret, a.Secrets)
+}
+
+// GetWebhookDockerHubSecret returns the resolved DockerHub webhook secret
+func (a *ArgoCDSettings) GetWebhookDockerHubSecret() string {
+	return ReplaceStringSecret(a.WebhookDockerHubSecret, a.Secrets)
+}
+
+// GetWebhookGitLabSecret returns the resolved GitLab webhook secret
+func (a *ArgoCDSettings) GetWebhookGitLabSecret() string {
+	return ReplaceStringSecret(a.WebhookGitLabSecret, a.Secrets)
+}
+
+// GetWebhookBitbucketUUID returns the resolved Bitbucket webhook UUID
+func (a *ArgoCDSettings) GetWebhookBitbucketUUID() string {
+	return ReplaceStringSecret(a.WebhookBitbucketUUID, a.Secrets)
+}
+
+// GetWebhookBitbucketServerSecret returns the resolved Bitbucket Server webhook secret
+func (a *ArgoCDSettings) GetWebhookBitbucketServerSecret() string {
+	return ReplaceStringSecret(a.WebhookBitbucketServerSecret, a.Secrets)
+}
+
+// GetWebhookGogsSecret returns the resolved Gogs webhook secret
+func (a *ArgoCDSettings) GetWebhookGogsSecret() string {
+	return ReplaceStringSecret(a.WebhookGogsSecret, a.Secrets)
+}
+
+// GetWebhookHarborSecret returns the resolved Harbor webhook secret
+func (a *ArgoCDSettings) GetWebhookHarborSecret() string {
+	return ReplaceStringSecret(a.WebhookHarborSecret, a.Secrets)
+}
+
+// GetWebhookAzureDevOpsUsername returns the resolved Azure DevOps webhook username
+func (a *ArgoCDSettings) GetWebhookAzureDevOpsUsername() string {
+	return ReplaceStringSecret(a.WebhookAzureDevOpsUsername, a.Secrets)
+}
+
+// GetWebhookAzureDevOpsPassword returns the resolved Azure DevOps webhook password
+func (a *ArgoCDSettings) GetWebhookAzureDevOpsPassword() string {
+	return ReplaceStringSecret(a.WebhookAzureDevOpsPassword, a.Secrets)
+}
+
 func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {
 	var config oidcConfig
 	err := yaml.Unmarshal([]byte(configStr), &config)
@@ -1795,8 +2198,43 @@ func unmarshalOIDCConfig(configStr string) (oidcConfig, error) {
 }
 
 func ValidateOIDCConfig(configStr string) error {
-	_, err := unmarshalOIDCConfig(configStr)
-	return err
+	settings, err := unmarshalOIDCConfig(configStr)
+	if err != nil {
+		return err
+	}
+	err = ValidateExternalURL(settings.Issuer)
+	if err != nil {
+		return err
+	}
+	err = ValidateExternalURL(settings.UserInfoBaseURL)
+	if err != nil {
+		return err
+	}
+	if settings.Azure != nil && settings.Azure.GraphAPIEndpoint != "" {
+		if err := ValidateAzureGraphAPIEndpoint(settings.Azure.GraphAPIEndpoint); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func validateOIDCConfigWithSecrets(configStr string, secrets map[string]string) error {
+	configMap := map[string]any{}
+	if err := yaml.Unmarshal([]byte(configStr), &configMap); err != nil {
+		return err
+	}
+
+	configMap = ReplaceMapSecrets(configMap, secrets)
+
+	resolvedConfig, err := yaml.Marshal(configMap)
+	if err != nil {
+		return errors.New("failed to marshal config after replacing secrets")
+	}
+
+	if err := ValidateOIDCConfig(string(resolvedConfig)); err != nil {
+		return errors.New("invalid OIDC config")
+	}
+	return nil
 }
 
 // TLSConfig returns a tls.Config with the configured certificates
@@ -1813,6 +2251,18 @@ func (a *ArgoCDSettings) TLSConfig() *tls.Config {
 	return &tls.Config{
 		RootCAs: certPool,
 	}
+}
+
+func (a *ArgoCDSettings) UserInfoBaseURL() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		if err := ValidateExternalURL(oidcConfig.UserInfoBaseURL); err == nil {
+			return oidcConfig.UserInfoBaseURL
+		}
+	}
+	if a.DexConfig != "" {
+		return a.URL + common.DexAPIEndpoint
+	}
+	return ""
 }
 
 func (a *ArgoCDSettings) IssuerURL() string {
@@ -1849,6 +2299,23 @@ func (a *ArgoCDSettings) UserInfoCacheExpiration() time.Duration {
 			log.Warnf("Failed to parse 'oidc.config.userInfoCacheExpiration' key: %v", err)
 		}
 		return userInfoCacheExpiration
+	}
+	return 0
+}
+
+// RefreshTokenThreshold returns the duration before token expiration that a token should be refreshed by the server
+func (a *ArgoCDSettings) RefreshTokenThreshold() time.Duration {
+	return a.RefreshTokenThresholdWithConfig(a.OIDCConfig())
+}
+
+// RefreshTokenThresholdWithConfig takes oidcConfig as param and returns the duration before token expiration that a token should be refreshed by the server
+func (a *ArgoCDSettings) RefreshTokenThresholdWithConfig(oidcConfig *OIDCConfig) time.Duration {
+	if oidcConfig != nil && oidcConfig.RefreshTokenThreshold != "" {
+		refreshTokenThreshold, err := time.ParseDuration(oidcConfig.RefreshTokenThreshold)
+		if err != nil {
+			log.Warnf("Failed to parse 'oidc.config.refreshTokenThreshold' key: %v", err)
+		}
+		return refreshTokenThreshold
 	}
 	return 0
 }
@@ -1904,11 +2371,85 @@ func (a *ArgoCDSettings) OAuth2ClientSecret() string {
 	return ""
 }
 
+func (a *ArgoCDSettings) OAuth2UsePKCE() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil {
+		return oidcConfig.EnablePKCEAuthentication
+	}
+	return false
+}
+
 func (a *ArgoCDSettings) UseAzureWorkloadIdentity() bool {
 	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
 		return oidcConfig.Azure.UseWorkloadIdentity
 	}
 	return false
+}
+
+// AzureUserGroupOverageClaimEnabled returns whether group claims should be fetched from the Microsoft Graph API
+// when Azure AD returns a groups overage claim (user has 200+ group memberships).
+// See https://learn.microsoft.com/en-us/entra/identity-platform/access-token-claims-reference#groups-overage-claim
+func (a *ArgoCDSettings) AzureUserGroupOverageClaimEnabled() bool {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		return oidcConfig.Azure.EnableUserGroupOverageClaim
+	}
+	return false
+}
+
+// knownGraphAPIHosts is the set of trusted Microsoft Graph API hostnames across all clouds.
+var knownGraphAPIHosts = map[string]bool{
+	"graph.microsoft.com":             true, // public cloud
+	"graph.microsoft.us":              true, // US Government
+	"graph.microsoft.de":              true, // Germany (legacy)
+	"microsoftgraph.chinacloudapi.cn": true, // China
+}
+
+const defaultGraphAPIEndpoint = "https://graph.microsoft.com/v1.0"
+
+// ValidateAzureGraphAPIEndpoint returns an error if endpoint is not a trusted Microsoft Graph API URL.
+// A valid endpoint must use the https scheme and a known Microsoft Graph hostname.
+func ValidateAzureGraphAPIEndpoint(endpoint string) error {
+	u, err := url.Parse(endpoint)
+	if err != nil {
+		return fmt.Errorf("invalid graphApiEndpoint URL %q: %w", endpoint, err)
+	}
+	if u.Scheme != "https" {
+		return fmt.Errorf("graphApiEndpoint %q must use https", endpoint)
+	}
+	if !knownGraphAPIHosts[u.Hostname()] {
+		return fmt.Errorf("graphApiEndpoint %q hostname is not a known Microsoft Graph API host", endpoint)
+	}
+	return nil
+}
+
+// AzureGraphAPIEndpoint returns the Microsoft Graph API endpoint URL.
+// Defaults to https://graph.microsoft.com/v1.0 for public cloud.
+// Can be overridden for sovereign clouds (e.g., https://graph.microsoft.us/v1.0).
+// Returns empty string if the configured endpoint fails validation, which disables the overage feature.
+func (a *ArgoCDSettings) AzureGraphAPIEndpoint() string {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil {
+		if oidcConfig.Azure.GraphAPIEndpoint != "" {
+			if err := ValidateAzureGraphAPIEndpoint(oidcConfig.Azure.GraphAPIEndpoint); err != nil {
+				log.Warnf("Invalid graphApiEndpoint, Azure groups overage feature disabled: %v", err)
+				return ""
+			}
+			return oidcConfig.Azure.GraphAPIEndpoint
+		}
+		return defaultGraphAPIEndpoint
+	}
+	return ""
+}
+
+// AzureUserGroupOverageClaimCacheExpiration returns the cache duration for Azure groups overage claim results.
+func (a *ArgoCDSettings) AzureUserGroupOverageClaimCacheExpiration() time.Duration {
+	if oidcConfig := a.OIDCConfig(); oidcConfig != nil && oidcConfig.Azure != nil && oidcConfig.Azure.UserGroupOverageClaimCacheExpiration != "" {
+		cacheExpiration, err := time.ParseDuration(oidcConfig.Azure.UserGroupOverageClaimCacheExpiration)
+		if err != nil {
+			log.Warnf("Failed to parse 'oidc.config.azure.userGroupOverageClaimCacheExpiration' key: %v", err)
+			return 0
+		}
+		return cacheExpiration
+	}
+	return 0
 }
 
 // OIDCTLSConfig returns the TLS config for the OIDC provider. If an external provider is configured, returns a TLS
@@ -1952,12 +2493,24 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 }
 
 func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
+	requestURL := r.URL
+	// withRootPath uses http.StripPrefix to remove the root path from r.URL.Path.
+	// Prefer r.RequestURI so URL matching still includes the original root path.
+	if r.RequestURI != "" {
+		var err error
+		requestURL, err = url.ParseRequestURI(r.RequestURI)
+		if err != nil {
+			return "", fmt.Errorf("error parsing request URI: %w", err)
+		}
+	}
+	requestPath := requestURL.EscapedPath()
 	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
 		u, err := url.Parse(candidateURL)
 		if err != nil {
 			return "", err
 		}
-		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
+		basePath := strings.TrimSuffix(u.EscapedPath(), "/")
+		if u.Host == r.Host && (requestPath == basePath || strings.HasPrefix(requestPath, basePath+"/")) {
 			return candidateURL, nil
 		}
 	}
@@ -1965,6 +2518,9 @@ func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
 }
 
 func (a *ArgoCDSettings) RedirectURLForRequest(r *http.Request) (string, error) {
+	if r == nil {
+		return "", errors.New("request is nil")
+	}
 	base, err := a.ArgoURLForRequest(r)
 	if err != nil {
 		return "", err
@@ -2047,29 +2603,12 @@ func isIncompleteSettingsError(err error) bool {
 // InitializeSettings is used to initialize empty admin password, signature, certificate etc if missing
 func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoCDSettings, error) {
 	const letters = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-"
-
-	cdSettings, err := mgr.GetSettings()
-	if err != nil && !isIncompleteSettingsError(err) {
-		return nil, err
-	}
-	if cdSettings == nil {
-		cdSettings = &ArgoCDSettings{}
-	}
-	if cdSettings.ServerSignature == nil {
-		// set JWT signature
-		signature, err := util.MakeSignature(32)
-		if err != nil {
-			return nil, fmt.Errorf("error setting JWT signature: %w", err)
-		}
-		cdSettings.ServerSignature = signature
-		log.Info("Initialized server signature")
-	}
-	err = mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
+	err := mgr.UpdateAccount(common.ArgoCDAdminUsername, func(adminAccount *Account) error {
 		if adminAccount.Enabled {
 			now := time.Now().UTC()
 			if adminAccount.PasswordHash == "" {
 				randBytes := make([]byte, initialPasswordLength)
-				for i := 0; i < initialPasswordLength; i++ {
+				for i := range initialPasswordLength {
 					num, err := rand.Int(rand.Reader, big.NewInt(int64(len(letters))))
 					if err != nil {
 						return err
@@ -2104,6 +2643,23 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		return nil, err
 	}
 
+	cdSettings, err := mgr.GetSettings()
+	if err != nil && !isIncompleteSettingsError(err) {
+		return nil, err
+	}
+	if cdSettings == nil {
+		cdSettings = &ArgoCDSettings{}
+	}
+	if cdSettings.ServerSignature == nil {
+		// set JWT signature
+		signature, err := util.MakeSignature(32)
+		if err != nil {
+			return nil, fmt.Errorf("error setting JWT signature: %w", err)
+		}
+		cdSettings.ServerSignature = signature
+		log.Info("Initialized server signature")
+	}
+
 	if cdSettings.Certificate == nil && !insecureModeEnabled {
 		// generate TLS cert
 		hosts := []string{
@@ -2126,7 +2682,7 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 		log.Info("Initialized TLS certificate")
 	}
 
-	err = mgr.SaveSettings(cdSettings)
+	err = mgr.saveSignatureAndCertificate(cdSettings)
 	if apierrors.IsConflict(err) {
 		// assume settings are initialized by another instance of api server
 		log.Warnf("conflict when initializing settings. assuming updated by another replica")
@@ -2138,51 +2694,103 @@ func (mgr *SettingsManager) InitializeSettings(insecureModeEnabled bool) (*ArgoC
 // ReplaceMapSecrets takes a json object and recursively looks for any secret key references in the
 // object and replaces the value with the secret value
 func ReplaceMapSecrets(obj map[string]any, secretValues map[string]string) map[string]any {
-	newObj := make(map[string]any)
+	return replaceMapSecrets(obj, secretValues, ReplaceStringSecret)
+}
+
+// replaceMapSecrets recursively walks the given object and replaces string values
+// using the provided string replacer function.
+func replaceMapSecrets(obj map[string]any, secretValues map[string]string, stringReplacer func(string, map[string]string) string) map[string]any {
+	newObj := make(map[string]any, len(obj))
 	for k, v := range obj {
-		switch val := v.(type) {
-		case map[string]any:
-			newObj[k] = ReplaceMapSecrets(val, secretValues)
-		case []any:
-			newObj[k] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[k] = ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[k] = val
-		}
+		newObj[k] = replaceSecretsValue(v, secretValues, stringReplacer)
 	}
 	return newObj
 }
 
-func replaceListSecrets(obj []any, secretValues map[string]string) []any {
+func replaceListSecrets(obj []any, secretValues map[string]string, stringReplacer func(string, map[string]string) string) []any {
 	newObj := make([]any, len(obj))
 	for i, v := range obj {
-		switch val := v.(type) {
-		case map[string]any:
-			newObj[i] = ReplaceMapSecrets(val, secretValues)
-		case []any:
-			newObj[i] = replaceListSecrets(val, secretValues)
-		case string:
-			newObj[i] = ReplaceStringSecret(val, secretValues)
-		default:
-			newObj[i] = val
-		}
+		newObj[i] = replaceSecretsValue(v, secretValues, stringReplacer)
 	}
 	return newObj
+}
+
+func replaceSecretsValue(v any, secretValues map[string]string, stringReplacer func(string, map[string]string) string) any {
+	switch val := v.(type) {
+	case map[string]any:
+		return replaceMapSecrets(val, secretValues, stringReplacer)
+	case []any:
+		return replaceListSecrets(val, secretValues, stringReplacer)
+	case string:
+		return stringReplacer(val, secretValues)
+	default:
+		return val
+	}
 }
 
 // ReplaceStringSecret checks if given string is a secret key reference ( starts with $ ) and returns corresponding value from provided map
 func ReplaceStringSecret(val string, secretValues map[string]string) string {
+	return replaceStringSecret(val, secretValues, strings.TrimSpace)
+}
+
+func replaceStringSecret(val string, secretValues map[string]string, trimmer func(value string) string) string {
 	if val == "" || !strings.HasPrefix(val, "$") {
 		return val
 	}
 	secretKey := val[1:]
 	secretVal, ok := secretValues[secretKey]
 	if !ok {
-		log.Warnf("config referenced '%s', but key does not exist in secret", val)
+		log.Warn("secret key does not exist in secret")
 		return val
 	}
-	return strings.TrimSpace(secretVal)
+	return trimmer(secretVal)
+}
+
+// EscapeDollarSignsInConnectorConfig escapes dollar signs in string values, ONLY if they are resolved from the
+// secrets map. This skips unresolved environment variable references from being escaped.
+// It protects resolved secret values from Dex's os.ExpandEnv expansion.
+func EscapeDollarSignsInConnectorConfig(obj map[string]any, secretValues map[string]string) map[string]any {
+	newObj := make(map[string]any, len(obj))
+	for k, v := range obj {
+		newObj[k] = escapeDollarSignsValueConsideringSecrets(v, secretValues)
+	}
+	return newObj
+}
+
+func escapeDollarSignsValueConsideringSecrets(v any, secretValues map[string]string) any {
+	switch val := v.(type) {
+	case map[string]any:
+		return EscapeDollarSignsInConnectorConfig(val, secretValues)
+	case []any:
+		return escapeDollarSignsInListConsideringSecrets(val, secretValues)
+	case string:
+		if !isUnresolvedEnvVarReference(val, secretValues) {
+			return strings.ReplaceAll(val, "$", "$$")
+		}
+		return val
+	default:
+		return val
+	}
+}
+
+func escapeDollarSignsInListConsideringSecrets(obj []any, secretValues map[string]string) []any {
+	newObj := make([]any, len(obj))
+	for i, v := range obj {
+		newObj[i] = escapeDollarSignsValueConsideringSecrets(v, secretValues)
+	}
+	return newObj
+}
+
+func isUnresolvedEnvVarReference(val string, secretValues map[string]string) bool {
+	if !strings.HasPrefix(val, "$") {
+		return false
+	}
+	envVarName := val[1:]
+	if envVarName == "" {
+		return false
+	}
+	_, found := secretValues[envVarName]
+	return !found
 }
 
 // GetGlobalProjectsSettings loads the global project settings from argocd-cm ConfigMap
@@ -2266,8 +2874,7 @@ func (mgr *SettingsManager) GetSensitiveAnnotations() map[string]bool {
 	}
 
 	value = strings.ReplaceAll(value, " ", "")
-	keys := strings.Split(value, ",")
-	for _, k := range keys {
+	for k := range strings.SplitSeq(value, ",") {
 		annotationKeys[k] = true
 	}
 	return annotationKeys
@@ -2292,6 +2899,51 @@ func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	return maxPayloadSizeMB * 1024 * 1024
 }
 
+func (mgr *SettingsManager) GetWebhookRefreshJitter() time.Duration {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Warnf("Failed to get config map for webhook refresh jitter: %v", err)
+		return 0
+	}
+
+	if argoCDCM.Data[settingsWebhookRefreshJitter] == "" {
+		return 0
+	}
+
+	jitter, err := timeutil.ParseDuration(argoCDCM.Data[settingsWebhookRefreshJitter])
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookRefreshJitter, err)
+		return 0
+	}
+
+	return *jitter
+}
+
+func (mgr *SettingsManager) GetWebhookRefreshJitterThreshold() int {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Warnf("Failed to get config map for webhook refresh jitter threshold: %v", err)
+		return defaultWebhookRefreshJitterThreshold
+	}
+
+	if argoCDCM.Data[settingsWebhookRefreshJitterThreshold] == "" {
+		return defaultWebhookRefreshJitterThreshold
+	}
+
+	threshold, err := strconv.Atoi(argoCDCM.Data[settingsWebhookRefreshJitterThreshold])
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", settingsWebhookRefreshJitterThreshold, err)
+		return defaultWebhookRefreshJitterThreshold
+	}
+
+	if threshold < 0 {
+		log.Warnf("Invalid '%s' value %d, must be >= 0, using default %d", settingsWebhookRefreshJitterThreshold, threshold, defaultWebhookRefreshJitterThreshold)
+		return defaultWebhookRefreshJitterThreshold
+	}
+
+	return threshold
+}
+
 // IsImpersonationEnabled returns true if application sync with impersonation feature is enabled in argocd-cm configmap
 func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 	cm, err := mgr.getConfigMap()
@@ -2299,4 +2951,79 @@ func (mgr *SettingsManager) IsImpersonationEnabled() (bool, error) {
 		return defaultImpersonationEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnabledKey, err)
 	}
 	return cm.Data[impersonationEnabledKey] == "true", nil
+}
+
+// IsImpersonationEnforced returns true if impersonation enforcement is enabled (requires service account to be configured)
+func (mgr *SettingsManager) IsImpersonationEnforced() (bool, error) {
+	cm, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultImpersonationEnforcedFlag, fmt.Errorf("error checking %s property in configmap: %w", impersonationEnforcedKey, err)
+	}
+	if value, exists := cm.Data[impersonationEnforcedKey]; exists {
+		return value != "false", nil
+	}
+	return defaultImpersonationEnforcedFlag, nil
+}
+
+func (mgr *SettingsManager) GetAllowedNodeLabels() []string {
+	labelKeys := []string{}
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		log.Error(fmt.Errorf("failed getting allowedNodeLabels from configmap: %w", err))
+		return labelKeys
+	}
+	value, ok := argoCDCM.Data[allowedNodeLabelsKey]
+	if !ok || value == "" {
+		return labelKeys
+	}
+	value = strings.ReplaceAll(value, " ", "")
+	keys := strings.SplitSeq(value, ",")
+	for k := range keys {
+		if errs := validation.IsQualifiedName(k); len(errs) > 0 {
+			log.Warnf("Invalid node label key '%s' in configmap: %v", k, errs)
+			continue
+		}
+		labelKeys = append(labelKeys, k)
+	}
+	return labelKeys
+}
+
+// IsInClusterEnabled returns false if in-cluster is explicitly disabled in argocd-cm configmap, true otherwise
+func (mgr *SettingsManager) IsInClusterEnabled() (bool, error) {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultInClusterEnabledFlag, fmt.Errorf("error checking %s property in configmap: %w", inClusterEnabledKey, err)
+	}
+	if inClusterEnabled, ok := argoCDCM.Data[inClusterEnabledKey]; ok {
+		return inClusterEnabled != "false", nil
+	}
+	return defaultInClusterEnabledFlag, nil
+}
+
+func init() {
+	ConfigureGoClientFeatures()
+}
+
+type myFeatureGates struct {
+	parent clientgofeatures.Gates
+}
+
+func (m myFeatureGates) Enabled(f clientgofeatures.Feature) bool {
+	if f == clientgofeatures.WatchListClient ||
+		f == clientgofeatures.InOrderInformers {
+		return false
+	}
+	return m.parent.Enabled(f)
+}
+
+// FIXME: remove when we have proper WatchListClient and InOrderInformers support
+func ConfigureGoClientFeatures() {
+	gates := clientgofeatures.FeatureGates()
+	isWatchListEnabled := gates.Enabled(clientgofeatures.WatchListClient)
+	isInOrderInformersEnabled := gates.Enabled(clientgofeatures.InOrderInformers)
+
+	if isWatchListEnabled || isInOrderInformersEnabled {
+		wrapper := myFeatureGates{parent: gates}
+		clientgofeatures.ReplaceFeatureGates(wrapper)
+	}
 }

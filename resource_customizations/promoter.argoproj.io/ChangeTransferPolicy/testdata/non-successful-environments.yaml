@@ -1,0 +1,59 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ChangeTransferPolicy
+metadata:
+  annotations:
+    promoter.argoproj.io/reconcile-at: '2025-07-23T15:49:33.901393-05:00'
+  creationTimestamp: '2025-07-07T20:10:43Z'
+  generation: 1
+  labels:
+    promoter.argoproj.io/environment: environments-development
+    promoter.argoproj.io/promotion-strategy: argocon-demo
+  name: argocon-demo-environments-development-eadabead
+  namespace: default
+  ownerReferences:
+    - apiVersion: promoter.argoproj.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: PromotionStrategy
+      name: argocon-demo
+      uid: a56ec0cc-7e96-4ced-a411-0f1695e84d54
+  resourceVersion: '10886193'
+  uid: 90374a1e-978c-4643-8631-6606d4248be3
+spec:
+  activeBranch: environments/development
+  activeCommitStatuses:
+    - key: argocd-health
+  autoMerge: false
+  gitRepositoryRef:
+    name: argocon-demo
+  proposedBranch: environments/development-next
+status:
+  active:
+    commitStatuses:
+      - key: argocd-health
+        phase: pending
+    dry:
+      repoURL: https://github.com/zachaller/argocon-gitops-promoter-hydrate-demo
+      sha: 7810fcb6e2143b9a85f3f5bb3e02754b48f63c56
+    hydrated:
+      author: argoproj-promoter[bot]
+      body: Promote 7810f to `environments/development`
+      commitTime: '2025-07-18T19:29:44Z'
+      sha: 273279e41e0684bdbe112b28c2ee65cae9123fca
+      subject: 'Merge pull request #791 from zachaller/environments/development-next'
+  conditions:
+    - lastTransitionTime: '2025-07-23T20:49:42Z'
+      message: Reconciliation succeeded
+      observedGeneration: 1
+      reason: ReconciliationSuccess
+      status: 'True'
+      type: Ready
+  proposed:
+    dry:
+      repoURL: https://github.com/zachaller/argocon-gitops-promoter-hydrate-demo
+      sha: 7810fcb6e2143b9a85f3f5bb3e02754b48f63c56
+    hydrated:
+      author: Argo CD
+      commitTime: '2025-07-14T18:11:24Z'
+      sha: 1c0432bb87f80f06fd16377fff184ad80f475313
+      subject: '[Argo CD Bot] hydrate 7810fcb6e2143b9a85f3f5bb3e02754b48f63c56'

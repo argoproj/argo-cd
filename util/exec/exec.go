@@ -2,8 +2,10 @@ package exec
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -12,7 +14,7 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/tracing"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/tracing"
 	"github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/log"
@@ -20,8 +22,9 @@ import (
 )
 
 var (
-	timeout    time.Duration
-	Unredacted = Redact(nil)
+	timeout      time.Duration
+	fatalTimeout time.Duration
+	Unredacted   = Redact(nil)
 )
 
 type ExecRunOpts struct {
@@ -33,6 +36,8 @@ type ExecRunOpts struct {
 	SkipErrorLogging bool
 	// CaptureStderr determines whether to capture stderr in addition to stdout
 	CaptureStderr bool
+	// StderrWriter receives stderr without adding it to the returned output
+	StderrWriter io.Writer
 }
 
 func init() {
@@ -44,6 +49,10 @@ func initTimeout() {
 	timeout, err = time.ParseDuration(os.Getenv("ARGOCD_EXEC_TIMEOUT"))
 	if err != nil {
 		timeout = 90 * time.Second
+	}
+	fatalTimeout, err = time.ParseDuration(os.Getenv("ARGOCD_EXEC_FATAL_TIMEOUT"))
+	if err != nil {
+		fatalTimeout = 10 * time.Second
 	}
 }
 
@@ -57,7 +66,15 @@ func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, 
 }
 
 func RunWithExecRunOpts(cmd *exec.Cmd, opts ExecRunOpts) (string, error) {
-	cmdOpts := CmdOpts{Timeout: timeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging}
+	cmdOpts := CmdOpts{
+		Timeout:          timeout,
+		FatalTimeout:     fatalTimeout,
+		Redactor:         opts.Redactor,
+		TimeoutBehavior:  opts.TimeoutBehavior,
+		SkipErrorLogging: opts.SkipErrorLogging,
+		CaptureStderr:    opts.CaptureStderr,
+		StderrWriter:     opts.StderrWriter,
+	}
 	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", cmd.Dir)
 	if cmdOpts.Redactor != nil {
@@ -130,6 +147,8 @@ type TimeoutBehavior struct {
 type CmdOpts struct {
 	// Timeout determines how long to wait for the command to exit
 	Timeout time.Duration
+	// FatalTimeout is the amount of additional time to wait after Timeout before fatal SIGKILL
+	FatalTimeout time.Duration
 	// Redactor redacts tokens from the output
 	Redactor func(text string) string
 	// TimeoutBehavior configures what to do in case of timeout
@@ -138,10 +157,13 @@ type CmdOpts struct {
 	SkipErrorLogging bool
 	// CaptureStderr defines whether to capture stderr in addition to stdout
 	CaptureStderr bool
+	// StderrWriter receives stderr without adding it to the returned output
+	StderrWriter io.Writer
 }
 
 var DefaultCmdOpts = CmdOpts{
 	Timeout:          time.Duration(0),
+	FatalTimeout:     time.Duration(0),
 	Redactor:         Unredacted,
 	TimeoutBehavior:  TimeoutBehavior{syscall.SIGKILL, false},
 	SkipErrorLogging: false,
@@ -179,6 +201,29 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
+	if opts.StderrWriter != nil {
+		cmd.Stderr = io.MultiWriter(&stderr, opts.StderrWriter)
+	}
+
+	// Start timers for timeout
+	timeout := DefaultCmdOpts.Timeout
+	fatalTimeout := DefaultCmdOpts.FatalTimeout
+
+	if opts.Timeout != time.Duration(0) {
+		timeout = opts.Timeout
+	}
+
+	if opts.FatalTimeout != time.Duration(0) {
+		fatalTimeout = opts.FatalTimeout
+	}
+	// Bound the wait for inherited pipes. A grandchild that outlives the command
+	// would otherwise keep Wait blocked until that grandchild exits. A caller that
+	// already set WaitDelay, such as the git client, keeps its own value.
+	// WaitDelay has to be set before Start: for a command created with a
+	// cancelable context, Start launches a goroutine that reads it.
+	if cmd.WaitDelay == 0 && fatalTimeout != 0 {
+		cmd.WaitDelay = fatalTimeout
+	}
 
 	start := time.Now()
 	err = cmd.Start()
@@ -186,22 +231,23 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		return "", err
 	}
 
-	done := make(chan error)
+	// Buffered so the timeout path can return without waiting on Wait. An
+	// unbuffered channel leaks the Wait goroutine, which blocks forever on send.
+	done := make(chan error, 1)
 	go func() { done <- cmd.Wait() }()
-
-	// Start a timer
-	timeout := DefaultCmdOpts.Timeout
-
-	if opts.Timeout != time.Duration(0) {
-		timeout = opts.Timeout
-	}
 
 	var timoutCh <-chan time.Time
 	if timeout != 0 {
 		timoutCh = time.NewTimer(timeout).C
 	}
 
+	var fatalTimeoutCh <-chan time.Time
+	if fatalTimeout != 0 {
+		fatalTimeoutCh = time.NewTimer(timeout + fatalTimeout).C
+	}
+
 	timeoutBehavior := DefaultCmdOpts.TimeoutBehavior
+	fatalTimeoutBehaviour := syscall.SIGKILL
 	if opts.TimeoutBehavior.Signal != syscall.Signal(0) {
 		timeoutBehavior = opts.TimeoutBehavior
 	}
@@ -209,9 +255,31 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	select {
 	// noinspection ALL
 	case <-timoutCh:
+		// send timeout signal
 		_ = cmd.Process.Signal(timeoutBehavior.Signal)
+		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
-			<-done
+			select {
+			case <-done: //nolint:errcheck // exit error after our signal is expected
+			case <-fatalTimeoutCh:
+				// upgrades to SIGKILL if cmd does not respect SIGTERM
+				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
+				// now original cmd should exit immediately after SIGKILL
+				<-done //nolint:errcheck
+				// return error with a marker indicating that cmd exited only after fatal SIGKILL
+				output := stdout.String()
+				if opts.CaptureStderr {
+					output += stderr.String()
+				}
+				logCtx.WithFields(logrus.Fields{"duration": time.Since(start)}).Debug(redactor(output))
+				err = newCmdError(redactor(args), fmt.Errorf("fatal timeout after %v", timeout+fatalTimeout), "")
+				logCtx.Error(err.Error())
+				return strings.TrimSuffix(output, "\n"), err
+			}
+		} else {
+			// Join the pipe-copy goroutines before reading the buffers. Reading them
+			// here used to race with os/exec still copying command output.
+			<-done //nolint:errcheck // the timeout error replaces the process exit error
 		}
 		output := stdout.String()
 		if opts.CaptureStderr {
@@ -235,7 +303,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 			return strings.TrimSuffix(output, "\n"), err
 		}
 	}
-
 	output := stdout.String()
 	if opts.CaptureStderr {
 		output += stderr.String()
@@ -246,5 +313,5 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 }
 
 func RunCommand(name string, opts CmdOpts, arg ...string) (string, error) {
-	return RunCommandExt(exec.Command(name, arg...), opts)
+	return RunCommandExt(exec.CommandContext(context.Background(), name, arg...), opts)
 }

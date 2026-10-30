@@ -4,12 +4,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"time"
 
 	"dario.cat/mergo"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -83,11 +83,8 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 					}
 					baseParamSetsByMergeKey[mergeKeyValue] = baseParamSet
 				} else {
-					overriddenParamSet, err := utils.CombineStringMapsAllowDuplicates(baseParamSet, overrideParamSet)
-					if err != nil {
-						return nil, fmt.Errorf("error combining string maps: %w", err)
-					}
-					baseParamSetsByMergeKey[mergeKeyValue] = utils.ConvertToMapStringInterface(overriddenParamSet)
+					maps.Copy(baseParamSet, overrideParamSet)
+					baseParamSetsByMergeKey[mergeKeyValue] = baseParamSet
 				}
 			}
 		}
@@ -156,6 +153,7 @@ func (m *MergeGenerator) getParams(appSetBaseGenerator argoprojiov1alpha1.Applic
 			ClusterDecisionResource: appSetBaseGenerator.ClusterDecisionResource,
 			PullRequest:             appSetBaseGenerator.PullRequest,
 			Plugin:                  appSetBaseGenerator.Plugin,
+			Oci:                     appSetBaseGenerator.Oci,
 			Matrix:                  matrixGen,
 			Merge:                   mergeGen,
 			Selector:                appSetBaseGenerator.Selector,
@@ -194,6 +192,7 @@ func (m *MergeGenerator) GetRequeueAfter(appSetGenerator *argoprojiov1alpha1.App
 			Plugin:                  r.Plugin,
 			SCMProvider:             r.SCMProvider,
 			ClusterDecisionResource: r.ClusterDecisionResource,
+			Oci:                     r.Oci,
 			Matrix:                  matrixGen,
 			Merge:                   mergeGen,
 		}

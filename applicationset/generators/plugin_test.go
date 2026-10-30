@@ -13,9 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -38,20 +35,16 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "simple case",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"baseUrl": "http://127.0.0.1",
 					"token":   "$plugin.token",
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-secret",
-					Namespace: "default",
-				},
+				Name:      "argocd-secret",
+				Namespace: "default",
 				Data: map[string][]byte{
 					"plugin.token": []byte("my-secret"),
 				},
@@ -94,20 +87,16 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "simple case with values",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"baseUrl": "http://127.0.0.1",
 					"token":   "$plugin.token",
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-secret",
-					Namespace: "default",
-				},
+				Name:      "argocd-secret",
+				Namespace: "default",
 				Data: map[string][]byte{
 					"plugin.token": []byte("my-secret"),
 				},
@@ -156,20 +145,16 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "simple case with gotemplate",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"baseUrl": "http://127.0.0.1",
 					"token":   "$plugin.token",
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-secret",
-					Namespace: "default",
-				},
+				Name:      "argocd-secret",
+				Namespace: "default",
 				Data: map[string][]byte{
 					"plugin.token": []byte("my-secret"),
 				},
@@ -216,20 +201,16 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "simple case with appended params",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"baseUrl": "http://127.0.0.1",
 					"token":   "$plugin.token",
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-secret",
-					Namespace: "default",
-				},
+				Name:      "argocd-secret",
+				Namespace: "default",
 				Data: map[string][]byte{
 					"plugin.token": []byte("my-secret"),
 				},
@@ -272,20 +253,16 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "no params",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"baseUrl": "http://127.0.0.1",
 					"token":   "$plugin.token",
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-secret",
-					Namespace: "default",
-				},
+				Name:      "argocd-secret",
+				Namespace: "default",
 				Data: map[string][]byte{
 					"plugin.token": []byte("my-secret"),
 				},
@@ -322,20 +299,16 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "empty return",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"baseUrl": "http://127.0.0.1",
 					"token":   "$plugin.token",
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-secret",
-					Namespace: "default",
-				},
+				Name:      "argocd-secret",
+				Namespace: "default",
 				Data: map[string][]byte{
 					"plugin.token": []byte("my-secret"),
 				},
@@ -349,20 +322,16 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "wrong return",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"baseUrl": "http://127.0.0.1",
 					"token":   "$plugin.token",
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-secret",
-					Namespace: "default",
-				},
+				Name:      "argocd-secret",
+				Namespace: "default",
 				Data: map[string][]byte{
 					"plugin.token": []byte("my-secret"),
 				},
@@ -376,20 +345,16 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "external secret",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"baseUrl": "http://127.0.0.1",
 					"token":   "$plugin-secret:plugin.token",
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "plugin-secret",
-					Namespace: "default",
-				},
+				Name:      "plugin-secret",
+				Namespace: "default",
 				Data: map[string][]byte{
 					"plugin.token": []byte("my-secret"),
 				},
@@ -432,10 +397,8 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "no secret",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"baseUrl": "http://127.0.0.1",
 					"token":   "$plugin.token",
@@ -481,10 +444,8 @@ func TestPluginGenerateParams(t *testing.T) {
 			name:      "no configmap",
 			configmap: &corev1.ConfigMap{},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-secret",
-					Namespace: "default",
-				},
+				Name:      "argocd-secret",
+				Namespace: "default",
 				Data: map[string][]byte{
 					"plugin.token": []byte("my-secret"),
 				},
@@ -527,19 +488,15 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "no baseUrl",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"token": "$plugin.token",
 				},
 			},
 			secret: &corev1.Secret{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "argocd-secret",
-					Namespace: "default",
-				},
+				Name:      "argocd-secret",
+				Namespace: "default",
 				Data: map[string][]byte{
 					"plugin.token": []byte("my-secret"),
 				},
@@ -582,10 +539,8 @@ func TestPluginGenerateParams(t *testing.T) {
 		{
 			name: "no token",
 			configmap: &corev1.ConfigMap{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "first-plugin-cm",
-					Namespace: "default",
-				},
+				Name:      "first-plugin-cm",
+				Namespace: "default",
 				Data: map[string]string{
 					"baseUrl": "http://127.0.0.1",
 				},
@@ -628,8 +583,6 @@ func TestPluginGenerateParams(t *testing.T) {
 		},
 	}
 
-	ctx := t.Context()
-
 	for _, testCase := range testCases {
 		t.Run(testCase.name, func(t *testing.T) {
 			generatorConfig := argoprojiov1alpha1.ApplicationSetGenerator{
@@ -666,16 +619,12 @@ func TestPluginGenerateParams(t *testing.T) {
 				testCase.configmap.Data["baseUrl"] = fakeServer.URL
 			}
 
-			fakeClient := kubefake.NewSimpleClientset(append([]runtime.Object{}, testCase.configmap, testCase.secret)...)
-
 			fakeClientWithCache := fake.NewClientBuilder().WithObjects([]client.Object{testCase.configmap, testCase.secret}...).Build()
 
-			pluginGenerator := NewPluginGenerator(ctx, fakeClientWithCache, fakeClient, "default")
+			pluginGenerator := NewPluginGenerator(fakeClientWithCache, "default")
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					GoTemplate: testCase.gotemplate,
 				},

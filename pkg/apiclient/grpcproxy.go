@@ -2,6 +2,7 @@ package apiclient
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -52,7 +53,7 @@ func toFrame(msg []byte) []byte {
 	return frame
 }
 
-func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.MD) (*http.Response, error) {
+func (c *client) executeRequest(ctx context.Context, fullMethodName string, msg []byte, md metadata.MD) (*http.Response, error) {
 	schema := "https"
 	if c.PlainText {
 		schema = "http"
@@ -65,7 +66,8 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 	} else {
 		requestURL = fmt.Sprintf("%s://%s%s", schema, c.ServerAddr, fullMethodName)
 	}
-	req, err := http.NewRequest(http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
+	// Use context in the HTTP request
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, requestURL, bytes.NewReader(toFrame(msg)))
 	if err != nil {
 		return nil, err
 	}
@@ -84,6 +86,9 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 		return nil, err
 	}
 	if resp.StatusCode != http.StatusOK {
+		if resp.Body != nil {
+			utilio.Close(resp.Body)
+		}
 		return nil, fmt.Errorf("%s %s failed with status code %d", req.Method, req.URL, resp.StatusCode)
 	}
 	var code codes.Code
@@ -95,21 +100,39 @@ func (c *client) executeRequest(fullMethodName string, msg []byte, md metadata.M
 			code = codes.Code(statusInt)
 		}
 		if code != codes.OK {
+			if resp.Body != nil {
+				utilio.Close(resp.Body)
+			}
 			return nil, status.Error(code, resp.Header.Get("Grpc-Message"))
 		}
 	}
 	return resp, nil
 }
 
-func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
+func (c *client) startGRPCProxy(ctx context.Context) (*grpc.Server, net.Listener, error) {
+	// Fail with clear message in case the /tmp directory does not exist
+	tmpDir := os.TempDir()
+	if _, err := os.Stat(tmpDir); err != nil {
+		return nil, nil, fmt.Errorf(
+			"failed to access temporary directory %q: %w",
+			tmpDir,
+			err,
+		)
+	}
+
 	randSuffix, err := rand.String(16)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate random socket filename: %w", err)
 	}
-	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), randSuffix)
-	ln, err := net.Listen("unix", serverAddr)
+	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", tmpDir, randSuffix)
+	lc := &net.ListenConfig{}
+	ln, err := lc.Listen(ctx, "unix", serverAddr)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf(
+			"failed to create gRPC-Web proxy socket %q: %w",
+			serverAddr,
+			err,
+		)
 	}
 	proxySrv := grpc.NewServer(
 		grpc.ForceServerCodec(&noopCodec{}),
@@ -137,7 +160,7 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 
 			md = metadata.Join(md, headersMD)
 
-			resp, err := c.executeRequest(fullMethodName, msg, md)
+			resp, err := c.executeRequest(stream.Context(), fullMethodName, msg, md)
 			if err != nil {
 				return err
 			}
@@ -147,7 +170,15 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 				utilio.Close(resp.Body)
 			}()
 			defer utilio.Close(resp.Body)
-			c.httpClient.CloseIdleConnections()
+			// When retries are enabled, httpClient wraps a retryablehttp
+			// RoundTripper that does not implement CloseIdleConnections, so
+			// closing on httpClient would be a no-op. Close idle connections on
+			// the underlying TLS transport directly when we have one.
+			if c.tlsTransport != nil {
+				c.tlsTransport.CloseIdleConnections()
+			} else {
+				c.httpClient.CloseIdleConnections()
+			}
 
 			for {
 				header := make([]byte, frameHeaderLength)
@@ -186,13 +217,13 @@ func (c *client) startGRPCProxy() (*grpc.Server, net.Listener, error) {
 }
 
 // useGRPCProxy ensures that grpc proxy server is started and return closer which stops server when no one uses it
-func (c *client) useGRPCProxy() (net.Addr, io.Closer, error) {
+func (c *client) useGRPCProxy(ctx context.Context) (net.Addr, io.Closer, error) {
 	c.proxyMutex.Lock()
 	defer c.proxyMutex.Unlock()
 
 	if c.proxyListener == nil {
 		var err error
-		c.proxyServer, c.proxyListener, err = c.startGRPCProxy()
+		c.proxyServer, c.proxyListener, err = c.startGRPCProxy(ctx)
 		if err != nil {
 			return nil, nil, err
 		}

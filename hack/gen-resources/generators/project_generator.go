@@ -22,14 +22,12 @@ func NewProjectGenerator(clientSet *appclientset.Clientset) Generator {
 
 func (pg *ProjectGenerator) Generate(opts *util.GenerateOpts) error {
 	projects := pg.clientSet.ArgoprojV1alpha1().AppProjects(opts.Namespace)
-	for i := 0; i < opts.ProjectOpts.Samples; i++ {
+	for i := range opts.ProjectOpts.Samples {
 		log.Printf("Generate project #%v", i)
 		_, err := projects.Create(context.TODO(), &v1alpha1.AppProject{
-			ObjectMeta: metav1.ObjectMeta{
-				GenerateName: "project-",
-				Namespace:    opts.Namespace,
-				Labels:       labels,
-			},
+			GenerateName: "project-",
+			Namespace:    opts.Namespace,
+			Labels:       labels,
 			Spec: v1alpha1.AppProjectSpec{
 				Description: "generated-project",
 			},
@@ -43,7 +41,7 @@ func (pg *ProjectGenerator) Generate(opts *util.GenerateOpts) error {
 }
 
 func (pg *ProjectGenerator) Clean(opts *util.GenerateOpts) error {
-	log.Printf("Clean projects")
+	log.Print("Clean projects")
 	projects := pg.clientSet.ArgoprojV1alpha1().AppProjects(opts.Namespace)
 	return projects.DeleteCollection(context.TODO(), metav1.DeleteOptions{}, metav1.ListOptions{
 		LabelSelector: "app.kubernetes.io/generated-by=argocd-generator",

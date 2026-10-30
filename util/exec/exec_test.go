@@ -1,8 +1,11 @@
 package exec
 
 import (
+	"bytes"
+	"context"
 	"os/exec"
 	"regexp"
+	"runtime"
 	"syscall"
 	"testing"
 	"time"
@@ -17,31 +20,36 @@ func Test_timeout(t *testing.T) {
 	t.Run("Default", func(t *testing.T) {
 		initTimeout()
 		assert.Equal(t, 90*time.Second, timeout)
+		assert.Equal(t, 10*time.Second, fatalTimeout)
 	})
 	t.Run("Default", func(t *testing.T) {
 		t.Setenv("ARGOCD_EXEC_TIMEOUT", "1s")
+		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "2s")
 		initTimeout()
 		assert.Equal(t, 1*time.Second, timeout)
+		assert.Equal(t, 2*time.Second, fatalTimeout)
 	})
 }
 
 func TestRun(t *testing.T) {
-	out, err := Run(exec.Command("ls"))
+	out, err := Run(exec.CommandContext(t.Context(), "ls"))
 	require.NoError(t, err)
 	assert.NotEmpty(t, out)
 }
 
 func TestHideUsernamePassword(t *testing.T) {
-	_, err := RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), nil)
+	ctx := t.Context()
+	_, err := RunWithRedactor(exec.CommandContext(ctx, "helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), nil)
 	require.Error(t, err)
 
 	redactor := func(text string) string {
 		return regexp.MustCompile("(--username|--password) [^ ]*").ReplaceAllString(text, "$1 ******")
 	}
-	_, err = RunWithRedactor(exec.Command("helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), redactor)
+	_, err = RunWithRedactor(exec.CommandContext(ctx, "helm registry login https://charts.bitnami.com/bitnami", "--username", "foo", "--password", "bar"), redactor)
 	require.Error(t, err)
 }
 
+// This tests a cmd that properly handles a SIGTERM signal
 func TestRunWithExecRunOpts(t *testing.T) {
 	t.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
 	initTimeout()
@@ -52,11 +60,32 @@ func TestRunWithExecRunOpts(t *testing.T) {
 			ShouldWait: true,
 		},
 	}
-	_, err := RunWithExecRunOpts(exec.Command("sh", "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2"), opts)
+	_, err := RunWithExecRunOpts(exec.CommandContext(t.Context(), "sh", "-c", "trap 'trap - 15 && echo captured && exit' 15 && sleep 2"), opts)
 	assert.ErrorContains(t, err, "failed timeout after 200ms")
 }
 
+// This tests a mis-behaved cmd that stalls on SIGTERM and requires a SIGKILL
+func TestRunWithExecRunOptsFatal(t *testing.T) {
+	t.Setenv("ARGOCD_EXEC_TIMEOUT", "200ms")
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "100ms")
+
+	initTimeout()
+
+	opts := ExecRunOpts{
+		TimeoutBehavior: TimeoutBehavior{
+			Signal:     syscall.SIGTERM,
+			ShouldWait: true,
+		},
+	}
+	// The returned error string in this case should contain a "fatal" in this case
+	_, err := RunWithExecRunOpts(exec.CommandContext(t.Context(), "sh", "-c", "trap 'trap - 15 && echo captured && sleep 10000' 15 && sleep 2"), opts)
+	// The expected timeout is ARGOCD_EXEC_TIMEOUT + ARGOCD_EXEC_FATAL_TIMEOUT = 200ms + 100ms = 300ms
+	assert.ErrorContains(t, err, "failed fatal timeout after 300ms")
+}
+
 func Test_getCommandArgsToLog(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name     string
 		args     []string
@@ -83,7 +112,7 @@ func Test_getCommandArgsToLog(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equal(t, tcc.expected, GetCommandArgsToLog(exec.Command(tcc.args[0], tcc.args[1:]...)))
+			assert.Equal(t, tcc.expected, GetCommandArgsToLog(exec.CommandContext(t.Context(), tcc.args[0], tcc.args[1:]...)))
 		})
 	}
 }
@@ -170,7 +199,7 @@ func TestRunCommandErr(t *testing.T) {
 }
 
 func TestRunInDir(t *testing.T) {
-	cmd := exec.Command("pwd")
+	cmd := exec.CommandContext(t.Context(), "pwd")
 	cmd.Dir = "/"
 	message, err := RunCommandExt(cmd, CmdOpts{})
 	require.NoError(t, err)
@@ -187,8 +216,110 @@ func TestRedact(t *testing.T) {
 	assert.Equal(t, "****** ******", Redact([]string{"foo"})("foo foo"))
 }
 
+func TestRunCommandTimeout(t *testing.T) {
+	hook := test.NewGlobal()
+	log.SetLevel(log.DebugLevel)
+	defer log.SetLevel(log.InfoLevel)
+
+	output, err := RunCommand("sh", CmdOpts{Timeout: 500 * time.Millisecond}, "-c", "echo hello world && echo my-error >&2 && sleep 2")
+	assert.Equal(t, "hello world", output)
+	require.EqualError(t, err, "`sh -c echo hello world && echo my-error >&2 && sleep 2` failed timeout after 500ms")
+
+	assert.Len(t, hook.Entries, 3)
+
+	entry := hook.Entries[0]
+	assert.Equal(t, log.InfoLevel, entry.Level)
+	assert.Equal(t, "sh -c echo hello world && echo my-error >&2 && sleep 2", entry.Message)
+	assert.Contains(t, entry.Data, "dir")
+	assert.Contains(t, entry.Data, "execID")
+
+	entry = hook.Entries[1]
+	assert.Equal(t, log.DebugLevel, entry.Level)
+	assert.Equal(t, "hello world\n", entry.Message)
+	assert.Contains(t, entry.Data, "duration")
+	assert.Contains(t, entry.Data, "execID")
+
+	entry = hook.Entries[2]
+	assert.Equal(t, log.ErrorLevel, entry.Level)
+	assert.Equal(t, "`sh -c echo hello world && echo my-error >&2 && sleep 2` failed timeout after 500ms", entry.Message)
+	assert.Contains(t, entry.Data, "execID")
+}
+
 func TestRunCaptureStderr(t *testing.T) {
 	output, err := RunCommand("sh", CmdOpts{CaptureStderr: true}, "-c", "echo hello world && echo my-error >&2 && exit 0")
 	assert.Equal(t, "hello world\nmy-error", output)
 	assert.NoError(t, err)
+}
+
+func TestRunWithExecRunOptsCaptureStderr(t *testing.T) {
+	ctx := t.Context()
+	cmd := exec.CommandContext(ctx, "sh", "-c", "echo hello world && echo my-error >&2 && exit 0")
+	output, err := RunWithExecRunOpts(cmd, ExecRunOpts{CaptureStderr: true})
+	assert.Equal(t, "hello world\nmy-error", output)
+	assert.NoError(t, err)
+}
+
+func TestRunCommandExt_timeoutDoesNotRaceOnOutputBuffers(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "echo hi; sleep 1; echo bye")
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: 200 * time.Millisecond})
+	require.Error(t, err)
+	// Keep the process alive past RunCommandExt's return so the race detector
+	// can observe a write to the output buffers after they were read.
+	time.Sleep(1500 * time.Millisecond)
+}
+
+func TestRunCommandExt_timeoutWithoutWaitDoesNotLeakGoroutine(t *testing.T) {
+	before := runtime.NumGoroutine()
+	for range 5 {
+		cmd := exec.CommandContext(t.Context(), "sleep", "5")
+		_, err := RunCommandExt(cmd, CmdOpts{Timeout: 100 * time.Millisecond})
+		require.Error(t, err)
+	}
+	// Eventually calls the condition from its own goroutine, so the count is one higher while it runs.
+	require.Eventually(t, func() bool {
+		return runtime.NumGoroutine() <= before+1
+	}, 2*time.Second, 20*time.Millisecond)
+}
+
+func TestRunCommandExt_timeoutDoesNotWaitForGrandchildPipe(t *testing.T) {
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "sleep 30 & wait")
+	start := time.Now()
+	done := make(chan error, 1)
+	go func() {
+		_, err := RunCommandExt(cmd, CmdOpts{
+			Timeout:      200 * time.Millisecond,
+			FatalTimeout: 500 * time.Millisecond,
+			TimeoutBehavior: TimeoutBehavior{
+				Signal:     syscall.SIGTERM,
+				ShouldWait: true,
+			},
+		})
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		require.Error(t, err)
+		require.Less(t, time.Since(start), 3*time.Second)
+	case <-time.After(3 * time.Second):
+		t.Fatal("command did not return after the timeout")
+	}
+}
+
+func TestRunCommandExt_contextCancelDoesNotRaceOnWaitDelay(t *testing.T) {
+	// os/exec starts a goroutine in Start that reads WaitDelay once the context
+	// is done, so WaitDelay must not be written after Start.
+	ctx, cancel := context.WithTimeout(t.Context(), 50*time.Millisecond)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "sleep", "5")
+	_, err := RunCommandExt(cmd, CmdOpts{Timeout: 5 * time.Second, FatalTimeout: time.Second})
+	require.Error(t, err)
+}
+
+func TestRunWithExecRunOptsStderrWriter(t *testing.T) {
+	var stderr bytes.Buffer
+	cmd := exec.CommandContext(t.Context(), "sh", "-c", "printf stdout && printf stderr >&2")
+	output, err := RunWithExecRunOpts(cmd, ExecRunOpts{StderrWriter: &stderr})
+	require.NoError(t, err)
+	assert.Equal(t, "stdout", output)
+	assert.Equal(t, "stderr", stderr.String())
 }

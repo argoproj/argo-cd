@@ -16,15 +16,22 @@ issues:
 linters:
   enable:
     - errorlint
+    - exptostd
     - gocritic
-    - gomodguard
+    - gomodguard_v2
+    - govet
     - importas
+    - intrange
     - misspell
+    - modernize
+    - noctx
     - perfsprint
     - revive
     - staticcheck
     - testifylint
     - thelper
+    - tparallel
+    - unconvert
     - unparam
     - usestdlibvars
     - usetesting
@@ -46,28 +53,41 @@ linters:
 
   settings:
     gocritic:
+      enable-all: true
+      # Most of these should probably be enabled one-by-one.
       disabled-checks:
         - appendAssign
-        - assignOp
+        - appendCombine # Leave disabled, multi-line assigns can be more readable.
+        - assignOp # Leave disabled, assign operations can be more confusing than helpful.
+        - commentedOutCode
+        - deferInLoop
         - exitAfterDefer
-        - mapKey
-        - typeSwitchVar
+        - hugeParam
+        - importShadow
+        - paramTypeCombine # Leave disabled, there are too many failures to be worth fixing.
+        - rangeValCopy
+        - tooManyResultsChecker
+        - unnamedResult
+        - whyNoLint
 
-    gomodguard:
+    gomodguard_v2:
       blocked:
-        modules:
-          - github.com/golang-jwt/jwt/v4:
-              recommendations:
-                - github.com/golang-jwt/jwt/v5
+        - module: github.com/golang-jwt/jwt/v4
+          recommendations:
+            - github.com/golang-jwt/jwt/v5
+        - module: github.com/imdario/mergo
+          recommendations:
+            - dario.cat/mergo
+          reason: '`github.com/imdario/mergo` has been renamed.'
+        - module: github.com/pkg/errors
+          recommendations:
+            - errors
 
-          - github.com/imdario/mergo:
-              recommendations:
-                - dario.cat/mergo
-              reason: '`github.com/imdario/mergo` has been renamed.'
-
-          - github.com/pkg/errors:
-              recommendations:
-                - errors
+    govet:
+      disable:
+        - fieldalignment
+        - shadow
+      enable-all: true
 
     importas:
       alias:
@@ -101,6 +121,13 @@ linters:
         - pkg: github.com/argoproj/argo-cd/v3/util/io
           alias: utilio
 
+    modernize:
+      disable:
+        # Suggest replacing omitempty with omitzero for struct fields.
+        - omitzero
+        # Simplify code by using go1.26's new(expr). - generates lots of false positives.
+        - newexpr
+
     nolintlint:
       require-specific: true
 
@@ -117,16 +144,19 @@ linters:
       strconcat: true
 
     revive:
+      enable-all-rules: false
+      enable-default-rules: true
+      max-open-files: 2048
       # https://github.com/mgechev/revive/blob/master/RULES_DESCRIPTIONS.md
       rules:
-        - name: bool-literal-in-expr
-
         - name: blank-imports
           disabled: true
 
+        - name: bool-literal-in-expr
+
         - name: context-as-argument
           arguments:
-            - allowTypesBefore: '*testing.T,testing.TB'
+            - allow-types-before: '*testing.T,testing.TB'
 
         - name: context-keys-type
           disabled: true
@@ -138,12 +168,9 @@ linters:
 
         - name: early-return
           arguments:
-            - preserveScope
+            - preserve-scope
 
         - name: empty-block
-          disabled: true
-
-        - name: error-naming
           disabled: true
 
         - name: error-return
@@ -153,7 +180,14 @@ linters:
 
         - name: errorf
 
+        - name: exported
+          disabled: true
+
         - name: identical-branches
+
+        - name: identical-ifelseif-branches
+
+        - name: identical-switch-branches
 
         - name: if-return
 
@@ -161,7 +195,9 @@ linters:
 
         - name: indent-error-flow
           arguments:
-            - preserveScope
+            - preserve-scope
+
+        - name: inefficient-map-lookup
 
         - name: modifies-parameter
 
@@ -178,15 +214,19 @@ linters:
 
         - name: superfluous-else
           arguments:
-            - preserveScope
+            - preserve-scope
 
         - name: time-equal
 
         - name: time-naming
           disabled: true
 
+        - name: unconditional-recursion
+
         - name: unexported-return
           disabled: true
+
+        - name: unnecessary-format
 
         - name: unnecessary-stmt
 
@@ -196,6 +236,8 @@ linters:
 
         - name: use-any
 
+        - name: use-fmt-print
+
         - name: useless-break
 
         - name: var-declaration
@@ -204,8 +246,8 @@ linters:
           arguments:
             - - ID
             - - VM
-            - - skipPackageNameChecks: true
-                upperCaseConst: true
+            - - skip-initialism-name-checks: true
+                upper-case-const: true
 
     staticcheck:
       checks:
@@ -220,10 +262,11 @@ linters:
       disable:
         - go-require
 
+    unused:
+      field-writes-are-uses: false
+      exported-fields-are-used: false
+
     usetesting:
       os-mkdir-temp: false
-
-output:
-  show-stats: false
 
 version: "2"

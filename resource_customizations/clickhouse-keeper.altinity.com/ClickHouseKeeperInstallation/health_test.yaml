@@ -1,0 +1,17 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: ClickHouseKeeper installation completed successfully
+  inputPath: testdata/healthy_completed.yaml
+- healthStatus:
+    status: Progressing
+    message: ClickHouseKeeper installation in progress
+  inputPath: testdata/progressing_inprogress.yaml
+- healthStatus:
+    status: Degraded
+    message: "ClickHouseKeeper status: Failed"
+  inputPath: testdata/degraded_failed.yaml
+- healthStatus:
+    status: Progressing
+    message: ClickHouseKeeper status not yet available
+  inputPath: testdata/progressing_nostatus.yaml

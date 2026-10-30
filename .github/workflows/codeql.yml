@@ -6,7 +6,18 @@ on:
     branches-ignore:
       - 'dependabot/**'
       - 'cherry-pick-*'
+      
+    # Skip CodeQL for documentation-only changes
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+
   pull_request:
+    # Skip CodeQL for documentation-only changes
+    paths-ignore:
+      - '*.md'
+      - '**/*.md'
+      - 'docs/assets/**'
   schedule:
     - cron: '0 19 * * 0'
 
@@ -17,8 +28,15 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  # renovate: datasource=golang-version packageName=golang
+  GOLANG_VERSION: '1.27.3'
+  
 jobs:
   CodeQL-Build:
+    name: CodeQL analysis
     permissions:
       actions: read  # for github/codeql-action/init to get workflow details
       contents: read  # for actions/checkout to fetch code
@@ -26,20 +44,39 @@ jobs:
     if: github.repository == 'argoproj/argo-cd' || vars.enable_codeql
 
     # CodeQL runs on ubuntu-latest and windows-latest
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
+    - name: Harden the runner (Audit all outbound calls)
+      if: ${{ vars.disable_harden_runner != 'true' }}
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+      with:
+        egress-policy: audit
+
     - name: Checkout repository
-      uses: actions/checkout@8410ad0602e1e429cee44a835ae9f77f654a6694 # v4.0.0
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      with:
+        persist-credentials: false
 
     # Use correct go version. https://github.com/github/codeql-action/issues/1842#issuecomment-1704398087
     - name: Setup Golang
-      uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version-file: go.mod
-      
-    # Initializes the CodeQL tools for scanning.
+        # Build with the toolchain we ship, not go.mod's version -- that one is the
+        # minimum we promise library consumers and deliberately lags. #1842 only needs
+        # a Go new enough to parse go.mod, which GOLANG_VERSION always is.
+        go-version: ${{ env.GOLANG_VERSION }}
+        cache: false
+    - name: Restore go build and module cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@8fcfedf57053e09257688fce7a0beeb18b1b9ae3 # v2.17.2
+      uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
       # Override language selection by uncommenting this and choosing your languages
       # with:
       #   languages: go, javascript, csharp, python, cpp, java
@@ -47,7 +84,7 @@ jobs:
     # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
     - name: Autobuild
-      uses: github/codeql-action/autobuild@8fcfedf57053e09257688fce7a0beeb18b1b9ae3 # v2.17.2
+      uses: github/codeql-action/autobuild@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 https://git.io/JvXDl
@@ -61,4 +98,4 @@ jobs:
     #   make release
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@8fcfedf57053e09257688fce7a0beeb18b1b9ae3 # v2.17.2
+      uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3

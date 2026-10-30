@@ -1,4 +1,4 @@
-package project
+package account
 
 import (
 	"context"
@@ -21,19 +21,19 @@ type Consequences struct {
 }
 
 func (c *Consequences) And(block func(account *account.Account, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.get())
 	return c
 }
 
 func (c *Consequences) AndCLIOutput(block func(output string, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.actions.lastOutput, c.actions.lastError)
 	return c
 }
 
 func (c *Consequences) CurrentUser(block func(user *session.GetUserInfoResponse, err error)) *Consequences {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	block(c.getCurrentUser())
 	return c
 }
@@ -45,7 +45,7 @@ func (c *Consequences) get() (*account.Account, error) {
 		return nil, err
 	}
 	for _, acc := range accList.Items {
-		if acc.Name == c.context.name {
+		if acc.Name == c.context.GetName() {
 			return acc, nil
 		}
 	}
@@ -53,9 +53,9 @@ func (c *Consequences) get() (*account.Account, error) {
 }
 
 func (c *Consequences) getCurrentUser() (*session.GetUserInfoResponse, error) {
-	c.context.t.Helper()
+	c.context.T().Helper()
 	closer, client, err := fixture.ArgoCDClientset.NewSessionClient()
-	require.NoError(c.context.t, err)
+	require.NoError(c.context.T(), err)
 	defer utilio.Close(closer)
 	return client.GetUserInfo(context.Background(), &session.GetUserInfoRequest{})
 }

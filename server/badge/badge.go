@@ -1,14 +1,13 @@
 package badge
 
 import (
-	"context"
 	"fmt"
 	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
 
-	healthutil "github.com/argoproj/gitops-engine/pkg/health"
+	healthutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/validation"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -62,6 +61,7 @@ const (
 	svgWidthWithRevision      = 192
 	svgWidthWithFullRevision  = 400
 	svgWidthWithoutRevision   = 131
+	shortRevisionLen          = 7
 	svgHeightWithAppName      = 40
 	badgeRowHeight            = 20
 	statusRowYCoodWithAppName = 330
@@ -72,7 +72,7 @@ const (
 )
 
 func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) string {
-	result := ""
+	var result strings.Builder
 	lastIndex := 0
 
 	for _, v := range re.FindAllSubmatchIndex([]byte(str), -1) {
@@ -81,11 +81,11 @@ func replaceFirstGroupSubMatch(re *regexp.Regexp, str string, repl string) strin
 			groups = append(groups, str[v[i]:v[i+1]])
 		}
 
-		result += str[lastIndex:v[0]] + groups[0] + repl
+		result.WriteString(str[lastIndex:v[0]] + groups[0] + repl)
 		lastIndex = v[1]
 	}
 
-	return result + str[lastIndex:]
+	return result.String() + str[lastIndex:]
 }
 
 // ServeHTTP returns badge with health and sync status for application
@@ -127,12 +127,16 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(context.Background(), name[0], metav1.GetOptions{}); err == nil {
+		if app, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).Get(r.Context(), name[0], metav1.GetOptions{}); err == nil {
 			health = app.Status.Health.Status
 			status = app.Status.Sync.Status
 			applicationName = name[0]
 			if app.Status.OperationState != nil && app.Status.OperationState.SyncResult != nil {
-				revision = app.Status.OperationState.SyncResult.Revision
+				if len(app.Status.OperationState.SyncResult.Revisions) > 0 {
+					revision = app.Status.OperationState.SyncResult.Revisions[0]
+				} else {
+					revision = app.Status.OperationState.SyncResult.Revision
+				}
 			}
 		} else if errors.IsNotFound(err) {
 			notFound = true
@@ -141,12 +145,12 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// Sample url: http://localhost:8080/api/badge?project=default
 	if projects, ok := r.URL.Query()["project"]; ok && enabled && !notFound {
 		for _, p := range projects {
-			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); len(p) > 0 && len(errs) != 0 {
+			if errs := validation.NameIsDNSLabel(strings.ToLower(p), false); p != "" && len(errs) != 0 {
 				w.WriteHeader(http.StatusBadRequest)
 				return
 			}
 		}
-		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).List(context.Background(), metav1.ListOptions{}); err == nil {
+		if apps, err := h.appClientset.ArgoprojV1alpha1().Applications(reqNs).List(r.Context(), metav1.ListOptions{}); err == nil {
 			applicationSet := argo.FilterByProjects(apps.Items, projects)
 			for _, a := range applicationSet {
 				if a.Status.Sync.Status != appv1.SyncStatusCodeSynced {
@@ -192,23 +196,25 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	badge := assets.BadgeSVG
-	badge = leftRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftRect" fill="%s" $2`, leftColorString))
-	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill="%s" $2`, rightColorString))
+	badge = leftRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="leftRect" fill=%q $2`, leftColorString))
+	badge = rightRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="rightRect" fill=%q $2`, rightColorString))
 	badge = replaceFirstGroupSubMatch(leftTextPattern, badge, leftText)
 	badge = replaceFirstGroupSubMatch(rightTextPattern, badge, rightText)
 
 	if !notFound && revisionEnabled && revision != "" {
 		// Enable display of revision components
 		badge = displayNonePattern.ReplaceAllString(badge, `display="inline"`)
-		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill="%s" $2`, rightColorString))
+		badge = revisionRectColorPattern.ReplaceAllString(badge, fmt.Sprintf(`id="revisionRect" fill=%q $2`, rightColorString))
 
 		adjustWidth = true
 		displayedRevision = revision
-		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; (!ok || !strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > 7 {
-			displayedRevision = revision[:7]
-			svgWidth = svgWidthWithRevision
-		} else {
+		if keepFullRevisionParam, ok := r.URL.Query()["keepFullRevision"]; (!ok || !strings.EqualFold(keepFullRevisionParam[0], "true")) && len(revision) > shortRevisionLen {
+			displayedRevision = revision[:shortRevisionLen]
+		}
+		if len(displayedRevision) > shortRevisionLen {
 			svgWidth = svgWidthWithFullRevision
+		} else {
+			svgWidth = svgWidthWithRevision
 		}
 
 		badge = replaceFirstGroupSubMatch(revisionTextPattern, badge, fmt.Sprintf("(%s)", displayedRevision))
@@ -226,7 +232,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if adjustWidth {
 		badge = svgWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`<svg width="%d" $2`, svgWidth))
 		if revisionEnabled {
-			xpos := (svgWidthWithoutRevision)*10 + (len(displayedRevision)+1)*textPositionWidthPerChar/2
+			xpos := svgWidthWithoutRevision*10 + (len(displayedRevision)+1)*textPositionWidthPerChar/2
 			badge = revisionRectWidthPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, svgWidth-svgWidthWithoutRevision))
 			badge = revisionTextXCoodPattern.ReplaceAllString(badge, fmt.Sprintf(`$1"%d"`, xpos))
 		} else {

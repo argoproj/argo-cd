@@ -14,7 +14,7 @@ import (
 
 	"github.com/felixge/httpsnoop"
 	log "github.com/sirupsen/logrus"
-	"gopkg.in/yaml.v3"
+	"go.yaml.in/yaml/v3"
 
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 
@@ -74,9 +74,13 @@ const (
 	// handler.
 	HeaderArgoCDTargetClusterName = "Argocd-Target-Cluster-Name"
 
-	// HeaderArgoCDUsername is the header name that defines the logged
+	// HeaderArgoCDUsername is the header name that defines the username of the logged
 	// in user authenticated by Argo CD.
 	HeaderArgoCDUsername = "Argocd-Username"
+
+	// HeaderArgoCDUserId is the header name that defines the internal user id of the logged
+	// in user authenticated by Argo CD.
+	HeaderArgoCDUserId = "Argocd-User-Id"
 
 	// HeaderArgoCDGroups is the header name that provides the 'groups'
 	// claim from the users authenticated in Argo CD.
@@ -255,7 +259,7 @@ func (s *DefaultSettingsGetter) Get() (*settings.ArgoCDSettings, error) {
 // ProjectGetter defines the contract to retrieve Argo CD Project.
 type ProjectGetter interface {
 	Get(name string) (*v1alpha1.AppProject, error)
-	GetClusters(project string) ([]*v1alpha1.Cluster, error)
+	GetClusters(ctx context.Context, project string) ([]*v1alpha1.Cluster, error)
 }
 
 // DefaultProjectGetter is the real ProjectGetter implementation.
@@ -278,13 +282,14 @@ func (p *DefaultProjectGetter) Get(name string) (*v1alpha1.AppProject, error) {
 }
 
 // GetClusters will retrieve the clusters configured by a project.
-func (p *DefaultProjectGetter) GetClusters(project string) ([]*v1alpha1.Cluster, error) {
-	return p.db.GetProjectClusters(context.TODO(), project)
+func (p *DefaultProjectGetter) GetClusters(ctx context.Context, project string) ([]*v1alpha1.Cluster, error) {
+	return p.db.GetProjectClusters(ctx, project)
 }
 
 // UserGetter defines the contract to retrieve info from the logged in user.
 type UserGetter interface {
-	GetUser(ctx context.Context) string
+	GetUserId(ctx context.Context) string
+	GetUsername(ctx context.Context) string
 	GetGroups(ctx context.Context) []string
 }
 
@@ -300,9 +305,14 @@ func NewDefaultUserGetter(policyEnf *rbacpolicy.RBACPolicyEnforcer) *DefaultUser
 	}
 }
 
-// GetUser will return the current logged in user
-func (u *DefaultUserGetter) GetUser(ctx context.Context) string {
+// GetUsername will return the username of the current logged in user
+func (u *DefaultUserGetter) GetUsername(ctx context.Context) string {
 	return session.Username(ctx)
+}
+
+// GetUserId will return the user id of the current logged in user
+func (u *DefaultUserGetter) GetUserId(ctx context.Context) string {
+	return session.GetUserIdentifier(ctx)
 }
 
 // GetGroups will return the groups associated with the logged in user.
@@ -398,8 +408,11 @@ func NewProxyRegistry() ProxyRegistry {
 // ProxyKey defines the struct used as a key in the proxy registry
 // map (ProxyRegistry).
 type ProxyKey struct {
+	//nolint:unused // used as part of a map kay
 	extensionName string
-	clusterName   string
+	//nolint:unused // used as part of a map kay
+	clusterName string
+	//nolint:unused // used as part of a map kay
 	clusterServer string
 }
 
@@ -515,15 +528,15 @@ func NewProxy(targetURL string, headers []Header, config ProxyConfig) (*httputil
 	}
 	proxy := &httputil.ReverseProxy{
 		Transport: newTransport(config),
-		Director: func(req *http.Request) {
-			req.Host = url.Host
-			req.URL.Scheme = url.Scheme
-			req.URL.Host = url.Host
-			req.Header.Set("Host", url.Host)
-			req.Header.Del("Authorization")
-			req.Header.Del("Cookie")
+		Rewrite: func(req *httputil.ProxyRequest) {
+			req.SetXForwarded()
+			req.Out.Host = url.Host
+			req.Out.URL.Scheme = url.Scheme
+			req.Out.URL.Host = url.Host
+			req.Out.Header.Del("Authorization")
+			req.Out.Header.Del("Cookie")
 			for _, header := range headers {
-				req.Header.Set(header.Name, header.Value)
+				req.Out.Header.Set(header.Name, header.Value)
 			}
 		},
 	}
@@ -668,7 +681,10 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	if m.rbac == nil {
 		return nil, errors.New("rbac enforcer not set in extension manager")
 	}
-	appRBACName := security.RBACName(rr.ApplicationNamespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
+	// Use the control-plane namespace as RBACName defaultNS (same as application/terminal
+	// handlers). Passing the Application namespace as both defaultNS and namespace collapses
+	// to the 2-segment project/name form and bypasses apps-in-any-namespace RBAC.
+	appRBACName := security.RBACName(m.namespace, rr.ProjectName, rr.ApplicationNamespace, rr.ApplicationName)
 	if err := m.rbac.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, appRBACName); err != nil {
 		return nil, fmt.Errorf("application authorization error: %w", err)
 	}
@@ -701,7 +717,9 @@ func (m *Manager) authorize(ctx context.Context, rr *RequestResources, extName s
 	if err != nil {
 		return nil, fmt.Errorf("error getting destination cluster: %w", err)
 	}
-	permitted, err := proj.IsDestinationPermitted(destCluster, app.Spec.Destination.Namespace, m.project.GetClusters)
+	permitted, err := proj.IsDestinationPermitted(destCluster, app.Spec.Destination.Namespace, func(project string) ([]*v1alpha1.Cluster, error) {
+		return m.project.GetClusters(ctx, project)
+	})
 	if err != nil {
 		return nil, fmt.Errorf("error validating project destinations: %w", err)
 	}
@@ -780,11 +798,13 @@ func (m *Manager) CallExtension() func(http.ResponseWriter, *http.Request) {
 			return
 		}
 
-		user := m.userGetter.GetUser(r.Context())
+		userId := m.userGetter.GetUserId(r.Context())
+		username := m.userGetter.GetUsername(r.Context())
 		groups := m.userGetter.GetGroups(r.Context())
-		prepareRequest(r, m.namespace, extName, app, user, groups)
+		prepareRequest(r, m.namespace, extName, app, userId, username, groups)
 		m.log.WithFields(log.Fields{
-			HeaderArgoCDUsername:        user,
+			HeaderArgoCDUserId:          userId,
+			HeaderArgoCDUsername:        username,
 			HeaderArgoCDGroups:          strings.Join(groups, ","),
 			HeaderArgoCDNamespace:       m.namespace,
 			HeaderArgoCDApplicationName: fmt.Sprintf("%s:%s", app.GetNamespace(), app.GetName()),
@@ -816,7 +836,7 @@ func registerMetrics(extName string, metrics httpsnoop.Metrics, extensionMetrics
 //   - Cluster destination name
 //   - Cluster destination server
 //   - Argo CD authenticated username
-func prepareRequest(r *http.Request, namespace string, extName string, app *v1alpha1.Application, username string, groups []string) {
+func prepareRequest(r *http.Request, namespace string, extName string, app *v1alpha1.Application, userId string, username string, groups []string) {
 	r.URL.Path = strings.TrimPrefix(r.URL.Path, fmt.Sprintf("%s/%s", URLPrefix, extName))
 	r.Header.Set(HeaderArgoCDNamespace, namespace)
 	if app.Spec.Destination.Name != "" {
@@ -824,6 +844,9 @@ func prepareRequest(r *http.Request, namespace string, extName string, app *v1al
 	}
 	if app.Spec.Destination.Server != "" {
 		r.Header.Set(HeaderArgoCDTargetClusterURL, app.Spec.Destination.Server)
+	}
+	if userId != "" {
+		r.Header.Set(HeaderArgoCDUserId, userId)
 	}
 	if username != "" {
 		r.Header.Set(HeaderArgoCDUsername, username)

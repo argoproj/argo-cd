@@ -3,6 +3,7 @@ package settings
 import (
 	"encoding/json"
 	"fmt"
+	"maps"
 	"strings"
 
 	"github.com/argoproj/notifications-engine/pkg/api"
@@ -203,20 +204,21 @@ func GetLegacyDestinations(annotations map[string]string, defaultTriggers []stri
 		}
 
 		for _, recipient := range text.SplitRemoveEmpty(v, ",") {
-			if recipient = strings.TrimSpace(recipient); recipient != "" {
-				parts := strings.Split(recipient, ":")
-				dest := services.Destination{Service: parts[0]}
-				if len(parts) > 1 {
-					dest.Recipient = parts[1]
-				}
+			if recipient = strings.TrimSpace(recipient); recipient == "" {
+				continue
+			}
+			parts := strings.Split(recipient, ":")
+			dest := services.Destination{Service: parts[0]}
+			if len(parts) > 1 {
+				dest.Recipient = parts[1]
+			}
 
-				t := triggerNames
-				if v, ok := serviceDefaultTriggers[dest.Service]; ok {
-					t = v
-				}
-				for _, name := range t {
-					dests[name] = append(dests[name], dest)
-				}
+			t := triggerNames
+			if v, ok := serviceDefaultTriggers[dest.Service]; ok {
+				t = v
+			}
+			for _, name := range t {
+				dests[name] = append(dests[name], dest)
 			}
 		}
 	}
@@ -228,8 +230,6 @@ func injectLegacyVar(ctx map[string]string, serviceType string) map[string]strin
 	res := map[string]string{
 		"notificationType": serviceType,
 	}
-	for k, v := range ctx {
-		res[k] = v
-	}
+	maps.Copy(res, ctx)
 	return res
 }

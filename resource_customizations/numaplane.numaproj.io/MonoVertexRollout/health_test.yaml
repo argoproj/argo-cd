@@ -8,7 +8,7 @@ tests:
     message: "Healthy"
   inputPath: testdata/MonoVertexRollout/healthy.yaml
 - healthStatus:
-    status: Suspended
+    status: Healthy
     message: "MonoVertex paused"
   inputPath: testdata/MonoVertexRollout/paused.yaml
 - healthStatus:

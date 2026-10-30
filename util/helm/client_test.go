@@ -1,7 +1,10 @@
 package helm
 
 import (
+	"archive/tar"
 	"bytes"
+	"compress/gzip"
+	"crypto/tls"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -10,14 +13,19 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
+	keysync "github.com/argoproj/pkg/v2/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
@@ -42,12 +50,12 @@ func (f *fakeIndexCache) GetHelmIndex(_ string, indexData *[]byte) error {
 func TestIndex(t *testing.T) {
 	t.Run("Invalid", func(t *testing.T) {
 		client := NewClient("", HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 10000)
+		_, err := client.GetIndex(t.Context(), false, 10000)
 		require.Error(t, err)
 	})
 	t.Run("Stable", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -56,7 +64,7 @@ func TestIndex(t *testing.T) {
 			Username: "my-password",
 			Password: "my-username",
 		}, false, "", "")
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(t.Context(), false, 10000)
 		require.NoError(t, err)
 		assert.NotNil(t, index)
 	})
@@ -68,7 +76,7 @@ func TestIndex(t *testing.T) {
 		require.NoError(t, err)
 
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
-		index, err := client.GetIndex(false, 10000)
+		index, err := client.GetIndex(t.Context(), false, 10000)
 
 		require.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
@@ -76,7 +84,7 @@ func TestIndex(t *testing.T) {
 
 	t.Run("Limited", func(t *testing.T) {
 		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-		_, err := client.GetIndex(false, 100)
+		_, err := client.GetIndex(t.Context(), false, 100)
 
 		assert.ErrorContains(t, err, "unexpected end of stream")
 	})
@@ -84,7 +92,7 @@ func TestIndex(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart(t.Context(), "argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -94,13 +102,13 @@ func Test_nativeHelmChart_ExtractChart(t *testing.T) {
 
 func Test_nativeHelmChart_ExtractChartWithLimiter(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "")
-	_, _, err := client.ExtractChart("argo-cd", "0.7.1", false, 100, false)
+	_, _, err := client.ExtractChart(t.Context(), "argo-cd", "0.7.1", false, 100, false)
 	require.Error(t, err, "error while iterating on tar reader: unexpected EOF")
 }
 
 func Test_nativeHelmChart_ExtractChart_insecure(t *testing.T) {
 	client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{InsecureSkipVerify: true}, false, "", "")
-	path, closer, err := client.ExtractChart("argo-cd", "0.7.1", false, math.MaxInt64, true)
+	path, closer, err := client.ExtractChart(t.Context(), "argo-cd", "0.7.1", false, math.MaxInt64, true)
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 	info, err := os.Stat(path)
@@ -140,10 +148,35 @@ func Test_normalizeChartName(t *testing.T) {
 }
 
 func TestIsHelmOciRepo(t *testing.T) {
-	assert.True(t, IsHelmOciRepo("demo.goharbor.io"))
-	assert.True(t, IsHelmOciRepo("demo.goharbor.io:8080"))
-	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io"))
-	assert.False(t, IsHelmOciRepo("https://demo.goharbor.io:8080"))
+	tests := []struct {
+		name    string
+		repoURL string
+		want    bool
+	}{
+		{name: "hostname", repoURL: "demo.goharbor.io", want: true},
+		{name: "hostname with port", repoURL: "demo.goharbor.io:8080", want: true},
+		{name: "hostname with path", repoURL: "demo.goharbor.io/library", want: true},
+		{name: "IPv4", repoURL: "192.168.100.150", want: true},
+		{name: "IPv4 with port", repoURL: "192.168.100.150:1843", want: true},
+		{name: "IPv4 with port and path", repoURL: "192.168.100.150:1843/library", want: true},
+		{name: "IPv6 with port", repoURL: "[::1]:5000", want: true},
+		{name: "empty", repoURL: "", want: false},
+		{name: "https hostname", repoURL: "https://demo.goharbor.io", want: false},
+		{name: "https hostname with port", repoURL: "https://demo.goharbor.io:8080", want: false},
+		{name: "https hostname with path", repoURL: "https://demo.goharbor.io/library", want: false},
+		{name: "https IPv4 with port", repoURL: "https://192.168.100.150:1843", want: false},
+		{name: "oci IPv4 with port", repoURL: "oci://192.168.100.150:1843", want: false},
+		// Unlikely inputs in practice; they document the boundary of what the check rejects.
+		{name: "non-numeric port", repoURL: "demo.goharbor.io:abc", want: false},
+		{name: "whitespace", repoURL: "demo.goharbor.io ", want: false},
+		{name: "fragment", repoURL: "demo.goharbor.io#latest", want: false},
+		{name: "path without host", repoURL: "/192.168.100.150:1843", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, IsHelmOciRepo(tt.repoURL))
+		})
+	}
 }
 
 func TestGetIndexURL(t *testing.T) {
@@ -199,7 +232,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 
 		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "")
 
-		tags, err := client.GetTags("mychart", true)
+		tags, err := client.GetTags(t.Context(), "mychart", true)
 		require.NoError(t, err)
 		assert.ElementsMatch(t, tags, []string{
 			"first",
@@ -215,7 +248,7 @@ func TestGetTagsFromUrl(t *testing.T) {
 	t.Run("should return an error not when oci is not enabled", func(t *testing.T) {
 		client := NewClient("example.com", HelmCreds{}, false, "", "")
 
-		_, err := client.GetTags("my-chart", true)
+		_, err := client.GetTags(t.Context(), "my-chart", true)
 		assert.ErrorIs(t, ErrOCINotEnabled, err)
 	})
 }
@@ -286,7 +319,7 @@ func TestGetTagsFromURLPrivateRepoAuthentication(t *testing.T) {
 				Password:           password,
 			}, true, "", "")
 
-			tags, err := client.GetTags("mychart", true)
+			tags, err := client.GetTags(t.Context(), "mychart", true)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tags, []string{
@@ -307,15 +340,15 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 		return mockServerURL
 	}
 
-	workloadIdentityMock := new(mocks.TokenProvider)
-	workloadIdentityMock.On("GetToken", "https://management.core.windows.net/.default").Return("accessToken", nil)
+	workloadIdentityMock := &mocks.TokenProvider{}
+	workloadIdentityMock.EXPECT().GetToken("https://management.core.windows.net/.default").Return(&workloadidentity.Token{AccessToken: "accessToken"}, nil)
 
 	mockServer := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		t.Logf("called %s", r.URL.Path)
 
 		switch r.URL.Path {
 		case "/v2/":
-			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm="%s",service="%s"`, mockedServerURL(), mockedServerURL()[8:]))
+			w.Header().Set("Www-Authenticate", fmt.Sprintf(`Bearer realm=%q,service=%q`, mockedServerURL(), mockedServerURL()[8:]))
 			w.WriteHeader(http.StatusUnauthorized)
 
 		case "/oauth2/exchange":
@@ -384,7 +417,7 @@ func TestGetTagsFromURLPrivateRepoWithAzureWorkloadIdentityAuthentication(t *tes
 				tokenProvider:      workloadIdentityMock,
 			}, true, "", "")
 
-			tags, err := client.GetTags("mychart", true)
+			tags, err := client.GetTags(t.Context(), "mychart", true)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tags, []string{
@@ -436,7 +469,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 	configPath := filepath.Join(tempDir, "config.json")
 	t.Setenv("DOCKER_CONFIG", tempDir)
 
-	config := fmt.Sprintf(`{"auths":{"%s":{"auth":"%s"}}}`, server.URL, bearerToken)
+	config := fmt.Sprintf(`{"auths":{%q:{"auth":%q}}}`, server.URL, bearerToken)
 	require.NoError(t, os.WriteFile(configPath, []byte(config), 0o666))
 
 	testCases := []struct {
@@ -467,7 +500,7 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 				InsecureSkipVerify: true,
 			}, true, "", "")
 
-			tags, err := client.GetTags("mychart", true)
+			tags, err := client.GetTags(t.Context(), "mychart", true)
 
 			require.NoError(t, err)
 			assert.ElementsMatch(t, tags, []string{
@@ -479,4 +512,509 @@ func TestGetTagsFromURLEnvironmentAuthentication(t *testing.T) {
 			})
 		})
 	}
+}
+
+func TestGetTagsCaching(t *testing.T) {
+	requestCount := 0
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestCount++
+		t.Logf("request %d called %s", requestCount, r.URL.Path)
+
+		responseTags := fakeTagsList{
+			Tags: []string{
+				"1.0.0",
+				"1.1.0",
+				"2.0.0_beta",
+			},
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+	}))
+	t.Cleanup(server.Close)
+
+	serverURL, err := url.Parse(server.URL)
+	require.NoError(t, err)
+
+	t.Run("should cache tags correctly", func(t *testing.T) {
+		cache := &fakeIndexCache{}
+		client := NewClient(serverURL.Host, HelmCreds{
+			InsecureSkipVerify: true,
+		}, true, "", "", WithIndexCache(cache))
+
+		tags1, err := client.GetTags(t.Context(), "mychart", false)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags1, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 1, requestCount)
+
+		requestCount = 0
+
+		tags2, err := client.GetTags(t.Context(), "mychart", false)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags2, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 0, requestCount)
+
+		assert.NotEmpty(t, cache.data)
+
+		type entriesStruct struct {
+			Tags []string
+		}
+		var entries entriesStruct
+		err = json.Unmarshal(cache.data, &entries)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, entries.Tags, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+	})
+
+	t.Run("should bypass cache when noCache is true", func(t *testing.T) {
+		cache := &fakeIndexCache{}
+		client := NewClient(serverURL.Host, HelmCreds{
+			InsecureSkipVerify: true,
+		}, true, "", "", WithIndexCache(cache))
+
+		requestCount = 0
+
+		tags1, err := client.GetTags(t.Context(), "mychart", true)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags1, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 1, requestCount)
+
+		tags2, err := client.GetTags(t.Context(), "mychart", true)
+		require.NoError(t, err)
+		assert.ElementsMatch(t, tags2, []string{
+			"1.0.0",
+			"1.1.0",
+			"2.0.0+beta",
+		})
+		assert.Equal(t, 2, requestCount)
+	})
+}
+
+func TestGetTagsUsesHTTP2(t *testing.T) {
+	t.Run("should negotiate HTTP/2 when TLS is configured", func(t *testing.T) {
+		var requestProtos []string
+		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestProtos = append(requestProtos, r.Proto)
+			t.Logf("called %s with proto %s", r.URL.Path, r.Proto)
+
+			responseTags := fakeTagsList{
+				Tags: []string{"1.0.0"},
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusOK)
+			require.NoError(t, json.NewEncoder(w).Encode(responseTags))
+		}))
+		// httptest.NewTLSServer only advertises http/1.1 in ALPN, so we must
+		// configure the server to also offer h2 for HTTP/2 negotiation to work.
+		server.TLS = &tls.Config{NextProtos: []string{"h2", "http/1.1"}}
+		server.StartTLS()
+		t.Cleanup(server.Close)
+
+		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, true, "", "")
+
+		tags, err := client.GetTags(t.Context(), "mychart", true)
+		require.NoError(t, err)
+		assert.Equal(t, []string{"1.0.0"}, tags)
+
+		// Verify that at least one request used HTTP/2. When ForceAttemptHTTP2 is
+		// not set on the Transport, Go's TLS stack won't negotiate h2 even though
+		// the server supports it, because a custom TLSClientConfig disables the
+		// automatic HTTP/2 setup.
+		require.NotEmpty(t, requestProtos, "expected at least one request to the server")
+		hasHTTP2 := slices.Contains(requestProtos, "HTTP/2.0")
+		assert.True(t, hasHTTP2, "expected at least one HTTP/2 request, but got protocols: %v", requestProtos)
+	})
+}
+
+func TestLoadRepoIndexUsesHTTP2(t *testing.T) {
+	t.Run("should negotiate HTTP/2 when fetching index", func(t *testing.T) {
+		var requestProto string
+		server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			requestProto = r.Proto
+			t.Logf("called %s with proto %s", r.URL.Path, r.Proto)
+
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		server.TLS = &tls.Config{NextProtos: []string{"h2", "http/1.1"}}
+		server.StartTLS()
+		t.Cleanup(server.Close)
+
+		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, false, "", "")
+
+		_, err := client.GetIndex(t.Context(), false, 10000)
+		require.NoError(t, err)
+
+		assert.Equal(t, "HTTP/2.0", requestProto, "expected HTTP/2 request for index fetch, but got %s", requestProto)
+	})
+}
+
+func TestUserAgentIsSet(t *testing.T) {
+	t.Run("Default User-Agent for traditional Helm repo", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+
+			// Return a valid minimal index.yaml
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client and make a request
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(t.Context(), false, 10000)
+		require.NoError(t, err)
+
+		// Verify User-Agent was set and contains expected components
+		assert.NotEmpty(t, receivedUserAgent, "User-Agent header should be set")
+		assert.Contains(t, receivedUserAgent, "argocd-repo-server", "User-Agent should contain 'argocd-repo-server'")
+		t.Logf("User-Agent sent: %s", receivedUserAgent)
+	})
+
+	t.Run("Custom User-Agent via WithUserAgent option", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+
+			// Return a valid minimal index.yaml
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client with custom User-Agent
+		customUA := "my-custom-app/1.2.3 (contact@example.com)"
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
+		_, err := client.GetIndex(t.Context(), false, 10000)
+		require.NoError(t, err)
+
+		// Verify custom User-Agent was used
+		assert.Equal(t, customUA, receivedUserAgent, "Custom User-Agent should be used")
+		t.Logf("Custom User-Agent sent: %s", receivedUserAgent)
+	})
+}
+
+func TestUserAgentRequiredByServer(t *testing.T) {
+	t.Run("Server rejects requests without User-Agent", func(t *testing.T) {
+		// Create a test server that mimics Wikimedia's behavior
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			userAgent := r.Header.Get("User-Agent")
+
+			t.Logf("Server received User-Agent: '%s'", userAgent)
+
+			if userAgent == "" {
+				// Mimic Wikimedia's rejection of empty User-Agent
+				w.WriteHeader(http.StatusForbidden)
+				_, _ = w.Write([]byte(`authorization failed: Please set a user-agent and respect our robot policy`))
+				return
+			}
+
+			// Accept request with User-Agent
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client (should automatically set User-Agent)
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(t.Context(), false, 10000)
+
+		// Should succeed because our implementation sets User-Agent
+		require.NoError(t, err, "Request should succeed with User-Agent set")
+		t.Log("Success! Server accepted request with User-Agent")
+	})
+}
+
+func TestUserAgentPriority(t *testing.T) {
+	t.Run("Custom User-Agent set via WithUserAgent option", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Set custom User-Agent using WithUserAgent option
+		customUA := "CustomAgent/1.0 (test)"
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "", WithUserAgent(customUA))
+		_, err := client.GetIndex(t.Context(), false, 10000)
+		require.NoError(t, err)
+
+		// Verify custom User-Agent was used
+		assert.Equal(t, customUA, receivedUserAgent, "Custom User-Agent should be used when set")
+		t.Logf("Custom User-Agent sent: %s", receivedUserAgent)
+	})
+
+	t.Run("Default User-Agent used when no custom value provided", func(t *testing.T) {
+		// Create a test server that captures the User-Agent header
+		receivedUserAgent := ""
+		ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			receivedUserAgent = r.Header.Get("User-Agent")
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`apiVersion: v1
+entries: {}
+`))
+		}))
+		defer ts.Close()
+
+		// Create client without custom User-Agent
+		client := NewClient(ts.URL, HelmCreds{}, false, "", "")
+		_, err := client.GetIndex(t.Context(), false, 10000)
+		require.NoError(t, err)
+
+		// Verify default User-Agent was used
+		assert.Contains(t, receivedUserAgent, "argocd-repo-server", "Should use default User-Agent format")
+		t.Logf("Default User-Agent sent: %s", receivedUserAgent)
+	})
+}
+
+func TestWithPlainHTTP(t *testing.T) {
+	t.Run("not set by default", func(t *testing.T) {
+		c := NewClient("my.registry.com", HelmCreds{}, true, "", "")
+		assert.False(t, c.(*nativeHelmChart).plainHTTP)
+	})
+
+	t.Run("set via WithPlainHTTP option", func(t *testing.T) {
+		c := NewClient("my.registry.com", HelmCreds{}, true, "", "", WithPlainHTTP())
+		assert.True(t, c.(*nativeHelmChart).plainHTTP)
+	})
+}
+
+func Test_nativeHelmChart_ExtractChartRespectsChartCacheExpiration(t *testing.T) {
+	const (
+		chartName    = "test-chart"
+		chartVersion = "1.0.0"
+	)
+
+	var (
+		mu            sync.Mutex
+		chartRequests int
+		chartArchive  = testHelmChartArchive(t, chartName, chartVersion, "foo: first\n")
+		server        *httptest.Server
+	)
+
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/index.yaml":
+			w.Header().Set("Content-Type", "application/x-yaml")
+			_, _ = fmt.Fprintf(w, `apiVersion: v1
+entries:
+  %[1]s:
+  - apiVersion: v2
+    name: %[1]s
+    version: %[2]s
+    urls:
+    - %[3]s/%[1]s-%[2]s.tgz
+`, chartName, chartVersion, server.URL)
+		case "/" + chartName + "-" + chartVersion + ".tgz":
+			mu.Lock()
+			chartRequests++
+			body := append([]byte(nil), chartArchive...)
+			mu.Unlock()
+
+			w.Header().Set("Content-Type", "application/gzip")
+			_, _ = w.Write(body)
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	client := NewClient(server.URL, HelmCreds{}, false, "", "",
+		WithChartPaths(utilio.NewRandomizedTempPaths(t.TempDir())),
+		WithHelmChartCacheExpiration(time.Hour),
+	)
+	nativeClient, ok := client.(*nativeHelmChart)
+	require.True(t, ok)
+
+	extractValues := func() string {
+		t.Helper()
+		path, closer, err := client.ExtractChart(t.Context(), chartName, chartVersion, false, math.MaxInt64, false)
+		require.NoError(t, err)
+		defer utilio.Close(closer)
+
+		values, err := os.ReadFile(filepath.Join(path, "values.yaml"))
+		require.NoError(t, err)
+		return string(values)
+	}
+	requireChartRequests := func(expected int) {
+		t.Helper()
+		mu.Lock()
+		defer mu.Unlock()
+		require.Equal(t, expected, chartRequests)
+	}
+
+	require.Equal(t, "foo: first\n", extractValues())
+	requireChartRequests(1)
+
+	secondChartArchive := testHelmChartArchive(t, chartName, chartVersion, "foo: second\n")
+	mu.Lock()
+	chartArchive = secondChartArchive
+	mu.Unlock()
+
+	require.Equal(t, "foo: first\n", extractValues())
+	requireChartRequests(1)
+
+	cachedChartPath, err := nativeClient.getCachedChartPath(chartName, chartVersion)
+	require.NoError(t, err)
+	expired := time.Now().Add(-2 * time.Hour)
+	require.NoError(t, os.Chtimes(cachedChartPath, expired, expired))
+
+	require.Equal(t, "foo: second\n", extractValues())
+	requireChartRequests(2)
+}
+
+// observingKeyLock wraps a sync.KeyLock so that tests can observe when a key lock is acquired
+// or merely attempted, without polling or sleeping.
+type observingKeyLock struct {
+	keysync.KeyLock
+	beforeLock func(key string)
+	afterLock  func(key string)
+}
+
+func (l observingKeyLock) Lock(key string) {
+	if l.beforeLock != nil {
+		l.beforeLock(key)
+	}
+	l.KeyLock.Lock(key)
+	if l.afterLock != nil {
+		l.afterLock(key)
+	}
+}
+
+func Test_nativeHelmChart_CleanChartCacheWaitsForExtraction(t *testing.T) {
+	const (
+		chartName    = "test-chart"
+		chartVersion = "1.0.0"
+		repoURL      = "https://example.com/charts"
+	)
+
+	// A single chart cache root is shared by every Helm client of a repo-server instance, so both
+	// clients below resolve the same cached archive for the same chart and version.
+	chartPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	extractionLocked := make(chan string, 1)
+	cleanupLockAttempt := make(chan string, 1)
+
+	// Both clients wrap the process-wide lock, which is what helm.NewClient hands to every
+	// repo-server request.
+	extractor := NewClientWithLock(repoURL, HelmCreds{}, observingKeyLock{
+		KeyLock:   globalLock,
+		afterLock: func(key string) { extractionLocked <- key },
+	}, false, "", "", WithChartPaths(chartPaths))
+	cleaner := NewClientWithLock(repoURL, HelmCreds{}, observingKeyLock{
+		KeyLock:    globalLock,
+		beforeLock: func(key string) { cleanupLockAttempt <- key },
+	}, false, "", "", WithChartPaths(chartPaths))
+
+	nativeExtractor, ok := extractor.(*nativeHelmChart)
+	require.True(t, ok)
+	nativeCleaner, ok := cleaner.(*nativeHelmChart)
+	require.True(t, ok)
+
+	cachePath, err := nativeCleaner.getCachedChartPath(chartName, chartVersion)
+	require.NoError(t, err)
+	require.NoError(t, os.MkdirAll(filepath.Dir(cachePath), 0o755))
+	require.NoError(t, os.WriteFile(cachePath, []byte("cached chart archive"), 0o600))
+
+	// Simulate an in-flight ExtractChart, which holds the key lock while untarChart reads and
+	// extracts the cached archive.
+	nativeExtractor.repoLock.Lock(cachePath)
+	require.Equal(t, cachePath, <-extractionLocked)
+
+	cleaned := make(chan error, 1)
+	go func() { cleaned <- cleaner.CleanChartCache(chartName, chartVersion) }()
+	select {
+	case key := <-cleanupLockAttempt:
+		require.Equal(t, cachePath, key)
+		require.FileExists(t, cachePath)
+	case err := <-cleaned:
+		require.NoError(t, err)
+		t.Fatal("chart cache cleanup completed while extraction still held the archive lock")
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for chart cache cleanup to attempt the archive lock")
+	}
+
+	nativeExtractor.repoLock.Unlock(cachePath)
+
+	select {
+	case err := <-cleaned:
+		require.NoError(t, err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("timed out waiting for chart cache cleanup to complete")
+	}
+	require.NoFileExists(t, cachePath)
+}
+
+func Test_NewClient_SharesLockBetweenClients(t *testing.T) {
+	// The repo-server creates one Helm client per request. They must all share the process-wide
+	// lock, otherwise cache cleanup cannot serialize with chart extraction across requests.
+	first, ok := NewClient("https://example.com/charts", HelmCreds{}, false, "", "").(*nativeHelmChart)
+	require.True(t, ok)
+	second, ok := NewClient("https://example.com/charts", HelmCreds{}, false, "", "").(*nativeHelmChart)
+	require.True(t, ok)
+
+	require.Equal(t, globalLock, first.repoLock)
+	require.Equal(t, first.repoLock, second.repoLock)
+}
+
+func testHelmChartArchive(t *testing.T, chartName, chartVersion, values string) []byte {
+	t.Helper()
+
+	var archive bytes.Buffer
+	gzipWriter := gzip.NewWriter(&archive)
+	tarWriter := tar.NewWriter(gzipWriter)
+
+	writeFile := func(name, contents string) {
+		t.Helper()
+		header := &tar.Header{
+			Name: name,
+			Mode: 0o644,
+			Size: int64(len(contents)),
+		}
+		require.NoError(t, tarWriter.WriteHeader(header))
+		_, err := tarWriter.Write([]byte(contents))
+		require.NoError(t, err)
+	}
+
+	writeFile(filepath.ToSlash(filepath.Join(chartName, "Chart.yaml")), fmt.Sprintf(`apiVersion: v2
+name: %s
+version: %s
+`, chartName, chartVersion))
+	writeFile(filepath.ToSlash(filepath.Join(chartName, "values.yaml")), values)
+
+	require.NoError(t, tarWriter.Close())
+	require.NoError(t, gzipWriter.Close())
+	return archive.Bytes()
 }

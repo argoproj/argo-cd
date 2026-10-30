@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"os"
 	"strings"
 	"testing"
 
@@ -52,6 +53,199 @@ connectors:
     - name: your-github-org
 `
 
+var goodDexConfigWithNoTypeAndConfig = `
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
+var goodDexConfigWithStorageTypeKubernetes = `
+storage:
+  type: kubernetes
+  config:
+    inCluster: true
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
+var goodDexConfigWithStorageTypeEtcd = `
+storage:
+  type: etcd
+  config:
+    endpoints:
+      - http://localhost:2379
+    namespace: my-etcd-namespace
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
+var goodDexConfigWithStorageTypePostgres = `
+storage:
+  type: postgres
+  config:
+    host: localhost
+    port: 5432
+    database: dex_db
+    user: dex
+    password: 66964843358242dbaaa7778d8477c288
+    ssl:
+      mode: verify-ca
+      caFile: /etc/dex/postgres.ca
+connectors:
+# GitHub example
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+
+# GitHub enterprise example
+- type: github
+  id: acme-github
+  name: Acme GitHub
+  config:
+    hostName: github.acme.example.com
+    clientID: abcdefghijklmnopqrst
+    clientSecret: $dex.acme.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
+var goodDexConfigLDAPWithDollarSign = `
+connectors:
+- type: ldap
+  id: ldap
+  name: OpenLDAP
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: $dex.ldap.bindPW
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=inetOrgPerson)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+`
+
+var goodDexConfigPasswordWithDollarSign = `
+connectors:
+- type: ldap
+  id: ldap
+  name: OpenLDAP
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: "test$test"
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=inetOrgPerson)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+`
+
+var goodDexConfigPlainPasswordMultipleDollarSigns = `
+connectors:
+- type: ldap
+  id: ldap
+  name: OpenLDAP
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: "a$b$c$d"
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=inetOrgPerson)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+`
+
+var goodDexConfigPlainPassword = `
+connectors:
+- type: ldap
+  id: ldap
+  name: OpenLDAP
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: "plainpassword"
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=inetOrgPerson)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+`
+
 var customStaticClientDexConfig = `
 connectors:
 # GitHub example
@@ -94,6 +288,71 @@ connectors:
 var goodDexConfigWithOauthOverrides = `
 oauth2:
   passwordConnector: ldap
+connectors:
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: admin
+    usernamePrompt: Email Address
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=person)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+    groupSearch:
+      baseDN: ou=Groups,dc=example,dc=org
+      filter: "(objectClass=groupOfNames)"
+      nameAttr: cn
+`
+
+// goodDexConfigWithRestrictedGrantTypes has an explicit oauth2.grantTypes list that
+// does NOT include urn:ietf:params:oauth:grant-type:device_code. GenerateDexConfigYAML
+// must respect this restriction and NOT inject device_code — the operator intentionally
+// excluded it. A warning is emitted instead.
+var goodDexConfigWithRestrictedGrantTypes = `
+oauth2:
+  passwordConnector: ldap
+  grantTypes:
+  - authorization_code
+  - refresh_token
+connectors:
+- type: ldap
+  name: OpenLDAP
+  id: ldap
+  config:
+    host: localhost:389
+    insecureNoSSL: true
+    bindDN: cn=admin,dc=example,dc=org
+    bindPW: admin
+    usernamePrompt: Email Address
+    userSearch:
+      baseDN: ou=People,dc=example,dc=org
+      filter: "(objectClass=person)"
+      username: mail
+      idAttr: DN
+      emailAttr: mail
+      nameAttr: cn
+    groupSearch:
+      baseDN: ou=Groups,dc=example,dc=org
+      filter: "(objectClass=groupOfNames)"
+      nameAttr: cn
+`
+
+// goodDexConfigWithDeviceCodeGrantType already contains device_code in grantTypes.
+// GenerateDexConfigYAML must not add a second copy.
+var goodDexConfigWithDeviceCodeGrantType = `
+oauth2:
+  passwordConnector: ldap
+  grantTypes:
+  - authorization_code
+  - refresh_token
+  - urn:ietf:params:oauth:grant-type:device_code
 connectors:
 - type: ldap
   name: OpenLDAP
@@ -171,6 +430,50 @@ connectors:
     - name: your-github-org
 `
 
+var goodDexConfigOIDCWithDollarSign = `
+connectors:
+- type: oidc
+  id: oidc
+  name: Some OIDC Provider
+  config:
+    issuer: https://accounts.example.com
+    clientID: argo-cd
+    clientSecret: $dex.oidc.clientSecret
+    redirectURI: http://localhost/callback
+    scopes:
+    - openid
+    - profile
+    - email
+`
+
+var goodDexConfigGitHubWithDollarSign = `
+connectors:
+- type: github
+  id: github
+  name: GitHub
+  config:
+    clientID: aabbccddeeff00112233
+    clientSecret: $dex.github.clientSecret
+    orgs:
+    - name: your-github-org
+`
+
+var goodDexConfigOIDCWithEnvVarReference = `
+connectors:
+- type: oidc
+  id: authentik
+  name: Authentik
+  config:
+    issuer: https://sso.example.com/
+    clientID: $AUTHENTIK_CLIENT_ID
+    clientSecret: $AUTHENTIK_CLIENT_SECRET
+    redirectURI: http://localhost/callback
+    scopes:
+    - openid
+    - profile
+    - email
+`
+
 var goodSecrets = map[string]string{
 	"dex.github.clientSecret": "foobar",
 	"dex.acme.clientSecret":   "barfoo",
@@ -179,6 +482,130 @@ var goodSecrets = map[string]string{
 var goodSecretswithCRLF = map[string]string{
 	"dex.github.clientSecret": "foobar\n\r",
 	"dex.acme.clientSecret":   "barfoo\n\r",
+}
+
+func Test_GenerateDexConfigYAMLStorage(t *testing.T) {
+	validateKubernetesStorage := func(t *testing.T, storage map[string]any) {
+		t.Helper()
+		storageConfig, ok := storage["config"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, true, storageConfig["inCluster"])
+	}
+
+	validateNoKubernetesStorage := func(t *testing.T, storage map[string]any) {
+		t.Helper()
+		_, ok := storage["config"].(map[string]any)
+		require.False(t, ok)
+	}
+
+	validateEtcdStorage := func(t *testing.T, storage map[string]any) {
+		t.Helper()
+
+		storageConfig, ok := storage["config"].(map[string]any)
+		require.True(t, ok)
+
+		assert.Equal(t, "my-etcd-namespace", storageConfig["namespace"])
+
+		endpoints, ok := storageConfig["endpoints"].([]any)
+		require.True(t, ok)
+		require.NotEmpty(t, endpoints)
+
+		assert.Equal(t, "http://localhost:2379", endpoints[0])
+	}
+
+	validatePostgresStorage := func(t *testing.T, storage map[string]any) {
+		t.Helper()
+
+		storageConfig, ok := storage["config"].(map[string]any)
+		require.True(t, ok)
+
+		assert.Equal(t, "localhost", storageConfig["host"])
+		assert.InDelta(t, 5432.0, storageConfig["port"], 0.0)
+		assert.Equal(t, "dex_db", storageConfig["database"])
+		assert.Equal(t, "dex", storageConfig["user"])
+		assert.Equal(t, "66964843358242dbaaa7778d8477c288", storageConfig["password"])
+
+		ssl, ok := storageConfig["ssl"].(map[string]any)
+		require.True(t, ok)
+		assert.Equal(t, "verify-ca", ssl["mode"])
+		assert.Equal(t, "/etc/dex/postgres.ca", ssl["caFile"])
+	}
+
+	tests := []struct {
+		name     string
+		settings settings.ArgoCDSettings
+		wantType string
+		validate func(t *testing.T, storage map[string]any)
+	}{
+		{
+			name: "kubernetes storage type, config",
+			settings: settings.ArgoCDSettings{
+				URL:       "http://localhost",
+				DexConfig: goodDexConfigWithStorageTypeKubernetes,
+				Secrets:   goodSecrets,
+			},
+			wantType: "kubernetes",
+			validate: validateKubernetesStorage,
+		},
+		{
+			name: "default storage type is memory when not specified",
+			settings: settings.ArgoCDSettings{
+				URL:       "http://localhost",
+				DexConfig: goodDexConfig,
+			},
+			wantType: "memory",
+		},
+		{
+			name: "no storage type specified, but config specified, defaults to memory type but config should be ignored",
+			settings: settings.ArgoCDSettings{
+				URL:       "http://localhost",
+				DexConfig: goodDexConfigWithNoTypeAndConfig,
+			},
+			wantType: "memory",
+			validate: validateNoKubernetesStorage,
+		},
+		{
+			name: "etcd storage type, config",
+			settings: settings.ArgoCDSettings{
+				URL:       "http://localhost",
+				DexConfig: goodDexConfigWithStorageTypeEtcd,
+				Secrets:   goodSecrets,
+			},
+			wantType: "etcd",
+			validate: validateEtcdStorage,
+		},
+		{
+			name: "postgres storage type, config",
+			settings: settings.ArgoCDSettings{
+				URL:       "http://localhost",
+				DexConfig: goodDexConfigWithStorageTypePostgres,
+				Secrets:   goodSecrets,
+			},
+			wantType: "postgres",
+			validate: validatePostgresStorage,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			config, err := GenerateDexConfigYAML(&tc.settings, false)
+			require.NoError(t, err)
+			require.NotNil(t, config)
+
+			var dexCfg map[string]any
+			err = yaml.Unmarshal(config, &dexCfg)
+			require.NoError(t, err)
+
+			storage, ok := dexCfg["storage"].(map[string]any)
+			require.True(t, ok)
+
+			assert.Equal(t, tc.wantType, storage["type"])
+
+			if tc.validate != nil {
+				tc.validate(t, storage)
+			}
+		})
+	}
 }
 
 func Test_GenerateDexConfig(t *testing.T) {
@@ -413,6 +840,51 @@ func Test_GenerateDexConfig(t *testing.T) {
 		customClient := clients[3].(map[string]any)
 		assert.Equal(t, "barfoo", customClient["secret"])
 	})
+	t.Run("argo-cd-cli static client registers /api/dex/device/callback redirect URI", func(t *testing.T) {
+		// Regression test: the redirect_uri Dex uses during the device flow is
+		// /api/dex/device/callback (the Argo CD proxy path), not the bare
+		// /device/callback.  Registering the wrong path triggers a
+		// "Bad Request – Unregistered redirect_uri" from Dex.
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfig,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+
+		clients, ok := dexCfg["staticClients"].([]any)
+		require.True(t, ok)
+
+		// argo-cd-cli is always the second client (index 1) in the generated config.
+		var cliClient map[string]any
+		for _, c := range clients {
+			client, ok := c.(map[string]any)
+			if !ok {
+				continue
+			}
+			if client["id"] == common.ArgoCDCLIClientAppID {
+				cliClient = client
+				break
+			}
+		}
+		require.NotNil(t, cliClient, "argo-cd-cli static client not found in generated config")
+
+		redirectURIs, ok := cliClient["redirectURIs"].([]any)
+		require.True(t, ok)
+
+		var uris []string
+		for _, u := range redirectURIs {
+			uris = append(uris, u.(string))
+		}
+		assert.Contains(t, uris, common.DexDeviceCallbackEndpoint,
+			"argo-cd-cli must register %q as a redirect URI for the device flow to work", common.DexDeviceCallbackEndpoint)
+		assert.NotContains(t, uris, "/device/callback",
+			"bare /device/callback must not be registered — Dex uses the full proxy path")
+	})
 	t.Run("Override dex oauth2 configuration", func(t *testing.T) {
 		s := settings.ArgoCDSettings{
 			URL:       "http://localhost",
@@ -459,6 +931,276 @@ func Test_GenerateDexConfig(t *testing.T) {
 		assert.True(t, ok)
 		assert.False(t, skipApprScr)
 	})
+	t.Run("device_code grant type is not injected when oauth2.grantTypes is explicitly restricted", func(t *testing.T) {
+		// Operator explicitly restricted grantTypes without device_code.
+		// GenerateDexConfigYAML must respect that restriction and leave the list
+		// unchanged — a warning is emitted but device_code is NOT appended.
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithRestrictedGrantTypes,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
+		require.True(t, ok)
+		rawGrants, ok := oauth2Config["grantTypes"].([]any)
+		require.True(t, ok)
+
+		grants := make([]string, 0, len(rawGrants))
+		for _, g := range rawGrants {
+			grants = append(grants, g.(string))
+		}
+		// The operator's restriction must be preserved — device_code must NOT appear.
+		assert.NotContains(t, grants, deviceCodeGrantType)
+		assert.Contains(t, grants, "authorization_code")
+		assert.Contains(t, grants, "refresh_token")
+	})
+	t.Run("device_code grant type is not duplicated when already present in oauth2.grantTypes", func(t *testing.T) {
+		// Operator already included device_code; it must appear exactly once.
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithDeviceCodeGrantType,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
+		require.True(t, ok)
+		rawGrants, ok := oauth2Config["grantTypes"].([]any)
+		require.True(t, ok)
+
+		count := 0
+		for _, g := range rawGrants {
+			if g.(string) == deviceCodeGrantType {
+				count++
+			}
+		}
+		assert.Equal(t, 1, count, "device_code should appear exactly once in grantTypes")
+	})
+	t.Run("device_code grant type is not injected when oauth2.grantTypes is absent", func(t *testing.T) {
+		// Operator did not set grantTypes at all; the code must not create the key,
+		// leaving Dex to use its own defaults (which include device_code).
+		s := settings.ArgoCDSettings{
+			URL:       "http://localhost",
+			DexConfig: goodDexConfigWithOauthOverrides,
+		}
+		config, err := GenerateDexConfigYAML(&s, false)
+		require.NoError(t, err)
+		require.NotNil(t, config)
+		var dexCfg map[string]any
+		err = yaml.Unmarshal(config, &dexCfg)
+		require.NoError(t, err)
+
+		oauth2Config, ok := dexCfg["oauth2"].(map[string]any)
+		require.True(t, ok)
+		_, hasGrants := oauth2Config["grantTypes"]
+		assert.False(t, hasGrants, "grantTypes should not be injected when not set by the operator")
+	})
+}
+
+func Test_GenerateDexConfigYAML(t *testing.T) {
+	t.Setenv("DEX_EXPAND_ENV", "true")
+	type testData struct {
+		name      string
+		secrets   map[string]string
+		dexConfig string
+		field     string
+		expected  string
+	}
+
+	tt := []testData{
+		{
+			name:      "LDAP bindPW with dollar sign is escaped for Dex env expansion",
+			secrets:   map[string]string{"dex.ldap.bindPW": "test$test"},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			expected:  "test$$test",
+			field:     "bindPW",
+		},
+		{
+			name:      "LDAP bindPW without dollar sign is unaffected",
+			secrets:   map[string]string{"dex.ldap.bindPW": "plainpassword"},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			expected:  "plainpassword",
+			field:     "bindPW",
+		},
+		{
+			name:      "LDAP bindPW with multiple dollar signs all escaped",
+			secrets:   map[string]string{"dex.ldap.bindPW": "a$b$c$d"},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			expected:  "a$$b$$c$$d",
+			field:     "bindPW",
+		},
+		{
+			name:      "literal with multiple dollar signs in bindPW (no secret reference) is escaped",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigPlainPasswordMultipleDollarSigns,
+			expected:  "a$$b$$c$$d",
+			field:     "bindPW",
+		},
+		{
+			name:      "literal dollar sign in bindPW (no secret reference) is escaped",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigPasswordWithDollarSign,
+			expected:  "test$$test",
+			field:     "bindPW",
+		},
+		{
+			name:      "literal plain password in bindPW (no secret reference) is unaffected",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigPlainPassword,
+			expected:  "plainpassword",
+			field:     "bindPW",
+		},
+		{
+			name:      "OIDC clientSecret with dollar sign is escaped",
+			secrets:   map[string]string{"dex.oidc.clientSecret": "oidc$secret"},
+			dexConfig: goodDexConfigOIDCWithDollarSign,
+			field:     "clientSecret",
+			expected:  "oidc$$secret",
+		},
+		{
+			name:      "GitHub clientSecret with dollar sign is escaped",
+			secrets:   map[string]string{"dex.github.clientSecret": "gh_$token"},
+			dexConfig: goodDexConfigGitHubWithDollarSign,
+			field:     "clientSecret",
+			expected:  "gh_$$token",
+		},
+		{
+			name:      "password with special characters but no dollar sign is not modified",
+			secrets:   map[string]string{"dex.ldap.bindPW": `p@ssw0rd!#%^&*()[]{};:,.<>?/~` + "`" + `\n`},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			field:     "bindPW",
+			expected:  `p@ssw0rd!#%^&*()[]{};:,.<>?/~` + "`" + `\n`,
+		},
+		{
+			name:      "password with ${VAR} form dollar sign is also escaped",
+			secrets:   map[string]string{"dex.ldap.bindPW": "pass${WORD}end"},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			field:     "bindPW",
+			expected:  "pass$${WORD}end",
+		},
+		{
+			name:      "password with unicode characters is not modified",
+			secrets:   map[string]string{"dex.ldap.bindPW": "pässwörð£€"},
+			dexConfig: goodDexConfigLDAPWithDollarSign,
+			field:     "bindPW",
+			expected:  "pässwörð£€",
+		},
+		{
+			name:      "unresolved environment variable reference is NOT escaped (allows Dex env expansion)",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigOIDCWithEnvVarReference,
+			field:     "clientID",
+			expected:  "$AUTHENTIK_CLIENT_ID",
+		},
+		{
+			name:      "unresolved clientSecret environment variable reference is NOT escaped",
+			secrets:   map[string]string{},
+			dexConfig: goodDexConfigOIDCWithEnvVarReference,
+			field:     "clientSecret",
+			expected:  "$AUTHENTIK_CLIENT_SECRET",
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			config, err := GenerateDexConfigYAML(argoCDSettings(tc.dexConfig, tc.secrets), false)
+			require.NoError(t, err)
+			require.NotNil(t, config)
+
+			var dexCfg map[string]any
+			require.NoError(t, yaml.Unmarshal(config, &dexCfg))
+
+			connectors := dexCfg["connectors"].([]any)
+			connCfg := connectors[0].(map[string]any)["config"].(map[string]any)
+			assert.Equal(t, tc.expected, connCfg[tc.field])
+		})
+	}
+
+	t.Run("DEX_EXPAND_ENV values", func(t *testing.T) {
+		tests := []struct {
+			name     string
+			envValue string
+			unset    bool
+			expected string
+		}{
+			{
+				name:     "unset",
+				unset:    true,
+				expected: "test$$test",
+			},
+			{
+				name:     "false",
+				envValue: "false",
+				expected: "test$test",
+			},
+			{
+				name:     "0",
+				envValue: "0",
+				expected: "test$test",
+			},
+			{
+				name:     "invalid value",
+				envValue: "no",
+				expected: "test$$test",
+			},
+		}
+
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				if tt.unset {
+					t.Setenv("DEX_EXPAND_ENV", "")
+					require.NoError(t, os.Unsetenv("DEX_EXPAND_ENV"))
+				} else {
+					t.Setenv("DEX_EXPAND_ENV", tt.envValue)
+				}
+
+				config, err := GenerateDexConfigYAML(
+					argoCDSettings(
+						goodDexConfigLDAPWithDollarSign,
+						map[string]string{"dex.ldap.bindPW": "test$test"},
+					),
+					false,
+				)
+				require.NoError(t, err)
+				require.NotNil(t, config)
+
+				var dexCfg map[string]any
+				require.NoError(t, yaml.Unmarshal(config, &dexCfg))
+
+				connectors := dexCfg["connectors"].([]any)
+				connCfg := connectors[0].(map[string]any)["config"].(map[string]any)
+
+				assert.Equal(t, tt.expected, connCfg["bindPW"])
+			})
+		}
+	})
+
+	t.Run("top-level issuer is NOT escaped even if it contained a dollar sign", func(t *testing.T) {
+		config, err := GenerateDexConfigYAML(argoCDSettings(goodDexConfigLDAPWithDollarSign,
+			map[string]string{"dex.ldap.bindPW": "test$test"}), false)
+		require.NoError(t, err)
+		var dexCfg map[string]any
+		require.NoError(t, yaml.Unmarshal(config, &dexCfg))
+		assert.NotContains(t, dexCfg["issuer"].(string), "$$")
+	})
+}
+
+func argoCDSettings(dexConfig string, secrets map[string]string) *settings.ArgoCDSettings {
+	return &settings.ArgoCDSettings{
+		URL:       "http://localhost",
+		DexConfig: dexConfig,
+		Secrets:   secrets,
+	}
 }
 
 func Test_DexReverseProxy(t *testing.T) {
@@ -474,12 +1216,15 @@ func Test_DexReverseProxy(t *testing.T) {
 		fmt.Printf("Fake API Server listening on %s\n", server.URL)
 		defer server.Close()
 		target, _ := url.Parse(fakeDex.URL)
-		resp, err := http.Get(server.URL)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, http.NoBody)
+		require.NoError(t, err)
+		resp, err := http.DefaultClient.Do(req)
 		assert.NotNil(t, resp)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusOK, resp.StatusCode)
 		assert.Equal(t, host, target.Host)
 		fmt.Printf("%s\n", resp.Status)
+		require.NoError(t, resp.Body.Close())
 	})
 
 	t.Run("Bad case", func(t *testing.T) {
@@ -496,13 +1241,16 @@ func Test_DexReverseProxy(t *testing.T) {
 				return http.ErrUseLastResponse
 			},
 		}
-		resp, err := client.Get(server.URL)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, server.URL, http.NoBody)
+		require.NoError(t, err)
+		resp, err := client.Do(req)
 		assert.NotNil(t, resp)
 		require.NoError(t, err)
 		assert.Equal(t, http.StatusSeeOther, resp.StatusCode)
 		location, _ := resp.Location()
 		fmt.Printf("%s %s\n", resp.Status, location.RequestURI())
 		assert.True(t, strings.HasPrefix(location.RequestURI(), "/login?has_sso_error=true"))
+		assert.NoError(t, resp.Body.Close())
 	})
 
 	t.Run("Invalid URL for Dex reverse proxy", func(t *testing.T) {
@@ -519,11 +1267,107 @@ func Test_DexReverseProxy(t *testing.T) {
 		defer server.Close()
 		rt := NewDexRewriteURLRoundTripper(server.URL, http.DefaultTransport)
 		assert.NotNil(t, rt)
-		req, err := http.NewRequest(http.MethodGet, "/", bytes.NewBuffer([]byte("")))
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/", bytes.NewBuffer([]byte("")))
 		require.NoError(t, err)
 		_, err = rt.RoundTrip(req)
 		require.NoError(t, err)
 		target, _ := url.Parse(server.URL)
 		assert.Equal(t, req.Host, target.Host)
+		require.NoError(t, req.Body.Close())
 	})
+}
+
+func Test_GenerateDexConfigYAML_WebTLSMinVersion(t *testing.T) {
+	tests := []struct {
+		name           string
+		dexConfig      string
+		expectMin      string
+		expectMinFound bool
+	}{
+		{
+			name: "TLS 1.2",
+			dexConfig: `
+connectors: []
+web:
+  tlsMinVersion: "1.2"
+`,
+			expectMin:      "1.2",
+			expectMinFound: true,
+		},
+		{
+			name: "TLS 1.3",
+			dexConfig: `
+connectors: []
+web:
+  tlsMinVersion: "1.3"
+`,
+			expectMin:      "1.3",
+			expectMinFound: true,
+		},
+		{
+			name: "empty TLS version",
+			dexConfig: `
+connectors: []
+web:
+  tlsMinVersion: ""
+`,
+			expectMinFound: false,
+		},
+		{
+			name: "no web section",
+			dexConfig: `
+connectors: []
+`,
+			expectMinFound: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := &settings.ArgoCDSettings{
+				URL:       "https://argocd.example.com",
+				DexConfig: tt.dexConfig,
+			}
+			out, err := GenerateDexConfigYAML(settings, false)
+			require.NoError(t, err)
+			var cfg map[string]any
+			require.NoError(t, yaml.Unmarshal(out, &cfg))
+			webCfg, ok := cfg["web"].(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, "0.0.0.0:5556", webCfg["https"])
+			assert.Equal(t, "/tmp/tls.crt", webCfg["tlsCert"])
+			assert.Equal(t, "/tmp/tls.key", webCfg["tlsKey"])
+			got, found := webCfg["tlsMinVersion"]
+			assert.Equal(t, tt.expectMinFound, found)
+			if tt.expectMinFound {
+				assert.Equal(t, tt.expectMin, got)
+			}
+		})
+	}
+}
+
+func Test_GenerateDexConfigYAML_WebTLSCiphersAndCurvePreferences(t *testing.T) {
+	settings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		DexConfig: `
+connectors: []
+web:
+  tlsMinVersion: "1.3"
+  tlsCiphers:
+    - "TLS_AES_128_GCM_SHA256"
+    - "TLS_AES_256_GCM_SHA384"
+  tlsCurvePreferences:
+    - "X25519MLKEM768"
+    - "X25519"
+`,
+	}
+	out, err := GenerateDexConfigYAML(settings, false)
+	require.NoError(t, err)
+	var cfg map[string]any
+	require.NoError(t, yaml.Unmarshal(out, &cfg))
+	webCfg, ok := cfg["web"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "1.3", webCfg["tlsMinVersion"])
+	assert.Equal(t, []any{"TLS_AES_128_GCM_SHA256", "TLS_AES_256_GCM_SHA384"}, webCfg["tlsCiphers"])
+	assert.Equal(t, []any{"X25519MLKEM768", "X25519"}, webCfg["tlsCurvePreferences"])
 }

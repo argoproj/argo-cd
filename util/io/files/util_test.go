@@ -9,6 +9,8 @@ import (
 )
 
 func TestRelativePath(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name        string
 		fullpath    string
@@ -75,7 +77,6 @@ func TestRelativePath(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			// given
 			t.Parallel()
@@ -91,6 +92,8 @@ func TestRelativePath(t *testing.T) {
 }
 
 func TestInbound(t *testing.T) {
+	t.Parallel()
+
 	type testcase struct {
 		name      string
 		candidate string
@@ -130,7 +133,6 @@ func TestInbound(t *testing.T) {
 		},
 	}
 	for _, c := range cases {
-		c := c
 		t.Run(c.name, func(t *testing.T) {
 			// given
 			t.Parallel()

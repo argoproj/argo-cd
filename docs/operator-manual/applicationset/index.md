@@ -15,8 +15,8 @@ The ApplicationSet controller, supplements Argo CD by adding additional features
 - Improved support for monorepos: in the context of Argo CD, a monorepo is multiple Argo CD Application resources defined within a single Git repository
 - Within multitenant clusters, improves the ability of individual cluster tenants to deploy applications using Argo CD (without needing to involve privileged cluster administrators in enabling the destination clusters/namespaces)
 
-!!! note
-    Be aware of the [security implications](./Security.md) of ApplicationSets before using them.
+> [!NOTE]
+> Be aware of the [security implications](./Security.md) of ApplicationSets before using them.
 
 ## The ApplicationSet resource
 
@@ -65,6 +65,7 @@ There are multiple generators currently supported by the ApplicationSet controll
 - **Git generator**: The Git generator generates parameters based on files or folders that are contained within the Git repository defined within the generator resource.
     - Files containing JSON values will be parsed and converted into template parameters.
     - Individual directory paths within the Git repository may be used as parameter values, as well.
+- **OCI generator**: Similar to the Git generator, but uses OCI artifacts as the source. This is useful for distributing pre-rendered manifests as versioned, immutable artifacts.
 - **Matrix generator**: The Matrix generators combines the generated parameters of two other generators.
 
 See the [generator section](Generators.md) for more information about individual generators, and the other generators not listed above.

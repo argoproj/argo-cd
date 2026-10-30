@@ -35,13 +35,14 @@ argocd admin app generate-spec APPNAME [flags]
 ### Options
 
 ```
-      --allow-empty                                Set allow zero live resources when sync is automated
+      --allow-empty                                Set allow zero live resources for automated sync policy
       --annotations stringArray                    Set metadata annotations (e.g. example=value)
-      --auto-prune                                 Set automatic pruning when sync is automated
+      --auto-prune                                 Set automatic pruning for automated sync policy
       --config-management-plugin string            Config management plugin name
       --dest-name string                           K8s cluster Name (e.g. minikube)
       --dest-namespace string                      K8s target namespace
       --dest-server string                         K8s cluster URL (e.g. https://kubernetes.default.svc)
+      --directory-disable-extension-filter         Disable the built-in file-extension filter so that include/exclude patterns can match files with custom extensions (e.g. *.yaml.sealed). By default (false), only files with a .yaml, .yml, .json, or .jsonnet extension are considered manifests
       --directory-exclude string                   Set glob expression used to exclude files from application source path
       --directory-include string                   Set glob expression used to include files from application source path
       --directory-recurse                          Recurse directory
@@ -98,7 +99,7 @@ argocd admin app generate-spec APPNAME [flags]
       --repo string                                Repository URL, ignored if a file is set
       --revision string                            The tracking source branch, tag, commit or Helm chart version the application will sync to
       --revision-history-limit int                 How many items to keep in revision history (default 10)
-      --self-heal                                  Set self healing when sync is automated
+      --self-heal                                  Set self healing for automated sync policy
       --set-finalizer                              Sets deletion finalizer on the application, application resources will be cascaded on deletion
       --source-name string                         Name of the source from the list of sources of the app.
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
@@ -107,8 +108,10 @@ argocd admin app generate-spec APPNAME [flags]
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)
       --sync-retry-limit int                       Max number of allowed sync retries
+      --sync-retry-refresh                         Indicates if the latest revision should be used on retry instead of the initial one
       --sync-source-branch string                  The branch from which the app will sync
       --sync-source-path string                    The path in the repository from which the app will sync
+      --tag-prefix string                          Filter git tags by this prefix before evaluating targetRevision as a semver constraint
       --validate                                   Validation of repo and cluster (default true)
       --values stringArray                         Helm values file(s) to use
       --values-literal-file string                 Filename or URL to import as a literal Helm values block

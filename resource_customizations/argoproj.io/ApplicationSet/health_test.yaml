@@ -1,13 +1,21 @@
 tests:
   - healthStatus:
       status: Healthy
-      message: "ApplicationSet up to date"
+      message: ApplicationSet up to date
     inputPath: testdata/healthyApplicationSet.yaml
   - healthStatus:
       status: Degraded
-      message: "found less than two generators, Merge requires two or more"
+      message: found less than two generators, Merge requires two or more
     inputPath: testdata/errorApplicationSetWithStatusMessage.yaml
   - healthStatus:
       status: Progressing
-      message: "Waiting for the status to be reported"
+      message: Waiting for the status to be reported
     inputPath: testdata/noStatusApplicationSet.yaml
+  - healthStatus:
+      status: Degraded
+      message: could not create application
+    inputPath: testdata/resourceNotUpdatedApplicationSet.yaml
+  - healthStatus:
+      status: Progressing
+      message: ApplicationSet is performing rollout of step 1
+    inputPath: testdata/progressiveSyncApplicationSet.yaml

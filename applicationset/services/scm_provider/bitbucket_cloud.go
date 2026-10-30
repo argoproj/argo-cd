@@ -30,7 +30,7 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 	urlStr += fmt.Sprintf("/repositories/%s/%s/src/%s/%s?format=meta", c.owner, repo.Repository, repo.SHA, path)
 	body := strings.NewReader("")
 
-	req, err := http.NewRequest(http.MethodGet, urlStr, body)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, urlStr, body)
 	if err != nil {
 		return false, err
 	}
@@ -53,8 +53,12 @@ func (c *ExtendedClient) GetContents(repo *Repository, path string) (bool, error
 var _ SCMProviderService = &BitBucketCloudProvider{}
 
 func NewBitBucketCloudProvider(owner string, user string, password string, allBranches bool) (*BitBucketCloudProvider, error) {
+	bitbucketClient, err := bitbucket.NewBasicAuth(user, password)
+	if err != nil {
+		return nil, fmt.Errorf("error creating BitBucket Cloud client with basic auth: %w", err)
+	}
 	client := &ExtendedClient{
-		bitbucket.NewBasicAuth(user, password),
+		bitbucketClient,
 		user,
 		password,
 		owner,

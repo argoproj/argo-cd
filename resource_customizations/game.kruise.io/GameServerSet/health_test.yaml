@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: All GameServerSet replicas are updated and ready
+  inputPath: testdata/healthy.yaml
+
+- healthStatus:
+    status: Suspended
+    message: GameServerSet is paused
+  inputPath: testdata/suspended-paused.yaml
+
+- healthStatus:
+    status: Suspended
+    message: Partition=2, waiting for manual intervention
+  inputPath: testdata/suspended-partition.yaml
+
+- healthStatus:
+    status: Progressing
+    message: 'ReadyReplicas 2/3, still progressing'
+  inputPath: testdata/progressing.yaml
+
+- healthStatus:
+    status: Progressing
+    message: Waiting for GameServerSet initialization
+  inputPath: testdata/progressing-init.yaml

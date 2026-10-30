@@ -1,0 +1,26 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  creationTimestamp: "2026-10-28T22:54:42Z"
+  finalizers:
+  - vaultstaticsecret.secrets.hashicorp.com/finalizer
+  generation: 2
+  name: vault-static-secret
+  namespace: app
+  resourceVersion: "826"
+  uid: 377329a8-5848-41ac-91c9-cc715335f6ed
+spec:
+  destination:
+    create: true
+    name: webapp-config
+    overwrite: false
+    transformation: {}
+  hmacSecretData: true
+  mount: secret
+  path: webapp/config
+  refreshAfter: 30s
+  type: kv-v2
+  vaultAuthRef: default
+status:
+  lastGeneration: 2
+  secretMAC: eoWENh2t1Q4HIZTQh5UoL/m49wvxdyjmLo3paX6lWUo=

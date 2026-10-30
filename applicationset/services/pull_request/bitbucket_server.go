@@ -8,7 +8,7 @@ import (
 	bitbucketv1 "github.com/gfleury/go-bitbucket-v1"
 	log "github.com/sirupsen/logrus"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/services"
 )
 
 type BitbucketService struct {
@@ -21,7 +21,7 @@ type BitbucketService struct {
 
 var _ PullRequestService = (*BitbucketService)(nil)
 
-func NewBitbucketServiceBasicAuth(ctx context.Context, username, password, url, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewBitbucketServiceBasicAuth(ctx context.Context, username, password, url, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (PullRequestService, error) {
 	bitbucketConfig := bitbucketv1.NewConfiguration(url)
 	// Avoid the XSRF check
 	bitbucketConfig.AddDefaultHeader("x-atlassian-token", "no-check")
@@ -31,33 +31,28 @@ func NewBitbucketServiceBasicAuth(ctx context.Context, username, password, url, 
 		UserName: username,
 		Password: password,
 	})
-	return newBitbucketService(ctx, bitbucketConfig, projectKey, repositorySlug, scmRootCAPath, insecure, caCerts)
+	return newBitbucketService(ctx, bitbucketConfig, projectKey, repositorySlug, scmRootCAPath, insecure, caCerts, proxyURL, noProxy)
 }
 
-func NewBitbucketServiceBearerToken(ctx context.Context, bearerToken, url, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
+func NewBitbucketServiceBearerToken(ctx context.Context, bearerToken, url, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (PullRequestService, error) {
 	bitbucketConfig := bitbucketv1.NewConfiguration(url)
 	// Avoid the XSRF check
 	bitbucketConfig.AddDefaultHeader("x-atlassian-token", "no-check")
 	bitbucketConfig.AddDefaultHeader("x-requested-with", "XMLHttpRequest")
 
 	ctx = context.WithValue(ctx, bitbucketv1.ContextAccessToken, bearerToken)
-	return newBitbucketService(ctx, bitbucketConfig, projectKey, repositorySlug, scmRootCAPath, insecure, caCerts)
+	return newBitbucketService(ctx, bitbucketConfig, projectKey, repositorySlug, scmRootCAPath, insecure, caCerts, proxyURL, noProxy)
 }
 
-func NewBitbucketServiceNoAuth(ctx context.Context, url, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
-	return newBitbucketService(ctx, bitbucketv1.NewConfiguration(url), projectKey, repositorySlug, scmRootCAPath, insecure, caCerts)
+func NewBitbucketServiceNoAuth(ctx context.Context, url, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (PullRequestService, error) {
+	return newBitbucketService(ctx, bitbucketv1.NewConfiguration(url), projectKey, repositorySlug, scmRootCAPath, insecure, caCerts, proxyURL, noProxy)
 }
 
-func newBitbucketService(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte) (PullRequestService, error) {
-	bitbucketConfig.BasePath = utils.NormalizeBitbucketBasePath(bitbucketConfig.BasePath)
-	tlsConfig := utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
-	bitbucketConfig.HTTPClient = &http.Client{Transport: &http.Transport{
-		TLSClientConfig: tlsConfig,
-	}}
-	bitbucketClient := bitbucketv1.NewAPIClient(ctx, bitbucketConfig)
+func newBitbucketService(ctx context.Context, bitbucketConfig *bitbucketv1.Configuration, projectKey, repositorySlug string, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (PullRequestService, error) {
+	bbClient := services.SetupBitbucketClient(ctx, bitbucketConfig, scmRootCAPath, insecure, caCerts, proxyURL, noProxy)
 
 	return &BitbucketService{
-		client:         bitbucketClient,
+		client:         bbClient,
 		projectKey:     projectKey,
 		repositorySlug: repositorySlug,
 	}, nil
@@ -72,6 +67,11 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 	for {
 		response, err := b.client.DefaultApi.GetPullRequestsPage(b.projectKey, b.repositorySlug, paged)
 		if err != nil {
+			if response != nil && response.Response != nil && response.StatusCode == http.StatusNotFound {
+				// return a custom error indicating that the repository is not found,
+				// but also return the empty result since the decision to continue or not in this case is made by the caller
+				return pullRequests, NewRepositoryNotFoundError(err)
+			}
 			return nil, fmt.Errorf("error listing pull requests for %s/%s: %w", b.projectKey, b.repositorySlug, err)
 		}
 		pulls, err := bitbucketv1.GetPullRequestsResponse(response)
@@ -82,7 +82,7 @@ func (b *BitbucketService) List(_ context.Context) ([]*PullRequest, error) {
 
 		for _, pull := range pulls {
 			pullRequests = append(pullRequests, &PullRequest{
-				Number:       pull.ID,
+				Number:       int64(pull.ID),
 				Title:        pull.Title,
 				Branch:       pull.FromRef.DisplayID, // ID: refs/heads/main DisplayID: main
 				TargetBranch: pull.ToRef.DisplayID,

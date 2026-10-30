@@ -1,0 +1,12 @@
+apiVersion: game.kruise.io/v1alpha1
+kind: GameServerSet
+metadata:
+  generation: 1
+spec:
+  replicas: 3
+  updateStrategy:
+    rollingUpdate:
+      paused: true
+status:
+  observedGeneration: 1
+  replicas: 3

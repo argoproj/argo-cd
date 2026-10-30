@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
@@ -24,13 +25,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/tls"
 )
 
-const (
-	cliName = "argocd-dex"
-)
-
 func NewCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandDex,
 		Short:             "argocd-dex tools used by Argo CD",
 		Long:              "argocd-dex has internal utility tools used by Argo CD",
 		DisableAutoGenTag: true,
@@ -83,7 +80,7 @@ func NewRunDexCommand() *cobra.Command {
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
 			if !disableTLS {
-				config, err := tls.CreateServerTLSConfig("/tls/tls.crt", "/tls/tls.key", []string{"localhost", "dexserver"})
+				config, err := tls.CreateServerTLSConfig("/tls/tls.crt", "/tls/tls.key", []string{"localhost", "dexserver"}, "")
 				if err != nil {
 					log.Fatalf("could not create TLS config: %v", err)
 				}
@@ -114,7 +111,7 @@ func NewRunDexCommand() *cobra.Command {
 					err = os.WriteFile("/tmp/dex.yaml", dexCfgBytes, 0o644)
 					errors.CheckError(err)
 					log.Debug(redactor(string(dexCfgBytes)))
-					cmd = exec.Command("dex", "serve", "/tmp/dex.yaml")
+					cmd = exec.CommandContext(ctx, "dex", "serve", "/tmp/dex.yaml")
 					cmd.Stdout = os.Stdout
 					cmd.Stderr = os.Stderr
 					err = cmd.Start()
@@ -126,7 +123,7 @@ func NewRunDexCommand() *cobra.Command {
 					newSettings := <-updateCh
 					newDexCfgBytes, err := dex.GenerateDexConfigYAML(newSettings, disableTLS)
 					errors.CheckError(err)
-					if string(newDexCfgBytes) != string(dexCfgBytes) {
+					if !bytes.Equal(newDexCfgBytes, dexCfgBytes) {
 						prevSettings = newSettings
 						log.Infof("dex config modified. restarting dex")
 						if cmd != nil && cmd.Process != nil {
@@ -188,10 +185,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 						for i := range staticClients {
 							staticClient := staticClients[i]
 							if mappings, ok := staticClient.(map[string]any); ok {
-								for key := range mappings {
-									if key == "secret" {
-										mappings[key] = "******"
-									}
+								if _, ok := mappings["secret"]; ok {
+									mappings["secret"] = "******"
 								}
 								staticClients[i] = mappings
 							}
@@ -220,17 +215,18 @@ func NewGenDexConfigCommand() *cobra.Command {
 }
 
 func iterateStringFields(obj any, callback func(name string, val string) string) {
-	if mapField, ok := obj.(map[string]any); ok {
-		for field, val := range mapField {
+	switch obj := obj.(type) {
+	case map[string]any:
+		for field, val := range obj {
 			if strVal, ok := val.(string); ok {
-				mapField[field] = callback(field, strVal)
+				obj[field] = callback(field, strVal)
 			} else {
 				iterateStringFields(val, callback)
 			}
 		}
-	} else if arrayField, ok := obj.([]any); ok {
-		for i := range arrayField {
-			iterateStringFields(arrayField[i], callback)
+	case []any:
+		for i := range obj {
+			iterateStringFields(obj[i], callback)
 		}
 	}
 }

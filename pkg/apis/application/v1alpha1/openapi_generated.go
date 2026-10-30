@@ -75,7 +75,6 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.DrySource":                               schema_pkg_apis_application_v1alpha1_DrySource(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.DuckTypeGenerator":                       schema_pkg_apis_application_v1alpha1_DuckTypeGenerator(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.EnvEntry":                                schema_pkg_apis_application_v1alpha1_EnvEntry(ref),
-		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ErrApplicationNotAllowedToUseProject":    schema_pkg_apis_application_v1alpha1_ErrApplicationNotAllowedToUseProject(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ExecProviderConfig":                      schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.GitDirectoryGeneratorItem":               schema_pkg_apis_application_v1alpha1_GitDirectoryGeneratorItem(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.GitFileGeneratorItem":                    schema_pkg_apis_application_v1alpha1_GitFileGeneratorItem(ref),
@@ -174,7 +173,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategy":                            schema_pkg_apis_application_v1alpha1_SyncStrategy(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategyApply":                       schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategyHook":                        schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
-		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncWindow":                              schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
+		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.InlineSyncWindow":                        schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TLSClientConfig":                         schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TagFilter":                               schema_pkg_apis_application_v1alpha1_TagFilter(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.objectMeta":                              schema_pkg_apis_application_v1alpha1_objectMeta(ref),
@@ -411,7 +410,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncWindow"),
+										Ref: ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.InlineSyncWindow"),
 									},
 								},
 							},
@@ -499,7 +498,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestinationServiceAccount", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
+			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestinationServiceAccount", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.InlineSyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
 	}
 }
 
@@ -3498,40 +3497,6 @@ func schema_pkg_apis_application_v1alpha1_EnvEntry(ref common.ReferenceCallback)
 	}
 }
 
-func schema_pkg_apis_application_v1alpha1_ErrApplicationNotAllowedToUseProject(ref common.ReferenceCallback) common.OpenAPIDefinition {
-	return common.OpenAPIDefinition{
-		Schema: spec.Schema{
-			SchemaProps: spec.SchemaProps{
-				Type: []string{"object"},
-				Properties: map[string]spec.Schema{
-					"application": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"namespace": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-					"project": {
-						SchemaProps: spec.SchemaProps{
-							Default: "",
-							Type:    []string{"string"},
-							Format:  "",
-						},
-					},
-				},
-				Required: []string{"application", "namespace", "project"},
-			},
-		},
-	}
-}
-
 func schema_pkg_apis_application_v1alpha1_ExecProviderConfig(ref common.ReferenceCallback) common.OpenAPIDefinition {
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
@@ -6144,7 +6109,7 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 					},
 					"certInfo": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)",
+							Description: "CertInfo will hold additional certificate info, dependent on the certificate type (e.g. SSH fingerprint, X509 CommonName)",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -7060,6 +7025,13 @@ func schema_pkg_apis_application_v1alpha1_RetryStrategy(ref common.ReferenceCall
 						SchemaProps: spec.SchemaProps{
 							Description: "Backoff controls how to backoff on subsequent retries of failed syncs",
 							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.Backoff"),
+						},
+					},
+					"refresh": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Refresh indicates if a new revision should trigger a new sync (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
 						},
 					},
 				},
@@ -8395,7 +8367,7 @@ func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
+				Description: "InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -8481,6 +8453,13 @@ func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallbac
 					"andOperator": {
 						SchemaProps: spec.SchemaProps{
 							Description: "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"syncOverrun": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncOverrun allows syncs that started before this deny window to continue running",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

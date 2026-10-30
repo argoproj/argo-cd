@@ -67,15 +67,69 @@ argocd proj add-source <PROJECT> !<REPO>
 argocd proj remove-source <PROJECT> !<REPO>
 ```
 
-Declaratively we can do something like this:
+#### Wildcard Patterns in Source Repositories
+
+Source repositories support glob-style wildcard patterns. `/` is a segment boundary: `*` matches only within a single path segment, and `**` matches across segments.
+
+- `*` - Matches any characters within a single path segment (between slashes)
+- `**` - Matches any characters across multiple path segments (recursive)
+
+A wildcard placed on the organization segment admits lookalike organizations. Prefer an exact repository URL, or a pattern whose organization segment is bounded by `/`.
+
+```yaml
+spec:
+  sourceRepos:
+    # Bounded to the acme organization. Does not permit acme-evil.
+    - 'https://github.com/acme/*'
+    # Unbounded: * is inside the organization segment, so acme-evil is permitted.
+    - 'https://github.com/acme*/*'
+    # A wildcard at the end of the repository name permits a longer name.
+    - 'https://github.com/acme/pay*'
+```
+
+> [!NOTE]
+> This differs from [RBAC glob matching](../operator-manual/rbac.md#the-applications-resource), which does not treat `/` as a separator.
+
+> [!NOTE]
+> `{...}` and `[...]` in the host are not applied as globs. The pattern is parsed as a URL first, and those characters do not match the hosts they appear to name. `https://{github,gitlab}.com/myorg/*` permits neither `github.com` nor `gitlab.com`. `https://git-[abc].example.com/**` does not permit `git-a.example.com`. The same applies to an SSH host, such as `git@{git,lab}.example.com:org/repo`. `*` and `?` in the host do work: `https://*.example.com/**` permits `https://git.example.com/org/repo`, and `https://git-?.example.com/**` permits `https://git-a.example.com/org/repo`.
+
+Common patterns:
+
+```yaml
+spec:
+  sourceRepos:
+    # Match all repositories (any Git server)
+    - '*'
+
+    # Match all GitHub repositories (using double-wildcard for recursive matching)
+    - 'https://github.com/**'
+
+    # Match all repositories in a specific organization
+    - 'https://github.com/argoproj/*'
+
+    # Match all repositories in organizations starting with 'my-'
+    - 'https://github.com/my-*/*'
+
+    # Match GitLab group repositories with nested subgroups
+    - 'https://gitlab.com/group/**'
+
+    # Match specific nested path depth
+    - 'https://gitlab.com/group/*/*'  # Exactly two levels deep
+```
+
+Negation examples:
 
 ```yaml
 spec:
   sourceRepos:
     # Do not use the test repo in argoproj
     - '!ssh://git@GITHUB.com:argoproj/test'
-    # Nor any Gitlab repo under group/ 
+    # Nor any Gitlab repo under group/
     - '!https://gitlab.com/group/**'
+    # Deny all GitHub repos except those explicitly allowed
+    - '!https://github.com/**'
+    # Allow specific GitHub organization
+    - 'https://github.com/my-org/*'
     # Any other repo is fine though
     - '*'
 ```
@@ -128,9 +182,39 @@ Permitted destination K8s resource kinds are managed with the commands. Note tha
 
 ```bash
 argocd proj allow-cluster-resource <PROJECT> <GROUP> <KIND>
-argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND>
+argocd proj allow-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
 argocd proj deny-cluster-resource <PROJECT> <GROUP> <KIND>
-argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND>
+argocd proj deny-namespace-resource <PROJECT> <GROUP> <KIND> [<NAME>]
+```
+
+When a project uses `namespaceResourceWhitelist`, the whitelist also controls which child resources appear in the Application resource tree in the UI. Any child resource whose GroupKind is not permitted by the project is omitted from the tree, even if it exists and is healthy in the cluster. For example, if the whitelist includes only `apps/Deployment` and `Service`, the Deployment node is shown but its `ReplicaSet` and `Pod` children are hidden until `apps/ReplicaSet` and `Pod` are added to the whitelist. This filtering does not affect sync permissions for resources already deployed; it only affects observability in the resource tree.
+
+#### Restrict Cluster-Scoped Resources by Name
+
+Since the names of certain cluster-scoped resources such as Namespaces and CustomResourceDefinitions (CRDs) have special
+significance, it can be useful to allow only specific resources of these kinds. For example, the following AppProject
+config allows only namespaces starting with `team1-`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  clusterResourceWhitelist:
+  - group: ''
+    kind: Namespace
+    name: team1-*
+```
+
+It is also possible to deny specific names of cluster-scoped resources.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+spec:
+  clusterResourceBlacklist:
+  - group: ''
+    kind: Namespace
+    name: kube-*
 ```
 
 ### Assign Application To A Project
@@ -173,7 +257,7 @@ Argo CD will use the policies defined in the AppProject roles while authorizing 
 
 _Note 1_: It is very important that policy roles follow the pattern `proj:<project-name>:<role-name>` or they won't be effective during the Argo CD authorization process.
 
-_Note 2_: The example above used `applications` as the resource for the policy definition. However other types of resources can also be used: `repositories`, `clusters`, `logs` and `exec`. See the [RBAC documentation](../operator-manual/rbac.md) for more details about those resources.
+_Note 2_: The example above used `applications` as the resource for the policy definition. However other types of resources can also be used: `applicationsets`, `repositories`, `clusters`, `logs` and `exec`. See the [RBAC documentation](../operator-manual/rbac.md) for more details about those resources.
 
 In order to create roles in a project and add policies to a role, a user will need permission to update a project.  The following commands can be used to manage a role.
 
@@ -266,9 +350,10 @@ Projects, which match `matchExpressions` specified in `argocd-cm` ConfigMap, inh
 * namespaceResourceWhitelist
 * clusterResourceBlacklist
 * clusterResourceWhitelist
-* SyncWindows
-* SourceRepos
-* Destinations
+* syncWindows
+* sourceRepos
+* destinations
+* destinationServiceAccounts
 
 Configure global projects in `argocd-cm` ConfigMap:
 ```yaml
@@ -284,7 +369,7 @@ data:
 kind: ConfigMap
 ``` 
 
-Valid operators you can use are: In, NotIn, Exists, DoesNotExist. Gt, and Lt.
+Valid operators you can use are: In, NotIn, Exists, DoesNotExist.
 
 projectName: `proj-global-test` should be replaced with your own global project name.
 
@@ -334,11 +419,11 @@ stringData:
   password: ****
 ```
 
-!!! warning
-    Please keep in mind when using a project-scoped repository, only applications or applicationsets with a matching project 
-    name can make use of it. When using an applicationset with a Git generator that also makes use of a templated `project` 
-    (i.e. it contains ``{{ ... }}``) only non-scoped repositories can be used with the applicationset (i.e. repositories 
-    that do _not_ have a `project` set).
+> [!WARNING]
+> Please keep in mind when using a project-scoped repository, only applications or applicationsets with a matching project 
+> name can make use of it. When using an applicationset with a Git generator that also makes use of a templated `project` 
+> (i.e. it contains ``{{ ... }}``) only non-scoped repositories can be used with the applicationset (i.e. repositories 
+> that do _not_ have a `project` set).
 
 All the examples above concern Git repositories, but the same principles apply to clusters as well.
 
@@ -363,6 +448,9 @@ stringData:
       }
     }
 ```
+
+> [!NOTE]
+> **Implicit Destinations:** When a project-scoped cluster is defined, an implicit entry is dynamically added to the AppProject's `destinations` list during evaluation. By default, this acts as a wildcard, allowing applications in the project to deploy to all namespaces in the cluster (acting as `namespace: "*"`). If the cluster definition has the `namespaces` field set, only those specific namespaces are implicitly added to the project's destinations instead. Because this happens dynamically during evaluation to facilitate multi-tenancy, these implicit destinations are not reflected in the AppProject's declarative spec or the UI.
 
 With project-scoped clusters we can also restrict projects to only allow applications whose destinations belong to the same project. The default behavior allows for applications to be installed onto clusters which are not a part of the same project, as the example below demonstrates:
 

@@ -9,177 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-func Test_generateParamsFromGitFile(t *testing.T) {
-	defaultContent := []byte(`
-foo:
-  bar: baz
-`)
-	type args struct {
-		filePath          string
-		fileContent       []byte
-		values            map[string]string
-		useGoTemplate     bool
-		goTemplateOptions []string
-		pathParamPrefix   string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []map[string]any
-		wantErr bool
-	}{
-		{
-			name: "empty file returns path parameters",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   []byte(""),
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			want: []map[string]any{
-				{
-					"path":                    "path/dir",
-					"path.basename":           "dir",
-					"path.filename":           "file_name.yaml",
-					"path.basenameNormalized": "dir",
-					"path.filenameNormalized": "file-name.yaml",
-					"path[0]":                 "path",
-					"path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "invalid json/yaml file returns error",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   []byte("this is not json or yaml"),
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			wantErr: true,
-		},
-		{
-			name: "file parameters are added to params",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   defaultContent,
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			want: []map[string]any{
-				{
-					"foo.bar":                 "baz",
-					"path":                    "path/dir",
-					"path.basename":           "dir",
-					"path.filename":           "file_name.yaml",
-					"path.basenameNormalized": "dir",
-					"path.filenameNormalized": "file-name.yaml",
-					"path[0]":                 "path",
-					"path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "path parameter are prefixed",
-			args: args{
-				filePath:        "path/dir/file_name.yaml",
-				fileContent:     defaultContent,
-				values:          map[string]string{},
-				useGoTemplate:   false,
-				pathParamPrefix: "myRepo",
-			},
-			want: []map[string]any{
-				{
-					"foo.bar":                        "baz",
-					"myRepo.path":                    "path/dir",
-					"myRepo.path.basename":           "dir",
-					"myRepo.path.filename":           "file_name.yaml",
-					"myRepo.path.basenameNormalized": "dir",
-					"myRepo.path.filenameNormalized": "file-name.yaml",
-					"myRepo.path[0]":                 "path",
-					"myRepo.path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "file parameters are added to params with go template",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   defaultContent,
-				values:        map[string]string{},
-				useGoTemplate: true,
-			},
-			want: []map[string]any{
-				{
-					"foo": map[string]any{
-						"bar": "baz",
-					},
-					"path": map[string]any{
-						"path":               "path/dir",
-						"basename":           "dir",
-						"filename":           "file_name.yaml",
-						"basenameNormalized": "dir",
-						"filenameNormalized": "file-name.yaml",
-						"segments": []string{
-							"path",
-							"dir",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "path parameter are prefixed with go template",
-			args: args{
-				filePath:        "path/dir/file_name.yaml",
-				fileContent:     defaultContent,
-				values:          map[string]string{},
-				useGoTemplate:   true,
-				pathParamPrefix: "myRepo",
-			},
-			want: []map[string]any{
-				{
-					"foo": map[string]any{
-						"bar": "baz",
-					},
-					"myRepo": map[string]any{
-						"path": map[string]any{
-							"path":               "path/dir",
-							"basename":           "dir",
-							"filename":           "file_name.yaml",
-							"basenameNormalized": "dir",
-							"filenameNormalized": "file-name.yaml",
-							"segments": []string{
-								"path",
-								"dir",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.pathParamPrefix)
-			if tt.wantErr {
-				assert.Error(t, err, "GitGenerator.generateParamsFromGitFile()")
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.want, params)
-			}
-		})
-	}
-}
-
 func TestGitGenerateParamsFromDirectories(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name            string
 		directories     []v1alpha1.GitDirectoryGeneratorItem
@@ -308,7 +146,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
+			expectedError: errors.New("error generating params from git: error getting directories from git: error"),
 		},
 	}
 
@@ -318,15 +156,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := mocks.NewRepos(t)
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -355,13 +191,13 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
 
 func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name            string
 		directories     []v1alpha1.GitDirectoryGeneratorItem
@@ -609,7 +445,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
+			expectedError: errors.New("error generating params from git: error getting directories from git: error"),
 		},
 	}
 
@@ -619,15 +455,13 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := mocks.NewRepos(t)
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
+			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(testCaseCopy.repoApps, testCaseCopy.repoError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -656,13 +490,13 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 				require.NoError(t, err)
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
 
 func TestGitGenerateParamsFromFiles(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
@@ -819,7 +653,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]any{},
-			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
+			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json' from repository 'RepoURL': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
@@ -976,6 +810,16 @@ cluster:
 			},
 			expectedError: nil,
 		},
+		{
+			name:  "test empty YAML array",
+			files: []v1alpha1.GitFileGeneratorItem{{Path: "**/config.yaml"}},
+			repoFileContents: map[string][]byte{
+				"cluster-config/production/config.yaml": []byte(`[]`),
+			},
+			repoPathsError: nil,
+			expected:       []map[string]any{},
+			expectedError:  nil,
+		},
 	}
 
 	for _, testCase := range cases {
@@ -984,15 +828,13 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock := mocks.NewRepos(t)
+			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1020,8 +862,6 @@ cluster:
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -1029,6 +869,8 @@ cluster:
 // TestGitGeneratorParamsFromFilesWithExcludeOptionWithNewGlobbing tests the params values generated by git file generator
 // when exclude option is set to true. It gives the result files based on new globbing pattern - doublestar package
 func TestGitGeneratorParamsFromFilesWithExcludeOptionWithNewGlobbing(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
@@ -1313,7 +1155,7 @@ env: testing
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := mocks.NewRepos(t)
 
 			// IMPORTANT: we try to get the files from the repo server that matches the patterns
 			// If we find those files also satisfy the exclude pattern, we remove them from map
@@ -1321,22 +1163,18 @@ env: testing
 			// With the below mock setup, we make sure that if the GetFiles() function gets called
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
 			}
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1364,8 +1202,6 @@ env: testing
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -1373,6 +1209,8 @@ env: testing
 // TestGitGeneratorParamsFromFilesWithExcludeOptionWithOldGlobbing tests the params values generated by git file generator
 // // when exclude option is set to true. It gives the result files based on old globbing pattern - git ls-files
 func TestGitGeneratorParamsFromFilesWithExcludeOptionWithOldGlobbing(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
@@ -1652,7 +1490,7 @@ env: testing
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := mocks.NewRepos(t)
 
 			// IMPORTANT: we try to get the files from the repo server that matches the patterns
 			// If we find those files also satisfy the exclude pattern, we remove them from map
@@ -1660,22 +1498,18 @@ env: testing
 			// With the below mock setup, we make sure that if the GetFiles() function gets called
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
 			}
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1703,8 +1537,6 @@ env: testing
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -1712,6 +1544,8 @@ env: testing
 // TestGitGeneratorParamsFromFilesWithExcludeOption tests the params values generated by git file generator
 // when exclude option is set to true. It gives the result files based on new globbing pattern - doublestar package
 func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
@@ -1886,29 +1720,25 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
+			argoCDServiceMock := mocks.NewRepos(t)
 			// IMPORTANT: we try to get the files from the repo server that matches the patterns
 			// If we find those files also satisfy the exclude pattern, we remove them from map
 			// This is generally done by the g.repos.GetFiles() function.
 			// With the below mock setup, we make sure that if the GetFiles() function gets called
 			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
 			for _, pattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
 			}
 
 			for _, pattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.
-					On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
+				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
 					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
 			}
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -1936,13 +1766,13 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
 
 func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
+	t.Parallel()
+
 	cases := []struct {
 		name string
 		// files is the list of paths/globs to match
@@ -2046,7 +1876,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]any{},
-			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type map[string]interface {}"),
+			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json' from repository 'RepoURL': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
@@ -2255,15 +2085,13 @@ cluster:
 		t.Run(testCaseCopy.name, func(t *testing.T) {
 			t.Parallel()
 
-			argoCDServiceMock := mocks.Repos{}
-			argoCDServiceMock.On("GetFiles", mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock := mocks.NewRepos(t)
+			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
-			gitGenerator := NewGitGenerator(&argoCDServiceMock, "")
+			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -2291,8 +2119,6 @@ cluster:
 				require.NoError(t, err)
 				assert.ElementsMatch(t, testCaseCopy.expected, got)
 			}
-
-			argoCDServiceMock.AssertExpectations(t)
 		})
 	}
 }
@@ -2419,7 +2245,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedProject: ptr.To("project"),
+			expectedProject: new("project"),
 			expectedError:   nil,
 		},
 		{
@@ -2453,12 +2279,12 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedProject: ptr.To(""),
+			expectedProject: new(""),
 			expectedError:   nil,
 		},
 	}
 	for _, testCase := range cases {
-		argoCDServiceMock := mocks.Repos{}
+		argoCDServiceMock := mocks.NewRepos(t)
 
 		if testCase.callGetDirectories {
 			var project any
@@ -2468,9 +2294,9 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				project = mock.Anything
 			}
 
-			argoCDServiceMock.On("GetDirectories", mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
+			argoCDServiceMock.EXPECT().GetDirectories(mock.Anything, mock.Anything, mock.Anything, project, mock.Anything, mock.Anything).Return(testCase.repoApps, testCase.repoPathsError)
 		}
-		gitGenerator := NewGitGenerator(&argoCDServiceMock, "argocd")
+		gitGenerator := NewGitGenerator(argoCDServiceMock, "argocd")
 
 		scheme := runtime.NewScheme()
 		err := v1alpha1.AddToScheme(scheme)
@@ -2486,7 +2312,5 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 			require.NoError(t, err)
 			assert.Equal(t, testCase.expected, got)
 		}
-
-		argoCDServiceMock.AssertExpectations(t)
 	}
 }

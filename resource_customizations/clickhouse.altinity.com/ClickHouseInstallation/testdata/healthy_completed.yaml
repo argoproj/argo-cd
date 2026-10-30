@@ -1,0 +1,22 @@
+apiVersion: clickhouse.altinity.com/v1
+kind: ClickHouseInstallation
+metadata:
+  name: test-clickhouse
+  namespace: default
+spec:
+  configuration:
+    clusters:
+    - name: cluster
+      layout:
+        shards:
+        - name: shard
+          replicas:
+          - name: replica
+            port: 9000
+            template:
+              spec:
+                containers:
+                - name: clickhouse
+                  image: clickhouse/clickhouse-server:latest
+status:
+  status: Completed

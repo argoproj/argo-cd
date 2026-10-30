@@ -5,26 +5,35 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"math"
 	"os"
 	"path"
 	"path/filepath"
 	"reflect"
 	"strconv"
 	"strings"
+	"syscall"
 	"testing"
 	"time"
 
+	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
-	rbacv1 "k8s.io/api/rbac/v1"
 
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/client-go/discovery/cached/memory"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
+	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
+	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -36,7 +45,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	grpcutil "github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
-	"github.com/argoproj/argo-cd/v3/util/rand"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -53,7 +61,8 @@ const (
 	defaultNotificationServer = "localhost:9001"
 
 	// ensure all repos are in one directory tree, so we can easily clean them up
-	TmpDir             = "/tmp/argo-e2e"
+	// TmpDir can be overridden via ARGOCD_E2E_DIR environment variable
+	defaultTmpDir      = "/tmp/argo-e2e"
 	repoDir            = "testdata.git"
 	submoduleDir       = "submodule.git"
 	submoduleParentDir = "submoduleParent.git"
@@ -65,10 +74,15 @@ const (
 	// cmp plugin sock file path
 	PluginSockFilePath = "/app/config/plugin"
 
-	E2ETestPrefix = "e2e-test-"
+	// finalizer to add to resources during tests. Make sure that the resource Kind of your object
+	// is included in the test EnsureCleanState code
+	TestFinalizer = TestingLabel + "/finalizer"
 
 	// Account for batch events processing (set to 1ms in e2e tests)
 	WhenThenSleepInterval = 5 * time.Millisecond
+
+	// maximum length of log line
+	defaultLogLineMaxLen = 4096
 )
 
 const (
@@ -79,17 +93,16 @@ const (
 	EnvArgoCDRedisName         = "ARGOCD_E2E_REDIS_NAME"
 	EnvArgoCDRepoServerName    = "ARGOCD_E2E_REPO_SERVER_NAME"
 	EnvArgoCDAppControllerName = "ARGOCD_E2E_APPLICATION_CONTROLLER_NAME"
+	EnvLogLineMaxLen           = "ARGOCD_E2E_LOG_LINE_MAX_LEN"
 )
 
 var (
-	id                      string
-	deploymentNamespace     string
-	name                    string
 	KubeClientset           kubernetes.Interface
 	KubeConfig              *rest.Config
 	DynamicClientset        dynamic.Interface
 	AppClientset            appclientset.Interface
 	ArgoCDClientset         apiclient.Client
+	Mapper                  meta.RESTMapper
 	adminUsername           string
 	AdminPassword           string
 	apiServerAddress        string
@@ -124,6 +137,7 @@ const (
 	RepoURLTypeHelm                 = "helm"
 	RepoURLTypeHelmParent           = "helm-par"
 	RepoURLTypeHelmOCI              = "helm-oci"
+	RepoURLTypeOCI                  = "oci"
 	GitUsername                     = "admin"
 	GitPassword                     = "password"
 	GitBearerToken                  = "test"
@@ -131,6 +145,10 @@ const (
 	GithubAppInstallationID         = "7893789433789"
 	GpgGoodKeyID                    = "D56C4FCA57A46444"
 	HelmOCIRegistryURL              = "localhost:5000/myrepo"
+	HelmAuthenticatedOCIRegistryURL = "localhost:5001/myrepo"
+	OCIRegistryURL                  = "oci://localhost:5000/my-oci-repo"
+	OCIHostURL                      = "oci://localhost:5000"
+	AuthenticatedOCIHostURL         = "oci://localhost:5001"
 )
 
 // TestNamespace returns the namespace where Argo CD E2E test instance will be
@@ -141,6 +159,12 @@ func TestNamespace() string {
 
 func AppNamespace() string {
 	return GetEnvWithDefault("ARGOCD_E2E_APP_NAMESPACE", ArgoCDAppNamespace)
+}
+
+// TmpDir returns the base directory for e2e test data.
+// It can be overridden via the ARGOCD_E2E_DIR environment variable.
+func TmpDir() string {
+	return GetEnvWithDefault("ARGOCD_E2E_DIR", defaultTmpDir)
 }
 
 // getKubeConfig creates new kubernetes client config using specified config path and config overrides variables
@@ -178,11 +202,14 @@ func IsLocal() bool {
 func init() {
 	// ensure we log all shell execs
 	log.SetLevel(log.DebugLevel)
+	// truncate eccessively long entries
+	log.SetFormatter(MakeTruncatingFormatter(env.ParseNumFromEnv(EnvLogLineMaxLen, defaultLogLineMaxLen, 0, math.MaxInt32)))
 	// set-up variables
 	config := getKubeConfig("", clientcmd.ConfigOverrides{})
 	AppClientset = appclientset.NewForConfigOrDie(config)
 	KubeClientset = kubernetes.NewForConfigOrDie(config)
 	DynamicClientset = dynamic.NewForConfigOrDie(config)
+	Mapper = restmapper.NewDeferredDiscoveryRESTMapper(memory.NewMemCacheClient(KubeClientset.Discovery()))
 	KubeConfig = config
 
 	apiServerAddress = GetEnvWithDefault(apiclient.EnvArgoCDServer, defaultAPIServer)
@@ -243,13 +270,49 @@ func init() {
 }
 
 func loginAs(username, password string) error {
-	closer, client, err := ArgoCDClientset.NewSessionClient()
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	for {
+		attemptCtx, cancelAttempt := context.WithTimeout(ctx, 5*time.Second)
+		err := tryLoginAs(attemptCtx, username, password)
+		cancelAttempt()
+		if !isLoginRetryable(err) || ctx.Err() != nil {
+			return err
+		}
+		log.Warnf("API server unavailable while logging in as %s, retrying: %v", username, err)
+		select {
+		case <-ctx.Done():
+			return err
+		case <-time.After(500 * time.Millisecond):
+		}
+	}
+}
+
+func removeAllRetrying(path string) error {
+	deadline := time.Now().Add(10 * time.Second)
+	for {
+		err := os.RemoveAll(path)
+		if !stderrors.Is(err, syscall.ENOTEMPTY) || time.Now().After(deadline) {
+			return err
+		}
+		log.Warnf("%s is still being written to, retrying removal: %v", path, err)
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
+func isLoginRetryable(err error) bool {
+	code := status.Code(err)
+	return code == codes.Unavailable || code == codes.DeadlineExceeded
+}
+
+func tryLoginAs(ctx context.Context, username, password string) error {
+	closer, client, err := ArgoCDClientset.NewSessionClientWithContext(ctx)
 	if err != nil {
-		return err
+		return status.Errorf(codes.Unavailable, "connecting to API server: %v", err)
 	}
 	defer utilio.Close(closer)
 
-	userInfoResponse, err := client.GetUserInfo(context.Background(), &sessionpkg.GetUserInfoRequest{})
+	userInfoResponse, err := client.GetUserInfo(ctx, &sessionpkg.GetUserInfoRequest{})
 	if err != nil {
 		return err
 	}
@@ -257,7 +320,7 @@ func loginAs(username, password string) error {
 		return nil
 	}
 
-	sessionResponse, err := client.Create(context.Background(), &sessionpkg.SessionCreateRequest{Username: username, Password: password})
+	sessionResponse, err := client.Create(ctx, &sessionpkg.SessionCreateRequest{Username: username, Password: password})
 	if err != nil {
 		return err
 	}
@@ -285,20 +348,16 @@ func LoginAs(username string) error {
 	return loginAs(username, password)
 }
 
-func Name() string {
-	return name
-}
-
 func repoDirectory() string {
-	return path.Join(TmpDir, repoDir)
+	return path.Join(TmpDir(), repoDir)
 }
 
 func submoduleDirectory() string {
-	return path.Join(TmpDir, submoduleDir)
+	return path.Join(TmpDir(), submoduleDir)
 }
 
 func submoduleParentDirectory() string {
-	return path.Join(TmpDir, submoduleParentDir)
+	return path.Join(TmpDir(), submoduleParentDir)
 }
 
 const (
@@ -315,16 +374,18 @@ const (
 )
 
 func RepoURL(urlType RepoURLType) string {
+	// SSH URLs use the container path (defaultTmpDir) because sshd runs inside Docker
+	// where $ARGOCD_E2E_DIR is mounted to /tmp/argo-e2e
 	switch urlType {
 	// Git server via SSH
 	case RepoURLTypeSSH:
-		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222/tmp/argo-e2e/testdata.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSH, "ssh://root@localhost:2222"+defaultTmpDir+"/testdata.git")
 	// Git submodule repo
 	case RepoURLTypeSSHSubmodule:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222/tmp/argo-e2e/submodule.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmodule, "ssh://root@localhost:2222"+defaultTmpDir+"/submodule.git")
 	// Git submodule parent repo
 	case RepoURLTypeSSHSubmoduleParent:
-		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222/tmp/argo-e2e/submoduleParent.git")
+		return GetEnvWithDefault(EnvRepoURLTypeSSHSubmoduleParent, "ssh://root@localhost:2222"+defaultTmpDir+"/submoduleParent.git")
 	// Git server via HTTPS
 	case RepoURLTypeHTTPS:
 		return GetEnvWithDefault(EnvRepoURLTypeHTTPS, "https://localhost:9443/argo-e2e/testdata.git")
@@ -345,6 +406,8 @@ func RepoURL(urlType RepoURLType) string {
 	// When Helm Repo has sub repos, this is the parent repo URL
 	case RepoURLTypeHelmParent:
 		return GetEnvWithDefault(EnvRepoURLTypeHelm, "https://localhost:9444/argo-e2e/testdata.git/helm-repo")
+	case RepoURLTypeOCI:
+		return OCIRegistryURL
 	case RepoURLTypeHelmOCI:
 		return HelmOCIRegistryURL
 	default:
@@ -352,12 +415,12 @@ func RepoURL(urlType RepoURLType) string {
 	}
 }
 
-func RepoBaseURL(urlType RepoURLType) string {
-	return path.Base(RepoURL(urlType))
+func LocalRepoRoot() string {
+	return repoDirectory()
 }
 
-func DeploymentNamespace() string {
-	return deploymentNamespace
+func RepoBaseURL(urlType RepoURLType) string {
+	return path.Base(RepoURL(urlType))
 }
 
 // Convenience wrapper for updating argocd-cm
@@ -405,6 +468,13 @@ func updateGenericConfigMap(name string, updater func(cm *corev1.ConfigMap) erro
 		}
 	}
 	return nil
+}
+
+func RegisterKustomizeVersion(version, path string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["kustomize.version."+version] = path
+		return nil
+	})
 }
 
 func SetEnableManifestGeneration(val map[v1alpha1.ApplicationSourceType]bool) error {
@@ -464,48 +534,11 @@ func SetImpersonationEnabled(impersonationEnabledFlag string) error {
 	})
 }
 
-func CreateRBACResourcesForImpersonation(serviceAccountName string, policyRules []rbacv1.PolicyRule) error {
-	sa := &corev1.ServiceAccount{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: serviceAccountName,
-		},
-	}
-	_, err := KubeClientset.CoreV1().ServiceAccounts(DeploymentNamespace()).Create(context.Background(), sa, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	role := &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
-		Rules: policyRules,
-	}
-	_, err = KubeClientset.RbacV1().Roles(DeploymentNamespace()).Create(context.Background(), role, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	rolebinding := &rbacv1.RoleBinding{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: fmt.Sprintf("%s-%s", serviceAccountName, "rolebinding"),
-		},
-		RoleRef: rbacv1.RoleRef{
-			APIGroup: "rbac.authorization.k8s.io",
-			Kind:     "Role",
-			Name:     fmt.Sprintf("%s-%s", serviceAccountName, "role"),
-		},
-		Subjects: []rbacv1.Subject{
-			{
-				Kind:      "ServiceAccount",
-				Name:      serviceAccountName,
-				Namespace: DeploymentNamespace(),
-			},
-		},
-	}
-	_, err = KubeClientset.RbacV1().RoleBindings(DeploymentNamespace()).Create(context.Background(), rolebinding, metav1.CreateOptions{})
-	if err != nil {
-		return err
-	}
-	return nil
+func SetImpersonationEnforcement(value string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["application.sync.impersonation.enforced"] = value
+		return nil
+	})
 }
 
 func SetResourceOverridesSplitKeys(overrides map[string]v1alpha1.ResourceOverride) error {
@@ -559,14 +592,13 @@ func SetAccounts(accounts map[string][]string) error {
 
 func SetPermissions(permissions []ACL, username string, roleName string) error {
 	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
-		var aclstr string
-
+		var aclstr strings.Builder
 		for _, permission := range permissions {
-			aclstr += fmt.Sprintf("p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
+			_, _ = fmt.Fprintf(&aclstr, "p, role:%s, %s, %s, %s, allow \n", roleName, permission.Resource, permission.Action, permission.Scope)
 		}
 
-		aclstr += fmt.Sprintf("g, %s, role:%s", username, roleName)
-		cm.Data["policy.csv"] = aclstr
+		_, _ = fmt.Fprintf(&aclstr, "g, %s, role:%s", username, roleName)
+		cm.Data["policy.csv"] = aclstr.String()
 
 		return nil
 	})
@@ -582,8 +614,13 @@ func SetResourceFilter(filters settings.ResourcesFilter) error {
 		if err != nil {
 			return err
 		}
+		selectors, err := yaml.Marshal(filters.ResourceSelectors)
+		if err != nil {
+			return err
+		}
 		cm.Data["resource.exclusions"] = string(exclusions)
 		cm.Data["resource.inclusions"] = string(inclusions)
+		cm.Data["resource.selectors"] = string(selectors)
 		return nil
 	})
 }
@@ -634,7 +671,7 @@ func WithTestData(testdata string) TestOption {
 	}
 }
 
-func EnsureCleanState(t *testing.T, opts ...TestOption) {
+func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 	t.Helper()
 	opt := newTestOption(opts...)
 	// In large scenarios, we can skip tests that already run
@@ -644,8 +681,54 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		RecordTestRun(t)
 	})
 
+	t.Cleanup(func() {
+		require.NoError(t, LoginAs(adminUsername), "could not restore the %s session after %s", adminUsername, t.Name())
+	})
+
+	// Create TestState to hold test-specific variables
+	state := NewTestState(t)
+
 	start := time.Now()
 	policy := metav1.DeletePropagationBackground
+
+	deleteNamespaces := func(namespaces []corev1.Namespace, wait bool) error {
+		args := []string{"delete", "ns", "--ignore-not-found=true", fmt.Sprintf("--wait=%t", wait)}
+		for _, namespace := range namespaces {
+			args = append(args, namespace.Name)
+		}
+		_, err := Run("", "kubectl", args...)
+		if err != nil {
+			return err
+		}
+		return nil
+	}
+
+	deleteResourceWithTestFinalizer := func(namespaces []corev1.Namespace, gvrs []schema.GroupVersionResource) error {
+		for _, namespace := range namespaces {
+			for _, gvr := range gvrs {
+				objects, err := DynamicClientset.Resource(gvr).Namespace(namespace.GetName()).List(t.Context(), metav1.ListOptions{})
+				if err != nil {
+					return err
+				}
+				for i := range objects.Items {
+					obj := &objects.Items[i]
+					updated := controllerutil.RemoveFinalizer(obj, TestFinalizer)
+					if updated {
+						log.WithFields(log.Fields{
+							"namespace": namespace.GetName(),
+							"resource":  gvr,
+							"name":      obj.GetName(),
+						}).Info("removing test finalizer")
+						_, err := DynamicClientset.Resource(gvr).Namespace(namespace.GetName()).Update(t.Context(), obj, metav1.UpdateOptions{})
+						if err != nil {
+							return err
+						}
+					}
+				}
+			}
+		}
+		return nil
+	}
 
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
@@ -684,6 +767,20 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCreds})
 		},
 		func() error {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repository-write
+			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				t.Context(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepositoryWrite})
+		},
+		func() error {
+			// kubectl delete secrets -l argocd.argoproj.io/secret-type=repo-write-creds
+			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
+				t.Context(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: common.LabelKeySecretType + "=" + common.LabelValueSecretTypeRepoCredsWrite})
+		},
+		func() error {
 			// kubectl delete secrets -l argocd.argoproj.io/secret-type=cluster
 			return KubeClientset.CoreV1().Secrets(TestNamespace()).DeleteCollection(
 				t.Context(),
@@ -697,8 +794,21 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				metav1.DeleteOptions{PropagationPolicy: &policy},
 				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
 		},
+		func() error {
+			// kubectl delete clusterroles -l e2e.argoproj.io=true
+			return KubeClientset.RbacV1().ClusterRoles().DeleteCollection(
+				t.Context(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
+		},
+		func() error {
+			// kubectl delete clusterrolebindings -l e2e.argoproj.io=true
+			return KubeClientset.RbacV1().ClusterRoleBindings().DeleteCollection(
+				t.Context(),
+				metav1.DeleteOptions{PropagationPolicy: &policy},
+				metav1.ListOptions{LabelSelector: TestingLabel + "=true"})
+		},
 	})
-
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
 		func() error {
 			// delete old namespaces which were created by tests
@@ -706,37 +816,33 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				t.Context(),
 				metav1.ListOptions{
 					LabelSelector: TestingLabel + "=true",
-					FieldSelector: "status.phase=Active",
 				},
 			)
 			if err != nil {
 				return err
 			}
 			if len(namespaces.Items) > 0 {
-				args := []string{"delete", "ns", "--wait=false"}
-				for _, namespace := range namespaces.Items {
-					args = append(args, namespace.Name)
-				}
-				_, err := Run("", "kubectl", args...)
+				err = deleteNamespaces(namespaces.Items, false)
 				if err != nil {
 					return err
 				}
 			}
 
-			namespaces, err = KubeClientset.CoreV1().Namespaces().List(t.Context(), metav1.ListOptions{})
+			// Get all namespaces stuck in Terminating state
+			terminatingNamespaces, err := KubeClientset.CoreV1().Namespaces().List(
+				t.Context(),
+				metav1.ListOptions{
+					LabelSelector: TestingLabel + "=true",
+					FieldSelector: "status.phase=Terminating",
+				})
 			if err != nil {
 				return err
 			}
-			testNamespaceNames := []string{}
-			for _, namespace := range namespaces.Items {
-				if strings.HasPrefix(namespace.Name, E2ETestPrefix) {
-					testNamespaceNames = append(testNamespaceNames, namespace.Name)
-				}
-			}
-			if len(testNamespaceNames) > 0 {
-				args := []string{"delete", "ns"}
-				args = append(args, testNamespaceNames...)
-				_, err := Run("", "kubectl", args...)
+			if len(terminatingNamespaces.Items) > 0 {
+				err = deleteResourceWithTestFinalizer(terminatingNamespaces.Items, []schema.GroupVersionResource{
+					// If finalizers are added to new resource kinds, they must be added here for a proper cleanup
+					appsv1.SchemeGroupVersion.WithResource("deployments"),
+				})
 				if err != nil {
 					return err
 				}
@@ -745,72 +851,14 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 		},
 		func() error {
 			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
-			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false")
+			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=true", "--timeout=60s")
 			return err
 		},
 		func() error {
-			// delete old ClusterRoles which were created by tests
-			clusterRoles, err := KubeClientset.RbacV1().ClusterRoles().List(
-				t.Context(),
-				metav1.ListOptions{
-					LabelSelector: fmt.Sprintf("%s=%s", TestingLabel, "true"),
-				},
-			)
-			if err != nil {
-				return err
-			}
-			if len(clusterRoles.Items) > 0 {
-				args := []string{"delete", "clusterrole", "--wait=false"}
-				for _, clusterRole := range clusterRoles.Items {
-					args = append(args, clusterRole.Name)
-				}
-				_, err := Run("", "kubectl", args...)
-				if err != nil {
-					return err
-				}
-			}
-
-			clusterRoles, err = KubeClientset.RbacV1().ClusterRoles().List(t.Context(), metav1.ListOptions{})
-			if err != nil {
-				return err
-			}
-			testClusterRoleNames := []string{}
-			for _, clusterRole := range clusterRoles.Items {
-				if strings.HasPrefix(clusterRole.Name, E2ETestPrefix) {
-					testClusterRoleNames = append(testClusterRoleNames, clusterRole.Name)
-				}
-			}
-			if len(testClusterRoleNames) > 0 {
-				args := []string{"delete", "clusterrole"}
-				args = append(args, testClusterRoleNames...)
-				_, err := Run("", "kubectl", args...)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
-		},
-		func() error {
-			// delete old ClusterRoleBindings which were created by tests
-			clusterRoleBindings, err := KubeClientset.RbacV1().ClusterRoleBindings().List(t.Context(), metav1.ListOptions{})
-			if err != nil {
-				return err
-			}
-			testClusterRoleBindingNames := []string{}
-			for _, clusterRoleBinding := range clusterRoleBindings.Items {
-				if strings.HasPrefix(clusterRoleBinding.Name, E2ETestPrefix) {
-					testClusterRoleBindingNames = append(testClusterRoleBindingNames, clusterRoleBinding.Name)
-				}
-			}
-			if len(testClusterRoleBindingNames) > 0 {
-				args := []string{"delete", "clusterrolebinding"}
-				args = append(args, testClusterRoleBindingNames...)
-				_, err := Run("", "kubectl", args...)
-				if err != nil {
-					return err
-				}
-			}
-			return nil
+			// delete old aggregated APIServices created by tests. A dangling APIService
+			// backed by a deleted extension apiserver degrades cluster discovery.
+			_, err := Run("", "kubectl", "delete", "apiservice", "-l", TestingLabel+"=true", "--wait=false")
+			return err
 		},
 		func() error {
 			err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
@@ -843,6 +891,21 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
 			return LoginAs(adminUsername)
 		},
+		func() error {
+			// If /tmp/argocd-e2e-env exists restart app controller with no environment variables
+			if _, err := os.Stat(e2eEnvVariableFilePath); err == nil {
+				return RestartProcess(ApplicationControllerProcName, nil)
+			}
+			return nil
+		},
+		func() error {
+			// Check processes running with goreman and ensure they are all running
+			need := []string{
+				ApplicationControllerProcName, ApplicationSetControllerProcName, RepoServerProcName, APIServerProcName,
+				RedisProcName, NotificationServerProcName, UIProcName,
+			}
+			return EnsureProcessesAreRunning(need)
+		},
 	})
 
 	RunFunctionsInParallelAndCheckErrors(t, []func() error{
@@ -851,7 +914,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				OrphanedResources:        nil,
 				SourceRepos:              []string{"*"},
 				Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-				ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+				ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 				SourceNamespaces:         []string{AppNamespace()},
 			})
 			if err != nil {
@@ -862,15 +925,13 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			_, err = AppClientset.ArgoprojV1alpha1().AppProjects(TestNamespace()).Create(
 				t.Context(),
 				&v1alpha1.AppProject{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "gpg",
-					},
+					Name: "gpg",
 					Spec: v1alpha1.AppProjectSpec{
 						OrphanedResources:        nil,
 						SourceRepos:              []string{"*"},
 						Destinations:             []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "*"}},
-						ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
-						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}},
+						ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+						SignatureKeys:            []v1alpha1.SignatureKey{{KeyID: GpgGoodKeyID}}, // nolint:staticcheck
 						SourceNamespaces:         []string{AppNamespace()},
 					},
 				},
@@ -879,38 +940,45 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			return err
 		},
 		func() error {
-			err := os.RemoveAll(TmpDir)
+			tmpDir := TmpDir()
+			entries, err := os.ReadDir(tmpDir)
 			if err != nil {
 				return err
 			}
-			_, err = Run("", "mkdir", "-p", TmpDir)
+			for _, entry := range entries {
+				err := removeAllRetrying(filepath.Join(tmpDir, entry.Name()))
+				if err != nil {
+					return err
+				}
+			}
+			_, err = Run("", "mkdir", "-p", tmpDir)
 			if err != nil {
 				return err
 			}
 
 			// create TLS and SSH certificate directories
 			if IsLocal() {
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/tls")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/tls")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/ssh")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/ssh")
 				if err != nil {
 					return err
 				}
 			}
 
 			// For signing during the tests
-			_, err = Run("", "mkdir", "-p", TmpDir+"/gpg")
+			_, err = Run("", "mkdir", "-p", tmpDir+"/gpg")
 			if err != nil {
 				return err
 			}
-			_, err = Run("", "chmod", "0700", TmpDir+"/gpg")
+			_, err = Run("", "chmod", "0700", tmpDir+"/gpg")
 			if err != nil {
 				return err
 			}
 			prevGnuPGHome := os.Getenv("GNUPGHOME")
-			t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+			t.Setenv("GNUPGHOME", tmpDir+"/gpg")
 			//nolint:errcheck
 			Run("", "pkill", "-9", "gpg-agent")
 			_, err = Run("", "gpg", "--import", "../fixture/gpg/signingkey.asc")
@@ -921,23 +989,23 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 
 			// recreate GPG directories
 			if IsLocal() {
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/source")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/gpg/source")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "mkdir", "-p", TmpDir+"/app/config/gpg/keys")
+				_, err = Run("", "mkdir", "-p", tmpDir+"/app/config/gpg/keys")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "chmod", "0700", TmpDir+"/app/config/gpg/keys")
+				_, err = Run("", "chmod", "0700", tmpDir+"/app/config/gpg/keys")
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "mkdir", "-p", TmpDir+PluginSockFilePath)
+				_, err = Run("", "mkdir", "-p", tmpDir+PluginSockFilePath)
 				if err != nil {
 					return err
 				}
-				_, err = Run("", "chmod", "0700", TmpDir+PluginSockFilePath)
+				_, err = Run("", "chmod", "0700", tmpDir+PluginSockFilePath)
 				if err != nil {
 					return err
 				}
@@ -953,6 +1021,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 				return err
 			}
 			_, err = Run(repoDirectory(), "git", "init", "-b", "master")
+			if err != nil {
+				return err
+			}
+			// Configure git to create files with more permissive permissions to avoid
+			// issues when cleaning up. By default git creates object files as 0444.
+			_, err = Run(repoDirectory(), "git", "config", "core.sharedRepository", "0666")
 			if err != nil {
 				return err
 			}
@@ -978,21 +1052,12 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 			return nil
 		},
 		func() error {
-			// random id - unique across test runs
-			randString, err := rand.String(5)
+			// create namespace for this test
+			_, err := Run("", "kubectl", "create", "ns", state.deploymentNamespace)
 			if err != nil {
 				return err
 			}
-			postFix := "-" + strings.ToLower(randString)
-			id = t.Name() + postFix
-			name = DnsFriendly(t.Name(), "")
-			deploymentNamespace = DnsFriendly("argocd-e2e-"+t.Name(), postFix)
-			// create namespace
-			_, err = Run("", "kubectl", "create", "ns", DeploymentNamespace())
-			if err != nil {
-				return err
-			}
-			_, err = Run("", "kubectl", "label", "ns", DeploymentNamespace(), TestingLabel+"=true")
+			_, err = Run("", "kubectl", "label", "ns", state.deploymentNamespace, TestingLabel+"=true")
 			return err
 		},
 	})
@@ -1000,17 +1065,19 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) {
 	log.WithFields(log.Fields{
 		"duration": time.Since(start),
 		"name":     t.Name(),
-		"id":       id,
+		"id":       state.id,
 		"username": "admin",
 		"password": "password",
 	}).Info("clean state")
+
+	return state
 }
 
 // RunCliWithRetry executes an Argo CD CLI command with retry logic.
 func RunCliWithRetry(maxRetries int, args ...string) (string, error) {
 	var out string
 	var err error
-	for i := 0; i < maxRetries; i++ {
+	for range maxRetries {
 		out, err = RunCli(args...)
 		if err == nil {
 			break
@@ -1038,12 +1105,71 @@ func RunCliWithStdin(stdin string, isKubeConextOnlyCli bool, args ...string) (st
 
 	args = append(args, "--insecure")
 
-	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
+	// Create a redactor that only redacts the auth token value
+	redactor := func(text string) string {
+		if token == "" {
+			return text
+		}
+		// Use a more precise approach to only redact the exact auth token
+		// Look for --auth-token followed by the exact token value
+		authTokenPattern := "--auth-token " + token
+		return strings.ReplaceAll(text, authTokenPattern, "--auth-token ******")
+	}
+
+	return RunWithStdinWithRedactor(stdin, "", "../../dist/argocd", redactor, args...)
+}
+
+// RunCliWithToken executes an Argo CD CLI command using a specific auth token
+// instead of the global test token. This is useful for session/logout tests
+// that need to verify behavior with multiple or revoked tokens.
+func RunCliWithToken(authToken string, args ...string) (string, error) {
+	if plainText {
+		args = append(args, "--plaintext")
+	}
+
+	args = append(args, "--server", apiServerAddress, "--auth-token", authToken, "--insecure")
+
+	redactor := func(text string) string {
+		if authToken == "" {
+			return text
+		}
+		authTokenPattern := "--auth-token " + authToken
+		return strings.ReplaceAll(text, authTokenPattern, "--auth-token ******")
+	}
+
+	return RunWithStdinWithRedactor("", "", "../../dist/argocd", redactor, args...)
+}
+
+// RunCliWithConfigFile executes an Argo CD CLI command using a custom config file
+// instead of the global test config. This is used by session/logout tests to
+// isolate per-token state across login/logout cycles.
+func RunCliWithConfigFile(configPath string, args ...string) (string, error) {
+	if plainText {
+		args = append(args, "--plaintext")
+	}
+
+	args = append(args, "--server", apiServerAddress, "--config", configPath, "--insecure")
+
+	redactor := func(text string) string {
+		return text
+	}
+
+	return RunWithStdinWithRedactor("", "", "../../dist/argocd", redactor, args...)
 }
 
 // RunPluginCli executes an Argo CD CLI plugin with optional stdin input.
 func RunPluginCli(stdin string, args ...string) (string, error) {
 	return RunWithStdin(stdin, "", "../../dist/argocd", args...)
+}
+
+func GitRevList(t *testing.T, args []string) string {
+	t.Helper()
+	log.WithFields(log.Fields{"args": args}).Info("rev-list")
+	gitArgs := append([]string{"rev-list"}, args...)
+
+	result, err := Run(repoDirectory(), "git", gitArgs...)
+	errors.NewHandler(t).FailOnErr(result, err)
+	return result
 }
 
 func Patch(t *testing.T, path string, jsonPatch string) {
@@ -1121,7 +1247,7 @@ func AddSignedFile(t *testing.T, path, contents string) {
 	WriteFile(t, path, contents)
 
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "diff"))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "add", "."))
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "commit", "-S", "-am", "add file"))
@@ -1134,7 +1260,7 @@ func AddSignedFile(t *testing.T, path, contents string) {
 func AddSignedTag(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "-c", "user.signingkey="+GpgGoodKeyID, "tag", "-sm", "add signed tag", name))
 	if IsRemote() {
@@ -1145,7 +1271,7 @@ func AddSignedTag(t *testing.T, name string) {
 func AddTag(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", name))
 	if IsRemote() {
@@ -1156,7 +1282,7 @@ func AddTag(t *testing.T, name string) {
 func AddTagWithForce(t *testing.T, name string) {
 	t.Helper()
 	prevGnuPGHome := os.Getenv("GNUPGHOME")
-	t.Setenv("GNUPGHOME", TmpDir+"/gpg")
+	t.Setenv("GNUPGHOME", TmpDir()+"/gpg")
 	defer t.Setenv("GNUPGHOME", prevGnuPGHome)
 	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "tag", "-f", name))
 	if IsRemote() {
@@ -1341,4 +1467,26 @@ func GetNotificationServerAddress() string {
 
 func GetToken() string {
 	return token
+}
+
+func IsPlainText() bool {
+	return plainText
+}
+
+// SetParamInRBACConfigMap sets the parameter in argocd-rbac-cm config map
+func SetParamInRBACConfigMap(key, value string) error {
+	return updateRBACConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data[key] = value
+		return nil
+	})
+}
+
+// SetOIDCConfig sets the oidc.config in argocd-cm config map
+func SetOIDCConfig(value string) error {
+	return updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+		cm.Data["oidc.config"] = value
+		cm.Data["url"] = "http://" + GetApiServerAddress()
+		delete(cm.Data, "dex.config")
+		return nil
+	})
 }

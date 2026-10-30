@@ -1,0 +1,17 @@
+discoveryTests:
+- inputPath: testdata/open-pr.yaml
+  result:
+  - name: merge
+    disabled: false
+    iconClass: fa fa-fw fa-code-merge
+    displayName: Merge PR
+- inputPath: testdata/merged-pr.yaml
+  result:
+  - name: merge
+    disabled: true
+    iconClass: fa fa-fw fa-code-merge
+    displayName: Merge PR
+actionTests:
+- action: merge
+  inputPath: testdata/open-pr.yaml
+  expectedOutputPath: testdata/merged-pr.yaml

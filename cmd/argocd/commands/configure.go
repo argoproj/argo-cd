@@ -6,13 +6,14 @@ import (
 
 	"github.com/spf13/cobra"
 
+	"github.com/argoproj/argo-cd/v3/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
 
 // NewConfigureCommand returns a new instance of an `argocd configure` command
-func NewConfigureCommand(globalClientOpts *argocdclient.ClientOptions) *cobra.Command {
+func NewConfigureCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var promptsEnabled bool
 
 	command := &cobra.Command{
@@ -24,17 +25,27 @@ argocd configure --prompts-enabled=true
 
 # Disable optional interactive prompts
 argocd configure --prompts-enabled=false`,
-		Run: func(_ *cobra.Command, _ []string) {
-			localCfg, err := localconfig.ReadLocalConfig(globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+		RunE: func(c *cobra.Command, _ []string) error {
+			localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
+			if err != nil {
+				return util.NewExitError(errors.ErrorGeneric, err.Error())
+			}
+
+			if localCfg == nil {
+				return util.NewPlainExitError(1, "No local configuration found")
+			}
 
 			localCfg.PromptsEnabled = promptsEnabled
 
-			err = localconfig.WriteLocalConfig(*localCfg, globalClientOpts.ConfigPath)
-			errors.CheckError(err)
+			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
+			if err != nil {
+				return util.NewExitError(errors.ErrorGeneric, err.Error())
+			}
 
-			fmt.Println("Successfully updated the following configuration settings:")
-			fmt.Printf("prompts-enabled: %v\n", strconv.FormatBool(localCfg.PromptsEnabled))
+			fmt.Fprintln(c.OutOrStdout(), "Successfully updated the following configuration settings:")
+			fmt.Fprintf(c.OutOrStdout(), "prompts-enabled: %v\n", strconv.FormatBool(localCfg.PromptsEnabled))
+
+			return nil
 		},
 	}
 

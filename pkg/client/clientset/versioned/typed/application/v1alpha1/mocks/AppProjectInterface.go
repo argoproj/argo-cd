@@ -20,10 +20,19 @@ func NewAppProjectInterface(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *AppProjectInterface {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &AppProjectInterface{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -75,16 +84,32 @@ type AppProjectInterface_Create_Call struct {
 }
 
 // Create is a helper method to define mock.On call
-//   - ctx
-//   - appProject
-//   - opts
-func (_e *AppProjectInterface_Expecter) Create(ctx interface{}, appProject interface{}, opts interface{}) *AppProjectInterface_Create_Call {
+//   - ctx context.Context
+//   - appProject *v1alpha1.AppProject
+//   - opts v1.CreateOptions
+func (_e *AppProjectInterface_Expecter) Create(ctx any, appProject any, opts any) *AppProjectInterface_Create_Call {
 	return &AppProjectInterface_Create_Call{Call: _e.mock.On("Create", ctx, appProject, opts)}
 }
 
 func (_c *AppProjectInterface_Create_Call) Run(run func(ctx context.Context, appProject *v1alpha1.AppProject, opts v1.CreateOptions)) *AppProjectInterface_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*v1alpha1.AppProject), args[2].(v1.CreateOptions))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *v1alpha1.AppProject
+		if args[1] != nil {
+			arg1 = args[1].(*v1alpha1.AppProject)
+		}
+		var arg2 v1.CreateOptions
+		if args[2] != nil {
+			arg2 = args[2].(v1.CreateOptions)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
 	})
 	return _c
 }
@@ -122,16 +147,32 @@ type AppProjectInterface_Delete_Call struct {
 }
 
 // Delete is a helper method to define mock.On call
-//   - ctx
-//   - name
-//   - opts
-func (_e *AppProjectInterface_Expecter) Delete(ctx interface{}, name interface{}, opts interface{}) *AppProjectInterface_Delete_Call {
+//   - ctx context.Context
+//   - name string
+//   - opts v1.DeleteOptions
+func (_e *AppProjectInterface_Expecter) Delete(ctx any, name any, opts any) *AppProjectInterface_Delete_Call {
 	return &AppProjectInterface_Delete_Call{Call: _e.mock.On("Delete", ctx, name, opts)}
 }
 
 func (_c *AppProjectInterface_Delete_Call) Run(run func(ctx context.Context, name string, opts v1.DeleteOptions)) *AppProjectInterface_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(v1.DeleteOptions))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 v1.DeleteOptions
+		if args[2] != nil {
+			arg2 = args[2].(v1.DeleteOptions)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
 	})
 	return _c
 }
@@ -169,16 +210,32 @@ type AppProjectInterface_DeleteCollection_Call struct {
 }
 
 // DeleteCollection is a helper method to define mock.On call
-//   - ctx
-//   - opts
-//   - listOpts
-func (_e *AppProjectInterface_Expecter) DeleteCollection(ctx interface{}, opts interface{}, listOpts interface{}) *AppProjectInterface_DeleteCollection_Call {
+//   - ctx context.Context
+//   - opts v1.DeleteOptions
+//   - listOpts v1.ListOptions
+func (_e *AppProjectInterface_Expecter) DeleteCollection(ctx any, opts any, listOpts any) *AppProjectInterface_DeleteCollection_Call {
 	return &AppProjectInterface_DeleteCollection_Call{Call: _e.mock.On("DeleteCollection", ctx, opts, listOpts)}
 }
 
 func (_c *AppProjectInterface_DeleteCollection_Call) Run(run func(ctx context.Context, opts v1.DeleteOptions, listOpts v1.ListOptions)) *AppProjectInterface_DeleteCollection_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(v1.DeleteOptions), args[2].(v1.ListOptions))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 v1.DeleteOptions
+		if args[1] != nil {
+			arg1 = args[1].(v1.DeleteOptions)
+		}
+		var arg2 v1.ListOptions
+		if args[2] != nil {
+			arg2 = args[2].(v1.ListOptions)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
 	})
 	return _c
 }
@@ -227,16 +284,32 @@ type AppProjectInterface_Get_Call struct {
 }
 
 // Get is a helper method to define mock.On call
-//   - ctx
-//   - name
-//   - opts
-func (_e *AppProjectInterface_Expecter) Get(ctx interface{}, name interface{}, opts interface{}) *AppProjectInterface_Get_Call {
+//   - ctx context.Context
+//   - name string
+//   - opts v1.GetOptions
+func (_e *AppProjectInterface_Expecter) Get(ctx any, name any, opts any) *AppProjectInterface_Get_Call {
 	return &AppProjectInterface_Get_Call{Call: _e.mock.On("Get", ctx, name, opts)}
 }
 
 func (_c *AppProjectInterface_Get_Call) Run(run func(ctx context.Context, name string, opts v1.GetOptions)) *AppProjectInterface_Get_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(string), args[2].(v1.GetOptions))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 v1.GetOptions
+		if args[2] != nil {
+			arg2 = args[2].(v1.GetOptions)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
 	})
 	return _c
 }
@@ -285,15 +358,26 @@ type AppProjectInterface_List_Call struct {
 }
 
 // List is a helper method to define mock.On call
-//   - ctx
-//   - opts
-func (_e *AppProjectInterface_Expecter) List(ctx interface{}, opts interface{}) *AppProjectInterface_List_Call {
+//   - ctx context.Context
+//   - opts v1.ListOptions
+func (_e *AppProjectInterface_Expecter) List(ctx any, opts any) *AppProjectInterface_List_Call {
 	return &AppProjectInterface_List_Call{Call: _e.mock.On("List", ctx, opts)}
 }
 
 func (_c *AppProjectInterface_List_Call) Run(run func(ctx context.Context, opts v1.ListOptions)) *AppProjectInterface_List_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(v1.ListOptions))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 v1.ListOptions
+		if args[1] != nil {
+			arg1 = args[1].(v1.ListOptions)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -311,11 +395,11 @@ func (_c *AppProjectInterface_List_Call) RunAndReturn(run func(ctx context.Conte
 // Patch provides a mock function for the type AppProjectInterface
 func (_mock *AppProjectInterface) Patch(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string) (*v1alpha1.AppProject, error) {
 	// string
-	_va := make([]interface{}, len(subresources))
+	_va := make([]any, len(subresources))
 	for _i := range subresources {
 		_va[_i] = subresources[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, name, pt, data, opts)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -350,26 +434,55 @@ type AppProjectInterface_Patch_Call struct {
 }
 
 // Patch is a helper method to define mock.On call
-//   - ctx
-//   - name
-//   - pt
-//   - data
-//   - opts
-//   - subresources
-func (_e *AppProjectInterface_Expecter) Patch(ctx interface{}, name interface{}, pt interface{}, data interface{}, opts interface{}, subresources ...interface{}) *AppProjectInterface_Patch_Call {
+//   - ctx context.Context
+//   - name string
+//   - pt types.PatchType
+//   - data []byte
+//   - opts v1.PatchOptions
+//   - subresources ...string
+func (_e *AppProjectInterface_Expecter) Patch(ctx any, name any, pt any, data any, opts any, subresources ...any) *AppProjectInterface_Patch_Call {
 	return &AppProjectInterface_Patch_Call{Call: _e.mock.On("Patch",
-		append([]interface{}{ctx, name, pt, data, opts}, subresources...)...)}
+		append([]any{ctx, name, pt, data, opts}, subresources...)...)}
 }
 
 func (_c *AppProjectInterface_Patch_Call) Run(run func(ctx context.Context, name string, pt types.PatchType, data []byte, opts v1.PatchOptions, subresources ...string)) *AppProjectInterface_Patch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		var arg2 types.PatchType
+		if args[2] != nil {
+			arg2 = args[2].(types.PatchType)
+		}
+		var arg3 []byte
+		if args[3] != nil {
+			arg3 = args[3].([]byte)
+		}
+		var arg4 v1.PatchOptions
+		if args[4] != nil {
+			arg4 = args[4].(v1.PatchOptions)
+		}
+		var arg5 []string
 		variadicArgs := make([]string, len(args)-5)
 		for i, a := range args[5:] {
 			if a != nil {
 				variadicArgs[i] = a.(string)
 			}
 		}
-		run(args[0].(context.Context), args[1].(string), args[2].(types.PatchType), args[3].([]byte), args[4].(v1.PatchOptions), variadicArgs...)
+		arg5 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+			arg4,
+			arg5...,
+		)
 	})
 	return _c
 }
@@ -418,16 +531,32 @@ type AppProjectInterface_Update_Call struct {
 }
 
 // Update is a helper method to define mock.On call
-//   - ctx
-//   - appProject
-//   - opts
-func (_e *AppProjectInterface_Expecter) Update(ctx interface{}, appProject interface{}, opts interface{}) *AppProjectInterface_Update_Call {
+//   - ctx context.Context
+//   - appProject *v1alpha1.AppProject
+//   - opts v1.UpdateOptions
+func (_e *AppProjectInterface_Expecter) Update(ctx any, appProject any, opts any) *AppProjectInterface_Update_Call {
 	return &AppProjectInterface_Update_Call{Call: _e.mock.On("Update", ctx, appProject, opts)}
 }
 
 func (_c *AppProjectInterface_Update_Call) Run(run func(ctx context.Context, appProject *v1alpha1.AppProject, opts v1.UpdateOptions)) *AppProjectInterface_Update_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(*v1alpha1.AppProject), args[2].(v1.UpdateOptions))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *v1alpha1.AppProject
+		if args[1] != nil {
+			arg1 = args[1].(*v1alpha1.AppProject)
+		}
+		var arg2 v1.UpdateOptions
+		if args[2] != nil {
+			arg2 = args[2].(v1.UpdateOptions)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+		)
 	})
 	return _c
 }
@@ -476,15 +605,26 @@ type AppProjectInterface_Watch_Call struct {
 }
 
 // Watch is a helper method to define mock.On call
-//   - ctx
-//   - opts
-func (_e *AppProjectInterface_Expecter) Watch(ctx interface{}, opts interface{}) *AppProjectInterface_Watch_Call {
+//   - ctx context.Context
+//   - opts v1.ListOptions
+func (_e *AppProjectInterface_Expecter) Watch(ctx any, opts any) *AppProjectInterface_Watch_Call {
 	return &AppProjectInterface_Watch_Call{Call: _e.mock.On("Watch", ctx, opts)}
 }
 
 func (_c *AppProjectInterface_Watch_Call) Run(run func(ctx context.Context, opts v1.ListOptions)) *AppProjectInterface_Watch_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(context.Context), args[1].(v1.ListOptions))
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 v1.ListOptions
+		if args[1] != nil {
+			arg1 = args[1].(v1.ListOptions)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }

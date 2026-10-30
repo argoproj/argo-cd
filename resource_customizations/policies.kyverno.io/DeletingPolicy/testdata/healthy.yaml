@@ -1,0 +1,13 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: DeletingPolicy
+metadata:
+  name: sample-deleting-policy
+spec: {}
+status:
+  conditionStatus:
+    ready: true
+    conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      message: Policy is ready
+      status: "True"
+      type: Admitted

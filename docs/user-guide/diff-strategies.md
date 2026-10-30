@@ -10,26 +10,35 @@ Argo CD currently has 3 different strategies to calculate diffs:
 - **Legacy**: This is the main diff strategy used by default. It
   applies a 3-way diff based on live state, desired state and
   last-applied-configuration (annotation).
-- **Structured-Merge Diff**: Strategy automatically applied when
-  enabling Server-Side Apply sync option. 
-- **Server-Side Diff**: New strategy that invokes a Server-Side Apply
-  in dryrun mode in order to generate the predicted live state.
+- **Structured-Merge Diff**: Discontinued strategy that was previously
+  applied when enabling the Server-Side Apply sync option. It has been
+  superseded by Server-Side Diff.
+- **Server-Side Diff**: Strategy that invokes a Server-Side Apply
+  in dryrun mode in order to generate the predicted live state. It is
+  used automatically when the Server-Side Apply sync option is enabled.
 
 ## Structured-Merge Diff
 
-!!! warning "Feature Discontinued"
-    After different issues were identified by the community, this strategy is being discontinued in favour of Server-Side Diff.
+> [!WARNING]
+> **Feature Discontinued**
+>
+> After different issues were identified by the community, this strategy has been discontinued in favour of Server-Side Diff.
 
-This diff strategy is automatically used when Server-Side Apply
-sync option is enabled. It uses the [structured-merge-diff][2] library
-used by Kubernetes to calculate diffs based on fields ownership. There
-are some challenges using this strategy to calculate diffs for CRDs
-that define default values.
+This diff strategy was previously used automatically when the Server-Side
+Apply sync option was enabled. Enabling Server-Side Apply now uses
+[Server-Side Diff](#server-side-diff) instead. This strategy used the
+[structured-merge-diff][2] library used by Kubernetes to calculate diffs
+based on fields ownership. There were some challenges using this strategy
+to calculate diffs for CRDs that define default values.
 
 ## Server-Side Diff
+*Current Status: Stable (Since v3.1.0)*
 
-!!! warning "Beta Feature (Since v2.10.0)"
-    This feature is in the [Beta][1] stage. It is generally considered stable, but there may be unhandled edge cases.
+Server-Side Diff is used automatically for Applications that enable the
+Server-Side Apply sync option, as it most accurately predicts the result
+of a server-side apply. This can be overridden by explicitly setting the
+`argocd.argoproj.io/compare-options: ServerSideDiff=false` annotation, in
+which case the Application falls back to the Legacy (client-side) diff.
 
 This diff strategy will execute a Server-Side Apply in dryrun mode for
 each resource of the application. The response of this operation is then
@@ -41,6 +50,7 @@ are only triggered when:
 - There is a new revision in the repo which the Argo CD Application is
   targeting.
 - The Argo CD Application spec changed.
+- The [Resource Version][3] of the resource itself in live state changed
 
 One advantage of Server-Side Diff is that Kubernetes Admission
 Controllers will participate in the diff calculation. If for example
@@ -107,6 +117,43 @@ metadata:
 *Note: Please report any issues that forced you to disable the
 Server-Side Diff feature*
 
+### Local diff with server-side generation
+
+`argocd app diff` supports a `--local` flag that compares a local directory against the live state. When combined with `--server-side-generate`, the CLI uploads the local source to the repo-server for manifest generation instead of running generation locally — this is useful in CI pipelines or when the local environment lacks the required tools (e.g. Helm plugins, Kustomize components).
+
+```bash
+argocd app diff my-app --local ./path --server-side-generate
+```
+
+**Controlling which files are uploaded with `--local-include`**
+
+By default, the CLI sends files matching `*.yaml`, `*.yml`, `*.json`, `*.tpl`, and `Chart.lock`. You can override this with `--local-include`:
+
+- Patterns **without** a path separator (e.g. `*.yaml`, `*.tpl`) match on the **filename alone**, regardless of directory depth.
+- Patterns **with** a path separator (e.g. `charts/**`) match against the **relative path** and support `**` to span multiple directory levels.
+
+> [!WARNING]
+> `--local-include` **replaces** the default set entirely. Re-specify any defaults you want to keep alongside your custom patterns.
+
+> [!NOTE]
+> Kustomize apps that reference non-YAML source files in `configMapGenerator` or `secretGenerator` (e.g. `*.env`, `*.properties`) must add those patterns explicitly — no generic default covers all possible filenames and extensions.
+
+Examples:
+
+```bash
+# Include all files under charts/ (e.g. when charts/ contains non-YAML assets)
+argocd app diff my-app --local ./path --server-side-generate \
+  --local-include "*.yaml" --local-include "*.yml" --local-include "*.json" \
+  --local-include "*.tpl" --local-include "Chart.lock" \
+  --local-include "charts/**"
+
+# Add non-YAML Kustomize source files (e.g. configMapGenerator env files)
+argocd app diff my-app --local ./path --server-side-generate \
+  --local-include "*.yaml" --local-include "*.yml" --local-include "*.json" \
+  --local-include "*.tpl" --local-include "Chart.lock" \
+  --local-include "*.env"
+```
+
 ### Mutation Webhooks
 
 Server-Side Diff does not include changes made by mutation webhooks by
@@ -137,3 +184,4 @@ metadata:
 
 [1]: https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta
 [2]: https://github.com/kubernetes-sigs/structured-merge-diff
+[3]: https://kubernetes.io/docs/reference/using-api/api-concepts/#resourceversion-in-metadata

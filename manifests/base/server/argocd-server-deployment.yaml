@@ -28,6 +28,12 @@ spec:
                 secretKeyRef:
                   key: auth
                   name: argocd-redis
+            - name: GRPC_ENABLE_TXT_SERVICE_CONFIG
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.grpc.enable.txt.service.config
+                  optional: true
             - name: ARGOCD_SERVER_INSECURE
               valueFrom:
                 configMapKeyRef:
@@ -58,6 +64,48 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.log.level
                   optional: true
+            - name: ARGOCD_K8S_CLIENT_QPS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.k8s.client.qps
+                  optional: true
+            - name: ARGOCD_K8S_CLIENT_BURST
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.k8s.client.burst
+                  optional: true
+            - name: ARGOCD_K8S_CLIENT_MAX_IDLE_CONNECTIONS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.k8s.client.max.idle.connections
+                  optional: true
+            - name: ARGOCD_K8S_TCP_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.k8s.tcp.timeout
+                  optional: true
+            - name: ARGOCD_K8S_TCP_KEEPALIVE
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.k8s.tcp.keepalive
+                  optional: true
+            - name: ARGOCD_K8S_TLS_HANDSHAKE_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.k8s.tls.handshake.timeout
+                  optional: true
+            - name: ARGOCD_K8S_TCP_IDLE_TIMEOUT
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.k8s.tcp.idle.timeout
+                  optional: true
             - name: ARGOCD_SERVER_REPO_SERVER
               valueFrom:
                 configMapKeyRef:
@@ -75,6 +123,30 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: server.disable.auth
+                  optional: true
+            - name: ARGOCD_SERVER_DISABLE_SWAGGER_UI
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.disable.swagger.ui
+                  optional: true
+            - name: ARGOCD_SERVER_ENABLE_SOURCE_IP_LOGGING
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.enable.source.ip.logging
+                  optional: true
+            - name: ARGOCD_SERVER_TRUSTED_PROXIES
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.trusted.proxies
+                  optional: true
+            - name: ARGOCD_SERVER_CLIENT_IP_HEADER
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.client.ip.header
                   optional: true
             - name: ARGOCD_SERVER_ENABLE_GZIP
               valueFrom:
@@ -112,6 +184,24 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.repo.server.strict.tls
                   optional: true
+            - name: ARGOCD_SERVER_REPO_SERVER_CA_CERT_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.repo.server.ca.cert.path
+                  optional: true
+            - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.repo.server.client.cert.path
+                  optional: true
+            - name: ARGOCD_SERVER_REPO_SERVER_CLIENT_CERT_KEY_PATH
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.repo.server.client.cert.key.path
+                  optional: true
             - name: ARGOCD_SERVER_DEX_SERVER_PLAINTEXT
               valueFrom:
                 configMapKeyRef:
@@ -142,6 +232,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.tls.ciphers
                   optional: true
+            - name: ARGOCD_TLS_CURVE_PREFERENCES
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.tls.curvepreferences
+                  optional: true
             - name: ARGOCD_SERVER_CONNECTION_STATUS_CACHE_EXPIRATION
               valueFrom:
                 configMapKeyRef:
@@ -153,12 +249,6 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: server.oidc.cache.expiration
-                  optional: true
-            - name: ARGOCD_SERVER_LOGIN_ATTEMPTS_EXPIRATION
-              valueFrom:
-                configMapKeyRef:
-                  name: argocd-cmd-params-cm
-                  key: server.login.attempts.expiration
                   optional: true
             - name: ARGOCD_SERVER_STATIC_ASSETS
               valueFrom:
@@ -178,6 +268,20 @@ spec:
                   name: argocd-cmd-params-cm
                   key: redis.server
                   optional: true
+
+            - name: REDIS_SENTINEL_HOSTS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.sentinel.hosts
+                  optional: true
+
+            - name: REDIS_SENTINEL_MASTER
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.sentinel.master
+                  optional: true
             - name: REDIS_COMPRESSION
               valueFrom:
                 configMapKeyRef:
@@ -189,6 +293,12 @@ spec:
                 configMapKeyRef:
                   name: argocd-cmd-params-cm
                   key: redis.db
+                  optional: true
+            - name: ARGOCD_REDIS_KEY_PREFIX
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: redis.key.prefix
                   optional: true
             - name: ARGOCD_DEFAULT_CACHE_EXPIRATION
               valueFrom:
@@ -238,6 +348,24 @@ spec:
                   name: argocd-cmd-params-cm
                   key: otlp.attrs
                   optional: true
+            - name: ARGOCD_SERVER_OTLP_SAMPLE_RATIO
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.sample.ratio
+                  optional: true
+            - name: ARGOCD_SERVER_OTLP_METRICS_ENABLED
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.metrics.enabled
+                  optional: true
+            - name: ARGOCD_SERVER_OTLP_METRICS_INTERVAL
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: otlp.metrics.interval
+                  optional: true
             - name: ARGOCD_APPLICATION_NAMESPACES
               valueFrom:
                 configMapKeyRef:
@@ -274,6 +402,18 @@ spec:
                   name: argocd-cmd-params-cm
                   key: server.webhook.parallelism.limit
                   optional: true
+            - name: ARGOCD_SERVER_GLOB_CACHE_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.glob.cache.size
+                  optional: true
+            - name: ARGOCD_SERVER_WEBHOOK_REFRESH_WORKERS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: server.webhook.refresh.workers
+                  optional: true
             - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING
               valueFrom:
                 configMapKeyRef:
@@ -298,6 +438,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.enable.scm.providers
                   optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_GITHUB_API_METRICS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.enable.github.api.metrics
+                  optional: true
             - name: ARGOCD_HYDRATOR_ENABLED
               valueFrom:
                 configMapKeyRef:
@@ -317,6 +463,8 @@ spec:
               mountPath: /app/config/tls
             - name: argocd-repo-server-tls
               mountPath: /app/config/server/tls
+            - name: argocd-repo-server-mtls
+              mountPath: /app/config/reposerver/mtls
             - name: argocd-dex-server-tls
               mountPath: /app/config/dex/tls
             - mountPath: /home/argocd
@@ -381,6 +529,17 @@ spec:
                 path: tls.crt
               - key: ca.crt
                 path: ca.crt
+        - name: argocd-repo-server-mtls
+          secret:
+            secretName: argocd-repo-server-mtls
+            optional: true
+            items:
+              - key: client.crt
+                path: client.crt
+              - key: client.key
+                path: client.key
+              - key: server-ca.crt
+                path: server-ca.crt
         - name: argocd-cmd-params-cm
           configMap:
             optional: true

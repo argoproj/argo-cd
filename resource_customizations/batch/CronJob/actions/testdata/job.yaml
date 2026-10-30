@@ -3,6 +3,13 @@
     apiVersion: batch/v1
     kind: Job
     metadata:
+      ownerReferences:
+        - apiVersion: batch/v1
+          blockOwnerDeletion: true
+          controller: true
+          kind: CronJob
+          name: hello
+          uid: '123'
       name: hello-00000000000
       namespace: test-ns
       labels:
@@ -20,11 +27,11 @@
             pod: annotation
         spec:
           containers:
-          - name: hello
-            image: busybox:1.28
-            imagePullPolicy: IfNotPresent
-            command:
-            - /bin/sh
-            - -c
-            - date; echo Hello from the Kubernetes cluster
+            - name: hello
+              image: busybox:1.28
+              imagePullPolicy: IfNotPresent
+              command:
+                - /bin/sh
+                - -c
+                - date; echo Hello from the Kubernetes cluster
           restartPolicy: OnFailure

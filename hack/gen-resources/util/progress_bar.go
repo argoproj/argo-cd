@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-// Bar ...
+// Bar is a simple progress bar for command line applications.
 type Bar struct {
 	percent int64  // progress percentage
 	cur     int64  // current progress

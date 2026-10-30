@@ -7,6 +7,8 @@ import (
 )
 
 func Test_AppRBACName(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name           string
 		defaultNS      string

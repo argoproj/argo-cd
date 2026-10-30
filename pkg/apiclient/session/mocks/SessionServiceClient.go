@@ -18,10 +18,19 @@ func NewSessionServiceClient(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *SessionServiceClient {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &SessionServiceClient{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -42,11 +51,11 @@ func (_m *SessionServiceClient) EXPECT() *SessionServiceClient_Expecter {
 // Create provides a mock function for the type SessionServiceClient
 func (_mock *SessionServiceClient) Create(ctx context.Context, in *session.SessionCreateRequest, opts ...grpc.CallOption) (*session.SessionResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -81,23 +90,37 @@ type SessionServiceClient_Create_Call struct {
 }
 
 // Create is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
-func (_e *SessionServiceClient_Expecter) Create(ctx interface{}, in interface{}, opts ...interface{}) *SessionServiceClient_Create_Call {
+//   - ctx context.Context
+//   - in *session.SessionCreateRequest
+//   - opts ...grpc.CallOption
+func (_e *SessionServiceClient_Expecter) Create(ctx any, in any, opts ...any) *SessionServiceClient_Create_Call {
 	return &SessionServiceClient_Create_Call{Call: _e.mock.On("Create",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *SessionServiceClient_Create_Call) Run(run func(ctx context.Context, in *session.SessionCreateRequest, opts ...grpc.CallOption)) *SessionServiceClient_Create_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *session.SessionCreateRequest
+		if args[1] != nil {
+			arg1 = args[1].(*session.SessionCreateRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*session.SessionCreateRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -115,11 +138,11 @@ func (_c *SessionServiceClient_Create_Call) RunAndReturn(run func(ctx context.Co
 // Delete provides a mock function for the type SessionServiceClient
 func (_mock *SessionServiceClient) Delete(ctx context.Context, in *session.SessionDeleteRequest, opts ...grpc.CallOption) (*session.SessionResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -154,23 +177,37 @@ type SessionServiceClient_Delete_Call struct {
 }
 
 // Delete is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
-func (_e *SessionServiceClient_Expecter) Delete(ctx interface{}, in interface{}, opts ...interface{}) *SessionServiceClient_Delete_Call {
+//   - ctx context.Context
+//   - in *session.SessionDeleteRequest
+//   - opts ...grpc.CallOption
+func (_e *SessionServiceClient_Expecter) Delete(ctx any, in any, opts ...any) *SessionServiceClient_Delete_Call {
 	return &SessionServiceClient_Delete_Call{Call: _e.mock.On("Delete",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *SessionServiceClient_Delete_Call) Run(run func(ctx context.Context, in *session.SessionDeleteRequest, opts ...grpc.CallOption)) *SessionServiceClient_Delete_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *session.SessionDeleteRequest
+		if args[1] != nil {
+			arg1 = args[1].(*session.SessionDeleteRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*session.SessionDeleteRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }
@@ -188,11 +225,11 @@ func (_c *SessionServiceClient_Delete_Call) RunAndReturn(run func(ctx context.Co
 // GetUserInfo provides a mock function for the type SessionServiceClient
 func (_mock *SessionServiceClient) GetUserInfo(ctx context.Context, in *session.GetUserInfoRequest, opts ...grpc.CallOption) (*session.GetUserInfoResponse, error) {
 	// grpc.CallOption
-	_va := make([]interface{}, len(opts))
+	_va := make([]any, len(opts))
 	for _i := range opts {
 		_va[_i] = opts[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, ctx, in)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -227,23 +264,37 @@ type SessionServiceClient_GetUserInfo_Call struct {
 }
 
 // GetUserInfo is a helper method to define mock.On call
-//   - ctx
-//   - in
-//   - opts
-func (_e *SessionServiceClient_Expecter) GetUserInfo(ctx interface{}, in interface{}, opts ...interface{}) *SessionServiceClient_GetUserInfo_Call {
+//   - ctx context.Context
+//   - in *session.GetUserInfoRequest
+//   - opts ...grpc.CallOption
+func (_e *SessionServiceClient_Expecter) GetUserInfo(ctx any, in any, opts ...any) *SessionServiceClient_GetUserInfo_Call {
 	return &SessionServiceClient_GetUserInfo_Call{Call: _e.mock.On("GetUserInfo",
-		append([]interface{}{ctx, in}, opts...)...)}
+		append([]any{ctx, in}, opts...)...)}
 }
 
 func (_c *SessionServiceClient_GetUserInfo_Call) Run(run func(ctx context.Context, in *session.GetUserInfoRequest, opts ...grpc.CallOption)) *SessionServiceClient_GetUserInfo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 context.Context
+		if args[0] != nil {
+			arg0 = args[0].(context.Context)
+		}
+		var arg1 *session.GetUserInfoRequest
+		if args[1] != nil {
+			arg1 = args[1].(*session.GetUserInfoRequest)
+		}
+		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
 		for i, a := range args[2:] {
 			if a != nil {
 				variadicArgs[i] = a.(grpc.CallOption)
 			}
 		}
-		run(args[0].(context.Context), args[1].(*session.GetUserInfoRequest), variadicArgs...)
+		arg2 = variadicArgs
+		run(
+			arg0,
+			arg1,
+			arg2...,
+		)
 	})
 	return _c
 }

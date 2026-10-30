@@ -1,10 +1,11 @@
 ---
 name: Security log
 about: Propose adding security-related logs or tagging existing logs with security fields
-title: "seclog: [Event Description]"
-labels: security-log
-assignees: notfromstatefarm
+title: 'seclog: [Event Description]'
+labels: ['security', 'triage/pending']
+assignees: ''
 ---
+
 # Event to be logged
 
 Specify the event that needs to be logged or existing logs that need to be tagged.
@@ -16,4 +17,3 @@ What security level should these events be logged under? Refer to https://argo-c
 # Common Weakness Enumeration
 
 Is there an associated [CWE](https://cwe.mitre.org/) that could be tagged as well?
-

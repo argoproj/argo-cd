@@ -1,18 +1,46 @@
-# Teams
+# Teams (Office 365 Connectors)
+
+## ⚠️ Deprecation Notice
+
+**Office 365 Connectors are being retired by Microsoft.**
+
+Microsoft is retiring the Office 365 Connectors service in Teams. The service will be fully retired by **March 31, 2026** (extended from the original timeline of December 2025). 
+
+### What this means:
+- **Old Office 365 Connectors** (webhook URLs from `webhook.office.com`) will stop working after the retirement date
+- **New Power Automate Workflows** (webhook URLs from `api.powerautomate.com`, `api.powerplatform.com`, or `flow.microsoft.com`) are the recommended replacement
+
+### Migration Required:
+If you are currently using Office 365 Connectors (Incoming Webhook), you should migrate to Power Automate Workflows before the retirement date. The notifications-engine automatically detects the webhook type and handles both formats, but you should plan your migration.
+
+**Migration Resources:**
+- [Microsoft Deprecation Notice](https://devblogs.microsoft.com/microsoft365dev/retirement-of-office-365-connectors-within-microsoft-teams/)
+- [Create incoming webhooks with Workflows for Microsoft Teams](https://support.microsoft.com/en-us/office/create-incoming-webhooks-with-workflows-for-microsoft-teams-4b3b0b0e-0b5a-4b5a-9b5a-0b5a-4b5a-9b5a)
+
+---
 
 ## Parameters
 
-The Teams notification service send message notifications using Teams bot and requires specifying the following settings:
+The Teams notification service sends message notifications using Office 365 Connectors and requires specifying the following settings:
 
-* `recipientUrls` - the webhook url map, e.g. `channelName: https://example.com`
+* `recipientUrls` - the webhook url map, e.g. `channelName: https://outlook.office.com/webhook/...`
+
+> **⚠️ Deprecation Notice:** Office 365 Connectors will be retired by Microsoft on **March 31, 2026**. We recommend migrating to the [Teams Workflows service](./teams-workflows.md) for continued support and enhanced features.
 
 ## Configuration
+
+> **💡 For Power Automate Workflows (Recommended):** See the [Teams Workflows documentation](./teams-workflows.md) for detailed configuration instructions.
+
+### Office 365 Connectors (Deprecated - Retiring March 31, 2026)
+
+> **⚠️ Warning:** This method is deprecated and will stop working after March 31, 2026. Please migrate to Power Automate Workflows.
 
 1. Open `Teams` and goto `Apps`
 2. Find `Incoming Webhook` microsoft app and click on it
 3. Press `Add to a team` -> select team and channel -> press `Set up a connector`
 4. Enter webhook name and upload image (optional)
-5. Press `Create` then copy webhook url and store it in `argocd-notifications-secret` and define it in `argocd-notifications-cm`
+5. Press `Create` then copy webhook url (it will be from `webhook.office.com`)
+6. Store it in `argocd-notifications-secret` and define it in `argocd-notifications-cm`
 
 ```yaml
 apiVersion: v1
@@ -31,10 +59,20 @@ kind: Secret
 metadata:
   name: <secret-name>
 stringData:
-  channel-teams-url: https://example.com
+  channel-teams-url: https://webhook.office.com/webhook/your-webhook-id  # Office 365 Connector (deprecated)
 ```
 
-6. Create subscription for your Teams integration:
+> **Note:** For Power Automate Workflows webhooks, use the [Teams Workflows service](./teams-workflows.md) instead.
+
+### Webhook Type Detection
+
+The `teams` service supports Office 365 Connectors (deprecated):
+
+- **Office 365 Connectors**: URLs from `webhook.office.com` (deprecated)
+  - Requires response body to be exactly `"1"` for success
+  - Will stop working after March 31, 2026
+
+7. Create subscription for your Teams integration:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -44,11 +82,19 @@ metadata:
     notifications.argoproj.io/subscribe.on-sync-succeeded.teams: channelName
 ```
 
+## Channel Support
+
+- ✅ Standard Teams channels only
+
+> **Note:** Office 365 Connectors only support standard Teams channels. For shared channels or private channels, use the [Teams Workflows service](./teams-workflows.md).
+
 ## Templates
 
 ![](https://user-images.githubusercontent.com/18019529/114271500-9d2b8880-9a4c-11eb-85c1-f6935f0431d5.png)
 
 [Notification templates](../templates.md) can be customized to leverage teams message sections, facts, themeColor, summary and potentialAction [feature](https://docs.microsoft.com/en-us/microsoftteams/platform/webhooks-and-connectors/how-to/connectors-using).
+
+The Teams service uses the **messageCard** format (MessageCard schema) which is compatible with Office 365 Connectors.
 
 ```yaml
 template.app-sync-succeeded: |
@@ -124,3 +170,7 @@ template.app-sync-succeeded: |
   teams:
     summary: "Sync Succeeded"
 ```
+
+## Migration to Teams Workflows
+
+If you're currently using Office 365 Connectors, see the [Teams Workflows documentation](./teams-workflows.md) for migration instructions and enhanced features.

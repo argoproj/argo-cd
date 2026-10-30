@@ -1,7 +1,7 @@
 package pull_request
 
 import (
-	"context"
+	"errors"
 	"testing"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
@@ -12,52 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 
 	azureMock "github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/azure_devops/git/mocks"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/mocks"
 )
 
-func createBoolPtr(x bool) *bool {
-	return &x
-}
-
-func createStringPtr(x string) *string {
-	return &x
-}
-
-func createIntPtr(x int) *int {
-	return &x
-}
-
-func createLabelsPtr(x []core.WebApiTagDefinition) *[]core.WebApiTagDefinition {
-	return &x
-}
-
-func createUniqueNamePtr(x string) *string {
-	return &x
-}
-
-type AzureClientFactoryMock struct {
-	mock *mock.Mock
-}
-
-func (m *AzureClientFactoryMock) GetClient(ctx context.Context) (git.Client, error) {
-	args := m.mock.Called(ctx)
-
-	var client git.Client
-	c := args.Get(0)
-	if c != nil {
-		client = c.(git.Client)
-	}
-
-	var err error
-	if len(args) > 1 {
-		if e, ok := args.Get(1).(error); ok {
-			err = e
-		}
-	}
-
-	return client, err
-}
-
 func TestListPullRequest(t *testing.T) {
+	t.Parallel()
 	teamProject := "myorg_project"
 	repoName := "myorg_project_repo"
 	prID := 123
@@ -68,19 +27,19 @@ func TestListPullRequest(t *testing.T) {
 
 	pullRequestMock := []git.GitPullRequest{
 		{
-			PullRequestId: createIntPtr(prID),
-			Title:         createStringPtr(prTitle),
-			SourceRefName: createStringPtr("refs/heads/feature-branch"),
-			TargetRefName: createStringPtr("refs/heads/main"),
+			PullRequestId: new(prID),
+			Title:         new(prTitle),
+			SourceRefName: new("refs/heads/feature-branch"),
+			TargetRefName: new("refs/heads/main"),
 			LastMergeSourceCommit: &git.GitCommitRef{
-				CommitId: createStringPtr(prHeadSha),
+				CommitId: new(prHeadSha),
 			},
 			Labels: &[]core.WebApiTagDefinition{},
 			Repository: &git.GitRepository{
-				Name: createStringPtr(repoName),
+				Name: new(repoName),
 			},
 			CreatedBy: &webapi.IdentityRef{
-				UniqueName: createUniqueNamePtr(uniqueName + "@example.com"),
+				UniqueName: new(uniqueName + "@example.com"),
 			},
 		},
 	}
@@ -90,16 +49,17 @@ func TestListPullRequest(t *testing.T) {
 		SearchCriteria: &git.GitPullRequestSearchCriteria{},
 	}
 
-	gitClientMock := azureMock.Client{}
-	clientFactoryMock := &AzureClientFactoryMock{mock: &mock.Mock{}}
-	clientFactoryMock.mock.On("GetClient", mock.Anything).Return(&gitClientMock, nil)
-	gitClientMock.On("GetPullRequestsByProject", ctx, args).Return(&pullRequestMock, nil)
+	gitClientMock := &azureMock.Client{}
+	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
+	clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)
+	gitClientMock.EXPECT().GetPullRequestsByProject(mock.Anything, args).Return(&pullRequestMock, nil)
 
 	provider := AzureDevOpsService{
-		clientFactory: clientFactoryMock,
-		project:       teamProject,
-		repo:          repoName,
-		labels:        nil,
+		clientFactory:  clientFactoryMock,
+		project:        teamProject,
+		repo:           repoName,
+		labels:         nil,
+		excludedLabels: nil,
 	}
 
 	list, err := provider.List(ctx)
@@ -109,11 +69,77 @@ func TestListPullRequest(t *testing.T) {
 	assert.Equal(t, "main", list[0].TargetBranch)
 	assert.Equal(t, prHeadSha, list[0].HeadSHA)
 	assert.Equal(t, "feat(123)", list[0].Title)
-	assert.Equal(t, prID, list[0].Number)
+	assert.Equal(t, int64(prID), list[0].Number)
 	assert.Equal(t, uniqueName, list[0].Author)
 }
 
+func TestListPullRequestExcludedLabels(t *testing.T) {
+	t.Parallel()
+	teamProject := "myorg_project"
+	repoName := "myorg_project_repo"
+	prID := 123
+	prTitle := "feat(123)"
+	prHeadSha := "cd4973d9d14a08ffe6b641a89a68891d6aac8056"
+	ctx := t.Context()
+	uniqueName := "testName"
+
+	// The PR matches the repo and has no required-label restriction, so only the
+	// excluded "stale" label should cause it to be filtered out.
+	pullRequestMock := []git.GitPullRequest{
+		{
+			PullRequestId: new(prID),
+			Title:         new(prTitle),
+			SourceRefName: new("refs/heads/feature-branch"),
+			TargetRefName: new("refs/heads/main"),
+			LastMergeSourceCommit: &git.GitCommitRef{
+				CommitId: new(prHeadSha),
+			},
+			Labels: &[]core.WebApiTagDefinition{
+				{Name: new("stale"), Active: new(true)},
+			},
+			Repository: &git.GitRepository{
+				Name: new(repoName),
+			},
+			CreatedBy: &webapi.IdentityRef{
+				UniqueName: new(uniqueName + "@example.com"),
+			},
+		},
+	}
+
+	args := git.GetPullRequestsByProjectArgs{
+		Project:        &teamProject,
+		SearchCriteria: &git.GitPullRequestSearchCriteria{},
+	}
+
+	gitClientMock := &azureMock.Client{}
+	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
+	clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)
+	gitClientMock.EXPECT().GetPullRequestsByProject(mock.Anything, args).Return(&pullRequestMock, nil)
+
+	provider := AzureDevOpsService{
+		clientFactory:  clientFactoryMock,
+		project:        teamProject,
+		repo:           repoName,
+		labels:         nil,
+		excludedLabels: []string{"stale"},
+	}
+
+	list, err := provider.List(ctx)
+	require.NoError(t, err)
+	assert.Empty(t, list)
+}
+
+func TestNewAzureDevOpsService(t *testing.T) {
+	t.Parallel()
+	svc, err := NewAzureDevOpsService("", "https://dev.azure.com/", "myorg", "myproject", "myrepo", nil, []string{"stale"})
+	require.NoError(t, err)
+	azureSvc, ok := svc.(*AzureDevOpsService)
+	require.True(t, ok)
+	assert.Equal(t, []string{"stale"}, azureSvc.excludedLabels)
+}
+
 func TestConvertLabes(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		gotLabels      *[]core.WebApiTagDefinition
@@ -121,33 +147,34 @@ func TestConvertLabes(t *testing.T) {
 	}{
 		{
 			name:           "empty labels",
-			gotLabels:      createLabelsPtr([]core.WebApiTagDefinition{}),
+			gotLabels:      &[]core.WebApiTagDefinition{},
 			expectedLabels: []string{},
 		},
 		{
 			name:           "nil labels",
-			gotLabels:      createLabelsPtr(nil),
+			gotLabels:      nil,
 			expectedLabels: []string{},
 		},
 		{
 			name: "one label",
-			gotLabels: createLabelsPtr([]core.WebApiTagDefinition{
-				{Name: createStringPtr("label1"), Active: createBoolPtr(true)},
-			}),
+			gotLabels: &[]core.WebApiTagDefinition{
+				{Name: new("label1"), Active: new(true)},
+			},
 			expectedLabels: []string{"label1"},
 		},
 		{
 			name: "two label",
-			gotLabels: createLabelsPtr([]core.WebApiTagDefinition{
-				{Name: createStringPtr("label1"), Active: createBoolPtr(true)},
-				{Name: createStringPtr("label2"), Active: createBoolPtr(true)},
-			}),
+			gotLabels: &[]core.WebApiTagDefinition{
+				{Name: new("label1"), Active: new(true)},
+				{Name: new("label2"), Active: new(true)},
+			},
 			expectedLabels: []string{"label1", "label2"},
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := convertLabels(tc.gotLabels)
 			assert.Equal(t, tc.expectedLabels, got)
 		})
@@ -155,6 +182,7 @@ func TestConvertLabes(t *testing.T) {
 }
 
 func TestContainAzureDevOpsLabels(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name           string
 		expectedLabels []string
@@ -189,6 +217,7 @@ func TestContainAzureDevOpsLabels(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			got := containAzureDevOpsLabels(tc.expectedLabels, tc.gotLabels)
 			assert.Equal(t, tc.expectedResult, got)
 		})
@@ -196,6 +225,7 @@ func TestContainAzureDevOpsLabels(t *testing.T) {
 }
 
 func TestBuildURL(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		name         string
 		url          string
@@ -230,8 +260,44 @@ func TestBuildURL(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
 			result := buildURL(tc.url, tc.organization)
 			assert.Equal(t, tc.expected, result)
 		})
 	}
+}
+
+func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
+	args := git.GetPullRequestsByProjectArgs{
+		Project:        new("nonexistent"),
+		SearchCriteria: &git.GitPullRequestSearchCriteria{},
+	}
+
+	pullRequestMock := []git.GitPullRequest{}
+
+	gitClientMock := &azureMock.Client{}
+	clientFactoryMock := &mocks.AzureDevOpsClientFactory{}
+	clientFactoryMock.EXPECT().GetClient(mock.Anything).Return(gitClientMock, nil)
+
+	// Mock the GetPullRequestsByProject to return an error containing "404"
+	gitClientMock.EXPECT().GetPullRequestsByProject(mock.Anything, args).Return(&pullRequestMock,
+		errors.New("The following project does not exist:"))
+
+	provider := AzureDevOpsService{
+		clientFactory:  clientFactoryMock,
+		project:        "nonexistent",
+		repo:           "nonexistent",
+		labels:         nil,
+		excludedLabels: nil,
+	}
+
+	prs, err := provider.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

@@ -7,13 +7,15 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/yaml"
 
-	"github.com/argoproj/gitops-engine/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -26,60 +28,165 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 	if un == nil {
 		return nil
 	}
-	if un.GetKind() == "Job" {
-		err := unstructured.SetNestedField(un.Object, map[string]any{"name": "not sure why this works"}, "metadata")
-		if err != nil {
-			return fmt.Errorf("failed to normalize Job: %w", err)
+	// Disambiguate resources by apiVersion group to avoid collisions on Kind names
+	gv, err := schema.ParseGroupVersion(un.GetAPIVersion())
+	if err != nil {
+		return fmt.Errorf("failed to parse apiVersion for %s: %w", un.GetKind(), err)
+	}
+	group := gv.Group
+	// First, group-specific, then kind-specific normalization
+	switch group {
+	case "batch":
+		if un.GetKind() == "Job" {
+			return t.normalizeJob(un)
+		}
+	case "apps":
+		switch un.GetKind() {
+		case "DaemonSet", "Deployment", "StatefulSet":
+			if err := setRestartedAtAnnotationOnPodTemplate(un); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+		if un.GetKind() == "Deployment" {
+			if err := unstructured.SetNestedField(un.Object, nil, "status"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+			if err := unstructured.SetNestedField(un.Object, nil, "metadata", "creationTimestamp"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+			if err := unstructured.SetNestedField(un.Object, nil, "metadata", "generation"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+	case "argoproj.io":
+		switch un.GetKind() {
+		case "Rollout":
+			if err := unstructured.SetNestedField(un.Object, nil, "spec", "restartAt"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		case "Workflow":
+			if err := unstructured.SetNestedField(un.Object, nil, "metadata", "resourceVersion"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+			if err := unstructured.SetNestedField(un.Object, nil, "metadata", "uid"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+			if err := unstructured.SetNestedField(un.Object, nil, "metadata", "annotations", "workflows.argoproj.io/scheduled-time"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+	case "external-secrets.io":
+		switch un.GetKind() {
+		case "ExternalSecret", "PushSecret":
+			if err := unstructured.SetNestedStringMap(un.Object, map[string]string{"force-sync": "0001-01-01T00:00:00Z"}, "metadata", "annotations"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+	case "postgresql.cnpg.io":
+		if un.GetKind() == "Cluster" {
+			if err := setPgClusterAnnotations(un); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+			if err := unstructured.SetNestedField(un.Object, nil, "status", "targetPrimaryTimestamp"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+	case "helm.toolkit.fluxcd.io":
+		if un.GetKind() == "HelmRelease" {
+			if err := setFluxRequestedAtAnnotation(un); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+	case "source.toolkit.fluxcd.io":
+		switch un.GetKind() {
+		case "Bucket", "GitRepository", "HelmChart", "HelmRepository", "OCIRepository":
+			if err := setFluxRequestedAtAnnotation(un); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+	case "image.toolkit.fluxcd.io":
+		switch un.GetKind() {
+		case "ImageRepository", "ImageUpdateAutomation":
+			if err := setFluxRequestedAtAnnotation(un); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+	case "kustomize.toolkit.fluxcd.io":
+		if un.GetKind() == "Kustomization" {
+			if err := setFluxRequestedAtAnnotation(un); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+	case "notification.toolkit.fluxcd.io":
+		if un.GetKind() == "Receiver" {
+			if err := setFluxRequestedAtAnnotation(un); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
+	case "capsule.clastix.io":
+		switch un.GetKind() {
+		case "TenantResource", "GlobalTenantResource":
+			if err := setCapsuleReconcileAnnotation(un); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
 		}
 	}
-	switch un.GetKind() {
-	case "DaemonSet", "Deployment", "StatefulSet":
-		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "spec", "template", "metadata", "annotations")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
-		}
+	return nil
+}
+
+// Helper: normalize restart annotation on pod template used by apps workloads
+func setRestartedAtAnnotationOnPodTemplate(un *unstructured.Unstructured) error {
+	return unstructured.SetNestedStringMap(un.Object, map[string]string{"kubectl.kubernetes.io/restartedAt": "0001-01-01T00:00:00Z"}, "spec", "template", "metadata", "annotations")
+}
+
+// Helper: normalize Flux requestedAt annotation across FluxCD kinds
+func setFluxRequestedAtAnnotation(un *unstructured.Unstructured) error {
+	return unstructured.SetNestedStringMap(un.Object, map[string]string{"reconcile.fluxcd.io/requestedAt": "By Argo CD at: 0001-01-01T00:00:00"}, "metadata", "annotations")
+}
+
+// Helper: normalize Capsule reconcile annotation for TenantResource / GlobalTenantResource
+func setCapsuleReconcileAnnotation(un *unstructured.Unstructured) error {
+	existingAnnotations, _, _ := unstructured.NestedStringMap(un.Object, "metadata", "annotations")
+	if existingAnnotations == nil {
+		existingAnnotations = make(map[string]string)
 	}
-	switch un.GetKind() {
-	case "Deployment":
-		err := unstructured.SetNestedField(un.Object, nil, "status")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+	existingAnnotations["reconcile.projectcapsule.dev/requestedAt"] = "0001-01-01T00:00:00Z"
+	return unstructured.SetNestedStringMap(un.Object, existingAnnotations, "metadata", "annotations")
+}
+
+// Helper: normalize PostgreSQL CNPG Cluster annotations while preserving existing ones
+func setPgClusterAnnotations(un *unstructured.Unstructured) error {
+	// Get existing annotations or create an empty map
+	existingAnnotations, _, _ := unstructured.NestedStringMap(un.Object, "metadata", "annotations")
+	if existingAnnotations == nil {
+		existingAnnotations = make(map[string]string)
+	}
+
+	// Update only the specific keys
+	existingAnnotations["cnpg.io/reloadedAt"] = "0001-01-01T00:00:00Z"
+	existingAnnotations["kubectl.kubernetes.io/restartedAt"] = "0001-01-01T00:00:00Z"
+
+	// Set the updated annotations back
+	return unstructured.SetNestedStringMap(un.Object, existingAnnotations, "metadata", "annotations")
+}
+
+func (t testNormalizer) normalizeJob(un *unstructured.Unstructured) error {
+	if conditions, exist, err := unstructured.NestedSlice(un.Object, "status", "conditions"); err != nil {
+		return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+	} else if exist {
+		changed := false
+		for i := range conditions {
+			condition := conditions[i].(map[string]any)
+			cType := condition["type"].(string)
+			if cType == "FailureTarget" {
+				condition["lastTransitionTime"] = "0001-01-01T00:00:00Z"
+				changed = true
+			}
 		}
-		err = unstructured.SetNestedField(un.Object, nil, "metadata", "creationTimestamp")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
-		}
-		err = unstructured.SetNestedField(un.Object, nil, "metadata", "generation")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
-		}
-	case "Rollout":
-		err := unstructured.SetNestedField(un.Object, nil, "spec", "restartAt")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
-		}
-	case "ExternalSecret", "PushSecret":
-		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"force-sync": "0001-01-01T00:00:00Z"}, "metadata", "annotations")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
-		}
-	case "Workflow":
-		err := unstructured.SetNestedField(un.Object, nil, "metadata", "resourceVersion")
-		if err != nil {
-			return fmt.Errorf("failed to normalize Rollout: %w", err)
-		}
-		err = unstructured.SetNestedField(un.Object, nil, "metadata", "uid")
-		if err != nil {
-			return fmt.Errorf("failed to normalize Rollout: %w", err)
-		}
-		err = unstructured.SetNestedField(un.Object, nil, "metadata", "annotations", "workflows.argoproj.io/scheduled-time")
-		if err != nil {
-			return fmt.Errorf("failed to normalize Rollout: %w", err)
-		}
-	case "HelmRelease", "ImageRepository", "ImageUpdateAutomation", "Kustomization", "Receiver", "Bucket", "GitRepository", "HelmChart", "HelmRepository", "OCIRepository":
-		err := unstructured.SetNestedStringMap(un.Object, map[string]string{"reconcile.fluxcd.io/requestedAt": "By Argo CD at: 0001-01-01T00:00:00"}, "metadata", "annotations")
-		if err != nil {
-			return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+		if changed {
+			if err := unstructured.SetNestedSlice(un.Object, conditions, "status", "conditions"); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
 		}
 	}
 	return nil
@@ -208,15 +315,15 @@ func TestLuaResourceActionsScript(t *testing.T) {
 						assert.Equal(t, sourceObj.GetNamespace(), result.GetNamespace())
 					case CreateOperation:
 						switch result.GetKind() {
-						case "Job":
-						case "Workflow":
+						case "Job", "Workflow":
 							// The name of the created resource is derived from the source object name, so the returned name is not actually equal to the testdata output name
 							result.SetName(expectedObj.GetName())
 						}
 					}
 
-					// Ideally, we would use a assert.Equal to detect the difference, but the Lua VM returns a object with float64 instead of the original int32.  As a result, the assert.Equal is never true despite that the change has been applied.
-					diffResult, err := diff.Diff(expectedObj, result, diff.WithNormalizer(testNormalizer{}))
+					// Ideally, we would use assert.Equal to detect the difference, but the Lua VM returns an object with float64 instead of the original int32.
+					// As a result, assert.Equal is never true despite that the change has been applied.
+					diffResult, err := diff.Diff(t.Context(), expectedObj, result, diff.WithNormalizer(testNormalizer{}))
 					require.NoError(t, err)
 					if diffResult.Modified {
 						t.Error("Output does not match input:")
@@ -230,6 +337,25 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+// The generic action test normalizes scheduled-time away, so its format is verified here.
+func TestCronWorkflowCreateWorkflowScheduledTime(t *testing.T) {
+	vm := VM{}
+	obj := getObj(t, "../../resource_customizations/argoproj.io/CronWorkflow/actions/testdata/cronworkflow.yaml")
+	action, err := vm.GetResourceAction(obj, "create-workflow")
+	require.NoError(t, err)
+
+	before := time.Now().UTC().Truncate(time.Second)
+	impactedResources, err := vm.ExecuteResourceAction(obj, action.ActionLua, nil)
+	require.NoError(t, err)
+	after := time.Now().UTC()
+	require.Len(t, impactedResources, 1)
+
+	scheduledTime, err := time.Parse(time.RFC3339, impactedResources[0].UnstructuredObj.GetAnnotations()["workflows.argoproj.io/scheduled-time"])
+	require.NoError(t, err)
+	assert.False(t, scheduledTime.Before(before), "scheduled-time %s is before %s", scheduledTime, before)
+	assert.False(t, scheduledTime.After(after), "scheduled-time %s is after %s", scheduledTime, after)
 }
 
 // Handling backward compatibility.

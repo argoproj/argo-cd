@@ -1,0 +1,6 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: sample-namespaced-validating-policy
+  namespace: test-namespace
+spec: {}

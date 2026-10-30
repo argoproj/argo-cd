@@ -25,6 +25,7 @@ type Server struct {
 	disableAuth               bool
 	appsInAnyNamespaceEnabled bool
 	hydratorEnabled           bool
+	syncWithReplaceAllowed    bool
 }
 
 type Authenticator interface {
@@ -32,8 +33,8 @@ type Authenticator interface {
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool) *Server {
-	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled}
+func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool, syncWithReplaceAllowed bool) *Server {
+	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled, syncWithReplaceAllowed: syncWithReplaceAllowed}
 }
 
 // Get returns Argo CD settings
@@ -89,11 +90,15 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		return nil, err
 	}
 
+	installationID, err := s.mgr.GetInstallationID()
+	if err != nil {
+		return nil, err
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AdditionalURLs:     argoCDSettings.AdditionalURLs,
 		AppLabelKey:        appInstanceLabelKey,
-		ResourceOverrides:  overrides,
 		StatusBadgeEnabled: argoCDSettings.StatusBadgeEnabled,
 		StatusBadgeRootUrl: argoCDSettings.StatusBadgeRootUrl,
 		KustomizeOptions: &v1alpha1.KustomizeOptions{
@@ -111,11 +116,15 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		UserLoginsDisabled:        userLoginsDisabled,
 		KustomizeVersions:         kustomizeVersions,
 		UiCssURL:                  argoCDSettings.UiCssURL,
+		UiLoginButtonText:         argoCDSettings.UiLoginButtonText,
 		TrackingMethod:            trackingMethod,
+		InstallationID:            installationID,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
 		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
 		HydratorEnabled:           s.hydratorEnabled,
+		SyncWithReplaceAllowed:    s.syncWithReplaceAllowed,
+		ResourceViewEnabled:       argoCDSettings.ResourceViewEnabled,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
@@ -124,6 +133,7 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		set.UiBannerPermanent = argoCDSettings.UiBannerPermanent
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
 		set.ControllerNamespace = s.mgr.GetNamespace()
+		set.ResourceOverrides = overrides
 	}
 	if sessionmgr.LoggedIn(ctx) {
 		set.PasswordPattern = argoCDSettings.PasswordPattern
@@ -132,6 +142,10 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		var cfg settingspkg.DexConfig
 		err = yaml.Unmarshal([]byte(argoCDSettings.DexConfig), &cfg)
 		if err == nil {
+			// DexAuthConnectorID, when set, tells the login screen to redirect directly to the
+			// given connector, bypassing Dex's connector selection screen. It is only populated
+			// with a connector ID that exists in dex.config (validated in the settings manager).
+			cfg.DexAuthConnectorID = argoCDSettings.DexAuthConnectorID
 			set.DexConfig = &cfg
 		}
 	}
@@ -143,6 +157,8 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 			CLIClientID:              oidcConfig.CLIClientID,
 			Scopes:                   oidcConfig.RequestedScopes,
 			EnablePKCEAuthentication: oidcConfig.EnablePKCEAuthentication,
+			DeviceURL:                oidcConfig.DeviceURL,
+			TokenURL:                 oidcConfig.TokenURL,
 		}
 		if len(argoCDSettings.OIDCConfig().RequestedIDTokenClaims) > 0 {
 			set.OIDCConfig.IDTokenClaims = argoCDSettings.OIDCConfig().RequestedIDTokenClaims

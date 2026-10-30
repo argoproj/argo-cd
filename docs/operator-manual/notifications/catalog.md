@@ -23,7 +23,7 @@
 email:
   subject: Application {{.app.metadata.name}} has been created.
 message: Application {{.app.metadata.name}} has been created.
-teams:
+teams-workflows:
   title: Application {{.app.metadata.name}} has been created.
 
 ```
@@ -33,7 +33,7 @@ teams:
 email:
   subject: Application {{.app.metadata.name}} has been deleted.
 message: Application {{.app.metadata.name}} has been deleted.
-teams:
+teams-workflows:
   title: Application {{.app.metadata.name}} has been deleted.
 
 ```
@@ -79,7 +79,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Sync Status",
@@ -87,7 +87,7 @@ teams:
     },
     {
       "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+      "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
     },
     {
       "name": "Revision",
@@ -115,7 +115,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   themeColor: '#000080'
@@ -160,7 +160,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Health Status",
@@ -168,7 +168,7 @@ teams:
     },
     {
       "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+      "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
     }
     {{range $index, $c := .app.status.conditions}}
       ,
@@ -192,7 +192,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   themeColor: '#FF0000'
@@ -237,7 +237,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Sync Status",
@@ -249,7 +249,7 @@ teams:
     },
     {
       "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+      "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
     }
     {{range $index, $c := .app.status.conditions}}
       ,
@@ -273,7 +273,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}{{ $source.repoURL }}⬆️ {{- end }}" {{- end }}
       }]
     }]
   themeColor: '#FF0000'
@@ -318,7 +318,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Sync Status",
@@ -330,7 +330,7 @@ teams:
     },
     {
       "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+      "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
     }
     {{range $index, $c := .app.status.conditions}}
       ,
@@ -354,7 +354,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   title: Start syncing application {{.app.metadata.name}}.
@@ -403,7 +403,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Sync Status",
@@ -411,7 +411,7 @@ teams:
     },
     {
       "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+      "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
     }
     {{range $index, $c := .app.status.conditions}}
       ,
@@ -435,7 +435,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   title: Application {{.app.metadata.name}} sync status is 'Unknown'
@@ -479,7 +479,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Sync Status",
@@ -491,7 +491,7 @@ teams:
     },
     {
       "name": {{- if .app.spec.source }} "Repository" {{- else if .app.spec.sources }} "Repositories" {{- end }},
-      "value": {{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+      "value": {{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
     }
     {{range $index, $c := .app.status.conditions}}
       ,
@@ -515,7 +515,7 @@ teams:
       "name":"Open Repository",
       "targets":[{
         "os":"default",
-        "uri":{{- if .app.spec.source }} ":arrow_heading_up: {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}:arrow_heading_up: {{ $source.repoURL }}{{- end }}" {{- end }}
+        "uri":{{- if .app.spec.source }} "⬆️ {{ .app.spec.source.repoURL }}" {{- else if .app.spec.sources }} "{{- range $index, $source := .app.spec.sources }}{{ if $index }}\n{{ end }}⬆️ {{ $source.repoURL }}{{- end }}" {{- end }}
       }]
     }]
   themeColor: '#000080'

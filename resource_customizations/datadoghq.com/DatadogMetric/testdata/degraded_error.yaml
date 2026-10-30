@@ -1,0 +1,24 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMetric
+metadata:
+  name: foo-bar-metric
+  namespace: foo-namespace
+status:
+  autoscalerReferences:
+    - hpa:foo-namespace/foo-bar-hpa
+  conditions:
+    - lastTransitionTime: "2025-02-05T00:03:00Z"
+      lastUpdateTime: "2025-06-17T17:49:45Z"
+      status: "True"
+      type: Active
+    - lastTransitionTime: "2025-02-05T00:03:00Z"
+      lastUpdateTime: "2025-06-17T17:49:45Z"
+      status: "False"
+      type: Valid
+    - lastTransitionTime: "2025-02-05T00:03:30Z"
+      lastUpdateTime: "2025-06-17T17:49:45Z"
+      message: "Processing data from API failed, reason: no serie was found for this query in API Response, check Cluster Agent logs for QueryIndex errors, query was: max:foo.bar.metric"
+      reason: Unable to fetch data from Datadog
+      status: "True"
+      type: Error
+  currentValue: 0

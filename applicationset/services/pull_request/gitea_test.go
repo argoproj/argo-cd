@@ -247,6 +247,7 @@ func giteaMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 }
 
 func TestGiteaContainLabels(t *testing.T) {
+	t.Parallel()
 	cases := []struct {
 		Name       string
 		Labels     []string
@@ -287,6 +288,7 @@ func TestGiteaContainLabels(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.Name, func(t *testing.T) {
+			t.Parallel()
 			if got := giteaContainLabels(c.Labels, c.PullLabels); got != c.Expect {
 				t.Errorf("expect: %v, got: %v", c.Expect, got)
 			}
@@ -295,15 +297,16 @@ func TestGiteaContainLabels(t *testing.T) {
 }
 
 func TestGiteaList(t *testing.T) {
+	t.Parallel()
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false)
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, nil, false, "", "")
 	require.NoError(t, err)
 	prs, err := host.List(t.Context())
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
-	assert.Equal(t, 1, prs[0].Number)
+	assert.Equal(t, int64(1), prs[0].Number)
 	assert.Equal(t, "add an empty file", prs[0].Title)
 	assert.Equal(t, "test", prs[0].Branch)
 	assert.Equal(t, "main", prs[0].TargetBranch)
@@ -311,7 +314,21 @@ func TestGiteaList(t *testing.T) {
 	assert.Equal(t, "graytshirt", prs[0].Author)
 }
 
+func TestGiteaListExcludedLabels(t *testing.T) {
+	t.Parallel()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		giteaMockHandler(t)(w, r)
+	}))
+	// The only PR returned by the mock carries the "label1" label, so excluding it yields no PRs.
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", nil, []string{"label1"}, false, "", "")
+	require.NoError(t, err)
+	prs, err := host.List(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, prs)
+}
+
 func TestGetGiteaPRLabelNames(t *testing.T) {
+	t.Parallel()
 	Tests := []struct {
 		Name           string
 		PullLabels     []*gitea.Label
@@ -334,8 +351,42 @@ func TestGetGiteaPRLabelNames(t *testing.T) {
 	}
 	for _, test := range Tests {
 		t.Run(test.Name, func(t *testing.T) {
+			t.Parallel()
 			labels := getGiteaPRLabelNames(test.PullLabels)
 			assert.Equal(t, test.ExpectedResult, labels)
 		})
 	}
+}
+
+func TestGiteaListReturnsRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
+	mux := http.NewServeMux()
+	server := httptest.NewServer(mux)
+	defer server.Close()
+
+	// Handle version endpoint that Gitea client calls first
+	mux.HandleFunc("/api/v1/version", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"version":"1.17.0+dev-452-g1f0541780"}`))
+	})
+
+	path := "/api/v1/repos/nonexistent/nonexistent/pulls?limit=0&page=1&state=open"
+
+	mux.HandleFunc(path, func(w http.ResponseWriter, _ *http.Request) {
+		// Return 404 status to simulate repository not found
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
+	})
+
+	svc, err := NewGiteaService("", server.URL, "nonexistent", "nonexistent", []string{}, nil, false, "", "")
+	require.NoError(t, err)
+
+	prs, err := svc.List(t.Context())
+
+	// Should return empty pull requests list
+	assert.Empty(t, prs)
+
+	// Should return RepositoryNotFoundError
+	require.Error(t, err)
+	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }

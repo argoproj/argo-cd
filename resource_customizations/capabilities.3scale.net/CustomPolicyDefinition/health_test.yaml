@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "3scale CustomPolicyDefinition is ready"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Policy schema is invalid"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for 3scale CustomPolicyDefinition status..."
+    inputPath: testdata/progressing.yaml

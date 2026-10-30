@@ -1,0 +1,13 @@
+apiVersion: game.kruise.io/v1alpha1
+kind: GameServer
+metadata:
+  name: gs-degraded
+status:
+  currentState: "Ready"
+  desiredState: "Ready"
+  podStatus:
+    conditions:
+    - type: "Ready"
+      status: "True"
+    - type: "KruisePodReady"
+      status: "False"

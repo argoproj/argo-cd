@@ -111,7 +111,7 @@ end
 
 paused, reason = isPaused(obj)
 if paused then 
-  hs.status = "Suspended"
+  hs.status = "Healthy"
   hs.message = reason
   return hs
 end

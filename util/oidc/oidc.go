@@ -14,9 +14,16 @@ import (
 	"net/url"
 	"os"
 	"path"
+	"slices"
 	"strings"
 	"sync"
 	"time"
+
+	"go.opentelemetry.io/otel/codes"
+
+	"go.opentelemetry.io/otel"
+	"go.opentelemetry.io/otel/attribute"
+	"go.opentelemetry.io/otel/trace"
 
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
@@ -37,12 +44,20 @@ import (
 
 var ErrInvalidRedirectURL = errors.New("invalid return URL")
 
+// OpenTelemetry tracer for this package
+var tracer trace.Tracer
+
+func init() {
+	tracer = otel.Tracer("github.com/argoproj/argo-cd/v3/util/oidc")
+}
+
 const (
 	GrantTypeAuthorizationCode  = "authorization_code"
 	GrantTypeImplicit           = "implicit"
 	ResponseTypeCode            = "code"
 	UserInfoResponseCachePrefix = "userinfo_response"
 	AccessTokenCachePrefix      = "access_token"
+	OidcTokenCachePrefix        = "oidc_token"
 )
 
 // OIDCConfiguration holds a subset of interested fields from the OIDC configuration spec
@@ -62,14 +77,14 @@ type ClientApp struct {
 	clientID string
 	// OAuth2 client secret of this application
 	clientSecret string
+	// Use Proof Key for Code Exchange (PKCE)
+	usePKCE bool
 	// Use Azure Workload Identity for clientID auth instead of clientSecret
 	useAzureWorkloadIdentity bool
 	// Callback URL for OAuth2 responses (e.g. https://argocd.example.com/auth/callback)
 	redirectURI string
 	// URL of the issuer (e.g. https://argocd.example.com/api/dex)
 	issuerURL string
-	// the path where the issuer providers user information (e.g /user-info for okta)
-	userInfoPath string
 	// The URL endpoint at which the ArgoCD server is accessed.
 	baseHRef string
 	// client is the HTTP client which is used to query the IDp
@@ -85,8 +100,12 @@ type ClientApp struct {
 	provider Provider
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
-	// properties for azure workload identity.
-	azure azureApp
+	// domainHint is an optional hint to the identity provider about the domain the user belongs to.
+	// Used to pre-fill or streamline the login experience (e.g., for Azure AD multi-tenant scenarios).
+	domainHint string
+	azure      azureApp
+	// preemptive token refresh threshold
+	refreshTokenThreshold time.Duration
 }
 
 type azureApp struct {
@@ -98,11 +117,95 @@ type azureApp struct {
 	mtx *sync.RWMutex
 }
 
+// OidcTokenCache is a serialization wrapper around oauth2 provider configuration needed to generate a TokenSource
+type OidcTokenCache struct {
+	// Redirect URL is needed for oauth2 config initialization
+	RedirectURL string `json:"redirect_url"`
+	// oauth2 Token
+	Token *oauth2.Token `json:"token"`
+	// TokenExtraIdToken captures value of id_token
+	TokenExtraIdToken string `json:"token_extra_id_token"`
+	// SessionStart records when the OIDC session was first established
+	SessionStart time.Time `json:"session_start"`
+}
+
+// SessionDuration bounded TTL to ensure refreshed sessions
+// cannot extend beyond the originally configured session lifetime
+func sessionRemainingTTL(sessionStart time.Time, sessionDuration time.Duration) time.Duration {
+	if sessionStart.IsZero() {
+		return sessionDuration
+	}
+	remaining := time.Until(sessionStart.Add(sessionDuration))
+	if remaining < 0 {
+		return 0
+	}
+	return remaining
+}
+
+// NewOidcTokenCache initializes the struct from a redirect URL, an existing token, and the session start time
+func NewOidcTokenCache(redirectURL string, token *oauth2.Token, sessionStart time.Time) *OidcTokenCache {
+	var idToken string
+	if token.Extra("id_token") == nil {
+		idToken = ""
+	} else {
+		idToken = token.Extra("id_token").(string)
+	}
+	return &OidcTokenCache{
+		RedirectURL:       redirectURL,
+		Token:             token,
+		TokenExtraIdToken: idToken,
+		SessionStart:      sessionStart,
+	}
+}
+
+// GetOidcTokenCacheFromJSON deserializes the json representation of OidcTokenCache.  The Token extra map is updated from
+// the serialization wrapper to propagate the id_token.  This will ensure that the TokenSource always retrieves a usable token.
+func GetOidcTokenCacheFromJSON(jsonBytes []byte) (*OidcTokenCache, error) {
+	var newToken OidcTokenCache
+	err := json.Unmarshal(jsonBytes, &newToken)
+	if err != nil {
+		return nil, err
+	}
+	if newToken.Token == nil {
+		return nil, errors.New("empty token")
+	}
+	newToken.Token = newToken.Token.WithExtra(map[string]any{
+		"id_token": newToken.TokenExtraIdToken,
+	})
+	return &newToken, nil
+}
+
+// GetTokenSourceFromCache creates an oauth2 TokenSource from a cached oidc token.  The TokenSource will be configured
+// with an early expiration based on the refreshTokenThreshold.
+func (a *ClientApp) GetTokenSourceFromCache(ctx context.Context, oidcTokenCache *OidcTokenCache) (oauth2.TokenSource, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetTokenSourceFromCache")
+	defer span.End()
+	if oidcTokenCache == nil {
+		return nil, errors.New("oidcTokenCache is required")
+	}
+	config, err := a.getOauth2ConfigForRedirectURI(oidcTokenCache.RedirectURL)
+	if err != nil {
+		return nil, err
+	}
+	baseTokenSource := config.TokenSource(ctx, oidcTokenCache.Token)
+	tokenRefresher := oauth2.ReuseTokenSourceWithExpiry(oidcTokenCache.Token, baseTokenSource, a.refreshTokenThreshold)
+	return tokenRefresher, nil
+}
+
 func GetScopesOrDefault(scopes []string) []string {
 	if len(scopes) == 0 {
 		return []string{"openid", "profile", "email", "groups"}
 	}
 	return scopes
+}
+
+func getDomainHint(settings *settings.ArgoCDSettings) string {
+	oidcConfig := settings.OIDCConfig()
+	if oidcConfig != nil {
+		return strings.TrimSpace(oidcConfig.DomainHint)
+	}
+	return ""
 }
 
 // NewClientApp will register the Argo CD client app (either via Dex or external OIDC) and return an
@@ -116,17 +219,20 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 	if err != nil {
 		return nil, err
 	}
+	domainHint := getDomainHint(settings)
 	a := ClientApp{
 		clientID:                 settings.OAuth2ClientID(),
 		clientSecret:             settings.OAuth2ClientSecret(),
+		usePKCE:                  settings.OAuth2UsePKCE(),
 		useAzureWorkloadIdentity: settings.UseAzureWorkloadIdentity(),
 		redirectURI:              redirectURL,
 		issuerURL:                settings.IssuerURL(),
-		userInfoPath:             settings.UserInfoPath(),
 		baseHRef:                 baseHRef,
 		encryptionKey:            encryptionKey,
 		clientCache:              cacheClient,
 		azure:                    azureApp{mtx: &sync.RWMutex{}},
+		domainHint:               domainHint,
+		refreshTokenThreshold:    settings.RefreshTokenThreshold(),
 	}
 	log.Infof("Creating client app (%s)", a.clientID)
 	u, err := url.Parse(settings.URL)
@@ -136,10 +242,18 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 
 	transport := &http.Transport{
 		Proxy: http.ProxyFromEnvironment,
-		Dial: (&net.Dialer{
-			Timeout:   30 * time.Second,
-			KeepAlive: 30 * time.Second,
-		}).Dial,
+		DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
+			_, span := tracer.Start(ctx, "oidc.ClientApp.client")
+			defer span.End()
+			span.SetAttributes(
+				attribute.String("network", network),
+				attribute.String("addr", addr),
+			)
+			return (&net.Dialer{
+				Timeout:   30 * time.Second,
+				KeepAlive: 30 * time.Second,
+			}).Dial(network, addr)
+		},
 		TLSHandshakeTimeout:   10 * time.Second,
 		ExpectContinueTimeout: 1 * time.Second,
 	}
@@ -165,28 +279,32 @@ func NewClientApp(settings *settings.ArgoCDSettings, dexServerAddr string, dexTL
 	return &a, nil
 }
 
-func (a *ClientApp) oauth2Config(request *http.Request, scopes []string) (*oauth2.Config, error) {
+func (a *ClientApp) getRedirectURIForRequest(req *http.Request) string {
+	redirectURI, err := a.settings.RedirectURLForRequest(req)
+	if err != nil {
+		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
+		redirectURI = a.redirectURI
+	}
+	return redirectURI
+}
+
+func (a *ClientApp) getOauth2ConfigForRedirectURI(redirectURI string) (*oauth2.Config, error) {
 	endpoint, err := a.provider.Endpoint()
 	if err != nil {
 		return nil, err
-	}
-	redirectURL, err := a.settings.RedirectURLForRequest(request)
-	if err != nil {
-		log.Warnf("Unable to find ArgoCD URL from request, falling back to configured redirect URI: %v", err)
-		redirectURL = a.redirectURI
 	}
 
 	return &oauth2.Config{
 		ClientID:     a.clientID,
 		ClientSecret: a.clientSecret,
 		Endpoint:     *endpoint,
-		Scopes:       scopes,
-		RedirectURL:  redirectURL,
+		Scopes:       a.getScopes(),
+		RedirectURL:  redirectURI,
 	}, nil
 }
 
 // generateAppState creates an app state nonce
-func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (string, error) {
+func (a *ClientApp) generateAppState(returnURL string, pkceVerifier string, w http.ResponseWriter) (string, error) {
 	// According to the spec (https://www.rfc-editor.org/rfc/rfc6749#section-10.10), this must be guessable with
 	// probability <= 2^(-128). The following call generates one of 52^24 random strings, ~= 2^136 possibilities.
 	randStr, err := rand.String(24)
@@ -196,7 +314,7 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 	if returnURL == "" {
 		returnURL = a.baseHRef
 	}
-	cookieValue := fmt.Sprintf("%s:%s", randStr, returnURL)
+	cookieValue := fmt.Sprintf("%s\n%s\n%s", randStr, returnURL, pkceVerifier)
 	if encrypted, err := crypto.Encrypt([]byte(cookieValue), a.encryptionKey); err != nil {
 		return "", err
 	} else {
@@ -214,23 +332,24 @@ func (a *ClientApp) generateAppState(returnURL string, w http.ResponseWriter) (s
 	return randStr, nil
 }
 
-func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, error) {
+func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state string) (string, string, error) {
 	c, err := r.Cookie(common.StateCookieName)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	val, err := hex.DecodeString(c.Value)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	val, err = crypto.Decrypt(val, a.encryptionKey)
 	if err != nil {
-		return "", err
+		return "", "", err
 	}
 	cookieVal := string(val)
 	redirectURL := a.baseHRef
-	parts := strings.SplitN(cookieVal, ":", 2)
-	if len(parts) == 2 && parts[1] != "" {
+	pkceVerifier := ""
+	parts := strings.SplitN(cookieVal, "\n", 3)
+	if len(parts) > 1 && parts[1] != "" {
 		if !isValidRedirectURL(parts[1],
 			append([]string{a.settings.URL, a.baseHRef}, a.settings.AdditionalURLs...)) {
 			sanitizedURL := parts[1]
@@ -238,12 +357,15 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 				sanitizedURL = sanitizedURL[:100]
 			}
 			log.Warnf("Failed to verify app state - got invalid redirectURL %q", sanitizedURL)
-			return "", fmt.Errorf("failed to verify app state: %w", ErrInvalidRedirectURL)
+			return "", "", fmt.Errorf("failed to verify app state: %w", ErrInvalidRedirectURL)
 		}
 		redirectURL = parts[1]
 	}
+	if len(parts) > 2 {
+		pkceVerifier = parts[2]
+	}
 	if parts[0] != state {
-		return "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
+		return "", "", fmt.Errorf("invalid state in '%s' cookie", common.AuthCookieName)
 	}
 	// set empty cookie to clear it
 	http.SetCookie(w, &http.Cookie{
@@ -253,7 +375,7 @@ func (a *ClientApp) verifyAppState(r *http.Request, w http.ResponseWriter, state
 		SameSite: http.SameSiteLaxMode,
 		Secure:   a.secureCookie,
 	})
-	return redirectURL, nil
+	return redirectURL, pkceVerifier, nil
 }
 
 // isValidRedirectURL checks whether the given redirectURL matches on of the
@@ -311,16 +433,13 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	scopes := make([]string, 0)
+	pkceVerifier := ""
 	var opts []oauth2.AuthCodeOption
 	if config := a.settings.OIDCConfig(); config != nil {
-		scopes = GetScopesOrDefault(config.RequestedScopes)
 		opts = AppendClaimsAuthenticationRequestParameter(opts, config.RequestedIDTokenClaims)
-	} else if a.settings.IsDexConfigured() {
-		scopes = append(GetScopesOrDefault(nil), common.DexFederatedScope)
 	}
 
-	oauth2Config, err := a.oauth2Config(r, scopes)
+	oauth2Config, err := a.getOauth2ConfigForRedirectURI(a.getRedirectURIForRequest(r))
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -331,7 +450,18 @@ func (a *ClientApp) HandleLogin(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid redirect URL: the protocol and host (including port) must match and the path must be within allowed URLs if provided", http.StatusBadRequest)
 		return
 	}
-	stateNonce, err := a.generateAppState(returnURL, w)
+	if a.domainHint != "" {
+		opts = append(opts, oauth2.SetAuthURLParam("domain_hint", a.domainHint))
+	}
+	if a.usePKCE {
+		pkceVerifier = oauth2.GenerateVerifier()
+		opts = append(opts, oauth2.S256ChallengeOption(pkceVerifier))
+	}
+	if a.settings.DexAuthConnectorID != "" {
+		log.Debugf("force redirect to selected connector_id: %s", a.settings.DexAuthConnectorID)
+		opts = append(opts, oauth2.SetAuthURLParam("connector_id", a.settings.DexAuthConnectorID))
+	}
+	stateNonce, err := a.generateAppState(returnURL, pkceVerifier, w)
 	if err != nil {
 		log.Errorf("Failed to initiate login flow: %v", err)
 		http.Error(w, "Failed to initiate login flow", http.StatusInternalServerError)
@@ -397,27 +527,35 @@ func (a *azureApp) getFederatedServiceAccountToken(context.Context) (string, err
 
 // HandleCallback is the callback handler for an OAuth2 login flow
 func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
-	oauth2Config, err := a.oauth2Config(r, nil)
+	logCtx := log.WithField("login.type", "sso")
+	// logCtx is captured by reference so the username and claims are included once they are known
+	fail := func(err error, msg string, code int) {
+		logCtx.WithError(err).Warn("Login failed")
+		http.Error(w, msg, code)
+	}
+	oauth2Config, err := a.getOauth2ConfigForRedirectURI(a.getRedirectURIForRequest(r))
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fail(err, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	log.Infof("Callback: %s", r.URL)
 	if errMsg := r.FormValue("error"); errMsg != "" {
 		errorDesc := r.FormValue("error_description")
-		http.Error(w, html.EscapeString(errMsg)+": "+html.EscapeString(errorDesc), http.StatusBadRequest)
+		fail(fmt.Errorf("%s: %s", errMsg, errorDesc), html.EscapeString(errMsg)+": "+html.EscapeString(errorDesc), http.StatusBadRequest)
 		return
 	}
 	code := r.FormValue("code")
 	state := r.FormValue("state")
 	if code == "" {
 		// If code was not given, it implies implicit flow
-		a.handleImplicitFlow(r, w, state)
+		if err := a.handleImplicitFlow(r, w, state); err != nil {
+			fail(err, err.Error(), http.StatusBadRequest)
+		}
 		return
 	}
-	returnURL, err := a.verifyAppState(r, w, state)
+	returnURL, pkceVerifier, err := a.verifyAppState(r, w, state)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
+		fail(err, err.Error(), http.StatusBadRequest)
 		return
 	}
 
@@ -427,7 +565,8 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 	if a.useAzureWorkloadIdentity {
 		clientAssertion, err := a.azure.getFederatedServiceAccountToken(ctx)
 		if err != nil {
-			http.Error(w, fmt.Sprintf("failed to generate client assertion: %v", err), http.StatusInternalServerError)
+			err = fmt.Errorf("failed to generate client assertion: %w", err)
+			fail(err, err.Error(), http.StatusInternalServerError)
 			return
 		}
 
@@ -437,82 +576,249 @@ func (a *ClientApp) HandleCallback(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
+	if a.usePKCE {
+		options = append(options, oauth2.VerifierOption(pkceVerifier))
+	}
+
 	token, err := oauth2Config.Exchange(ctx, code, options...)
 	if err != nil {
-		http.Error(w, fmt.Sprintf("failed to get token: %v", err), http.StatusInternalServerError)
+		err = fmt.Errorf("failed to get token: %w", err)
+		fail(err, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
+	// Parse out id token
 	idTokenRAW, ok := token.Extra("id_token").(string)
 	if !ok {
-		http.Error(w, "no id_token in token response", http.StatusInternalServerError)
+		fail(errors.New("no id_token in token response"), "no id_token in token response", http.StatusInternalServerError)
 		return
 	}
 
-	idToken, err := a.provider.Verify(idTokenRAW, a.settings)
+	idToken, err := a.provider.Verify(ctx, idTokenRAW, a.settings)
 	if err != nil {
-		log.Warnf("Failed to verify token: %s", err)
-		http.Error(w, common.TokenVerificationError, http.StatusInternalServerError)
+		fail(fmt.Errorf("failed to verify oidc token: %w", err), common.TokenVerificationError, http.StatusInternalServerError)
 		return
 	}
-	path := "/"
-	if a.baseHRef != "" {
-		path = strings.TrimRight(strings.TrimLeft(a.baseHRef, "/"), "/")
-	}
-	cookiePath := "path=/" + path
-	flags := []string{cookiePath, "SameSite=lax", "httpOnly"}
-	if a.secureCookie {
-		flags = append(flags, "Secure")
-	}
+
+	// Set cache
 	var claims jwt.MapClaims
 	err = idToken.Claims(&claims)
 	if err != nil {
-		http.Error(w, err.Error(), http.StatusInternalServerError)
+		fail(err, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	claimsJSON, _ := json.Marshal(claims)
+	logCtx = logCtx.WithFields(log.Fields{"username": jwtutil.GetUserIdentifier(claims), "claims": string(claimsJSON)})
+
 	// save the accessToken in memory for later use
-	encToken, err := crypto.Encrypt([]byte(token.AccessToken), a.encryptionKey)
+	sub := jwtutil.StringField(claims, "sub")
+
+	// Invalidate cached groups from previous sessions so a fresh login picks up updated memberships
+	if err := a.clientCache.Delete(FormatUserInfoResponseCacheKey(sub)); err != nil {
+		log.Warnf("failed to invalidate UserInfo cache for %s: %v", sub, err)
+	}
+	if err := a.clientCache.Delete(FormatAzureGroupsOverageResponseCacheKey(sub)); err != nil {
+		log.Warnf("failed to invalidate Azure groups overage cache for %s: %v", sub, err)
+	}
+
+	err = a.SetValueInEncryptedCache(ctx, FormatAccessTokenCacheKey(sub), []byte(token.AccessToken), GetTokenExpiration(claims))
 	if err != nil {
-		claimsJSON, _ := json.Marshal(claims)
-		http.Error(w, "failed encrypting token", http.StatusInternalServerError)
-		log.Errorf("cannot encrypt accessToken: %v (claims=%s)", err, claimsJSON)
+		fail(fmt.Errorf("cannot cache encrypted accessToken: %w", err), err.Error(), http.StatusInternalServerError)
 		return
 	}
-	sub := jwtutil.StringField(claims, "sub")
-	err = a.clientCache.Set(&cache.Item{
-		Key:    formatAccessTokenCacheKey(sub),
-		Object: encToken,
-		CacheActionOpts: cache.CacheActionOpts{
-			Expiration: getTokenExpiration(claims),
-		},
-	})
+
+	// Cache encrypted raw token for background refresh
+	oidcTokenCache := NewOidcTokenCache(a.getRedirectURIForRequest(r), token, time.Now())
+	oidcTokenCacheJSON, err := json.Marshal(oidcTokenCache)
 	if err != nil {
-		claimsJSON, _ := json.Marshal(claims)
-		http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+		fail(err, err.Error(), http.StatusInternalServerError)
+		return
+	}
+	sid := jwtutil.StringField(claims, "sid")
+	ttl := sessionRemainingTTL(oidcTokenCache.SessionStart, a.settings.UserSessionDuration)
+	err = a.SetValueInEncryptedCache(ctx, formatOidcTokenCacheKey(sub, sid), oidcTokenCacheJSON, ttl)
+	if err != nil {
+		fail(fmt.Errorf("cannot cache encrypted oidc token: %w", err), err.Error(), http.StatusInternalServerError)
 		return
 	}
 
 	if idTokenRAW != "" {
-		cookies, err := httputil.MakeCookieMetadata(common.AuthCookieName, idTokenRAW, flags...)
+		err = httputil.SetTokenCookie(idTokenRAW, a.baseHRef, a.secureCookie, w)
 		if err != nil {
-			claimsJSON, _ := json.Marshal(claims)
-			http.Error(w, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
+			fail(err, fmt.Sprintf("claims=%s, err=%v", claimsJSON, err), http.StatusInternalServerError)
 			return
-		}
-
-		for _, cookie := range cookies {
-			w.Header().Add("Set-Cookie", cookie)
 		}
 	}
 
-	claimsJSON, _ := json.Marshal(claims)
-	log.Infof("Web login successful. Claims: %s", claimsJSON)
+	logCtx.Info("Web login successful")
 	if os.Getenv(common.EnvVarSSODebug) == "1" {
 		claimsJSON, _ := json.MarshalIndent(claims, "", "  ")
 		renderToken(w, a.redirectURI, idTokenRAW, token.RefreshToken, claimsJSON)
 	} else {
 		http.Redirect(w, r, returnURL, http.StatusSeeOther)
 	}
+}
+
+// GetValueFromEncryptedCache is a convenience method for retrieving a value from cache and decrypting it.  If the cache
+// does not contain a value for the given key, a nil value is returned.  Return handling should check for error and then
+// check for nil.
+func (a *ClientApp) GetValueFromEncryptedCache(ctx context.Context, key string) (value []byte, err error) {
+	_, span := tracer.Start(ctx, "oidc.ClientApp.GetValueFromEncryptedCache")
+	defer span.End()
+	var encryptedValue []byte
+	span.AddEvent("start cache read")
+	err = a.clientCache.Get(key, &encryptedValue)
+	span.AddEvent("end cache read")
+	if err != nil {
+		if errors.Is(err, cache.ErrCacheMiss) {
+			span.SetAttributes(attribute.Bool("cache_hit", false))
+			// Return nil to signify a cache miss
+			return nil, nil
+		}
+		err = fmt.Errorf("failed to get encrypted value from cache: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	span.SetAttributes(attribute.Bool("cache_hit", true))
+	value, err = crypto.Decrypt(encryptedValue, a.encryptionKey)
+	if err != nil {
+		err = fmt.Errorf("failed to decrypt value from cache: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	return value, err
+}
+
+// SetValueFromEncyrptedCache is a convenience method for encrypting a value and storing it in the cache at a given key.
+// Cache expiration is set based on input.
+func (a *ClientApp) SetValueInEncryptedCache(ctx context.Context, key string, value []byte, expiration time.Duration) error {
+	_, span := tracer.Start(ctx, "oidc.ClientApp.SetValueInEncryptedCache")
+	defer span.End()
+	encryptedValue, err := crypto.Encrypt(value, a.encryptionKey)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	span.SetAttributes(
+		attribute.String("key", key),
+		attribute.Int("value_length", len(value)),
+	)
+	span.AddEvent("start cache write")
+	err = a.clientCache.Set(&cache.Item{
+		Key:    key,
+		Object: encryptedValue,
+		CacheActionOpts: cache.CacheActionOpts{
+			Expiration: expiration,
+		},
+	})
+	span.AddEvent("end cache write")
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return err
+	}
+	return nil
+}
+
+func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, groupClaims jwt.MapClaims, refreshTokenThreshold time.Duration) (string, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.ClientApp.CheckAndRefreshToken")
+	defer span.End()
+	iss := jwtutil.StringField(groupClaims, "iss")
+	sub := jwtutil.StringField(groupClaims, "sub")
+	sid := jwtutil.StringField(groupClaims, "sid")
+	span.SetAttributes(
+		attribute.String("iss", iss),
+		attribute.String("sub", sub),
+		attribute.String("sid", sid),
+	)
+	if GetTokenExpiration(groupClaims) < refreshTokenThreshold {
+		token, err := a.GetUpdatedOidcTokenFromCache(ctx, sub, sid)
+		if err != nil {
+			log.Errorf("Failed to get token from cache: %v", err)
+			span.SetStatus(codes.Error, err.Error())
+			return "", err
+		}
+		if token != nil {
+			idTokenRAW, ok := token.Extra("id_token").(string)
+			if !ok {
+				err = errors.New("empty id_token")
+				span.SetStatus(codes.Error, err.Error())
+				return "", err
+			}
+			return idTokenRAW, nil
+		}
+	}
+	return "", nil
+}
+
+// GetUpdatedOidcTokenFromCache fetches a token from cache and refreshes it if under the threshold for expiration.
+// The cached token will also be updated if it is refreshed.  Returns latest token or an error if the process fails.
+func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject string, sessionId string) (*oauth2.Token, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetUpdatedOidcTokenFromCache")
+	defer span.End()
+
+	ctx = gooidc.ClientContext(ctx, a.client)
+	span.SetAttributes(
+		attribute.String("subject", subject),
+		attribute.String("sessionId", sessionId),
+	)
+
+	// Get oauth2 config
+	cacheKey := formatOidcTokenCacheKey(subject, sessionId)
+	oidcTokenCacheJSON, err := a.GetValueFromEncryptedCache(ctx, cacheKey)
+	if err != nil {
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	if oidcTokenCacheJSON == nil {
+		return nil, nil
+	}
+
+	oidcTokenCache, err := GetOidcTokenCacheFromJSON(oidcTokenCacheJSON)
+	if err != nil {
+		err = fmt.Errorf("failed to unmarshal cached oidc token: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	tokenSource, err := a.GetTokenSourceFromCache(ctx, oidcTokenCache)
+	if err != nil {
+		err = fmt.Errorf("failed to get token source from cached oidc token: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	span.AddEvent("starting tokenSource.Token()")
+	token, err := tokenSource.Token()
+	span.AddEvent("finished tokenSource.Token()")
+	if err != nil {
+		err = fmt.Errorf("failed to refresh token from source: %w", err)
+		span.SetStatus(codes.Error, err.Error())
+		return nil, err
+	}
+	if token.AccessToken != oidcTokenCache.Token.AccessToken {
+		span.AddEvent("updating cache with latest token")
+
+		oidcTokenCache = NewOidcTokenCache(oidcTokenCache.RedirectURL, token, oidcTokenCache.SessionStart)
+		oidcTokenCacheJSON, err = json.Marshal(oidcTokenCache)
+		if err != nil {
+			err = fmt.Errorf("failed to marshal oidc oidcTokenCache refresher: %w", err)
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
+		}
+		ttl := sessionRemainingTTL(oidcTokenCache.SessionStart, a.settings.UserSessionDuration)
+		if ttl <= 0 {
+			log.Info("session exceeded UserSessionDuration, forcing re-authentication")
+
+			// Return nil to force re-authentication
+			return nil, nil
+		}
+		err = a.SetValueInEncryptedCache(ctx, cacheKey, oidcTokenCacheJSON, ttl)
+		if err != nil {
+			span.SetStatus(codes.Error, err.Error())
+			return nil, err
+		}
+	}
+	return token, nil
 }
 
 var implicitFlowTmpl = template.Must(template.New("implicit.html").Parse(`<script>
@@ -538,7 +844,7 @@ if (state != "" && returnURL == "") {
 // state nonce for verification, as well as looking up the return URL. Once verified, the client
 // stores the id_token from the fragment as a cookie. Finally it performs the final redirect back to
 // the return URL.
-func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, state string) {
+func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, state string) error {
 	type implicitFlowValues struct {
 		CookieName string
 		ReturnURL  string
@@ -547,14 +853,15 @@ func (a *ClientApp) handleImplicitFlow(r *http.Request, w http.ResponseWriter, s
 		CookieName: common.AuthCookieName,
 	}
 	if state != "" {
-		returnURL, err := a.verifyAppState(r, w, state)
+		// Not using pkceVerifier, since PKCE is not supported in implicit flow.
+		returnURL, _, err := a.verifyAppState(r, w, state)
 		if err != nil {
-			http.Error(w, err.Error(), http.StatusBadRequest)
-			return
+			return err
 		}
 		vals.ReturnURL = returnURL
 	}
 	renderTemplate(w, implicitFlowTmpl, vals)
+	return nil
 }
 
 // ImplicitFlowURL is an adaptation of oauth2.Config::AuthCodeURL() which returns a URL
@@ -578,12 +885,7 @@ func OfflineAccess(scopes []string) bool {
 		return true
 	}
 	// See if scopes_supported has the "offline_access" scope.
-	for _, scope := range scopes {
-		if scope == gooidc.ScopeOfflineAccess {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(scopes, gooidc.ScopeOfflineAccess)
 }
 
 // InferGrantType infers the proper grant flow depending on the OAuth2 client config and OIDC configuration.
@@ -592,10 +894,8 @@ func InferGrantType(oidcConf *OIDCConfiguration) string {
 	// Check the supported response types. If the list contains the response type 'code',
 	// then grant type is 'authorization_code'. This is preferred over the implicit
 	// grant type since refresh tokens cannot be issued that way.
-	for _, supportedType := range oidcConf.ResponseTypesSupported {
-		if supportedType == ResponseTypeCode {
-			return GrantTypeAuthorizationCode
-		}
+	if slices.Contains(oidcConf.ResponseTypesSupported, ResponseTypeCode) {
+		return GrantTypeAuthorizationCode
 	}
 
 	// Assume implicit otherwise
@@ -626,14 +926,70 @@ func createClaimsAuthenticationRequestParameter(requestedClaims map[string]*oidc
 	return oauth2.SetAuthURLParam("claims", string(claimsRequestRAW)), nil
 }
 
+// SetGroupsClaimFromEndpoint takes a claims object and adds groups claim from either:
+// - the UserInfo endpoint if enabled
+// - the Microsoft Graph API if Azure groups overage claim is detected and enabled
+// This is required by some SSO implementations as they don't provide the groups claim in the ID token.
+// If querying the endpoint fails, we return an error to indicate the session is invalid.
+// We assume that everywhere in argocd jwt.MapClaims is used as type for interface jwt.Claims
+// otherwise this would cause a panic.
+func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.Claims, sessionManagerClaimsIssuer string) (jwt.MapClaims, error) {
+	var groupClaims jwt.MapClaims
+	var ok bool
+	if groupClaims, ok = claims.(jwt.MapClaims); !ok {
+		if tmpClaims, ok := claims.(*jwt.MapClaims); ok {
+			if tmpClaims != nil {
+				groupClaims = *tmpClaims
+			}
+		}
+	}
+
+	iss := jwtutil.StringField(groupClaims, "iss")
+	if iss != sessionManagerClaimsIssuer {
+		// Path 1: UserInfo endpoint — mutually exclusive with Path 2 (Azure overage).
+		// For Entra ID, UserInfo returns the same data as the ID token, so both are never needed.
+		if a.settings.UserInfoGroupsEnabled() && a.settings.UserInfoPath() != "" {
+			userInfo, unauthorized, err := a.GetUserInfo(ctx, groupClaims, a.settings.IssuerURL(), a.settings.UserInfoBaseURL(), a.settings.UserInfoPath())
+			if unauthorized {
+				return groupClaims, fmt.Errorf("error while querying userinfo endpoint: %w", err)
+			}
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching user info endpoint: %w", err)
+			}
+			if groupClaims["sub"] != userInfo["sub"] {
+				return groupClaims, errors.New("subject of claims from user info endpoint didn't match subject of idToken, see https://openid.net/specs/openid-connect-core-1_0.html#UserInfo")
+			}
+			groupClaims["groups"] = userInfo["groups"]
+			return groupClaims, nil
+		}
+
+		// Path 2: Azure AD groups overage claim resolution via Microsoft Graph API
+		if a.settings.AzureUserGroupOverageClaimEnabled() && a.settings.AzureGraphAPIEndpoint() != "" {
+			groups, err := a.GetUserGroupsFromAzureOverageClaim(ctx, groupClaims, a.settings.AzureGraphAPIEndpoint())
+			if err != nil {
+				return groupClaims, fmt.Errorf("error fetching groups from Azure overage claim: %w", err)
+			}
+			if len(groups) > 0 {
+				groupClaims["groups"] = groups
+			}
+			return groupClaims, nil
+		}
+	}
+
+	return groupClaims, nil
+}
+
 // GetUserInfo queries the IDP userinfo endpoint for claims
-func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoPath string) (jwt.MapClaims, bool, error) {
+func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims, issuerURL, userInfoBaseURL, userInfoPath string) (jwt.MapClaims, bool, error) {
+	var span trace.Span
+	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetUserInfo")
+	defer span.End()
 	sub := jwtutil.StringField(actualClaims, "sub")
 	var claims jwt.MapClaims
 	var encClaims []byte
 
 	// in case we got it in the cache, we just return the item
-	clientCacheKey := formatUserInfoResponseCacheKey(sub)
+	clientCacheKey := FormatUserInfoResponseCacheKey(sub)
 	if err := a.clientCache.Get(clientCacheKey, &encClaims); err == nil {
 		claimsRaw, err := crypto.Decrypt(encClaims, a.encryptionKey)
 		if err != nil {
@@ -642,36 +998,36 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 			err = json.Unmarshal(claimsRaw, &claims)
 			if err == nil {
 				// return the cached claims since they are not yet expired, were successfully decrypted and unmarshaled
-				return claims, false, err
+				return claims, false, nil
 			}
 			log.Errorf("cannot unmarshal cached claims structure: %s", err)
 		}
 	}
 
 	// check if the accessToken for the user is still present
-	var encAccessToken []byte
-	err := a.clientCache.Get(formatAccessTokenCacheKey(sub), &encAccessToken)
-	// without an accessToken we can't query the user info endpoint
-	// thus the user needs to reauthenticate for argocd to get a new accessToken
-	if errors.Is(err, cache.ErrCacheMiss) {
-		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
-	} else if err != nil {
-		return claims, true, fmt.Errorf("couldn't read accessToken from cache for %s: %w", sub, err)
-	}
-
-	accessToken, err := crypto.Decrypt(encAccessToken, a.encryptionKey)
+	accessTokenBytes, err := a.GetValueFromEncryptedCache(ctx, FormatAccessTokenCacheKey(sub))
 	if err != nil {
-		return claims, true, fmt.Errorf("couldn't decrypt accessToken for %s: %w", sub, err)
+		return claims, true, fmt.Errorf("could not read accessToken from cache for %s: %w", sub, err)
 	}
 
-	url := issuerURL + userInfoPath
-	request, err := http.NewRequest(http.MethodGet, url, nil)
+	if accessTokenBytes == nil {
+		return claims, true, fmt.Errorf("no accessToken for %s: %w", sub, err)
+	}
+
+	var url string
+	if userInfoBaseURL != "" {
+		url = userInfoBaseURL + userInfoPath
+	} else {
+		url = issuerURL + userInfoPath
+	}
+
+	request, err := http.NewRequestWithContext(context.Background(), http.MethodGet, url, http.NoBody)
 	if err != nil {
 		err = fmt.Errorf("failed creating new http request: %w", err)
 		return claims, false, err
 	}
 
-	bearer := fmt.Sprintf("Bearer %s", accessToken)
+	bearer := "Bearer " + string(accessTokenBytes)
 	request.Header.Set("Authorization", bearer)
 
 	response, err := a.client.Do(request)
@@ -693,7 +1049,7 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 	switch header {
 	case "application/jwt":
 		// if body is JWT, first validate it before extracting claims
-		idToken, err := a.provider.Verify(string(rawBody), a.settings)
+		idToken, err := a.provider.Verify(ctx, string(rawBody), a.settings)
 		if err != nil {
 			return claims, false, fmt.Errorf("user info response in jwt format not valid: %w", err)
 		}
@@ -711,29 +1067,24 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 
 	// in case response was successfully validated and there was no error, put item in cache
 	// but first let's determine the expiry of the cache
-	var cacheExpiry time.Duration
-	settingExpiry := a.settings.UserInfoCacheExpiration()
-	tokenExpiry := getTokenExpiration(claims)
+	tokenExpiry := GetTokenExpiration(claims)
+	if tokenExpiry < 0 {
+		tokenExpiry = GetTokenExpiration(actualClaims)
+	}
 
-	// only use configured expiry if the token lives longer and the expiry is configured
-	// if the token has no expiry, use the expiry of the actual token
-	// otherwise use the expiry of the token
-	switch {
-	case settingExpiry < tokenExpiry && settingExpiry != 0:
+	cacheExpiry := tokenExpiry
+	settingExpiry := a.settings.UserInfoCacheExpiration()
+	if settingExpiry > 0 && settingExpiry < cacheExpiry {
 		cacheExpiry = settingExpiry
-	case tokenExpiry < 0:
-		cacheExpiry = getTokenExpiration(actualClaims)
-	default:
-		cacheExpiry = tokenExpiry
 	}
 
 	rawClaims, err := json.Marshal(claims)
 	if err != nil {
-		return claims, false, fmt.Errorf("couldn't marshal claim to json: %w", err)
+		return claims, false, fmt.Errorf("could not marshal claim to json: %w", err)
 	}
 	encClaims, err = crypto.Encrypt(rawClaims, a.encryptionKey)
 	if err != nil {
-		return claims, false, fmt.Errorf("couldn't encrypt user info response: %w", err)
+		return claims, false, fmt.Errorf("could not encrypt user info response: %w", err)
 	}
 
 	err = a.clientCache.Set(&cache.Item{
@@ -744,14 +1095,14 @@ func (a *ClientApp) GetUserInfo(actualClaims jwt.MapClaims, issuerURL, userInfoP
 		},
 	})
 	if err != nil {
-		return claims, false, fmt.Errorf("couldn't put item to cache: %w", err)
+		return claims, false, fmt.Errorf("could not put item to cache: %w", err)
 	}
 
 	return claims, false, nil
 }
 
-// getTokenExpiration returns a time.Duration until the token expires
-func getTokenExpiration(claims jwt.MapClaims) time.Duration {
+// GetTokenExpiration returns a time.Duration until the token expires
+func GetTokenExpiration(claims jwt.MapClaims) time.Duration {
 	// get duration until token expires
 	exp := jwtutil.Float64Field(claims, "exp")
 	tm := time.Unix(int64(exp), 0)
@@ -759,12 +1110,32 @@ func getTokenExpiration(claims jwt.MapClaims) time.Duration {
 	return tokenExpiry
 }
 
-// formatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
-func formatUserInfoResponseCacheKey(sub string) string {
+// getScopes returns scopes based on provider configuration
+func (a *ClientApp) getScopes() []string {
+	scopes := make([]string, 0)
+	if config := a.settings.OIDCConfig(); config != nil {
+		scopes = GetScopesOrDefault(config.RequestedScopes)
+	} else if a.settings.IsDexConfigured() {
+		scopes = append(GetScopesOrDefault(nil), common.DexFederatedScope)
+	}
+	return scopes
+}
+
+// FormatUserInfoResponseCacheKey returns the key which is used to store userinfo of user in cache
+func FormatUserInfoResponseCacheKey(sub string) string {
 	return fmt.Sprintf("%s_%s", UserInfoResponseCachePrefix, sub)
 }
 
-// formatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
-func formatAccessTokenCacheKey(sub string) string {
+// FormatAccessTokenCacheKey returns the key which is used to store the accessToken of a user in cache
+func FormatAccessTokenCacheKey(sub string) string {
 	return fmt.Sprintf("%s_%s", AccessTokenCachePrefix, sub)
+}
+
+// formatRefreshTokenCacheKey returns the key which is used to store the oidc Token for a session in cache
+func formatOidcTokenCacheKey(sub string, sid string) string {
+	return fmt.Sprintf("%s_%s_%s", OidcTokenCachePrefix, sub, sid)
+}
+
+func (a *ClientApp) IssuerURL() string {
+	return a.issuerURL
 }

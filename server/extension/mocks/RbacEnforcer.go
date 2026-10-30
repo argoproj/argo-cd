@@ -14,10 +14,19 @@ func NewRbacEnforcer(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *RbacEnforcer {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &RbacEnforcer{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -37,7 +46,7 @@ func (_m *RbacEnforcer) EXPECT() *RbacEnforcer_Expecter {
 
 // EnforceErr provides a mock function for the type RbacEnforcer
 func (_mock *RbacEnforcer) EnforceErr(rvals ...any) error {
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, rvals...)
 	ret := _mock.Called(_ca...)
 
@@ -60,21 +69,25 @@ type RbacEnforcer_EnforceErr_Call struct {
 }
 
 // EnforceErr is a helper method to define mock.On call
-//   - rvals
-func (_e *RbacEnforcer_Expecter) EnforceErr(rvals ...interface{}) *RbacEnforcer_EnforceErr_Call {
+//   - rvals ...any
+func (_e *RbacEnforcer_Expecter) EnforceErr(rvals ...any) *RbacEnforcer_EnforceErr_Call {
 	return &RbacEnforcer_EnforceErr_Call{Call: _e.mock.On("EnforceErr",
-		append([]interface{}{}, rvals...)...)}
+		append([]any{}, rvals...)...)}
 }
 
 func (_c *RbacEnforcer_EnforceErr_Call) Run(run func(rvals ...any)) *RbacEnforcer_EnforceErr_Call {
 	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []any
 		variadicArgs := make([]any, len(args)-0)
 		for i, a := range args[0:] {
 			if a != nil {
 				variadicArgs[i] = a.(any)
 			}
 		}
-		run(variadicArgs...)
+		arg0 = variadicArgs
+		run(
+			arg0...,
+		)
 	})
 	return _c
 }

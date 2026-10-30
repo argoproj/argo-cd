@@ -1,13 +1,14 @@
 package git
 
 import (
+	"crypto/fips140"
 	"fmt"
 
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"golang.org/x/crypto/ssh"
 )
 
-// List of all currently supported algorithms for SSH key exchange
+// SupportedSSHKeyExchangeAlgorithms is a list of all currently supported algorithms for SSH key exchange
 // Unfortunately, crypto/ssh does not offer public constants or list for
 // this.
 var SupportedSSHKeyExchangeAlgorithms = []string{
@@ -21,16 +22,29 @@ var SupportedSSHKeyExchangeAlgorithms = []string{
 	"diffie-hellman-group14-sha1",
 }
 
-// List of default key exchange algorithms to use. We use those that are
-// available by default, we can become more opinionated later on (when
-// we support configuration of algorithms to use).
-var DefaultSSHKeyExchangeAlgorithms = SupportedSSHKeyExchangeAlgorithms
+// SupportedFIPSCompliantSSHKeyExchangeAlgorithms is a list of all currently supported algorithms for SSH key exchange
+// that are FIPS compliant
+var SupportedFIPSCompliantSSHKeyExchangeAlgorithms = []string{
+	"ecdh-sha2-nistp256",
+	"ecdh-sha2-nistp384",
+	"ecdh-sha2-nistp521",
+	"diffie-hellman-group-exchange-sha256",
+	"diffie-hellman-group14-sha256",
+}
 
 // PublicKeysWithOptions is an auth method for go-git's SSH client that
 // inherits from PublicKeys, but provides the possibility to override
 // some client options.
 type PublicKeysWithOptions struct {
 	KexAlgorithms []string
+	// HostKeyAlgorithms restricts the host key algorithms advertised during
+	// the SSH handshake to those known for the target host. go-git v5.16+
+	// only auto-configures this when the user's AuthMethod does not set a
+	// HostKeyCallback; since we always set one, we must populate this
+	// ourselves or the handshake can fail with "knownhosts: key mismatch"
+	// when the server offers a key of a type that isn't in known_hosts.
+	// See go-git/go-git#1551.
+	HostKeyAlgorithms []string
 	gitssh.PublicKeys
 }
 
@@ -51,9 +65,20 @@ func (a *PublicKeysWithOptions) ClientConfig() (*ssh.ClientConfig, error) {
 	if len(a.KexAlgorithms) > 0 {
 		kexAlgos = a.KexAlgorithms
 	} else {
-		kexAlgos = DefaultSSHKeyExchangeAlgorithms
+		kexAlgos = getDefaultSSHKeyExchangeAlgorithms()
 	}
 	config := ssh.Config{KeyExchanges: kexAlgos}
 	opts := &ssh.ClientConfig{Config: config, User: a.User, Auth: []ssh.AuthMethod{ssh.PublicKeys(a.Signer)}}
+	if len(a.HostKeyAlgorithms) > 0 {
+		opts.HostKeyAlgorithms = a.HostKeyAlgorithms
+	}
 	return a.SetHostKeyCallback(opts)
+}
+
+// getDefaultSSHKeyExchangeAlgorithms returns the default key exchange algorithms to be used
+func getDefaultSSHKeyExchangeAlgorithms() []string {
+	if fips140.Enabled() {
+		return SupportedFIPSCompliantSSHKeyExchangeAlgorithms
+	}
+	return SupportedSSHKeyExchangeAlgorithms
 }

@@ -1,9 +1,9 @@
 package test
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"regexp"
@@ -15,6 +15,7 @@ import (
 	"github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
+	"sigs.k8s.io/controller-runtime/pkg/client"
 )
 
 // Cert is a certificate for tests. It was generated like this:
@@ -117,7 +118,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/api/dex/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s/api/dex",
   "authorization_endpoint": "%[1]s/api/dex/auth",
@@ -133,7 +134,21 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
   "scopes_supported": ["openid"],
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "claims_supported": ["sub", "aud", "exp"]
-}`, url))
+}`, url)
+			require.NoError(t, err)
+		case "/api/dex/keys":
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(Cert)
+			require.NoError(t, err)
+			jwks := jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{
+					{
+						Key: pubKey,
+					},
+				},
+			}
+			out, err := json.Marshal(jwks)
+			require.NoError(t, err)
+			_, err = w.Write(out)
 			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
@@ -158,7 +173,7 @@ func oidcMockHandler(t *testing.T, url string, tokenRequestPreHandler func(r *ht
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s",
   "authorization_endpoint": "%[1]s/auth",
@@ -174,16 +189,16 @@ func oidcMockHandler(t *testing.T, url string, tokenRequestPreHandler func(r *ht
   "scopes_supported": ["openid"],
   "token_endpoint_auth_methods_supported": ["client_secret_basic", "client_secret_post"],
   "claims_supported": ["sub", "aud", "exp"]
-}`, url))
+}`, url)
 			require.NoError(t, err)
 		case "/userinfo":
 			w.Header().Set("content-type", "application/json")
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
 	"groups":["githubOrg:engineers"],
 	"iss": "%[1]s",
 	"sub": "randomUser"
-}`, url))
+}`, url)
 
 			require.NoError(t, err)
 		case "/keys":
@@ -216,13 +231,13 @@ func oidcMockHandler(t *testing.T, url string, tokenRequestPreHandler func(r *ht
 	}
 }
 
-func GetOIDCTestServer(t *testing.T) *httptest.Server {
+func GetOIDCTestServer(t *testing.T, tokenRequestPreHandler func(r *http.Request)) *httptest.Server {
 	t.Helper()
 	ts := httptest.NewTLSServer(http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		// Start with a placeholder. We need the server URL before setting up the real handler.
 	}))
 	ts.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		oidcMockHandler(t, ts.URL, nil)(w, r)
+		oidcMockHandler(t, ts.URL, tokenRequestPreHandler)(w, r)
 	})
 	return ts
 }
@@ -259,14 +274,19 @@ func mockTokenEndpointResponse(issuer string) (TokenResponse, error) {
 
 // Helper function to generate a JWT token
 func generateJWTToken(issuer string) (string, error) {
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+	token := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.MapClaims{
 		"sub":  "1234567890",
+		"aud":  "test-client-id",
 		"name": "John Doe",
 		"iat":  time.Now().Unix(),
 		"iss":  issuer,
 		"exp":  time.Now().Add(time.Hour).Unix(), // Set the expiration time
 	})
-	tokenString, err := token.SignedString([]byte("secret"))
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(PrivateKey)
+	if err != nil {
+		return "", fmt.Errorf("failed to parse RSA private key: %w", err)
+	}
+	tokenString, err := token.SignedString(key)
 	if err != nil {
 		return "", err
 	}
@@ -274,11 +294,24 @@ func generateJWTToken(issuer string) (string, error) {
 }
 
 type LogHook struct {
-	Entries []log.Entry
+	Entries  []log.Entry
+	minLevel log.Level
+}
+
+func NewLogHook(minLevel log.Level) *LogHook {
+	return &LogHook{minLevel: minLevel}
 }
 
 func (h *LogHook) Levels() []log.Level {
-	return []log.Level{log.WarnLevel}
+	if h.minLevel == 0 {
+		h.minLevel = log.WarnLevel
+	}
+
+	var levels []log.Level
+	for i := log.PanicLevel; i <= h.minLevel; i++ {
+		levels = append(levels, i)
+	}
+	return levels
 }
 
 func (h *LogHook) Fire(entry *log.Entry) error {
@@ -286,13 +319,52 @@ func (h *LogHook) Fire(entry *log.Entry) error {
 	return nil
 }
 
+func (h *LogHook) CleanupHook() {
+	log.StandardLogger().ReplaceHooks(log.LevelHooks{})
+}
+
 func (h *LogHook) GetRegexMatchesInEntries(match string) []string {
 	re := regexp.MustCompile(match)
 	matches := make([]string, 0)
 	for _, entry := range h.Entries {
-		if re.Match([]byte(entry.Message)) {
+		if re.MatchString(entry.Message) {
 			matches = append(matches, entry.Message)
 		}
 	}
 	return matches
+}
+
+func (h *LogHook) GetEntries() []string {
+	matches := make([]string, 0)
+	for _, entry := range h.Entries {
+		matches = append(matches, entry.Message)
+	}
+	return matches
+}
+
+type SaneFakeClient struct {
+	client.WithWatch
+}
+
+func (sc SaneFakeClient) Get(ctx context.Context, key client.ObjectKey, obj client.Object, opts ...client.GetOption) error {
+	ok := obj.GetObjectKind().GroupVersionKind()
+	err := sc.WithWatch.Get(ctx, key, obj, opts...)
+	obj.GetObjectKind().SetGroupVersionKind(ok)
+	return err
+}
+
+// A workaround for backward compatibility of the fake client.  Before
+// v0.22 controller runtime fake client was always filling GVK of the
+// returned objects.  Now it always clears TypeMeta field in the
+// target object if it's a typed object (see
+// https://github.com/kubernetes-sigs/controller-runtime/pull/3229)
+// The new behavior is purposed to discourage relying on the returned
+// GVK. But, really, this does not completely map to the behaviour of
+// real k8s client, which preserves the values in the target
+// object. Some of our application code actively relies on this
+// behaviour.  This wrapper preserves existing values, thus better
+// simulating behaviour of a real client instance.
+func MakeSaneFakeClient(fakeClient client.WithWatch) client.WithWatch {
+	client := SaneFakeClient{WithWatch: fakeClient}
+	return client
 }

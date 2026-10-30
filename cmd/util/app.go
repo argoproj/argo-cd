@@ -5,22 +5,19 @@ import (
 	stderrors "errors"
 	"fmt"
 	"io"
+	"maps"
 	"net/url"
 	"os"
 	"strings"
 	"time"
 
-	"go.uber.org/automaxprocs/maxprocs"
-
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/utils/ptr"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -36,6 +33,7 @@ type AppOptions struct {
 	chart                           string
 	env                             string
 	revision                        string
+	tagPrefix                       string
 	revisionHistoryLimit            int
 	destName                        string
 	destServer                      string
@@ -65,6 +63,7 @@ type AppOptions struct {
 	namePrefix                      string
 	nameSuffix                      string
 	directoryRecurse                bool
+	directoryDisableExtensionFilter bool
 	configManagementPlugin          string
 	jsonnetTlaStr                   []string
 	jsonnetTlaCode                  []string
@@ -92,6 +91,7 @@ type AppOptions struct {
 	retryBackoffDuration            time.Duration
 	retryBackoffMaxDuration         time.Duration
 	retryBackoffFactor              int64
+	retryRefresh                    bool
 	ref                             string
 	SourceName                      string
 	drySourceRepo                   string
@@ -102,25 +102,13 @@ type AppOptions struct {
 	hydrateToBranch                 string
 }
 
-// SetAutoMaxProcs sets the GOMAXPROCS value based on the binary name.
-// It suppresses logs for CLI binaries and logs the setting for services.
-func SetAutoMaxProcs(isCLI bool) {
-	if isCLI {
-		_, _ = maxprocs.Set() // Intentionally ignore errors for CLI binaries
-	} else {
-		_, err := maxprocs.Set(maxprocs.Logger(log.Infof))
-		if err != nil {
-			log.Errorf("Error setting GOMAXPROCS: %v", err)
-		}
-	}
-}
-
 func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.repoURL, "repo", "", "Repository URL, ignored if a file is set")
 	command.Flags().StringVar(&opts.appPath, "path", "", "Path in repository to the app directory, ignored if a file is set")
 	command.Flags().StringVar(&opts.chart, "helm-chart", "", "Helm Chart name")
 	command.Flags().StringVar(&opts.env, "env", "", "Application environment to monitor")
 	command.Flags().StringVar(&opts.revision, "revision", "", "The tracking source branch, tag, commit or Helm chart version the application will sync to")
+	command.Flags().StringVar(&opts.tagPrefix, "tag-prefix", "", "Filter git tags by this prefix before evaluating targetRevision as a semver constraint")
 	command.Flags().StringVar(&opts.drySourceRepo, "dry-source-repo", "", "Repository URL of the app dry source")
 	command.Flags().StringVar(&opts.drySourceRevision, "dry-source-revision", "", "Revision of the app dry source")
 	command.Flags().StringVar(&opts.drySourcePath, "dry-source-path", "", "Path in repository to the app directory for the dry source")
@@ -150,13 +138,14 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.project, "project", "", "Application project name")
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
-	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning when sync is automated")
-	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing when sync is automated")
-	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources when sync is automated")
+	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning for automated sync policy")
+	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing for automated sync policy")
+	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources for automated sync policy")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
 	command.Flags().StringVar(&opts.nameSuffix, "namesuffix", "", "Kustomize namesuffix")
 	command.Flags().StringVar(&opts.kustomizeVersion, "kustomize-version", "", "Kustomize version")
 	command.Flags().BoolVar(&opts.directoryRecurse, "directory-recurse", false, "Recurse directory")
+	command.Flags().BoolVar(&opts.directoryDisableExtensionFilter, "directory-disable-extension-filter", false, "Disable the built-in file-extension filter so that include/exclude patterns can match files with custom extensions (e.g. *.yaml.sealed). By default (false), only files with a .yaml, .yml, .json, or .jsonnet extension are considered manifests")
 	command.Flags().StringVar(&opts.configManagementPlugin, "config-management-plugin", "", "Config management plugin name")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaStr, "jsonnet-tla-str", []string{}, "Jsonnet top level string arguments")
 	command.Flags().StringArrayVar(&opts.jsonnetTlaCode, "jsonnet-tla-code", []string{}, "Jsonnet top level code arguments")
@@ -183,6 +172,7 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().DurationVar(&opts.retryBackoffDuration, "sync-retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&opts.retryBackoffMaxDuration, "sync-retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&opts.retryBackoffFactor, "sync-retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed sync retry")
+	command.Flags().BoolVar(&opts.retryRefresh, "sync-retry-refresh", false, "Indicates if the latest revision should be used on retry instead of the initial one")
 	command.Flags().StringVar(&opts.ref, "ref", "", "Ref is reference to another source within sources field")
 	command.Flags().StringVar(&opts.SourceName, "source-name", "", "Name of the source from the list of sources of the app.")
 }
@@ -253,8 +243,8 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			}
 			for _, option := range appOpts.syncOptions {
 				// `!` means remove the option
-				if strings.HasPrefix(option, "!") {
-					option = strings.TrimPrefix(option, "!")
+				if after, ok := strings.CutPrefix(option, "!"); ok {
+					option = after
 					spec.SyncPolicy.SyncOptions = spec.SyncPolicy.SyncOptions.RemoveOption(option)
 				} else {
 					spec.SyncPolicy.SyncOptions = spec.SyncPolicy.SyncOptions.AddOption(option)
@@ -274,8 +264,9 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 					Backoff: &argoappv1.Backoff{
 						Duration:    appOpts.retryBackoffDuration.String(),
 						MaxDuration: appOpts.retryBackoffMaxDuration.String(),
-						Factor:      ptr.To(appOpts.retryBackoffFactor),
+						Factor:      new(appOpts.retryBackoffFactor),
 					},
+					Refresh: appOpts.retryRefresh,
 				}
 			case appOpts.retryLimit == 0:
 				if spec.SyncPolicy.IsZero() {
@@ -286,27 +277,36 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 			default:
 				log.Fatalf("Invalid sync-retry-limit [%d]", appOpts.retryLimit)
 			}
+		case "sync-retry-refresh":
+			if spec.SyncPolicy == nil {
+				spec.SyncPolicy = &argoappv1.SyncPolicy{}
+			}
+			if spec.SyncPolicy.Retry == nil {
+				spec.SyncPolicy.Retry = &argoappv1.RetryStrategy{}
+			}
+			spec.SyncPolicy.Retry.Refresh = appOpts.retryRefresh
 		}
 	})
-	if flags.Changed("auto-prune") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --auto-prune: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.Prune = appOpts.autoPrune
-	}
-	if flags.Changed("self-heal") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --self-heal: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.SelfHeal = appOpts.selfHeal
-	}
-	if flags.Changed("allow-empty") {
-		if spec.SyncPolicy == nil || !spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			log.Fatal("Cannot set --allow-empty: application not configured with automatic sync")
-		}
-		spec.SyncPolicy.Automated.AllowEmpty = appOpts.allowEmpty
-	}
 
+	if flags.Changed("auto-prune") || flags.Changed("self-heal") || flags.Changed("allow-empty") {
+		if spec.SyncPolicy == nil {
+			spec.SyncPolicy = &argoappv1.SyncPolicy{}
+		}
+		if spec.SyncPolicy.Automated == nil {
+			disabled := false
+			spec.SyncPolicy.Automated = &argoappv1.SyncPolicyAutomated{Enabled: &disabled}
+		}
+
+		if flags.Changed("auto-prune") {
+			spec.SyncPolicy.Automated.Prune = &appOpts.autoPrune
+		}
+		if flags.Changed("self-heal") {
+			spec.SyncPolicy.Automated.SelfHeal = &appOpts.selfHeal
+		}
+		if flags.Changed("allow-empty") {
+			spec.SyncPolicy.Automated.AllowEmpty = &appOpts.allowEmpty
+		}
+	}
 	return visited
 }
 
@@ -429,7 +429,7 @@ func setHelmOpt(src *argoappv1.ApplicationSource, opts helmOpts) {
 	if opts.ignoreMissingValueFiles {
 		src.Helm.IgnoreMissingValueFiles = opts.ignoreMissingValueFiles
 	}
-	if len(opts.values) > 0 {
+	if opts.values != "" {
 		err := src.Helm.SetValuesString(opts.values)
 		if err != nil {
 			log.Fatal(err)
@@ -544,7 +544,7 @@ func SetParameterOverrides(app *argoappv1.Application, parameters []string, inde
 			source.Helm.AddParameter(*newParam)
 		}
 	default:
-		log.Fatalf("Parameters can only be set against Helm applications")
+		log.Fatal("Parameters can only be set against Helm applications")
 	}
 }
 
@@ -617,15 +617,11 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}
 	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: application.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      appName,
-			Namespace: appNs,
-		},
-		Spec: argoappv1.ApplicationSpec{},
+		Kind:       application.ApplicationKind,
+		APIVersion: application.Group + "/v1alpha1",
+		Name:       appName,
+		Namespace:  appNs,
+		Spec:       argoappv1.ApplicationSpec{},
 	}
 	SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
 	SetParameterOverrides(app, appOpts.Parameters, 0)
@@ -689,6 +685,8 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 			source.Chart = appOpts.chart
 		case "revision":
 			source.TargetRevision = appOpts.revision
+		case "tag-prefix":
+			source.TagPrefix = appOpts.tagPrefix
 		case "values":
 			setHelmOpt(source, helmOpts{valueFiles: appOpts.valuesFiles})
 		case "ignore-missing-value-files":
@@ -733,6 +731,12 @@ func ConstructSource(source *argoappv1.ApplicationSource, appOpts AppOptions, fl
 				source.Directory.Recurse = appOpts.directoryRecurse
 			} else {
 				source.Directory = &argoappv1.ApplicationSourceDirectory{Recurse: appOpts.directoryRecurse}
+			}
+		case "directory-disable-extension-filter":
+			if source.Directory != nil {
+				source.Directory.DisableExtensionFilter = appOpts.directoryDisableExtensionFilter
+			} else {
+				source.Directory = &argoappv1.ApplicationSourceDirectory{DisableExtensionFilter: appOpts.directoryDisableExtensionFilter}
 			}
 		case "directory-exclude":
 			if source.Directory != nil {
@@ -850,13 +854,9 @@ func mergeLabels(app *argoappv1.Application, labels []string) {
 
 	mergedLabels := make(map[string]string)
 
-	for name, value := range app.GetLabels() {
-		mergedLabels[name] = value
-	}
+	maps.Copy(mergedLabels, app.GetLabels())
 
-	for name, value := range mapLabels {
-		mergedLabels[name] = value
-	}
+	maps.Copy(mergedLabels, mapLabels)
 
 	app.SetLabels(mergedLabels)
 }

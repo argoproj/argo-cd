@@ -4,8 +4,15 @@ DIST_DIR=${CURRENT_DIR}/dist
 CLI_NAME=argocd
 BIN_NAME=argocd
 
+UNAME_S:=$(shell uname)
+IS_DARWIN:=$(if $(filter Darwin, $(UNAME_S)),true,false)
+
 # When using OSX/Darwin, you might need to enable CGO for local builds
-CGO_FLAG?=0
+DEFAULT_CGO_FLAG:=0
+ifeq ($(IS_DARWIN),true)
+    DEFAULT_CGO_FLAG:=1
+endif
+CGO_FLAG?=${DEFAULT_CGO_FLAG}
 
 GEN_RESOURCES_CLI_NAME=argocd-resources-gen
 
@@ -17,9 +24,9 @@ TARGET_ARCH?=linux/amd64
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE:=$(if $(BUILD_DATE),$(BUILD_DATE),$(shell date -u +'%Y-%m-%dT%H:%M:%SZ'))
 GIT_COMMIT:=$(if $(GIT_COMMIT),$(GIT_COMMIT),$(shell git rev-parse HEAD))
-GIT_TAG:=$(if $(GIT_TAG),$(GIT_TAG),$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags HEAD 2>/dev/null; fi))
+GIT_TAG:=$(if $(GIT_TAG),$(GIT_TAG),$(shell if [ -z "`git status --porcelain`" ]; then git describe --exact-match --tags --match 'v*' HEAD 2>/dev/null; fi))
 GIT_TREE_STATE:=$(if $(GIT_TREE_STATE),$(GIT_TREE_STATE),$(shell if [ -z "`git status --porcelain`" ]; then echo "clean" ; else echo "dirty"; fi))
-VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":delegated"; else echo ""; fi)
+VOLUME_MOUNT=$(shell if test "$(go env GOOS)" = "darwin"; then echo ":delegated"; elif test selinuxenabled; then echo ":Z"; else echo ""; fi)
 KUBECTL_VERSION=$(shell go list -m k8s.io/client-go | head -n 1 | rev | cut -d' ' -f1 | rev)
 
 GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go"; fi)
@@ -36,10 +43,21 @@ endif
 DOCKER_SRCDIR?=$(GOPATH)/src
 DOCKER_WORKDIR?=/go/src/github.com/argoproj/argo-cd
 
+# Allows you to control which Docker network the test-util containers attach to.
+# This is particularly useful if you are running Kubernetes in Docker (e.g., k3d)
+# and want the test containers to reach the Kubernetes API via an already-existing Docker network.
+DOCKER_NETWORK ?= default
+
+ifneq ($(DOCKER_NETWORK),default)
+DOCKER_NETWORK_ARG := --network $(DOCKER_NETWORK)
+else
+DOCKER_NETWORK_ARG :=
+endif
+
 ARGOCD_PROCFILE?=Procfile
 
-# pointing to python 3.7 to match https://github.com/argoproj/argo-cd/blob/master/.readthedocs.yml
-MKDOCS_DOCKER_IMAGE?=python:3.7-alpine
+# pointing to python 3.12 to match https://github.com/argoproj/argo-cd/blob/master/.readthedocs.yaml
+MKDOCS_DOCKER_IMAGE?=python:3.12-alpine
 MKDOCS_RUN_ARGS?=
 
 # Configuration for building argocd-test-tools image
@@ -56,16 +74,18 @@ ARGOCD_E2E_APISERVER_PORT?=8080
 ARGOCD_E2E_REPOSERVER_PORT?=8081
 ARGOCD_E2E_REDIS_PORT?=6379
 ARGOCD_E2E_DEX_PORT?=5556
-ARGOCD_E2E_YARN_HOST?=localhost
+ARGOCD_E2E_JS_HOST?=localhost
 ARGOCD_E2E_DISABLE_AUTH?=
+ARGOCD_E2E_DIR?=/tmp/argo-e2e
 
 ARGOCD_E2E_TEST_TIMEOUT?=90m
+ARGOCD_E2E_RERUN_FAILS?=5
+ARGOCD_E2E_SHARD?=
+ARGOCD_E2E_SHARD_COUNT?=
 
 ARGOCD_IN_CI?=false
 ARGOCD_TEST_E2E?=true
 ARGOCD_BIN_MODE?=true
-
-ARGOCD_LINT_GOGC?=20
 
 # Depending on where we are (legacy or non-legacy pwd), we need to use
 # different Docker volume mounts for our source tree
@@ -95,7 +115,7 @@ define run-in-test-server
 		-e GOCACHE=/tmp/go-build-cache \
 		-e ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
 		-e ARGOCD_E2E_TEST=$(ARGOCD_E2E_TEST) \
-		-e ARGOCD_E2E_YARN_HOST=$(ARGOCD_E2E_YARN_HOST) \
+		-e ARGOCD_E2E_JS_HOST=$(ARGOCD_E2E_JS_HOST) \
 		-e ARGOCD_E2E_DISABLE_AUTH=$(ARGOCD_E2E_DISABLE_AUTH) \
 		-e ARGOCD_TLS_DATA_PATH=${ARGOCD_TLS_DATA_PATH:-/tmp/argocd-local/tls} \
 		-e ARGOCD_SSH_DATA_PATH=${ARGOCD_SSH_DATA_PATH:-/tmp/argocd-local/ssh} \
@@ -106,11 +126,11 @@ define run-in-test-server
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
-		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
 		-p 5000:5000 \
+		$(DOCKER_NETWORK_ARG)\
 		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
@@ -126,13 +146,12 @@ define run-in-test-client
 		-e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) \
 		-e GITHUB_TOKEN \
 		-e GOCACHE=/tmp/go-build-cache \
-		-e ARGOCD_LINT_GOGC=$(ARGOCD_LINT_GOGC) \
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
 		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
-		-v /tmp:/tmp${VOLUME_MOUNT} \
 		-w ${DOCKER_WORKDIR} \
+		$(DOCKER_NETWORK_ARG)\
 		$(PODMAN_ARGS) \
 		$(TEST_TOOLS_PREFIX)$(TEST_TOOLS_IMAGE):$(TEST_TOOLS_TAG) \
 		bash -c "$(1)"
@@ -140,7 +159,7 @@ endef
 
 #
 define exec-in-test-server
-	$(SUDO) $(DOCKER) exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) argocd-test-server $(1)
+	$(SUDO) $(DOCKER) exec -it -u $(CONTAINER_UID):$(CONTAINER_GID) -e ARGOCD_E2E_RECORD=$(ARGOCD_E2E_RECORD) -e ARGOCD_E2E_K3S=$(ARGOCD_E2E_K3S) -e ARGOCD_E2E_SHARD=$(ARGOCD_E2E_SHARD) -e ARGOCD_E2E_SHARD_COUNT=$(ARGOCD_E2E_SHARD_COUNT) argocd-test-server $(1)
 endef
 
 PATH:=$(PATH):$(PWD)/hack
@@ -149,7 +168,11 @@ PATH:=$(PATH):$(PWD)/hack
 DOCKER_PUSH?=false
 IMAGE_NAMESPACE?=
 # perform static compilation
-STATIC_BUILD?=true
+DEFAULT_STATIC_BUILD:=true
+ifeq ($(IS_DARWIN),true)
+    DEFAULT_STATIC_BUILD:=false
+endif
+STATIC_BUILD?=${DEFAULT_STATIC_BUILD}
 # build development images
 DEV_IMAGE?=false
 ARGOCD_GPG_ENABLED?=true
@@ -176,26 +199,47 @@ endif
 
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
-LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
+override LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
 else
 IMAGE_TAG?=latest
 endif
 
+# defaults for building images and manifests
 ifeq (${DOCKER_PUSH},true)
 ifndef IMAGE_NAMESPACE
 $(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=argoproj))
 endif
 endif
 
+# Construct prefix for docker image
+# Note: keeping same logic as in hacks/update_manifests.sh
+ifdef IMAGE_REGISTRY
 ifdef IMAGE_NAMESPACE
+IMAGE_PREFIX=${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/
+else
+$(error IMAGE_NAMESPACE must be set when IMAGE_REGISTRY is set (e.g. IMAGE_NAMESPACE=argoproj))
+endif
+else
+ifdef IMAGE_NAMESPACE
+# for backwards compatibility with the old way like IMAGE_NAMESPACE='quay.io/argoproj'
 IMAGE_PREFIX=${IMAGE_NAMESPACE}/
+else
+# Neither namespace nor registry given - apply the default values
+IMAGE_REGISTRY="quay.io"
+IMAGE_NAMESPACE="argoproj"
+IMAGE_PREFIX=${IMAGE_REGISTRY}/${IMAGE_NAMESPACE}/
+endif
+endif
+
+ifndef IMAGE_REPOSITORY
+IMAGE_REPOSITORY=argocd
 endif
 
 .PHONY: all
 all: cli image
 
 .PHONY: mockgen
-mockgen:
+mockgen: codegen-go-tools-local
 	./hack/generate-mock.sh
 
 .PHONY: gogen
@@ -204,21 +248,25 @@ gogen:
 	go generate ./...
 
 .PHONY: protogen
-protogen: mod-vendor-local protogen-fast
+protogen: mod-download-local protogen-fast
 
 .PHONY: protogen-fast
-protogen-fast:
+protogen-fast: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
-openapigen:
+openapigen: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
 .PHONY: notification-catalog
-notification-catalog:
+notification-catalog: notification-catalog-test
 	go run ./hack/gen-catalog catalog
+
+.PHONY: notification-catalog-test
+notification-catalog-test:
+	go test ./hack/gen-catalog
 
 .PHONY: notification-docs
 notification-docs:
@@ -227,7 +275,7 @@ notification-docs:
 
 
 .PHONY: clientgen
-clientgen:
+clientgen: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
@@ -239,12 +287,15 @@ clidocsgen:
 actionsdocsgen:
 	hack/generate-actions-list.sh
 
+.PHONY: resourceiconsgen
+resourceiconsgen:
+	hack/generate-icons-typescript.sh
+
 .PHONY: codegen-local
-codegen-local: mod-vendor-local mockgen gogen protogen clientgen openapigen clidocsgen actionsdocsgen manifests-local notification-docs notification-catalog
-	rm -rf vendor/
+codegen-local: mod-download-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen-local-fast
-codegen-local-fast: mockgen gogen protogen-fast clientgen openapigen clidocsgen manifests-local notification-docs notification-catalog
+codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen
 codegen: test-tools-image
@@ -282,12 +333,11 @@ endif
 .PHONY: manifests-local
 manifests-local:
 	./hack/update-manifests.sh
-
 .PHONY: manifests
 manifests: test-tools-image
-	$(call run-in-test-client,make manifests-local IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_TAG='${IMAGE_TAG}')
-
+	$(call run-in-test-client,make manifests-local IMAGE_REGISTRY='${IMAGE_REGISTRY}' IMAGE_NAMESPACE='${IMAGE_NAMESPACE}' IMAGE_REPOSITORY='${IMAGE_REPOSITORY}' IMAGE_TAG='${IMAGE_TAG}')
 # consolidated binary for cli, util, server, repo-server, controller
+
 .PHONY: argocd-all
 argocd-all: clean-debug
 	CGO_ENABLED=${CGO_FLAG} GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
@@ -307,8 +357,8 @@ controller:
 .PHONY: build-ui
 build-ui:
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
-	find ./ui/dist -type f -not -name gitkeep -delete
-	$(DOCKER) run -v ${CURRENT_DIR}/ui/dist/app:/tmp/app --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
+	find ./ui/dist -type f -not -name gitkeep -not -name .gitkeep -delete
+	$(DOCKER) run $(PODMAN_ARGS) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app:Z --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
@@ -318,23 +368,23 @@ ifeq ($(DEV_IMAGE), true)
 IMAGE_TAG="dev-$(shell git describe --always --dirty)"
 image: build-ui
 	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t argocd-base --target argocd-base .
-	CGO_ENABLED=${CGO_FLAG} GOOS=linux GOARCH=amd64 GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/argocd ./cmd
+	GOOS=linux GOARCH=$(TARGET_ARCH:linux/%=%) GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -gcflags="all=-N -l" -o ${DIST_DIR}/argocd ./cmd
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-application-controller
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-repo-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-cmp-server
 	ln -sfn ${DIST_DIR}/argocd ${DIST_DIR}/argocd-dex
 	cp Dockerfile.dev dist
-	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) -f dist/Dockerfile.dev dist
+	DOCKER_BUILDKIT=1 $(DOCKER) build --platform=$(TARGET_ARCH) -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) -f dist/Dockerfile.dev dist
 else
 image:
-	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
+	DOCKER_BUILDKIT=1 $(DOCKER) build -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) --platform=$(TARGET_ARCH) .
 endif
-	@if [ "$(DOCKER_PUSH)" = "true" ] ; then $(DOCKER) push $(IMAGE_PREFIX)argocd:$(IMAGE_TAG) ; fi
+	@if [ "$(DOCKER_PUSH)" = "true" ] ; then $(DOCKER) push $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG) ; fi
 
 .PHONY: armimage
 armimage:
-	$(DOCKER) build -t $(IMAGE_PREFIX)argocd:$(IMAGE_TAG)-arm .
+	$(DOCKER) build -t $(IMAGE_PREFIX)$(IMAGE_REPOSITORY):$(IMAGE_TAG)-arm .
 
 .PHONY: builder-image
 builder-image:
@@ -346,7 +396,9 @@ mod-download: test-tools-image
 	$(call run-in-test-client,go mod download)
 
 .PHONY: mod-download-local
+# No build step uses vendor/ any more, and a stale one would silently put go commands in vendor mode.
 mod-download-local:
+	rm -rf vendor/
 	go mod download && go mod tidy # go mod download changes go.sum https://github.com/golang/go/issues/42970
 
 .PHONY: mod-vendor
@@ -364,11 +416,41 @@ lint: test-tools-image
 
 # Run linter on the code (local version)
 .PHONY: lint-local
-lint-local:
+lint-local: actionlint-local
 	golangci-lint --version
-	# NOTE: If you get a "Killed" OOM message, try reducing the value of GOGC
-	# See https://github.com/golangci/golangci-lint#memory-usage-of-golangci-lint
-	GOGC=$(ARGOCD_LINT_GOGC) GOMAXPROCS=2 golangci-lint run --fix --verbose
+	golangci-lint run --fix --verbose
+
+# Run actionlint on the GitHub Actions workflows
+.PHONY: actionlint
+actionlint: test-tools-image
+	$(call run-in-test-client,make actionlint-local)
+
+# Run actionlint on the GitHub Actions workflows (local version)
+.PHONY: actionlint-local
+actionlint-local:
+	actionlint --version
+	actionlint
+
+# Kubernetes versions whose schemas the generated install manifests are validated against: the minor version of
+# k8s.io/api in go.mod and the three before it, which matches the versions used for e2e tests in CI.
+KUBECONFORM_KUBERNETES_MINOR ?= $(shell go list -m -f '{{.Version}}' k8s.io/api | cut -d. -f2)
+KUBECONFORM_KUBERNETES_VERSIONS ?= $(foreach offset,0 1 2 3,1.$(shell echo $$(($(KUBECONFORM_KUBERNETES_MINOR) - $(offset)))).0)
+
+# Validate the generated install manifests against the Kubernetes schemas
+.PHONY: kubeconform
+kubeconform: test-tools-image
+	$(call run-in-test-client,make kubeconform-local)
+
+# Validate the generated install manifests against the Kubernetes schemas (local version).
+# CustomResourceDefinitions are skipped because kubeconform has no schema for them.
+.PHONY: kubeconform-local
+kubeconform-local:
+	kubeconform -v
+	@for version in $(KUBECONFORM_KUBERNETES_VERSIONS); do \
+		echo "Validating against Kubernetes $$version"; \
+		kubeconform -strict -summary -skip CustomResourceDefinition -kubernetes-version $$version \
+			manifests/*.yaml manifests/ha/*.yaml || exit 1; \
+	done
 
 .PHONY: lint-ui
 lint-ui: test-tools-image
@@ -376,7 +458,7 @@ lint-ui: test-tools-image
 
 .PHONY: lint-ui-local
 lint-ui-local:
-	cd ui && yarn lint
+	cd ui && pnpm lint
 
 # Build all Go code
 .PHONY: build
@@ -400,12 +482,24 @@ test: test-tools-image
 
 # Run all unit tests (local version)
 .PHONY: test-local
-test-local:
+test-local: test-gitops-engine
+# run if TEST_MODULE is empty or does not point to gitops-engine tests
+ifneq ($(if $(TEST_MODULE),,ALL)$(filter-out github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
 	if test "$(TEST_MODULE)" = ""; then \
 		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES=`go list ./... | grep -v 'test/e2e'` ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results"; \
 	else \
 		DIST_DIR=${DIST_DIR} RERUN_FAILS=0 PACKAGES="$(TEST_MODULE)" ./hack/test.sh -args -test.gocoverdir="$(PWD)/test-results" "$(TEST_MODULE)"; \
 	fi
+endif
+
+# Run gitops-engine unit tests
+.PHONY: test-gitops-engine
+test-gitops-engine:
+# run if TEST_MODULE is empty or points to gitops-engine tests
+ifneq ($(if $(TEST_MODULE),,ALL)$(filter github.com/argoproj/argo-cd/gitops-engine% ./gitops-engine%,$(TEST_MODULE)),)
+	mkdir -p $(PWD)/test-results/gitops-engine
+	cd gitops-engine && go test -race -cover ./... -args -test.gocoverdir="$(PWD)/test-results/gitops-engine"
+endif
 
 .PHONY: test-race
 test-race: test-tools-image
@@ -432,7 +526,7 @@ test-e2e:
 test-e2e-local: cli-local
 	# NO_PROXY ensures all tests don't go out through a proxy if one is configured on the test system
 	export GO111MODULE=off
-	DIST_DIR=${DIST_DIR} RERUN_FAILS=5 PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
+	ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS=$${ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS:-true}  DIST_DIR=${DIST_DIR} RERUN_FAILS=$(ARGOCD_E2E_RERUN_FAILS) ARGOCD_E2E_SHARD=$(ARGOCD_E2E_SHARD) ARGOCD_E2E_SHARD_COUNT=$(ARGOCD_E2E_SHARD_COUNT) PACKAGES="./test/e2e" ARGOCD_E2E_RECORD=${ARGOCD_E2E_RECORD} ARGOCD_CONFIG_DIR=$(HOME)/.config/argocd-e2e ARGOCD_GPG_ENABLED=true NO_PROXY=* ./hack/test.sh -timeout $(ARGOCD_E2E_TEST_TIMEOUT) -v -args -test.gocoverdir="$(PWD)/test-results"
 
 # Spawns a shell in the test server container for debugging purposes
 debug-test-server: test-tools-image
@@ -451,18 +545,24 @@ start-e2e: test-tools-image
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: mod-vendor-local dep-ui-local cli-local
+start-e2e-local: mod-download-local dep-ui-local cli-local
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
 	kubectl create ns argocd-e2e-external-2 || true
 	kubectl config set-context --current --namespace=argocd-e2e
-	kustomize build test/manifests/base | kubectl apply -f -
+	kustomize build test/manifests/base | kubectl apply --server-side --force-conflicts -f -
 	kubectl apply -f https://raw.githubusercontent.com/open-cluster-management/api/a6845f2ebcb186ec26b832f60c988537a58f3859/cluster/v1alpha1/0000_04_clusters.open-cluster-management.io_placementdecisions.crd.yaml
+	# Wait for the CRDs to be served, otherwise the API server can exit on its first AppProject write
+	kubectl wait --for=condition=Established --timeout=60s \
+		crd/applications.argoproj.io \
+		crd/applicationsets.argoproj.io \
+		crd/appprojects.argoproj.io \
+		crd/placementdecisions.cluster.open-cluster-management.io
 	# Create GPG keys and source directories
-	if test -d /tmp/argo-e2e/app/config/gpg; then rm -rf /tmp/argo-e2e/app/config/gpg/*; fi
-	mkdir -p /tmp/argo-e2e/app/config/gpg/keys && chmod 0700 /tmp/argo-e2e/app/config/gpg/keys
-	mkdir -p /tmp/argo-e2e/app/config/gpg/source && chmod 0700 /tmp/argo-e2e/app/config/gpg/source
-	mkdir -p /tmp/argo-e2e/app/config/plugin && chmod 0700 /tmp/argo-e2e/app/config/plugin
+	if test -d $(ARGOCD_E2E_DIR)/app/config/gpg; then rm -rf $(ARGOCD_E2E_DIR)/app/config/gpg/*; fi
+	mkdir -p $(ARGOCD_E2E_DIR)/app/config/gpg/keys && chmod 0700 $(ARGOCD_E2E_DIR)/app/config/gpg/keys
+	mkdir -p $(ARGOCD_E2E_DIR)/app/config/gpg/source && chmod 0700 $(ARGOCD_E2E_DIR)/app/config/gpg/source
+	mkdir -p $(ARGOCD_E2E_DIR)/app/config/plugin && chmod 0700 $(ARGOCD_E2E_DIR)/app/config/plugin
 	# create folders to hold go coverage results for each component
 	mkdir -p /tmp/coverage/app-controller
 	mkdir -p /tmp/coverage/api-server
@@ -471,13 +571,16 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	mkdir -p /tmp/coverage/notification
 	mkdir -p /tmp/coverage/commit-server
 	# set paths for locally managed ssh known hosts and tls certs data
-	ARGOCD_SSH_DATA_PATH=/tmp/argo-e2e/app/config/ssh \
-	ARGOCD_TLS_DATA_PATH=/tmp/argo-e2e/app/config/tls \
-	ARGOCD_GPG_DATA_PATH=/tmp/argo-e2e/app/config/gpg/source \
-	ARGOCD_GNUPGHOME=/tmp/argo-e2e/app/config/gpg/keys \
+	# OTLP points at the e2e test collector, but sampling is off unless a test enables it
+	ARGOCD_E2E_DIR=$(ARGOCD_E2E_DIR) \
+	ARGOCD_SSH_DATA_PATH=$(ARGOCD_E2E_DIR)/app/config/ssh \
+	ARGOCD_TLS_DATA_PATH=$(ARGOCD_E2E_DIR)/app/config/tls \
+	ARGOCD_GPG_DATA_PATH=$(ARGOCD_E2E_DIR)/app/config/gpg/source \
+	ARGOCD_GNUPGHOME=$(ARGOCD_E2E_DIR)/app/config/gpg/keys \
 	ARGOCD_GPG_ENABLED=$(ARGOCD_GPG_ENABLED) \
-	ARGOCD_PLUGINCONFIGFILEPATH=/tmp/argo-e2e/app/config/plugin \
-	ARGOCD_PLUGINSOCKFILEPATH=/tmp/argo-e2e/app/config/plugin \
+	ARGOCD_PLUGINCONFIGFILEPATH=$(ARGOCD_E2E_DIR)/app/config/plugin \
+	ARGOCD_PLUGINSOCKFILEPATH=$(ARGOCD_E2E_DIR)/app/config/plugin \
+	ARGOCD_GIT_CONFIG=$(PWD)/test/e2e/fixture/gitconfig \
 	ARGOCD_E2E_DISABLE_AUTH=false \
 	ARGOCD_ZJWT_FEATURE_FLAG=always \
 	ARGOCD_IN_CI=$(ARGOCD_IN_CI) \
@@ -489,6 +592,11 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_E2E_TEST=true \
 	ARGOCD_HYDRATOR_ENABLED=true \
 	ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL=1ms \
+	ARGOCD_OTLP_ADDRESS=127.0.0.1:4327 \
+	ARGOCD_SERVER_OTLP_SAMPLE_RATIO=0 \
+	ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO=0 \
+	ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO=0 \
+	ARGOCD_CMP_SERVER_OTLP_SAMPLE_RATIO=0 \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 	ls -lrt /tmp/coverage
 
@@ -508,7 +616,7 @@ start: test-tools-image
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local: mod-vendor-local dep-ui-local cli-local
+start-local: mod-download-local dep-ui-local cli-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true
@@ -554,7 +662,7 @@ build-docs-local:
 
 .PHONY: build-docs
 build-docs:
-	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install mkdocs; pip install $$(mkdocs get-deps); mkdocs build'
+	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -e HOME=/tmp/home $(PODMAN_ARGS) ${MKDOCS_RUN_ARGS} --rm -it -v ${CURRENT_DIR}:/docs:Z -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install --user -r docs/requirements.txt; /tmp/home/.local/bin/mkdocs build'
 
 .PHONY: serve-docs-local
 serve-docs-local:
@@ -562,7 +670,7 @@ serve-docs-local:
 
 .PHONY: serve-docs
 serve-docs:
-	$(DOCKER) run ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install mkdocs; pip install $$(mkdocs get-deps); mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
+	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) -e HOME=/tmp/home $(PODMAN_ARGS) ${MKDOCS_RUN_ARGS} --rm -it -p 8000:8000 -v ${CURRENT_DIR}:/docs:Z -w /docs --entrypoint "" ${MKDOCS_DOCKER_IMAGE} sh -c 'pip install --user -r docs/requirements.txt; /tmp/home/.local/bin/mkdocs serve -a $$(ip route get 1 | awk '\''{print $$7}'\''):8000'
 
 # Verify that kubectl can connect to your K8s cluster from Docker
 .PHONY: verify-kube-connect
@@ -587,24 +695,42 @@ install-test-tools-local:
 	./hack/install.sh kustomize
 	./hack/install.sh helm
 	./hack/install.sh gotestsum
+	./hack/install.sh oras
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
-install-codegen-tools-local:
+install-codegen-tools-local: codegen-go-tools-local
 	./hack/install.sh codegen-tools
+
+# Rebuilds the Go codegen CLIs in dist/ from go.mod and hack/tools/go.mod. Every target that runs a
+# generator depends on this, so the binaries can never be older than the versions they are pinned
+# by. It is a no-op beyond a cache lookup once they are current.
+.PHONY: codegen-go-tools-local
+codegen-go-tools-local:
+	./hack/install.sh codegen-go-tools
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local
-install-go-tools-local:
-	./hack/install.sh codegen-go-tools
+install-go-tools-local: codegen-go-tools-local
 	./hack/install.sh lint-tools
+	./hack/install.sh actionlint
+	./hack/install.sh kubeconform
 
 .PHONY: dep-ui
 dep-ui: test-tools-image
 	$(call run-in-test-client,make dep-ui-local)
 
+.PHONY: dep-ui-local
 dep-ui-local:
-	cd ui && yarn install
+	cd ui && pnpm install --frozen-lockfile
+
+.PHONY: run-pnpm
+run-pnpm: test-tools-image
+	$(call run-in-test-client,make 'PNPM_COMMAND=$(PNPM_COMMAND)' run-pnpm-local)
+
+.PHONY: run-pnpm-local
+run-pnpm-local:
+	cd ui && pnpm $(PNPM_COMMAND)
 
 start-test-k8s:
 	go run ./hack/k8s

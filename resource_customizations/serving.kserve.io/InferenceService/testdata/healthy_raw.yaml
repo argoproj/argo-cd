@@ -17,3 +17,7 @@ status:
   - lastTransitionTime: '2024-05-16T18:48:56Z'
     status: 'True'
     type: Ready
+  - lastTransitionTime: '2024-05-16T18:48:56Z'
+    severity: Info
+    status: 'False'
+    type: Stopped

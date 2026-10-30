@@ -51,8 +51,8 @@ func (c *Cache) GetItem(key string, item any) error {
 	return c.Cache.GetItem(key, item)
 }
 
-func (c *Cache) SetItem(key string, item any, expiration time.Duration, delete bool) error {
-	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: delete})
+func (c *Cache) SetItem(key string, item any, expiration time.Duration, deletion bool) error {
+	return c.Cache.SetItem(key, item, &cacheutil.CacheActionOpts{Expiration: expiration, Delete: deletion})
 }
 
 func appManagedResourcesKey(appName string) string {
@@ -88,7 +88,8 @@ func (c *Cache) GetAppResourcesTree(appName string, res *appv1.ApplicationTree) 
 	if res.ShardsCount > 1 {
 		for i := int64(1); i < res.ShardsCount; i++ {
 			var shard appv1.ApplicationTree
-			if err = c.GetItem(appResourcesTreeKey(appName, i), &shard); err != nil {
+			err = c.GetItem(appResourcesTreeKey(appName, i), &shard)
+			if err != nil {
 				return err
 			}
 			res.Merge(&shard)
@@ -118,6 +119,21 @@ func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.Applica
 	}
 
 	return c.Cache.NotifyUpdated(appManagedResourcesKey(appName))
+}
+
+// InvalidateAppLocalState drops this controller's in-memory copies of the app's managed resources
+// and resource tree, so the next write always reaches the external cache. Call it when another
+// controller may have written these keys since this one last did, e.g. when the app's destination
+// moves to a cluster managed by this controller.
+func (c *Cache) InvalidateAppLocalState(appName string) {
+	c.Cache.InvalidateLocalItem(appManagedResourcesKey(appName))
+	var tree appv1.ApplicationTree
+	if err := c.Cache.GetLocalItem(appResourcesTreeKey(appName, 0), &tree); err == nil {
+		for i := int64(1); i < tree.ShardsCount; i++ {
+			c.Cache.InvalidateLocalItem(appResourcesTreeKey(appName, i))
+		}
+	}
+	c.Cache.InvalidateLocalItem(appResourcesTreeKey(appName, 0))
 }
 
 func (c *Cache) SetClusterInfo(server string, info *appv1.ClusterInfo) error {

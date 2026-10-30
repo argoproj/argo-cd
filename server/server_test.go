@@ -2,10 +2,11 @@ package server
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/netip"
 	"net/url"
 	"os"
 	"path/filepath"
@@ -15,11 +16,19 @@ import (
 	"testing"
 	"time"
 
+	jose "github.com/go-jose/go-jose/v4"
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/oauth2"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/kubernetes/fake"
@@ -30,6 +39,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
@@ -84,7 +94,6 @@ func fakeServer(t *testing.T) (*FakeArgoCDServer, func()) {
 			),
 			1*time.Minute,
 			1*time.Minute,
-			1*time.Minute,
 		),
 		RedisClient:             redis,
 		RepoClientset:           mockRepoClient,
@@ -116,7 +125,7 @@ func TestEnforceProjectToken(t *testing.T) {
 	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}, {ID: defaultId}}}
 
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: projectName, Namespace: test.FakeArgoCDNamespace},
+		Name: projectName, Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{role},
 		},
@@ -264,8 +273,8 @@ func TestInitializingExistingDefaultProject(t *testing.T) {
 	secret := test.NewFakeSecret()
 	kubeclientset := fake.NewClientset(cm, secret)
 	defaultProj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: v1alpha1.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace},
-		Spec:       v1alpha1.AppProjectSpec{},
+		Name: v1alpha1.DefaultAppProjectName, Namespace: test.FakeArgoCDNamespace,
+		Spec: v1alpha1.AppProjectSpec{},
 	}
 	appClientSet := apps.NewSimpleClientset(defaultProj)
 
@@ -325,10 +334,8 @@ func TestEnforceProjectGroups(t *testing.T) {
 	defaultPolicy := fmt.Sprintf(policyTemplate, defaultSub, projectName, defaultObject, defaultEffect)
 
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      projectName,
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      projectName,
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{
 				{
@@ -383,10 +390,8 @@ func TestRevokedToken(t *testing.T) {
 	jwtTokenByRole[roleName] = v1alpha1.JWTTokens{Items: []v1alpha1.JWTToken{{IssuedAt: defaultIssuedAt}}}
 
 	existingProj := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      projectName,
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      projectName,
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			Roles: []v1alpha1.ProjectRole{
 				{
@@ -446,6 +451,8 @@ func TestGracefulShutdown(t *testing.T) {
 	defer appInformerCancel()
 	appsetInformerCancel := test.StartInformer(s.appsetInformer)
 	defer appsetInformerCancel()
+	clusterInformerCancel := test.StartInformer(s.clusterInformer)
+	defer clusterInformerCancel()
 
 	lns, err := s.Listen()
 	require.NoError(t, err)
@@ -484,6 +491,100 @@ func TestGracefulShutdown(t *testing.T) {
 	assert.True(t, s.terminateRequested.Load())
 	assert.False(t, s.available.Load())
 	assert.True(t, shutdown)
+}
+
+func TestOIDCRefresh(t *testing.T) {
+	port, err := test.GetFreePort()
+	require.NoError(t, err)
+	mockRepoClient := &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}}
+	cm := test.NewFakeConfigMap()
+	cm.Data["oidc.config"] = `
+name: Test OIDC
+issuer: $oidc.myoidc.issuer
+clientID: $oidc.myoidc.clientId
+clientSecret: $oidc.myoidc.clientSecret
+`
+	secret := test.NewFakeSecret()
+	issuerURL := "http://oidc.127.0.0.1.nip.io"
+	updatedIssuerURL := "http://newoidc.127.0.0.1.nip.io"
+	secret.Data["oidc.myoidc.issuer"] = []byte(issuerURL)
+	secret.Data["oidc.myoidc.clientId"] = []byte("myClientId")
+	secret.Data["oidc.myoidc.clientSecret"] = []byte("myClientSecret")
+
+	kubeclientset := fake.NewSimpleClientset(cm, secret)
+	redis, redisCloser := test.NewInMemoryRedis()
+	defer redisCloser()
+	s := NewServer(
+		t.Context(),
+		ArgoCDServerOpts{
+			ListenPort:    port,
+			Namespace:     test.FakeArgoCDNamespace,
+			KubeClientset: kubeclientset,
+			AppClientset:  apps.NewSimpleClientset(),
+			RepoClientset: mockRepoClient,
+			RedisClient:   redis,
+		},
+		ApplicationSetOpts{},
+	)
+	projInformerCancel := test.StartInformer(s.projInformer)
+	defer projInformerCancel()
+	appInformerCancel := test.StartInformer(s.appInformer)
+	defer appInformerCancel()
+	appsetInformerCancel := test.StartInformer(s.appsetInformer)
+	defer appsetInformerCancel()
+	clusterInformerCancel := test.StartInformer(s.clusterInformer)
+	defer clusterInformerCancel()
+
+	shutdown := false
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	runCtx := t.Context()
+
+	var wg gosync.WaitGroup
+	wg.Add(1)
+	go func(shutdown *bool) {
+		defer wg.Done()
+		s.Run(runCtx, lns)
+		*shutdown = true
+	}(&shutdown)
+
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	assert.True(t, s.available.Load())
+	assert.Equal(t, issuerURL, s.ssoClientApp.IssuerURL())
+
+	// Update oidc config
+	secret.Data["oidc.myoidc.issuer"] = []byte(updatedIssuerURL)
+	secret.ResourceVersion = "12345"
+	_, err = kubeclientset.CoreV1().Secrets(test.FakeArgoCDNamespace).Update(runCtx, secret, metav1.UpdateOptions{})
+	require.NoError(t, err)
+
+	// Wait for graceful shutdown
+	wg.Wait()
+	for s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	assert.False(t, s.available.Load())
+
+	shutdown = false
+	wg.Add(1)
+	go func(shutdown *bool) {
+		defer wg.Done()
+		s.Run(runCtx, lns)
+		*shutdown = true
+	}(&shutdown)
+
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+	assert.True(t, s.available.Load())
+	assert.Equal(t, updatedIssuerURL, s.ssoClientApp.IssuerURL())
+
+	s.stopCh <- syscall.SIGINT
+	wg.Wait()
 }
 
 func TestAuthenticate(t *testing.T) {
@@ -550,7 +651,7 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/api/dex/.well-known/openid-configuration":
-			_, err := io.WriteString(w, fmt.Sprintf(`
+			_, err := fmt.Fprintf(w, `
 {
   "issuer": "%[1]s/api/dex",
   "authorization_endpoint": "%[1]s/api/dex/auth",
@@ -600,10 +701,24 @@ func dexMockHandler(t *testing.T, url string) func(http.ResponseWriter, *http.Re
     "preferred_username",
     "at_hash"
   ]
-}`, url))
+}`, url)
 			if err != nil {
 				t.Fail()
 			}
+		case "/api/dex/keys":
+			pubKey, err := jwt.ParseRSAPublicKeyFromPEM(testutil.Cert)
+			require.NoError(t, err)
+			jwks := jose.JSONWebKeySet{
+				Keys: []jose.JSONWebKey{
+					{
+						Key: pubKey,
+					},
+				},
+			}
+			out, err := json.Marshal(jwks)
+			require.NoError(t, err)
+			_, err = w.Write(out)
+			require.NoError(t, err)
 		default:
 			w.WriteHeader(http.StatusNotFound)
 		}
@@ -624,7 +739,7 @@ func getTestServer(t *testing.T, anonymousEnabled bool, withFakeSSO bool, useDex
 	})
 	oidcServer := ts
 	if !useDexForSSO {
-		oidcServer = testutil.GetOIDCTestServer(t)
+		oidcServer = testutil.GetOIDCTestServer(t, nil)
 	}
 	if withFakeSSO {
 		cm.Data["url"] = ts.URL
@@ -673,6 +788,8 @@ connectors:
 }
 
 func TestGetClaims(t *testing.T) {
+	t.Parallel()
+
 	defaultExpiry := jwt.NewNumericDate(time.Now().Add(time.Hour * 24))
 	defaultExpiryUnix := float64(defaultExpiry.Unix())
 
@@ -724,6 +841,22 @@ func TestGetClaims(t *testing.T) {
 				UserInfoCacheExpiration: "5m",
 			},
 		},
+		{
+			test: "GetClaimsWithGroupsString",
+			claims: jwt.MapClaims{
+				"aud":    common.ArgoCDClientAppID,
+				"exp":    defaultExpiry,
+				"sub":    "randomUser",
+				"groups": "group1",
+			},
+			expectedErrorContains: "",
+			expectedClaims: jwt.MapClaims{
+				"aud":    common.ArgoCDClientAppID,
+				"exp":    defaultExpiryUnix,
+				"sub":    "randomUser",
+				"groups": "group1",
+			},
+		},
 	}
 
 	for _, testData := range tests {
@@ -768,7 +901,65 @@ func TestGetClaims(t *testing.T) {
 	}
 }
 
+func TestGetClaims_RefreshOnExpiredOIDCToken(t *testing.T) {
+	t.Parallel()
+
+	oidcServer := testutil.GetOIDCTestServer(t, nil)
+	t.Cleanup(oidcServer.Close)
+
+	cm := test.NewFakeConfigMap()
+	cm.Data["url"] = "https://argocd.example.com"
+	cm.Data["oidc.tls.insecure.skip.verify"] = "true"
+	cm.Data["oidc.config"] = fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: $oidc.clientSecret`, oidcServer.URL)
+	secret := test.NewFakeSecret()
+	secret.Data["oidc.clientSecret"] = []byte("test-client-secret")
+
+	argocd := NewServer(t.Context(), ArgoCDServerOpts{
+		Namespace:     test.FakeArgoCDNamespace,
+		KubeClientset: fake.NewSimpleClientset(cm, secret),
+		AppClientset:  apps.NewSimpleClientset(),
+		RepoClientset: &mocks.Clientset{RepoServerServiceClient: &mocks.RepoServerServiceClient{}},
+	}, ApplicationSetOpts{})
+	var err error
+	argocd.ssoClientApp, err = oidc.NewClientApp(argocd.settings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	sub, sid := "randomUser", "1111"
+	cacheJSON, err := json.Marshal(&oidc.OidcTokenCache{Token: &oauth2.Token{RefreshToken: "not empty"}})
+	require.NoError(t, err)
+	require.NoError(t, argocd.ssoClientApp.SetValueInEncryptedCache(t.Context(),
+		fmt.Sprintf("%s_%s_%s", oidc.OidcTokenCachePrefix, sub, sid), cacheJSON, time.Minute))
+
+	expired := jwt.NewWithClaims(jwt.SigningMethodRS512, jwt.MapClaims{
+		"iss": oidcServer.URL,
+		"aud": "test-client-id",
+		"sub": sub,
+		"sid": sid,
+		"exp": jwt.NewNumericDate(time.Now().Add(-time.Minute)),
+	})
+	key, err := jwt.ParseRSAPrivateKeyFromPEM(testutil.PrivateKey)
+	require.NoError(t, err)
+	tokenString, err := expired.SignedString(key)
+	require.NoError(t, err)
+
+	ctx := metadata.NewIncomingContext(t.Context(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
+	gotClaims, newToken, err := argocd.getClaims(ctx)
+	require.NoError(t, err)
+	assert.NotEmpty(t, newToken)
+	assert.NotEqual(t, tokenString, newToken, "newToken should differ from the original expired token")
+
+	mapClaims, ok := gotClaims.(jwt.MapClaims)
+	require.True(t, ok)
+	assert.Equal(t, "1234567890", mapClaims["sub"], "claims should come from the refreshed token (mock returns sub=1234567890), proving reactive refresh ran")
+}
+
 func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
+	t.Parallel()
+
 	// Marshaling single strings to strings is typical, so we test for this relatively common behavior.
 	jwt.MarshalSingleStringAsArray = false
 
@@ -800,15 +991,15 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			test:                  "anonymous disabled, unexpired token, admin claim",
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
-			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        nil,
+			expectedErrorContains: "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "anonymous enabled, unexpired token, admin claim",
 			anonymousEnabled:      true,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			expectedErrorContains: "",
-			expectedClaims:        "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "anonymous disabled, expired token, admin claim",
@@ -831,7 +1022,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			expectedErrorContains: common.TokenVerificationError,
 			expectedClaims:        nil,
 		},
-		// External OIDC (not bundled Dex)
+		// External OIDC
 		{
 			test:                  "external OIDC: anonymous disabled, no audience",
 			anonymousEnabled:      false,
@@ -853,8 +1044,8 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			anonymousEnabled:      false,
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			useDex:                true,
-			expectedErrorContains: common.TokenVerificationError,
-			expectedClaims:        nil,
+			expectedErrorContains: "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "external OIDC: anonymous enabled, unexpired token, admin claim",
@@ -862,7 +1053,7 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims:                jwt.RegisteredClaims{Audience: jwt.ClaimStrings{common.ArgoCDClientAppID}, Subject: "admin", ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * 24))},
 			useDex:                true,
 			expectedErrorContains: "",
-			expectedClaims:        "",
+			expectedClaims:        jwt.MapClaims{"sub": "admin"},
 		},
 		{
 			test:                  "external OIDC: anonymous disabled, expired token, admin claim",
@@ -906,8 +1097,19 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			} else {
 				testDataCopy.claims.Issuer = oidcURL
 			}
-			token := jwt.NewWithClaims(jwt.SigningMethodHS256, testDataCopy.claims)
-			tokenString, err := token.SignedString([]byte("key"))
+
+			// go-oidc explicitly requires the use of an asymmetric signature algorithm.
+			// We use the respective signature algorithm based on the mock provider implementation.
+			var signingMethod jwt.SigningMethod
+			if testDataCopy.useDex {
+				signingMethod = jwt.SigningMethodRS256
+			} else {
+				signingMethod = jwt.SigningMethodRS512
+			}
+			key, err := jwt.ParseRSAPrivateKeyFromPEM(testutil.PrivateKey)
+			require.NoError(t, err)
+			token := jwt.NewWithClaims(signingMethod, testDataCopy.claims)
+			tokenString, err := token.SignedString(key)
 			require.NoError(t, err)
 			ctx = metadata.NewIncomingContext(t.Context(), metadata.Pairs(apiclient.MetaDataTokenKey, tokenString))
 
@@ -915,6 +1117,12 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 			claims := ctx.Value("claims")
 			if testDataCopy.expectedClaims == nil {
 				assert.Nil(t, claims)
+			} else if expectedMap, ok := testDataCopy.expectedClaims.(jwt.MapClaims); ok {
+				actualMap, ok := claims.(jwt.MapClaims)
+				assert.True(t, ok, "expected claims to be jwt.MapClaims, got %T", claims)
+				for k, v := range expectedMap {
+					assert.Equal(t, v, actualMap[k], "claim %q mismatch", k)
+				}
 			} else {
 				assert.Equal(t, testDataCopy.expectedClaims, claims)
 			}
@@ -928,6 +1136,8 @@ func TestAuthenticate_3rd_party_JWTs(t *testing.T) {
 }
 
 func TestAuthenticate_no_request_metadata(t *testing.T) {
+	t.Parallel()
+
 	type testData struct {
 		test                  string
 		anonymousEnabled      bool
@@ -971,6 +1181,8 @@ func TestAuthenticate_no_request_metadata(t *testing.T) {
 }
 
 func TestAuthenticate_no_SSO(t *testing.T) {
+	t.Parallel()
+
 	type testData struct {
 		test                 string
 		anonymousEnabled     bool
@@ -1020,6 +1232,8 @@ func TestAuthenticate_no_SSO(t *testing.T) {
 }
 
 func TestAuthenticate_bad_request_metadata(t *testing.T) {
+	t.Parallel()
+
 	type testData struct {
 		test                 string
 		anonymousEnabled     bool
@@ -1200,16 +1414,14 @@ func TestInitializeDefaultProject_ProjectDoesNotExist(t *testing.T) {
 	assert.Equal(t, v1alpha1.AppProjectSpec{
 		SourceRepos:              []string{"*"},
 		Destinations:             []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
-		ClusterResourceWhitelist: []metav1.GroupKind{{Group: "*", Kind: "*"}},
+		ClusterResourceWhitelist: []v1alpha1.ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
 	}, proj.Spec)
 }
 
 func TestInitializeDefaultProject_ProjectAlreadyInitialized(t *testing.T) {
 	existingDefaultProject := v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      v1alpha1.DefaultAppProjectName,
-			Namespace: test.FakeArgoCDNamespace,
-		},
+		Name:      v1alpha1.DefaultAppProjectName,
+		Namespace: test.FakeArgoCDNamespace,
 		Spec: v1alpha1.AppProjectSpec{
 			SourceRepos:  []string{"some repo"},
 			Destinations: []v1alpha1.ApplicationDestination{{Server: "some cluster", Namespace: "*"}},
@@ -1366,6 +1578,8 @@ func TestOIDCConfigChangeDetection_NoChange(t *testing.T) {
 }
 
 func TestIsMainJsBundle(t *testing.T) {
+	t.Parallel()
+
 	testCases := []struct {
 		name           string
 		url            string
@@ -1459,7 +1673,7 @@ func TestCacheControlHeaders(t *testing.T) {
 			handler := argocd.newStaticAssetsHandler()
 
 			rr := httptest.NewRecorder()
-			req := httptest.NewRequest("", "/"+testCase.filename, nil)
+			req := httptest.NewRequestWithContext(t.Context(), "", "/"+testCase.filename, http.NoBody)
 
 			fp := filepath.Join(argocd.TmpAssetsDir, testCase.filename)
 
@@ -1600,7 +1814,37 @@ func TestReplaceBaseHRef(t *testing.T) {
 	}
 }
 
+func TestRegisterSwaggerUI(t *testing.T) {
+	t.Run("registers /swagger-ui when not disabled", func(t *testing.T) {
+		mux := http.NewServeMux()
+		registerSwaggerUI(mux, "", false)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/swagger-ui", http.NoBody)
+		_, pattern := mux.Handler(req)
+		assert.Equal(t, "/swagger-ui", pattern, "expected /swagger-ui to be registered on the mux when swagger UI is not disabled")
+
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		assert.NotEqual(t, http.StatusNotFound, w.Result().StatusCode, "expected the swagger UI handler to actually serve the request")
+	})
+
+	t.Run("skips registering /swagger-ui when disabled", func(t *testing.T) {
+		mux := http.NewServeMux()
+		registerSwaggerUI(mux, "", true)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/swagger-ui", http.NoBody)
+		_, pattern := mux.Handler(req)
+		assert.Empty(t, pattern, "expected /swagger-ui to not be registered on the mux when swagger UI is disabled")
+
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		assert.Equal(t, http.StatusNotFound, w.Result().StatusCode, "expected requests to /swagger-ui to 404 when swagger UI is disabled")
+	})
+}
+
 func Test_enforceContentTypes(t *testing.T) {
+	t.Parallel()
+
 	getBaseHandler := func(t *testing.T, allow bool) http.Handler {
 		t.Helper()
 		return http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
@@ -1609,11 +1853,11 @@ func Test_enforceContentTypes(t *testing.T) {
 		})
 	}
 
-	t.Parallel()
-
 	t.Run("GET - not providing a content type, should still succeed", func(t *testing.T) {
+		t.Parallel()
+
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodGet, "/", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
@@ -1621,27 +1865,62 @@ func Test_enforceContentTypes(t *testing.T) {
 	})
 
 	t.Run("POST", func(t *testing.T) {
+		t.Parallel()
+
 		handler := enforceContentTypes(getBaseHandler(t, true), []string{"application/json"}).(http.HandlerFunc)
-		req := httptest.NewRequest(http.MethodPost, "/", nil)
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 		w := httptest.NewRecorder()
 		handler(w, req)
 		resp := w.Result()
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "didn't provide a content type, should have gotten an error")
 
-		req = httptest.NewRequest(http.MethodPost, "/", nil)
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 		req.Header = map[string][]string{"Content-Type": {"application/json"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
 		assert.Equal(t, http.StatusOK, resp.StatusCode, "should have passed, since an allowed content type was provided")
 
-		req = httptest.NewRequest(http.MethodPost, "/", nil)
+		req = httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/", http.NoBody)
 		req.Header = map[string][]string{"Content-Type": {"not-allowed"}}
 		w = httptest.NewRecorder()
 		handler(w, req)
 		resp = w.Result()
 		assert.Equal(t, http.StatusUnsupportedMediaType, resp.StatusCode, "should not have passed, since a disallowed content type was provided")
 	})
+}
+
+func TestServeExtensions_IsolatesEachFile(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Write two extension files
+	err := os.WriteFile(filepath.Join(tmpDir, "extension-a.js"), []byte(`console.log("ext-a");`), 0o644)
+	require.NoError(t, err)
+	err = os.WriteFile(filepath.Join(tmpDir, "extension-b.js"), []byte(`console.log("ext-b");`), 0o644)
+	require.NoError(t, err)
+
+	argocd, closer := fakeServer(t)
+	defer closer()
+
+	w := httptest.NewRecorder()
+	argocd.serveExtensions(tmpDir, w)
+	body := w.Body.String()
+
+	// Each file must be wrapped in its own try/catch so a failure in one
+	// does not prevent subsequent extensions from loading.
+	assert.Contains(t, body, "try {")
+	assert.Contains(t, body, "} catch(e) {")
+	assert.Contains(t, body, `console.log("ext-a");`)
+	assert.Contains(t, body, `console.log("ext-b");`)
+
+	// Verify the try/catch for ext-a appears before ext-b's content
+	idxTry := strings.Index(body, "try {")
+	idxExtB := strings.Index(body, `console.log("ext-b");`)
+	assert.Less(t, idxTry, idxExtB, "try block should wrap ext-a before ext-b content appears")
+
+	// There should be two separate try/catch blocks (one per file)
+	assert.Equal(t, 2, strings.Count(body, "try {"), "each extension file should have its own try block")
+	assert.Equal(t, 2, strings.Count(body, "} catch(e) {"), "each extension file should have its own catch block")
 }
 
 func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
@@ -1664,7 +1943,7 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	require.NoError(t, err)
 
 	// Make a request to get the file from the /assets endpoint
-	req := httptest.NewRequest(http.MethodGet, "/link.txt", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/link.txt", http.NoBody)
 	w := httptest.NewRecorder()
 	argocd.newStaticAssetsHandler()(w, req)
 	resp := w.Result()
@@ -1674,9 +1953,152 @@ func Test_StaticAssetsDir_no_symlink_traversal(t *testing.T) {
 	normalFilePath := filepath.Join(argocd.StaticAssetsDir, "normal.txt")
 	err = os.WriteFile(normalFilePath, []byte("normal"), 0o644)
 	require.NoError(t, err)
-	req = httptest.NewRequest(http.MethodGet, "/normal.txt", nil)
+	req = httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/normal.txt", http.NoBody)
 	w = httptest.NewRecorder()
 	argocd.newStaticAssetsHandler()(w, req)
 	resp = w.Result()
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "should have been able to access the normal file")
+}
+
+// Covers what the util/grpc unit tests cannot: that grpc-gateway puts this server's own metadata after
+// the caller's Grpc-Metadata-* headers, and that the HTTP-layer resolution reaches the call logs.
+func TestSourceIPLoggingThroughGateway(t *testing.T) {
+	s, closer := fakeServer(t)
+	defer closer()
+	logger, hook := logtest.NewNullLogger()
+	s.log = log.NewEntry(logger)
+	s.EnableSourceIPLogging = true
+	s.TrustedProxies = []netip.Prefix{netip.MustParsePrefix("127.0.0.1/32")}
+	s.ClientIPHeader = "X-Real-IP"
+	defer test.StartInformer(s.projInformer)()
+	defer test.StartInformer(s.appInformer)()
+	defer test.StartInformer(s.appsetInformer)()
+	defer test.StartInformer(s.clusterInformer)()
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	var wg gosync.WaitGroup
+	wg.Go(func() { s.Run(t.Context(), lns) })
+	defer func() {
+		s.stopCh <- syscall.SIGINT
+		wg.Wait()
+	}()
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	// loggedCall sends a request through the gateway and returns the fields of the call it logged.
+	loggedCall := func(t *testing.T, header http.Header) log.Fields {
+		t.Helper()
+		hook.Reset()
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d/api/version", s.ListenPort), http.NoBody)
+		require.NoError(t, err)
+		req.Header = header
+		resp, err := http.DefaultClient.Do(req)
+		require.NoError(t, err)
+		require.NoError(t, resp.Body.Close())
+		require.Equal(t, http.StatusOK, resp.StatusCode)
+
+		var fields log.Fields
+		require.Eventually(t, func() bool {
+			for _, e := range hook.AllEntries() {
+				if e.Message == "finished call" && e.Data["grpc.method"] == "Version" {
+					fields = e.Data
+					return true
+				}
+			}
+			return false
+		}, 5*time.Second, 10*time.Millisecond)
+		return fields
+	}
+
+	t.Run("caller-supplied gateway metadata is ignored", func(t *testing.T) {
+		fields := loggedCall(t, http.Header{
+			"Grpc-Metadata-X-Argocd-Gateway":   {"not-the-token"},
+			"Grpc-Metadata-X-Argocd-Client-Ip": {"9.9.9.9"},
+			"X-Real-Ip":                        {"203.0.113.9"},
+		})
+		assert.Equal(t, "203.0.113.9", fields["source.ip"])
+	})
+
+	t.Run("rightmost untrusted forwarded entry", func(t *testing.T) {
+		fields := loggedCall(t, http.Header{"X-Forwarded-For": {"9.9.9.9, 198.51.100.7"}})
+		assert.Equal(t, "198.51.100.7", fields["source.ip"])
+		assert.Equal(t, "9.9.9.9, 198.51.100.7", fields["forwarded.for"], "the address the gateway appends is dropped")
+	})
+}
+
+func TestGRPCHealthCheckWithoutAuth(t *testing.T) {
+	s, closer := fakeServer(t)
+	defer closer()
+	s.DisableAuth = false
+	defer test.StartInformer(s.projInformer)()
+	defer test.StartInformer(s.appInformer)()
+	defer test.StartInformer(s.appsetInformer)()
+	defer test.StartInformer(s.clusterInformer)()
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	var wg gosync.WaitGroup
+	wg.Go(func() { s.Run(t.Context(), lns) })
+	defer func() {
+		s.stopCh <- syscall.SIGINT
+		wg.Wait()
+	}()
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	conn, err := grpc.NewClient(fmt.Sprintf("127.0.0.1:%d", s.ListenPort), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer conn.Close()
+
+	_, err = applicationpkg.NewApplicationServiceClient(conn).List(t.Context(), &applicationpkg.ApplicationQuery{})
+	require.Equal(t, codes.Unauthenticated, status.Code(err), "other services should still require auth")
+
+	healthClient := grpc_health_v1.NewHealthClient(conn)
+	resp, err := healthClient.Check(t.Context(), &grpc_health_v1.HealthCheckRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, resp.GetStatus())
+
+	stream, err := healthClient.Watch(t.Context(), &grpc_health_v1.HealthCheckRequest{})
+	require.NoError(t, err)
+	resp, err = stream.Recv()
+	require.NoError(t, err)
+	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, resp.GetStatus())
+}
+
+func TestAPIResponsesAreNotCacheable(t *testing.T) {
+	s, closer := fakeServer(t)
+	defer closer()
+	defer test.StartInformer(s.projInformer)()
+	defer test.StartInformer(s.appInformer)()
+	defer test.StartInformer(s.appsetInformer)()
+	defer test.StartInformer(s.clusterInformer)()
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	var wg gosync.WaitGroup
+	wg.Go(func() { s.Run(t.Context(), lns) })
+	defer func() {
+		s.stopCh <- syscall.SIGINT
+		wg.Wait()
+	}()
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	for _, path := range []string{"/api/version", "/api/v1/applications", "/api/v1/applications/does-not-exist"} {
+		t.Run(path, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, fmt.Sprintf("http://127.0.0.1:%d%s", s.ListenPort, path), http.NoBody)
+			require.NoError(t, err)
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			require.NoError(t, resp.Body.Close())
+
+			for k, v := range noCacheHeaders {
+				assert.Equal(t, v, resp.Header.Get(k), "unexpected %s header", k)
+			}
+		})
+	}
 }

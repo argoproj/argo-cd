@@ -1,21 +1,25 @@
-import * as renderer from 'react-test-renderer';
 import * as React from 'react';
+import {renderToStaticMarkup} from 'react-dom/server.node';
 import {ProgressPopup} from './progress-popup';
 
+function renderPopup(percentage: number, title: string) {
+    return renderToStaticMarkup(<ProgressPopup onClose={() => {}} percentage={percentage} title={title} />);
+}
+
 test('ProgressPopup.0%', () => {
-    const state = renderer.create(<ProgressPopup onClose={() => {}} percentage={0} title={''} />);
+    const state = renderPopup(0, '');
 
     expect(state).toMatchSnapshot();
 });
 
 test('ProgressPopup.50%', () => {
-    const state = renderer.create(<ProgressPopup onClose={() => {}} percentage={50} title={'My Title'} />);
+    const state = renderPopup(50, 'My Title');
 
     expect(state).toMatchSnapshot();
 });
 
 test('ProgressPopup.100%', () => {
-    const state = renderer.create(<ProgressPopup onClose={() => {}} percentage={100} title={''} />);
+    const state = renderPopup(100, '');
 
     expect(state).toMatchSnapshot();
 });

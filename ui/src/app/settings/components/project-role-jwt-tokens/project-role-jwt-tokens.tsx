@@ -1,6 +1,6 @@
 import {FormField, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {Form, FormApi, Text} from 'react-form';
+import {Form, FormApi, Text} from 'argo-ui';
 
 import {Consumer, ContextApis} from '../../../shared/context';
 import {JwtToken} from '../../../shared/models';
@@ -164,38 +164,36 @@ async function deleteJWTTokens(props: ProjectRoleJWTTokensProps, ctx: any, token
     }
 }
 
-function renderJWTRow(props: ProjectRoleJWTTokensProps, ctx: ContextApis, jwToken: JwtToken): React.ReactFragment {
+function renderJWTRow(props: ProjectRoleJWTTokensProps, ctx: ContextApis, jwToken: JwtToken) {
     const issuedAt = new Date(jwToken.iat * 1000).toISOString();
     const expiresAt = jwToken.exp == null ? 'Never' : new Date(jwToken.exp * 1000).toISOString();
     const isExpired = jwToken.exp && jwToken.exp < Date.now() / 1000;
 
     return (
-        <React.Fragment>
-            <div className='argo-table-list__row' key={`${jwToken.iat}`}>
-                <div className='row'>
-                    <div className='columns small-3 project-role-jwt-tokens__id'>
-                        <Tooltip content={jwToken.id}>
-                            <span className='project-role-jwt-tokens__id-tooltip'>{jwToken.id}</span>
-                        </Tooltip>
-                        {isExpired && (
-                            <span title='Expired' className='project-role-jwt-tokens__expired-token'>
-                                Expired
-                            </span>
-                        )}
-                    </div>
-                    <Tooltip content={issuedAt}>
-                        <div className='columns small-4'>{issuedAt}</div>
+        <div className='argo-table-list__row' key={`${jwToken.iat}`}>
+            <div className='row'>
+                <div className='columns small-3 project-role-jwt-tokens__id'>
+                    <Tooltip content={jwToken.id}>
+                        <span className='project-role-jwt-tokens__id-tooltip'>{jwToken.id}</span>
                     </Tooltip>
-                    <Tooltip content={expiresAt}>
-                        <div className='columns small-4'>{expiresAt}</div>
-                    </Tooltip>
-                    <Tooltip content='Delete Token'>
-                        <div className='columns small-1'>
-                            <i className='fa fa-times' onClick={() => deleteJWTToken(props, jwToken.iat, ctx, jwToken.id)} style={{cursor: 'pointer'}} />
-                        </div>
-                    </Tooltip>
+                    {isExpired && (
+                        <span title='Expired' className='project-role-jwt-tokens__expired-token'>
+                            Expired
+                        </span>
+                    )}
                 </div>
+                <Tooltip content={issuedAt}>
+                    <div className='columns small-4'>{issuedAt}</div>
+                </Tooltip>
+                <Tooltip content={expiresAt}>
+                    <div className='columns small-4'>{expiresAt}</div>
+                </Tooltip>
+                <Tooltip content='Delete Token'>
+                    <div className='columns small-1'>
+                        <i className='fa fa-times' onClick={() => deleteJWTToken(props, jwToken.iat, ctx, jwToken.id)} style={{cursor: 'pointer'}} />
+                    </div>
+                </Tooltip>
             </div>
-        </React.Fragment>
+        </div>
     );
 }

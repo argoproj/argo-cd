@@ -16,10 +16,19 @@ func NewRepoClientFactory(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *RepoClientFactory {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &RepoClientFactory{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -71,15 +80,26 @@ type RepoClientFactory_NewClient_Call struct {
 }
 
 // NewClient is a helper method to define mock.On call
-//   - repo
-//   - rootPath
-func (_e *RepoClientFactory_Expecter) NewClient(repo interface{}, rootPath interface{}) *RepoClientFactory_NewClient_Call {
+//   - repo *v1alpha1.Repository
+//   - rootPath string
+func (_e *RepoClientFactory_Expecter) NewClient(repo any, rootPath any) *RepoClientFactory_NewClient_Call {
 	return &RepoClientFactory_NewClient_Call{Call: _e.mock.On("NewClient", repo, rootPath)}
 }
 
 func (_c *RepoClientFactory_NewClient_Call) Run(run func(repo *v1alpha1.Repository, rootPath string)) *RepoClientFactory_NewClient_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*v1alpha1.Repository), args[1].(string))
+		var arg0 *v1alpha1.Repository
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Repository)
+		}
+		var arg1 string
+		if args[1] != nil {
+			arg1 = args[1].(string)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }

@@ -17,7 +17,7 @@ func rewrapError(err error, code codes.Code) error {
 
 func gitErrToGRPC(err error) error {
 	if err == nil {
-		return err
+		return nil
 	}
 	errMsg := err.Error()
 	if grpcStatus := UnwrapGRPCStatus(err); grpcStatus != nil {

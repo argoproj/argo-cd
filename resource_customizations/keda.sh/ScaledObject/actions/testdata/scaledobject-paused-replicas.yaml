@@ -1,0 +1,14 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledObject
+metadata:
+  name: test-scaledobject
+  annotations:
+    autoscaling.keda.sh/paused-replicas: "6"
+spec:
+  scaleTargetRef:
+    name: test-deployment
+  triggers:
+    - type: cpu
+      metadata:
+        type: Utilization
+        value: "50"

@@ -13,6 +13,12 @@ argocd account bcrypt [flags]
 ```
 # Generate bcrypt hash for any password 
 argocd account bcrypt --password YOUR_PASSWORD
+
+# Prompt for password input
+argocd account bcrypt
+
+# Read password from stdin
+echo -e "password" | argocd account bcrypt
 ```
 
 ### Options

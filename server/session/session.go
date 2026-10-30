@@ -7,6 +7,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
 	"github.com/google/uuid"
+	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 
@@ -29,6 +30,11 @@ type Authenticator interface {
 	Authenticate(ctx context.Context) (context.Context, error)
 }
 
+const (
+	success = "success"
+	failure = "failure"
+)
+
 // NewServer returns a new instance of the Session service
 func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsManager, authenticator Authenticator, policyEnf *rbacpolicy.RBACPolicyEnforcer, rateLimiter func() (utilio.Closer, error)) *Server {
 	return &Server{mgr, settingsMgr, authenticator, policyEnf, rateLimiter}
@@ -37,6 +43,19 @@ func NewServer(mgr *sessionmgr.SessionManager, settingsMgr *settings.SettingsMan
 // Create generates a JWT token signed by Argo CD intended for web/CLI logins of the admin user
 // using username/password
 func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*session.SessionResponse, error) {
+	logCtx := log.WithFields(log.Fields{"username": q.Username, "login.type": "local"})
+	resp, err := s.create(q)
+	if err != nil {
+		s.mgr.IncLoginRequestCounter(failure)
+		logCtx.WithError(err).Warn("Login failed")
+		return nil, err
+	}
+	s.mgr.IncLoginRequestCounter(success)
+	logCtx.Info("Login successful")
+	return resp, nil
+}
+
+func (s *Server) create(q *session.SessionCreateRequest) (*session.SessionResponse, error) {
 	if s.limitLoginAttempts != nil {
 		closer, err := s.limitLoginAttempts()
 		if err != nil {
@@ -51,8 +70,7 @@ func (s *Server) Create(_ context.Context, q *session.SessionCreateRequest) (*se
 	if q.Username == "" || q.Password == "" {
 		return nil, status.Errorf(codes.Unauthenticated, "no credentials supplied")
 	}
-	err := s.mgr.VerifyUsernamePassword(q.Username, q.Password)
-	if err != nil {
+	if err := s.mgr.VerifyUsernamePassword(q.Username, q.Password); err != nil {
 		return nil, err
 	}
 	uniqueId, err := uuid.NewRandom()

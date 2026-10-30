@@ -11,11 +11,13 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	dynfake "k8s.io/client-go/dynamic/fake"
+	"k8s.io/client-go/dynamic/fake"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 const (
@@ -27,21 +29,17 @@ const (
 func TestGenerateParamsForDuckType(t *testing.T) {
 	clusters := []client.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "staging-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "staging",
+				"org":                            "foo",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "staging-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "staging",
-					"org":                            "foo",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "staging",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "staging",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -51,21 +49,17 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "production-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "production",
+				"org":                            "bar",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "production-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "production",
-					"org":                            "bar",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "production",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "production",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -117,6 +111,27 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 		},
 	}
 
+	duckTypeWithNonStringValues := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": resourceAPIVersion,
+			"kind":       "Duck",
+			"metadata": map[string]any{
+				"name":      resourceName,
+				"namespace": "namespace",
+				"labels":    map[string]any{"duck": "all-species"},
+			},
+			"status": map[string]any{
+				"decisions": []any{
+					map[string]any{
+						"clusterName": "staging-01",
+						"reason":      "",
+						"score":       int64(0),
+					},
+				},
+			},
+		},
+	}
+
 	duckTypeEmpty := &unstructured.Unstructured{
 		Object: map[string]any{
 			"apiVersion": resourceAPIVersion,
@@ -131,10 +146,8 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 	}
 
 	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-configmap",
-			Namespace: "namespace",
-		},
+		Name:      "my-configmap",
+		Namespace: "namespace",
 		Data: map[string]string{
 			"apiVersion":    resourceAPIVersion,
 			"kind":          resourceKind,
@@ -180,6 +193,16 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 				{"clusterName": "production-01", "name": "production-01", "server": "https://production-01.example.com"},
 
 				{"clusterName": "staging-01", "name": "staging-01", "server": "https://staging-01.example.com"},
+			},
+			expectedError: nil,
+		},
+		{
+			name:         "non-string values in cluster decisions are converted to strings",
+			resourceName: resourceName,
+			resource:     duckTypeWithNonStringValues,
+			values:       nil,
+			expected: []map[string]any{
+				{"clusterName": "staging-01", "reason": "", "score": "0", "name": "staging-01", "server": "https://staging-01.example.com"},
 			},
 			expectedError: nil,
 		},
@@ -290,14 +313,17 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 				Resource: "ducks",
 			}: "DuckList"}
 
-			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
+			fakeDynClient := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
 
-			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace")
+			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
+			require.NoError(t, err)
+
+			defer test.StartInformer(clusterInformer)()
+
+			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace", clusterInformer)
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{},
 			}
 
@@ -323,21 +349,17 @@ func TestGenerateParamsForDuckType(t *testing.T) {
 func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 	clusters := []client.Object{
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "staging-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "staging",
+				"org":                            "foo",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "staging-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "staging",
-					"org":                            "foo",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "staging",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "staging",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -347,21 +369,17 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			Type: corev1.SecretType("Opaque"),
 		},
 		&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				Kind:       "Secret",
-				APIVersion: "v1",
+			Kind:       "Secret",
+			APIVersion: "v1",
+			Name:       "production-01",
+			Namespace:  "namespace",
+			Labels: map[string]string{
+				"argocd.argoproj.io/secret-type": "cluster",
+				"environment":                    "production",
+				"org":                            "bar",
 			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "production-01",
-				Namespace: "namespace",
-				Labels: map[string]string{
-					"argocd.argoproj.io/secret-type": "cluster",
-					"environment":                    "production",
-					"org":                            "bar",
-				},
-				Annotations: map[string]string{
-					"foo.argoproj.io": "production",
-				},
+			Annotations: map[string]string{
+				"foo.argoproj.io": "production",
 			},
 			Data: map[string][]byte{
 				"config": []byte("{}"),
@@ -427,10 +445,8 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 	}
 
 	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-configmap",
-			Namespace: "namespace",
-		},
+		Name:      "my-configmap",
+		Namespace: "namespace",
 		Data: map[string]string{
 			"apiVersion":    resourceAPIVersion,
 			"kind":          resourceKind,
@@ -586,14 +602,17 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 				Resource: "ducks",
 			}: "DuckList"}
 
-			fakeDynClient := dynfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
+			fakeDynClient := fake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, testCase.resource)
 
-			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace")
+			clusterInformer, err := settings.NewClusterInformer(appClientset, "namespace")
+			require.NoError(t, err)
+
+			defer test.StartInformer(clusterInformer)()
+
+			duckTypeGenerator := NewDuckTypeGenerator(t.Context(), fakeDynClient, appClientset, "namespace", clusterInformer)
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 				},

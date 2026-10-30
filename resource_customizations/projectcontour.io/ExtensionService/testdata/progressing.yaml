@@ -1,0 +1,17 @@
+apiVersion: projectcontour.io/v1alpha1
+kind: ExtensionService
+metadata:
+  generation: 1
+  name: example
+spec:
+  circuitBreakerPolicy:
+    maxConnections: 102400
+    maxPendingRequests: 1024000
+    maxRequests: 102400
+    maxRetries: 102400
+  protocol: h2c
+  services:
+  - name: grpc-server
+    port: 9091
+  timeoutPolicy:
+    response: 1s

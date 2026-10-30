@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"strings"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/google/uuid"
@@ -22,11 +22,13 @@ import (
 	"k8s.io/client-go/util/retry"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/project"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	listersv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
+	serverevents "github.com/argoproj/argo-cd/v3/server/events"
 	"github.com/argoproj/argo-cd/v3/server/rbacpolicy"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
@@ -60,7 +62,7 @@ type Server struct {
 func NewServer(ns string, kubeclientset kubernetes.Interface, appclientset appclientset.Interface, enf *rbac.Enforcer, projectLock sync.KeyLock, sessionMgr *session.SessionManager, policyEnf *rbacpolicy.RBACPolicyEnforcer,
 	projInformer cache.SharedIndexInformer, settingsMgr *settings.SettingsManager, db db.ArgoDB, enableK8sEvent []string,
 ) *Server {
-	auditLogger := argo.NewAuditLogger(ns, kubeclientset, "argocd-server", enableK8sEvent)
+	auditLogger := argo.NewAuditLogger(kubeclientset, ns, "argocd-server", enableK8sEvent)
 	return &Server{
 		enf: enf, policyEnf: policyEnf, appclientset: appclientset, kubeclientset: kubeclientset, ns: ns, projectLock: projectLock, auditLogger: auditLogger, sessionMgr: sessionMgr,
 		projInformer: projInformer, settingsMgr: settingsMgr, db: db,
@@ -157,7 +159,7 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(ctx, prj, argo.EventReasonResourceCreated, "created token")
+	s.logEvent(ctx, prj, argo.EventReasonResourceCreated, fmt.Sprintf("created token '%s' for role '%s'", id, q.Role))
 	return &project.ProjectTokenResponse{Token: jwtToken}, nil
 }
 
@@ -232,6 +234,14 @@ func (s *Server) deleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 		}
 	}
 
+	// Tokens can be deleted by issue time alone, so resolve the ID for the audit event.
+	tokenID := q.Id
+	if token, _, err := prj.GetJWTToken(q.Role, q.Iat, q.Id); err == nil {
+		tokenID = token.ID
+	} else if token, _, err := prj.GetJWTTokenFromSpec(q.Role, q.Iat, q.Id); err == nil {
+		tokenID = token.ID
+	}
+
 	err = prj.RemoveJWTToken(roleIndex, q.Iat, q.Id)
 	if err != nil {
 		return &project.EmptyResponse{}, nil
@@ -241,7 +251,7 @@ func (s *Server) deleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(ctx, prj, argo.EventReasonResourceDeleted, "deleted token")
+	s.logEvent(ctx, prj, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted token '%s' for role '%s'", tokenID, q.Role))
 
 	return &project.EmptyResponse{}, nil
 }
@@ -310,12 +320,20 @@ func (s *Server) GetDetailedProject(ctx context.Context, q *project.ProjectQuery
 	}
 	proj.NormalizeJWTTokens()
 	globalProjects := argo.GetGlobalProjects(proj, listersv1alpha1.NewAppProjectLister(s.projInformer.GetIndexer()), s.settingsMgr)
+	var apiRepos []*v1alpha1.Repository
+	for _, repo := range repositories {
+		apiRepos = append(apiRepos, repo.Normalize().Sanitized())
+	}
+	var apiClusters []*v1alpha1.Cluster
+	for _, cluster := range clusters {
+		apiClusters = append(apiClusters, cluster.Sanitized())
+	}
 
 	return &project.DetailedProjectsResponse{
 		GlobalProjects: globalProjects,
 		Project:        proj,
-		Repositories:   repositories,
-		Clusters:       clusters,
+		Repositories:   apiRepos,
+		Clusters:       apiClusters,
 	}, err
 }
 
@@ -412,7 +430,8 @@ func (s *Server) Update(ctx context.Context, q *project.ProjectUpdateRequest) (*
 		destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
 		if err != nil {
 			if err.Error() != argo.ErrDestinationMissing {
-				return nil, err
+				// If cluster is not found, we should discard this app, as it's most likely already in error
+				continue
 			}
 			invalidDstCount++
 		}
@@ -482,7 +501,7 @@ func (s *Server) Delete(ctx context.Context, q *project.ProjectQuery) (*project.
 	return &project.EmptyResponse{}, err
 }
 
-func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*corev1.EventList, error) {
+func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*eventspb.EventList, error) {
 	if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceProjects, rbac.ActionGet, q.Name); err != nil {
 		return nil, err
 	}
@@ -495,7 +514,11 @@ func (s *Server) ListEvents(ctx context.Context, q *project.ProjectQuery) (*core
 		"involvedObject.uid":       string(proj.UID),
 		"involvedObject.namespace": proj.Namespace,
 	}).String()
-	return s.kubeclientset.CoreV1().Events(s.ns).List(ctx, metav1.ListOptions{FieldSelector: fieldSelector})
+	list, err := s.kubeclientset.CoreV1().Events(s.ns).List(ctx, metav1.ListOptions{FieldSelector: fieldSelector})
+	if err != nil {
+		return nil, err
+	}
+	return serverevents.K8sEventListToAPIEventList(list), nil
 }
 
 func (s *Server) logEvent(ctx context.Context, a *v1alpha1.AppProject, reason string, action string) {
@@ -526,7 +549,7 @@ func (s *Server) GetSyncWindowsState(ctx context.Context, q *project.SyncWindows
 	if windows.HasWindows() {
 		res.Windows = *windows
 	} else {
-		res.Windows = []*v1alpha1.SyncWindow{}
+		res.Windows = []*v1alpha1.InlineSyncWindow{}
 	}
 
 	return res, nil
@@ -538,7 +561,7 @@ func (s *Server) NormalizeProjs() error {
 		return status.Errorf(codes.Internal, "Error retrieving project list: %s", err.Error())
 	}
 	for _, proj := range projList.Items {
-		for i := 0; i < 3; i++ {
+		for i := range 3 {
 			if !proj.NormalizeJWTTokens() {
 				break
 			}

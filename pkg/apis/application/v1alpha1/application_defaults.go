@@ -9,6 +9,9 @@ const (
 	// ResourcesFinalizerName is the finalizer value which we inject to finalize deletion of an application
 	ResourcesFinalizerName string = "resources-finalizer.argocd.argoproj.io"
 
+	// PreDeleteFinalizerName is the finalizer that controls pre-delete hooks execution
+	PreDeleteFinalizerName string = "pre-delete-finalizer.argocd.argoproj.io"
+
 	// PostDeleteFinalizerName is the finalizer that controls post-delete hooks execution
 	PostDeleteFinalizerName string = "post-delete-finalizer.argocd.argoproj.io"
 
@@ -26,4 +29,7 @@ const (
 
 	// KubernetesInternalAPIServerAddr is address of the k8s API server when accessing internal to the cluster
 	KubernetesInternalAPIServerAddr = "https://kubernetes.default.svc"
+
+	// KubernetesInClusterName is the default name for the in-cluster configuration
+	KubernetesInClusterName = "in-cluster"
 )

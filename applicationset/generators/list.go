@@ -53,7 +53,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 		} else {
 			for key, value := range element {
 				if key == "values" {
-					values, ok := (value).(map[string]any)
+					values, ok := value.(map[string]any)
 					if !ok {
 						return nil, errors.New("error parsing values map")
 					}
@@ -77,7 +77,7 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 	}
 
 	// Append elements from ElementsYaml to the response
-	if len(appSetGenerator.List.ElementsYaml) > 0 {
+	if appSetGenerator.List.ElementsYaml != "" {
 		var yamlElements []map[string]any
 		err := yaml.Unmarshal([]byte(appSetGenerator.List.ElementsYaml), &yamlElements)
 		if err != nil {

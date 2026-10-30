@@ -15,3 +15,11 @@ tests:
     status: Degraded
     message: 'At least one error present, see Errors for details'
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Waiting for status'
+  inputPath: testdata/generation.yaml
+- healthStatus:
+    status: Healthy
+    message: 'HTTPProxy inclusions cannot be health checked'
+  inputPath: testdata/parent_child.yaml

@@ -1,7 +1,7 @@
 # Try Argo CD Locally
 
-!!! tip
-    This guide assumes you have a grounding in the tools that Argo CD is based on. Please read [understanding the basics](understand_the_basics.md) to learn about these tools.
+> [!TIP]
+> This guide assumes you have a grounding in the tools that Argo CD is based on. Please read [understanding the basics](understand_the_basics.md) to learn about these tools.
 
 
 Follow these steps to install `Kind` for local development and set it up with Argo CD.
@@ -10,7 +10,7 @@ To run an Argo CD development environment review the [developer guide for runnin
 
 ## Install Kind
 
-Install Kind Following Instructions [here](https://kind.sigs.k8s.io/docs/user/quick-start#installation).
+Install Kind following their quick-start [instructions](https://kind.sigs.k8s.io/docs/user/quick-start#installation).
 
 ##  Create a Kind Cluster
 Once Kind is installed, create a new Kubernetes cluster with:
@@ -30,8 +30,11 @@ This command verifies that `kubectl` is pointed to the right cluster.
 You can now install Argo CD on your `kind` cluster. First, apply the Argo CD manifest to create the necessary resources:
 ```bash
 kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
 ```
+
+> [!NOTE]
+> The `--server-side --force-conflicts` flags are required because some Argo CD CRDs exceed the size limit for client-side apply. See the [getting started guide](getting_started.md) for more details.
 
 ## Expose ArgoCD API Server
 By default, Argo CD's API server is not exposed outside the cluster. You need to expose it to access the UI locally. For development purposes, you can use Kubectl 'port-forward'.

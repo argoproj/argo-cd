@@ -106,7 +106,7 @@ Finally, the Matrix generator will combine both sets of outputs, and produce:
   path: /examples/git-generator-directory/cluster-addons/prometheus-operator
   path.basename: prometheus-operator
 ```
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/matrix).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/matrix).*)
 
 ## Using Parameters from one child generator in another child generator
 
@@ -169,7 +169,7 @@ Here is the corresponding folder structure for the git repository used by the gi
 In the above example, the `{{.path.basename}}` parameters produced by the git-files generator will resolve to `dev` and `prod`.
 In the 2nd child generator, the label selector with label `kubernetes.io/environment: {{.path.basename}}` will resolve with the values produced by the first child generator's parameters (`kubernetes.io/environment: prod` and `kubernetes.io/environment: dev`). 
 
-So in the above example, clusters with the label `kubernetes.io/environment: prod` will have only prod-specific configuration (ie. `prod/config.json`) applied to it, wheres clusters
+So in the above example, clusters with the label `kubernetes.io/environment: prod` will have only prod-specific configuration (ie. `prod/config.json`) applied to it, whereas clusters
 with the label `kubernetes.io/environment: dev` will have only dev-specific configuration (ie. `dev/config.json`)
 
 ## Overriding parameters from one child generator in another child generator

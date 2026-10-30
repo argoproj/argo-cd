@@ -1,3 +1,7 @@
 local actions = {}
-actions["restart"] = {}
+ 
+actions["restart"] = {
+    ["iconClass"] = "fa fa-fw fa-redo"
+}
+ 
 return actions
