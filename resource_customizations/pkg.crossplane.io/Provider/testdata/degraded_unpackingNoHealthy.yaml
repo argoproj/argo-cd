@@ -1,0 +1,18 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  generation: 1
+  name: upbound-provider-aws-efs
+spec:
+  package: xpkg.upbound.io/upbound/provider-aws-efs:doesNotExist
+  revisionActivationPolicy: Automatic
+status:
+  conditions:
+  - lastTransitionTime: "2025-06-11T23:11:26Z"
+    message: 'cannot unpack package: failed to fetch package digest from remote: GET
+      https://xpkg.upbound.io/v2/upbound/provider-aws-efs/manifests/doesNotExist:
+      MANIFEST_UNKNOWN: manifest unknown; map[Tag:doesNotExist]'
+    reason: UnpackingPackage
+    status: "False"
+    type: Installed
+  resolvedPackage: xpkg.upbound.io/upbound/provider-aws-efs:doesNotExist

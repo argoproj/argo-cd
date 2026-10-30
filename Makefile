@@ -211,7 +211,7 @@ $(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=argopro
 endif
 endif
 
-# Consruct prefix for docker image
+# Construct prefix for docker image
 # Note: keeping same logic as in hacks/update_manifests.sh
 ifdef IMAGE_REGISTRY
 ifdef IMAGE_NAMESPACE
@@ -248,7 +248,7 @@ gogen:
 	go generate ./...
 
 .PHONY: protogen
-protogen: mod-vendor-local protogen-fast
+protogen: mod-download-local protogen-fast
 
 .PHONY: protogen-fast
 protogen-fast: codegen-go-tools-local
@@ -292,8 +292,7 @@ resourceiconsgen:
 	hack/generate-icons-typescript.sh
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
-	rm -rf vendor/
+codegen-local: mod-download-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen-local-fast
 codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog
@@ -397,7 +396,9 @@ mod-download: test-tools-image
 	$(call run-in-test-client,go mod download)
 
 .PHONY: mod-download-local
+# No build step uses vendor/ any more, and a stale one would silently put go commands in vendor mode.
 mod-download-local:
+	rm -rf vendor/
 	go mod download && go mod tidy # go mod download changes go.sum https://github.com/golang/go/issues/42970
 
 .PHONY: mod-vendor
@@ -544,7 +545,7 @@ start-e2e: test-tools-image
 
 # Starts e2e server locally (or within a container)
 .PHONY: start-e2e-local
-start-e2e-local: mod-vendor-local dep-ui-local cli-local
+start-e2e-local: mod-download-local dep-ui-local cli-local
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
 	kubectl create ns argocd-e2e-external-2 || true
@@ -615,7 +616,7 @@ start: test-tools-image
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local: mod-vendor-local dep-ui-local cli-local
+start-local: mod-download-local dep-ui-local cli-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true
