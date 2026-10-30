@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	argoutils "github.com/argoproj/argo-cd/v3/util"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
@@ -92,6 +93,34 @@ func TestGetPasswordShouldGenerateTokenIfNotPresentInCache(t *testing.T) {
 	token, err := creds.GetPassword()
 	require.NoError(t, err)
 	assert.Equal(t, "newRefreshToken", token, "The retrieved token should match the stored token")
+}
+
+func TestAzureWorkloadIdentityCredsHTTPTransportUsesProxy(t *testing.T) {
+	proxy.UseTestingProxyCallback()
+	const proxyURL = "http://proxy-from-env:7878"
+	// httpproxy.FromEnvironment prefers HTTP_PROXY over http_proxy. Clear both
+	// cases so a proxied CI environment cannot override the test value.
+	t.Setenv("HTTP_PROXY", proxyURL)
+	t.Setenv("HTTPS_PROXY", proxyURL)
+	t.Setenv("http_proxy", proxyURL)
+	t.Setenv("https_proxy", proxyURL)
+	t.Setenv("ALL_PROXY", "")
+	t.Setenv("all_proxy", "")
+	t.Setenv("NO_PROXY", "")
+	t.Setenv("no_proxy", "")
+
+	workloadIdentityMock := &mocks.TokenProvider{}
+	creds := NewAzureWorkloadIdentityCreds("contoso.azurecr.io/charts", "", nil, nil, false, workloadIdentityMock)
+
+	transport := creds.azureRegistryHTTPTransport()
+	require.NotNil(t, transport.Proxy)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://contoso.azurecr.io/v2/", http.NoBody)
+	require.NoError(t, err)
+	got, err := transport.Proxy(req)
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.Equal(t, proxyURL, got.String())
 }
 
 func TestChallengeAzureContainerRegistry(t *testing.T) {
