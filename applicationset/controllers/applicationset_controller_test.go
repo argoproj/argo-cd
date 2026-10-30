@@ -2875,7 +2875,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 				require.Len(t, conditions, 1)
 
 				assert.Equal(t, v1alpha1.ApplicationSetConditionParametersGenerated, conditions[0].Type)
-				assert.Equal(t, "Successfully generated parameters for all Applications", conditions[0].Message)
+				assert.Equal(t, "All parameters have been generated successfully", conditions[0].Message)
 				assert.Equal(t, v1alpha1.ApplicationSetReasonParametersGenerated, conditions[0].Reason)
 				assert.Equal(t, v1alpha1.ApplicationSetConditionStatusTrue, conditions[0].Status)
 
@@ -5425,7 +5425,7 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 				{
 					Type:               v1alpha1.ApplicationSetConditionParametersGenerated,
 					Status:             v1alpha1.ApplicationSetConditionStatusTrue,
-					Message:            "Successfully generated parameters for all Applications",
+					Message:            "All parameters have been generated successfully",
 					Reason:             v1alpha1.ApplicationSetReasonParametersGenerated,
 					ObservedGeneration: 2,
 				},
@@ -5551,7 +5551,7 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 				{
 					Type:               v1alpha1.ApplicationSetConditionParametersGenerated,
 					Status:             v1alpha1.ApplicationSetConditionStatusTrue,
-					Message:            "Successfully generated parameters for all Applications",
+					Message:            "All parameters have been generated successfully",
 					Reason:             v1alpha1.ApplicationSetReasonParametersGenerated,
 					ObservedGeneration: 3,
 				},
