@@ -806,20 +806,31 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 	}
 
 	// Share one API call among concurrent lookups for the same org, so a burst of callers on startup makes one
-	// request and all receive its result. Each caller still stops waiting when its own context ends.
+	// request and all receive its result. Each caller still stops waiting when its own context ends. The key
+	// includes a hash of the private key so that callers with different keys (for example, during key rotation)
+	// don't receive each other's errors. The cached ID doesn't depend on the key, so the cache key leaves it out.
+	keyHash := sha256.Sum256([]byte(privateKey))
+	flightKey := cacheKey + ":" + hex.EncodeToString(keyHash[:])
 	for {
 		var res singleflight.Result
 		select {
-		case res = <-githubInstallationIdGroup.DoChan(cacheKey, func() (any, error) {
-			return findGitHubAppInstallationID(ctx, client, domain, appId, org)
+		case res = <-githubInstallationIdGroup.DoChan(flightKey, func() (any, error) {
+			id, err := findGitHubAppInstallationID(ctx, client, domain, appId, org)
+			if err != nil && ctx.Err() != nil {
+				return nil, &sharedLookupContextError{err: err}
+			}
+			return id, err
 		}):
 		case <-ctx.Done():
 			return 0, fmt.Errorf("failed to find installation: %w", ctx.Err())
 		}
-		// The shared call runs with the context of whichever caller started it. If that context ended but ours has
-		// not, try again instead of failing on another caller's deadline.
-		if res.Err != nil && ctx.Err() == nil && (errors.Is(res.Err, context.DeadlineExceeded) || errors.Is(res.Err, context.Canceled)) {
-			continue
+		// The shared call runs with the context of whichever caller started it. If it failed because that context
+		// ended, try again with ours instead of failing on another caller's deadline.
+		if ctxErr, ok := errors.AsType[*sharedLookupContextError](res.Err); ok {
+			if ctx.Err() == nil {
+				continue
+			}
+			return 0, ctxErr.err
 		}
 		if res.Err != nil {
 			return 0, res.Err
@@ -827,6 +838,16 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 		return res.Val.(int64), nil
 	}
 }
+
+// sharedLookupContextError marks a shared installation lookup that failed after the context of the caller that
+// started it ended.
+type sharedLookupContextError struct {
+	err error
+}
+
+func (e *sharedLookupContextError) Error() string { return e.err.Error() }
+
+func (e *sharedLookupContextError) Unwrap() error { return e.err }
 
 // findGitHubAppInstallationID looks up the app's installation on the org, falling back to the user account of the
 // same name, and caches the installation ID.
