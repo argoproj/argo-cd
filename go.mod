@@ -101,7 +101,7 @@ require (
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/yuin/gopher-lua v1.1.2
 	gitlab.com/gitlab-org/api/client-go v1.46.0
-	go.opentelemetry.io/contrib/bridges/prometheus v0.71.0
+	go.opentelemetry.io/contrib/bridges/prometheus v0.72.0
 	go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc v0.72.0
 	go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp v0.72.0
 	go.opentelemetry.io/otel v1.47.0
