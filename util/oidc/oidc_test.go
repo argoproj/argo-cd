@@ -23,6 +23,7 @@ import (
 	gooidc "github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 	"sigs.k8s.io/yaml"
@@ -31,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
 	"github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/cache"
+	cachemocks "github.com/argoproj/argo-cd/v3/util/cache/mocks"
 	"github.com/argoproj/argo-cd/v3/util/crypto"
 	"github.com/argoproj/argo-cd/v3/util/dex"
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
@@ -405,8 +407,8 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 
 	t.Run("with additional base URL", func(t *testing.T) {
 		cdSettings := &settings.ArgoCDSettings{
-			URL:                       "https://argocd.example.com",
-			AdditionalURLs:            []string{"https://localhost:8080", "https://other.argocd.example.com"},
+			URL:                       "https://argocd.example.com/argocd",
+			AdditionalURLs:            []string{"https://localhost:8080/argocd", "https://other.argocd.example.com/argocd"},
 			OIDCTLSInsecureSkipVerify: true,
 			DexConfig: `connectors:
 			- type: github
@@ -424,14 +426,14 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 		cert, err := tls.X509KeyPair(test.Cert, test.PrivateKey)
 		require.NoError(t, err)
 		cdSettings.Certificate = &cert
-		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "https://argocd.example.com", cache.NewInMemoryCache(24*time.Hour))
+		app, err := NewClientApp(cdSettings, dexTestServer.URL, &dex.DexTLSConfig{StrictValidation: false}, "/argocd", cache.NewInMemoryCache(24*time.Hour))
 		require.NoError(t, err)
 
 		t.Run("should accept login redirecting on the main domain", func(t *testing.T) {
-			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/auth/login", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://argocd.example.com/argocd/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://argocd.example.com/applications"},
+				"return_url": []string{"https://argocd.example.com/argocd/applications"},
 			}.Encode()
 
 			w := httptest.NewRecorder()
@@ -443,14 +445,14 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			require.NoError(t, err)
 			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
 			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://argocd.example.com/auth/callback", location.Query().Get("redirect_uri"))
+			assert.Equal(t, "https://argocd.example.com/argocd/auth/callback", location.Query().Get("redirect_uri"))
 		})
 
 		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:8080/auth/login", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost:8080/argocd/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://localhost:8080/applications"},
+				"return_url": []string{"https://localhost:8080/argocd/applications"},
 			}.Encode()
 
 			w := httptest.NewRecorder()
@@ -462,14 +464,14 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			require.NoError(t, err)
 			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
 			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://localhost:8080/auth/callback", location.Query().Get("redirect_uri"))
+			assert.Equal(t, "https://localhost:8080/argocd/auth/callback", location.Query().Get("redirect_uri"))
 		})
 
 		t.Run("should accept login redirecting on the alternative domains", func(t *testing.T) {
-			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://other.argocd.example.com/auth/login", http.NoBody)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "https://other.argocd.example.com/argocd/auth/login", http.NoBody)
 
 			req.URL.RawQuery = url.Values{
-				"return_url": []string{"https://other.argocd.example.com/applications"},
+				"return_url": []string{"https://other.argocd.example.com/argocd/applications"},
 			}.Encode()
 
 			w := httptest.NewRecorder()
@@ -481,7 +483,25 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 			require.NoError(t, err)
 			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
 			assert.Equal(t, "/auth", location.Path)
-			assert.Equal(t, "https://other.argocd.example.com/auth/callback", location.Query().Get("redirect_uri"))
+			assert.Equal(t, "https://other.argocd.example.com/argocd/auth/callback", location.Query().Get("redirect_uri"))
+		})
+
+		t.Run("should preserve alternative domain after root path stripping", func(t *testing.T) {
+			requestURL := "https://localhost:8080/argocd/auth/login?" + url.Values{
+				"return_url": []string{"https://localhost:8080/argocd/applications"},
+			}.Encode()
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, requestURL, http.NoBody)
+			w := httptest.NewRecorder()
+			handler := http.StripPrefix("/argocd", http.HandlerFunc(app.HandleLogin))
+
+			handler.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusSeeOther, w.Code)
+			location, err := url.Parse(w.Header().Get("Location"))
+			require.NoError(t, err)
+			assert.Equal(t, fmt.Sprintf("%s://%s", location.Scheme, location.Host), oidcTestServer.URL)
+			assert.Equal(t, "/auth", location.Path)
+			assert.Equal(t, "https://localhost:8080/argocd/auth/callback", location.Query().Get("redirect_uri"))
 		})
 
 		t.Run("should deny login redirecting on the alternative domains", func(t *testing.T) {
@@ -1050,6 +1070,62 @@ func TestGenerateAppState_NoReturnURL(t *testing.T) {
 	returnURL, _, err := app.verifyAppState(req, httptest.NewRecorder(), "123")
 	require.NoError(t, err)
 	assert.Equal(t, "/argo-cd", returnURL)
+}
+
+func TestGetUserInfoCacheExpiration(t *testing.T) {
+	for _, testCase := range []struct {
+		name          string
+		configuredTTL string
+		userInfoTTL   time.Duration
+		expectedTTL   time.Duration
+	}{
+		{name: "missing expiry with shorter limit", configuredTTL: "5m", expectedTTL: 5 * time.Minute},
+		{name: "missing expiry without limit", expectedTTL: time.Hour},
+		{name: "missing expiry with longer limit", configuredTTL: "2h", expectedTTL: time.Hour},
+		{name: "response expiry with shorter limit", configuredTTL: "5m", userInfoTTL: 30 * time.Minute, expectedTTL: 5 * time.Minute},
+		{name: "response expiry with longer limit", configuredTTL: "2h", userInfoTTL: 30 * time.Minute, expectedTTL: 30 * time.Minute},
+		{name: "response expiry without limit", userInfoTTL: 30 * time.Minute, expectedTTL: 30 * time.Minute},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			userInfo := jwt.MapClaims{"sub": "randomUser", "groups": []string{"developers"}}
+			if testCase.userInfoTTL > 0 {
+				userInfo["exp"] = time.Now().Add(testCase.userInfoTTL).Unix()
+			}
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				w.Header().Set("Content-Type", "application/json")
+				assert.NoError(t, json.NewEncoder(w).Encode(userInfo))
+			}))
+			defer server.Close()
+
+			signature, err := util.MakeSignature(32)
+			require.NoError(t, err)
+			cdSettings := &settings.ArgoCDSettings{
+				ServerSignature: signature,
+				OIDCConfigRAW:   fmt.Sprintf("userInfoCacheExpiration: %q", testCase.configuredTTL),
+			}
+			baseCache := cache.NewInMemoryCache(24 * time.Hour)
+			app, err := NewClientApp(cdSettings, "", nil, "/argo-cd", baseCache)
+			require.NoError(t, err)
+			require.NoError(t, app.SetValueInEncryptedCache(t.Context(), FormatAccessTokenCacheKey("randomUser"), []byte("access-token"), time.Hour))
+
+			clientCache := &cachemocks.MockCacheClient{BaseCache: baseCache}
+			clientCache.On("Get", FormatUserInfoResponseCacheKey("randomUser"), mock.Anything).Return(cache.ErrCacheMiss).Once()
+			clientCache.On("Get", FormatAccessTokenCacheKey("randomUser"), mock.Anything).Return(nil).Once()
+			clientCache.On("Set", mock.Anything).Run(func(args mock.Arguments) {
+				item := args.Get(0).(*cache.Item)
+				assert.Equal(t, FormatUserInfoResponseCacheKey("randomUser"), item.Key)
+				assert.LessOrEqual(t, item.CacheActionOpts.Expiration, testCase.expectedTTL)
+				assert.Greater(t, item.CacheActionOpts.Expiration, testCase.expectedTTL-5*time.Second)
+			}).Return(nil).Once()
+			app.clientCache = clientCache
+
+			claims := jwt.MapClaims{"sub": "randomUser", "exp": float64(time.Now().Add(time.Hour).Unix())}
+			_, unauthorized, err := app.GetUserInfo(t.Context(), claims, server.URL, "", "/userinfo")
+			require.NoError(t, err)
+			assert.False(t, unauthorized)
+			clientCache.AssertExpectations(t)
+		})
+	}
 }
 
 func TestGetUserInfo(t *testing.T) {

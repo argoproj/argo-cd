@@ -42,6 +42,7 @@ jobs:
             registry-1.docker.io:443
             auth.docker.io:443
             proxy.golang.org:443
+            sum.golang.org:443
             nodejs.org:443
             pypi.org:443
             get.helm.sh:443
@@ -91,7 +92,7 @@ jobs:
       # rather than dependabot, so its update will be grouped into the same PR
       # as the image (below).
       - name: Self-hosted Renovate
-        uses: renovatebot/github-action@f0f41e5f2e706165f6814b1d0f0d0e319de7d1d9 # v46.3.8
+        uses: renovatebot/github-action@2804199d260ad00c1fae0e9e842888369391c776 # v46.3.10
         with:
           configurationFile: .github/configs/renovate-config.js
           token: '${{ steps.get_token.outputs.token }}'
@@ -103,7 +104,7 @@ jobs:
           # renovate-presets/custom-managers/renovate-action.json5, which expects
           # `renovate-image` and `renovate-version` to stay on adjacent lines.
           renovate-image: "ghcr.io/renovatebot/renovate"
-          renovate-version: "44.151.3@sha256:b7b0c5f713dd38287391674ed814a71a6dcadbc0cc0b7586883a815e15b4fd28"
+          renovate-version: "44.181.10@sha256:e3a401485f30cab4c7a076f76f27b0231dff2ed01750824fadac928339f6e199"
         env:
           LOG_LEVEL: 'debug'
           RENOVATE_REPOSITORIES: '${{ github.repository }}'

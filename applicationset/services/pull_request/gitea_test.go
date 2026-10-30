@@ -301,7 +301,7 @@ func TestGiteaList(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		giteaMockHandler(t)(w, r)
 	}))
-	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, false, "", "")
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", []string{"label1"}, nil, false, "", "")
 	require.NoError(t, err)
 	prs, err := host.List(t.Context())
 	require.NoError(t, err)
@@ -312,6 +312,19 @@ func TestGiteaList(t *testing.T) {
 	assert.Equal(t, "main", prs[0].TargetBranch)
 	assert.Equal(t, "7bbaf62d92ddfafd9cc8b340c619abaec32bc09f", prs[0].HeadSHA)
 	assert.Equal(t, "graytshirt", prs[0].Author)
+}
+
+func TestGiteaListExcludedLabels(t *testing.T) {
+	t.Parallel()
+	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		giteaMockHandler(t)(w, r)
+	}))
+	// The only PR returned by the mock carries the "label1" label, so excluding it yields no PRs.
+	host, err := NewGiteaService("", ts.URL, "test-argocd", "pr-test", nil, []string{"label1"}, false, "", "")
+	require.NoError(t, err)
+	prs, err := host.List(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, prs)
 }
 
 func TestGetGiteaPRLabelNames(t *testing.T) {
@@ -365,7 +378,7 @@ func TestGiteaListReturnsRepositoryNotFoundError(t *testing.T) {
 		_, _ = w.Write([]byte(`{"message": "404 Project Not Found"}`))
 	})
 
-	svc, err := NewGiteaService("", server.URL, "nonexistent", "nonexistent", []string{}, false, "", "")
+	svc, err := NewGiteaService("", server.URL, "nonexistent", "nonexistent", []string{}, nil, false, "", "")
 	require.NoError(t, err)
 
 	prs, err := svc.List(t.Context())
