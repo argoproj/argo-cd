@@ -32,7 +32,7 @@ env:
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
   # renovate: datasource=golang-version packageName=golang
-  GOLANG_VERSION: '1.27.1'
+  GOLANG_VERSION: '1.27.3'
   
 jobs:
   CodeQL-Build:
@@ -72,9 +72,9 @@ jobs:
         path: |
           ~/.cache/go-build
           ~/go/pkg/mod
-        key: ${{ runner.os }}-go-build-v2-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
+        key: ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
         restore-keys: |
-          ${{ runner.os }}-go-build-v2-
+          ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-
     - name: Initialize CodeQL
       uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
       # Override language selection by uncommenting this and choosing your languages
