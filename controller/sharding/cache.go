@@ -61,20 +61,22 @@ func NewClusterSharding(_ db.ArgoDB, shard, replicas int, shardingAlgorithm stri
 func (sharding *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 	sharding.lock.RLock()
 	defer sharding.lock.RUnlock()
-	if c == nil { // nil cluster (in-cluster) is always managed by current clusterShard
-		return true
+	if c == nil {
+		// nil cluster (an unresolvable destination) is managed by shard 0 only, as the distribution
+		// functions assign it, so that it is not processed by every shard.
+		return sharding.Shard == 0
 	}
 	return sharding.isManagedShard(c.Server, c.Annotations)
 }
 
 // IsManagedClusterByServer is IsManagedCluster by server URL. known reports whether the cache
-// holds a cluster for that server; when it doesn't, managed is true, mirroring IsManagedCluster(nil).
+// holds a cluster for that server; when it doesn't, managed mirrors IsManagedCluster(nil).
 func (sharding *ClusterSharding) IsManagedClusterByServer(server string) (bool, bool) {
 	sharding.lock.RLock()
 	defer sharding.lock.RUnlock()
 	c, ok := sharding.Clusters[server]
 	if !ok {
-		return true, false
+		return sharding.Shard == 0, false
 	}
 	return sharding.isManagedShard(server, c.Annotations), true
 }
@@ -222,7 +224,7 @@ func hasShardingUpdates(old, newCluster *v1alpha1.Cluster) bool {
 	if old.Shard == nil && newCluster.Shard == nil {
 		return false
 	}
-	return old.Shard == nil || newCluster.Shard == nil || int64(*old.Shard) != int64(*newCluster.Shard)
+	return old.Shard == nil || newCluster.Shard == nil || *old.Shard != *newCluster.Shard
 }
 
 // A read lock should be acquired before calling getClusterAccessor.

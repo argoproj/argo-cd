@@ -185,10 +185,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 						for i := range staticClients {
 							staticClient := staticClients[i]
 							if mappings, ok := staticClient.(map[string]any); ok {
-								for key := range mappings {
-									if key == "secret" {
-										mappings[key] = "******"
-									}
+								if _, ok := mappings["secret"]; ok {
+									mappings["secret"] = "******"
 								}
 								staticClients[i] = mappings
 							}

@@ -955,7 +955,7 @@ func (m *nativeGitClient) LsRefs() (*Refs, error) {
 // not be resolved. This method runs with in-memory storage and is safe to run concurrently,
 // or to be run without a git repository locally cloned.
 func (m *nativeGitClient) LsRemote(revision string) (res string, err error) {
-	for attempt := 0; attempt < maxAttemptsCount; attempt++ {
+	for attempt := range maxAttemptsCount {
 		res, err = m.lsRemote(revision)
 		if err == nil {
 			return res, nil

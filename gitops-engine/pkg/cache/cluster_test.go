@@ -7,6 +7,7 @@ import (
 	"maps"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -2176,7 +2177,7 @@ func TestDiscoveryGetters_ConcurrentWithResync(t *testing.T) {
 			})
 			cluster.Invalidate()
 			require.NoError(t, cluster.EnsureSynced())
-			require.NoError(t, cluster.reloadOpenAPISchema())
+			require.NoError(t, runSynced(&cluster.lock, cluster.reloadOpenAPISchema))
 			// As the CRD watch does.
 			require.NoError(t, runSynced(&cluster.lock, func() error {
 				cluster.appendAPIResource(crdInfo)
@@ -2222,6 +2223,130 @@ func TestCRDVersionsToAPIResources(t *testing.T) {
 	resources, err = cluster.crdVersionsToAPIResources(crd(map[string]any{"preserveUnknownFields": "not-a-bool"}))
 	require.Error(t, err)
 	assert.Nil(t, resources)
+}
+
+// lockProbe arms kubectl hooks on cluster that record whether c.lock is held
+// when GetAPIResources (startMissingWatches) and LoadOpenAPISchema
+// (reloadOpenAPISchema) run. Arm it after EnsureSynced, since sync calls both.
+type lockProbe struct {
+	held, notHeld atomic.Int32
+}
+
+func armLockProbe(cluster *clusterCache) *lockProbe {
+	p := &lockProbe{}
+	record := func() {
+		if cluster.lock.TryLock() {
+			cluster.lock.Unlock()
+			p.notHeld.Add(1)
+			return
+		}
+		p.held.Add(1)
+	}
+	mock := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	apis := mock.APIResources
+	mock.WithGetAPIResourcesFunc(func(*rest.Config, bool, kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+		record()
+		return apis, nil
+	})
+	mock.WithLoadOpenAPISchemaFunc(func(*rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+		record()
+		return nil, nil, nil
+	})
+	return p
+}
+
+func (p *lockProbe) assertHeld(t *testing.T, calls int32) {
+	t.Helper()
+	assert.Equal(t, calls, p.held.Load(), "kubectl calls made with c.lock held")
+	assert.Zero(t, p.notHeld.Load(), "kubectl calls made without c.lock")
+}
+
+// TestHandleCRDEvent_LockContract checks that handleCRDEvent, called without
+// c.lock, holds the lock during startMissingWatches and reloadOpenAPISchema,
+// and that neither callee takes it again: the non-reentrant lock would
+// deadlock and the test would time out.
+func TestHandleCRDEvent_LockContract(t *testing.T) {
+	t.Parallel()
+	// Not newCluster: its cleanup calls Invalidate, which would wait forever on
+	// the lock a deadlocked handleCRDEvent still holds.
+	cluster := newClusterWithOptions(t, nil)
+	deadlocked := false
+	t.Cleanup(func() {
+		if !deadlocked {
+			cluster.Invalidate()
+		}
+	})
+	require.NoError(t, cluster.EnsureSynced())
+	probe := armLockProbe(cluster)
+
+	crd := strToUnstructured(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: dummies.example.com
+spec:
+  group: example.com
+  scope: Namespaced
+  names:
+    kind: Dummy
+    plural: dummies
+    singular: dummy
+  versions:
+  - name: v1`)
+	require.True(t, kube.IsCRD(crd), "sanity: the fixture must be recognised as a CRD")
+
+	// All three event types take the same locking path as the watch loop.
+	for _, event := range []watch.EventType{watch.Added, watch.Modified, watch.Deleted} {
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			cluster.handleCRDEvent(legacyEngineOf(cluster), event, crd)
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			deadlocked = true
+			t.Fatalf("handleCRDEvent(%s) did not return; store.lock is likely acquired twice", event)
+		}
+	}
+	// Added and Modified: startMissingWatches and reloadOpenAPISchema.
+	// Deleted: reloadOpenAPISchema only.
+	probe.assertHeld(t, 5)
+
+	for _, api := range cluster.GetAPIResources() {
+		assert.NotEqual(t, "Dummy", api.GroupKind.Kind, "the deleted CRD must not remain in apiResources")
+	}
+}
+
+// TestReconcileAPIServiceWatches_LockContract checks that
+// reconcileAPIServiceWatches, called without c.lock, holds the lock during
+// startMissingWatches and reloadOpenAPISchema without taking it twice.
+func TestReconcileAPIServiceWatches_LockContract(t *testing.T) {
+	t.Parallel()
+	// Not newCluster, for the same reason as TestHandleCRDEvent_LockContract.
+	cluster := newClusterWithOptions(t, nil)
+	deadlocked := false
+	t.Cleanup(func() {
+		if !deadlocked {
+			cluster.Invalidate()
+		}
+	})
+	require.NoError(t, cluster.EnsureSynced())
+	probe := armLockProbe(cluster)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		// waitForGroup=false reconciles once, without the backoff.
+		cluster.reconcileAPIServiceWatches(legacyEngineOf(cluster), "example.com", false)
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		deadlocked = true
+		t.Fatal("reconcileAPIServiceWatches did not return; store.lock is likely acquired twice")
+	}
+	probe.assertHeld(t, 2)
 }
 
 func buildTestResourceMap() map[kube.ResourceKey]*Resource {
