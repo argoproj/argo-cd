@@ -1,0 +1,13 @@
+apiVersion: customize.core.cnrm.cloud.google.com/v1beta1
+kind: NamespacedControllerReconciler
+metadata:
+  generation: 2
+  name: cnrm-controller-manager
+  namespace: config-control
+spec:
+  rateLimit:
+    burst: 100
+    qps: 50
+status:
+  healthy: true
+  observedGeneration: 2
