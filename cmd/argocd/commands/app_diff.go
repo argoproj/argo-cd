@@ -7,11 +7,7 @@ import (
 	"os"
 	"sort"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/ignore"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	grpc_retry "github.com/grpc-ecosystem/go-grpc-middleware/v2/interceptors/retry"
 	log "github.com/sirupsen/logrus"
@@ -19,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/api/resource"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	diff_utils "github.com/argoproj/argo-cd/v3/util/diff"
 
 	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 
@@ -46,16 +44,9 @@ import (
 // targetManifestProvider is a function that retrieves target manifests for diff
 type manifestProvider func(ctx context.Context) ([]*unstructured.Unstructured, error)
 
-// comparisonObject represents a resource pair for comparison
-type comparisonObject struct {
-	key    kube.ResourceKey
-	live   *unstructured.Unstructured
-	target *unstructured.Unstructured
-}
-
 // diffStrategy is a function that performs diff on a batch of resources
 // Returns DiffResult from the gitops-engine where NormalizedLive is the live state and PredictedLive is the target state
-type diffStrategy func(ctx context.Context, items []comparisonObject) ([]*diff.DiffResult, error)
+type diffStrategy func(ctx context.Context, items []diff_utils.ComparisonObject) ([]*diff.DiffResult, error)
 
 type resourceInfoProvider struct {
 	namespacedByGk map[schema.GroupKind]bool
@@ -94,59 +85,6 @@ func manifestsToUnstructured(manifests []string) ([]*unstructured.Unstructured, 
 		result = append(result, obj)
 	}
 	return result, nil
-}
-
-// getObjectMap builds a map of objects by resource key, filtering hooks, ignored resources, and secrets
-func getObjectMap(objects []*unstructured.Unstructured) map[kube.ResourceKey]*unstructured.Unstructured {
-	objectMap := make(map[kube.ResourceKey]*unstructured.Unstructured)
-	for i := range objects {
-		obj := objects[i]
-		if obj == nil {
-			continue
-		}
-
-		// Skip hooks and ignored resources
-		if hook.IsHook(obj) || ignore.Ignore(obj) {
-			continue
-		}
-
-		key := kube.GetResourceKey(obj)
-		objectMap[key] = obj
-	}
-	return objectMap
-}
-
-// getComparisonObjects pairs target and live manifests by resource key
-func getComparisonObjects(
-	targetManifests []*unstructured.Unstructured,
-	liveManifests []*unstructured.Unstructured,
-) []comparisonObject {
-	// Build map of target objects by key
-	targetByKey := getObjectMap(targetManifests)
-	liveByKey := getObjectMap(liveManifests)
-
-	// Build result list by pairing live and target objects
-	items := make([]comparisonObject, 0)
-
-	// Process live objects and match with targets
-	for key := range liveByKey {
-		items = append(items, comparisonObject{
-			key:    key,
-			live:   liveByKey[key],
-			target: targetByKey[key],
-		})
-		delete(targetByKey, key)
-	}
-	// Add remaining target objects that don't have live counterparts
-	for key := range targetByKey {
-		items = append(items, comparisonObject{
-			key:    key,
-			live:   nil,
-			target: targetByKey[key],
-		})
-	}
-
-	return items
 }
 
 // Deprecated: Prefer server-side generation since local side generation does not support plugins
@@ -211,105 +149,44 @@ func getLocalObjectsString(
 // Diff Strategy Factory Functions
 
 // newServerSideDiffStrategy creates a server-side diff strategy with all dependencies
-func newServerSideDiffStrategy(
-	app *argoappv1.Application,
-	appIf application.ApplicationServiceClient,
-	appName string,
-	appNs string,
-	concurrency int,
-	maxBatchKB int,
-) diffStrategy {
-	return func(ctx context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
+func newServerSideDiffStrategy(app *argoappv1.Application, appIf application.ApplicationServiceClient, appName string, appNs string) diffStrategy {
+	return func(ctx context.Context, items []diff_utils.ComparisonObject) ([]*diff.DiffResult, error) {
 		if len(items) == 0 {
 			return []*diff.DiffResult{}, nil
 		}
 
-		// For server-side diff, we need to create aligned arrays
-		liveResources := make([]*argoappv1.ResourceDiff, 0, len(items))
 		targetManifests := make([]string, 0, len(items))
-
 		for _, item := range items {
-			liveResource := &argoappv1.ResourceDiff{
-				Group:     item.key.Group,
-				Kind:      item.key.Kind,
-				Namespace: item.key.Namespace,
-				Name:      item.key.Name,
-			}
-			if item.live != nil {
-				jsonBytes, err := json.Marshal(item.live)
-				if err != nil {
-					return nil, fmt.Errorf("error marshaling live object: %w", err)
-				}
-				liveResource.LiveState = string(jsonBytes)
-			}
-
 			var targetManifest string
-			if item.target != nil {
-				jsonBytes, err := json.Marshal(item.target)
+			if item.Target != nil {
+				jsonBytes, err := json.Marshal(item.Target)
 				if err != nil {
 					return nil, fmt.Errorf("error marshaling target object: %w", err)
 				}
 				targetManifest = string(jsonBytes)
 			}
 
-			liveResources = append(liveResources, liveResource)
 			targetManifests = append(targetManifests, targetManifest)
 		}
 
-		maxBatchSize := maxBatchKB * 1024
-		var batches []struct{ start, end int }
-		for i := 0; i < len(liveResources); {
-			start := i
-			size := 0
-			for i < len(liveResources) {
-				resourceSize := len(liveResources[i].LiveState) + len(targetManifests[i])
-				if size+resourceSize > maxBatchSize && i > start {
-					break
-				}
-				size += resourceSize
-				i++
-			}
-			batches = append(batches, struct{ start, end int }{start, i})
+		serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
+			AppName:         &appName,
+			AppNamespace:    &appNs,
+			Project:         &app.Spec.Project,
+			TargetManifests: targetManifests,
 		}
-
-		g, errGroupCtx := errgroup.WithContext(ctx)
-		g.SetLimit(concurrency)
-
-		batchResults := make([][]*argoappv1.ResourceDiff, len(batches))
-
-		for idx, batch := range batches {
-			i := idx
-			b := batch
-			g.Go(func() error {
-				serverSideDiffQuery := &application.ApplicationServerSideDiffQuery{
-					AppName:         &appName,
-					AppNamespace:    &appNs,
-					Project:         &app.Spec.Project,
-					LiveResources:   liveResources[b.start:b.end],
-					TargetManifests: targetManifests[b.start:b.end],
-				}
-				serverSideDiffRes, err := appIf.ServerSideDiff(errGroupCtx, serverSideDiffQuery)
-				if err != nil {
-					return err
-				}
-				batchResults[i] = serverSideDiffRes.Items
-				return nil
-			})
-		}
-
-		if err := g.Wait(); err != nil {
+		serverSideDiffRes, err := appIf.ServerSideDiff(ctx, serverSideDiffQuery)
+		if err != nil {
 			return nil, err
 		}
 
 		results := make([]*diff.DiffResult, 0)
-		for _, batchItems := range batchResults {
-			for _, resultItem := range batchItems {
-				results = append(results, &diff.DiffResult{
-					Modified:       resultItem.Modified,
-					NormalizedLive: []byte(resultItem.LiveState),
-					PredictedLive:  []byte(resultItem.TargetState),
-				})
-			}
+		for _, resultItem := range serverSideDiffRes.Items {
+			results = append(results, &diff.DiffResult{
+				Modified:       resultItem.Modified,
+				NormalizedLive: []byte(resultItem.LiveState),
+				PredictedLive:  []byte(resultItem.TargetState),
+			})
 		}
 
 		return results, nil
@@ -340,11 +217,11 @@ func newClientSideDiffStrategy(
 		return nil, err
 	}
 
-	return func(ctx context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
+	return func(ctx context.Context, items []diff_utils.ComparisonObject) ([]*diff.DiffResult, error) {
 		results := make([]*diff.DiffResult, len(items))
 
 		for i, item := range items {
-			diffRes, err := argodiff.StateDiff(ctx, item.live, item.target, diffConfig)
+			diffRes, err := argodiff.StateDiff(ctx, item.Live, item.Target, diffConfig)
 			if err != nil {
 				return nil, err
 			}
@@ -552,13 +429,13 @@ func newNormalizeTargetManifestsProvider(
 }
 
 // compareManifests computes the diff using a target manifest provider
-// Returns a list of comparisonObject containing all resources (added, removed, and modified)
+// Returns a list of ComparisonObject containing all resources (added, removed, and modified)
 func compareManifests(
 	ctx context.Context,
 	getTargetManifests manifestProvider,
 	getLiveManifests manifestProvider,
 	performDiff diffStrategy,
-) ([]comparisonObject, error) {
+) ([]diff_utils.ComparisonObject, error) {
 	// Get live objects
 	liveManifests, err := getLiveManifests(ctx)
 	if err != nil {
@@ -572,7 +449,7 @@ func compareManifests(
 	}
 
 	// Build object map pairing live and target
-	items := getComparisonObjects(targetManifests, liveManifests)
+	items := diff_utils.GetComparisonObjects(targetManifests, liveManifests)
 
 	// Perform diff on potentially modified resources
 	diffResults, err := performDiff(ctx, items)
@@ -580,7 +457,7 @@ func compareManifests(
 		return nil, err
 	}
 
-	results := make([]comparisonObject, 0)
+	results := make([]diff_utils.ComparisonObject, 0)
 	for _, diffRes := range diffResults {
 		liveState := string(diffRes.NormalizedLive)
 		targetState := string(diffRes.PredictedLive)
@@ -610,14 +487,27 @@ func compareManifests(
 			key = kube.GetResourceKey(target)
 		}
 
-		results = append(results, comparisonObject{
-			key:    key,
-			live:   live,
-			target: target,
+		results = append(results, diff_utils.ComparisonObject{
+			Key:    key,
+			Live:   live,
+			Target: target,
 		})
 	}
 
 	return results, nil
+}
+
+// excludeLiveSecrets drops results whose live side is a core Secret. Server-side diff resolves live state on the
+// server, so filtering live Secrets out of the client's live manifests alone does not keep them out of the diff.
+func excludeLiveSecrets(results []diff_utils.ComparisonObject) []diff_utils.ComparisonObject {
+	filtered := make([]diff_utils.ComparisonObject, 0, len(results))
+	for _, result := range results {
+		if result.Live != nil && result.Key.Group == "" && result.Key.Kind == kube.SecretKind {
+			continue
+		}
+		filtered = append(filtered, result)
+	}
+	return filtered
 }
 
 // NewApplicationDiffCommand returns a new instance of an `argocd app diff` command
@@ -664,10 +554,6 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 			if len(sourceNames) > 0 && len(revisions) != len(sourceNames) {
 				errors.Fatal(errors.ErrorGeneric, "While using --revisions and --source-names, length of values for both flags should be same.")
-			}
-
-			if serverSideDiffConcurrency == 0 {
-				errors.Fatal(errors.ErrorGeneric, "invalid value for --server-side-diff-concurrency: 0 is not allowed (use -1 for unlimited, or a positive number to limit concurrency)")
 			}
 
 			clientset := headless.NewClientOrDie(clientOpts, c)
@@ -763,7 +649,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			// Create diff strategy based on --server-side-diff flag
 			var diffHandler diffStrategy
 			if serverSideDiff {
-				diffHandler = newServerSideDiffStrategy(app, appIf, appName, appNs, serverSideDiffConcurrency, serverSideDiffMaxBatchKB)
+				diffHandler = newServerSideDiffStrategy(app, appIf, appName, appNs)
 			} else {
 				clientSideDiff, err := newClientSideDiffStrategy(app, argoSettings, ignoreNormalizerOpts)
 				errors.CheckError(err)
@@ -773,12 +659,15 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			// Compute diff
 			results, err := compareManifests(ctx, getTargetManifests, getLiveManifests, diffHandler)
 			errors.CheckError(err)
+			if excludeSecret {
+				results = excludeLiveSecrets(results)
+			}
 
 			sort.Slice(results, func(i, j int) bool {
-				return results[i].key.String() < results[j].key.String()
+				return results[i].Key.String() < results[j].Key.String()
 			})
 			for _, result := range results {
-				printResourceDiff(result.key.Group, result.key.Kind, result.key.Namespace, result.key.Name, result.live, result.target)
+				printResourceDiff(result.Key.Group, result.Key.Kind, result.Key.Namespace, result.Key.Name, result.Live, result.Target)
 			}
 
 			foundDiffs := len(results) > 0
@@ -808,8 +697,8 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 
 // addServerSideDiffPerfFlags adds server-side diff performance tuning flags to a command
 func addServerSideDiffPerfFlags(command *cobra.Command, serverSideDiffConcurrency *int, serverSideDiffMaxBatchKB *int) {
-	command.Flags().IntVar(serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid)")
-	command.Flags().IntVar(serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Max batch size in KB for server-side diff. Smaller values are safer for proxies")
+	command.Flags().IntVar(serverSideDiffConcurrency, "server-side-diff-concurrency", -1, "Deprecated: this flag does not do anything")
+	command.Flags().IntVar(serverSideDiffMaxBatchKB, "server-side-diff-max-batch-kb", 250, "Deprecated: this flag does not do anything")
 }
 
 // printResourceDiff prints the diff header and calls cli.PrintDiff for a resource

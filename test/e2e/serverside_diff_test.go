@@ -95,15 +95,8 @@ func TestServerSideDiffMasksSecretData(t *testing.T) {
 			require.NoError(t, err)
 
 			resp, err := client.ServerSideDiff(t.Context(), &applicationpkg.ApplicationServerSideDiffQuery{
-				AppName: &app.Name,
-				Project: &app.Spec.Project,
-				LiveResources: []*ResourceDiff{{
-					Kind:      "Secret",
-					Namespace: ns,
-					Name:      "test-secret",
-					LiveState: secretLiveState,
-					Modified:  true,
-				}},
+				AppName:         &app.Name,
+				Project:         &app.Spec.Project,
 				TargetManifests: []string{string(target)},
 			})
 			require.NoError(t, err)
