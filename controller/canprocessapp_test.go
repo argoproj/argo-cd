@@ -151,35 +151,35 @@ func Test_canProcessApp_ShardAssignment(t *testing.T) {
 			canProcessWant{true, "https://cluster-b"},
 		},
 		{
-			// An unresolvable destination is processed by every shard.
+			// An unresolvable destination is processed by shard 0 only.
 			"both server and name set",
 			appWithDestination("both-set", appv1.ApplicationDestination{Server: "https://cluster-a", Name: "cluster-a", Namespace: "default"}),
 			canProcessWant{true, ""},
-			canProcessWant{true, ""},
+			canProcessWant{false, ""},
 		},
 		{
 			"neither server nor name set",
 			appWithDestination("neither-set", appv1.ApplicationDestination{Namespace: "default"}),
 			canProcessWant{true, ""},
-			canProcessWant{true, ""},
+			canProcessWant{false, ""},
 		},
 		{
 			"name of a cluster with no secret",
 			appWithDestination("unknown-name", appv1.ApplicationDestination{Name: "no-such-cluster", Namespace: "default"}),
 			canProcessWant{true, ""},
-			canProcessWant{true, ""},
+			canProcessWant{false, ""},
 		},
 		{
 			"server of a cluster with no secret",
 			appWithDestination("unknown-server", appv1.ApplicationDestination{Server: "https://no-such-cluster", Namespace: "default"}),
 			canProcessWant{true, ""},
-			canProcessWant{true, ""},
+			canProcessWant{false, ""},
 		},
 		{
 			"ambiguous name matching two clusters",
 			appWithDestination("ambiguous", appv1.ApplicationDestination{Name: "dupe", Namespace: "default"}),
 			canProcessWant{true, ""},
-			canProcessWant{true, ""},
+			canProcessWant{false, ""},
 		},
 		{
 			"cluster with skip-reconcile annotation",
@@ -273,7 +273,7 @@ func Test_canProcessApp_InCluster(t *testing.T) {
 		{0, true, canProcessWant{true, appv1.KubernetesInternalAPIServerAddr}},
 		{0, false, canProcessWant{true, ""}},
 		{1, true, canProcessWant{false, ""}},
-		{1, false, canProcessWant{true, ""}},
+		{1, false, canProcessWant{false, ""}},
 	}
 
 	for _, tc := range cases {
