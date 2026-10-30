@@ -1,0 +1,13 @@
+apiVersion: dscinitialization.opendatahub.io/v1
+kind: DSCInitialization
+metadata:
+  name: default-dsci
+spec:
+  applicationsNamespace: opendatahub
+status:
+  phase: "Not Ready"
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: NotReady
+      message: "DSCInitialization is not ready"
