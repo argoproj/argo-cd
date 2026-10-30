@@ -13,13 +13,16 @@ import (
 	"k8s.io/kubectl/pkg/validation"
 )
 
-// maxFieldValidationCacheEntries bounds the cache; it is reset when full, since keys only
-// change with a schema.
+// maxFieldValidationCacheEntries bounds the cache; it is reset when full. Every schema change
+// to a group-version mints new keys and orphans the old ones, so a long-running controller
+// managing many clusters reaches the bound and resets periodically.
 const maxFieldValidationCacheEntries = 10000
 
 // fieldValidationSupport records whether a GVK supports the fieldValidation query param.
 // kubectl's Factory.Validator builds a new verifier per apply, so without it every apply
-// parses its group-version's full OpenAPI v3 document.
+// parses its group-version's full OpenAPI v3 document. It is shared across clusters: keys
+// carry no cluster identity and rely on the hash being a content hash, as kube-apiserver
+// and aggregated servers built on kube-openapi's handler3 serve it.
 var fieldValidationSupport = newFieldValidationCache()
 
 // fieldValidationCacheKey is the group-version's OpenAPI v3 URL, which carries the
@@ -69,7 +72,9 @@ func newFieldValidationVerifier(dyn dynamic.Interface, client openapi.Client, ca
 }
 
 // HasSupport implements resource.Verifier, answering from the cache when the group-version's
-// document hash and kind were seen before.
+// document hash and kind were seen before. If the document changed after Paths was read,
+// the server redirects the stale hash to the current document and its answer is stored
+// under the stale key, which fresh discovery no longer lists, so the entry is orphaned.
 func (v *hashKeyedVerifier) HasSupport(gvk schema.GroupVersionKind) error {
 	key, ok := v.cacheKey(gvk)
 	if !ok {
@@ -108,7 +113,8 @@ func (v *hashKeyedVerifier) cacheKey(gvk schema.GroupVersionKind) (fieldValidati
 
 // newValidator is kubectl's Factory.Validator with the v3 verifier cached. The v2 fallback
 // covers v3 errors other than ParamUnsupported, e.g. a CRD kind not yet in its served
-// group-version document.
+// group-version document (https://github.com/kubernetes/kubernetes/issues/143292, fixed
+// in k8s 1.38); see TestFieldValidationV3VerifierRejectsUnlistedKind.
 func (k *kubectlResourceOperations) newValidator(validationDirective string) (validation.Schema, error) {
 	if validationDirective == metav1.FieldValidationIgnore {
 		return validation.NullSchema{}, nil
