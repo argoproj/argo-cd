@@ -9,6 +9,8 @@ export interface TagsInputProps {
     autocomplete?: (AutocompleteOption | string)[];
     onChange?: (tags: string[]) => any;
     placeholder?: string;
+    description?: string;
+    ariaLabel?: string;
 }
 
 interface TagsInputState {
@@ -22,6 +24,7 @@ require('./tags-input.scss');
 export function TagsInput(props: TagsInputProps) {
     const [state, setState] = useState<TagsInputState>({tags: props.tags || [], input: '', focused: false});
 
+    const descriptionId = React.useId();
     const inputEl = useRef<HTMLInputElement | null>(null);
     const autocompleteApi = useRef<AutocompleteApi | null>(null);
     const pendingBlurInput = useRef<string | null>(null);
@@ -85,6 +88,8 @@ export function TagsInput(props: TagsInputProps) {
                     <input
                         {...inputProps}
                         placeholder={props.placeholder}
+                        aria-label={props.ariaLabel}
+                        aria-describedby={props.description ? descriptionId : undefined}
                         ref={el => {
                             inputEl.current = el;
                             if (inputProps.ref) {
@@ -126,6 +131,11 @@ export function TagsInput(props: TagsInputProps) {
                     />
                 )}
             />
+            {props.description && (
+                <span id={descriptionId} hidden>
+                    {props.description}
+                </span>
+            )}
         </div>
     );
 }

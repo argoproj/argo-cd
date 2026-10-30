@@ -1,4 +1,4 @@
-import {ErrorNotification, HelpIcon, NotificationType} from 'argo-ui';
+import {ErrorNotification, NotificationType, Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
 import {type ReactNode, useCallback, useContext, useState, Fragment} from 'react';
@@ -22,6 +22,8 @@ export interface EditablePanelItem {
 }
 
 export function EditablePanelItemTitle({item, formApi}: {item: EditablePanelItem; formApi?: FormApi}) {
+    const [hintDismissed, setHintDismissed] = useState(false);
+    const hintId = React.useId();
     if (formApi && item.titleEdit) {
         return <>{item.titleEdit(formApi)}</>;
     }
@@ -30,7 +32,27 @@ export function EditablePanelItemTitle({item, formApi}: {item: EditablePanelItem
             {item.customTitle || item.title}
             {item.hint && (
                 <span style={{marginLeft: '0.25em'}}>
-                    <HelpIcon title={item.hint} />
+                    <Tooltip content={item.hint} visible={hintDismissed ? false : undefined}>
+                        <button
+                            type='button'
+                            className='editable-panel__hint'
+                            aria-label={`Help for ${item.title}`}
+                            aria-describedby={hintId}
+                            onFocus={() => setHintDismissed(false)}
+                            onMouseEnter={() => setHintDismissed(false)}
+                            onKeyDown={event => {
+                                if (event.key === 'Escape' && !hintDismissed) {
+                                    // Dismiss the hint without closing the surrounding editor.
+                                    event.stopPropagation();
+                                    setHintDismissed(true);
+                                }
+                            }}>
+                            <i className='fa fa-question-circle help-tip' aria-hidden='true' />
+                        </button>
+                    </Tooltip>
+                    <span id={hintId} hidden>
+                        {item.hint}
+                    </span>
                 </span>
             )}
         </>
