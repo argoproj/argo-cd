@@ -208,18 +208,18 @@ SignedRevisionOnly is enabled, v1.0 is not annotated. Un-annotated tags cannot b
 > `signedRevisionOnly` works as a guardrail by rejecting revisions that *cannot* be signed — it does not verify a signature by
 > itself. The annotated tag must still satisfy the policy's `gpg` constraint to be synced. 
 
-The constraint can be managed with the CLI and can be set with `--signed-tags-only` flag:
+The constraint can be managed with the CLI and can be set with `--signed-revision-only` flag:
 
 ```bash
 # Require annotated tags for a new policy
 argocd proj source-integrity git policies add PROJECT \
   --repo-url 'https://github.com/my-group/*' \
-  --signed-tags-only \
+  --signed-revision-only \
   --gpg-mode head \
   --gpg-key D56C4FCA57A46444
 
 # Stop requiring them for an existing policy
-argocd proj source-integrity git policies update PROJECT POLICY_ID --signed-tags-only=false
+argocd proj source-integrity git policies update PROJECT POLICY_ID --signed-revision-only=false
 ```
 
 ### The `gpg` verification policy
@@ -243,7 +243,7 @@ Note this accepts unsigned commits as well as commits with a signature that is i
 Verify only the commit/tag pointed to by the target revision of the source.
 If the revision is an annotated tag, it is the tag's signature that is verified, not the commit's signature (i.e. the tag itself must be signed using `git tag -s`).
 Otherwise, if target revision is a branch name, reference name (such as `HEAD`), or a commit SHA Argo CD verifies the commit's GnuPG signature.
-To reject revisions that are not annotated tags outright, combine this mode with [`signedRevisionOnly`](#restricting-sources-to-signed-tags).
+To reject revisions that are not annotated tags outright, combine this mode with [`signedRevisionOnly`](#restricting-sources-to-signed-revision).
 
 ##### Verification mode `strict`
 

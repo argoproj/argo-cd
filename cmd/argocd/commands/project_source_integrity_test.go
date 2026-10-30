@@ -128,7 +128,7 @@ func TestProjectSourceIntegrityAddCommand(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		expectedOut := `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+		expectedOut := `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	strict	0123456789ABCDEF, ABCDEF0123456789	*, !*internal*	false
 `
 		tabbedOut := regexp.MustCompile(" {2,}").ReplaceAllString(out, "\t")
@@ -168,7 +168,7 @@ func TestProjectSourceIntegrityAddCommand(t *testing.T) {
 		)
 		require.NoError(t, err)
 
-		expectedOut := `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+		expectedOut := `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git	false
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git	false
 2	head	0123456789ABCDEF	*	false
@@ -204,12 +204,12 @@ func TestProjectSourceIntegrityAddCommand(t *testing.T) {
 			"--gpg-mode=head",
 			"--gpg-key=ABCD1234ABCD1234",
 			"--repo-url=*",
-			"--signed-tags-only",
+			"--signed-revision-only",
 			projectName,
 		)
 		require.NoError(t, err)
 
-		expectedOut := `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+		expectedOut := `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	ABCD1234ABCD1234	*	true
 `
 		tabbedOut := regexp.MustCompile(" {2,}").ReplaceAllString(out, "\t")
@@ -262,7 +262,7 @@ func TestProjectSourceIntegrityAddCommand(t *testing.T) {
 		out, stderr, err := runCmd(t, cmd, projectName, "--gpg-mode=head")
 		require.NoError(t, err)
 
-		expectedOut := `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+		expectedOut := `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	<none>	<none>	false
 `
 		tabbedOut := regexp.MustCompile(" {2,}").ReplaceAllString(out, "\t")
@@ -299,7 +299,7 @@ func TestProjectSourceIntegrityListCommand(t *testing.T) {
 			name:            "with policies",
 			sourceIntegrity: dummySourceIntegrity(),
 			projectName:     projectName,
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git	false
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git	false
 `,
@@ -309,7 +309,7 @@ func TestProjectSourceIntegrityListCommand(t *testing.T) {
 			name:            "with signed tags only policy",
 			sourceIntegrity: dummySourceIntegritySignedRevisionOnly(),
 			projectName:     projectName,
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	ABCD1234ABCD1234	*	true
 `,
 			expectedStderr: "",
@@ -364,7 +364,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			name:            "Set GPG mode",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "0", "--gpg-mode=strict", "--yes"},
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	strict	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git	false
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git	false
 `,
@@ -385,7 +385,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			name:            "Set GPG keys",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "1", "--gpg-key=FEDCBA9876543210", "--gpg-key=FEDCBA9876543219", "--yes"},
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git	false
 1	strict	FEDCBA9876543210, FEDCBA9876543219	https://github.com/argoproj/argo-cd.git	false
 `,
@@ -404,7 +404,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			name:            "Delete GPG key",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "0", "--delete-gpg-key=ABCD1234ABCD1234", "-y"},
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	<none>	*, !https://github.com/argoproj/argo-cd.git	false
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git	false
 `,
@@ -425,7 +425,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			name:            "Set repo URLs",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "1", "--repo-url=https://github.com/example/repo.git", "--repo-url=https://github.com/example/other.git", "--yes"},
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git	false
 1	strict	1234ABCD1234ABCD	https://github.com/example/repo.git, https://github.com/example/other.git	false
 `,
@@ -446,7 +446,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			name:            "Remove repo URL",
 			sourceIntegrity: dummySourceIntegrity(),
 			args:            []string{projectName, "0", "--delete-repo-url=*", "--delete-repo-url=not://present.is/ignored", "--yes"},
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	ABCD1234ABCD1234	!https://github.com/argoproj/argo-cd.git	false
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git	false
 `,
@@ -472,7 +472,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 				"--delete-repo-url=!https://github.com/argoproj/argo-cd.git",
 				"--yes",
 			},
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	none	9876543210FEDCBA	*, https://new-repo.com	false
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git	false
 `,
@@ -492,8 +492,8 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 		{
 			name:            "Enable signed tags only",
 			sourceIntegrity: dummySourceIntegrity(),
-			args:            []string{projectName, "0", "--signed-tags-only", "--yes"},
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			args:            []string{projectName, "0", "--signed-revision-only", "--yes"},
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	ABCD1234ABCD1234	*, !https://github.com/argoproj/argo-cd.git	true
 1	strict	1234ABCD1234ABCD	https://github.com/argoproj/argo-cd.git	false
 `,
@@ -514,8 +514,8 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 		{
 			name:            "Disable signed tags only",
 			sourceIntegrity: dummySourceIntegritySignedRevisionOnly(),
-			args:            []string{projectName, "0", "--signed-tags-only=false", "--yes"},
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			args:            []string{projectName, "0", "--signed-revision-only=false", "--yes"},
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	head	ABCD1234ABCD1234	*	false
 `,
 			expectedStderr: "",
@@ -534,7 +534,7 @@ func TestProjectSourceIntegrityUpdateCommand(t *testing.T) {
 			name:            "Keep signed tags only when the flag is not given",
 			sourceIntegrity: dummySourceIntegritySignedRevisionOnly(),
 			args:            []string{projectName, "0", "--gpg-mode=strict", "--yes"},
-			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-TAGS-ONLY
+			expectedStdout: `ID	GPG-MODE	GPG-KEYS	REPO-URLS	SIGNED-REVISION-ONLY
 0	strict	ABCD1234ABCD1234	*	true
 `,
 			expectedStderr: "",

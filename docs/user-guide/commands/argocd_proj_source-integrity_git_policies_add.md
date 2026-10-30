@@ -14,7 +14,7 @@ argocd proj source-integrity git policies add PROJECT [flags]
   # Add a new git policy with repo URLs and GPG settings
   argocd proj source-integrity git policies add PROJECT \
   --repo-url 'https://github.com/foo/*' \
-  --signed-tags-only \
+  --signed-revision-only \
   --gpg-mode strict \
   --gpg-key D56C4FCA57A46444
 ```
@@ -26,7 +26,7 @@ argocd proj source-integrity git policies add PROJECT [flags]
       --gpg-mode string    GPG verification mode (strict, head, or none)
   -h, --help               help for add
       --repo-url strings   Repository URL pattern (can be repeated)
-      --signed-tags-only   Only permit syncing from annotated tags
+      --signed-revision-only   Only permit syncing from annotated tags
 ```
 
 ### Options inherited from parent commands
