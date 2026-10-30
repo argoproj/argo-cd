@@ -108,8 +108,9 @@ func getRefTargetRevisionMappingForCacheKey(refTargetRevisionMapping appv1.RefTa
 	res := make(refTargetRevisionMappingForCacheKey)
 
 	for k, v := range refTargetRevisionMapping {
-		// forcefully update TargetRevision based on refSourceCommitSHAs so that the resolved revision is always stored in the cache
-		v.TargetRevision = refSourceCommitSHAs[git.NormalizeGitURL(v.Repo.Repo)]
+		if sha, ok := refSourceCommitSHAs[git.NormalizeGitURL(v.Repo.Repo)]; ok && sha != "" {
+			v.TargetRevision = sha
+		}
 		res[k] = refTargetForCacheKeyFromRefTarget(v)
 	}
 	return res
