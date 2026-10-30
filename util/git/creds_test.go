@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -823,15 +824,20 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 	})
 
 	t.Run("does not fall back to the user installation on other errors", func(t *testing.T) {
+		var mu sync.Mutex
 		var paths []string
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
 			paths = append(paths, r.URL.Path)
+			mu.Unlock()
 			w.WriteHeader(http.StatusForbidden)
 		}))
 		defer server.Close()
 
 		_, err := DiscoverGitHubAppInstallationID(t.Context(), 12345, fakeGitHubAppPrivateKey, server.URL, "test-org")
 		require.ErrorContains(t, err, "403")
+		mu.Lock()
+		defer mu.Unlock()
 		assert.Equal(t, []string{"/api/v3/orgs/test-org/installation"}, paths)
 	})
 }
