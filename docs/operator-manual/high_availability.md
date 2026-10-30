@@ -149,14 +149,16 @@ get the actual cluster state.
   `controller.reconciled.at.heartbeat` in the `argocd-cmd-params-cm` ConfigMap (a
   [duration string](https://pkg.go.dev/time#ParseDuration), e.g. `10m`) to bound how stale that one field may become
   instead: a reconciliation that changes nothing else then writes nothing at all, and at N apps with a reconciliation
-  timeout of R the writes drop from N/R to roughly N/heartbeat. The controller still tracks the real reconcile time in
-  memory, so refresh scheduling is unaffected, and `reconciledAt` is always written when it would otherwise trail the
-  last sync, keeping `argocd app wait`, notifications and progressive sync accurate. The default, `0`, writes the field
-  on every reconciliation.
+  timeout of R the writes drop from N/R to roughly N/heartbeat. The heartbeat must be longer than R to reduce writes.
+  The controller still tracks the real reconcile time in memory, so refresh scheduling is unaffected, and
+  `reconciledAt` is always written on a requested refresh or when it would otherwise trail the last sync, keeping
+  `argocd app wait`, notifications and progressive sync accurate. The default, `0`, writes the field on every
+  reconciliation.
 
     > [!NOTE]
     > The trade-off is visibility: while a heartbeat is configured, the `reconciledAt` field you see on an Application
-    > may lag behind the last reconciliation by up to that duration.
+    > may lag behind the last reconciliation by up to that duration. The in-memory time is lost when the controller
+    > restarts or apps move between shards, so apps whose `reconciledAt` is older than R are all refreshed at once.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
   controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller`

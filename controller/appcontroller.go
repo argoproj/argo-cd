@@ -2339,7 +2339,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		ctrl.noteReconciled(app.QualifiedName(), now.Time)
 		// Stamping it every pass makes the status patch non-empty every time, which
 		// defeats the "no status changes" short-circuit in persistAppStatus.
-		if ctrl.shouldPersistReconciledAt(app.Status, now.Time) {
+		// A requested refresh always writes: progressive sync waits on reconciledAt
+		// passing its step transition and re-annotates until it does.
+		if _, requested := app.IsRefreshRequested(); requested || ctrl.shouldPersistReconciledAt(app.Status, now.Time) {
 			app.Status.ReconciledAt = &now
 		}
 	}
@@ -2880,6 +2882,8 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		spanErr = err
+		// Let the stale persisted reconciledAt drive expiry again so the write is retried.
+		ctrl.forgetReconciled(orig.QualifiedName())
 		if apierrors.IsRequestEntityTooLargeError(err) {
 			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
 			fallbackStatus := orig.Status.DeepCopy()

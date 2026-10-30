@@ -2949,6 +2949,115 @@ func TestReconciledAtPersistedAfterOperation(t *testing.T) {
 		"persisted reconciledAt %v must overtake finishedAt %v", parsed, finishedAt.Time)
 }
 
+// Progressive sync annotates apps for refresh and waits for reconciledAt to pass
+// the step transition, so a requested refresh must write it despite the heartbeat.
+func TestReconciledAtPersistedOnRequestedRefresh(t *testing.T) {
+	app := newFakeApp()
+	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Minute))
+	healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+	app.Status = v1alpha1.ApplicationStatus{
+		ReconciledAt:        &reconciledAt,
+		ControllerNamespace: test.FakeArgoCDNamespace,
+		Health: v1alpha1.AppHealthStatus{
+			Status:             health.HealthStatusHealthy,
+			LastTransitionTime: &healthAt,
+		},
+		Sync: v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeSynced,
+			Revision: "abc123",
+			ComparedTo: v1alpha1.ComparedTo{
+				Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
+			},
+		},
+	}
+	app.Annotations = map[string]string{v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal)}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs:       make(map[kube.ResourceKey]*unstructured.Unstructured),
+		reconciledAtHeartbeat: 10 * time.Minute,
+	}, nil)
+
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	var reconciledAtWritten bool
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok && patchAction.GetPatchType() == "application/merge-patch+json" {
+			receivedPatch := map[string]any{}
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			_, present, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
+			require.NoError(t, err)
+			reconciledAtWritten = reconciledAtWritten || present
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	assert.True(t, reconciledAtWritten, "a requested refresh must persist reconciledAt")
+}
+
+// A failed status write must not be masked by the in-memory time, or it is not
+// retried until the next resync period.
+func TestFailedStatusWriteForgetsReconciled(t *testing.T) {
+	app := newFakeApp()
+	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Minute))
+	healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+	app.Status = v1alpha1.ApplicationStatus{
+		ReconciledAt:        &reconciledAt,
+		ControllerNamespace: test.FakeArgoCDNamespace,
+		Health: v1alpha1.AppHealthStatus{
+			Status:             health.HealthStatusHealthy,
+			LastTransitionTime: &healthAt,
+		},
+		Sync: v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeSynced,
+			Revision: "abc123",
+			ComparedTo: v1alpha1.ComparedTo{
+				Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
+			},
+		},
+	}
+	// Force a non-empty status patch.
+	app.Status.Health.Status = health.HealthStatusProgressing
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs:       make(map[kube.ResourceKey]*unstructured.Unstructured),
+		reconciledAtHeartbeat: 10 * time.Minute,
+	}, nil)
+
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("api unavailable")
+	})
+
+	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	ctrl.lastReconciledAtMutex.RLock()
+	_, noted := ctrl.lastReconciledAt[app.QualifiedName()]
+	ctrl.lastReconciledAtMutex.RUnlock()
+	assert.False(t, noted, "a failed status write must drop the in-memory reconcile time")
+}
+
 // The log must report the time the decision was made against, plus the value in
 // the CR when the heartbeat has let the two drift apart.
 func TestNeedRefreshAppStatusLogsEffectiveReconciledAt(t *testing.T) {
