@@ -2,9 +2,13 @@ package git
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"fmt"
 	"net"
 	"net/http"
@@ -987,7 +991,86 @@ func TestDiscoverGitHubAppInstallationID_SharesConcurrentLookups(t *testing.T) {
 		assert.Equal(t, int64(98765), id)
 		require.ErrorIs(t, <-leaderErr, context.DeadlineExceeded)
 	})
+
+	t.Run("does not retry a deadline error while the starting caller's context is live", func(t *testing.T) {
+		// A dial timeout matches context.DeadlineExceeded even though no context ended.
+		var requests atomic.Int32
+		client := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+			requests.Add(1)
+			return nil, fmt.Errorf("dial tcp: i/o timeout: %w", context.DeadlineExceeded)
+		})}
+
+		done := make(chan error, 1)
+		go func() {
+			_, err := DiscoverGitHubAppInstallationID(t.Context(), 30004, fakeGitHubAppPrivateKey, "https://github.example.com", "test-org", client)
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			require.ErrorIs(t, err, context.DeadlineExceeded)
+		case <-time.After(2 * time.Second):
+			t.Fatal("lookup kept retrying")
+		}
+		assert.Equal(t, int32(1), requests.Load())
+	})
+
+	t.Run("lookups with different private keys do not share results", func(t *testing.T) {
+		otherKey, err := rsa.GenerateKey(rand.Reader, 2048)
+		require.NoError(t, err)
+		otherPrivateKey := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(otherKey)}))
+
+		// Requests made with the rejected key block until released, then fail.
+		started := make(chan struct{})
+		release := make(chan struct{})
+		releaseOnce := sync.OnceFunc(func() { close(release) })
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.Header.Get("X-Test-Key") == "rejected" {
+				close(started)
+				<-release
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			//nolint:errcheck
+			json.NewEncoder(w).Encode(map[string]any{"id": 98765, "account": map[string]any{"login": "test-org"}})
+		}))
+		defer server.Close()
+		defer releaseOnce()
+		t.Cleanup(func() {
+			domain, _ := domainFromBaseURL(server.URL)
+			githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 30005))
+		})
+		rejectedClient := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+			r.Header.Set("X-Test-Key", "rejected")
+			return http.DefaultTransport.RoundTrip(r)
+		})}
+
+		rejectedErr := make(chan error, 1)
+		go func() {
+			_, err := DiscoverGitHubAppInstallationID(t.Context(), 30005, fakeGitHubAppPrivateKey, server.URL, "test-org", rejectedClient)
+			rejectedErr <- err
+		}()
+		<-started
+
+		validErr := make(chan error, 1)
+		go func() {
+			_, err := DiscoverGitHubAppInstallationID(t.Context(), 30005, otherPrivateKey, server.URL, "test-org")
+			validErr <- err
+		}()
+		select {
+		case err := <-validErr:
+			require.NoError(t, err)
+		case <-time.After(2 * time.Second):
+			t.Fatal("lookup with a valid key waited for the lookup with the rejected key")
+		}
+		releaseOnce()
+		require.ErrorContains(t, <-rejectedErr, "401")
+	})
 }
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
 
 func TestExtractOrgFromRepoURL(t *testing.T) {
 	tests := []struct {
