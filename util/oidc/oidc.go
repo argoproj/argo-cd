@@ -931,6 +931,9 @@ var protectedClaims = map[string]struct{}{
 	"iss": {}, "sub": {}, "aud": {}, "exp": {}, "iat": {}, "nbf": {}, "jti": {}, "federated_claims": {},
 }
 
+// missingScopeClaimsWarned records scope claims already reported as missing, so the warning is logged once per claim.
+var missingScopeClaimsWarned sync.Map
+
 // SetGroupsClaimFromEndpoint takes a claims object and adds groups claim from either:
 // - the UserInfo endpoint if enabled
 // - the Microsoft Graph API if Azure groups overage claim is detected and enabled
@@ -972,7 +975,12 @@ func (a *ClientApp) SetGroupsClaimFromEndpoint(ctx context.Context, claims jwt.C
 				// Overwrite even when absent so revoked memberships in a still-valid ID token are not kept.
 				value, found := userInfo[scope]
 				if !found {
-					log.Warnf("claim '%s' from RBAC scopes not found in UserInfo response (sub=%s), clearing it", scope, jwtutil.StringField(groupClaims, "sub"))
+					sub := jwtutil.StringField(groupClaims, "sub")
+					if _, warned := missingScopeClaimsWarned.LoadOrStore(scope, struct{}{}); warned {
+						log.Debugf("claim '%s' from RBAC scopes not found in UserInfo response (sub=%s), clearing it", scope, sub)
+					} else {
+						log.Warnf("claim '%s' from RBAC scopes not found in UserInfo response (sub=%s), clearing it. Further occurrences are logged at debug level", scope, sub)
+					}
 				}
 				groupClaims[scope] = value
 			}

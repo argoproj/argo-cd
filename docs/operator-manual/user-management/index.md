@@ -912,11 +912,11 @@ cleared, even if the ID token still contains it. Make sure your provider returns
 (for example `email`) in the UserInfo response.
 
 > [!NOTE]
-> The UserInfo response is cached, so removing a user from a group does not take effect until the cache entry expires
-> or the user logs in again. The entry expires after `userInfoCacheExpiration` only if that setting is set and shorter
-> than the remaining lifetime of the ID token. Otherwise it is cached for as long as the ID token is valid, and a
-> removed membership stays in effect until the token expires. Set a short `userInfoCacheExpiration` if you need group
-> changes to apply sooner.
+> The UserInfo response is cached, so removing a user from a group does not take effect until the cached response
+> expires or the user logs in again. The cached response expires with the `exp` claim of the UserInfo response or, if
+> the response has no `exp` claim, with the ID token. `userInfoCacheExpiration` can only shorten this when the UserInfo
+> response includes an `exp` claim. UserInfo responses often omit it, and in that case a removed membership stays in
+> effect until the ID token expires or the user logs in again.
 
 Claim names are case-sensitive, and the identity claims `iss`, `sub`, `aud`, `exp`, `iat`, `nbf`, `jti` and
 `federated_claims` are never overwritten. See [RBAC Configuration](../rbac.md#using-ssousersgroups) for more on `scopes`.
