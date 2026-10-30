@@ -1,5 +1,6 @@
 import {FormApi} from 'argo-ui';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import * as React from 'react';
 import * as models from '../../../shared/models';
 import {Context} from '../../../shared/context';
@@ -9,7 +10,8 @@ import {ApplicationCreatePanel} from './application-create-panel';
 jest.mock('../../../shared/services', () => ({
     services: {
         authService: {
-            settings: jest.fn().mockResolvedValue({kustomizeVersions: []})
+            settings: jest.fn().mockResolvedValue({kustomizeVersions: []}),
+            plugins: jest.fn().mockResolvedValue([])
         },
         projects: {
             list: jest.fn().mockResolvedValue([{metadata: {name: 'default'}}])
@@ -92,4 +94,75 @@ test.each([false, true])('keeps configured generator settings visible after chan
     if (multiSource) {
         expect(submitted.spec.sources[1]).toEqual(valuesSource);
     }
+});
+
+const generatorConfigurations = [
+    {type: 'Helm', settings: {helm: {valueFiles: ['$values/production.yaml'], releaseName: 'web'}}},
+    {type: 'Kustomize', settings: {kustomize: {namePrefix: 'production-'}}},
+    {type: 'Directory', settings: {directory: {recurse: true, include: '*.yaml'}}},
+    {type: 'Plugin', settings: {plugin: {name: 'custom', env: [{name: 'ENV', value: 'production'}]}}}
+];
+
+test.each(generatorConfigurations)('preserves $type settings while replacing a Git path with Ref', async ({type, settings}) => {
+    const source = {repoURL: 'https://git.example.com/app.git', targetRevision: 'main', path: 'old-path', ref: 'app', ...settings};
+    const valuesSource = {repoURL: 'https://git.example.com/values.git', targetRevision: 'main', ref: 'values'};
+    const app = {
+        metadata: {name: 'sandbox'},
+        spec: {project: 'default', destination: {server: 'https://kubernetes.default.svc', namespace: 'sandbox'}, sources: [source, valuesSource]}
+    } as models.Application;
+    (services.repos.appDetails as jest.Mock).mockReset().mockResolvedValue({type: 'Directory', directory: {}});
+    const createApp = jest.fn();
+    const user = userEvent.setup();
+    let formApi: FormApi;
+    render(
+        <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
+            <ApplicationCreatePanel app={app} onAppChanged={jest.fn()} createApp={createApp} getFormApi={api => (formApi = api)} />
+        </Context.Provider>
+    );
+
+    await screen.findByText(type.toUpperCase(), {selector: 'p'});
+    const path = await screen.findByDisplayValue('old-path');
+    await user.clear(path);
+    await user.tab();
+    expect(formApi.values.spec.sources[0]).toEqual({...source, path: ''});
+    expect(screen.queryByText(type.toUpperCase(), {selector: 'p'})).not.toBeInTheDocument();
+
+    await user.type(path, 'new-path');
+    await screen.findByText(type.toUpperCase(), {selector: 'p'});
+    await act(async () => formApi.submitForm());
+
+    expect(createApp).toHaveBeenCalledTimes(1);
+    expect(createApp.mock.calls[0][0].spec.sources).toEqual([{...source, path: 'new-path'}, valuesSource]);
+});
+
+test.each(generatorConfigurations)('removes $type settings only from the submitted ref-only source', async ({type, settings}) => {
+    const source = {repoURL: 'https://git.example.com/app.git', targetRevision: 'main', path: 'old-path', ref: 'app', ...settings};
+    const chartSource = {
+        repoURL: 'https://git.example.com/chart.git',
+        targetRevision: 'main',
+        path: 'chart',
+        helm: {valueFiles: ['$app/production.yaml']}
+    };
+    const app = {
+        metadata: {name: 'sandbox'},
+        spec: {project: 'default', destination: {server: 'https://kubernetes.default.svc', namespace: 'sandbox'}, sources: [source, chartSource]}
+    } as models.Application;
+    (services.repos.appDetails as jest.Mock).mockReset().mockResolvedValue({type: 'Directory', directory: {}});
+    const createApp = jest.fn();
+    const user = userEvent.setup();
+    let formApi: FormApi;
+    render(
+        <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
+            <ApplicationCreatePanel app={app} onAppChanged={jest.fn()} createApp={createApp} getFormApi={api => (formApi = api)} />
+        </Context.Provider>
+    );
+
+    await screen.findAllByText(type.toUpperCase(), {selector: 'p'});
+    await user.clear(await screen.findByDisplayValue('old-path'));
+    await act(async () => formApi.submitForm());
+
+    expect(createApp).toHaveBeenCalledTimes(1);
+    expect(createApp.mock.calls[0][0].spec.sources).toEqual([{repoURL: source.repoURL, targetRevision: 'main', path: '', ref: 'app'}, chartSource]);
+    // A failed creation must leave the draft available for further editing.
+    expect(formApi.values.spec.sources[0]).toEqual({...source, path: ''});
 });
