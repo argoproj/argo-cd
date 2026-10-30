@@ -479,6 +479,22 @@ func TestIsManagedCluster_SkipReconcileAnnotation(t *testing.T) {
 	assert.True(t, sharding.IsManagedCluster(nil))
 }
 
+func TestClusterSharding_IsManagedCluster_NilCluster(t *testing.T) {
+	t.Parallel()
+	t.Run("shard 0 manages nil", func(t *testing.T) {
+		t.Parallel()
+		sharding := setupTestSharding(0, 4)
+		sharding.Init(&v1alpha1.ClusterList{}, &v1alpha1.ApplicationList{})
+		assert.True(t, sharding.IsManagedCluster(nil))
+	})
+	t.Run("shard 1 rejects nil", func(t *testing.T) {
+		t.Parallel()
+		sharding := setupTestSharding(1, 4)
+		sharding.Init(&v1alpha1.ClusterList{}, &v1alpha1.ApplicationList{})
+		assert.False(t, sharding.IsManagedCluster(nil))
+	})
+}
+
 func TestClusterSharding_IsManagedClusterByServer(t *testing.T) {
 	t.Parallel()
 	replicas := 2
@@ -514,9 +530,9 @@ func TestClusterSharding_IsManagedClusterByServer(t *testing.T) {
 		{"cluster assigned to shard 1", "https://127.0.0.1:6443", false, true, true},
 		{"cluster with skip-reconcile annotation", "https://skipped", false, false, true},
 		{"cluster with skip-reconcile annotation set to false", "https://not-skipped", true, false, true},
-		// An unknown server reports managed, matching IsManagedCluster(nil), with known=false so
-		// callers can fall back to the full lookup.
-		{"server the cache holds no cluster for", "https://unknown", true, true, false},
+		// An unknown server reports managed on shard 0 only, matching IsManagedCluster(nil), with
+		// known=false so callers can fall back to the full lookup.
+		{"server the cache holds no cluster for", "https://unknown", true, false, false},
 	}
 
 	for _, tt := range tests {
