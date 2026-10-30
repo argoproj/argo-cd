@@ -1,0 +1,15 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: cmp-discovery-not-completed
+spec:
+  version: v1.0
+  generate:
+    command: [sh, -c, 'echo "{\"kind\": \"ConfigMap\", \"apiVersion\": \"v1\", \"metadata\": { \"name\": \"$ARGOCD_APP_NAME\", \"namespace\": \"$ARGOCD_APP_NAMESPACE\"}}"']
+  discover:
+    # The command outlives the application controller's repo-server deadline, so the cmp-server
+    # kills it at its buffered deadline and reports that the check did not complete. The echo is
+    # never reached: it is there to say that this plugin claims the repository whenever the check
+    # does complete, so a native generator picking the repository up can only be a fallback.
+    find:
+      command: [sh, -c, 'sleep 30 && echo cmp-discovery-not-completed']
