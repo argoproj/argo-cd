@@ -3,7 +3,7 @@ import * as React from 'react';
 import Helmet from 'react-helmet';
 import {RouteComponentProps} from 'react-router-dom';
 import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
-import {useQuery} from '../../../shared/hooks/query';
+import {useSearchParams} from '../../../shared/hooks/query';
 import './application-fullscreen-logs.scss';
 
 const PodsLogsViewer = lazyWithBoundary(
@@ -12,7 +12,7 @@ const PodsLogsViewer = lazyWithBoundary(
 );
 
 export const ApplicationFullscreenLogs = (props: RouteComponentProps<{name: string; appnamespace: string; container: string; namespace: string}>) => {
-    const query = useQuery();
+    const query = useSearchParams();
 
     const podName = query.get('podName');
     const name = query.get('name');

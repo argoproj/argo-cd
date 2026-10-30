@@ -1187,6 +1187,62 @@ func TestServerSideDiff(t *testing.T) {
 		assert.NotContains(t, string(result.NormalizedLive), "resourceVersion")
 	})
 
+	t.Run("will not report diff for generation bumped by the dry-run of an ignored field", func(t *testing.T) {
+		// given
+		t.Parallel()
+		// An HPA holds 1 replica, git has 2, and spec.replicas is ignored. The dry-run
+		// changes the spec, so the API server increments metadata.generation. With
+		// IncludeMutationWebhook=true, removeWebhookMutation does not take it from live.
+		predictedLiveJSON := `{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default",
+				"generation": 496,
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:replicas":{}}}}]
+			},
+			"spec": {"replicas": 2}
+		}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default",
+				"generation": 495,
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:replicas":{}}}}]
+			},
+			"spec": {"replicas": 1}
+		}`)
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default"
+			},
+			"spec": {"replicas": 2}
+		}`)
+		normalizer := &testIgnoreDifferencesNormalizer{
+			fieldsToRemove: [][]string{
+				{"spec", "replicas"},
+			},
+		}
+		opts := buildOptsWithNormalizer(predictedLiveJSON, normalizer)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.Modified, "a generation bumped by the dry-run should not cause a diff")
+		assert.NotContains(t, string(result.PredictedLive), "generation")
+		assert.NotContains(t, string(result.NormalizedLive), "generation")
+	})
+
 	t.Run("will detect ConfigMap data key removal", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -1226,6 +1282,62 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Contains(t, liveData, "key1")
 		assert.Contains(t, liveData, "key2")
 		assert.Contains(t, liveData, "key3", "key3 should still be in live state")
+	})
+
+	t.Run("will not report removal of a field another manager deleted after live was cached", func(t *testing.T) {
+		// given
+		t.Parallel()
+		// The cached live still has an annotation written by another manager, but
+		// it was removed before the dry-run reached the API server.
+		liveState := StrToUnstructured(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: default
+  annotations:
+    argocd.argoproj.io/hydrate: normal
+  managedFields:
+  - manager: argocd-controller
+    operation: Apply
+    apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1: {"f:data": {"f:key1": {}}}
+  - manager: argocd-server
+    operation: Update
+    apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1: {"f:metadata": {"f:annotations": {"f:argocd.argoproj.io/hydrate": {}}}}
+data:
+  key1: value1
+`)
+		desiredState := StrToUnstructured(`
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-cm
+  namespace: default
+data:
+  key1: value1
+`)
+		predictedLiveJSON := `{
+			"apiVersion": "v1",
+			"kind": "ConfigMap",
+			"metadata": {
+				"name": "my-cm",
+				"namespace": "default",
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","apiVersion":"v1","fieldsType":"FieldsV1","fieldsV1":{"f:data":{"f:key1":{}}}}]
+			},
+			"data": {"key1": "value1"}
+		}`
+		opts := buildOpts(predictedLiveJSON)
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.False(t, result.Modified, "a field removed by another manager must not show as a diff")
 	})
 
 	t.Run("will strip last-applied-configuration annotation from a non-Secret resource on both sides", func(t *testing.T) {
@@ -1530,6 +1642,73 @@ spec:
 	assert.False(t, unrelatedFound, "webhook-injected .spec.unrelated must be stripped from the diff")
 
 	assert.True(t, result.Modified, "the desired value change must be reflected in the diff")
+}
+
+// TestServerSideDiffDetectsRemovalOfManagerOwnedPreserveUnknownSubtree covers
+// a removal reported on a container (.spec.configuration) whose ownership is
+// recorded only on its leaf (.spec.configuration.value). The removal must still
+// show up as a diff even though the container path itself is not owned.
+func TestServerSideDiffDetectsRemovalOfManagerOwnedPreserveUnknownSubtree(t *testing.T) {
+	manager := "argocd-controller"
+
+	live := StrToUnstructured(`
+apiVersion: example.com/v1
+kind: Widget
+metadata:
+  name: test-widget
+  managedFields:
+  - manager: argocd-controller
+    operation: Apply
+    apiVersion: example.com/v1
+    fieldsType: FieldsV1
+    fieldsV1: {"f:spec": {"f:configuration": {"f:value": {}}, "f:replicas": {}}}
+spec:
+  replicas: 1
+  configuration:
+    value: old
+`)
+	config := StrToUnstructured(`
+apiVersion: example.com/v1
+kind: Widget
+metadata:
+  name: test-widget
+spec:
+  replicas: 1
+`)
+	predictedLive := `{
+  "apiVersion": "example.com/v1",
+  "kind": "Widget",
+  "metadata": {
+    "name": "test-widget",
+    "managedFields": [
+      {"manager": "argocd-controller", "operation": "Apply", "apiVersion": "example.com/v1",
+       "fieldsType": "FieldsV1",
+       "fieldsV1": {"f:spec": {"f:replicas": {}}}}
+    ]
+  },
+  "spec": {"replicas": 1}
+}`
+
+	dryRunner := mocks.NewServerSideDryRunner(t)
+	dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
+		Return(predictedLive, nil)
+	opts := []Option{
+		WithGVKParser(buildPreserveUnknownFieldsGVKParser(t)),
+		WithManager(manager),
+		WithServerSideDryRunner(dryRunner),
+	}
+
+	// when
+	result, err := serverSideDiff(t.Context(), config, live, opts...)
+
+	// then
+	require.NoError(t, err)
+	var predicted map[string]any
+	require.NoError(t, json.Unmarshal(result.PredictedLive, &predicted))
+	_, found, err := unstructured.NestedFieldNoCopy(predicted, "spec", "configuration")
+	require.NoError(t, err)
+	assert.False(t, found, "removed manager-owned .spec.configuration must be absent from predicted live")
+	assert.True(t, result.Modified)
 }
 
 func TestHideSecretData(t *testing.T) {
