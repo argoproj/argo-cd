@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -97,7 +98,8 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 
 	rollbackAwareAutoSyncEnabled, err := s.mgr.GetRollbackAwareAutoSyncEnabled()
 	if err != nil {
-		return nil, err
+		log.WithError(err).Warn("Could not read application.rollbackAwareAutoSyncEnabled, falling back to false")
+		rollbackAwareAutoSyncEnabled = false
 	}
 
 	set := settingspkg.Settings{

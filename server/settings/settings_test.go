@@ -112,6 +112,16 @@ func TestSettingsServer(t *testing.T) {
 		assert.False(t, resp.RollbackAwareAutoSyncEnabled)
 	})
 
+	t.Run("TestGetRollbackAwareAutoSyncInvalidValue", func(t *testing.T) {
+		t.Parallel()
+		settingsServer := newServer(map[string]string{
+			"application.rollbackAwareAutoSyncEnabled": "not-a-bool",
+		})
+		resp, err := settingsServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		assert.False(t, resp.RollbackAwareAutoSyncEnabled)
+	})
+
 	t.Run("TestGetLoginButtonTextNotLoggedIn", func(t *testing.T) {
 		t.Parallel()
 		settingsServer := newServer(map[string]string{
