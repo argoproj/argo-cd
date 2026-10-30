@@ -281,6 +281,8 @@ type ApplicationSetOpts struct {
 	AllowedScmProviders      []string
 	EnableScmProviders       bool
 	EnableGitHubAPIMetrics   bool
+	EnableGitHubCache        bool
+	GitHubCacheSize          int
 }
 
 // GracefulRestartSignal implements a signal to be used for a graceful restart trigger.
@@ -1088,6 +1090,7 @@ type ArgoCDServiceSet struct {
 	VersionService        *version.Server
 }
 
+// newArgoCDServiceSet creates the API services served by the Argo CD server.
 func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	kubectl := kubeutil.NewKubectl()
 	clusterService := cluster.NewServer(a.db, a.enf, a.Cache, kubectl)
@@ -1140,6 +1143,8 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 		a.AllowedScmProviders,
 		a.EnableScmProviders,
 		a.EnableGitHubAPIMetrics,
+		a.EnableGitHubCache,
+		a.GitHubCacheSize,
 		a.EnableK8sEvent,
 		a.clusterInformer,
 	)
