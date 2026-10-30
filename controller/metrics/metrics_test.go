@@ -353,6 +353,35 @@ status:
     finishedAt: "2025-01-29T08:42:35Z"
 `
 
+const fakeAppOperationFinishedClockSteppedBack = `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: clock-step-app
+  namespace: argocd
+  labels:
+    team-name: my-team
+    team-bu: bu-id
+    argoproj.io/cluster: test-cluster
+spec:
+  destination:
+    namespace: dummy-namespace
+    name: cluster1
+  project: important-project
+  source:
+    path: some/path
+    repoURL: https://github.com/argoproj/argocd-example-apps.git
+status:
+  sync:
+    status: Synced
+  health:
+    status: Healthy
+  operationState:
+    phase: Succeeded
+    startedAt: "2025-01-29T08:42:35Z"
+    finishedAt: "2025-01-29T08:42:34Z"
+`
+
 const fakeAppOperationFailed = `
 apiVersion: argoproj.io/v1alpha1
 kind: Application
@@ -739,6 +768,26 @@ argocd_app_sync_duration_seconds_total{dest_server="https://localhost:6443",name
 `
 		log.Println(body)
 		assertMetricsPrinted(t, appSyncDurationTotal, body)
+	})
+
+	t.Run("metric is skipped when the wall clock steps back during the operation", func(t *testing.T) {
+		fakeAppClockSteppedBack := newFakeApp(fakeAppOperationFinishedClockSteppedBack)
+		// StartedAt and FinishedAt are wall-clock samples, so a backward clock
+		// step (NTP correction) or cross-pod skew for a resumed operation can
+		// sample FinishedAt before StartedAt. The invalid sample must be
+		// skipped, not passed to Counter.Add, which panics with "counter cannot
+		// decrease in value" after the terminal phase was already persisted (see
+		// #30247).
+		metricsServ.IncAppSyncDuration(fakeAppClockSteppedBack, "https://localhost:6443", fakeAppClockSteppedBack.Status.OperationState)
+
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "/metrics", http.NoBody)
+		require.NoError(t, err)
+		rr := httptest.NewRecorder()
+		metricsServ.Handler.ServeHTTP(rr, req)
+		assert.Equal(t, http.StatusOK, rr.Code)
+		body := rr.Body.String()
+		log.Println(body)
+		assertMetricsNotPrinted(t, `argocd_app_sync_duration_seconds_total{dest_server="https://localhost:6443",name="clock-step-app",namespace="argocd",project="important-project"}`, body)
 	})
 }
 
