@@ -1235,6 +1235,17 @@ func TestGitHubAppGetInstallationTransport_DiscoveryHonorsGitClientTimeout(t *te
 		require.NoError(t, err)
 		require.NotNil(t, itr)
 	})
+
+	t.Run("zero gitClientTimeout means no timeout", func(t *testing.T) {
+		gitClientTimeout = 0
+		server := newSlowDiscoveryServer(t, 100*time.Millisecond)
+
+		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+		itr, err := creds.getInstallationTransport()
+
+		require.NoError(t, err)
+		require.NotNil(t, itr)
+	})
 }
 
 // ---------------------------------------------------------------------------

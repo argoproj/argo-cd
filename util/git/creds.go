@@ -695,7 +695,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", SanitizeRepoURL(g.repoURL))
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
+		ctx, cancel := newGitRequestContext(gitClientTimeout)
 		defer cancel()
 
 		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)
