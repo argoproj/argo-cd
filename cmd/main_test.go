@@ -306,8 +306,8 @@ func execDummyCommandInMain(t *testing.T, cmdError error, isArgocdCLI bool) {
 		},
 	}
 
-	selectCommand = func(_ string) (*cobra.Command, bool) {
-		return dummyCmd, isArgocdCLI
+	selectCommand = func(_ string) (*cobra.Command, bool, bool) {
+		return dummyCmd, isArgocdCLI, false
 	}
 
 	main()
