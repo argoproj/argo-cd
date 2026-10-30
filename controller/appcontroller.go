@@ -165,6 +165,8 @@ type ApplicationController struct {
 	// for far fewer API server writes. Zero writes it on every full reconciliation.
 	// Set via --reconciled-at-heartbeat.
 	reconciledAtHeartbeat time.Duration
+	// startedAt anchors the jittered first-pass expiry after a restart.
+	startedAt time.Time
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
@@ -233,6 +235,7 @@ func NewApplicationController(
 		refreshRequestedApps:              make(map[string]CompareWith),
 		lastReconciledAt:                  make(map[string]time.Time),
 		reconciledAtHeartbeat:             reconciledAtHeartbeat,
+		startedAt:                         time.Now(),
 		refreshRequestedAppsMutex:         &sync.Mutex{},
 		auditLogger:                       argo.NewAuditLogger(kubeClientset, namespace, common.CommandApplicationController, enableK8sEvent),
 		settingsMgr:                       settingsMgr,
@@ -2291,7 +2294,12 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		sources = append(sources, app.Spec.GetSource())
 	}
 
+	// useDiffCache judges expiry on reconciledAt, which the heartbeat lets lag;
+	// CompareAppState writes conditions into app.Status, so swap rather than copy.
+	persistedReconciledAt := app.Status.ReconciledAt
+	app.Status.ReconciledAt = ctrl.statusWithEffectiveReconciledAt(app).ReconciledAt
 	compareResult, err := ctrl.appStateManager.CompareAppState(ctx, app, project, revisions, sources, refreshType == appv1.RefreshTypeHard, comparisonLevel == CompareWithLatestForceResolve, localManifests, hasMultipleSources)
+	app.Status.ReconciledAt = persistedReconciledAt
 
 	ts.AddCheckpoint("compare_app_state_ms")
 
@@ -2337,13 +2345,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	if app.Status.ReconciledAt == nil || comparisonLevel >= CompareWithLatest {
 		ctrl.noteReconciled(app.QualifiedName(), now.Time)
-		// Stamping it every pass makes the status patch non-empty every time, which
-		// defeats the "no status changes" short-circuit in persistAppStatus.
-		// A requested refresh always writes: progressive sync waits on reconciledAt
-		// passing its step transition and re-annotates until it does.
-		if _, requested := app.IsRefreshRequested(); requested || ctrl.shouldPersistReconciledAt(app.Status, now.Time) {
-			app.Status.ReconciledAt = &now
-		}
+		app.Status.ReconciledAt = &now
 	}
 	app.Status.Sync = *compareResult.syncStatus
 	app.Status.Health.Status = compareResult.healthStatus
@@ -2506,7 +2508,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 			if effectiveStatus.ReconciledAt != nil {
 				reconciledAtStr = effectiveStatus.ReconciledAt.String()
 			}
-			if !reconciledAtEqual(app.Status.ReconciledAt, effectiveStatus.ReconciledAt) {
+			if !app.Status.ReconciledAt.Equal(effectiveStatus.ReconciledAt) {
 				persistedStr := "never"
 				if app.Status.ReconciledAt != nil {
 					persistedStr = app.Status.ReconciledAt.String()
@@ -2537,14 +2539,6 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	return false, refreshType, compareWith
 }
 
-// reconciledAtEqual compares two possibly-nil reconcile times.
-func reconciledAtEqual(a, b *metav1.Time) bool {
-	if a == nil || b == nil {
-		return a == nil && b == nil
-	}
-	return a.Equal(b)
-}
-
 // noteReconciled records in memory that the named app was reconciled at t. No-op
 // while the heartbeat is disabled: nothing reads the map then.
 func (ctrl *ApplicationController) noteReconciled(qualifiedName string, t time.Time) {
@@ -2567,7 +2561,7 @@ func (ctrl *ApplicationController) forgetReconciled(qualifiedName string) {
 }
 
 // statusWithEffectiveReconciledAt returns a copy of the app's status whose
-// ReconciledAt is the later of the persisted and in-memory values: expiry must be
+// ReconciledAt is the latter of the persisted and in-memory values: expiry must be
 // judged on what the controller did, not on what it last wrote down.
 func (ctrl *ApplicationController) statusWithEffectiveReconciledAt(app *appv1.Application) appv1.ApplicationStatus {
 	status := app.Status
@@ -2580,7 +2574,21 @@ func (ctrl *ApplicationController) statusWithEffectiveReconciledAt(app *appv1.Ap
 	inMemory, ok := ctrl.lastReconciledAt[app.QualifiedName()]
 	ctrl.lastReconciledAtMutex.RUnlock()
 	if !ok {
-		return status
+		// After a restart the persisted value can be up to a heartbeat old, which
+		// would expire most of the fleet at once. Seed a time spread over the resync
+		// period instead, as in steady state. Never-reconciled apps still go first.
+		if status.ReconciledAt == nil || ctrl.statusRefreshTimeout <= 0 || time.Since(ctrl.startedAt) >= ctrl.statusRefreshTimeout {
+			return status
+		}
+		seed := ctrl.startedAt.Add(-time.Duration(rand.Int63n(int64(ctrl.statusRefreshTimeout))))
+		ctrl.lastReconciledAtMutex.Lock()
+		if existing, found := ctrl.lastReconciledAt[app.QualifiedName()]; found {
+			seed = existing
+		} else {
+			ctrl.lastReconciledAt[app.QualifiedName()] = seed
+		}
+		ctrl.lastReconciledAtMutex.Unlock()
+		inMemory = seed
 	}
 	if status.ReconciledAt == nil || status.ReconciledAt.Time.Before(inMemory) {
 		effective := metav1.NewTime(inMemory)
@@ -2862,6 +2870,21 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 			newStatus.Health.Message = orig.Status.Health.Message
 		}
 	}
+	reconciledAtChanged := !newStatus.ReconciledAt.Equal(orig.Status.ReconciledAt)
+	// With the heartbeat on, a reconciledAt-only change is held back; any other
+	// change carries it. A requested refresh always writes it: progressive sync
+	// waits on reconciledAt passing its step transition and re-annotates until it does.
+	if reconciledAtChanged && newStatus.ReconciledAt != nil && ctrl.reconciledAtHeartbeat > 0 {
+		if _, requested := orig.IsRefreshRequested(); !requested && !ctrl.shouldPersistReconciledAt(orig.Status, newStatus.ReconciledAt.Time) {
+			heldBack := *newStatus
+			heldBack.ReconciledAt = orig.Status.ReconciledAt
+			_, modified, err := createMergePatch(&appv1.Application{Status: orig.Status}, &appv1.Application{Status: heldBack})
+			if err == nil && !modified {
+				logCtx.Infof("No status changes. Skipping patch")
+				return patchDuration
+			}
+		}
+	}
 	patch, modified, err := createMergePatch(
 		&appv1.Application{Status: orig.Status},
 		&appv1.Application{Status: *newStatus})
@@ -2882,8 +2905,10 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	_, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, patch, metav1.PatchOptions{})
 	if err != nil {
 		spanErr = err
-		// Let the stale persisted reconciledAt drive expiry again so the write is retried.
-		ctrl.forgetReconciled(orig.QualifiedName())
+		if reconciledAtChanged {
+			// Let the stale persisted reconciledAt drive expiry again so the write is retried.
+			ctrl.forgetReconciled(orig.QualifiedName())
+		}
 		if apierrors.IsRequestEntityTooLargeError(err) {
 			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
 			fallbackStatus := orig.Status.DeepCopy()
