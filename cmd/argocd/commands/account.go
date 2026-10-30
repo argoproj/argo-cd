@@ -3,6 +3,7 @@ package commands
 import (
 	"context"
 	"encoding/json"
+	stderrors "errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -72,6 +73,7 @@ func NewAccountUpdatePasswordCommand(clientOpts *argocdclient.ClientOptions) *co
 		account         string
 		currentPassword string
 		newPassword     string
+		stdin           bool
 	)
 	command := &cobra.Command{
 		Use:   "update-password",
@@ -87,6 +89,14 @@ has appropriate RBAC permissions to change other accounts.
 
 	# Update the password for user foobar
 	argocd account update-password --account foobar
+
+	# Non-interactively update a password by piping it to stdin (useful for
+	# scripting). Local users must also pass --current-password, because only
+	# the new password is read from stdin. Other users on the same machine can
+	# see that value with 'ps', so only do this on a host you trust. Avoid
+	# 'echo' with a literal password, it ends up in shell history:
+	printf '%s' "$NEW_PASSWORD" | argocd account update-password \
+	    --stdin --current-password "$OLD_PASSWORD"
 `,
 		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
@@ -100,8 +110,12 @@ has appropriate RBAC permissions to change other accounts.
 			defer utilio.Close(conn)
 
 			userInfo := getCurrentAccount(ctx, acdClient)
+			localUser := userInfo.Iss == sessionutil.SessionManagerClaimsIssuer
+			if err := validateUpdatePasswordFlags(stdin, localUser, currentPassword, newPassword); err != nil {
+				log.Fatal(err)
+			}
 
-			if userInfo.Iss == sessionutil.SessionManagerClaimsIssuer && currentPassword == "" {
+			if localUser && currentPassword == "" {
 				fmt.Printf("*** Enter password of currently logged in user (%s): ", userInfo.Username)
 				password, err := term.ReadPassword(int(os.Stdin.Fd()))
 				errors.CheckError(err)
@@ -115,7 +129,11 @@ has appropriate RBAC permissions to change other accounts.
 
 			if newPassword == "" {
 				var err error
-				newPassword, err = cli.ReadAndConfirmPassword(account)
+				if stdin {
+					newPassword, err = cli.ReadPasswordFromStdin()
+				} else {
+					newPassword, err = cli.ReadAndConfirmPassword(account)
+				}
 				errors.CheckError(err)
 			}
 
@@ -152,7 +170,26 @@ has appropriate RBAC permissions to change other accounts.
 	command.Flags().StringVar(&currentPassword, "current-password", "", "Password of the currently logged on user")
 	command.Flags().StringVar(&newPassword, "new-password", "", "New password you want to update to")
 	command.Flags().StringVar(&account, "account", "", "An account name that should be updated. Defaults to current user account")
+	command.Flags().BoolVar(&stdin, "stdin", false, "Read the new password from stdin (single read, no confirmation). Local users must also pass --current-password.")
 	return command
+}
+
+// validateUpdatePasswordFlags rejects flag combinations that would otherwise
+// silently surprise the caller (e.g. --stdin combined with --new-password,
+// where --stdin is dead code) or leave the command waiting on a TTY in a
+// non-interactive context (--stdin without --current-password for a local
+// user). SSO users are never asked for a current password, so they skip that check.
+func validateUpdatePasswordFlags(stdin, localUser bool, currentPassword, newPassword string) error {
+	if !stdin {
+		return nil
+	}
+	if newPassword != "" {
+		return stderrors.New("--stdin cannot be combined with --new-password")
+	}
+	if localUser && currentPassword == "" {
+		return stderrors.New("--current-password is required when --stdin is used")
+	}
+	return nil
 }
 
 func NewAccountGetUserInfoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
