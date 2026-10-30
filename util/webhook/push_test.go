@@ -86,7 +86,7 @@ func TestParsePushEvent(t *testing.T) {
 			name:    "Azure DevOps push",
 			payload: loadPayload[azuredevops.GitPushEvent](t, "azuredevops-git-push-event.json"),
 			want: &PushEventInfo{
-				WebURLs:     []string{"https://dev.azure.com/alexander0053/alex-test/_git/alex-test"},
+				WebURLs:     []string{"https://dev.azure.com/my-org/my-project/_git/my-repo"},
 				Revision:    "master",
 				SHABefore:   "fa51eeb1e50b98293ce281e6d5492b9decae613b",
 				SHAAfter:    "298a79aa1552799a70718a0ee914d153d5a1a76b",
