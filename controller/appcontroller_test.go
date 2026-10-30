@@ -3374,20 +3374,18 @@ func (m *phaseSyncStateManager) SyncAppState(_ context.Context, _ *v1alpha1.Appl
 
 func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
 	tests := []struct {
-		name           string
-		syncPhase      synccommon.OperationPhase
-		retryLimit     int64
-		retryStarts    bool
-		newOperation   bool
-		terminateOnGet bool
-		failFirstGet   bool
+		name         string
+		syncPhase    synccommon.OperationPhase
+		retryLimit   int64
+		retryStarts  bool
+		newOperation bool
+		failFirstGet bool
 	}{
-		{name: "terminated between the read and the write", syncPhase: synccommon.OperationRunning, terminateOnGet: true},
-		{name: "terminated before the read", syncPhase: synccommon.OperationRunning},
+		{name: "terminated while syncing", syncPhase: synccommon.OperationRunning},
 		{name: "terminated before a retry is scheduled", syncPhase: synccommon.OperationFailed, retryLimit: 1},
 		{name: "terminated before a retry starts", syncPhase: synccommon.OperationRunning, retryLimit: 1, retryStarts: true},
 		{name: "terminated before a new operation starts", syncPhase: synccommon.OperationRunning, newOperation: true},
-		{name: "terminated before a read that fails", syncPhase: synccommon.OperationRunning, failFirstGet: true},
+		{name: "terminated while syncing and the first read fails", syncPhase: synccommon.OperationRunning, failFirstGet: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -3418,19 +3416,7 @@ func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
 				stored.Status.OperationState.Phase = synccommon.OperationTerminating
 				return fakeAppCs.Tracker().Update(gvr, stored, app.Namespace)
 			}
-			if tt.terminateOnGet {
-				terminated := false
-				fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
-					obj, err := fakeAppCs.Tracker().Get(gvr, app.Namespace, app.Name)
-					if err != nil || terminated {
-						return true, obj, err
-					}
-					terminated = true
-					return true, obj, terminate()
-				})
-			} else {
-				require.NoError(t, terminate())
-			}
+			require.NoError(t, terminate())
 			if tt.failFirstGet {
 				failed := false
 				fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {

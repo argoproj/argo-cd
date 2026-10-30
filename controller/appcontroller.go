@@ -1780,15 +1780,12 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	var expectedPhase synccommon.OperationPhase
 	if state.Phase == synccommon.OperationRunning {
 		// It's possible for an app to be terminated while we were operating on it. We do not want
-		// to clobber the Terminated state with Running. Get the latest app state to check for this.
-		// If it was, we will get requeued to the workqueue, but next time the SyncAppState will
-		// operate in a Terminating phase, allowing the worker to perform cleanup (e.g. delete jobs,
-		// workflows, etc...)
+		// to clobber the Terminated state with Running, so the patch only applies while the stored
+		// phase is still Running. If it was terminated, the patch is rejected and we write
+		// Terminating instead. We will then get requeued to the workqueue, but next time the
+		// SyncAppState will operate in a Terminating phase, allowing the worker to perform cleanup
+		// (e.g. delete jobs, workflows, etc...)
 		expectedPhase = synccommon.OperationRunning
-		freshApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{})
-		if err == nil {
-			expectedPhase = keepTerminating(freshApp, state)
-		}
 	}
 
 	ctrl.setOperationStateIfPhase(ctx, app, state, expectedPhase)
