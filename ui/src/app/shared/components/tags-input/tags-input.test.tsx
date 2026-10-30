@@ -4,6 +4,21 @@ import * as React from 'react';
 import {TagsInput} from './tags-input';
 
 describe('TagsInput', () => {
+    test('gives each values field its own accessible description while hints are closed', () => {
+        render(
+            <>
+                <TagsInput tags={[]} ariaLabel='First values file' description='First source guidance' />
+                <TagsInput tags={[]} ariaLabel='Second values file' description='Second source guidance' />
+            </>
+        );
+
+        const first = screen.getByRole('combobox', {name: 'First values file'});
+        const second = screen.getByRole('combobox', {name: 'Second values file'});
+        expect(first).toHaveAccessibleDescription('First source guidance');
+        expect(second).toHaveAccessibleDescription('Second source guidance');
+        expect(first.getAttribute('aria-describedby')).not.toBe(second.getAttribute('aria-describedby'));
+    });
+
     test('commits typed input as a tag on Enter', () => {
         const onChange = jest.fn();
         render(<TagsInput tags={[]} onChange={onChange} />);

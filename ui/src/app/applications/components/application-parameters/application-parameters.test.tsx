@@ -1,4 +1,4 @@
-import {render, screen, waitFor} from '@testing-library/react';
+import {render, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as React from 'react';
 import * as models from '../../../shared/models';
@@ -112,7 +112,7 @@ describe('ApplicationParameters ref-only sources', () => {
         expect(screen.getByText(/Source 2: TYPE=Plugin/)).toBeInTheDocument();
     });
 
-    test('shows the external values hint while viewing and editing an existing multi-source application', async () => {
+    test('makes external values guidance accessible and saves typed files without Enter', async () => {
         const app = applicationWithValuesSource({
             repoURL: 'https://git.example.com/org/value-files.git',
             targetRevision: 'main',
@@ -124,12 +124,13 @@ describe('ApplicationParameters ref-only sources', () => {
             helm: {name: 'prometheus', valueFiles: ['values.yaml'], parameters: [], fileParameters: []}
         } as models.RepoAppDetails);
         const user = userEvent.setup();
+        const save = jest.fn().mockResolvedValue(undefined);
 
         render(
             <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
                 <ApplicationParameters
                     application={app}
-                    save={jest.fn().mockResolvedValue(undefined)}
+                    save={save}
                     pageNumber={0}
                     setPageNumber={jest.fn()}
                     collapsedSources={[false, true]}
@@ -139,6 +140,9 @@ describe('ApplicationParameters ref-only sources', () => {
             </Context.Provider>
         );
 
+        const help = await screen.findByRole('button', {name: 'Help for VALUES FILES'});
+        expect(help).toHaveAttribute('type', 'button');
+
         const viewTitle = await screen.findByText('VALUES FILES');
         expect(viewTitle.closest('.columns.small-3')?.querySelector('.help-tip')).not.toBeNull();
 
@@ -146,6 +150,15 @@ describe('ApplicationParameters ref-only sources', () => {
         await user.click(editButtons[1]);
 
         await waitFor(() => expect(screen.getByText('VALUES FILES').closest('.columns.small-3')?.querySelector('.help-tip')).not.toBeNull());
+        const input = screen.getByRole('combobox', {name: 'Values files'});
+        expect(input).toHaveAccessibleDescription(
+            'To use a file from another Git source, set its Ref and enter $<ref>/path/to/values.yaml. The path is relative to that repository root.'
+        );
+        await user.type(input, '$values/environments/stage.yaml');
+        const helmSection = screen.getByText('HELM').parentElement.parentElement;
+        await user.click(within(helmSection).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        expect(save.mock.calls[0][0].spec.sources[0].helm.valueFiles).toEqual(['$values/charts/prometheus/values.yaml', '$values/environments/stage.yaml']);
     });
 
     test.each([

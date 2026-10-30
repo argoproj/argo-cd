@@ -795,11 +795,12 @@ function gatherDetails(
     } else if (repoDetails.type === 'Helm' && repoDetails.helm) {
         const isValuesObject = source?.helm?.valuesObject;
         const helmValues = isValuesObject ? jsYaml.dump(source.helm.valuesObject) : source?.helm?.values;
+        const valueFilesHint = isMultiSource
+            ? 'To use a file from another Git source, set its Ref and enter $<ref>/path/to/values.yaml. The path is relative to that repository root.'
+            : undefined;
         attributes.push({
             title: 'VALUES FILES',
-            hint: isMultiSource
-                ? 'To use a file from another Git source, set its Ref and enter $<ref>/path/to/values.yaml. The path is relative to that repository root.'
-                : undefined,
+            hint: valueFilesHint,
             view: (source.helm && (source.helm.valueFiles || []).join(', ')) || 'No values files selected',
             edit: (formApi: FormApi) => (
                 <FormField
@@ -809,6 +810,8 @@ function gatherDetails(
                     componentProps={{
                         options: repoDetails.helm.valueFiles,
                         noTagsLabel: 'No values files selected',
+                        ariaLabel: 'Values files',
+                        description: valueFilesHint,
                         placeholder: isMultiSource ? '$<ref>/path/to/values.yaml' : 'path/to/values.yaml'
                     }}
                 />

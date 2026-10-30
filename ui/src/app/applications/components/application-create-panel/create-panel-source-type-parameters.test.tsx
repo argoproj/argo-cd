@@ -77,8 +77,12 @@ describe('CreatePanelSourceTypeParameters', () => {
         await screen.findByText('VALUES FILES');
         const valueFilesInput = document.querySelector('.tags-input input') as HTMLInputElement;
         expect(valueFilesInput).toHaveAttribute('placeholder', '$<ref>/path/to/values.yaml');
+        expect(valueFilesInput).toHaveAccessibleName('Values files');
+        expect(valueFilesInput).toHaveAccessibleDescription(
+            'To use a file from another Git source, set its Ref and enter $<ref>/path/to/values.yaml. The path is relative to that repository root.'
+        );
         const valueFile = '$values/charts/prometheus/values.yaml';
-        fireEvent.change(valueFilesInput, {target: {value: valueFile}});
+        await user.type(valueFilesInput, valueFile);
         await user.click(screen.getByRole('button', {name: 'Create'}));
 
         await waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
