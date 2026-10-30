@@ -1030,7 +1030,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator(t *testing.T) {
 	}
 
 	repoServiceMock := &servicesMocks.Repos{}
-	repoServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
+	repoServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
 		"some/path.json": []byte("test: content"),
 	}, nil).Maybe()
 	gitGenerator := NewGitGenerator(repoServiceMock, "")
@@ -1095,7 +1095,8 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_error_includes_
 		"https://git.example.com/repo-a.git",
 		mock.Anything,
 		mock.Anything,
-		"ste1/values.yaml",
+		[]string{"ste1/values.yaml"},
+		[]string(nil),
 		mock.Anything,
 		mock.Anything,
 	).Return(map[string][]byte{
@@ -1163,7 +1164,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_go_templates_va
 	}
 
 	repoServiceMock := &servicesMocks.Repos{}
-	repoServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
+	repoServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(map[string][]byte{
 		"some/path.json": []byte("test: content"),
 	}, nil).Maybe()
 	gitGenerator := NewGitGenerator(repoServiceMock, "")

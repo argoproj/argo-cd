@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -163,7 +164,7 @@ func TestGetFiles(t *testing.T) {
 				submoduleEnabled:          tt.fields.submoduleEnabled,
 				getGitFilesFromRepoServer: tt.fields.getGitFiles,
 			}
-			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, "", tt.args.noRevisionCache, tt.args.sourceIntegrity)
+			got, err := a.GetFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", []string{tt.args.pattern}, nil, tt.args.noRevisionCache, tt.args.sourceIntegrity)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)) {
 				return
 			}
@@ -304,11 +305,59 @@ func TestGetOciFiles(t *testing.T) {
 				getRepository:             tt.fields.getRepository,
 				getOciFilesFromRepoServer: tt.fields.getOciFiles,
 			}
-			got, err := a.GetOciFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", tt.args.pattern, tt.args.noRevisionCache)
+			got, err := a.GetOciFiles(tt.args.ctx, tt.args.repoURL, tt.args.revision, "", []string{tt.args.pattern}, nil, tt.args.noRevisionCache)
 			if !tt.wantErr(t, err, fmt.Sprintf("GetOciFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)) {
 				return
 			}
 			assert.Equalf(t, tt.want, got, "GetOciFiles(%v, %v, %v, %v, %v)", tt.args.ctx, tt.args.repoURL, tt.args.revision, tt.args.pattern, tt.args.noRevisionCache)
 		})
 	}
+}
+
+func TestFilePatternsOnRequest(t *testing.T) {
+	t.Parallel()
+
+	includePatterns := []string{"apps/*/config.json", "shared/*.json"}
+	excludePatterns := []string{"apps/skip/config.json"}
+
+	t.Run("git", func(t *testing.T) {
+		t.Parallel()
+		var got *apiclient.GitFilesRequest
+		a := &argoCDService{
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{Repo: "foo"}, nil
+			},
+			getGitFilesFromRepoServer: func(_ context.Context, req *apiclient.GitFilesRequest) (*apiclient.GitFilesResponse, error) {
+				got = req
+				return &apiclient.GitFilesResponse{}, nil
+			},
+		}
+
+		_, err := a.GetFiles(t.Context(), "foo", "HEAD", "", includePatterns, excludePatterns, false, nil)
+		require.NoError(t, err)
+		assert.Equal(t, includePatterns, got.GetIncludePatterns())
+		assert.Equal(t, excludePatterns, got.GetExcludePatterns())
+		// Kept so a repo-server that predates includePatterns still returns a subset.
+		assert.Equal(t, "apps/*/config.json", got.GetPath())
+	})
+
+	t.Run("oci", func(t *testing.T) {
+		t.Parallel()
+		var got *apiclient.OciFilesRequest
+		a := &argoCDService{
+			getRepository: func(_ context.Context, _, _ string) (*v1alpha1.Repository, error) {
+				return &v1alpha1.Repository{Repo: "oci://ghcr.io/example/manifests"}, nil
+			},
+			getOciFilesFromRepoServer: func(_ context.Context, req *apiclient.OciFilesRequest) (*apiclient.OciFilesResponse, error) {
+				got = req
+				return &apiclient.OciFilesResponse{}, nil
+			},
+		}
+
+		_, err := a.GetOciFiles(t.Context(), "oci://ghcr.io/example/manifests", "v1.0.0", "", includePatterns, excludePatterns, false)
+		require.NoError(t, err)
+		assert.Equal(t, includePatterns, got.GetIncludePatterns())
+		assert.Equal(t, excludePatterns, got.GetExcludePatterns())
+		assert.Equal(t, "apps/*/config.json", got.GetGlob())
+	})
 }
