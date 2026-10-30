@@ -831,7 +831,9 @@ jobs:
         id: e2e
         run: |
           set -x
-          make test-e2e-local
+          # Same COVERAGE_ENABLED as the server start above: cli-local then builds the CLI
+          # with the same flags and hits the build cache instead of rebuilding it from scratch.
+          make test-e2e-local COVERAGE_ENABLED=true
           # gotestsum retries failures (--rerun-fails), so a green job can still hide a
           # flake. Flag it so the server logs below are kept for diagnosis.
           if [ -s rerunreport.txt ]; then
