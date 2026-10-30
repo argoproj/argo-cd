@@ -795,11 +795,14 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 }
 
 func TestDiscoverGitHubAppInstallationID_Locking(t *testing.T) {
-	newServer := func(block <-chan struct{}) *httptest.Server {
+	newServer := func(started chan<- struct{}, block <-chan struct{}) *httptest.Server {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if !strings.HasSuffix(r.URL.Path, "/app/installations") {
 				w.WriteHeader(http.StatusNotFound)
 				return
+			}
+			if started != nil {
+				close(started)
 			}
 			<-block
 			w.WriteHeader(http.StatusOK)
@@ -812,11 +815,12 @@ func TestDiscoverGitHubAppInstallationID_Locking(t *testing.T) {
 		return server
 	}
 	// Both servers listen on 127.0.0.1, so lookups against either one share a host in the lock key.
+	started := make(chan struct{})
 	release := make(chan struct{})
-	blockedServer := newServer(release)
+	blockedServer := newServer(started, release)
 	unblocked := make(chan struct{})
 	close(unblocked)
-	server := newServer(unblocked)
+	server := newServer(nil, unblocked)
 	t.Cleanup(func() {
 		close(release)
 		domain, _ := domainFromBaseURL(server.URL)
@@ -828,7 +832,11 @@ func TestDiscoverGitHubAppInstallationID_Locking(t *testing.T) {
 	go func() {
 		_, _ = DiscoverGitHubAppInstallationID(t.Context(), 20001, fakeGitHubAppPrivateKey, blockedServer.URL, "test-org")
 	}()
-	time.Sleep(100 * time.Millisecond)
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("blocked lookup did not start")
+	}
 
 	discover := func(t *testing.T, ctx context.Context, appID int64) error {
 		t.Helper()
