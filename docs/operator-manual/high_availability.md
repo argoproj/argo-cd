@@ -144,6 +144,24 @@ get the actual cluster state.
   > Restart the argocd-application-controller to apply this change. You can do so by running
   > `kubectl rollout restart -n argocd statefulset argocd-application-controller`
 
+* Every full reconciliation stamps `status.reconciledAt` on the Application, so a large fleet writes to the API server
+  once per app per reconciliation even when nothing about the app has changed. Set
+  `controller.reconciled.at.heartbeat` in the `argocd-cmd-params-cm` ConfigMap (a
+  [duration string](https://pkg.go.dev/time#ParseDuration), e.g. `10m`) to bound how stale that one field may become
+  instead: a reconciliation that changes nothing else then writes nothing at all, and at N apps with a reconciliation
+  timeout of R the writes drop from N/R to roughly N/heartbeat. The heartbeat must be longer than R to reduce writes.
+  The controller still tracks the real reconcile time in memory, so refresh scheduling is unaffected, and
+  `reconciledAt` is always written on a requested refresh or when it would otherwise trail the last sync, keeping
+  `argocd app wait`, notifications and progressive sync accurate. The default, `0`, writes the field on every
+  reconciliation.
+
+    > [!NOTE]
+    > The trade-off is visibility: while a heartbeat is configured, the `reconciledAt` field you see on an Application
+    > may lag behind the last reconciliation by up to that duration. The in-memory time is lost when the controller
+    > restarts, so for the first R after startup the controller spreads first refreshes randomly over R, as in steady
+    > state. Apps that move between shards later are not spread: those whose `reconciledAt` is older than R are
+    > refreshed at once.
+
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
   controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller`
   `StatefulSet`
