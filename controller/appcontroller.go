@@ -2871,20 +2871,6 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		}
 	}
 	reconciledAtChanged := !newStatus.ReconciledAt.Equal(orig.Status.ReconciledAt)
-	// With the heartbeat on, a reconciledAt-only change is held back; any other
-	// change carries it. A requested refresh always writes it: progressive sync
-	// waits on reconciledAt passing its step transition and re-annotates until it does.
-	if reconciledAtChanged && newStatus.ReconciledAt != nil && ctrl.reconciledAtHeartbeat > 0 {
-		if _, requested := orig.IsRefreshRequested(); !requested && !ctrl.shouldPersistReconciledAt(orig.Status, newStatus.ReconciledAt.Time) {
-			heldBack := *newStatus
-			heldBack.ReconciledAt = orig.Status.ReconciledAt
-			_, modified, err := createMergePatch(&appv1.Application{Status: orig.Status}, &appv1.Application{Status: heldBack})
-			if err == nil && !modified {
-				logCtx.Infof("No status changes. Skipping patch")
-				return patchDuration
-			}
-		}
-	}
 	patch, modified, err := createMergePatch(
 		&appv1.Application{Status: orig.Status},
 		&appv1.Application{Status: *newStatus})
@@ -2896,6 +2882,20 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	if !modified {
 		logCtx.Infof("No status changes. Skipping patch")
 		return patchDuration
+	}
+	// With the heartbeat on, a reconciledAt-only change is held back; any other
+	// change carries it. A requested refresh always writes it: progressive sync
+	// waits on reconciledAt passing its step transition and re-annotates until it does.
+	if reconciledAtChanged && newStatus.ReconciledAt != nil && ctrl.reconciledAtHeartbeat > 0 {
+		if _, requested := orig.IsRefreshRequested(); !requested && !ctrl.shouldPersistReconciledAt(orig.Status, newStatus.ReconciledAt.Time) {
+			var p struct {
+				Status map[string]json.RawMessage `json:"status"`
+			}
+			if json.Unmarshal(patch, &p) == nil && len(p.Status) == 1 && p.Status["reconciledAt"] != nil {
+				logCtx.Infof("No status changes. Skipping patch")
+				return patchDuration
+			}
+		}
 	}
 	// calculate time for patch call
 	start := time.Now()
