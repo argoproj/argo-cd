@@ -58,6 +58,14 @@ a validation webhook identifies a resource to be invalid, that will be
 informed to Argo CD during the diff stage rather than during the sync 
 stage.
 
+Admission webhooks that do not support dry-run requests can cause Server-Side
+Diff to fail. For a webhook to support dry-run, its `sideEffects` field must
+be set to `None` or `NoneOnDryRun`, as appropriate for the webhook's actual
+behavior. See the Kubernetes [webhook side effects documentation](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#side-effects).
+If a webhook cannot safely support dry-run, disable Server-Side Diff for the
+affected Application by setting the `argocd.argoproj.io/compare-options:
+ServerSideDiff=false` annotation, as described below.
+
 Note that Server-Side Diff will not be performed during the creation of new resources.
 This is to save an additional call to KubeAPI and provide a much lighter and faster diff calculation
 (Non-Server-Side Apply) when resources don't exist to compare against. During resource creation performing a
