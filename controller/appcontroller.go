@@ -1781,7 +1781,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	if state.Phase == synccommon.OperationRunning {
 		// It's possible for an app to be terminated while we were operating on it. We do not want
 		// to clobber the Terminated state with Running, so the patch only applies while the stored
-		// phase is still Running. If it was terminated, the patch is rejected and we write
+		// phase is still Running. If it was terminated, the patch is rejected and the retry writes
 		// Terminating instead. We will then get requeued to the workqueue, but next time the
 		// SyncAppState will operate in a Terminating phase, allowing the worker to perform cleanup
 		// (e.g. delete jobs, workflows, etc...)
@@ -1858,15 +1858,16 @@ func (ctrl *ApplicationController) setOperationStateIfPhase(ctx context.Context,
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
 		return
 	}
+	patchJSON, err := operationStatePatch(state, expectedPhase)
+	if err != nil {
+		logCtx.WithError(err).Error("error marshaling json")
+		return
+	}
+
 	var marshalErr error
 	var nonRetryableError error
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
-		patchJSON, err := operationStatePatch(state, expectedPhase)
-		if err != nil {
-			marshalErr = err
-			return nil
-		}
-		_, err = ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
+		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
 			// Stop retrying updating deleted application
 			if apierrors.IsNotFound(err) {
@@ -1881,6 +1882,9 @@ func (ctrl *ApplicationController) setOperationStateIfPhase(ctx context.Context,
 			if expectedPhase != "" {
 				if freshApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{}); getErr == nil {
 					expectedPhase = keepTerminating(freshApp, state)
+					if patchJSON, marshalErr = operationStatePatch(state, expectedPhase); marshalErr != nil {
+						return nil
+					}
 				}
 			}
 			// kube.RetryUntilSucceed logs failed attempts at "debug" level, but we want to know if this fails. Log a
