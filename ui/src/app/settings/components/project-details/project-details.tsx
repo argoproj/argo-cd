@@ -14,6 +14,7 @@ import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services}
 import {SyncWindowStatusIcon} from '../../../shared/components/app-utils';
 import {ProjectSyncWindowsParams} from '../../../shared/services';
 import {applicationQueries, clusterQueries, gpgkeyQueries, projectQueries, repoQueries} from '../../../shared/queries';
+import {loadFailed, loading} from '../../../shared/query-client';
 import {ProjectEvents} from '../project-events/project-events';
 import {ProjectRoleEditPanel} from '../project-role-edit-panel/project-role-edit-panel';
 import {ProjectSyncWindowsEditPanel} from '../project-sync-windows-edit-panel/project-sync-windows-edit-panel';
@@ -142,16 +143,6 @@ function reduceGlobal(projs: Project[]): ProjectSpec & {count: number} {
             roles: [],
             count: 0
         }
-    );
-}
-
-const loading = <p style={{padding: '0.5em', textAlign: 'center'}}>Loading...</p>;
-
-function loadFailed(retry: () => void) {
-    return (
-        <p style={{padding: '0.5em', textAlign: 'center'}}>
-            Failed to load data, please <a onClick={() => retry()}>try again</a>.
-        </p>
     );
 }
 

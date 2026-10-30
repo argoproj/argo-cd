@@ -6109,7 +6109,7 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 					},
 					"certInfo": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)",
+							Description: "CertInfo will hold additional certificate info, dependent on the certificate type (e.g. SSH fingerprint, X509 CommonName)",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
