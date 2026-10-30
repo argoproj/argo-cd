@@ -16,8 +16,11 @@ func DeletePolicies(obj *unstructured.Unstructured) []common.HookDeletePolicy {
 			policies = append(policies, p)
 		}
 	}
-	for _, p := range helmhook.DeletePolicies(obj) {
-		policies = append(policies, p.DeletePolicy())
+	// Helm hooks are ignored when Argo CD hooks are defined.
+	if !HasArgoHookTypes(obj) {
+		for _, p := range helmhook.DeletePolicies(obj) {
+			policies = append(policies, p.DeletePolicy())
+		}
 	}
 	if len(policies) == 0 {
 		policies = append(policies, common.HookDeletePolicyBeforeHookCreation)
