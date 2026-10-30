@@ -794,6 +794,77 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 	})
 }
 
+func TestDiscoverGitHubAppInstallationID_Locking(t *testing.T) {
+	newServer := func(started chan<- struct{}, block <-chan struct{}) *httptest.Server {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasSuffix(r.URL.Path, "/app/installations") {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			if started != nil {
+				close(started)
+			}
+			<-block
+			w.WriteHeader(http.StatusOK)
+			//nolint:errcheck
+			json.NewEncoder(w).Encode([]map[string]any{
+				{"id": 98765, "account": map[string]any{"login": "test-org"}},
+			})
+		}))
+		t.Cleanup(server.Close)
+		return server
+	}
+	// Both servers listen on 127.0.0.1, so lookups against either one share a host in the lock key.
+	started := make(chan struct{})
+	release := make(chan struct{})
+	blockedServer := newServer(started, release)
+	unblocked := make(chan struct{})
+	close(unblocked)
+	server := newServer(nil, unblocked)
+	t.Cleanup(func() {
+		close(release)
+		domain, _ := domainFromBaseURL(server.URL)
+		githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 20001))
+		githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 20002))
+	})
+
+	// Hold the lock for app 20001 until the test ends.
+	go func() {
+		_, _ = DiscoverGitHubAppInstallationID(t.Context(), 20001, fakeGitHubAppPrivateKey, blockedServer.URL, "test-org")
+	}()
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("blocked lookup did not start")
+	}
+
+	discover := func(t *testing.T, ctx context.Context, appID int64) error {
+		t.Helper()
+		done := make(chan error, 1)
+		go func() {
+			_, err := DiscoverGitHubAppInstallationID(ctx, appID, fakeGitHubAppPrivateKey, server.URL, "test-org")
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			return err
+		case <-time.After(2 * time.Second):
+			t.Fatal("lookup did not return")
+			return nil
+		}
+	}
+
+	t.Run("lookup for another app is not blocked", func(t *testing.T) {
+		require.NoError(t, discover(t, t.Context(), 20002))
+	})
+
+	t.Run("lookup waiting for the same app gives up when its context ends", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		defer cancel()
+		require.ErrorIs(t, discover(t, ctx, 20001), context.DeadlineExceeded)
+	})
+}
+
 func TestExtractOrgFromRepoURL(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -1165,6 +1236,17 @@ func TestGitHubAppGetInstallationTransport_DiscoveryHonorsGitClientTimeout(t *te
 	t.Run("discovery within gitClientTimeout succeeds", func(t *testing.T) {
 		gitClientTimeout = 5 * time.Second
 		server := newSlowDiscoveryServer(t, 300*time.Millisecond)
+
+		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+		itr, err := creds.getInstallationTransport()
+
+		require.NoError(t, err)
+		require.NotNil(t, itr)
+	})
+
+	t.Run("zero gitClientTimeout means no timeout", func(t *testing.T) {
+		gitClientTimeout = 0
+		server := newSlowDiscoveryServer(t, 100*time.Millisecond)
 
 		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
 		itr, err := creds.getInstallationTransport()
