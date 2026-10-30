@@ -165,12 +165,12 @@ rules:
 			assert.Len(t, roleSameNs.ParentRefs, 1, "Role in same namespace should have one parent")
 			assert.Equal(t, "ClusterRole", roleSameNs.ParentRefs[0].Kind)
 			assert.Equal(t, "test-cluster-role", roleSameNs.ParentRefs[0].Name)
-			assert.Equal(t, string(clusterRoleUID), roleSameNs.ParentRefs[0].UID)
+			assert.Equal(t, clusterRoleUID, roleSameNs.ParentRefs[0].UID)
 
 			assert.Len(t, roleOtherNs.ParentRefs, 1, "Role in other namespace should have one parent")
 			assert.Equal(t, "ClusterRole", roleOtherNs.ParentRefs[0].Kind)
 			assert.Equal(t, "test-cluster-role", roleOtherNs.ParentRefs[0].Name)
-			assert.Equal(t, string(clusterRoleUID), roleOtherNs.ParentRefs[0].UID)
+			assert.Equal(t, clusterRoleUID, roleOtherNs.ParentRefs[0].UID)
 
 			t.Log("✓ Both Roles correctly show ClusterRole as their parent in the resource tree")
 		}).
