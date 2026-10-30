@@ -5537,9 +5537,22 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Default: "",
-										Type:    []string{"string"},
-										Format:  "",
+										Type:   []string{"string"},
+										Format: "",
+									},
+								},
+							},
+						},
+					},
+					"excludedLabels": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ExcludedLabels is used to exclude MRs with these labels",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Type:   []string{"string"},
+										Format: "",
 									},
 								},
 							},
@@ -5547,7 +5560,7 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 					},
 					"pullRequestState": {
 						SchemaProps: spec.SchemaProps{
-							Description: "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states)",
+							Description: "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states). Valid values: opened, closed, merged, locked\".",
 							Type:        []string{"string"},
 							Format:      "",
 						},
@@ -5565,12 +5578,18 @@ func schema_pkg_apis_application_v1alpha1_PullRequestGeneratorGitLab(ref common.
 							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ConfigMapKeyRef"),
 						},
 					},
+					"tlsClientCertSecretRef": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Secret containing the PEM-encoded client certificate chain (tls.crt) and private key (tls.key) for mutual TLS authentication. Must be in the same namespace as the ApplicationSet.",
+							Ref:         ref("k8s.io/api/core/v1.LocalObjectReference"),
+						},
+					},
 				},
 				Required: []string{"project"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SecretRef"},
+			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ConfigMapKeyRef", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SecretRef", "k8s.io/api/core/v1.LocalObjectReference"},
 	}
 }
 

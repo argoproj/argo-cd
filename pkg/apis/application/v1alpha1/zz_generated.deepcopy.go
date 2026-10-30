@@ -3532,6 +3532,11 @@ func (in *PullRequestGeneratorGitLab) DeepCopyInto(out *PullRequestGeneratorGitL
 		*out = new(ConfigMapKeyRef)
 		**out = **in
 	}
+	if in.TLSClientCertSecretRef != nil {
+		in, out := &in.TLSClientCertSecretRef, &out.TLSClientCertSecretRef
+		*out = new(corev1.LocalObjectReference)
+		**out = **in
+	}
 	return
 }
 

@@ -1892,6 +1892,10 @@ message PullRequestGeneratorGitLab {
 
   // ConfigMap key holding the trusted certificates
   optional ConfigMapKeyRef caRef = 7;
+
+  // Secret containing the PEM-encoded client certificate chain (tls.crt) and private key (tls.key)
+  // for mutual TLS authentication. Must be in the same namespace as the ApplicationSet.
+  optional .k8s.io.api.core.v1.LocalObjectReference tlsClientCertSecretRef = 9;
 }
 
 // PullRequestGeneratorGitea defines connection info specific to Gitea.

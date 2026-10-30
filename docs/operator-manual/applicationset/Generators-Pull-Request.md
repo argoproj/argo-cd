@@ -121,8 +121,79 @@ spec:
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. By default all states. Default: "" (all states). Valid values: `""`, `opened`, `closed`, `merged` or `locked`. (Optional)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
+* `tlsClientCertSecretRef`: Optional Secret reference containing `tls.crt` and `tls.key` for mutual TLS authentication. See [Mutual TLS authentication](#mutual-tls-authentication).
 
 As a preferable alternative to setting `insecure` to true, you can configure self-signed TLS certificates for Gitlab by [mounting self-signed certificate to the applicationset controller](./Generators-SCM-Provider.md#self-signed-tls-certificates).
+
+
+### Mutual TLS authentication
+
+For a GitLab endpoint that requires a client certificate, set `tlsClientCertSecretRef` to a Secret in the
+same namespace as the ApplicationSet. The Secret must contain a PEM-encoded client certificate chain
+in `tls.crt` and its matching, unencrypted private key in `tls.key`. Include any intermediate certificates
+in `tls.crt`, after the client certificate.
+
+Create the Secret from your PKI-issued certificate and key:
+
+```shell
+kubectl -n argocd create secret tls gitlab-client-tls --cert=client-chain.pem --key=client.key
+kubectl -n argocd label secret gitlab-client-tls argocd.argoproj.io/secret-type=scm-creds
+kubectl -n argocd create configmap gitlab-ca --from-file=ca.crt=gitlab-ca.pem
+```
+
+The following ApplicationSet uses the client certificate for mutual TLS and `caRef` to verify GitLab's
+server certificate. The referenced `gitlab-api-token` Secret must contain a GitLab API access token in
+its `token` key; label that Secret as `scm-creds` as well when strict mode is enabled.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: gitlab-previews
+  namespace: argocd
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+    - pullRequest:
+        gitlab:
+          project: "42"
+          api: https://gitlab.example.com/
+          tokenRef:
+            secretName: gitlab-api-token
+            key: token
+          caRef:
+            configMapName: gitlab-ca
+            key: ca.crt
+          tlsClientCertSecretRef:
+            name: gitlab-client-tls
+          pullRequestState: opened
+        requeueAfterSeconds: 300
+  template:
+    metadata:
+      name: 'preview-{{.number}}'
+    spec:
+      project: default
+      source:
+        repoURL: https://gitlab.example.com/team/app.git
+        targetRevision: '{{.head_sha}}'
+        path: deploy
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'preview-{{.number}}'
+```
+
+> [!NOTE]
+> Mutual TLS authenticates the TLS connection. Keep `tokenRef` for GitLab API authorization and configure
+> repository credentials separately for Git operations. The API URL must use HTTPS when a client
+> certificate is configured. Cross-origin redirects are rejected to avoid exposing the certificate
+> to another endpoint.
+
+When `--token-ref-strict-mode` is enabled, the client certificate Secret must have the
+`argocd.argoproj.io/secret-type: scm-creds` label. Missing or invalid certificate data causes generation
+to fail. Certificate changes are loaded on the next reconciliation; updating the Secret alone does not
+immediately refresh the ApplicationSet. Adjust `requeueAfterSeconds` for your renewal schedule or
+request an ApplicationSet refresh after renewal.
 
 ## Gitea
 

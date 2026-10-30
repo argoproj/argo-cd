@@ -2,8 +2,11 @@ package pull_request
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"fmt"
 	"net/http"
+	neturl "net/url"
 	"os"
 
 	"github.com/hashicorp/go-retryablehttp"
@@ -23,7 +26,7 @@ type GitLabService struct {
 
 var _ PullRequestService = (*GitLabService)(nil)
 
-func NewGitLabService(token, url, project string, labels []string, excludedLabels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte, proxyURL, noProxy string) (PullRequestService, error) {
+func NewGitLabService(token, url, project string, labels []string, excludedLabels []string, pullRequestState string, scmRootCAPath string, insecure bool, caCerts []byte, clientCert *tls.Certificate, proxyURL, noProxy string) (PullRequestService, error) {
 	var clientOptionFns []gitlab.ClientOptionFunc
 
 	// Set a custom Gitlab base URL if one is provided
@@ -37,10 +40,31 @@ func NewGitLabService(token, url, project string, labels []string, excludedLabel
 
 	tr := http.DefaultTransport.(*http.Transport).Clone()
 	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
+	if clientCert != nil {
+		if url != "" {
+			parsedURL, err := neturl.Parse(url)
+			if err != nil || parsedURL.Scheme != "https" || parsedURL.Host == "" {
+				return nil, errors.New("GitLab API URL must use HTTPS when a TLS client certificate is configured")
+			}
+		}
+		tr.TLSClientConfig.Certificates = []tls.Certificate{*clientCert}
+	}
 	tr.Proxy = proxy.GetCallback(proxyURL, noProxy)
 
 	retryClient := retryablehttp.NewClient()
 	retryClient.HTTPClient.Transport = tr
+	if clientCert != nil {
+		// Client certificates must not be offered to a different origin after a redirect.
+		retryClient.HTTPClient.CheckRedirect = func(req *http.Request, via []*http.Request) error {
+			if req.URL.Scheme != via[0].URL.Scheme || req.URL.Host != via[0].URL.Host {
+				return errors.New("refusing cross-origin redirect with a GitLab TLS client certificate")
+			}
+			if len(via) >= 10 {
+				return errors.New("stopped after 10 redirects")
+			}
+			return nil
+		}
+	}
 
 	clientOptionFns = append(clientOptionFns, gitlab.WithHTTPClient(retryClient.HTTPClient))
 

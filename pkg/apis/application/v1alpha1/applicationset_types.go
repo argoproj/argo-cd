@@ -21,6 +21,7 @@ import (
 	"sort"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
@@ -758,6 +759,9 @@ type PullRequestGeneratorGitLab struct {
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
 	// ConfigMap key holding the trusted certificates
 	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
+	// Secret containing the PEM-encoded client certificate chain (tls.crt) and private key (tls.key)
+	// for mutual TLS authentication. Must be in the same namespace as the ApplicationSet.
+	TLSClientCertSecretRef *corev1.LocalObjectReference `json:"tlsClientCertSecretRef,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertSecretRef"`
 }
 
 // PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
