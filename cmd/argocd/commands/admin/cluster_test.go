@@ -200,3 +200,107 @@ func TestNewGenClusterConfigCommand_QPSAndBurstFlagsRegistered(t *testing.T) {
 	assert.Equal(t, "0", burstFlag.DefValue)
 	assert.Contains(t, burstFlag.Usage, "Burst")
 }
+
+func newLoadClustersTestClients() (*fake.Clientset, *fakeapps.Clientset) {
+	argoCDCM := &corev1.ConfigMap{
+		Name:      "argocd-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
+		},
+		Data: map[string]string{},
+	}
+	argoCDSecret := &corev1.Secret{
+		Name:      "argocd-secret",
+		Namespace: "argocd",
+		Data: map[string][]byte{
+			"server.secretkey": []byte("test"),
+		},
+	}
+	return fake.NewClientset(argoCDCM, argoCDSecret), fakeapps.NewSimpleClientset()
+}
+
+func newInMemoryCacheSrc() func() (*appstate.Cache, error) {
+	cache := appstate.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute)
+	return func() (*appstate.Cache, error) {
+		return cache, nil
+	}
+}
+
+func Test_loadClustersOmitsClustersOfOtherShards(t *testing.T) {
+	kubeClient, appClient := newLoadClustersTestClients()
+
+	// The in-cluster is always assigned to shard 0, so filtering by shard 1 must not return any clusters,
+	// rather than empty placeholder entries.
+	clusters, err := loadClusters(t.Context(), kubeClient, appClient, 3, "", "argocd", false, newInMemoryCacheSrc(), 1, "", "", "")
+	require.NoError(t, err)
+	assert.Empty(t, clusters)
+
+	clusters, err = loadClusters(t.Context(), kubeClient, appClient, 3, "", "argocd", false, newInMemoryCacheSrc(), 0, "", "", "")
+	require.NoError(t, err)
+	require.Len(t, clusters, 1)
+	assert.Equal(t, "https://kubernetes.default.svc", clusters[0].Server)
+}
+
+func Test_loadClustersWarnsWhenClusterInfoIsMissing(t *testing.T) {
+	kubeClient, appClient := newLoadClustersTestClients()
+	oldHooks := log.StandardLogger().ReplaceHooks(log.LevelHooks{})
+	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(oldHooks) })
+	logHook := logtest.NewGlobal()
+
+	clusters, err := loadClusters(t.Context(), kubeClient, appClient, 1, "", "argocd", false, newInMemoryCacheSrc(), -1, "", "", "")
+	require.NoError(t, err)
+	require.Len(t, clusters, 1)
+
+	foundWarning := false
+	for _, entry := range logHook.AllEntries() {
+		if strings.Contains(entry.Message, `Failed to get info of cluster "https://kubernetes.default.svc" from cache`) {
+			foundWarning = true
+			break
+		}
+	}
+	assert.True(t, foundWarning, "expected a warning about the cluster info missing from the cache")
+}
+
+func Test_printStatsSummary(t *testing.T) {
+	withResources := func(shard int, count int64) ClusterWithInfo {
+		return ClusterWithInfo{
+			Info:  v1alpha1.ClusterInfo{CacheInfo: v1alpha1.ClusterCacheInfo{ResourcesCount: count}},
+			Shard: shard,
+		}
+	}
+
+	t.Run("no resources", func(t *testing.T) {
+		out := &bytes.Buffer{}
+		printStatsSummary(out, []ClusterWithInfo{withResources(0, 0), withResources(1, 0)}, 2)
+		assert.NotContains(t, out.String(), "NaN")
+		assert.Equal(t, "SHARD  RESOURCES COUNT  % OF TOTAL  % OF AVG PER SHARD (0)\n"+
+			"0      0                0%          0%\n"+
+			"1      0                0%          0%\n", out.String())
+	})
+
+	t.Run("with resources", func(t *testing.T) {
+		out := &bytes.Buffer{}
+		printStatsSummary(out, []ClusterWithInfo{withResources(2, 300), withResources(0, 100)}, 3)
+		assert.Equal(t, "SHARD  RESOURCES COUNT  % OF TOTAL  % OF AVG PER SHARD (133)\n"+
+			"0      100              25%         75%\n"+
+			"1      0                0%          0%\n"+
+			"2      300              75%         225%\n", out.String())
+	})
+
+	t.Run("no clusters", func(t *testing.T) {
+		out := &bytes.Buffer{}
+		printStatsSummary(out, nil, 2)
+		assert.Equal(t, "SHARD  RESOURCES COUNT  % OF TOTAL  % OF AVG PER SHARD (0)\n"+
+			"0      0                0%          0%\n"+
+			"1      0                0%          0%\n", out.String())
+	})
+
+	t.Run("fewer resources than replicas", func(t *testing.T) {
+		out := &bytes.Buffer{}
+		printStatsSummary(out, []ClusterWithInfo{withResources(0, 1)}, 2)
+		assert.Equal(t, "SHARD  RESOURCES COUNT  % OF TOTAL  % OF AVG PER SHARD (0)\n"+
+			"0      1                100%        200%\n"+
+			"1      0                0%          0%\n", out.String())
+	})
+}
