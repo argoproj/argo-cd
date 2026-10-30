@@ -153,6 +153,7 @@ func TestSanitizedRepository(t *testing.T) {
 		Insecure:                          true,
 		EnableLFS:                         true,
 		EnableOCI:                         true,
+		InsecureOCIForceHttp:              true,
 		Proxy:                             "http://proxy:8080",
 		NoProxy:                           "localhost",
 		Project:                           "default",
@@ -178,6 +179,7 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.True(t, sanitized.Insecure)
 	assert.Equal(t, repo.EnableLFS, sanitized.EnableLFS)
 	assert.Equal(t, repo.EnableOCI, sanitized.EnableOCI)
+	assert.Equal(t, repo.InsecureOCIForceHttp, sanitized.InsecureOCIForceHttp)
 	assert.Equal(t, repo.Proxy, sanitized.Proxy)
 	assert.Equal(t, repo.NoProxy, sanitized.NoProxy)
 	assert.Equal(t, repo.Project, sanitized.Project)
@@ -200,6 +202,17 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Empty(t, sanitized.GCPServiceAccountKey)
 	assert.Empty(t, sanitized.GithubAppPrivateKey)
 	assert.Empty(t, sanitized.AzureServicePrincipalClientSecret)
+}
+
+func TestSanitizedRepositoryKeepsInsecureFlagsSeparate(t *testing.T) {
+	ociHTTP := (&Repository{Repo: "oci://registry.example.com/app", Type: "oci", InsecureOCIForceHttp: true}).Sanitized()
+	assert.False(t, ociHTTP.Insecure)
+	assert.True(t, ociHTTP.InsecureOCIForceHttp)
+	assert.True(t, ociHTTP.IsInsecure())
+
+	legacy := (&Repository{Repo: "git@github.com:argoproj/argo-cd.git", InsecureIgnoreHostKey: true}).Sanitized()
+	assert.True(t, legacy.Insecure)
+	assert.False(t, legacy.InsecureOCIForceHttp)
 }
 
 func TestSanitizedRepositoryPreservesDepthZero(t *testing.T) {
