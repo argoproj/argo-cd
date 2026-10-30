@@ -1,4 +1,4 @@
-if obj.status.pauseConditions ~= nil and table.getn(obj.status.pauseConditions) > 0 then
+if obj.status ~= nil and obj.status.pauseConditions ~= nil and table.getn(obj.status.pauseConditions) > 0 then
     obj.status.pauseConditions = nil
 end
 
