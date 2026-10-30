@@ -10,6 +10,7 @@ import (
 	"io/fs"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -62,6 +63,7 @@ import (
 	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/cmp"
+	argoexec "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
 	"github.com/argoproj/argo-cd/v3/util/grpc"
@@ -1277,26 +1279,71 @@ func sanitizeRepoName(repoName string) string {
 // if multiple threads are trying to run it.
 // Multiple goroutines might process same helm app in one repo concurrently when repo server process multiple
 // manifest generation requests of the same commit.
-func runHelmBuild(ctx context.Context, appPath string, h helm.Helm) error {
+func runHelmBuild(ctx context.Context, appPath string, revision string, h helm.Helm) error {
 	manifestGenerateLock.Lock(appPath)
 	defer manifestGenerateLock.Unlock(appPath)
 
 	// the `helm dependency build` is potentially a time-consuming 1~2 seconds,
-	// a marker file is used to check if command already run to avoid running it again unnecessarily
-	// the file is removed when repository is re-initialized (e.g. when another commit is processed)
+	// a marker file holding the revision is used to check if command already run to avoid running it again unnecessarily
 	markerFile := path.Join(appPath, helmDepUpMarkerFile)
-	_, err := os.Stat(markerFile)
-	if err == nil {
+	marker, err := os.ReadFile(markerFile)
+	if err == nil && len(marker) > 0 && string(marker) == revision {
 		return nil
-	} else if !os.IsNotExist(err) {
+	} else if err != nil && !os.IsNotExist(err) {
 		return err
 	}
-
+	if err := os.WriteFile(markerFile, nil, 0o644); err != nil {
+		return err
+	}
 	err = h.DependencyBuild(ctx)
 	if err != nil {
 		return fmt.Errorf("error building helm chart dependencies: %w", err)
 	}
-	return os.WriteFile(markerFile, []byte("marker"), 0o644)
+	return os.WriteFile(markerFile, []byte(revision), 0o644)
+}
+
+// cleanStaleHelmDependencies removes the untracked output of a `helm dependency build` run for another revision
+// (charts/*.tgz, a generated Chart.lock, the marker). `helm template` only checks dependency names, so stale archives
+// would otherwise render silently (#28677), and a stale generated Chart.lock makes the rebuild fail. The clean is
+// scoped to the chart directory because a full clean is too slow on large repositories (#29856).
+func cleanStaleHelmDependencies(ctx context.Context, appPath string, revision string) error {
+	manifestGenerateLock.Lock(appPath)
+	defer manifestGenerateLock.Unlock(appPath)
+
+	marker, err := os.ReadFile(path.Join(appPath, helmDepUpMarkerFile))
+	if os.IsNotExist(err) || (err == nil && len(marker) > 0 && string(marker) == revision) {
+		return nil
+	} else if err != nil {
+		return err
+	}
+	// git ls-tree only reads the tree objects along these paths, while git clean loads the whole index, which is slow
+	// on large repositories. git clean is only needed for a charts directory mixing committed and built charts.
+	cmd := exec.CommandContext(ctx, "git", "ls-tree", "--name-only", "HEAD", "--", "charts", "Chart.lock", "requirements.lock")
+	cmd.Dir = appPath
+	out, err := argoexec.Run(cmd)
+	if err != nil {
+		return fmt.Errorf("error listing tracked helm chart dependencies: %w", err)
+	}
+	tracked := strings.Fields(out)
+	if slices.Contains(tracked, "charts") {
+		cmd = exec.CommandContext(ctx, "git", "clean", "-ffdx", "--", "charts")
+		cmd.Dir = appPath
+		if _, err := argoexec.Run(cmd); err != nil {
+			return fmt.Errorf("error removing stale helm chart dependencies: %w", err)
+		}
+	} else if err := os.RemoveAll(path.Join(appPath, "charts")); err != nil {
+		return fmt.Errorf("error removing stale helm chart dependencies: %w", err)
+	}
+	// The marker goes last so that a failed clean is retried.
+	for _, f := range []string{"Chart.lock", "requirements.lock", helmDepUpMarkerFile} {
+		if slices.Contains(tracked, f) {
+			continue
+		}
+		if err := os.Remove(path.Join(appPath, f)); err != nil && !os.IsNotExist(err) {
+			return fmt.Errorf("error removing stale helm chart dependencies: %w", err)
+		}
+	}
+	return nil
 }
 
 func isSourcePermitted(url string, repos []string) bool {
@@ -1318,7 +1365,7 @@ func parseKubeVersion(version string) (string, error) {
 	return kubeVersion.String(), nil
 }
 
-func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
+func helmTemplate(ctx context.Context, appPath string, repoRoot string, revision string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1436,13 +1483,19 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 
 	defer h.Dispose()
 
+	// isLocal is a user's own checkout (argocd app diff --local), which must not be cleaned.
+	if !isLocal {
+		if err := cleanStaleHelmDependencies(ctx, appPath, revision); err != nil {
+			return nil, "", err
+		}
+	}
 	out, command, err := h.Template(templateOpts)
 	if err != nil {
 		if !helm.IsMissingDependencyErr(err) {
 			return nil, "", err
 		}
 
-		err = runHelmBuild(ctx, appPath, h)
+		err = runHelmBuild(ctx, appPath, revision, h)
 		if err != nil {
 			var reposNotPermitted []string
 			// We do a sanity check here to give a nicer error message in case any of the Helm repositories are not permitted by
@@ -1799,7 +1852,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
 		var command string
-		targetObjs, command, err = helmTemplate(ctx, appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		targetObjs, command, err = helmTemplate(ctx, appPath, repoRoot, revision, env, q, isLocal, gitRepoPaths)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		var kustomizeBinary string
