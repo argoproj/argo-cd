@@ -4,6 +4,7 @@
 @import '../../../shared/config.scss';
 
 $header: 120px;
+$status-panel-toggle-height: 22px;
 
 .application-details {
     height: 100vh;
@@ -30,6 +31,45 @@ $header: 120px;
 
     .argo-dropdown__content.is-menu {
         max-height: 500px;
+    }
+
+    &__status-panel {
+        position: relative;
+
+        // keep the notice banner clear of the toggle hanging below the panel
+        + .application-notice {
+            margin-top: $status-panel-toggle-height;
+        }
+    }
+
+    // A tab hanging below the bottom-right edge of the panel, so it never
+    // overlaps the panel content, expanded or collapsed.
+    &__status-panel-toggle {
+        position: absolute;
+        top: 100%;
+        right: 16px;
+        z-index: 2;
+        width: 40px;
+        height: $status-panel-toggle-height;
+        padding: 0;
+        border-radius: 0 0 6px 6px;
+        @include themify($themes) {
+            background-color: themed('background-2');
+        }
+        box-shadow: 1px 1px 2px rgba(0, 0, 0, 0.1);
+        color: $argo-color-gray-6;
+        font-size: 12px;
+        cursor: pointer;
+        transition:
+            color 0.2s,
+            background-color 0.2s;
+
+        &:hover {
+            @include themify($themes) {
+                background-color: themed('light-argo-gray-2');
+            }
+            color: $argo-success-color;
+        }
     }
 
     &__tree {
@@ -350,7 +390,7 @@ $header: 120px;
             padding-left: 4px;
         }
 
-        .resource-details__header h1 {
+        .resource-details__header-title {
             font-size: 16px;
         }
         .resource-details__header {

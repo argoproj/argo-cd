@@ -31,6 +31,8 @@ permissions:
 env:
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+  # renovate: datasource=golang-version packageName=golang
+  GOLANG_VERSION: '1.27.3'
   
 jobs:
   CodeQL-Build:
@@ -46,7 +48,7 @@ jobs:
     steps:
     - name: Harden the runner (Audit all outbound calls)
       if: ${{ vars.disable_harden_runner != 'true' }}
-      uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+      uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
       with:
         egress-policy: audit
 
@@ -59,11 +61,22 @@ jobs:
     - name: Setup Golang
       uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version-file: go.mod
-      
-    # Initializes the CodeQL tools for scanning.
+        # Build with the toolchain we ship, not go.mod's version -- that one is the
+        # minimum we promise library consumers and deliberately lags. #1842 only needs
+        # a Go new enough to parse go.mod, which GOLANG_VERSION always is.
+        go-version: ${{ env.GOLANG_VERSION }}
+        cache: false
+    - name: Restore go build and module cache
+      uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cache/go-build
+          ~/go/pkg/mod
+        key: ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-
     - name: Initialize CodeQL
-      uses: github/codeql-action/init@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+      uses: github/codeql-action/init@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
       # Override language selection by uncommenting this and choosing your languages
       # with:
       #   languages: go, javascript, csharp, python, cpp, java
@@ -71,7 +84,7 @@ jobs:
     # Autobuild attempts to build any compiled languages  (C/C++, C#, or Java).
     # If this step fails, then you should remove it and run the build manually (see below)
     - name: Autobuild
-      uses: github/codeql-action/autobuild@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+      uses: github/codeql-action/autobuild@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3
 
     # ℹ️ Command-line programs to run using the OS shell.
     # 📚 https://git.io/JvXDl
@@ -85,4 +98,4 @@ jobs:
     #   make release
 
     - name: Perform CodeQL Analysis
-      uses: github/codeql-action/analyze@cdf488f595d80d6e07e03d4674febd5ab45fa938 # v4.37.9
+      uses: github/codeql-action/analyze@24c54180a607b1449ed407dd24f251e4e9147c8d # v4.38.3

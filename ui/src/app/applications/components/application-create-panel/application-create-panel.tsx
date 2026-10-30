@@ -3,8 +3,8 @@ import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIc
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormFieldHOC as ReactFormField, Text} from 'argo-ui';
-import {cloneDeep, debounce} from 'lodash-es';
-import {YamlEditor} from '../../../shared/components';
+import {cloneDeep, debounce, DebouncedFunc} from 'lodash-es';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {AuthSettingsCtx} from '../../../shared/context';
@@ -16,7 +16,7 @@ import {HydratorSourcePanel} from './hydrator-source-panel';
 import {CollapsibleMultiSourceSection} from './collapsible-multi-source-section';
 import {SourcePanel} from './source-panel';
 import './application-create-panel.scss';
-import {getAppDefaultSource} from '../utils';
+import {getAppDefaultSource, getClusterOptions} from '../utils';
 import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
 
 const jsonMergePatch = require('json-merge-patch');
@@ -111,7 +111,8 @@ export const ApplicationCreatePanel = (props: {
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [retry, setRetry] = React.useState(false);
     const app = deepMerge(DEFAULT_APP, props.app || {});
-    const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
+    const onAppChangedRef = React.useRef(props.onAppChanged);
+    const debouncedOnAppChangedRef = React.useRef<DebouncedFunc<(value: models.Application) => void> | null>(null);
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
     const [comboSwitchedFromPanel, setComboSwitchedFromPanel] = React.useState(false);
     const currentRepoType = React.useRef(undefined);
@@ -125,10 +126,18 @@ export const ApplicationCreatePanel = (props: {
     const [multiSourceMode, setMultiSourceMode] = React.useState(() => (app.spec?.sources?.length ?? 0) >= 2);
 
     React.useEffect(() => {
+        onAppChangedRef.current = props.onAppChanged;
+    });
+
+    // The parent passes a new onAppChanged on every render. Keep a single debounced function for the
+    // lifetime of the panel so that a parent re-render does not cancel the pending update.
+    React.useEffect(() => {
+        const debouncedOnAppChanged = debounce((value: models.Application) => onAppChangedRef.current(value), 800);
+        debouncedOnAppChangedRef.current = debouncedOnAppChanged;
         return () => {
             debouncedOnAppChanged.cancel();
         };
-    }, [debouncedOnAppChanged]);
+    }, []);
 
     const currentName = app.spec.destination.name;
     const currentServer = app.spec.destination.server;
@@ -225,7 +234,7 @@ export const ApplicationCreatePanel = (props: {
             load={() =>
                 Promise.all([
                     services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort()),
-                    services.clusters.list().then(clusters => clusters.sort()),
+                    services.clusters.list(),
                     services.repos.list()
                 ]).then(([projects, clusters, reposInfo]) => ({projects, clusters, reposInfo}))
             }>
@@ -297,7 +306,7 @@ export const ApplicationCreatePanel = (props: {
                                     };
                                 }}
                                 defaultValues={app}
-                                formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
+                                formDidUpdate={state => debouncedOnAppChangedRef.current?.(state.values as any)}
                                 onSubmit={onCreateApp}
                                 getApi={props.getFormApi}>
                                 {api => {
@@ -318,7 +327,11 @@ export const ApplicationCreatePanel = (props: {
                                                 <button
                                                     type='button'
                                                     className='argo-button argo-button--base application-create-panel__yaml-button'
-                                                    onClick={() => setYamlMode(true)}>
+                                                    onClick={() => {
+                                                        // The YAML editor snapshots the app when it opens, so apply the pending form change first.
+                                                        debouncedOnAppChangedRef.current?.flush();
+                                                        setYamlMode(true);
+                                                    }}>
                                                     Edit as YAML
                                                 </button>
                                             )}
@@ -464,7 +477,7 @@ export const ApplicationCreatePanel = (props: {
                                                             qeId='application-create-field-cluster-url'
                                                             field='spec.destination.server'
                                                             componentProps={{
-                                                                items: clusters.map(cluster => cluster.server),
+                                                                items: getClusterOptions(clusters, 'server'),
                                                                 filterSuggestions: true
                                                             }}
                                                             component={AutocompleteField}
@@ -478,7 +491,7 @@ export const ApplicationCreatePanel = (props: {
                                                             qeId='application-create-field-cluster-name'
                                                             field='spec.destination.name'
                                                             componentProps={{
-                                                                items: clusters.map(cluster => cluster.name),
+                                                                items: getClusterOptions(clusters, 'name'),
                                                                 filterSuggestions: true
                                                             }}
                                                             component={AutocompleteField}

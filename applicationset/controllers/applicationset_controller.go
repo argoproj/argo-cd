@@ -250,7 +250,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 
 	// appSyncMap tracks which apps will be synced during this reconciliation.
 	appSyncMap := map[string]bool{}
-
+	var timeBeforePerformProgressiveSync time.Time
 	if r.EnableProgressiveSyncs {
 		if !progressivesync.IsRollingSyncStrategy(&applicationSetInfo) && len(applicationSetInfo.Status.ApplicationStatus) > 0 {
 			// If an appset was previously syncing with a `RollingSync` strategy but it has switched to the default strategy, clean up the progressive sync application statuses
@@ -276,6 +276,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 				)
 				return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 			}
+
+			timeBeforePerformProgressiveSync = time.Now()
 			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications, r.RefreshGracePeriodSeconds)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
@@ -333,6 +335,9 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	if r.EnableProgressiveSyncs {
 		// trigger appropriate application syncs if RollingSync strategy is enabled
 		if progressivesync.RollingSyncStrategyEnabled(&applicationSetInfo) {
+			if len(appSyncMap) > 0 {
+				r.Metrics.ObserveTimeToStartSyncAfterDetection(&applicationSetInfo, time.Since(timeBeforePerformProgressiveSync))
+			}
 			validApps = r.ProgressiveSyncManager.SyncDesiredApplications(logCtx, &applicationSetInfo, appSyncMap, validApps)
 		}
 	}
@@ -463,7 +468,7 @@ func getParametersGeneratedCondition(parametersGenerated bool, message string) a
 	if parametersGenerated {
 		parametersGeneratedCondition = argov1alpha1.ApplicationSetCondition{
 			Type:    argov1alpha1.ApplicationSetConditionParametersGenerated,
-			Message: "Successfully generated parameters for all Applications",
+			Message: "All parameters have been generated successfully",
 			Reason:  argov1alpha1.ApplicationSetReasonParametersGenerated,
 			Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 		}
@@ -539,14 +544,9 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 					Message: condition.Message,
 				})
 			}
-		case argov1alpha1.ApplicationSetConditionRolloutProgressing:
+		case argov1alpha1.ApplicationSetConditionRolloutProgressing, argov1alpha1.ApplicationSetConditionInvalidRolloutConfig:
 			if !progressivesync.IsRollingSyncStrategy(applicationSet) {
 				// if the condition is a rolling sync and it is disabled, ignore it
-				evaluatedTypes[condition.Type] = false
-			}
-
-		case argov1alpha1.ApplicationSetConditionInvalidRolloutConfig:
-			if !progressivesync.IsRollingSyncStrategy(applicationSet) {
 				evaluatedTypes[condition.Type] = false
 			}
 		}
@@ -645,9 +645,7 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 		for _, g := range relevantGenerators {
 			t := g.GetRequeueAfter(&requestedGenerator)
 
-			if res == 0 {
-				res = t
-			} else if t != 0 && t < res {
+			if res == 0 || (t != 0 && t < res) {
 				res = t
 			}
 		}
@@ -1242,6 +1240,8 @@ func (r *ApplicationSetReconciler) setAppSetApplicationStatus(ctx context.Contex
 			return fmt.Errorf("unable to set application set status: %w", err)
 		}
 	}
+
+	r.Metrics.SetProgressiveSyncAppStatus(applicationSet)
 
 	return nil
 }

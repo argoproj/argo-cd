@@ -76,7 +76,7 @@ func TestDeletingAppByLabelWait(t *testing.T) {
 		CreateApp("--label=foo=bar").
 		Sync().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCode(SyncStatusCodeSynced))).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		DeleteBySelectorWithWait("foo=bar").
 		Then().

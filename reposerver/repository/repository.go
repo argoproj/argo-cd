@@ -132,11 +132,15 @@ type RepoServerInitConstants struct {
 	IncludeHiddenDirectories                     bool
 	CMPUseManifestGeneratePaths                  bool
 	EnableBuiltinGitConfig                       bool
+	GitLsRemoteOptimizedEnabled                  bool
 	HelmUserAgent                                string
 	HelmChartCacheExpiration                     time.Duration // Cache expiration for repo
 }
 
-var manifestGenerateLock = sync.NewKeyLock()
+var (
+	manifestGenerateLock    = sync.NewKeyLock()
+	syncedRevisionFetchLock = sync.NewKeyLock()
+)
 
 // NewService returns a new instance of the Manifest service
 func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initConstants RepoServerInitConstants, gitCredsStore git.CredsStore, rootDir string) *Service {
@@ -161,7 +165,10 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 				opts = append(opts, helm.WithUserAgent(initConstants.HelmUserAgent))
 			}
 			opts = append(opts, helm.WithHelmChartCacheExpiration(initConstants.HelmChartCacheExpiration))
-			return helm.NewClientWithLock(repoURL, creds, sync.NewKeyLock(), enableOci, proxy, noProxy, opts...)
+			// Use helm.NewClient so that every repo-server request shares the process-wide lock,
+			// exactly like oci.NewClient does. Without a shared lock, a hard refresh in one request
+			// (CleanChartCache) can delete a chart archive that another request is still extracting.
+			return helm.NewClient(repoURL, creds, enableOci, proxy, noProxy, opts...)
 		},
 		initConstants:      initConstants,
 		now:                time.Now,
@@ -365,6 +372,7 @@ func (s *Service) runRepoOperation(
 	var ociClient oci.Client
 	var gitClient git.Client
 	var helmClient helm.Client
+	var gitRepoURL string
 	var err error
 	gitClientOpts := git.WithCache(s.cache, !settings.noRevisionCache && !settings.noCache)
 	revision = textutils.FirstNonEmpty(revision, source.TargetRevision)
@@ -376,6 +384,7 @@ func (s *Service) runRepoOperation(
 	case source.IsHelm():
 		helmClient, revision, err = s.newHelmClientResolveRevision(ctx, repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
 	default:
+		gitRepoURL = source.RepoURL
 		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts, git.WithTagPrefix(source.TagPrefix))
 	}
 
@@ -383,7 +392,7 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
-	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts)
+	repoRefs, err := resolveReferencedSources(hasMultipleSources, source.Helm, refSources, s.newClientResolveRevision, gitClientOpts, gitRepoURL, unresolvedRevision, revision)
 	if err != nil {
 		return err
 	}
@@ -578,7 +587,7 @@ type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...gi
 //
 // Much of this logic is duplicated in runManifestGenAsync. If making changes here, check whether runManifestGenAsync
 // should be updated.
-func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts git.ClientOpts) (map[string]string, error) {
+func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, newClientResolveRevision gitClientGetter, gitClientOpts git.ClientOpts, sourceRepoURL, sourceRevision, sourceCommitSHA string) (map[string]string, error) {
 	repoRefs := make(map[string]string)
 	if !hasMultipleSources || source == nil {
 		return repoRefs, nil
@@ -613,6 +622,10 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 		normalizedRepoURL := git.NormalizeGitURL(refSourceMapping.Repo.Repo)
 		_, ok = repoRefs[normalizedRepoURL]
 		if !ok {
+			if isSameRepoAndRevision(sourceRepoURL, sourceRevision, refSourceMapping) {
+				repoRefs[normalizedRepoURL] = sourceCommitSHA
+				continue
+			}
 			_, referencedCommitSHA, err := newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
 			if err != nil {
 				log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
@@ -623,6 +636,14 @@ func resolveReferencedSources(hasMultipleSources bool, source *v1alpha1.Applicat
 		}
 	}
 	return repoRefs, nil
+}
+
+// isSameRepoAndRevision returns true if the referenced source points to the same git repository and revision as the
+// source referencing it.
+func isSameRepoAndRevision(sourceRepoURL, sourceRevision string, refTarget *v1alpha1.RefTarget) bool {
+	return sourceRepoURL != "" && sourceRevision != "" &&
+		refTarget.TargetRevision == sourceRevision &&
+		git.NormalizeGitURL(refTarget.Repo.Repo) == git.NormalizeGitURL(sourceRepoURL)
 }
 
 // checkOutOfBoundsSymlinks validates symlinks and caches validation result in memory
@@ -712,11 +733,11 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	settings := operationSettings{sem: s.parallelismLimitSemaphore, noCache: q.NoCache, noRevisionCache: q.NoRevisionCache, allowConcurrent: q.ApplicationSource.AllowsConcurrentProcessing()}
 	err = s.runRepoOperation(ctx, q.Revision, q.Repo, q.ApplicationSource, q.SourceIntegrity, cacheFn, operation, settings, q.HasMultipleSources, q.RefSources)
 
-	// if the tarDoneCh message is sent it means that the manifest
-	// generation is being managed by the cmp-server. In this case
-	// we have to wait for the responseCh to send the manifest
-	// response.
-	if tarConcluded && res == nil {
+	// If tarDoneCh fired, the cmp-server is generating the manifests and
+	// runManifestGenAsync will send exactly one more message, on responseCh
+	// or errCh. Always receive it, even if res is already set: cacheFn may
+	// have stored a stale cached response in res.
+	if tarConcluded {
 		select {
 		case resp := <-promise.responseCh:
 			res = resp
@@ -866,6 +887,11 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 		// check whether they should be replicated in resolveReferencedSources.
 		if q.HasMultipleSources {
 			if q.ApplicationSource.Helm != nil {
+				var sourceRepoURL string
+				if !q.ApplicationSource.IsOCI() && !q.ApplicationSource.IsHelm() {
+					sourceRepoURL = q.ApplicationSource.RepoURL
+				}
+				sourceRevision := textutils.FirstNonEmpty(q.Revision, q.ApplicationSource.TargetRevision)
 				refFileParams := make([]string, 0)
 				for _, fileParam := range q.ApplicationSource.Helm.FileParameters {
 					refFileParams = append(refFileParams, fileParam.Path)
@@ -903,7 +929,16 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							return
 						}
 					} else {
-						gitClient, referencedCommitSHA, err := s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+						var gitClient git.Client
+						var referencedCommitSHA string
+						var err error
+						gitClientOpts := git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache)
+						if isSameRepoAndRevision(sourceRepoURL, sourceRevision, refSourceMapping) {
+							gitClient, err = s.newClient(&refSourceMapping.Repo, gitClientOpts)
+							referencedCommitSHA = commitSHA
+						} else {
+							gitClient, referencedCommitSHA, err = s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
+						}
 						if err != nil {
 							log.Errorf("Failed to get git client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 							ch.errCh <- fmt.Errorf("failed to get git client for repo %s", refSourceMapping.Repo.Repo)
@@ -2159,14 +2194,14 @@ func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRo
 	realFileInfo = f
 
 	if files.IsSymlink(f) {
-		realPath, err := filepath.EvalSymlinks(path)
+		realPath, ok, err := files.ResolveInbound(path, repoRoot)
 		if err != nil {
 			if os.IsNotExist(err) {
 				return nil, fmt.Sprintf("destination of symlink %q is missing", relPath), nil
 			}
 			return nil, "", fmt.Errorf("failed to evaluate symlink at %q: %w", relPath, err)
 		}
-		if !files.Inbound(realPath, repoRoot) {
+		if !ok {
 			return nil, "", fmt.Errorf("illegal filepath in symlink at %q", relPath)
 		}
 		realFileInfo, err = os.Stat(realPath)
@@ -2307,11 +2342,88 @@ func makeJsonnetVM(appPath string, repoRoot string, sourceJsonnet v1alpha1.Appli
 		jpaths = append(jpaths, string(jpath))
 	}
 
-	vm.Importer(&jsonnet.FileImporter{
-		JPaths: jpaths,
+	vm.Importer(&confinedImporter{
+		FileImporter: &jsonnet.FileImporter{JPaths: jpaths},
+		repoRoot:     repoRoot,
 	})
 
 	return vm, nil
+}
+
+// confinedImporter wraps a jsonnet.FileImporter and rejects any import whose
+// resolved path (after symlink resolution) falls outside repoRoot, or that
+// isn't a regular file, preventing import/importstr from reading files
+// outside the checked-out repository (e.g. absolute paths like
+// /proc/self/environ, or relative traversal).
+//
+// The candidate path is located and validated with stat calls only, before
+// FileImporter.Import is ever invoked: FileImporter reads the full file
+// unconditionally via os.ReadFile, so validating after that call would let
+// an import of a non-terminating virtual file (e.g. /dev/zero) exhaust
+// repo-server memory before the rejection ever runs.
+type confinedImporter struct {
+	*jsonnet.FileImporter
+	repoRoot string
+}
+
+func (i *confinedImporter) Import(importedFrom, importedPath string) (jsonnet.Contents, string, error) {
+	dir, _ := filepath.Split(importedFrom)
+	foundAt, err := i.locate(dir, importedPath)
+	if err != nil {
+		return jsonnet.Contents{}, "", err
+	}
+	if err := i.validate(foundAt, importedPath); err != nil {
+		return jsonnet.Contents{}, "", err
+	}
+	return i.FileImporter.Import(importedFrom, importedPath)
+}
+
+// locate mirrors the candidate search order of go-jsonnet's own
+// FileImporter.Import/tryPath (importedFrom's directory, then JPaths in
+// reverse order), but only stats each candidate instead of reading it.
+func (i *confinedImporter) locate(dir, importedPath string) (string, error) {
+	if filepath.IsAbs(importedPath) {
+		if _, err := os.Lstat(importedPath); err != nil {
+			if os.IsNotExist(err) {
+				return "", fmt.Errorf("couldn't open import %q: no match locally or in the Jsonnet library paths", importedPath)
+			}
+			return "", err
+		}
+		return importedPath, nil
+	}
+
+	bases := make([]string, 0, len(i.JPaths)+1)
+	bases = append(bases, dir)
+	for _, jpath := range slices.Backward(i.JPaths) {
+		bases = append(bases, jpath)
+	}
+	for _, base := range bases {
+		absPath := filepath.Join(base, importedPath)
+		if _, err := os.Lstat(absPath); err == nil {
+			return absPath, nil
+		} else if !os.IsNotExist(err) {
+			return "", err
+		}
+	}
+	return "", fmt.Errorf("couldn't open import %q: no match locally or in the Jsonnet library paths", importedPath)
+}
+
+func (i *confinedImporter) validate(foundAt, importedPath string) error {
+	resolved, ok, err := files.ResolveInbound(foundAt, i.repoRoot)
+	if err != nil {
+		return fmt.Errorf("failed to resolve jsonnet import %q: %w", importedPath, err)
+	}
+	if !ok {
+		return fmt.Errorf("jsonnet import %q resolves outside repository root", importedPath)
+	}
+	info, err := os.Stat(resolved)
+	if err != nil {
+		return fmt.Errorf("failed to stat jsonnet import %q: %w", importedPath, err)
+	}
+	if !info.Mode().IsRegular() {
+		return fmt.Errorf("jsonnet import %q is not a regular file", importedPath)
+	}
+	return nil
 }
 
 func getPluginEnvs(env *v1alpha1.Env, q *apiclient.ManifestRequest) ([]string, error) {
@@ -2556,6 +2668,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 		if q.Repo.Type == "git" {
 			mainRepoURL = git.NormalizeGitURL(q.Repo.Repo)
 		}
+		sourceRevision := textutils.FirstNonEmpty(q.Source.TargetRevision, revision)
 		refNames := []string{}
 		for refName := range getReferencedSources(selectedValueFiles, q.RefSources) {
 			refNames = append(refNames, refName)
@@ -2567,7 +2680,15 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 				continue
 			}
 			log.Debugf("Checking out repos for ref source %s  -> %s [%s]", refName, refSource.Repo.Repo, refSource.TargetRevision)
-			gitClient, refSHA, err := s.newClientResolveRevision(&refSource.Repo, refSource.TargetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+			var gitClient git.Client
+			var refSHA string
+			gitClientOpts := git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache)
+			if isSameRepoAndRevision(mainRepoURL, sourceRevision, refSource) {
+				gitClient, err = s.newClient(&refSource.Repo, gitClientOpts)
+				refSHA = commitSHA
+			} else {
+				gitClient, refSHA, err = s.newClientResolveRevision(&refSource.Repo, refSource.TargetRevision, gitClientOpts)
+			}
 			if err != nil {
 				return fmt.Errorf("error setting up git client for %s and resolving revision %s: %w", refSource.Repo.Repo, refSource.TargetRevision, err)
 			}
@@ -2911,7 +3032,8 @@ func (s *Service) newClient(repo *v1alpha1.Repository, opts ...git.ClientOpts) (
 	}
 	opts = append(opts,
 		git.WithEventHandlers(metrics.NewGitClientEventHandlers(s.metricsServer)),
-		git.WithBuiltinGitConfig(s.initConstants.EnableBuiltinGitConfig))
+		git.WithBuiltinGitConfig(s.initConstants.EnableBuiltinGitConfig),
+		git.WithOptimizedLsRemote(s.initConstants.GitLsRemoteOptimizedEnabled))
 	return s.newGitClient(repo.Repo, repoPath, repo.GetGitCreds(s.gitCredsStore), repo.IsInsecure(), repo.EnableLFS, repo.Proxy, repo.NoProxy, opts...)
 }
 
@@ -3449,9 +3571,9 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		return revision, syncedRevision, false, nil
 	}
 
-	getGitFilesChanges := func() ([]string, error) {
-		var files []string
-
+	// compared is false when syncedRevision could not be compared (e.g. the server refuses to serve it
+	// by SHA, or it was force-pushed away); the caller then treats the source as changed.
+	getGitFilesChanges := func() (files []string, compared bool, err error) {
 		s.metricsServer.IncPendingRepoRequest(repo.Repo)
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
@@ -3459,26 +3581,41 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 			return s.checkoutRevision(ctx, gitClient, revision, false, repo.Depth, clean)
 		})
 		if err != nil {
-			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+			return nil, false, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
 		defer utilio.Close(closer)
 
-		if err := s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth); err != nil {
-			return files, status.Errorf(codes.Internal, "unable to fetch git repo %s with syncedRevisions %s: %v", repo.Repo, syncedRevision, err)
+		// Concurrent holders of the shared lock above may all miss syncedRevision; parallel shallow
+		// fetches into one repo fail on .git/shallow.lock. Later holders find it present and skip.
+		// Checked before locking so callers don't queue when it is already present.
+		if !gitClient.IsRevisionPresent(ctx, syncedRevision) {
+			syncedRevisionFetchLock.Lock(gitClient.Root())
+			err = s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth)
+			syncedRevisionFetchLock.Unlock(gitClient.Root())
+			if err != nil {
+				log.Warnf("Unable to fetch synced revision %s of repo %s, treating source as changed: %v", syncedRevision, repo.Repo, err)
+				return nil, false, nil
+			}
 		}
 
 		files, err = gitClient.ChangedFiles(ctx, syncedRevision, revision)
 		if err != nil {
-			return files, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+			log.Warnf("Unable to get changed files for repo %s from %s to %s, treating source as changed: %v", repo.Repo, syncedRevision, revision, err)
+			return nil, false, nil
 		}
-		return files, nil
+		return files, true, nil
 	}
 
 	files, err := s.cache.GetGitFilesChanges(repo.Repo, revision, syncedRevision)
 	if err != nil {
-		files, err = getGitFilesChanges()
+		var compared bool
+		files, compared, err = getGitFilesChanges()
 		if err != nil {
 			return revision, syncedRevision, true, err
+		}
+		if !compared {
+			// Not cached: an empty file list would read as "no changes" on the next lookup.
+			return revision, syncedRevision, true, nil
 		}
 	}
 
@@ -3641,13 +3778,18 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	// No changes detected, update the cache using resolved revisions
 	err := s.updateCachedRevision(logCtx, sRevision, rRevision, request, oldRepoRefs, newRepoRefs)
 	if err != nil {
-		if !errors.Is(err, cache.ErrCacheMiss) {
-			// Only warn with the error, no need to block anything if there is a caching error.
+		// Path filtering already established that no relevant files changed. A cache
+		// rename failure (miss, Redis unreachable, etc.) must not flip Changes to true,
+		// or automated sync will treat the revision advance as an application change
+		// and sync unrelated sibling apps in a mono-repo (issue #29430).
+		if errors.Is(err, cache.ErrCacheMiss) {
+			logCtx.Info("manifest cache miss while moving manifests cache to the new revision")
+		} else {
 			logCtx.Warnf("error updating cached revision for source %s with revision %s: %v", request.ApplicationSource.RepoURL, rRevision, err)
 		}
 		return &apiclient.UpdateRevisionForPathsResponse{
 			Revision: rRevision,
-			Changes:  true,
+			Changes:  false,
 		}, nil
 	}
 
@@ -3673,7 +3815,6 @@ func (s *Service) updateCachedRevision(logCtx *log.Entry, oldRev string, newRev 
 	err := s.cache.SetNewRevisionManifests(oldKey, newKey)
 	if err != nil {
 		if errors.Is(err, cache.ErrCacheMiss) {
-			logCtx.Info("manifest cache miss while moving manifests cache to the new revision")
 			return fmt.Errorf("manifest cache miss during comparison for application %s in repo %s from revision %s: %w", request.AppName, request.GetRepo().Repo, oldRev, cache.ErrCacheMiss)
 		}
 		return fmt.Errorf("manifest cache move error for %s: %w", request.AppName, err)

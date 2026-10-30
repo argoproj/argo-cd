@@ -8,6 +8,9 @@ These are the upcoming releases dates:
 
 | Release | Release Candidate 1    | General Availability  | Release Champion                                                 | Release Approver                                      | Checklist                                                     |
 |---------|------------------------|-----------------------|------------------------------------------------------------------|-------------------------------------------------------|---------------------------------------------------------------|
+| v4.0    | Tuesday, Sep. 14, 2027 | Tuesday, Nov. 2, 2027 | [Regina Voloshin](https://github.com/reggie-k) | [Regina Voloshin](https://github.com/reggie-k) | [checklist](https://github.com/argoproj/argo-cd/issues/29650) |
+| v3.9    | Tuesday, Jun. 15, 2027 | Tuesday, Aug. 3, 2027 | |
+| v3.8    | Tuesday, Mar. 16, 2027 | Tuesday, May. 4, 2027 | |
 | v3.7    | Tuesday, Dec. 15, 2026 | Tuesday, Feb. 2, 2027 | [Blake Pettersson](https://github.com/blakepettersson) | | [checklist](https://github.com/argoproj/argo-cd/issues/29471) |
 | v3.6    | Tuesday, Sep. 15, 2026 | Tuesday, Nov. 3, 2026 | [Eugene Doudine](https://github.com/dudinea)                     | | [checklist](https://github.com/argoproj/argo-cd/issues/29396) |
 | v3.5    | Tuesday, Jun. 16, 2026 | Tuesday, Aug. 4, 2026 | [Patroklos Papapetrou](https://github.com/ppapapetrou76)         | [Regina Voloshin](https://github.com/reggie-k) | [checklist](https://github.com/argoproj/argo-cd/issues/26746) |

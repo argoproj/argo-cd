@@ -4,8 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -19,17 +21,20 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	extensionsv1beta1 "k8s.io/api/extensions/v1beta1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
 	testcore "k8s.io/client-go/testing"
+	"k8s.io/kubectl/pkg/util/openapi"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
@@ -1085,37 +1090,41 @@ func TestGetDuplicatedChildren(t *testing.T) {
 func TestGetClusterInfo(t *testing.T) {
 	t.Parallel()
 	cluster := newCluster(t)
-	cluster.apiResources = []kube.APIResourceInfo{{GroupKind: schema.GroupKind{Group: "test", Kind: "test kind"}}}
-	cluster.serverVersion = "v1.16"
+	apiResources := []kube.APIResourceInfo{{GroupKind: schema.GroupKind{Group: "test", Kind: "test kind"}}}
+	cluster.apiResources.Store(&apiResources)
+	version := "v1.16"
+	cluster.serverVersion.Store(&version)
 	info := cluster.GetClusterInfo()
 	assert.Equal(t, ClusterInfo{
 		Server:       cluster.config.Host,
-		APIResources: cluster.apiResources,
-		K8SVersion:   cluster.serverVersion,
+		APIResources: apiResources,
+		K8SVersion:   version,
 	}, info)
 }
 
 func TestDeleteAPIResource(t *testing.T) {
 	t.Parallel()
 	cluster := newCluster(t)
-	cluster.apiResources = []kube.APIResourceInfo{{
+	apiResources := []kube.APIResourceInfo{{
 		GroupKind:            schema.GroupKind{Group: "test", Kind: "test kind"},
 		GroupVersionResource: schema.GroupVersionResource{Version: "v1"},
 	}}
+	cluster.apiResources.Store(&apiResources)
 
 	cluster.deleteAPIResource(kube.APIResourceInfo{GroupKind: schema.GroupKind{Group: "wrong group", Kind: "wrong kind"}})
-	assert.Len(t, cluster.apiResources, 1)
+	assert.Len(t, cluster.GetAPIResources(), 1)
 	cluster.deleteAPIResource(kube.APIResourceInfo{
 		GroupKind:            schema.GroupKind{Group: "test", Kind: "test kind"},
 		GroupVersionResource: schema.GroupVersionResource{Version: "wrong version"},
 	})
-	assert.Len(t, cluster.apiResources, 1)
+	assert.Len(t, cluster.GetAPIResources(), 1)
 
 	cluster.deleteAPIResource(kube.APIResourceInfo{
 		GroupKind:            schema.GroupKind{Group: "test", Kind: "test kind"},
 		GroupVersionResource: schema.GroupVersionResource{Version: "v1"},
 	})
-	assert.Empty(t, cluster.apiResources)
+	assert.Empty(t, cluster.GetAPIResources())
+	assert.Len(t, apiResources, 1, "the published slice must be replaced, not edited in place")
 }
 
 func TestAppendAPIResource(t *testing.T) {
@@ -1128,11 +1137,11 @@ func TestAppendAPIResource(t *testing.T) {
 	}
 
 	cluster.appendAPIResource(resourceInfo)
-	assert.ElementsMatch(t, []kube.APIResourceInfo{resourceInfo}, cluster.apiResources)
+	assert.ElementsMatch(t, []kube.APIResourceInfo{resourceInfo}, cluster.GetAPIResources())
 
 	// make sure same group, kind version is not added twice
 	cluster.appendAPIResource(resourceInfo)
-	assert.ElementsMatch(t, []kube.APIResourceInfo{resourceInfo}, cluster.apiResources)
+	assert.ElementsMatch(t, []kube.APIResourceInfo{resourceInfo}, cluster.GetAPIResources())
 }
 
 func TestIsAPIServiceAvailable(t *testing.T) {
@@ -2069,6 +2078,277 @@ func Test_watchEvents_Deadlock(t *testing.T) {
 	}
 }
 
+// Regression: startMissingWatches panicked on the nil apisMeta left by Invalidate.
+// It must also start no watches, since nothing may sync or cancel them later.
+func TestStartMissingWatches_DoesNothingAfterInvalidate(t *testing.T) {
+	cluster := newCluster(t)
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
+	cluster.apisMeta = nil
+
+	require.NotPanics(t, func() { require.NoError(t, cluster.startMissingWatches()) })
+	assert.Nil(t, cluster.apisMeta)
+}
+
+// Regression: stopWatching left the GroupKind in namespacedResources.
+func TestStopWatching_RemovesNamespacedResourcesEntry(t *testing.T) {
+	pod := testPod1()
+	gk := pod.GroupVersionKind().GroupKind()
+	cluster := newCluster(t, pod)
+	require.NoError(t, cluster.EnsureSynced())
+	_, err := cluster.IsNamespaced(gk)
+	require.NoError(t, err)
+	before := cluster.loadNamespacedResources() // as a concurrent IsNamespaced might hold it
+
+	cluster.stopWatching(gk, pod.Namespace)
+
+	_, err = cluster.IsNamespaced(gk)
+	assert.True(t, apierrors.IsNotFound(err), "got %v", err)
+	assert.Contains(t, before, gk, "the published map must be replaced, not edited in place")
+}
+
+// Regression: sync filled the published namespacedResources map in place while
+// IsNamespaced read it without the lock. Run with -race.
+func TestIsNamespaced_ConcurrentWithResync(t *testing.T) {
+	pod := testPod1()
+	gk := pod.GroupVersionKind().GroupKind()
+	cluster := newCluster(t, pod)
+	require.NoError(t, cluster.EnsureSynced())
+
+	done := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for {
+			select {
+			case <-done:
+				return
+			default:
+				_, _ = cluster.IsNamespaced(gk)
+			}
+		}
+	})
+	cluster.Invalidate()
+	require.NoError(t, cluster.EnsureSynced())
+	close(done)
+	wg.Wait()
+
+	namespaced, err := cluster.IsNamespaced(gk)
+	require.NoError(t, err)
+	assert.True(t, namespaced)
+}
+
+// Regression: sync, reloadOpenAPISchema and CRD events wrote these fields while
+// their getters read them without the lock. Run with -race.
+func TestDiscoveryGetters_ConcurrentWithResync(t *testing.T) {
+	crdInfo := kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: "example.com", Kind: "Widget"},
+		GroupVersionResource: schema.GroupVersionResource{Group: "example.com", Version: "v1", Resource: "widgets"},
+	}
+	getters := map[string]func(c *clusterCache){
+		"GetServerVersion": func(c *clusterCache) { _ = c.GetServerVersion() },
+		"GetAPIResources": func(c *clusterCache) {
+			for _, r := range c.GetAPIResources() {
+				_ = r.GroupKind
+			}
+		},
+		"GetOpenAPISchema": func(c *clusterCache) { _ = c.GetOpenAPISchema() },
+		"GetGVKParser":     func(c *clusterCache) { _ = c.GetGVKParser() },
+		"GetClusterInfo":   func(c *clusterCache) { _ = c.GetClusterInfo() },
+	}
+	for name, get := range getters {
+		t.Run(name, func(t *testing.T) {
+			cluster := newCluster(t, testPod1())
+			cluster.kubectl.(*kubetest.MockKubectlCmd).WithLoadOpenAPISchemaFunc(func(*rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+				return nil, &managedfields.GvkParser{}, nil
+			})
+			require.NoError(t, cluster.EnsureSynced())
+
+			done := make(chan struct{})
+			var wg sync.WaitGroup
+			wg.Go(func() {
+				for {
+					select {
+					case <-done:
+						return
+					default:
+						get(cluster)
+					}
+				}
+			})
+			cluster.Invalidate()
+			require.NoError(t, cluster.EnsureSynced())
+			require.NoError(t, runSynced(&cluster.lock, cluster.reloadOpenAPISchema))
+			// As the CRD watch does.
+			require.NoError(t, runSynced(&cluster.lock, func() error {
+				cluster.appendAPIResource(crdInfo)
+				return nil
+			}))
+			require.NoError(t, runSynced(&cluster.lock, func() error {
+				cluster.deleteAPIResource(cluster.GetAPIResources()[0])
+				return nil
+			}))
+			close(done)
+			wg.Wait()
+
+			assert.NotNil(t, cluster.GetGVKParser())
+			assert.NotEmpty(t, cluster.GetAPIResources())
+		})
+	}
+}
+
+func TestCRDVersionsToAPIResources(t *testing.T) {
+	crd := func(extraSpec map[string]any) *unstructured.Unstructured {
+		spec := map[string]any{
+			"group":    "example.com",
+			"names":    map[string]any{"kind": "Dummy", "plural": "dummies", "singular": "dummy"},
+			"scope":    "Namespaced",
+			"versions": []any{map[string]any{"name": "v1", "served": true, "storage": true}},
+		}
+		maps.Copy(spec, extraSpec)
+		return &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apiextensions.k8s.io/v1",
+			"kind":       "CustomResourceDefinition",
+			"metadata":   map[string]any{"name": "dummies.example.com"},
+			"spec":       spec,
+		}}
+	}
+	cluster := newCluster(t)
+
+	resources, err := cluster.crdVersionsToAPIResources(crd(nil))
+	require.NoError(t, err)
+	require.Len(t, resources, 1)
+	assert.Equal(t, "Dummy.example.com", resources[0].GroupKind.String())
+
+	// spec.versions decodes before the bad field, so a partial result is possible.
+	resources, err = cluster.crdVersionsToAPIResources(crd(map[string]any{"preserveUnknownFields": "not-a-bool"}))
+	require.Error(t, err)
+	assert.Nil(t, resources)
+}
+
+// lockProbe arms kubectl hooks on cluster that record whether c.lock is held
+// when GetAPIResources (startMissingWatches) and LoadOpenAPISchema
+// (reloadOpenAPISchema) run. Arm it after EnsureSynced, since sync calls both.
+type lockProbe struct {
+	held, notHeld atomic.Int32
+}
+
+func armLockProbe(cluster *clusterCache) *lockProbe {
+	p := &lockProbe{}
+	record := func() {
+		if cluster.lock.TryLock() {
+			cluster.lock.Unlock()
+			p.notHeld.Add(1)
+			return
+		}
+		p.held.Add(1)
+	}
+	mock := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	apis := mock.APIResources
+	mock.WithGetAPIResourcesFunc(func(*rest.Config, bool, kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+		record()
+		return apis, nil
+	})
+	mock.WithLoadOpenAPISchemaFunc(func(*rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+		record()
+		return nil, nil, nil
+	})
+	return p
+}
+
+func (p *lockProbe) assertHeld(t *testing.T, calls int32) {
+	t.Helper()
+	assert.Equal(t, calls, p.held.Load(), "kubectl calls made with c.lock held")
+	assert.Zero(t, p.notHeld.Load(), "kubectl calls made without c.lock")
+}
+
+// TestHandleCRDEvent_LockContract checks that handleCRDEvent, called without
+// c.lock, holds the lock during startMissingWatches and reloadOpenAPISchema,
+// and that neither callee takes it again: the non-reentrant lock would
+// deadlock and the test would time out.
+func TestHandleCRDEvent_LockContract(t *testing.T) {
+	t.Parallel()
+	// Not newCluster: its cleanup calls Invalidate, which would wait forever on
+	// the lock a deadlocked handleCRDEvent still holds.
+	cluster := newClusterWithOptions(t, nil)
+	deadlocked := false
+	t.Cleanup(func() {
+		if !deadlocked {
+			cluster.Invalidate()
+		}
+	})
+	require.NoError(t, cluster.EnsureSynced())
+	probe := armLockProbe(cluster)
+
+	crd := strToUnstructured(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: dummies.example.com
+spec:
+  group: example.com
+  scope: Namespaced
+  names:
+    kind: Dummy
+    plural: dummies
+    singular: dummy
+  versions:
+  - name: v1`)
+	require.True(t, kube.IsCRD(crd), "sanity: the fixture must be recognised as a CRD")
+
+	// All three event types take the same locking path as the watch loop.
+	for _, event := range []watch.EventType{watch.Added, watch.Modified, watch.Deleted} {
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			cluster.handleCRDEvent(legacyEngineOf(cluster), event, crd)
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			deadlocked = true
+			t.Fatalf("handleCRDEvent(%s) did not return; store.lock is likely acquired twice", event)
+		}
+	}
+	// Added and Modified: startMissingWatches and reloadOpenAPISchema.
+	// Deleted: reloadOpenAPISchema only.
+	probe.assertHeld(t, 5)
+
+	for _, api := range cluster.GetAPIResources() {
+		assert.NotEqual(t, "Dummy", api.GroupKind.Kind, "the deleted CRD must not remain in apiResources")
+	}
+}
+
+// TestReconcileAPIServiceWatches_LockContract checks that
+// reconcileAPIServiceWatches, called without c.lock, holds the lock during
+// startMissingWatches and reloadOpenAPISchema without taking it twice.
+func TestReconcileAPIServiceWatches_LockContract(t *testing.T) {
+	t.Parallel()
+	// Not newCluster, for the same reason as TestHandleCRDEvent_LockContract.
+	cluster := newClusterWithOptions(t, nil)
+	deadlocked := false
+	t.Cleanup(func() {
+		if !deadlocked {
+			cluster.Invalidate()
+		}
+	})
+	require.NoError(t, cluster.EnsureSynced())
+	probe := armLockProbe(cluster)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		// waitForGroup=false reconciles once, without the backoff.
+		cluster.reconcileAPIServiceWatches(legacyEngineOf(cluster), "example.com", false)
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		deadlocked = true
+		t.Fatal("reconcileAPIServiceWatches did not return; store.lock is likely acquired twice")
+	}
+	probe.assertHeld(t, 2)
+}
+
 func buildTestResourceMap() map[kube.ResourceKey]*Resource {
 	ns := make(map[kube.ResourceKey]*Resource)
 	for i := range 100000 {
@@ -2289,10 +2569,11 @@ func BenchmarkIterateHierarchyV2_ClusterParentTraversal(b *testing.B) {
 			}})
 
 			// CRITICAL: Initialize namespacedResources so setNode will populate orphanedChildren index
-			cluster.namespacedResources = map[schema.GroupKind]bool{
+			namespaced := map[schema.GroupKind]bool{
 				{Group: "", Kind: "Pod"}:                                  true,
 				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
 			}
+			cluster.namespacedResources.Store(&namespaced)
 
 			clusterParents := 100 // Fixed number of cluster-scoped resources
 
@@ -2373,11 +2654,12 @@ func BenchmarkIterateHierarchyV2_MultiLevelClusterScoped(b *testing.B) {
 				Meta:                 metav1.APIResource{Namespaced: true},
 			}})
 
-			cluster.namespacedResources = map[schema.GroupKind]bool{
+			namespaced := map[schema.GroupKind]bool{
 				{Group: "", Kind: "Pod"}:                                  true,
 				{Group: "", Kind: "Namespace"}:                            false,
 				{Group: "rbac.authorization.k8s.io", Kind: "ClusterRole"}: false,
 			}
+			cluster.namespacedResources.Store(&namespaced)
 
 			// Create root cluster-scoped parent (Namespace, simulating Provider)
 			rootUID := uuid.New().String()
@@ -2856,6 +3138,103 @@ func BenchmarkIncrementalIndexBuild(b *testing.B) {
 			}
 		})
 	}
+}
+
+func TestNewResource_CompressionEnabled_StoresCompressed(t *testing.T) {
+	t.Parallel()
+	un := mustToUnstructured(testDeploy())
+
+	cluster := newClusterWithOptions(t,
+		[]UpdateSettingsFunc{
+			SetManifestCompressionEnabled(true),
+			SetManifestStorageType(ManifestStorageJSON),
+			SetManifestCompressionType(ManifestCompressionGZipBestSpeed),
+			SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (any, bool) {
+				return nil, true
+			}),
+		},
+	)
+
+	res := cluster.newResource(un)
+	assert.True(t, res.HasManifest())
+	assert.Nil(t, res.Resource, "raw Resource field must be nil when compression is enabled")
+	assert.NotEmpty(t, res.compressedManifest)
+
+	got, err := res.GetManifest()
+	require.NoError(t, err)
+	assert.Equal(t, un.GetName(), got.GetName())
+	assert.Equal(t, un.GetKind(), got.GetKind())
+}
+
+func TestNewResource_CompressionDisabled_StoresRaw(t *testing.T) {
+	t.Parallel()
+	un := mustToUnstructured(testDeploy())
+
+	cluster := newClusterWithOptions(t,
+		[]UpdateSettingsFunc{
+			SetManifestCompressionEnabled(false),
+			SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (any, bool) {
+				return nil, true
+			}),
+		},
+	)
+
+	res := cluster.newResource(un)
+	assert.True(t, res.HasManifest())
+	assert.NotNil(t, res.Resource, "raw Resource field must be set when compression is disabled")
+	assert.Empty(t, res.compressedManifest)
+}
+
+func TestNewResource_CompressionFailure_FallsBackToRaw(t *testing.T) {
+	t.Parallel()
+	un := &unstructured.Unstructured{Object: map[string]any{"unsupported": func() {}}}
+	cluster := newClusterWithOptions(t,
+		[]UpdateSettingsFunc{
+			SetManifestCompressionEnabled(true),
+			SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (any, bool) {
+				return nil, true
+			}),
+		},
+	)
+
+	res := cluster.newResource(un)
+	assert.True(t, res.HasManifest())
+	assert.Same(t, un, res.Resource)
+	assert.Empty(t, res.compressedManifest)
+}
+
+func TestGetManagedLiveObjs_CompressionEnabled(t *testing.T) {
+	t.Parallel()
+	cluster := newClusterWithOptions(t,
+		[]UpdateSettingsFunc{
+			SetManifestCompressionEnabled(true),
+			SetManifestStorageType(ManifestStorageJSON),
+			SetManifestCompressionType(ManifestCompressionGZipBestSpeed),
+			SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (any, bool) {
+				return nil, true
+			}),
+		},
+		testPod1(), testRS(), testDeploy(),
+	)
+
+	err := cluster.EnsureSynced()
+	require.NoError(t, err)
+
+	targetDeploy := strToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helm-guestbook
+  labels:
+    app: helm-guestbook`)
+
+	managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{targetDeploy}, func(r *Resource) bool {
+		return len(r.OwnerRefs) == 0
+	})
+	require.NoError(t, err)
+	assert.Equal(t, map[kube.ResourceKey]*unstructured.Unstructured{
+		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
+	}, managedObjs)
 }
 
 func TestAPIResourceLabelSelectorIsAppliedToList(t *testing.T) {
