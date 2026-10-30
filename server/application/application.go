@@ -80,6 +80,12 @@ type AppResourceTreeFn func(ctx context.Context, app *v1alpha1.Application) (*v1
 const (
 	backgroundPropagationPolicy string = "background"
 	foregroundPropagationPolicy string = "foreground"
+
+	// refreshPollInterval is how often the refresh waiter falls back to the
+	// application informer to decide whether a refresh has completed. The
+	// broadcaster can drop the completion event when a subscriber cannot keep
+	// up, so the informer must be consulted periodically (#30114).
+	refreshPollInterval = 1 * time.Second
 )
 
 var (
@@ -887,21 +893,42 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 		minVersion = 0
 	}
 
+	isRefreshComplete := func(candidate *v1alpha1.Application) bool {
+		candidateVersion, err := strconv.Atoi(candidate.ResourceVersion)
+		if err != nil || candidateVersion <= minVersion {
+			return false
+		}
+		annotations := candidate.GetAnnotations()
+		_, stillRefreshing := annotations[v1alpha1.AnnotationKeyRefresh]
+		return !stillRefreshing
+	}
+
+	returnRefreshedApp := func(refreshedApp *v1alpha1.Application) (*v1alpha1.Application, error) {
+		s.inferResourcesStatusHealth(refreshedApp)
+		return refreshedApp.DeepCopy(), nil
+	}
+
+	// The informer is the source of truth for the application state. The watch
+	// events delivered through the broadcaster are a best-effort notification:
+	// the broadcaster drops events when a subscriber cannot keep up and the
+	// informer can coalesce updates, so the single event that carries the
+	// refreshed (annotation-free) state may never arrive. Periodically re-check
+	// the informer so a dropped completion event does not turn a successful
+	// refresh into a spurious "application refresh deadline exceeded" (#30114).
+	ticker := time.NewTicker(refreshPollInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, errors.New("application refresh deadline exceeded")
+		case <-ticker.C:
+			if refreshedApp, err := s.appLister.Applications(appNs).Get(appName); err == nil && isRefreshComplete(refreshedApp) {
+				return returnRefreshedApp(refreshedApp)
+			}
 		case event := <-events:
-			if appVersion, err := strconv.Atoi(event.Application.ResourceVersion); err == nil && appVersion > minVersion {
-				annotations := event.Application.GetAnnotations()
-				if annotations == nil {
-					annotations = make(map[string]string)
-				}
-				if _, ok := annotations[v1alpha1.AnnotationKeyRefresh]; !ok {
-					refreshedApp := event.Application.DeepCopy()
-					s.inferResourcesStatusHealth(refreshedApp)
-					return refreshedApp, nil
-				}
+			if isRefreshComplete(&event.Application) {
+				return returnRefreshedApp(&event.Application)
 			}
 		}
 	}
