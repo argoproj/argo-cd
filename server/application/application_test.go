@@ -1934,8 +1934,11 @@ func TestDeleteApp(t *testing.T) {
 	fakeAppCs.ReactionChain = nil
 	patched := false
 	deleted := false
-	fakeAppCs.AddReactor("patch", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+	var finalizers []string
+	var finalizerPatch []byte
+	fakeAppCs.AddReactor("patch", "applications", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
 		patched = true
+		finalizerPatch = action.(kubetesting.PatchAction).GetPatch()
 		return true, nil, nil
 	})
 	fakeAppCs.AddReactor("delete", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
@@ -1943,7 +1946,7 @@ func TestDeleteApp(t *testing.T) {
 		return true, nil, nil
 	})
 	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
-		return true, &v1alpha1.Application{Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
+		return true, &v1alpha1.Application{Finalizers: finalizers, Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{}}}, nil
 	})
 	appServer.appclientset = fakeAppCs
 
@@ -2004,6 +2007,151 @@ func TestDeleteApp(t *testing.T) {
 		assert.True(t, deleted)
 		t.Cleanup(revertValues)
 	})
+
+	for _, tc := range []struct {
+		name       string
+		finalizers []string
+	}{
+		{"existing", []string{"resources-finalizer.argocd.argoproj.io"}},
+		{"qualified", []string{"argocd.argoproj.io/resources-finalizer"}},
+		{"mixed", []string{"resources-finalizer.argocd.argoproj.io", "argocd.argoproj.io/resources-finalizer"}},
+		{"mixed reversed", []string{"argocd.argoproj.io/resources-finalizer", "resources-finalizer.argocd.argoproj.io"}},
+	} {
+		for _, policy := range []string{foregroundPropagationPolicy, backgroundPropagationPolicy} {
+			t.Run("Delete with "+policy+" propagation and "+tc.name+" finalizers", func(t *testing.T) {
+				t.Cleanup(revertValues)
+				finalizers = append([]string{"example.com/keep"}, tc.finalizers...)
+				finalizerPatch = nil
+				_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &trueVar, PropagationPolicy: &policy})
+				require.NoError(t, err)
+				assert.True(t, patched)
+				assert.True(t, deleted)
+				var patch map[string]map[string][]string
+				require.NoError(t, json.Unmarshal(finalizerPatch, &patch))
+				policyFinalizer := getPropagationPolicyFinalizer(policy)
+				assert.Equal(t, append(append([]string{}, finalizers...), policyFinalizer), patch["metadata"]["finalizers"])
+				patchedApp := &v1alpha1.Application{Finalizers: patch["metadata"]["finalizers"]}
+				assert.Equal(t, policyFinalizer, patchedApp.GetPropagationPolicy())
+			})
+		}
+		t.Run("Delete with cascade disabled and "+tc.name+" finalizers", func(t *testing.T) {
+			t.Cleanup(revertValues)
+			finalizers = append([]string{"example.com/keep"}, tc.finalizers...)
+			finalizerPatch = nil
+			_, err = appServer.Delete(ctx, &application.ApplicationDeleteRequest{Name: &app.Name, Cascade: &falseVar})
+			require.NoError(t, err)
+			assert.True(t, patched)
+			assert.True(t, deleted)
+			var patch map[string]map[string][]string
+			require.NoError(t, json.Unmarshal(finalizerPatch, &patch))
+			assert.Equal(t, []string{"example.com/keep"}, patch["metadata"]["finalizers"])
+		})
+	}
+}
+
+func TestDeleteAppPropagationPolicy(t *testing.T) {
+	legacy := v1alpha1.ResourcesFinalizerName
+	qualified := v1alpha1.QualifiedResourcesFinalizerName
+	foreground := v1alpha1.ForegroundPropagationPolicyFinalizer
+	background := v1alpha1.BackgroundPropagationPolicyFinalizer
+	keep := "example.com/keep"
+	for _, policy := range []string{foregroundPropagationPolicy, backgroundPropagationPolicy} {
+		desired, opposite := foreground, background
+		if policy == backgroundPropagationPolicy {
+			desired, opposite = background, foreground
+		}
+		for _, tc := range []struct {
+			name       string
+			finalizers []string
+			expected   []string
+			patch      bool
+		}{
+			{"opposite only", []string{opposite}, []string{desired}, true},
+			{"opposite with bare and unrelated", []string{legacy, opposite, qualified, keep}, []string{legacy, qualified, keep, desired}, true},
+			{"requested before opposite", []string{desired, keep, opposite, legacy, qualified}, []string{desired, keep, legacy, qualified}, true},
+			{"requested after opposite", []string{opposite, keep, legacy, qualified, desired}, []string{keep, legacy, qualified, desired}, true},
+			{"requested only", []string{keep, desired}, []string{keep, desired}, false},
+			{"requested with bare and unrelated", []string{legacy, desired, qualified, keep}, []string{legacy, desired, qualified, keep}, false},
+		} {
+			t.Run(policy+"/"+tc.name, func(t *testing.T) {
+				testDeleteAppFinalizers(t, tc.finalizers, &application.ApplicationDeleteRequest{
+					PropagationPolicy: &policy,
+				}, false, tc.expected, tc.patch, "")
+			})
+		}
+	}
+
+	conflicting := []string{keep, background, legacy, foreground, qualified}
+	for _, tc := range []struct {
+		name        string
+		request     application.ApplicationDeleteRequest
+		deleting    bool
+		expected    []string
+		patch       bool
+		expectedErr string
+	}{
+		{"omitted policy", application.ApplicationDeleteRequest{}, false, conflicting, false, ""},
+		{"empty policy", application.ApplicationDeleteRequest{PropagationPolicy: new("")}, false, conflicting, false, ""},
+		{"uppercase foreground", application.ApplicationDeleteRequest{PropagationPolicy: new("FOREGROUND")}, false, []string{keep, legacy, foreground, qualified}, true, ""},
+		{"uppercase background", application.ApplicationDeleteRequest{PropagationPolicy: new("BACKGROUND")}, false, []string{keep, background, legacy, qualified}, true, ""},
+		{"cascade disabled", application.ApplicationDeleteRequest{Cascade: new(false)}, false, []string{keep}, true, ""},
+		{"invalid policy", application.ApplicationDeleteRequest{PropagationPolicy: new("invalid")}, false, conflicting, false, "rpc error: code = InvalidArgument desc = invalid propagation policy: invalid"},
+		{"policy with cascade disabled", application.ApplicationDeleteRequest{Cascade: new(false), PropagationPolicy: new("foreground")}, false, conflicting, false, "rpc error: code = InvalidArgument desc = cannot set propagation policy when cascading is disabled"},
+		{"already deleting foreground", application.ApplicationDeleteRequest{PropagationPolicy: new("foreground")}, true, conflicting, false, ""},
+		{"already deleting background", application.ApplicationDeleteRequest{PropagationPolicy: new("background")}, true, conflicting, false, ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			testDeleteAppFinalizers(t, conflicting, &tc.request, tc.deleting, tc.expected, tc.patch, tc.expectedErr)
+		})
+	}
+}
+
+func testDeleteAppFinalizers(t *testing.T, finalizers []string, request *application.ApplicationDeleteRequest, deleting bool, expected []string, expectPatch bool, expectedErr string) {
+	t.Helper()
+	app := newTestApp()
+	app.Finalizers = append([]string{}, finalizers...)
+	if deleting {
+		now := metav1.Now()
+		app.DeletionTimestamp = &now
+	}
+	appServer := newTestAppServer(t, app)
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+	fakeAppCs.ReactionChain = nil
+	patched, deleted := false, false
+	var finalizerPatch []byte
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		return true, app.DeepCopy(), nil
+	})
+	fakeAppCs.AddReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		patched = true
+		finalizerPatch = action.(kubetesting.PatchAction).GetPatch()
+		return true, nil, nil
+	})
+	fakeAppCs.AddReactor("delete", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		deleted = true
+		return true, nil, nil
+	})
+	appServer.appclientset = fakeAppCs
+	request.Name = &app.Name
+	_, err := appServer.Delete(t.Context(), request)
+	if expectedErr != "" {
+		require.EqualError(t, err, expectedErr)
+	} else {
+		require.NoError(t, err)
+	}
+	assert.Equal(t, expectPatch, patched)
+	assert.Equal(t, expectedErr == "", deleted)
+	actual := app.Finalizers
+	if patched {
+		var patch map[string]map[string][]string
+		require.NoError(t, json.Unmarshal(finalizerPatch, &patch))
+		actual = patch["metadata"]["finalizers"]
+	}
+	assert.Equal(t, expected, actual)
+	if !deleting && expectedErr == "" && request.GetPropagationPolicy() != "" {
+		patchedApp := &v1alpha1.Application{Finalizers: actual}
+		assert.Equal(t, getPropagationPolicyFinalizer(request.GetPropagationPolicy()), patchedApp.GetPropagationPolicy())
+	}
 }
 
 func TestDeleteAppAlreadyDeleting(t *testing.T) {

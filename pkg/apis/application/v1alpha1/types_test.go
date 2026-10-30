@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -21,6 +22,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/intstr"
+	"k8s.io/apimachinery/pkg/util/validation"
 	"k8s.io/client-go/rest"
 
 	argocdcommon "github.com/argoproj/argo-cd/v3/common"
@@ -4755,6 +4757,165 @@ func TestSourceAllowsConcurrentProcessing_KustomizeParams(t *testing.T) {
 
 		assert.False(t, src.AllowsConcurrentProcessing())
 	})
+}
+
+func TestApplicationFinalizerWritersRemainCompatible(t *testing.T) {
+	for _, tc := range []struct {
+		name     string
+		set      func(*Application)
+		expected string
+	}{
+		{"resources", func(app *Application) { app.SetCascadedDeletion(ResourcesFinalizerName) }, "resources-finalizer.argocd.argoproj.io"},
+		{"pre-delete", func(app *Application) { app.SetPreDeleteFinalizer() }, "pre-delete-finalizer.argocd.argoproj.io"},
+		{"pre-delete cleanup", func(app *Application) { app.SetPreDeleteFinalizer("cleanup") }, "pre-delete-finalizer.argocd.argoproj.io/cleanup"},
+		{"post-delete", func(app *Application) { app.SetPostDeleteFinalizer() }, "post-delete-finalizer.argocd.argoproj.io"},
+		{"post-delete cleanup", func(app *Application) { app.SetPostDeleteFinalizer("cleanup") }, "post-delete-finalizer.argocd.argoproj.io/cleanup"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &Application{}
+			tc.set(app)
+			assert.Equal(t, []string{tc.expected}, app.Finalizers)
+		})
+	}
+}
+
+func TestQualifiedApplicationFinalizersAreValid(t *testing.T) {
+	for _, name := range []string{
+		QualifiedResourcesFinalizerName,
+		QualifiedPreDeleteFinalizerName,
+		QualifiedPreDeleteFinalizerName + "-cleanup",
+		QualifiedPostDeleteFinalizerName,
+		QualifiedPostDeleteFinalizerName + "-cleanup",
+	} {
+		t.Run(name, func(t *testing.T) {
+			assert.Equal(t, 1, strings.Count(name, "/"))
+			assert.Empty(t, validation.IsQualifiedName(name))
+		})
+	}
+}
+
+func TestApplicationRecognizesResourceFinalizers(t *testing.T) {
+	for _, finalizers := range [][]string{
+		{"argocd.argoproj.io/resources-finalizer"},
+		{"resources-finalizer.argocd.argoproj.io"},
+		{"resources-finalizer.argocd.argoproj.io/foreground"},
+		{"resources-finalizer.argocd.argoproj.io/background"},
+		{"argocd.argoproj.io/resources-finalizer", "resources-finalizer.argocd.argoproj.io"},
+		{"resources-finalizer.argocd.argoproj.io", "argocd.argoproj.io/resources-finalizer"},
+	} {
+		t.Run(strings.Join(finalizers, ","), func(t *testing.T) {
+			app := &Application{Finalizers: append([]string{"example.com/keep"}, finalizers...)}
+			assert.True(t, app.CascadedDeletion())
+			assert.Equal(t, finalizers[0], app.GetPropagationPolicy())
+			app.UnSetCascadedDeletion()
+			assert.Equal(t, []string{"example.com/keep"}, app.Finalizers)
+			assert.False(t, app.CascadedDeletion())
+		})
+	}
+}
+
+func TestApplicationDeleteHookFinalizerCompatibility(t *testing.T) {
+	for _, tc := range []struct {
+		name      string
+		qualified string
+		existing  string
+		has       func(*Application, ...string) bool
+		unset     func(*Application, ...string)
+		unsetAll  func(*Application)
+	}{
+		{"pre-delete", "argocd.argoproj.io/pre-delete-finalizer", "pre-delete-finalizer.argocd.argoproj.io", (*Application).HasPreDeleteFinalizer, (*Application).UnSetPreDeleteFinalizer, (*Application).UnSetPreDeleteFinalizerAll},
+		{"post-delete", "argocd.argoproj.io/post-delete-finalizer", "post-delete-finalizer.argocd.argoproj.io", (*Application).HasPostDeleteFinalizer, (*Application).UnSetPostDeleteFinalizer, (*Application).UnSetPostDeleteFinalizerAll},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			for _, stage := range []string{"", "cleanup"} {
+				args := []string{}
+				qualified, existing := tc.qualified, tc.existing
+				if stage != "" {
+					args = append(args, stage)
+					qualified += "-" + stage
+					existing += "/" + stage
+				}
+				for _, names := range [][]string{{qualified}, {existing}, {qualified, existing}} {
+					t.Run(strings.Join(names, ","), func(t *testing.T) {
+						app := &Application{Finalizers: append([]string{"example.com/keep"}, names...)}
+						assert.True(t, tc.has(app, args...))
+						tc.unset(app, args...)
+						assert.False(t, tc.has(app, args...))
+						assert.Equal(t, []string{"example.com/keep"}, app.Finalizers)
+					})
+				}
+			}
+			t.Run("remove every stage", func(t *testing.T) {
+				app := &Application{Finalizers: []string{
+					tc.qualified, tc.existing, tc.qualified + "-cleanup", tc.existing + "/cleanup",
+					"example.com/keep", tc.existing + "-other",
+				}}
+				tc.unsetAll(app)
+				assert.ElementsMatch(t, []string{"example.com/keep", tc.existing + "-other"}, app.Finalizers)
+			})
+		})
+	}
+}
+
+func TestAppProjectFinalizerCompatibility(t *testing.T) {
+	for _, names := range [][]string{
+		{"argocd.argoproj.io/resources-finalizer"},
+		{"resources-finalizer.argocd.argoproj.io"},
+		{"argocd.argoproj.io/resources-finalizer", "resources-finalizer.argocd.argoproj.io"},
+	} {
+		t.Run(strings.Join(names, ","), func(t *testing.T) {
+			proj := &AppProject{Finalizers: append([]string{"example.com/keep"}, names...)}
+			assert.True(t, proj.HasFinalizer())
+			proj.RemoveFinalizer()
+			assert.False(t, proj.HasFinalizer())
+			assert.Equal(t, []string{"example.com/keep"}, proj.Finalizers)
+		})
+	}
+}
+
+func TestGetPropagationPolicy(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		finalizers []string
+		expected   string
+	}{
+		{"empty", nil, ""},
+		{"unrelated", []string{"example.com/keep"}, ""},
+		{"legacy", []string{ResourcesFinalizerName}, ResourcesFinalizerName},
+		{"qualified", []string{QualifiedResourcesFinalizerName}, QualifiedResourcesFinalizerName},
+		{"legacy then qualified", []string{ResourcesFinalizerName, QualifiedResourcesFinalizerName}, ResourcesFinalizerName},
+		{"qualified then legacy", []string{QualifiedResourcesFinalizerName, ResourcesFinalizerName}, QualifiedResourcesFinalizerName},
+		{"foreground then background", []string{ForegroundPropagationPolicyFinalizer, BackgroundPropagationPolicyFinalizer}, ForegroundPropagationPolicyFinalizer},
+		{"background then foreground", []string{BackgroundPropagationPolicyFinalizer, ForegroundPropagationPolicyFinalizer}, BackgroundPropagationPolicyFinalizer},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			app := &Application{Finalizers: tc.finalizers}
+			assert.Equal(t, tc.expected, app.GetPropagationPolicy())
+		})
+	}
+
+	for _, tc := range []struct {
+		name       string
+		finalizers []string
+	}{
+		{"legacy", []string{ResourcesFinalizerName}},
+		{"qualified", []string{QualifiedResourcesFinalizerName}},
+		{"legacy then qualified", []string{ResourcesFinalizerName, QualifiedResourcesFinalizerName}},
+		{"qualified then legacy", []string{QualifiedResourcesFinalizerName, ResourcesFinalizerName}},
+	} {
+		for _, policy := range []string{ForegroundPropagationPolicyFinalizer, BackgroundPropagationPolicyFinalizer} {
+			t.Run(tc.name+" with "+policy, func(t *testing.T) {
+				t.Run("explicit first", func(t *testing.T) {
+					app := &Application{Finalizers: append([]string{"example.com/keep", policy}, tc.finalizers...)}
+					assert.Equal(t, policy, app.GetPropagationPolicy())
+				})
+				t.Run("explicit last", func(t *testing.T) {
+					app := &Application{Finalizers: append(append([]string{"example.com/keep"}, tc.finalizers...), policy)}
+					assert.Equal(t, policy, app.GetPropagationPolicy())
+				})
+			})
+		}
+	}
 }
 
 func TestUnSetCascadedDeletion(t *testing.T) {

@@ -1199,9 +1199,19 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		// Kubernetes forbids adding finalizers to an object that is already being deleted,
 		// so skip the patch if the app is mid-deletion. The underlying Delete call below is
 		// still issued to keep the RPC idempotent for callers retrying a cascade delete.
-		if !a.IsFinalizerPresent(policyFinalizer) && a.DeletionTimestamp == nil {
-			a.SetCascadedDeletion(policyFinalizer)
-			patchFinalizer = true
+		if a.DeletionTimestamp == nil {
+			if policyFinalizer != v1alpha1.ResourcesFinalizerName {
+				// An explicit request replaces the opposite policy while preserving bare resource finalizers.
+				finalizerCount := len(a.Finalizers)
+				a.Finalizers = slices.DeleteFunc(a.Finalizers, func(finalizer string) bool {
+					return finalizer != policyFinalizer && (finalizer == v1alpha1.ForegroundPropagationPolicyFinalizer || finalizer == v1alpha1.BackgroundPropagationPolicyFinalizer)
+				})
+				patchFinalizer = len(a.Finalizers) != finalizerCount
+			}
+			if !a.IsFinalizerPresent(policyFinalizer) {
+				a.SetCascadedDeletion(policyFinalizer)
+				patchFinalizer = true
+			}
 		}
 	} else if a.CascadedDeletion() {
 		a.UnSetCascadedDeletion()

@@ -51,6 +51,13 @@ metadata:
 
 When deleting an Application with this finalizer, the Argo CD application controller will perform a cascading delete of the Application's resources.
 
+Argo CD also recognizes `argocd.argoproj.io/resources-finalizer` for cascading deletion. Qualified pre-delete and post-delete hook finalizers are recognized as well, including stages such as `argocd.argoproj.io/post-delete-finalizer-cleanup`. Existing defaults are unchanged; this compatibility support prepares for a future migration to qualified names.
+
+> [!WARNING]
+> Older Argo CD components do not recognize these new qualified names. Keep using the existing names while any older API server, application controller, or ApplicationSet controller is running. In a mixed-version installation, an older API server can handle a non-cascading deletion incorrectly, and an older ApplicationSet controller can remove qualified hook finalizers.
+>
+> Before downgrading to a release that predates this compatibility support, restore the existing finalizers on Applications, AppProjects, and ApplicationSets. For example, `argocd.argoproj.io/resources-finalizer` maps to `resources-finalizer.argocd.argoproj.io`, and `argocd.argoproj.io/post-delete-finalizer-cleanup` maps to `post-delete-finalizer.argocd.argoproj.io/cleanup`. Perform this migration before requesting deletion, because Kubernetes does not allow adding finalizers once deletion has started.
+
 Adding the finalizer enables cascading deletes when implementing [the App of Apps pattern](../operator-manual/cluster-bootstrapping.md#cascading-deletion).
 
 The default propagation policy for cascading deletion is [foreground cascading deletion](https://kubernetes.io/docs/concepts/architecture/garbage-collection/#foreground-deletion).

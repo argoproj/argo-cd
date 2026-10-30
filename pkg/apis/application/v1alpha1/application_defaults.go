@@ -7,13 +7,16 @@ const (
 	DefaultSyncRetryDuration    time.Duration = 5000000000   // 5s
 	DefaultSyncRetryFactor                    = int64(2)
 	// ResourcesFinalizerName is the finalizer value which we inject to finalize deletion of an application
-	ResourcesFinalizerName string = "resources-finalizer.argocd.argoproj.io"
+	ResourcesFinalizerName          string = "resources-finalizer.argocd.argoproj.io"
+	QualifiedResourcesFinalizerName string = "argocd.argoproj.io/resources-finalizer"
 
 	// PreDeleteFinalizerName is the finalizer that controls pre-delete hooks execution
-	PreDeleteFinalizerName string = "pre-delete-finalizer.argocd.argoproj.io"
+	PreDeleteFinalizerName          string = "pre-delete-finalizer.argocd.argoproj.io"
+	QualifiedPreDeleteFinalizerName string = "argocd.argoproj.io/pre-delete-finalizer"
 
 	// PostDeleteFinalizerName is the finalizer that controls post-delete hooks execution
-	PostDeleteFinalizerName string = "post-delete-finalizer.argocd.argoproj.io"
+	PostDeleteFinalizerName          string = "post-delete-finalizer.argocd.argoproj.io"
+	QualifiedPostDeleteFinalizerName string = "argocd.argoproj.io/post-delete-finalizer"
 
 	// ForegroundPropagationPolicyFinalizer is the finalizer we inject to delete application with foreground propagation policy
 	ForegroundPropagationPolicyFinalizer string = "resources-finalizer.argocd.argoproj.io/foreground"
