@@ -60,6 +60,11 @@ var (
 	// In memory cache for storing Azure Service Principal tokens
 	azureServicePrincipalTokenCache *gocache.Cache
 
+	// githubAppInstallationDiscoveryTimeout bounds the lookup of a GitHub App's installation ID
+	githubAppInstallationDiscoveryTimeout = 15 * time.Second
+	// azureServicePrincipalTokenTimeout bounds the Azure Service Principal token request
+	azureServicePrincipalTokenTimeout = 15 * time.Second
+
 	// validProxyHostRegexp matches only safe hostname characters: alphanumeric, hyphen, dot, and brackets (for IPv6).
 	validProxyHostRegexp = regexp.MustCompile(`^[a-zA-Z0-9.\-]+$`)
 )
@@ -645,7 +650,8 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 // the token is then cached for re-use.
 func (g GitHubAppCreds) getAccessToken() (string, error) {
 	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
+	ctx, cancel := context.WithTimeoutCause(context.Background(), gitClientTimeout,
+		fmt.Errorf("GitHub App access token request timed out after %s: %w", gitClientTimeout, context.DeadlineExceeded))
 	defer cancel()
 
 	itr, err := g.getInstallationTransport()
@@ -693,11 +699,15 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", SanitizeRepoURL(g.repoURL))
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		ctx, cancel := context.WithTimeoutCause(context.Background(), githubAppInstallationDiscoveryTimeout,
+			fmt.Errorf("GitHub App installation ID discovery timed out after %s: %w", githubAppInstallationDiscoveryTimeout, context.DeadlineExceeded))
 		defer cancel()
 
 		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)
 		if err != nil {
+			if ctx.Err() != nil {
+				err = fmt.Errorf("%w: %w", context.Cause(ctx), err)
+			}
 			return nil, fmt.Errorf("failed to discover GitHub App installation ID for organization %s: ensure the GitHub App (ID: %d) is installed for this organization: %w", org, g.appID, err)
 		}
 		log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredID, org)
@@ -1229,7 +1239,8 @@ func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
 		return t.(string), nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+	ctx, cancel := context.WithTimeoutCause(context.Background(), azureServicePrincipalTokenTimeout,
+		fmt.Errorf("token request for Azure Service Principal timed out after %s: %w", azureServicePrincipalTokenTimeout, context.DeadlineExceeded))
 	defer cancel()
 
 	opts := azcore.ClientOptions{}
@@ -1248,6 +1259,9 @@ func (a AzureServicePrincipalCreds) getAccessToken() (string, error) {
 		Scopes: []string{azureDevopsEntraResourceId},
 	})
 	if err != nil {
+		if ctx.Err() != nil {
+			err = fmt.Errorf("%w: %w", context.Cause(ctx), err)
+		}
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
 	}
 	azureServicePrincipalTokenCache.Set(key, token.Token, 0)

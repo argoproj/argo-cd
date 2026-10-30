@@ -631,6 +631,35 @@ func TestGetHelmCredsShouldReturnHelmCredsIfAzureWorkloadIdentityNotSpecified(t 
 	require.Truef(t, ok, "expected HelmCreds but got %T", creds)
 }
 
+func TestAzureServicePrincipalCreds_GetAccessTokenTimeout(t *testing.T) {
+	// This test mutates azureServicePrincipalTokenTimeout so it must NOT run in parallel.
+	t.Cleanup(func() {
+		azureServicePrincipalTokenTimeout = 15 * time.Second
+	})
+	azureServicePrincipalTokenTimeout = 100 * time.Millisecond
+
+	// Accept connections but never complete the TLS handshake, so the token request runs into the timeout.
+	listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer listener.Close()
+	go func() {
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				return
+			}
+			defer conn.Close()
+		}
+	}()
+
+	creds := NewAzureServicePrincipalCreds("tenant-id", "client-id", "client-secret", &NoopCredsStore{}).
+		WithActiveDirectoryEndpoint("https://" + listener.Addr().String())
+	_, err = creds.getAccessToken()
+
+	require.ErrorContains(t, err, "token request for Azure Service Principal timed out after 100ms")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
 func TestAzureWorkloadIdentityCreds_FetchNewTokenIfExistingIsExpired(t *testing.T) {
 	resetAzureTokenCache()
 	store := &memoryCredsStore{creds: make(map[string]cred)}
@@ -1093,6 +1122,8 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		require.Error(t, err,
 			"gitClientTimeout (1s) should cause timeout for a 3s response, but "+
 				"it does not because only the transport is passed to ghinstallation")
+		require.ErrorContains(t, err, "GitHub App access token request timed out after 1s")
+		require.ErrorIs(t, err, context.DeadlineExceeded)
 		if err == nil {
 			require.Equal(t, "ghs_despite_timeout", token,
 				"token was returned despite delay exceeding gitClientTimeout")
@@ -1120,6 +1151,25 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		require.NoError(t, err, "should succeed when response arrives within timeout")
 		require.Equal(t, "ghs_slow_ok", token)
 	})
+}
+
+func TestGitHubAppGetInstallationTransport_DiscoveryTimeout(t *testing.T) {
+	// This test mutates githubAppInstallationDiscoveryTimeout so it must NOT run in parallel.
+	t.Cleanup(func() {
+		githubAppInstallationDiscoveryTimeout = 15 * time.Second
+	})
+	githubAppInstallationDiscoveryTimeout = 100 * time.Millisecond
+
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		<-r.Context().Done() // never answer the installations request
+	}))
+	defer server.Close()
+
+	creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+	_, err := creds.getInstallationTransport()
+
+	require.ErrorContains(t, err, "GitHub App installation ID discovery timed out after 100ms")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
 // ---------------------------------------------------------------------------
