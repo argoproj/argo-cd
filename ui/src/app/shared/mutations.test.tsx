@@ -2,14 +2,17 @@ import * as React from 'react';
 import {QueryClient, QueryClientProvider, QueryObserver} from '@tanstack/react-query';
 import {act, renderHook} from '@testing-library/react';
 
-import {useClusterMutations, useProjectMutations} from './mutations';
-import {clusterQueries, projectQueries} from './queries';
+import {useCertMutations, useClusterMutations, useProjectMutations, useRepoMutations} from './mutations';
+import {certQueries, clusterQueries, projectQueries, repoQueries} from './queries';
 import {services} from './services';
 
 jest.mock('./services', () => ({
     services: {
         projects: {delete: jest.fn(() => Promise.resolve(true)), updateRole: jest.fn(() => Promise.resolve({}))},
-        clusters: {delete: jest.fn(() => Promise.reject(new Error('boom')))}
+        clusters: {delete: jest.fn(() => Promise.reject(new Error('boom')))},
+        repos: {createSSH: jest.fn(() => Promise.resolve({})), createSSHWrite: jest.fn(() => Promise.resolve({}))},
+        repocreds: {delete: jest.fn(() => Promise.resolve({})), deleteWrite: jest.fn(() => Promise.resolve({}))},
+        certs: {delete: jest.fn(() => Promise.resolve({}))}
     }
 }));
 
@@ -66,5 +69,29 @@ describe('mutations', () => {
 
         expect(services.clusters.delete).toHaveBeenCalledWith('https://c');
         expect(client.getQueryState(clusterQueries.list().queryKey).isInvalidated).toBe(true);
+    });
+
+    it('picks the write variant of repository calls and refreshes the repository list', async () => {
+        const {client, result} = setup(() => useRepoMutations());
+        client.setQueryData(repoQueries.connections(true).queryKey, [[], [], [], []]);
+
+        await act(() => result.current.createSSH.mutateAsync({url: 'git@example.com:a', sshPrivateKey: 'k', write: true} as any));
+        await act(() => result.current.deleteCreds.mutateAsync({url: 'https://example.com', write: false}));
+
+        expect(services.repos.createSSHWrite).toHaveBeenCalledTimes(1);
+        expect(services.repos.createSSH).not.toHaveBeenCalled();
+        expect(services.repocreds.delete).toHaveBeenCalledWith('https://example.com');
+        expect(services.repocreds.deleteWrite).not.toHaveBeenCalled();
+        expect(client.getQueryState(repoQueries.connections(true).queryKey).isInvalidated).toBe(true);
+    });
+
+    it('refreshes the certificate list after removing a certificate', async () => {
+        const {client, result} = setup(() => useCertMutations());
+        client.setQueryData(certQueries.list().queryKey, []);
+
+        await act(() => result.current.delete.mutateAsync({serverName: 'example.com', certType: 'ssh', certSubType: 'ssh-rsa'}));
+
+        expect(services.certs.delete).toHaveBeenCalledWith('example.com', 'ssh', 'ssh-rsa');
+        expect(client.getQueryState(certQueries.list().queryKey).isInvalidated).toBe(true);
     });
 });

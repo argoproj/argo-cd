@@ -1,5 +1,5 @@
 import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
-import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {useQuery} from '@tanstack/react-query';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Form, FormApi, Text, TextArea} from 'argo-ui';
@@ -8,7 +8,7 @@ import {withRouter, RouteComponentProps} from 'react-router-dom';
 import {ActionMenu, EmptyState, ErrorNotification, IconColumn, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import * as models from '../../../shared/models';
-import {services} from '../../../shared/services';
+import {useCertMutations} from '../../../shared/mutations';
 import {certQueries} from '../../../shared/queries';
 import {loadFailed, loading} from '../../../shared/query-client';
 import {useSearchParams} from '../../../shared/hooks/query';
@@ -38,7 +38,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
 
     const formApiTLS = React.useRef<FormApi | null>(null);
     const formApiSSH = React.useRef<FormApi | null>(null);
-    const queryClient = useQueryClient();
+    const certMutations = useCertMutations();
 
     const [filterPref, setFilterPref] = React.useState<CertsListPreferences>({
         certTypeFilter: query.getAll('certType') || []
@@ -67,9 +67,11 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
 
     const addTLSCertificate = async (params: NewTLSCertParams) => {
         try {
-            await services.certs.create({items: [{serverName: params.serverName, certType: 'https', certData: params.certData, certSubType: '', certInfo: ''}], metadata: null});
+            await certMutations.create.mutateAsync({
+                items: [{serverName: params.serverName, certType: 'https', certData: params.certData, certSubType: '', certInfo: ''}],
+                metadata: null
+            });
             setAddTLSCertificate(false);
-            await queryClient.invalidateQueries({queryKey: certQueries.list().queryKey});
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to add TLS certificate' e={e} />,
@@ -114,9 +116,8 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
             if (knownHostEntries.length === 0) {
                 throw new Error('No valid known hosts data entered');
             }
-            await services.certs.create({items: knownHostEntries, metadata: null});
+            await certMutations.create.mutateAsync({items: knownHostEntries, metadata: null});
             setAddSSHKnownHosts(false);
-            await queryClient.invalidateQueries({queryKey: certQueries.list().queryKey});
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to add SSH known hosts data' e={e} />,
@@ -129,8 +130,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
         const confirmed = await ctx.popup.confirm('Remove certificate', 'Are you sure you want to remove ' + certType + ' certificate for ' + serverName + '?');
         if (confirmed) {
             try {
-                await services.certs.delete(serverName, certType, certSubType);
-                await queryClient.invalidateQueries({queryKey: certQueries.list().queryKey});
+                await certMutations.delete.mutateAsync({serverName, certType, certSubType});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to remove certificate' e={e} />,
