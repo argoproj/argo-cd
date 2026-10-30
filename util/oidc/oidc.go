@@ -1083,20 +1083,15 @@ func (a *ClientApp) GetUserInfo(ctx context.Context, actualClaims jwt.MapClaims,
 
 	// in case response was successfully validated and there was no error, put item in cache
 	// but first let's determine the expiry of the cache
-	var cacheExpiry time.Duration
-	settingExpiry := a.settings.UserInfoCacheExpiration()
 	tokenExpiry := GetTokenExpiration(claims)
+	if tokenExpiry < 0 {
+		tokenExpiry = GetTokenExpiration(actualClaims)
+	}
 
-	// only use configured expiry if the token lives longer and the expiry is configured
-	// if the token has no expiry, use the expiry of the actual token
-	// otherwise use the expiry of the token
-	switch {
-	case settingExpiry < tokenExpiry && settingExpiry != 0:
+	cacheExpiry := tokenExpiry
+	settingExpiry := a.settings.UserInfoCacheExpiration()
+	if settingExpiry > 0 && settingExpiry < cacheExpiry {
 		cacheExpiry = settingExpiry
-	case tokenExpiry < 0:
-		cacheExpiry = GetTokenExpiration(actualClaims)
-	default:
-		cacheExpiry = tokenExpiry
 	}
 
 	rawClaims, err := json.Marshal(claims)

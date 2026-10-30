@@ -61,20 +61,22 @@ func NewClusterSharding(_ db.ArgoDB, shard, replicas int, shardingAlgorithm stri
 func (sharding *ClusterSharding) IsManagedCluster(c *v1alpha1.Cluster) bool {
 	sharding.lock.RLock()
 	defer sharding.lock.RUnlock()
-	if c == nil { // nil cluster (in-cluster) is always managed by current clusterShard
-		return true
+	if c == nil {
+		// nil cluster (an unresolvable destination) is managed by shard 0 only, as the distribution
+		// functions assign it, so that it is not processed by every shard.
+		return sharding.Shard == 0
 	}
 	return sharding.isManagedShard(c.Server, c.Annotations)
 }
 
 // IsManagedClusterByServer is IsManagedCluster by server URL. known reports whether the cache
-// holds a cluster for that server; when it doesn't, managed is true, mirroring IsManagedCluster(nil).
+// holds a cluster for that server; when it doesn't, managed mirrors IsManagedCluster(nil).
 func (sharding *ClusterSharding) IsManagedClusterByServer(server string) (bool, bool) {
 	sharding.lock.RLock()
 	defer sharding.lock.RUnlock()
 	c, ok := sharding.Clusters[server]
 	if !ok {
-		return true, false
+		return sharding.Shard == 0, false
 	}
 	return sharding.isManagedShard(server, c.Annotations), true
 }
@@ -119,13 +121,7 @@ func (sharding *ClusterSharding) Add(c *v1alpha1.Cluster) {
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 
-	old, ok := sharding.Clusters[c.Server]
-	sharding.Clusters[c.Server] = c
-	if !ok || hasShardingUpdates(old, c) {
-		sharding.updateDistribution()
-	} else {
-		log.Debugf("Skipping sharding distribution update. Cluster already added")
-	}
+	sharding.upsertCluster(c, false)
 }
 
 func (sharding *ClusterSharding) Delete(clusterServer string) {
@@ -142,16 +138,34 @@ func (sharding *ClusterSharding) Update(oldCluster *v1alpha1.Cluster, newCluster
 	sharding.lock.Lock()
 	defer sharding.lock.Unlock()
 
+	removed := false
 	if _, ok := sharding.Clusters[oldCluster.Server]; ok && oldCluster.Server != newCluster.Server {
 		delete(sharding.Clusters, oldCluster.Server)
 		delete(sharding.Shards, oldCluster.Server)
+		removed = true
 	}
-	sharding.Clusters[newCluster.Server] = newCluster
-	if hasShardingUpdates(oldCluster, newCluster) {
+	sharding.upsertCluster(newCluster, removed)
+}
+
+// upsertCluster stores c and recomputes the distribution when the cluster set
+// changed or c differs from the cached entry in a field the distribution
+// depends on. The comparison is against the cached entry rather than an event's
+// old object, because the cache is keyed by server: a cluster can reach Update
+// without being cached (for example after another secret for the same server
+// was deleted), and the cached entry can belong to a different secret for the
+// same server. Adding a cluster changes the shard of other clusters for index
+// based algorithms such as round-robin. membershipChanged reports that the
+// caller already removed another entry from the cluster set.
+//
+// The write lock must be held.
+func (sharding *ClusterSharding) upsertCluster(c *v1alpha1.Cluster, membershipChanged bool) {
+	old, known := sharding.Clusters[c.Server]
+	sharding.Clusters[c.Server] = c
+	if membershipChanged || !known || hasShardingUpdates(old, c) {
 		sharding.updateDistribution()
-	} else {
-		log.Debugf("Skipping sharding distribution update. No relevant changes")
+		return
 	}
+	log.Debugf("Skipping sharding distribution update for cluster %s. No relevant changes", c.Server)
 }
 
 func (sharding *ClusterSharding) GetDistribution() map[string]int {

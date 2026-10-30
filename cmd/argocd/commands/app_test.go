@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/exec"
+	"regexp"
 	"slices"
 	"strings"
 	"testing"
@@ -1847,6 +1848,12 @@ func testApp(name, project string, labels map[string]string, annotations map[str
 	}
 }
 
+var resourceTimestampRegex = regexp.MustCompile(`(?m)^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}[+-]\d{2}:\d{2}`)
+
+func maskResourceTimestamps(output string) string {
+	return resourceTimestampRegex.ReplaceAllString(output, "YYYY-MM-DDTHH:MM:SS+HH:MM")
+}
+
 func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 	acdClient := &customAcdClient{&fakeAcdClient{}}
 	ctx := t.Context()
@@ -1881,11 +1888,11 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput(t *testing.T) {
 		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, selectResource, "")
 		return nil
 	})
-	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
+	output = maskResourceTimestamps(output)
 
 	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy
-%s   apps  Deployment     default                  test    Synced  Healthy
+YYYY-MM-DDTHH:MM:SS+HH:MM            Service     default         service-name1    Synced  Healthy
+YYYY-MM-DDTHH:MM:SS+HH:MM   apps  Deployment     default                  test    Synced  Healthy
 
 Name:               argocd/test
 Project:            default
@@ -1915,7 +1922,6 @@ GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
        Service     default    service-name1  Synced  Healthy
 apps   Deployment  default    test           Synced  Healthy
 `
-	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
 	// Trim trailing whitespace from each line
 	for i := range expectationParts {
@@ -1950,11 +1956,11 @@ func TestWaitOnApplicationStatus_JSON_YAML_WideOutput_With_Timeout(t *testing.T)
 		_, _, _ = waitOnApplicationStatus(ctx, acdClient, "app-name", 5, watch, selectResource, "")
 		return nil
 	})
-	timeStr := time.Now().Format("2006-01-02T15:04:05-07:00")
+	output = maskResourceTimestamps(output)
 
 	expectation := `TIMESTAMP                  GROUP        KIND   NAMESPACE                  NAME    STATUS   HEALTH        HOOK  MESSAGE
-%s            Service     default         service-name1    Synced  Healthy
-%s   apps  Deployment     default                  test    Synced  Healthy
+YYYY-MM-DDTHH:MM:SS+HH:MM            Service     default         service-name1    Synced  Healthy
+YYYY-MM-DDTHH:MM:SS+HH:MM   apps  Deployment     default                  test    Synced  Healthy
 
 The command timed out waiting for the conditions to be met.
 
@@ -1988,7 +1994,6 @@ GROUP  KIND        NAMESPACE  NAME           STATUS  HEALTH   HOOK  MESSAGE
        Service     default    service-name1  Synced  Healthy
 apps   Deployment  default    test           Synced  Healthy
 `
-	expectation = fmt.Sprintf(expectation, timeStr, timeStr)
 	expectationParts := strings.Split(expectation, "\n")
 	// Trim trailing whitespace from each line
 	for i := range expectationParts {
@@ -2226,6 +2231,36 @@ func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, app)
 	assert.Nil(t, opState)
+}
+
+// TestWaitOnApplicationStatus_DeleteOutput verifies that `argocd app wait --delete`
+// only prints the human-readable deletion message for text output formats, so that
+// json/yaml output stays machine-parseable.
+func TestWaitOnApplicationStatus_DeleteOutput(t *testing.T) {
+	ctx := t.Context()
+	watch := watchOpts{delete: true}
+
+	for _, format := range []string{"json", "yaml"} {
+		t.Run(format, func(t *testing.T) {
+			acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
+			output, err := captureOutput(func() error {
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, format)
+				return err
+			})
+			require.NoError(t, err)
+			assert.Empty(t, output)
+		})
+	}
+
+	t.Run("wide", func(t *testing.T) {
+		acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
+		output, err := captureOutput(func() error {
+			_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "wide")
+			return err
+		})
+		require.NoError(t, err)
+		assert.Contains(t, output, "Application 'argocd/test' deleted")
+	})
 }
 
 // TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesConditions
