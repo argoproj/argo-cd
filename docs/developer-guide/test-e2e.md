@@ -87,10 +87,24 @@ The workflow opens a PR only if a test was added or removed, or if the slowest s
 
 Some effort has been made to balance test isolation with speed. Tests are isolated as follows as each test gets:
 
-- A random 5 character ID.
+- A random 5 character ID, available in a test as `Context.ShortID()`.
 - A unique Git repository containing the `testdata` in `/tmp/argo-e2e/${id}`.
 - A namespace `argocd-e2e-ns-${id}`.
 - A primary name for the app `argocd-e2e-${id}`.
+
+### Name resources that outlive the test namespace
+
+Resources created in the per-test namespace disappear with that namespace. A resource created somewhere else, such as a hook pinned to `kube-system`, does not. `EnsureCleanState` deletes Applications in the background and then restores the `default` AppProject so that it allows every namespace. A reconcile still in flight from the previous attempt can create that resource after the next attempt has started.
+
+Give every such resource a name that includes `Context.ShortID()`, and assert on that name. A later attempt then ignores leftovers from an earlier one. For a Kustomize application, set the prefix on the fixture. The application directory needs a `kustomization.yaml`; `NamePrefix` has no effect on a plain directory application.
+
+```go
+prefix := ctx.ShortID() + "-"
+hookName := prefix + "restricted-pre-delete-hook"
+ctx.Path("pre-delete-hook-restricted").NamePrefix(prefix)
+```
+
+`TestPreDeleteHookProjectRestriction` follows this pattern.
 
 ## Run only a subset of tests
 
