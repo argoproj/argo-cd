@@ -86,13 +86,19 @@ describe('AccountDetails', () => {
     });
 
     it('offers a retry when the account fails to load', async () => {
+        let resolveRetry: (value: any) => void;
         jest.mocked(services.accounts.get)
             .mockRejectedValueOnce(new Error('boom'))
-            .mockResolvedValueOnce(account([]) as any);
+            .mockReturnValueOnce(new Promise(resolve => (resolveRetry = resolve)));
         renderDetails();
 
         fireEvent.click(await screen.findByText('try again'));
 
+        // The query stays in the error state while the retry is in flight, so the page must show loading instead.
+        expect(await screen.findByText('Loading...')).toBeInTheDocument();
+        expect(screen.queryByText('try again')).not.toBeInTheDocument();
+
+        resolveRetry(account([]));
         expect(await screen.findByText('alice')).toBeInTheDocument();
         expect(services.accounts.get).toHaveBeenCalledTimes(2);
     });
