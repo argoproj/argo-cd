@@ -2056,6 +2056,22 @@ func TestHandleAppUpdated(t *testing.T) {
 	assert.Equal(t, CompareWithRecent, level)
 }
 
+func TestHandleManagedCRDUpdated(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Destination.Server = v1alpha1.KubernetesInternalAPIServerAddr
+	app.Status.Resources = []v1alpha1.ResourceStatus{{Group: "apiextensions.k8s.io", Version: "v1", Kind: kube.CustomResourceDefinitionKind, Name: "dummies.argoproj.io"}}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+
+	objs, err := ctrl.appInformer.GetIndexer().ByIndex(statecache.ManagedCRDIndex, "dummies.argoproj.io")
+	require.NoError(t, err)
+	require.Len(t, objs, 1)
+
+	ctrl.handleObjectUpdated(map[string]bool{app.QualifiedName(): true}, corev1.ObjectReference{APIVersion: "apiextensions.k8s.io/v1", Kind: kube.CustomResourceDefinitionKind, Name: "dummies.argoproj.io"})
+	isRequested, level := ctrl.isRefreshRequested(app.QualifiedName())
+	assert.True(t, isRequested)
+	assert.Equal(t, CompareWithRecent, level)
+}
+
 func TestHandleOrphanedResourceUpdated(t *testing.T) {
 	app1 := newFakeApp()
 	app1.Name = "app1"
