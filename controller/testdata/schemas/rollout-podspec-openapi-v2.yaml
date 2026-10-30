@@ -1,0 +1,121 @@
+# Minimal OpenAPI v2 document for argoproj.io/v1alpha1 Rollout, limited to the
+# pod-template fields exercised by the RespectIgnoreDifferences semantics tests.
+# The list-type / map-type extensions mirror what the API server publishes for
+# the real Rollout CRD, which embeds the core PodTemplateSpec schema. In
+# addition, containers/initContainers carry the legacy strategic-merge
+# extensions (x-kubernetes-patch-strategy / x-kubernetes-patch-merge-key),
+# which the real CRD does NOT publish: this fixture is the best case for the
+# OpenAPI patch-meta path. rollout-crd-realistic-openapi-v2.yaml is the same
+# schema without them.
+#   - containers/initContainers: list-type map keyed by name
+#   - tolerations: atomic list
+#   - nodeSelector, selector.matchLabels: atomic maps
+swagger: "2.0"
+info:
+  title: Rollout
+  version: v1alpha1
+paths: {}
+definitions:
+  io.argoproj.v1alpha1.Rollout:
+    type: object
+    x-kubernetes-group-version-kind:
+      - group: argoproj.io
+        version: v1alpha1
+        kind: Rollout
+    properties:
+      apiVersion:
+        type: string
+      kind:
+        type: string
+      metadata:
+        type: object
+        x-kubernetes-preserve-unknown-fields: true
+      spec:
+        type: object
+        properties:
+          replicas:
+            type: integer
+          selector:
+            type: object
+            properties:
+              matchLabels:
+                type: object
+                additionalProperties:
+                  type: string
+                x-kubernetes-map-type: atomic
+          template:
+            type: object
+            properties:
+              metadata:
+                type: object
+                properties:
+                  labels:
+                    type: object
+                    additionalProperties:
+                      type: string
+              spec:
+                type: object
+                properties:
+                  nodeSelector:
+                    type: object
+                    additionalProperties:
+                      type: string
+                    x-kubernetes-map-type: atomic
+                  tolerations:
+                    type: array
+                    x-kubernetes-list-type: atomic
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                        operator:
+                          type: string
+                        value:
+                          type: string
+                        effect:
+                          type: string
+                  initContainers:
+                    type: array
+                    x-kubernetes-list-type: map
+                    x-kubernetes-list-map-keys:
+                      - name
+                    x-kubernetes-patch-strategy: merge
+                    x-kubernetes-patch-merge-key: name
+                    items:
+                      $ref: "#/definitions/io.argoproj.v1alpha1.Container"
+                  containers:
+                    type: array
+                    x-kubernetes-list-type: map
+                    x-kubernetes-list-map-keys:
+                      - name
+                    x-kubernetes-patch-strategy: merge
+                    x-kubernetes-patch-merge-key: name
+                    items:
+                      $ref: "#/definitions/io.argoproj.v1alpha1.Container"
+      status:
+        type: object
+        x-kubernetes-preserve-unknown-fields: true
+  io.argoproj.v1alpha1.Container:
+    type: object
+    properties:
+      name:
+        type: string
+      image:
+        type: string
+      args:
+        type: array
+        x-kubernetes-list-type: atomic
+        items:
+          type: string
+      resources:
+        type: object
+        properties:
+          limits:
+            type: object
+            additionalProperties:
+              type: string
+          requests:
+            type: object
+            additionalProperties:
+              type: string

@@ -200,3 +200,68 @@ func StrToUnstructured(jsonStr string) *unstructured.Unstructured {
 	}
 	return &unstructured.Unstructured{Object: obj}
 }
+
+func TestIgnoredPaths(t *testing.T) {
+	t.Parallel()
+	parser := scheme.StaticParser()
+	pt := parser.Type("io.k8s.api.apps.v1.Deployment")
+
+	t.Run("returns the paths of modified fields owned by trusted managers", func(t *testing.T) {
+		t.Parallel()
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+		trustedManagers := []string{"kube-controller-manager", "revision-history-manager"}
+
+		livePaths, configPaths, err := managedfields.IgnoredPaths(liveState, desiredState, trustedManagers, &pt)
+
+		require.NoError(t, err)
+		assert.ElementsMatch(t, [][]any{{"spec", "replicas"}, {"spec", "revisionHistoryLimit"}}, livePaths)
+		assert.ElementsMatch(t, [][]any{{"spec", "replicas"}, {"spec", "revisionHistoryLimit"}}, configPaths)
+	})
+
+	t.Run("resolves list items addressed by key to their index on each side", func(t *testing.T) {
+		t.Parallel()
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+		// The "argocd" manager owns containers[name=guestbook-ui].image in the
+		// live object; make the desired image differ so the field is modified.
+		containers, _, err := unstructured.NestedSlice(desiredState.Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		containers[0].(map[string]any)["image"] = "quay.io/argoprojlabs/argocd-e2e-container:0.2"
+		require.NoError(t, unstructured.SetNestedSlice(desiredState.Object, containers, "spec", "template", "spec", "containers"))
+
+		livePaths, configPaths, err := managedfields.IgnoredPaths(liveState, desiredState, []string{"argocd"}, &pt)
+
+		require.NoError(t, err)
+		assert.Contains(t, livePaths, []any{"spec", "template", "spec", "containers", 0, "image"})
+		assert.Contains(t, configPaths, []any{"spec", "template", "spec", "containers", 0, "image"})
+	})
+
+	t.Run("ignores fields owned by untrusted managers", func(t *testing.T) {
+		t.Parallel()
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+
+		livePaths, configPaths, err := managedfields.IgnoredPaths(liveState, desiredState, []string{"another-manager"}, &pt)
+
+		require.NoError(t, err)
+		assert.Empty(t, livePaths)
+		assert.Empty(t, configPaths)
+	})
+
+	t.Run("is a no-op without trusted managers or objects", func(t *testing.T) {
+		t.Parallel()
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+
+		livePaths, configPaths, err := managedfields.IgnoredPaths(liveState, desiredState, nil, &pt)
+		require.NoError(t, err)
+		assert.Empty(t, livePaths)
+		assert.Empty(t, configPaths)
+
+		livePaths, configPaths, err = managedfields.IgnoredPaths(nil, desiredState, []string{"argocd"}, &pt)
+		require.NoError(t, err)
+		assert.Empty(t, livePaths)
+		assert.Empty(t, configPaths)
+	})
+}

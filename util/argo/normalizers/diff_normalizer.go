@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"time"
 
@@ -30,6 +31,10 @@ type normalizerPatch interface {
 	GetName() string
 	// Apply(un *unstructured.Unstructured) (error)
 	Apply(data []byte) ([]byte, error)
+	// Paths returns the paths this patch removes from doc (a JSON-decoded
+	// document), as sequences of map keys (string) and list indexes (int).
+	// Paths are resolved against doc as given, before any removal.
+	Paths(doc any) ([][]any, error)
 }
 
 type baseNormalizerPatch struct {
@@ -52,7 +57,49 @@ func (np *baseNormalizerPatch) GetName() string {
 
 type jsonPatchNormalizerPatch struct {
 	baseNormalizerPatch
-	patch *jsonpatch.Patch
+	patch   *jsonpatch.Patch
+	pointer string
+}
+
+func (np *jsonPatchNormalizerPatch) Paths(doc any) ([][]any, error) {
+	p, ok := resolvePointer(doc, np.pointer)
+	if !ok {
+		return nil, nil
+	}
+	return [][]any{p}, nil
+}
+
+// resolvePointer turns an RFC 6901 JSON pointer into a path of map keys and
+// list indexes into doc. It returns false if the pointer does not resolve.
+func resolvePointer(doc any, pointer string) ([]any, bool) {
+	if !strings.HasPrefix(pointer, "/") {
+		return nil, false
+	}
+	parts := strings.Split(pointer[1:], "/")
+	cur := doc
+	out := make([]any, 0, len(parts))
+	for _, part := range parts {
+		part = strings.ReplaceAll(strings.ReplaceAll(part, "~1", "/"), "~0", "~")
+		switch c := cur.(type) {
+		case map[string]any:
+			v, ok := c[part]
+			if !ok {
+				return nil, false
+			}
+			cur = v
+			out = append(out, part)
+		case []any:
+			i, err := strconv.Atoi(part)
+			if err != nil || i < 0 || i >= len(c) {
+				return nil, false
+			}
+			cur = c[i]
+			out = append(out, i)
+		default:
+			return nil, false
+		}
+	}
+	return out, true
 }
 
 func (np *jsonPatchNormalizerPatch) Apply(data []byte) ([]byte, error) {
@@ -65,8 +112,89 @@ func (np *jsonPatchNormalizerPatch) Apply(data []byte) ([]byte, error) {
 
 type jqNormalizerPatch struct {
 	baseNormalizerPatch
-	code               *gojq.Code
+	code *gojq.Code
+	// pathCode is `[path(<expression>)]`: the paths that `del(<expression>)` removes.
+	pathCode           *gojq.Code
 	jqExecutionTimeout time.Duration
+}
+
+func (np *jqNormalizerPatch) Paths(doc any) ([][]any, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), np.jqExecutionTimeout)
+	defer cancel()
+
+	iter := np.pathCode.RunWithContext(ctx, doc)
+	first, ok := iter.Next()
+	if !ok {
+		return nil, errors.New("JQ path query did not return any data")
+	}
+	if err, ok := first.(error); ok {
+		if errors.Is(err, context.DeadlineExceeded) {
+			return nil, fmt.Errorf("JQ path query timed out (%v)", np.jqExecutionTimeout.String())
+		}
+		return nil, fmt.Errorf("JQ path query returned error: %w", err)
+	}
+	raw, ok := first.([]any)
+	if !ok {
+		return nil, fmt.Errorf("JQ path query returned %T, expected an array of paths", first)
+	}
+	out := make([][]any, 0, len(raw))
+	for _, r := range raw {
+		elems, ok := r.([]any)
+		if !ok {
+			continue
+		}
+		path, ok := toPath(elems)
+		if !ok || !pathExists(doc, path) {
+			continue
+		}
+		out = append(out, path)
+	}
+	return out, nil
+}
+
+// toPath converts a jq path (as returned by path()) into map keys and list
+// indexes. Slice paths and other non-addressable elements are rejected.
+func toPath(elems []any) ([]any, bool) {
+	path := make([]any, 0, len(elems))
+	for _, e := range elems {
+		switch e := e.(type) {
+		case string:
+			path = append(path, e)
+		case int:
+			path = append(path, e)
+		case float64:
+			path = append(path, int(e))
+		default:
+			return nil, false
+		}
+	}
+	return path, true
+}
+
+func pathExists(doc any, path []any) bool {
+	cur := doc
+	for _, e := range path {
+		switch c := cur.(type) {
+		case map[string]any:
+			k, ok := e.(string)
+			if !ok {
+				return false
+			}
+			cur, ok = c[k]
+			if !ok {
+				return false
+			}
+		case []any:
+			i, ok := e.(int)
+			if !ok || i < 0 || i >= len(c) {
+				return false
+			}
+			cur = c[i]
+		default:
+			return false
+		}
+	}
+	return true
 }
 
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {
@@ -117,8 +245,18 @@ func (opts *IgnoreNormalizerOpts) getJQExecutionTimeout() time.Duration {
 	return opts.JQExecutionTimeout
 }
 
+// IgnoreNormalizer is a diff.Normalizer built from ignoreDifferences rules that
+// can also report which paths it removes from an object.
+type IgnoreNormalizer interface {
+	diff.Normalizer
+	// IgnoredPaths returns the paths the ignore rules remove from un, as
+	// sequences of map keys (string) and list indexes (int) into un.Object.
+	// All paths are resolved against un as given, before any removal.
+	IgnoredPaths(un *unstructured.Unstructured) ([][]any, error)
+}
+
 // NewIgnoreNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
-func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride, opts IgnoreNormalizerOpts) (diff.Normalizer, error) {
+func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides map[string]v1alpha1.ResourceOverride, opts IgnoreNormalizerOpts) (IgnoreNormalizer, error) {
 	for key, override := range overrides {
 		group, kind, err := getGroupKindForOverrideKey(key)
 		if err != nil {
@@ -154,6 +292,7 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 				name:      ignore[i].Name,
 				namespace: ignore[i].Namespace,
 				patch:     &patch,
+				pointer:   path,
 			})
 		}
 		for _, pathExpression := range ignore[i].JQPathExpressions {
@@ -165,11 +304,20 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 			if err != nil {
 				return nil, err
 			}
+			jqPathQuery, err := gojq.Parse(fmt.Sprintf("[path(%s)]", pathExpression))
+			if err != nil {
+				return nil, err
+			}
+			jqPathCode, err := gojq.Compile(jqPathQuery)
+			if err != nil {
+				return nil, err
+			}
 			patches = append(patches, &jqNormalizerPatch{
 				groupKind:          schema.GroupKind{Group: ignore[i].Group, Kind: ignore[i].Kind},
 				name:               ignore[i].Name,
 				namespace:          ignore[i].Namespace,
 				code:               jqDeletionCode,
+				pathCode:           jqPathCode,
 				jqExecutionTimeout: opts.getJQExecutionTimeout(),
 			})
 		}
@@ -177,11 +325,8 @@ func NewIgnoreNormalizer(ignore []v1alpha1.ResourceIgnoreDifferences, overrides 
 	return &ignoreNormalizer{patches: patches}, nil
 }
 
-// Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
-func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
-	if un == nil {
-		return errors.New("invalid argument: unstructured is nil")
-	}
+// matchedPatches returns the patches whose group/kind/name/namespace selectors match un.
+func (n *ignoreNormalizer) matchedPatches(un *unstructured.Unstructured) []normalizerPatch {
 	matched := make([]normalizerPatch, 0)
 	for _, patch := range n.patches {
 		groupKind := un.GroupVersionKind().GroupKind()
@@ -193,6 +338,52 @@ func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
 			matched = append(matched, patch)
 		}
 	}
+	return matched
+}
+
+// IgnoredPaths returns the paths the matching ignore rules remove from un.
+func (n *ignoreNormalizer) IgnoredPaths(un *unstructured.Unstructured) ([][]any, error) {
+	if un == nil {
+		return nil, errors.New("invalid argument: unstructured is nil")
+	}
+	matched := n.matchedPatches(un)
+	if len(matched) == 0 {
+		return nil, nil
+	}
+	docData, err := json.Marshal(un)
+	if err != nil {
+		return nil, err
+	}
+	var doc any
+	if err := json.Unmarshal(docData, &doc); err != nil {
+		return nil, err
+	}
+	var out [][]any
+	for _, patch := range matched {
+		paths, err := patch.Paths(doc)
+		if err != nil {
+			if shouldLogError(err) {
+				gvk := un.GroupVersionKind()
+				log.WithFields(log.Fields{
+					"group":     gvk.Group,
+					"kind":      gvk.Kind,
+					"name":      un.GetName(),
+					"namespace": un.GetNamespace(),
+				}).Debugf("Failed to resolve ignored paths: %v", err)
+			}
+			continue
+		}
+		out = append(out, paths...)
+	}
+	return out, nil
+}
+
+// Normalize removes fields from supplied resource using json paths from matching items of specified resources ignored differences list
+func (n *ignoreNormalizer) Normalize(un *unstructured.Unstructured) error {
+	if un == nil {
+		return errors.New("invalid argument: unstructured is nil")
+	}
+	matched := n.matchedPatches(un)
 	if len(matched) == 0 {
 		return nil
 	}
