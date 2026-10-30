@@ -138,18 +138,18 @@ export const AdvancedSettings = () => {
                         title='Advanced'
                         toolbar={{
                             breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Advanced'}],
-                            actionMenu:
-                                selectedTab === 'configuration'
-                                    ? {
-                                          items: [
-                                              {
-                                                  title: showAll ? 'Show Configured Only' : 'Show All Options',
-                                                  iconClassName: 'fa fa-filter',
-                                                  action: () => setShowAll(prev => !prev)
-                                              }
-                                          ]
-                                      }
-                                    : undefined,
+                            // Keep the filter in the toolbar on every tab. Toggling the toolbar between
+                            // defined and undefined made the button disappear for good after a
+                            // configuration -> JSON -> configuration round trip.
+                            actionMenu: {
+                                items: [
+                                    {
+                                        title: showAll ? 'Show Configured Only' : 'Show All Options',
+                                        iconClassName: 'fa fa-filter',
+                                        action: () => setShowAll(prev => !prev)
+                                    }
+                                ]
+                            },
                             tools: <AuthOption />
                         }}>
                         <Tabs
