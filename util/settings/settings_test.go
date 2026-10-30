@@ -149,6 +149,7 @@ func TestGetResourceFilter(t *testing.T) {
 	data := map[string]string{
 		"resource.exclusions": "\n  - apiGroups: [\"group1\"]\n    kinds: [\"kind1\"]\n    clusters: [\"cluster1\"]\n",
 		"resource.inclusions": "\n  - apiGroups: [\"group2\"]\n    kinds: [\"kind2\"]\n    clusters: [\"cluster2\"]\n",
+		"resource.selectors":  "\n  - apiGroups: [\"group3\"]\n    kinds: [\"kind3\"]\n    clusters: [\"cluster3\"]\n    selector: \"foo=bar,!baz\"\n",
 	}
 	_, settingsManager := fixtures(t.Context(), data)
 	filter, err := settingsManager.GetResourcesFilter()
@@ -156,7 +157,28 @@ func TestGetResourceFilter(t *testing.T) {
 	assert.Equal(t, &ResourcesFilter{
 		ResourceExclusions: []FilteredResource{{APIGroups: []string{"group1"}, Kinds: []string{"kind1"}, Clusters: []string{"cluster1"}}},
 		ResourceInclusions: []FilteredResource{{APIGroups: []string{"group2"}, Kinds: []string{"kind2"}, Clusters: []string{"cluster2"}}},
+		ResourceSelectors:  []FilteredResource{{APIGroups: []string{"group3"}, Kinds: []string{"kind3"}, Clusters: []string{"cluster3"}, Selector: "foo=bar,!baz"}},
 	}, filter)
+}
+
+// the e2e fixture marshals an empty ResourceSelectors list into the config map, make sure it parses
+func TestGetResourceFilterNullSelectors(t *testing.T) {
+	data := map[string]string{
+		"resource.selectors": "null\n",
+	}
+	_, settingsManager := fixtures(t.Context(), data)
+	filter, err := settingsManager.GetResourcesFilter()
+	require.NoError(t, err)
+	assert.Empty(t, filter.ResourceSelectors)
+}
+
+func TestGetResourceFilterInvalidSelector(t *testing.T) {
+	data := map[string]string{
+		"resource.selectors": "\n  - kinds: [\"Pod\"]\n    selector: \"foo=~bar\"\n",
+	}
+	_, settingsManager := fixtures(t.Context(), data)
+	_, err := settingsManager.GetResourcesFilter()
+	require.ErrorContains(t, err, "error parsing resource selector")
 }
 
 func TestInClusterServerAddressEnabled(t *testing.T) {
@@ -1033,6 +1055,21 @@ func TestSettingsManager_GetSettings(t *testing.T) {
 	})
 }
 
+func TestSettingsManager_GetManifestCodecSettings(t *testing.T) {
+	_, settingsManager := fixtures(t.Context(), map[string]string{
+		"resource.manifest.storage":     "msgpack",
+		"resource.manifest.compression": "s2-encode",
+	})
+
+	storage, err := settingsManager.GetManifestStorage()
+	require.NoError(t, err)
+	assert.Equal(t, "msgpack", storage)
+
+	compression, err := settingsManager.GetManifestCompression()
+	require.NoError(t, err)
+	assert.Equal(t, "s2-encode", compression)
+}
+
 func TestGetOIDCConfig(t *testing.T) {
 	testCases := []struct {
 		name          string
@@ -1693,6 +1730,46 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	assert.Equal(t, "deadbeef", oidcConfig.ClientSecret)
 }
 
+func TestValidateOIDCConfigWithSecrets(t *testing.T) {
+	tests := []struct {
+		name    string
+		config  string
+		secrets map[string]string
+		wantErr bool
+	}{
+		{
+			name: "valid secret issuer",
+			config: `name: Test
+issuer: $oidc-secret:issuer
+clientID: test
+clientSecret: test`,
+			secrets: map[string]string{
+				"oidc-secret:issuer": "https://example.com",
+			},
+			wantErr: false,
+		},
+		{
+			name: "invalid literal issuer",
+			config: `name: Test
+issuer: ://invalid.example.com
+clientID: test
+clientSecret: test`,
+			wantErr: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			err := validateOIDCConfigWithSecrets(tc.config, tc.secrets)
+			if tc.wantErr {
+				assert.Error(t, err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
 func TestGetEnableManifestGeneration(t *testing.T) {
 	testCases := []struct {
 		name    string
@@ -1960,8 +2037,10 @@ func TestRedirectURLForRequest(t *testing.T) {
 		Name        string
 		Settings    *ArgoCDSettings
 		RequestURL  string
+		RequestURI  string
 		ExpectedURL string
 		ExpectError bool
+		ErrorText   string
 	}{
 		{
 			Name: "Single URL",
@@ -2000,16 +2079,115 @@ func TestRedirectURLForRequest(t *testing.T) {
 			ExpectedURL: "https://anotherhost.org/auth/callback",
 			ExpectError: false,
 		},
+		{
+			Name: "Additional URL after root path stripping",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/argocd"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login?return_url=%2Fargocd%2Fapplications",
+			ExpectedURL: "https://anotherhost.org/argocd/auth/callback",
+		},
+		{
+			Name: "Absolute request URI after root path stripping",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/argocd"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "https://anotherhost.org/argocd/auth/login",
+			ExpectedURL: "https://anotherhost.org/argocd/auth/callback",
+		},
+		{
+			Name: "Additional URL with a different path does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org/argocd",
+				AdditionalURLs: []string{"https://anotherhost.org/other"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login",
+			ExpectedURL: "https://example.org/argocd/auth/callback",
+		},
+		{
+			Name: "Additional URL with a shared path prefix does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argocd/login",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Shared path prefix after root path stripping does not match",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/auth/login",
+			RequestURI:  "/argocd/auth/login",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Exact additional URL path with query matches",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argo?return_url=%2Fapplications",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Additional URL with trailing slash matches child path",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo/"},
+			},
+			RequestURL:  "https://anotherhost.org/argo/login",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Additional URL with trailing slash matches exact path",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo/"},
+			},
+			RequestURL:  "https://anotherhost.org/argo",
+			ExpectedURL: "https://anotherhost.org/argo/auth/callback",
+		},
+		{
+			Name: "Encoded separator does not create a path boundary",
+			Settings: &ArgoCDSettings{
+				URL:            "https://example.org",
+				AdditionalURLs: []string{"https://anotherhost.org/argo"},
+			},
+			RequestURL:  "https://anotherhost.org/argo%2Flogin",
+			ExpectedURL: "https://example.org/auth/callback",
+		},
+		{
+			Name: "Invalid request URI",
+			Settings: &ArgoCDSettings{
+				URL: "https://example.org",
+			},
+			RequestURL:  "https://example.org/auth/login",
+			RequestURI:  "/%invalid",
+			ExpectError: true,
+			ErrorText:   "error parsing request URI:",
+		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.Name, func(t *testing.T) {
 			request, err := http.NewRequestWithContext(t.Context(), http.MethodPost, tc.RequestURL, http.NoBody)
 			require.NoError(t, err)
+			request.RequestURI = tc.RequestURI
 			result, err := tc.Settings.RedirectURLForRequest(request)
 			assert.Equal(t, tc.ExpectedURL, result)
 			if tc.ExpectError {
-				assert.Error(t, err)
+				require.Error(t, err)
+				if tc.ErrorText != "" {
+					require.ErrorContains(t, err, tc.ErrorText)
+				}
 			} else {
 				assert.NoError(t, err)
 			}

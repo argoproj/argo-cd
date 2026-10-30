@@ -259,6 +259,42 @@ spec:
                   name: argocd-cmd-params-cm
                   key: applicationsetcontroller.status.max.resources.count
                   optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_SIZE
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.wq.bucket.size
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_QPS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.wq.bucket.qps
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BASE_DELAY_NS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.wq.basedelay.ns
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_MAX_DELAY_NS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.wq.maxdelay.ns
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BACKOFF_FACTOR
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.wq.backoff.factor
+                  optional: true
+            - name: ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_FAILURE_COOLDOWN_NS
+              valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: applicationsetcontroller.wq.cooldown.ns
+                  optional: true
           volumeMounts:
             - mountPath: /app/config/ssh
               name: ssh-known-hosts

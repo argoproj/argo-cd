@@ -217,6 +217,10 @@ type cacheSettings struct {
 
 	// ignoreResourceUpdates is a flag to enable resource-ignore rules.
 	ignoreResourceUpdatesEnabled bool
+	// manifestCompressionEnabled controls whether resource manifests are stored gzip-compressed in memory.
+	manifestCompressionEnabled bool
+	manifestStorageType        clustercache.ManifestStorageType
+	manifestCompressionType    clustercache.ManifestCompressionType
 }
 
 type liveStateCache struct {
@@ -255,6 +259,18 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 	if err != nil {
 		return nil, err
 	}
+	manifestCompressionEnabled, err := c.settingsMgr.GetIsManifestCompressionEnabled()
+	if err != nil {
+		return nil, err
+	}
+	manifestStorage, err := c.settingsMgr.GetManifestStorage()
+	if err != nil {
+		return nil, err
+	}
+	manifestCompression, err := c.settingsMgr.GetManifestCompression()
+	if err != nil {
+		return nil, err
+	}
 	resourcesFilter, err := c.settingsMgr.GetResourcesFilter()
 	if err != nil {
 		return nil, err
@@ -268,7 +284,7 @@ func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
 		ResourcesFilter:        resourcesFilter,
 	}
 
-	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled}, nil
+	return &cacheSettings{clusterSettings, appInstanceLabelKey, appv1.TrackingMethod(trackingMethod), installationID, resourceUpdatesOverrides, ignoreResourceUpdatesEnabled, manifestCompressionEnabled, clustercache.ManifestStorageType(manifestStorage), clustercache.ManifestCompressionType(manifestCompression)}, nil
 }
 
 func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) appv1.ResourceNode {
@@ -575,13 +591,17 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 
 			// edge case. we do not label CRDs, so they miss the tracking label we inject. But we still
 			// want the full resource to be available in our cache (to diff), so we store all CRDs
-			return res, res.AppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind
+			shouldCacheManifest := res.AppName != "" || gvk.Kind == kube.CustomResourceDefinitionKind
+			return res, shouldCacheManifest
 		}),
 		clustercache.SetLogr(logutils.NewLogrusLogger(log.WithField("server", cluster.Server))),
 		clustercache.SetRetryOptions(clusterCacheAttemptLimit, clusterCacheRetryUseBackoff, isRetryableError),
 		clustercache.SetRespectRBAC(respectRBAC),
 		clustercache.SetBatchEventsProcessing(clusterCacheBatchEventsProcessing),
 		clustercache.SetEventProcessingInterval(clusterCacheEventsProcessingInterval),
+		clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
+		clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
+		clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
@@ -665,7 +685,12 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 	c.lock.Unlock()
 
 	for _, clust := range clusters {
-		clust.Invalidate(clustercache.SetSettings(cacheSettings.clusterSettings))
+		clust.Invalidate(
+			clustercache.SetSettings(cacheSettings.clusterSettings),
+			clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
+			clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
+			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
+		)
 	}
 	log.Info("live state cache invalidated")
 }

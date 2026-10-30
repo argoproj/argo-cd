@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/client-go/dynamic/fake"
 	k8sfake "k8s.io/client-go/kubernetes/fake"
+	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -240,6 +242,14 @@ func TestInitTimeout(t *testing.T) {
 	)
 
 	assert.NotNil(t, nc)
+
+	// Fail every list so the informers never sync and Init can only time out.
+	// Otherwise the fake informers can sync before WaitForCacheSync first checks them.
+	failList := func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("list failed")
+	}
+	dynamicClient.PrependReactor("list", "*", failList)
+	k8sClient.PrependReactor("list", "*", failList)
 
 	// Use a short timeout to simulate a timeout during cache synchronization
 	ctx, cancel := context.WithTimeout(t.Context(), 1*time.Millisecond)
