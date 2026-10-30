@@ -15,6 +15,7 @@ import (
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/openapi"
 	"k8s.io/client-go/openapi/openapitest"
+	cmdtesting "k8s.io/kubectl/pkg/cmd/testing"
 	"k8s.io/kubectl/pkg/validation"
 )
 
@@ -75,13 +76,8 @@ func (c *countingClient) Paths() (map[string]openapi.GroupVersion, error) {
 	return paths, nil
 }
 
-// newTestVerifier builds the verifier as newValidator does.
 func newTestVerifier(client openapi.Client, cache *fieldValidationCache) resource.Verifier {
-	return &hashKeyedVerifier{
-		client: client,
-		next:   resource.NewQueryParamVerifierV3(testDynamicClient, client, resource.QueryParamFieldValidation),
-		cache:  cache,
-	}
+	return newFieldValidationVerifier(testDynamicClient, client, cache)
 }
 
 var testDynamicClient = dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
@@ -179,6 +175,27 @@ func TestNewValidatorIgnore(t *testing.T) {
 	v, err := k.newValidator(metav1.FieldValidationIgnore)
 	require.NoError(t, err)
 	assert.IsType(t, validation.NullSchema{}, v)
+}
+
+func TestNewValidatorStrict(t *testing.T) {
+	t.Parallel()
+	// A unique hash keeps the shared cache's keys private to this test.
+	client := &countingClient{hash: t.Name()}
+	f := cmdtesting.NewTestFactory()
+	t.Cleanup(f.Cleanup)
+	f.FakeDynamicClient = testDynamicClient
+	f.OpenAPIV3ClientFunc = func() (openapi.Client, error) { return client, nil }
+	k, _ := newTestKubectlResourceOperations(t)
+	k.fact = f
+
+	configMap := []byte(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"cm"}}`)
+	for range 2 {
+		v, err := k.newValidator(metav1.FieldValidationStrict)
+		require.NoError(t, err)
+		assert.NotEqual(t, validation.NullSchema{}, v)
+		require.NoError(t, v.ValidateBytes(configMap))
+	}
+	assert.Equal(t, int64(1), client.calls.Load())
 }
 
 // BenchmarkHasSupport compares a fresh verifier per apply with the cache.

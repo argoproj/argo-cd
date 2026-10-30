@@ -7,8 +7,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/cli-runtime/pkg/resource"
+	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/openapi"
-	"k8s.io/client-go/openapi/cached"
 	kubectlopenapi "k8s.io/kubectl/pkg/util/openapi"
 	"k8s.io/kubectl/pkg/validation"
 )
@@ -59,6 +59,17 @@ type hashKeyedVerifier struct {
 	cache  *fieldValidationCache
 }
 
+// newFieldValidationVerifier wraps the OpenAPI v3 fieldValidation verifier with cache.
+func newFieldValidationVerifier(dyn dynamic.Interface, client openapi.Client, cache *fieldValidationCache) resource.Verifier {
+	return &hashKeyedVerifier{
+		client: client,
+		next:   resource.NewQueryParamVerifierV3(dyn, client, resource.QueryParamFieldValidation),
+		cache:  cache,
+	}
+}
+
+// HasSupport implements resource.Verifier, answering from the cache when the group-version's
+// document hash and kind were seen before.
 func (v *hashKeyedVerifier) HasSupport(gvk schema.GroupVersionKind) error {
 	key, ok := v.cacheKey(gvk)
 	if !ok {
@@ -95,7 +106,9 @@ func (v *hashKeyedVerifier) cacheKey(gvk schema.GroupVersionKind) (fieldValidati
 	return fieldValidationCacheKey(url + " " + gvk.Kind), true
 }
 
-// newValidator is kubectl's Factory.Validator with the v3 verifier cached.
+// newValidator is kubectl's Factory.Validator with the v3 verifier cached. The v2 fallback
+// covers v3 errors other than ParamUnsupported, e.g. a CRD kind not yet in its served
+// group-version document.
 func (k *kubectlResourceOperations) newValidator(validationDirective string) (validation.Schema, error) {
 	if validationDirective == metav1.FieldValidationIgnore {
 		return validation.NullSchema{}, nil
@@ -110,21 +123,20 @@ func (k *kubectlResourceOperations) newValidator(validationDirective string) (va
 	if err != nil {
 		return nil, err
 	}
+	oapiV3Client, err := k.fact.OpenAPIV3Client()
+	if err != nil {
+		return nil, err
+	}
 	discoveryClient, err := k.fact.ToDiscoveryClient()
 	if err != nil {
 		return nil, err
 	}
-	oapiV3Client := cached.NewClient(discoveryClient.OpenAPIV3())
-	queryParam := resource.QueryParamFieldValidation
-	primary := &hashKeyedVerifier{
-		client: oapiV3Client,
-		next:   resource.NewQueryParamVerifierV3(dynamicClient, oapiV3Client, queryParam),
-		cache:  fieldValidationSupport,
-	}
 	k.openAPIV2Once.Do(func() {
 		k.openAPIV2Getter = kubectlopenapi.NewOpenAPIGetter(discoveryClient)
 	})
+	queryParam := resource.QueryParamFieldValidation
+	primary := newFieldValidationVerifier(dynamicClient, oapiV3Client, fieldValidationSupport)
 	secondary := resource.NewQueryParamVerifier(dynamicClient, k.openAPIV2Getter, queryParam)
-	fallback := resource.NewFallbackQueryParamVerifier(primary, secondary)
-	return validation.NewParamVerifyingSchema(schema, fallback, validationDirective), nil
+	verifier := resource.NewFallbackQueryParamVerifier(primary, secondary)
+	return validation.NewParamVerifyingSchema(schema, verifier, validationDirective), nil
 }
