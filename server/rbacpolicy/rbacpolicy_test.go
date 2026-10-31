@@ -153,6 +153,20 @@ func TestEnforceProjectGroupWithComma(t *testing.T) {
 	}
 }
 
+func TestEnforceProjectGroupWithEscapedQuotes(t *testing.T) {
+	t.Parallel()
+	proj := newFakeProj()
+	proj.Spec.Roles[0].Groups = append(proj.Spec.Roles[0].Groups, `"team ""A"""`)
+	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, test.NewFakeProjLister(proj))
+	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+
+	// The group name is a single quoted field, so it is used as it is and matches the decoded name
+	assert.True(t, enf.Enforce(jwt.MapClaims{"groups": []string{`team "A"`}}, "applications", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(jwt.MapClaims{"groups": []string{"my-org:my-team"}}, "applications", "create", "my-proj/my-app"))
+}
+
 func TestEnforceProjectGroupWithSeveralQuotedFields(t *testing.T) {
 	t.Parallel()
 	proj := newFakeProj()

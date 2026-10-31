@@ -1,6 +1,7 @@
 package v1alpha1
 
 import (
+	"encoding/csv"
 	"fmt"
 	"slices"
 	"sort"
@@ -396,17 +397,25 @@ func (proj *AppProject) ProjectPoliciesString() string {
 }
 
 // policyGroupName returns the group name as a field of a CSV policy line. A group name
-// containing a comma or a double quote is quoted, unless it already is a single quoted
-// field, as it would otherwise break the policy line and keep the whole project policy
-// from loading.
+// containing a comma or a double quote is quoted, unless it already is a single CSV field,
+// as it would otherwise break the policy line and keep the whole project policy from loading.
 func policyGroupName(name string) string {
-	if len(name) > 1 && strings.HasPrefix(name, `"`) && strings.HasSuffix(name, `"`) && !strings.Contains(name[1:len(name)-1], `"`) {
+	if isSinglePolicyField(name) {
 		return name
 	}
 	if strings.ContainsAny(name, `,"`) {
 		return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
 	}
 	return name
+}
+
+// isSinglePolicyField reports whether value is read as exactly one field by the CSV parser
+// that loads policy lines.
+func isSinglePolicyField(value string) bool {
+	reader := csv.NewReader(strings.NewReader(value))
+	reader.TrimLeadingSpace = true
+	records, err := reader.ReadAll()
+	return err == nil && len(records) == 1 && len(records[0]) == 1
 }
 
 // IsGroupKindNamePermitted validates if the given resource group/kind is permitted to be deployed in the project

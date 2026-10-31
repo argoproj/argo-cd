@@ -1184,6 +1184,7 @@ func TestAppProject_ProjectPoliciesString_GroupNames(t *testing.T) {
 	}{
 		{"Plain group name", "my-org:my-team", "g, my-org:my-team, proj:my-proj:my-role"},
 		{"Quoted with comma", `"AWS: A,B"`, `g, "AWS: A,B", proj:my-proj:my-role`},
+		{"Quoted with escaped double quotes", `"team ""A"""`, `g, "team ""A""", proj:my-proj:my-role`},
 		{"Unquoted with comma", "AWS: A,B", `g, "AWS: A,B", proj:my-proj:my-role`},
 		{"Unquoted with double quote", `AWS: "A"`, `g, "AWS: ""A""", proj:my-proj:my-role`},
 		{"Several quoted fields", `"QA","admins"`, `g, """QA"",""admins""", proj:my-proj:my-role`},
