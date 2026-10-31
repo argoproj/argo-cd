@@ -26,10 +26,11 @@ const app = (name: string, source?: models.ApplicationSource) =>
         spec: {project: 'default', source, destination: {name: 'in-cluster', namespace: 'default'}}
     }) as unknown as models.Application;
 
-const ctxValue = {notifications: {show: () => undefined}, popup: {confirm: () => Promise.resolve(true)}} as any;
+const showNotification = jest.fn();
+const ctxValue = {notifications: {show: showNotification}, popup: {confirm: () => Promise.resolve(true)}} as any;
 
 describe('ApplicationsSyncPanelBody', () => {
-    it('keeps syncing the remaining apps after an application that has neither source nor sources', async () => {
+    it('skips an application that has neither source nor sources and keeps syncing the remaining apps', async () => {
         const apps = [app('no-source'), app('with-source', {repoURL: 'https://github.com/org/repo.git', path: '.', targetRevision: 'main'})];
         let formApi: FormApi;
         render(
@@ -47,9 +48,7 @@ describe('ApplicationsSyncPanelBody', () => {
         });
 
         const sync = services.applications.sync as jest.Mock;
-        expect(sync.mock.calls.map(call => [call[0], call[2]])).toEqual([
-            ['no-source', undefined],
-            ['with-source', 'main']
-        ]);
+        expect(sync.mock.calls.map(call => [call[0], call[2]])).toEqual([['with-source', 'main']]);
+        expect(showNotification).toHaveBeenCalledWith(expect.objectContaining({content: 'Unable to sync no-source: the application has no source configured'}));
     });
 });
