@@ -132,6 +132,27 @@ p, cam, applications, %s/argoproj.io/Rollout/resume, my-proj/*, allow
 	assert.False(t, enf.Enforce(claims, "applications", rbac.ActionAction+"/argoproj.io/Rollout/resume", "my-proj/my-app"))
 }
 
+func TestEnforceProjectGroupWithComma(t *testing.T) {
+	t.Parallel()
+	for _, group := range []string{`"my-org:my-team,admins"`, `my-org:my-team,admins`} {
+		t.Run(group, func(t *testing.T) {
+			t.Parallel()
+			proj := newFakeProj()
+			proj.Spec.Roles[0].Groups = append(proj.Spec.Roles[0].Groups, group)
+			kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+			enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+			rbacEnf := NewRBACPolicyEnforcer(enf, test.NewFakeProjLister(proj))
+			enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+
+			claims := jwt.MapClaims{"groups": []string{"my-org:my-team,admins"}}
+			assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+			// The other groups of the project must keep working as well
+			claims = jwt.MapClaims{"groups": []string{"my-org:my-team"}}
+			assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+		})
+	}
+}
+
 func TestInvalidatedCache(t *testing.T) {
 	t.Parallel()
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())

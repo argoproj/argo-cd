@@ -337,6 +337,10 @@ spec:
     - my-oidc-group
 ```
 
+> [!NOTE]
+> The Argo CD API, CLI and UI only accept a group name that contains a comma when it is enclosed in double quotes, for example `'"AWS: A,B"'` in YAML.
+> Group names in an AppProject applied directly to the cluster can be written with or without the double quotes; both match the group `AWS: A,B`.
+
 You can use `argocd proj role` CLI commands or project details page in the user interface to configure the policy.
 Note that each project role policy rule must be scoped to that project only. Use the `argocd-rbac-cm` ConfigMap described in [RBAC](../operator-manual/rbac.md) documentation if you want to configure cross project RBAC rules.
 
