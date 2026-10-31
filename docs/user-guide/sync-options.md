@@ -441,6 +441,24 @@ spec:
 
 The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
+The pre-patched desired state is built from the ignore rules alone:
+
+* A field the rules remove from the desired state is not applied. If the field also exists in the live resource, its live value is applied instead, so the field is left exactly as it is in the cluster.
+* A field the rules remove only from the live resource (for example a container, label or list item that another controller injected and the manifest does not declare) is copied from the live resource into the desired state so the apply does not delete it.
+* Everything else is applied as declared in git. If a rule matches a value only in the live resource, for example `.data.setting | select(. == "live")`, git still asserts its own value for that field and the sync applies it.
+
+Argo CD uses the cluster's schema, the same one server-side apply uses, to decide how a copied live value fits into the desired state:
+
+* Items of a list with merge keys (`x-kubernetes-list-map-keys`, such as `containers` or `env`) are matched by their keys, so an ignored field inside a list item follows the item even if git orders the list differently. A live-only item is inserted at the position it has in the live resource.
+* Items of a list without merge keys (such as `tolerations` or `spec.sources` of an Application) are matched by position. Such a list is applied as one value, so an ignored field inside an item the manifest does not declare carries the whole live item.
+* An atomic map or list (`x-kubernetes-map-type: atomic` or `x-kubernetes-list-type: atomic`, such as `nodeSelector`) that the manifest does not declare is never created from a partial set of ignored keys, because the API server would replace the whole field with that partial content and drop what other controllers put there. To preserve such a field, ignore it as a whole.
+* `status` is never copied from the live resource; it belongs to the resource's own controller. Neither are the metadata fields the API server populates (`uid`, `resourceVersion`, `generation`, `creationTimestamp`, `managedFields`, `deletionTimestamp`), even when a rule ignores all of `metadata`.
+* For a `Secret`, `stringData` in the manifest is folded into `data` before the rules are applied, the same way the API server stores it. A rule on `.data["password"]` or on `.stringData["password"]` protects the same key, whichever spelling the manifest uses.
+
+Custom resources whose CRD publishes no list or map markers are handled as if every list were atomic.
+
+Each rule is resolved against the manifest and the live resource as they are. When one rule removes a list item and another rule names a later index of the same list (for example `/spec/template/spec/initContainers/0` and `/spec/template/spec/initContainers/1`), the sync treats both indexes as positions in the original list. Prefer selecting list items by content (`select(.name == "...")`) over indexes.
+
 In situations where individual resources need to have differences ignored independently of the application-level `spec.ignoreDifferences` configuration or user does not have access to edit Application spec, the `argocd.argoproj.io/ignore-differences` annotation can be applied directly to the resource manifest:
 
 ```yaml
