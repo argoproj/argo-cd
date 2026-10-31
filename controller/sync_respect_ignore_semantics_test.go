@@ -2323,6 +2323,7 @@ var builtinGVKs = []schema.GroupVersionKind{
 	serviceGVK,
 	statefulSetGVK,
 	webhookGVK,
+	validatingWebhookGVK,
 	ingressGVK,
 }
 
@@ -2507,6 +2508,10 @@ var (
 	statefulSetGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "StatefulSet"}
 	webhookGVK     = schema.GroupVersionKind{Group: "admissionregistration.k8s.io", Version: "v1", Kind: "MutatingWebhookConfiguration"}
 	configMapGVK   = schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}
+
+	validatingWebhookGVK = schema.GroupVersionKind{Group: "admissionregistration.k8s.io", Version: "v1", Kind: "ValidatingWebhookConfiguration"}
+	applicationGVK       = schema.GroupVersionKind{Group: "argoproj.io", Version: "v1alpha1", Kind: "Application"}
+	virtualServiceGVK    = schema.GroupVersionKind{Group: "networking.istio.io", Version: "v1beta1", Kind: "VirtualService"}
 )
 
 func deploymentIgnore(exprs ...string) v1alpha1.ResourceIgnoreDifferences {
@@ -2961,4 +2966,421 @@ data: {k: live}
 			}
 		})
 	}
+}
+
+// Use case 40: the shape RespectIgnoreDifferences was invented for. A
+// traffic-shaping controller rewrites the route weights of an Istio
+// VirtualService; git keeps the initial weights and changes other fields. The
+// cluster publishes no schema for the CRD here, and the rule indexes two
+// keyless lists deep (`http[].route[].weight`). The live weights are carried
+// into the matching positions, git's other changes go through, and a route the
+// controller does not touch keeps git's weight.
+//
+// Ref: https://github.com/argoproj/argo-cd/issues/2913 (original post: the
+// proposal that became RespectIgnoreDifferences, for `spec.http[*].route[*].weight`),
+// https://github.com/argoproj/argo-cd/issues/18254 (the
+// `select(.destination.host | match("stable|canary"))` rule).
+func TestRespectIgnoreSemantics_CanaryWeightsKept_NestedKeylessLists_SchemalessCRD(t *testing.T) {
+	gitV1 := toUnstructured(t, `
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata: {name: web, namespace: default}
+spec:
+  hosts: [web.example.com]
+  http:
+  - name: primary
+    route:
+    - destination: {host: web-stable}
+      weight: 100
+    - destination: {host: web-canary}
+      weight: 0
+  - name: api
+    match: [{uri: {prefix: /api}}]
+    route:
+    - destination: {host: api}
+      weight: 100
+`)
+	live := toUnstructured(t, `
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata: {name: web, namespace: default}
+spec:
+  hosts: [web.example.com]
+  http:
+  - name: primary
+    route:
+    - destination: {host: web-stable}
+      weight: 80
+    - destination: {host: web-canary}
+      weight: 20
+  - name: api
+    match: [{uri: {prefix: /api}}]
+    route:
+    - destination: {host: api}
+      weight: 100
+`)
+	gitV2 := toUnstructured(t, `
+apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata: {name: web, namespace: default}
+spec:
+  hosts: [web.example.com]
+  http:
+  - name: primary
+    timeout: 10s
+    route:
+    - destination: {host: web-stable}
+      weight: 100
+    - destination: {host: web-canary}
+      weight: 0
+  - name: api
+    match: [{uri: {prefix: /api}}]
+    route:
+    - destination: {host: api-v2}
+      weight: 100
+`)
+	check := func(t *testing.T, expr string) {
+		t.Helper()
+		ignore := v1alpha1.ResourceIgnoreDifferences{Group: "networking.istio.io", Kind: "VirtualService", JQPathExpressions: []string{expr}}
+		applied := applyTarget(t, nil, live, gitV2, ignore)
+		assert.Equal(t, int64(80), at(t, applied, "spec.http[0].route[0].weight"), "the controller's weights are applied")
+		assert.Equal(t, int64(20), at(t, applied, "spec.http[0].route[1].weight"))
+		assert.Equal(t, "10s", at(t, applied, "spec.http[0].timeout"), "git's new field on the same item is applied")
+		assert.Equal(t, "api-v2", at(t, applied, "spec.http[1].route[0].destination.host"), "git's change to the other route is applied")
+		assert.Equal(t, int64(100), at(t, applied, "spec.http[1].route[0].weight"))
+
+		// Without a schema the server treats the lists as atomic, so the sync
+		// replaces them whole: the carried weights are what keeps the canary.
+		sim := newSSASim(t, managedfields.NewDeducedTypeConverter(), virtualServiceGVK)
+		sim.apply(gitV1, argoManager)
+		sim.update(live, "flagger")
+		sim.apply(applied, argoManager)
+		out := sim.live()
+		assert.Equal(t, int64(80), at(t, out, "spec.http[0].route[0].weight"))
+		assert.Equal(t, int64(20), at(t, out, "spec.http[0].route[1].weight"))
+		assert.Equal(t, "10s", at(t, out, "spec.http[0].timeout"))
+		assert.Equal(t, "api-v2", at(t, out, "spec.http[1].route[0].destination.host"))
+	}
+	t.Run("select by destination", func(t *testing.T) {
+		check(t, `.spec.http[].route[] | select(.destination.host | match("stable|canary")) | .weight`)
+	})
+	t.Run("every weight", func(t *testing.T) { check(t, `.spec.http[].route[].weight`) })
+}
+
+// Use case 41: metadata.finalizers is a set (listType=set), neither keyed nor
+// atomic. The application controller adds its post-delete finalizers to a child
+// Application that git declares with the resources finalizer only, or with no
+// finalizers. The controller's finalizers are carried next to git's and git's
+// spec change goes through, with the rule users put in argocd-cm for it, with
+// a prefix match, and with the whole field ignored.
+//
+// Ref: https://github.com/argoproj/argo-cd/issues/17433 (post-delete hook
+// finalizers on child Applications; the `select(. == ...)` rule and the
+// `/metadata/finalizers` mitigation come from the thread),
+// https://github.com/argoproj/argo-cd/issues/27533,
+// https://github.com/argoproj/argo-cd/issues/17117.
+func TestRespectIgnoreSemantics_ControllerFinalizersKept_SetList_ChildApplication(t *testing.T) {
+	const (
+		resourcesFinalizer = "resources-finalizer.argocd.argoproj.io"
+		postDelete         = "post-delete-finalizer.argocd.argoproj.io"
+		postDeleteCleanup  = "post-delete-finalizer.argocd.argoproj.io/cleanup"
+	)
+	app := func(t *testing.T, finalizers []string, revision string) *unstructured.Unstructured {
+		t.Helper()
+		obj := toUnstructured(t, `
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata: {name: child, namespace: argocd}
+spec:
+  project: default
+  destination: {server: https://kubernetes.default.svc, namespace: default}
+  source: {repoURL: https://example.com/a.git, path: a, targetRevision: `+revision+`}
+`)
+		if finalizers != nil {
+			obj.SetFinalizers(finalizers)
+		}
+		return obj
+	}
+	live := app(t, []string{resourcesFinalizer, postDelete, postDeleteCleanup}, "v1")
+	rule := func(exprs ...string) v1alpha1.ResourceIgnoreDifferences {
+		return v1alpha1.ResourceIgnoreDifferences{Group: "argoproj.io", Kind: "Application", JQPathExpressions: exprs}
+	}
+	rules := map[string]v1alpha1.ResourceIgnoreDifferences{
+		"select by value":        rule(`.metadata.finalizers[]? | select(. == "` + postDelete + `" or . == "` + postDeleteCleanup + `")`),
+		"select by prefix":       rule(`.metadata.finalizers[]? | select(startswith("` + postDelete + `"))`),
+		"whole field by pointer": {Group: "argoproj.io", Kind: "Application", JSONPointers: []string{"/metadata/finalizers"}},
+	}
+	replay := func(t *testing.T, gitV1, applied *unstructured.Unstructured) *unstructured.Unstructured {
+		t.Helper()
+		sim := newSSASim(t, crdTypeConverter(t, applicationSchema), applicationGVK)
+		sim.apply(gitV1, argoManager)
+		sim.update(live, "argocd-application-controller")
+		sim.apply(applied, argoManager)
+		return sim.live()
+	}
+
+	for name, ignore := range rules {
+		t.Run(name, func(t *testing.T) {
+			gitV1 := app(t, []string{resourcesFinalizer}, "v1")
+			gitV2 := app(t, []string{resourcesFinalizer}, "v2")
+			check := func(t *testing.T, parser *managedfields.GvkParser) {
+				t.Helper()
+				applied := applyTarget(t, parser, live, gitV2, ignore)
+				assert.Equal(t, []string{resourcesFinalizer, postDelete, postDeleteCleanup}, applied.GetFinalizers(), "the controller's finalizers are carried next to git's")
+				assert.Equal(t, "v2", at(t, applied, "spec.source.targetRevision"), "git's spec change is applied")
+
+				out := replay(t, gitV1, applied)
+				assert.ElementsMatch(t, []string{resourcesFinalizer, postDelete, postDeleteCleanup}, out.GetFinalizers())
+				assert.Equal(t, "v2", at(t, out, "spec.source.targetRevision"))
+			}
+			t.Run("with CRD schema", func(t *testing.T) { check(t, gvkParserFromSchema(t, applicationSchema)) })
+			t.Run("without schema", func(t *testing.T) { check(t, builtinGVKParser(t)) })
+		})
+	}
+
+	// Git declares no finalizers. With the schema the set is created for the
+	// carried items. Without it the list is atomic and is not created from a
+	// partial set; the sync never owned the field, so server-side apply leaves
+	// the controller's finalizers alone either way.
+	t.Run("git declares no finalizers", func(t *testing.T) {
+		gitV1 := app(t, nil, "v1")
+		gitV2 := app(t, nil, "v2")
+		ignore := rules["select by value"]
+		t.Run("with CRD schema", func(t *testing.T) {
+			applied := applyTarget(t, gvkParserFromSchema(t, applicationSchema), live, gitV2, ignore)
+			assert.Equal(t, []string{postDelete, postDeleteCleanup}, applied.GetFinalizers())
+			out := replay(t, gitV1, applied)
+			assert.ElementsMatch(t, []string{resourcesFinalizer, postDelete, postDeleteCleanup}, out.GetFinalizers())
+			assert.Equal(t, "v2", at(t, out, "spec.source.targetRevision"))
+		})
+		t.Run("without schema", func(t *testing.T) {
+			applied := applyTarget(t, nil, live, gitV2, ignore)
+			absent(t, applied, "metadata.finalizers")
+			out := replay(t, gitV1, applied)
+			assert.ElementsMatch(t, []string{resourcesFinalizer, postDelete, postDeleteCleanup}, out.GetFinalizers())
+			assert.Equal(t, "v2", at(t, out, "spec.source.targetRevision"))
+		})
+	})
+}
+
+// Use case 42: items a cloud provider injects into a keyless list inside a
+// keyed list item. AKS adds matchExpressions to every webhook's
+// namespaceSelector so that its own namespaces are exempt. Git declares the
+// webhook with its own selector, or with none. The injected items are carried
+// next to git's; a selector git does not declare is carried whole when the rule
+// names it and left to its manager when the rule names a field inside it (a
+// LabelSelector is an atomic map). Git's change to the webhook goes through.
+//
+// Ref: https://github.com/argoproj/argo-cd/issues/20477 (the
+// `.webhooks[]?.namespaceSelector.matchExpressions[] | select(.key == "control-plane")` rules),
+// https://github.com/argoproj/argo-cd/issues/12961 (KEDA on AKS,
+// `.webhooks[]?.namespaceSelector`).
+func TestRespectIgnoreSemantics_InjectedMatchExpressionsKept_KeylessListInKeyedItem(t *testing.T) {
+	webhook := func(t *testing.T, failurePolicy string, selector string) *unstructured.Unstructured {
+		t.Helper()
+		return toUnstructured(t, `
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata: {name: keda-admission}
+webhooks:
+- name: validate.keda.sh
+  admissionReviewVersions: ["v1"]
+  sideEffects: None
+  failurePolicy: `+failurePolicy+`
+  clientConfig:
+    service: {name: keda-admission-webhooks, namespace: keda, path: /validate-keda-sh-v1alpha1-scaledobject}
+  rules:
+  - {apiGroups: [keda.sh], apiVersions: [v1alpha1], operations: [CREATE, UPDATE], resources: [scaledobjects]}
+`+selector)
+	}
+	const (
+		gitSelector = `  namespaceSelector:
+    matchExpressions:
+    - {key: environment, operator: In, values: [prod]}
+`
+		liveSelector = `  namespaceSelector:
+    matchExpressions:
+    - {key: environment, operator: In, values: [prod]}
+    - {key: control-plane, operator: DoesNotExist}
+    - {key: kubernetes.azure.com/managedby, operator: NotIn, values: [aks]}
+`
+		injectedOnlySelector = `  namespaceSelector:
+    matchExpressions:
+    - {key: control-plane, operator: DoesNotExist}
+    - {key: kubernetes.azure.com/managedby, operator: NotIn, values: [aks]}
+`
+	)
+	rule := func(exprs ...string) v1alpha1.ResourceIgnoreDifferences {
+		return v1alpha1.ResourceIgnoreDifferences{Group: validatingWebhookGVK.Group, Kind: validatingWebhookGVK.Kind, JQPathExpressions: exprs}
+	}
+	itemRules := rule(
+		`.webhooks[]?.namespaceSelector.matchExpressions[] | select(.key == "control-plane")`,
+		`.webhooks[]?.namespaceSelector.matchExpressions[] | select(.key == "kubernetes.azure.com/managedby")`,
+	)
+	replay := func(t *testing.T, gitV1, live, applied *unstructured.Unstructured) *unstructured.Unstructured {
+		t.Helper()
+		sim := newSSASim(t, builtinTypeConverter(t, validatingWebhookGVK), validatingWebhookGVK)
+		sim.apply(gitV1, argoManager)
+		sim.update(live, "aks")
+		sim.apply(applied, argoManager)
+		return sim.live()
+	}
+	keys := func(t *testing.T, obj *unstructured.Unstructured) []string {
+		t.Helper()
+		return names(at(t, obj, "webhooks[name=validate.keda.sh].namespaceSelector.matchExpressions").([]any))
+	}
+
+	t.Run("git declares its own selector", func(t *testing.T) {
+		gitV1, live, gitV2 := webhook(t, "Ignore", gitSelector), webhook(t, "Ignore", liveSelector), webhook(t, "Fail", gitSelector)
+		applied := applyTarget(t, nil, live, gitV2, itemRules)
+		assert.Equal(t, []string{"environment", "control-plane", "kubernetes.azure.com/managedby"}, keys(t, applied), "the injected items are carried next to git's")
+		assert.Equal(t, "Fail", at(t, applied, "webhooks[name=validate.keda.sh].failurePolicy"), "git's change to the webhook is applied")
+
+		out := replay(t, gitV1, live, applied)
+		assert.Equal(t, []string{"environment", "control-plane", "kubernetes.azure.com/managedby"}, keys(t, out))
+		assert.Equal(t, "Fail", at(t, out, "webhooks[name=validate.keda.sh].failurePolicy"))
+	})
+	t.Run("git declares no selector, whole selector ignored", func(t *testing.T) {
+		gitV1, live, gitV2 := webhook(t, "Ignore", ""), webhook(t, "Ignore", injectedOnlySelector), webhook(t, "Fail", "")
+		applied := applyTarget(t, nil, live, gitV2, rule(`.webhooks[]?.namespaceSelector`))
+		assert.Equal(t, []string{"control-plane", "kubernetes.azure.com/managedby"}, keys(t, applied), "the live selector is carried whole")
+		assert.Equal(t, "Fail", at(t, applied, "webhooks[name=validate.keda.sh].failurePolicy"))
+
+		out := replay(t, gitV1, live, applied)
+		assert.Equal(t, []string{"control-plane", "kubernetes.azure.com/managedby"}, keys(t, out))
+		assert.Equal(t, "Fail", at(t, out, "webhooks[name=validate.keda.sh].failurePolicy"))
+	})
+	t.Run("git declares no selector, items ignored", func(t *testing.T) {
+		gitV1, live, gitV2 := webhook(t, "Ignore", ""), webhook(t, "Ignore", injectedOnlySelector), webhook(t, "Fail", "")
+		applied := applyTarget(t, nil, live, gitV2, itemRules)
+		absent(t, applied, "webhooks[name=validate.keda.sh].namespaceSelector")
+		assert.Equal(t, "Fail", at(t, applied, "webhooks[name=validate.keda.sh].failurePolicy"))
+
+		// The selector stays with the manager that wrote it.
+		out := replay(t, gitV1, live, applied)
+		assert.Equal(t, []string{"control-plane", "kubernetes.azure.com/managedby"}, keys(t, out))
+		assert.Equal(t, "Fail", at(t, out, "webhooks[name=validate.keda.sh].failurePolicy"))
+	})
+}
+
+// Use case 43: git replaces a one-of struct beside an ignored field. The image
+// is ignored because an image updater writes it; git changes the liveness
+// probe from exec to httpGet. The apply target carries the image and nothing
+// else from the live container: a probe with live's exec still beside git's
+// httpGet is rejected by the API server ("may not specify more than 1 handler
+// type").
+//
+// Ref: https://github.com/argoproj/argo-cd/issues/17392 (probe handler swap;
+// "the only way to fix this is to use Replace and disable RespectIgnoreDifferences"),
+// https://github.com/argoproj/argo-cd/issues/17694 (comment of 2025-05-23: image
+// pointer rule, a probe update "corrupted the Deployment manifest").
+func TestRespectIgnoreSemantics_ProbeHandlerSwapApplied_ImageIgnored(t *testing.T) {
+	deployment := func(t *testing.T, image, probe string) *unstructured.Unstructured {
+		t.Helper()
+		return toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      containers:
+      - name: web
+        image: `+image+`
+        livenessProbe:
+          `+probe+`
+          periodSeconds: 10
+`)
+	}
+	const (
+		execProbe    = `exec: {command: [cat, /tmp/healthy]}`
+		httpGetProbe = `httpGet: {path: /healthz, port: 8080}`
+	)
+	gitV1 := deployment(t, "nginx:1.26", execProbe)
+	live := deployment(t, "nginx:1.27", execProbe) // the image updater moved the tag
+	gitV2 := deployment(t, "nginx:1.26", httpGetProbe)
+	wantProbe := map[string]any{"httpGet": map[string]any{"path": "/healthz", "port": int64(8080)}, "periodSeconds": int64(10)}
+
+	check := func(t *testing.T, ignore v1alpha1.ResourceIgnoreDifferences) {
+		t.Helper()
+		applied := applyTarget(t, nil, live, gitV2, ignore)
+		assert.Equal(t, "nginx:1.27", at(t, applied, "spec.template.spec.containers[0].image"), "the updater's image is applied")
+		assert.Equal(t, wantProbe, at(t, applied, "spec.template.spec.containers[0].livenessProbe"), "git's probe is applied as written, without live's exec handler")
+
+		t.Run("ssa", func(t *testing.T) {
+			sim := newSSASim(t, builtinTypeConverter(t, deploymentGVK), deploymentGVK)
+			sim.apply(gitV1, argoManager)
+			sim.update(live, "argocd-image-updater")
+			sim.apply(applied, argoManager)
+			out := sim.live()
+			assert.Equal(t, "nginx:1.27", at(t, out, "spec.template.spec.containers[0].image"))
+			assert.Equal(t, wantProbe, at(t, out, "spec.template.spec.containers[0].livenessProbe"))
+		})
+		t.Run("csa", func(t *testing.T) {
+			out := csaApply(t, gitV1, live, applied)
+			assert.Equal(t, "nginx:1.27", at(t, out, "spec.template.spec.containers[0].image"))
+			assert.Equal(t, wantProbe, at(t, out, "spec.template.spec.containers[0].livenessProbe"))
+		})
+	}
+	t.Run("positional pointer", func(t *testing.T) {
+		check(t, v1alpha1.ResourceIgnoreDifferences{Group: "apps", Kind: "Deployment", JSONPointers: []string{"/spec/template/spec/containers/0/image"}})
+	})
+	t.Run("jq", func(t *testing.T) { check(t, deploymentIgnore(`.spec.template.spec.containers[].image`)) })
+}
+
+// Use case 44: the documented recipe in full. The best practice is to leave
+// replicas out of git when an HPA owns them, with the documented
+// `/spec/replicas` rule. The HPA's count is carried into the apply target
+// although git declares nothing there, and git's image change goes through,
+// under both apply modes. Case 24 covers the same rule when git declares a
+// value.
+//
+// Ref: https://github.com/argoproj/argo-cd/issues/1603 (comments of 2024-11-22
+// and 2024-12-05: replicas removed from git per the best-practices page, a later
+// image change scaled the Deployment down),
+// https://github.com/argoproj/argo-cd/discussions/25518,
+// docs/user-guide/best_practices.md ("Leaving room for imperativeness"),
+// docs/user-guide/diffing.md.
+func TestRespectIgnoreSemantics_HPAReplicasKept_GitOmitsReplicas(t *testing.T) {
+	deployment := func(t *testing.T, image string) *unstructured.Unstructured {
+		t.Helper()
+		return toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      containers:
+      - {name: web, image: `+image+`}
+`)
+	}
+	gitV1 := deployment(t, "nginx:1.26")
+	live := deployment(t, "nginx:1.26")
+	require.NoError(t, unstructured.SetNestedField(live.Object, int64(5), "spec", "replicas"))
+	gitV2 := deployment(t, "nginx:1.27")
+	ignore := v1alpha1.ResourceIgnoreDifferences{Group: "apps", Kind: "Deployment", JSONPointers: []string{"/spec/replicas"}}
+
+	applied := applyTarget(t, nil, live, gitV2, ignore)
+	assert.Equal(t, int64(5), at(t, applied, "spec.replicas"), "the HPA's count is applied although git declares none")
+	assert.Equal(t, "nginx:1.27", at(t, applied, "spec.template.spec.containers[0].image"))
+
+	t.Run("ssa", func(t *testing.T) {
+		sim := newSSASim(t, builtinTypeConverter(t, deploymentGVK), deploymentGVK)
+		sim.apply(gitV1, argoManager)
+		sim.update(live, "kube-controller-manager")
+		sim.apply(applied, argoManager)
+		out := sim.live()
+		assert.Equal(t, int64(5), at(t, out, "spec.replicas"))
+		assert.Equal(t, "nginx:1.27", at(t, out, "spec.template.spec.containers[0].image"))
+	})
+	t.Run("csa", func(t *testing.T) {
+		out := csaApply(t, gitV1, live, applied)
+		assert.Equal(t, int64(5), at(t, out, "spec.replicas"))
+		assert.Equal(t, "nginx:1.27", at(t, out, "spec.template.spec.containers[0].image"))
+	})
 }

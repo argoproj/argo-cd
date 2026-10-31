@@ -263,6 +263,23 @@ spec:
 		assert.False(t, found)
 	})
 
+	t.Run("duplicate merge keys match the first item and do not error", func(t *testing.T) {
+		// A Deployment created with client-side apply can hold two env entries
+		// with one name. The typed conversion used to fail on it
+		// (https://github.com/argoproj/argo-cd/issues/18402); matching by key
+		// takes the first item and never inserts a third.
+		live := deployment(t, "      containers: [{name: web, image: nginx, env: [{name: DUP, value: live-1}, {name: DUP, value: live-2}]}]\n")
+		target := deployment(t, "      containers: [{name: web, image: nginx, env: [{name: DUP}, {name: DUP, value: git-2}]}]\n")
+
+		got, err := buildApplyTarget(live, target, [][]any{{"spec", "template", "spec", "containers", 0, "env", 1, "value"}}, nil, sch)
+		require.NoError(t, err)
+
+		assert.Equal(t, []any{
+			map[string]any{"name": "DUP", "value": "live-2"},
+			map[string]any{"name": "DUP", "value": "git-2"},
+		}, containersOf(t, got)[0].(map[string]any)["env"])
+	})
+
 	t.Run("a whole-object path carries nothing", func(t *testing.T) {
 		// jsonPointers: [""] or jqPathExpressions: ["."] resolve to the empty
 		// path on both sides. Removing it would empty the manifest; carrying it
@@ -304,5 +321,26 @@ func TestFieldSchema(t *testing.T) {
 		assert.True(t, sch.child("spec").child("items").atomicList())
 		assert.Nil(t, sch.child("spec").child("items").listKeys())
 		assert.False(t, sch.child("spec").atomicMap())
+	})
+	t.Run("a field the schema does not declare behaves like the deduced type", func(t *testing.T) {
+		// A cluster newer than the static schema has fields the schema lacks
+		// (https://github.com/argoproj/argo-cd/issues/18778): no error, lists
+		// atomic, maps granular, as the API server deduces them.
+		future := deploymentSchema(t).child("spec").child("futureField")
+		assert.True(t, future.child("items").atomicList())
+		assert.Nil(t, future.child("items").listKeys())
+		assert.False(t, future.atomicMap())
+		assert.False(t, future.child("nested").atomicMap())
+	})
+	t.Run("a preserve-unknown-fields subtree behaves like the deduced type", func(t *testing.T) {
+		// helm.valuesObject on the Application CRD
+		// (https://github.com/argoproj/argo-cd/issues/25199).
+		pt := gvkParserFromSchema(t, applicationSchema).Type(applicationGVK)
+		require.NotNil(t, pt)
+		values := newFieldSchema(pt).child("spec").child("source").child("helm").child("valuesObject")
+		assert.False(t, values.atomicMap())
+		assert.False(t, values.child("workflow").atomicMap())
+		assert.True(t, values.child("workflow").child("items").atomicList())
+		assert.Nil(t, values.child("workflow").child("items").listKeys())
 	})
 }
