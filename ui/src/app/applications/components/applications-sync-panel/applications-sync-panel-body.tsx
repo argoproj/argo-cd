@@ -56,7 +56,6 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                                     content: `Unable to sync ${app.metadata.name}: the application has no source configured`,
                                     type: NotificationType.Error
                                 });
-                                setPending(false);
                                 continue;
                             }
                             await services.applications
@@ -76,9 +75,6 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                                         content: <ErrorNotification title={`Unable to sync ${app.metadata.name}`} e={e} />,
                                         type: NotificationType.Error
                                     });
-                                })
-                                .finally(() => {
-                                    setPending(false);
                                 });
                             i++;
                             setProgress({
@@ -86,6 +82,7 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                                 title: `${i} of ${selectedApps.length} apps now syncing`
                             });
                         }
+                        setPending(false);
                         setProgress({percentage: 100, title: 'Complete'});
                     }}
                     getApi={getApi}>
