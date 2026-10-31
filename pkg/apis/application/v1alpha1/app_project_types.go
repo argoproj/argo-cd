@@ -389,10 +389,24 @@ func (proj *AppProject) ProjectPoliciesString() string {
 		policies = append(policies, projectPolicy)
 		policies = append(policies, role.Policies...)
 		for _, groupName := range role.Groups {
-			policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", groupName, proj.Name, role.Name))
+			policies = append(policies, fmt.Sprintf("g, %s, proj:%s:%s", policyGroupName(groupName), proj.Name, role.Name))
 		}
 	}
 	return strings.Join(policies, "\n")
+}
+
+// policyGroupName returns the group name as a field of a CSV policy line. A group name
+// containing a comma or a double quote is quoted, unless it already is a single quoted
+// field, as it would otherwise break the policy line and keep the whole project policy
+// from loading.
+func policyGroupName(name string) string {
+	if len(name) > 1 && strings.HasPrefix(name, `"`) && strings.HasSuffix(name, `"`) && !strings.Contains(name[1:len(name)-1], `"`) {
+		return name
+	}
+	if strings.ContainsAny(name, `,"`) {
+		return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+	}
+	return name
 }
 
 // IsGroupKindNamePermitted validates if the given resource group/kind is permitted to be deployed in the project
