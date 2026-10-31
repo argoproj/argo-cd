@@ -457,6 +457,9 @@ Argo CD uses the cluster's schema, the same one server-side apply uses, to decid
 
 Custom resources whose CRD publishes no list or map markers are handled as if every list were atomic.
 
+[Common Cases and Pitfalls](ignore-differences-recipes.md) shows these rules applied to the situations users
+hit most often.
+
 Each rule is resolved against the manifest and the live resource as they are. When one rule removes a list item and another rule names a later index of the same list (for example `/spec/template/spec/initContainers/0` and `/spec/template/spec/initContainers/1`), the sync treats both indexes as positions in the original list. Prefer selecting list items by content (`select(.name == "...")`) over indexes.
 
 Three mistakes the schema can show are refused before anything is applied, with the rule and the resource named in the operation's message: a `jsonPointers` or `jqPathExpressions` rule that indexes a list with merge keys (`/spec/template/spec/containers/0/image`) when that index is one container in the manifest and another in the cluster; a rule that ignores a merge key itself (`.spec.template.spec.containers[].env[].name`); and a `managedFieldsManagers` rule that trusts the manager the sync applies with (`argocd-controller`), which would ignore everything git has ever applied.
