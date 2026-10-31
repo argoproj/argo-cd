@@ -434,6 +434,32 @@ func TestRespectIgnoreSemantics_TolerationChangeApplied_SiblingTolerationIgnored
 }
 
 // ---------------------------------------------------------------------------
+// The CRD path for the atomic-list case, to show the OpenAPI patch meta does
+// not change the outcome.
+// Ref: https://github.com/argoproj/argo-cd/issues/29944.
+func TestRespectIgnoreSemantics_InjectedTolerationSurvivesSync_RolloutCRD(t *testing.T) {
+	const schemaPath = rolloutSchemaWithPatchMeta
+	live := toUnstructured(t, tolerationsLive)
+	target := toUnstructured(t, tolerationsTarget)
+	for _, o := range []*unstructured.Unstructured{live, target} {
+		o.SetAPIVersion("argoproj.io/v1alpha1")
+		o.SetKind("Rollout")
+	}
+	ignore := rolloutIgnore(`.spec.template.spec.tolerations[] | select(.key == "node.example.com/spot")`)
+
+	applied := applyTarget(t, gvkParserFromSchema(t, schemaPath), live, target, ignore)
+	assert.ElementsMatch(t, []string{"dedicated", "node.example.com/spot"}, names(podList(t, applied, "tolerations")),
+		"ignored toleration was dropped from the apply target")
+
+	t.Run("ssa", func(t *testing.T) {
+		sim := newSSASim(t, crdTypeConverter(t, schemaPath), rolloutGVK)
+		sim.apply(target, argoManager)
+		sim.update(live, otherManager)
+		sim.apply(applied, argoManager)
+		assert.ElementsMatch(t, []string{"dedicated", "node.example.com/spot"}, names(podList(t, sim.live(), "tolerations")))
+	})
+}
+
 // Use case 4: atomic map (nodeSelector) absent from the manifest, one key ignored.
 // Granular maps can be applied partially; atomic maps cannot, so the apply
 // target must not create a partial nodeSelector. Exercised for a built-in and
@@ -550,32 +576,6 @@ func TestRespectIgnoreSemantics_InjectedNodeSelectorKeyIgnored_GitHasNoNodeSelec
 		got, _, err := unstructured.NestedStringMap(sim.live().Object, "spec", "template", "spec", "nodeSelector")
 		require.NoError(t, err)
 		assert.Equal(t, wantLive, got, "SSA replaced the atomic nodeSelector map on the CRD and removed a key Argo CD never managed")
-	})
-}
-
-// The CRD path for the atomic-list case, to show the OpenAPI patch meta does
-// not change the outcome.
-// Ref: https://github.com/argoproj/argo-cd/issues/29944.
-func TestRespectIgnoreSemantics_InjectedTolerationSurvivesSync_RolloutCRD(t *testing.T) {
-	const schemaPath = rolloutSchemaWithPatchMeta
-	live := toUnstructured(t, tolerationsLive)
-	target := toUnstructured(t, tolerationsTarget)
-	for _, o := range []*unstructured.Unstructured{live, target} {
-		o.SetAPIVersion("argoproj.io/v1alpha1")
-		o.SetKind("Rollout")
-	}
-	ignore := rolloutIgnore(`.spec.template.spec.tolerations[] | select(.key == "node.example.com/spot")`)
-
-	applied := applyTarget(t, gvkParserFromSchema(t, schemaPath), live, target, ignore)
-	assert.ElementsMatch(t, []string{"dedicated", "node.example.com/spot"}, names(podList(t, applied, "tolerations")),
-		"ignored toleration was dropped from the apply target")
-
-	t.Run("ssa", func(t *testing.T) {
-		sim := newSSASim(t, crdTypeConverter(t, schemaPath), rolloutGVK)
-		sim.apply(target, argoManager)
-		sim.update(live, otherManager)
-		sim.apply(applied, argoManager)
-		assert.ElementsMatch(t, []string{"dedicated", "node.example.com/spot"}, names(podList(t, sim.live(), "tolerations")))
 	})
 }
 
