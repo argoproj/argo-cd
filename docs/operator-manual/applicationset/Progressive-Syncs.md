@@ -64,7 +64,7 @@ When the ApplicationSet changes, the changes will be applied to each group of Ap
 - RollingSync will capture external changes outside the ApplicationSet resource, since it relies on watching the OutOfSync status of the managed Applications.
 - RollingSync will force all generated Applications to have autosync disabled. Warnings are printed in the applicationset-controller logs for any Application specs with an automated syncPolicy enabled.
 - Sync operations are triggered the same way as if they were triggered by the UI or CLI (by directly setting the `operation` status field on the Application resource). This means that a RollingSync will respect sync windows just as if a user had clicked the "Sync" button in the Argo UI.
-- When a sync is triggered, the sync is performed with the same syncPolicy configured for the Application. For example, this preserves the Application's retry settings.
+- When a sync is triggered, the sync is performed with the same syncPolicy configured for the Application. For example, this preserves the Application's retry settings and applies `syncPolicy.manualDefaults` (`prune`, `applyOnly`, `force`) to the triggered operation. `manualDefaults.dryRun` is ignored so the rollout can still reach Synced/Healthy. For prune, `automated.prune` is used when automated sync is still enabled on the generated Application; otherwise RollingSync falls back to `manualDefaults.prune`.
 - If an Application is not selected in any step, it will be excluded from the rolling sync and needs to be manually synced through the CLI or UI.
 
 ```yaml
