@@ -174,59 +174,75 @@ func (np *jqNormalizerPatch) Paths(doc any) ([][]any, error) {
 		if !ok {
 			continue
 		}
-		out = append(out, expandPaths(doc, elems)...)
+		out = append(out, resolvePaths(doc, elems)...)
 	}
 	return out, nil
 }
 
-// toPath converts a jq path (as returned by path()) into map keys and list
-// indexes. Slice paths and other non-addressable elements are rejected.
-func toPath(elems []any) ([]any, bool) {
-	path := make([]any, 0, len(elems))
-	for _, e := range elems {
-		switch e := e.(type) {
-		case string:
-			path = append(path, e)
-		case int:
-			path = append(path, e)
-		case float64:
-			path = append(path, int(e))
-		default:
-			return nil, false
-		}
-	}
-	return path, true
+// resolvePaths turns one jq path, as `path(<expr>)` reports it, into the
+// document paths `del(<expr>)` would remove: a negative index counts from the
+// end, a slice ({start, end}) selects a range of indexes (expanded when it ends
+// the path; an index that follows it is relative to the slice), and a path
+// that does not exist in the document yields nothing.
+func resolvePaths(doc any, elems []any) [][]any {
+	return resolveFrom(doc, elems, nil)
 }
 
-// expandPaths converts one jq path into document paths. A trailing slice
-// element ({start, end}, from an expression such as `.containers[1:]`) expands
-// to one path per selected index, since del() removes every one of them. Paths
-// that do not exist in the document, or that cannot be represented, yield nothing.
-func expandPaths(doc any, elems []any) [][]any {
-	if n := len(elems); n > 0 {
-		if slice, ok := elems[n-1].(map[string]any); ok {
-			prefix, ok := toPath(elems[:n-1])
-			if !ok {
-				return nil
-			}
-			v, ok := valueAt(doc, prefix)
-			list, isList := v.([]any)
-			if !ok || !isList {
-				return nil
-			}
-			start, end := sliceBounds(slice, len(list))
-			paths := make([][]any, 0, max(end-start, 0))
+func resolveFrom(cur any, elems []any, prefix []any) [][]any {
+	if len(elems) == 0 {
+		return [][]any{prefix}
+	}
+	switch e := elems[0].(type) {
+	case string:
+		m, ok := cur.(map[string]any)
+		if !ok {
+			return nil
+		}
+		v, ok := m[e]
+		if !ok {
+			return nil
+		}
+		return resolveFrom(v, elems[1:], append(slices.Clone(prefix), e))
+	case int, float64:
+		l, ok := cur.([]any)
+		if !ok {
+			return nil
+		}
+		i, _ := toIndex(e)
+		if i < 0 {
+			i += len(l)
+		}
+		if i < 0 || i >= len(l) {
+			return nil
+		}
+		return resolveFrom(l[i], elems[1:], append(slices.Clone(prefix), i))
+	case map[string]any:
+		l, ok := cur.([]any)
+		if !ok {
+			return nil
+		}
+		start, end := sliceBounds(e, len(l))
+		rest := elems[1:]
+		if len(rest) == 0 {
+			var paths [][]any
 			for i := start; i < end; i++ {
 				paths = append(paths, append(slices.Clone(prefix), i))
 			}
 			return paths
 		}
+		i, ok := toIndex(rest[0])
+		if !ok {
+			return nil
+		}
+		if i < 0 {
+			i += end - start
+		}
+		if i < 0 || start+i >= end {
+			return nil
+		}
+		return resolveFrom(l[start+i], rest[1:], append(slices.Clone(prefix), start+i))
 	}
-	path, ok := toPath(elems)
-	if !ok || !pathExists(doc, path) {
-		return nil
-	}
-	return [][]any{path}
+	return nil
 }
 
 // sliceBounds resolves a jq slice's start and end against a list of length n,
@@ -255,38 +271,6 @@ func toIndex(v any) (int, bool) {
 		return int(i), true
 	}
 	return 0, false
-}
-
-func pathExists(doc any, path []any) bool {
-	_, ok := valueAt(doc, path)
-	return ok
-}
-
-// valueAt returns the value at a path of map keys and list indexes in doc.
-func valueAt(doc any, path []any) (any, bool) {
-	cur := doc
-	for _, e := range path {
-		switch c := cur.(type) {
-		case map[string]any:
-			k, ok := e.(string)
-			if !ok {
-				return nil, false
-			}
-			cur, ok = c[k]
-			if !ok {
-				return nil, false
-			}
-		case []any:
-			i, ok := e.(int)
-			if !ok || i < 0 || i >= len(c) {
-				return nil, false
-			}
-			cur = c[i]
-		default:
-			return nil, false
-		}
-	}
-	return cur, true
 }
 
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {

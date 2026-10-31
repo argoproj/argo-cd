@@ -405,7 +405,12 @@ func TestIgnoredPaths(t *testing.T) {
 		t.Parallel()
 		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
 			Group: "apps", Kind: "Deployment",
-			JQPathExpressions: []string{`.spec.template.spec.containers[1:]`, `.spec.template.spec.containers[-1:].image`},
+			JQPathExpressions: []string{
+				`.spec.template.spec.containers[1:]`,
+				`.spec.template.spec.containers[-1:][].image`,
+				`.spec.template.spec.containers[-1].name`,
+				`.spec.template.spec.containers[-4]`,
+			},
 		})
 		deployment := test.NewDeployment()
 		containers, _, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
@@ -419,7 +424,9 @@ func TestIgnoredPaths(t *testing.T) {
 		assert.ElementsMatch(t, [][]any{
 			{"spec", "template", "spec", "containers", 1},
 			{"spec", "template", "spec", "containers", 2},
-		}, paths, "a slice followed by more path is not representable and yields nothing")
+			{"spec", "template", "spec", "containers", 2, "image"},
+			{"spec", "template", "spec", "containers", 2, "name"},
+		}, paths, "negative indexes count from the end; -4 is out of range")
 	})
 
 	t.Run("jq expression that is not a path expression is skipped", func(t *testing.T) {

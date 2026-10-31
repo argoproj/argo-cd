@@ -375,10 +375,7 @@ func sameContainerKind(a, b any) bool {
 }
 
 func insertAt(l []any, pos int, v any) []any {
-	out := make([]any, 0, len(l)+1)
-	out = append(out, l[:pos]...)
-	out = append(out, v)
-	return append(out, l[pos:]...)
+	return slices.Insert(slices.Clone(l), pos, v)
 }
 
 // keyValue returns item's value for key field k, or the schema default when

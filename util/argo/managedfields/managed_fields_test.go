@@ -282,6 +282,20 @@ spec:
 		assert.Equal(t, [][]any{{"spec", "ports", 0, "nodePort"}}, configPaths, "git's port has no protocol field, but it is the same TCP port")
 	})
 
+	t.Run("does not panic when pt is nil", func(t *testing.T) {
+		// ResolveParseableType returns nil for a CRD the cluster schema does
+		// not publish; the deduced type is used instead.
+		t.Parallel()
+		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)
+		liveState := StrToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+
+		livePaths, configPaths, err := managedfields.IgnoredPaths(liveState, desiredState, []string{"kube-controller-manager", "revision-history-manager"}, nil)
+
+		require.NoError(t, err)
+		assert.ElementsMatch(t, [][]any{{"spec", "replicas"}, {"spec", "revisionHistoryLimit"}}, livePaths)
+		assert.ElementsMatch(t, [][]any{{"spec", "replicas"}, {"spec", "revisionHistoryLimit"}}, configPaths)
+	})
+
 	t.Run("ignores fields owned by untrusted managers", func(t *testing.T) {
 		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)

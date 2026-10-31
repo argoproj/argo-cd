@@ -131,6 +131,11 @@ func IgnoredPaths(live, config *unstructured.Unstructured, trustedManagers []str
 	if len(trustedManagers) == 0 || live == nil || config == nil {
 		return nil, nil, nil
 	}
+	if pt == nil {
+		// The cluster schema has no type for this kind (a CRD it does not
+		// publish); deduce one, as Normalize does.
+		pt = &typed.DeducedParseableType
+	}
 	results, err := newTypedResults(live.DeepCopy(), config.DeepCopy(), pt)
 	if err != nil {
 		log.Debugf("error building typed results: %v", err)
