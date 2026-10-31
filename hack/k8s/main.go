@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -19,7 +20,7 @@ func main() {
 	testEnv := envtest.Environment{
 		CRDDirectoryPaths: []string{filepath.Join("manifests", "crds")},
 	}
-	println("Starting K8S...")
+	fmt.Fprintln(os.Stderr, "Starting K8S...")
 	cfg, err := testEnv.Start()
 
 	errors.CheckError(err)
@@ -28,7 +29,7 @@ func main() {
 		kubeConfigPath = os.Args[1]
 	}
 
-	println("Kubeconfig is available at " + kubeConfigPath)
+	fmt.Fprintln(os.Stderr, "Kubeconfig is available at "+kubeConfigPath)
 	errors.CheckError(kube.WriteKubeConfig(cfg, "default", kubeConfigPath))
 	client, err := kubernetes.NewForConfig(cfg)
 	errors.CheckError(err)

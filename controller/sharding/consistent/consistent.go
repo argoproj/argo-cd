@@ -75,7 +75,7 @@ func (c *Consistent) Add(server string) {
 	}
 
 	c.loadMap[server] = &Host{Name: server, Load: 0}
-	for i := 0; i < c.replicationFactor; i++ {
+	for i := range c.replicationFactor {
 		h := c.hash(fmt.Sprintf("%s%d", server, i))
 		c.servers[h] = server
 		c.clients.ReplaceOrInsert(item{h})
@@ -194,7 +194,7 @@ func (c *Consistent) Remove(server string) bool {
 	c.lock.Lock()
 	defer c.lock.Unlock()
 
-	for i := 0; i < c.replicationFactor; i++ {
+	for i := range c.replicationFactor {
 		h := c.hash(fmt.Sprintf("%s%d", server, i))
 		delete(c.servers, h)
 		c.delSlice(h)

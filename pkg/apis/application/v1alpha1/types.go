@@ -3658,9 +3658,7 @@ func (w *SyncWindows) hasDeny() (bool, bool) {
 	var denyFound, manualEnabled bool
 	for _, a := range *w {
 		if a.Kind == "deny" {
-			if !denyFound {
-				manualEnabled = a.ManualSync
-			} else if manualEnabled {
+			if !denyFound || manualEnabled {
 				manualEnabled = a.ManualSync
 			}
 			denyFound = true
@@ -4056,11 +4054,7 @@ func (app *Application) UnSetCascadedDeletion() {
 
 func isPropagationPolicyFinalizer(finalizer string) bool {
 	switch finalizer {
-	case ResourcesFinalizerName:
-		return true
-	case ForegroundPropagationPolicyFinalizer:
-		return true
-	case BackgroundPropagationPolicyFinalizer:
+	case ResourcesFinalizerName, ForegroundPropagationPolicyFinalizer, BackgroundPropagationPolicyFinalizer:
 		return true
 	default:
 		return false
@@ -4096,7 +4090,7 @@ func (app *Application) IsFinalizerPresent(finalizer string) bool {
 func (status *ApplicationStatus) SetConditions(conditions []ApplicationCondition, evaluatedTypes map[ApplicationConditionType]bool) {
 	appConditions := make([]ApplicationCondition, 0)
 	now := metav1.Now()
-	for i := 0; i < len(status.Conditions); i++ {
+	for i := range status.Conditions {
 		condition := status.Conditions[i]
 		if _, ok := evaluatedTypes[condition.Type]; !ok {
 			if condition.LastTransitionTime == nil {
