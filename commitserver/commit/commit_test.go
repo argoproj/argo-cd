@@ -1,6 +1,11 @@
 package commit
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"os"
@@ -571,6 +576,117 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "signed by key")
 	})
+}
+
+// gcpServiceAccountKey returns a service account key JSON with a freshly generated private key.
+func gcpServiceAccountKey(t *testing.T, clientEmail string) string {
+	t.Helper()
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	require.NoError(t, err)
+	der, err := x509.MarshalPKCS8PrivateKey(key)
+	require.NoError(t, err)
+	keyJSON, err := json.Marshal(map[string]string{
+		"type":           "service_account",
+		"project_id":     "my-google-project",
+		"private_key_id": "key-id",
+		"private_key":    string(pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: der})),
+		"client_email":   clientEmail,
+		"client_id":      "1234567890",
+		"auth_uri":       "https://accounts.google.com/o/oauth2/auth",
+		"token_uri":      "https://oauth2.googleapis.com/token",
+	})
+	require.NoError(t, err)
+	return string(keyJSON)
+}
+
+// Test_CommitHydratedManifests_AuthorFromCredentials verifies the author precedence: request values first, then the
+// identity of the repository credentials, then the "Argo CD" defaults.
+func Test_CommitHydratedManifests_AuthorFromCredentials(t *testing.T) {
+	t.Parallel()
+
+	clientEmail := "argocd-service-account@my-google-project.iam.gserviceaccount.com"
+
+	tests := []struct {
+		name          string
+		gcpKey        string
+		httpsAuth     bool
+		authorName    string
+		authorEmail   string
+		expectedName  string
+		expectedEmail string
+	}{
+		{
+			name:          "credentials identity used when request has no author",
+			gcpKey:        gcpServiceAccountKey(t, clientEmail),
+			expectedName:  clientEmail,
+			expectedEmail: clientEmail,
+		},
+		{
+			name:          "request values take precedence over credentials identity",
+			gcpKey:        gcpServiceAccountKey(t, clientEmail),
+			authorName:    "Custom Author",
+			authorEmail:   "custom@example.com",
+			expectedName:  "Custom Author",
+			expectedEmail: "custom@example.com",
+		},
+		{
+			name:          "credentials identity fills in only the missing email",
+			gcpKey:        gcpServiceAccountKey(t, clientEmail),
+			authorName:    "Custom Author",
+			expectedName:  "Custom Author",
+			expectedEmail: clientEmail,
+		},
+		{
+			name:          "defaults used when credentials have a username but no email",
+			httpsAuth:     true,
+			expectedName:  "Argo CD",
+			expectedEmail: "argo-cd@example.com",
+		},
+		{
+			name:          "defaults used when credentials identity cannot be read",
+			gcpKey:        "not-json",
+			expectedName:  "Argo CD",
+			expectedEmail: "argo-cd@example.com",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			service, mockRepoClientFactory := newServiceWithMocks(t)
+
+			mockGitClient := gitmocks.NewClient(t)
+			mockGitClient.EXPECT().Init().Return(nil).Once()
+			mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+			mockGitClient.EXPECT().SetAuthor(mock.Anything, tt.expectedName, tt.expectedEmail).Return("", nil).Once()
+			mockGitClient.EXPECT().CheckoutOrOrphan(mock.Anything, "env/test", false).Return("", nil).Once()
+			mockGitClient.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
+			mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+			mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+			mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("sha", nil).Once()
+			mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+
+			repo := &v1alpha1.Repository{
+				Repo:                 "https://source.developers.google.com/p/my-google-project/r/repo",
+				GCPServiceAccountKey: tt.gcpKey,
+			}
+			if tt.httpsAuth {
+				repo = &v1alpha1.Repository{Repo: "https://github.com/argoproj/argocd-example-apps.git", Username: "someone", Password: "secret"}
+			}
+
+			resp, err := service.CommitHydratedManifests(t.Context(), &apiclient.CommitHydratedManifestsRequest{
+				Repo:          repo,
+				TargetBranch:  "main",
+				SyncBranch:    "env/test",
+				CommitMessage: "test commit message",
+				AuthorName:    tt.authorName,
+				AuthorEmail:   tt.authorEmail,
+			})
+			require.NoError(t, err)
+			assert.Equal(t, "sha", resp.HydratedSha)
+		})
+	}
 }
 
 func newServiceWithMocks(t *testing.T) (*Service, *mocks.RepoClientFactory) {
