@@ -54,7 +54,7 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                                 .sync(
                                     app.metadata.name,
                                     app.metadata.namespace,
-                                    getAppDefaultSource(app).targetRevision,
+                                    getAppDefaultSource(app)?.targetRevision,
                                     syncFlags.Prune || false,
                                     syncFlags.DryRun || false,
                                     syncStrategy,

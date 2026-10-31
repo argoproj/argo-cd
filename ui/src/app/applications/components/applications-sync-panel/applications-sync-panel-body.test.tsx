@@ -1,0 +1,55 @@
+import * as React from 'react';
+import {act, render} from '@testing-library/react';
+import {FormApi} from 'argo-ui';
+import * as models from '../../../shared/models';
+import {Context} from '../../../shared/context';
+import {services} from '../../../shared/services';
+import {ApplicationsSyncPanelBody} from './applications-sync-panel-body';
+
+// The retry options pull in lodash-es, which Jest cannot parse.
+jest.mock('../application-retry-options/application-retry-options', () => ({ApplicationRetryOptions: () => null}));
+// The app selector is irrelevant here; apps are selected through the form values.
+jest.mock('../../../shared/components', () => ({
+    ...jest.requireActual('../../../shared/components'),
+    ApplicationSelector: () => null
+}));
+jest.mock('../../../shared/services', () => ({
+    services: {
+        applications: {sync: jest.fn(() => Promise.resolve(true))},
+        authService: {settings: () => Promise.resolve({})}
+    }
+}));
+
+const app = (name: string, source?: models.ApplicationSource) =>
+    ({
+        metadata: {name, namespace: 'argocd'},
+        spec: {project: 'default', source, destination: {name: 'in-cluster', namespace: 'default'}}
+    }) as unknown as models.Application;
+
+const ctxValue = {notifications: {show: () => undefined}, popup: {confirm: () => Promise.resolve(true)}} as any;
+
+describe('ApplicationsSyncPanelBody', () => {
+    it('keeps syncing the remaining apps after an application that has neither source nor sources', async () => {
+        const apps = [app('no-source'), app('with-source', {repoURL: 'https://github.com/org/repo.git', path: '.', targetRevision: 'main'})];
+        let formApi: FormApi;
+        render(
+            <Context.Provider value={ctxValue}>
+                <ApplicationsSyncPanelBody apps={apps} getApi={api => (formApi = api)} setPending={() => undefined} />
+            </Context.Provider>
+        );
+
+        await act(async () => {
+            formApi.setValue('app/0', true);
+            formApi.setValue('app/1', true);
+        });
+        await act(async () => {
+            formApi.submitForm(null);
+        });
+
+        const sync = services.applications.sync as jest.Mock;
+        expect(sync.mock.calls.map(call => [call[0], call[2]])).toEqual([
+            ['no-source', undefined],
+            ['with-source', 'main']
+        ]);
+    });
+});

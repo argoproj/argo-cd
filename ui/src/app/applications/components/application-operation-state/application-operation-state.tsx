@@ -120,7 +120,7 @@ export const ApplicationOperationState: React.FC<Props> = ({application, operati
             title: 'REVISION',
             value: (
                 <div>
-                    <Revision repoUrl={utils.getAppDefaultSource(application).repoURL} revision={utils.getAppDefaultOperationSyncRevision(application)} />
+                    <Revision repoUrl={utils.getAppDefaultSource(application)?.repoURL} revision={utils.getAppDefaultOperationSyncRevision(application)} />
                     {utils.getAppDefaultOperationSyncRevisionExtra(application)}
                 </div>
             )

@@ -43,7 +43,7 @@ export const ApplicationSyncPanelBody = ({
             {ctx => (
                 <Form
                     defaultValues={{
-                        revision: new URLSearchParams(ctx.history.location.search).get('revision') || source.targetRevision || 'HEAD',
+                        revision: new URLSearchParams(ctx.history.location.search).get('revision') || source?.targetRevision || 'HEAD',
                         resources: appResources.map((_, i) => i === syncResIndex || syncResIndex === -1),
                         syncOptions: application.spec.syncPolicy ? application.spec.syncPolicy.syncOptions : [],
                         message: ''
@@ -238,7 +238,7 @@ export const ApplicationSyncPanelBody = ({
                     {formApi => (
                         <form role='form' className='width-control' onSubmit={formApi.submitForm}>
                             <h6>
-                                Synchronizing application manifests from <a href={source.repoURL}>{source.repoURL}</a>
+                                Synchronizing application manifests from <a href={source?.repoURL}>{source?.repoURL}</a>
                             </h6>
                             <div className='argo-form-row'>
                                 <FormField formApi={formApi} label='Revision' field='revision' component={Text} />
@@ -308,7 +308,7 @@ export const ApplicationSyncPanelBody = ({
                                     {!formApi.values.resources.every((item: boolean) => item) && <div>WARNING: partial synchronization is not recorded in history</div>}
                                 </div>
                                 <div>
-                                    {application.status.resources
+                                    {(application.status.resources || [])
                                         .filter(item => !item.hook)
                                         .map((item, i) => {
                                             const resKey = nodeKey(item);
