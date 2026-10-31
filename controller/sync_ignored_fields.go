@@ -13,6 +13,9 @@ import (
 	smdschema "sigs.k8s.io/structured-merge-diff/v6/schema"
 	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
+	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
 )
 
@@ -223,6 +226,45 @@ func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, target
 		}
 	}
 	return result, nil
+}
+
+// restoreTrackingIdentity puts the application's own tracking annotation and
+// label back on the apply target. The controller sets them on the manifest
+// before the comparison, so a rule over metadata, labels or annotations
+// removes them from git and carries the live values instead; a resource last
+// synced by another application would then be handed to that application
+// instead of taken over (#24150). Only the keys the tracking method uses are
+// restored, and only when the manifest carries them.
+func restoreTrackingIdentity(applied, target *unstructured.Unstructured, appLabelKey, trackingMethod string) {
+	method := v1alpha1.TrackingMethod(trackingMethod)
+	if argo.IsOldTrackingMethod(trackingMethod) {
+		method = v1alpha1.TrackingMethodLabel
+	}
+	if method != v1alpha1.TrackingMethodLabel {
+		annotations := applied.GetAnnotations()
+		for key, val := range target.GetAnnotations() {
+			if key != common.AnnotationKeyAppInstance && key != common.AnnotationInstallationID {
+				continue
+			}
+			if annotations == nil {
+				annotations = map[string]string{}
+			}
+			annotations[key] = val
+		}
+		if len(annotations) > 0 {
+			applied.SetAnnotations(annotations)
+		}
+	}
+	if method != v1alpha1.TrackingMethodAnnotation && appLabelKey != "" {
+		if val, ok := target.GetLabels()[appLabelKey]; ok {
+			labels := applied.GetLabels()
+			if labels == nil {
+				labels = map[string]string{}
+			}
+			labels[appLabelKey] = val
+			applied.SetLabels(labels)
+		}
+	}
 }
 
 // serverMetadataFields are the metadata fields the API server owns.

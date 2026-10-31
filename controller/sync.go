@@ -491,7 +491,8 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 //  6. An atomic map or list git does not declare is never created from a
 //     partial set of ignored keys; a whole ignored value is carried as is.
 //  7. status and the metadata fields the API server populates are never
-//     carried.
+//     carried, and the application's tracking annotation and label are
+//     always asserted from the manifest.
 //  8. A Secret's stringData is folded into data before the rules run.
 //
 // The schema is the structured-merge-diff schema of the cluster, the one
@@ -548,6 +549,7 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		if err != nil {
 			return nil, err
 		}
+		restoreTrackingIdentity(patched, target, cr.diffConfig.AppLabelKey(), cr.diffConfig.TrackingMethod())
 		patchedTargets = append(patchedTargets, patched)
 	}
 	return patchedTargets, nil

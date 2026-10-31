@@ -2162,6 +2162,8 @@ type applyOpts struct {
 	// tracking enables resource-tracking normalization (annotation method),
 	// as the controller has it configured in production.
 	tracking bool
+	// trackingMethod configures the tracking method; it implies tracking.
+	trackingMethod v1alpha1.TrackingMethod
 }
 
 // applyTarget runs normalizeTargetResources for one live/target pair. parser
@@ -2181,8 +2183,12 @@ func applyTargetWith(t *testing.T, parser *managedfields.GvkParser, live, target
 		WithDiffSettings(opts.ignores, opts.overrides, true, normalizers.IgnoreNormalizerOpts{}).
 		WithGVKParser(parser).
 		WithNoCache()
-	if opts.tracking {
-		b = b.WithTracking(common.LabelKeyAppInstance, string(v1alpha1.TrackingMethodAnnotation))
+	if opts.tracking || opts.trackingMethod != "" {
+		method := opts.trackingMethod
+		if method == "" {
+			method = v1alpha1.TrackingMethodAnnotation
+		}
+		b = b.WithTracking(common.LabelKeyAppInstance, string(method))
 	}
 	dc, err := b.Build()
 	require.NoError(t, err)
@@ -2893,4 +2899,66 @@ func TestRespectIgnoreSemantics_InjectedMetricsPortSurvivesSync_GitDeclaresOwnPo
 		sim.apply(applied, argoManager)
 		assert.Equal(t, []string{"http", "metrics"}, names(at(t, sim.live(), "spec.template.spec.containers[0].ports").([]any)))
 	})
+}
+
+// Use case 39: all annotations ignored on a resource another application
+// still tracks. Charts and operators that rewrite annotations lead users to
+// ignore the whole map; the live map then carries the other application's
+// tracking annotation, and applying it would hand the resource over instead
+// of taking it. The application's own tracking identity is always asserted
+// from the manifest, whichever tracking method is configured.
+//
+// Ref: https://github.com/argoproj/argo-cd/issues/24150 (tracking annotation
+// not overwritten when a resource is shared; the reporter had to disable
+// RespectIgnoreDifferences), https://github.com/argoproj/argo-cd/issues/14015
+// (whole-annotations rule).
+func TestRespectIgnoreSemantics_AllAnnotationsIgnored_OwnTrackingIdentityKept(t *testing.T) {
+	target := toUnstructured(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm
+  namespace: default
+  labels: {app.kubernetes.io/instance: my-app}
+  annotations:
+    argocd.argoproj.io/tracking-id: "my-app:/ConfigMap:default/cm"
+    team: git
+data: {k: git}
+`)
+	live := toUnstructured(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cm
+  namespace: default
+  labels: {app.kubernetes.io/instance: other-app, injected: "true"}
+  annotations:
+    argocd.argoproj.io/tracking-id: "other-app:/ConfigMap:default/cm"
+    team: live
+    operator.example.com/revision: "7"
+data: {k: live}
+`)
+	ignores := []v1alpha1.ResourceIgnoreDifferences{{Kind: "ConfigMap", JSONPointers: []string{"/metadata/annotations", "/metadata/labels"}}}
+
+	for _, method := range []v1alpha1.TrackingMethod{v1alpha1.TrackingMethodAnnotation, v1alpha1.TrackingMethodLabel, v1alpha1.TrackingMethodAnnotationAndLabel} {
+		t.Run(string(method), func(t *testing.T) {
+			applied := applyTargetWith(t, nil, live, target, applyOpts{ignores: ignores, trackingMethod: method})
+
+			ann, labels := applied.GetAnnotations(), applied.GetLabels()
+			assert.Equal(t, "live", ann["team"], "the ignored annotations are carried")
+			assert.Equal(t, "7", ann["operator.example.com/revision"])
+			assert.Equal(t, "true", labels["injected"], "the ignored labels are carried")
+			assert.Equal(t, "git", at(t, applied, "data.k"))
+			if method != v1alpha1.TrackingMethodLabel {
+				assert.Equal(t, "my-app:/ConfigMap:default/cm", ann[common.AnnotationKeyAppInstance], "this application's tracking annotation is asserted")
+			} else {
+				assert.Equal(t, "other-app:/ConfigMap:default/cm", ann[common.AnnotationKeyAppInstance], "label tracking does not own the annotation")
+			}
+			if method != v1alpha1.TrackingMethodAnnotation {
+				assert.Equal(t, "my-app", labels[common.LabelKeyAppInstance], "this application's tracking label is asserted")
+			} else {
+				assert.Equal(t, "other-app", labels[common.LabelKeyAppInstance], "annotation tracking does not own the label")
+			}
+		})
+	}
 }
