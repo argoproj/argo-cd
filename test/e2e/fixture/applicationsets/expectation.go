@@ -13,6 +13,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/applicationsets/utils"
 )
@@ -114,7 +115,7 @@ func ApplicationSetHasConditions(expectedConditions []v1alpha1.ApplicationSetCon
 			if err != nil {
 				return failed, err.Error()
 			}
-			return pending, fmt.Sprintf("application set conditions are not equal: '%s', diff: %s\n", expectedConditions, diff)
+			return pending, fmt.Sprintf("application set conditions are not equal: '%s', diff: %s\n", commands.FormatConditions(expectedConditions), diff)
 		}
 		return succeeded, "application set successfully found"
 	}
@@ -316,10 +317,11 @@ func filterConditionFields(input *[]v1alpha1.ApplicationSetCondition) *[]v1alpha
 	var filteredConditions []v1alpha1.ApplicationSetCondition
 	for _, condition := range *input {
 		newCondition := &v1alpha1.ApplicationSetCondition{
-			Type:    condition.Type,
-			Status:  condition.Status,
-			Message: condition.Message,
-			Reason:  condition.Reason,
+			Type:               condition.Type,
+			Status:             condition.Status,
+			Message:            condition.Message,
+			Reason:             condition.Reason,
+			ObservedGeneration: condition.ObservedGeneration,
 		}
 		filteredConditions = append(filteredConditions, *newCondition)
 	}

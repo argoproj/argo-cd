@@ -26228,6 +26228,9 @@ spec:
                       type: string
                     message:
                       type: string
+                    observedGeneration:
+                      format: int64
+                      type: integer
                     reason:
                       type: string
                     status:
