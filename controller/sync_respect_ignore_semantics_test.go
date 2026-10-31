@@ -2500,6 +2500,7 @@ var (
 	serviceGVK     = schema.GroupVersionKind{Version: "v1", Kind: "Service"}
 	statefulSetGVK = schema.GroupVersionKind{Group: "apps", Version: "v1", Kind: "StatefulSet"}
 	webhookGVK     = schema.GroupVersionKind{Group: "admissionregistration.k8s.io", Version: "v1", Kind: "MutatingWebhookConfiguration"}
+	configMapGVK   = schema.GroupVersionKind{Version: "v1", Kind: "ConfigMap"}
 )
 
 func deploymentIgnore(exprs ...string) v1alpha1.ResourceIgnoreDifferences {
@@ -2644,4 +2645,252 @@ spec:
 	assert.Equal(t, "first:live", at(t, applied, "spec.template.spec.initContainers[name=first].image"))
 	assert.Equal(t, "second:live", at(t, applied, "spec.template.spec.initContainers[name=second].image"))
 	assert.Equal(t, "third:git", at(t, applied, "spec.template.spec.initContainers[name=third].image"), "the item no rule names is applied from git")
+}
+
+// ---------------------------------------------------------------------------
+// Use case 32: a Secret written with base64 data in git (no stringData), one
+// key rotated by an operator. The common spelling of a Secret manifest; the
+// stringData fold must leave it alone.
+//
+// Ref: https://github.com/argoproj/argo-cd/issues/29644 (the data rule),
+// https://docs.cilium.io/en/stable/configuration/argocd-issues/ (per-key data rules).
+// ---------------------------------------------------------------------------
+
+func TestRespectIgnoreSemantics_SecretPasswordIgnored_GitUsesData(t *testing.T) {
+	target := toUnstructured(t, `
+apiVersion: v1
+kind: Secret
+metadata: {name: db, namespace: default}
+type: Opaque
+data:
+  username: YXBw           # "app"
+  password: Z2l0LXBhc3M=   # "git-pass"
+`)
+	live := toUnstructured(t, `
+apiVersion: v1
+kind: Secret
+metadata: {name: db, namespace: default}
+type: Opaque
+data:
+  username: b2xkLXVzZXI=   # "old-user"
+  password: cm90YXRlZA==   # "rotated"
+`)
+	ignore := v1alpha1.ResourceIgnoreDifferences{Kind: "Secret", JSONPointers: []string{"/data/password"}}
+
+	applied := applyTarget(t, nil, live, target, ignore)
+
+	assert.NotContains(t, applied.Object, "stringData")
+	assert.Equal(t, "cm90YXRlZA==", at(t, applied, "data.password"), "the rotated password keeps its live value")
+	assert.Equal(t, "YXBw", at(t, applied, "data.username"), "the non-ignored key is applied from git")
+}
+
+// ---------------------------------------------------------------------------
+// Use case 33: an injected toleration when git declares no tolerations at all.
+// tolerations is atomic, and git does not declare the list, so the apply must
+// not create one from the single ignored item: the server would replace the
+// field with that partial list. Leaving the list out keeps every manager's
+// tolerations in place under both apply modes.
+//
+// Ref: https://github.com/argoproj/argo-cd/issues/29944 (same shape as use
+// case 1 with no initContainers in git, for an atomic list).
+// ---------------------------------------------------------------------------
+
+func TestRespectIgnoreSemantics_InjectedTolerationSurvivesSync_GitHasNoTolerations(t *testing.T) {
+	live := toUnstructured(t, tolerationsLive)
+	target := toUnstructured(t, tolerationsTarget)
+	unstructured.RemoveNestedField(target.Object, "spec", "template", "spec", "tolerations")
+	ignore := deploymentIgnore(`.spec.template.spec.tolerations[] | select(.key == "node.example.com/spot")`)
+
+	applied := applyTarget(t, nil, live, target, ignore)
+
+	absent(t, applied, "spec.template.spec.tolerations")
+
+	t.Run("ssa", func(t *testing.T) {
+		sim := newSSASim(t, builtinTypeConverter(t, deploymentGVK), deploymentGVK)
+		sim.apply(target, argoManager)
+		sim.update(live, otherManager) // the policy engine sets both tolerations
+		sim.apply(applied, argoManager)
+		assert.ElementsMatch(t, []string{"dedicated", "node.example.com/spot"}, names(podList(t, sim.live(), "tolerations")),
+			"Argo CD never owned tolerations, so the apply must leave the other manager's list alone")
+	})
+	t.Run("csa", func(t *testing.T) {
+		out := csaApply(t, target, live, applied)
+		assert.ElementsMatch(t, []string{"dedicated", "node.example.com/spot"}, names(podList(t, out, "tolerations")))
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Use case 34: a conditional rule that matches a whole list item only in live,
+// while git declares the same item (same key) with other content. A webhook
+// rewrites container images to an internal mirror; the user ignores containers
+// whose image points at the mirror. The rule removes nothing from git, so git
+// wins: the sync applies git's image, as the diff would show it.
+//
+// Ref: https://github.com/argoproj/argo-cd/pull/29945 (conditional rule
+// matching only live), contract clause 4 of normalizeTargetResources.
+// ---------------------------------------------------------------------------
+
+func TestRespectIgnoreSemantics_ConditionalWholeItemRuleMatchesOnlyLive_GitItemApplied(t *testing.T) {
+	target := toUnstructured(t, injectedInitTarget)
+	live := toUnstructured(t, injectedInitLive)
+	containers := podList(t, live, "containers")
+	containers[0].(map[string]any)["image"] = "mirror.example.com/" + containers[0].(map[string]any)["image"].(string)
+	require.NoError(t, unstructured.SetNestedSlice(live.Object, containers, "spec", "template", "spec", "containers"))
+	ignore := deploymentIgnore(`.spec.template.spec.containers[] | select(.image | startswith("mirror.example.com/"))`)
+
+	applied := applyTarget(t, nil, live, target, ignore)
+
+	gitImage := at(t, target, "spec.template.spec.containers[0].image")
+	assert.Equal(t, gitImage, at(t, applied, "spec.template.spec.containers[0].image"),
+		"git declares the container, so git's image is applied even though the rule matched the live item")
+	assert.Len(t, podList(t, applied, "containers"), len(podList(t, target, "containers")), "the live item is not added next to git's")
+}
+
+// ---------------------------------------------------------------------------
+// Use case 35: the resource does not exist yet, or exists only in the cluster.
+// With no live resource there is nothing to keep and the manifest is applied
+// as given. A live resource without a manifest is being pruned; there is no
+// apply target.
+//
+// Ref: docs/user-guide/sync-options.md ("only effective when the resource is
+// already created in the cluster").
+// ---------------------------------------------------------------------------
+
+func TestRespectIgnoreSemantics_ResourceNotInClusterYet_ManifestAppliedAsIs(t *testing.T) {
+	target := toUnstructured(t, injectedInitTarget)
+	dc, err := diff.NewDiffConfigBuilder().
+		WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{deploymentIgnore(`.spec.template.spec.initContainers[]`)}, nil, true, normalizers.IgnoreNormalizerOpts{}).
+		WithGVKParser(builtinGVKParser(t)).
+		WithNoCache().
+		Build()
+	require.NoError(t, err)
+	cr := &comparisonResult{
+		reconciliationResult: sync.ReconciliationResult{
+			Live:   []*unstructured.Unstructured{nil, toUnstructured(t, injectedInitLive)},
+			Target: []*unstructured.Unstructured{target, nil},
+		},
+		diffConfig: dc,
+	}
+
+	targets, err := normalizeTargetResources(cr)
+
+	require.NoError(t, err)
+	require.Len(t, targets, 2)
+	assert.Same(t, target, targets[0], "a resource that is not in the cluster yet is applied as given, rule or no rule")
+	assert.Nil(t, targets[1], "a resource without a manifest has no apply target")
+}
+
+// ---------------------------------------------------------------------------
+// Use case 36: an ignored field that only git declares. A chart renders a key
+// that an in-cluster operator removes; the user ignores the key. The rule
+// removes it from the manifest, so the sync does not put it back, and there is
+// no live value to carry.
+//
+// Ref: contract clause 3 of normalizeTargetResources.
+// ---------------------------------------------------------------------------
+
+func TestRespectIgnoreSemantics_IgnoredKeyOnlyInGit_NotApplied(t *testing.T) {
+	target := toUnstructured(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: cm, namespace: default}
+data:
+  setting: git
+  generated-at: "2026-10-31T00:00:00Z"
+`)
+	live := toUnstructured(t, `
+apiVersion: v1
+kind: ConfigMap
+metadata: {name: cm, namespace: default}
+data:
+  setting: old
+`)
+	ignore := v1alpha1.ResourceIgnoreDifferences{Kind: "ConfigMap", JSONPointers: []string{"/data/generated-at"}}
+
+	applied := applyTarget(t, nil, live, target, ignore)
+
+	absent(t, applied, "data.generated-at")
+	assert.Equal(t, "git", at(t, applied, "data.setting"), "the non-ignored key is applied from git")
+
+	t.Run("ssa", func(t *testing.T) {
+		sim := newSSASim(t, builtinTypeConverter(t, configMapGVK), configMapGVK)
+		sim.update(live, otherManager)
+		sim.apply(applied, argoManager)
+		absent(t, sim.live(), "data.generated-at")
+		assert.Equal(t, "git", at(t, sim.live(), "data.setting"))
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Use case 37: an argument appended to a container's args by a webhook. args is
+// an atomic list of strings, so the apply target must carry the injected
+// argument next to git's or the apply removes it. Selecting the argument by
+// value finds it in live only; an index rule would also strip git's argument
+// at that index, because indexes are resolved against each document.
+//
+// Ref: https://github.com/argoproj/argo-cd/issues/17694 ("ignore individual
+// array elements"), docs/user-guide/sync-options.md (index rules).
+// ---------------------------------------------------------------------------
+
+func TestRespectIgnoreSemantics_InjectedContainerArgSurvivesSync(t *testing.T) {
+	target := toUnstructured(t, injectedInitTarget)
+	live := toUnstructured(t, injectedInitLive)
+	setArgs := func(obj *unstructured.Unstructured, args ...any) {
+		containers := podList(t, obj, "containers")
+		containers[0].(map[string]any)["args"] = args
+		require.NoError(t, unstructured.SetNestedSlice(obj.Object, containers, "spec", "template", "spec", "containers"))
+	}
+	setArgs(target, "--port=8080", "--log-level=info")
+	setArgs(live, "--port=8080", "--log-level=info", "--tracing-endpoint=otel:4317")
+	ignore := deploymentIgnore(`.spec.template.spec.containers[].args[]? | select(. == "--tracing-endpoint=otel:4317")`)
+
+	applied := applyTarget(t, nil, live, target, ignore)
+
+	assert.Equal(t, []any{"--port=8080", "--log-level=info", "--tracing-endpoint=otel:4317"}, at(t, applied, "spec.template.spec.containers[0].args"),
+		"the injected argument is carried after git's arguments")
+
+	t.Run("ssa", func(t *testing.T) {
+		sim := newSSASim(t, builtinTypeConverter(t, deploymentGVK), deploymentGVK)
+		sim.apply(target, argoManager)
+		sim.update(live, otherManager) // the webhook appends the argument
+		sim.apply(applied, argoManager)
+		assert.Equal(t, []any{"--port=8080", "--log-level=info", "--tracing-endpoint=otel:4317"}, at(t, sim.live(), "spec.template.spec.containers[0].args"))
+	})
+}
+
+// ---------------------------------------------------------------------------
+// Use case 38: a port injected into an existing container, a keyed item inside
+// a keyed item. ports are keyed by (containerPort, protocol); git omits
+// protocol on its own port, so the schema default must be used to tell git's
+// port from the injected one.
+//
+// Ref: found by coverage review of this change (nested keyed lists).
+// ---------------------------------------------------------------------------
+
+func TestRespectIgnoreSemantics_InjectedMetricsPortSurvivesSync_GitDeclaresOwnPort(t *testing.T) {
+	target := toUnstructured(t, injectedInitTarget)
+	live := toUnstructured(t, injectedInitLive)
+	setPorts := func(obj *unstructured.Unstructured, ports ...any) {
+		containers := podList(t, obj, "containers")
+		containers[0].(map[string]any)["ports"] = ports
+		require.NoError(t, unstructured.SetNestedSlice(obj.Object, containers, "spec", "template", "spec", "containers"))
+	}
+	setPorts(target, map[string]any{"name": "http", "containerPort": int64(8080)})
+	setPorts(live,
+		map[string]any{"name": "http", "containerPort": int64(8080), "protocol": "TCP"},
+		map[string]any{"name": "metrics", "containerPort": int64(9090), "protocol": "TCP"})
+	ignore := deploymentIgnore(`.spec.template.spec.containers[].ports[]? | select(.name == "metrics")`)
+
+	applied := applyTarget(t, nil, live, target, ignore)
+
+	ports := at(t, applied, "spec.template.spec.containers[0].ports").([]any)
+	assert.Equal(t, []string{"http", "metrics"}, names(ports), "the injected port is carried next to git's port, which is not duplicated")
+
+	t.Run("ssa", func(t *testing.T) {
+		sim := newSSASim(t, builtinTypeConverter(t, deploymentGVK), deploymentGVK)
+		sim.apply(target, argoManager)
+		sim.update(live, otherManager) // the monitoring webhook adds the port
+		sim.apply(applied, argoManager)
+		assert.Equal(t, []string{"http", "metrics"}, names(at(t, sim.live(), "spec.template.spec.containers[0].ports").([]any)))
+	})
 }

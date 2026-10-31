@@ -262,6 +262,17 @@ spec:
 		_, found := got.Object["status"]
 		assert.False(t, found)
 	})
+
+	t.Run("a whole-object path carries nothing", func(t *testing.T) {
+		// jsonPointers: [""] or jqPathExpressions: ["."] resolve to the empty
+		// path on both sides. Removing it would empty the manifest; carrying it
+		// would replace the manifest with live. Both are skipped.
+		live := deployment(t, "      replicas: 2\n")
+		target := deployment(t, "      replicas: 1\n")
+		applied, err := buildApplyTarget(live, target, [][]any{{}}, [][]any{{}}, deploymentSchema(t))
+		require.NoError(t, err)
+		assert.Equal(t, target.Object, applied.Object)
+	})
 }
 
 func TestFieldSchema(t *testing.T) {
