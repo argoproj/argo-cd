@@ -548,8 +548,8 @@ func gatewayDialAddress(addr *net.TCPAddr) string {
 	if addr.IP.IsUnspecified() {
 		return fmt.Sprintf("localhost:%d", addr.Port)
 	}
-	// gRPC parses the target as a URL, so the % before an IPv6 zone must be escaped.
-	return strings.ReplaceAll(addr.String(), "%", "%25")
+	// gRPC parses the target as a URL, so characters an IPv6 zone may contain (%, #, ?) must be escaped.
+	return url.PathEscape(addr.String())
 }
 
 func (server *ArgoCDServer) Listen() (*Listeners, error) {

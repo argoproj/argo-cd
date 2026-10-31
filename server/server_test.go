@@ -1343,20 +1343,22 @@ func TestGatewayDialAddress(t *testing.T) {
 	tests := []struct {
 		name      string
 		boundAddr *net.TCPAddr
-		want      string
+		wantDial  string
 	}{
-		{name: "IPv4 wildcard dials localhost", boundAddr: &net.TCPAddr{IP: net.IPv4zero, Port: 8080}, want: "localhost:8080"},
-		{name: "IPv6 wildcard dials localhost", boundAddr: &net.TCPAddr{IP: net.IPv6unspecified, Port: 8080}, want: "localhost:8080"},
-		{name: "specific IPv4 address is kept", boundAddr: &net.TCPAddr{IP: net.ParseIP("127.0.0.2"), Port: 8080}, want: "127.0.0.2:8080"},
-		{name: "specific IPv6 address is kept", boundAddr: &net.TCPAddr{IP: net.IPv6loopback, Port: 8080}, want: "[::1]:8080"},
-		{name: "IPv6 zone is escaped", boundAddr: &net.TCPAddr{IP: net.ParseIP("fe80::1"), Zone: "eth0", Port: 8080}, want: "[fe80::1%25eth0]:8080"},
+		{name: "IPv4 wildcard dials localhost", boundAddr: &net.TCPAddr{IP: net.IPv4zero, Port: 8080}, wantDial: "localhost:8080"},
+		{name: "IPv6 wildcard dials localhost", boundAddr: &net.TCPAddr{IP: net.IPv6unspecified, Port: 8080}, wantDial: "localhost:8080"},
+		{name: "specific IPv4 address", boundAddr: &net.TCPAddr{IP: net.ParseIP("127.0.0.2"), Port: 8080}, wantDial: "127.0.0.2:8080"},
+		{name: "specific IPv6 address", boundAddr: &net.TCPAddr{IP: net.IPv6loopback, Port: 8080}, wantDial: "[::1]:8080"},
+		{name: "IPv6 zone", boundAddr: &net.TCPAddr{IP: net.ParseIP("fe80::1"), Zone: "eth0", Port: 8080}, wantDial: "[fe80::1%eth0]:8080"},
+		{name: "IPv6 zone with #", boundAddr: &net.TCPAddr{IP: net.ParseIP("fe80::1"), Zone: "eth#0", Port: 8080}, wantDial: "[fe80::1%eth#0]:8080"},
+		{name: "IPv6 zone with ?", boundAddr: &net.TCPAddr{IP: net.ParseIP("fe80::1"), Zone: "eth?0", Port: 8080}, wantDial: "[fe80::1%eth?0]:8080"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := gatewayDialAddress(tt.boundAddr)
-			assert.Equal(t, tt.want, got)
-			_, err := grpc.NewClient(got, grpc.WithTransportCredentials(insecure.NewCredentials()))
-			require.NoError(t, err, "gRPC must accept the dial target")
+			conn, err := grpc.NewClient(gatewayDialAddress(tt.boundAddr), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			require.NoError(t, err)
+			defer conn.Close()
+			assert.Equal(t, "dns:///"+tt.wantDial, conn.CanonicalTarget())
 		})
 	}
 }
