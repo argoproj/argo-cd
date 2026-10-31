@@ -12,7 +12,8 @@ elseif obj.spec.paused ~= nil then
 end
 actions["resume"] = {["disabled"] = not(paused)}
 
-local fullyPromoted = obj.status.currentPodHash == obj.status.stableRS
+-- without a status the controller has not reconciled the Rollout yet, so no update is in progress
+local fullyPromoted = obj.status == nil or obj.status.currentPodHash == obj.status.stableRS
 actions["abort"] = {["disabled"] = fullyPromoted or obj.status.abort}
 actions["retry"] = {["disabled"] = fullyPromoted or not(obj.status.abort)}
 actions["pause"] = {["disabled"] = fullyPromoted or obj.status.abort or obj.spec.paused }
@@ -29,6 +30,6 @@ if obj.status ~= nil and not(fullyPromoted) then
     end
 end
 
-actions["skip-current-step"] = {["disabled"] = obj.spec.strategy.canary == nil or obj.spec.strategy.canary.steps == nil or obj.status.currentStepIndex == table.getn(obj.spec.strategy.canary.steps)}
+actions["skip-current-step"] = {["disabled"] = obj.spec.strategy.canary == nil or obj.spec.strategy.canary.steps == nil or obj.status == nil or obj.status.currentStepIndex == table.getn(obj.spec.strategy.canary.steps)}
 
 return actions
