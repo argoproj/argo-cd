@@ -48,6 +48,41 @@
     }
 }
 
+// The top bar's first row is a flex row: breadcrumbs on the left, page title on the right.
+// The title's `text-truncate` class has no styles, so it never shrinks below its text, and the
+// left column's `nowrap` breadcrumbs overflow visibly underneath it on narrow windows (#29292).
+// Let both sides truncate, and cap the title so the breadcrumbs keep half of the row.
+.page__top-bar .top-bar > .row {
+    flex-wrap: nowrap;
+
+    > .top-bar__left-side {
+        min-width: 0;
+        overflow: hidden;
+    }
+
+    // Set nowrap here too: application details makes the left column `white-space: normal` on
+    // smaller screens, and a wrapped crumb would be clipped by the fixed-height bar.
+    .top-bar__breadcrumbs {
+        max-width: 100%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    // An inline-block is ellipsized as a whole, so the last crumb would vanish into a bare "…".
+    .top-bar__breadcrumbs-last-item {
+        display: inline;
+    }
+
+    > .top-bar__title {
+        min-width: 0;
+        max-width: 50%;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
 .login-logout-button {
     border-radius: 3px;
     @include themify($themes) {
