@@ -396,10 +396,11 @@ func (proj *AppProject) ProjectPoliciesString() string {
 }
 
 // policyGroupName returns the group name as a field of a CSV policy line. A group name
-// containing a comma or a double quote is quoted, unless it already is, as it would
-// otherwise break the policy line and keep the whole project policy from loading.
+// containing a comma or a double quote is quoted, unless it already is a single quoted
+// field, as it would otherwise break the policy line and keep the whole project policy
+// from loading.
 func policyGroupName(name string) string {
-	if len(name) > 1 && strings.HasPrefix(name, `"`) && strings.HasSuffix(name, `"`) {
+	if len(name) > 1 && strings.HasPrefix(name, `"`) && strings.HasSuffix(name, `"`) && !strings.Contains(name[1:len(name)-1], `"`) {
 		return name
 	}
 	if strings.ContainsAny(name, `,"`) {
