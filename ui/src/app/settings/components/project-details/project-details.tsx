@@ -1,5 +1,5 @@
 import {AutocompleteField, FormField, HelpIcon, NotificationsApi, NotificationType, SlidingPanel, Tabs, Tooltip} from 'argo-ui';
-import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {useQuery} from '@tanstack/react-query';
 import classNames from 'classnames';
 import * as React from 'react';
 import {FormApi, Text} from 'argo-ui';
@@ -13,6 +13,7 @@ import {CreateJWTTokenParams, DeleteJWTTokenParams, ProjectRoleParams, services}
 
 import {SyncWindowStatusIcon} from '../../../shared/components/app-utils';
 import {ProjectSyncWindowsParams} from '../../../shared/services';
+import {useProjectMutations} from '../../../shared/mutations';
 import {applicationQueries, clusterQueries, gpgkeyQueries, projectQueries, repoQueries} from '../../../shared/queries';
 import {loadFailed, loading} from '../../../shared/query-client';
 import {ProjectEvents} from '../project-events/project-events';
@@ -393,16 +394,13 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
     const projectSyncWindowsFormApi = React.useRef<FormApi>(null);
     const ctx = React.useContext(Context) as ContextApis;
     const objectListKind = props.objectListKind || 'application';
-    const queryClient = useQueryClient();
     const name = props.match.params.name;
     const detailed = useQuery(projectQueries.detailed(name));
-    // Prefix also covers the sync window states and links queries below.
-    const refreshProject = () => queryClient.invalidateQueries({queryKey: projectQueries.byName(name)});
+    const projectMutations = useProjectMutations(name);
 
     const deleteJWTToken = async (params: DeleteJWTTokenParams, notifications: NotificationsApi) => {
         try {
-            await services.projects.deleteJWTToken(params);
-            await refreshProject();
+            await projectMutations.deleteJWTToken.mutateAsync(params);
         } catch (e) {
             notifications.show({
                 content: <ErrorNotification title='Unable to delete JWT token' e={e} />,
@@ -413,8 +411,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
 
     const createJWTToken = async (params: CreateJWTTokenParams, notifications: NotificationsApi) => {
         try {
-            const jwtToken = await services.projects.createJWTToken(params);
-            await refreshProject();
+            const jwtToken = await projectMutations.createJWTToken.mutateAsync(params);
             setToken(jwtToken.token);
         } catch (e) {
             notifications.show({
@@ -479,8 +476,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
             proj.metadata.labels = updatedProj.metadata.labels;
             proj.spec = updatedProj.spec;
 
-            await services.projects.update(proj);
-            await refreshProject();
+            await projectMutations.update.mutateAsync(proj);
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to update project' e={e} />,
@@ -874,7 +870,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                 const confirmed = await ctx.popup.confirm('Delete project', 'Are you sure you want to delete project?');
                                 if (confirmed) {
                                     try {
-                                        await services.projects.delete(props.match.params.name);
+                                        await projectMutations.delete.mutateAsync();
                                         ctx.navigation.goto('/settings/projects', {replace: true});
                                     } catch (e) {
                                         ctx.notifications.show({
@@ -933,7 +929,10 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                     }}
                                     header={
                                         <div>
-                                            <button onClick={() => projectRoleFormApi.current.submitForm(null)} className='argo-button argo-button--base'>
+                                            <button
+                                                disabled={projectMutations.updateRole.isPending}
+                                                onClick={() => projectRoleFormApi.current.submitForm(null)}
+                                                className='argo-button argo-button--base'>
                                                 {params.get('newRole') != null ? 'Create' : 'Update'}
                                             </button>{' '}
                                             <button
@@ -988,9 +987,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                             }}
                                             submit={async (projRoleParams: ProjectRoleParams) => {
                                                 try {
-                                                    await services.projects.updateRole(projRoleParams);
+                                                    await projectMutations.updateRole.mutateAsync(projRoleParams);
                                                     ctx.navigation.goto('.', {editRole: null, newRole: null}, {replace: true});
-                                                    refreshProject();
                                                 } catch (e) {
                                                     ctx.notifications.show({
                                                         content: <ErrorNotification title='Unable to edit project' e={e} />,
@@ -1016,6 +1014,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                     header={
                                         <div>
                                             <button
+                                                disabled={projectMutations.updateWindow.isPending}
                                                 onClick={() => {
                                                     if (params.get('newWindow') === null) {
                                                         projectSyncWindowsFormApi.current.setValue('id', Number(params.get('editWindow')));
@@ -1073,9 +1072,8 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                             }}
                                             submit={async (projectSyncWindowsParams: ProjectSyncWindowsParams) => {
                                                 try {
-                                                    await services.projects.updateWindow(projectSyncWindowsParams);
+                                                    await projectMutations.updateWindow.mutateAsync(projectSyncWindowsParams);
                                                     ctx.navigation.goto('.', {editWindow: null, newWindow: null}, {replace: true});
-                                                    refreshProject();
                                                 } catch (e) {
                                                     ctx.notifications.show({
                                                         content: <ErrorNotification title='Unable to edit project' e={e} />,
