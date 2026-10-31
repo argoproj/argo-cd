@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -1334,6 +1335,30 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestGatewayDialAddress(t *testing.T) {
+	tests := []struct {
+		name      string
+		boundAddr *net.TCPAddr
+		wantDial  string
+	}{
+		{name: "IPv4 wildcard dials localhost", boundAddr: &net.TCPAddr{IP: net.IPv4zero, Port: 8080}, wantDial: "localhost:8080"},
+		{name: "IPv6 wildcard dials localhost", boundAddr: &net.TCPAddr{IP: net.IPv6unspecified, Port: 8080}, wantDial: "localhost:8080"},
+		{name: "specific IPv4 address", boundAddr: &net.TCPAddr{IP: net.ParseIP("127.0.0.2"), Port: 8080}, wantDial: "127.0.0.2:8080"},
+		{name: "specific IPv6 address", boundAddr: &net.TCPAddr{IP: net.IPv6loopback, Port: 8080}, wantDial: "[::1]:8080"},
+		{name: "IPv6 zone", boundAddr: &net.TCPAddr{IP: net.ParseIP("fe80::1"), Zone: "eth0", Port: 8080}, wantDial: "[fe80::1%eth0]:8080"},
+		{name: "IPv6 zone with #", boundAddr: &net.TCPAddr{IP: net.ParseIP("fe80::1"), Zone: "eth#0", Port: 8080}, wantDial: "[fe80::1%eth#0]:8080"},
+		{name: "IPv6 zone with ?", boundAddr: &net.TCPAddr{IP: net.ParseIP("fe80::1"), Zone: "eth?0", Port: 8080}, wantDial: "[fe80::1%eth?0]:8080"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			conn, err := grpc.NewClient(gatewayDialAddress(tt.boundAddr), grpc.WithTransportCredentials(insecure.NewCredentials()))
+			require.NoError(t, err)
+			defer conn.Close()
+			assert.Equal(t, "dns:///"+tt.wantDial, conn.CanonicalTarget())
 		})
 	}
 }
