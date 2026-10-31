@@ -1525,9 +1525,9 @@ func TestRespectIgnoreSemantics_WholeListIgnored_LiveListKept_CRD(t *testing.T) 
 
 // Use case 17: a Secret whose whole data is ignored because a chart generates a
 // random password that must only be created once. Git writes it as stringData.
-// The fold runs before the rules, so `/data` matches the folded manifest and
-// a rule on `/stringData/...` matches nothing, exactly as at diff time (the
-// diff folds stringData before running the ignore normalizer too).
+// The fold runs before the rules, so `/data` matches the folded manifest; a
+// rule written against `/stringData/...` names the same key and protects it
+// too (it did on earlier releases, through the unfolded manifest).
 //
 // Ref: https://github.com/argoproj/argo-cd/issues/8810,
 // https://docs.cilium.io/en/stable/configuration/argocd-issues/ (per-key data rules).
@@ -1559,11 +1559,12 @@ func TestRespectIgnoreSemantics_SecretAllDataIgnored_GitUsesStringData(t *testin
 		assert.NotContains(t, applied.Object, "stringData")
 	})
 
-	t.Run("/stringData matches nothing", func(t *testing.T) {
+	t.Run("/stringData/password protects the same key", func(t *testing.T) {
+		// Rules written against the manifest's spelling keep working: the key
+		// is the one the server stores under data.
 		applied := applyTarget(t, nil, live, target, v1alpha1.ResourceIgnoreDifferences{Kind: "Secret", JSONPointers: []string{"/stringData/password"}})
-		sd, _, err := unstructured.NestedStringMap(applied.Object, "stringData")
-		require.NoError(t, err)
-		assert.Equal(t, "git-password", sd["password"], "no path is ignored, so the manifest is applied as is")
+		absent(t, applied, "stringData")
+		assert.Equal(t, "bGl2ZS1wYXNzd29yZA==", at(t, applied, "data.password"), "the live password is kept")
 	})
 }
 
@@ -2156,6 +2157,8 @@ func toUnstructured(t *testing.T, y string) *unstructured.Unstructured {
 
 type applyOpts struct {
 	ignores []v1alpha1.ResourceIgnoreDifferences
+	// overrides are the argocd-cm resource.customizations, keyed "group/Kind".
+	overrides map[string]v1alpha1.ResourceOverride
 	// tracking enables resource-tracking normalization (annotation method),
 	// as the controller has it configured in production.
 	tracking bool
@@ -2175,7 +2178,7 @@ func applyTargetWith(t *testing.T, parser *managedfields.GvkParser, live, target
 		parser = builtinGVKParser(t)
 	}
 	b := diff.NewDiffConfigBuilder().
-		WithDiffSettings(opts.ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+		WithDiffSettings(opts.ignores, opts.overrides, true, normalizers.IgnoreNormalizerOpts{}).
 		WithGVKParser(parser).
 		WithNoCache()
 	if opts.tracking {
@@ -2505,4 +2508,140 @@ func deploymentIgnore(exprs ...string) v1alpha1.ResourceIgnoreDifferences {
 
 func rolloutIgnore(exprs ...string) v1alpha1.ResourceIgnoreDifferences {
 	return v1alpha1.ResourceIgnoreDifferences{Group: "argoproj.io", Kind: "Rollout", JQPathExpressions: exprs}
+}
+
+// Use case 29: the same rule arrives twice, once from the Application and once
+// from argocd-cm resource.customizations, and removes a whole list item. It
+// must be removed once; removing it twice would delete the next item, which
+// git declares and no rule ignores.
+//
+// Ref: found by code review of this change.
+func TestRespectIgnoreSemantics_DuplicateRuleInAppAndGlobalConfig_IgnoredOnce(t *testing.T) {
+	target := toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      containers:
+      - {name: web, image: nginx:1.27}
+      tolerations:
+      - {key: node.example.com/spot, operator: Exists, effect: NoSchedule}
+      - {key: dedicated, operator: Equal, value: workers}
+`)
+	live := toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      containers:
+      - {name: web, image: nginx:1.27}
+      tolerations:
+      - {key: node.example.com/spot, operator: Exists, effect: NoExecute}
+      - {key: dedicated, operator: Equal, value: workers}
+`)
+	rule := `.spec.template.spec.tolerations[] | select(.key == "node.example.com/spot")`
+
+	applied := applyTargetWith(t, nil, live, target, applyOpts{
+		ignores:   []v1alpha1.ResourceIgnoreDifferences{deploymentIgnore(rule)},
+		overrides: map[string]v1alpha1.ResourceOverride{"apps/Deployment": {IgnoreDifferences: v1alpha1.OverrideIgnoreDiff{JQPathExpressions: []string{rule}}}},
+	})
+
+	assert.Equal(t, []any{
+		map[string]any{"key": "node.example.com/spot", "operator": "Exists", "effect": "NoExecute"},
+		map[string]any{"key": "dedicated", "operator": "Equal", "value": "workers"},
+	}, podList(t, applied, "tolerations"), "the ignored toleration keeps its live effect and the dedicated toleration survives")
+}
+
+// Use case 30: managedFieldsManagers on a Service port. Ports are keyed by
+// (port, protocol); the manifest omits protocol and the server defaulted it.
+// The trusted manager's nodePort must still be matched to git's port.
+//
+// Ref: found by code review of this change.
+func TestRespectIgnoreSemantics_TrustedManagerNodePortKept_GitOmitsProtocol(t *testing.T) {
+	target := toUnstructured(t, `
+apiVersion: v1
+kind: Service
+metadata: {name: svc, namespace: default}
+spec:
+  type: NodePort
+  selector: {app: web}
+  ports:
+  - {name: http, port: 80, targetPort: 8080, nodePort: 30000}
+`)
+	sim := newSSASim(t, builtinTypeConverter(t, serviceGVK), serviceGVK)
+	sim.apply(target, argoManager)
+	allocated := sim.live().DeepCopy()
+	unstructured.RemoveNestedField(allocated.Object, "metadata", "managedFields")
+	ports := at(t, allocated, "spec.ports").([]any)
+	ports[0].(map[string]any)["protocol"] = "TCP"
+	ports[0].(map[string]any)["nodePort"] = int64(31080)
+	require.NoError(t, unstructured.SetNestedSlice(allocated.Object, ports, "spec", "ports"))
+	sim.update(allocated, "port-allocator")
+	live := sim.live()
+	ignore := v1alpha1.ResourceIgnoreDifferences{Kind: "Service", ManagedFieldsManagers: []string{"port-allocator"}}
+
+	applied := applyTarget(t, nil, live, target, ignore)
+
+	assert.Equal(t, int64(31080), at(t, applied, "spec.ports[name=http].nodePort"), "the trusted manager's nodePort replaces git's")
+	assert.Len(t, at(t, applied, "spec.ports"), 1, "no duplicate port item")
+}
+
+// Use case 31: two index rules on the same list. Both are resolved against the
+// original manifest, so items 0 and 1 are the ignored ones and item 2 is
+// applied from git. (The diff normalizer applies rules one after another and
+// so compares original items 0 and 2 as ignored; selecting items by content
+// avoids the difference.)
+//
+// Ref: found by code review of this change.
+func TestRespectIgnoreSemantics_IndexRulesResolveAgainstOriginalList(t *testing.T) {
+	target := toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      initContainers:
+      - {name: first, image: first:git}
+      - {name: second, image: second:git}
+      - {name: third, image: third:git}
+      containers:
+      - {name: web, image: nginx:1.27}
+`)
+	live := toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      initContainers:
+      - {name: first, image: first:live}
+      - {name: second, image: second:live}
+      - {name: third, image: third:live}
+      containers:
+      - {name: web, image: nginx:1.27}
+`)
+	ignore := v1alpha1.ResourceIgnoreDifferences{Group: "apps", Kind: "Deployment", JSONPointers: []string{
+		"/spec/template/spec/initContainers/0",
+		"/spec/template/spec/initContainers/1",
+	}}
+
+	applied := applyTarget(t, nil, live, target, ignore)
+
+	assert.Equal(t, "first:live", at(t, applied, "spec.template.spec.initContainers[name=first].image"))
+	assert.Equal(t, "second:live", at(t, applied, "spec.template.spec.initContainers[name=second].image"))
+	assert.Equal(t, "third:git", at(t, applied, "spec.template.spec.initContainers[name=third].image"), "the item no rule names is applied from git")
 }

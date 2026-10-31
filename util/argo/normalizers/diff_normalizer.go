@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"slices"
 	"strconv"
 	"strings"
 	"sync"
@@ -91,7 +92,14 @@ func resolvePointer(doc any, pointer string) ([]any, bool) {
 			out = append(out, part)
 		case []any:
 			i, err := strconv.Atoi(part)
-			if err != nil || i < 0 || i >= len(c) {
+			if err != nil {
+				return nil, false
+			}
+			if i < 0 {
+				// json-patch counts a negative index from the end (SupportNegativeIndices).
+				i += len(c)
+			}
+			if i < 0 || i >= len(c) {
 				return nil, false
 			}
 			cur = c[i]
@@ -166,11 +174,7 @@ func (np *jqNormalizerPatch) Paths(doc any) ([][]any, error) {
 		if !ok {
 			continue
 		}
-		path, ok := toPath(elems)
-		if !ok || !pathExists(doc, path) {
-			continue
-		}
-		out = append(out, path)
+		out = append(out, expandPaths(doc, elems)...)
 	}
 	return out, nil
 }
@@ -194,30 +198,95 @@ func toPath(elems []any) ([]any, bool) {
 	return path, true
 }
 
+// expandPaths converts one jq path into document paths. A trailing slice
+// element ({start, end}, from an expression such as `.containers[1:]`) expands
+// to one path per selected index, since del() removes every one of them. Paths
+// that do not exist in the document, or that cannot be represented, yield nothing.
+func expandPaths(doc any, elems []any) [][]any {
+	if n := len(elems); n > 0 {
+		if slice, ok := elems[n-1].(map[string]any); ok {
+			prefix, ok := toPath(elems[:n-1])
+			if !ok {
+				return nil
+			}
+			v, ok := valueAt(doc, prefix)
+			list, isList := v.([]any)
+			if !ok || !isList {
+				return nil
+			}
+			start, end := sliceBounds(slice, len(list))
+			paths := make([][]any, 0, max(end-start, 0))
+			for i := start; i < end; i++ {
+				paths = append(paths, append(slices.Clone(prefix), i))
+			}
+			return paths
+		}
+	}
+	path, ok := toPath(elems)
+	if !ok || !pathExists(doc, path) {
+		return nil
+	}
+	return [][]any{path}
+}
+
+// sliceBounds resolves a jq slice's start and end against a list of length n,
+// as jq does: nil means the list's bound, a negative index counts from the end.
+func sliceBounds(slice map[string]any, n int) (int, int) {
+	bound := func(v any, def int) int {
+		i, ok := toIndex(v)
+		if !ok {
+			return def
+		}
+		if i < 0 {
+			i += n
+		}
+		return max(0, min(i, n))
+	}
+	start := bound(slice["start"], 0)
+	end := bound(slice["end"], n)
+	return start, max(start, end)
+}
+
+func toIndex(v any) (int, bool) {
+	switch i := v.(type) {
+	case int:
+		return i, true
+	case float64:
+		return int(i), true
+	}
+	return 0, false
+}
+
 func pathExists(doc any, path []any) bool {
+	_, ok := valueAt(doc, path)
+	return ok
+}
+
+// valueAt returns the value at a path of map keys and list indexes in doc.
+func valueAt(doc any, path []any) (any, bool) {
 	cur := doc
 	for _, e := range path {
 		switch c := cur.(type) {
 		case map[string]any:
 			k, ok := e.(string)
 			if !ok {
-				return false
+				return nil, false
 			}
 			cur, ok = c[k]
 			if !ok {
-				return false
+				return nil, false
 			}
 		case []any:
 			i, ok := e.(int)
 			if !ok || i < 0 || i >= len(c) {
-				return false
+				return nil, false
 			}
 			cur = c[i]
 		default:
-			return false
+			return nil, false
 		}
 	}
-	return true
+	return cur, true
 }
 
 func (np *jqNormalizerPatch) Apply(data []byte) ([]byte, error) {

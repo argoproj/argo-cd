@@ -237,6 +237,51 @@ func TestIgnoredPaths(t *testing.T) {
 		assert.Contains(t, configPaths, []any{"spec", "template", "spec", "containers", 0, "image"})
 	})
 
+	t.Run("matches a keyed item whose key field git omits through the schema default", func(t *testing.T) {
+		t.Parallel()
+		// Service ports are keyed by (port, protocol). The manifest omits
+		// protocol; the server defaulted it to TCP and keyed the item that way.
+		liveState := StrToUnstructured(`
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc
+  namespace: default
+  managedFields:
+  - manager: port-allocator
+    operation: Update
+    apiVersion: v1
+    fieldsType: FieldsV1
+    fieldsV1:
+      f:spec:
+        f:ports:
+          k:{"port":80,"protocol":"TCP"}:
+            f:nodePort: {}
+spec:
+  type: NodePort
+  ports:
+  - {name: http, port: 80, protocol: TCP, targetPort: 8080, nodePort: 31080}
+`)
+		desiredState := StrToUnstructured(`
+apiVersion: v1
+kind: Service
+metadata:
+  name: svc
+  namespace: default
+spec:
+  type: NodePort
+  ports:
+  - {name: http, port: 80, targetPort: 8080, nodePort: 30000}
+`)
+		servicePT := parser.Type("io.k8s.api.core.v1.Service")
+
+		livePaths, configPaths, err := managedfields.IgnoredPaths(liveState, desiredState, []string{"port-allocator"}, &servicePT)
+
+		require.NoError(t, err)
+		assert.Equal(t, [][]any{{"spec", "ports", 0, "nodePort"}}, livePaths)
+		assert.Equal(t, [][]any{{"spec", "ports", 0, "nodePort"}}, configPaths, "git's port has no protocol field, but it is the same TCP port")
+	})
+
 	t.Run("ignores fields owned by untrusted managers", func(t *testing.T) {
 		t.Parallel()
 		desiredState := StrToUnstructured(testdata.DesiredDeploymentYaml)

@@ -9,6 +9,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
+	smdschema "sigs.k8s.io/structured-merge-diff/v6/schema"
 	"sigs.k8s.io/structured-merge-diff/v6/typed"
 	"sigs.k8s.io/structured-merge-diff/v6/value"
 )
@@ -150,10 +151,10 @@ func IgnoredPaths(live, config *unstructured.Unstructured, trustedManagers []str
 		return nil, nil, nil
 	}
 	ignored.Leaves().Iterate(func(p fieldpath.Path) {
-		if jp, ok := toJSONPath(live.Object, p); ok {
+		if jp, ok := toJSONPath(live.Object, p, pt.Schema, pt.TypeRef); ok {
 			livePaths = append(livePaths, jp)
 		}
-		if jp, ok := toJSONPath(config.Object, p); ok {
+		if jp, ok := toJSONPath(config.Object, p, pt.Schema, pt.TypeRef); ok {
 			configPaths = append(configPaths, jp)
 		}
 	})
@@ -162,10 +163,11 @@ func IgnoredPaths(live, config *unstructured.Unstructured, trustedManagers []str
 
 // toJSONPath resolves a structured-merge-diff field path (which addresses list
 // items by key or value) into map keys and list indexes of the given object.
-func toJSONPath(root any, p fieldpath.Path) ([]any, bool) {
+func toJSONPath(root any, p fieldpath.Path, s *smdschema.Schema, ref smdschema.TypeRef) ([]any, bool) {
 	cur := root
 	out := make([]any, 0, len(p))
 	for _, pe := range p {
+		atom, hasAtom := resolveAtom(s, ref)
 		switch {
 		case pe.FieldName != nil:
 			m, ok := cur.(map[string]any)
@@ -177,6 +179,14 @@ func toJSONPath(root any, p fieldpath.Path) ([]any, bool) {
 				return nil, false
 			}
 			out = append(out, *pe.FieldName)
+			ref = smdschema.TypeRef{}
+			if hasAtom && atom.Map != nil {
+				if sf, ok := atom.FindField(*pe.FieldName); ok {
+					ref = sf.Type
+				} else {
+					ref = atom.Map.ElementType
+				}
+			}
 		case pe.Index != nil:
 			l, ok := cur.([]any)
 			if !ok || *pe.Index < 0 || *pe.Index >= len(l) {
@@ -184,11 +194,16 @@ func toJSONPath(root any, p fieldpath.Path) ([]any, bool) {
 			}
 			cur = l[*pe.Index]
 			out = append(out, *pe.Index)
+			ref = listElementRef(atom, hasAtom)
 		case pe.Key != nil:
 			l, ok := cur.([]any)
 			if !ok {
 				return nil, false
 			}
+			// A key field the item omits has its schema default: that is how
+			// the API server computed the key (a port without protocol is TCP).
+			elemRef := listElementRef(atom, hasAtom)
+			elemAtom, hasElem := resolveAtom(s, elemRef)
 			idx := -1
 			for i, item := range l {
 				im, ok := item.(map[string]any)
@@ -197,7 +212,13 @@ func toJSONPath(root any, p fieldpath.Path) ([]any, bool) {
 				}
 				match := true
 				for _, f := range *pe.Key {
-					if !value.Equals(value.NewValueInterface(im[f.Name]), f.Value) {
+					v, present := im[f.Name]
+					if !present && hasElem && elemAtom.Map != nil {
+						if sf, ok := elemAtom.FindField(f.Name); ok {
+							v = sf.Default
+						}
+					}
+					if !value.Equals(value.NewValueInterface(v), f.Value) {
 						match = false
 						break
 					}
@@ -212,26 +233,36 @@ func toJSONPath(root any, p fieldpath.Path) ([]any, bool) {
 			}
 			cur = l[idx]
 			out = append(out, idx)
+			ref = elemRef
 		case pe.Value != nil:
 			l, ok := cur.([]any)
 			if !ok {
 				return nil, false
 			}
-			idx := -1
-			for i, item := range l {
-				if value.Equals(value.NewValueInterface(item), *pe.Value) {
-					idx = i
-					break
-				}
-			}
+			idx := slices.IndexFunc(l, func(item any) bool { return value.Equals(value.NewValueInterface(item), *pe.Value) })
 			if idx < 0 {
 				return nil, false
 			}
 			cur = l[idx]
 			out = append(out, idx)
+			ref = listElementRef(atom, hasAtom)
 		default:
 			return nil, false
 		}
 	}
 	return out, true
+}
+
+func resolveAtom(s *smdschema.Schema, ref smdschema.TypeRef) (smdschema.Atom, bool) {
+	if s == nil {
+		return smdschema.Atom{}, false
+	}
+	return s.Resolve(ref)
+}
+
+func listElementRef(atom smdschema.Atom, hasAtom bool) smdschema.TypeRef {
+	if !hasAtom || atom.List == nil {
+		return smdschema.TypeRef{}
+	}
+	return atom.List.ElementType
 }

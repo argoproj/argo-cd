@@ -12,6 +12,8 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	smdschema "sigs.k8s.io/structured-merge-diff/v6/schema"
 	"sigs.k8s.io/structured-merge-diff/v6/typed"
+
+	"github.com/argoproj/argo-cd/v3/util/argo/diff"
 )
 
 // fieldSchema answers, for one field, how server-side apply merges it: how
@@ -130,6 +132,36 @@ func foldSecretStringData(un *unstructured.Unstructured) {
 	}
 }
 
+// stringDataPaths resolves the rules against a Secret manifest that still has
+// its stringData and returns, for every path that names a stringData key, the
+// same key under data on both sides. The server stores stringData under data,
+// so a rule written against either spelling protects the same key.
+func stringDataPaths(resolver *diff.IgnoredPathsResolver, live, target *unstructured.Unstructured) (livePaths, targetPaths [][]any, err error) {
+	gvk := target.GroupVersionKind()
+	if gvk.Group != "" || gvk.Kind != "Secret" {
+		return nil, nil, nil
+	}
+	if _, has := target.Object["stringData"]; !has {
+		return nil, nil, nil
+	}
+	_, rawPaths, err := resolver.IgnoredPaths(live, target)
+	if err != nil {
+		return nil, nil, err
+	}
+	for _, p := range rawPaths {
+		if len(p) == 0 || p[0] != "stringData" {
+			continue
+		}
+		dataPath := []any{"data"}
+		if len(p) > 1 {
+			dataPath = append(dataPath, p[1])
+		}
+		livePaths = append(livePaths, dataPath)
+		targetPaths = append(targetPaths, dataPath)
+	}
+	return livePaths, targetPaths, nil
+}
+
 // buildApplyTarget returns the object a RespectIgnoreDifferences sync applies:
 // the target without the paths the ignore rules remove from it, plus the live
 // values at the paths the ignore rules remove from live. Where git still
@@ -159,8 +191,11 @@ func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, target
 	}
 
 	// Drop the target's ignored paths, deepest and highest index first so list
-	// removals do not shift the indexes of paths still to be removed.
+	// removals do not shift the indexes of paths still to be removed. The same
+	// path can arrive from several rules (an Application rule and a
+	// resource.customizations rule); it is removed once.
 	sort.SliceStable(targetPaths, func(i, j int) bool { return comparePaths(targetPaths[i], targetPaths[j]) > 0 })
+	targetPaths = slices.CompactFunc(targetPaths, func(a, b []any) bool { return comparePaths(a, b) == 0 })
 	for _, p := range targetPaths {
 		removePath(result.Object, p)
 	}
@@ -168,6 +203,7 @@ func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, target
 	// Carry the live values, parents before children and lower indexes first
 	// so inserted list items keep their live order.
 	sort.SliceStable(livePaths, func(i, j int) bool { return comparePaths(livePaths[i], livePaths[j]) < 0 })
+	livePaths = slices.CompactFunc(livePaths, func(a, b []any) bool { return comparePaths(a, b) == 0 })
 	for _, p := range livePaths {
 		if len(p) == 0 {
 			continue

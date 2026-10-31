@@ -497,6 +497,12 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 // The schema is the structured-merge-diff schema of the cluster, the one
 // server-side apply uses; for a kind without one, lists are atomic and maps
 // granular.
+//
+// Every rule is resolved against the original objects. The diff normalizer
+// instead applies rules one after another, so when one rule removes a list
+// item and a later rule indexes into the same list, the diff addresses the
+// item that shifted into that index while the sync addresses the item the
+// rule names. Rules that select items by content are unaffected.
 func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
 	resolver, err := diff.NewIgnoredPathsResolver(cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
@@ -526,6 +532,12 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 		if err != nil {
 			return nil, err
 		}
+		stringDataLive, stringDataTarget, err := stringDataPaths(resolver, live, target)
+		if err != nil {
+			return nil, err
+		}
+		livePaths = append(livePaths, stringDataLive...)
+		targetPaths = append(targetPaths, stringDataTarget...)
 		if len(livePaths) == 0 && len(targetPaths) == 0 {
 			// Nothing is ignored on this resource: apply the manifest as is.
 			patchedTargets = append(patchedTargets, target)

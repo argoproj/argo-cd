@@ -387,6 +387,41 @@ func TestIgnoredPaths(t *testing.T) {
 		assert.Equal(t, [][]any{{"spec", "template", "spec", "containers", 0, "image"}}, paths)
 	})
 
+	t.Run("negative json pointer index counts from the end, as json-patch does", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Group: "apps", Kind: "Deployment",
+			JSONPointers: []string{"/spec/template/spec/containers/-1/image", "/spec/template/spec/containers/-2"},
+		})
+		deployment := test.NewDeployment()
+
+		paths, err := n.IgnoredPaths(deployment)
+
+		require.NoError(t, err)
+		assert.Equal(t, [][]any{{"spec", "template", "spec", "containers", 0, "image"}}, paths, "-1 is the only container; -2 is out of range")
+	})
+
+	t.Run("jq slice expands to every selected index, as del() removes them", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Group: "apps", Kind: "Deployment",
+			JQPathExpressions: []string{`.spec.template.spec.containers[1:]`, `.spec.template.spec.containers[-1:].image`},
+		})
+		deployment := test.NewDeployment()
+		containers, _, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		containers = append(containers, map[string]any{"name": "sidecar", "image": "sidecar:1"}, map[string]any{"name": "third", "image": "third:1"})
+		require.NoError(t, unstructured.SetNestedSlice(deployment.Object, containers, "spec", "template", "spec", "containers"))
+
+		paths, err := n.IgnoredPaths(deployment)
+
+		require.NoError(t, err)
+		assert.ElementsMatch(t, [][]any{
+			{"spec", "template", "spec", "containers", 1},
+			{"spec", "template", "spec", "containers", 2},
+		}, paths, "a slice followed by more path is not representable and yields nothing")
+	})
+
 	t.Run("jq expression that is not a path expression is skipped", func(t *testing.T) {
 		t.Parallel()
 		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{

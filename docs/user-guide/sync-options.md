@@ -453,9 +453,11 @@ Argo CD uses the cluster's schema, the same one server-side apply uses, to decid
 * Items of a list without merge keys (such as `tolerations` or `spec.sources` of an Application) are matched by position. Such a list is applied as one value, so an ignored field inside an item the manifest does not declare carries the whole live item.
 * An atomic map or list (`x-kubernetes-map-type: atomic` or `x-kubernetes-list-type: atomic`, such as `nodeSelector`) that the manifest does not declare is never created from a partial set of ignored keys, because the API server would replace the whole field with that partial content and drop what other controllers put there. To preserve such a field, ignore it as a whole.
 * `status` is never copied from the live resource; it belongs to the resource's own controller. Neither are the metadata fields the API server populates (`uid`, `resourceVersion`, `generation`, `creationTimestamp`, `managedFields`, `deletionTimestamp`), even when a rule ignores all of `metadata`.
-* For a `Secret`, `stringData` in the manifest is folded into `data` before the rules are applied, the same way the API server stores it, so a rule on `.data["password"]` is enough even when the manifest uses `stringData`.
+* For a `Secret`, `stringData` in the manifest is folded into `data` before the rules are applied, the same way the API server stores it. A rule on `.data["password"]` or on `.stringData["password"]` protects the same key, whichever spelling the manifest uses.
 
 Custom resources whose CRD publishes no list or map markers are handled as if every list were atomic.
+
+Each rule is resolved against the manifest and the live resource as they are. When one rule removes a list item and another rule names a later index of the same list (for example `/spec/template/spec/initContainers/0` and `/spec/template/spec/initContainers/1`), the sync treats both indexes as positions in the original list. Prefer selecting list items by content (`select(.name == "...")`) over indexes.
 
 In situations where individual resources need to have differences ignored independently of the application-level `spec.ignoreDifferences` configuration or user does not have access to edit Application spec, the `argocd.argoproj.io/ignore-differences` annotation can be applied directly to the resource manifest:
 
