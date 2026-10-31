@@ -929,7 +929,10 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                     }}
                                     header={
                                         <div>
-                                            <button onClick={() => projectRoleFormApi.current.submitForm(null)} className='argo-button argo-button--base'>
+                                            <button
+                                                disabled={projectMutations.updateRole.isPending}
+                                                onClick={() => projectRoleFormApi.current.submitForm(null)}
+                                                className='argo-button argo-button--base'>
                                                 {params.get('newRole') != null ? 'Create' : 'Update'}
                                             </button>{' '}
                                             <button
@@ -1011,6 +1014,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                     header={
                                         <div>
                                             <button
+                                                disabled={projectMutations.updateWindow.isPending}
                                                 onClick={() => {
                                                     if (params.get('newWindow') === null) {
                                                         projectSyncWindowsFormApi.current.setValue('id', Number(params.get('editWindow')));

@@ -253,7 +253,7 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                 onClose={() => setAddGnuPGKey(false)}
                 header={
                     <div>
-                        <button className='argo-button argo-button--base' onClick={() => formApi.current.submitForm(null)}>
+                        <button className='argo-button argo-button--base' disabled={gpgkeyMutations.create.isPending} onClick={() => formApi.current.submitForm(null)}>
                             Create
                         </button>{' '}
                         <button onClick={() => setAddGnuPGKey(false)} className='argo-button argo-button--base-o'>
