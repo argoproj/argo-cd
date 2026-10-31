@@ -473,8 +473,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 
 // normalizeTargetResources builds the objects a RespectIgnoreDifferences sync
 // applies: for each target, the git manifest everywhere except at the paths
-// the application's ignore rules name. Its contract, locked in by
-// sync_respect_ignore_semantics_test.go:
+// the application's ignore rules name. What it does:
 //
 //  1. Only the ignore rules (jsonPointers, jqPathExpressions,
 //     managedFieldsManagers) decide what is ignored. The other diff
@@ -504,6 +503,10 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 // item and a later rule indexes into the same list, the diff addresses the
 // item that shifted into that index while the sync addresses the item the
 // rule names. Rules that select items by content are unaffected.
+//
+// The guarantees that follow from this process are listed at the top of
+// sync_respect_ignore_semantics_test.go, one test each, with the reported
+// shapes as examples.
 func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
 	resolver, err := diff.NewIgnoredPathsResolver(cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {

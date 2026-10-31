@@ -13,10 +13,28 @@ package controller
 // the apply target with the real server-side-apply field manager (and, for
 // built-ins, kubectl's client-side three-way merge).
 //
-// The cases are grouped by the clause of the contract they pin, the plain ones
-// first and the edge cases last. Each group is one test; each example in it is a
-// subtest named after the shape and the issue that reported it, with a "Ref:"
-// naming the issue, PR or guide. The harness is at the end.
+// The process is described on normalizeTargetResources. These are the
+// guarantees that follow from it, the plain ones first and the edge cases last.
+// Each is one test; each example under it is a subtest named after the shape
+// and the issue that reported it, with a "Ref:" naming the issue, PR or guide:
+//
+//  1. A manifest nothing applies to is applied as given.
+//  2. An ignored scalar takes its live value and git's other changes apply.
+//  3. An ignored field is carried whole.
+//  4. Git wins wherever it still asserts a value.
+//  5. Keyed list items are matched by key.
+//  6. A live-only item of a keyless list is carried at its live position.
+//  7. Fields inside keyless list items are matched by position.
+//  8. An atomic container git does not declare is never created.
+//  9. A trusted manager's fields are carried.
+//  10. Status, server metadata and the tracking identity are never carried.
+//  11. stringData is folded into data before the rules run.
+//  12. A key field git omits takes its schema default.
+//  13. Set lists are merged as sets.
+//  14. Rules resolve against the original documents, once.
+//  15. Diff normalizers never reach the apply target.
+//
+// The harness is at the end.
 
 import (
 	"encoding/json"
@@ -216,7 +234,7 @@ spec:
 `
 
 // ---------------------------------------------------------------------------
-// Group 01: the manifest is applied as given
+// Guarantee 01: A manifest nothing applies to is applied as given.
 //
 // A manifest nothing applies to is applied as given. No ignored path on the
 // resource means the manifest object itself is returned, not a copy; no live
@@ -224,7 +242,7 @@ spec:
 // is being pruned and has no apply target.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_01_ManifestAppliedAsGiven(t *testing.T) {
+func TestRespectIgnoreSemantics_01_AManifestNothingAppliesToIsAppliedAsGiven(t *testing.T) {
 	// A resource no rule touches is applied exactly as given,
 	// as the same object, not a copy.
 	t.Run("nothing ignored, the manifest is applied as the same object", func(t *testing.T) {
@@ -281,15 +299,16 @@ func TestRespectIgnoreSemantics_01_ManifestAppliedAsGiven(t *testing.T) {
 }
 
 // ---------------------------------------------------------------------------
-// Group 02: a scalar ignored: the HPA recipe
+// Guarantee 02: An ignored scalar takes its live value and git's other changes apply.
 //
-// A scalar ignored by rule: the live value is applied and git's other changes go
-// through. This is the HPA recipe from the docs, with replicas declared in git
-// and with replicas left out of git as the best-practices page recommends. The
-// managedFieldsManagers spelling of the same recipe is in group 09.
+// The plainest instance of guarantees 3 and 4, placed first because it is the
+// recipe everyone knows: the HPA owns replicas, the rule is the documented
+// `/spec/replicas` pointer, with replicas declared in git and with replicas
+// left out of git as the best-practices page recommends. The
+// managedFieldsManagers spelling of the same recipe is under guarantee 9.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_02_ScalarIgnored_HPAReplicas(t *testing.T) {
+func TestRespectIgnoreSemantics_02_AnIgnoredScalarTakesItsLiveValue(t *testing.T) {
 	// The documented example. An HPA owns spec.replicas, git declares a
 	// value, and the rule is the jsonPointer from the docs. The live count is
 	// applied and git's other changes go through, under both apply modes.
@@ -402,13 +421,13 @@ spec:
 }
 
 // ---------------------------------------------------------------------------
-// Group 03: a whole field ignored: the live value is carried as one
+// Guarantee 03: An ignored field is carried whole.
 //
 // A whole field ignored: the live value replaces git's as one value, whatever
 // the schema says about it, and git declaring nothing there is no obstacle.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_03_WholeFieldIgnored_LiveValueCarried(t *testing.T) {
+func TestRespectIgnoreSemantics_03_AnIgnoredFieldIsCarriedWhole(t *testing.T) {
 	// A whole list ignored by pointer on a CRD. The live list replaces
 	// git's as one value, whatever the schema says about the list. Reported for
 	// ApplicationSet /spec/generators, where the sync emptied the list.
@@ -498,7 +517,7 @@ spec:
 }
 
 // ---------------------------------------------------------------------------
-// Group 04: git wins where it still asserts a value
+// Guarantee 04: Git wins wherever it still asserts a value.
 //
 // Git wins wherever it still asserts a value. A rule removes paths from the
 // manifest and carries live values into the gaps; where the rule matched only
@@ -507,7 +526,7 @@ spec:
 // carried.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_04_GitWinsWhereItAsserts(t *testing.T) {
+func TestRespectIgnoreSemantics_04_GitWinsWhereverItStillAssertsAValue(t *testing.T) {
 	// A conditional rule that matches the live value but not the git
 	// value. The diff compares git's `desired` against a live object with the
 	// field stripped and reports OutOfSync, so the sync must apply `desired`:
@@ -558,7 +577,7 @@ data:
 	// wins: the sync applies git's image, as the diff would show it.
 	//
 	// Ref: https://github.com/argoproj/argo-cd/pull/29945 (conditional rule
-	// matching only live), contract clause 4 of normalizeTargetResources.
+	// matching only live), step 4 of the process on normalizeTargetResources.
 	t.Run("conditional whole-item rule matches only live, git item applied", func(t *testing.T) {
 		target := toUnstructured(t, injectedInitTarget)
 		live := toUnstructured(t, injectedInitLive)
@@ -580,7 +599,7 @@ data:
 	// removes it from the manifest, so the sync does not put it back, and there is
 	// no live value to carry.
 	//
-	// Ref: contract clause 3 of normalizeTargetResources.
+	// Ref: step 3 of the process on normalizeTargetResources.
 	t.Run("ignored key only git declares, not applied", func(t *testing.T) {
 		target := toUnstructured(t, `
 apiVersion: v1
@@ -615,7 +634,7 @@ data:
 }
 
 // ---------------------------------------------------------------------------
-// Group 05: keyed lists: items are matched by key
+// Guarantee 05: Keyed list items are matched by key.
 //
 // Lists with merge keys (containers, initContainers, env, webhooks): the
 // carried value follows the item by its key, not its index, at every level. A
@@ -624,7 +643,7 @@ data:
 // sibling field.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_05_KeyedLists_ItemsMatchedByKey(t *testing.T) {
+func TestRespectIgnoreSemantics_05_KeyedListItemsAreMatchedByKey(t *testing.T) {
 	// Merge-keyed list (initContainers), whole entry injected and ignored.
 	// This is the example from docs/user-guide/diffing.md. The ignored entry exists
 	// only in live and must be carried into the apply target.
@@ -1122,7 +1141,7 @@ spec:
 }
 
 // ---------------------------------------------------------------------------
-// Group 06: keyless lists: a live-only item is carried at its live position
+// Guarantee 06: A live-only item of a keyless list is carried at its live position.
 //
 // Lists without merge keys (tolerations, args, Ingress paths, matchExpressions)
 // are applied as one value, so a live-only ignored item must be carried next to
@@ -1144,7 +1163,7 @@ func ingressBackendNames(t *testing.T, u *unstructured.Unstructured) []string {
 	return out
 }
 
-func TestRespectIgnoreSemantics_06_KeylessLists_LiveOnlyItemAtLivePosition(t *testing.T) {
+func TestRespectIgnoreSemantics_06_ALiveOnlyKeylessItemIsCarriedAtItsLivePosition(t *testing.T) {
 	// Atomic list (tolerations). No merge key: the API server replaces
 	// the whole list on every apply, so the apply target must carry the ignored
 	// live item alongside the git items.
@@ -1456,14 +1475,14 @@ webhooks:
 }
 
 // ---------------------------------------------------------------------------
-// Group 07: keyless lists: fields are matched by position
+// Guarantee 07: Fields inside keyless list items are matched by position.
 //
 // A field inside an item of a list without merge keys, with the item on both
 // sides: the item is matched by position, at every level of nesting, on CRDs
 // with and without a published schema.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_07_KeylessLists_FieldsMatchedByPosition(t *testing.T) {
+func TestRespectIgnoreSemantics_07_FieldsInsideKeylessItemsAreMatchedByPosition(t *testing.T) {
 	// Rule inside a list of unnamed items that exist on both sides, on a
 	// CRD (child Application in app-of-apps). `spec.sources` has no merge key, so
 	// items are matched by position: the ignored field of sources[1] takes its
@@ -1772,7 +1791,7 @@ spec:
 }
 
 // ---------------------------------------------------------------------------
-// Group 08: containers git does not declare: atomic ones are never created
+// Guarantee 08: An atomic container git does not declare is never created.
 //
 // Containers git does not declare. A granular map (annotations, labels) is
 // created to hold a carried key. An atomic map or list (nodeSelector,
@@ -1794,7 +1813,7 @@ func assertAtomicMapNotPartiallyAsserted(t *testing.T, applied *unstructured.Uns
 	}
 }
 
-func TestRespectIgnoreSemantics_08_UndeclaredContainers_AtomicNeverCreated(t *testing.T) {
+func TestRespectIgnoreSemantics_08_AnAtomicContainerGitDoesNotDeclareIsNeverCreated(t *testing.T) {
 	// Atomic map (nodeSelector) absent from the manifest, one key ignored.
 	// Granular maps can be applied partially; atomic maps cannot, so the apply
 	// target must not create a partial nodeSelector. Exercised for a built-in and
@@ -2009,15 +2028,15 @@ spec:
 }
 
 // ---------------------------------------------------------------------------
-// Group 09: managedFieldsManagers
+// Guarantee 09: A trusted manager's fields are carried.
 //
 // managedFieldsManagers: trust whatever the named managers own, using the
 // structured-merge-diff field sets gitops-engine already computes. Only fields
 // in the comparison's Modified set are carried, as at diff time. The port
-// example for this rule is in group 12.
+// example for this rule is under guarantee 12.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_09_ManagedFieldsManagers(t *testing.T) {
+func TestRespectIgnoreSemantics_09_ATrustedManagersFieldsAreCarried(t *testing.T) {
 	// ManagedFieldsManagers, the server-side-apply-native rule: trust
 	// whatever kube-controller-manager owns. The HPA scales through the scale
 	// subresource, so kube-controller-manager owns spec.replicas in live. The
@@ -2086,14 +2105,14 @@ spec:
 }
 
 // ---------------------------------------------------------------------------
-// Group 10: never carried: status, server metadata, tracking identity
+// Guarantee 10: Status, server metadata and the tracking identity are never carried.
 //
 // Never carried, whatever the rules say: status, the metadata fields the API
 // server populates, and the application's own tracking annotation and label,
 // which are always asserted from the manifest.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_10_NeverCarried(t *testing.T) {
+func TestRespectIgnoreSemantics_10_StatusServerMetadataAndTrackingIdentityAreNeverCarried(t *testing.T) {
 	// All of metadata ignored, as users do for PersistentVolumes an
 	// operator rewrites. Live labels are carried, but the fields the API server
 	// populates are not: server-side apply rejects a body with managedFields
@@ -2259,14 +2278,14 @@ data: {k: live}
 }
 
 // ---------------------------------------------------------------------------
-// Group 11: Secret stringData is folded into data first
+// Guarantee 11: stringData is folded into data before the rules run.
 //
 // A Secret's stringData is folded into data before the rules run, as the API
 // server does on write, so a rule on a data key sees the object the server will
 // store and git's stringData cannot override the carried value.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_11_SecretStringDataFold(t *testing.T) {
+func TestRespectIgnoreSemantics_11_StringDataIsFoldedIntoDataBeforeTheRulesRun(t *testing.T) {
 	// Secret rendered with stringData, only the data key ignored. This is
 	// how the reporter of #29644 naturally wrote the ignore. The API server folds
 	// stringData into data (stringData wins on conflict), so the apply target has
@@ -2451,7 +2470,7 @@ data:
 }
 
 // ---------------------------------------------------------------------------
-// Group 12: keyed items identified through a schema default
+// Guarantee 12: A key field git omits takes its schema default.
 //
 // Keyed items whose key field git omits: ports are keyed by (port, protocol)
 // and manifests leave protocol out, so the live item is matched to git's through
@@ -2459,7 +2478,7 @@ data:
 // item, which both apply modes reject.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_12_KeyedItemsIdentifiedBySchemaDefault(t *testing.T) {
+func TestRespectIgnoreSemantics_12_AKeyFieldGitOmitsTakesItsSchemaDefault(t *testing.T) {
 	// Service nodePort allocated by the server, ignored by pointer or jq.
 	// Service ports are keyed by (port, protocol) and manifests omit protocol, so
 	// the live item is matched to git's through the schema default (TCP). Without
@@ -2589,14 +2608,14 @@ spec:
 }
 
 // ---------------------------------------------------------------------------
-// Group 13: set lists
+// Guarantee 13: Set lists are merged as sets.
 //
 // Lists of type set (metadata.finalizers): neither keyed nor atomic. Live-only
 // items are carried next to git's; with the schema a set git does not declare is
 // created for them, without it the list counts as atomic and is left alone.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_13_SetLists(t *testing.T) {
+func TestRespectIgnoreSemantics_13_SetListsAreMergedAsSets(t *testing.T) {
 	// Metadata.finalizers is a set (listType=set), neither keyed nor
 	// atomic. The application controller adds its post-delete finalizers to a child
 	// Application that git declares with the resources finalizer only, or with no
@@ -2695,7 +2714,7 @@ spec:
 }
 
 // ---------------------------------------------------------------------------
-// Group 14: rules resolve against the original documents, once
+// Guarantee 14: Rules resolve against the original documents, once.
 //
 // Rules are resolved against the original git and live objects, and each path
 // is removed or carried once, however many rules name it. The diff normalizer
@@ -2703,7 +2722,7 @@ spec:
 // list another rule shortens.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_14_RulesResolveAgainstOriginalDocuments(t *testing.T) {
+func TestRespectIgnoreSemantics_14_RulesResolveAgainstTheOriginalDocumentsOnce(t *testing.T) {
 	// The same rule arrives twice, once from the Application and once
 	// from argocd-cm resource.customizations, and removes a whole list item. It
 	// must be removed once; removing it twice would delete the next item, which
@@ -2808,7 +2827,7 @@ spec:
 }
 
 // ---------------------------------------------------------------------------
-// Group 15: diff normalizers that are not ignore rules never leak
+// Guarantee 15: Diff normalizers never reach the apply target.
 //
 // Diff normalizers that are not ignore rules (known-types quantity
 // canonicalization, resource tracking) rewrite live for the comparison only.
@@ -2816,7 +2835,7 @@ spec:
 // the mechanism behind the regressions that started this work.
 // ---------------------------------------------------------------------------
 
-func TestRespectIgnoreSemantics_15_NormalizersNeverLeak(t *testing.T) {
+func TestRespectIgnoreSemantics_15_DiffNormalizersNeverReachTheApplyTarget(t *testing.T) {
 	// Known-types normalization must not leak into the apply target. The
 	// diff normalizer canonicalizes quantities for Rollout pod specs by default
 	// (and for any resource with a knownTypeFields override). CRDs store
