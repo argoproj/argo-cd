@@ -80,12 +80,12 @@ status:
     version: v1alpha1
   conditions:
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: Successfully generated parameters for all Applications
+    message: All applications have been generated successfully
     reason: ApplicationSetUpToDate
     status: "False"
     type: ErrorOccurred
   - lastTransitionTime: "2024-01-01T00:00:00Z"
-    message: Successfully generated parameters for all Applications
+    message: All parameters have been generated successfully
     reason: ParametersGenerated
     status: "True"
     type: ParametersGenerated
@@ -299,7 +299,7 @@ status:
     status: "False"
     type: InvalidRolloutConfig
   - lastTransitionTime: "2026-08-04T02:28:22Z"
-    message: Successfully generated parameters for all Applications
+    message: All parameters have been generated successfully
     reason: ParametersGenerated
     status: "True"
     type: ParametersGenerated

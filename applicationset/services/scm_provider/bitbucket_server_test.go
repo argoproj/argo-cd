@@ -627,9 +627,9 @@ func TestBitbucketServerHasPath(t *testing.T) {
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		var err error
 		switch r.RequestURI {
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/browse/pkg?at=main&limit=100&type=true":
-			_, err = io.WriteString(w, `{"type":"DIRECTORY"}`)
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/browse/pkg/?at=main&limit=100&type=true":
+		case "/rest/api/1.0/projects/PROJECT/repos/REPO/browse/pkg?at=main&limit=100&type=true",
+			"/rest/api/1.0/projects/PROJECT/repos/REPO/browse/pkg/?at=main&limit=100&type=true",
+			"/rest/api/1.0/projects/PROJECT/repos/REPO/browse/redirected?at=main&limit=100&type=true":
 			_, err = io.WriteString(w, `{"type":"DIRECTORY"}`)
 		case "/rest/api/1.0/projects/PROJECT/repos/REPO/browse/anotherpkg/file.txt?at=main&limit=100&type=true":
 			_, err = io.WriteString(w, `{"type":"FILE"}`)
@@ -641,8 +641,6 @@ func TestBitbucketServerHasPath(t *testing.T) {
 
 		case "/rest/api/1.0/projects/PROJECT/repos/REPO/browse/return-redirect?at=main&limit=100&type=true":
 			http.Redirect(w, r, "http://"+r.Host+"/rest/api/1.0/projects/PROJECT/repos/REPO/browse/redirected?at=main&limit=100&type=true", http.StatusMovedPermanently)
-		case "/rest/api/1.0/projects/PROJECT/repos/REPO/browse/redirected?at=main&limit=100&type=true":
-			_, err = io.WriteString(w, `{"type":"DIRECTORY"}`)
 
 		case "/rest/api/1.0/projects/PROJECT/repos/REPO/browse/unauthorized-response?at=main&limit=100&type=true":
 			http.Error(w, "Authentication failed", http.StatusUnauthorized)
