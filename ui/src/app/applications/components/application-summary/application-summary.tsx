@@ -331,9 +331,9 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                       if (!updatedApp.spec.sourceHydrator) {
                                           updatedApp.spec.sourceHydrator = {
                                               drySource: {
-                                                  repoURL: updatedApp.spec.source.repoURL,
-                                                  targetRevision: updatedApp.spec.source.targetRevision,
-                                                  path: updatedApp.spec.source.path
+                                                  repoURL: updatedApp.spec.source?.repoURL,
+                                                  targetRevision: updatedApp.spec.source?.targetRevision,
+                                                  path: updatedApp.spec.source?.path
                                               },
                                               syncSource: savedSyncSource
                                           };

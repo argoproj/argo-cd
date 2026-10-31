@@ -1,8 +1,8 @@
 import * as React from 'react';
-import {render, screen} from '@testing-library/react';
+import {fireEvent, render, screen} from '@testing-library/react';
 import {MemoryRouter} from 'react-router-dom';
 import * as models from '../../../shared/models';
-import {Context} from '../../../shared/context';
+import {AuthSettingsCtx, Context} from '../../../shared/context';
 import {ApplicationSummary} from './application-summary';
 
 // Both components pull in lodash-es, which Jest cannot parse.
@@ -37,5 +37,22 @@ describe('ApplicationSummary', () => {
         );
         expect(screen.getByText('NO-SOURCE')).toBeInTheDocument();
         expect(screen.getByText('REPO URL')).toBeInTheDocument();
+    });
+
+    it('enables the source hydrator on an application that has neither source nor sources', () => {
+        render(
+            <Context.Provider value={ctxValue}>
+                <AuthSettingsCtx.Provider value={{hydratorEnabled: true} as models.AuthSettings}>
+                    <MemoryRouter>
+                        <ApplicationSummary app={appWithoutSource} updateApp={() => Promise.resolve()} />
+                    </MemoryRouter>
+                </AuthSettingsCtx.Provider>
+            </Context.Provider>
+        );
+        // The second EDIT button belongs to the SOURCE panel.
+        fireEvent.click(screen.getAllByText('Edit')[1]);
+        const checkbox = document.getElementById('enable-hydrator') as HTMLInputElement;
+        fireEvent.click(checkbox);
+        expect(checkbox.checked).toBe(true);
     });
 });
