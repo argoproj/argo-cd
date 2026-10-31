@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -1340,21 +1341,22 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 
 func TestGatewayDialAddress(t *testing.T) {
 	tests := []struct {
-		name       string
-		listenHost string
-		want       string
+		name      string
+		boundAddr *net.TCPAddr
+		want      string
 	}{
-		{name: "empty host dials localhost", listenHost: "", want: "localhost:8080"},
-		{name: "IPv4 wildcard dials localhost", listenHost: "0.0.0.0", want: "localhost:8080"},
-		{name: "IPv6 wildcard dials localhost", listenHost: "[::]", want: "localhost:8080"},
-		{name: "localhost is kept", listenHost: "localhost", want: "localhost:8080"},
-		{name: "specific IPv4 address is kept", listenHost: "127.0.0.2", want: "127.0.0.2:8080"},
-		{name: "specific IPv6 address is kept", listenHost: "[::1]", want: "[::1]:8080"},
-		{name: "hostname is kept", listenHost: "argocd.example.com", want: "argocd.example.com:8080"},
+		{name: "IPv4 wildcard dials localhost", boundAddr: &net.TCPAddr{IP: net.IPv4zero, Port: 8080}, want: "localhost:8080"},
+		{name: "IPv6 wildcard dials localhost", boundAddr: &net.TCPAddr{IP: net.IPv6unspecified, Port: 8080}, want: "localhost:8080"},
+		{name: "specific IPv4 address is kept", boundAddr: &net.TCPAddr{IP: net.ParseIP("127.0.0.2"), Port: 8080}, want: "127.0.0.2:8080"},
+		{name: "specific IPv6 address is kept", boundAddr: &net.TCPAddr{IP: net.IPv6loopback, Port: 8080}, want: "[::1]:8080"},
+		{name: "IPv6 zone is escaped", boundAddr: &net.TCPAddr{IP: net.ParseIP("fe80::1"), Zone: "eth0", Port: 8080}, want: "[fe80::1%25eth0]:8080"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.want, gatewayDialAddress(tt.listenHost, 8080))
+			got := gatewayDialAddress(tt.boundAddr)
+			assert.Equal(t, tt.want, got)
+			_, err := grpc.NewClient(got, grpc.WithTransportCredentials(insecure.NewCredentials()))
+			require.NoError(t, err, "gRPC must accept the dial target")
 		})
 	}
 }

@@ -542,14 +542,14 @@ func startListener(host string, port int) (net.Listener, error) {
 	return conn, realErr
 }
 
-// gatewayDialAddress returns the address the grpc-gateway dials to reach the gRPC server,
-// using localhost when the server listens on all interfaces.
-func gatewayDialAddress(host string, port int) string {
-	ip := net.ParseIP(strings.Trim(host, "[]"))
-	if host == "" || (ip != nil && ip.IsUnspecified()) {
-		host = "localhost"
+// gatewayDialAddress returns the address the grpc-gateway dials to reach the gRPC server's listener,
+// using localhost when the listener accepts on all interfaces.
+func gatewayDialAddress(addr *net.TCPAddr) string {
+	if addr.IP.IsUnspecified() {
+		return fmt.Sprintf("localhost:%d", addr.Port)
 	}
-	return fmt.Sprintf("%s:%d", host, port)
+	// gRPC parses the target as a URL, so the % before an IPv6 zone must be escaped.
+	return strings.ReplaceAll(addr.String(), "%", "%25")
 }
 
 func (server *ArgoCDServer) Listen() (*Listeners, error) {
@@ -566,6 +566,7 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	dOpts = append(dOpts, grpc.WithDefaultCallOptions(grpc.MaxCallRecvMsgSize(apiclient.MaxGRPCMessageSize)))
 	dOpts = append(dOpts, grpc.WithUserAgent(fmt.Sprintf("%s/%s", common.ArgoCDUserAgentName, common.GetVersion().Version)))
 	dOpts = append(dOpts, grpc.WithStatsHandler(otelgrpc.NewClientHandler()))
+	dOpts = append(dOpts, grpc.WithNoProxy())
 	if server.useTLS() {
 		// The following sets up the dial Options for grpc-gateway to talk to gRPC server over TLS.
 		// grpc-gateway is just translating HTTP/HTTPS requests as gRPC requests over localhost,
@@ -582,7 +583,7 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 		dOpts = append(dOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	conn, err := grpc.NewClient(gatewayDialAddress(server.ListenHost, server.ListenPort), dOpts...)
+	conn, err := grpc.NewClient(gatewayDialAddress(mainLn.Addr().(*net.TCPAddr)), dOpts...)
 	if err != nil {
 		utilio.Close(mainLn)
 		utilio.Close(metricsLn)
