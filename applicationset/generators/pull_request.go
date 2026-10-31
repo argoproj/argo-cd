@@ -152,7 +152,11 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
 		}
-		return pullrequest.NewGitLabService(token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.ExcludedLabels, providerConfig.PullRequestState, g.scmRootCAPath, providerConfig.Insecure, caCerts, g.scmProxyURL, g.scmNoProxy)
+		clientCert, err := utils.GetTLSClientCertificate(ctx, g.client, providerConfig.TLSClientCertSecretRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
+		if err != nil {
+			return nil, fmt.Errorf("error loading GitLab TLS client certificate: %w", err)
+		}
+		return pullrequest.NewGitLabService(token, providerConfig.API, providerConfig.Project, providerConfig.Labels, providerConfig.ExcludedLabels, providerConfig.PullRequestState, g.scmRootCAPath, providerConfig.Insecure, caCerts, clientCert, g.scmProxyURL, g.scmNoProxy)
 	}
 	if generatorConfig.Gitea != nil {
 		providerConfig := generatorConfig.Gitea

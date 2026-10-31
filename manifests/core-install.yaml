@@ -16669,6 +16669,14 @@ spec:
                                         type: string
                                       pullRequestState:
                                         type: string
+                                      tlsClientCertSecretRef:
+                                        properties:
+                                          name:
+                                            minLength: 1
+                                            type: string
+                                        required:
+                                        - name
+                                        type: object
                                       tokenRef:
                                         properties:
                                           key:
@@ -25363,6 +25371,14 @@ spec:
                                         type: string
                                       pullRequestState:
                                         type: string
+                                      tlsClientCertSecretRef:
+                                        properties:
+                                          name:
+                                            minLength: 1
+                                            type: string
+                                        required:
+                                        - name
+                                        type: object
                                       tokenRef:
                                         properties:
                                           key:
@@ -30394,6 +30410,14 @@ spec:
                               type: string
                             pullRequestState:
                               type: string
+                            tlsClientCertSecretRef:
+                              properties:
+                                name:
+                                  minLength: 1
+                                  type: string
+                              required:
+                              - name
+                              type: object
                             tokenRef:
                               properties:
                                 key:
