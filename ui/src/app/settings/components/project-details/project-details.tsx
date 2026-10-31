@@ -945,6 +945,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                             </button>{' '}
                                             {params.get('newRole') === null ? (
                                                 <button
+                                                    disabled={projectMutations.updateRole.isPending}
                                                     onClick={async () => {
                                                         const confirmed = await ctx.popup.confirm('Delete project role', 'Are you sure you want to delete project role?');
                                                         if (confirmed) {
@@ -1034,6 +1035,7 @@ export const ProjectDetails: React.FC<RouteComponentProps<{name: string}> & {obj
                                             </button>{' '}
                                             {params.get('newWindow') === null ? (
                                                 <button
+                                                    disabled={projectMutations.updateWindow.isPending}
                                                     onClick={async () => {
                                                         const confirmed = await ctx.popup.confirm('Delete sync window', 'Are you sure you want to delete sync window?');
                                                         if (confirmed) {
