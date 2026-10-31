@@ -9,12 +9,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/structured-merge-diff/v6/typed"
 
-	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/scheme"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/diff"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
 func TestFoldSecretStringData(t *testing.T) {
@@ -299,25 +294,4 @@ func TestFieldSchema(t *testing.T) {
 		assert.Nil(t, sch.child("spec").child("items").listKeys())
 		assert.False(t, sch.child("spec").atomicMap())
 	})
-}
-
-func TestNormalizeTargetResources_NoIgnoredPathsReturnsTargetUnchanged(t *testing.T) {
-	live := toUnstructured(t, injectedInitLive)
-	target := toUnstructured(t, injectedInitTarget)
-	dc, err := diff.NewDiffConfigBuilder().
-		WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{{Kind: "Service", JSONPointers: []string{"/spec"}}}, nil, true, normalizers.IgnoreNormalizerOpts{}).
-		WithGVKParser(builtinGVKParser(t)).
-		WithNoCache().
-		Build()
-	require.NoError(t, err)
-	cr := &comparisonResult{
-		reconciliationResult: sync.ReconciliationResult{Live: []*unstructured.Unstructured{live}, Target: []*unstructured.Unstructured{target}},
-		diffConfig:           dc,
-	}
-
-	targets, err := normalizeTargetResources(cr)
-
-	require.NoError(t, err)
-	require.Len(t, targets, 1)
-	assert.Same(t, target, targets[0], "a resource without ignored paths is applied as given")
 }

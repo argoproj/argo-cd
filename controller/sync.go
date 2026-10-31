@@ -472,12 +472,31 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 }
 
 // normalizeTargetResources builds the objects a RespectIgnoreDifferences sync
-// applies. For each target it determines, from the ignore rules alone, which
-// paths are ignored on the target and which on the live object, then applies
-// the git manifest everywhere except at those paths: ignored target paths are
-// not asserted, ignored live paths carry their live value (see
-// buildApplyTarget). List identity and atomic fields come from the
-// structured-merge-diff schema of the cluster, the one server-side apply uses.
+// applies: for each target, the git manifest everywhere except at the paths
+// the application's ignore rules name. Its contract, locked in by
+// sync_respect_ignore_semantics_test.go:
+//
+//  1. Only the ignore rules (jsonPointers, jqPathExpressions,
+//     managedFieldsManagers) decide what is ignored. The other diff
+//     normalizers (known types, tracking) never change what is applied.
+//  2. A resource with no ignored path is applied exactly as given.
+//  3. A path a rule removes from git is not asserted.
+//  4. A path a rule removes from live keeps its live value. Where git still
+//     asserts a value at that path, git wins.
+//  5. List items are matched by the schema's merge keys, with missing key
+//     fields taking their schema defaults; a list without keys is matched by
+//     position. A live-only item is inserted at its live position. A field
+//     inside an item git does not declare carries the item's identity in a
+//     keyed list and the whole item in a keyless list.
+//  6. An atomic map or list git does not declare is never created from a
+//     partial set of ignored keys; a whole ignored value is carried as is.
+//  7. status and the metadata fields the API server populates are never
+//     carried.
+//  8. A Secret's stringData is folded into data before the rules run.
+//
+// The schema is the structured-merge-diff schema of the cluster, the one
+// server-side apply uses; for a kind without one, lists are atomic and maps
+// granular.
 func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructured, error) {
 	resolver, err := diff.NewIgnoredPathsResolver(cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
