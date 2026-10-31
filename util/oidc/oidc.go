@@ -29,6 +29,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/oauth2"
+	"golang.org/x/sync/singleflight"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/server/settings/oidc"
@@ -100,6 +101,10 @@ type ClientApp struct {
 	provider Provider
 	// clientCache represent a cache of sso artifact
 	clientCache cache.CacheClient
+	// refreshGroup runs one token refresh per session at a time: providers that rotate refresh
+	// tokens (e.g. GitLab) reject a refresh token once it has been used, so concurrent requests
+	// refreshing the same session share the first refresh's result.
+	refreshGroup singleflight.Group
 	// domainHint is an optional hint to the identity provider about the domain the user belongs to.
 	// Used to pre-fill or streamline the login experience (e.g., for Azure AD multi-tenant scenarios).
 	domainHint string
@@ -188,9 +193,40 @@ func (a *ClientApp) GetTokenSourceFromCache(ctx context.Context, oidcTokenCache 
 	if err != nil {
 		return nil, err
 	}
-	baseTokenSource := config.TokenSource(ctx, oidcTokenCache.Token)
-	tokenRefresher := oauth2.ReuseTokenSourceWithExpiry(oidcTokenCache.Token, baseTokenSource, a.refreshTokenThreshold)
+	token := withIDTokenExpiry(oidcTokenCache.Token)
+	baseTokenSource := config.TokenSource(ctx, token)
+	tokenRefresher := oauth2.ReuseTokenSourceWithExpiry(token, baseTokenSource, a.refreshTokenThreshold)
 	return tokenRefresher, nil
+}
+
+// withIDTokenExpiry returns a copy of token that expires when its ID token does, if that is earlier
+// than the access token's expiry. Token.Expiry is the access token's expiry, but Argo CD uses the
+// ID token, which some providers issue with a shorter lifetime (e.g. GitLab: 2 minutes vs 2 hours).
+// Without this, an expired ID token isn't refreshed until the access token is about to expire.
+// The ID token's exp is read without verification: it only decides when to refresh, and the
+// refreshed ID token is verified as usual.
+func withIDTokenExpiry(token *oauth2.Token) *oauth2.Token {
+	if token == nil {
+		return nil
+	}
+	idTokenRAW, ok := token.Extra("id_token").(string)
+	if !ok || idTokenRAW == "" {
+		return token
+	}
+	parsed, _, err := jwt.NewParser().ParseUnverified(idTokenRAW, jwt.MapClaims{})
+	if err != nil {
+		return token
+	}
+	exp, err := parsed.Claims.GetExpirationTime()
+	if err != nil || exp == nil {
+		return token
+	}
+	if !token.Expiry.IsZero() && !exp.Before(token.Expiry) {
+		return token
+	}
+	tokenWithIDTokenExpiry := *token
+	tokenWithIDTokenExpiry.Expiry = exp.Time
+	return &tokenWithIDTokenExpiry
 }
 
 func GetScopesOrDefault(scopes []string) []string {
@@ -754,6 +790,20 @@ func (a *ClientApp) CheckAndRefreshToken(ctx context.Context, groupClaims jwt.Ma
 // GetUpdatedOidcTokenFromCache fetches a token from cache and refreshes it if under the threshold for expiration.
 // The cached token will also be updated if it is refreshed.  Returns latest token or an error if the process fails.
 func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject string, sessionId string) (*oauth2.Token, error) {
+	// The UI sends several requests at once; without this, each would refresh with the same
+	// refresh token, and all but the first fail when the provider rotates refresh tokens.
+	// The shared call doesn't use the first request's cancellation, so one aborted request
+	// doesn't fail the others.
+	token, err, _ := a.refreshGroup.Do(formatOidcTokenCacheKey(subject, sessionId), func() (any, error) {
+		return a.getUpdatedOidcTokenFromCache(context.WithoutCancel(ctx), subject, sessionId)
+	})
+	if err != nil {
+		return nil, err
+	}
+	return token.(*oauth2.Token), nil
+}
+
+func (a *ClientApp) getUpdatedOidcTokenFromCache(ctx context.Context, subject string, sessionId string) (*oauth2.Token, error) {
 	var span trace.Span
 	ctx, span = tracer.Start(ctx, "oidc.ClientApp.GetUpdatedOidcTokenFromCache")
 	defer span.End()
@@ -791,11 +841,18 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 	token, err := tokenSource.Token()
 	span.AddEvent("finished tokenSource.Token()")
 	if err != nil {
+		// Another argocd-server replica may have refreshed this session with the same refresh token
+		// (singleflight only covers this process), which a provider that rotates refresh tokens then
+		// rejects here. Use the token that replica stored rather than failing the request.
+		if refreshed := a.tokenRefreshedElsewhere(ctx, cacheKey, oidcTokenCache.Token); refreshed != nil {
+			span.AddEvent("using token refreshed by another replica")
+			return refreshed, nil
+		}
 		err = fmt.Errorf("failed to refresh token from source: %w", err)
 		span.SetStatus(codes.Error, err.Error())
 		return nil, err
 	}
-	if token.AccessToken != oidcTokenCache.Token.AccessToken {
+	if token.AccessToken != oidcTokenCache.Token.AccessToken || token.Extra("id_token") != oidcTokenCache.Token.Extra("id_token") {
 		span.AddEvent("updating cache with latest token")
 
 		oidcTokenCache = NewOidcTokenCache(oidcTokenCache.RedirectURL, token, oidcTokenCache.SessionStart)
@@ -819,6 +876,39 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 		}
 	}
 	return token, nil
+}
+
+// refreshedElsewhereWait is how long a failed refresh waits before reading the cache a second time,
+// giving a replica whose refresh is still in flight time to store its result.
+var refreshedElsewhereWait = 500 * time.Millisecond
+
+// tokenRefreshedElsewhere returns the session's cached token if it has been replaced since previous was
+// read, i.e. another replica refreshed the session, or nil if it hasn't. It reads the cache right away
+// and once more after refreshedElsewhereWait.
+func (a *ClientApp) tokenRefreshedElsewhere(ctx context.Context, cacheKey string, previous *oauth2.Token) *oauth2.Token {
+	for attempt := range 2 {
+		if attempt > 0 {
+			select {
+			case <-ctx.Done():
+				return nil
+			case <-time.After(refreshedElsewhereWait):
+			}
+		}
+		oidcTokenCacheJSON, err := a.GetValueFromEncryptedCache(ctx, cacheKey)
+		if err != nil || oidcTokenCacheJSON == nil {
+			return nil
+		}
+		oidcTokenCache, err := GetOidcTokenCacheFromJSON(oidcTokenCacheJSON)
+		if err != nil {
+			return nil
+		}
+		current := oidcTokenCache.Token
+		if current.RefreshToken != previous.RefreshToken || current.AccessToken != previous.AccessToken {
+			log.Info("using token refreshed by another replica")
+			return current
+		}
+	}
+	return nil
 }
 
 var implicitFlowTmpl = template.Must(template.New("implicit.html").Parse(`<script>
