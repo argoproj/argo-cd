@@ -140,6 +140,7 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceActions":                         schema_pkg_apis_application_v1alpha1_ResourceActions(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceDiff":                            schema_pkg_apis_application_v1alpha1_ResourceDiff(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences":               schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref),
+		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceIgnoreDuplicate":                 schema_pkg_apis_application_v1alpha1_ResourceIgnoreDuplicate(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceNetworkingInfo":                  schema_pkg_apis_application_v1alpha1_ResourceNetworkingInfo(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceNode":                            schema_pkg_apis_application_v1alpha1_ResourceNode(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceOverride":                        schema_pkg_apis_application_v1alpha1_ResourceOverride(ref),
@@ -2329,12 +2330,26 @@ func schema_pkg_apis_application_v1alpha1_ApplicationSpec(ref common.ReferenceCa
 							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SourceHydrator"),
 						},
 					},
+					"ignoreDuplicateResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IgnoreDuplicateResources controls which resources should suppress RepeatedResourceWarning. If a resource appears multiple times among application resources but matches one of these selectors, the RepeatedResourceWarning condition will not be generated for it.",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]any{},
+										Ref:     ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceIgnoreDuplicate"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"destination", "project"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SourceHydrator", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicy"},
+			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.Info", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceIgnoreDuplicate", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SourceHydrator", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicy"},
 	}
 }
 
@@ -3216,12 +3231,26 @@ func schema_pkg_apis_application_v1alpha1_ComparedTo(ref common.ReferenceCallbac
 							},
 						},
 					},
+					"ignoreDuplicateResources": {
+						SchemaProps: spec.SchemaProps{
+							Description: "IgnoreDuplicateResources is a reference to the application's ignored duplicate resources used for comparison",
+							Type:        []string{"array"},
+							Items: &spec.SchemaOrArray{
+								Schema: &spec.Schema{
+									SchemaProps: spec.SchemaProps{
+										Default: map[string]any{},
+										Ref:     ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceIgnoreDuplicate"),
+									},
+								},
+							},
+						},
+					},
 				},
 				Required: []string{"destination"},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences"},
+			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationSource", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceIgnoreDifferences", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ResourceIgnoreDuplicate"},
 	}
 }
 
@@ -6526,6 +6555,45 @@ func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDifferences(ref common.R
 									},
 								},
 							},
+						},
+					},
+				},
+				Required: []string{"kind"},
+			},
+		},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_ResourceIgnoreDuplicate(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "ResourceIgnoreDuplicate contains resource filter for suppressing RepeatedResourceWarning. If a resource matches the Group/Kind/Name/Namespace selector, the warning will not be generated when that resource appears multiple times among application resources.",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"group": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"kind": {
+						SchemaProps: spec.SchemaProps{
+							Default: "",
+							Type:    []string{"string"},
+							Format:  "",
+						},
+					},
+					"name": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
+						},
+					},
+					"namespace": {
+						SchemaProps: spec.SchemaProps{
+							Type:   []string{"string"},
+							Format: "",
 						},
 					},
 				},

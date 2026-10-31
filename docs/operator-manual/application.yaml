@@ -278,6 +278,14 @@ spec:
     name: my-deployment
     namespace: my-namespace
 
+  # Will suppress RepeatedResourceWarning for specific resources that appear multiple times among
+  # application resources (e.g., CRDs from Helm subchart dependencies).
+  ignoreDuplicateResources:
+  - group: apiextensions.k8s.io
+    kind: CustomResourceDefinition
+    # Name and namespace are optional — empty fields act as wildcards.
+    name: dnsendpoints.externaldns.k8s.io
+
   # RevisionHistoryLimit limits the number of items kept in the application's revision history, which is used for
   # informational purposes as well as for rollbacks to previous versions. This should only be changed in exceptional
   # circumstances. Setting to zero will store no history. This will reduce storage used. Increasing will increase the
