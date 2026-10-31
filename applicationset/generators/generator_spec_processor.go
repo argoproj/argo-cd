@@ -124,7 +124,7 @@ func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSet
 }
 
 func flattenParameters(in map[string]any) (map[string]string, error) {
-	flat, err := flatten.Flatten(normalizeMapForFlatten(in), "", flatten.DotStyle)
+	flat, err := flatten.Flatten(normalizeStringMaps(in), "", flatten.DotStyle)
 	if err != nil {
 		return nil, fmt.Errorf("error flatenning parameters: %w", err)
 	}
@@ -137,13 +137,15 @@ func flattenParameters(in map[string]any) (map[string]string, error) {
 	return out, nil
 }
 
-// normalizeMapForFlatten recursively converts map[string]string values to
+// normalizeStringMaps recursively converts map[string]string values to
 // map[string]interface{} so that flatten.Flatten can recurse into them.
 // flatten.Flatten only recurses into map[string]interface{} and []interface{};
 // map[string]string is treated as an opaque leaf, causing individual keys
 // (e.g. metadata.labels.environment) to be absent from the flat output and
 // silently breaking post-generator selector matching in GoTemplate mode.
-func normalizeMapForFlatten(in map[string]any) map[string]any {
+// mergo.Merge panics when one side holds a map[string]string and the other a
+// map[string]interface{} under the same key, so merges normalize first too.
+func normalizeStringMaps(in map[string]any) map[string]any {
 	out := make(map[string]any, len(in))
 	for k, v := range in {
 		switch cast := v.(type) {
@@ -154,7 +156,7 @@ func normalizeMapForFlatten(in map[string]any) map[string]any {
 			}
 			out[k] = inner
 		case map[string]any:
-			out[k] = normalizeMapForFlatten(cast)
+			out[k] = normalizeStringMaps(cast)
 		default:
 			out[k] = v
 		}
