@@ -542,6 +542,16 @@ func startListener(host string, port int) (net.Listener, error) {
 	return conn, realErr
 }
 
+// gatewayDialAddress returns the address the grpc-gateway dials to reach the gRPC server,
+// using localhost when the server listens on all interfaces.
+func gatewayDialAddress(host string, port int) string {
+	ip := net.ParseIP(strings.Trim(host, "[]"))
+	if host == "" || (ip != nil && ip.IsUnspecified()) {
+		host = "localhost"
+	}
+	return fmt.Sprintf("%s:%d", host, port)
+}
+
 func (server *ArgoCDServer) Listen() (*Listeners, error) {
 	mainLn, err := startListener(server.ListenHost, server.ListenPort)
 	if err != nil {
@@ -572,7 +582,7 @@ func (server *ArgoCDServer) Listen() (*Listeners, error) {
 		dOpts = append(dOpts, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	}
 
-	conn, err := grpc.NewClient(fmt.Sprintf("localhost:%d", server.ListenPort), dOpts...)
+	conn, err := grpc.NewClient(gatewayDialAddress(server.ListenHost, server.ListenPort), dOpts...)
 	if err != nil {
 		utilio.Close(mainLn)
 		utilio.Close(metricsLn)

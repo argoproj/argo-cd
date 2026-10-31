@@ -1338,6 +1338,27 @@ func TestAuthenticate_bad_request_metadata(t *testing.T) {
 	}
 }
 
+func TestGatewayDialAddress(t *testing.T) {
+	tests := []struct {
+		name       string
+		listenHost string
+		want       string
+	}{
+		{name: "empty host dials localhost", listenHost: "", want: "localhost:8080"},
+		{name: "IPv4 wildcard dials localhost", listenHost: "0.0.0.0", want: "localhost:8080"},
+		{name: "IPv6 wildcard dials localhost", listenHost: "[::]", want: "localhost:8080"},
+		{name: "localhost is kept", listenHost: "localhost", want: "localhost:8080"},
+		{name: "specific IPv4 address is kept", listenHost: "127.0.0.2", want: "127.0.0.2:8080"},
+		{name: "specific IPv6 address is kept", listenHost: "[::1]", want: "[::1]:8080"},
+		{name: "hostname is kept", listenHost: "argocd.example.com", want: "argocd.example.com:8080"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, gatewayDialAddress(tt.listenHost, 8080))
+		})
+	}
+}
+
 func Test_getToken(t *testing.T) {
 	token := "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwibmFtZSI6IkpvaG4gRG9lIiwiaWF0IjoxNTE2MjM5MDIyfQ.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV_adQssw5c"
 	t.Run("Empty", func(t *testing.T) {
