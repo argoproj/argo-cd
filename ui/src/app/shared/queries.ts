@@ -30,3 +30,8 @@ export const clusterQueries = {
 export const gpgkeyQueries = {
     list: () => queryOptions({queryKey: ['gpgkeys', 'list'], queryFn: () => services.gpgkeys.list()})
 };
+
+export const accountQueries = {
+    list: () => queryOptions({queryKey: ['accounts', 'list'], queryFn: () => services.accounts.list()}),
+    detail: (name: string) => queryOptions({queryKey: ['accounts', 'detail', name], queryFn: () => services.accounts.get(name)})
+};
