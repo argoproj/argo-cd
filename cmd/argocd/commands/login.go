@@ -60,7 +60,11 @@ func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 A client certificate given with --client-crt and --client-crt-key is recorded in the context, so that
 subsequent commands reuse it without having to specify the flags again. The certificate is referenced
 by path and read on every invocation, which means certificates rotated by an external tool are picked
-up automatically.`,
+up automatically.
+
+In core mode, --kubeconfig records a Kubernetes configuration file path in the Argo CD context.
+Subsequent core-mode commands reuse that file unless --kubeconfig overrides it.
+The flag requires --core and must reference an existing file.`,
 		Example: `# Login to Argo CD using a username and password
 argocd login cd.argoproj.io
 
@@ -74,7 +78,25 @@ argocd login cd.argoproj.io --sso --no-browser
 argocd login cd.argoproj.io --client-crt ~/certs/argocd.crt --client-crt-key ~/certs/argocd.key
 
 # Configure direct access using Kubernetes API server
-argocd login cd.argoproj.io --core`,
+argocd login cd.argoproj.io --core
+
+# Save a custom Kubernetes configuration for a named core-mode context
+argocd login --core --name k3s --kubeconfig /etc/rancher/k3s/k3s.yaml`,
+		PreRunE: func(c *cobra.Command, _ []string) error {
+			if !clientOpts.Core && (c.Flags().Changed("kubeconfig") || clientOpts.KubeConfigPath != "") {
+				return stderrors.New("--kubeconfig requires --core")
+			}
+			if clientOpts.Core && clientOpts.KubeConfigPath != "" {
+				info, err := os.Stat(clientOpts.KubeConfigPath)
+				if err != nil {
+					return fmt.Errorf("cannot access kubeconfig %q: %w", clientOpts.KubeConfigPath, err)
+				}
+				if info.IsDir() {
+					return fmt.Errorf("kubeconfig %q is a directory", clientOpts.KubeConfigPath)
+				}
+			}
+			return nil
+		},
 		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
@@ -196,6 +218,11 @@ argocd login cd.argoproj.io --core`,
 			}
 
 			// login successful. Persist the config
+			var kubeConfigPath string
+			if clientOpts.Core && clientOpts.KubeConfigPath != "" {
+				kubeConfigPath, err = filepath.Abs(clientOpts.KubeConfigPath)
+				errors.CheckError(err)
+			}
 			localCfg.UpsertServer(serverCfg)
 			localCfg.UpsertUser(localconfig.User{
 				Name:         ctxName,
@@ -207,9 +234,10 @@ argocd login cd.argoproj.io --core`,
 			}
 			localCfg.CurrentContext = ctxName
 			localCfg.UpsertContext(localconfig.ContextRef{
-				Name:   ctxName,
-				User:   ctxName,
-				Server: server,
+				Name:           ctxName,
+				User:           ctxName,
+				Server:         server,
+				KubeConfigPath: kubeConfigPath,
 			})
 			err = localconfig.WriteLocalConfig(*localCfg, clientOpts.ConfigPath)
 			errors.CheckError(err)
@@ -217,6 +245,7 @@ argocd login cd.argoproj.io --core`,
 		}),
 	}
 	command.Flags().StringVar(&ctxName, "name", "", "Name to use for the context")
+	command.Flags().StringVar(&clientOpts.KubeConfigPath, "kubeconfig", "", "Path to a Kubernetes config file to save for core mode")
 	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")

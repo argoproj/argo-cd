@@ -13,6 +13,10 @@ subsequent commands reuse it without having to specify the flags again. The cert
 by path and read on every invocation, which means certificates rotated by an external tool are picked
 up automatically.
 
+In core mode, --kubeconfig records a Kubernetes configuration file path in the Argo CD context.
+Subsequent core-mode commands reuse that file unless --kubeconfig overrides it.
+The flag requires --core and must reference an existing file.
+
 ```
 argocd login SERVER [flags]
 ```
@@ -34,6 +38,9 @@ argocd login cd.argoproj.io --client-crt ~/certs/argocd.crt --client-crt-key ~/c
 
 # Configure direct access using Kubernetes API server
 argocd login cd.argoproj.io --core
+
+# Save a custom Kubernetes configuration for a named core-mode context
+argocd login --core --name k3s --kubeconfig /etc/rancher/k3s/k3s.yaml
 ```
 
 ### Options
@@ -41,6 +48,7 @@ argocd login cd.argoproj.io --core
 ```
       --callback string      Scheme, Host and Port for the callback URL
   -h, --help                 help for login
+      --kubeconfig string    Path to a Kubernetes config file to save for core mode
       --name string          Name to use for the context
       --no-browser           Perform SSO login without a browser using the device code flow (requires --sso)
       --password string      The password of an account to authenticate
