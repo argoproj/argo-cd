@@ -1,0 +1,54 @@
+actionTests:
+- action: force-promote
+  inputPath: testdata/numaflowcontroller.yaml
+  expectedOutputPath: testdata/numaflowcontroller-force-promote.yaml
+- action: force-promote-chain
+  inputPath: testdata/numaflowcontroller-chain-failed.yaml
+  expectedOutputPath: testdata/numaflowcontroller-force-promote-chain.yaml
+
+discoveryTests:
+  - inputPath: testdata/numaflowcontroller.yaml
+    result:
+      - name: force-promote
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-forward'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+  - inputPath: testdata/numaflowcontroller-promoted.yaml
+    result:
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+  - inputPath: testdata/numaflowcontroller-force-promote.yaml
+    result:
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+  - inputPath: testdata/numaflowcontroller-chain-failed.yaml
+    result:
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+      - name: force-promote-chain
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+  - inputPath: testdata/numaflowcontroller-force-promote-chain.yaml
+    result:
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'

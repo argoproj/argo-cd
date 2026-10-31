@@ -76,6 +76,8 @@
 - [numaplane.numaproj.io/MonoVertexRollout/pause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/MonoVertexRollout/actions/pause/action.lua)
 - [numaplane.numaproj.io/MonoVertexRollout/unpause-fast](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/MonoVertexRollout/actions/unpause-fast/action.lua)
 - [numaplane.numaproj.io/MonoVertexRollout/unpause-gradual](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/MonoVertexRollout/actions/unpause-gradual/action.lua)
+- [numaplane.numaproj.io/NumaflowController/force-promote-chain](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/NumaflowController/actions/force-promote-chain/action.lua)
+- [numaplane.numaproj.io/NumaflowController/force-promote](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/NumaflowController/actions/force-promote/action.lua)
 - [numaplane.numaproj.io/PipelineRollout/allow-data-loss](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/allow-data-loss/action.lua)
 - [numaplane.numaproj.io/PipelineRollout/disallow-data-loss](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/disallow-data-loss/action.lua)
 - [numaplane.numaproj.io/PipelineRollout/pause](https://github.com/argoproj/argo-cd/blob/master/resource_customizations/numaplane.numaproj.io/PipelineRollout/actions/pause/action.lua)
