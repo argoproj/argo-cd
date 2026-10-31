@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {render, screen} from '@testing-library/react';
+import {fireEvent, render, screen} from '@testing-library/react';
 import * as models from '../../../shared/models';
 import {Context} from '../../../shared/context';
 import {ApplicationSyncPanelBody} from './application-sync-panel-body';
@@ -23,5 +23,14 @@ describe('ApplicationSyncPanelBody', () => {
             </Context.Provider>
         );
         expect(screen.getByText(/Synchronizing application manifests from/)).toBeInTheDocument();
+    });
+
+    it('selects out-of-sync resources for an application without status.resources', () => {
+        render(
+            <Context.Provider value={ctxValue}>
+                <ApplicationSyncPanelBody application={appWithoutSource} selectedResource={null} hide={() => undefined} getApi={() => undefined} setPending={() => undefined} />
+            </Context.Provider>
+        );
+        expect(() => fireEvent.click(screen.getByText('out of sync'))).not.toThrow();
     });
 });

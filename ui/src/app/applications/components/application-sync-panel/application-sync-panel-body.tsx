@@ -286,7 +286,7 @@ export const ApplicationSyncPanelBody = ({
                                         onClick={() =>
                                             formApi.setValue(
                                                 'resources',
-                                                application.status.resources
+                                                (application.status.resources || [])
                                                     .filter(item => !item.hook)
                                                     .map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
                                             )
