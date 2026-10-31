@@ -35,3 +35,8 @@ export const accountQueries = {
     list: () => queryOptions({queryKey: ['accounts', 'list'], queryFn: () => services.accounts.list()}),
     detail: (name: string) => queryOptions({queryKey: ['accounts', 'detail', name], queryFn: () => services.accounts.get(name)})
 };
+
+export const helpQueries = {
+    settings: () => queryOptions({queryKey: ['help', 'settings'], queryFn: () => services.authService.settings()}),
+    version: () => queryOptions({queryKey: ['help', 'version'], queryFn: () => services.version.version().catch(() => ({Platform: ''}))})
+};
