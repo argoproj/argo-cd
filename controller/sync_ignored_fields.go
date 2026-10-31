@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
-	"sort"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -17,6 +16,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/jqpath"
 )
 
 // fieldSchema answers, for one field, how server-side apply merges it: how
@@ -139,7 +139,7 @@ func foldSecretStringData(un *unstructured.Unstructured) {
 // its stringData and returns, for every path that names a stringData key, the
 // same key under data on both sides. The server stores stringData under data,
 // so a rule written against either spelling protects the same key.
-func stringDataPaths(resolver *diff.IgnoredPathsResolver, live, target *unstructured.Unstructured) (livePaths, targetPaths [][]any, err error) {
+func stringDataPaths(resolver *diff.IgnoredPathsResolver, live, target *unstructured.Unstructured) (livePaths, targetPaths []jqpath.Path, err error) {
 	gvk := target.GroupVersionKind()
 	if gvk.Group != "" || gvk.Kind != "Secret" {
 		return nil, nil, nil
@@ -155,7 +155,7 @@ func stringDataPaths(resolver *diff.IgnoredPathsResolver, live, target *unstruct
 		if len(p) == 0 || p[0] != "stringData" {
 			continue
 		}
-		dataPath := []any{"data"}
+		dataPath := jqpath.Path{"data"}
 		if len(p) > 1 {
 			dataPath = append(dataPath, p[1])
 		}
@@ -175,7 +175,7 @@ func stringDataPaths(resolver *diff.IgnoredPathsResolver, live, target *unstruct
 //
 // Paths are sequences of map keys (string) and list indexes (int) into
 // live.Object and target.Object.
-func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, targetPaths [][]any, sch fieldSchema) (*unstructured.Unstructured, error) {
+func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, targetPaths []jqpath.Path, sch fieldSchema) (*unstructured.Unstructured, error) {
 	// Work on JSON-decoded copies so every number is an int64 or a float64,
 	// as in an object decoded from the API server.
 	result, err := jsonCopy(target)
@@ -193,20 +193,15 @@ func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, target
 		unstructured.RemoveNestedField(liveCopy.Object, "metadata", field)
 	}
 
-	// Drop the target's ignored paths, deepest and highest index first so list
-	// removals do not shift the indexes of paths still to be removed. The same
-	// path can arrive from several rules (an Application rule and a
-	// resource.customizations rule); it is removed once.
-	sort.SliceStable(targetPaths, func(i, j int) bool { return comparePaths(targetPaths[i], targetPaths[j]) > 0 })
-	targetPaths = slices.CompactFunc(targetPaths, func(a, b []any) bool { return comparePaths(a, b) == 0 })
-	for _, p := range targetPaths {
-		removePath(result.Object, p)
-	}
+	// Drop the target's ignored paths. The same path can arrive from several
+	// rules (an Application rule and a resource.customizations rule); it is
+	// removed once, as jq's delpaths would.
+	jqpath.DeleteAll(result.Object, targetPaths)
 
 	// Carry the live values, parents before children and lower indexes first
 	// so inserted list items keep their live order.
-	sort.SliceStable(livePaths, func(i, j int) bool { return comparePaths(livePaths[i], livePaths[j]) < 0 })
-	livePaths = slices.CompactFunc(livePaths, func(a, b []any) bool { return comparePaths(a, b) == 0 })
+	slices.SortStableFunc(livePaths, jqpath.Compare)
+	livePaths = slices.CompactFunc(livePaths, func(a, b jqpath.Path) bool { return jqpath.Compare(a, b) == 0 })
 	for _, p := range livePaths {
 		if len(p) == 0 {
 			continue
@@ -217,7 +212,7 @@ func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, target
 		if p[0] == "status" {
 			continue
 		}
-		v, ok := getPath(liveCopy.Object, p)
+		v, ok := jqpath.Get(liveCopy.Object, p)
 		if !ok {
 			continue
 		}
@@ -294,6 +289,15 @@ func jsonCopy(un *unstructured.Unstructured) (*unstructured.Unstructured, error)
 // carryInto places v, the live value at path p, into res (the corresponding
 // container of the apply target) and returns the possibly re-allocated res.
 // liv is the live container corresponding to res.
+// carryInto is the one piece of this file that no library provides.
+// structured-merge-diff can extract and merge typed values by field path, but
+// it treats an atomic list as a single leaf, because the API server never
+// tracks ownership below one: extracting a path into tolerations returns the
+// whole list, and merging it would replace git's items with live's. Ignore
+// rules point inside atomic lists all the time (tolerations, args, Ingress
+// paths), and the contract is to carry the live-only item next to git's. So
+// the walk below works on positions in the concrete documents, and asks the
+// structured-merge-diff schema only how each container merges.
 func carryInto(res, liv any, p []any, v any, sch fieldSchema) any {
 	if len(p) == 0 {
 		return res
@@ -499,102 +503,4 @@ func toFloat(v any) (float64, bool) {
 		return n, true
 	}
 	return 0, false
-}
-
-// getPath returns the value at path p in root.
-func getPath(root any, p []any) (any, bool) {
-	cur := root
-	for _, e := range p {
-		switch c := cur.(type) {
-		case map[string]any:
-			k, ok := e.(string)
-			if !ok {
-				return nil, false
-			}
-			cur, ok = c[k]
-			if !ok {
-				return nil, false
-			}
-		case []any:
-			i, ok := e.(int)
-			if !ok || i < 0 || i >= len(c) {
-				return nil, false
-			}
-			cur = c[i]
-		default:
-			return nil, false
-		}
-	}
-	return cur, true
-}
-
-// removePath deletes the value at path p from root, if present.
-func removePath(root map[string]any, p []any) {
-	if len(p) == 0 {
-		return
-	}
-	parentPath := p[:len(p)-1]
-	parent, ok := getPath(root, parentPath)
-	if !ok {
-		return
-	}
-	switch c := parent.(type) {
-	case map[string]any:
-		if k, ok := p[len(p)-1].(string); ok {
-			delete(c, k)
-		}
-	case []any:
-		i, ok := p[len(p)-1].(int)
-		if !ok || i < 0 || i >= len(c) {
-			return
-		}
-		setPath(root, parentPath, slices.Delete(slices.Clone(c), i, i+1))
-	}
-}
-
-// setPath replaces the value at path p in root. The path must exist.
-func setPath(root map[string]any, p []any, v any) {
-	parent, ok := getPath(root, p[:len(p)-1])
-	if !ok {
-		return
-	}
-	switch c := parent.(type) {
-	case map[string]any:
-		if k, ok := p[len(p)-1].(string); ok {
-			c[k] = v
-		}
-	case []any:
-		if i, ok := p[len(p)-1].(int); ok && i >= 0 && i < len(c) {
-			c[i] = v
-		}
-	}
-}
-
-// comparePaths orders paths so that a parent sorts before its children and
-// lower list indexes sort before higher ones.
-func comparePaths(a, b []any) int {
-	for i := 0; i < len(a) && i < len(b); i++ {
-		ai, aIsInt := a[i].(int)
-		bi, bIsInt := b[i].(int)
-		switch {
-		case aIsInt && bIsInt:
-			if ai != bi {
-				return ai - bi
-			}
-		case aIsInt:
-			return -1
-		case bIsInt:
-			return 1
-		default:
-			as, _ := a[i].(string)
-			bs, _ := b[i].(string)
-			if as != bs {
-				if as < bs {
-					return -1
-				}
-				return 1
-			}
-		}
-	}
-	return len(a) - len(b)
 }

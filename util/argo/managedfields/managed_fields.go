@@ -12,6 +12,8 @@ import (
 	smdschema "sigs.k8s.io/structured-merge-diff/v6/schema"
 	"sigs.k8s.io/structured-merge-diff/v6/typed"
 	"sigs.k8s.io/structured-merge-diff/v6/value"
+
+	"github.com/argoproj/argo-cd/v3/util/jqpath"
 )
 
 // Normalize will compare the live and config states. If config mutates
@@ -127,7 +129,7 @@ func newTypedResults(live, config *unstructured.Unstructured, pt *typed.Parseabl
 // list indexes (int) into live.Object and config.Object respectively, so a
 // caller that builds an apply target can carry the live values and drop the
 // config values at exactly those locations.
-func IgnoredPaths(live, config *unstructured.Unstructured, trustedManagers []string, pt *typed.ParseableType) (livePaths, configPaths [][]any, err error) {
+func IgnoredPaths(live, config *unstructured.Unstructured, trustedManagers []string, pt *typed.ParseableType) (livePaths, configPaths []jqpath.Path, err error) {
 	if len(trustedManagers) == 0 || live == nil || config == nil {
 		return nil, nil, nil
 	}

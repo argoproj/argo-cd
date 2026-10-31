@@ -20,6 +20,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/glob"
+	"github.com/argoproj/argo-cd/v3/util/jqpath"
 )
 
 const (
@@ -36,7 +37,7 @@ type normalizerPatch interface {
 	// Paths returns the paths this patch removes from doc (a JSON-decoded
 	// document), as sequences of map keys (string) and list indexes (int).
 	// Paths are resolved against doc as given, before any removal.
-	Paths(doc any) ([][]any, error)
+	Paths(doc any) ([]jqpath.Path, error)
 }
 
 type baseNormalizerPatch struct {
@@ -63,7 +64,7 @@ type jsonPatchNormalizerPatch struct {
 	pointer string
 }
 
-func (np *jsonPatchNormalizerPatch) Paths(doc any) ([][]any, error) {
+func (np *jsonPatchNormalizerPatch) Paths(doc any) ([]jqpath.Path, error) {
 	p, ok := resolvePointer(doc, np.pointer)
 	if !ok {
 		return nil, nil
@@ -145,7 +146,7 @@ func (np *jqNormalizerPatch) compilePathCode() (*gojq.Code, error) {
 	return np.pathCode, np.pathErr
 }
 
-func (np *jqNormalizerPatch) Paths(doc any) ([][]any, error) {
+func (np *jqNormalizerPatch) Paths(doc any) ([]jqpath.Path, error) {
 	code, err := np.compilePathCode()
 	if err != nil {
 		return nil, fmt.Errorf("JQ path query could not be compiled: %w", err)
@@ -328,7 +329,7 @@ type IgnoreNormalizer interface {
 	// IgnoredPaths returns the paths the ignore rules remove from un, as
 	// sequences of map keys (string) and list indexes (int) into un.Object.
 	// All paths are resolved against un as given, before any removal.
-	IgnoredPaths(un *unstructured.Unstructured) ([][]any, error)
+	IgnoredPaths(un *unstructured.Unstructured) ([]jqpath.Path, error)
 }
 
 // NewIgnoreNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
@@ -410,7 +411,7 @@ func (n *ignoreNormalizer) matchedPatches(un *unstructured.Unstructured) []norma
 }
 
 // IgnoredPaths returns the paths the matching ignore rules remove from un.
-func (n *ignoreNormalizer) IgnoredPaths(un *unstructured.Unstructured) ([][]any, error) {
+func (n *ignoreNormalizer) IgnoredPaths(un *unstructured.Unstructured) ([]jqpath.Path, error) {
 	if un == nil {
 		return nil, errors.New("invalid argument: unstructured is nil")
 	}

@@ -10,6 +10,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/jqpath"
 )
 
 // IgnoredPathsResolver resolves the field paths that the ignoreDifferences
@@ -53,7 +54,7 @@ func NewIgnoredPathsResolver(targets []*unstructured.Unstructured, diffConfig Di
 // target. Paths are sequences of map keys (string) and list indexes (int) into
 // live.Object and target.Object as given. It returns no paths if either object
 // is nil.
-func (r *IgnoredPathsResolver) IgnoredPaths(live, target *unstructured.Unstructured) (livePaths, targetPaths [][]any, err error) {
+func (r *IgnoredPathsResolver) IgnoredPaths(live, target *unstructured.Unstructured) (livePaths, targetPaths []jqpath.Path, err error) {
 	if live == nil || target == nil {
 		return nil, nil, nil
 	}

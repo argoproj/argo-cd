@@ -52,28 +52,6 @@ stringData:
 	})
 }
 
-func TestRemovePath(t *testing.T) {
-	obj := map[string]any{
-		"spec": map[string]any{
-			"replicas": int64(1),
-			"items":    []any{"a", "b", "c"},
-		},
-	}
-	removePath(obj, []any{"spec", "replicas"})
-	removePath(obj, []any{"spec", "items", 1})
-	removePath(obj, []any{"spec", "missing", "deeper"})
-	removePath(obj, []any{"spec", "items", 7})
-	assert.Equal(t, map[string]any{"spec": map[string]any{"items": []any{"a", "c"}}}, obj)
-}
-
-func TestComparePaths(t *testing.T) {
-	assert.Negative(t, comparePaths([]any{"spec"}, []any{"spec", "replicas"}), "parent sorts before child")
-	assert.Negative(t, comparePaths([]any{"spec", "items", 0}, []any{"spec", "items", 1}), "lower index first")
-	assert.Negative(t, comparePaths([]any{"spec", "items", 2}, []any{"spec", "items", 10}), "indexes compare numerically")
-	assert.Zero(t, comparePaths([]any{"a", 1}, []any{"a", 1}))
-	assert.Positive(t, comparePaths([]any{"b"}, []any{"a"}))
-}
-
 func deploymentSchema(t *testing.T) fieldSchema {
 	t.Helper()
 	return staticFieldSchema(t, deploymentGVK)
