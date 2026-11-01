@@ -69,20 +69,39 @@ func getCommitMetadata(commitSHA string, app *unstructured.Unstructured, argocdS
 	return meta, nil
 }
 
-func FullNameByRepoURL(rawURL string) string {
+// FullNameByRepoURL returns the first path segments of a repository URL, with any .git suffix removed.
+// By default it returns two segments (owner/repo), matching GitHub and Bitbucket Cloud. An optional
+// segments argument changes that count; a value <= 0 returns every path segment (e.g. GitLab nested groups).
+// HTTPS, SSH and scp-style URLs give the same result. It panics if rawURL cannot be parsed.
+func FullNameByRepoURL(rawURL string, segments ...int) string {
 	parsed, err := giturls.Parse(rawURL)
 	if err != nil {
 		panic(err)
 	}
 
+	n := 2
+	if len(segments) > 0 {
+		n = segments[0]
+	}
 	path := gitSuffix.ReplaceAllString(parsed.Path, "")
-	if pathParts := text.SplitRemoveEmpty(path, "/"); len(pathParts) >= 2 {
-		return strings.Join(pathParts[:2], "/")
+	pathParts := text.SplitRemoveEmpty(path, "/")
+	if n <= 0 {
+		return strings.Join(pathParts, "/")
+	}
+	if len(pathParts) >= n {
+		return strings.Join(pathParts[:n], "/")
+	}
+	if len(segments) > 0 {
+		return strings.Join(pathParts, "/")
 	}
 
+	// Legacy result for one-argument calls on short paths, kept unchanged for compatibility.
 	return path
 }
 
+// repoURLToHTTPS rewrites a Git URL to HTTPS and drops its credentials,
+// so git@github.com:owner/repo.git becomes
+// https://github.com/owner/repo.git.
 func repoURLToHTTPS(rawURL string) string {
 	parsed, err := giturls.Parse(rawURL)
 	if err != nil {
