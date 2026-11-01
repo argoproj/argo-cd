@@ -441,6 +441,38 @@ spec:
 
 The example above shows how an Argo CD Application can be configured so it will ignore the `spec.replicas` field from the desired state (git) during the sync stage. This is achieved by calculating and pre-patching the desired state before applying it in the cluster. Note that the `RespectIgnoreDifferences` sync option is only effective when the resource is already created in the cluster. If the Application is being created and no live state exists, the desired state is applied as-is.
 
+The pre-patched desired state is built from the ignore rules alone:
+
+* A field the rules remove from the desired state is not applied. If the field also exists in the live resource, its live value is applied instead, so the field is left exactly as it is in the cluster.
+* A field the rules remove only from the live resource (for example a container, label or list item that another controller injected and the manifest does not declare) is copied from the live resource into the desired state so the apply does not delete it.
+* Everything else is applied as declared in git. If a rule matches a value only in the live resource, for example `.data.setting | select(. == "live")`, git still asserts its own value for that field and the sync applies it.
+
+Argo CD uses the cluster's schema, the same one server-side apply uses, to decide how a copied live value fits into the desired state:
+
+* Items of a list with merge keys (`x-kubernetes-list-map-keys`, such as `containers` or `env`) are matched by their keys, so an ignored field inside a list item follows the item even if git orders the list differently. A live-only item is inserted at the position it has in the live resource when a rule ignores the item itself. A rule on a field inside an item never keeps the item: with `.spec.template.spec.containers[].image` ignored, deleting a container from git still deletes it. To keep an item another controller injected, ignore the item (`select(.name == "...")`), not a field of it.
+* Items of a list without merge keys (such as `tolerations` or `spec.sources` of an Application) are matched by position. Such a list is applied as one value, so a rule on a field inside an item the manifest does not declare carries nothing, and the apply removes the item. Position is all the sync has to go on for such a list: when another controller inserts an item ahead of the items git declares, or git reorders the list, a rule on a field inside the items attributes the live field to the wrong item. Ignore the inserted item itself, selected by content (`.spec.template.spec.tolerations[] | select(.key == "...")`), or the whole list.
+* An atomic map or list (`x-kubernetes-map-type: atomic` or `x-kubernetes-list-type: atomic`, such as `nodeSelector`) that the manifest does not declare is never created from a partial set of ignored keys, because the API server would replace the whole field with that partial content and drop what other controllers put there. To preserve such a field, ignore it as a whole.
+* The resource's `apiVersion`, `kind`, `metadata.name` and `metadata.namespace` are always the manifest's. `status` is never copied from the live resource; it belongs to the resource's own controller. Neither are the metadata fields the API server populates (`uid`, `resourceVersion`, `generation`, `creationTimestamp`, `managedFields`, `deletionTimestamp`), even when a rule ignores all of `metadata`. The application's own tracking annotation and label are always applied from the manifest, so a rule that ignores all annotations or labels cannot hand a shared resource back to the application that synced it last.
+* For a `Secret`, `stringData` in the manifest is folded into `data` before the rules are applied, the same way the API server stores it. A rule on `.data["password"]` or on `.stringData["password"]` protects the same key, whichever spelling the manifest uses.
+
+Custom resources whose CRD publishes no list or map markers are handled as if every list were atomic.
+
+[Common Cases and Pitfalls](ignore-differences-recipes.md) shows these rules applied to the situations users
+hit most often.
+
+Each rule is resolved against the manifest and the live resource as they are. When one rule removes a list item and another rule names a later index of the same list (for example `/spec/template/spec/initContainers/0` and `/spec/template/spec/initContainers/1`), the sync treats both indexes as positions in the original list. Prefer selecting list items by content (`select(.name == "...")`) over indexes.
+
+Three mistakes the schema can show are refused before anything is applied, with the rule and the resource named in the operation's message: a `jsonPointers` or `jqPathExpressions` rule that indexes a list with merge keys (`/spec/template/spec/containers/0/image`) when that index is one container in the manifest and another in the cluster; a rule that ignores a merge key itself (`.spec.template.spec.containers[].env[].name`); and a `managedFieldsManagers` rule that trusts the manager the sync applies with (`argocd-controller`), which would ignore everything git has ever applied.
+
+Some rules do what they say in a way their author may not have pictured. They are not refused, because the same rule is right in another situation:
+
+* An index into a list, `/spec/template/spec/tolerations/0`, written for an item a webhook injects first, removes the manifest's own first item wherever the webhook has not injected yet.
+* A whole-item rule, `select(.key == "spot")`, keeps the old item when git renames it: the cluster ends up with both.
+* A rule conditioned on a value git may itself take, `select(.image | startswith("mirror.example.com/")) | .image`, strips the field from the manifest as soon as git uses the mirror, and the apply is rejected for the missing field.
+* Under client-side apply, a field a rule protected is part of the last applied configuration. Removing the rule makes the next sync delete the field unless git declares it; declare it first, or use server-side apply, where the other manager keeps its ownership.
+
+A `jqPathExpressions` rule that does not fit a resource (for example `.spec.template.spec.containers[].env[]` on a container with no `env`, which jq reports as "cannot iterate over null") contributes nothing for that resource, during the sync as during the diff; write `env[]?` when the field may be absent. A rule that cannot be evaluated at all, because it is not a path expression (`.spec.replicas + 1`), does not compile, or exceeds the jq timeout, fails the sync with the rule and the resource named in the operation's message. A `managedFieldsManagers` rule on a resource whose live object cannot be typed against the schema (duplicate keys in a list, or a field newer than the schema) contributes nothing for that resource and the controller logs a warning; the sync goes on, as the diff does. The diff shows such a field as different; a sync that tolerated the rule would apply the desired value over the one the rule was written to preserve.
+
 In situations where individual resources need to have differences ignored independently of the application-level `spec.ignoreDifferences` configuration or user does not have access to edit Application spec, the `argocd.argoproj.io/ignore-differences` annotation can be applied directly to the resource manifest:
 
 ```yaml

@@ -327,3 +327,153 @@ func TestNormalizeFailureLogIncludesResourceContext(t *testing.T) {
 	assert.Contains(t, out, "kind=ConfigMap")
 	assert.Contains(t, out, "name=my-configmap")
 }
+
+func TestIgnoredPaths(t *testing.T) {
+	t.Parallel()
+	newNormalizer := func(t *testing.T, ignore v1alpha1.ResourceIgnoreDifferences) IgnoreNormalizer {
+		t.Helper()
+		n, err := NewIgnoreNormalizer([]v1alpha1.ResourceIgnoreDifferences{ignore}, nil, IgnoreNormalizerOpts{})
+		require.NoError(t, err)
+		return n
+	}
+
+	t.Run("json pointers resolve to map keys and list indexes", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Group: "apps", Kind: "Deployment",
+			JSONPointers: []string{"/spec/replicas", "/spec/template/spec/containers/0/image", "/spec/does/not/exist"},
+		})
+		deployment := test.NewDeployment()
+
+		paths, err := n.IgnoredPaths(deployment)
+
+		require.NoError(t, err)
+		assert.ElementsMatch(t, [][]any{
+			{"spec", "replicas"},
+			{"spec", "template", "spec", "containers", 0, "image"},
+		}, paths)
+	})
+
+	t.Run("escaped json pointer segments are unescaped", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Group: "apps", Kind: "Deployment",
+			JSONPointers: []string{"/metadata/labels/example.com~1role"},
+		})
+		deployment := test.NewDeployment()
+		deployment.SetLabels(map[string]string{"example.com/role": "web"})
+
+		paths, err := n.IgnoredPaths(deployment)
+
+		require.NoError(t, err)
+		assert.Equal(t, [][]any{{"metadata", "labels", "example.com/role"}}, paths)
+	})
+
+	t.Run("jq expressions resolve every selected path", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Group: "apps", Kind: "Deployment",
+			JQPathExpressions: []string{
+				`.spec.template.spec.containers[] | select(.name == "nginx") | .image`,
+				`.spec.template.spec.containers[] | select(.name == "missing")`,
+				`.metadata.annotations["example.com/absent"]`,
+			},
+		})
+		deployment := test.NewDeployment()
+
+		paths, err := n.IgnoredPaths(deployment)
+
+		require.NoError(t, err)
+		assert.Equal(t, [][]any{{"spec", "template", "spec", "containers", 0, "image"}}, paths)
+	})
+
+	t.Run("negative json pointer index counts from the end, as json-patch does", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Group: "apps", Kind: "Deployment",
+			JSONPointers: []string{"/spec/template/spec/containers/-1/image", "/spec/template/spec/containers/-2"},
+		})
+		deployment := test.NewDeployment()
+
+		paths, err := n.IgnoredPaths(deployment)
+
+		require.NoError(t, err)
+		assert.Equal(t, [][]any{{"spec", "template", "spec", "containers", 0, "image"}}, paths, "-1 is the only container; -2 is out of range")
+	})
+
+	t.Run("jq slice expands to every selected index, as del() removes them", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Group: "apps", Kind: "Deployment",
+			JQPathExpressions: []string{
+				`.spec.template.spec.containers[1:]`,
+				`.spec.template.spec.containers[-1:][].image`,
+				`.spec.template.spec.containers[-1].name`,
+				`.spec.template.spec.containers[-4]`,
+			},
+		})
+		deployment := test.NewDeployment()
+		containers, _, err := unstructured.NestedSlice(deployment.Object, "spec", "template", "spec", "containers")
+		require.NoError(t, err)
+		containers = append(containers, map[string]any{"name": "sidecar", "image": "sidecar:1"}, map[string]any{"name": "third", "image": "third:1"})
+		require.NoError(t, unstructured.SetNestedSlice(deployment.Object, containers, "spec", "template", "spec", "containers"))
+
+		paths, err := n.IgnoredPaths(deployment)
+
+		require.NoError(t, err)
+		assert.ElementsMatch(t, [][]any{
+			{"spec", "template", "spec", "containers", 1},
+			{"spec", "template", "spec", "containers", 2},
+			{"spec", "template", "spec", "containers", 2, "image"},
+			{"spec", "template", "spec", "containers", 2, "name"},
+		}, paths, "negative indexes count from the end; -4 is out of range")
+	})
+
+	t.Run("jq expression that is not a path expression is an error naming the rule", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Group: "apps", Kind: "Deployment",
+			JQPathExpressions: []string{`.spec.replicas + 1`},
+		})
+
+		_, err := n.IgnoredPaths(test.NewDeployment())
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `jqPathExpression ".spec.replicas + 1" is not a path expression`)
+		assert.Contains(t, err.Error(), "Deployment")
+	})
+
+	t.Run("jq expression that does not fit the document contributes nothing", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Group: "apps", Kind: "Deployment",
+			JQPathExpressions: []string{`.spec.template.spec.initContainers[] | select(.name == "x")`, `.spec.replicas`},
+		})
+
+		paths, err := n.IgnoredPaths(test.NewDeployment())
+
+		require.NoError(t, err, "iterating a list the document does not have is how jq says nothing is there")
+		assert.Equal(t, [][]any{{"spec", "replicas"}}, paths, "the other rule still contributes")
+	})
+
+	t.Run("resources not matched by any rule yield no paths", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Kind: "Service", JSONPointers: []string{"/spec"},
+		})
+
+		paths, err := n.IgnoredPaths(test.NewDeployment())
+
+		require.NoError(t, err)
+		assert.Empty(t, paths)
+	})
+
+	t.Run("nil resource is an error", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{Kind: "Service", JSONPointers: []string{"/spec"}})
+
+		_, err := n.IgnoredPaths(nil)
+
+		require.Error(t, err)
+	})
+}
