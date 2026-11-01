@@ -141,8 +141,9 @@ func IgnoredPaths(live, config *unstructured.Unstructured, trustedManagers []str
 	// Nothing below changes either object, so no copies are needed.
 	results, err := newTypedResults(live, config, pt)
 	if err != nil {
-		log.Debugf("error building typed results: %v", err)
-		return nil, nil, nil
+		// Normalize tolerates this and compares the objects as they are; a
+		// sync that did would apply git's values over the trusted manager's.
+		return nil, nil, fmt.Errorf("error building typed results for managedFieldsManagers %v: %w", trustedManagers, err)
 	}
 	ignored := fieldpath.NewSet()
 	for _, mf := range live.GetManagedFields() {
@@ -167,6 +168,36 @@ func IgnoredPaths(live, config *unstructured.Unstructured, trustedManagers []str
 		}
 	})
 	return livePaths, configPaths, nil
+}
+
+// FindKeyedItem returns the index of the item in list whose key fields equal
+// want, or -1. A key field an item omits takes its value from defaults, which
+// is how the API server identifies the item (a Service port without protocol
+// is the TCP port). Values compare as structured-merge-diff compares them, so
+// a number matches whatever Go type it was decoded as: a schema default is an
+// int, a document value an int64 or float64.
+func FindKeyedItem(list []any, want, defaults map[string]any) int {
+	for i, item := range list {
+		im, ok := item.(map[string]any)
+		if !ok {
+			continue
+		}
+		match := true
+		for k, w := range want {
+			v, present := im[k]
+			if !present {
+				v = defaults[k]
+			}
+			if !value.Equals(value.NewValueInterface(v), value.NewValueInterface(w)) {
+				match = false
+				break
+			}
+		}
+		if match {
+			return i
+		}
+	}
+	return -1
 }
 
 // toJSONPath resolves a structured-merge-diff field path (which addresses list
@@ -208,34 +239,18 @@ func toJSONPath(root any, p fieldpath.Path, s *smdschema.Schema, ref smdschema.T
 			if !ok {
 				return nil, false
 			}
-			// A key field the item omits has its schema default: that is how
-			// the API server computed the key (a port without protocol is TCP).
 			elemRef := listElementRef(atom, hasAtom)
 			elemAtom, hasElem := resolveAtom(s, elemRef)
-			idx := -1
-			for i, item := range l {
-				im, ok := item.(map[string]any)
-				if !ok {
-					continue
-				}
-				match := true
-				for _, f := range *pe.Key {
-					v, present := im[f.Name]
-					if !present && hasElem && elemAtom.Map != nil {
-						if sf, ok := elemAtom.FindField(f.Name); ok {
-							v = sf.Default
-						}
+			want, defaults := map[string]any{}, map[string]any{}
+			for _, f := range *pe.Key {
+				want[f.Name] = f.Value.Unstructured()
+				if hasElem && elemAtom.Map != nil {
+					if sf, ok := elemAtom.FindField(f.Name); ok && sf.Default != nil {
+						defaults[f.Name] = sf.Default
 					}
-					if !value.Equals(value.NewValueInterface(v), f.Value) {
-						match = false
-						break
-					}
-				}
-				if match {
-					idx = i
-					break
 				}
 			}
+			idx := FindKeyedItem(l, want, defaults)
 			if idx < 0 {
 				return nil, false
 			}

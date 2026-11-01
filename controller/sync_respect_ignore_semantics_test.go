@@ -1000,9 +1000,11 @@ webhooks:
 	// its key, not its index, at both levels.
 	//
 	// Also pins a jq property users hit constantly: `.env[]` fails with "cannot
-	// iterate over null" on a container that has no env, and a failing expression
-	// contributes nothing (the same happens at diff time). `.env[]?` is the form
-	// that works, and the one the reports use.
+	// iterate over null" on a container that has no env, and a rule that does
+	// not fit the document contributes nothing, as it does at diff time (that
+	// is also how `.initContainers[] | select(...)` behaves on a manifest with
+	// no initContainers, the documented recipe). `.env[]?` is the form that
+	// works, and the one the reports use.
 	//
 	// Ref: https://github.com/argoproj/argo-cd/issues/18197 (env rule),
 	// https://github.com/argoproj/argo-cd/issues/24275 (`[]?` form).
@@ -1521,7 +1523,11 @@ webhooks:
 //
 // A field inside an item of a list without merge keys, with the item on both
 // sides: the item is matched by position, at every level of nesting, on CRDs
-// with and without a published schema.
+// with and without a published schema. Position is all there is for such a
+// list: an item another controller inserts ahead of git's items shifts the
+// match, and a rule on a field inside the items then attributes the live field
+// to the wrong item (documented in sync-options.md; ignore the inserted item
+// itself, selected by content, or the whole list).
 // ---------------------------------------------------------------------------
 
 func TestRespectIgnoreSemantics_07_FieldsInsideKeylessItemsAreMatchedByPosition(t *testing.T) {
@@ -2787,7 +2793,10 @@ spec:
 // Rules are resolved against the original git and live objects, and each path
 // is removed or carried once, however many rules name it. The diff normalizer
 // applies rules one after another; the two differ only for index rules into a
-// list another rule shortens.
+// list another rule shortens. A rule that cannot be resolved at all (not a
+// path expression, a compile error, a timeout) fails the sync with the rule
+// and the resource named, where the diff shows the field as different; a rule
+// that merely does not fit a document contributes nothing, as at diff time.
 // ---------------------------------------------------------------------------
 
 func TestRespectIgnoreSemantics_14_RulesResolveAgainstTheOriginalDocumentsOnce(t *testing.T) {
@@ -2891,6 +2900,22 @@ spec:
 		assert.Equal(t, "first:live", at(t, applied, "spec.template.spec.initContainers[name=first].image"))
 		assert.Equal(t, "second:live", at(t, applied, "spec.template.spec.initContainers[name=second].image"))
 		assert.Equal(t, "third:git", at(t, applied, "spec.template.spec.initContainers[name=third].image"), "the item no rule names is applied from git")
+	})
+
+	// A rule that is not a path expression is wrong on every document. The
+	// diff cannot do better than show the field as different; a sync that
+	// shrugged would apply git's value over the one the rule was written to
+	// preserve, so it fails and names the rule.
+	//
+	// Ref: https://github.com/argoproj/argo-cd/issues/7478,
+	// https://github.com/argoproj/argo-cd/issues/12686 (non-path rules that did nothing).
+	t.Run("a rule that is not a path expression fails the sync", func(t *testing.T) {
+		target := toUnstructured(t, injectedInitTarget)
+		live := toUnstructured(t, injectedInitLive)
+		_, err := tryApplyTarget(t, nil, live, target, applyOpts{ignores: []v1alpha1.ResourceIgnoreDifferences{deploymentIgnore(`.spec.replicas + 1`)}})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `jqPathExpression ".spec.replicas + 1" is not a path expression`, "the message names the rule")
+		assert.Contains(t, err.Error(), "Deployment default/web", "and the resource")
 	})
 }
 
@@ -3220,6 +3245,14 @@ func applyTarget(t *testing.T, parser *managedfields.GvkParser, live, target *un
 
 func applyTargetWith(t *testing.T, parser *managedfields.GvkParser, live, target *unstructured.Unstructured, opts applyOpts) *unstructured.Unstructured {
 	t.Helper()
+	applied, err := tryApplyTarget(t, parser, live, target, opts)
+	require.NoError(t, err)
+	return applied
+}
+
+// tryApplyTarget is applyTargetWith for the examples that expect an error.
+func tryApplyTarget(t *testing.T, parser *managedfields.GvkParser, live, target *unstructured.Unstructured, opts applyOpts) (*unstructured.Unstructured, error) {
+	t.Helper()
 	if parser == nil {
 		parser = builtinGVKParser(t)
 	}
@@ -3247,11 +3280,13 @@ func applyTargetWith(t *testing.T, parser *managedfields.GvkParser, live, target
 		diffConfig: dc,
 	}
 	targets, err := normalizeTargetResources(cr)
-	require.NoError(t, err)
+	if err != nil {
+		return nil, err
+	}
 	require.Len(t, targets, 1)
 	require.NotNil(t, targets[0])
 	t.Logf("apply target:\n%s", mustYAML(t, targets[0].Object))
-	return targets[0]
+	return targets[0], nil
 }
 
 func mustYAML(t *testing.T, v any) string {

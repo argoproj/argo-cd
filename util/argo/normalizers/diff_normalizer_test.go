@@ -429,17 +429,31 @@ func TestIgnoredPaths(t *testing.T) {
 		}, paths, "negative indexes count from the end; -4 is out of range")
 	})
 
-	t.Run("jq expression that is not a path expression is skipped", func(t *testing.T) {
+	t.Run("jq expression that is not a path expression is an error naming the rule", func(t *testing.T) {
 		t.Parallel()
 		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
 			Group: "apps", Kind: "Deployment",
 			JQPathExpressions: []string{`.spec.replicas + 1`},
 		})
 
+		_, err := n.IgnoredPaths(test.NewDeployment())
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `jqPathExpression ".spec.replicas + 1" is not a path expression`)
+		assert.Contains(t, err.Error(), "Deployment")
+	})
+
+	t.Run("jq expression that does not fit the document contributes nothing", func(t *testing.T) {
+		t.Parallel()
+		n := newNormalizer(t, v1alpha1.ResourceIgnoreDifferences{
+			Group: "apps", Kind: "Deployment",
+			JQPathExpressions: []string{`.spec.template.spec.initContainers[] | select(.name == "x")`, `.spec.replicas`},
+		})
+
 		paths, err := n.IgnoredPaths(test.NewDeployment())
 
-		require.NoError(t, err)
-		assert.Empty(t, paths)
+		require.NoError(t, err, "iterating a list the document does not have is how jq says nothing is there")
+		assert.Equal(t, [][]any{{"spec", "replicas"}}, paths, "the other rule still contributes")
 	})
 
 	t.Run("resources not matched by any rule yield no paths", func(t *testing.T) {

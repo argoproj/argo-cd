@@ -149,7 +149,7 @@ func (np *jqNormalizerPatch) compilePathCode() (*gojq.Code, error) {
 func (np *jqNormalizerPatch) Paths(doc any) ([]jqpath.Path, error) {
 	code, err := np.compilePathCode()
 	if err != nil {
-		return nil, fmt.Errorf("JQ path query could not be compiled: %w", err)
+		return nil, fmt.Errorf("jqPathExpression %q could not be compiled: %w", np.pathExpression, err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), np.jqExecutionTimeout)
 	defer cancel()
@@ -157,17 +157,27 @@ func (np *jqNormalizerPatch) Paths(doc any) ([]jqpath.Path, error) {
 	iter := code.RunWithContext(ctx, doc)
 	first, ok := iter.Next()
 	if !ok {
-		return nil, errors.New("JQ path query did not return any data")
+		return nil, fmt.Errorf("jqPathExpression %q did not return any data", np.pathExpression)
 	}
 	if err, ok := first.(error); ok {
 		if errors.Is(err, context.DeadlineExceeded) {
-			return nil, fmt.Errorf("JQ path query timed out (%v)", np.jqExecutionTimeout.String())
+			return nil, fmt.Errorf("jqPathExpression %q timed out (%v)", np.pathExpression, np.jqExecutionTimeout.String())
 		}
-		return nil, fmt.Errorf("JQ path query returned error: %w", err)
+		if strings.HasPrefix(err.Error(), "invalid path") {
+			// Not a path expression at all (`.spec.replicas + 1`): wrong on
+			// every document, so an error the caller must see.
+			return nil, fmt.Errorf("jqPathExpression %q is not a path expression: %w", np.pathExpression, err)
+		}
+		// Every other evaluation error is the expression meeting a document it
+		// does not fit: `.initContainers[]` on a pod spec with none iterates
+		// over null. That is how jq says "nothing here", and it is the normal
+		// case for a rule about an injected list, so the rule contributes
+		// nothing for this document, as it does at diff time.
+		return nil, fmt.Errorf("%w: jqPathExpression %q: %w", errRuleDoesNotApply, np.pathExpression, err)
 	}
 	raw, ok := first.([]any)
 	if !ok {
-		return nil, fmt.Errorf("JQ path query returned %T, expected an array of paths", first)
+		return nil, fmt.Errorf("jqPathExpression %q returned %T, expected an array of paths", np.pathExpression, first)
 	}
 	out := make([][]any, 0, len(raw))
 	for _, r := range raw {
@@ -179,6 +189,10 @@ func (np *jqNormalizerPatch) Paths(doc any) ([]jqpath.Path, error) {
 	}
 	return out, nil
 }
+
+// errRuleDoesNotApply marks a rule that evaluated with an error on a document
+// it does not fit. Such a rule contributes no paths for that document.
+var errRuleDoesNotApply = errors.New("rule does not apply")
 
 // resolveFrom turns one jq path, as `path(<expr>)` reports it, into the
 // document paths `del(<expr>)` would remove: a negative index counts from the
@@ -428,16 +442,22 @@ func (n *ignoreNormalizer) IgnoredPaths(un *unstructured.Unstructured) ([]jqpath
 	for _, patch := range matched {
 		paths, err := patch.Paths(doc)
 		if err != nil {
-			if shouldLogError(err) {
-				gvk := un.GroupVersionKind()
+			gvk := un.GroupVersionKind()
+			if errors.Is(err, errRuleDoesNotApply) {
 				log.WithFields(log.Fields{
 					"group":     gvk.Group,
 					"kind":      gvk.Kind,
 					"name":      un.GetName(),
 					"namespace": un.GetNamespace(),
-				}).Debugf("Failed to resolve ignored paths: %v", err)
+				}).Debugf("Ignore rule contributes nothing: %v", err)
+				continue
 			}
-			continue
+			// A rule that cannot be evaluated at all (not a path expression,
+			// compile error, timeout). Normalize tolerates it and the diff
+			// shows the field as different, which is visible; a sync that
+			// tolerated it would apply git's value over the one the rule was
+			// written to preserve, with nothing to see.
+			return nil, fmt.Errorf("%s %s/%s: %w", gvk.Kind, un.GetNamespace(), un.GetName(), err)
 		}
 		out = append(out, paths...)
 	}

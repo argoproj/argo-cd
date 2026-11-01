@@ -17,6 +17,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
 	"github.com/argoproj/argo-cd/v3/util/jqpath"
 )
 
@@ -472,54 +473,16 @@ func scalarKeyValues(item any, keys []string, defaults map[string]any) bool {
 	return true
 }
 
-// findByKeys returns the index of the item in l whose key fields equal those of item.
+// findByKeys returns the index of the item in l whose key fields equal those
+// of item, each side defaulted; the same lookup managedFieldsManagers paths use.
 func findByKeys(l []any, item any, keys []string, defaults map[string]any) int {
 	im, ok := item.(map[string]any)
 	if !ok {
 		return -1
 	}
-	for i, x := range l {
-		xm, ok := x.(map[string]any)
-		if !ok {
-			continue
-		}
-		match := true
-		for _, k := range keys {
-			if !scalarEqual(keyValue(xm, k, defaults), keyValue(im, k, defaults)) {
-				match = false
-				break
-			}
-		}
-		if match {
-			return i
-		}
+	want := make(map[string]any, len(keys))
+	for _, k := range keys {
+		want[k] = keyValue(im, k, defaults)
 	}
-	return -1
-}
-
-// scalarEqual compares two scalars, treating all numeric types as one: a
-// schema default is decoded as an int, a document value as an int64 or float64.
-func scalarEqual(a, b any) bool {
-	af, aok := toFloat(a)
-	bf, bok := toFloat(b)
-	if aok && bok {
-		return af == bf
-	}
-	return reflect.DeepEqual(a, b)
-}
-
-func toFloat(v any) (float64, bool) {
-	switch n := v.(type) {
-	case int:
-		return float64(n), true
-	case int32:
-		return float64(n), true
-	case int64:
-		return float64(n), true
-	case float32:
-		return float64(n), true
-	case float64:
-		return n, true
-	}
-	return 0, false
+	return managedfields.FindKeyedItem(l, want, defaults)
 }
