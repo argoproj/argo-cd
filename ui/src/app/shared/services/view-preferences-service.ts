@@ -168,6 +168,8 @@ export interface ViewPreferences {
     version: number;
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
+    // ApplicationSets also writes appList; keep the Applications search separate.
+    appListSearch: string;
     resourcesList: ResourcesListPreferences;
     pageSizes: {[key: string]: number};
     sortOptions?: {[key: string]: string};
@@ -232,6 +234,7 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
             showHealthStatusBar: true
         }
     },
+    appListSearch: '',
     resourcesList: {
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
@@ -274,6 +277,7 @@ export class ViewPreferencesService {
     public updatePreferences(change: Partial<ViewPreferences>) {
         const current = this.preferencesSubj.getValue();
         const nextPref = Object.assign({}, current, change, {version: minVer});
+        nextPref.appListSearch = typeof nextPref.appListSearch === 'string' ? nextPref.appListSearch : '';
         // Normalize appList to ensure all filter arrays are initialized
         if (nextPref.appList) {
             this.normalizeAppListPreferences(nextPref.appList);
@@ -301,6 +305,7 @@ export class ViewPreferencesService {
             preferences = DEFAULT_PREFERENCES;
         }
         const merged = deepMerge(DEFAULT_PREFERENCES, preferences);
+        merged.appListSearch = typeof merged.appListSearch === 'string' ? merged.appListSearch : '';
         // Ensure all filter arrays are initialized to prevent undefined errors
         this.normalizeAppListPreferences(merged.appList);
         this.normalizeResourcesListPreferences(merged.resourcesList);
