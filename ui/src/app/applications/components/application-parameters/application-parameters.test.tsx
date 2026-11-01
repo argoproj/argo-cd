@@ -96,3 +96,10 @@ test('expanded multi-source plugin panel renders NAME and ENV from the per-sourc
     expect(await screen.findByDisplayValue('ENVIRONMENT')).toBeInTheDocument();
     expect(await screen.findByDisplayValue('prod')).toBeInTheDocument();
 });
+
+test('single-source details panel renders a message for an application with neither source nor sources', async () => {
+    const app = {metadata: {name: 'no-source'}, spec: {project: 'default'}} as models.Application;
+    renderWithContext(<ApplicationParameters application={app} />);
+
+    expect(await screen.findByText('This application has no source configured.')).toBeInTheDocument();
+});

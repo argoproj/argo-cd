@@ -281,6 +281,9 @@ export const ApplicationParameters = (props: {
             return (
                 <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
                     {(details: models.RepoAppDetails) => {
+                        if (!details) {
+                            return <div className='application-parameters'>This application has no source configured.</div>;
+                        }
                         const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
                         return getEditablePanel(attr, details);
                     }}

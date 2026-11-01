@@ -50,11 +50,19 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                         setProgress({percentage: 0, title: 'Starting...'});
                         let i = 0;
                         for (const app of selectedApps) {
+                            const source = getAppDefaultSource(app);
+                            if (!source) {
+                                ctx.notifications.show({
+                                    content: `Unable to sync ${app.metadata.name}: the application has no source configured`,
+                                    type: NotificationType.Error
+                                });
+                                continue;
+                            }
                             await services.applications
                                 .sync(
                                     app.metadata.name,
                                     app.metadata.namespace,
-                                    getAppDefaultSource(app).targetRevision,
+                                    source.targetRevision,
                                     syncFlags.Prune || false,
                                     syncFlags.DryRun || false,
                                     syncStrategy,
@@ -67,9 +75,6 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                                         content: <ErrorNotification title={`Unable to sync ${app.metadata.name}`} e={e} />,
                                         type: NotificationType.Error
                                     });
-                                })
-                                .finally(() => {
-                                    setPending(false);
                                 });
                             i++;
                             setProgress({
@@ -77,6 +82,7 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                                 title: `${i} of ${selectedApps.length} apps now syncing`
                             });
                         }
+                        setPending(false);
                         setProgress({percentage: 100, title: 'Complete'});
                     }}
                     getApi={getApi}>

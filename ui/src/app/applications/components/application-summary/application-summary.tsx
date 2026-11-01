@@ -69,7 +69,7 @@ export interface ApplicationSummaryProps {
 export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
     const source = getAppDefaultSource(app);
-    const isHelm = source.hasOwnProperty('chart');
+    const isHelm = !!source?.hasOwnProperty('chart');
     const initialState = app.spec.destination.server === undefined ? 'NAME' : 'URL';
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const [destFormat, setDestFormat] = React.useState(initialState);
@@ -90,7 +90,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
     const hasMultipleSources = app.spec.sources && app.spec.sources.length > 0;
     const isHydrator = isHydratorEnabled;
-    const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
+    const repoType = source?.repoURL?.startsWith('oci://') ? 'oci' : (source?.hasOwnProperty('chart') && 'helm') || 'git';
 
     const attributes = [
         {
@@ -331,9 +331,9 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                       if (!updatedApp.spec.sourceHydrator) {
                                           updatedApp.spec.sourceHydrator = {
                                               drySource: {
-                                                  repoURL: updatedApp.spec.source.repoURL,
-                                                  targetRevision: updatedApp.spec.source.targetRevision,
-                                                  path: updatedApp.spec.source.path
+                                                  repoURL: updatedApp.spec.source?.repoURL,
+                                                  targetRevision: updatedApp.spec.source?.targetRevision,
+                                                  path: updatedApp.spec.source?.path
                                               },
                                               syncSource: savedSyncSource
                                           };
@@ -412,21 +412,21 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             : [
                   {
                       title: 'TAG PREFIX',
-                      view: source.tagPrefix ? <span>{source.tagPrefix}</span> : null,
+                      view: source?.tagPrefix ? <span>{source.tagPrefix}</span> : null,
                       edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.tagPrefix' component={Text} />
                   },
                   {
                       title: 'TARGET REVISION',
-                      view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
+                      view: <Revision repoUrl={source?.repoURL} revision={source?.targetRevision || 'HEAD'} />,
                       edit: (formApi: FormApi) => (
-                          <RevisionFormField hideLabel={true} formApi={formApi} fieldValue='spec.source.targetRevision' repoURL={source.repoURL} repoType={repoType} />
+                          <RevisionFormField hideLabel={true} formApi={formApi} fieldValue='spec.source.targetRevision' repoURL={source?.repoURL} repoType={repoType} />
                       )
                   },
                   {
                       title: 'PATH',
                       view: (
-                          <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} path={source.path} isForPath={true}>
-                              {processPath(source.path)}
+                          <Revision repoUrl={source?.repoURL} revision={source?.targetRevision || 'HEAD'} path={source?.path} isForPath={true}>
+                              {processPath(source?.path)}
                           </Revision>
                       ),
                       edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.path' component={Text} />
