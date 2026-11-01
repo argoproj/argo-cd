@@ -179,6 +179,16 @@ export const ApplicationNodeInfo = (props: {
                 hostNames = (status.addresses || []).map((item: any) => item.value).join(', ');
             }
             attributes.push({title: 'HOSTNAMES', value: hostNames});
+        } else if (props.node.kind === 'CronJob' && props.node.group === 'batch') {
+            const {lastScheduleTime, lastSuccessfulTime} = props.live.status || {};
+            const health = props.controlled?.summary.health || (props.node as ResourceTreeNode).health;
+            const isHealthy = health?.status === models.HealthStatuses.Healthy;
+            if (lastScheduleTime && (!isHealthy || !lastSuccessfulTime)) {
+                attributes.push({title: 'LAST SCHEDULED', value: formatCreationTimestamp(lastScheduleTime)});
+            }
+            if (lastSuccessfulTime) {
+                attributes.push({title: 'LAST SUCCESSFUL', value: formatCreationTimestamp(lastSuccessfulTime)});
+            }
         }
     }
 
