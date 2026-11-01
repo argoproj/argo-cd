@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1731,6 +1732,337 @@ func TestSessionRemainingTTL(t *testing.T) {
 		ttl := sessionRemainingTTL(sessionStart, dur)
 		assert.Equal(t, time.Duration(0), ttl)
 	})
+}
+
+func TestWithIDTokenExpiry(t *testing.T) {
+	now := time.Now().Truncate(time.Second)
+	idToken := func(t *testing.T, exp time.Time) string {
+		t.Helper()
+		raw, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"exp": exp.Unix()}).SignedString([]byte("test"))
+		require.NoError(t, err)
+		return raw
+	}
+	tests := []struct {
+		name         string
+		accessExpiry time.Time
+		idToken      func(t *testing.T) any
+		expectExpiry time.Time
+	}{
+		{
+			name:         "ID token expires first",
+			accessExpiry: now.Add(2 * time.Hour),
+			idToken:      func(t *testing.T) any { t.Helper(); return idToken(t, now.Add(2*time.Minute)) },
+			expectExpiry: now.Add(2 * time.Minute),
+		},
+		{
+			name:         "access token expires first",
+			accessExpiry: now.Add(time.Minute),
+			idToken:      func(t *testing.T) any { t.Helper(); return idToken(t, now.Add(time.Hour)) },
+			expectExpiry: now.Add(time.Minute),
+		},
+		{
+			name:         "access token without expiry",
+			idToken:      func(t *testing.T) any { t.Helper(); return idToken(t, now.Add(2*time.Minute)) },
+			expectExpiry: now.Add(2 * time.Minute),
+		},
+		{
+			name:         "no ID token",
+			accessExpiry: now.Add(time.Hour),
+			idToken:      func(_ *testing.T) any { return nil },
+			expectExpiry: now.Add(time.Hour),
+		},
+		{
+			name:         "ID token is not a JWT",
+			accessExpiry: now.Add(time.Hour),
+			idToken:      func(_ *testing.T) any { return "not-a-jwt" },
+			expectExpiry: now.Add(time.Hour),
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			token := &oauth2.Token{AccessToken: "access", Expiry: tt.accessExpiry}
+			if id := tt.idToken(t); id != nil {
+				token = token.WithExtra(map[string]any{"id_token": id})
+			}
+			got := withIDTokenExpiry(token)
+			assert.True(t, tt.expectExpiry.Equal(got.Expiry), "expiry = %v, want %v", got.Expiry, tt.expectExpiry)
+			assert.True(t, tt.accessExpiry.Equal(token.Expiry), "the original token must not be modified")
+		})
+	}
+	assert.Nil(t, withIDTokenExpiry(nil))
+}
+
+// The ID token can expire before the access token (e.g. GitLab: 2 minutes vs 2 hours).
+// A refresh must then happen based on the ID token's exp, not only the access token's expiry.
+func TestClientApp_GetUpdatedOidcTokenFromCache_IDTokenExpiry(t *testing.T) {
+	idToken := func(t *testing.T, exp time.Time) string {
+		t.Helper()
+		// Only the exp claim matters here: the cached ID token is read, not verified.
+		raw, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "alice", "exp": exp.Unix()}).SignedString([]byte("test"))
+		require.NoError(t, err)
+		return raw
+	}
+	tests := []struct {
+		name          string
+		cachedIDToken func(t *testing.T) string
+		expectRefresh bool
+	}{
+		{
+			name:          "expired ID token is refreshed while the access token is valid",
+			cachedIDToken: func(t *testing.T) string { t.Helper(); return idToken(t, time.Now().Add(-time.Minute)) },
+			expectRefresh: true,
+		},
+		{
+			name:          "ID token within the refresh threshold is refreshed",
+			cachedIDToken: func(t *testing.T) string { t.Helper(); return idToken(t, time.Now().Add(10*time.Second)) },
+			expectRefresh: true,
+		},
+		{
+			name:          "valid ID token and access token are reused",
+			cachedIDToken: func(t *testing.T) string { t.Helper(); return idToken(t, time.Now().Add(time.Hour)) },
+			expectRefresh: false,
+		},
+		{
+			name:          "an ID token that is not a JWT falls back to the access token expiry",
+			cachedIDToken: func(_ *testing.T) string { return "not-a-jwt" },
+			expectRefresh: false,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			refreshes := 0
+			oidcTestServer := test.GetOIDCTestServer(t, func(_ *http.Request) { refreshes++ })
+			t.Cleanup(oidcTestServer.Close)
+
+			cdSettings := &settings.ArgoCDSettings{
+				URL: "https://argocd.example.com",
+				OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+refreshTokenThreshold: 30s
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+				OIDCTLSInsecureSkipVerify: true,
+				UserSessionDuration:       24 * time.Hour,
+			}
+			app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+			require.NoError(t, err)
+
+			cachedIDToken := tt.cachedIDToken(t)
+			// The access token is valid for another 2 hours.
+			cached := (&oauth2.Token{
+				AccessToken:  "cached-access-token",
+				RefreshToken: "cached-refresh-token",
+				Expiry:       time.Now().Add(2 * time.Hour),
+			}).WithExtra(map[string]any{"id_token": cachedIDToken})
+			oidcTokenCacheJSON, err := json.Marshal(NewOidcTokenCache("", cached, time.Now()))
+			require.NoError(t, err)
+			require.NoError(t, app.SetValueInEncryptedCache(t.Context(), formatOidcTokenCacheKey("alice", "111"), oidcTokenCacheJSON, time.Hour))
+
+			token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), "alice", "111")
+			require.NoError(t, err)
+			require.NotNil(t, token)
+			if tt.expectRefresh {
+				assert.Equal(t, 1, refreshes, "expected the token to be refreshed")
+				assert.NotEqual(t, cachedIDToken, token.Extra("id_token"), "expected a new ID token")
+			} else {
+				assert.Equal(t, 0, refreshes, "expected the cached token to be reused")
+				assert.Equal(t, cachedIDToken, token.Extra("id_token"))
+			}
+		})
+	}
+}
+
+// Providers such as GitLab rotate refresh tokens: a refresh token works once. When the UI sends
+// several requests at the same moment with an expired ID token, only one may refresh.
+func TestClientApp_GetUpdatedOidcTokenFromCache_ConcurrentRefresh(t *testing.T) {
+	var refreshes atomic.Int32
+	oidcTestServer := test.GetOIDCTestServer(t, func(_ *http.Request) {
+		refreshes.Add(1)
+		time.Sleep(100 * time.Millisecond) // keep the refresh in flight while the other requests arrive
+	})
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+		UserSessionDuration:       24 * time.Hour,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	expiredIDToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "alice", "exp": time.Now().Add(-time.Minute).Unix()}).SignedString([]byte("test"))
+	require.NoError(t, err)
+	cached := (&oauth2.Token{
+		AccessToken:  "cached-access-token",
+		RefreshToken: "cached-refresh-token",
+		Expiry:       time.Now().Add(2 * time.Hour),
+	}).WithExtra(map[string]any{"id_token": expiredIDToken})
+	oidcTokenCacheJSON, err := json.Marshal(NewOidcTokenCache("", cached, time.Now()))
+	require.NoError(t, err)
+	require.NoError(t, app.SetValueInEncryptedCache(t.Context(), formatOidcTokenCacheKey("alice", "111"), oidcTokenCacheJSON, time.Hour))
+
+	const requests = 10
+	var wg sync.WaitGroup
+	idTokens := make([]any, requests)
+	errs := make([]error, requests)
+	for i := range requests {
+		wg.Go(func() {
+			token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), "alice", "111")
+			errs[i] = err
+			if token != nil {
+				idTokens[i] = token.Extra("id_token")
+			}
+		})
+	}
+	wg.Wait()
+	require.NoError(t, errors.Join(errs...))
+
+	assert.Equal(t, int32(1), refreshes.Load(), "concurrent requests must share one refresh")
+	for i, idToken := range idTokens {
+		assert.NotEqual(t, expiredIDToken, idToken, "request %d got the expired ID token", i)
+		assert.Equal(t, idTokens[0], idToken, "request %d got a different ID token", i)
+	}
+}
+
+// newRefreshTestApp returns a ClientApp for oidcTestServer with alice's session cached: an access token
+// valid for another 2 hours and an ID token that expired a minute ago.
+func newRefreshTestApp(t *testing.T, issuerURL string) (*ClientApp, *oauth2.Token) {
+	t.Helper()
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+refreshTokenThreshold: 1m
+requestedScopes: ["oidc"]`, issuerURL),
+		OIDCTLSInsecureSkipVerify: true,
+		UserSessionDuration:       24 * time.Hour,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+	expiredIDToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "alice", "exp": time.Now().Add(-time.Minute).Unix()}).SignedString([]byte("test"))
+	require.NoError(t, err)
+	cached := (&oauth2.Token{
+		AccessToken:  "cached-access-token",
+		RefreshToken: "cached-refresh-token",
+		Expiry:       time.Now().Add(2 * time.Hour),
+	}).WithExtra(map[string]any{"id_token": expiredIDToken})
+	storeSession(t, app, cached)
+	return app, cached
+}
+
+func storeSession(t *testing.T, app *ClientApp, token *oauth2.Token) {
+	t.Helper()
+	oidcTokenCacheJSON, err := json.Marshal(NewOidcTokenCache("", token, time.Now()))
+	require.NoError(t, err)
+	require.NoError(t, app.SetValueInEncryptedCache(t.Context(), formatOidcTokenCacheKey("alice", "111"), oidcTokenCacheJSON, time.Hour))
+}
+
+// The entry point the API server calls: the request's ID token has expired while the cached access
+// token is still valid, so the returned ID token must be a new one.
+func TestClientApp_CheckAndRefreshToken_IDTokenExpiredBeforeAccessToken(t *testing.T) {
+	var refreshes atomic.Int32
+	oidcTestServer := test.GetOIDCTestServer(t, func(_ *http.Request) { refreshes.Add(1) })
+	t.Cleanup(oidcTestServer.Close)
+	app, cached := newRefreshTestApp(t, oidcTestServer.URL)
+
+	claims := jwt.MapClaims{"sub": "alice", "sid": "111", "iss": oidcTestServer.URL, "exp": float64(time.Now().Add(-time.Minute).Unix())}
+	idToken, err := app.CheckAndRefreshToken(t.Context(), claims, time.Minute)
+	require.NoError(t, err)
+	assert.NotEmpty(t, idToken)
+	assert.NotEqual(t, cached.Extra("id_token"), idToken, "expected a new ID token, not the expired cached one")
+	assert.Equal(t, int32(1), refreshes.Load())
+}
+
+// With several argocd-server replicas, another replica can refresh the session first. A provider that
+// rotates refresh tokens then rejects this replica's refresh token with invalid_grant; the refresh must
+// use the token the other replica stored instead of failing.
+func TestClientApp_GetUpdatedOidcTokenFromCache_RefreshedByAnotherReplica(t *testing.T) {
+	prevWait := refreshedElsewhereWait
+	refreshedElsewhereWait = 50 * time.Millisecond
+	t.Cleanup(func() { refreshedElsewhereWait = prevWait })
+
+	tests := []struct {
+		name string
+		// otherReplica stores the other replica's refreshed token when this replica's refresh request is
+		// sent; nil means no other replica refreshed the session.
+		otherReplica  func(t *testing.T, app *ClientApp, refreshed *oauth2.Token)
+		expectError   string
+		expectRefresh bool
+	}{
+		{
+			name: "stored before this replica's refresh fails",
+			otherReplica: func(t *testing.T, app *ClientApp, refreshed *oauth2.Token) {
+				t.Helper()
+				storeSession(t, app, refreshed)
+			},
+			expectRefresh: true,
+		},
+		{
+			name: "stored shortly after this replica's refresh fails",
+			otherReplica: func(t *testing.T, app *ClientApp, refreshed *oauth2.Token) {
+				t.Helper()
+				go func() {
+					time.Sleep(10 * time.Millisecond)
+					storeSession(t, app, refreshed)
+				}()
+			},
+			expectRefresh: true,
+		},
+		{
+			name:        "no other replica refreshed",
+			expectError: "invalid_grant",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var app *ClientApp
+			refreshedIDToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "alice", "exp": time.Now().Add(2 * time.Minute).Unix()}).SignedString([]byte("test"))
+			require.NoError(t, err)
+			refreshed := (&oauth2.Token{
+				AccessToken:  "access-token-from-other-replica",
+				RefreshToken: "refresh-token-from-other-replica",
+				Expiry:       time.Now().Add(2 * time.Hour),
+			}).WithExtra(map[string]any{"id_token": refreshedIDToken})
+
+			oidcTestServer := test.GetOIDCTestServer(t, nil)
+			t.Cleanup(oidcTestServer.Close)
+			provider := oidcTestServer.Config.Handler
+			oidcTestServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.RequestURI != "/token" {
+					provider.ServeHTTP(w, r)
+					return
+				}
+				// The other replica already used the refresh token this replica sends.
+				if tt.otherReplica != nil {
+					tt.otherReplica(t, app, refreshed)
+				}
+				w.Header().Set("Content-Type", "application/json")
+				w.WriteHeader(http.StatusBadRequest)
+				_, _ = w.Write([]byte(`{"error":"invalid_grant","error_description":"The provided authorization grant is invalid"}`))
+			})
+			app, _ = newRefreshTestApp(t, oidcTestServer.URL)
+
+			token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), "alice", "111")
+			if tt.expectError != "" {
+				assert.ErrorContains(t, err, tt.expectError)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, token)
+			assert.Equal(t, refreshedIDToken, token.Extra("id_token"))
+		})
+	}
 }
 
 func TestClientApp_GetUpdatedOidcTokenFromCache_SessionCeiling(t *testing.T) {
