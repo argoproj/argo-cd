@@ -21,7 +21,7 @@ This feature needs [App in any namespace](../app-any-namespace.md) feature activ
 
 When `--applicationset-namespaces` contains only literal namespace names (for example `app-team-one,app-team-two`), the ApplicationSet controller only watches `ApplicationSets`, `Applications` and `Secrets` in those namespaces and in its own control plane namespace. In that case, the controller only needs permissions on those namespaces, which can be granted with namespaced `Role`/`RoleBinding` resources.
 
-If any entry is a shell-style wildcard (for example `app-team-*` or `*`) or a regex, the controller falls back to a cluster-wide cache. It then needs cluster-scoped permissions to list and watch these resources, so a namespace-scoped Argo CD installation will *not* work.
+If any entry is a shell-style wildcard (for example `app-team-*` or `*`), a regex, or empty (for example from a trailing comma such as `app-team-one,`), the controller falls back to a cluster-wide cache. It then needs cluster-scoped permissions to list and watch these resources, so a namespace-scoped Argo CD installation will *not* work.
 
 ### SCM Providers secrets consideration
 
