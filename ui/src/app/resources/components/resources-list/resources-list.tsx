@@ -77,7 +77,7 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
     );
 }
 
-const ViewPref = ({
+export const ViewPref = ({
     children
 }: {
     children: (pref: ResourcesListPreferences & {page: number; search: string; sortTitle: string; sortDirection: 'asc' | 'desc'}) => React.ReactNode;
@@ -140,7 +140,13 @@ const ViewPref = ({
                         }
                         const sortTitle = preferences.sortOptions?.[RESOURCES_LIST_SORT_KEY] || RESOURCE_SORT_OPTIONS[0].title;
                         const sortDirection: 'asc' | 'desc' = preferences.sortDirections?.[RESOURCES_LIST_SORT_KEY] === 'desc' ? 'desc' : 'asc';
-                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || '', sortTitle, sortDirection};
+                        return {
+                            ...viewPref,
+                            page: parseInt(params.get('page') || '0', 10),
+                            search: params.get('search') ?? preferences.resourcesListSearch ?? '',
+                            sortTitle,
+                            sortDirection
+                        };
                     })
                 )
             }>
@@ -164,7 +170,7 @@ interface ResourcesToolbarProps {
     healthBarPrefs: HealthStatusBarPreferences;
 }
 
-const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBarPrefs}) => {
+export const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBarPrefs}) => {
     const regexInvalid = pref.searchRegex && isInvalidRegex(pref.search);
     const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${pref.searchRegex ? '' : '-o'}${
         regexInvalid ? ' applications-list__regex-toggle--invalid' : ''
@@ -172,7 +178,14 @@ const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBar
 
     return (
         <div className='applications-list__toolbar-controls' key='resources-list-tools'>
-            <SearchBar value={pref.search} onChange={value => ctx.navigation.goto('.', {search: value || null}, {replace: true})} placeholder='Search resources...' />
+            <SearchBar
+                value={pref.search}
+                onChange={value => {
+                    services.viewPreferences.updatePreferences({resourcesListSearch: value});
+                    ctx.navigation.goto('.', {search: value}, {replace: true});
+                }}
+                placeholder='Search resources...'
+            />
             <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
                 <button
                     type='button'
@@ -180,9 +193,7 @@ const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBar
                     aria-pressed={pref.searchRegex}
                     className={regexToggleClass}
                     onClick={() => {
-                        services.viewPreferences.updatePreferences({
-                            resourcesList: {...pref, searchRegex: !pref.searchRegex}
-                        });
+                        services.viewPreferences.updateResourcesListPreferences({searchRegex: !pref.searchRegex});
                     }}>
                     .*
                 </button>
@@ -193,13 +204,10 @@ const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBar
                     style={{border: 'none'}}
                     onClick={() => {
                         const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
-                        services.viewPreferences.updatePreferences({
-                            resourcesList: {
-                                ...pref,
-                                statusBarView: {
-                                    ...healthBarPrefs,
-                                    showHealthStatusBar
-                                }
+                        services.viewPreferences.updateResourcesListPreferences({
+                            statusBarView: {
+                                ...healthBarPrefs,
+                                showHealthStatusBar
                             }
                         });
                     }}>
@@ -217,9 +225,7 @@ const ResourcesViewTypeSwitcher: React.FC<{pref: ResourcesListPreferences & {pag
             title='List'
             onClick={() => {
                 ctx.navigation.goto('.', {view: ResourcesListViewKey.List});
-                services.viewPreferences.updatePreferences({
-                    resourcesList: {...pref, view: ResourcesListViewKey.List}
-                });
+                services.viewPreferences.updateResourcesListPreferences({view: ResourcesListViewKey.List});
             }}
         />
         <i
@@ -227,9 +233,7 @@ const ResourcesViewTypeSwitcher: React.FC<{pref: ResourcesListPreferences & {pag
             title='Summary'
             onClick={() => {
                 ctx.navigation.goto('.', {view: ResourcesListViewKey.Summary});
-                services.viewPreferences.updatePreferences({
-                    resourcesList: {...pref, view: ResourcesListViewKey.Summary}
-                });
+                services.viewPreferences.updateResourcesListPreferences({view: ResourcesListViewKey.Summary});
             }}
         />
     </div>
@@ -240,8 +244,8 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const loaderRef = React.useRef<DataLoader | null>(null);
 
-    function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences) {
-        services.viewPreferences.updatePreferences({resourcesList: newPref});
+    function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences, previous: ResourcesListPreferences) {
+        services.viewPreferences.updateResourcesListPreferences(newPref, previous);
         ctx.navigation.goto(
             '.',
             {
@@ -330,7 +334,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                         {allpref => (
                                                                             <ResourcesFilter
                                                                                 apps={filterResults}
-                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
+                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs, pref)}
                                                                                 pref={pref}
                                                                                 collapsed={allpref.hideSidebar}
                                                                             />
@@ -359,8 +363,9 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                                             Change filter criteria or&nbsp;
                                                                                             <a
                                                                                                 onClick={() => {
-                                                                                                    ResourcesListPreferences.clearFilters(pref);
-                                                                                                    onFilterPrefChanged(ctx, pref);
+                                                                                                    const cleared = {...pref};
+                                                                                                    ResourcesListPreferences.clearFilters(cleared);
+                                                                                                    onFilterPrefChanged(ctx, cleared, pref);
                                                                                                 }}>
                                                                                                 clear filters
                                                                                             </a>

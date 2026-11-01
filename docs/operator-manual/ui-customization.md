@@ -1,14 +1,20 @@
 # UI Customization
 
-## Applications List Search
+## List Search Preferences
 
-The Applications list remembers the search text in your browser, like the other
-list filters. Returning from an application's details page restores the search,
-including regular expressions when regex search is enabled. Clearing the search
-also clears the saved text. A `search` parameter in the URL takes precedence over
-the saved text, including an explicitly empty `?search=` parameter.
-Changing filters or search text on the ApplicationSets list does not replace the
-saved Applications search.
+The Applications, ApplicationSets, and Resources lists each remember their own
+search text in your browser. Returning to a list or reloading the page restores
+its saved search, including regular expressions when regex search is enabled.
+Clearing a search also clears its saved text. A `search` parameter in the URL
+takes precedence over the saved text, including an explicitly empty `?search=`
+parameter. Opening a shared URL does not replace the saved search unless you
+edit the search text.
+
+Applications and ApplicationSets continue to share their existing filter and
+view settings, but their searches are independent. Changing regex mode, the
+health status bar, or the list view saves only that setting. Editing a filter
+saves the fields you changed; unrelated filters supplied by a shared URL are
+not copied into your saved preferences.
 
 ## Default Application Details View
 

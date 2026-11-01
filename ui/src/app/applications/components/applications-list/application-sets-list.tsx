@@ -91,16 +91,16 @@ function loadApplicationSets(projects: string[]): Observable<models.ApplicationS
     );
 }
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
+export const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
     const observableQuery$ = useObservableQuery();
 
     return (
         <DataLoader
             load={() =>
-                combineLatest([services.viewPreferences.getPreferences().pipe(map(item => item.appList)), observableQuery$]).pipe(
+                combineLatest([services.viewPreferences.getPreferences(), observableQuery$]).pipe(
                     map(items => {
                         const params = items[1];
-                        const viewPref: AppsListPreferences = {...items[0]};
+                        const viewPref: AppsListPreferences = {...items[0].appList};
                         if (params.get('health') != null) {
                             viewPref.healthFilter = params
                                 .get('health')
@@ -123,7 +123,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                         return {
                             ...viewPref,
                             page: parseInt(params.get('page') || '0', 10),
-                            search: params.get('search') || ''
+                            search: params.get('search') ?? items[0].appSetListSearch ?? ''
                         };
                     })
                 )
@@ -155,7 +155,10 @@ const ApplicationSetsSearchBar = (props: {content: string; searchRegex: boolean;
     return (
         <SearchBar
             value={content || ''}
-            onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
+            onChange={value => {
+                services.viewPreferences.updatePreferences({appSetListSearch: value});
+                ctx.navigation.goto('.', {search: value}, {replace: true});
+            }}
             placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search application sets...'}
             regexEnabled={searchRegex}
             autocomplete={{
@@ -180,7 +183,7 @@ const ApplicationSetsSearchBar = (props: {content: string; searchRegex: boolean;
     );
 };
 
-const ApplicationSetsToolbar = (props: {
+export const ApplicationSetsToolbar = (props: {
     appSets: models.ApplicationSet[];
     pref: AppsListPreferences & {page: number; search: string};
     ctx: ContextApis;
@@ -205,9 +208,7 @@ const ApplicationSetsToolbar = (props: {
                     aria-pressed={props.pref.searchRegex}
                     className={regexToggleClass}
                     onClick={() => {
-                        services.viewPreferences.updatePreferences({
-                            appList: {...props.pref, searchRegex: !props.pref.searchRegex}
-                        });
+                        services.viewPreferences.updateAppListPreferences({searchRegex: !props.pref.searchRegex});
                     }}>
                     .*
                 </button>
@@ -217,11 +218,8 @@ const ApplicationSetsToolbar = (props: {
                     className={`applications-list__accordion argo-button argo-button--base${props.healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
                     style={{border: 'none'}}
                     onClick={() => {
-                        services.viewPreferences.updatePreferences({
-                            appList: {
-                                ...props.pref,
-                                statusBarView: {...props.healthBarPrefs, showHealthStatusBar: !props.healthBarPrefs.showHealthStatusBar}
-                            }
+                        services.viewPreferences.updateAppListPreferences({
+                            statusBarView: {...props.healthBarPrefs, showHealthStatusBar: !props.healthBarPrefs.showHealthStatusBar}
                         });
                     }}>
                     <i className='fas fa-ruler-horizontal' />
@@ -375,8 +373,8 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
     const {List, Summary, Tiles} = AppsListViewKey;
     const sidebarTarget = useSidebarTarget();
 
-    function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences) {
-        services.viewPreferences.updatePreferences({appList: newPref as AppsListPreferences});
+    function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences, previous: AppSetsListPreferences) {
+        services.viewPreferences.updateAppListPreferences(newPref, previous);
         ctx.navigation.goto(
             '.',
             {
@@ -454,7 +452,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                                     {allpref => (
                                                                         <AppSetsFilter
                                                                             apps={filterResults}
-                                                                            onChange={newPrefs => onAppSetFilterPrefChanged(ctx, newPrefs)}
+                                                                            onChange={newPrefs => onAppSetFilterPrefChanged(ctx, newPrefs, appSetPref)}
                                                                             pref={appSetPref}
                                                                             collapsed={allpref.hideSidebar}
                                                                         />
@@ -478,8 +476,9 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                                                 Change filter criteria or&nbsp;
                                                                                 <a
                                                                                     onClick={() => {
-                                                                                        AppSetsListPreferences.clearFilters(appSetPref);
-                                                                                        onAppSetFilterPrefChanged(ctx, appSetPref);
+                                                                                        const cleared = {...appSetPref};
+                                                                                        AppSetsListPreferences.clearFilters(cleared);
+                                                                                        onAppSetFilterPrefChanged(ctx, cleared, appSetPref);
                                                                                     }}>
                                                                                     clear filters
                                                                                 </a>

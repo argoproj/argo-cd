@@ -301,7 +301,7 @@ interface ApplicationsToolbarProps {
     healthBarPrefs: HealthStatusBarPreferences;
 }
 
-const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
+export const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
     const regexInvalid = pref.searchRegex && isInvalidRegex(pref.search);
 
     const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${pref.searchRegex ? '' : '-o'}${
@@ -318,9 +318,7 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
                     aria-pressed={pref.searchRegex}
                     className={regexToggleClass}
                     onClick={() => {
-                        services.viewPreferences.updatePreferences({
-                            appList: {...pref, searchRegex: !pref.searchRegex}
-                        });
+                        services.viewPreferences.updateAppListPreferences({searchRegex: !pref.searchRegex});
                     }}>
                     .*
                 </button>
@@ -331,13 +329,10 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
                     style={{border: 'none'}}
                     onClick={() => {
                         const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
-                        services.viewPreferences.updatePreferences({
-                            appList: {
-                                ...pref,
-                                statusBarView: {
-                                    ...healthBarPrefs,
-                                    showHealthStatusBar
-                                }
+                        services.viewPreferences.updateAppListPreferences({
+                            statusBarView: {
+                                ...healthBarPrefs,
+                                showHealthStatusBar
                             }
                         });
                     }}>
@@ -375,8 +370,8 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
         services.applications.get(appName, appNamespace, 'application', 'normal');
     }
 
-    function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
-        services.viewPreferences.updatePreferences({appList: newPref});
+    function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences, previous: AppsListPreferences) {
+        services.viewPreferences.updateAppListPreferences(newPref, previous);
         const params = {
             proj: newPref.projectsFilter.join(','),
             sync: newPref.syncFilter.join(','),
@@ -521,7 +516,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         {allpref => (
                                                                             <ApplicationsFilter
                                                                                 apps={filterResults}
-                                                                                onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
+                                                                                onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs, pref)}
                                                                                 pref={pref}
                                                                                 collapsed={allpref.hideSidebar}
                                                                                 hydratorEnabled={authSettings?.hydratorEnabled}
@@ -544,8 +539,9 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     Change filter criteria or&nbsp;
                                                                                     <a
                                                                                         onClick={() => {
-                                                                                            AppsListPreferences.clearFilters(pref);
-                                                                                            onAppFilterPrefChanged(ctx, pref);
+                                                                                            const cleared = {...pref};
+                                                                                            AppsListPreferences.clearFilters(cleared);
+                                                                                            onAppFilterPrefChanged(ctx, cleared, pref);
                                                                                         }}>
                                                                                         clear filters
                                                                                     </a>

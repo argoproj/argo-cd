@@ -168,8 +168,10 @@ export interface ViewPreferences {
     version: number;
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
-    // ApplicationSets also writes appList; keep the Applications search separate.
+    // Applications and ApplicationSets share filters, but keep searches separate.
     appListSearch: string;
+    appSetListSearch: string;
+    resourcesListSearch: string;
     resourcesList: ResourcesListPreferences;
     pageSizes: {[key: string]: number};
     sortOptions?: {[key: string]: string};
@@ -235,6 +237,8 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
         }
     },
     appListSearch: '',
+    appSetListSearch: '',
+    resourcesListSearch: '',
     resourcesList: {
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
@@ -274,10 +278,26 @@ export class ViewPreferencesService {
         return this.preferencesSubj;
     }
 
+    public updateAppListPreferences(change: Partial<AppsListPreferences>, previous?: Partial<AppsListPreferences>) {
+        this.updatePreferences({appList: this.mergeListPreferences(this.preferencesSubj.getValue().appList, change, previous)});
+    }
+
+    public updateResourcesListPreferences(change: Partial<ResourcesListPreferences>, previous?: Partial<ResourcesListPreferences>) {
+        this.updatePreferences({resourcesList: this.mergeListPreferences(this.preferencesSubj.getValue().resourcesList, change, previous)});
+    }
+
+    private mergeListPreferences<T>(stored: T, change: Partial<T>, previous?: Partial<T>): T {
+        // A rendered list includes URL overrides. Persist only the user's edits.
+        const edits = Object.entries(change).filter(([key, value]) => !previous || value !== previous[key as keyof T]);
+        return {...stored, ...Object.fromEntries(edits)};
+    }
+
     public updatePreferences(change: Partial<ViewPreferences>) {
         const current = this.preferencesSubj.getValue();
         const nextPref = Object.assign({}, current, change, {version: minVer});
-        nextPref.appListSearch = typeof nextPref.appListSearch === 'string' ? nextPref.appListSearch : '';
+        for (const key of ['appListSearch', 'appSetListSearch', 'resourcesListSearch'] as const) {
+            nextPref[key] = typeof nextPref[key] === 'string' ? nextPref[key] : '';
+        }
         // Normalize appList to ensure all filter arrays are initialized
         if (nextPref.appList) {
             this.normalizeAppListPreferences(nextPref.appList);
@@ -305,7 +325,9 @@ export class ViewPreferencesService {
             preferences = DEFAULT_PREFERENCES;
         }
         const merged = deepMerge(DEFAULT_PREFERENCES, preferences);
-        merged.appListSearch = typeof merged.appListSearch === 'string' ? merged.appListSearch : '';
+        for (const key of ['appListSearch', 'appSetListSearch', 'resourcesListSearch'] as const) {
+            merged[key] = typeof merged[key] === 'string' ? merged[key] : '';
+        }
         // Ensure all filter arrays are initialized to prevent undefined errors
         this.normalizeAppListPreferences(merged.appList);
         this.normalizeResourcesListPreferences(merged.resourcesList);
