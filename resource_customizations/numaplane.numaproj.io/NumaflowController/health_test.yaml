@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Not yet reconciled"
+  inputPath: testdata/NumaflowController/progressing-no-status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Not yet reconciled"
+  inputPath: testdata/NumaflowController/progressing-observed-generation.yaml
+- healthStatus:
+    status: Progressing
+    message: "Child Progressing"
+  inputPath: testdata/NumaflowController/progressing-child.yaml
+- healthStatus:
+    status: Healthy
+    message: "Healthy"
+  inputPath: testdata/NumaflowController/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "Numaflow Controller Deployment exceeded its progress deadline"
+  inputPath: testdata/NumaflowController/degraded-child.yaml
+- healthStatus:
+    status: Degraded
+    message: "unable to determine the target objects"
+  inputPath: testdata/NumaflowController/degraded-phase.yaml
