@@ -10,6 +10,7 @@ import (
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/repos"
 )
 
 var projectWithNoKeys = AppProjectSpec{
@@ -22,6 +23,38 @@ var projectWithNoKeys = AppProjectSpec{
 				GPG: &SourceIntegrityGitPolicyGPG{
 					Keys: []string{}, // Verifying but permitting no keys
 					Mode: "head",
+				},
+			}},
+		},
+	},
+}
+
+var projectWithStrictMode = AppProjectSpec{
+	SourceRepos:  []string{"*"},
+	Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+	SourceIntegrity: &SourceIntegrity{
+		Git: &SourceIntegrityGit{
+			Policies: []*SourceIntegrityGitPolicy{{
+				Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				GPG: &SourceIntegrityGitPolicyGPG{
+					Keys: []string{fixture.GpgGoodKeyID},
+					Mode: SourceIntegrityGitPolicyGPGModeStrict,
+				},
+			}},
+		},
+	},
+}
+
+var projectWithHeadMode = AppProjectSpec{
+	SourceRepos:  []string{"*"},
+	Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+	SourceIntegrity: &SourceIntegrity{
+		Git: &SourceIntegrityGit{
+			Policies: []*SourceIntegrityGitPolicy{{
+				Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				GPG: &SourceIntegrityGitPolicyGPG{
+					Keys: []string{fixture.GpgGoodKeyID},
+					Mode: SourceIntegrityGitPolicyGPGModeHead,
 				},
 			}},
 		},
@@ -296,6 +329,93 @@ func TestSyncToTagBasedConstraint(t *testing.T) {
 		AddSignedTag("1.0").
 		IgnoreErrors().
 		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
+func TestSyncHeadModeSucceedsOnShallowRepo(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+
+	Given(t).
+		Project("gpg").
+		ProjectSpec(projectWithHeadMode).
+		Path(guestbookPath).
+		HTTPSInsecureRepoURLAdded(true, repos.WithDepth(1)).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
+func TestSyncStrictModeFailsOnShallowRepo(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+
+	Given(t).
+		Project("gpg").
+		ProjectSpec(projectWithStrictMode).
+		Path(guestbookPath).
+		HTTPSInsecureRepoURLAdded(true, repos.WithDepth(1)).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		// Shallow + strict fails manifest generation at create; skip validation, assert on sync.
+		CreateApp("--validate=false").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
+		Expect(Condition(ApplicationConditionComparisonError, "shallow repository lacks history required for deep signature verification, use full clone"))
+}
+
+func TestSyncStrictModeSucceedsAfterRemovingShallowDepth(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+
+	Given(t).
+		Project("gpg").
+		ProjectSpec(projectWithHeadMode).
+		Path(guestbookPath).
+		HTTPSInsecureRepoURLAdded(true, repos.WithDepth(1)).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedSealCommit().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions()).
+		Given().
+		// Switch to strict mode and remove shallow depth
+		ProjectSpec(projectWithStrictMode).
+		HTTPSInsecureRepoURLAdded(true, repos.WithUpsert()).
+		When().
+		AddSignedFile("test-after-full-clone.yaml", "null").
+		IgnoreErrors().
+		Refresh(RefreshTypeHard).
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).

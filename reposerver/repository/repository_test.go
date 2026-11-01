@@ -160,6 +160,7 @@ func newServiceWithMocks(t *testing.T, root string) (*Service, *gitmocks.Client,
 	}
 	return newServiceWithOpt(t, func(gitClient *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -238,6 +239,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 
 	service, gitClient, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -769,6 +771,7 @@ func TestHelmChartReferencingSameRepoAndRevision_ResolvesRevisionOnce(t *testing
 	require.NoError(t, err)
 	service, gitClient, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(true)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().LsRemote(branch).Return(oldSHA, nil).Once()
@@ -3713,6 +3716,7 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 	gitClient.EXPECT().IsRevisionPresent(mock.Anything, revision).Return(true)
 	gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", nil)
 
@@ -3720,11 +3724,53 @@ func TestCheckoutRevisionPresentSkipFetch(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestCheckoutRevisionEnsureNotShallow(t *testing.T) {
+	t.Parallel()
+
+	revision := "0123456789012345678901234567890123456789"
+
+	t.Run("calls EnsureNotShallow when depth is 0", func(t *testing.T) {
+		t.Parallel()
+
+		gitClient := gitmocks.NewClient(t)
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil).Once()
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, revision).Return(true)
+		gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", nil)
+
+		err := checkoutRevision(t.Context(), gitClient, revision, false, 0, true)
+		require.NoError(t, err)
+	})
+	t.Run("skips EnsureNotShallow when depth is greater than 0", func(t *testing.T) {
+		t.Parallel()
+
+		gitClient := gitmocks.NewClient(t)
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, revision).Return(true)
+		gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", nil)
+
+		err := checkoutRevision(t.Context(), gitClient, revision, false, 1, true)
+		require.NoError(t, err)
+	})
+	t.Run("returns error when EnsureNotShallow fails", func(t *testing.T) {
+		t.Parallel()
+
+		gitClient := gitmocks.NewClient(t)
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(errors.New("ensure not shallow failed")).Once()
+
+		err := checkoutRevision(t.Context(), gitClient, revision, false, 0, true)
+		require.Error(t, err)
+		require.ErrorContains(t, err, "Failed to ensure repo is not shallow: ensure not shallow failed")
+	})
+}
+
 func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	revision := "0123456789012345678901234567890123456789"
 
 	gitClient := &gitmocks.Client{}
 	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 	gitClient.EXPECT().IsRevisionPresent(mock.Anything, revision).Return(false)
 	gitClient.EXPECT().Fetch(mock.Anything, "", mock.Anything).Return(nil)
 	gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", nil)
@@ -3942,6 +3988,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().LsRemote(refTargetRevision).Return(refSha, nil)
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
+				client.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				client.EXPECT().IsRevisionPresent(mock.Anything, refSha).Return(true)
 				client.EXPECT().Checkout(mock.Anything, refSha, false, true).Return("", nil)
 				return &client, nil
@@ -3971,6 +4018,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().LsRemote("main").Return(refSha, nil)
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
+				client.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				client.EXPECT().IsRevisionPresent(mock.Anything, refSha).Return(true)
 				client.EXPECT().Checkout(mock.Anything, refSha, false, true).Return("", fmt.Errorf("%s", dummyErrMsg))
 				// one error is not enough: checkout falls back to fetch specific revision
@@ -4042,6 +4090,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client := gitmocks.Client{}
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
+				client.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				client.EXPECT().IsRevisionPresent(mock.Anything, sha).Return(true)
 				client.EXPECT().Checkout(mock.Anything, sha, false, true).Return("", nil)
 				return &client, nil
@@ -4075,6 +4124,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client := gitmocks.Client{}
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
+				client.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				client.EXPECT().IsRevisionPresent(mock.Anything, sha).Return(true)
 				client.EXPECT().Checkout(mock.Anything, sha, false, true).Return("", nil)
 				return &client, nil
@@ -4119,6 +4169,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().LsRemote("dev").Return(refSha2, nil)
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
+				client.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				client.EXPECT().IsRevisionPresent(mock.Anything, refSha).Return(true)
 				client.EXPECT().IsRevisionPresent(mock.Anything, refSha2).Return(true)
 				client.EXPECT().Checkout(mock.Anything, refSha, false, true).Return("", nil)
@@ -4222,6 +4273,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().LsRemote(refTargetRevision).Return(refSha, nil)
 				client.EXPECT().Root().Return(refRoot)
 				client.EXPECT().Init().Return(nil)
+				client.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				client.EXPECT().IsRevisionPresent(mock.Anything, refSha).Return(true)
 				client.EXPECT().Checkout(mock.Anything, refSha, false, true).Return("", nil)
 				return &client, nil
@@ -5157,6 +5209,7 @@ func TestGetGitDirectories(t *testing.T) {
 	root := "./testdata/git-files-dirs"
 	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Once().Return("", nil)
@@ -5190,6 +5243,7 @@ func TestGetGitDirectoriesWithHiddenDirSupported(t *testing.T) {
 	root := "./testdata/git-files-dirs"
 	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Once().Return("", nil)
@@ -5284,6 +5338,7 @@ func TestGetGitFiles(t *testing.T) {
 	root := ""
 	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Once().Return("", nil)
@@ -5487,6 +5542,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "ChangedFilesDoNothing", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent(mock.Anything, "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Checkout(mock.Anything, "632039659e542ed7de0c170a4fcc1c571b288fc0", mock.Anything, mock.Anything).Once().Return("", nil)
@@ -5524,6 +5580,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().IsRevisionPresent(mock.Anything, "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5569,6 +5626,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesHelmMultiSourceUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				gitClient.EXPECT().IsRevisionPresent(mock.Anything, "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5615,6 +5673,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesHelmWithRefMultiSourceUpdateCache", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				gitClient.EXPECT().IsRevisionPresent(mock.Anything, "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5672,6 +5731,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesHelmWithRefMultiSource_IgnoreUnusedRef", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				gitClient.EXPECT().IsRevisionPresent(mock.Anything, "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5727,6 +5787,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "NoChangesHelmWithRefMultiSource_UndefinedRef", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				gitClient.EXPECT().IsRevisionPresent(mock.Anything, "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -5775,6 +5836,7 @@ func TestUpdateRevisionForPaths(t *testing.T) {
 		{name: "IgnoreRefSourcesForGitSource", fields: func() fields {
 			s, _, c := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 				gitClient.EXPECT().Init().Return(nil)
+				gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 				gitClient.EXPECT().IsRevisionPresent(mock.Anything, "632039659e542ed7de0c170a4fcc1c571b288fc0").Once().Return(false)
 				gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Once().Return(nil)
 				gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -6091,6 +6153,7 @@ func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) 
 
 	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
@@ -6157,6 +6220,7 @@ func TestUpdateRevisionForPaths_SiblingPathChangesCacheMiss(t *testing.T) {
 
 	s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
 		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().EnsureNotShallow(mock.Anything).Return(nil)
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)

@@ -191,6 +191,8 @@ type Client interface {
 	AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error
 	// HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 	HasFileChanged(ctx context.Context, filePath string) (bool, error)
+	// EnsureNotShallow ensures that the repository is not shallow. If it is, it converts it to a full repository.
+	EnsureNotShallow(ctx context.Context) error
 }
 
 type EventHandlers struct {
@@ -627,6 +629,10 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 	}
 	args = append(args, "--force", "--prune")
 	return m.runCredentialedCmd(ctx, args...)
+}
+
+func (m *nativeGitClient) fetchUnshallow(ctx context.Context) error {
+	return m.runCredentialedCmd(ctx, "fetch", "origin", "--tags", "--force", "--prune", "--unshallow")
 }
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
@@ -1637,6 +1643,16 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 }
 
 func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision string, deep bool) ([]RevisionSignatureInfo, string, error) {
+	if deep {
+		shallow, err := m.isShallowRepo(ctx)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed listing signatures: %w", err)
+		}
+		if shallow {
+			return nil, "", errors.New("shallow repository lacks history required for deep signature verification, use full clone")
+		}
+	}
+
 	legacyVerification := ""
 
 	// Resolve eventual semantic tag constraint before annotated tag detection
@@ -2177,6 +2193,38 @@ func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (
 	}
 	// always return the actual wrapped error
 	return false, fmt.Errorf("git diff failed: %w", err)
+}
+
+func (m *nativeGitClient) EnsureNotShallow(ctx context.Context) error {
+	isShallow, err := m.isShallowRepo(ctx)
+	if err != nil {
+		return err
+	}
+	if isShallow {
+		err = m.fetchUnshallow(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to unshallow repo: %w", err)
+		}
+		// check again, if origin is also shallow --unshallow succeeds and local repo remains shallow
+		isShallow, err = m.isShallowRepo(ctx)
+		if err != nil {
+			return fmt.Errorf("failed to check if repository is shallow after unshallowing: %w", err)
+		}
+		if isShallow {
+			return fmt.Errorf("repository is still shallow after unshallowing, origin might be shallow: %s", SanitizeRepoURL(m.repoURL))
+		}
+	}
+	return nil
+}
+
+// isShallowRepo returns true if the repository is shallow
+func (m *nativeGitClient) isShallowRepo(ctx context.Context) (bool, error) {
+	out, err := m.runCmd(ctx, "rev-parse", "--is-shallow-repository")
+	if err != nil {
+		return false, fmt.Errorf("failed to check if repository is shallow: %w", err)
+	}
+
+	return strings.TrimSpace(out) == "true", nil
 }
 
 // cmdWithGPG creates git Cmd with a GPG-enabled environment

@@ -819,3 +819,9 @@ type: Opaque
 > You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
 
 When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.
+
+> [!WARNING]
+> Do not use shallow clone with Source Integrity GPG `strict` mode.
+> Source integrity checks will fail for shallow clone.
+> Use full clone or `head` mode of source integrity.
+> See [Source Integrity](../user-guide/source-integrity-git-gpg.md#verification-mode-strict).
