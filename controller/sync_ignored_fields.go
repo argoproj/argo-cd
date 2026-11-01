@@ -7,6 +7,7 @@ import (
 	"maps"
 	"reflect"
 	"slices"
+	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -213,6 +214,10 @@ func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, target
 		unstructured.RemoveNestedField(liveCopy.Object, "metadata", field)
 	}
 
+	if err := checkKeyPaths(slices.Concat(targetPaths, livePaths), sch); err != nil {
+		return nil, fmt.Errorf("%s %s/%s: %w", target.GetKind(), target.GetNamespace(), target.GetName(), err)
+	}
+
 	// Drop the target's ignored paths. The same path can arrive from several
 	// rules (an Application rule and a resource.customizations rule); it is
 	// removed once, as jq's delpaths would.
@@ -240,7 +245,97 @@ func buildApplyTarget(live, target *unstructured.Unstructured, livePaths, target
 			result.Object = out
 		}
 	}
+	// The resource's identity is the manifest's, whatever the rules say: a rule
+	// over apiVersion would otherwise apply the manifest's body under the
+	// version the cluster happens to serve the live object at.
+	result.SetAPIVersion(target.GetAPIVersion())
+	result.SetKind(target.GetKind())
+	result.SetName(target.GetName())
+	result.SetNamespace(target.GetNamespace())
 	return result, nil
+}
+
+// checkKeyPaths refuses a path that ends at a merge key: the key is how items
+// are matched, so ignoring it leaves nothing to match on.
+func checkKeyPaths(paths []jqpath.Path, sch fieldSchema) error {
+	for _, p := range paths {
+		s := sch
+		var itemKeys []string // merge keys of the list whose item the path is in
+		for i, e := range p {
+			switch e := e.(type) {
+			case string:
+				if i == len(p)-1 && slices.Contains(itemKeys, e) {
+					return fmt.Errorf("ignored path %s names the merge key %q of the list; items cannot be matched without it", jqpath.String(p), e)
+				}
+				itemKeys = nil
+				s = s.child(e)
+			case int:
+				itemKeys = s.listKeys()
+				s = s.item()
+			}
+		}
+	}
+	return nil
+}
+
+// checkIndexPaths refuses a positional path (a jsonPointers rule) that indexes
+// a list with merge keys where the manifest and the cluster have different
+// items at that index: the rule would strip a field from one item and carry
+// the other's. Paths that select items by content resolve to each side's own
+// index and are not checked.
+func checkIndexPaths(live, target map[string]any, paths []jqpath.Path, sch fieldSchema) error {
+	for _, p := range paths {
+		l, g := any(live), any(target)
+		s := sch
+		for _, e := range p {
+			switch e := e.(type) {
+			case string:
+				lm, _ := l.(map[string]any)
+				gm, _ := g.(map[string]any)
+				l, g = lm[e], gm[e]
+				s = s.child(e)
+			case int:
+				keys := s.listKeys()
+				ll, _ := l.([]any)
+				gl, _ := g.([]any)
+				if keys != nil && e >= 0 && e < len(ll) && e < len(gl) {
+					defaults := s.listKeyDefaults(keys)
+					if scalarKeyValues(ll[e], keys, defaults) && scalarKeyValues(gl[e], keys, defaults) &&
+						managedfields.FindKeyedItem([]any{gl[e]}, keyValues(ll[e], keys, defaults), defaults) < 0 {
+						return fmt.Errorf("ignored path %s indexes a list matched by %s: index %d is %s in the manifest and %s in the cluster; select the item by its key instead",
+							jqpath.String(p), strings.Join(keys, ", "), e, describeKeys(gl[e], keys, defaults), describeKeys(ll[e], keys, defaults))
+					}
+				}
+				l, g = nil, nil
+				if e >= 0 && e < len(ll) {
+					l = ll[e]
+				}
+				if e >= 0 && e < len(gl) {
+					g = gl[e]
+				}
+				s = s.item()
+			}
+		}
+	}
+	return nil
+}
+
+// keyValues returns the key fields of a keyed-list item, defaulted.
+func keyValues(item any, keys []string, defaults map[string]any) map[string]any {
+	im, _ := item.(map[string]any)
+	out := make(map[string]any, len(keys))
+	for _, k := range keys {
+		out[k] = keyValue(im, k, defaults)
+	}
+	return out
+}
+
+func describeKeys(item any, keys []string, defaults map[string]any) string {
+	parts := make([]string, 0, len(keys))
+	for _, k := range keys {
+		parts = append(parts, fmt.Sprintf("%s=%v", k, keyValues(item, keys, defaults)[k]))
+	}
+	return strings.Join(parts, ",")
 }
 
 // restoreTrackingIdentity puts the application's own tracking annotation and
@@ -362,7 +457,14 @@ func carryInto(res, liv any, p []any, v any, sch fieldSchema) any {
 			// git asserts something of a different shape here: git wins.
 			return rm
 		}
-		rm[e] = carryInto(next, lm[e], p[1:], v, childSch)
+		carried := carryInto(next, lm[e], p[1:], v, childSch)
+		if !exists && isEmptyContainer(carried) {
+			// Nothing was carried into the container created above (the
+			// path led to an item git does not declare): do not add an
+			// empty one.
+			return rm
+		}
+		rm[e] = carried
 		return rm
 	case int:
 		rl, ok := res.([]any)
@@ -398,26 +500,13 @@ func carryInto(res, liv any, p []any, v any, sch fieldSchema) any {
 			pos = e
 		}
 		if pos < 0 {
-			liveMap, ok := liveItem.(map[string]any)
-			if !ok {
-				return rl
-			}
-			if keys == nil {
-				// A list without keys is applied as one value, so a partial
-				// item would land in the cluster as is. Carry the whole item.
-				return insertAt(rl, min(e, len(rl)), runtime.DeepCopyJSONValue(liveItem))
-			}
-			// git does not declare the item: create it with its identity only,
-			// the carried field is added below. The server merges the rest of
-			// the item from its other managers.
-			newItem := map[string]any{}
-			for _, k := range keys {
-				if kv, ok := liveMap[k]; ok {
-					newItem[k] = runtime.DeepCopyJSONValue(kv)
-				}
-			}
-			pos = min(e, len(rl))
-			rl = insertAt(rl, pos, newItem)
+			// git does not declare the item, and the rule names a field of it,
+			// not the item. A field rule never keeps an item: carrying a
+			// skeleton (keyed list) or the whole item (keyless list) would keep
+			// a container the user deleted from git alive, and would leave the
+			// diff OutOfSync forever, since the diff sees the extra item too.
+			// To keep an injected item, ignore the item itself.
+			return rl
 		}
 		if !sameContainerKind(rl[pos], liveItem) {
 			return rl
@@ -426,6 +515,16 @@ func carryInto(res, liv any, p []any, v any, sch fieldSchema) any {
 		return rl
 	}
 	return res
+}
+
+func isEmptyContainer(v any) bool {
+	switch c := v.(type) {
+	case map[string]any:
+		return len(c) == 0
+	case []any:
+		return len(c) == 0
+	}
+	return false
 }
 
 func sameContainerKind(a, b any) bool {
@@ -476,13 +575,8 @@ func scalarKeyValues(item any, keys []string, defaults map[string]any) bool {
 // findByKeys returns the index of the item in l whose key fields equal those
 // of item, each side defaulted; the same lookup managedFieldsManagers paths use.
 func findByKeys(l []any, item any, keys []string, defaults map[string]any) int {
-	im, ok := item.(map[string]any)
-	if !ok {
+	if _, ok := item.(map[string]any); !ok {
 		return -1
 	}
-	want := make(map[string]any, len(keys))
-	for _, k := range keys {
-		want[k] = keyValue(im, k, defaults)
-	}
-	return managedfields.FindKeyedItem(l, want, defaults)
+	return managedfields.FindKeyedItem(l, keyValues(item, keys, defaults), defaults)
 }

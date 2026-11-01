@@ -121,9 +121,10 @@ spec:
 		assert.Equal(t, map[string]any{"name": "http", "port": int64(80), "targetPort": int64(8080), "nodePort": int64(31234)}, ports[0])
 	})
 
-	t.Run("field inside an undeclared item of a list without keys carries the whole item", func(t *testing.T) {
-		// tolerations is atomic: a partial item would be applied as is and
-		// rejected (a toleration with a value but no key).
+	t.Run("field inside an undeclared item carries nothing", func(t *testing.T) {
+		// A rule on a field never keeps an item git does not declare; carrying
+		// a partial toleration would be rejected, and carrying the whole item
+		// would keep a deleted item alive.
 		live := deployment(t, `      containers: [{name: web, image: nginx}]
       tolerations:
       - {key: a, operator: Exists}
@@ -137,10 +138,7 @@ spec:
 		require.NoError(t, err)
 		tolerations, _, err := unstructured.NestedSlice(got.Object, "spec", "template", "spec", "tolerations")
 		require.NoError(t, err)
-		assert.Equal(t, []any{
-			map[string]any{"key": "a", "operator": "Exists"},
-			map[string]any{"key": "injected", "operator": "Equal", "value": "v", "effect": "NoSchedule"},
-		}, tolerations)
+		assert.Equal(t, []any{map[string]any{"key": "a", "operator": "Exists"}}, tolerations)
 	})
 
 	t.Run("server-populated metadata is never carried", func(t *testing.T) {

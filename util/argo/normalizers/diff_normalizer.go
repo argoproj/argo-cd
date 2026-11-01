@@ -341,6 +341,9 @@ type IgnoreNormalizer interface {
 	// sequences of map keys (string) and list indexes (int) into un.Object.
 	// All paths are resolved against un as given, before any removal.
 	IgnoredPaths(un *unstructured.Unstructured) ([]jqpath.Path, error)
+	// PointerPaths is IgnoredPaths for the jsonPointers rules only: the
+	// paths that address list items by position rather than by content.
+	PointerPaths(un *unstructured.Unstructured) ([]jqpath.Path, error)
 }
 
 // NewIgnoreNormalizer creates diff normalizer which removes ignored fields according to given application spec and resource overrides
@@ -423,10 +426,21 @@ func (n *ignoreNormalizer) matchedPatches(un *unstructured.Unstructured) []norma
 
 // IgnoredPaths returns the paths the matching ignore rules remove from un.
 func (n *ignoreNormalizer) IgnoredPaths(un *unstructured.Unstructured) ([]jqpath.Path, error) {
+	return n.ignoredPaths(un, false)
+}
+
+func (n *ignoreNormalizer) PointerPaths(un *unstructured.Unstructured) ([]jqpath.Path, error) {
+	return n.ignoredPaths(un, true)
+}
+
+func (n *ignoreNormalizer) ignoredPaths(un *unstructured.Unstructured, pointersOnly bool) ([]jqpath.Path, error) {
 	if un == nil {
 		return nil, errors.New("invalid argument: unstructured is nil")
 	}
 	matched := n.matchedPatches(un)
+	if pointersOnly {
+		matched = slices.DeleteFunc(matched, func(p normalizerPatch) bool { _, ok := p.(*jsonPatchNormalizerPatch); return !ok })
+	}
 	if len(matched) == 0 {
 		return nil, nil
 	}

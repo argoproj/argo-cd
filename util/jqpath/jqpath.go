@@ -149,6 +149,22 @@ func Compare(a, b Path) int {
 	return len(a) - len(b)
 }
 
+// String renders a path as a JSON pointer, the spelling users write in
+// jsonPointers rules: keys with "~" and "/" escaped, indexes as numbers.
+func String(p Path) string {
+	var b strings.Builder
+	for _, e := range p {
+		b.WriteByte('/')
+		switch e := e.(type) {
+		case string:
+			b.WriteString(strings.ReplaceAll(strings.ReplaceAll(e, "~", "~0"), "/", "~1"))
+		default:
+			fmt.Fprint(&b, e)
+		}
+	}
+	return b.String()
+}
+
 func kindRank(e any) int {
 	switch e.(type) {
 	case int:

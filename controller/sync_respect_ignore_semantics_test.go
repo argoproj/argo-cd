@@ -640,7 +640,9 @@ data:
 // carried value follows the item by its key, not its index, at every level. A
 // live-only item is carried whole, a live-only field is carried into git's item,
 // and git's other changes to the item go through, including the removal of a
-// sibling field.
+// sibling field. A field rule never keeps an item git does not declare, so
+// deleting the item from git deletes it; to keep an injected item, ignore the
+// item itself.
 // ---------------------------------------------------------------------------
 
 func TestRespectIgnoreSemantics_05_KeyedListItemsAreMatchedByKey(t *testing.T) {
@@ -711,7 +713,7 @@ func TestRespectIgnoreSemantics_05_KeyedListItemsAreMatchedByKey(t *testing.T) {
 
 	// Ref: raised while reviewing https://github.com/argoproj/argo-cd/pull/29646 ("lists still lost" for a
 	// partially ignored live-only entry); no public report of this exact shape yet.
-	t.Run("only the injected initContainer's image ignored, entry kept", func(t *testing.T) {
+	t.Run("only the injected initContainer's image ignored, the item is not kept", func(t *testing.T) {
 		live := toUnstructured(t, injectedInitLive)
 		target := toUnstructured(t, injectedInitTarget)
 		unstructured.RemoveNestedField(target.Object, "spec", "template", "spec", "initContainers")
@@ -722,25 +724,60 @@ func TestRespectIgnoreSemantics_05_KeyedListItemsAreMatchedByKey(t *testing.T) {
 
 		applied := applyTarget(t, nil, live, target, ignore)
 
-		// Only the image is ignored, so the apply target should assert exactly
-		// the list-map entry {name, image: <live>}, which is what earlier
-		// controllers applied. Asserting the other fields of a container the
-		// manifest does not declare would be wrong; omitting the entry drops a
-		// field Argo CD owns.
-		inits := podList(t, applied, "initContainers")
-		require.Len(t, inits, 1, "injected init container entry was dropped from the apply target")
-		assert.Equal(t, map[string]any{"name": "injected-init-container", "image": "registry.example.com/injector:1.4.2"}, inits[0])
+		// The rule names a field, not the item. The manifest declares no init
+		// containers, so none are applied: a rule on a field never keeps an
+		// item (the same rule would otherwise keep a container the user
+		// deleted from git alive). An admission webhook re-injects its
+		// container on the apply; to keep an item that nothing re-injects,
+		// ignore the item: `.initContainers[] | select(.name == "...")`.
+		absent(t, applied, "spec.template.spec.initContainers")
+	})
+
+	// Deleting a container from git while its image is ignored. The removed
+	// container is live-only with an ignored field; it is not kept, so the
+	// deletion goes through under both apply modes and the diff is Synced
+	// afterwards.
+	//
+	// Ref: found by an adversarial review of this change (the most common rule
+	// there is, and a routine change).
+	t.Run("container removed from git while images are ignored, removed from the cluster", func(t *testing.T) {
+		podSpec := func(withOld bool, webImage, oldImage string) string {
+			s := "      containers:\n      - {name: web, image: " + webImage + ", ports: [{containerPort: 80}]}\n"
+			if withOld {
+				s += "      - {name: old, image: " + oldImage + ", ports: [{containerPort: 9000}]}\n"
+			}
+			return s
+		}
+		dep := func(spec string) *unstructured.Unstructured {
+			return toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+`+spec)
+		}
+		gitV1 := dep(podSpec(true, "nginx:1", "old:1"))
+		live := dep(podSpec(true, "nginx:1.1", "old:1.1")) // the image updater moved both tags
+		gitV2 := dep(podSpec(false, "nginx:1", ""))
+
+		applied := applyTarget(t, nil, live, gitV2, deploymentIgnore(`.spec.template.spec.containers[].image`))
+		assert.Equal(t, []string{"web"}, names(podList(t, applied, "containers")), "the deleted container is not carried")
+		assert.Equal(t, "nginx:1.1", at(t, applied, "spec.template.spec.containers[name=web].image"), "the kept container's image is still ignored")
 
 		t.Run("ssa", func(t *testing.T) {
 			sim := newSSASim(t, builtinTypeConverter(t, deploymentGVK), deploymentGVK)
-			// an earlier sync applied {name, image} for the injected container
-			preUpgrade := target.DeepCopy()
-			require.NoError(t, unstructured.SetNestedSlice(preUpgrade.Object, []any{map[string]any{"name": "injected-init-container", "image": "registry.example.com/injector:1.4.2"}}, "spec", "template", "spec", "initContainers"))
-			sim.apply(preUpgrade, argoManager)
-			sim.update(live, otherManager) // injector fills in the rest
+			sim.apply(gitV1, argoManager)
+			sim.update(live, "argocd-image-updater")
 			sim.apply(applied, argoManager)
-			assert.ElementsMatch(t, []string{"injected-init-container"}, names(podList(t, sim.live(), "initContainers")),
-				"SSA removed the injected init container from the live Deployment")
+			assert.Equal(t, []string{"web"}, names(podList(t, sim.live(), "containers")))
+		})
+		t.Run("csa", func(t *testing.T) {
+			out := csaApply(t, gitV1, live, applied)
+			assert.Equal(t, []string{"web"}, names(podList(t, out, "containers")))
 		})
 	})
 
@@ -1145,7 +1182,7 @@ spec:
 	// schemas conflict, and the controller then builds the diff config with no
 	// parser at all. Built-in kinds still have the static schema, so containers
 	// are matched by name. Matched by position, the sidecar's image would land
-	// on git's web container and a second "web" would be inserted.
+	// on git's web container.
 	//
 	// Ref: found by code review of this change.
 	t.Run("cluster schema unavailable, built-in lists are still keyed", func(t *testing.T) {
@@ -1178,9 +1215,8 @@ spec:
 			ignores:  []v1alpha1.ResourceIgnoreDifferences{deploymentIgnore(`.spec.template.spec.containers[].image`)},
 			noParser: true,
 		})
-		assert.Equal(t, []string{"sidecar", "web"}, names(podList(t, applied, "containers")), "one item per name")
-		assert.Equal(t, "nginx:live", at(t, applied, "spec.template.spec.containers[name=web].image"))
-		assert.Equal(t, "proxy:1", at(t, applied, "spec.template.spec.containers[name=sidecar].image"))
+		assert.Equal(t, []string{"web"}, names(podList(t, applied, "containers")), "git's container only; the injected one has only a field ignored and is not kept")
+		assert.Equal(t, "nginx:live", at(t, applied, "spec.template.spec.containers[name=web].image"), "web's own live image, matched by name")
 	})
 }
 
@@ -1189,7 +1225,9 @@ spec:
 //
 // Lists without merge keys (tolerations, args, Ingress paths, matchExpressions)
 // are applied as one value, so a live-only ignored item must be carried next to
-// git's items, at its live position, or the apply removes it.
+// git's items, at its live position, or the apply removes it. Only a rule on
+// the item does that; a rule on a field inside an item git does not declare
+// carries nothing, and the apply removes the item.
 // ---------------------------------------------------------------------------
 
 func ingressBackendNames(t *testing.T, u *unstructured.Unstructured) []string {
@@ -1993,7 +2031,7 @@ spec:
 	// API server rejects). The whole live item is carried.
 	//
 	// Ref: found by code review of this change.
-	t.Run("toleration value ignored, whole toleration carried", func(t *testing.T) {
+	t.Run("toleration value ignored on an item git does not declare, item not kept", func(t *testing.T) {
 		target := toUnstructured(t, `
 apiVersion: apps/v1
 kind: Deployment
@@ -2027,10 +2065,11 @@ spec:
 
 		applied := applyTarget(t, nil, live, target, ignore)
 
-		want := []any{
-			map[string]any{"key": "dedicated", "operator": "Exists"},
-			map[string]any{"key": "node.example.com/spot", "operator": "Equal", "value": "true", "effect": "NoSchedule"},
-		}
+		// The rule names the value, not the toleration. Git does not declare
+		// the toleration, so the list is applied as git has it and the apply,
+		// which replaces the atomic list, removes the injected item. To keep
+		// it, ignore the item: `select(.key == "node.example.com/spot")`.
+		want := []any{map[string]any{"key": "dedicated", "operator": "Exists"}}
 		assert.Equal(t, want, podList(t, applied, "tolerations"))
 
 		sim := newSSASim(t, builtinTypeConverter(t, deploymentGVK), deploymentGVK)
@@ -2156,8 +2195,9 @@ spec:
 // Guarantee 10: Status, server metadata and the tracking identity are never carried.
 //
 // Never carried, whatever the rules say: status, the metadata fields the API
-// server populates, and the application's own tracking annotation and label,
-// which are always asserted from the manifest.
+// server populates, the application's own tracking annotation and label, and
+// the resource's identity (apiVersion, kind, name, namespace), which are always
+// asserted from the manifest.
 // ---------------------------------------------------------------------------
 
 func TestRespectIgnoreSemantics_10_StatusServerMetadataAndTrackingIdentityAreNeverCarried(t *testing.T) {
@@ -2322,6 +2362,40 @@ data: {k: live}
 				}
 			})
 		}
+	})
+
+	// Live and manifest are paired by group, kind, namespace and name, never by
+	// version, so the cluster serves the live object at its preferred version
+	// while the manifest may use another. A rule over apiVersion must not put
+	// the live version on a body written for the manifest's.
+	//
+	// Ref: found by an adversarial review of this change.
+	t.Run("apiVersion and kind ignored, the manifest's identity is applied", func(t *testing.T) {
+		target := toUnstructured(t, `
+apiVersion: autoscaling/v2beta2
+kind: HorizontalPodAutoscaler
+metadata: {name: web, namespace: default}
+spec:
+  minReplicas: 1
+  maxReplicas: 5
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: web}
+`)
+		live := toUnstructured(t, `
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata: {name: web, namespace: default}
+spec:
+  minReplicas: 2
+  maxReplicas: 5
+  scaleTargetRef: {apiVersion: apps/v1, kind: Deployment, name: web}
+`)
+		ignore := v1alpha1.ResourceIgnoreDifferences{Group: "autoscaling", Kind: "HorizontalPodAutoscaler", JSONPointers: []string{"/apiVersion", "/kind", "/metadata/name", "/metadata/namespace", "/spec/minReplicas"}}
+		applied := applyTarget(t, nil, live, target, ignore)
+		assert.Equal(t, "autoscaling/v2beta2", applied.GetAPIVersion(), "the manifest's version, not the one the cluster serves")
+		assert.Equal(t, "HorizontalPodAutoscaler", applied.GetKind())
+		assert.Equal(t, "web", applied.GetName())
+		assert.Equal(t, "default", applied.GetNamespace())
+		assert.Equal(t, int64(2), at(t, applied, "spec.minReplicas"), "an ordinary ignored field is still carried")
 	})
 }
 
@@ -2917,6 +2991,66 @@ spec:
 		assert.Contains(t, err.Error(), `jqPathExpression ".spec.replicas + 1" is not a path expression`, "the message names the rule")
 		assert.Contains(t, err.Error(), "Deployment default/web", "and the resource")
 	})
+
+	// Three rules the schema shows to be mistaken fail the sync before anything
+	// is built from them, naming the rule and the resource.
+	//
+	// Ref: found by an adversarial review of this change.
+	t.Run("an index into a keyed list that names different items on the two sides fails the sync", func(t *testing.T) {
+		live := toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      containers:
+      - {name: a, image: a:live}
+      - {name: b, image: b:live}
+`)
+		target := toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      containers:
+      - {name: b, image: b:git}
+      - {name: a, image: a:git}
+`)
+		rule := v1alpha1.ResourceIgnoreDifferences{Group: "apps", Kind: "Deployment", JSONPointers: []string{"/spec/template/spec/containers/0/image"}}
+		_, err := tryApplyTarget(t, nil, live, target, applyOpts{ignores: []v1alpha1.ResourceIgnoreDifferences{rule}})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "Deployment default/web")
+		assert.Contains(t, err.Error(), `ignored path /spec/template/spec/containers/0/image indexes a list matched by name: index 0 is name=b in the manifest and name=a in the cluster`)
+
+		// The same pointer is fine while the orders agree (example 13 relies on it).
+		sameOrder := live.DeepCopy()
+		applied := applyTarget(t, nil, live, sameOrder, rule)
+		assert.Equal(t, "a:live", at(t, applied, "spec.template.spec.containers[name=a].image"))
+	})
+
+	t.Run("a rule that names a merge key fails the sync", func(t *testing.T) {
+		live := toUnstructured(t, injectedInitLive)
+		target := toUnstructured(t, injectedInitTarget)
+		_, err := tryApplyTarget(t, nil, live, target, applyOpts{ignores: []v1alpha1.ResourceIgnoreDifferences{deploymentIgnore(`.spec.template.spec.containers[].name`)}})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `ignored path /spec/template/spec/containers/0/name names the merge key "name" of the list`)
+	})
+
+	t.Run("a managedFieldsManagers rule that trusts the sync's own manager fails the sync", func(t *testing.T) {
+		live := toUnstructured(t, injectedInitLive)
+		target := toUnstructured(t, injectedInitTarget)
+		rule := v1alpha1.ResourceIgnoreDifferences{Group: "apps", Kind: "Deployment", ManagedFieldsManagers: []string{common.ArgoCDSSAManager}}
+		_, err := tryApplyTarget(t, nil, live, target, applyOpts{ignores: []v1alpha1.ResourceIgnoreDifferences{rule}})
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), `managedFieldsManagers trusts "argocd-controller", the manager this sync applies with`)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -3262,6 +3396,7 @@ func tryApplyTarget(t *testing.T, parser *managedfields.GvkParser, live, target 
 	b := diff.NewDiffConfigBuilder().
 		WithDiffSettings(opts.ignores, opts.overrides, true, normalizers.IgnoreNormalizerOpts{}).
 		WithGVKParser(parser).
+		WithManager(common.ArgoCDSSAManager). // as state.go configures it
 		WithNoCache()
 	if opts.tracking || opts.trackingMethod != "" {
 		method := opts.trackingMethod

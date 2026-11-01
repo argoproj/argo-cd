@@ -485,14 +485,20 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 //  5. List items are matched by the schema's merge keys, with missing key
 //     fields taking their schema defaults; a list without keys is matched by
 //     position. A live-only item is inserted at its live position. A field
-//     inside an item git does not declare carries the item's identity in a
-//     keyed list and the whole item in a keyless list.
+//     inside an item git does not declare is not carried: a field rule never
+//     keeps an item, so deleting the item from git deletes it.
 //  6. An atomic map or list git does not declare is never created from a
 //     partial set of ignored keys; a whole ignored value is carried as is.
 //  7. status and the metadata fields the API server populates are never
 //     carried, and the application's tracking annotation and label are
 //     always asserted from the manifest.
 //  8. A Secret's stringData is folded into data before the rules run.
+//  9. The resource's apiVersion, kind, name and namespace are always the
+//     manifest's. A rule that cannot be evaluated (not a path expression, a
+//     compile error, a timeout), a rule that indexes a keyed list where the
+//     manifest and the cluster have different items at that index, a rule
+//     that names a merge key, and a managedFieldsManagers rule that trusts the
+//     sync's own manager fail the sync with the rule named.
 //
 // The schema is the structured-merge-diff schema of the cluster, the one
 // server-side apply uses; for a kind without one, lists are atomic and maps
@@ -547,6 +553,13 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 			continue
 		}
 		pt := scheme.ResolveParseableType(prepared.GroupVersionKind(), cr.diffConfig.GVKParser())
+		pointerPaths, err := resolver.PointerPaths(prepared)
+		if err != nil {
+			return nil, err
+		}
+		if err := checkIndexPaths(live.Object, prepared.Object, pointerPaths, newFieldSchema(pt)); err != nil {
+			return nil, fmt.Errorf("%s %s/%s: %w", target.GetKind(), target.GetNamespace(), target.GetName(), err)
+		}
 		patched, err := buildApplyTarget(live, prepared, livePaths, targetPaths, newFieldSchema(pt))
 		if err != nil {
 			return nil, err

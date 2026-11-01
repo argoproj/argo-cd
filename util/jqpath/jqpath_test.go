@@ -54,6 +54,13 @@ func TestDelete(t *testing.T) {
 	assert.Equal(t, map[string]any{"spec": map[string]any{"items": []any{"a", "c"}}}, doc)
 }
 
+func TestString(t *testing.T) {
+	assert.Equal(t, "/spec/containers/0/image", String(Path{"spec", "containers", 0, "image"}))
+	assert.Equal(t, "/metadata/annotations/kubectl.kubernetes.io~1restartedAt", String(Path{"metadata", "annotations", "kubectl.kubernetes.io/restartedAt"}))
+	assert.Equal(t, "/a~0b", String(Path{"a~b"}))
+	assert.Empty(t, String(Path{}))
+}
+
 func TestDeleteAll(t *testing.T) {
 	doc := map[string]any{"items": []any{"a", "b", "c", "d"}, "m": map[string]any{"k": 1, "l": 2}}
 	// Given in the wrong order and with a duplicate: lower index first would

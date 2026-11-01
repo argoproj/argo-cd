@@ -3,6 +3,7 @@ package diff
 import (
 	"errors"
 	"fmt"
+	"slices"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -39,6 +40,21 @@ func NewIgnoredPathsResolver(targets []*unstructured.Unstructured, diffConfig Di
 		return nil, errors.New("invalid argument: diffConfig is nil")
 	}
 	ignores := resolvedIgnores(targets, diffConfig.Ignores())
+	if manager := diffConfig.Manager(); manager != "" {
+		// Trusting the manager this sync applies with would ignore every field
+		// it owns, which is everything git has ever applied: no change from
+		// git would ever be applied again.
+		trusted := false
+		for _, ignore := range ignores {
+			trusted = trusted || slices.Contains(ignore.ManagedFieldsManagers, manager)
+		}
+		for _, override := range diffConfig.Overrides() {
+			trusted = trusted || slices.Contains(override.IgnoreDifferences.ManagedFieldsManagers, manager)
+		}
+		if trusted {
+			return nil, fmt.Errorf("managedFieldsManagers trusts %q, the manager this sync applies with: every field it owns would be ignored", manager)
+		}
+	}
 	ignoreNormalizer, err := normalizers.NewIgnoreNormalizer(ignores, diffConfig.Overrides(), diffConfig.IgnoreNormalizerOpts())
 	if err != nil {
 		return nil, fmt.Errorf("failed to build ignore normalizer: %w", err)
@@ -58,6 +74,21 @@ func (r *IgnoredPathsResolver) RulePaths(obj *unstructured.Unstructured) ([]jqpa
 		return nil, nil
 	}
 	paths, err := r.ignoreNormalizer.IgnoredPaths(obj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ignored paths: %w", err)
+	}
+	return paths, nil
+}
+
+// PointerPaths returns the paths the jsonPointers rules remove from one object:
+// the rules that address list items by position. They resolve to the same path
+// in the manifest and in the cluster, which is what makes them worth checking
+// against both.
+func (r *IgnoredPathsResolver) PointerPaths(obj *unstructured.Unstructured) ([]jqpath.Path, error) {
+	if obj == nil {
+		return nil, nil
+	}
+	paths, err := r.ignoreNormalizer.PointerPaths(obj)
 	if err != nil {
 		return nil, fmt.Errorf("failed to resolve ignored paths: %w", err)
 	}
