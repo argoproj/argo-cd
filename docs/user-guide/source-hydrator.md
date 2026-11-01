@@ -560,6 +560,18 @@ is skipped. See [Git note attestation and manifest-generate-paths](#git-note-att
 When hydration fails, the application remains in the `Failed` phase and the error message is kept on
 `status.sourceHydrator.currentOperation` so you can diagnose the problem.
 
+Applications that hydrate from the same dry source repository and revision into the same hydrated branch are
+hydrated together and committed atomically, so a single failing application also prevents its siblings from
+being hydrated. The siblings report that failure in their own `status.sourceHydrator.currentOperation`,
+naming the application that failed and the underlying error that caused it.
+
+If the application promotes its hydrated manifests through a separate branch with
+[`hydrateTo`](#pushing-to-a-staging-branch), the hydrated path only exists on the sync branch once the
+promotion happens. While that path is missing, the `Failed to load target state` condition explains why: it
+reports the hydration failure (including its cause) when hydration is failing, and otherwise reports that it
+is waiting for the hydrated manifests to be promoted to the sync branch. This means a hydration failure such
+as a missing Helm values file is visible on the application itself, rather than only in the repo server logs.
+
 > [!NOTE]
 > After a failed hydration, the controller waits about **2 minutes** before automatically retrying
 > unattended hydration. That interval matches `ARGOCD_RECONCILIATION_TIMEOUT` (the application
