@@ -1,0 +1,49 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: Waiting for the realm import to start
+    inputPath: testdata/progressing_no_status.yaml
+  - healthStatus:
+      status: Progressing
+      message: No existing Deployment found, waiting for it to be created
+    inputPath: testdata/progressing_deployment_not_found.yaml
+  - healthStatus:
+      status: Progressing
+      message: Deployment not yet ready
+    inputPath: testdata/progressing_deployment_not_ready.yaml
+  - healthStatus:
+      status: Progressing
+      message: Import Job running
+    inputPath: testdata/progressing_job_running.yaml
+  - healthStatus:
+      status: Healthy
+      message: Realm imported
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: Import Job failed
+    inputPath: testdata/degraded_job_failed.yaml
+  - healthStatus:
+      status: Degraded
+      message: |-
+        Error performing operations:
+        Resource couldn't be fetched : Failure executing: GET at: https://10.96.0.1:443/apis/k8s.keycloak.org/v2beta1/namespaces/keycloak/keycloaks/no-such-keycloak. Message: keycloaks.k8s.keycloak.org "no-such-keycloak" not found. Received status: Status(apiVersion=v1, code=404, details=StatusDetails(causes=[], group=k8s.keycloak.org, kind=keycloaks, name=no-such-keycloak, retryAfterSeconds=null, uid=null, additionalProperties={}), kind=Status, message=keycloaks.k8s.keycloak.org "no-such-keycloak" not found, metadata=ListMeta(_continue=null, remainingItemCount=null, resourceVersion=null, selfLink=null, shardInfo=null, additionalProperties={}), reason=NotFound, status=Failure, additionalProperties={}).
+    inputPath: testdata/degraded_keycloak_not_found.yaml
+  - healthStatus:
+      status: Progressing
+      message: |-
+        Error performing operations:
+        Keycloak Deployment not found: keycloak
+    inputPath: testdata/progressing_deployment_not_found_v21.yaml
+  - healthStatus:
+      status: Progressing
+      message: Import Job will start soon
+    inputPath: testdata/progressing_job_will_start_v21.yaml
+  - healthStatus:
+      status: Healthy
+      message: Realm imported
+    inputPath: testdata/healthy_v21.yaml
+  - healthStatus:
+      status: Degraded
+      message: Import Job failed
+    inputPath: testdata/degraded_job_failed_v21.yaml
