@@ -1,0 +1,15 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: AWSEndpointService
+metadata:
+  name: kube-apiserver
+  namespace: clusters-example
+  generation: 1
+spec:
+  networkLoadBalancerName: kube-apiserver
+status:
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Creating Endpoint Service"
+    reason: AWSSuccess
+    status: "False"
+    type: AWSEndpointServiceAvailable
