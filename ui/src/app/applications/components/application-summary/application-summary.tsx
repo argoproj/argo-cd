@@ -439,8 +439,8 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                       view: <span>{source && `${source.chart}:${source.targetRevision}`}</span>,
                       edit: (formApi: FormApi) => (
                           <DataLoader
-                              input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL}}
-                              load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                              input={{repoURL: getAppSpecDefaultSource(formApi.getFormState().values.spec).repoURL, appProject: formApi.getFormState().values.spec.project}}
+                              load={src => services.repos.charts(src.repoURL, src.appProject).catch(() => new Array<models.HelmChart>())}>
                               {(charts: models.HelmChart[]) => (
                                   <div className='row'>
                                       <div className='columns small-8'>

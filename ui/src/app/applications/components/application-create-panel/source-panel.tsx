@@ -204,8 +204,10 @@ export const SourcePanel = (props: SourcePanelProps) => {
                     </React.Fragment>
                 )) || (
                     <DataLoader
-                        input={{repoURL: specSourceForRevision?.repoURL}}
-                        load={async src => (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) || new Array<models.HelmChart>()}>
+                        input={{repoURL: specSourceForRevision?.repoURL, appProject: currentApp?.spec?.project}}
+                        load={async src =>
+                            (src.repoURL && services.repos.charts(src.repoURL, src.appProject).catch(() => new Array<models.HelmChart>())) || new Array<models.HelmChart>()
+                        }>
                         {(charts: models.HelmChart[]) => {
                             const spec = props.formApi.getFormState().values.spec;
                             const chartName = isMulti ? spec.sources?.[props.sourceIndex as number]?.chart : spec.source?.chart;

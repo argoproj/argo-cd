@@ -26,6 +26,8 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
     };
 
     const selectedFilter = props.revisionType || filterType;
+    // Every form that renders this field edits an Application, so its project is in the form values.
+    const appProject: string | undefined = props.formApi.getFormState().values?.spec?.project;
     const rowClass = props.hideLabel ? '' : ' argo-form-row';
     const rowPaddingRight = !props.revisionType ? '45px' : undefined;
     const wrapperClassName = [props.compact ? '' : 'row' + rowClass, 'revision-form-field'].filter(Boolean).join(' ');
@@ -37,16 +39,16 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
         <div className={wrapperClassName} style={wrapperStyle}>
             <div className='revision-form-field__main'>
                 <DataLoader
-                    input={{repoURL: props.repoURL, filterType: selectedFilter}}
+                    input={{repoURL: props.repoURL, filterType: selectedFilter, appProject}}
                     load={async (src: any): Promise<string[]> => {
                         if (props.repoType === 'oci' && src.repoURL) {
                             return services.repos
-                                .ociTags(src.repoURL)
+                                .ociTags(src.repoURL, src.appProject)
                                 .then(revisionsRes => ['HEAD'].concat(revisionsRes.tags || []))
                                 .catch((): string[] => []);
                         } else if (src.repoURL) {
                             return services.repos
-                                .revisions(src.repoURL)
+                                .revisions(src.repoURL, src.appProject)
                                 .then(revisionsRes =>
                                     ['HEAD']
                                         .concat(selectedFilter === 'Branches' ? revisionsRes.branches || [] : [])
