@@ -88,11 +88,14 @@ responsible for interacting with the Git repository to generate the
 desired state for all Kubernetes resources that belongs to a given
 application.
 
-### Redis
+### Valkey (Redis-Compatible Cache)
 
-Redis is used by Argo CD to provide a cache layer reducing requests
+Valkey is used by Argo CD to provide a cache layer reducing requests
 sent to the Kube API as well as to the Git provider. It also supports
 a few UI operations.
+
+!!! note
+    Prior to version 3.7, Argo CD used Redis. Valkey is a Redis fork that maintains 100% protocol compatibility.
 
 ### Kube API
 
