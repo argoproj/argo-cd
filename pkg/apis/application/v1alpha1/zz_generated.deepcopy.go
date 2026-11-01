@@ -4790,6 +4790,11 @@ func (in *SourceIntegrityGitPolicyRepo) DeepCopy() *SourceIntegrityGitPolicyRepo
 func (in *SuccessfulHydrateOperation) DeepCopyInto(out *SuccessfulHydrateOperation) {
 	*out = *in
 	in.SourceHydrator.DeepCopyInto(&out.SourceHydrator)
+	if in.HydratedGroupApps != nil {
+		in, out := &in.HydratedGroupApps, &out.HydratedGroupApps
+		*out = make([]string, len(*in))
+		copy(*out, *in)
+	}
 	return
 }
 
