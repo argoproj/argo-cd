@@ -9,15 +9,16 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+
 	gocache "github.com/patrickmn/go-cache"
 	log "github.com/sirupsen/logrus"
 
 	argoutils "github.com/argoproj/argo-cd/v3/util"
-	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
@@ -181,7 +182,7 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(ctx context
 	realm := tokenParams["realm"]
 	service := tokenParams["service"]
 
-	armTokenScope := env.StringFromEnv("AZURE_ARM_TOKEN_RESOURCE", "https://management.core.windows.net")
+	armTokenScope := getARMTokenResource()
 	armAccessToken, err := creds.tokenProvider.GetToken(armTokenScope + "/.default")
 	if err != nil {
 		return "", fmt.Errorf("failed to get Azure access token: %w", err)
@@ -291,4 +292,42 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(ctx cont
 	}
 
 	return tokenParams, nil
+}
+
+// getARMTokenResource returns the Azure Resource Manager token resource/audience
+// for the current cloud environment. This is needed for the ACR OAuth2 token
+// exchange (/oauth2/exchange) on sovereign clouds, where the ARM resource
+// differs from the commercial default.
+//
+// Resolution order:
+//  1. AZURE_ARM_TOKEN_RESOURCE env var (explicit override for any cloud)
+//  2. AZURE_AUTHORITY_HOST env var (injected by the AKS Workload Identity
+//     mutating webhook into every labeled pod)
+//  3. Default: commercial (https://management.core.windows.net)
+func getARMTokenResource() string {
+	// Allow explicit override for any cloud environment
+	if v := os.Getenv("AZURE_ARM_TOKEN_RESOURCE"); v != "" {
+		return v
+	}
+
+	// Resolve from AZURE_AUTHORITY_HOST, which is injected by the AKS Workload
+	// Identity webhook into pods labeled with azure.workload.identity/use: "true".
+	// Note: AZURE_ENVIRONMENT is NOT injected into workload pods by the webhook,
+	// only AZURE_AUTHORITY_HOST, AZURE_CLIENT_ID, AZURE_TENANT_ID, and
+	// AZURE_FEDERATED_TOKEN_FILE are injected.
+	// Ref: https://azure.github.io/azure-workload-identity/docs/installation/mutating-admission-webhook.html
+	//
+	// For clouds not listed here, set AZURE_ARM_TOKEN_RESOURCE explicitly.
+	authorityHost := strings.TrimRight(os.Getenv("AZURE_AUTHORITY_HOST"), "/")
+	switch authorityHost {
+	// Azure US Government (FairFax, GCC)
+	case "https://login.microsoftonline.us":
+		return "https://management.core.usgovcloudapi.net"
+	// Azure China (Mooncake)
+	case "https://login.partner.microsoftonline.cn":
+		return "https://management.core.chinacloudapi.cn"
+	// Azure Public (Commercial) or unrecognized
+	default:
+		return "https://management.core.windows.net"
+	}
 }
