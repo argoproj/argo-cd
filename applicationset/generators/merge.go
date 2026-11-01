@@ -78,8 +78,8 @@ func (m *MergeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appl
 		for mergeKeyValue, baseParamSet := range baseParamSetsByMergeKey {
 			if overrideParamSet, exists := paramSetsByMergeKey[mergeKeyValue]; exists {
 				if appSet.Spec.GoTemplate {
-					baseParamSet = normalizeStringMaps(baseParamSet)
-					if err := mergo.Merge(&baseParamSet, normalizeStringMaps(overrideParamSet), mergo.WithOverride); err != nil {
+					baseParamSet, overrideParamSet = normalizeConflictingMaps(baseParamSet, overrideParamSet)
+					if err := mergo.Merge(&baseParamSet, overrideParamSet, mergo.WithOverride); err != nil {
 						return nil, fmt.Errorf("error merging base param set with override param set: %w", err)
 					}
 					baseParamSetsByMergeKey[mergeKeyValue] = baseParamSet

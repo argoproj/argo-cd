@@ -217,7 +217,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 			},
 			expected: []map[string]any{
 				{
-					"path": map[string]any{
+					"path": map[string]string{
 						"path":               "app1",
 						"basename":           "app1",
 						"basenameNormalized": "app1",
@@ -226,7 +226,7 @@ func TestMatrixGenerateGoTemplate(t *testing.T) {
 					"url":     "Url",
 				},
 				{
-					"path": map[string]any{
+					"path": map[string]string{
 						"path":               "app2",
 						"basename":           "app2",
 						"basenameNormalized": "app2",
@@ -706,7 +706,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 			},
 			expected: []map[string]any{
 				{
-					"path": map[string]any{
+					"path": map[string]string{
 						"path":               "examples/git-generator-files-discovery/cluster-config/dev/config.json",
 						"basename":           "dev",
 						"basenameNormalized": "dev",
@@ -716,14 +716,14 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 					"server":         "https://dev-01.example.com",
 					"project":        "",
 					"metadata": map[string]any{
-						"labels": map[string]any{
+						"labels": map[string]string{
 							"environment":                    "dev",
 							"argocd.argoproj.io/secret-type": "cluster",
 						},
 					},
 				},
 				{
-					"path": map[string]any{
+					"path": map[string]string{
 						"path":               "examples/git-generator-files-discovery/cluster-config/prod/config.json",
 						"basename":           "prod",
 						"basenameNormalized": "prod",
@@ -733,7 +733,7 @@ func TestInterpolatedMatrixGenerateGoTemplate(t *testing.T) {
 					"server":         "https://prod-01.example.com",
 					"project":        "",
 					"metadata": map[string]any{
-						"labels": map[string]any{
+						"labels": map[string]string{
 							"environment":                    "prod",
 							"argocd.argoproj.io/secret-type": "cluster",
 						},
@@ -1216,7 +1216,7 @@ func TestGitGenerator_GenerateParams_list_x_git_matrix_generator_go_templates_va
 		},
 		"some": "value",
 		"test": "content",
-		"values": map[string]any{
+		"values": map[string]string{
 			"foo": "some",
 		},
 	}}, params)
@@ -1247,13 +1247,13 @@ func TestInterpolatedMatrixGenerateGoTemplate_ClusterValuesFromFirstGenerator(t 
 	require.NoError(t, err, "Expected cluster values referencing git params to resolve correctly")
 	require.Len(t, params, 1, "Expected exactly one combined param set")
 
-	assert.Equal(t, map[string]any{
+	assert.Equal(t, map[string]string{
 		"path":               guestBook,
 		"basename":           guestBook,
 		"basenameNormalized": guestBook,
 	}, params[0]["path"], "Git path params should be present")
 
-	assert.Equal(t, map[string]any{
+	assert.Equal(t, map[string]string{
 		"env": guestBook,
 	}, params[0]["values"], "Cluster values.env should be resolved from git params")
 
@@ -1373,8 +1373,8 @@ func TestMatrixGenerateReusesSecondGeneratorParams(t *testing.T) {
 		},
 	}
 
-	stagingLabels := func(extra map[string]any) map[string]any {
-		labels := map[string]any{
+	stagingLabels := func(extra map[string]string) map[string]string {
+		labels := map[string]string{
 			"argocd.argoproj.io/secret-type": "cluster",
 			"environment":                    "staging",
 		}
@@ -1436,7 +1436,7 @@ func TestMatrixGenerateReusesSecondGeneratorParams(t *testing.T) {
 					"nameNormalized": "production-01",
 					"server":         "https://production-01.example.com",
 					"project":        "",
-					"metadata": map[string]any{"labels": map[string]any{
+					"metadata": map[string]any{"labels": map[string]string{
 						"argocd.argoproj.io/secret-type": "cluster",
 						"environment":                    "production",
 					}},
@@ -1495,7 +1495,11 @@ func TestMatrixGenerateReusesSecondGeneratorParams(t *testing.T) {
 					"nameNormalized": "staging-01",
 					"server":         "https://staging-01.example.com",
 					"project":        "",
-					"metadata":       map[string]any{"labels": stagingLabels(map[string]any{"team": "a"})},
+					"metadata": map[string]any{"labels": map[string]any{
+						"argocd.argoproj.io/secret-type": "cluster",
+						"environment":                    "staging",
+						"team":                           "a",
+					}},
 				},
 			},
 		},
