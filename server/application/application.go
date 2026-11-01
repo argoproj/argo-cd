@@ -1428,41 +1428,53 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
+	if err := applyApplicationImpersonation(s.settingsMgr, config, cluster, a, func() (*v1alpha1.AppProject, error) {
+		return p, nil
+	}); err != nil {
+		return nil, err
+	}
+	return config, nil
+}
 
-	impersonationEnabled, err := s.settingsMgr.IsImpersonationEnabled()
+func applyApplicationImpersonation(settingsMgr *settings.SettingsManager, config *rest.Config, cluster *v1alpha1.Cluster, a *v1alpha1.Application, getProject func() (*v1alpha1.AppProject, error)) error {
+	impersonationEnabled, err := settingsMgr.IsImpersonationEnabled()
 	if err != nil {
-		return nil, fmt.Errorf("error getting impersonation setting: %w", err)
+		return fmt.Errorf("error getting impersonation setting: %w", err)
 	}
 
 	if !impersonationEnabled {
-		return config, nil
+		return nil
+	}
+	p, err := getProject()
+	if err != nil {
+		return err
 	}
 
 	serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(p, a, cluster)
 	if err != nil {
-		return nil, fmt.Errorf("error deriving service account to impersonate: %w", err)
+		return fmt.Errorf("error deriving service account to impersonate: %w", err)
 	}
 	if serviceAccountToImpersonate == "" {
 		// No matching service account found - check enforcement
-		impersonationEnforced, enforcedErr := s.settingsMgr.IsImpersonationEnforced()
+		impersonationEnforced, enforcedErr := settingsMgr.IsImpersonationEnforced()
 		if enforcedErr != nil {
-			return nil, fmt.Errorf("error getting impersonation enforcement setting: %w", enforcedErr)
+			return fmt.Errorf("error getting impersonation enforcement setting: %w", enforcedErr)
 		}
 
 		if impersonationEnforced {
-			return nil, fmt.Errorf("no matching service account found for destination server %s and namespace %s", cluster.Server, a.Spec.Destination.Namespace)
+			return fmt.Errorf("no matching service account found for destination server %s and namespace %s", cluster.Server, a.Spec.Destination.Namespace)
 		}
 
 		// Service Account is not enforced
 		log.Infof("no matching service account found for impersonation for app %s/%s (project: %s, server: %s, namespace: %s), falling back to controller service account", a.Namespace, a.Name, p.Name, cluster.Server, a.Spec.Destination.Namespace)
-		return config, nil
+		return nil
 	}
 
 	config.Impersonate = rest.ImpersonationConfig{
 		UserName: serviceAccountToImpersonate,
 	}
 
-	return config, nil
+	return nil
 }
 
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing
