@@ -24,17 +24,24 @@ argocd cluster list -o json --server <ARGOCD_SERVER_ADDRESS>
 # List Clusters in YAML Format
 argocd cluster list -o yaml --server <ARGOCD_SERVER_ADDRESS>
 
-# List Clusters that have been added to your Argo CD 
+# List Clusters that have been added to your Argo CD
 argocd cluster list -o server <ARGOCD_SERVER_ADDRESS>
 
+# List clusters by label
+argocd cluster list -l env=prod
+argocd cluster list -l env!=prod
+argocd cluster list -l env
+argocd cluster list -l '!env'
+argocd cluster list -l 'env notin (dev,staging)'
 
 ```
 
 ### Options
 
 ```
-  -h, --help            help for list
-  -o, --output string   Output format. One of: json|yaml|wide|server (default "wide")
+  -h, --help              help for list
+  -o, --output string     Output format. One of: json|yaml|wide|server (default "wide")
+  -l, --selector string   List clusters by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching clusters must satisfy all of the specified label constraints.
 ```
 
 ### Options inherited from parent commands
