@@ -3,6 +3,7 @@ package webhook
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,7 +11,11 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
+	"strconv"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"text/template"
 	"time"
@@ -42,6 +47,7 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -216,7 +222,7 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	h.Handler(w, req)
 	h.Shutdown()
 	assert.Equal(t, http.StatusOK, w.Code)
-	expectedLogResult := "Received push event repo: https://dev.azure.com/alexander0053/alex-test/_git/alex-test, revision: master, touchedHead: true"
+	expectedLogResult := "Received push event repo: https://dev.azure.com/my-org/my-project/_git/my-repo, revision: master, touchedHead: true"
 	assertLogContains(t, hook, expectedLogResult)
 	hook.Reset()
 }
@@ -644,7 +650,7 @@ func Test_affectedRevisionInfo_appRevisionHasChanged(t *testing.T) {
 		t.Run(testCopy.name, func(t *testing.T) {
 			t.Parallel()
 			h := NewMockHandler(nil, []string{})
-			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(testCopy.hookPayload)
+			_, revisionFromHook, _, _, _ := h.affectedRevisionInfo(t.Context(), testCopy.hookPayload)
 			if got := RevisionHasChanged(testCopy.targetRevision, revisionFromHook, false); got != testCopy.hasChanged {
 				t.Errorf("RevisionHasChanged() = %v, want %v", got, testCopy.hasChanged)
 			}
@@ -1588,10 +1594,10 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			h := NewMockHandlerForBitbucketCallback(nil, []string{})
-			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(testCase.hookPayload)
+			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(t.Context(), testCase.hookPayload)
 			require.Equal(t, testCase.revision, revisionFromHook)
 			require.Equal(t, testCase.expectedTouchHead, touchHead)
-			require.Equal(t, testCase.expectedChangedFiles, changedFiles)
+			require.Equal(t, testCase.expectedChangedFiles, changedFiles())
 			require.Equal(t, testCase.expectedChangeInfo, change)
 		})
 	}
@@ -2347,10 +2353,10 @@ func Test_affectedRevisionInfo_bbserver_changed_files(t *testing.T) {
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
 			h := testCase.handler()
-			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(testCase.hookPayload)
+			_, revisionFromHook, change, touchHead, changedFiles := h.affectedRevisionInfo(t.Context(), testCase.hookPayload)
 			require.Equal(t, testCase.revision, revisionFromHook)
 			require.Equal(t, testCase.expectedTouchHead, touchHead)
-			require.Equal(t, testCase.expectedChangedFiles, changedFiles)
+			require.Equal(t, testCase.expectedChangedFiles, changedFiles())
 			require.Equal(t, testCase.expectedChangeInfo, change)
 		})
 	}
@@ -2560,4 +2566,989 @@ func TestRepoURLMatches(t *testing.T) {
 			assert.Equal(t, tt.expected, RepoURLMatches(tt.repoURL, repoRegexp))
 		})
 	}
+}
+
+const (
+	testADORepoURL   = "https://dev.azure.com/my-org/my-project/_git/my-repo"
+	testADORepoID    = "33333333-3333-3333-3333-333333333333"
+	testADOShaBefore = "fa51eeb1e50b98293ce281e6d5492b9decae613b"
+	testADOShaAfter  = "298a79aa1552799a70718a0ee914d153d5a1a76b"
+	testADODiffsPath = "/my-org/my-project/_apis/git/repositories/" + testADORepoID + "/diffs/commits"
+)
+
+var testADOBasicAuth = "Basic " + base64.StdEncoding.EncodeToString([]byte("test-user:test-pat"))
+
+type roundTripFunc func(req *http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
+func newADOWebhookSettings() *settings.ArgoCDSettings {
+	return &settings.ArgoCDSettings{
+		WebhookAzureDevOpsUsername: "webhook-user",
+		WebhookAzureDevOpsPassword: "webhook-pass",
+	}
+}
+
+func newMockHandlerForADO(t *testing.T, mockDB *mocks.ArgoDB, argoSettings *settings.ArgoCDSettings) *ArgoCDWebhookHandler {
+	t.Helper()
+	h := newMockHandler(nil, []string{}, int64(50)*1024*1024, mockDB, argoSettings)
+	t.Cleanup(h.Shutdown)
+	return h
+}
+
+func newMockDBWithADORepository() *mocks.ArgoDB {
+	mockDB := &mocks.ArgoDB{}
+	mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{{
+		Repo:     testADORepoURL,
+		Username: "test-user",
+		Password: "test-pat",
+	}}, nil)
+	return mockDB
+}
+
+// newADOTestClient returns an HTTP client that answers every request with the status code and body
+// returned by handler.
+func newADOTestClient(handler func(req *http.Request) (int, string)) *http.Client {
+	return &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		statusCode, body := handler(req)
+		return &http.Response{
+			StatusCode: statusCode,
+			Header:     make(http.Header),
+			Body:       io.NopCloser(strings.NewReader(body)),
+			Request:    req,
+		}, nil
+	})}
+}
+
+// newADOUnusedClientFactory returns an HTTP client factory that fails the test when called.
+func newADOUnusedClientFactory(t *testing.T) func(*v1alpha1.Repository) *http.Client {
+	t.Helper()
+	return func(repo *v1alpha1.Repository) *http.Client {
+		t.Helper()
+		t.Fatalf("unexpected Azure DevOps HTTP client for %s", repo.Repo)
+		return nil
+	}
+}
+
+func adoDiffsJSON(t *testing.T, resp adoDiffsResponse) string {
+	t.Helper()
+	data, err := json.Marshal(resp)
+	require.NoError(t, err)
+	return string(data)
+}
+
+func adoDiffsTestResponse() adoDiffsResponse {
+	return adoDiffsResponse{
+		AllChangesIncluded: true,
+		Changes: []adoDiffChange{
+			{Item: adoDiffItem{Path: "/apps/my-app/values.yaml"}, ChangeType: "edit"},
+			{Item: adoDiffItem{Path: "/apps/my-app/deployment.yaml"}, ChangeType: "add"},
+			{Item: adoDiffItem{Path: "/apps/my-app", IsFolder: true}, ChangeType: "edit"},
+		},
+	}
+}
+
+func requireADODiffsRequest(t *testing.T, req *http.Request) {
+	t.Helper()
+	require.Equal(t, http.MethodGet, req.Method)
+	require.Equal(t, "dev.azure.com", req.URL.Host)
+	require.Equal(t, testADODiffsPath, req.URL.Path)
+	query := req.URL.Query()
+	require.Equal(t, testADOShaBefore, query.Get("baseVersion"))
+	require.Equal(t, "commit", query.Get("baseVersionType"))
+	require.Equal(t, testADOShaAfter, query.Get("targetVersion"))
+	require.Equal(t, "commit", query.Get("targetVersionType"))
+	require.Equal(t, "false", query.Get("diffCommonCommit"))
+	require.Equal(t, strconv.Itoa(adoDiffsMaxPageSize), query.Get("$top"))
+	require.Equal(t, "7.1", query.Get("api-version"))
+	require.Equal(t, testADOBasicAuth, req.Header.Get("Authorization"))
+}
+
+func Test_affectedRevisionInfo_azuredevops_changed_files(t *testing.T) {
+	expectedFiles := []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"}
+	credsTemplateDB := func(templateURL string) *mocks.ArgoDB {
+		mockDB := &mocks.ArgoDB{}
+		mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil)
+		mockDB.EXPECT().GetRepositoryCredentials(mock.Anything, mock.Anything).Return(&v1alpha1.RepoCreds{
+			URL:      templateURL,
+			Username: "test-user",
+			Password: "test-pat",
+			Proxy:    "http://proxy.example.com:8080",
+			NoProxy:  "localhost",
+		}, nil)
+		return mockDB
+	}
+
+	cloneURLRepositoryDB := &mocks.ArgoDB{}
+	cloneURLRepositoryDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{{
+		Repo:     "https://my-org@dev.azure.com/my-org/my-project/_git/my-repo",
+		Username: "test-user",
+		Password: "test-pat",
+	}}, nil)
+
+	tests := []struct {
+		name          string
+		settings      *settings.ArgoCDSettings
+		mockDB        *mocks.ArgoDB
+		updatePayload func(payload *azuredevops.GitPushEvent)
+		// expectedFiles is nil when the Diffs API must not be called.
+		expectedFiles   []string
+		expectedRepoURL string
+		expectedProxy   string
+	}{
+		{
+			name:            "repository configured",
+			settings:        newADOWebhookSettings(),
+			mockDB:          newMockDBWithADORepository(),
+			expectedFiles:   expectedFiles,
+			expectedRepoURL: testADORepoURL,
+		},
+		{
+			name:            "repository configured with the clone URL",
+			settings:        newADOWebhookSettings(),
+			mockDB:          cloneURLRepositoryDB,
+			expectedFiles:   expectedFiles,
+			expectedRepoURL: "https://my-org@dev.azure.com/my-org/my-project/_git/my-repo",
+		},
+		{
+			name:            "credentials template",
+			settings:        newADOWebhookSettings(),
+			mockDB:          credsTemplateDB("https://dev.azure.com/my-org"),
+			expectedFiles:   expectedFiles,
+			expectedRepoURL: testADORepoURL,
+			expectedProxy:   "http://proxy.example.com:8080",
+		},
+		{
+			name:     "credentials template with the host in another case",
+			settings: newADOWebhookSettings(),
+			mockDB:   credsTemplateDB("https://dev.azure.com/my-org"),
+			updatePayload: func(payload *azuredevops.GitPushEvent) {
+				payload.Resource.Repository.RemoteURL = "https://DEV.AZURE.COM/my-org/my-project/_git/my-repo"
+			},
+			expectedFiles:   expectedFiles,
+			expectedRepoURL: testADORepoURL,
+			expectedProxy:   "http://proxy.example.com:8080",
+		},
+		{
+			name:     "webhook authentication not configured",
+			settings: &settings.ArgoCDSettings{},
+			mockDB:   &mocks.ArgoDB{},
+		},
+		{
+			name:     "webhook authentication without password",
+			settings: &settings.ArgoCDSettings{WebhookAzureDevOpsUsername: "webhook-user"},
+			mockDB:   &mocks.ArgoDB{},
+		},
+		{
+			name:     "multiple ref updates use the first one",
+			settings: newADOWebhookSettings(),
+			mockDB:   newMockDBWithADORepository(),
+			updatePayload: func(payload *azuredevops.GitPushEvent) {
+				payload.Resource.RefUpdates = append(payload.Resource.RefUpdates, azuredevops.RefUpdate{
+					Name:        "refs/heads/other-branch",
+					OldObjectID: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+					NewObjectID: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+				})
+			},
+			expectedFiles:   expectedFiles,
+			expectedRepoURL: testADORepoURL,
+		},
+		{
+			name:     "no ref updates",
+			settings: newADOWebhookSettings(),
+			mockDB:   &mocks.ArgoDB{},
+			updatePayload: func(payload *azuredevops.GitPushEvent) {
+				payload.Resource.RefUpdates = nil
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			payload := loadPayload[azuredevops.GitPushEvent](t, "azuredevops-git-push-event.json")
+			if tt.updatePayload != nil {
+				tt.updatePayload(&payload)
+			}
+			h := newMockHandlerForADO(t, tt.mockDB, tt.settings)
+			// The client is created and called inside sync.OnceValue, where the test must not fail, so
+			// the repository and request are recorded and checked afterwards.
+			var clientRepo *v1alpha1.Repository
+			var apiRequest *http.Request
+			body := adoDiffsJSON(t, adoDiffsTestResponse())
+			h.adoHTTPClientFactory = func(repo *v1alpha1.Repository) *http.Client {
+				clientRepo = repo
+				return newADOTestClient(func(req *http.Request) (int, string) {
+					apiRequest = req
+					return http.StatusOK, body
+				})
+			}
+
+			_, _, _, _, changedFiles := h.affectedRevisionInfo(t.Context(), payload)
+			files := changedFiles()
+			if tt.expectedFiles == nil {
+				require.Nil(t, files)
+				require.Nil(t, clientRepo)
+				return
+			}
+			require.Equal(t, tt.expectedFiles, files)
+			require.NotNil(t, clientRepo)
+			require.Equal(t, tt.expectedRepoURL, clientRepo.Repo)
+			require.Equal(t, tt.expectedProxy, clientRepo.Proxy)
+			require.NotNil(t, apiRequest)
+			requireADODiffsRequest(t, apiRequest)
+			_, hasDeadline := apiRequest.Context().Deadline()
+			require.True(t, hasDeadline, "the Azure DevOps diffs API call must have a timeout")
+		})
+	}
+}
+
+func TestLookupAndFetchADOChangedFiles(t *testing.T) {
+	noRepositoryDB := &mocks.ArgoDB{}
+	noRepositoryDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil)
+	noRepositoryDB.EXPECT().GetRepositoryCredentials(mock.Anything, testADORepoURL).Return(nil, nil)
+	lookupErrorDB := &mocks.ArgoDB{}
+	lookupErrorDB.EXPECT().ListRepositories(mock.Anything).Return(nil, errors.New("list failed"))
+	credsTemplateErrorDB := &mocks.ArgoDB{}
+	credsTemplateErrorDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil)
+	credsTemplateErrorDB.EXPECT().GetRepositoryCredentials(mock.Anything, testADORepoURL).Return(nil, errors.New("get failed"))
+	noCredentialsDB := &mocks.ArgoDB{}
+	noCredentialsDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{{Repo: testADORepoURL}}, nil)
+	otherHostCredsTemplateDB := &mocks.ArgoDB{}
+	otherHostCredsTemplateDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{}, nil)
+	otherHostCredsTemplateDB.EXPECT().GetRepositoryCredentials(mock.Anything, testADORepoURL).Return(&v1alpha1.RepoCreds{
+		URL:      "https://ado.example.com",
+		Password: "test-pat",
+	}, nil)
+
+	tests := []struct {
+		name      string
+		repoID    string
+		shaBefore string
+		shaAfter  string
+		mockDB    *mocks.ArgoDB
+		// transport is nil when no HTTP client must be created.
+		transport   roundTripFunc
+		expectedLog string
+	}{
+		{name: "branch creation", shaBefore: adoNullSHA, shaAfter: testADOShaAfter},
+		{name: "branch deletion", shaBefore: testADOShaBefore, shaAfter: adoNullSHA},
+		{name: "empty commit range"},
+		{
+			name:        "invalid commit ID before the push",
+			shaBefore:   "../../evil",
+			shaAfter:    testADOShaAfter,
+			expectedLog: "invalid repository ID or commit ID",
+		},
+		{
+			name:        "invalid commit ID after the push",
+			shaBefore:   testADOShaBefore,
+			shaAfter:    "../../evil",
+			expectedLog: "invalid repository ID or commit ID",
+		},
+		{
+			name:        "invalid repository ID",
+			repoID:      "../../evil",
+			shaBefore:   testADOShaBefore,
+			shaAfter:    testADOShaAfter,
+			expectedLog: "invalid repository ID or commit ID",
+		},
+		{
+			name:        "repository ID with a prefix",
+			repoID:      "x" + testADORepoID,
+			shaBefore:   testADOShaBefore,
+			shaAfter:    testADOShaAfter,
+			expectedLog: "invalid repository ID or commit ID",
+		},
+		{
+			name:        "repository ID with a suffix",
+			repoID:      testADORepoID + "/x",
+			shaBefore:   testADOShaBefore,
+			shaAfter:    testADOShaAfter,
+			expectedLog: "invalid repository ID or commit ID",
+		},
+		{
+			name:      "no repository or credentials template configured",
+			shaBefore: testADOShaBefore,
+			shaAfter:  testADOShaAfter,
+			mockDB:    noRepositoryDB,
+		},
+		{
+			name:        "repository lookup error",
+			shaBefore:   testADOShaBefore,
+			shaAfter:    testADOShaAfter,
+			mockDB:      lookupErrorDB,
+			expectedLog: "error finding repository for Azure DevOps webhook URL",
+		},
+		{
+			name:        "credentials template for another host",
+			shaBefore:   testADOShaBefore,
+			shaAfter:    testADOShaAfter,
+			mockDB:      otherHostCredsTemplateDB,
+			expectedLog: "ignoring credentials template https://ado.example.com",
+		},
+		{
+			name:        "credentials template lookup error",
+			shaBefore:   testADOShaBefore,
+			shaAfter:    testADOShaAfter,
+			mockDB:      credsTemplateErrorDB,
+			expectedLog: "error getting repository credentials",
+		},
+		{
+			name:        "no credentials",
+			shaBefore:   testADOShaBefore,
+			shaAfter:    testADOShaAfter,
+			mockDB:      noCredentialsDB,
+			expectedLog: "no supported Azure DevOps REST API credentials configured for repository",
+		},
+		{
+			name:      "fetch error",
+			shaBefore: testADOShaBefore,
+			shaAfter:  testADOShaAfter,
+			mockDB:    newMockDBWithADORepository(),
+			transport: func(*http.Request) (*http.Response, error) {
+				return nil, errors.New("request failed")
+			},
+			expectedLog: "error fetching changed files from Azure DevOps diffs API",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			hook := test.NewGlobal()
+			defer hook.Reset()
+
+			mockDB := tt.mockDB
+			if mockDB == nil {
+				mockDB = &mocks.ArgoDB{}
+			}
+			repoID := tt.repoID
+			if repoID == "" {
+				repoID = testADORepoID
+			}
+			h := newMockHandlerForADO(t, mockDB, newADOWebhookSettings())
+			h.adoHTTPClientFactory = newADOUnusedClientFactory(t)
+			if tt.transport != nil {
+				h.adoHTTPClientFactory = func(*v1alpha1.Repository) *http.Client {
+					return &http.Client{Transport: tt.transport}
+				}
+			}
+
+			changedFiles := h.lookupAndFetchADOChangedFiles(t.Context(), testADORepoURL, repoID, tt.shaBefore, tt.shaAfter)
+			require.Nil(t, changedFiles)
+			if tt.expectedLog != "" {
+				assertLogContainsSubstr(t, hook, tt.expectedLog)
+			}
+		})
+	}
+}
+
+func newADOTestApp(name, refreshPaths string) *v1alpha1.Application {
+	app := &v1alpha1.Application{
+		Name:      name,
+		Namespace: "argocd",
+		Spec: v1alpha1.ApplicationSpec{
+			Sources: v1alpha1.ApplicationSources{{RepoURL: testADORepoURL, Path: ".", TargetRevision: "HEAD"}},
+		},
+	}
+	if refreshPaths != "" {
+		app.Annotations = map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: refreshPaths}
+	}
+	return app
+}
+
+func TestHandleEvent_AzureDevOpsChangedFiles(t *testing.T) {
+	tests := []struct {
+		name              string
+		repoURL           string
+		apps              []runtime.Object
+		apiStatusCode     int
+		expectedAPICalls  int32
+		expectedRefreshed []string
+	}{
+		{
+			name:              "no application uses manifest-generate-paths",
+			apps:              []runtime.Object{newADOTestApp("app-without-paths", "")},
+			apiStatusCode:     http.StatusOK,
+			expectedAPICalls:  0,
+			expectedRefreshed: []string{"app-without-paths"},
+		},
+		{
+			name: "applications use manifest-generate-paths",
+			apps: []runtime.Object{
+				newADOTestApp("app-with-changed-path", "apps/my-app"),
+				newADOTestApp("app-with-unchanged-path", "apps/other-app"),
+			},
+			apiStatusCode:     http.StatusOK,
+			expectedAPICalls:  1,
+			expectedRefreshed: []string{"app-with-changed-path"},
+		},
+		{
+			name:    "repository configured with the clone URL",
+			repoURL: "https://my-org@dev.azure.com/my-org/my-project/_git/my-repo",
+			apps: []runtime.Object{
+				newADOTestApp("app-with-changed-path", "apps/my-app"),
+				newADOTestApp("app-with-unchanged-path", "apps/other-app"),
+			},
+			apiStatusCode:     http.StatusOK,
+			expectedAPICalls:  1,
+			expectedRefreshed: []string{"app-with-changed-path"},
+		},
+		{
+			name: "diffs API error refreshes all applications",
+			apps: []runtime.Object{
+				newADOTestApp("app-with-changed-path", "apps/my-app"),
+				newADOTestApp("app-with-unchanged-path", "apps/other-app"),
+			},
+			apiStatusCode:     http.StatusInternalServerError,
+			expectedAPICalls:  1,
+			expectedRefreshed: []string{"app-with-changed-path", "app-with-unchanged-path"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var mu sync.Mutex
+			var refreshed []string
+			reaction := func(action kubetesting.Action) (bool, runtime.Object, error) {
+				mu.Lock()
+				defer mu.Unlock()
+				refreshed = append(refreshed, action.(kubetesting.PatchAction).GetName())
+				return true, nil, nil
+			}
+			hook := test.NewGlobal()
+			defer hook.Reset()
+			repoURL := tt.repoURL
+			if repoURL == "" {
+				repoURL = testADORepoURL
+			}
+			mockDB := &mocks.ArgoDB{}
+			mockDB.EXPECT().ListRepositories(mock.Anything).Return([]*v1alpha1.Repository{{
+				Repo:                             repoURL,
+				Username:                         "test-user",
+				Password:                         "test-pat",
+				WebhookManifestCacheWarmDisabled: true,
+			}}, nil)
+			h := newMockHandler(&reactorDef{"patch", "applications", reaction}, []string{}, int64(50)*1024*1024, mockDB, newADOWebhookSettings(), tt.apps...)
+			var apiCalls atomic.Int32
+			body := adoDiffsJSON(t, adoDiffsTestResponse())
+			h.adoHTTPClientFactory = func(*v1alpha1.Repository) *http.Client {
+				return newADOTestClient(func(*http.Request) (int, string) {
+					apiCalls.Add(1)
+					return tt.apiStatusCode, body
+				})
+			}
+
+			h.HandleEvent(t.Context(), loadPayload[azuredevops.GitPushEvent](t, "azuredevops-git-push-event.json"))
+			h.Shutdown()
+
+			require.Equal(t, tt.expectedAPICalls, apiCalls.Load())
+			require.ElementsMatch(t, tt.expectedRefreshed, refreshed)
+			// Manifests of the applications that are not refreshed must not be cached for the new
+			// revision, since the repository disables it.
+			for _, entry := range hook.AllEntries() {
+				require.NotContains(t, entry.Message, "cached manifests", "the manifest cache warming must be disabled")
+			}
+		})
+	}
+}
+
+func TestShutdownCancelsAzureDevOpsChangedFilesLookup(t *testing.T) {
+	h := newMockHandler(nil, []string{}, int64(50)*1024*1024, newMockDBWithADORepository(), newADOWebhookSettings(), newADOTestApp("app-with-paths", "apps/my-app"))
+	started := make(chan struct{})
+	var startedOnce sync.Once
+	requestErr := make(chan error, 1)
+	h.adoHTTPClientFactory = func(*v1alpha1.Repository) *http.Client {
+		return &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			startedOnce.Do(func() { close(started) })
+			<-req.Context().Done()
+			requestErr <- req.Context().Err()
+			return nil, req.Context().Err()
+		})}
+	}
+
+	h.queue <- loadPayload[azuredevops.GitPushEvent](t, "azuredevops-git-push-event.json")
+	select {
+	case <-started:
+	case <-time.After(5 * time.Second):
+		t.Fatal("the Azure DevOps diffs API was not called")
+	}
+	// Shutdown waits for the workers, so it is called asynchronously for the test to fail rather than
+	// block when the call is not cancelled.
+	shutdownDone := make(chan struct{})
+	go func() {
+		h.Shutdown()
+		close(shutdownDone)
+	}()
+	select {
+	case err := <-requestErr:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(2 * time.Second):
+		t.Fatal("the Azure DevOps diffs API call was not cancelled")
+	}
+	select {
+	case <-shutdownDone:
+	case <-time.After(2 * time.Second):
+		t.Fatal("the webhook handler did not shut down")
+	}
+}
+
+func TestLookupRepositoryIgnoringUsername(t *testing.T) {
+	const cloneURL = "https://my-org@dev.azure.com/my-org/my-project/_git/my-repo"
+	tests := []struct {
+		name         string
+		repositories []string
+		webhookURL   string
+		// expectedRepo is empty when no repository must match.
+		expectedRepo string
+	}{
+		{name: "same URL", repositories: []string{testADORepoURL}, webhookURL: testADORepoURL, expectedRepo: testADORepoURL},
+		{name: "repository URL with a username", repositories: []string{cloneURL}, webhookURL: testADORepoURL, expectedRepo: cloneURL},
+		{name: "repository URL with credentials", repositories: []string{"https://user:secret@dev.azure.com/my-org/my-project/_git/my-repo"}, webhookURL: testADORepoURL, expectedRepo: "https://user:secret@dev.azure.com/my-org/my-project/_git/my-repo"},
+		{name: "webhook URL with a username", repositories: []string{testADORepoURL}, webhookURL: cloneURL, expectedRepo: testADORepoURL},
+		{name: "exact match takes precedence", repositories: []string{cloneURL, testADORepoURL}, webhookURL: testADORepoURL, expectedRepo: testADORepoURL},
+		{name: "SSH URL in both forms", repositories: []string{"ssh://git@ssh.dev.azure.com/v3/my-org/my-project/my-repo"}, webhookURL: "git@ssh.dev.azure.com:v3/my-org/my-project/my-repo", expectedRepo: "ssh://git@ssh.dev.azure.com/v3/my-org/my-project/my-repo"},
+		{name: "different repository", repositories: []string{"https://my-org@dev.azure.com/my-org/my-project/_git/other-repo"}, webhookURL: testADORepoURL},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var repositories []*v1alpha1.Repository
+			for _, repoURL := range tt.repositories {
+				repositories = append(repositories, &v1alpha1.Repository{Repo: repoURL})
+			}
+			mockDB := &mocks.ArgoDB{}
+			mockDB.EXPECT().ListRepositories(mock.Anything).Return(repositories, nil)
+			h := newMockHandlerForADO(t, mockDB, &settings.ArgoCDSettings{})
+
+			repo, err := h.lookupRepositoryIgnoringUsername(t.Context(), tt.webhookURL)
+			require.NoError(t, err)
+			if tt.expectedRepo == "" {
+				require.Nil(t, repo)
+				return
+			}
+			require.NotNil(t, repo)
+			require.Equal(t, tt.expectedRepo, repo.Repo)
+		})
+	}
+}
+
+func TestRepoURLOnCredsTemplateHost(t *testing.T) {
+	tests := []struct {
+		name        string
+		templateURL string
+		repoURL     string
+		// expectedURL is empty when the repository URL does not have the scheme and host of the template.
+		expectedURL string
+	}{
+		{name: "same host", templateURL: "https://dev.azure.com", repoURL: testADORepoURL, expectedURL: testADORepoURL},
+		{name: "template with a path", templateURL: "https://dev.azure.com/my-org", repoURL: testADORepoURL, expectedURL: testADORepoURL},
+		{name: "repository host in another case", templateURL: "https://dev.azure.com", repoURL: "https://DEV.AZURE.COM/my-org/my-project/_git/my-repo", expectedURL: testADORepoURL},
+		{name: "repository host with a Unicode character", templateURL: "https://korp.example.com", repoURL: "https://\u212aorp.example.com/my-org/my-project/_git/my-repo", expectedURL: "https://korp.example.com/my-org/my-project/_git/my-repo"},
+		{name: "project with a space", templateURL: "https://dev.azure.com", repoURL: "https://dev.azure.com/my-org/my%20project/_git/my-repo", expectedURL: "https://dev.azure.com/my-org/my%20project/_git/my-repo"},
+		{name: "host with the template host as prefix", templateURL: "https://dev.azure.com", repoURL: "https://dev.azure.com.example.com/my-org/my-project/_git/my-repo"},
+		{name: "different port", templateURL: "https://dev.azure.com", repoURL: "https://dev.azure.com:8443/my-org/my-project/_git/my-repo"},
+		{name: "userinfo in the repository URL", templateURL: "https://dev.azure.com", repoURL: "https://user@dev.azure.com/my-org/my-project/_git/my-repo"},
+		{name: "userinfo with the template host", templateURL: "https://dev.azure.com", repoURL: "https://dev.azure.com@example.com/my-org/my-project/_git/my-repo"},
+		{name: "different scheme", templateURL: "http://dev.azure.com", repoURL: testADORepoURL},
+		{name: "SSH template", templateURL: "git@ssh.dev.azure.com:v3/my-org", repoURL: testADORepoURL},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repoURL, ok := repoURLOnCredsTemplateHost(tt.templateURL, tt.repoURL)
+			require.Equal(t, tt.expectedURL != "", ok)
+			require.Equal(t, tt.expectedURL, repoURL)
+		})
+	}
+}
+
+func TestParseADOBaseURL(t *testing.T) {
+	tests := []struct {
+		name        string
+		repoURL     string
+		expectedURL string
+		expectedErr string
+	}{
+		{
+			name:        "dev.azure.com",
+			repoURL:     "https://dev.azure.com/my-org/my-project/_git/my-repo",
+			expectedURL: "https://dev.azure.com/my-org/my-project",
+		},
+		{
+			name:        "dev.azure.com without project",
+			repoURL:     "https://dev.azure.com/my-org/_git/my-repo",
+			expectedURL: "https://dev.azure.com/my-org",
+		},
+		{
+			name:        "dev.azure.com with username",
+			repoURL:     "https://my-org@dev.azure.com/my-org/my-project/_git/my-repo",
+			expectedURL: "https://dev.azure.com/my-org/my-project",
+		},
+		{
+			name:        "project with a space",
+			repoURL:     "https://dev.azure.com/my-org/my%20project/_git/my-repo",
+			expectedURL: "https://dev.azure.com/my-org/my%20project",
+		},
+		{
+			name:        "visualstudio.com",
+			repoURL:     "https://my-org.visualstudio.com/my-project/_git/my-repo",
+			expectedURL: "https://my-org.visualstudio.com/my-project",
+		},
+		{
+			name:        "visualstudio.com with collection",
+			repoURL:     "https://my-org.visualstudio.com/DefaultCollection/my-project/_git/my-repo",
+			expectedURL: "https://my-org.visualstudio.com/DefaultCollection/my-project",
+		},
+		{
+			name:        "Azure DevOps Server",
+			repoURL:     "https://ado.example.com/tfs/my-collection/my-project/_git/my-repo",
+			expectedURL: "https://ado.example.com/tfs/my-collection/my-project",
+		},
+		{
+			name:        "no _git path segment",
+			repoURL:     "https://dev.azure.com/my-org/my-project",
+			expectedErr: "no /_git/ path segment",
+		},
+		{
+			name:        "HTTP",
+			repoURL:     "http://dev.azure.com/my-org/my-project/_git/my-repo",
+			expectedErr: "only https is supported",
+		},
+		{
+			name:        "SSH",
+			repoURL:     "ssh://git@ssh.dev.azure.com/v3/my-org/my-project/my-repo",
+			expectedErr: "only https is supported",
+		},
+		{
+			name:        "credentials are not included in errors",
+			repoURL:     "http://user:secret@dev.azure.com/my-org/my-project/_git/my-repo",
+			expectedErr: `"http://dev.azure.com/my-org/my-project/_git/my-repo"`,
+		},
+		{
+			name:        "credentials are not included in errors without the _git path segment",
+			repoURL:     "https://user:secret@dev.azure.com/my-org/my-project",
+			expectedErr: `"https://dev.azure.com/my-org/my-project"`,
+		},
+		{
+			name:        "credentials are not included in parse errors",
+			repoURL:     "https://user:secret@dev.azure.com/my-org/%zz/_git/my-repo",
+			expectedErr: "failed to parse Azure DevOps repository URL",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result, err := parseADOBaseURL(tt.repoURL)
+			if tt.expectedErr != "" {
+				require.ErrorContains(t, err, tt.expectedErr)
+				require.NotContains(t, err.Error(), "secret")
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedURL, result)
+		})
+	}
+}
+
+func TestFetchChangedFilesFromADO(t *testing.T) {
+	tests := []struct {
+		name          string
+		repo          *v1alpha1.Repository
+		statusCode    int
+		body          string
+		expectedFiles []string
+		expectedErr   string
+	}{
+		{
+			name:          "changed files",
+			statusCode:    http.StatusOK,
+			body:          adoDiffsJSON(t, adoDiffsTestResponse()),
+			expectedFiles: []string{"apps/my-app/values.yaml", "apps/my-app/deployment.yaml"},
+		},
+		{
+			name:       "renamed files",
+			statusCode: http.StatusOK,
+			body: adoDiffsJSON(t, adoDiffsResponse{
+				AllChangesIncluded: true,
+				Changes: []adoDiffChange{
+					{Item: adoDiffItem{Path: "/apps/new-app/values.yaml"}, ChangeType: "rename", OriginalPath: "/apps/old-app/values.yaml"},
+					{Item: adoDiffItem{Path: "/apps/my-app/deployment.yaml"}, ChangeType: "edit, rename", OriginalPath: "/apps/my-app/deployment.yaml"},
+					{Item: adoDiffItem{Path: "/apps/new-app", IsFolder: true}, ChangeType: "rename", OriginalPath: "/apps/old-app"},
+				},
+			}),
+			expectedFiles: []string{"apps/new-app/values.yaml", "apps/old-app/values.yaml", "apps/my-app/deployment.yaml"},
+		},
+		{
+			name:       "renamed file without original path",
+			statusCode: http.StatusOK,
+			body: adoDiffsJSON(t, adoDiffsResponse{
+				AllChangesIncluded: true,
+				Changes:            []adoDiffChange{{Item: adoDiffItem{Path: "/apps/new-app/values.yaml"}, ChangeType: "Edit, Rename"}},
+			}),
+			expectedErr: "without original path",
+		},
+		{
+			name:       "change without path",
+			statusCode: http.StatusOK,
+			body: adoDiffsJSON(t, adoDiffsResponse{
+				AllChangesIncluded: true,
+				Changes: []adoDiffChange{
+					{Item: adoDiffItem{Path: "/apps/my-app/values.yaml"}, ChangeType: "edit"},
+					{ChangeType: "edit"},
+				},
+			}),
+			expectedFiles: []string{"apps/my-app/values.yaml"},
+		},
+		{
+			name:        "truncated response",
+			statusCode:  http.StatusOK,
+			body:        adoDiffsJSON(t, adoDiffsResponse{Changes: adoDiffsTestResponse().Changes}),
+			expectedErr: "truncated",
+		},
+		{
+			name:        "unexpected status",
+			statusCode:  http.StatusUnauthorized,
+			body:        `{"message":"unauthorized"}`,
+			expectedErr: "unexpected status 401",
+		},
+		{
+			// Azure DevOps answers requests with an invalid personal access token with a sign-in page.
+			name:        "sign-in page",
+			statusCode:  http.StatusNonAuthoritativeInfo,
+			body:        `<html></html>`,
+			expectedErr: "unexpected status 203 from Azure DevOps diffs API, check the repository credentials",
+		},
+		{
+			name:        "malformed response",
+			statusCode:  http.StatusOK,
+			body:        `{"changes":`,
+			expectedErr: "error decoding Azure DevOps diffs API response",
+		},
+		{
+			name:        "response too large",
+			statusCode:  http.StatusOK,
+			body:        `{"allChangesIncluded":true,"changes":[],"padding":"` + strings.Repeat("a", adoRespMaxSize) + `"}`,
+			expectedErr: "error decoding Azure DevOps diffs API response",
+		},
+		{
+			name:        "no credentials",
+			repo:        &v1alpha1.Repository{Repo: testADORepoURL, BearerToken: "test-token"},
+			expectedErr: errNoADOCredentials.Error(),
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			repo := tt.repo
+			if repo == nil {
+				repo = &v1alpha1.Repository{Repo: testADORepoURL, Username: "test-user", Password: "test-pat"}
+			}
+			newHTTPClient := newADOUnusedClientFactory(t)
+			if tt.statusCode != 0 {
+				newHTTPClient = func(*v1alpha1.Repository) *http.Client {
+					return newADOTestClient(func(req *http.Request) (int, string) {
+						requireADODiffsRequest(t, req)
+						return tt.statusCode, tt.body
+					})
+				}
+			}
+
+			changedFiles, err := fetchChangedFilesFromADO(t.Context(), newHTTPClient, repo, testADORepoID, testADOShaBefore, testADOShaAfter)
+			if tt.expectedErr != "" {
+				require.ErrorContains(t, err, tt.expectedErr)
+				require.Nil(t, changedFiles)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tt.expectedFiles, changedFiles)
+		})
+	}
+}
+
+// eofTrackingBody records whether the response body was read to the end, which is required for
+// the transport to reuse the connection.
+type eofTrackingBody struct {
+	reader  io.Reader
+	readEOF bool
+	closed  bool
+}
+
+func (b *eofTrackingBody) Read(p []byte) (int, error) {
+	n, err := b.reader.Read(p)
+	if errors.Is(err, io.EOF) {
+		b.readEOF = true
+	}
+	return n, err
+}
+
+func (b *eofTrackingBody) Close() error {
+	b.closed = true
+	return nil
+}
+
+func TestFetchChangedFilesFromADO_DrainsResponseBody(t *testing.T) {
+	tests := []struct {
+		name        string
+		statusCode  int
+		expectedErr bool
+	}{
+		{name: "successful response", statusCode: http.StatusOK},
+		{name: "error response", statusCode: http.StatusUnauthorized, expectedErr: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Trailing data after the JSON document is left unread by the decoder.
+			body := &eofTrackingBody{reader: strings.NewReader(adoDiffsJSON(t, adoDiffsTestResponse()) + "\n\n")}
+			client := &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return &http.Response{StatusCode: tt.statusCode, Header: make(http.Header), Body: body, Request: req}, nil
+			})}
+			repo := &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat"}
+
+			_, err := fetchChangedFilesFromADO(t.Context(), func(*v1alpha1.Repository) *http.Client { return client }, repo, testADORepoID, testADOShaBefore, testADOShaAfter)
+			if tt.expectedErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+			require.True(t, body.readEOF, "response body should be read to EOF so that the connection can be reused")
+			require.True(t, body.closed)
+		})
+	}
+}
+
+func TestSetADOAuthHeader(t *testing.T) {
+	tests := []struct {
+		name string
+		repo *v1alpha1.Repository
+		// expectedAuthorization is empty when no credentials must be applied.
+		expectedAuthorization string
+	}{
+		{
+			name:                  "basic auth with username and password",
+			repo:                  &v1alpha1.Repository{Username: "test-user", Password: "test-pat"},
+			expectedAuthorization: testADOBasicAuth,
+		},
+		{
+			name:                  "personal access token without username",
+			repo:                  &v1alpha1.Repository{Password: "test-pat"},
+			expectedAuthorization: "Basic " + base64.StdEncoding.EncodeToString([]byte(":test-pat")),
+		},
+		{
+			name: "bearer token",
+			repo: &v1alpha1.Repository{BearerToken: "test-token"},
+		},
+		{
+			name: "username without password",
+			repo: &v1alpha1.Repository{Username: "test-user"},
+		},
+		{
+			name: "no supported credentials",
+			repo: &v1alpha1.Repository{},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://dev.azure.com/my-org/my-project/_apis", http.NoBody)
+			require.NoError(t, err)
+
+			require.Equal(t, tt.expectedAuthorization != "", setADOAuthHeader(req, tt.repo))
+			require.Equal(t, tt.expectedAuthorization, req.Header.Get("Authorization"))
+		})
+	}
+}
+
+func TestNewADOHTTPClientUsesRepositoryTransportSettings(t *testing.T) {
+	repo := &v1alpha1.Repository{
+		Repo:     testADORepoURL,
+		Username: "test-user",
+		Password: "test-pat",
+		Proxy:    "http://proxy.example.com:8080",
+		NoProxy:  "localhost",
+	}
+
+	client := newADOHTTPClient(repo)
+	transport, ok := client.Transport.(*http.Transport)
+	require.True(t, ok)
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://dev.azure.com/my-org/my-project/_apis", http.NoBody)
+	require.NoError(t, err)
+	proxyURL, err := transport.Proxy(req)
+	require.NoError(t, err)
+	require.Equal(t, "http://proxy.example.com:8080", proxyURL.String())
+
+	noProxyReq, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://localhost/_apis", http.NoBody)
+	require.NoError(t, err)
+	proxyURL, err = transport.Proxy(noProxyReq)
+	require.NoError(t, err)
+	require.Nil(t, proxyURL)
+}
+
+func requireKeepAlivesEnabled(t *testing.T, client *http.Client, enabled bool) {
+	t.Helper()
+	transport, ok := client.Transport.(*http.Transport)
+	require.True(t, ok)
+	require.Equal(t, enabled, !transport.DisableKeepAlives)
+}
+
+func TestADOHTTPClientCache(t *testing.T) {
+	t.Setenv(common.EnvVarTLSDataPath, t.TempDir())
+
+	t.Run("reuses the client for repositories with the same transport settings", func(t *testing.T) {
+		c := newADOHTTPClientCache()
+		client := c.get(&v1alpha1.Repository{Repo: testADORepoURL, Username: "user-a", Password: "pat-a"})
+		other := c.get(&v1alpha1.Repository{Repo: "https://dev.azure.com/my-org/other-project/_git/other-repo", Password: "pat-b"})
+		require.Same(t, client, other)
+		requireKeepAlivesEnabled(t, client, true)
+	})
+
+	t.Run("creates a new client when the transport settings differ", func(t *testing.T) {
+		tests := []struct {
+			name string
+			repo *v1alpha1.Repository
+		}{
+			{name: "host", repo: &v1alpha1.Repository{Repo: "https://my-org.visualstudio.com/my-project/_git/my-repo", Password: "test-pat"}},
+			{name: "insecure", repo: &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat", Insecure: true}},
+			{name: "proxy", repo: &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat", Proxy: "http://proxy.example.com:8080"}},
+			{name: "no proxy", repo: &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat", NoProxy: "localhost"}},
+			{name: "client certificate", repo: &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat", TLSClientCertData: "cert"}},
+			{name: "client certificate key", repo: &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat", TLSClientCertKey: "key"}},
+		}
+		for _, tt := range tests {
+			t.Run(tt.name, func(t *testing.T) {
+				c := newADOHTTPClientCache()
+				client := c.get(&v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat"})
+				require.NotSame(t, client, c.get(tt.repo))
+			})
+		}
+	})
+
+	t.Run("does not mix up settings with the same value", func(t *testing.T) {
+		c := newADOHTTPClientCache()
+		client := c.get(&v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat", Proxy: "localhost"})
+		require.NotSame(t, client, c.get(&v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat", NoProxy: "localhost"}))
+	})
+
+	t.Run("creates a new client when the server certificates change", func(t *testing.T) {
+		tlsDataPath := t.TempDir()
+		t.Setenv(common.EnvVarTLSDataPath, tlsDataPath)
+		repo := &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat"}
+		c := newADOHTTPClientCache()
+		client := c.get(repo)
+
+		certPEM := "-----BEGIN CERTIFICATE-----\nZmFrZQ==\n-----END CERTIFICATE-----\n"
+		require.NoError(t, os.WriteFile(filepath.Join(tlsDataPath, "dev.azure.com"), []byte(certPEM), 0o600))
+		require.NotSame(t, client, c.get(repo))
+	})
+
+	t.Run("does not cache clients beyond the limit", func(t *testing.T) {
+		c := newADOHTTPClientCache()
+		for i := range adoHTTPClientCacheLimit {
+			c.get(&v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat", Proxy: "http://proxy" + strconv.Itoa(i) + ".example.com:8080"})
+		}
+		repo := &v1alpha1.Repository{Repo: testADORepoURL, Password: "test-pat"}
+		client := c.get(repo)
+		require.NotSame(t, client, c.get(repo))
+		require.Len(t, c.clients, adoHTTPClientCacheLimit)
+		requireKeepAlivesEnabled(t, client, false)
+	})
 }
