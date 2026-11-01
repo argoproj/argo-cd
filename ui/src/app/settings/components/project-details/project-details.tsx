@@ -244,7 +244,12 @@ const SourceReposEdit = ({formApi}: {formApi: FormApi}) => {
             {(formApi.values.spec.sourceRepos || []).map((_: Project, i: number) => (
                 <div className='row white-box__details-row' key={i}>
                     <div className='columns small-12'>
-                        <FormField formApi={formApi} field={`spec.sourceRepos[${i}]`} component={AutocompleteField} componentProps={{items: repos.map(repo => repo.repo)}} />
+                        <FormField
+                            formApi={formApi}
+                            field={`spec.sourceRepos[${i}]`}
+                            component={AutocompleteField}
+                            componentProps={{items: repos.map(repo => repo.repo), filterSuggestions: true}}
+                        />
                         <i className='fa fa-times' onClick={() => formApi.setValue('spec.sourceRepos', removeEl(formApi.values.spec.sourceRepos, i))} />
                     </div>
                 </div>
