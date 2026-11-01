@@ -1057,9 +1057,31 @@ func TestGitHubAppGetAccessToken_TCPConnectionErrors(t *testing.T) {
 // 4. Timeout and Latency
 // ---------------------------------------------------------------------------
 
+func TestGitHubAppTimeoutTestsPreserveConfiguredTimeout(t *testing.T) {
+	for _, testCase := range []struct {
+		name string
+		run  func(*testing.T)
+	}{
+		{name: "custom timeout", run: TestGitHubAppGetAccessToken_CustomTimeout},
+		{name: "dialer timeout", run: TestGitHubAppGetAccessToken_DialerDefaultTimeout},
+	} {
+		t.Run(testCase.name, func(t *testing.T) {
+			originalTimeout := gitClientTimeout
+			t.Cleanup(func() { gitClientTimeout = originalTimeout })
+			configuredTimeout := 37 * time.Second
+			gitClientTimeout = configuredTimeout
+
+			t.Run("timeout tests", testCase.run)
+
+			assert.Equal(t, configuredTimeout, gitClientTimeout)
+		})
+	}
+}
+
 func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 	// These tests mutate gitClientTimeout so they must NOT run in parallel
 	// with each other.
+	originalTimeout := gitClientTimeout
 	// Initialize the cache key
 	org := "test-org"
 	domain := "github.com"
@@ -1068,8 +1090,7 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 	githubInstallationIdCache.Delete(cacheKey)
 	t.Cleanup(func() {
 		githubInstallationIdCache.Delete(cacheKey)
-		// Reset gitClientTimeout back to default value
-		gitClientTimeout = 15 * time.Second
+		gitClientTimeout = originalTimeout
 	})
 
 	t.Run("gitClientTimeout must be honoured for token requests as well", func(t *testing.T) {
@@ -1179,6 +1200,7 @@ func TestGitHubAppGetInstallationTransport_DiscoveryHonorsGitClientTimeout(t *te
 // ---------------------------------------------------------------------------
 
 func TestGitHubAppGetAccessToken_DialerDefaultTimeout(t *testing.T) {
+	originalTimeout := gitClientTimeout
 	t.Run("dialer 30s timeout governs when connecting to unreachable host", func(t *testing.T) {
 		if testing.Short() {
 			t.Skip("skipping slow dialer timeout test (~30s)")
@@ -1187,7 +1209,7 @@ func TestGitHubAppGetAccessToken_DialerDefaultTimeout(t *testing.T) {
 		githubAppTokenCache.Flush()
 		t.Cleanup(func() {
 			githubAppTokenCache.Flush()
-			gitClientTimeout = 15 * time.Second
+			gitClientTimeout = originalTimeout
 		})
 		// Set a timeout value higher than the default dial context timeout 30s
 		gitClientTimeout = 35 * time.Second
@@ -1206,7 +1228,7 @@ func TestGitHubAppGetAccessToken_DialerDefaultTimeout(t *testing.T) {
 		githubAppTokenCache.Flush()
 		t.Cleanup(func() {
 			githubAppTokenCache.Flush()
-			gitClientTimeout = 15 * time.Second
+			gitClientTimeout = originalTimeout
 		})
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
