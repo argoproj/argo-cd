@@ -349,7 +349,68 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
    do a "Hard Refresh" when actively developing a CMP so you have the latest output.
 4. Verify your sidecar has started properly by viewing the Pod and seeing that two containers are running `kubectl get pod -l app.kubernetes.io/component=repo-server -n argocd`
 5. Write log message to stderr and set the `--loglevel=info` flag in the sidecar. This will print everything written to stderr, even on successful command execution.
+6. To run the plugin's commands by hand against the same files, copy the files the plugin received to a debug directory. See [Inspecting the files received by a plugin](#inspecting-the-files-received-by-a-plugin).
 
+### Inspecting the files received by a plugin
+
+For each manifest generation request, the sidecar extracts the repository files it received into a new temporary
+directory under `/tmp/_cmp_server` and runs the `init` and `generate` commands in the Application source directory
+inside it. The directory is deleted as soon as the request completes, and `/tmp/_cmp_server` is also cleared whenever
+the sidecar starts, so you can't inspect it later.
+
+To keep a copy of the files, add a copy step to the beginning of your `generate` command that writes to a directory
+outside `/tmp/_cmp_server`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: my-plugin
+spec:
+  generate:
+    command: [sh, -c]
+    args:
+      - |
+        # Temporary debugging step: keep a copy of the files and environment variables received by the plugin.
+        DEBUG_DIR="/tmp/cmp-debug/$ARGOCD_APP_NAME"
+        rm -rf "$DEBUG_DIR" && mkdir -p "$DEBUG_DIR" && cp -R . "$DEBUG_DIR"
+        export -p | grep -E '^(export|declare -x) (ARGOCD_|KUBE_|PARAM_)' > "$DEBUG_DIR.env"
+        my-tool generate .
+```
+
+Copying before generating the manifests keeps the files even if generation fails, includes any changes made by
+the `init` command, and doesn't change the exit code of the `generate` command. The copy step must not write anything
+to stdout, because the output of `generate` is parsed as manifests.
+
+Each manifest generation for the Application replaces the previous copy. If several requests for the same Application
+run at the same time, or several Applications share the same name, the copy may mix their files, so debug one
+Application at a time.
+
+After the next manifest generation (do a "Hard Refresh" to force one), open a shell in the sidecar, load the saved
+environment variables, and run your commands from the copied directory:
+
+```shell
+kubectl exec -it -n argocd <repo-server-pod> -c my-plugin -- sh
+. /tmp/cmp-debug/<app-name>.env
+cd /tmp/cmp-debug/<app-name>
+my-tool generate .
+```
+
+The shell started with `kubectl exec` doesn't inherit the variables that Argo CD sets for each manifest generation
+request, such as the [build environment](../user-guide/build-environment.md) variables, `ARGOCD_ENV_` variables,
+and `PARAM_` variables. The copy step saves them to `/tmp/cmp-debug/<app-name>.env`. Load that file in the same shell
+that your `generate` command uses (`sh` in the example above).
+
+Because the commands run in the Application source directory, only that directory is copied. Files elsewhere in the
+repository are not copied. Some files may also be missing because of
+[tar stream exclusions](#plugin-tar-stream-exclusions) or, if enabled,
+[`manifest-generate-paths`](#application-manifests-generation-using-argocdargoprojiomanifest-generate-paths).
+
+> [!WARNING]
+> With the `emptyDir` volume mounted at `/tmp` as shown in [Register the plugin sidecar](#register-the-plugin-sidecar),
+> the copied files remain until the repo-server Pod is deleted. They use disk space and may contain sensitive data.
+> Remove the copy step from your plugin configuration when you have finished debugging, and delete the
+> `/tmp/cmp-debug` directory.
 
 ### Other Common Errors
 | Error Message | Cause |
