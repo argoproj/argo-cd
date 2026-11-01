@@ -429,6 +429,81 @@ spec:
       port: 50051
 `)
 
+	testGRPCRouteWithHostnames = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: GRPCRoute
+metadata:
+  name: grpc-route
+  namespace: default
+spec:
+  parentRefs:
+  - name: grpc-gateway
+  hostnames:
+  - grpc.example.com
+  rules:
+  - backendRefs:
+    - name: grpc-service
+      port: 50051
+`)
+
+	testTLSRoute = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1alpha2
+kind: TLSRoute
+metadata:
+  name: tls-route
+  namespace: default
+spec:
+  parentRefs:
+  - name: tls-gateway
+  hostnames:
+  - secure.example.com
+  rules:
+  - backendRefs:
+    - name: tls-service
+      port: 8443
+`)
+
+	testHTTPRouteMultipleHostnames = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: multi-host-route
+  namespace: default
+spec:
+  parentRefs:
+  - name: example-gateway
+  hostnames:
+  - a.example.com
+  - b.example.com
+  - "*.wildcard.example.com"
+  - "*"
+  - ""
+  rules:
+  - backendRefs:
+    - name: service-a
+      port: 8080
+`)
+
+	testHTTPRouteHostnamesIgnoreDefaultLinks = strToUnstructured(`
+apiVersion: gateway.networking.k8s.io/v1
+kind: HTTPRoute
+metadata:
+  name: ignore-links-route
+  namespace: default
+  annotations:
+    link.argocd.argoproj.io/external-link: https://custom-link.example.com
+    argocd.argoproj.io/ignore-default-links: "true"
+spec:
+  parentRefs:
+  - name: example-gateway
+  hostnames:
+  - suppressed.example.com
+  rules:
+  - backendRefs:
+    - name: service-a
+      port: 8080
+`)
+
 	testGatewayWithIP = strToUnstructured(`
 apiVersion: gateway.networking.k8s.io/v1
 kind: Gateway
@@ -1468,6 +1543,8 @@ func TestGetHTTPRouteInfo(t *testing.T) {
 		Name:      "service-b",
 	})
 	assert.Empty(t, info.NetworkingInfo.Ingress)
+	// spec.hostnames should be exposed as external URLs (defaulting to https)
+	assert.Equal(t, []string{"https://example.com"}, info.NetworkingInfo.ExternalURLs)
 }
 
 func TestGetHTTPRouteCrossNamespaceInfo(t *testing.T) {
@@ -1543,6 +1620,41 @@ func TestGetGRPCRoute(t *testing.T) {
 		Namespace: "default",
 		Name:      "grpc-service",
 	})
+}
+
+func TestGetGRPCRouteHostnames(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testGRPCRouteWithHostnames, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	assert.Equal(t, []string{"https://grpc.example.com"}, info.NetworkingInfo.ExternalURLs)
+}
+
+func TestGetTLSRouteHostnames(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testTLSRoute, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	assert.Equal(t, []string{"https://secure.example.com"}, info.NetworkingInfo.ExternalURLs)
+}
+
+func TestGetHTTPRouteMultipleHostnames(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRouteMultipleHostnames, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// Concrete and wildcard-subdomain hostnames are exposed; empty and pure
+	// "*" hostnames are skipped.
+	assert.Len(t, info.NetworkingInfo.ExternalURLs, 3)
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "https://a.example.com")
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "https://b.example.com")
+	assert.Contains(t, info.NetworkingInfo.ExternalURLs, "https://*.wildcard.example.com")
+}
+
+func TestGetHTTPRouteHostnamesIgnoreDefaultLinks(t *testing.T) {
+	info := &ResourceInfo{}
+	populateNodeInfo(testHTTPRouteHostnamesIgnoreDefaultLinks, info, []string{})
+	require.NotNil(t, info.NetworkingInfo)
+	// The ignore-default-links annotation suppresses hostname-derived URLs, but
+	// the explicit link.argocd.argoproj.io annotation is preserved.
+	assert.Equal(t, []string{"https://custom-link.example.com"}, info.NetworkingInfo.ExternalURLs)
 }
 
 func TestGetGatewayInfoWithIP(t *testing.T) {
