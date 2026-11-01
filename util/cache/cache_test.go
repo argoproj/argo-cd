@@ -1,6 +1,8 @@
 package cache
 
 import (
+	"context"
+	"errors"
 	"os"
 	"path/filepath"
 	"testing"
@@ -241,4 +243,165 @@ func TestCredentialFileHandling(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "value", val)
 	})
+}
+
+// TestAddCacheFlagsToCmd_RegistersProviderFlags verifies that every registered
+// factory's AddFlags callback is invoked, so backend-specific flags exist on
+// the command regardless of which provider (if any) is selected at runtime.
+func TestAddCacheFlagsToCmd_RegistersProviderFlags(t *testing.T) {
+	withCleanRegistry(t)
+	stub := &stubProviderFactory{name: "stubcloud"}
+	RegisterRedisCredentialsProvider(stub)
+
+	cmd := &cobra.Command{}
+	_ = AddCacheFlagsToCmd(cmd)
+
+	assert.Equal(t, 1, stub.addFlagsCalls,
+		"AddCacheFlagsToCmd must walk the credentials-provider registry on flag setup")
+	require.NotNil(t, cmd.Flags().Lookup("redis-credentials-provider"),
+		"the generic selector flag must be registered")
+}
+
+// TestAddCacheFlagsToCmd_NoProviderSelected covers the default code path:
+// when --redis-credentials-provider is empty, the registry is not consulted
+// and the cache is built without a credentials closure.
+func TestAddCacheFlagsToCmd_NoProviderSelected(t *testing.T) {
+	withCleanRegistry(t)
+	stub := &stubProviderFactory{name: "stubcloud"}
+	RegisterRedisCredentialsProvider(stub)
+
+	cmd := &cobra.Command{}
+	cacheFn := AddCacheFlagsToCmd(cmd)
+	cache, err := cacheFn()
+	require.NoError(t, err)
+	assert.Equal(t, 0, stub.buildCalls,
+		"Build must not run when --redis-credentials-provider is unset")
+	assert.NotNil(t, cache)
+}
+
+// TestAddCacheFlagsToCmd_SelectsRegisteredProvider verifies the happy path:
+// when --redis-credentials-provider matches a registered factory, the
+// factory's Build is invoked exactly once and is handed the loaded username.
+func TestAddCacheFlagsToCmd_SelectsRegisteredProvider(t *testing.T) {
+	withCleanRegistry(t)
+	stub := &stubProviderFactory{
+		name:             "stubcloud",
+		providerUsername: "from-provider",
+		providerPassword: "from-provider-tok",
+	}
+	RegisterRedisCredentialsProvider(stub)
+
+	t.Setenv(envRedisUsername, "loaded-user")
+	t.Setenv(envRedisPassword, "static-password")
+
+	cmd := &cobra.Command{}
+	cacheFn := AddCacheFlagsToCmd(cmd)
+	require.NoError(t, cmd.Flags().Set("redis-credentials-provider", "stubcloud"))
+
+	cache, err := cacheFn()
+	require.NoError(t, err)
+	require.NotNil(t, cache)
+
+	assert.Equal(t, 1, stub.buildCalls)
+	assert.Equal(t, "loaded-user", stub.lastLoadedUser,
+		"factory must receive the username already resolved from env/file")
+}
+
+// TestAddCacheFlagsToCmd_UnknownProvider asserts that selecting an unregistered
+// provider name fails fast with a message that lists the registered names —
+// vital for typo diagnosis on a single-line config.
+func TestAddCacheFlagsToCmd_UnknownProvider(t *testing.T) {
+	withCleanRegistry(t)
+	RegisterRedisCredentialsProvider(&stubProviderFactory{name: "stubcloud"})
+
+	cmd := &cobra.Command{}
+	cacheFn := AddCacheFlagsToCmd(cmd)
+	require.NoError(t, cmd.Flags().Set("redis-credentials-provider", "typo"))
+
+	_, err := cacheFn()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), `unknown redis credentials provider "typo"`)
+	assert.Contains(t, err.Error(), "stubcloud",
+		"error must enumerate registered providers so users can correct the typo")
+}
+
+// TestAddCacheFlagsToCmd_ProviderBuildErrorPropagates ensures factory failures
+// surface to the caller rather than being swallowed.
+func TestAddCacheFlagsToCmd_ProviderBuildErrorPropagates(t *testing.T) {
+	withCleanRegistry(t)
+	wantErr := errors.New("federated token unavailable")
+	RegisterRedisCredentialsProvider(&stubProviderFactory{name: "stubcloud", buildErr: wantErr})
+
+	cmd := &cobra.Command{}
+	cacheFn := AddCacheFlagsToCmd(cmd)
+	require.NoError(t, cmd.Flags().Set("redis-credentials-provider", "stubcloud"))
+
+	_, err := cacheFn()
+	require.ErrorIs(t, err, wantErr)
+}
+
+// TestAddCacheFlagsToCmd_ProviderRejectsSentinel asserts that selecting a
+// credentials provider while sentinel addresses are configured fails with a
+// clear, actionable message — sentinel mode is incompatible with the
+// cloud-managed Redis services these providers target.
+func TestAddCacheFlagsToCmd_ProviderRejectsSentinel(t *testing.T) {
+	withCleanRegistry(t)
+	RegisterRedisCredentialsProvider(&stubProviderFactory{name: "stubcloud"})
+
+	cmd := &cobra.Command{}
+	cacheFn := AddCacheFlagsToCmd(cmd)
+	require.NoError(t, cmd.Flags().Set("redis-credentials-provider", "stubcloud"))
+	require.NoError(t, cmd.Flags().Set("sentinel", "sentinel-1:26379"))
+
+	_, err := cacheFn()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "incompatible with sentinel-mode")
+	assert.Contains(t, err.Error(), "stubcloud")
+}
+
+// TestBuildRedisClient_SetsCredentialsProvider verifies that a non-nil
+// provider is propagated into the underlying go-redis Options. We can't
+// inspect the struct field directly (it's a closure), but we can compare
+// pointers to the same closure to prove the wiring.
+func TestBuildRedisClient_SetsCredentialsProvider(t *testing.T) {
+	called := 0
+	provider := func(_ context.Context) (string, string, error) {
+		called++
+		return "u", "p", nil
+	}
+
+	client := buildRedisClient("redis:6379", "static", "static-user", 0, 0, nil, provider)
+	require.NotNil(t, client)
+	require.NotNil(t, client.Options().CredentialsProviderContext,
+		"provider closure must be wired into go-redis Options")
+
+	_, _, err := client.Options().CredentialsProviderContext(context.Background())
+	require.NoError(t, err)
+	assert.Equal(t, 1, called, "go-redis must invoke our provider, not bypass it")
+}
+
+// TestBuildRedisClient_NilProviderLeavesOptionsAlone makes sure the default
+// (no provider) code path doesn't accidentally install a nil
+// CredentialsProviderContext, which would crash go-redis on every connect.
+func TestBuildRedisClient_NilProviderLeavesOptionsAlone(t *testing.T) {
+	client := buildRedisClient("redis:6379", "static", "static-user", 0, 0, nil, nil)
+	require.NotNil(t, client)
+	assert.Nil(t, client.Options().CredentialsProviderContext,
+		"no provider configured -> CredentialsProviderContext must remain nil")
+}
+
+// TestBuildFailoverRedisClient_SetsCredentialsProvider mirrors
+// TestBuildRedisClient_SetsCredentialsProvider for the sentinel client. We
+// keep the wiring even though the public flow rejects sentinel + provider —
+// future providers (e.g. self-hosted Redis Enterprise behind sentinel with
+// ACLs) may want it.
+func TestBuildFailoverRedisClient_SetsCredentialsProvider(t *testing.T) {
+	provider := func(_ context.Context) (string, string, error) {
+		return "u", "p", nil
+	}
+	client := buildFailoverRedisClient("master", "", "", "static", "user", 0, 0, nil,
+		[]string{"s-0:26379"}, provider)
+	require.NotNil(t, client)
+	require.NotNil(t, client.Options().CredentialsProviderContext,
+		"provider closure must be wired into go-redis FailoverOptions too")
 }
