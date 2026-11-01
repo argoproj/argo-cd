@@ -2156,6 +2156,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	needRefresh, refreshType, comparisonLevel := ctrl.needRefreshAppStatus(origApp, ctrl.statusRefreshTimeout, ctrl.statusHardRefreshTimeout)
 
 	if !needRefresh {
+		if delay := ctrl.appRefreshDelay(origApp); delay != nil {
+			ctrl.requestAppRefresh(origApp.QualifiedName(), nil, delay)
+		}
 		return processNext
 	}
 	origApp = origApp.DeepCopy()
@@ -2454,6 +2457,19 @@ func currentSourceEqualsSyncedSource(app *appv1.Application) bool {
 // Returns true if application never been compared, has changed or comparison result has expired.
 // Additionally, it returns whether full refresh was requested or not.
 // If full refresh is requested then target and live state should be reconciled, else only live state tree should be updated.
+func (ctrl *ApplicationController) appRefreshDelay(app *appv1.Application) *time.Duration {
+	baseTimeout := app.Spec.GetReconciliationTimeout(ctrl.statusRefreshTimeout)
+	if baseTimeout <= 0 {
+		return nil
+	}
+	jitter := app.Spec.GetReconciliationJitter(ctrl.statusRefreshJitter)
+	delay := baseTimeout
+	if jitter > 0 {
+		delay += time.Duration(float64(jitter) * rand.Float64())
+	}
+	return &delay
+}
+
 func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, statusRefreshTimeout, statusHardRefreshTimeout time.Duration) (bool, appv1.RefreshType, CompareWith) {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	var reason string
