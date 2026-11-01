@@ -1,12 +1,21 @@
 package v1alpha1
 
 import (
+	"encoding/json"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/gogo/protobuf/proto"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/kube-openapi/pkg/validation/spec"
+	"k8s.io/kube-openapi/pkg/validation/strfmt"
+	"k8s.io/kube-openapi/pkg/validation/validate"
+	"sigs.k8s.io/yaml"
 )
 
 func testAppSetCond(t ApplicationSetConditionType, msg string, lastTransitionTime *metav1.Time, status ApplicationSetConditionStatus, reason string) ApplicationSetCondition {
@@ -327,4 +336,74 @@ func TestSCMProviderGeneratorGitlab_WillIncludeSharedProjects(t *testing.T) {
 
 	settings.IncludeSharedProjects = new(true)
 	assert.True(t, settings.WillIncludeSharedProjects())
+}
+
+// TestApplicationSetGitLabTLSClientCertSecretRefValidation exercises Kubernetes schema
+// validation for direct, matrix, and merge generator references in the generated CRD.
+func TestApplicationSetGitLabTLSClientCertSecretRefValidation(t *testing.T) {
+	t.Parallel()
+	data, err := os.ReadFile("../../../../manifests/crds/applicationset-crd.yaml")
+	require.NoError(t, err)
+	var crd apiextensionsv1.CustomResourceDefinition
+	require.NoError(t, yaml.Unmarshal(data, &crd))
+	var references int
+	var visit func(*apiextensionsv1.JSONSchemaProps)
+	visit = func(schema *apiextensionsv1.JSONSchemaProps) {
+		if ref, ok := schema.Properties["tlsClientCertSecretRef"]; ok {
+			references++
+			parent := apiextensionsv1.JSONSchemaProps{Type: "object", Properties: map[string]apiextensionsv1.JSONSchemaProps{"tlsClientCertSecretRef": ref}}
+			schemaJSON, err := json.Marshal(parent)
+			require.NoError(t, err)
+			var validationSchema spec.Schema
+			require.NoError(t, json.Unmarshal(schemaJSON, &validationSchema))
+			validator := validate.NewSchemaValidator(&validationSchema, &validationSchema, "generator", strfmt.Default)
+			for _, tc := range []struct {
+				name   string
+				object map[string]any
+				valid  bool
+			}{
+				{name: "omitted", object: map[string]any{}, valid: true},
+				{name: "named", object: map[string]any{"tlsClientCertSecretRef": map[string]any{"name": "gitlab-client-tls"}}, valid: true},
+				{name: "missing name", object: map[string]any{"tlsClientCertSecretRef": map[string]any{}}, valid: false},
+				{name: "empty name", object: map[string]any{"tlsClientCertSecretRef": map[string]any{"name": ""}}, valid: false},
+			} {
+				errors := validator.Validate(tc.object).Errors
+				if tc.valid {
+					assert.Empty(t, errors, tc.name)
+				} else {
+					assert.NotEmpty(t, errors, tc.name)
+				}
+			}
+		}
+		for _, property := range schema.Properties {
+			visit(&property)
+		}
+		if schema.Items != nil && schema.Items.Schema != nil {
+			visit(schema.Items.Schema)
+		}
+	}
+	for _, version := range crd.Spec.Versions {
+		visit(version.Schema.OpenAPIV3Schema)
+	}
+	assert.Equal(t, 3, references, "validate the direct, matrix, and merge generator schemas")
+}
+
+// TestPullRequestGeneratorGitLabTLSClientCertSecretRef verifies serialization, independent deep copies, and OpenAPI exposure of the certificate reference.
+func TestPullRequestGeneratorGitLabTLSClientCertSecretRef(t *testing.T) {
+	t.Parallel()
+	original := &PullRequestGeneratorGitLab{Project: "42", TLSClientCertSecretRef: &TLSClientCertSecretReference{Name: "gitlab-client-tls"}}
+	data, err := proto.Marshal(original)
+	require.NoError(t, err)
+	var decoded PullRequestGeneratorGitLab
+	require.NoError(t, proto.Unmarshal(data, &decoded))
+	assert.Equal(t, original, &decoded)
+	copied := original.DeepCopy()
+	copied.TLSClientCertSecretRef.Name = "renewed"
+	assert.Equal(t, "gitlab-client-tls", original.TLSClientCertSecretRef.Name)
+	definitions := GetOpenAPIDefinitions(func(path string) spec.Ref { return spec.MustCreateRef("#/definitions/" + path) })
+	schema := definitions["github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.PullRequestGeneratorGitLab"]
+	property, ok := schema.Schema.Properties["tlsClientCertSecretRef"]
+	require.True(t, ok)
+	assert.Equal(t, "#/definitions/github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TLSClientCertSecretReference", property.Ref.String())
+	assert.Contains(t, schema.Dependencies, "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TLSClientCertSecretReference")
 }

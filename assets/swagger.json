@@ -9741,6 +9741,9 @@
           "description": "PullRequestState is an additional MRs filter to get only those with a certain state. Default: \"\" (all states).\nValid values: opened, closed, merged, locked\".",
           "type": "string"
         },
+        "tlsClientCertSecretRef": {
+          "$ref": "#/definitions/v1alpha1TLSClientCertSecretReference"
+        },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
         }
@@ -11244,6 +11247,16 @@
       "properties": {
         "syncStrategyApply": {
           "$ref": "#/definitions/v1alpha1SyncStrategyApply"
+        }
+      }
+    },
+    "v1alpha1TLSClientCertSecretReference": {
+      "description": "TLSClientCertSecretReference identifies a Secret holding a TLS client certificate and private key.\nThe Secret must be in the same namespace as the ApplicationSet.",
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "title": "Name of the Secret containing tls.crt and tls.key. Required and non-empty.\n+kubebuilder:validation:MinLength=1"
         }
       }
     },

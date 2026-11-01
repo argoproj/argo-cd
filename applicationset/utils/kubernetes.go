@@ -2,6 +2,8 @@ package utils
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"fmt"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -60,4 +62,31 @@ func GetConfigMapData(ctx context.Context, k8sClient client.Client, ref *argopro
 	}
 
 	return []byte(data), nil
+}
+
+// GetTLSClientCertificate loads a client certificate and key from a single Secret snapshot.
+func GetTLSClientCertificate(ctx context.Context, k8sClient client.Client, ref *argoprojiov1alpha1.TLSClientCertSecretReference, namespace string, strictMode bool) (*tls.Certificate, error) {
+	if ref == nil {
+		return nil, nil
+	}
+	if ref.Name == "" {
+		return nil, errors.New("TLS client certificate Secret name must not be empty")
+	}
+	secret := &corev1.Secret{}
+	if err := k8sClient.Get(ctx, client.ObjectKey{Name: ref.Name, Namespace: namespace}, secret); err != nil {
+		return nil, fmt.Errorf("error fetching TLS client certificate Secret %s/%s: %w", namespace, ref.Name, err)
+	}
+	if strictMode && secret.GetLabels()[common.LabelKeySecretType] != common.LabelValueSecretTypeSCMCreds {
+		return nil, fmt.Errorf("secret %s/%s is not a valid SCM creds Secret: %w", namespace, ref.Name, ErrDisallowedSecretAccess)
+	}
+	for _, key := range []string{corev1.TLSCertKey, corev1.TLSPrivateKeyKey} {
+		if len(secret.Data[key]) == 0 {
+			return nil, fmt.Errorf("key %q in TLS client certificate Secret %s/%s is missing or empty", key, namespace, ref.Name)
+		}
+	}
+	cert, err := tls.X509KeyPair(secret.Data[corev1.TLSCertKey], secret.Data[corev1.TLSPrivateKeyKey])
+	if err != nil {
+		return nil, fmt.Errorf("invalid TLS client certificate in Secret %s/%s: %w", namespace, ref.Name, err)
+	}
+	return &cert, nil
 }

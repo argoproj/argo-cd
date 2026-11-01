@@ -36,6 +36,14 @@ type SecretRef struct {
 	Key        string `json:"key" protobuf:"bytes,2,opt,name=key"`
 }
 
+// TLSClientCertSecretReference identifies a Secret holding a TLS client certificate and private key.
+// The Secret must be in the same namespace as the ApplicationSet.
+type TLSClientCertSecretReference struct {
+	// Name of the Secret containing tls.crt and tls.key. Required and non-empty.
+	// +kubebuilder:validation:MinLength=1
+	Name string `json:"name" protobuf:"bytes,1,opt,name=name"`
+}
+
 // ConfigMapKeyRef struct for a reference to a configmap key.
 type ConfigMapKeyRef struct {
 	ConfigMapName string `json:"configMapName" protobuf:"bytes,1,opt,name=configMapName"`
@@ -758,6 +766,9 @@ type PullRequestGeneratorGitLab struct {
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,6,opt,name=insecure"`
 	// ConfigMap key holding the trusted certificates
 	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,7,opt,name=caRef"`
+	// Secret containing the PEM-encoded client certificate chain (tls.crt) and private key (tls.key)
+	// for mutual TLS authentication. Must be in the same namespace as the ApplicationSet.
+	TLSClientCertSecretRef *TLSClientCertSecretReference `json:"tlsClientCertSecretRef,omitempty" protobuf:"bytes,9,opt,name=tlsClientCertSecretRef"`
 }
 
 // PullRequestGeneratorBitbucketServer defines connection info specific to BitbucketServer.
