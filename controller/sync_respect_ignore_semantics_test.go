@@ -1138,6 +1138,48 @@ spec:
 		})
 		t.Run("jq", func(t *testing.T) { check(t, deploymentIgnore(`.spec.template.spec.containers[].image`)) })
 	})
+
+	// The cluster's GVK parser can be missing: it fails to build when CRD
+	// schemas conflict, and the controller then builds the diff config with no
+	// parser at all. Built-in kinds still have the static schema, so containers
+	// are matched by name. Matched by position, the sidecar's image would land
+	// on git's web container and a second "web" would be inserted.
+	//
+	// Ref: found by code review of this change.
+	t.Run("cluster schema unavailable, built-in lists are still keyed", func(t *testing.T) {
+		target := toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      containers:
+      - {name: web, image: nginx:git}
+`)
+		live := toUnstructured(t, `
+apiVersion: apps/v1
+kind: Deployment
+metadata: {name: web, namespace: default}
+spec:
+  selector: {matchLabels: {app: web}}
+  template:
+    metadata: {labels: {app: web}}
+    spec:
+      containers:
+      - {name: sidecar, image: proxy:1}
+      - {name: web, image: nginx:live}
+`)
+		applied := applyTargetWith(t, nil, live, target, applyOpts{
+			ignores:  []v1alpha1.ResourceIgnoreDifferences{deploymentIgnore(`.spec.template.spec.containers[].image`)},
+			noParser: true,
+		})
+		assert.Equal(t, []string{"sidecar", "web"}, names(podList(t, applied, "containers")), "one item per name")
+		assert.Equal(t, "nginx:live", at(t, applied, "spec.template.spec.containers[name=web].image"))
+		assert.Equal(t, "proxy:1", at(t, applied, "spec.template.spec.containers[name=sidecar].image"))
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -2467,6 +2509,32 @@ data:
 		assert.Equal(t, "cm90YXRlZA==", at(t, applied, "data.password"), "the rotated password keeps its live value")
 		assert.Equal(t, "YXBw", at(t, applied, "data.username"), "the non-ignored key is applied from git")
 	})
+
+	// A rule on all of stringData names the keys git writes there, not the
+	// keys the same manifest writes under data.
+	//
+	// Ref: found by code review of this change.
+	t.Run("whole stringData ignored, a key git writes under data is still applied", func(t *testing.T) {
+		target := toUnstructured(t, `
+apiVersion: v1
+kind: Secret
+metadata: {name: s, namespace: default}
+type: Opaque
+data: {cert: Z2l0LWNlcnQ=}
+stringData: {password: git-password}
+`)
+		live := toUnstructured(t, `
+apiVersion: v1
+kind: Secret
+metadata: {name: s, namespace: default}
+type: Opaque
+data: {cert: bGl2ZS1jZXJ0, password: bGl2ZS1wYXNzd29yZA==}
+`)
+		applied := applyTarget(t, nil, live, target, v1alpha1.ResourceIgnoreDifferences{Kind: "Secret", JSONPointers: []string{"/stringData"}})
+		absent(t, applied, "stringData")
+		assert.Equal(t, "Z2l0LWNlcnQ=", at(t, applied, "data.cert"), "git's data key is applied")
+		assert.Equal(t, "bGl2ZS1wYXNzd29yZA==", at(t, applied, "data.password"), "the live password is kept")
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -3137,6 +3205,9 @@ type applyOpts struct {
 	tracking bool
 	// trackingMethod configures the tracking method; it implies tracking.
 	trackingMethod v1alpha1.TrackingMethod
+	// noParser models a cluster whose GVK parser could not be built: the diff
+	// config carries no parser, as state.go builds it in that case.
+	noParser bool
 }
 
 // applyTarget runs normalizeTargetResources for one live/target pair. parser
@@ -3151,6 +3222,9 @@ func applyTargetWith(t *testing.T, parser *managedfields.GvkParser, live, target
 	t.Helper()
 	if parser == nil {
 		parser = builtinGVKParser(t)
+	}
+	if opts.noParser {
+		parser = nil
 	}
 	b := diff.NewDiffConfigBuilder().
 		WithDiffSettings(opts.ignores, opts.overrides, true, normalizers.IgnoreNormalizerOpts{}).

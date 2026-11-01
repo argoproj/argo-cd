@@ -70,6 +70,18 @@ func TestCompare(t *testing.T) {
 	assert.Negative(t, Compare(Path{0}, Path{"a"}), "indexes before keys, as jq orders numbers before strings")
 	assert.Zero(t, Compare(Path{"a", 1}, Path{"a", 1}))
 	assert.Positive(t, Compare(Path{"b"}, Path{"a"}))
+
+	// Elements a well-formed path never has still give a total order in which
+	// only identical paths are equal, so DeleteAll never merges two of them.
+	odd := []Path{{"spec", 1.0}, {"spec", ""}, {"spec", 2.0}, {"spec", 0}, {"spec", map[string]any{"start": 1}}}
+	for i, a := range odd {
+		for j, b := range odd {
+			if i != j {
+				assert.NotZero(t, Compare(a, b), "%v vs %v", a, b)
+				assert.Equal(t, -Compare(b, a) < 0, Compare(a, b) < 0, "%v vs %v antisymmetric", a, b)
+			}
+		}
+	}
 }
 
 // TestAgreesWithJq is the reason this package may exist: on random documents

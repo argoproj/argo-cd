@@ -529,14 +529,13 @@ func normalizeTargetResources(cr *comparisonResult) ([]*unstructured.Unstructure
 
 		// The API server folds stringData into data; do the same so ignore
 		// rules on data keys apply to what the server will store.
-		prepared := target.DeepCopy()
-		foldSecretStringData(prepared)
+		prepared := foldSecretStringData(target)
 
 		livePaths, targetPaths, err := resolver.IgnoredPaths(live, prepared)
 		if err != nil {
 			return nil, err
 		}
-		stringDataLive, stringDataTarget, err := stringDataPaths(resolver, live, target)
+		stringDataLive, stringDataTarget, err := stringDataPaths(resolver, target)
 		if err != nil {
 			return nil, err
 		}

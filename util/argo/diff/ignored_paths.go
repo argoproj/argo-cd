@@ -50,6 +50,20 @@ func NewIgnoredPathsResolver(targets []*unstructured.Unstructured, diffConfig Di
 	}, nil
 }
 
+// RulePaths returns the paths the jsonPointers and jqPathExpressions rules
+// remove from one object on its own. managedFieldsManagers rules need the live
+// object and the manifest together and are left out; IgnoredPaths has them.
+func (r *IgnoredPathsResolver) RulePaths(obj *unstructured.Unstructured) ([]jqpath.Path, error) {
+	if obj == nil {
+		return nil, nil
+	}
+	paths, err := r.ignoreNormalizer.IgnoredPaths(obj)
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve ignored paths: %w", err)
+	}
+	return paths, nil
+}
+
 // IgnoredPaths returns the paths the ignore rules remove from live and from
 // target. Paths are sequences of map keys (string) and list indexes (int) into
 // live.Object and target.Object as given. It returns no paths if either object

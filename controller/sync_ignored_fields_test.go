@@ -26,16 +26,22 @@ stringData:
   password: from-stringData
   username: app
 `)
-		foldSecretStringData(secret)
-		_, hasStringData := secret.Object["stringData"]
+		original := secret.DeepCopy()
+		folded := foldSecretStringData(secret)
+		assert.Equal(t, original, secret, "the manifest is not changed in place")
+		_, hasStringData := folded.Object["stringData"]
 		assert.False(t, hasStringData)
-		data, _, err := unstructured.NestedStringMap(secret.Object, "data")
+		data, _, err := unstructured.NestedStringMap(folded.Object, "data")
 		require.NoError(t, err)
 		assert.Equal(t, map[string]string{
 			"password": "ZnJvbS1zdHJpbmdEYXRh", // "from-stringData"
 			"username": "YXBw",                 // "app"
 			"other":    "b3RoZXI=",
 		}, data)
+	})
+	t.Run("a Secret without stringData is returned as is", func(t *testing.T) {
+		secret := toUnstructured(t, "apiVersion: v1\nkind: Secret\nmetadata: {name: s}\ndata: {k: dg==}\n")
+		assert.Same(t, secret, foldSecretStringData(secret))
 	})
 	t.Run("non-Secret kinds are untouched", func(t *testing.T) {
 		cm := toUnstructured(t, `
@@ -46,7 +52,7 @@ metadata:
 stringData:
   key: value
 `)
-		foldSecretStringData(cm)
+		assert.Same(t, cm, foldSecretStringData(cm))
 		_, hasStringData := cm.Object["stringData"]
 		assert.True(t, hasStringData)
 	})

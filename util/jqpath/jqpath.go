@@ -40,7 +40,9 @@
 package jqpath
 
 import (
+	"fmt"
 	"slices"
+	"strings"
 )
 
 // Path is a jq path: map keys as string, list indexes as int. It is an alias
@@ -117,32 +119,45 @@ func DeleteAll(root map[string]any, paths []Path) {
 // Compare orders paths as jq's sort orders them: element by element, with
 // indexes before keys, indexes numerically, keys by their bytes, and a path
 // before any longer path it is a prefix of. Parents therefore sort before
-// their children and lower list indexes before higher ones.
+// their children and lower list indexes before higher ones. Elements of any
+// other kind (which a well-formed path never has) sort after keys, by their
+// printed form, so that only identical paths compare equal.
 func Compare(a, b Path) int {
 	for i := 0; i < len(a) && i < len(b); i++ {
 		ai, aIsInt := a[i].(int)
 		bi, bIsInt := b[i].(int)
+		as, aIsStr := a[i].(string)
+		bs, bIsStr := b[i].(string)
 		switch {
 		case aIsInt && bIsInt:
 			if ai != bi {
 				return ai - bi
 			}
-		case aIsInt:
-			return -1
-		case bIsInt:
-			return 1
+		case aIsStr && bIsStr:
+			if c := strings.Compare(as, bs); c != 0 {
+				return c
+			}
 		default:
-			as, _ := a[i].(string)
-			bs, _ := b[i].(string)
-			if as != bs {
-				if as < bs {
-					return -1
-				}
-				return 1
+			if ra, rb := kindRank(a[i]), kindRank(b[i]); ra != rb {
+				return ra - rb
+			}
+			if c := strings.Compare(fmt.Sprint(a[i]), fmt.Sprint(b[i])); c != 0 {
+				return c
 			}
 		}
 	}
 	return len(a) - len(b)
+}
+
+func kindRank(e any) int {
+	switch e.(type) {
+	case int:
+		return 0
+	case string:
+		return 1
+	default:
+		return 2
+	}
 }
 
 // set replaces the value at an existing path; Delete needs it to store a

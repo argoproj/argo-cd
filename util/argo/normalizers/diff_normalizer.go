@@ -175,20 +175,17 @@ func (np *jqNormalizerPatch) Paths(doc any) ([]jqpath.Path, error) {
 		if !ok {
 			continue
 		}
-		out = append(out, resolvePaths(doc, elems)...)
+		out = append(out, resolveFrom(doc, elems, nil)...)
 	}
 	return out, nil
 }
 
-// resolvePaths turns one jq path, as `path(<expr>)` reports it, into the
+// resolveFrom turns one jq path, as `path(<expr>)` reports it, into the
 // document paths `del(<expr>)` would remove: a negative index counts from the
 // end, a slice ({start, end}) selects a range of indexes (expanded when it ends
 // the path; an index that follows it is relative to the slice), and a path
-// that does not exist in the document yields nothing.
-func resolvePaths(doc any, elems []any) [][]any {
-	return resolveFrom(doc, elems, nil)
-}
-
+// that does not exist in the document yields nothing. prefix is the part of
+// the path already resolved; callers pass nil.
 func resolveFrom(cur any, elems []any, prefix []any) [][]any {
 	if len(elems) == 0 {
 		return [][]any{prefix}

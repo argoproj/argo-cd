@@ -138,7 +138,8 @@ func IgnoredPaths(live, config *unstructured.Unstructured, trustedManagers []str
 		// publish); deduce one, as Normalize does.
 		pt = &typed.DeducedParseableType
 	}
-	results, err := newTypedResults(live.DeepCopy(), config.DeepCopy(), pt)
+	// Nothing below changes either object, so no copies are needed.
+	results, err := newTypedResults(live, config, pt)
 	if err != nil {
 		log.Debugf("error building typed results: %v", err)
 		return nil, nil, nil

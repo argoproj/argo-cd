@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 
@@ -108,18 +109,30 @@ func (f fieldSchema) atomicMap() bool {
 	return ok && a.Map != nil && a.Map.ElementRelationship == smdschema.Atomic
 }
 
-// foldSecretStringData moves stringData into data the way the API server does
-// on write, so ignore rules on data keys see the same object the server will.
-func foldSecretStringData(un *unstructured.Unstructured) {
+// secretStringData returns a Secret's stringData map, if it has one.
+func secretStringData(un *unstructured.Unstructured) (map[string]any, bool) {
 	gvk := un.GroupVersionKind()
 	if gvk.Group != "" || gvk.Kind != "Secret" {
-		return
+		return nil, false
 	}
 	stringData, found, err := unstructured.NestedMap(un.Object, "stringData")
 	if !found || err != nil {
-		return
+		return nil, false
 	}
-	data, found, err := unstructured.NestedMap(un.Object, "data")
+	return stringData, true
+}
+
+// foldSecretStringData returns the manifest as the API server will store it:
+// for a Secret with stringData, a copy with stringData folded into data
+// (stringData wins on conflict), so ignore rules on data keys see the same
+// object the server will. Any other manifest is returned as is.
+func foldSecretStringData(un *unstructured.Unstructured) *unstructured.Unstructured {
+	stringData, ok := secretStringData(un)
+	if !ok {
+		return un
+	}
+	folded := un.DeepCopy()
+	data, found, err := unstructured.NestedMap(folded.Object, "data")
 	if !found || err != nil {
 		data = map[string]any{}
 	}
@@ -130,24 +143,22 @@ func foldSecretStringData(un *unstructured.Unstructured) {
 			data[k] = v
 		}
 	}
-	if err := unstructured.SetNestedField(un.Object, data, "data"); err == nil {
-		delete(un.Object, "stringData")
+	if err := unstructured.SetNestedField(folded.Object, data, "data"); err == nil {
+		delete(folded.Object, "stringData")
 	}
+	return folded
 }
 
 // stringDataPaths resolves the rules against a Secret manifest that still has
 // its stringData and returns, for every path that names a stringData key, the
 // same key under data on both sides. The server stores stringData under data,
 // so a rule written against either spelling protects the same key.
-func stringDataPaths(resolver *diff.IgnoredPathsResolver, live, target *unstructured.Unstructured) (livePaths, targetPaths []jqpath.Path, err error) {
-	gvk := target.GroupVersionKind()
-	if gvk.Group != "" || gvk.Kind != "Secret" {
+func stringDataPaths(resolver *diff.IgnoredPathsResolver, target *unstructured.Unstructured) (livePaths, targetPaths []jqpath.Path, err error) {
+	stringData, ok := secretStringData(target)
+	if !ok {
 		return nil, nil, nil
 	}
-	if _, has := target.Object["stringData"]; !has {
-		return nil, nil, nil
-	}
-	_, rawPaths, err := resolver.IgnoredPaths(live, target)
+	rawPaths, err := resolver.RulePaths(target)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -155,12 +166,20 @@ func stringDataPaths(resolver *diff.IgnoredPathsResolver, live, target *unstruct
 		if len(p) == 0 || p[0] != "stringData" {
 			continue
 		}
-		dataPath := jqpath.Path{"data"}
+		// A rule on all of stringData names the keys git writes there, not
+		// the keys the same manifest writes under data.
+		keys := []string{}
 		if len(p) > 1 {
-			dataPath = append(dataPath, p[1])
+			if k, ok := p[1].(string); ok {
+				keys = append(keys, k)
+			}
+		} else {
+			keys = slices.Sorted(maps.Keys(stringData))
 		}
-		livePaths = append(livePaths, dataPath)
-		targetPaths = append(targetPaths, dataPath)
+		for _, k := range keys {
+			livePaths = append(livePaths, jqpath.Path{"data", k})
+			targetPaths = append(targetPaths, jqpath.Path{"data", k})
+		}
 	}
 	return livePaths, targetPaths, nil
 }
