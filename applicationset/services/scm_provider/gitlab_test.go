@@ -22,7 +22,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
 		case "/api/v4":
-		case "/api/v4/groups/test-argocd-proton/projects?include_subgroups=false&per_page=100", "/api/v4/groups/test-argocd-proton/projects?include_subgroups=false&per_page=100&topic=&with_shared=false", "/api/v4/groups/test-argocd-proton/projects?archived=false&include_subgroups=false&per_page=100", "/api/v4/groups/test-argocd-proton/projects?archived=false&include_subgroups=false&per_page=100&topic=&with_shared=false":
+		case "/api/v4/groups/test-argocd-proton/projects?archived=false&include_subgroups=false&per_page=100", "/api/v4/groups/test-argocd-proton/projects?archived=false&include_subgroups=false&per_page=100&topic=&with_shared=false":
 			_, err := io.WriteString(w, `[{
 				"id": 27084533,
 				"description": "",
@@ -149,7 +149,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		case "/api/v4/groups/test-argocd-proton/projects?archived=true&include_subgroups=false&per_page=100", "/api/v4/groups/test-argocd-proton/projects?archived=true&include_subgroups=false&per_page=100&topic=&with_shared=false":
+		case "/api/v4/groups/test-argocd-proton/projects?include_subgroups=false&per_page=100", "/api/v4/groups/test-argocd-proton/projects?include_subgroups=false&per_page=100&topic=&with_shared=false":
 			_, err := io.WriteString(w, `[{
 				"id": 27084533,
 				"description": "",
