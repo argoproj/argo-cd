@@ -102,6 +102,32 @@ type ApplicationSpec struct {
 
 	// SourceHydrator provides a way to push hydrated manifests back to git before syncing them to the cluster.
 	SourceHydrator *SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,9,opt,name=sourceHydrator"`
+	// Reconciliation controls how often Argo CD checks this application for changes in the source.
+	Reconciliation *ApplicationReconciliation `json:"reconciliation,omitempty" protobuf:"bytes,10,opt,name=reconciliation"`
+}
+
+// ApplicationReconciliation controls the reconciliation frequency for a single application.
+type ApplicationReconciliation struct {
+	// Timeout is the maximum time between source reconciliations for the application.
+	// If unset, the controller-level timeout.reconciliation value is used.
+	Timeout *metav1.Duration `json:"timeout,omitempty" protobuf:"bytes,1,opt,name=timeout"`
+	// Jitter is the maximum random delay to add before a reconciliation refresh.
+	// If unset, the controller-level timeout.reconciliation.jitter value is used.
+	Jitter *metav1.Duration `json:"jitter,omitempty" protobuf:"bytes,2,opt,name=jitter"`
+}
+
+func (spec *ApplicationSpec) GetReconciliationTimeout(defaultTimeout time.Duration) time.Duration {
+	if spec == nil || spec.Reconciliation == nil || spec.Reconciliation.Timeout == nil {
+		return defaultTimeout
+	}
+	return spec.Reconciliation.Timeout.Duration
+}
+
+func (spec *ApplicationSpec) GetReconciliationJitter(defaultJitter time.Duration) time.Duration {
+	if spec == nil || spec.Reconciliation == nil || spec.Reconciliation.Jitter == nil {
+		return defaultJitter
+	}
+	return spec.Reconciliation.Jitter.Duration
 }
 
 type IgnoreDifferences []ResourceIgnoreDifferences

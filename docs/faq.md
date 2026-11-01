@@ -177,6 +177,18 @@ This default interval is calculated as 120 seconds + up to 60 seconds of jitter 
 timeout.reconciliation: 120s
 timeout.reconciliation.jitter: 60s 
 ```
+
+Applications can override the controller-wide default on a per-application basis:
+
+```yaml
+spec:
+  reconciliation:
+    timeout: 30s
+    jitter: 5s
+```
+
+When both the global and per-application values are set, the application-level value takes precedence.
+
 During each polling cycle, Argo CD checks whether your tracked repositories have changed. If changes are found:
 - Applications with auto-sync enabled will automatically sync to match the new state.
 - Applications without auto-sync will simply be marked as OutOfSync in the UI.

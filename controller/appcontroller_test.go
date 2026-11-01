@@ -2204,6 +2204,18 @@ func TestNeedRefreshAppStatus(t *testing.T) {
 				assert.False(t, needRefresh)
 			})
 
+			t.Run("application-level reconciliation timeout overrides controller default", func(t *testing.T) {
+				app := app.DeepCopy()
+				app.Status.ReconciledAt = &metav1.Time{Time: time.Now().UTC().Add(-2 * time.Minute)}
+				app.Spec.Reconciliation = &v1alpha1.ApplicationReconciliation{Timeout: &metav1.Duration{Duration: time.Hour}}
+				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 30*time.Minute, 2*time.Hour)
+				assert.False(t, needRefresh)
+
+				app.Spec.Reconciliation.Timeout = &metav1.Duration{Duration: time.Minute}
+				needRefresh, _, _ = ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
+				assert.True(t, needRefresh)
+			})
+
 			t.Run("requested refresh is respected", func(t *testing.T) {
 				needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 1*time.Hour, 2*time.Hour)
 				assert.False(t, needRefresh)

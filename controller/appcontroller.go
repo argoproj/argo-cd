@@ -2459,6 +2459,7 @@ func (ctrl *ApplicationController) needRefreshAppStatus(app *appv1.Application, 
 	var reason string
 	compareWith := CompareWithLatest
 	refreshType := appv1.RefreshTypeNormal
+	statusRefreshTimeout = app.Spec.GetReconciliationTimeout(statusRefreshTimeout)
 
 	softExpired, hardExpired := comparisonExpiry(app.Status, statusRefreshTimeout, statusHardRefreshTimeout)
 
@@ -3302,9 +3303,10 @@ func (ctrl *ApplicationController) applicationEventHandlerFuncs() cache.Resource
 					log.WithFields(applog.GetAppLogFields(newApp)).Info("Enabled automated sync")
 					compareWith = CompareWithLatest.Pointer()
 				}
-				if ctrl.statusRefreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
+				refreshJitter := newApp.Spec.GetReconciliationJitter(ctrl.statusRefreshJitter)
+				if refreshJitter != 0 && oldApp.ResourceVersion == newApp.ResourceVersion {
 					// Handler is refreshing the apps, add a random jitter to spread the load and avoid spikes
-					jitter := time.Duration(float64(ctrl.statusRefreshJitter) * rand.Float64())
+					jitter := time.Duration(float64(refreshJitter) * rand.Float64())
 					delay = &jitter
 				}
 			}
