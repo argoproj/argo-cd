@@ -158,6 +158,12 @@ Defines a list with backend url by cluster.
 
 Is the address where the extension backend must be available.
 
+#### `extensions.backend.services.preservePath` (_boolean_)
+(optional)
+
+If true, the full url path is preserved when proxying (will not trim /extensions/<extension-name>).
+Useful when the backend service is configured to serve content at the `/extensions/<extension-name>` path.
+
 #### `extensions.backend.services.headers` (_list_)
 
 If provided, the headers list will be added on all outgoing requests
@@ -244,6 +250,30 @@ configuration:
                                              │ Backend Service │
                                              └─────────────────┘
 ```
+
+### Path Preservation with `preservePath`
+
+Some backend services are configured to serve content at a specific base path and may
+redirect requests to establish that path context. For these services, you need to use
+`preservePath: true` to prevent infinite redirect loops.
+
+Example configuration for Argo Rollouts dashboard:
+
+```yaml
+extension.config.rollouts: |
+  services:
+  - url: http://argo-rollouts-dashboard.argo-rollouts.svc:3100/extensions/rollouts
+    preservePath: true
+```
+
+**With `preservePath: true`:**
+1. Request: `/extensions/rollouts/` → Proxied as: `/extensions/rollouts/`
+2. Backend handles the request correctly at its expected path
+
+**Without `preservePath` (causes infinite redirects):**
+1. Request: `/extensions/rollouts/` → Proxied as: `/` (path stripped)
+2. Backend redirects from `/` to `/extensions/rollouts`
+3. Browser follows redirect → infinite loop
 
 ### Incoming Request Headers
 
