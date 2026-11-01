@@ -92,7 +92,8 @@ func (m *MatrixGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.App
 				if err := mergo.Merge(&tmp, b, mergo.WithOverride); err != nil {
 					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with temp map: %w", err)
 				}
-				if err := mergo.Merge(&tmp, a, mergo.WithOverride); err != nil {
+				tmp, normalizedA := normalizeConflictingMaps(tmp, a)
+				if err := mergo.Merge(&tmp, normalizedA, mergo.WithOverride); err != nil {
 					return nil, fmt.Errorf("failed to merge params from the second generator in the matrix generator with the first: %w", err)
 				}
 				res = append(res, tmp)

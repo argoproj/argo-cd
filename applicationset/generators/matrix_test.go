@@ -1482,6 +1482,27 @@ func TestMatrixGenerateReusesSecondGeneratorParams(t *testing.T) {
 				},
 			},
 		},
+		{
+			// https://github.com/argoproj/argo-cd/issues/16417
+			name: "outer labels merge into the cluster labels",
+			elements: []apiextensionsv1.JSON{
+				{Raw: []byte(`{"metadata":{"labels":{"team":"a"}}}`)},
+			},
+			selector: metav1.LabelSelector{MatchLabels: map[string]string{"environment": "staging"}},
+			expected: []map[string]any{
+				{
+					"name":           "staging-01",
+					"nameNormalized": "staging-01",
+					"server":         "https://staging-01.example.com",
+					"project":        "",
+					"metadata": map[string]any{"labels": map[string]any{
+						"argocd.argoproj.io/secret-type": "cluster",
+						"environment":                    "staging",
+						"team":                           "a",
+					}},
+				},
+			},
+		},
 	}
 
 	for _, tc := range testCases {
