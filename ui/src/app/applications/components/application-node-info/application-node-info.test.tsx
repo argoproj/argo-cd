@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {render, screen} from '@testing-library/react';
+import {act, render, screen} from '@testing-library/react';
 import * as models from '../../../shared/models';
 import {ApplicationNodeInfo} from './application-node-info';
 
@@ -10,6 +10,10 @@ jest.mock('../../../shared/services', () => ({
             updatePreferences: jest.fn()
         }
     }
+}));
+
+jest.mock('../../../shared/components/yaml-editor/yaml-editor', () => ({
+    YamlEditor: () => null
 }));
 
 const application = {
@@ -54,5 +58,89 @@ describe('ApplicationNodeInfo', () => {
 
         expect(await screen.findByText(/extensions\/v1beta1\/ConfigMap:/)).toBeInTheDocument();
         expect(screen.getByText(/recommended syntax is v1\/ConfigMap:extra-cm/)).toBeInTheDocument();
+    });
+
+    describe('CronJob', () => {
+        const cronJobNode = {kind: 'CronJob', name: 'pod-reaper', namespace: 'default', version: 'v1', group: 'batch'} as models.ResourceNode;
+
+        const cronJobLive = (status: {lastScheduleTime?: string; lastSuccessfulTime?: string}) =>
+            ({apiVersion: 'batch/v1', kind: 'CronJob', metadata: {name: 'pod-reaper', namespace: 'default'}, status}) as unknown as models.State;
+
+        // Managed by the Application: health comes from the Application status
+        const renderCronJob = async (health: models.HealthStatusCode, status: {lastScheduleTime?: string; lastSuccessfulTime?: string}) => {
+            const summary = {
+                kind: 'CronJob',
+                name: 'pod-reaper',
+                namespace: 'default',
+                version: 'v1',
+                group: 'batch',
+                status: 'Synced',
+                health: {status: health}
+            } as models.ResourceStatus;
+            const state = {
+                targetState: {apiVersion: 'batch/v1', kind: 'CronJob'},
+                normalizedLiveState: {apiVersion: 'batch/v1', kind: 'CronJob'}
+            } as unknown as models.ResourceDiff;
+            await act(async () => {
+                render(<ApplicationNodeInfo application={application} node={cronJobNode} live={cronJobLive(status)} controlled={{summary, state}} />);
+            });
+        };
+
+        // Created by another resource: health comes from the resource tree
+        const renderChildCronJob = async (health: models.HealthStatusCode, status: {lastScheduleTime?: string; lastSuccessfulTime?: string}) => {
+            const node = {...cronJobNode, health: {status: health}} as models.ResourceNode;
+            await act(async () => {
+                render(<ApplicationNodeInfo application={application} node={node} live={cronJobLive(status)} controlled={null} />);
+            });
+        };
+
+        it('shows both times when the CronJob is degraded', async () => {
+            await renderCronJob(models.HealthStatuses.Degraded, {lastScheduleTime: '2026-10-26T16:15:00Z', lastSuccessfulTime: '2026-10-25T18:25:41Z'});
+
+            expect(screen.getByText('LAST SCHEDULED')).toBeInTheDocument();
+            expect(screen.getByText('LAST SUCCESSFUL')).toBeInTheDocument();
+        });
+
+        it('shows both times when a CronJob created by another resource is degraded', async () => {
+            await renderChildCronJob(models.HealthStatuses.Degraded, {lastScheduleTime: '2026-10-26T16:15:00Z', lastSuccessfulTime: '2026-10-25T18:25:41Z'});
+
+            expect(screen.getByText('LAST SCHEDULED')).toBeInTheDocument();
+            expect(screen.getByText('LAST SUCCESSFUL')).toBeInTheDocument();
+        });
+
+        it('shows only lastSuccessfulTime when the CronJob completed its last run successfully', async () => {
+            await renderCronJob(models.HealthStatuses.Healthy, {lastScheduleTime: '2026-10-27T14:20:00Z', lastSuccessfulTime: '2026-10-27T14:20:07Z'});
+
+            expect(screen.queryByText('LAST SCHEDULED')).not.toBeInTheDocument();
+            expect(screen.getByText('LAST SUCCESSFUL')).toBeInTheDocument();
+        });
+
+        it('shows only lastSuccessfulTime when a CronJob created by another resource completed its last run successfully', async () => {
+            await renderChildCronJob(models.HealthStatuses.Healthy, {lastScheduleTime: '2026-10-27T14:20:00Z', lastSuccessfulTime: '2026-10-27T14:20:07Z'});
+
+            expect(screen.queryByText('LAST SCHEDULED')).not.toBeInTheDocument();
+            expect(screen.getByText('LAST SUCCESSFUL')).toBeInTheDocument();
+        });
+
+        it('shows only lastSuccessfulTime when the CronJob is running', async () => {
+            await renderCronJob(models.HealthStatuses.Healthy, {lastScheduleTime: '2026-10-27T14:30:00Z', lastSuccessfulTime: '2026-10-27T14:20:07Z'});
+
+            expect(screen.queryByText('LAST SCHEDULED')).not.toBeInTheDocument();
+            expect(screen.getByText('LAST SUCCESSFUL')).toBeInTheDocument();
+        });
+
+        it('shows only lastScheduleTime when the CronJob never completed successfully', async () => {
+            await renderCronJob(models.HealthStatuses.Healthy, {lastScheduleTime: '2026-10-26T16:15:00Z'});
+
+            expect(screen.getByText('LAST SCHEDULED')).toBeInTheDocument();
+            expect(screen.queryByText('LAST SUCCESSFUL')).not.toBeInTheDocument();
+        });
+
+        it('shows no times when the CronJob has not been scheduled yet', async () => {
+            await renderCronJob(models.HealthStatuses.Healthy, {});
+
+            expect(screen.queryByText('LAST SCHEDULED')).not.toBeInTheDocument();
+            expect(screen.queryByText('LAST SUCCESSFUL')).not.toBeInTheDocument();
+        });
     });
 });
