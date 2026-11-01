@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="24 known vulnerabilities found in 668 vulnerable dependency paths.">
+  <meta name="description" content="29 known vulnerabilities found in 676 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 25th 2026, 12:34:58 am (UTC+00:00)</p>
+                <p class="timestamp">November 1st 2026, 12:26:28 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,8 +505,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>24</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>668 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>29</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>676 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>3054</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -13207,6 +13207,167 @@
         
                 <ul class="card__meta">
                     <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v4
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@0.0.0 and github.com/go-jose/go-jose/v4@4.1.5
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@4.1.5
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/coreos/go-oidc/v3/oidc@3.21.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@4.1.5
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Inefficient Algorithmic Complexity in the parsing process of JWKs containing RSA keys due to lack of size and consistency checks on RSA modulus and prime values before validation. An attacker can cause excessive CPU consumption and disrupt service availability by submitting specially crafted JWKs with large or malformed RSA parameters.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v4</code> to version 4.1.6 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-mgcc-cww5-fp2q">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/a0111f82742fa92bceec9ede40845e73319e6230">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.6">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4-21755478">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/oauth2-proxy/mockoidc@#caebfff84d25 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/oauth2-proxy/mockoidc@#caebfff84d25
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3@3.0.5
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Inefficient Algorithmic Complexity in the parsing process of JWKs containing RSA keys due to lack of size and consistency checks on RSA modulus and prime values before validation. An attacker can cause excessive CPU consumption and disrupt service availability by submitting specially crafted JWKs with large or malformed RSA parameters.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>github.com/go-jose/go-jose/v3</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-mgcc-cww5-fp2q">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/a0111f82742fa92bceec9ede40845e73319e6230">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.6">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV3-21755479">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
                         Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
                     </li>
                     <li class="card__meta__item">
@@ -13973,6 +14134,121 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-QS-19432019">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Encoding or Escaping of Output</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/package.json
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            qs
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, url@0.11.4 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        url@0.11.4
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.15.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.15.2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        superagent@8.1.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        formidable@2.1.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        qs@6.15.2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.com/package/qs">qs</a> is a querystring parser that supports nesting and arrays, with a depth limit.</p>
+        <p>Affected versions of this package are vulnerable to Improper Encoding or Escaping of Output via the <code>stringify</code> function when the <code>allowEmptyArrays</code> option is enabled. When an object key contains special characters (such as <code>&amp;</code>, <code>=</code>, or <code>#</code>) and its value is an empty array, the key is returned without encoding, allowing an attacker who controls a key name to inject arbitrary query-string parameters or URL fragments into the serialized output. A consumer that parses the resulting string will see attacker-controlled key-value pairs that were not present in the original object.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-js">var qs = require(&quot;qs&quot;);
+        
+        var query = qs.stringify({ q: &quot;hi&quot;, &quot;x&amp;apiKey=evil&amp;y&quot;: [] }, { allowEmptyArrays: true });
+        // &quot;q=hi&amp;x&amp;apiKey=evil&amp;y[]&quot;
+        qs.parse(query);
+        // { q: &quot;hi&quot;, x: &quot;&quot;, apiKey: &quot;evil&quot;, y: [&quot;&quot;] }
+        
+        qs.stringify({ &quot;x#&quot;: [], z: &quot;1&quot; }, { allowEmptyArrays: true });
+        // &quot;x#[]&amp;z=1&quot;: in a URL, everything after &quot;#&quot; becomes the fragment
+        </code></pre>
+        <p><strong>Note:</strong> The PoC uses the <code>qs</code> npm package with the <code>allowEmptyArrays</code> option and states no specific runtime version or operating system.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>qs</code> to version 6.16.2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/ljharb/qs/security/advisories/GHSA-w4cr-vjpx-p82q">GitHub Advisory</a></li>
+        <li><a href="https://github.com/ljharb/qs/commit/234d5051f5071efaa025a7ca9e4d34a56a460a1b">GitHub Commit</a></li>
+        <li><a href="https://github.com/ljharb/qs/commit/5d3b1b9ec6afd0cfc760c8e12862873789a32fc8">GitHub Commit</a></li>
+        <li><a href="https://github.com/ljharb/qs/issues/626">GitHub Issue</a></li>
+        <li><a href="https://github.com/ljharb/qs/pull/561">GitHub PR</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-QS-21755395">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -14746,6 +15022,165 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:gosimple:slug:MPL-2.0">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Uncontrolled Recursion</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v3/json
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/oauth2-proxy/mockoidc@#caebfff84d25 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/oauth2-proxy/mockoidc@#caebfff84d25
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3@3.0.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3/json@3.0.5
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Uncontrolled Recursion through the JSON parsing process. An attacker can cause the application to crash by submitting deeply nested arrays or objects, leading to stack exhaustion.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>github.com/go-jose/go-jose/v3/json</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-vvm8-gf78-28g4">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/a31af25836222f4c45d366d6e8f9b1049dd9935a">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/pull/290">GitHub PR</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV3JSON-21755482">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Improper Validation of Array Index</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> go.mod
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v3/cipher
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    github.com/argoproj/argo-cd/v3@0.0.0, github.com/oauth2-proxy/mockoidc@#caebfff84d25 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@0.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/oauth2-proxy/mockoidc@#caebfff84d25
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3@3.0.5
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v3/cipher@3.0.5
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Improper Validation of Array Index in the CBC-HMAC decryption process. An attacker can cause a panic and disrupt service availability by submitting specially crafted ciphertext that results in an empty buffer being passed to the unpadding routine. This is only exploitable if applications decrypt attacker-controlled ciphertext using A128CBC-HS256, A192CBC-HS384, or A256CBC-HS512 content-encryption algorithms.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v3/cipher</code> to version 4.1.5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-4w3g-jfj2-cw2q">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/35883f7999e87cbd1b1f4cda07fdad8cd71c3dd6">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/74114c2fa22669a2b2a296746eaa82e15566fd54">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/pull/292">GitHub PR</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV3CIPHER-21755485">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
