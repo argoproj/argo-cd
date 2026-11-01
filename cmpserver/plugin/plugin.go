@@ -131,18 +131,22 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	err = cmd.Wait()
 
 	duration := time.Since(start)
-	output := stdout.String()
+	// Strip ANSI escape sequences emitted by plugin commands that assume a
+	// color-capable terminal, so they don't render as garbage in errors or
+	// logs surfaced in the UI. See issue #4770.
+	output := argoexec.StripAnsi(stdout.String())
+	stderrStr := argoexec.StripAnsi(stderr.String())
 
 	logCtx.WithFields(log.Fields{"duration": duration}).Debug(output)
 
 	if err != nil {
-		err := newCmdError(argsToLog, errors.New(err.Error()), strings.TrimSpace(stderr.String()))
+		err := newCmdError(argsToLog, errors.New(err.Error()), strings.TrimSpace(stderrStr))
 		logCtx.Error(err.Error())
 		return strings.TrimSuffix(output, "\n"), err
 	}
 
 	logCtx = logCtx.WithFields(log.Fields{
-		"stderr":  stderr.String(),
+		"stderr":  stderrStr,
 		"command": command,
 	})
 	if output == "" {
