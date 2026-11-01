@@ -20,6 +20,7 @@ export const Help = () => {
         <Consumer>
             {() => (
                 <Page title='Help'>
+                    {settings.isRefetchError && !settings.isFetching && loadFailed(settings.refetch)}
                     <div className='row'>
                         <div className='columns large-4 small-6'>
                             <div className='help-box'>
