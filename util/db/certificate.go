@@ -60,7 +60,34 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 	if selector == nil {
 		selector = &CertificateListSelector{}
 	}
+	matchHost := func(host string) bool {
+		return certutil.MatchHostName(host, selector.HostNamePattern)
+	}
+	return db.listRepoCertificates(selector, matchHost, false)
+}
 
+// GetRepoCertificates returns all repository certificates configured for
+// exactly the given server name, including their CertData. Unlike
+// ListRepoCertificates, serverName is not treated as a glob pattern.
+//
+// A single server name can have more than one entry: one per SSH key type, or
+// one per certificate in a TLS bundle. certType and certSubType optionally
+// narrow down the result in the same way as in ListRepoCertificates.
+func (db *db) GetRepoCertificates(_ context.Context, serverName, certType, certSubType string) (*appsv1.RepositoryCertificateList, error) {
+	selector := &CertificateListSelector{
+		CertType:    certType,
+		CertSubType: certSubType,
+	}
+	matchHost := func(host string) bool {
+		return host == serverName
+	}
+	return db.listRepoCertificates(selector, matchHost, true)
+}
+
+// listRepoCertificates returns the certificates matching the type and sub type
+// of selector whose host name is accepted by matchHost. The HostNamePattern of
+// selector is ignored. CertData is only populated if includeData is true.
+func (db *db) listRepoCertificates(selector *CertificateListSelector, matchHost func(string) bool, includeData bool) (*appsv1.RepositoryCertificateList, error) {
 	certificates := make([]appsv1.RepositoryCertificate, 0)
 
 	// Get all SSH known host entries
@@ -71,13 +98,17 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 		}
 
 		for _, entry := range sshKnownHosts {
-			if matchSSHKnownHostsEntry(entry, selector) {
-				certificates = append(certificates, appsv1.RepositoryCertificate{
+			if matchHost(entry.Host) && matchCertSubType(entry.SubType, selector) {
+				certificate := appsv1.RepositoryCertificate{
 					ServerName:  entry.Host,
 					CertType:    "ssh",
 					CertSubType: entry.SubType,
 					CertInfo:    sshKnownHostsFingerprint(entry),
-				})
+				}
+				if includeData {
+					certificate.CertData = []byte(entry.Data)
+				}
+				certificates = append(certificates, certificate)
 			}
 		}
 	}
@@ -89,7 +120,7 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 			return nil, err
 		}
 		for _, entry := range tlsCertificates {
-			if certutil.MatchHostName(entry.Subject, selector.HostNamePattern) {
+			if matchHost(entry.Subject) {
 				pemEntries, err := certutil.ParseTLSCertificatesFromData(entry.Data)
 				if err != nil {
 					continue
@@ -104,12 +135,20 @@ func (db *db) ListRepoCertificates(_ context.Context, selector *CertificateListS
 						certInfo = x509Data.Subject.String()
 						certSubType = x509Data.PublicKeyAlgorithm.String()
 					}
-					certificates = append(certificates, appsv1.RepositoryCertificate{
+					certSubType = strings.ToLower(certSubType)
+					if !matchCertSubType(certSubType, selector) {
+						continue
+					}
+					certificate := appsv1.RepositoryCertificate{
 						ServerName:  entry.Subject,
 						CertType:    "https",
-						CertSubType: strings.ToLower(certSubType),
+						CertSubType: certSubType,
 						CertInfo:    certInfo,
-					})
+					}
+					if includeData {
+						certificate.CertData = []byte(pemEntry)
+					}
+					certificates = append(certificates, certificate)
 				}
 			}
 		}
@@ -482,5 +521,9 @@ func (db *db) getSSHKnownHostsData() ([]*SSHKnownHostsEntry, error) {
 }
 
 func matchSSHKnownHostsEntry(entry *SSHKnownHostsEntry, selector *CertificateListSelector) bool {
-	return certutil.MatchHostName(entry.Host, selector.HostNamePattern) && (selector.CertSubType == "" || selector.CertSubType == "*" || selector.CertSubType == entry.SubType)
+	return certutil.MatchHostName(entry.Host, selector.HostNamePattern) && matchCertSubType(entry.SubType, selector)
+}
+
+func matchCertSubType(subType string, selector *CertificateListSelector) bool {
+	return selector.CertSubType == "" || selector.CertSubType == "*" || selector.CertSubType == subType
 }

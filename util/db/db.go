@@ -98,6 +98,8 @@ type ArgoDB interface {
 
 	// ListRepoCertificates lists all configured certificates
 	ListRepoCertificates(ctx context.Context, selector *CertificateListSelector) (*appv1.RepositoryCertificateList, error)
+	// GetRepoCertificates gets all certificates of a server, including their data
+	GetRepoCertificates(ctx context.Context, serverName, certType, certSubType string) (*appv1.RepositoryCertificateList, error)
 	// CreateRepoCertificate creates a new certificate entry
 	CreateRepoCertificate(ctx context.Context, certificate *appv1.RepositoryCertificateList, upsert bool) (*appv1.RepositoryCertificateList, error)
 	// RemoveRepoCertificates removes certificates based upon a selector
