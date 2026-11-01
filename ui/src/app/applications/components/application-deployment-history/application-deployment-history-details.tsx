@@ -9,6 +9,7 @@ import {Repo, Revision} from '../../../shared/components';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {RevisionMetadataRows} from './revision-metadata-rows';
+import {RollbackPreviewDiff} from './rollback-preview-diff';
 
 type props = {
     app: models.Application;
@@ -26,6 +27,8 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
 
     const [showParameterDetails, setShowParameterDetails] = React.useState(Boolean);
     const [showSourceDetails, setShowSourceDetails] = React.useState([]);
+    const [showRollbackPreview, setShowRollbackPreview] = React.useState(false);
+    const isLatest = index === 0;
     const updateMap = (i: number) => {
         if (i === null || i === undefined) {
             return;
@@ -199,6 +202,24 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                         )}
                     </React.Fragment>
                 ))
+            )}
+            {!isLatest && (
+                <div className='rollback-preview-section'>
+                    <div className='settings-overview__redirect-panel collapsible-section' onClick={() => setShowRollbackPreview(!showRollbackPreview)}>
+                        <div className='editable-panel__collapsible-button'>
+                            <i className={`fa fa-angle-${showRollbackPreview ? 'up' : 'down'} filter__collapse editable-panel__collapsible-button__override`} />
+                        </div>
+                        <div style={{textAlign: 'center'}}>
+                            <div className='settings-overview__redirect-panel__title'>Rollback Diff</div>
+                            <div className='settings-overview__redirect-panel__description'>What would change if you rolled back to this revision</div>
+                        </div>
+                    </div>
+                    {showRollbackPreview && (
+                        <div className={classNames('white-box', 'collapsible-section')}>
+                            <RollbackPreviewDiff app={app} info={info} />
+                        </div>
+                    )}
+                </div>
             )}
         </>
     );
