@@ -2,11 +2,14 @@ package progressivesync
 
 import (
 	"testing"
+	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
@@ -17,9 +20,9 @@ import (
 // must only report a spec change when the write path would actually rewrite the spec. See
 // utils.SpecsEquivalent for why reporting one it will not act on cannot converge.
 //
-// Both cases below place the Application in a state where it is NOT (Synced and Healthy). That
-// matters: a Synced+Healthy Application has its Waiting status immediately overwritten with Healthy,
-// which masks the bug entirely and is why it is not universal.
+// The first cases below place the Application in a state where it is NOT (Synced and Healthy),
+// so the status transitions cannot mask a wrongly reported spec change. The later cases cover
+// the Synced and Healthy states directly, including the pass after the new spec is written.
 
 // helper: a progressive-sync ApplicationSet with a single RollingSync step.
 func regressionAppSet(ignore argov1alpha1.ApplicationSetIgnoreDifferences) argov1alpha1.ApplicationSet {
@@ -48,7 +51,8 @@ func regressionAppSet(ignore argov1alpha1.ApplicationSetIgnoreDifferences) argov
 	}
 }
 
-// helper: an Application that is deliberately not Synced, so a Waiting status is not overwritten.
+// helper: an Application whose sync status defaults to Unknown; tests that need a Synced
+// app (or a comparedTo snapshot) set those fields explicitly.
 func regressionApp(rev string, automatedEnabled *bool) argov1alpha1.Application {
 	app := argov1alpha1.Application{
 		APIVersion: "argoproj.io/v1alpha1", Kind: "Application",
@@ -166,6 +170,177 @@ func TestInvalidIgnoreRuleDoesNotReportSpecChange(t *testing.T) {
 	assert.NotContains(t, statuses[0].Message, "spec differs",
 		"with an unusable ignore rule the comparison cannot be trusted, so the status must not claim "+
 			"a spec change; the write path is erroring, so a change reported here can never be acted on")
+}
+
+// A spec change detected while the live Application is still Synced and Healthy (it has
+// only synced the old spec; the new spec is written later in the reconcile) must leave
+// the Application Waiting, so that SyncDesiredApplications picks it up. Promoting it to
+// Healthy in the same pass strands it OutOfSync with no further trigger to sync. This
+// holds regardless of the previous progressive status: with a Healthy prior status the
+// live app's Synced state still describes the old spec, and with a Progressing prior
+// status the current-revision progress evaluation must not promote the app to Healthy
+// off that same stale Synced state.
+func TestSpecChangedKeepsWaitingWhenLiveAppStillSynced(t *testing.T) {
+	t.Parallel()
+
+	for _, priorStatus := range []argov1alpha1.ProgressiveSyncStatusCode{
+		argov1alpha1.ProgressiveSyncHealthy,
+		argov1alpha1.ProgressiveSyncProgressing,
+	} {
+		t.Run(string(priorStatus), func(t *testing.T) {
+			t.Parallel()
+
+			appSet := regressionAppSet(nil)
+			appSet.Status.ApplicationStatus[0].Status = priorStatus
+			live := regressionApp("refs/heads/does-not-exist", new(false))
+			live.Status.Sync.Status = argov1alpha1.SyncStatusCodeSynced
+			desired := regressionApp("HEAD", new(false))
+
+			m := regressionManager(t, &appSet)
+			statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+				&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+				map[string]int{"storm-a": 0})
+			require.NoError(t, err)
+			require.Len(t, statuses, 1)
+
+			assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
+				"a spec change detected in this pass must stay Waiting even though the live app "+
+					"is Synced and Healthy for the old spec: %s", statuses[0].Message)
+			assert.Contains(t, statuses[0].Message, "spec differs")
+		})
+	}
+}
+
+// A spec change detected while the previous progressive status is Pending must also stay
+// Waiting: a sync operation that started after the Pending transition belongs to the old
+// spec, so it must not move the app to Progressing before the new spec has been synced.
+func TestSpecChangedKeepsWaitingFromPending(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	transitioned := metav1.NewTime(time.Now().Add(-time.Hour))
+	appSet.Status.ApplicationStatus[0].Status = argov1alpha1.ProgressiveSyncPending
+	appSet.Status.ApplicationStatus[0].LastTransitionTime = &transitioned
+	live := regressionApp("refs/heads/does-not-exist", new(false))
+	live.Status.OperationState = &argov1alpha1.OperationState{
+		Phase:     synccommon.OperationRunning,
+		StartedAt: metav1.NewTime(time.Now().Add(-time.Minute)),
+	}
+	desired := regressionApp("HEAD", new(false))
+
+	m := regressionManager(t, &appSet)
+	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+		map[string]int{"storm-a": 0})
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
+		"a spec change detected in this pass must stay Waiting even when the previous status "+
+			"is Pending and a sync of the old spec has started: %s", statuses[0].Message)
+	assert.Contains(t, statuses[0].Message, "spec differs")
+}
+
+// Pass 2 of a spec change: the new spec has been written (live == desired, so specChanged
+// is false) and the ApplicationSet status is still Waiting, but the application controller
+// has not compared the new spec yet, so sync.status and comparedTo still describe the old
+// spec. The stale Synced status must not promote the app to Healthy.
+func TestSpecChangedSecondPassStaleSyncStatusKeepsWaiting(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	appSet.Status.ApplicationStatus[0].Status = argov1alpha1.ProgressiveSyncWaiting
+	appSet.Status.ApplicationStatus[0].Message = specChangedMsg
+
+	helmParamApp := func(enabled string) argov1alpha1.Application {
+		app := regressionApp("HEAD", new(false))
+		app.Spec.Source.Helm = &argov1alpha1.ApplicationSourceHelm{
+			Parameters: []argov1alpha1.HelmParameter{{Name: "enabled", Value: enabled}},
+		}
+		return app
+	}
+
+	old := helmParamApp("true")
+	live := helmParamApp("false")
+	live.Status.Sync.Status = argov1alpha1.SyncStatusCodeSynced
+	live.Status.Sync.ComparedTo = argov1alpha1.ComparedTo{Source: *old.Spec.Source, Destination: old.Spec.Destination}
+	desired := helmParamApp("false")
+
+	m := regressionManager(t, &appSet)
+	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+		map[string]int{"storm-a": 0})
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
+		"sync status computed for the old spec must not promote the app: %s", statuses[0].Message)
+}
+
+// Pass 2 of a managed-namespace-metadata change: the new spec has been written (live ==
+// desired, so specChanged is false) and comparedTo still matches, because comparedTo does
+// not record managed namespace metadata. The last sync result still holds the old
+// metadata, which is exactly what the application controller treats as a stale sync
+// status in needRefreshAppStatus (HasChangedManagedNamespaceMetadata), so the stale
+// Synced status must not promote the app to Healthy.
+func TestSpecChangedSecondPassStaleManagedNamespaceMetadataKeepsWaiting(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	appSet.Status.ApplicationStatus[0].Status = argov1alpha1.ProgressiveSyncWaiting
+	appSet.Status.ApplicationStatus[0].Message = specChangedMsg
+
+	live := regressionApp("HEAD", new(false))
+	live.Spec.SyncPolicy.ManagedNamespaceMetadata = &argov1alpha1.ManagedNamespaceMetadata{
+		Labels: map[string]string{"team": "new"},
+	}
+	live.Status.Sync.Status = argov1alpha1.SyncStatusCodeSynced
+	live.Status.Sync.ComparedTo = argov1alpha1.ComparedTo{Source: *live.Spec.Source, Destination: live.Spec.Destination}
+	live.Status.OperationState = &argov1alpha1.OperationState{
+		SyncResult: &argov1alpha1.SyncOperationResult{
+			ManagedNamespaceMetadata: &argov1alpha1.ManagedNamespaceMetadata{
+				Labels: map[string]string{"team": "old"},
+			},
+		},
+	}
+	desired := live.DeepCopy()
+
+	m := regressionManager(t, &appSet)
+	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{*desired},
+		map[string]int{"storm-a": 0})
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncWaiting, statuses[0].Status,
+		"sync status computed before the managed namespace metadata change must not promote the app: %s", statuses[0].Message)
+}
+
+// A revision change alone, where the Application has already synced the new revision,
+// must still be promoted from Waiting to Healthy in the same pass.
+func TestRevisionChangedStillPromotesToHealthy(t *testing.T) {
+	t.Parallel()
+
+	appSet := regressionAppSet(nil)
+	appSet.Status.ApplicationStatus[0].TargetRevisions = []string{"old456"}
+	live := regressionApp("HEAD", new(false))
+	live.Status.Sync.Status = argov1alpha1.SyncStatusCodeSynced
+	// The application controller always sets comparedTo for the spec it compared; a
+	// revision-only change whose new revision is already synced has comparedTo matching
+	// the current spec, so the sync status can be trusted.
+	live.Status.Sync.ComparedTo = argov1alpha1.ComparedTo{Source: *live.Spec.Source, Destination: live.Spec.Destination}
+	desired := regressionApp("HEAD", new(false))
+
+	m := regressionManager(t, &appSet)
+	statuses, err := m.UpdateApplicationSetApplicationStatus(t.Context(), log.NewEntry(log.New()),
+		&appSet, []argov1alpha1.Application{live}, []argov1alpha1.Application{desired},
+		map[string]int{"storm-a": 0})
+	require.NoError(t, err)
+	require.Len(t, statuses, 1)
+
+	assert.Equal(t, argov1alpha1.ProgressiveSyncHealthy, statuses[0].Status,
+		"a revision-only change whose new revision is already synced must promote to Healthy: %s",
+		statuses[0].Message)
 }
 
 // disableAutomatedSync is the single definition of the rule, used by both the writer and the comparer.
