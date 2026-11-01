@@ -17,8 +17,19 @@ with at least one value for `hostname` or `IP`.
 * The `status.loadBalancer.ingress` list is non-empty, with at least one value for `hostname` or `IP`.
 
 ### CronJob
-* If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
-* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Healthy"
+
+The built-in CronJob health check evaluates the CronJob's scheduling and execution status as follows:
+
+* If the CronJob is suspended with `spec.suspend: true`, it is marked as "Healthy" with the message "CronJob is Suspended". It is not marked as "Suspended".
+* If the CronJob has not been scheduled yet, it is marked as "Healthy".
+* If the CronJob has a scheduled run but has never completed a job successfully (`status.lastSuccessfulTime` is unset), it is marked as "Healthy", because Argo CD cannot determine whether it has failed or has not completed its first successful run.
+* If a job is active, the CronJob is marked as "Healthy", even if its last execution may not have been successful.
+* If no job is active and the last scheduled execution is later than the last successful execution, the CronJob is marked as "Degraded".
+* Otherwise, the CronJob is marked as "Healthy".
+
+These behaviors reflect the information available in the Kubernetes CronJob status; in particular, an active job can prevent Argo CD from determining the outcome of the most recent completed execution. See the [3.1 to 3.2 upgrade notes](./upgrading/overview.md) for related context.
+
+If you need a CronJob to be excluded from its Application's health calculation, use the `argocd.argoproj.io/ignore-healthcheck: "true"` annotation. Alternatively, configure a custom health check with the `resource.customizations.health.batch_CronJob` key in the `argocd-cm` ConfigMap.
 
 ### Job
 * If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
@@ -180,7 +191,7 @@ The custom health check might return one of the following health statuses:
   * `Healthy` - the resource is healthy
   * `Progressing` - the resource is not healthy yet but still making progress and might be healthy soon
   * `Degraded` - the resource is degraded
-  * `Suspended` - the resource is suspended and waiting for some external event to resume (e.g. suspended CronJob or paused Deployment)
+  * `Suspended` - the resource is suspended and waiting for some external event to resume (e.g. a paused Deployment)
 
 By default, health typically returns a `Progressing` status.
 
