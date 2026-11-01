@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
@@ -18,6 +17,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+
+	diff_util "github.com/argoproj/argo-cd/v3/util/diff"
 
 	"k8s.io/utils/ptr"
 
@@ -70,11 +71,11 @@ func mockManifestProvider(manifests []*unstructured.Unstructured) manifestProvid
 
 // mockDiffStrategy creates a mock diffStrategy that marks all items as modified
 func mockDiffStrategyAllModified() diffStrategy {
-	return func(_ context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
+	return func(_ context.Context, items []diff_util.ComparisonObject) ([]*diff.DiffResult, error) {
 		results := make([]*diff.DiffResult, len(items))
 		for i, item := range items {
-			liveBytes, _ := json.Marshal(item.live)
-			targetBytes, _ := json.Marshal(item.target)
+			liveBytes, _ := json.Marshal(item.Live)
+			targetBytes, _ := json.Marshal(item.Target)
 			results[i] = &diff.DiffResult{
 				Modified:       true,
 				NormalizedLive: liveBytes,
@@ -87,7 +88,7 @@ func mockDiffStrategyAllModified() diffStrategy {
 
 // mockDiffStrategyNoneModified creates a mock diffStrategy that marks no items as modified
 func mockDiffStrategyNoneModified() diffStrategy {
-	return func(_ context.Context, items []comparisonObject) ([]*diff.DiffResult, error) {
+	return func(_ context.Context, items []diff_util.ComparisonObject) ([]*diff.DiffResult, error) {
 		results := make([]*diff.DiffResult, len(items))
 		for i := range items {
 			results[i] = &diff.DiffResult{
@@ -128,10 +129,10 @@ func TestCompareManifests_DefaultCase(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	assert.Equal(t, "Deployment", results[0].key.Kind)
-	assert.Equal(t, "test-deployment", results[0].key.Name)
-	assert.NotNil(t, results[0].live)
-	assert.NotNil(t, results[0].target)
+	assert.Equal(t, "Deployment", results[0].Key.Kind)
+	assert.Equal(t, "test-deployment", results[0].Key.Name)
+	assert.NotNil(t, results[0].Live)
+	assert.NotNil(t, results[0].Target)
 }
 
 // TestComputeDiff_AddedResource tests when a resource exists in target but not live
@@ -155,10 +156,10 @@ func TestCompareManifests_AddedResource(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	assert.Equal(t, "Deployment", results[0].key.Kind)
-	assert.Equal(t, "new-deployment", results[0].key.Name)
-	assert.Nil(t, results[0].live)
-	assert.NotNil(t, results[0].target)
+	assert.Equal(t, "Deployment", results[0].Key.Kind)
+	assert.Equal(t, "new-deployment", results[0].Key.Name)
+	assert.Nil(t, results[0].Live)
+	assert.NotNil(t, results[0].Target)
 }
 
 // TestComputeDiff_RemovedResource tests when a resource exists in live but not target
@@ -182,10 +183,10 @@ func TestCompareManifests_RemovedResource(t *testing.T) {
 
 	require.NoError(t, err)
 	require.Len(t, results, 1)
-	assert.Equal(t, "Deployment", results[0].key.Kind)
-	assert.Equal(t, "old-deployment", results[0].key.Name)
-	assert.NotNil(t, results[0].live)
-	assert.Nil(t, results[0].target)
+	assert.Equal(t, "Deployment", results[0].Key.Kind)
+	assert.Equal(t, "old-deployment", results[0].Key.Name)
+	assert.NotNil(t, results[0].Live)
+	assert.Nil(t, results[0].Target)
 }
 
 // TestComputeDiff_MultipleResources tests handling multiple resources
@@ -236,15 +237,15 @@ func TestCompareManifests_MultipleResources(t *testing.T) {
 	deploymentFound := false
 	serviceFound := false
 	for _, result := range results {
-		if result.key.Kind == "Deployment" && result.key.Name == "test-deployment" {
+		if result.Key.Kind == "Deployment" && result.Key.Name == "test-deployment" {
 			deploymentFound = true
-			assert.NotNil(t, result.live)
-			assert.NotNil(t, result.target)
+			assert.NotNil(t, result.Live)
+			assert.NotNil(t, result.Target)
 		}
-		if result.key.Kind == "Service" && result.key.Name == "test-service" {
+		if result.Key.Kind == "Service" && result.Key.Name == "test-service" {
 			serviceFound = true
-			assert.NotNil(t, result.live)
-			assert.NotNil(t, result.target)
+			assert.NotNil(t, result.Live)
+			assert.NotNil(t, result.Target)
 		}
 	}
 	assert.True(t, deploymentFound, "Deployment should be found")
@@ -318,19 +319,19 @@ func TestCompareManifests_MixedAddedRemovedModified(t *testing.T) {
 	addedFound := false
 
 	for _, result := range results {
-		switch result.key.Name {
+		switch result.Key.Name {
 		case "modified-deployment":
 			modifiedFound = true
-			assert.NotNil(t, result.live)
-			assert.NotNil(t, result.target)
+			assert.NotNil(t, result.Live)
+			assert.NotNil(t, result.Target)
 		case "removed-service":
 			removedFound = true
-			assert.NotNil(t, result.live)
-			assert.Nil(t, result.target)
+			assert.NotNil(t, result.Live)
+			assert.Nil(t, result.Target)
 		case "added-configmap":
 			addedFound = true
-			assert.Nil(t, result.live)
-			assert.NotNil(t, result.target)
+			assert.Nil(t, result.Live)
+			assert.NotNil(t, result.Target)
 		}
 	}
 
@@ -716,12 +717,12 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 			},
 		}, nil)
 
-		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd", 5, 1024)
-		items := []comparisonObject{
+		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd")
+		items := []diff_util.ComparisonObject{
 			{
-				key:    deploymentKey,
-				live:   deployment,
-				target: deployment,
+				Key:    deploymentKey,
+				Live:   deployment,
+				Target: deployment,
 			},
 		}
 
@@ -739,8 +740,8 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 		app := createTestApp("test-app", "argocd")
 		mockClient := applicationmocks.NewApplicationServiceClient(t)
 
-		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd", 5, 1024)
-		results, err := strategy(ctx, []comparisonObject{})
+		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd")
+		results, err := strategy(ctx, []diff_util.ComparisonObject{})
 
 		require.NoError(t, err)
 		assert.Empty(t, results)
@@ -752,12 +753,12 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 
 		mockClient.On("ServerSideDiff", mock.Anything, mock.Anything).Return(nil, errors.New("API error"))
 
-		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd", 5, 1024)
-		items := []comparisonObject{
+		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd")
+		items := []diff_util.ComparisonObject{
 			{
-				key:    deploymentKey,
-				live:   deployment,
-				target: deployment,
+				Key:    deploymentKey,
+				Live:   deployment,
+				Target: deployment,
 			},
 		}
 
@@ -796,10 +797,10 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 			},
 		}, nil)
 
-		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd", 5, 1024)
-		items := []comparisonObject{
-			{key: deploymentKey, live: deployment, target: deployment},
-			{key: serviceKey, live: service, target: service},
+		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd")
+		items := []diff_util.ComparisonObject{
+			{Key: deploymentKey, Live: deployment, Target: deployment},
+			{Key: serviceKey, Live: service, Target: service},
 		}
 
 		results, err := strategy(ctx, items)
@@ -808,202 +809,6 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 		require.Len(t, results, 2)
 		assert.True(t, results[0].Modified)
 		assert.False(t, results[1].Modified)
-		mockClient.AssertExpectations(t)
-	})
-
-	t.Run("Respects batch size limit", func(t *testing.T) {
-		app := createTestApp("test-app", "argocd")
-		mockClient := applicationmocks.NewApplicationServiceClient(t)
-
-		// Create resources with large state to exceed batch size
-		largeData := make([]byte, 600*1024) // 600KB per resource
-		for i := range largeData {
-			largeData[i] = 'x'
-		}
-		largeState := string(largeData)
-
-		// Mock expects 2 separate calls because each resource is ~600KB
-		// and maxBatchKB is 1024KB (1MB), so they won't fit in one batch
-		mockClient.On("ServerSideDiff", mock.Anything, mock.MatchedBy(func(query *applicationpkg.ApplicationServerSideDiffQuery) bool {
-			// First batch should have 1 resource
-			return len(query.LiveResources) == 1
-		})).Return(&applicationpkg.ApplicationServerSideDiffResponse{
-			Items: []*v1alpha1.ResourceDiff{
-				{
-					Modified:    true,
-					LiveState:   `{"kind":"Deployment1"}`,
-					TargetState: `{"kind":"Deployment1"}`,
-				},
-			},
-		}, nil).Once()
-
-		mockClient.On("ServerSideDiff", mock.Anything, mock.MatchedBy(func(query *applicationpkg.ApplicationServerSideDiffQuery) bool {
-			// Second batch should have 1 resource
-			return len(query.LiveResources) == 1
-		})).Return(&applicationpkg.ApplicationServerSideDiffResponse{
-			Items: []*v1alpha1.ResourceDiff{
-				{
-					Modified:    false,
-					LiveState:   `{"kind":"Deployment2"}`,
-					TargetState: `{"kind":"Deployment2"}`,
-				},
-			},
-		}, nil).Once()
-
-		deployment1 := createTestUnstructured(&appsv1.Deployment{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-			Name:       "deployment1",
-			Namespace:  "default",
-		})
-		deployment1.Object["largeData"] = largeState
-
-		deployment2 := createTestUnstructured(&appsv1.Deployment{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-			Name:       "deployment2",
-			Namespace:  "default",
-		})
-		deployment2.Object["largeData"] = largeState
-
-		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd", 5, 1024)
-		items := []comparisonObject{
-			{key: kube.GetResourceKey(deployment1), live: deployment1, target: deployment1},
-			{key: kube.GetResourceKey(deployment2), live: deployment2, target: deployment2},
-		}
-
-		results, err := strategy(ctx, items)
-
-		require.NoError(t, err)
-		require.Len(t, results, 2)
-		// Verify both results are present (order may vary due to parallel processing)
-		modifiedCount := 0
-		for _, result := range results {
-			if result.Modified {
-				modifiedCount++
-			}
-		}
-		assert.Equal(t, 1, modifiedCount, "Expected exactly 1 modified resource")
-		mockClient.AssertExpectations(t)
-	})
-
-	t.Run("Batches resources efficiently within size limit", func(t *testing.T) {
-		app := createTestApp("test-app", "argocd")
-		mockClient := applicationmocks.NewApplicationServiceClient(t)
-
-		// Create 3 small resources that should fit in one batch
-		smallData := make([]byte, 100*1024) // 100KB per resource = 300KB total
-		for i := range smallData {
-			smallData[i] = 'y'
-		}
-		smallState := string(smallData)
-
-		// Mock expects only 1 call because all 3 resources fit in 1MB batch
-		mockClient.On("ServerSideDiff", mock.Anything, mock.MatchedBy(func(query *applicationpkg.ApplicationServerSideDiffQuery) bool {
-			// Should batch all 3 resources together
-			return len(query.LiveResources) == 3
-		})).Return(&applicationpkg.ApplicationServerSideDiffResponse{
-			Items: []*v1alpha1.ResourceDiff{
-				{
-					Modified:    true,
-					LiveState:   `{"kind":"Deployment1"}`,
-					TargetState: `{"kind":"Deployment1"}`,
-				},
-				{
-					Modified:    false,
-					LiveState:   `{"kind":"Deployment2"}`,
-					TargetState: `{"kind":"Deployment2"}`,
-				},
-				{
-					Modified:    true,
-					LiveState:   `{"kind":"Deployment3"}`,
-					TargetState: `{"kind":"Deployment3"}`,
-				},
-			},
-		}, nil).Once()
-
-		deployment1 := createTestUnstructured(&appsv1.Deployment{
-			APIVersion: "apps/v1", Kind: "Deployment",
-			Name: "deployment1", Namespace: "default",
-		})
-		deployment1.Object["smallData"] = smallState
-
-		deployment2 := createTestUnstructured(&appsv1.Deployment{
-			APIVersion: "apps/v1", Kind: "Deployment",
-			Name: "deployment2", Namespace: "default",
-		})
-		deployment2.Object["smallData"] = smallState
-
-		deployment3 := createTestUnstructured(&appsv1.Deployment{
-			APIVersion: "apps/v1", Kind: "Deployment",
-			Name: "deployment3", Namespace: "default",
-		})
-		deployment3.Object["smallData"] = smallState
-
-		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd", 5, 1024)
-		items := []comparisonObject{
-			{key: kube.GetResourceKey(deployment1), live: deployment1, target: deployment1},
-			{key: kube.GetResourceKey(deployment2), live: deployment2, target: deployment2},
-			{key: kube.GetResourceKey(deployment3), live: deployment3, target: deployment3},
-		}
-
-		results, err := strategy(ctx, items)
-
-		require.NoError(t, err)
-		require.Len(t, results, 3)
-		assert.True(t, results[0].Modified)
-		assert.False(t, results[1].Modified)
-		assert.True(t, results[2].Modified)
-		mockClient.AssertExpectations(t)
-	})
-
-	t.Run("Respects concurrency limit", func(t *testing.T) {
-		app := createTestApp("test-app", "argocd")
-		mockClient := applicationmocks.NewApplicationServiceClient(t)
-
-		// Create 5 resources with large state to force 5 separate batches
-		largeData := make([]byte, 1200*1024) // 1.2MB per resource (exceeds 1MB batch limit)
-		for i := range largeData {
-			largeData[i] = 'z'
-		}
-		largeState := string(largeData)
-
-		// Mock expects 5 separate calls (one per resource)
-		for i := range 5 {
-			mockClient.On("ServerSideDiff", mock.Anything, mock.MatchedBy(func(query *applicationpkg.ApplicationServerSideDiffQuery) bool {
-				return len(query.LiveResources) == 1
-			})).Return(&applicationpkg.ApplicationServerSideDiffResponse{
-				Items: []*v1alpha1.ResourceDiff{
-					{
-						Modified:    i%2 == 0,
-						LiveState:   fmt.Sprintf(`{"kind":"Deployment%d"}`, i),
-						TargetState: fmt.Sprintf(`{"kind":"Deployment%d"}`, i),
-					},
-				},
-			}, nil).Once()
-		}
-
-		items := make([]comparisonObject, 5)
-		for i := range 5 {
-			deployment := createTestUnstructured(&appsv1.Deployment{
-				APIVersion: "apps/v1", Kind: "Deployment",
-				Name:      fmt.Sprintf("deployment%d", i),
-				Namespace: "default",
-			})
-			deployment.Object["largeData"] = largeState
-			items[i] = comparisonObject{
-				key:    kube.GetResourceKey(deployment),
-				live:   deployment,
-				target: deployment,
-			}
-		}
-
-		// Set concurrency to 2 - should process batches in parallel up to this limit
-		strategy := newServerSideDiffStrategy(app, mockClient, "test-app", "argocd", 2, 1024)
-		results, err := strategy(ctx, items)
-
-		require.NoError(t, err)
-		require.Len(t, results, 5)
 		mockClient.AssertExpectations(t)
 	})
 }
@@ -1041,11 +846,11 @@ func TestNewClientSideDiffStrategy(t *testing.T) {
 		strategy, err := newClientSideDiffStrategy(app, settings, normalizers.IgnoreNormalizerOpts{})
 		require.NoError(t, err)
 
-		items := []comparisonObject{
+		items := []diff_util.ComparisonObject{
 			{
-				key:    kube.GetResourceKey(deployment),
-				live:   deployment,
-				target: modifiedDeployment,
+				Key:    kube.GetResourceKey(deployment),
+				Live:   deployment,
+				Target: modifiedDeployment,
 			},
 		}
 
@@ -1069,11 +874,11 @@ func TestNewClientSideDiffStrategy(t *testing.T) {
 		strategy, err := newClientSideDiffStrategy(app, settings, normalizers.IgnoreNormalizerOpts{})
 		require.NoError(t, err)
 
-		items := []comparisonObject{
+		items := []diff_util.ComparisonObject{
 			{
-				key:    kube.GetResourceKey(deployment),
-				live:   deployment,
-				target: deployment,
+				Key:    kube.GetResourceKey(deployment),
+				Live:   deployment,
+				Target: deployment,
 			},
 		}
 
@@ -1104,9 +909,9 @@ func TestNewClientSideDiffStrategy(t *testing.T) {
 		strategy, err := newClientSideDiffStrategy(app, settings, normalizers.IgnoreNormalizerOpts{})
 		require.NoError(t, err)
 
-		items := []comparisonObject{
-			{key: kube.GetResourceKey(deployment), live: deployment, target: modifiedDeployment},
-			{key: kube.GetResourceKey(service), live: service, target: service},
+		items := []diff_util.ComparisonObject{
+			{Key: kube.GetResourceKey(deployment), Live: deployment, Target: modifiedDeployment},
+			{Key: kube.GetResourceKey(service), Live: service, Target: service},
 		}
 
 		results, err := strategy(ctx, items)
@@ -1130,7 +935,7 @@ func TestNewClientSideDiffStrategy(t *testing.T) {
 		strategy, err := newClientSideDiffStrategy(app, settings, normalizers.IgnoreNormalizerOpts{})
 		require.NoError(t, err)
 
-		results, err := strategy(ctx, []comparisonObject{})
+		results, err := strategy(ctx, []diff_util.ComparisonObject{})
 
 		require.NoError(t, err)
 		assert.Empty(t, results)
@@ -1149,11 +954,11 @@ func TestNewClientSideDiffStrategy(t *testing.T) {
 		strategy, err := newClientSideDiffStrategy(app, settings, normalizers.IgnoreNormalizerOpts{})
 		require.NoError(t, err)
 
-		items := []comparisonObject{
+		items := []diff_util.ComparisonObject{
 			{
-				key:    kube.GetResourceKey(deployment),
-				live:   nil, // Resource being added
-				target: deployment,
+				Key:    kube.GetResourceKey(deployment),
+				Live:   nil, // Resource being added
+				Target: deployment,
 			},
 		}
 
@@ -1177,11 +982,11 @@ func TestNewClientSideDiffStrategy(t *testing.T) {
 		strategy, err := newClientSideDiffStrategy(app, settings, normalizers.IgnoreNormalizerOpts{})
 		require.NoError(t, err)
 
-		items := []comparisonObject{
+		items := []diff_util.ComparisonObject{
 			{
-				key:    kube.GetResourceKey(deployment),
-				live:   deployment,
-				target: nil, // Resource being deleted
+				Key:    kube.GetResourceKey(deployment),
+				Live:   deployment,
+				Target: nil, // Resource being deleted
 			},
 		}
 
@@ -1373,4 +1178,22 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 		assert.NotNil(t, labels)
 		assert.Equal(t, "test-app", labels["app.kubernetes.io/instance"])
 	})
+}
+
+func TestExcludeLiveSecrets(t *testing.T) {
+	secret := createTestUnstructured(&corev1.Secret{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "Secret"}, ObjectMeta: metav1.ObjectMeta{Name: "s", Namespace: "default"}})
+	cm := createTestUnstructured(&corev1.ConfigMap{TypeMeta: metav1.TypeMeta{APIVersion: "v1", Kind: "ConfigMap"}, ObjectMeta: metav1.ObjectMeta{Name: "c", Namespace: "default"}})
+
+	results := []diff_util.ComparisonObject{
+		{Key: kube.GetResourceKey(secret), Live: secret},
+		{Key: kube.GetResourceKey(secret), Live: secret, Target: secret},
+		{Key: kube.GetResourceKey(secret), Target: secret},
+		{Key: kube.GetResourceKey(cm), Live: cm},
+	}
+
+	filtered := excludeLiveSecrets(results)
+
+	require.Len(t, filtered, 2)
+	assert.Equal(t, results[2], filtered[0])
+	assert.Equal(t, results[3], filtered[1])
 }
