@@ -3,6 +3,7 @@ package repository
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -42,6 +43,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -104,6 +106,7 @@ type Service struct {
 	newOCIClient              func(repoURL string, creds oci.Creds, proxy string, noProxy string, mediaTypes []string, opts ...oci.ClientOpts) (oci.Client, error)
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
+	helmRepositoryTestGroup   singleflight.Group
 	initConstants             RepoServerInitConstants
 	// stores cached symlink validation results
 	symlinksState *gocache.Cache
@@ -3256,7 +3259,10 @@ func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequ
 }
 
 func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositoryRequest) (*apiclient.TestRepositoryResponse, error) {
-	repo := q.Repo
+	if q == nil || q.Repo == nil {
+		return nil, status.Error(codes.InvalidArgument, "repository is required")
+	}
+	repo := q.Repo.DeepCopy()
 	// per Type doc, "git" should be assumed if empty or absent
 	if repo.Type == "" {
 		repo.Type = "git"
@@ -3275,19 +3281,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 			return err
 		},
 		"helm": func() error {
-			if repo.EnableOCI {
-				if !helm.IsHelmOciRepo(repo.Repo) {
-					return errors.New("OCI Helm repository URL should include hostname and port only")
-				}
-				clientOpts := []helm.ClientOpts{}
-				if repo.InsecureOCIForceHttp {
-					clientOpts = append(clientOpts, helm.WithPlainHTTP())
-				}
-				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, clientOpts...).TestHelmOCI(ctx)
-				return err
-			}
-			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(ctx, false, s.initConstants.HelmRegistryMaxIndexSize)
-			return err
+			return s.testHelmRepository(ctx, repo)
 		},
 	}
 	apiResp := &apiclient.TestRepositoryResponse{VerifiedRepository: false}
@@ -3300,6 +3294,54 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 		return apiResp, fmt.Errorf("error testing repository connectivity: %w", err)
 	}
 	return apiResp, nil
+}
+
+const helmRepositoryTestTimeout = time.Minute
+
+func helmRepositoryTestKey(repo *v1alpha1.Repository) (string, error) {
+	// Hash the complete configuration to keep credentials out of the key and
+	// isolate checks whenever repository settings or authentication change.
+	data, err := json.Marshal(repo)
+	if err != nil {
+		return "", fmt.Errorf("error encoding repository configuration: %w", err)
+	}
+	return fmt.Sprintf("%x", sha256.Sum256(data)), nil
+}
+
+func (s *Service) testHelmRepository(ctx context.Context, repo *v1alpha1.Repository) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	key, err := helmRepositoryTestKey(repo)
+	if err != nil {
+		return err
+	}
+	result := s.helmRepositoryTestGroup.DoChan(key, func() (any, error) {
+		// Each caller can stop waiting independently. Bound the shared check
+		// without letting the first caller cancel it for the remaining callers.
+		checkCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), helmRepositoryTestTimeout)
+		defer cancel()
+		if repo.EnableOCI && !helm.IsHelmOciRepo(repo.Repo) {
+			return nil, errors.New("OCI Helm repository URL should include hostname and port only")
+		}
+		var opts []helm.ClientOpts
+		if repo.EnableOCI && repo.InsecureOCIForceHttp {
+			opts = append(opts, helm.WithPlainHTTP())
+		}
+		client := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, opts...)
+		if repo.EnableOCI {
+			_, err := client.TestHelmOCI(checkCtx)
+			return nil, err
+		}
+		_, err := client.GetIndex(checkCtx, false, s.initConstants.HelmRegistryMaxIndexSize)
+		return nil, err
+	})
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case checked := <-result:
+		return checked.Err
+	}
 }
 
 // ResolveRevision resolves the revision/ambiguousRevision specified in the ResolveRevisionRequest request into a concrete revision.
