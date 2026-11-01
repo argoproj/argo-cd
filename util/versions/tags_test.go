@@ -218,6 +218,35 @@ func TestMaxVersion_WithTagPrefix(t *testing.T) {
 		assert.Equal(t, "prod/1.0.2-20260309-193104-150", version)
 	})
 
+	t.Run("tag with leading-zero numeric prerelease in mix is skipped", func(t *testing.T) {
+		t.Parallel()
+		// "1.0.4-01" is rejected by semver.NewVersion with ErrSegmentStartsZero
+		// (not ErrInvalidSemVer); one such tag must not break resolution of the
+		// valid tags around it.
+		mixedTags := []string{
+			"1.0.1",
+			"1.0.2",
+			"1.0.4-01",
+		}
+		version, err := MaxVersion("> 1.0.0", mixedTags, "")
+		require.NoError(t, err)
+		assert.Equal(t, "1.0.2", version)
+	})
+
+	t.Run("tag with out-of-range numeric segment in mix is skipped", func(t *testing.T) {
+		t.Parallel()
+		// A numeric segment that overflows uint64 also makes semver.NewVersion
+		// fail with a non-ErrInvalidSemVer error; it should be ignored too.
+		mixedTags := []string{
+			"1.0.1",
+			"1.0.2",
+			"99999999999999999999.0.0",
+		}
+		version, err := MaxVersion("> 1.0.0", mixedTags, "")
+		require.NoError(t, err)
+		assert.Equal(t, "1.0.2", version)
+	})
+
 	t.Run("prerelease constraint with bare timestamp tags", func(t *testing.T) {
 		prereleaseTags := []string{
 			"prod/20260309-192056-549",
