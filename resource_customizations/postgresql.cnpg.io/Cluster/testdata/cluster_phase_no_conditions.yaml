@@ -1,0 +1,15 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  creationTimestamp: "2025-04-25T19:59:15Z"
+  generation: 1
+  name: cluster-example
+  namespace: default
+  resourceVersion: "12300"
+  uid: ec7a9e21-a2fe-46cb-a7a3-d5c72e3fa9d4
+spec:
+  instances: 3
+  storage:
+    size: 1Gi
+status:
+  phase: Setting up primary
