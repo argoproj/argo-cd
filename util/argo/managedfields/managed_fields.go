@@ -141,9 +141,19 @@ func IgnoredPaths(live, config *unstructured.Unstructured, trustedManagers []str
 	// Nothing below changes either object, so no copies are needed.
 	results, err := newTypedResults(live, config, pt)
 	if err != nil {
-		// Normalize tolerates this and compares the objects as they are; a
-		// sync that did would apply git's values over the trusted manager's.
-		return nil, nil, fmt.Errorf("error building typed results for managedFieldsManagers %v: %w", trustedManagers, err)
+		// The objects cannot be typed: duplicate keys in a list an old
+		// client-side apply left behind, or a field newer than the schema.
+		// That is the environment, not the rule, and the user cannot change
+		// the rule to make it succeed, so the rule contributes nothing for
+		// this resource, as it does at diff time (Normalize), and the sync
+		// goes on. The warning is what the Debug line at diff time is not.
+		log.WithFields(log.Fields{
+			"kind":      live.GetKind(),
+			"name":      live.GetName(),
+			"namespace": live.GetNamespace(),
+			"managers":  trustedManagers,
+		}).Warnf("managedFieldsManagers rule skipped, the objects could not be typed: %v", err)
+		return nil, nil, nil
 	}
 	ignored := fieldpath.NewSet()
 	for _, mf := range live.GetManagedFields() {
