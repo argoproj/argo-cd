@@ -851,58 +851,57 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                     </div>
                                 </div>
                             </div>
-                            {app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false && (
-                                <React.Fragment>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-12'>
-                                            <div className='checkbox-container'>
-                                                <Checkbox
-                                                    onChange={async (prune: boolean) => {
-                                                        const automated = app.spec.syncPolicy?.automated || {selfHeal: false, enabled: false};
-                                                        setAutoSync(
-                                                            ctx,
-                                                            prune ? 'Enable Prune Resources?' : 'Disable Prune Resources?',
-                                                            prune
-                                                                ? 'Are you sure you want to enable resource pruning during automated application synchronization?'
-                                                                : 'Are you sure you want to disable resource pruning during automated application synchronization?',
-                                                            prune,
-                                                            automated.selfHeal,
-                                                            automated.enabled
-                                                        );
-                                                    }}
-                                                    checked={!!app.spec.syncPolicy?.automated?.prune}
-                                                    id='prune-resources'
-                                                />
-                                                <label htmlFor='prune-resources'>PRUNE RESOURCES</label>
-                                            </div>
-                                        </div>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-12'>
+                                    <div className='checkbox-container'>
+                                        <Checkbox
+                                            onChange={async (prune: boolean) => {
+                                                const automated = app.spec.syncPolicy?.automated || {selfHeal: false, enabled: false};
+                                                const autoSyncEnabled = !!(app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false);
+                                                setAutoSync(
+                                                    ctx,
+                                                    prune ? 'Enable Prune Resources?' : 'Disable Prune Resources?',
+                                                    prune
+                                                        ? 'Are you sure you want to enable resource pruning during automated application synchronization?'
+                                                        : 'Are you sure you want to disable resource pruning during automated application synchronization?',
+                                                    prune,
+                                                    !!automated.selfHeal,
+                                                    // Preserve current auto-sync enabled state (including enabled:false in Git).
+                                                    autoSyncEnabled
+                                                );
+                                            }}
+                                            checked={!!app.spec.syncPolicy?.automated?.prune}
+                                            id='prune-resources'
+                                        />
+                                        <label htmlFor='prune-resources'>PRUNE RESOURCES</label>
                                     </div>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-12'>
-                                            <div className='checkbox-container'>
-                                                <Checkbox
-                                                    onChange={async (selfHeal: boolean) => {
-                                                        const automated = app.spec.syncPolicy?.automated || {prune: false, enabled: false};
-                                                        setAutoSync(
-                                                            ctx,
-                                                            selfHeal ? 'Enable Self Heal?' : 'Disable Self Heal?',
-                                                            selfHeal
-                                                                ? 'If checked, application will automatically sync when changes are detected'
-                                                                : 'If unchecked, application will not automatically sync when changes are detected',
-                                                            automated.prune,
-                                                            selfHeal,
-                                                            automated.enabled
-                                                        );
-                                                    }}
-                                                    checked={!!app.spec.syncPolicy?.automated?.selfHeal}
-                                                    id='self-heal'
-                                                />
-                                                <label htmlFor='self-heal'>SELF HEAL</label>
-                                            </div>
-                                        </div>
+                                </div>
+                            </div>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-12'>
+                                    <div className='checkbox-container'>
+                                        <Checkbox
+                                            onChange={async (selfHeal: boolean) => {
+                                                const automated = app.spec.syncPolicy?.automated || {prune: false, enabled: false};
+                                                const autoSyncEnabled = !!(app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false);
+                                                setAutoSync(
+                                                    ctx,
+                                                    selfHeal ? 'Enable Self Heal?' : 'Disable Self Heal?',
+                                                    selfHeal
+                                                        ? 'If checked, application will automatically sync when changes are detected'
+                                                        : 'If unchecked, application will not automatically sync when changes are detected',
+                                                    !!automated.prune,
+                                                    selfHeal,
+                                                    autoSyncEnabled
+                                                );
+                                            }}
+                                            checked={!!app.spec.syncPolicy?.automated?.selfHeal}
+                                            id='self-heal'
+                                        />
+                                        <label htmlFor='self-heal'>SELF HEAL</label>
                                     </div>
-                                </React.Fragment>
-                            )}
+                                </div>
+                            </div>
                             <div className='row white-box__details-row'>
                                 <div className='columns small-3'>
                                     <span>MANUAL</span>
