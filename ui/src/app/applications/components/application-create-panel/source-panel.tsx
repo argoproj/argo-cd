@@ -1,4 +1,5 @@
 import {AutocompleteField, DataLoader, DropDownMenu, FormField} from 'argo-ui';
+import {cloneDeep} from 'lodash-es';
 import * as React from 'react';
 import {FormApi} from 'argo-ui';
 import {RevisionHelpIcon} from '../../../shared/components';
@@ -88,7 +89,10 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                     title: type.toUpperCase(),
                                     action: () => {
                                         if (repoType !== type) {
-                                            const updatedApp = props.formApi.getFormState().values as models.Application;
+                                            // Copy the values instead of mutating the ones held by the form: the form
+                                            // only re-renders its children when setAllValues receives a new object, and
+                                            // this panel reads the source type back from the form state.
+                                            const updatedApp = cloneDeep(props.formApi.getFormState().values) as models.Application;
                                             const source = getSourceForPanel(updatedApp, props.sourceIndex);
                                             if (!source) {
                                                 return;
