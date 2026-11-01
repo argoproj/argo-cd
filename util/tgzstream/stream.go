@@ -52,6 +52,12 @@ func isOwnedTempDir(tempDir string) bool {
 // responsibility of the caller to close and delete the file using
 // CloseAndDelete.
 func CompressFiles(appPath string, included []string, excluded []string) (*os.File, int, string, error) {
+	return CompressFilesWithOptions(appPath, files.TarOptions{Inclusions: included, Exclusions: excluded})
+}
+
+// CompressFilesWithOptions behaves like CompressFiles, filtering the compressed
+// files as described by opts.
+func CompressFilesWithOptions(appPath string, opts files.TarOptions) (*os.File, int, string, error) {
 	appName := filepath.Base(appPath)
 	tempDir, err := files.CreateTempDir(os.TempDir())
 	if err != nil {
@@ -65,7 +71,7 @@ func CompressFiles(appPath string, included []string, excluded []string) (*os.Fi
 		return nil, 0, "", fmt.Errorf("error creating app temp tgz file: %w", err)
 	}
 	hasher := sha256.New()
-	filesWritten, err := files.Tgz(appPath, included, excluded, tgzFile, hasher)
+	filesWritten, err := files.TgzWithOptions(appPath, opts, tgzFile, hasher)
 	if err != nil {
 		CloseAndDelete(tgzFile)
 		return nil, 0, "", fmt.Errorf("error creating app tgz file: %w", err)
