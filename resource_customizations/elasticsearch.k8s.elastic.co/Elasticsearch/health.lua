@@ -1,5 +1,18 @@
 local hs = {}
 if obj.status ~= nil then
+  if obj.status.phase == "ApplyingChanges" then
+    hs.status = "Progressing"
+    hs.message = "Elasticsearch phase is ApplyingChanges"
+    return hs
+  elseif obj.status.phase == "MigratingData" then
+    hs.status = "Progressing"
+    hs.message = "Elasticsearch phase is MigratingData"
+    return hs
+  elseif obj.status.phase == "Invalid" then
+    hs.status = "Degraded"
+    hs.message = "Elasticsearch phase is Invalid"
+    return hs
+  end
   if obj.status.availableNodes ~= nil then
     local sum = 0
     for _,node in pairs(obj.spec.nodeSets) do
@@ -25,18 +38,6 @@ if obj.status ~= nil then
             hs.message = "Elasticsearch Cluster status is Red. Check the status of indices, replicas and shards"
             return hs
           end
-        elseif obj.status.phase == "ApplyingChanges" then
-          hs.status = "Progressing"
-          hs.message = "Elasticsearch phase is ApplyingChanges"
-          return hs
-        elseif obj.status.phase == "MigratingData" then
-          hs.status = "Progressing"
-          hs.message = "Elasticsearch phase is MigratingData"
-          return hs
-        elseif obj.status.phase == "Invalid" then
-          hs.status = "Degraded"
-          hs.message = "Elasticsearch phase is Invalid"
-          return hs
         end
       end
     end
