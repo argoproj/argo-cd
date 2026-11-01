@@ -2577,8 +2577,17 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		if a.Operation == nil || a.Status.OperationState == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
-		a.Status.OperationState.Phase = common.OperationTerminating
-		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
+		// A merge patch is used instead of an update so that fields the user set to their zero value
+		// are not dropped when the application is re-serialized. The resourceVersion keeps the
+		// optimistic concurrency check.
+		patch, err := json.Marshal(map[string]any{
+			"metadata": map[string]any{"resourceVersion": a.ResourceVersion},
+			"status":   map[string]any{"operationState": map[string]any{"phase": common.OperationTerminating}},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling terminate operation patch: %w", err)
+		}
+		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Patch(ctx, appName, types.MergePatchType, patch, metav1.PatchOptions{})
 		if err == nil {
 			s.waitSync(updated)
 			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")

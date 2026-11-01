@@ -2037,6 +2037,30 @@ func TestNormalizeApplicationPatchesSpecOnly(t *testing.T) {
 	}
 }
 
+// TestNormalizeApplicationDoesNotPersistDeclaredZeroValues verifies that zero-valued fields declared
+// by the user are normalized in memory only, and not removed from the live application
+func TestNormalizeApplicationDoesNotPersistDeclaredZeroValues(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.Source.Directory = &v1alpha1.ApplicationSourceDirectory{Jsonnet: v1alpha1.ApplicationSourceJsonnet{}}
+	app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{}
+	proj := defaultProj.DeepCopy()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, proj}}, nil)
+
+	var patches []string
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		patches = append(patches, string(action.(kubetesting.PatchAction).GetPatch()))
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.normalizeApplication(app)
+
+	assert.Empty(t, patches)
+	assert.Nil(t, app.Spec.Source.Directory)
+	assert.Nil(t, app.Spec.SyncPolicy)
+}
+
 func TestHandleAppUpdated(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
