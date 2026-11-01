@@ -1,0 +1,12 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: NumaflowController
+metadata:
+  creationTimestamp: "2026-11-01T00:00:00Z"
+  generation: 2
+  name: numaflow-controller
+  namespace: numaflow-system
+spec:
+  version: "1.5.2"
+status:
+  observedGeneration: 1
+  phase: Deployed
