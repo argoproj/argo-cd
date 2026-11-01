@@ -661,6 +661,7 @@ export interface UserInfo {
     username: string;
     iss: string;
     groups: string[];
+    rbacSubject?: string;
 }
 
 export type ConnectionStatus = 'Unknown' | 'Successful' | 'Failed';

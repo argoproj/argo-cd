@@ -35,6 +35,11 @@ argocd admin settings rbac can some:role create application 'default/app' --name
 # You can override a possibly configured default role
 argocd admin settings rbac can someuser create application 'default/app' --default-role role:readonly
 
+# When local-user strict mode is enabled, local accounts are enforced with an '@local' suffix and the built-in
+# policy only binds 'admin@local' (not 'admin') to role:admin. With --namespace the mode is read from argocd-cm;
+# with --policy-file set it explicitly
+argocd admin settings rbac can admin@local create application 'default/app' --policy-file policy.csv --local-user-strict-mode
+
 
 ```
 
@@ -54,6 +59,7 @@ argocd admin settings rbac can someuser create application 'default/app' --defau
   -h, --help                           help for can
       --insecure-skip-tls-verify       If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
       --kubeconfig string              Path to a kube config. Only required if out-of-cluster
+      --local-user-strict-mode         evaluate the built-in policy as if rbac.local.user.strictmode were enabled (auto-detected from argocd-cm when --namespace is used)
   -n, --namespace string               If present, the namespace scope for this CLI request
       --password string                Password for basic authentication to the API server
       --policy-file string             path to the policy file to use
