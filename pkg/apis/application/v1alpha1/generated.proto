@@ -1808,6 +1808,9 @@ message PullRequestGeneratorAzureDevOps {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+
+  // ExcludedLabels is used to exclude PRs with these labels
+  repeated string excludedLabels = 7;
 }
 
 // PullRequestGeneratorBitbucket defines connection info specific to Bitbucket.
@@ -1877,6 +1880,9 @@ message PullRequestGeneratorGitLab {
   // Labels is used to filter the MRs that you want to target
   repeated string labels = 4;
 
+  // ExcludedLabels is used to exclude MRs with these labels
+  repeated string excludedLabels = 8;
+
   // PullRequestState is an additional MRs filter to get only those with a certain state. Default: "" (all states).
   // Valid values: opened, closed, merged, locked".
   optional string pullRequestState = 5;
@@ -1907,6 +1913,9 @@ message PullRequestGeneratorGitea {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+
+  // ExcludedLabels is used to exclude PRs with these labels
+  repeated string excludedLabels = 7;
 }
 
 // PullRequestGeneratorGithub defines connection info specific to GitHub.
@@ -1928,6 +1937,9 @@ message PullRequestGeneratorGithub {
 
   // Labels is used to filter the PRs that you want to target
   repeated string labels = 6;
+
+  // ExcludedLabels is used to exclude PRs with these labels
+  repeated string excludedLabels = 7;
 }
 
 message RefTarget {
@@ -2133,7 +2145,7 @@ message RepositoryCertificate {
   // CertData contains the actual certificate data, dependent on the certificate type
   optional bytes certData = 4;
 
-  // CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
+  // CertInfo will hold additional certificate info, dependent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
   optional string certInfo = 5;
 }
 
@@ -2898,6 +2910,9 @@ message SyncPolicy {
 
   // ManagedNamespaceMetadata controls metadata in the given namespace (if CreateNamespace=true)
   optional ManagedNamespaceMetadata managedNamespaceMetadata = 4;
+
+  // ManualDefaults controls the default behavior of a manual sync
+  optional SyncPolicyManualDefaults manualDefaults = 5;
 }
 
 // SyncPolicyAutomated controls the behavior of an automated sync
@@ -2913,6 +2928,21 @@ message SyncPolicyAutomated {
 
   // Enable allows apps to explicitly control automated sync
   optional bool enabled = 4;
+}
+
+// SyncPolicyManualDefaults controls the default behavior of a manual sync
+message SyncPolicyManualDefaults {
+  // Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of manual sync (default: true)
+  optional bool prune = 1;
+
+  // DryRun specifies whether manual syncs should be performed as a dry run by default (default: false)
+  optional bool dryRun = 2;
+
+  // ApplyOnly specifies whether manual syncs should use apply-only strategy by default (default: false)
+  optional bool applyOnly = 3;
+
+  // Force specifies whether manual syncs should supply --force to kubectl by default (default: false)
+  optional bool force = 4;
 }
 
 // SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed

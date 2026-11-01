@@ -159,7 +159,7 @@ func (s *Server) createToken(ctx context.Context, q *project.ProjectTokenCreateR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(ctx, prj, argo.EventReasonResourceCreated, "created token")
+	s.logEvent(ctx, prj, argo.EventReasonResourceCreated, fmt.Sprintf("created token '%s' for role '%s'", id, q.Role))
 	return &project.ProjectTokenResponse{Token: jwtToken}, nil
 }
 
@@ -234,6 +234,14 @@ func (s *Server) deleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 		}
 	}
 
+	// Tokens can be deleted by issue time alone, so resolve the ID for the audit event.
+	tokenID := q.Id
+	if token, _, err := prj.GetJWTToken(q.Role, q.Iat, q.Id); err == nil {
+		tokenID = token.ID
+	} else if token, _, err := prj.GetJWTTokenFromSpec(q.Role, q.Iat, q.Id); err == nil {
+		tokenID = token.ID
+	}
+
 	err = prj.RemoveJWTToken(roleIndex, q.Iat, q.Id)
 	if err != nil {
 		return &project.EmptyResponse{}, nil
@@ -243,7 +251,7 @@ func (s *Server) deleteToken(ctx context.Context, q *project.ProjectTokenDeleteR
 	if err != nil {
 		return nil, err
 	}
-	s.logEvent(ctx, prj, argo.EventReasonResourceDeleted, "deleted token")
+	s.logEvent(ctx, prj, argo.EventReasonResourceDeleted, fmt.Sprintf("deleted token '%s' for role '%s'", tokenID, q.Role))
 
 	return &project.EmptyResponse{}, nil
 }

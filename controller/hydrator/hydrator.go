@@ -411,9 +411,8 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 			continue
 		}
 
-		// TODO: test the dupe detection
-		// TODO: normalize the path to avoid "path/.." from being treated as different from "."
-		destKey := hydrationDestKey{repoURL: hydrateToSource.RepoURL, path: destPath}
+		// Clean the path so that equivalent paths like "app", "app/" and "./app" are detected as duplicates.
+		destKey := hydrationDestKey{repoURL: hydrateToSource.RepoURL, path: filepath.Clean(destPath)}
 		if appName, ok := uniquePaths[destKey]; ok {
 			errors[app.QualifiedName()] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", appName, git.SanitizeRepoURL(destKey.repoURL), destKey.path)
 			errors[appName] = fmt.Errorf("app %s hydrator uses the same destination: repo=%s, path=%s", app.QualifiedName(), git.SanitizeRepoURL(destKey.repoURL), destKey.path)

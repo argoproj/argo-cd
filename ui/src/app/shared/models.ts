@@ -338,8 +338,17 @@ export interface Automated {
     enabled: boolean;
 }
 
+export interface ManualDefaults {
+    // Defaults for manual sync requests when the sync request omits the value.
+    prune?: boolean; // default: true
+    dryRun?: boolean; // default: false
+    applyOnly?: boolean; // default: false
+    force?: boolean; // default: false
+}
+
 export interface SyncPolicy {
     automated?: Automated;
+    manualDefaults?: ManualDefaults;
     syncOptions?: string[];
     retry?: RetryStrategy;
 }

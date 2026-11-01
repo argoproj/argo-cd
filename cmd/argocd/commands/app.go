@@ -1416,7 +1416,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		repo         string
 		appNamespace string
 		cluster      string
-		path         string
+		appPath      string
+		files        []string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1452,8 +1453,11 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			if cluster != "" {
 				appList = argo.FilterByCluster(appList, cluster)
 			}
-			if path != "" {
-				appList = argo.FilterByPath(appList, path)
+			if appPath != "" {
+				appList = argo.FilterByPath(appList, appPath)
+			}
+			if len(files) != 0 {
+				appList = argo.FilterByFiles(appList, files)
 			}
 
 			switch output {
@@ -1475,7 +1479,8 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&repo, "repo", "r", "", "List apps by source repo URL")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only list applications in namespace")
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
-	command.Flags().StringVarP(&path, "path", "P", "", "List apps by path")
+	command.Flags().StringVarP(&appPath, "path", "P", "", "List apps by source path")
+	command.Flags().StringArrayVarP(&files, "file", "f", []string{}, "List apps affected by given file paths (evaluated against source path and manifest-generate-paths annotation)")
 	return command
 }
 
@@ -1600,6 +1605,9 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command := &cobra.Command{
 		Use:   "wait [APPNAME.. | -l selector]",
 		Short: "Wait for an application to reach a synced and healthy state",
+		Long: `Wait for an application to reach a synced and healthy state.
+
+Note that the --hydrated and --operation flags evaluate the global application state. These conditions apply to the entire application and will block wait completion even if specific resources are selected with --resource.`,
 		Example: `  # Wait for an app
   argocd app wait my-app
 
@@ -1663,10 +1671,10 @@ func NewApplicationWaitCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&watch.suspended, "suspended", false, "Wait for suspended")
 	command.Flags().BoolVar(&watch.degraded, "degraded", false, "Wait for degraded")
 	command.Flags().BoolVar(&watch.delete, "delete", false, "Wait for delete")
-	command.Flags().BoolVar(&watch.hydrated, "hydrated", false, "Wait for hydration operations")
+	command.Flags().BoolVar(&watch.hydrated, "hydrated", false, "Wait for hydration operations (evaluated globally for the application)")
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Wait for apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
-	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations")
+	command.Flags().BoolVar(&watch.operation, "operation", false, "Wait for pending operations (evaluated globally for the application)")
 	command.Flags().UintVar(&timeout, "timeout", defaultCheckTimeoutSeconds, "Time out after this many seconds")
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only wait for an application  in namespace")
 	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide|tree|tree=detailed")
@@ -1941,9 +1949,12 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					log.Fatalf("No matching app resources found for resource filter: %v", strings.Join(resources, ", "))
 				}
 
+				// Effective dry-run matches what the server will do: flag if set, else manualDefaults.
+				effectiveDryRun := resolveEffectiveDryRun(app.Spec.SyncPolicy, dryRun, c.Flags().Changed("dry-run"))
+
 				var localObjsStrings []string
 				if local != "" {
-					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !dryRun {
+					if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveDryRun {
 						log.Fatal("Cannot use local sync when Automatic Sync Policy is enabled except with --dry-run")
 					}
 
@@ -1980,27 +1991,32 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 				syncReq := application.ApplicationSyncRequest{
 					Name:            &appName,
 					AppNamespace:    &appNs,
-					DryRun:          &dryRun,
 					Revision:        &revision,
 					Resources:       filteredResources,
-					Prune:           &prune,
 					Manifests:       localObjsStrings,
 					Infos:           getInfos(infos),
 					SyncOptions:     syncOptionsFactory(),
 					Revisions:       revisions,
 					SourcePositions: sourcePositions,
 				}
-
-				switch strategy {
-				case "apply":
-					syncReq.Strategy = &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{}}
-					syncReq.Strategy.Apply.Force = force
-				case "", "hook":
-					syncReq.Strategy = &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{}}
-					syncReq.Strategy.Hook.Force = force
-				default:
-					log.Fatalf("Unknown sync strategy: '%s'", strategy)
+				// Only set request overrides when flags are explicitly provided. Leaving them nil
+				// lets the API server apply syncPolicy.manualDefaults defaults for manual syncs.
+				if c.Flags().Changed("prune") {
+					syncReq.Prune = &prune
 				}
+				if c.Flags().Changed("dry-run") {
+					syncReq.DryRun = &dryRun
+				}
+
+				syncStrategy, err := resolveSyncStrategyFromFlags(
+					app.Spec.SyncPolicy,
+					strategy,
+					force,
+					c.Flags().Changed("strategy"),
+					c.Flags().Changed("force"),
+				)
+				errors.CheckError(err)
+				syncReq.Strategy = syncStrategy
 				if retryLimit != 0 {
 					syncReq.RetryStrategy = &argoappv1.RetryStrategy{
 						Limit:   retryLimit,
@@ -2045,7 +2061,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					app, opState, err := waitOnApplicationStatus(ctx, acdClient, appQualifiedName, timeout, watchOpts{operation: true}, selectedResources, output)
 					errors.CheckError(err)
 
-					if !dryRun {
+					if !effectiveDryRun {
 						if !opState.Phase.Successful() {
 							log.Fatalf("Operation has completed with phase: %s", opState.Phase)
 						} else if len(selectedResources) == 0 && app.Status.Sync.Status != argoappv1.SyncStatusCodeSynced {
@@ -2060,8 +2076,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 		}),
 	}
-	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster")
-	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources")
+	command.Flags().BoolVar(&dryRun, "dry-run", false, "Preview apply without affecting cluster. If omitted, syncPolicy.manualDefaults.dryRun is used when manualDefaults is set; otherwise false")
+	command.Flags().BoolVar(&prune, "prune", false, "Allow deleting unexpected resources. If omitted, syncPolicy.manualDefaults.prune is used when manualDefaults is set; otherwise false")
 	command.Flags().StringVar(&revision, "revision", "", "Sync to a specific revision. Preserves parameter overrides")
 	command.Flags().StringArrayVar(&resources, "resource", []string{}, fmt.Sprintf("Sync only specific resources as GROUP%[1]sKIND%[1]sNAME or %[2]sGROUP%[1]sKIND%[1]sNAME. Fields may be blank and '*' can be used. This option may be specified repeatedly", resourceFieldDelimiter, resourceExcludeIndicator))
 	command.Flags().StringVarP(&selector, "selector", "l", "", "Sync apps that match this label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.")
@@ -2072,8 +2088,8 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().DurationVar(&retryBackoffDuration, "retry-backoff-duration", argoappv1.DefaultSyncRetryDuration, "Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().DurationVar(&retryBackoffMaxDuration, "retry-backoff-max-duration", argoappv1.DefaultSyncRetryMaxDuration, "Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h)")
 	command.Flags().Int64Var(&retryBackoffFactor, "retry-backoff-factor", argoappv1.DefaultSyncRetryFactor, "Factor multiplies the base duration after each failed retry")
-	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook)")
-	command.Flags().BoolVar(&force, "force", false, "Use a force apply")
+	command.Flags().StringVar(&strategy, "strategy", "", "Sync strategy (one of: apply|hook). If omitted while --force is set, syncPolicy.manualDefaults.applyOnly is used; if both are omitted, the server applies manualDefaults")
+	command.Flags().BoolVar(&force, "force", false, "Use a force apply. If omitted while --strategy is set, syncPolicy.manualDefaults.force is used; if both are omitted, the server applies manualDefaults")
 	command.Flags().BoolVar(&replace, "replace", false, "Use a kubectl create/replace instead apply")
 	command.Flags().BoolVar(&serverSideApply, "server-side", false, "Use server-side apply while syncing the application")
 	command.Flags().BoolVar(&applyOutOfSyncOnly, "apply-out-of-sync-only", false, "Sync only out-of-sync resources")
@@ -2092,6 +2108,48 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
 	return command
+}
+
+// resolveEffectiveDryRun returns the dry-run value the server will use for this sync:
+// the --dry-run flag when set, otherwise syncPolicy.manualDefaults.dryRun.
+func resolveEffectiveDryRun(sp *argoappv1.SyncPolicy, dryRun bool, dryRunChanged bool) bool {
+	if dryRunChanged {
+		return dryRun
+	}
+	return sp.GetDryRun()
+}
+
+// resolveSyncStrategyFromFlags builds a sync strategy when --strategy and/or --force are set.
+// Unspecified values are initialized from syncPolicy.manualDefaults, then only flags that
+// changed override those defaults. Returns nil when neither flag changed so the server can
+// apply manualDefaults itself.
+func resolveSyncStrategyFromFlags(sp *argoappv1.SyncPolicy, strategy string, force bool, strategyChanged, forceChanged bool) (*argoappv1.SyncStrategy, error) {
+	if !strategyChanged && !forceChanged {
+		return nil, nil
+	}
+	applyOnly := false
+	forceVal := false
+	if sp != nil && sp.ManualDefaults != nil {
+		applyOnly = sp.GetApplyOnly()
+		forceVal = sp.GetForce()
+	}
+	if strategyChanged {
+		switch strategy {
+		case "apply":
+			applyOnly = true
+		case "", "hook":
+			applyOnly = false
+		default:
+			return nil, fmt.Errorf("unknown sync strategy: %q", strategy)
+		}
+	}
+	if forceChanged {
+		forceVal = force
+	}
+	if applyOnly {
+		return &argoappv1.SyncStrategy{Apply: &argoappv1.SyncStrategyApply{Force: forceVal}}, nil
+	}
+	return &argoappv1.SyncStrategy{Hook: &argoappv1.SyncStrategyHook{Force: forceVal}}, nil
 }
 
 func getAppNamesBySelector(ctx context.Context, appIf application.ApplicationServiceClient, selector string) ([]string, error) {
@@ -2242,8 +2300,8 @@ func groupResourceStates(app *argoappv1.Application, selectedResources []*argoap
 	return resStates
 }
 
-// check if resource health, sync and operation statuses matches watch options
-func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string, operationStatus *argoappv1.Operation, hydrationFinished bool) bool {
+// check if resource health and sync statuses matches watch options
+func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string) bool {
 	if watch.delete {
 		return false
 	}
@@ -2266,10 +2324,12 @@ func checkResourceStatus(watch watchOpts, healthStatus string, syncStatus string
 		}
 	}
 
-	synced := !watch.sync || syncStatus == string(argoappv1.SyncStatusCodeSynced)
-	operational := !watch.operation || operationStatus == nil
-	hydrated := !watch.hydrated || hydrationFinished
-	return synced && healthCheckPassed && operational && hydrated
+	synced := true
+	if watch.sync {
+		synced = syncStatus == string(argoappv1.SyncStatusCodeSynced)
+	}
+
+	return synced && healthCheckPassed
 }
 
 // resourceParentChild gets the latest state of the app and the latest state of the app's resource tree and then
@@ -2313,45 +2373,67 @@ func (a *AppWithLock) GetApp() *argoappv1.Application {
 	return a.app
 }
 
+// isOperationInProgress reports whether the application has a pending or
+// recently-finished operation that still needs controller reconciliation.
+func isOperationInProgress(app *argoappv1.Application) bool {
+	if app.Operation != nil {
+		// operation was just requested
+		return true
+	}
+	if app.Status.OperationState != nil {
+		if app.Status.OperationState.FinishedAt == nil {
+			// operation is not finished yet
+			return true
+		}
+		if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
+			// operation just finished but controller hasn't reconciled yet
+			return true
+		}
+	}
+	return false
+}
+
+// appHydrationFinished reports whether the app's current hydration operation
+// has completed successfully. LastSuccessfulOperation is only populated after
+// a successful hydration, so it can be nil while CurrentOperation is set.
+func appHydrationFinished(app *argoappv1.Application) bool {
+	return app.Status.SourceHydrator.CurrentOperation != nil &&
+		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
+		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
+		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
+		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+}
+
 // checkAppWaitConditions evaluates whether an application currently matches the
 // conditions requested by `argocd app wait`. It returns whether the conditions
 // are met (ready) and whether a sync/refresh operation is still in progress.
 // It does not mutate any state — callers are responsible for any side effects
 // such as triggering a status refresh before printing the final summary.
 func checkAppWaitConditions(app *argoappv1.Application, watch watchOpts, selectedResources []*argoappv1.SyncOperationResource) (ready, operationInProgress bool) {
-	if app.Operation != nil {
-		// if it just got requested
-		operationInProgress = true
-	} else if app.Status.OperationState != nil {
-		if app.Status.OperationState.FinishedAt == nil {
-			// if it is not finished yet
-			operationInProgress = true
-		} else if !app.Status.OperationState.Operation.DryRun() && (app.Status.ReconciledAt == nil || app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)) {
-			// if it is just finished and we need to wait for controller to reconcile app once after syncing
-			operationInProgress = true
-		}
-	}
+	operationInProgress = isOperationInProgress(app)
+	hydrationFinished := appHydrationFinished(app)
 
-	// LastSuccessfulOperation is only populated after a successful hydration,
-	// so it can be nil while CurrentOperation is set. Guard against the nil
-	// dereference before comparing the two.
-	hydrationFinished := app.Status.SourceHydrator.CurrentOperation != nil &&
-		app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
-		app.Status.SourceHydrator.CurrentOperation.Phase == argoappv1.HydrateOperationPhaseHydrated &&
-		app.Status.SourceHydrator.CurrentOperation.SourceHydrator.DeepEquals(app.Status.SourceHydrator.LastSuccessfulOperation.SourceHydrator) &&
-		app.Status.SourceHydrator.CurrentOperation.DrySHA == app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
+	if watch.delete {
+		return false, operationInProgress
+	}
+	if watch.operation && operationInProgress {
+		return false, operationInProgress
+	}
+	if watch.hydrated && !hydrationFinished {
+		return false, operationInProgress
+	}
 
 	if len(selectedResources) > 0 {
 		ready = true
 		for _, state := range getResourceStates(app, selectedResources) {
-			if !checkResourceStatus(watch, state.Health, state.Status, app.Operation, hydrationFinished) {
+			if !checkResourceStatus(watch, state.Health, state.Status) {
 				ready = false
 				break
 			}
 		}
 	} else {
 		// Wait on the application as a whole
-		ready = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status), app.Operation, hydrationFinished)
+		ready = checkResourceStatus(watch, string(app.Status.Health.Status), string(app.Status.Sync.Status))
 	}
 
 	return ready, operationInProgress
@@ -2506,7 +2588,9 @@ func waitOnApplicationStatus(ctx context.Context, acdClient argocdclient.Client,
 		finalOperationState = app.Status.OperationState
 
 		if watch.delete && appEvent.Type == k8swatch.Deleted {
-			fmt.Printf("Application '%s' deleted\n", app.QualifiedName())
+			if printSummary {
+				fmt.Printf("Application '%s' deleted\n", app.QualifiedName())
+			}
 			return nil, nil, nil
 		}
 
