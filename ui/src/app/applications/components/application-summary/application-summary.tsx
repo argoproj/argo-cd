@@ -833,7 +833,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
                                 <div className='columns small-3'>
-                                    {app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false ? <span>AUTOMATED</span> : <span>NONE</span>}
+                                    <span>AUTOMATED</span>
                                 </div>
                             </div>
                             <div className='row white-box__details-row'>
@@ -851,29 +851,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                     </div>
                                 </div>
                             </div>
-                            {MANUAL_SYNC_DEFAULT_FIELDS.map(field => (
-                                <div className='row white-box__details-row' key={field.key}>
-                                    <div className='columns small-12'>
-                                        <div className='checkbox-container'>
-                                            <Checkbox
-                                                onChange={async (value: boolean) => {
-                                                    await setManualSyncDefaults(
-                                                        ctx,
-                                                        {[field.key]: value},
-                                                        value ? field.enableTitle : field.disableTitle,
-                                                        value ? field.enableText : field.disableText
-                                                    );
-                                                }}
-                                                checked={isManualDefaultChecked(app, field.key)}
-                                                id={field.id}
-                                            />
-                                            <label htmlFor={field.id}>{field.label}</label>
-                                            <HelpIcon title={field.help} />
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                            {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
+                            {app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false && (
                                 <React.Fragment>
                                     <div className='row white-box__details-row'>
                                         <div className='columns small-12'>
@@ -925,6 +903,33 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                     </div>
                                 </React.Fragment>
                             )}
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-3'>
+                                    <span>MANUAL</span>
+                                </div>
+                            </div>
+                            {MANUAL_SYNC_DEFAULT_FIELDS.map(field => (
+                                <div className='row white-box__details-row' key={field.key}>
+                                    <div className='columns small-12'>
+                                        <div className='checkbox-container'>
+                                            <Checkbox
+                                                onChange={async (value: boolean) => {
+                                                    await setManualSyncDefaults(
+                                                        ctx,
+                                                        {[field.key]: value},
+                                                        value ? field.enableTitle : field.disableTitle,
+                                                        value ? field.enableText : field.disableText
+                                                    );
+                                                }}
+                                                checked={isManualDefaultChecked(app, field.key)}
+                                                id={field.id}
+                                            />
+                                            <label htmlFor={field.id}>{field.label}</label>
+                                            <HelpIcon title={field.help} />
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}

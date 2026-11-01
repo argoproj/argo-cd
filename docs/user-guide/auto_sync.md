@@ -119,6 +119,10 @@ spec:
 > Application, `automated.prune` is used; otherwise RollingSync falls back to
 > `manualDefaults.prune`. RollingSync apps without `manualDefaults` keep the previous behavior
 > (use `automated.prune` only when automated sync is enabled).
+>
+> **Rollback does not use `manualDefaults`.** A rollback builds its sync operation from the
+> rollback request (`prune` / `dryRun` as provided) and does not fall back to
+> `syncPolicy.manualDefaults` for omitted fields.
 
 ## Automatic Pruning with Allow-Empty (v1.8)
 
