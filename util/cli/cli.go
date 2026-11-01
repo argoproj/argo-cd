@@ -100,8 +100,18 @@ func NewVersionCmd(cliName string) *cobra.Command {
 	return &versionCmd
 }
 
-// AddKubectlFlagsToCmd adds kubectl like flags to a persistent flags of a command and returns the ClientConfig interface
-// for retrieving the values.
+// AddKubectlFlagsToCmd adds kubectl-compatible flags to the command.
+// These flags are inherited from the client-go library and include:
+//   - --request-timeout: Timeout for Kubernetes API requests
+//   - --context: Kubernetes context to use
+//   - --namespace: Kubernetes namespace
+//
+// Note: The --kubeconfig flag is registered separately in AddKubectlFlagsToSet.
+//
+// These flags are documented in the Argo CD operator documentation:
+// https://argo-cd.readthedocs.io/en/stable/operator-manual/server-commands/argocd-server/
+// They are handled by the client-go library via BindOverrideFlags, not directly by Argo CD code.
+// This is why searching for flag parsing in cmd/argocd-server/commands/ may not show these flags.
 func AddKubectlFlagsToCmd(cmd *cobra.Command) clientcmd.ClientConfig {
 	return AddKubectlFlagsToSet(cmd.PersistentFlags())
 }
