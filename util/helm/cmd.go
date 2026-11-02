@@ -193,29 +193,21 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	}
 
 	if len(opts.GetCertData()) > 0 {
-		certFile, err := os.CreateTemp("", "helm")
+		filePath, closer, err := writeToTmp(opts.GetCertData())
 		if err != nil {
-			return "", fmt.Errorf("failed to create temporary certificate file: %w", err)
+			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
 		}
-		_, err = certFile.Write(opts.GetCertData())
-		if err != nil {
-			return "", fmt.Errorf("failed to write certificate data: %w", err)
-		}
-		defer certFile.Close()
-		args = append(args, "--cert-file", certFile.Name())
+		defer utilio.Close(closer)
+		args = append(args, "--cert-file", filePath)
 	}
 
 	if len(opts.GetKeyData()) > 0 {
-		keyFile, err := os.CreateTemp("", "helm")
+		filePath, closer, err := writeToTmp(opts.GetKeyData())
 		if err != nil {
-			return "", fmt.Errorf("failed to create temporary key file: %w", err)
+			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
 		}
-		_, err = keyFile.Write(opts.GetKeyData())
-		if err != nil {
-			return "", fmt.Errorf("failed to write key data: %w", err)
-		}
-		defer keyFile.Close()
-		args = append(args, "--key-file", keyFile.Name())
+		defer utilio.Close(closer)
+		args = append(args, "--key-file", filePath)
 	}
 
 	if passCredentials {
