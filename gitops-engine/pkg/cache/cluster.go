@@ -34,6 +34,7 @@ import (
 
 	"github.com/go-logr/logr"
 	"golang.org/x/sync/semaphore"
+	"golang.org/x/sync/singleflight"
 	authorizationv1 "k8s.io/api/authorization/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -221,6 +222,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		manifestStorageType:     ManifestStorageJSON,
 		manifestCompressionType: ManifestCompressionGZipBestSpeed,
 		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
+		apiServicesAvailability: make(map[string]bool),
 	}
 	cache := &clusterCache{
 		store:  s,
@@ -308,6 +310,10 @@ type store struct {
 	// Using a set eliminates O(k) duplicate checking on insertions
 	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
 	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
+
+	apiServicesLock         sync.Mutex
+	apiServicesAvailability map[string]bool
+	apiServiceSingleflight  singleflight.Group
 }
 
 // clusterCache implements ClusterCache: the shared store, plus the engine that
@@ -712,6 +718,9 @@ func (c *clusterCache) Invalidate(opts ...UpdateSettingsFunc) {
 	for i := range opts {
 		opts[i](c)
 	}
+	c.apiServicesLock.Lock()
+	c.apiServicesAvailability = make(map[string]bool)
+	c.apiServicesLock.Unlock()
 	c.apisMeta = nil
 	c.namespacedResources.Store(nil)
 	c.log.Info("Invalidated cluster")
@@ -837,8 +846,21 @@ func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *un
 // available or is removed, so kinds that weren't served at startup get
 // watched without waiting for a resync. Call it without c.lock.
 func (c *store) handleAPIServiceEvent(engine syncEngine, event watch.EventType, obj *unstructured.Unstructured) {
+	name := obj.GetName()
+	available := isAPIServiceAvailable(obj)
 	deleted := event == watch.Deleted
-	if !deleted && !isAPIServiceAvailable(obj) {
+	var reconcile bool
+	switch event {
+	case watch.Deleted:
+		c.deleteAPIService(name)
+		reconcile = true
+	case watch.Modified:
+		reconcile = c.updateAPIServiceAvailability(name, available)
+	default:
+		c.setAPIServiceAvailable(name, available)
+		reconcile = available
+	}
+	if !reconcile {
 		return
 	}
 	// The kube-apiserver's aggregated discovery can lag behind an
@@ -847,7 +869,7 @@ func (c *store) handleAPIServiceEvent(engine syncEngine, event watch.EventType, 
 	// retry (in a goroutine to avoid blocking the event source) until the
 	// APIService's own group is served or we exhaust our attempts.
 	group, _, _ := unstructured.NestedString(obj.Object, "spec", "group")
-	c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event, "name", obj.GetName(), "group", group)
+	c.log.Info("Reconciling Kubernetes APIs, watches, and Open API schemas due to APIService event", "eventType", event, "name", name, "group", group)
 	go c.reconcileAPIServiceWatches(engine, group, !deleted)
 }
 
@@ -872,25 +894,69 @@ func (c *store) reloadOpenAPISchema() error {
 // APIService reporting Available, so when waitForGroup is true (Added/Modified
 // while Available) it retries with exponential backoff (9 attempts, intervals
 // growing 500ms -> ~8.5s for a ~25s total budget) until the APIService's group
-// is served by the cluster (i.e. a watch for it has been started) or the attempts
-// are exhausted. For deletions it reconciles once.
+// is watched, or was already served before the attempt's watch pass (a group
+// with no watchable kinds), or the attempts are exhausted. Concurrent calls for
+// the same group are deduplicated via singleflight. For deletions it reconciles once.
 func (c *store) reconcileAPIServiceWatches(engine syncEngine, group string, waitForGroup bool) {
-	err := wait.ExponentialBackoff(wait.Backoff{
-		Duration: 500 * time.Millisecond,
-		Factor:   1.5,
-		Steps:    9,
-	}, func() (bool, error) {
-		if err := runSynced(&c.lock, engine.startMissingWatches); err != nil {
-			c.log.Error(err, "Failed to start missing watches after APIService event")
+	key := fmt.Sprintf("%s:%t", group, waitForGroup)
+	_, _, _ = c.apiServiceSingleflight.Do(key, func() (any, error) {
+		err := wait.ExponentialBackoff(wait.Backoff{
+			Duration: 500 * time.Millisecond,
+			Factor:   1.5,
+			Steps:    9,
+		}, func() (bool, error) {
+			// Read before the watch pass, else a group served after it ends the loop unwatched.
+			discovered := waitForGroup && group != "" && c.isGroupDiscovered(group)
+			if err := runSynced(&c.lock, engine.startMissingWatches); err != nil {
+				c.log.Error(err, "Failed to start missing watches after APIService event")
+			}
+			if err := runSynced(&c.lock, c.reloadOpenAPISchema); err != nil {
+				c.log.Error(err, "Failed to reload open api schema after APIService event")
+			}
+			return !waitForGroup || group == "" || discovered || c.isGroupWatched(group), nil
+		})
+		if err != nil {
+			c.log.Info("Aggregated API group is not served by discovery yet after retries; it will be picked up on the next resync", "group", group)
 		}
-		if err := runSynced(&c.lock, c.reloadOpenAPISchema); err != nil {
-			c.log.Error(err, "Failed to reload open api schema after APIService event")
-		}
-		return !waitForGroup || group == "" || c.isGroupWatched(group), nil
+		return nil, nil
 	})
+}
+
+func (c *store) updateAPIServiceAvailability(name string, available bool) bool {
+	c.apiServicesLock.Lock()
+	defer c.apiServicesLock.Unlock()
+	prev := c.apiServicesAvailability[name]
+	c.apiServicesAvailability[name] = available
+	return !prev && available
+}
+
+func (c *store) setAPIServiceAvailable(name string, available bool) {
+	c.apiServicesLock.Lock()
+	defer c.apiServicesLock.Unlock()
+	c.apiServicesAvailability[name] = available
+}
+
+func (c *store) deleteAPIService(name string) {
+	c.apiServicesLock.Lock()
+	defer c.apiServicesLock.Unlock()
+	delete(c.apiServicesAvailability, name)
+}
+
+func (c *store) isGroupDiscovered(group string) bool {
+	serverResources, err := c.kubectl.GetServerResources(c.config, true)
 	if err != nil {
-		c.log.Info("Aggregated API group is not served by discovery yet after retries; it will be picked up on the next resync", "group", group)
+		return false
 	}
+	for _, list := range serverResources {
+		gv, err := schema.ParseGroupVersion(list.GroupVersion)
+		if err != nil {
+			continue
+		}
+		if gv.Group == group {
+			return true
+		}
+	}
+	return false
 }
 
 // isGroupWatched reports whether the cache has started watching any resource in
