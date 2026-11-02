@@ -170,7 +170,7 @@ func NewCommand() *cobra.Command {
 				GitLsRemoteOptimizedEnabled:                  gitLsRemoteOptimizedEnabled,
 				HelmUserAgent:                                helmUserAgent,
 				HelmChartCacheExpiration:                     repoCacheExpiration,
-				EnableTrackingLabelsOnCRDs:                   enableTrackingLabelOnCRDs,
+				EnableTrackingLabelOnCRDs:                    enableTrackingLabelOnCRDs,
 			}, askPassServer, clientCAPath, disableTLS)
 			errors.CheckError(err)
 
