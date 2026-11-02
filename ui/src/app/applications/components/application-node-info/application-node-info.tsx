@@ -183,11 +183,11 @@ export const ApplicationNodeInfo = (props: {
             const {lastScheduleTime, lastSuccessfulTime} = props.live.status || {};
             const health = props.controlled?.summary.health || (props.node as ResourceTreeNode).health;
             const isHealthy = health?.status === models.HealthStatuses.Healthy;
-            if (lastScheduleTime && (!isHealthy || !lastSuccessfulTime)) {
-                attributes.push({title: 'LAST SCHEDULED', value: formatCreationTimestamp(lastScheduleTime)});
-            }
             if (lastSuccessfulTime) {
                 attributes.push({title: 'LAST SUCCESSFUL', value: formatCreationTimestamp(lastSuccessfulTime)});
+            }
+            if (lastScheduleTime && (!isHealthy || !lastSuccessfulTime)) {
+                attributes.push({title: 'LAST SCHEDULED', value: formatCreationTimestamp(lastScheduleTime)});
             }
         }
     }

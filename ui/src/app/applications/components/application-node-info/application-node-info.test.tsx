@@ -94,18 +94,18 @@ describe('ApplicationNodeInfo', () => {
             });
         };
 
-        it('shows both times when the CronJob is degraded', async () => {
+        it('shows both times in date order when the CronJob is degraded', async () => {
             await renderCronJob(models.HealthStatuses.Degraded, {lastScheduleTime: '2026-10-26T16:15:00Z', lastSuccessfulTime: '2026-10-25T18:25:41Z'});
 
-            expect(screen.getByText('LAST SCHEDULED')).toBeInTheDocument();
-            expect(screen.getByText('LAST SUCCESSFUL')).toBeInTheDocument();
+            const rows = screen.getAllByText(/^LAST (SUCCESSFUL|SCHEDULED)$/).map(el => el.textContent);
+            expect(rows).toEqual(['LAST SUCCESSFUL', 'LAST SCHEDULED']);
         });
 
-        it('shows both times when a CronJob created by another resource is degraded', async () => {
+        it('shows both times in date order when a CronJob created by another resource is degraded', async () => {
             await renderChildCronJob(models.HealthStatuses.Degraded, {lastScheduleTime: '2026-10-26T16:15:00Z', lastSuccessfulTime: '2026-10-25T18:25:41Z'});
 
-            expect(screen.getByText('LAST SCHEDULED')).toBeInTheDocument();
-            expect(screen.getByText('LAST SUCCESSFUL')).toBeInTheDocument();
+            const rows = screen.getAllByText(/^LAST (SUCCESSFUL|SCHEDULED)$/).map(el => el.textContent);
+            expect(rows).toEqual(['LAST SUCCESSFUL', 'LAST SCHEDULED']);
         });
 
         it('shows only lastSuccessfulTime when the CronJob completed its last run successfully', async () => {
