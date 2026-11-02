@@ -132,6 +132,58 @@ p, cam, applications, %s/argoproj.io/Rollout/resume, my-proj/*, allow
 	assert.False(t, enf.Enforce(claims, "applications", rbac.ActionAction+"/argoproj.io/Rollout/resume", "my-proj/my-app"))
 }
 
+func TestEnforceProjectGroupWithComma(t *testing.T) {
+	t.Parallel()
+	for _, group := range []string{`"my-org:my-team,admins"`, `my-org:my-team,admins`} {
+		t.Run(group, func(t *testing.T) {
+			t.Parallel()
+			proj := newFakeProj()
+			proj.Spec.Roles[0].Groups = append(proj.Spec.Roles[0].Groups, group)
+			kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+			enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+			rbacEnf := NewRBACPolicyEnforcer(enf, test.NewFakeProjLister(proj))
+			enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+
+			claims := jwt.MapClaims{"groups": []string{"my-org:my-team,admins"}}
+			assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+			// The other groups of the project must keep working as well
+			claims = jwt.MapClaims{"groups": []string{"my-org:my-team"}}
+			assert.True(t, enf.Enforce(claims, "applications", "create", "my-proj/my-app"))
+		})
+	}
+}
+
+func TestEnforceProjectGroupWithEscapedQuotes(t *testing.T) {
+	t.Parallel()
+	proj := newFakeProj()
+	proj.Spec.Roles[0].Groups = append(proj.Spec.Roles[0].Groups, `"team ""A"""`)
+	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, test.NewFakeProjLister(proj))
+	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+
+	// The group name is a single quoted field, so it is used as it is and matches the decoded name
+	assert.True(t, enf.Enforce(jwt.MapClaims{"groups": []string{`team "A"`}}, "applications", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(jwt.MapClaims{"groups": []string{"my-org:my-team"}}, "applications", "create", "my-proj/my-app"))
+}
+
+func TestEnforceProjectGroupWithSeveralQuotedFields(t *testing.T) {
+	t.Parallel()
+	proj := newFakeProj()
+	proj.Spec.Roles[0].Groups = append(proj.Spec.Roles[0].Groups, `"QA","admins"`)
+	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	rbacEnf := NewRBACPolicyEnforcer(enf, test.NewFakeProjLister(proj))
+	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+
+	// The group name is not a single quoted field, so it must neither grant access to "QA" or
+	// "admins" nor keep the other groups of the project from working
+	for _, group := range []string{"QA", "admins"} {
+		assert.False(t, enf.Enforce(jwt.MapClaims{"groups": []string{group}}, "applications", "create", "my-proj/my-app"))
+	}
+	assert.True(t, enf.Enforce(jwt.MapClaims{"groups": []string{"my-org:my-team"}}, "applications", "create", "my-proj/my-app"))
+}
+
 func TestInvalidatedCache(t *testing.T) {
 	t.Parallel()
 	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
