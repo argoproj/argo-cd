@@ -41,7 +41,7 @@ See [What checked-in code is generated and where does it come from?](faq.md#what
 
 Your code failed to lint correctly, or modifications were performed by the `golangci-lint` process.
 
-* You should run `make lint`, or `golangci-lint run` on your local branch and fix all the issues.
+* You should run `make lint` or `make lint-local` on your local branch and fix all the issues. The configuration includes the [gohawk](https://github.com/kojah/gohawk) module plugin, so plain `golangci-lint run` fails with `plugin "gohawk" not found`; run `golangci-lint custom` once to build `dist/custom-gcl` and use `./dist/custom-gcl run` instead.
 
 * If you receive an error like, ```File is not `goimports`-ed (goimports)```, the file is not formatted correctly. Run `gofmt -w $file.go` to resolve this linter error.
 
