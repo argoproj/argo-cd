@@ -17,7 +17,8 @@ rules:
   # auto-assign-pr-author.yaml needs a write token on fork PRs to set the
   # assignee; it never checks out or runs PR code.
   # pr-issue-policy.yaml needs a write token on fork PRs to label them, comment
-  # and convert them to drafts; it only checks out the base branch.
+  # and convert them to drafts, also when a maintainer comments /triage; it only
+  # checks out the base branch.
   dangerous-triggers:
     ignore:
       - auto-assign-pr-author.yaml

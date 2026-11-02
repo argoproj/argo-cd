@@ -1,10 +1,7 @@
 <!--
-Pull requests must link to an existing issue, and an enhancement must have been accepted (labeled `triage/accepted`)
-before work on it starts. Pull requests that change fewer than 50 lines outside of documentation and generated files
-are exempt.
-
-Pull requests that do not meet these criteria are automatically converted to drafts, which maintainers do not routinely
-review. See https://argo-cd.readthedocs.io/en/latest/developer-guide/submit-your-pr/#linking-your-pr-to-an-issue for details.
+Pull requests must link to an issue, and enhancements must be labeled `triage/accepted`. Pull requests that do not are
+converted to drafts. See https://argo-cd.readthedocs.io/en/latest/developer-guide/submit-your-pr/#linking-your-pr-to-an-issue
+for how to link an issue and for exemptions.
 
 Note on DCO:
 
@@ -21,11 +18,10 @@ Closes #<!-- issue number; use "Part of #" if this PR does not fully resolve the
 
 ### Eligibility
 
-<!-- At least one must be true. -->
+<!-- Check one. -->
 
-* [ ] Linked to an existing issue. If the issue is an enhancement, it has the `triage/accepted` label.
-* [ ] Changes documentation only.
-* [ ] Changes fewer than 50 lines outside of documentation and generated files.
+* [ ] Links to an issue. If the issue is an enhancement, it has the `triage/accepted` label.
+* [ ] Is exempt: it changes fewer than 50 lines outside of documentation and generated files, or it is a `chore:`.
 
 ### Quality
 

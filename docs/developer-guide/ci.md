@@ -55,10 +55,8 @@ You should check for the cause of the failure in the check's detail page as desc
 
 ### Why was my PR converted to a draft?
 
-The [PR Issue Policy](https://github.com/argoproj/argo-cd/blob/master/.github/workflows/pr-issue-policy.yaml) workflow
-converts PRs to drafts when they do not link to an issue, or when they link to an enhancement that has not been
-accepted yet. The comment the workflow posts on your PR explains what is missing. See
-[Linking your PR to an issue](submit-your-pr.md#linking-your-pr-to-an-issue) for the full policy.
+Your PR does not link to an issue, or the linked enhancement has not been accepted yet. The comment on your PR explains
+what is missing. See [Linking your PR to an issue](submit-your-pr.md#linking-your-pr-to-an-issue).
 
 ### Why does the "Test GitHub Actions scripts" step fail?
 

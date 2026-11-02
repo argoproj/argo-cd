@@ -12,10 +12,14 @@ const {
   CONVERTED_MARKER,
   NO_ISSUE_LABEL,
   NOT_ACCEPTED_LABEL,
+  TRIAGE_COMMAND,
   countCodeLines,
   evaluate,
   findReferencedNumbers,
   globToRegExp,
+  isBot,
+  isChore,
+  isTriageCommand,
   parseGeneratedPatterns,
 } = run;
 
@@ -132,6 +136,78 @@ describe('findReferencedNumbers', () => {
   });
 });
 
+describe('isBot', () => {
+  const cases = [
+    [{ login: 'dependabot[bot]', type: 'Bot' }, true],
+    [{ login: 'argoproj-renovate[bot]', type: 'Bot' }, true],
+    [{ login: 'argo-cd-cherry-pick-bot[bot]', type: 'Bot' }, true],
+    [{ login: 'github-actions[bot]', type: 'Bot' }, true],
+    [{ login: 'some-app[bot]', type: 'User' }, true],
+    [{ login: 'renovate-fan', type: 'User' }, false],
+    [{ login: 'robot', type: 'User' }, false],
+    [undefined, false],
+  ];
+  for (const [user, want] of cases) {
+    it(`${JSON.stringify(user)} ${want ? 'is' : 'is not'} a bot`, () => {
+      assert.equal(isBot(user), want);
+    });
+  }
+});
+
+describe('isChore', () => {
+  const cases = [
+    ['chore: bump golang to 1.26', true],
+    ['chore(deps): update module github.com/foo/bar to v2', true],
+    ['chore!: drop support for Kubernetes 1.29', true],
+    ['Chore(ci): pin actions', true],
+    ['  chore: leading whitespace', true],
+    ['feat: add a chore command', false],
+    ['fix(chore): wrong scope', false],
+    ['chores: not the chore type', false],
+    ['chore bump without a colon', false],
+    ['', false],
+    [undefined, false],
+  ];
+  for (const [title, want] of cases) {
+    it(`${JSON.stringify(title)} ${want ? 'is' : 'is not'} a chore`, () => {
+      assert.equal(isChore(title), want);
+    });
+  }
+});
+
+describe('isTriageCommand', () => {
+  const payload = (comment, issue = { number: 100, pull_request: {} }) => ({
+    issue,
+    comment: { id: 1, body: TRIAGE_COMMAND, author_association: 'MEMBER', ...comment },
+  });
+
+  it('accepts a maintainer commenting the command on a PR', () => {
+    for (const association of ['OWNER', 'MEMBER', 'COLLABORATOR']) {
+      assert.equal(isTriageCommand(payload({ author_association: association })), true);
+    }
+  });
+
+  it('accepts surrounding whitespace', () => {
+    assert.equal(isTriageCommand(payload({ body: `  ${TRIAGE_COMMAND}\n` })), true);
+  });
+
+  it('rejects other users', () => {
+    for (const association of ['CONTRIBUTOR', 'FIRST_TIME_CONTRIBUTOR', 'NONE']) {
+      assert.equal(isTriageCommand(payload({ author_association: association })), false);
+    }
+  });
+
+  it('rejects other comments', () => {
+    for (const body of ['/triaged', `${TRIAGE_COMMAND} please`, 'LGTM', '']) {
+      assert.equal(isTriageCommand(payload({ body })), false);
+    }
+  });
+
+  it('rejects comments on issues', () => {
+    assert.equal(isTriageCommand(payload({}, { number: 100 })), false);
+  });
+});
+
 const issue = (number, ...labels) => ({ number, labels: labels.map(name => ({ name })) });
 
 describe('evaluate', () => {
@@ -161,7 +237,16 @@ describe('evaluate', () => {
 });
 
 // fakeGitHub records the calls run() makes against the GitHub API.
-function fakeGitHub({ files, issues = {}, sidebar = [], comments = [], convertError }) {
+// policyStart is when the workflow was first committed; PRs default to being opened after it.
+function fakeGitHub({
+  files,
+  issues = {},
+  sidebar = [],
+  comments = [],
+  convertError,
+  pullRequest,
+  policyStart = '2026-11-01T00:00:00Z',
+}) {
   const calls = [];
   const record = name => async args => {
     calls.push({ name, args });
@@ -189,7 +274,17 @@ function fakeGitHub({ files, issues = {}, sidebar = [], comments = [], convertEr
       return {};
     },
     rest: {
-      pulls: { listFiles: async () => files },
+      pulls: {
+        listFiles: async () => files,
+        get: async ({ pull_number }) => ({ data: { ...pullRequest, number: pull_number } }),
+      },
+      reactions: { createForIssueComment: record('react') },
+      repos: {
+        listCommits: async () => [
+          { commit: { committer: { date: '2026-11-20T00:00:00Z' } } },
+          { commit: { committer: { date: policyStart } } },
+        ],
+      },
       issues: {
         get: async ({ issue_number }) => {
           if (!issues[issue_number]) {
@@ -214,6 +309,7 @@ const core = { info() {}, warning() {}, setFailed() {} };
 const context = pr => ({
   repo: { owner: 'argoproj', repo: 'argo-cd' },
   payload: {
+    repository: { default_branch: 'master' },
     pull_request: {
       number: 100,
       node_id: 'PR_node',
@@ -223,9 +319,26 @@ const context = pr => ({
       labels: [],
       author_association: 'CONTRIBUTOR',
       user: { login: 'someone', type: 'User' },
+      created_at: '2026-12-01T00:00:00Z',
       ...pr,
     },
   },
+});
+// commentContext is the context of an issue_comment event on PR #100.
+const commentContext = comment => ({
+  repo: { owner: 'argoproj', repo: 'argo-cd' },
+  payload: {
+    repository: { default_branch: 'master' },
+    issue: { number: 100, pull_request: {} },
+    comment: { id: 5, body: TRIAGE_COMMAND, author_association: 'MEMBER', ...comment },
+  },
+});
+// openPR is a PR as returned by the pulls.get REST API.
+const openPR = pr => ({
+  ...context({}).payload.pull_request,
+  state: 'open',
+  base: { ref: 'master' },
+  ...pr,
 });
 const bigChange = [{ filename: 'controller/state.go', additions: 80, deletions: 0 }];
 const names = github => github.calls.map(c => c.name);
@@ -308,11 +421,93 @@ describe('run', () => {
     assert.deepEqual(names(github), []);
   });
 
+  it('exempts chores', async () => {
+    const github = fakeGitHub({ files: bigChange });
+    await run({ github, context: context({ title: 'chore(deps): bump golang to 1.26' }), core, gitattributes: '' });
+    assert.deepEqual(names(github), []);
+  });
+
+  it('marks a PR it converted ready for review once it is retitled as a chore', async () => {
+    const existing = { id: 1, user: { type: 'Bot' }, body: `${COMMENT_MARKER}\n${CONVERTED_MARKER}\nold` };
+    const github = fakeGitHub({ files: bigChange, comments: [existing] });
+    const pr = { draft: true, title: 'chore: bump golang', labels: [{ name: NO_ISSUE_LABEL }] };
+    await run({ github, context: context(pr), core, gitattributes: '' });
+    assert.deepEqual(names(github), ['removeLabel', 'markReady', 'updateComment']);
+  });
+
+  it('checks the PR when a maintainer comments the triage command', async () => {
+    const github = fakeGitHub({ files: bigChange, pullRequest: openPR({}) });
+    await run({ github, context: commentContext({}), core, gitattributes: '' });
+    assert.deepEqual(names(github), ['addLabels', 'convertToDraft', 'createComment', 'react']);
+    assert.equal(github.calls[1].args.id, 'PR_node');
+    assert.equal(github.calls[3].args.comment_id, 5);
+  });
+
+  it('uses the live labels of the PR when triggered by a comment', async () => {
+    const pullRequest = openPR({ labels: [{ name: 'policy/exempt' }] });
+    const github = fakeGitHub({ files: bigChange, pullRequest });
+    await run({ github, context: commentContext({}), core, gitattributes: '' });
+    assert.deepEqual(names(github), ['react']);
+  });
+
+  it('ignores the triage command from other users', async () => {
+    const github = fakeGitHub({ files: bigChange, pullRequest: openPR({}) });
+    await run({ github, context: commentContext({ author_association: 'CONTRIBUTOR' }), core, gitattributes: '' });
+    assert.deepEqual(names(github), []);
+  });
+
+  it('ignores the triage command on PRs it does not apply to', async () => {
+    for (const pr of [{ base: { ref: 'release-3.6' } }, { state: 'closed' }]) {
+      const github = fakeGitHub({ files: bigChange, pullRequest: openPR(pr) });
+      await run({ github, context: commentContext({}), core, gitattributes: '' });
+      assert.deepEqual(names(github), []);
+    }
+  });
+
   it('skips maintainers and bots', async () => {
-    for (const pr of [{ author_association: 'MEMBER' }, { user: { login: 'renovate[bot]', type: 'Bot' } }]) {
+    const authors = [
+      { author_association: 'MEMBER' },
+      { user: { login: 'argoproj-renovate[bot]', type: 'Bot' } },
+      { user: { login: 'dependabot[bot]', type: 'Bot' } },
+    ];
+    for (const pr of authors) {
       const github = fakeGitHub({ files: bigChange });
       await run({ github, context: context(pr), core, gitattributes: '' });
       assert.deepEqual(names(github), []);
     }
+  });
+
+  it('skips bots when triggered by a comment', async () => {
+    const pullRequest = openPR({ user: { login: 'dependabot[bot]', type: 'Bot' } });
+    const github = fakeGitHub({ files: bigChange, pullRequest });
+    await run({ github, context: commentContext({}), core, gitattributes: '' });
+    assert.deepEqual(names(github), ['react']);
+  });
+
+  it('skips PRs opened before the policy started', async () => {
+    const github = fakeGitHub({ files: bigChange });
+    await run({ github, context: context({ created_at: '2026-10-31T23:59:59Z' }), core, gitattributes: '' });
+    assert.deepEqual(names(github), []);
+  });
+
+  it('checks PRs opened before the policy started when a maintainer comments the triage command', async () => {
+    const github = fakeGitHub({ files: bigChange, pullRequest: openPR({ created_at: '2026-01-01T00:00:00Z' }) });
+    await run({ github, context: commentContext({}), core, gitattributes: '' });
+    assert.deepEqual(names(github), ['addLabels', 'convertToDraft', 'createComment', 'react']);
+  });
+
+  it('keeps checking PRs opened before the policy started once they were triaged', async () => {
+    const existing = { id: 1, user: { type: 'Bot' }, body: `${COMMENT_MARKER}\n${CONVERTED_MARKER}\nold` };
+    const github = fakeGitHub({ files: bigChange, issues: { 9: issue(9, 'bug') }, comments: [existing] });
+    const pr = { created_at: '2026-01-01T00:00:00Z', draft: true, body: 'Fixes #9', labels: [{ name: NO_ISSUE_LABEL }] };
+    await run({ github, context: context(pr), core, gitattributes: '' });
+    assert.deepEqual(names(github), ['removeLabel', 'markReady', 'updateComment']);
+  });
+
+  it('checks every PR when the start of the policy is unknown', async () => {
+    const github = fakeGitHub({ files: bigChange });
+    github.rest.repos.listCommits = async () => [];
+    await run({ github, context: context({ created_at: '2020-01-01T00:00:00Z' }), core, gitattributes: '' });
+    assert.deepEqual(names(github), ['addLabels', 'convertToDraft', 'createComment']);
   });
 });

@@ -22,99 +22,56 @@ If you need guidance with submitting a PR, or have any other questions regarding
 
 ## Linking your PR to an issue
 
-Argo CD follows an issue-first contribution model. Before you write code, make sure there is an issue that describes the
-problem, so that maintainers can agree on the problem and the approach before effort goes into a review.
+Every PR must link to an issue, so that maintainers can agree on the problem and the approach before reviewing code.
+If the issue is an enhancement, a maintainer must have accepted it by adding the `triage/accepted` label (see
+[triage process](code-contributions.md#triage-process)). Bug reports do not need to be accepted.
 
-1. Find an existing issue, or [open a new one](https://github.com/argoproj/argo-cd/issues/new/choose).
-2. If the issue is an enhancement (labeled `enhancement`), wait until a maintainer has accepted it by adding the
-   `triage/accepted` label. See the [code contribution guide](code-contributions.md#triage-process) for how enhancements
-   are triaged. Bug reports do not need to be accepted.
-3. Open your PR and link the issue in the PR description.
+To link an issue, do one of the following:
 
-A PR is linked to an issue when any of the following is true:
-
-* The description contains a linking phrase followed by the issue, for example `Closes #1234`. The supported phrases are
-  `close`, `closes`, `closed`, `fix`, `fixes`, `fixed`, `fix for`, `resolve`, `resolves`, `resolved`, `address`,
-  `addresses`, `addressed`, `part of`, `ref`, `refs`, `references`, `relates to`, and `related to`. They are not case
-  sensitive and may be followed by a colon.
-* The title references the issue, for example `fix: resolve OutOfSync bug on PostDelete hook (#1234)`.
-* The issue is linked in the *Development* section of the PR sidebar.
-
-The issue can be written as `#1234`, `argoproj/argo-cd#1234`, or `https://github.com/argoproj/argo-cd/issues/1234`.
-Several issues can follow a single phrase, for example `Fixes #1234, #5678`. Use a closing phrase such as `Closes` when
-the PR fully resolves the issue, so that GitHub closes it when the PR is merged, and `Part of` otherwise:
-
-```markdown
-## Description
-
-Closes #1234
-
-Adds the `--foo` flag to `argocd app sync`.
-```
+* Add a linking phrase to the PR description, such as `Closes #1234`, `Fixes #1234`, or `Part of #1234`. Use `Part of`
+  if the PR does not fully resolve the issue.
+* Reference the issue in the PR title, for example `fix: resolve OutOfSync bug on PostDelete hook (#1234)`.
+* Link the issue in the *Development* section of the PR sidebar.
 
 > [!NOTE]
-> References inside HTML comments and code blocks are ignored, and so are references in the description that do not
-> follow a linking phrase. Writing "similar to #1234" does not link the issue.
+> A reference without a linking phrase, such as "similar to #1234", does not link the issue. Neither does a reference
+> inside an HTML comment or a code block.
 
-### Exceptions
+### Exemptions
 
-A PR does not need to link to an issue if it changes fewer than 50 lines, counting both added and removed lines,
-outside of documentation and generated files. This covers typo corrections, small obvious bug fixes, and
-documentation-only changes. The following files are not counted:
+A PR does not need an issue if any of the following is true:
 
-* Documentation: everything under `docs/`, Markdown (`*.md`) files anywhere in the repository, and `mkdocs.yml`.
-* Generated files: every path marked `linguist-generated` in
-  [`.gitattributes`](https://github.com/argoproj/argo-cd/blob/master/.gitattributes), such as `*.pb.go` files, mocks,
-  `assets/swagger.json`, the CRDs, and the install manifests. This way, a small API change is not penalized for the
-  output of `make codegen`.
+* It changes fewer than 50 lines, not counting documentation (`docs/`, `*.md`, `mkdocs.yml`) and generated files (paths
+  marked `linguist-generated` in [`.gitattributes`](https://github.com/argoproj/argo-cd/blob/master/.gitattributes)).
+* Its [title](#title-of-the-pr) starts with `chore:` or `chore(<scope>):`, for example a dependency update.
+* It was opened by a maintainer or a bot, such as Renovate or Dependabot.
+* It targets a branch other than `master`, such as a cherry-pick to a release branch.
+* It has the `policy/exempt` label, which only maintainers can add.
+* It was opened before this policy was introduced.
 
-The policy is also not enforced for:
-
-* PRs opened by maintainers and other users with write access to the repository.
-* PRs opened by bots, such as Renovate and Dependabot.
-* PRs that target a branch other than `master`, such as cherry-picks to release branches.
-* PRs labeled `policy/exempt`. Only maintainers can add this label.
-
-Exempt PRs must still meet all the other requirements described on this page.
-
-### Automatic enforcement
+### If your PR does not meet the policy
 
 The [PR Issue Policy](https://github.com/argoproj/argo-cd/blob/master/.github/workflows/pr-issue-policy.yaml) workflow
-checks every PR whenever it is opened, reopened, edited, pushed to, labeled, or marked ready for review. If the PR does
-not meet the policy, the workflow:
+checks your PR whenever you open, edit, or push to it. If the PR does not meet the policy, the workflow converts it to a
+draft, labels it `policy/no-linked-issue` or `policy/issue-not-accepted`, and comments with what is missing.
+Maintainers do not routinely review drafts.
 
-1. Converts the PR to a draft. Maintainers do not routinely review drafts.
-2. Adds the `policy/no-linked-issue` label if no issue is linked, or the `policy/issue-not-accepted` label if a linked
-   enhancement does not have the `triage/accepted` label.
-3. Posts a comment that explains what is missing and how to fix it.
-
-To move forward, link an issue or wait for the enhancement to be accepted, then mark the PR ready for review. If the PR
-was converted to a draft by the workflow and now meets the policy, editing the description or pushing a commit is enough:
-the workflow marks it ready for review again. A draft that you opened yourself stays a draft until you mark it ready.
-
-> [!WARNING]
-> Adding the `triage/accepted` label to an issue does not trigger the workflow on PRs that link to it. After an
-> enhancement is accepted, mark the PR ready for review, or edit its description, to have it checked again.
+Once you link an issue, or the linked enhancement is accepted, edit the PR description or push a commit. The workflow
+checks the PR again and, if it converted the PR to a draft, marks it ready for review.
 
 > [!NOTE]
-> Maintainers who want to review a PR that does not meet the policy should add the `policy/exempt` label instead of
-> marking the PR ready for review. Otherwise, the workflow converts it back to a draft.
+> Accepting an issue does not trigger the workflow by itself. Edit the PR description afterwards, or ask a maintainer to
+> comment `/triage` on the PR.
 
-### Labels
+### For maintainers
 
-The policy uses the following labels:
-
-| Label | Applies to | Meaning |
-|-------|------------|---------|
-| `triage/accepted` | Issues | A maintainer has accepted the enhancement for implementation. Only required on issues labeled `enhancement`. |
-| `policy/no-linked-issue` | PRs | Added by the workflow: the PR does not link to an issue. |
-| `policy/issue-not-accepted` | PRs | Added by the workflow: a linked enhancement does not have the `triage/accepted` label. |
-| `policy/exempt` | PRs | Added by a maintainer: the workflow does not enforce the policy on this PR. |
-
-The workflow removes the `policy/no-linked-issue` and `policy/issue-not-accepted` labels as soon as the PR meets the
-policy. You can use them to find the PRs that are waiting on an issue, for example with the
-[`label:policy/no-linked-issue`](https://github.com/argoproj/argo-cd/pulls?q=is%3Apr+is%3Aopen+label%3Apolicy%2Fno-linked-issue)
-search.
+* Comment `/triage` on a PR to check it immediately. This also works on PRs opened before the policy was introduced; the
+  workflow keeps checking them afterwards. The workflow reacts with a thumbs-up when it is done.
+* To review a PR that does not meet the policy, add the `policy/exempt` label. Marking the PR ready for review is not
+  enough: the workflow converts it back to a draft.
+* If a PR is titled as a chore but is not one, change its title. The workflow checks it again.
+* To find PRs waiting on an issue, search for
+  [`label:policy/no-linked-issue`](https://github.com/argoproj/argo-cd/pulls?q=is%3Apr+is%3Aopen+label%3Apolicy%2Fno-linked-issue).
 
 ## Before Submitting a PR
 

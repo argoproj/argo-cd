@@ -5,6 +5,7 @@
 // policy itself is documented in docs/developer-guide/submit-your-pr.md.
 //
 // A pull request passes the policy when either:
+//   - its title marks it as a chore, e.g. `chore(deps): bump golang`, or
 //   - it changes fewer than MAX_EXEMPT_CODE_LINES lines outside of documentation
 //     and generated files (this also covers documentation-only PRs), or
 //   - it links at least one issue, and every linked issue labeled `enhancement`
@@ -12,6 +13,15 @@
 // A PR that fails the policy is labeled, gets an explanatory comment and is
 // converted to a draft. Once it passes again, the PR is marked ready for review
 // if, and only if, this script was the one that converted it to a draft.
+//
+// PRs opened by bots or maintainers are never checked. Neither are PRs opened
+// before the workflow was added to the default branch, unless the policy has
+// already been applied to them.
+//
+// The script runs on pull_request_target events, and on issue_comment events
+// when a maintainer comments TRIAGE_COMMAND on a PR, so that the policy can be
+// applied on demand, e.g. to PRs opened before the workflow existed or after a
+// linked enhancement was accepted.
 
 const fs = require('fs');
 
@@ -25,6 +35,13 @@ const POLICY_LABELS = [NO_ISSUE_LABEL, NOT_ACCEPTED_LABEL];
 // PRs authored by users with write access to the repository are not checked.
 const MAINTAINER_ASSOCIATIONS = ['OWNER', 'MEMBER', 'COLLABORATOR'];
 const DOCS_PATTERNS = ['docs/**', '*.md', 'mkdocs.yml'];
+// Semantic PR title of a chore, such as a dependency or toolchain update.
+const CHORE_TITLE = /^chore(?:\([^)]*\))?!?:/i;
+// PR comment that makes a maintainer re-run the policy on that PR.
+const TRIAGE_COMMAND = '/triage';
+// The workflow running this script. PRs opened before it was first committed to
+// the default branch are not checked automatically.
+const WORKFLOW_PATH = '.github/workflows/pr-issue-policy.yaml';
 // Upper bound on the number of referenced issues that are looked up.
 const MAX_LINKED_ISSUES = 10;
 
@@ -127,6 +144,27 @@ function findReferencedNumbers(title, body, owner, repo) {
   return [...numbers];
 }
 
+// GitHub Apps such as Renovate, Dependabot and the cherry-pick bot have the type
+// Bot; their logins also end in [bot].
+function isBot(user) {
+  return Boolean(user) && (user.type === 'Bot' || /\[bot\]$/i.test(user.login || ''));
+}
+
+function isChore(title) {
+  return CHORE_TITLE.test((title || '').trim());
+}
+
+// Reports whether an issue_comment event is a maintainer asking to re-run the
+// policy on a pull request. The workflow filters these events as well, but the
+// filter is repeated here so that the script never acts on anyone else's comment.
+function isTriageCommand(payload) {
+  const { issue, comment } = payload;
+  if (!issue || !issue.pull_request || !comment || !comment.body) {
+    return false;
+  }
+  return comment.body.trim() === TRIAGE_COMMAND && MAINTAINER_ASSOCIATIONS.includes(comment.author_association);
+}
+
 // Decides whether a PR passes the policy. `issues` are the linked issues as
 // returned by the REST API (pull requests already filtered out).
 function evaluate({ codeLines, issues }) {
@@ -179,7 +217,7 @@ ${why}
 
 ${steps}
 
-The policy is checked again whenever the PR is edited or marked ready for review. See [Linking your PR to an issue](${POLICY_DOCS_URL}) for details.`;
+The policy is checked again whenever the PR is edited or marked ready for review, or when a maintainer comments \`${TRIAGE_COMMAND}\`. See [Linking your PR to an issue](${POLICY_DOCS_URL}) for details.`;
 }
 
 function passComment(result, readied) {
@@ -264,18 +302,95 @@ async function setPolicyLabel({ github, core, owner, repo, pr, label }) {
   }
 }
 
+// Returns the PR to check, or null when the event must be ignored.
+async function loadPullRequest({ github, context, core }) {
+  const { owner, repo } = context.repo;
+  if (context.payload.pull_request) {
+    return context.payload.pull_request;
+  }
+  if (!isTriageCommand(context.payload)) {
+    core.info('Skipping: the event is not a maintainer triage command on a pull request.');
+    return null;
+  }
+  const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: context.payload.issue.number });
+  // pull_request_target only runs for PRs to the default branch; apply the same scope here.
+  const defaultBranch = context.payload.repository.default_branch;
+  if (pr.state !== 'open' || pr.base.ref !== defaultBranch) {
+    core.info(`Skipping: #${pr.number} is ${pr.state} and targets ${pr.base.ref}, not ${defaultBranch}.`);
+    return null;
+  }
+  return pr;
+}
+
+// Acknowledges a triage command, so that the maintainer can see it was handled.
+async function acknowledge({ github, context, core }) {
+  const { comment } = context.payload;
+  if (!comment) {
+    return;
+  }
+  try {
+    await github.rest.reactions.createForIssueComment({
+      ...context.repo,
+      comment_id: comment.id,
+      content: '+1',
+    });
+  } catch (e) {
+    core.warning(`Could not react to comment ${comment.id}: ${e.message}`);
+  }
+}
+
+// Returns when the workflow was first committed to the default branch, or null
+// if that cannot be determined.
+async function policyStart({ github, context }) {
+  const commits = await github.paginate(github.rest.repos.listCommits, {
+    ...context.repo,
+    sha: context.payload.repository.default_branch,
+    path: WORKFLOW_PATH,
+    per_page: 100,
+  });
+  // Commits are listed newest first.
+  const first = commits[commits.length - 1];
+  return first ? new Date(first.commit.committer.date) : null;
+}
+
 async function run({ github, context, core, gitattributes }) {
-  const pr = context.payload.pull_request;
+  const pr = await loadPullRequest({ github, context, core });
+  if (!pr) {
+    return;
+  }
+  // A PR is loaded from somewhere other than the event only for a triage command.
+  const manual = !context.payload.pull_request;
+  await enforce({ github, context, core, gitattributes, pr, manual });
+  await acknowledge({ github, context, core });
+}
+
+async function enforce({ github, context, core, gitattributes, pr, manual }) {
   const { owner, repo } = context.repo;
 
-  if (pr.user.type === 'Bot' || MAINTAINER_ASSOCIATIONS.includes(pr.author_association)) {
+  if (isBot(pr.user) || MAINTAINER_ASSOCIATIONS.includes(pr.author_association)) {
     core.info(`Skipping: #${pr.number} is authored by ${pr.user.login} (${pr.author_association}).`);
     return;
+  }
+
+  let existing;
+  if (!manual) {
+    const start = await policyStart({ github, context });
+    if (start && new Date(pr.created_at) < start) {
+      // Keep checking PRs a maintainer has triaged, so that they are marked
+      // ready for review again once they pass.
+      existing = await findPolicyComment({ github, owner, repo, pr });
+      if (!existing) {
+        core.info(`Skipping: #${pr.number} was opened before the policy started on ${start.toISOString()}.`);
+        return;
+      }
+    }
   }
 
   let result;
   if (pr.labels.some(l => l.name === EXEMPT_LABEL)) {
     result = { pass: true, reason: `carries the \`${EXEMPT_LABEL}\` label` };
+  } else if (isChore(pr.title)) {
+    result = { pass: true, reason: 'is a chore according to its title' };
   } else {
     const files = await github.paginate(github.rest.pulls.listFiles, {
       owner,
@@ -290,7 +405,7 @@ async function run({ github, context, core, gitattributes }) {
   }
   core.info(`Policy result for #${pr.number}: ${JSON.stringify(result)}`);
 
-  const existing = await findPolicyComment({ github, owner, repo, pr });
+  existing ??= await findPolicyComment({ github, owner, repo, pr });
   const convertedEarlier = Boolean(existing && existing.body.includes(CONVERTED_MARKER));
 
   if (!result.pass) {
@@ -338,9 +453,13 @@ Object.assign(module.exports, {
   CONVERTED_MARKER,
   NO_ISSUE_LABEL,
   NOT_ACCEPTED_LABEL,
+  TRIAGE_COMMAND,
   countCodeLines,
   evaluate,
   findReferencedNumbers,
   globToRegExp,
+  isBot,
+  isChore,
+  isTriageCommand,
   parseGeneratedPatterns,
 });

@@ -8,6 +8,9 @@ on:
     types: [opened, reopened, edited, synchronize, ready_for_review, labeled, unlabeled]
     branches:
       - master
+  # Maintainers can re-run the policy on a PR by commenting /triage on it.
+  issue_comment:
+    types: [created]
 
 permissions: {}
 
@@ -15,9 +18,18 @@ env:
   # a workaround to disable harden runner
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
 
-# Only the most recent event for a PR matters.
+# Only the most recent event for a PR matters. Every comment on a PR starts this
+# workflow, so comments other than a maintainer's /triage command get a group of
+# their own; otherwise they would cancel an in-progress policy check.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  group: >-
+    ${{ github.workflow }}-${{
+      (github.event_name == 'pull_request_target'
+        || (startsWith(github.event.comment.body, '/triage')
+          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)))
+      && (github.event.pull_request.number || github.event.issue.number)
+      || github.run_id
+    }}
   cancel-in-progress: true
 
 jobs:
@@ -29,10 +41,18 @@ jobs:
       # runs code from the PR.
       contents: write # to convert the PR to a draft
       issues: read # to read the labels of linked issues
-      pull-requests: write # to label, comment on and convert the PR to a draft
+      pull-requests: write # to label, comment on and convert the PR to a draft, and react to /triage
     name: Check linked issue
     # Bot accounts (Renovate, Dependabot, GitHub Apps) are exempt from the policy.
-    if: github.event.pull_request.user.type != 'Bot'
+    # On comments, only a maintainer's /triage command on a PR runs the check.
+    if: >-
+      (github.event_name == 'pull_request_target'
+        && github.event.pull_request.user.type != 'Bot'
+        && !endsWith(github.event.pull_request.user.login, '[bot]'))
+      || (github.event_name == 'issue_comment'
+        && github.event.issue.pull_request
+        && startsWith(github.event.comment.body, '/triage')
+        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)
