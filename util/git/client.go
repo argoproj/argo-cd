@@ -2389,15 +2389,21 @@ func hasCompleteHistory(repo *git.Repository, tip plumbing.Hash) (bool, error) {
 func (m *nativeGitClient) wipeAndClone(ctx context.Context) error {
 	log.Infof("Wiping and re-cloning %s at %s", SanitizeRepoURL(m.repoURL), m.root)
 
-	if err := os.RemoveAll(m.root); err != nil {
-		return fmt.Errorf("unable to wipe repo at %s: %w", m.root, err)
+	// clear contents in place so m.root remains - the reposerver
+	// cache parent is 0300 (wx-only), so the directory cannot be removed
+	entries, err := os.ReadDir(m.root)
+	if err != nil {
+		return fmt.Errorf("cannot wipe repo: failed to read directory %s: %w", m.root, err)
 	}
-	if err := os.MkdirAll(m.root, 0o755); err != nil {
-		return fmt.Errorf("unable to recreate repo dir %s: %w", m.root, err)
+	for _, entry := range entries {
+		err := os.RemoveAll(filepath.Join(m.root, entry.Name()))
+		if err != nil {
+			return fmt.Errorf("cannot wipe repo: failed to remove entry %s: %w", entry.Name(), err)
+		}
 	}
 
 	// --no-checkout: checkoutRevision checks out the target revision as necessary
-	err := m.runCredentialedCmd(ctx, "clone", "--no-checkout", m.repoURL, ".")
+	err = m.runCredentialedCmd(ctx, "clone", "--no-checkout", m.repoURL, ".")
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}
