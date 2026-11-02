@@ -104,3 +104,29 @@ func TestTwoLevelClient_ChangedValueWritesThrough(t *testing.T) {
 	require.NoError(t, external.Get(key, got))
 	assert.Equal(t, "v2", got.Bar)
 }
+
+// A read-through entry (populated into memory by Get from the external cache) must not vouch for the
+// external TTL: the tiers were not stamped together on that path, so the first identical Set afterwards
+// has to write through. In production the client's in-memory default (10m) is far below half of the
+// affected items' expiration (1h), which is exactly what this test pins: read-through entries carry the
+// default and therefore always fail the freshness check for such items.
+func TestTwoLevelClient_ReadThroughDoesNotTrustExternalTTL(t *testing.T) {
+	t.Parallel()
+	external := &countingCache{InMemoryCache: NewInMemoryCache(time.Hour)}
+	// In-memory default far below half of the item expiration, mirroring the production ratio (10m vs 1h).
+	client := NewTwoLevelClient(external, 100*time.Millisecond)
+	key := "app|managed-resources|my-app"
+	item := &Item{Key: key, Object: &foo{Bar: "stable"}, CacheActionOpts: CacheActionOpts{Expiration: time.Hour}}
+
+	// The value exists only in the external cache (e.g. this controller restarted).
+	require.NoError(t, external.InMemoryCache.Set(item))
+	external.setCalls = 0
+
+	// Read-through populates the in-memory tier with the client default expiration.
+	require.NoError(t, client.Get(key, &foo{}))
+
+	// The first identical Set after a read-through must NOT trust the local copy's freshness —
+	// it has to write through and restamp the external TTL.
+	require.NoError(t, client.Set(item))
+	assert.Equal(t, 1, external.setCalls, "first identical Set after a read-through must write through")
+}
