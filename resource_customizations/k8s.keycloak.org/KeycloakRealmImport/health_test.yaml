@@ -17,12 +17,12 @@ tests:
     inputPath: testdata/progressing_job_running.yaml
   - healthStatus:
       status: Healthy
-      message: Realm imported
+      message: Import Job completed
     inputPath: testdata/healthy.yaml
   - healthStatus:
-      status: Degraded
+      status: Progressing
       message: Import Job failed
-    inputPath: testdata/degraded_job_failed.yaml
+    inputPath: testdata/progressing_job_failed.yaml
   - healthStatus:
       status: Degraded
       message: |-
@@ -41,9 +41,9 @@ tests:
     inputPath: testdata/progressing_job_will_start_v21.yaml
   - healthStatus:
       status: Healthy
-      message: Realm imported
+      message: Import Job completed
     inputPath: testdata/healthy_v21.yaml
   - healthStatus:
-      status: Degraded
+      status: Progressing
       message: Import Job failed
-    inputPath: testdata/degraded_job_failed_v21.yaml
+    inputPath: testdata/progressing_job_failed_v21.yaml
