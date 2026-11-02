@@ -47,16 +47,17 @@ func TestKubectlMetrics(t *testing.T) {
 		Given().
 		Revision("master").
 		When().
-		// ensure that update replaces spec and merge labels and annotations
+		// ensure that upsert replaces spec, labels and annotations, but preserves controller-managed annotations
 		And(func() {
 			errors.NewHandler(t).FailOnErr(fixture.AppClientset.ArgoprojV1alpha1().Applications(fixture.TestNamespace()).Patch(t.Context(),
-				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation" }}}`), metav1.PatchOptions{}))
+				ctx.GetName(), types.MergePatchType, []byte(`{"metadata": {"labels": { "test": "label" }, "annotations": { "test": "annotation", "notified.notifications.argoproj.io": "{}" }}}`), metav1.PatchOptions{}))
 		}).
 		CreateApp("--upsert").
 		Then().
 		And(func(app *Application) {
-			assert.Equal(t, "label", app.Labels["test"])
-			assert.Equal(t, "annotation", app.Annotations["test"])
+			assert.NotContains(t, app.Labels, "test")
+			assert.NotContains(t, app.Annotations, "test")
+			assert.Equal(t, "{}", app.Annotations["notified.notifications.argoproj.io"])
 			assert.Equal(t, "master", app.Spec.GetSource().TargetRevision)
 		})
 

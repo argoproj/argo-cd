@@ -56,7 +56,6 @@ import (
 	serverevents "github.com/argoproj/argo-cd/v3/server/events"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
-	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
@@ -409,7 +408,7 @@ func (s *Server) Create(ctx context.Context, q *application.ApplicationCreateReq
 	equalSpecs := reflect.DeepEqual(existing.Spec.Destination, a.Spec.Destination) &&
 		reflect.DeepEqual(existing.Spec, a.Spec) &&
 		reflect.DeepEqual(existing.Labels, a.Labels) &&
-		reflect.DeepEqual(existing.Annotations, a.Annotations) &&
+		reflect.DeepEqual(existing.Annotations, withControllerManagedAnnotations(existing.Annotations, a.Annotations)) &&
 		reflect.DeepEqual(existing.Finalizers, a.Finalizers)
 
 	if equalSpecs {
@@ -973,7 +972,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 
 // validateAndUpdateApp validates and updates the application. currentProject is the name of the project the app
 // currently is under. If not specified, we assume that the app is under the project specified in the app spec.
-func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *v1alpha1.Application, merge bool, validate bool, action string, currentProject string) (*v1alpha1.Application, error) {
+func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *v1alpha1.Application, upsert bool, validate bool, action string, currentProject string) (*v1alpha1.Application, error) {
 	s.projectLock.RLock(newApp.Spec.GetProject())
 	defer s.projectLock.RUnlock(newApp.Spec.GetProject())
 
@@ -987,7 +986,7 @@ func (s *Server) validateAndUpdateApp(ctx context.Context, newApp *v1alpha1.Appl
 		return nil, fmt.Errorf("error validating and normalizing app: %w", err)
 	}
 
-	a, err := s.updateApp(ctx, app, newApp, merge)
+	a, err := s.updateApp(ctx, app, newApp, upsert)
 	if err != nil {
 		return nil, fmt.Errorf("error updating application: %w", err)
 	}
@@ -1027,14 +1026,45 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 	logCtx.Warnf("waitSync failed: timed out")
 }
 
-func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
+// controllerManagedAnnotations are annotations that are written by Argo CD controllers rather than by users.
+var controllerManagedAnnotations = []string{
+	notifiedAnnotationKey,
+	v1alpha1.AnnotationKeyRefresh,
+	v1alpha1.AnnotationKeyRefreshTimestamp,
+	v1alpha1.AnnotationKeyHydrate,
+	v1alpha1.AnnotationKeyHydrateTimestamp,
+}
+
+const notifiedAnnotationKey = "notified.notifications.argoproj.io"
+
+func withControllerManagedAnnotations(existing, desired map[string]string) map[string]string {
+	var res map[string]string
+	if desired != nil {
+		res = maps.Clone(desired)
+	}
+	for _, key := range controllerManagedAnnotations {
+		val, ok := existing[key]
+		if !ok {
+			continue
+		}
+		if _, set := res[key]; set {
+			continue
+		}
+		if res == nil {
+			res = map[string]string{}
+		}
+		res[key] = val
+	}
+	return res
+}
+
+func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, upsert bool) (*v1alpha1.Application, error) {
 	for range 10 {
 		app.Spec = newApp.Spec
-		if merge {
-			app.Labels = collections.Merge(app.Labels, newApp.Labels)
-			app.Annotations = collections.Merge(app.Annotations, newApp.Annotations)
+		app.Labels = newApp.Labels
+		if upsert {
+			app.Annotations = withControllerManagedAnnotations(app.Annotations, newApp.Annotations)
 		} else {
-			app.Labels = newApp.Labels
 			app.Annotations = newApp.Annotations
 		}
 
