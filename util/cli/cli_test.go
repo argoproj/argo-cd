@@ -174,3 +174,55 @@ func TestBoundedFloat64Var(t *testing.T) {
 		})
 	}
 }
+
+func TestStripNonPrintableRunes(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		input    string
+		expected string
+	}{
+		{
+			name:     "plain text",
+			input:    "Add test commit",
+			expected: "Add test commit",
+		},
+		{
+			name:     "ansi color escapes",
+			input:    "\x1b[1;31mCRITICAL\x1b[0m",
+			expected: "[1;31mCRITICAL[0m",
+		},
+		{
+			name:     "carriage return overwrite",
+			input:    "safe\revil",
+			expected: "safeevil",
+		},
+		{
+			name:     "bidi override",
+			input:    "safe\u202eTPIRCSdesrever",
+			expected: "safeTPIRCSdesrever",
+		},
+		{
+			name:     "zero width space",
+			input:    "hid\u200bden",
+			expected: "hidden",
+		},
+		{
+			name:     "keeps unicode letters",
+			input:    "ŠŠŠČČČ <example@example.com>",
+			expected: "ŠŠŠČČČ <example@example.com>",
+		},
+		{
+			name:     "empty",
+			input:    "",
+			expected: "",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, StripNonPrintableRunes(tc.input))
+		})
+	}
+}

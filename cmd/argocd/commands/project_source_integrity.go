@@ -663,7 +663,13 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 			tabW := tabwriter.NewWriter(w, 0, 0, 2, ' ', 0)
 			fmt.Fprint(tabW, "  Revision\tDate\tAuthor\tSubject\tResult\n")
 			for _, commit := range item.GetCommits() {
-				fmt.Fprintf(tabW, "  %s\t%s\t%s\t%s\t%s\n", commit.GetRevision(), formatCommitDate(commit.GetDate()), commit.GetAuthor(), commit.GetSubject(), commit.GetVerificationResult())
+				fmt.Fprintf(tabW, "  %s\t%s\t%s\t%s\t%s\n",
+					cli.StripNonPrintableRunes(commit.GetRevision()),
+					cli.StripNonPrintableRunes(formatCommitDate(commit.GetDate())),
+					cli.StripNonPrintableRunes(commit.GetAuthor()),
+					cli.StripNonPrintableRunes(commit.GetSubject()),
+					cli.StripNonPrintableRunes(commit.GetVerificationResult()),
+				)
 			}
 			tabW.Flush()
 		} else if item.GetErrorMessage() == "" {
@@ -676,11 +682,12 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 			fmt.Fprintln(w)
 			fmt.Fprintln(w, "To inspect repository:")
 			fmt.Fprintln(w, "  git fetch --tags")
-			fmt.Fprintf(w, "  git checkout %s\n", shellquote.Join(item.GetResolvedRevision()))
-			fmt.Fprintf(w, "  git log --oneline %s\n", shellquote.Join(item.GetResolvedRevision()))
+			resolvedRevision := cli.StripNonPrintableRunes(item.GetResolvedRevision())
+			fmt.Fprintf(w, "  git checkout %s\n", shellquote.Join(resolvedRevision))
+			fmt.Fprintf(w, "  git log --oneline %s\n", shellquote.Join(resolvedRevision))
 			revisions := make([]string, 0, len(item.GetCommits()))
 			for _, commit := range item.GetCommits() {
-				revisions = append(revisions, commit.GetRevision())
+				revisions = append(revisions, cli.StripNonPrintableRunes(commit.GetRevision()))
 			}
 			if len(revisions) > 0 {
 				fmt.Fprintf(w, "  git log -p --no-walk %s [--show-signature]\n", shellquote.Join(revisions...))
@@ -697,9 +704,9 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 
 func printGitGpgSourceIntegrityItemHeader(w io.Writer, item *applicationpkg.InspectGitGPGSourceIntegrityResponse) {
 	fmt.Fprintf(w, "Repo URL: %s\n", item.GetRepoUrl())
-	fmt.Fprintf(w, "Target Revision: %s\n", item.GetTargetRevision())
+	fmt.Fprintf(w, "Target Revision: %s\n", cli.StripNonPrintableRunes(item.GetTargetRevision()))
 	if item.GetErrorMessage() == "" {
-		fmt.Fprintf(w, "Resolved Revision: %s\n", item.GetResolvedRevision())
+		fmt.Fprintf(w, "Resolved Revision: %s\n", cli.StripNonPrintableRunes(item.GetResolvedRevision()))
 	}
 
 	gpgPolicy := item.GetGitGpgPolicy()

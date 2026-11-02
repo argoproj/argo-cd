@@ -1278,6 +1278,47 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_MultipleSources(t *testing.
 	assert.Equal(t, expectedStdout, stdout)
 }
 
+func TestPrintGitGpgSourceIntegrityResponse_StripsControlCharacters(t *testing.T) {
+	t.Parallel()
+
+	var buf bytes.Buffer
+	printGitGpgSourceIntegrityResponse(&buf, []*application.InspectGitGPGSourceIntegrityResponse{
+		prepareInspectGitGPGSourceIntegrityResponse(
+			"https://github.com/argoproj/argo-cd.git",
+			"abcd\x1b[0m1234",
+			"main\u202e",
+			&appsv1.SourceIntegrityGitPolicyGPG{
+				Mode: appsv1.SourceIntegrityGitPolicyGPGModeStrict,
+				Keys: []string{"ABCD1234ABCD1234"},
+			},
+			[]*application.GitGPGCommitInfo{
+				prepareGitGPGCommitInfo(
+					"abcd\x1b[0m1234",
+					"not-a-date\r\x1b[1m",
+					"Jim\rSmith <jim.smith@example.com>",
+					"Add \x1b[1;31mCRITICAL\x1b[0m \u202ecommit",
+					"unsigned(key_id=\x1b[0m)",
+				),
+			},
+			"",
+		),
+	})
+
+	out := buf.String()
+	assert.NotContains(t, out, "\x1b")
+	assert.NotContains(t, out, "\r")
+	assert.NotContains(t, out, "\u202e")
+	assert.Contains(t, out, "Target Revision: main")
+	assert.Contains(t, out, "Resolved Revision: abcd[0m1234")
+	assert.Contains(t, out, "abcd[0m1234")
+	assert.Contains(t, out, "not-a-date[1m")
+	assert.Contains(t, out, "JimSmith <jim.smith@example.com>")
+	assert.Contains(t, out, "Add [1;31mCRITICAL[0m commit")
+	assert.Contains(t, out, "unsigned(key_id=[0m)")
+	assert.Contains(t, out, "git checkout abcd\\[0m1234")
+	assert.Contains(t, out, "git log -p --no-walk abcd\\[0m1234")
+}
+
 func prepareInspectGitGPGSourceIntegrityResponse(repoUrl string, resolvedRevision string, targetRevision string, gitGpgPolicy *appsv1.SourceIntegrityGitPolicyGPG, commits []*application.GitGPGCommitInfo, errorMessage string) *application.InspectGitGPGSourceIntegrityResponse {
 	return &application.InspectGitGPGSourceIntegrityResponse{
 		RepoUrl:          &repoUrl,
