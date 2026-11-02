@@ -1,7 +1,39 @@
 /* eslint-env jest */
 declare const test: any;
 declare const expect: any;
-import { compareServerVersion } from './clusters-list';
+import * as React from 'react';
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
+import {fireEvent, render, screen, waitFor} from '@testing-library/react';
+import '@testing-library/jest-dom';
+import {MemoryRouter} from 'react-router';
+import {of} from 'rxjs';
+
+import {Provider} from '../../../shared/context';
+import {services} from '../../../shared/services';
+import {ClustersList, compareServerVersion} from './clusters-list';
+
+jest.mock('../../../shared/components', () => ({
+    ...jest.requireActual('../../../shared/components'),
+    Page: (props: {children?: React.ReactNode}) => props.children,
+    FlexTopBar: (): null => null,
+    Paginate: (props: {data: any[]; children: (data: any[]) => React.ReactNode}) => props.children(props.data),
+    ActionMenu: (props: {items: {title: string; action: () => void}[]}) =>
+        props.items.map(item => (
+            <button key={item.title} onClick={item.action}>
+                {item.title}
+            </button>
+        ))
+}));
+
+const mockSidebarTarget = {current: document.createElement('div')};
+jest.mock('../../../sidebar/sidebar', () => ({useSidebarTarget: () => mockSidebarTarget}));
+
+jest.mock('../../../shared/services', () => ({
+    services: {
+        clusters: {list: jest.fn(), delete: jest.fn(() => Promise.resolve())},
+        viewPreferences: {getPreferences: () => of({hideSidebar: false})}
+    }
+}));
 
 const sign = (n: number) => (n < 0 ? -1 : n > 0 ? 1 : 0);
 
@@ -66,4 +98,31 @@ test('sorts pre-releases before their release in an ascending list', () => {
     const versions = ['v1.28.3', 'v1.28.3-rc.2', 'v1.28.3-rc.1', 'v1.28.2'];
     const sorted = [...versions].sort(compareServerVersion);
     expect(sorted).toEqual(['v1.28.2', 'v1.28.3-rc.1', 'v1.28.3-rc.2', 'v1.28.3']);
+});
+
+describe('ClustersList', () => {
+    const cluster = {name: 'in-cluster', server: 'https://kubernetes.default.svc', info: {serverVersion: 'v1.33.0', connectionState: {status: 'Successful'}}};
+
+    beforeEach(() => jest.clearAllMocks());
+
+    it('refetches the clusters after deleting one', async () => {
+        jest.mocked(services.clusters.list).mockResolvedValueOnce([cluster] as any).mockResolvedValueOnce([]);
+        render(
+            <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
+                <Provider
+                    value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
+                    <MemoryRouter>
+                        <ClustersList />
+                    </MemoryRouter>
+                </Provider>
+            </QueryClientProvider>
+        );
+
+        expect(screen.getByText('Loading...')).toBeInTheDocument();
+        fireEvent.click(await screen.findByText('Delete'));
+
+        await waitFor(() => expect(services.clusters.delete).toHaveBeenCalledWith('https://kubernetes.default.svc'));
+        expect(await screen.findByText('No clusters connected')).toBeInTheDocument();
+        expect(services.clusters.list).toHaveBeenCalledTimes(2);
+    });
 });

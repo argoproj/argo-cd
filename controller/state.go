@@ -930,7 +930,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
-		WithTracking(appLabelKey, string(trackingMethod))
+		WithTracking(appLabelKey, trackingMethod)
 
 	if useDiffCache {
 		diffConfigBuilder.WithCache(m.cache, app.InstanceName(m.namespace))
