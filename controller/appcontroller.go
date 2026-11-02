@@ -2574,13 +2574,26 @@ func (ctrl *ApplicationController) statusWithEffectiveReconciledAt(app *appv1.Ap
 	inMemory, ok := ctrl.lastReconciledAt[app.QualifiedName()]
 	ctrl.lastReconciledAtMutex.RUnlock()
 	if !ok {
-		// After a restart the persisted value can be up to a heartbeat old, which
-		// would expire most of the fleet at once. Seed a time spread over the resync
-		// period instead, as in steady state. Never-reconciled apps still go first.
-		if status.ReconciledAt == nil || ctrl.statusRefreshTimeout <= 0 || time.Since(ctrl.startedAt) >= ctrl.statusRefreshTimeout {
+		// After a restart or reshard the persisted value can be a heartbeat old and expire
+		// the fleet at once: use the cached value, else spread over the first R.
+		if status.ReconciledAt == nil {
 			return status
 		}
-		seed := ctrl.startedAt.Add(-time.Duration(rand.Int63n(int64(ctrl.statusRefreshTimeout))))
+		var seed time.Time
+		err := ctrl.cache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &seed)
+		if err != nil && !stderrors.Is(err, appstatecache.ErrCacheMiss) {
+			log.WithError(err).Warnf("Failed to read cached reconciledAt for %s", app.QualifiedName())
+		}
+		firstPass := ctrl.statusRefreshTimeout > 0 && time.Since(ctrl.startedAt) < ctrl.statusRefreshTimeout
+		if firstPass && (err != nil || seed.Before(ctrl.startedAt.Add(-ctrl.statusRefreshTimeout))) {
+			seed = ctrl.startedAt.Add(-time.Duration(rand.Int63n(int64(ctrl.statusRefreshTimeout))))
+		} else if err != nil {
+			seed = status.ReconciledAt.Time
+		}
+		// Recorded even on a miss, so the cache is asked once; capped against clock skew.
+		if now := time.Now(); seed.After(now) {
+			seed = now
+		}
 		ctrl.lastReconciledAtMutex.Lock()
 		if existing, found := ctrl.lastReconciledAt[app.QualifiedName()]; found {
 			seed = existing
@@ -2871,6 +2884,17 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		}
 	}
 	reconciledAtChanged := !newStatus.ReconciledAt.Equal(orig.Status.ReconciledAt)
+	defer func() {
+		// Shared so restarts and reshards start from the real value; async to keep Redis off this path.
+		if spanErr == nil && reconciledAtChanged && newStatus.ReconciledAt != nil && ctrl.reconciledAtHeartbeat > 0 {
+			name, t := orig.InstanceName(ctrl.namespace), newStatus.ReconciledAt.Time
+			go func() {
+				if err := ctrl.cache.SetAppReconciledAt(name, &t); err != nil {
+					log.WithError(err).Warnf("Failed to cache reconciledAt for %s", name)
+				}
+			}()
+		}
+	}()
 	patch, modified, err := createMergePatch(
 		&appv1.Application{Status: orig.Status},
 		&appv1.Application{Status: *newStatus})
@@ -2906,8 +2930,13 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	if err != nil {
 		spanErr = err
 		if reconciledAtChanged {
-			// Let the stale persisted reconciledAt drive expiry again so the write is retried.
-			ctrl.forgetReconciled(orig.QualifiedName())
+			// Let the stale persisted reconciledAt drive expiry here so the write is retried; recorded
+			// so the startup jitter or this replica's cache read can't mask it. NotFound: app is gone.
+			if orig.Status.ReconciledAt != nil && !apierrors.IsNotFound(err) {
+				ctrl.noteReconciled(orig.QualifiedName(), orig.Status.ReconciledAt.Time)
+			} else {
+				ctrl.forgetReconciled(orig.QualifiedName())
+			}
 		}
 		if apierrors.IsRequestEntityTooLargeError(err) {
 			logCtx.WithError(err).Warn("Application status exceeds the Kubernetes resource size limit; falling back to error condition only")
@@ -3370,12 +3399,13 @@ func (ctrl *ApplicationController) resyncAppsAfterShardChange() error {
 	return nil
 }
 
-// invalidateAppLocalCache drops this controller's in-memory copies of the app's resource tree and
-// managed resources. Another controller may have written them since this one last did, e.g. while
+// invalidateAppLocalCache drops this controller's in-memory copies of the app's resource tree,
+// managed resources and reconcile time. Another controller may have written them since this one last did, e.g. while
 // the app's destination was a cluster managed by another shard, so the next write must not be skipped.
 func (ctrl *ApplicationController) invalidateAppLocalCache(obj any) {
 	if app, ok := obj.(*appv1.Application); ok {
 		ctrl.cache.InvalidateAppLocalState(app.InstanceName(ctrl.namespace))
+		ctrl.forgetReconciled(app.QualifiedName())
 	}
 }
 

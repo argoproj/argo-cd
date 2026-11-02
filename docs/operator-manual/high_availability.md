@@ -157,10 +157,10 @@ get the actual cluster state.
 
     > [!NOTE]
     > The trade-off is visibility: while a heartbeat is configured, the `reconciledAt` field you see on an Application
-    > may lag behind the last reconciliation by up to that duration. The in-memory time is lost when the controller
-    > restarts, so for the first R after startup the controller spreads first refreshes randomly over R, as in steady
-    > state. Apps that move between shards later are not spread: those whose `reconciledAt` is older than R are
-    > refreshed at once.
+    > may lag behind the last reconciliation by up to that duration. The controller also stores the time in Redis, so
+    > apps that move between shards keep it. After a restart, apps without a time cached in Redis from within the last R
+    > have their first refresh spread randomly over R, as in steady state. If Redis is unavailable, apps that move
+    > between shards and whose `reconciledAt` is older than R are refreshed at once.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
   controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller`
