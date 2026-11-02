@@ -57,8 +57,13 @@ func (c *clusterCache) buildInformer(ctx context.Context, client dynamic.Interfa
 	return informerEngineOf(c).buildInformer(ctx, client, resClient, api, ns)
 }
 
+// startInformersForAPI isn't on syncEngine or called by production code
+// (sync and startMissingWatches hold c.lock and call the locked variant);
+// tests use this to start one GroupKind's informers without the lock dance.
 func (c *clusterCache) startInformersForAPI(ctx context.Context, api kube.APIResourceInfo) error {
-	return informerEngineOf(c).startInformersForAPI(ctx, api)
+	return runSynced(&c.lock, func() error {
+		return informerEngineOf(c).startInformersForAPILocked(ctx, api)
+	})
 }
 
 func (c *clusterCache) informerWatchErrorHandler(api kube.APIResourceInfo, ns string) cache.WatchErrorHandlerWithContext {

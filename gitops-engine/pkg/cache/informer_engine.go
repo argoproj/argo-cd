@@ -408,17 +408,6 @@ func (e *informerEngine) stopWatching(gk schema.GroupKind, ns string) {
 	}
 }
 
-// startInformersForAPI is the public entrypoint for starting the informer
-// set for a GroupKind. It acquires store.lock and delegates to the locked
-// variant. Used by tests; production call sites (sync,
-// startMissingWatches) hold the lock already and call the locked variant
-// directly.
-func (e *informerEngine) startInformersForAPI(ctx context.Context, api kube.APIResourceInfo) error {
-	e.c.lock.Lock()
-	defer e.c.lock.Unlock()
-	return e.startInformersForAPILocked(ctx, api)
-}
-
 // startInformersForAPILocked builds and starts one SharedIndexInformer per
 // (GroupKind, namespace) implied by processApi, installs transformForInformer
 // as the TransformFunc, and attaches informerEventHandler. Each informer runs
