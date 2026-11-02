@@ -208,11 +208,8 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                                 .map(decodeURIComponent)
                                 .filter(item => !!item);
                         }
-                        return {
-                            ...viewPref,
-                            page: parseInt(params.get('page') || '0', 10),
-                            search: params.get('search') || ''
-                        };
+                        const search = params.get('search') != null ? params.get('search') : viewPref.search || '';
+                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search};
                     })
                 )
             }>
@@ -252,8 +249,14 @@ function tryJsonParse(input: string) {
     }
 }
 
-const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
-    const {content, searchRegex, ctx, apps} = props;
+const ApplicationsListSearchBar = (props: {
+    content: string;
+    searchRegex: boolean;
+    ctx: ContextApis;
+    apps: models.Application[];
+    pref: AppsListPreferences & {page: number; search: string};
+}) => {
+    const {content, searchRegex, ctx, apps, pref} = props;
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
     const query = new URLSearchParams(window.location.search);
@@ -262,7 +265,10 @@ const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean
     return (
         <SearchBar
             value={content || ''}
-            onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
+            onChange={value => {
+                ctx.navigation.goto('.', {search: value}, {replace: true});
+                services.viewPreferences.updatePreferences({appList: {...pref, search: value}});
+            }}
             placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
             disableKeyboardShortcuts={!!appInput}
             regexEnabled={searchRegex}
@@ -307,7 +313,7 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
 
     return (
         <div className='applications-list__toolbar-controls' key='app-list-tools'>
-            <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
+            <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} pref={pref} />
             <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
                 <button
                     type='button'
