@@ -24,7 +24,7 @@ import (
 )
 
 // Regular expression to match public key beginning
-var subTypeMatch = regexp.MustCompile(`^pub\s+([a-z0-9]+)\s\d+-\d+-\d+\s\[[A-Z]+\].*$`)
+var subTypeMatch = regexp.MustCompile(`^pub\s+([a-zA-Z0-9]+)\s\d+-\d+-\d+\s\[[A-Z]+\].*$`)
 
 // Regular expression to match key ID output from gpg
 var keyIdMatch = regexp.MustCompile(`^\s+([0-9A-Za-z]+)\s*$`)

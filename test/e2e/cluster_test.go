@@ -15,7 +15,6 @@ import (
 	accountFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/account"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
 	clusterFixture "github.com/argoproj/argo-cd/v3/test/e2e/fixture/cluster"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 func TestClusterList(t *testing.T) {
@@ -173,9 +172,23 @@ func TestClusterSet(t *testing.T) {
 
 func TestClusterGet(t *testing.T) {
 	fixture.SkipIfAlreadyRun(t)
-	fixture.EnsureCleanState(t)
 	defer fixture.RecordTestRun(t)
-	output := errors.NewHandler(t).FailOnErr(fixture.RunCli("cluster", "get", "https://kubernetes.default.svc")).(string)
+
+	ctx := clusterFixture.Given(t)
+	ctx.Project(fixture.ProjectName)
+
+	app.GivenWithSameState(ctx).
+		Path(guestbookPath).
+		When().
+		CreateApp()
+
+	var output string
+	require.EventuallyWithT(t, func(c *assert.CollectT) {
+		out, err := fixture.RunCli("cluster", "get", "https://kubernetes.default.svc")
+		require.NoError(c, err)
+		assert.Contains(c, out, "status: Successful")
+		output = out
+	}, 30*time.Second, time.Second)
 
 	assert.Contains(t, output, "name: in-cluster")
 	assert.Contains(t, output, "server: https://kubernetes.default.svc")
@@ -183,8 +196,6 @@ func TestClusterGet(t *testing.T) {
 	assert.Contains(t, output, `config:
   tlsClientConfig:
     insecure: false`)
-
-	assert.Contains(t, output, `status: Successful`)
 }
 
 func TestClusterNameInRestAPI(t *testing.T) {

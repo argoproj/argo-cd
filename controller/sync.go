@@ -200,7 +200,10 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 			operationStartTime = &t
 		}
 	}
-	if canSync, err := syncWindows.CanSync(isManual, operationStartTime); !canSync {
+	// A terminate request must not be blocked by a sync window. Otherwise an operation that is
+	// no longer allowed to sync by its window can never be terminated and stays in the
+	// terminating phase forever.
+	if canSync, err := syncWindows.CanSync(isManual, operationStartTime); (!canSync || err != nil) && state.Phase != common.OperationTerminating {
 		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
 		if state.Phase == common.OperationRunning {
 			state.Message = "Sync operation blocked by sync window"

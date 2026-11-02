@@ -63,9 +63,17 @@ type jsonpbMarshalleble struct {
 func (j *jsonpbMarshalleble) MarshalJSON() ([]byte, error) {
 	var b bytes.Buffer
 	m := &jsonpb.Marshaler{}
-	err := m.Marshal(&b, j.Message)
-	if err != nil {
-		return nil, fmt.Errorf("jsonpb serializer failed: %w", err)
+	if err := m.Marshal(&b, j.Message); err != nil {
+		// gogo's jsonpb requires every nested type to implement proto.Message. Since
+		// k8s.io/apimachinery v0.35 (kubernetes/kubernetes#134256), Kubernetes API types only do so behind
+		// a build tag we don't set, so any request embedding one, such as an Application's ObjectMeta,
+		// fails here. Fall back to encoding/json rather than losing the whole log entry: Argo CD's API
+		// types carry JSON tags, so this produces an equivalent payload.
+		data, jsonErr := json.Marshal(j.Message)
+		if jsonErr != nil {
+			return nil, fmt.Errorf("jsonpb serializer failed: %w (encoding/json fallback failed: %w)", err, jsonErr)
+		}
+		return data, nil
 	}
 	return b.Bytes(), nil
 }
@@ -180,6 +188,20 @@ func HTTPClientIP(r *http.Request, trustedProxies []netip.Prefix, clientIPHeader
 	return ResolveClientIP(r.RemoteAddr, headerIP, r.Header.Values("X-Forwarded-For"), trustedProxies)
 }
 
+// HTTPSourceIPFields returns the fields source IP logging adds, for a request that is served directly
+// over HTTP rather than through grpc-gateway: the client address as resolved by HTTPClientIP and, if
+// the request carries one, the X-Forwarded-For chain as received.
+func HTTPSourceIPFields(r *http.Request, trustedProxies []netip.Prefix, clientIPHeader string) logrus.Fields {
+	fields := logrus.Fields{}
+	if sourceIP := HTTPClientIP(r, trustedProxies, clientIPHeader); sourceIP != "" {
+		fields[sourceIPField] = sourceIP
+	}
+	if forwardedFor := joinForwardedFor(splitForwardedFor(r.Header.Values("X-Forwarded-For"), maxForwardedForEntries)); forwardedFor != "" {
+		fields[forwardedForField] = forwardedFor
+	}
+	return fields
+}
+
 // ResolveClientIP returns the address of the nearest hop that is not a trusted proxy. If remote is not
 // trusted, that is remote itself. Otherwise it is headerIP, when the proxy set one, or else the
 // rightmost X-Forwarded-For entry that is not trusted. xff holds one value per header line.
@@ -260,21 +282,7 @@ func sourceIPFields(ctx context.Context, gatewayToken string, trustedProxies []n
 		// Leave room for the address the gateway appends, which is trimmed below.
 		limit++
 	}
-	var xff []string
-	truncated := false
-parse:
-	for _, v := range values {
-		for e := range strings.SplitSeq(v, ",") {
-			if e = strings.TrimSpace(e); e == "" {
-				continue
-			}
-			if len(xff) == limit {
-				truncated = true
-				break parse
-			}
-			xff = append(xff, e)
-		}
-	}
+	xff, truncated := splitForwardedFor(values, limit)
 
 	if !gateway {
 		var headerIP string
@@ -294,6 +302,23 @@ parse:
 		xff, truncated = xff[:maxForwardedForEntries], true
 	}
 	return sourceIP, joinForwardedFor(xff, truncated)
+}
+
+// splitForwardedFor returns the entries of an X-Forwarded-For chain given as one value per header
+// line, stopping at limit entries.
+func splitForwardedFor(values []string, limit int) (xff []string, truncated bool) {
+	for _, v := range values {
+		for e := range strings.SplitSeq(v, ",") {
+			if e = strings.TrimSpace(e); e == "" {
+				continue
+			}
+			if len(xff) == limit {
+				return xff, true
+			}
+			xff = append(xff, e)
+		}
+	}
+	return xff, false
 }
 
 // joinForwardedFor renders the chain, keeping the leftmost entries: those name the original client,

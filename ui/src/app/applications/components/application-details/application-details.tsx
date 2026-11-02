@@ -8,7 +8,7 @@ import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 
 import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
-import {AppContext, Context, ContextApis} from '../../../shared/context';
+import {AppContext, AuthSettingsCtx, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
 
@@ -19,6 +19,7 @@ import {ApplicationOperationState} from '../application-operation-state/applicat
 import {PodGroupType, PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceTree, type ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
+import {StatusPanelToggle} from './status-panel-toggle';
 import {ApplicationSetStatusPanel} from '../application-status-panel/appset-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {isApp} from '../utils';
@@ -88,6 +89,9 @@ export const SelectNode = (fullName: string, containerIndex = 0, tab: string = n
 
 export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; name: string}> & {objectListKind: string}> = props => {
     const appContext = useContext(Context);
+    const authSettings = useContext(AuthSettingsCtx);
+    const appLabelKey = authSettings?.appLabelKey;
+    const trackingMethod = authSettings?.trackingMethod;
     const [appChanged] = useState(() => new BehaviorSubject<appModels.AbstractApplication>(null));
     const objectListKind = props.objectListKind;
 
@@ -779,12 +783,20 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         onNodeClick: (fullName: string) => {
                                             const parts = fullName.split('/');
                                             const [group, kind, namespace, name] = parts;
-                                            if (group === 'argoproj.io' && kind === 'ApplicationSet' && namespace && name) {
-                                                // Only navigate to AppSet page if this AppSet owns the current Application.
-                                                // If the AppSet is a child resource managed by this Application, open ResourceDetails instead.
-                                                const ownerAppSetRef = AppUtils.getApplicationSetOwnerRef(application as appModels.Application);
-                                                if (ownerAppSetRef && ownerAppSetRef.name === name) {
-                                                    appContext.navigation.goto(`/applicationsets/${namespace}/${name}`);
+                                            if (group === 'argoproj.io' && (kind === 'Application' || kind === 'ApplicationSet')) {
+                                                // When the clicked node is the synthesized parent (ApplicationSet owner or
+                                                // app-of-apps parent Application), navigate to its page instead of selecting
+                                                // it as a resource. The parent namespace may be unset (parent in the
+                                                // control-plane namespace), so build the URL from the ref via getAppUrl.
+                                                const parentRef = AppUtils.getApplicationParentRef(application as appModels.Application, appLabelKey, trackingMethod);
+                                                if (parentRef && parentRef.kind === kind && parentRef.name === name && (parentRef.namespace || '') === namespace) {
+                                                    appContext.navigation.goto(
+                                                        '/' +
+                                                            AppUtils.getAppUrl({
+                                                                kind: parentRef.kind,
+                                                                metadata: {name: parentRef.name, namespace: parentRef.namespace}
+                                                            } as appModels.AbstractApplication)
+                                                    );
                                                     return;
                                                 }
                                             }
@@ -796,7 +808,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                             ),
                                         app: application as appModels.Application,
                                         showOrphanedResources: pref.orphanedResources,
-                                        showAppSetParent: pref.showAppSetParent,
+                                        showAppParent: pref.showAppParent,
+                                        appLabelKey,
+                                        trackingMethod,
                                         useNetworkingHierarchy: pref.view === 'network',
                                         podGroupCount: pref.podGroupCount
                                     };
@@ -808,6 +822,9 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                         },
                                         app: application,
                                         showOrphanedResources: false,
+                                        showAppParent: pref.showAppParent,
+                                        appLabelKey,
+                                        trackingMethod,
                                         useNetworkingHierarchy: false,
                                         podGroupCount: 0
                                     };
@@ -995,6 +1012,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                 {isApplication ? (
                                                     <ApplicationStatusPanel
                                                         application={application as appModels.Application}
+                                                        collapsed={pref.hideStatusPanel}
                                                         showDiff={() => selectNode(appFullName, 0, 'diff')}
                                                         showOperation={() => setOperationStatusVisible(true)}
                                                         showHydrateOperation={() => setHydrateOperationStatusVisible(true)}
@@ -1005,9 +1023,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                 ) : (
                                                     <ApplicationSetStatusPanel
                                                         appSet={application as appModels.ApplicationSet}
+                                                        collapsed={pref.hideStatusPanel}
                                                         showConditions={() => setConditionsStatusVisible(true)}
                                                     />
                                                 )}
+                                                <StatusPanelToggle pref={pref} />
                                             </div>
                                             <NoticeBanner
                                                 annotations={application.metadata.annotations}
@@ -1072,13 +1092,13 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                                     </a>
                                                                 </Tooltip>
                                                             )}
-                                                            {isApplication && !!AppUtils.getApplicationSetOwnerRef(application as appModels.Application) && (
+                                                            {!!AppUtils.getApplicationParentRef(application, appLabelKey, trackingMethod) && (
                                                                 <a
-                                                                    className={`group-nodes-button group-nodes-button${pref.showAppSetParent ? '-on' : ''}`}
-                                                                    title='Show ApplicationSet parent node'
+                                                                    className={`group-nodes-button group-nodes-button${pref.showAppParent ? '-on' : ''}`}
+                                                                    title="Show application's parent node"
                                                                     onClick={() =>
                                                                         services.viewPreferences.updatePreferences({
-                                                                            appDetails: {...pref, showAppSetParent: !pref.showAppSetParent}
+                                                                            appDetails: {...pref, showAppParent: !pref.showAppParent}
                                                                         })
                                                                     }>
                                                                     <i className='fa fa-sitemap fa-fw' />

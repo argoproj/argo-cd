@@ -226,6 +226,32 @@ Once done, you should see
 
 ![Authentication successful!](../../assets/keycloak-authentication-successful.png "Authentication successful!")
 
+## Enabling the Device Code Grant
+
+The Argo CD CLI's `--no-browser` flag uses the
+[OAuth 2.0 Device Authorization Grant](https://www.rfc-editor.org/rfc/rfc8628) (RFC 8628).
+Keycloak supports the device code flow at the realm level, but it must also be
+**explicitly enabled on the individual client** used by Argo CD.
+
+### Enabling the grant on the Keycloak client
+
+1. In the Keycloak admin console, open the client used by Argo CD (e.g. `argocd`).
+2. Go to the **Settings** tab → **Capability config** section.
+3. Enable **OAuth 2.0 Device Authorization Grant**.
+4. Click **Save**.
+
+### PKCE with device code
+
+If the Keycloak client has **Require PKCE** set (see [PKCE setup](#keycloak-and-argo-cd-with-pkce)),
+no additional configuration is needed — the Argo CD CLI automatically includes PKCE parameters
+(`code_challenge` / `code_challenge_method=S256`) in the device authorization request.
+
+### Common errors
+
+| Error message                                                                                         | Cause                                                                          | Fix                                                              |
+|-------------------------------------------------------------------------------------------------------|--------------------------------------------------------------------------------|------------------------------------------------------------------|
+| `Failed to request device code: oauth2: "unauthorized_client" ...`                                    | **OAuth 2.0 Device Authorization Grant** is not enabled on the Keycloak client | Enable the toggle described above                                |
+
 ## Troubleshoot
 If Argo CD auth returns 401 or when the login attempt leads to the loop, then restart the argocd-server pod.
 ```

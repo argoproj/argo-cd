@@ -11,6 +11,9 @@ PROJECT_ROOT=$(
     pwd
 )
 PATH="${PROJECT_ROOT}/dist:${PATH}"
+# A leftover vendor/ would switch to vendor mode, where the locally replaced gitops-engine resolves
+# under vendor/, so mockery would write its mocks there and leave the real ones stale.
+export GOFLAGS=-mod=mod
 
 # output tool versions
 mockery version

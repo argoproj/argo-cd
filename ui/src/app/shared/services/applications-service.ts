@@ -312,25 +312,33 @@ export class ApplicationsService {
         name: string,
         appNamespace: string,
         revision: string,
-        prune: boolean,
+        prune: boolean | undefined,
         dryRun: boolean,
         strategy: models.SyncStrategy,
         resources: models.SyncOperationResource[],
         syncOptions?: string[],
-        retryStrategy?: models.RetryStrategy
+        retryStrategy?: models.RetryStrategy,
+        message?: string
     ): Promise<boolean> {
+        // Omit prune only when undefined so the API can apply syncPolicy.manualDefaults.prune
+        // when that object is set. Callers must pass false (not undefined) when the user
+        // unchecks Prune, otherwise apps with manualDefaults would still prune.
+        const body: Record<string, unknown> = {
+            appNamespace,
+            revision,
+            dryRun: !!dryRun,
+            strategy,
+            resources,
+            syncOptions: syncOptions ? {items: syncOptions} : null,
+            retryStrategy
+        };
+        if (prune !== undefined) {
+            body.prune = !!prune;
+        }
+        body.infos = message ? [{name: 'message', value: message} as models.Info] : [];
         return requests
             .post(`/applications/${name}/sync`)
-            .send({
-                appNamespace,
-                revision,
-                prune: !!prune,
-                dryRun: !!dryRun,
-                strategy,
-                resources,
-                syncOptions: syncOptions ? {items: syncOptions} : null,
-                retryStrategy
-            })
+            .send(body)
             .then(() => true);
     }
 
