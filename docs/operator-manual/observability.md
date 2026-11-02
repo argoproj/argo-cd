@@ -6,7 +6,8 @@ Argo CD components expose Prometheus metrics and can export OpenTelemetry traces
 * [Notifications monitoring](notifications/monitoring.md): metrics of the notifications controller.
 * [CPU/Memory profiling](high_availability.md#cpumemory-profiling): the `pprof` endpoint on the
   metrics port.
-* [OpenTelemetry tracing](#opentelemetry-tracing): described on this page.
+* [OpenTelemetry tracing](#opentelemetry-tracing) and
+  [pushing metrics via OTLP](#pushing-metrics-via-otlp): described on this page.
 
 ## OpenTelemetry tracing
 
@@ -62,7 +63,57 @@ when a request already carries a sampling decision in its trace context, that de
 trace started by the application controller is therefore recorded in full or not at all across the
 repo server and plugins. Set the same ratio on every component to get a consistent rate.
 
-### Collector TLS and authentication
+## Pushing metrics via OTLP
+
+Every component keeps serving its metrics at `/metrics` for scraping. For environments without a
+Prometheus that can reach Argo CD, the API server, application controller and repo server can
+additionally push the same metrics to an OpenTelemetry collector over OTLP/gRPC.
+
+Pushing reuses the [tracing connection settings](#enabling-tracing), including
+[collector TLS and authentication](#collector-tls-and-authentication), and is off by default. Set it
+in `argocd-cmd-params-cm`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+data:
+  # Collector address; required for both tracing and metrics push.
+  otlp.address: "otel-collector.observability:4317"
+  otlp.insecure: "true"
+  otlp.metrics.enabled: "true"
+  # Push interval, minimum 1s. Defaults to 30s.
+  otlp.metrics.interval: "30s"
+```
+
+The equivalent flags are `--otlp-metrics-enabled` and `--otlp-metrics-interval`, alongside the
+existing `--otlp-address`, `--otlp-insecure`, `--otlp-headers` and `--otlp-attrs`.
+
+> [!NOTE]
+> Setting `otlp.address` also enables trace export. To push metrics without traces, set
+> `otlp.sample.ratio: "0"`.
+
+What is pushed is exactly the set of metric families served at `/metrics`, converted by the
+OpenTelemetry Prometheus bridge with names unchanged. Each push carries the resource attributes
+`service.name` (`argocd-server`, `argocd-controller` or `argocd-repo-server`),
+`service.instance.id` (the pod hostname) and any pairs from `otlp.attrs`. Because pushed metrics
+have no scrape target, `service.instance.id` is what keeps series from different replicas apart.
+
+> [!WARNING]
+> If a collector already scrapes `/metrics`, enabling push delivers every series twice: once with
+> the scrape's `instance`/`job` labels and once with the push's resource attributes. Use one or
+> the other per component.
+
+A registry that fails to gather (for example, an inconsistent label set in
+`argocd_app_labels`) is omitted from that push while the other registries are still sent. The
+failure is logged at error level by the component.
+
+## Collector TLS and authentication
+
+These settings apply to both trace export and metrics push.
+
 
 With `otlp.insecure: "false"`, Argo CD always connects over TLS. The collector certificate is
 verified against the first of the following that is configured:

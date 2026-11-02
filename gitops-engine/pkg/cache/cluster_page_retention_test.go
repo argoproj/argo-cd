@@ -59,7 +59,8 @@ func TestLoadInitialStateDoesNotRetainListPage(t *testing.T) {
 	}
 	resClient := &pagedListResourceInterface{mockResourceInterface: &mockResourceInterface{}, items: items}
 
-	cache := &clusterCache{
+	// loadInitialState is an engine method that writes to the store.
+	cache := &store{
 		listSemaphore:       semaphore.NewWeighted(1),
 		listPageSize:        pageSize,
 		listPageBufferSize:  1,
@@ -79,7 +80,7 @@ func TestLoadInitialStateDoesNotRetainListPage(t *testing.T) {
 		GroupVersionResource: schema.GroupVersionResource{Version: "v1", Resource: "pods"},
 		Meta:                 metav1.APIResource{Namespaced: true},
 	}
-	_, err := cache.loadInitialState(t.Context(), api, resClient, "default", false)
+	_, err := (&legacyEngine{c: cache}).loadInitialState(t.Context(), api, resClient, "default", false)
 	require.NoError(t, err)
 	require.Len(t, cache.resources, pageSize)
 	require.Len(t, resClient.pages, 1, "test assumes the objects arrive in a single page")

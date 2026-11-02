@@ -54,17 +54,18 @@ var resourceMap = map[string]string{
 
 // List of allowed RBAC resources
 var validRBACResourcesActions = map[string]actionTraitMap{
-	rbac.ResourceAccounts:        accountsActions,
-	rbac.ResourceApplications:    applicationsActions,
-	rbac.ResourceApplicationSets: defaultCRUDActions,
-	rbac.ResourceCertificates:    defaultCRDActions,
-	rbac.ResourceClusters:        defaultCRUDActions,
-	rbac.ResourceExtensions:      extensionActions,
-	rbac.ResourceGPGKeys:         defaultCRDActions,
-	rbac.ResourceLogs:            logsActions,
-	rbac.ResourceExec:            execActions,
-	rbac.ResourceProjects:        defaultCRUDActions,
-	rbac.ResourceRepositories:    defaultCRUDActions,
+	rbac.ResourceAccounts:          accountsActions,
+	rbac.ResourceApplications:      applicationsActions,
+	rbac.ResourceApplicationSets:   defaultCRUDActions,
+	rbac.ResourceCertificates:      defaultCRDActions,
+	rbac.ResourceClusters:          defaultCRUDActions,
+	rbac.ResourceExtensions:        extensionActions,
+	rbac.ResourceGPGKeys:           defaultCRDActions,
+	rbac.ResourceLogs:              logsActions,
+	rbac.ResourceExec:              execActions,
+	rbac.ResourceProjects:          defaultCRUDActions,
+	rbac.ResourceRepositories:      defaultCRUDActions,
+	rbac.ResourceWriteRepositories: defaultCRUDActions,
 }
 
 // List of allowed RBAC actions
@@ -416,7 +417,8 @@ func checkPolicy(subject, action, resource, subResource, builtinPolicy, userPoli
 	// Some project scoped resources have a special notation - for simplicity's sake,
 	// if user gives no sub-resource (or specifies simple '*'), we construct
 	// the required notation by setting subresource to '*/*'.
-	if rbac.ProjectScoped[realResource] {
+	// write-repositories uses the same '<project>/<repo>' object format as repositories.
+	if rbac.ProjectScoped[realResource] || realResource == rbac.ResourceWriteRepositories {
 		if subResource == "*" || subResource == "" {
 			subResource = "*/*"
 		}
