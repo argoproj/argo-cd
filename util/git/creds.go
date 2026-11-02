@@ -472,6 +472,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		proxyScriptPath = proxyScript.Name()
 
 		if _, err := proxyScript.WriteString(proxyScriptContent); err != nil {
+			_ = proxyScript.Close()
 			_ = os.Remove(proxyScriptPath)
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to write proxy command script: %w", err)
