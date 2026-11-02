@@ -307,7 +307,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                 onClose={() => setAddTLSCertificate(false)}
                 header={
                     <div>
-                        <button className='argo-button argo-button--base' onClick={() => formApiTLS.current.submitForm(null)}>
+                        <button className='argo-button argo-button--base' disabled={certMutations.create.isPending} onClick={() => formApiTLS.current.submitForm(null)}>
                             Create
                         </button>{' '}
                         <button onClick={() => setAddTLSCertificate(false)} className='argo-button argo-button--base-o'>
@@ -346,7 +346,7 @@ export const CertsList = ({match, location}: RouteComponentProps) => {
                 onClose={() => setAddSSHKnownHosts(false)}
                 header={
                     <div>
-                        <button className='argo-button argo-button--base' onClick={() => formApiSSH.current.submitForm(null)}>
+                        <button className='argo-button argo-button--base' disabled={certMutations.create.isPending} onClick={() => formApiSSH.current.submitForm(null)}>
                             Create
                         </button>{' '}
                         <button onClick={() => setAddSSHKnownHosts(false)} className='argo-button argo-button--base-o'>

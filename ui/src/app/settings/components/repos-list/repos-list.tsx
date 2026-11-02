@@ -257,6 +257,7 @@ const SlidingPanelHeader = ({
     showConnectRepo,
     displayEditPanel,
     connecting,
+    saving,
     onConnect,
     onSaveCredsTemplate,
     setConnectRepo,
@@ -265,6 +266,7 @@ const SlidingPanelHeader = ({
     showConnectRepo: boolean;
     displayEditPanel: boolean;
     connecting: boolean;
+    saving: boolean;
     onConnect: () => void;
     onSaveCredsTemplate: () => void;
     setConnectRepo: (val: boolean) => void;
@@ -274,11 +276,11 @@ const SlidingPanelHeader = ({
         <>
             {showConnectRepo && (
                 <>
-                    <button className='argo-button argo-button--base' onClick={onConnect}>
+                    <button className='argo-button argo-button--base' disabled={saving} onClick={onConnect}>
                         <Spinner show={connecting} style={{marginRight: '5px'}} />
                         Connect
                     </button>{' '}
-                    <button className='argo-button argo-button--base' onClick={onSaveCredsTemplate}>
+                    <button className='argo-button argo-button--base' disabled={saving} onClick={onSaveCredsTemplate}>
                         Save as credentials template
                     </button>{' '}
                     <button onClick={() => setConnectRepo(false)} className='argo-button argo-button--base-o'>
@@ -993,6 +995,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         showConnectRepo={showConnectRepo()}
                         displayEditPanel={displayEditPanel}
                         connecting={connecting}
+                        saving={Object.values(repoMutations).some(m => m.isPending)}
                         onConnect={() => {
                             credsTemplate.current = false;
                             formApi.current.submitForm(null);

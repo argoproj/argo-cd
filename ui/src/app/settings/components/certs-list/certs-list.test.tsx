@@ -25,16 +25,16 @@ const mockSidebarTarget = {current: document.createElement('div')};
 jest.mock('../../../sidebar/sidebar', () => ({useSidebarTarget: () => mockSidebarTarget}));
 
 jest.mock('../../../shared/services', () => ({
-    services: {certs: {list: jest.fn(), delete: jest.fn(() => Promise.resolve())}}
+    services: {certs: {list: jest.fn(), create: jest.fn(), delete: jest.fn(() => Promise.resolve())}}
 }));
 
 const cert = {serverName: 'github.com', certType: 'ssh', certSubType: 'ssh-ed25519', certInfo: 'SHA256:abc'};
 
-const renderList = (show = jest.fn()) =>
+const renderList = (show = jest.fn(), search = '') =>
     render(
         <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
             <Provider value={{notifications: {show}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
-                <MemoryRouter initialEntries={['/settings/certs']}>
+                <MemoryRouter initialEntries={[`/settings/certs${search}`]}>
                     <Route path='/settings/certs' component={CertsList} />
                 </MemoryRouter>
             </Provider>
@@ -80,5 +80,21 @@ describe('CertsList', () => {
 
         await waitFor(() => expect(show).toHaveBeenCalledTimes(1));
         expect(services.certs.list).toHaveBeenCalledTimes(1);
+    });
+
+    it('disables Create while known hosts are being added', async () => {
+        jest.mocked(services.certs.list).mockResolvedValue([]);
+        jest.mocked(services.certs.create).mockReturnValue(new Promise(() => {}));
+        renderList(jest.fn(), '?addSSHKnownHosts=true');
+
+        // Both panels stay mounted; the SSH known hosts one comes second.
+        const knownHosts = (await screen.findAllByRole('textbox')).at(-1);
+        fireEvent.change(knownHosts, {target: {value: 'github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5'}});
+        const create = screen.getAllByRole('button', {name: 'Create'})[1];
+        fireEvent.click(create);
+
+        await waitFor(() => expect(create).toBeDisabled());
+        fireEvent.click(create);
+        expect(services.certs.create).toHaveBeenCalledTimes(1);
     });
 });

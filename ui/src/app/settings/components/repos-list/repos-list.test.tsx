@@ -46,12 +46,12 @@ jest.mock('../../../shared/services', () => ({
 
 const repo = (name: string) => ({name, repo: `https://github.com/argoproj/${name}.git`, type: 'git', connectionState: {status: 'Successful'}});
 
-const renderList = (show = jest.fn(), client = new QueryClient({defaultOptions: {queries: {retry: false}}})) =>
+const renderList = (show = jest.fn(), client = new QueryClient({defaultOptions: {queries: {retry: false}}}), search = '') =>
     render(
         <QueryClientProvider client={client}>
             <Provider
                 value={{notifications: {show}, navigation: {goto: jest.fn()}, popup: {confirm: () => Promise.resolve(true)}, history: {location: {search: ''}}} as any}>
-                <MemoryRouter initialEntries={['/settings/repos']}>
+                <MemoryRouter initialEntries={[`/settings/repos${search}`]}>
                     <Route path='/settings/repos' component={ReposList} />
                 </MemoryRouter>
             </Provider>
@@ -60,6 +60,22 @@ const renderList = (show = jest.fn(), client = new QueryClient({defaultOptions: 
 
 describe('ReposList', () => {
     beforeEach(() => jest.clearAllMocks());
+
+    it('disables Connect and Save as credentials template while a repository change is pending', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue({hydratorEnabled: false} as any);
+        jest.mocked(services.repos.list).mockResolvedValue([repo('read')] as any);
+        jest.mocked(services.repos.delete).mockReturnValueOnce(new Promise(() => {}));
+        renderList(jest.fn(), undefined, '?addRepo=true');
+
+        const connect = screen.getByRole('button', {name: 'Connect'});
+        const saveTemplate = screen.getByRole('button', {name: 'Save as credentials template'});
+        expect(connect).toBeEnabled();
+
+        fireEvent.click(await screen.findByText('Disconnect'));
+
+        await waitFor(() => expect(connect).toBeDisabled());
+        expect(saveTemplate).toBeDisabled();
+    });
 
     it('skips write repositories when the hydrator is disabled', async () => {
         jest.mocked(services.authService.settings).mockResolvedValue({hydratorEnabled: false} as any);
