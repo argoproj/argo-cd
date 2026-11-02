@@ -160,19 +160,13 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 		h.dependencies.AddHydrationQueueItem(getHydrationQueueKey(app))
 	} else {
 		logCtx.WithField("reason", reason).Debug("Skipping hydration")
-		// If hydration is not needed because manifest-generate-paths found no relevant changes, but
-		// the dry revision has moved forward since the last successful hydration, advance the git note
-		// on the commit-server so the existing hydrated commit is associated with the new dry SHA.
-		// This avoids a redundant full hydration cycle while keeping the git note up-to-date.
-		//
-		// Conditions:
-		//   1. resolvedDryRevision is known (non-empty) – meaning EvaluateAppRevisionsChanges ran.
-		//   2. A LastSuccessfulOperation exists (we have a hydrated SHA to point the note at).
-		//   3. The new dry SHA differs from the one in LastSuccessfulOperation (the revision moved).
-		if resolvedDryRevision != "" &&
-			app.Status.SourceHydrator.LastSuccessfulOperation != nil &&
-			resolvedDryRevision != app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA {
+		// If manifest-generate-paths found no relevant changes but the dry revision moved past the last
+		// successful hydration, advance the git note so the existing hydrated commit is associated with
+		// the new dry SHA without a redundant full hydration.
+		if ok, why := h.canAdvanceHydratorNote(ctx, app, resolvedDryRevision); ok {
 			h.advanceHydratorNote(ctx, logCtx, app, origApp, resolvedDryRevision)
+		} else {
+			logCtx.WithField("reason", why).Debug("Not advancing hydrator git note")
 		}
 		// Consume the hydrate annotation when hydration is not needed.
 		if reason != reasonHydrationOperationAlreadyInProgress {
@@ -639,6 +633,49 @@ func (h *Hydrator) getRevisionMetadata(ctx context.Context, repoURL, project, re
 		return nil, fmt.Errorf("failed to get revision metadata: %w", err)
 	}
 	return resp, nil
+}
+
+// canAdvanceHydratorNote reports whether the commit from the last successful hydration still
+// represents resolvedDryRevision, so its git note can move forward without hydrating.
+func (h *Hydrator) canAdvanceHydratorNote(ctx context.Context, app *appv1.Application, resolvedDryRevision string) (bool, string) {
+	status := app.Status.SourceHydrator
+	switch {
+	case resolvedDryRevision == "":
+		return false, "dry revision not resolved"
+	case status.LastSuccessfulOperation == nil:
+		return false, "no successful hydration to attest"
+	case resolvedDryRevision == status.LastSuccessfulOperation.DrySHA:
+		return false, "note already at the resolved revision"
+	case status.CurrentOperation == nil || status.CurrentOperation.Phase != appv1.HydrateOperationPhaseHydrated:
+		return false, "last hydrate operation did not succeed"
+	}
+
+	// LastComparedDryRevision already points at resolvedDryRevision while a hydration is queued, so
+	// "no changes" must be judged against what was actually hydrated.
+	project, err := h.dependencies.GetProcessableAppProj(app)
+	if err != nil {
+		return false, fmt.Sprintf("failed to get project: %v", err)
+	}
+	baseline := app.DeepCopy()
+	baseline.Status.SourceHydrator.LastComparedDryRevision = status.LastSuccessfulOperation.DrySHA
+	hasChanges, _, err := h.dependencies.EvaluateAppRevisionsChanges(ctx, baseline, app.Spec.SourceHydrator.GetDrySource(), resolvedDryRevision, project, false)
+	if err != nil {
+		return false, fmt.Sprintf("failed to compare with the hydrated revision: %v", err)
+	}
+	if hasChanges {
+		return false, "manifests changed since the last successful hydration"
+	}
+
+	// Hydration commits per destination branch; a sibling app that needs hydration would leave the
+	// note attesting content it does not include.
+	apps, err := h.getAppsForHydrationKey(getHydrationQueueKey(app))
+	if err != nil {
+		return false, fmt.Sprintf("failed to list apps for the hydrated branch: %v", err)
+	}
+	if len(apps) != 1 {
+		return false, "hydrated branch is shared with other applications"
+	}
+	return true, ""
 }
 
 // advanceHydratorNote calls AdvanceHydratorNote on the commit-server to update the git note for the
