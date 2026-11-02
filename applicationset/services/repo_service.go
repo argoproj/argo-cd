@@ -21,14 +21,16 @@ type argoCDService struct {
 }
 
 type Repos interface {
-	// GetFiles returns content of files (not directories) within the target repo
-	GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error)
+	// GetFiles returns content of files (not directories) within the target repo that match
+	// includePatterns and are not matched by excludePatterns.
+	GetFiles(ctx context.Context, repoURL, revision, project string, includePatterns, excludePatterns []string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error)
 
 	// GetDirectories returns a list of directories (not files) within the target repo
 	GetDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) ([]string, error)
 
-	// GetOciFiles returns content of files (not directories) within the target OCI artifact
-	GetOciFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool) (map[string][]byte, error)
+	// GetOciFiles returns content of files (not directories) within the target OCI artifact that
+	// match includePatterns and are not matched by excludePatterns.
+	GetOciFiles(ctx context.Context, repoURL, revision, project string, includePatterns, excludePatterns []string, noRevisionCache bool) (map[string][]byte, error)
 
 	// GetOciDirectories returns a list of directories (not files) within the target OCI artifact
 	GetOciDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool) ([]string, error)
@@ -74,7 +76,22 @@ func NewArgoCDService(db db.ArgoDB, submoduleEnabled bool, repoClientset apiclie
 	}
 }
 
-func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error) {
+// firstPattern populates the single-pattern field kept on the request for repo-servers
+// that predate includePatterns. Such a repo-server honours only this pattern: the other
+// includes are dropped, and so are the excludes, so the files it returns are neither a
+// subset nor a superset of the correct answer. An ApplicationSet can therefore generate
+// the wrong set of Applications while the appset controller and the repo-server are on
+// different versions. Sending the first include keeps that window as small as it can be
+// made without version negotiation -- omitting the field entirely would make an old
+// repo-server return every file in the repo instead.
+func firstPattern(includePatterns []string) string {
+	if len(includePatterns) == 0 {
+		return ""
+	}
+	return includePatterns[0]
+}
+
+func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project string, includePatterns, excludePatterns []string, noRevisionCache bool, sourceIntegrity *v1alpha1.SourceIntegrity) (map[string][]byte, error) {
 	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
@@ -84,11 +101,13 @@ func (a *argoCDService) GetFiles(ctx context.Context, repoURL, revision, project
 		Repo:                      repo,
 		SubmoduleEnabled:          a.submoduleEnabled,
 		Revision:                  revision,
-		Path:                      pattern,
+		Path:                      firstPattern(includePatterns),
 		NewGitFileGlobbingEnabled: a.newFileGlobbingEnabled,
 		NoRevisionCache:           noRevisionCache,
 		SourceIntegrity:           sourceIntegrity,
 		VerifyCommit:              sourceIntegrity != nil, // nolint:staticcheck
+		IncludePatterns:           includePatterns,
+		ExcludePatterns:           excludePatterns,
 	}
 
 	fileResponse, err := a.getGitFilesFromRepoServer(ctx, fileRequest)
@@ -121,7 +140,7 @@ func (a *argoCDService) GetDirectories(ctx context.Context, repoURL, revision, p
 	return dirResponse.GetPaths(), nil
 }
 
-func (a *argoCDService) GetOciFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool) (map[string][]byte, error) {
+func (a *argoCDService) GetOciFiles(ctx context.Context, repoURL, revision, project string, includePatterns, excludePatterns []string, noRevisionCache bool) (map[string][]byte, error) {
 	repo, err := a.getRepository(ctx, repoURL, project)
 	if err != nil {
 		return nil, fmt.Errorf("error in GetRepository: %w", err)
@@ -130,8 +149,10 @@ func (a *argoCDService) GetOciFiles(ctx context.Context, repoURL, revision, proj
 	fileRequest := &apiclient.OciFilesRequest{
 		Repo:            repo,
 		Revision:        revision,
-		Glob:            pattern,
+		Glob:            firstPattern(includePatterns),
 		NoRevisionCache: noRevisionCache,
+		IncludePatterns: includePatterns,
+		ExcludePatterns: excludePatterns,
 	}
 	fileResponse, err := a.getOciFilesFromRepoServer(ctx, fileRequest)
 	if err != nil {

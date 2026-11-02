@@ -829,7 +829,7 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.NewRepos(t)
-			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
@@ -1157,19 +1157,12 @@ env: testing
 
 			argoCDServiceMock := mocks.NewRepos(t)
 
-			// IMPORTANT: we try to get the files from the repo server that matches the patterns
-			// If we find those files also satisfy the exclude pattern, we remove them from map
-			// This is generally done by the g.repos.GetFiles() function.
-			// With the below mock setup, we make sure that if the GetFiles() function gets called
-			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
-			for _, pattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
-			}
-
-			for _, pattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
+			// The whole pattern set goes to the repo server in one call, which applies both
+			// filters and returns the surviving files. The expectation therefore also asserts
+			// that the include and exclude patterns are forwarded intact.
+			if len(testCaseCopy.includePattern) > 0 {
+				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, testCaseCopy.includePattern, testCaseCopy.excludePattern, mock.Anything, mock.Anything).
+					Return(repoServerFiles(testCaseCopy.includeFiles, testCaseCopy.excludeFiles), testCaseCopy.repoPathsError)
 			}
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
@@ -1492,19 +1485,12 @@ env: testing
 
 			argoCDServiceMock := mocks.NewRepos(t)
 
-			// IMPORTANT: we try to get the files from the repo server that matches the patterns
-			// If we find those files also satisfy the exclude pattern, we remove them from map
-			// This is generally done by the g.repos.GetFiles() function.
-			// With the below mock setup, we make sure that if the GetFiles() function gets called
-			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
-			for _, pattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
-			}
-
-			for _, pattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
+			// The whole pattern set goes to the repo server in one call, which applies both
+			// filters and returns the surviving files. The expectation therefore also asserts
+			// that the include and exclude patterns are forwarded intact.
+			if len(testCaseCopy.includePattern) > 0 {
+				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, testCaseCopy.includePattern, testCaseCopy.excludePattern, mock.Anything, mock.Anything).
+					Return(repoServerFiles(testCaseCopy.includeFiles, testCaseCopy.excludeFiles), testCaseCopy.repoPathsError)
 			}
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
@@ -1721,19 +1707,12 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 			t.Parallel()
 
 			argoCDServiceMock := mocks.NewRepos(t)
-			// IMPORTANT: we try to get the files from the repo server that matches the patterns
-			// If we find those files also satisfy the exclude pattern, we remove them from map
-			// This is generally done by the g.repos.GetFiles() function.
-			// With the below mock setup, we make sure that if the GetFiles() function gets called
-			// for a include or exclude pattern, it should always return the includeFiles or excludeFiles.
-			for _, pattern := range testCaseCopy.excludePattern {
-				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.excludeFiles, testCaseCopy.repoPathsError)
-			}
-
-			for _, pattern := range testCaseCopy.includePattern {
-				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, pattern, mock.Anything, mock.Anything).
-					Return(testCaseCopy.includeFiles, testCaseCopy.repoPathsError)
+			// The whole pattern set goes to the repo server in one call, which applies both
+			// filters and returns the surviving files. The expectation therefore also asserts
+			// that the include and exclude patterns are forwarded intact.
+			if len(testCaseCopy.includePattern) > 0 {
+				argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, testCaseCopy.includePattern, testCaseCopy.excludePattern, mock.Anything, mock.Anything).
+					Return(repoServerFiles(testCaseCopy.includeFiles, testCaseCopy.excludeFiles), testCaseCopy.repoPathsError)
 			}
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
@@ -2086,7 +2065,7 @@ cluster:
 			t.Parallel()
 
 			argoCDServiceMock := mocks.NewRepos(t)
-			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
+			argoCDServiceMock.EXPECT().GetFiles(mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything, mock.Anything).
 				Return(testCaseCopy.repoFileContents, testCaseCopy.repoPathsError)
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")

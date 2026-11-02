@@ -8,6 +8,7 @@ import (
 	"hash/fnv"
 	"math"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -527,20 +528,36 @@ func (c *Cache) SetOCIMetadata(repoURL, revision string, item *appv1.OCIMetadata
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func gitFilesKey(repoURL, revision, pattern string) string {
-	return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, pattern)
+// filePatternsKey hashes an include/exclude glob set into a stable cache key
+// fragment. Patterns are sorted first: the result is the union of the includes
+// minus the union of the excludes, so their order cannot change it. Hashing keeps
+// the key bounded and unambiguous, since a glob may itself contain any separator
+// we could otherwise join on (for example brace alternation such as `{a,b}`).
+func filePatternsKey(includePatterns, excludePatterns []string) string {
+	key, _ := json.Marshal(struct {
+		Include []string `json:"include"`
+		Exclude []string `json:"exclude,omitempty"`
+	}{
+		Include: slices.Sorted(slices.Values(includePatterns)),
+		Exclude: slices.Sorted(slices.Values(excludePatterns)),
+	})
+	return strconv.FormatUint(uint64(hash.FNVa(string(key))), 10)
 }
 
-func (c *Cache) SetGitFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+func gitFilesKey(repoURL, revision string, includePatterns, excludePatterns []string) string {
+	return fmt.Sprintf("gitfiles|%s|%s|%s", repoURL, revision, filePatternsKey(includePatterns, excludePatterns))
+}
+
+func (c *Cache) SetGitFiles(repoURL, revision string, includePatterns, excludePatterns []string, files map[string][]byte) error {
 	return c.cache.SetItem(
-		gitFilesKey(repoURL, revision, pattern),
+		gitFilesKey(repoURL, revision, includePatterns, excludePatterns),
 		&files,
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func (c *Cache) GetGitFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
+func (c *Cache) GetGitFiles(repoURL, revision string, includePatterns, excludePatterns []string) (map[string][]byte, error) {
 	var item map[string][]byte
-	err := c.cache.GetItem(gitFilesKey(repoURL, revision, pattern), &item)
+	err := c.cache.GetItem(gitFilesKey(repoURL, revision, includePatterns, excludePatterns), &item)
 	return item, err
 }
 
@@ -578,20 +595,20 @@ func (c *Cache) GetGitFilesChanges(repoURL, revision, targetRevision string) ([]
 	return files, err
 }
 
-func ociFilesKey(repoURL, revision, pattern string) string {
-	return fmt.Sprintf("ocifiles|%s|%s|%s", repoURL, revision, pattern)
+func ociFilesKey(repoURL, revision string, includePatterns, excludePatterns []string) string {
+	return fmt.Sprintf("ocifiles|%s|%s|%s", repoURL, revision, filePatternsKey(includePatterns, excludePatterns))
 }
 
-func (c *Cache) SetOciFiles(repoURL, revision, pattern string, files map[string][]byte) error {
+func (c *Cache) SetOciFiles(repoURL, revision string, includePatterns, excludePatterns []string, files map[string][]byte) error {
 	return c.cache.SetItem(
-		ociFilesKey(repoURL, revision, pattern),
+		ociFilesKey(repoURL, revision, includePatterns, excludePatterns),
 		&files,
 		&cacheutil.CacheActionOpts{Expiration: c.repoCacheExpiration})
 }
 
-func (c *Cache) GetOciFiles(repoURL, revision, pattern string) (map[string][]byte, error) {
+func (c *Cache) GetOciFiles(repoURL, revision string, includePatterns, excludePatterns []string) (map[string][]byte, error) {
 	var item map[string][]byte
-	err := c.cache.GetItem(ociFilesKey(repoURL, revision, pattern), &item)
+	err := c.cache.GetItem(ociFilesKey(repoURL, revision, includePatterns, excludePatterns), &item)
 	return item, err
 }
 
