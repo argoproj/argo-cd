@@ -76,6 +76,13 @@ const (
 	// EnvClusterCacheEventsProcessingInterval is the env variable to control the interval between processing events when BatchEventsProcessing is enabled
 	EnvClusterCacheEventsProcessingInterval = "ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL"
 
+	// EnvClusterCacheUseInformers is the env variable to enable the experimental informer-based cluster cache engine
+	EnvClusterCacheUseInformers = "ARGOCD_CLUSTER_CACHE_USE_INFORMERS"
+
+	// EnvClusterCacheInformerSyncTimeout is the env variable that holds how long an informer-mode cluster cache sync
+	// waits for the initial lists before failing
+	EnvClusterCacheInformerSyncTimeout = "ARGOCD_CLUSTER_CACHE_INFORMER_SYNC_TIMEOUT"
+
 	// AnnotationIgnoreResourceUpdates when set to true on an untracked resource,
 	// argo will apply `ignoreResourceUpdates` configuration on it.
 	AnnotationIgnoreResourceUpdates = "argocd.argoproj.io/ignore-resource-updates"
@@ -116,6 +123,12 @@ var (
 
 	// clusterCacheEventsProcessingInterval specifies the interval between processing events when BatchEventsProcessing is enabled
 	clusterCacheEventsProcessingInterval = 100 * time.Millisecond
+
+	// clusterCacheUseInformers specifies whether to use the experimental informer-based cluster cache engine
+	clusterCacheUseInformers = false
+
+	// clusterCacheInformerSyncTimeout specifies how long an informer-mode sync waits for the initial lists
+	clusterCacheInformerSyncTimeout = 5 * time.Minute
 )
 
 func init() {
@@ -129,6 +142,8 @@ func init() {
 	clusterCacheRetryUseBackoff = env.ParseBoolFromEnv(EnvClusterCacheRetryUseBackoff, false)
 	clusterCacheBatchEventsProcessing = env.ParseBoolFromEnv(EnvClusterCacheBatchEventsProcessing, true)
 	clusterCacheEventsProcessingInterval = env.ParseDurationFromEnv(EnvClusterCacheEventsProcessingInterval, clusterCacheEventsProcessingInterval, 0, math.MaxInt64)
+	clusterCacheUseInformers = env.ParseBoolFromEnv(EnvClusterCacheUseInformers, false)
+	clusterCacheInformerSyncTimeout = env.ParseDurationFromEnv(EnvClusterCacheInformerSyncTimeout, clusterCacheInformerSyncTimeout, 0, math.MaxInt64)
 }
 
 type LiveStateCache interface {
@@ -195,6 +210,7 @@ func NewLiveStateCache(
 	clusterSharding sharding.ClusterShardingCache,
 	resourceTracking argo.ResourceTracking,
 ) LiveStateCache {
+	metricsServer.SetClusterCacheInformerMode(clusterCacheUseInformers)
 	return &liveStateCache{
 		appInformer:      appInformer,
 		db:               db,
@@ -602,6 +618,13 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
 		clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
 		clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
+	}
+	if clusterCacheUseInformers {
+		log.WithField("server", cluster.Server).Info("Using the experimental informer-based cluster cache")
+		clusterCacheOpts = append(clusterCacheOpts,
+			clustercache.SetInformerSyncTimeout(clusterCacheInformerSyncTimeout),
+			clustercache.SetMode(clustercache.ModeInformer),
+		)
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
