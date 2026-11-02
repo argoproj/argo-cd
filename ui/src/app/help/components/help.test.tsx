@@ -4,6 +4,8 @@ import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import {Provider} from '../../shared/context';
+import {newQueryClient} from '../../shared/query-client';
+import {helpQueries, settingsQueries} from '../../shared/queries';
 import {services} from '../../shared/services';
 import {Help} from './help';
 
@@ -37,10 +39,14 @@ describe('Help', () => {
             .mockRejectedValueOnce(new Error('boom'))
             .mockResolvedValueOnce({help: {binaryUrls: {}}} as any);
         jest.mocked(services.version.version).mockRejectedValue(new Error('unavailable'));
-        renderHelp();
+        const show = jest.fn();
+        const client = newQueryClient({show} as any);
+        renderHelp(client);
 
         fireEvent.click(await screen.findByText('try again'));
-        expect(await screen.findByText('New to Argo CD?')).toBeInTheDocument();
+        expect(await screen.findByRole('link', {name: 'Linux'})).toBeInTheDocument();
+        await waitFor(() => expect(client.getQueryState(helpQueries.version().queryKey)?.status).toBe('success'));
+        expect(show).toHaveBeenCalledTimes(1);
         expect(services.authService.settings).toHaveBeenCalledTimes(2);
     });
 
@@ -54,7 +60,7 @@ describe('Help', () => {
         renderHelp(client);
         expect(await screen.findByRole('link', {name: /darwin/})).toHaveAttribute('href', '/old');
 
-        await act(() => client.invalidateQueries({queryKey: ['help', 'settings']}));
+        await act(() => client.invalidateQueries({queryKey: settingsQueries.get().queryKey}));
         expect(await screen.findByText('try again')).toBeInTheDocument();
         expect(screen.getByRole('link', {name: /darwin/})).toHaveAttribute('href', '/old');
 
