@@ -35,3 +35,13 @@ export const accountQueries = {
     list: () => queryOptions({queryKey: ['accounts', 'list'], queryFn: () => services.accounts.list()}),
     detail: (name: string) => queryOptions({queryKey: ['accounts', 'detail', name], queryFn: () => services.accounts.get(name)})
 };
+
+export const settingsQueries = {
+    get: () => queryOptions({queryKey: ['settings'], queryFn: () => services.authService.settings()})
+};
+
+export const helpQueries = {
+    // Best-effort: the version only labels the download link, so a failure yields an empty Platform instead of an
+    // error notification. Kept under 'help' so other version readers don't get the cached fallback.
+    version: () => queryOptions({queryKey: ['help', 'version'], queryFn: () => services.version.version().catch(() => ({Platform: ''}))})
+};
