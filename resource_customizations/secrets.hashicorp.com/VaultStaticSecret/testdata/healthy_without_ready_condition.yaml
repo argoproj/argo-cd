@@ -1,0 +1,39 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  creationTimestamp: "2026-10-28T23:08:09Z"
+  finalizers:
+  - vaultstaticsecret.secrets.hashicorp.com/finalizer
+  generation: 2
+  name: vault-static-secret
+  namespace: app
+  resourceVersion: "2649"
+  uid: eb0f272a-f554-4c82-9d76-de9bbc83719e
+spec:
+  destination:
+    create: true
+    name: webapp-config
+    overwrite: false
+    transformation: {}
+  hmacSecretData: true
+  mount: secret
+  path: webapp/config
+  refreshAfter: 30s
+  type: kv-v2
+  vaultAuthRef: default
+status:
+  conditions:
+  - lastTransitionTime: "2026-10-28T23:08:17Z"
+    message: Secret synced, horizon=24.147335132s
+    observedGeneration: 2
+    reason: Synced
+    status: "True"
+    type: SecretSynced
+  - lastTransitionTime: "2026-10-28T23:08:17Z"
+    message: VaultStaticSecretHealthy
+    observedGeneration: 2
+    reason: Healthy
+    status: "True"
+    type: Healthy
+  lastGeneration: 2
+  secretMAC: eoWENh2t1Q4HIZTQh5UoL/m49wvxdyjmLo3paX6lWUo=

@@ -64,8 +64,8 @@ func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() 
 // getAPIResourceInfo gets Kubernetes API resource info for the given group and kind. If there's a matching resource
 // group _and_ kind, it will return the resource info. If there's a matching kind but no matching group, it will
 // return the first resource info that matches the kind. If there's no matching kind, it will return nil.
-func getAPIResourceInfo(group, kind string, getAPIResourceInfo func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
-	apiResources, err := getAPIResourceInfo()
+func getAPIResourceInfo(group, kind string, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
+	apiResources, err := apiResourceInfoGetter()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API resource info: %w", err)
 	}
@@ -543,6 +543,12 @@ func validateRepo(ctx context.Context,
 			return nil, err
 		}
 		if err := TestRepoWithKnownType(ctx, repoClient, repo, source.IsHelm(), source.IsHelmOci(), source.IsOCI()); err != nil {
+			// As in verifyGenerateManifests below, a canceled or timed out repository check
+			// says nothing about the spec, so it is reported with its gRPC code instead of
+			// an InvalidSpecError condition.
+			if code := status.Code(err); code == codes.Canceled || code == codes.DeadlineExceeded {
+				return nil, status.Error(code, fmt.Sprintf("unable to test repository %s: %s", repo.StringForLogging(), err))
+			}
 			errMessage = fmt.Sprintf("repositories not accessible: %v: %v", repo.StringForLogging(), err)
 		}
 		repoAccessible := false
@@ -584,7 +590,7 @@ func validateRepo(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("error getting ref sources: %w", err)
 	}
-	conditions = append(conditions, verifyGenerateManifests(
+	verifyConditions, err := verifyGenerateManifests(
 		ctx,
 		db,
 		permittedHelmRepos,
@@ -600,7 +606,11 @@ func validateRepo(ctx context.Context,
 		permittedOCICredentials,
 		enabledSourceTypes,
 		settingsMgr,
-		refSources)...)
+		refSources)
+	if err != nil {
+		return nil, err
+	}
+	conditions = append(conditions, verifyConditions...)
 
 	return conditions, nil
 }
@@ -912,7 +922,7 @@ func verifyGenerateManifests(
 	enableGenerateManifests map[string]bool,
 	settingsMgr *settings.SettingsManager,
 	refSources argoappv1.RefTargetRevisionMapping,
-) []argoappv1.ApplicationCondition {
+) ([]argoappv1.ApplicationCondition, error) {
 	var conditions []argoappv1.ApplicationCondition
 	// If source is Kustomize add build options
 	kustomizeSettings, err := settingsMgr.GetKustomizeSettings()
@@ -921,7 +931,7 @@ func verifyGenerateManifests(
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: fmt.Sprintf("Error getting Kustomize settings: %v", err),
 		})
-		return conditions // Can't perform the next check without settings.
+		return conditions, nil // Can't perform the next check without settings.
 	}
 
 	for _, source := range sources {
@@ -1016,6 +1026,13 @@ func verifyGenerateManifests(
 			if status.Code(err) == codes.NotFound && strings.Contains(err.Error(), "matched no files") {
 				continue
 			}
+			// A canceled or timed out manifest generation says nothing about the spec: the
+			// repository may simply be slow or the caller gave up. Report it as a transport
+			// error (keeping its gRPC code) instead of an InvalidSpecError condition, which
+			// makes the API server tell the user their spec is invalid.
+			if code := status.Code(err); code == codes.Canceled || code == codes.DeadlineExceeded {
+				return nil, status.Error(code, fmt.Sprintf("unable to generate manifests in %s: %s", source.Path, err))
+			}
 			errMessage := fmt.Sprintf("Unable to generate manifests in %s: %s", source.Path, err)
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -1024,7 +1041,7 @@ func verifyGenerateManifests(
 		}
 	}
 
-	return conditions
+	return conditions, nil
 }
 
 // SetAppOperation updates an application with the specified operation, retrying conflict errors

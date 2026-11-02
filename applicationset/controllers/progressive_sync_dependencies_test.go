@@ -426,7 +426,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 						Conditions: []v1alpha1.ApplicationCondition{
 							{
 								Type:               v1alpha1.ApplicationConditionInvalidSpecError,
-								Message:            "Fake invalid specs preventing app updates and sync to be trigerred",
+								Message:            "Fake invalid specs preventing app updates and sync to be triggered",
 								LastTransitionTime: &metav1.Time{Time: time.Now()},
 							},
 						},

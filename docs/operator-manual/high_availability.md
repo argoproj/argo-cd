@@ -396,12 +396,11 @@ Similarly, applications referencing an external Helm values file will not get th
 unrelated change happens in the external source.
 
 > [!NOTE]
-> The Git-history comparison described above is skipped for repositories configured with shallow cloning (`depth` greater
-> than `0`). In that case, Argo CD may not have enough history to compare the previous synced revision with the new
-> revision, so it treats the application as potentially changed and proceeds with normal refresh and manifest generation.
-> This does not affect webhook payload filtering, which uses the changed files reported by the webhook event. The
-> annotation can also still be used to calculate a common root path and reduce the repository content sent to a Config
-> Management Plugin sidecar when `--plugin-use-manifest-generate-paths` is enabled.
+> The comparison also works with shallow cloning (`depth` greater than `0`). Argo CD fetches the previously synced commit
+> at the configured depth and compares it directly with the new commit. This requires the Git server to allow fetching
+> commits by SHA (for self-hosted servers, `uploadpack.allowReachableSHA1InWant` or `uploadpack.allowAnySHA1InWant`).
+> If that fetch fails, Argo CD treats the application as changed and regenerates manifests, retrying the fetch on each
+> refresh.
 
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
@@ -529,12 +528,45 @@ When disabled, the webhook handler will only trigger reconciliation for applicat
 will skip all Redis cache operations for unaffected applications. This is the recommended setting for large monorepos
 with plain YAML manifests.
 
-**Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: true` on the repository via the
-ArgoCD CLI or UI:
+**Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: "true"` in the repository Secret.
+If you manage repositories [declaratively](declarative-setup.md#repositories), add the key to the Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://github.com/org/repo.git
+  webhookManifestCacheWarmDisabled: "true"
+```
+
+To change an existing repository Secret in place, patch it:
 
 ```bash
-argocd repo edit https://github.com/org/repo.git --webhook-manifest-cache-warm-disabled
+kubectl -n argocd patch secret my-repo --type merge -p '{"stringData":{"webhookManifestCacheWarmDisabled":"true"}}'
 ```
+
+The option can also be set with the CLI when adding a repository:
+
+```bash
+argocd repo add https://github.com/org/repo.git --webhook-manifest-cache-warm-disabled
+```
+
+> [!WARNING]
+> There is no `argocd repo edit` command. To change an existing repository with the CLI, you must run
+> `argocd repo add --upsert` and pass **all** of the repository's settings again, including its credentials. `--upsert`
+> replaces the stored repository configuration, so any credentials or options you leave out are removed.
+>
+> ```bash
+> argocd repo add https://github.com/org/repo.git --upsert \
+>   --username <username> --password <password> \
+>   --webhook-manifest-cache-warm-disabled
+> ```
 
 **Global setting**: to disable cache warming for all repositories, set the following environment variable on
 `argocd-server`:
@@ -820,9 +852,3 @@ type: Opaque
 > You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
 
 When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.
-
-> [!NOTE]
-> Shallow cloning disables the non-webhook Git-history comparison optimization provided by the
-> `argocd.argoproj.io/manifest-generate-paths` annotation. If you rely on that annotation to avoid unnecessary refreshes
-> without webhooks, use a full clone (`depth: "0"` or omit `depth`) for that repository. Webhook payload filtering and
-> Config Management Plugin sidecar path narrowing can still use the annotation with shallow clones.
