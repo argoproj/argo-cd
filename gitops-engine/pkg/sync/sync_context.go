@@ -568,6 +568,9 @@ func (sc *syncContext) Sync(ctx context.Context) {
 			} else {
 				sc.setResourceResult(task, task.syncStatus, operationState, message)
 			}
+		} else if task.skipHealthCheck() {
+			// the resource opted out of the health check during sync, it is considered synced once applied
+			sc.setResourceResult(task, task.syncStatus, common.OperationSucceeded, task.message)
 		} else {
 			// this must be calculated on the live object
 			healthStatus, err := health.GetResourceHealth(task.liveObj, sc.healthOverride)
@@ -868,7 +871,19 @@ func (sc *syncContext) terminateHooksPreemptively(ctx context.Context, tasks syn
 
 func (sc *syncContext) removeHookFinalizer(ctx context.Context, task *syncTask) error {
 	if task.liveObj == nil {
-		return nil
+		// The live object may be temporarily missing from the reconciliation cache even though the hook
+		// still exists in the cluster. Look it up directly, so that a completed hook is not silently left
+		// behind with its finalizer, which would block its deletion and, in turn, block cascading deletion
+		// of the Application.
+		liveObj, err := sc.getResource(ctx, task)
+		if err != nil {
+			if apierrors.IsNotFound(err) {
+				// no live object, so no finalizer to remove
+				return nil
+			}
+			return fmt.Errorf("failed to get resource: %w", err)
+		}
+		task.liveObj = liveObj
 	}
 	removeFinalizerMutation := func(obj *unstructured.Unstructured) bool {
 		finalizers := obj.GetFinalizers()

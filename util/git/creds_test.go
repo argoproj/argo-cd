@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
@@ -9,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"slices"
@@ -17,6 +19,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kballard/go-shellquote"
 	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -273,9 +276,7 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
 
-		proxyRegex := regexp.MustCompile(`-o ProxyCommand=([^ ]+)`)
-		assert.Regexp(t, proxyRegex, env[1])
-		proxyScript := proxyRegex.FindStringSubmatch(env[1])[1]
+		proxyScript := proxyScriptFromSSHCommand(t, env[1])
 		assert.FileExists(t, proxyScript)
 
 		scriptBytes, err := os.ReadFile(proxyScript)
@@ -292,6 +293,26 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 		assert.NoFileExists(t, privateKeyFile)
 		assert.NoFileExists(t, proxyScript)
 	}
+}
+
+func proxyScriptFromSSHCommand(t *testing.T, gitSSHCommandEnv string) string {
+	t.Helper()
+	args, err := shellquote.Split(strings.TrimPrefix(gitSSHCommandEnv, "GIT_SSH_COMMAND="))
+	require.NoError(t, err)
+	for _, arg := range args {
+		proxyCommand, ok := strings.CutPrefix(arg, "ProxyCommand=")
+		if !ok {
+			continue
+		}
+		fields, err := shellquote.Split(proxyCommand)
+		require.NoError(t, err)
+		require.Len(t, fields, 4, "ProxyCommand must be a single argument")
+		assert.Equal(t, "/bin/sh", fields[0])
+		assert.Equal(t, []string{"%h", "%p"}, fields[2:])
+		return fields[1]
+	}
+	require.FailNow(t, "GIT_SSH_COMMAND has no ProxyCommand", gitSSHCommandEnv)
+	return ""
 }
 
 func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
@@ -311,9 +332,7 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		assert.Equal(t, "SOCKS5_USER=user", env[2], "SOCKS5 user env var must be set")
 		assert.Equal(t, "SOCKS5_PASSWD=password", env[3], "SOCKS5 password env var must be set")
 
-		proxyRegex := regexp.MustCompile(`-o ProxyCommand=([^ ]+)`)
-		assert.Regexp(t, proxyRegex, env[1])
-		proxyScript := proxyRegex.FindStringSubmatch(env[1])[1]
+		proxyScript := proxyScriptFromSSHCommand(t, env[1])
 		assert.FileExists(t, proxyScript)
 
 		scriptBytes, err := os.ReadFile(proxyScript)
@@ -331,15 +350,60 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 	}
 }
 
-func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
-	argoioTempDir := argoio.TempDir
-	if argoioTempDir == "" {
-		argoioTempDir = os.TempDir()
+func Test_SSHCreds_Environ_ProxyCommandPassesTargetToConnectProxy(t *testing.T) {
+	if _, err := exec.LookPath("ssh"); err != nil {
+		t.Skip("ssh is not installed")
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
 	}
 
-	// countDev returns the number of files in the temporary directory
-	countFilesInDevShm := func() int {
-		entries, err := os.ReadDir(argoioTempDir)
+	binDir := t.TempDir()
+	argsFile := path.Join(t.TempDir(), "connect-proxy-args")
+	fakeConnectProxy := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CONNECT_PROXY_ARGS_FILE\"\nexit 1\n"
+	require.NoError(t, os.WriteFile(path.Join(binDir, "connect-proxy"), []byte(fakeConnectProxy), 0o755))
+
+	closer, env, err := NewSSHCreds("sshPrivateKey", "", true, "socks5://127.0.0.1:1080").Environ()
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+
+	proxyScript := proxyScriptFromSSHCommand(t, env[0])
+	info, err := os.Stat(proxyScript)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "the proxy script must run without the exec bit, /dev/shm is often mounted noexec")
+
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "ls-remote", "ssh://git@git.example.com:2222/org/repo.git")
+	cmd.WaitDelay = 5 * time.Second
+	cmd.Env = append(os.Environ(), env...)
+	cmd.Env = append(cmd.Env,
+		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"CONNECT_PROXY_ARGS_FILE="+argsFile,
+		"GIT_TERMINAL_PROMPT=0",
+	)
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "the fake connect-proxy always fails")
+
+	args, readErr := os.ReadFile(argsFile)
+	require.NoError(t, readErr, "connect-proxy was never invoked: %s", out)
+	assert.Equal(t, []string{"-5", "-S", "127.0.0.1:1080", "git.example.com", "2222"}, strings.Fields(string(args)))
+}
+
+func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
+	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
+
+	origArgoioTempDir := argoio.TempDir
+	t.Cleanup(func() { argoio.TempDir = origArgoioTempDir })
+
+	// Redirect argoio.TempDir to a test-private directory. Production uses /dev/shm
+	// or the OS temp dir, which other processes (and parallel tests) can modify,
+	// so counting entries there before/after creds.Environ() would be flaky.
+	argoio.TempDir = t.TempDir()
+
+	// countFilesInArgoioTempDir returns the number of files in the argoio.TempDir
+	countFilesInArgoioTempDir := func() int {
+		entries, err := os.ReadDir(argoio.TempDir)
 		require.NoError(t, err)
 
 		return len(entries)
@@ -353,7 +417,7 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, ":invalid-proxy-url")
 		require.Empty(t, creds.proxy, "invalid proxy must not be stored on the creds struct")
 
-		filesInDevShmBeforeInvocation := countFilesInDevShm()
+		filesBeforeWithEmptyProxy := countFilesInArgoioTempDir()
 
 		closer, env, err := creds.Environ()
 		require.NoError(t, err)
@@ -364,8 +428,21 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 			require.NotContains(t, e, "ProxyCommand", "no ProxyCommand must be set for a rejected proxy")
 		}
 
-		filesInDevShmAfterInvocation := countFilesInDevShm()
-		assert.Equal(t, filesInDevShmBeforeInvocation, filesInDevShmAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
+		filesAfterWithEmptyProxy := countFilesInArgoioTempDir()
+
+		assert.Equal(t, filesBeforeWithEmptyProxy, filesAfterWithEmptyProxy, "no temporary files should leak if the proxy url is empty")
+
+		// NewSSHCreds clears invalid proxies, override so Environ() hits the validation path
+		creds.proxy = ":invalid-proxy-url"
+
+		filesBeforeWithInvalidProxy := countFilesInArgoioTempDir()
+
+		_, _, err = creds.Environ()
+		require.Error(t, err)
+		require.ErrorContains(t, err, "unsafe proxy URL rejected")
+
+		filesAfterWithInvalidProxy := countFilesInArgoioTempDir()
+		assert.Equal(t, filesBeforeWithInvalidProxy, filesAfterWithInvalidProxy, "no temporary files should leak if the proxy url is invalid")
 	}
 }
 
@@ -1042,6 +1119,58 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 
 		require.NoError(t, err, "should succeed when response arrives within timeout")
 		require.Equal(t, "ghs_slow_ok", token)
+	})
+}
+
+func TestGitHubAppGetInstallationTransport_DiscoveryHonorsGitClientTimeout(t *testing.T) {
+	// These tests mutate gitClientTimeout so they must NOT run in parallel
+	// with each other.
+	previousTimeout := gitClientTimeout
+	t.Cleanup(func() {
+		gitClientTimeout = previousTimeout
+	})
+
+	newSlowDiscoveryServer := func(t *testing.T, delay time.Duration) *httptest.Server {
+		t.Helper()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/app/installations") {
+				time.Sleep(delay)
+				w.WriteHeader(http.StatusOK)
+				//nolint:errcheck
+				json.NewEncoder(w).Encode([]map[string]any{
+					{"id": 98765, "account": map[string]any{"login": "test-org"}},
+				})
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		t.Cleanup(server.Close)
+		t.Cleanup(func() {
+			domain, _ := domainFromBaseURL(server.URL)
+			githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 12345))
+		})
+		return server
+	}
+
+	t.Run("discovery times out after gitClientTimeout", func(t *testing.T) {
+		gitClientTimeout = 100 * time.Millisecond
+		server := newSlowDiscoveryServer(t, 1*time.Second)
+
+		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+		_, err := creds.getInstallationTransport()
+
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+
+	t.Run("discovery within gitClientTimeout succeeds", func(t *testing.T) {
+		gitClientTimeout = 5 * time.Second
+		server := newSlowDiscoveryServer(t, 300*time.Millisecond)
+
+		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+		itr, err := creds.getInstallationTransport()
+
+		require.NoError(t, err)
+		require.NotNil(t, itr)
 	})
 }
 

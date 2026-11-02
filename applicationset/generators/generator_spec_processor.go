@@ -105,7 +105,7 @@ func GetRelevantGenerators(requestedGenerator *argoprojiov1alpha1.ApplicationSet
 	var res []Generator
 
 	v := reflect.Indirect(reflect.ValueOf(requestedGenerator))
-	for i := 0; i < v.NumField(); i++ {
+	for i := range v.NumField() {
 		field := v.Field(i)
 		if !field.CanInterface() {
 			continue
