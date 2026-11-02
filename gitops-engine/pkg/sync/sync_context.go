@@ -1580,7 +1580,7 @@ func (sc *syncContext) getDeleteOptions() metav1.DeleteOptions {
 func (sc *syncContext) buildRemoveTrackingJSONPatch(obj *unstructured.Unstructured) ([]byte, error) {
 	patchOperations := []kubeutil.JSONPatchOperation{}
 
-	if labels := obj.GetLabels(); labels != nil && sc.trackingMethod != common.TrackingMethodAnnotation {
+	if labels := obj.GetLabels(); labels != nil && sc.trackingMethod != common.ResourceTrackingMethodAnnotation {
 		if _, exists := labels[sc.appLabelKey]; exists {
 			escapedKey := strings.ReplaceAll(sc.appLabelKey, "/", "~1")
 			patchOperations = append(patchOperations, kubeutil.JSONPatchOperation{
