@@ -1,6 +1,36 @@
 import {AppsListPreferences, ResourcesListPreferences, ViewPreferences, ViewPreferencesService} from './view-preferences-service';
 import {firstValueFrom} from 'rxjs';
 
+test.each(['appList', 'resourcesList'] as const)('%s ignores equivalent filter arrays from initial synchronization', async key => {
+    window.localStorage.clear();
+    const service = new ViewPreferencesService();
+    service.init();
+    const initial = (await firstValueFrom(service.getPreferences()))[key];
+    service.updatePreferences({[key]: {...initial, healthFilter: ['Healthy']}});
+    const previous = {...initial, healthFilter: ['Degraded']};
+    const change = {...previous, healthFilter: ['Degraded']};
+    if (key === 'appList') {
+        service.updateAppListPreferences(change, previous);
+    } else {
+        service.updateResourcesListPreferences(change, previous);
+    }
+    expect((await firstValueFrom(service.getPreferences()))[key].healthFilter).toEqual(['Healthy']);
+});
+
+test('equivalent empty arrays preserve saved filters while changed and reordered arrays persist', async () => {
+    window.localStorage.clear();
+    const service = new ViewPreferencesService();
+    service.init();
+    service.updateAppListPreferences({healthFilter: ['Healthy']});
+    service.updateAppListPreferences({healthFilter: []}, {healthFilter: []});
+    expect((await firstValueFrom(service.getPreferences())).appList.healthFilter).toEqual(['Healthy']);
+    service.updateAppListPreferences({healthFilter: []}, {healthFilter: ['Degraded']});
+    expect((await firstValueFrom(service.getPreferences())).appList.healthFilter).toEqual([]);
+    service.updateAppListPreferences({healthFilter: ['Healthy', 'Degraded']}, {healthFilter: []});
+    service.updateAppListPreferences({healthFilter: ['Degraded', 'Healthy']}, {healthFilter: ['Healthy', 'Degraded']});
+    expect((await firstValueFrom(service.getPreferences())).appList.healthFilter).toEqual(['Degraded', 'Healthy']);
+});
+
 test('normalizes filter arrays dropped by a narrower appList write', async () => {
     window.localStorage.clear();
     const service = new ViewPreferencesService();

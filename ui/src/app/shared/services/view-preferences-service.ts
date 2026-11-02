@@ -288,7 +288,16 @@ export class ViewPreferencesService {
 
     private mergeListPreferences<T>(stored: T, change: Partial<T>, previous?: Partial<T>): T {
         // A rendered list includes URL overrides. Persist only the user's edits.
-        const edits = Object.entries(change).filter(([key, value]) => !previous || value !== previous[key as keyof T]);
+        const edits = Object.entries(change).filter(([key, value]) => {
+            if (!previous) {
+                return true;
+            }
+            const prior = previous[key as keyof T];
+            if (Array.isArray(value) && Array.isArray(prior)) {
+                return value.length !== prior.length || value.some((entry, index) => entry !== prior[index]);
+            }
+            return value !== prior;
+        });
         return {...stored, ...Object.fromEntries(edits)};
     }
 

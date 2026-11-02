@@ -10,6 +10,7 @@ import {ResourcesToolbar, ViewPref as ResourcesViewPref} from '../../../resource
 import {ApplicationSetsToolbar, ViewPref as ApplicationSetsViewPref} from './application-sets-list';
 import {ApplicationsToolbar, ViewPref as ApplicationsViewPref} from './applications-list';
 import {ViewTypeSwitcher} from './view-type-switcher';
+import {Filter} from '../filter/filter';
 
 jest.mock('argo-ui', () => ({
     ...jest.requireActual('argo-ui'),
@@ -42,6 +43,52 @@ beforeEach(() => {
 
 afterEach(() => {
     services.viewPreferences = originalPreferences;
+});
+
+test.each(pages)('%s filter mount keeps the saved filter when a URL override supplies a fresh array', async page => {
+    const history = createMemoryHistory({initialEntries: ['/' + page + '?health=Degraded']});
+    const ctx = {history, navigation: new NavigationManager(history)} as React.ContextType<typeof Context>;
+    services.viewPreferences.updateAppListPreferences({healthFilter: ['Healthy']});
+    services.viewPreferences.updateResourcesListPreferences({healthFilter: ['Healthy']});
+    const options = [{label: 'Healthy'}, {label: 'Degraded'}];
+    const content =
+        page === 'resources' ? (
+            <ResourcesViewPref>
+                {pref => (
+                    <Filter
+                        label='HEALTH'
+                        options={options}
+                        selected={pref.healthFilter}
+                        setSelected={selected => services.viewPreferences.updateResourcesListPreferences({healthFilter: selected}, pref)}
+                    />
+                )}
+            </ResourcesViewPref>
+        ) : page === 'applicationsets' ? (
+            <ApplicationSetsViewPref>
+                {pref => (
+                    <Filter
+                        label='HEALTH'
+                        options={options}
+                        selected={pref.healthFilter}
+                        setSelected={selected => services.viewPreferences.updateAppListPreferences({healthFilter: selected}, pref)}
+                    />
+                )}
+            </ApplicationSetsViewPref>
+        ) : (
+            <ApplicationsViewPref>
+                {pref => (
+                    <Filter
+                        label='HEALTH'
+                        options={options}
+                        selected={pref.healthFilter}
+                        setSelected={selected => services.viewPreferences.updateAppListPreferences({healthFilter: selected}, pref)}
+                    />
+                )}
+            </ApplicationsViewPref>
+        );
+    render(<Context.Provider value={ctx}>{content}</Context.Provider>);
+    await screen.findByText('Degraded');
+    expect(storedPreferences()[page === 'resources' ? 'resourcesList' : 'appList'].healthFilter).toEqual(['Healthy']);
 });
 
 function renderList(page: ListPage, query = '') {
