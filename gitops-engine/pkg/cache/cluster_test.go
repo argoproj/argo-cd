@@ -2104,8 +2104,8 @@ func Test_watchEvents_Deadlock(t *testing.T) {
 		done := make(chan bool, 1)
 		go func() {
 			// Stop the watches, so startMissingWatches will restart them
-			cluster.stopWatching(res1.GroupVersionKind().GroupKind(), res1.Namespace)
-			cluster.stopWatching(res2.GroupVersionKind().GroupKind(), res2.Namespace)
+			legacyEngineOf(cluster).stopWatching(res1.GroupVersionKind().GroupKind(), res1.Namespace)
+			legacyEngineOf(cluster).stopWatching(res2.GroupVersionKind().GroupKind(), res2.Namespace)
 
 			// calling startMissingWatches to simulate that a CRD event was received
 			// TODO: how to simulate real watch events and test the full watchEvents function?
@@ -2152,7 +2152,7 @@ func TestStopWatching_RemovesNamespacedResourcesEntry(t *testing.T) {
 	require.NoError(t, err)
 	before := cluster.loadNamespacedResources() // as a concurrent IsNamespaced might hold it
 
-	cluster.stopWatching(gk, pod.Namespace)
+	legacyEngineOf(cluster).stopWatching(gk, pod.Namespace)
 
 	_, err = cluster.IsNamespaced(gk)
 	assert.True(t, apierrors.IsNotFound(err), "got %v", err)

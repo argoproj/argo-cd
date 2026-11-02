@@ -4,7 +4,6 @@ import (
 	"context"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/cache"
@@ -32,16 +31,6 @@ func (c *clusterCache) sync() error {
 
 func (c *clusterCache) startMissingWatches() error {
 	return c.engine.startMissingWatches()
-}
-
-// stopWatching isn't on syncEngine, so call it on the concrete engine.
-func (c *clusterCache) stopWatching(gk schema.GroupKind, ns string) {
-	switch e := c.engine.(type) {
-	case *legacyEngine:
-		e.stopWatching(gk, ns)
-	case *informerEngine:
-		e.stopWatching(gk, ns)
-	}
 }
 
 func (c *clusterCache) recordEvent(event watch.EventType, un *unstructured.Unstructured) {
