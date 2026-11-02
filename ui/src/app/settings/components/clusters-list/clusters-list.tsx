@@ -1,10 +1,11 @@
 import {ErrorNotification, NotificationType, Tooltip} from 'argo-ui';
-import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {useQuery} from '@tanstack/react-query';
 import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {ActionMenu, clusterName, ConnectionStateIcon, DataLoader, EmptyState, IconColumn, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Consumer} from '../../../shared/context';
 import {services} from '../../../shared/services';
+import {useClusterMutations} from '../../../shared/mutations';
 import {clusterQueries} from '../../../shared/queries';
 import {loadFailed, loading} from '../../../shared/query-client';
 import {useSearchParams} from '../../../shared/hooks/query';
@@ -92,7 +93,7 @@ export const compareServerVersion = (a: string, b: string): number => {
 };
 
 export const ClustersList = () => {
-    const queryClient = useQueryClient();
+    const clusterMutations = useClusterMutations();
     const query = useSearchParams();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
@@ -227,9 +228,8 @@ export const ClustersList = () => {
                                                                                 );
                                                                                 if (confirmed) {
                                                                                     try {
-                                                                                        await services.clusters.delete(cluster.server).finally(() => {
+                                                                                        await clusterMutations.delete.mutateAsync(cluster.server).finally(() => {
                                                                                             ctx.navigation.goto('.', {new: null}, {replace: true});
-                                                                                            queryClient.invalidateQueries({queryKey: clusterQueries.list().queryKey});
                                                                                         });
                                                                                     } catch (e) {
                                                                                         ctx.notifications.show({
