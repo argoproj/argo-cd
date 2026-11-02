@@ -3413,132 +3413,221 @@ func Test_LsSignatures_ShallowRepo(t *testing.T) {
 func Test_EnsureNotShallow(t *testing.T) {
 	t.Parallel()
 
-	prepareCloneAndClient := func(t *testing.T, ctx context.Context, shallow bool) (Client, string) {
+	assertShallowState := func(t *testing.T, ctx context.Context, dir string, shallow bool) {
 		t.Helper()
 
-		tempDir, err := _createEmptyGitRepo(ctx)
-		t.Cleanup(func() { os.RemoveAll(tempDir) })
-		require.NoError(t, err)
-		require.NoError(t, runCmd(ctx, tempDir, "git", "commit", "--allow-empty", "-m", "second commit"))
+		want := "false"
+		message := "not shallow"
+		if shallow {
+			want = "true"
+			message = "shallow"
+		}
 
-		cloneDir := t.TempDir() // cleanup already registered by t.TempDir()
+		out, err := outputCmd(ctx, dir, "git", "rev-parse", "--is-shallow-repository")
+		require.NoError(t, err)
+
+		require.Equal(t, want, strings.TrimSpace(string(out)), "repository %s should be %s", dir, message)
+	}
+
+	prepareCloneAndClient := func(t *testing.T, ctx context.Context, shallow bool) (client Client, originDir, cloneDir string) {
+		t.Helper()
+
+		originDir, err := _createEmptyGitRepo(ctx)
+		t.Cleanup(func() { os.RemoveAll(originDir) })
+		require.NoError(t, err)
+		require.NoError(t, runCmd(ctx, originDir, "git", "commit", "--allow-empty", "-m", "second commit"))
+		require.NoError(t, runCmd(ctx, originDir, "git", "commit", "--allow-empty", "-m", "third commit"))
+
+		cloneDir = t.TempDir() // cleanup already registered by t.TempDir()
 
 		args := []string{"clone"}
 		if shallow {
 			args = append(args, "--depth=1")
 		}
-		args = append(args, "file://"+tempDir, ".")
+		args = append(args, "file://"+originDir, ".")
 
 		require.NoError(t, runCmd(ctx, cloneDir, "git", args...))
 
-		client, err := NewClientExt("file://"+tempDir, cloneDir, NopCreds{}, true, false, "", "")
+		assertShallowState(t, ctx, cloneDir, shallow)
+
+		client, err = NewClientExt("file://"+originDir, cloneDir, NopCreds{}, true, false, "", "")
 		require.NoError(t, err)
 		require.NoError(t, client.Init())
 
-		return client, cloneDir
+		return client, originDir, cloneDir
 	}
 
 	t.Run("unshallows shallow repo", func(t *testing.T) {
 		t.Parallel()
 		ctx := t.Context()
 
-		client, shallowDir := prepareCloneAndClient(t, ctx, true)
+		client, _, shallowDir := prepareCloneAndClient(t, ctx, true)
 
-		out, err := outputCmd(ctx, shallowDir, "git", "rev-parse", "--is-shallow-repository")
-		require.NoError(t, err)
-		require.Equal(t, "true", strings.TrimSpace(string(out)))
-
-		err = client.EnsureNotShallow(ctx)
+		err := client.EnsureNotShallow(ctx)
 		require.NoError(t, err)
 
-		out, err = outputCmd(ctx, shallowDir, "git", "rev-parse", "--is-shallow-repository")
-		require.NoError(t, err)
-		require.Equal(t, "false", strings.TrimSpace(string(out)))
+		assertShallowState(t, ctx, shallowDir, false)
 	})
 
 	t.Run("no-op on normal repo", func(t *testing.T) {
 		t.Parallel()
 		ctx := t.Context()
 
-		client, cloneDir := prepareCloneAndClient(t, ctx, false)
-
-		out, err := outputCmd(ctx, cloneDir, "git", "rev-parse", "--is-shallow-repository")
-		require.NoError(t, err)
-		require.Equal(t, "false", strings.TrimSpace(string(out)))
+		client, _, cloneDir := prepareCloneAndClient(t, ctx, false)
 
 		// EnsureNotShallow should not call git fetch - remove remote to cause error if it wrongly does
 		require.NoError(t, runCmd(ctx, cloneDir, "git", "remote", "remove", "origin"))
 
-		err = client.EnsureNotShallow(ctx)
+		err := client.EnsureNotShallow(ctx)
 		require.NoError(t, err)
 
-		out, err = outputCmd(ctx, cloneDir, "git", "rev-parse", "--is-shallow-repository")
-		require.NoError(t, err)
-		require.Equal(t, "false", strings.TrimSpace(string(out)))
+		assertShallowState(t, ctx, cloneDir, false)
 	})
 
 	t.Run("returns error when EnsureNotShallow fails to fetch", func(t *testing.T) {
 		t.Parallel()
 		ctx := t.Context()
 
-		client, shallowDir := prepareCloneAndClient(t, ctx, true)
-
-		out, err := outputCmd(ctx, shallowDir, "git", "rev-parse", "--is-shallow-repository")
-		require.NoError(t, err)
-		require.Equal(t, "true", strings.TrimSpace(string(out)))
+		client, _, shallowDir := prepareCloneAndClient(t, ctx, true)
 
 		// force EnsureNotShallow error in fetching by removing remote
 		require.NoError(t, runCmd(ctx, shallowDir, "git", "remote", "remove", "origin"))
 
-		err = client.EnsureNotShallow(ctx)
+		err := client.EnsureNotShallow(ctx)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "failed to unshallow repo")
 
-		out, err = outputCmd(ctx, shallowDir, "git", "rev-parse", "--is-shallow-repository")
-		require.NoError(t, err)
-		require.Equal(t, "true", strings.TrimSpace(string(out)))
+		assertShallowState(t, ctx, shallowDir, true)
 	})
 
 	t.Run("returns error when EnsureNotShallow fails to check if repo is shallow", func(t *testing.T) {
 		t.Parallel()
 		ctx := t.Context()
 
-		client, shallowDir := prepareCloneAndClient(t, ctx, true)
-
-		out, err := outputCmd(ctx, shallowDir, "git", "rev-parse", "--is-shallow-repository")
-		require.NoError(t, err)
-		require.Equal(t, "true", strings.TrimSpace(string(out)))
+		client, _, shallowDir := prepareCloneAndClient(t, ctx, true)
 
 		// force EnsureNotShallow error in checking if repo is shallow by removing .git directory
 		require.NoError(t, os.RemoveAll(filepath.Join(shallowDir, ".git")))
 
-		err = client.EnsureNotShallow(ctx)
+		err := client.EnsureNotShallow(ctx)
 		require.Error(t, err)
 		require.ErrorContains(t, err, "failed to check if repository is shallow")
 	})
 
-	t.Run("returns error when EnsureNotShallow fetches from shallow origin", func(t *testing.T) {
+	// When origin history is rewritten and the shallow-boundary commit is GC'd,
+	// `git fetch --unshallow` exits 0 but leaves the clone shallow (stale .git/shallow entry)
+	t.Run("recovers when origin history was rewritten and boundary commits were garbage collected", func(t *testing.T) {
 		t.Parallel()
 		ctx := t.Context()
 
-		_, shallowCloneDir := prepareCloneAndClient(t, ctx, true)
+		client, originDir, cloneDir := prepareCloneAndClient(t, ctx, true)
 
-		cloneDir := t.TempDir() // cleanup already registered by t.TempDir()
+		boundaryOut, err := outputCmd(ctx, cloneDir, "git", "rev-parse", "HEAD")
+		require.NoError(t, err)
+		boundary := strings.TrimSpace(string(boundaryOut))
 
-		// clone from shallow origin
-		require.NoError(t, runCmd(ctx, cloneDir, "git", "clone", "--depth=1", "file://"+shallowCloneDir, "."))
+		// Rewrite: keep the root, replace the tip commits, then prune so the
+		// shallow boundary object is gone from origin.
+		require.NoError(t, runCmd(ctx, originDir, "git", "reset", "--hard", "HEAD~2"))
+		require.NoError(t, runCmd(ctx, originDir, "git", "commit", "--allow-empty", "-m", "rewritten second"))
+		require.NoError(t, runCmd(ctx, originDir, "git", "commit", "--allow-empty", "-m", "rewritten third"))
+		require.NoError(t, runCmd(ctx, originDir, "git", "reflog", "expire", "--expire=now", "--all"))
+		require.NoError(t, runCmd(ctx, originDir, "git", "gc", "--prune=now"))
 
-		client, err := NewClientExt("file://"+shallowCloneDir, cloneDir, NopCreds{}, true, false, "", "")
+		_, err = outputCmd(ctx, originDir, "git", "cat-file", "-t", boundary)
+		require.Error(t, err, "boundary commit must be missing from origin after GC")
+
+		require.NoError(t, client.EnsureNotShallow(ctx))
+
+		assertShallowState(t, ctx, cloneDir, false)
+	})
+
+	// Mirrors e2e EnsureCleanState: the upstream path is wiped and re-inited as a
+	// brand-new repository while the repo-server cache still holds a shallow clone.
+	t.Run("recovers when origin git directory was replaced", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		client, originDir, cloneDir := prepareCloneAndClient(t, ctx, true)
+
+		branchOut, err := outputCmd(ctx, originDir, "git", "branch", "--show-current")
+		require.NoError(t, err)
+		branch := strings.TrimSpace(string(branchOut))
+		require.NotEmpty(t, branch)
+
+		require.NoError(t, os.RemoveAll(filepath.Join(originDir, ".git")))
+		require.NoError(t, runCmd(ctx, originDir, "git", "init", "-b", branch))
+		require.NoError(t, runCmd(ctx, originDir, "git", "commit", "--allow-empty", "-m", "brand-new-root"))
+
+		require.NoError(t, client.EnsureNotShallow(ctx))
+
+		assertShallowState(t, ctx, cloneDir, false)
+	})
+
+	t.Run("does not wipe local cache when origin is shallow", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		_, _, shallowOrigin := prepareCloneAndClient(t, ctx, true)
+
+		cloneDir := t.TempDir()
+
+		require.NoError(t, runCmd(ctx, cloneDir, "git", "clone", "--depth=1", "file://"+shallowOrigin, "."))
+
+		canary := filepath.Join(cloneDir, ".ensure-not-shallow-canary")
+		require.NoError(t, os.WriteFile(canary, []byte("do-not-wipe"), 0o644))
+
+		client, err := NewClientExt("file://"+shallowOrigin, cloneDir, NopCreds{}, true, false, "", "")
 		require.NoError(t, err)
 		require.NoError(t, client.Init())
 
-		err = client.EnsureNotShallow(ctx)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "repository is still shallow after unshallowing, origin might be shallow")
+		for i := range 2 {
+			err = client.EnsureNotShallow(ctx)
+			require.Error(t, err, "call %d", i+1)
+			require.ErrorContains(t, err, "repository is still shallow after unshallowing")
 
-		out, err := outputCmd(ctx, cloneDir, "git", "rev-parse", "--is-shallow-repository")
+			assertShallowState(t, ctx, cloneDir, true)
+
+			_, err = os.Stat(canary)
+			require.NoError(t, err, "call %d must not wipe the local cache when origin is shallow", i+1)
+		}
+	})
+
+	// Root-only shallow origin: tip has no parents, so tip-completeness alone
+	// would look like a stale marker and wipe. The root-in-shallow gate must refuse.
+	t.Run("does not wipe local cache when shallow origin has only a root commit", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		fullDir, err := _createEmptyGitRepo(ctx)
+		t.Cleanup(func() { os.RemoveAll(fullDir) })
 		require.NoError(t, err)
-		require.Equal(t, "true", strings.TrimSpace(string(out)))
+
+		shallowOrigin := t.TempDir()
+		require.NoError(t, runCmd(ctx, shallowOrigin, "git", "clone", "--depth=1", "file://"+fullDir, "."))
+		assertShallowState(t, ctx, shallowOrigin, true)
+
+		cloneDir := t.TempDir()
+		require.NoError(t, runCmd(ctx, cloneDir, "git", "clone", "--depth=1", "file://"+shallowOrigin, "."))
+		assertShallowState(t, ctx, cloneDir, true)
+
+		canary := filepath.Join(cloneDir, ".ensure-not-shallow-canary")
+		require.NoError(t, os.WriteFile(canary, []byte("do-not-wipe"), 0o644))
+
+		client, err := NewClientExt("file://"+shallowOrigin, cloneDir, NopCreds{}, true, false, "", "")
+		require.NoError(t, err)
+		require.NoError(t, client.Init())
+
+		for i := range 2 {
+			err = client.EnsureNotShallow(ctx)
+			require.Error(t, err, "call %d", i+1)
+			require.ErrorContains(t, err, "repository is still shallow after unshallowing")
+
+			assertShallowState(t, ctx, cloneDir, true)
+
+			_, err = os.Stat(canary)
+			require.NoError(t, err, "call %d must not wipe the local cache when shallow origin has only a root commit", i+1)
+		}
 	})
 }
 

@@ -97,6 +97,12 @@ func (a *Actions) AddSignedSealCommit() *Actions {
 	return a
 }
 
+func (a *Actions) RecreateGitRepository() *Actions {
+	a.context.T().Helper()
+	fixture.RecreateGitRepository(a.context.T())
+	return a
+}
+
 func (a *Actions) AddSignedTag(name string) *Actions {
 	a.context.T().Helper()
 	fixture.AddSignedTag(a.context.T(), name)

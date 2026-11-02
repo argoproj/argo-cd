@@ -1172,6 +1172,25 @@ func GitRevList(t *testing.T, args []string) string {
 	return result
 }
 
+// RecreateGitRepository rewrites origin history in-place. Use after a depth=1
+// sync so the repo-server still has a shallow clone whose boundary no longer exists on origin.
+func RecreateGitRepository(t *testing.T) {
+	t.Helper()
+	log.Info("recreating git repository with new root history")
+
+	require.NoError(t, os.RemoveAll(filepath.Join(repoDirectory(), ".git")))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "init", "-b", "master"))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "config", "core.sharedRepository", "0666"))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "add", "."))
+	errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "commit", "-q", "-m", "recreated initial commit"))
+	if IsRemote() {
+		// EnsureCleanState always re-adds origin after wiping .git.
+		_, _ = Run(repoDirectory(), "git", "remote", "remove", "origin")
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "remote", "add", "origin", os.Getenv("ARGOCD_E2E_GIT_SERVICE")))
+		errors.NewHandler(t).FailOnErr(Run(repoDirectory(), "git", "push", "origin", "master", "-f"))
+	}
+}
+
 func Patch(t *testing.T, path string, jsonPatch string) {
 	t.Helper()
 	log.WithFields(log.Fields{"path": path, "jsonPatch": jsonPatch}).Info("patching")
