@@ -33,6 +33,7 @@ type MockKubectlCmd struct {
 	DynamicClient dynamic.Interface
 
 	convertToVersionFunc           *func(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
+	getAPIResourcesFunc            *func(config *rest.Config, preferred bool, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error)
 	getResourceFunc                *func(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
 	loadOpenAPISchemaFunc          *func(config *rest.Config) (openapi.Resources, *managedfields.GvkParser, error)
 	manageServerSideDiffDryRunFunc *func(config *rest.Config) (diff.KubeApplier, func(), error)
@@ -41,6 +42,12 @@ type MockKubectlCmd struct {
 // WithConvertToVersionFunc overrides the default ConvertToVersion behavior.
 func (k *MockKubectlCmd) WithConvertToVersionFunc(convertToVersionFunc func(*unstructured.Unstructured, string, string) (*unstructured.Unstructured, error)) *MockKubectlCmd {
 	k.convertToVersionFunc = &convertToVersionFunc
+	return k
+}
+
+// WithGetAPIResourcesFunc overrides the default GetAPIResources behavior.
+func (k *MockKubectlCmd) WithGetAPIResourcesFunc(getAPIResourcesFunc func(*rest.Config, bool, kube.ResourceFilter) ([]kube.APIResourceInfo, error)) *MockKubectlCmd {
+	k.getAPIResourcesFunc = &getAPIResourcesFunc
 	return k
 }
 
@@ -66,7 +73,10 @@ func (k *MockKubectlCmd) NewDynamicClient(_ *rest.Config) (dynamic.Interface, er
 	return k.DynamicClient, nil
 }
 
-func (k *MockKubectlCmd) GetAPIResources(_ *rest.Config, _ bool, _ kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+func (k *MockKubectlCmd) GetAPIResources(config *rest.Config, preferred bool, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+	if k.getAPIResourcesFunc != nil {
+		return (*k.getAPIResourcesFunc)(config, preferred, resourceFilter)
+	}
 	return k.APIResources, nil
 }
 

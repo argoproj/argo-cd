@@ -470,7 +470,7 @@ type RepositoryCertificate struct {
 	CertSubType string `json:"certSubType" protobuf:"bytes,3,opt,name=certSubType"`
 	// CertData contains the actual certificate data, dependent on the certificate type
 	CertData []byte `json:"certData" protobuf:"bytes,4,opt,name=certData"`
-	// CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
+	// CertInfo will hold additional certificate info, dependent on the certificate type (e.g. SSH fingerprint, X509 CommonName)
 	CertInfo string `json:"certInfo" protobuf:"bytes,5,opt,name=certInfo"`
 }
 

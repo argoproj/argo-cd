@@ -136,6 +136,7 @@ import (
 	settings_util "github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/swagger"
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
+	traceutil "github.com/argoproj/argo-cd/v3/util/trace"
 	"github.com/argoproj/argo-cd/v3/util/webhook"
 )
 
@@ -263,8 +264,14 @@ type ArgoCDServerOpts struct {
 	DisableSwaggerUI        bool
 	EnableSourceIPLogging   bool
 	// TrustedProxies and ClientIPHeader decide which address source IP logging attributes a request to.
-	TrustedProxies []netip.Prefix
-	ClientIPHeader string
+	TrustedProxies      []netip.Prefix
+	ClientIPHeader      string
+	OTLPAddress         string
+	OTLPInsecure        bool
+	OTLPHeaders         map[string]string
+	OTLPAttrs           []string
+	OTLPMetricsEnabled  bool
+	OTLPMetricsInterval time.Duration
 }
 
 type ApplicationSetOpts struct {
@@ -599,6 +606,19 @@ func (server *ArgoCDServer) Run(ctx context.Context, listeners *Listeners) {
 	metricsServ := metrics.NewMetricsServer(server.MetricsHost, server.MetricsPort)
 	if server.RedisClient != nil {
 		cacheutil.CollectMetrics(server.RedisClient, metricsServ, server.userStateStorage.GetLockObject())
+	}
+	if server.OTLPAddress != "" && server.OTLPMetricsEnabled {
+		// Push the metrics scraped at /metrics to the OTLP collector. Mirror the
+		// /metrics gatherer set: the server registry plus the default gatherer
+		// (which holds the Go/process collectors and the promauto webhook metrics).
+		closeMeter, err := traceutil.InitMeter(ctx, "argocd-server", server.OTLPAddress, server.OTLPInsecure, server.OTLPHeaders, server.OTLPAttrs, server.OTLPMetricsInterval,
+			metricsServ.PrometheusRegistry, prometheus.DefaultGatherer)
+		if err != nil {
+			log.Fatalf("failed to initialize metrics: %v", err)
+		}
+		defer closeMeter()
+	} else if server.OTLPMetricsEnabled {
+		log.Warn("--otlp-metrics-enabled is set but --otlp-address is empty, no metrics will be pushed")
 	}
 	// OIDC config needs to be refreshed at each server restart
 	ssoClientApp, err := oidc.NewClientApp(server.settings, server.DexServerAddr, server.DexTLSConfig, server.BaseHRef, cacheutil.NewRedisCache(server.RedisClient, server.settings.UserInfoCacheExpiration(), cacheutil.RedisCompressionNone))
@@ -940,6 +960,16 @@ func (server *ArgoCDServer) useTLS() bool {
 	return true
 }
 
+// healthServer serves the standard gRPC health checking protocol, which load balancers call without credentials.
+type healthServer struct {
+	*health.Server
+}
+
+// AuthFuncOverride allows the health check to be called without auth
+func (*healthServer) AuthFuncOverride(ctx context.Context, _ string) (context.Context, error) {
+	return ctx, nil
+}
+
 func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registry) (*grpc.Server, application.AppResourceTreeFn) {
 	var serverMetricsOptions []grpc_prometheus.ServerMetricsOption
 	if enableGRPCTimeHistogram {
@@ -1018,7 +1048,7 @@ func (server *ArgoCDServer) newGRPCServer(prometheusRegistry *prometheus.Registr
 	sOpts = append(sOpts, grpc.StatsHandler(otelgrpc.NewServerHandler()))
 	grpcS := grpc.NewServer(sOpts...)
 
-	healthService := health.NewServer()
+	healthService := &healthServer{Server: health.NewServer()}
 	grpc_health_v1.RegisterHealthServer(grpcS, healthService)
 
 	versionpkg.RegisterVersionServiceServer(grpcS, server.serviceSet.VersionService)
