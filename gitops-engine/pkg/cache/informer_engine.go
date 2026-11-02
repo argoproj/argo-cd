@@ -808,7 +808,7 @@ func (e *informerEngine) dispatchEvent(event watch.EventType, un *unstructured.U
 	}
 }
 
-// informerEventHandler builds the cache.ResourceEventHandler attached to
+// informerEventHandlerForCtx builds the cache.ResourceEventHandler attached to
 // every per-(GroupKind, namespace) informer (see issue #19199). It translates
 // Add/Update/Delete into onInformerChange, unwrapping tombstones and
 // tolerating unexpected object types defensively.
@@ -819,17 +819,8 @@ func (e *informerEngine) dispatchEvent(event watch.EventType, un *unstructured.U
 // histogram, observes one event per sample with count=1. The legacy
 // batchEventsProcessing and eventProcessingInterval settings do not apply.
 //
-// Test-only entrypoint: production callers go through buildInformer ->
-// informerEventHandlerForCtx so that events arriving after the informer's
-// watchCtx has been cancelled (Invalidate, stopWatching) are dropped
-// instead of mutating freshly-rebuilt state.
-func (e *informerEngine) informerEventHandler() cache.ResourceEventHandler {
-	return e.informerEventHandlerForCtx(context.Background())
-}
-
-// informerEventHandlerForCtx is the production variant: it gates every
-// dispatch on the informer's owning watch context. Once that context is
-// cancelled (Invalidate, stopWatching), in-flight events from the
+// It gates every dispatch on the informer's owning watch context. Once that
+// context is cancelled (Invalidate, stopWatching), in-flight events from the
 // reflector's still-draining DeltaFIFO are dropped on the floor.
 //
 // Without this guard, a stale event handler can fire after Invalidate

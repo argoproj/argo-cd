@@ -41,8 +41,10 @@ func (c *clusterCache) transformForInformer(obj any) (any, error) {
 	return informerEngineOf(c).transformForInformer(obj)
 }
 
+// informerEventHandler is the test variant: tests don't manage a watch
+// context, so their events are never ctx-dropped.
 func (c *clusterCache) informerEventHandler() cache.ResourceEventHandler {
-	return informerEngineOf(c).informerEventHandler()
+	return informerEngineOf(c).informerEventHandlerForCtx(context.Background())
 }
 
 func (c *clusterCache) informerEventHandlerForCtx(ctx context.Context) cache.ResourceEventHandler {
