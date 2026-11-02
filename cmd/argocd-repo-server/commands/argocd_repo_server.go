@@ -86,7 +86,7 @@ func NewCommand() *cobra.Command {
 		gitLsRemoteOptimizedEnabled        bool
 		clientCAPath                       string
 		disableTLS                         bool
-		enableTrackingLabelOnCRDs          bool
+		enableTrackingOnCRDs               bool
 	)
 	command := cobra.Command{
 		Use:               common.CommandRepoServer,
@@ -170,7 +170,7 @@ func NewCommand() *cobra.Command {
 				GitLsRemoteOptimizedEnabled:                  gitLsRemoteOptimizedEnabled,
 				HelmUserAgent:                                helmUserAgent,
 				HelmChartCacheExpiration:                     repoCacheExpiration,
-				EnableTrackingLabelOnCRDs:                    enableTrackingLabelOnCRDs,
+				EnableTrackingOnCRDs:                         enableTrackingOnCRDs,
 			}, askPassServer, clientCAPath, disableTLS)
 			errors.CheckError(err)
 
@@ -296,7 +296,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&gitLsRemoteOptimizedEnabled, "git-ls-remote-optimized", env.ParseBoolFromEnv("ARGOCD_GIT_LS_REMOTE_OPTIMIZED_ENABLED", false), "Enable native Git protocol v2 ref resolution with server-side HEAD, branch, and tag narrowing.")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS for the repo-server gRPC endpoint")
 	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", "/app/config/reposerver/mtls/client-ca.crt"), "Path to the client CA certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS is skipped if the file does not exist.")
-	command.Flags().BoolVar(&enableTrackingLabelOnCRDs, "enable-tracking-label-on-crds", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_TRACKING_LABEL_ON_CRDS", false), "Enable tracking labels to be inserted into Custom Resource Definition resources")
+	command.Flags().BoolVar(&enableTrackingOnCRDs, "enable-tracking-on-crds", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_TRACKING_ON_CRDS", false), "Enable tracking to be applied to Custom Resource Definition resources managed by applications")
 	tlsConfigCustomizerSrc = tls.AddTLSFlagsToCmd(&command)
 	cacheSrc = reposervercache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

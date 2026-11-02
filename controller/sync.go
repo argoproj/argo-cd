@@ -419,6 +419,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		sync.WithSkipDryRunOnMissingResource(syncOp.SyncOptions.HasOption(common.SyncOptionSkipDryRunOnMissingResource)),
 		sync.WithAppLabelKey(appLabelKey),
 		sync.WithAppAnnotationKey(cdcommon.AnnotationKeyAppInstance),
+		sync.WithTrackingMethod(trackingMethod),
 	}
 
 	if syncOp.SyncOptions.HasOption("CreateNamespace=true") {

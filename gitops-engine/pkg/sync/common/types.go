@@ -58,6 +58,11 @@ const (
 
 	// Default field manager for client-side apply migration
 	DefaultClientSideApplyMigrationManager = "kubectl-client-side-apply"
+
+	// Methods of tracking put on resources
+	TrackingMethodAnnotation = "annotation"
+	TrackingMethodLabel = "label"
+	TrackingMethodAnnotationLabel = "annotation+label"
 )
 
 type PermissionValidator func(un *unstructured.Unstructured, res *metav1.APIResource) error

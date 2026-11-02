@@ -3,6 +3,7 @@ package sync
 import (
 	"context"
 	"fmt"
+	"encoding/json"
 	"sort"
 	"strings"
 	"sync"
@@ -254,6 +255,12 @@ func WithAppLabelKey(label string) SyncOpt {
 	}
 }
 
+func WithTrackingMethod(method string) SyncOpt {
+	return func(ctx *syncContext) {
+		ctx.trackingMethod = method
+	}
+}
+
 // NewSyncContext creates new instance of a SyncContext
 func NewSyncContext(
 	revision string,
@@ -448,8 +455,10 @@ type syncContext struct {
 	// stores whether the resource is modified or not
 	modificationResult map[kubeutil.ResourceKey]bool
 
+	// tracking information for CRD handling logic
 	appAnnotationKey string
 	appLabelKey      string
+	trackingMethod string
 }
 
 func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) {
@@ -1571,7 +1580,7 @@ func (sc *syncContext) getDeleteOptions() metav1.DeleteOptions {
 func (sc *syncContext) buildRemoveTrackingJSONPatch(obj *unstructured.Unstructured) ([]byte, error) {
 	patchOperations := []kubeutil.JSONPatchOperation{}
 
-	if labels := obj.GetLabels(); labels != nil {
+	if labels := obj.GetLabels(); labels != nil && sc.trackingMethod != common.TrackingMethodAnnotation {
 		if _, exists := labels[sc.appLabelKey]; exists {
 			escapedKey := strings.ReplaceAll(sc.appLabelKey, "/", "~1")
 			patchOperations = append(patchOperations, kubeutil.JSONPatchOperation{
