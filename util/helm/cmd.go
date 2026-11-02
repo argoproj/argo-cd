@@ -30,7 +30,7 @@ type Cmd struct {
 	IsHelmOci       bool
 	proxy           string
 	noProxy         string
-	runWithRedactor func(cmd *exec.Cmd, redactor func(text string) string) (string, error)
+	runWithRedactor func(cmd *exec.Cmd, redactor func(text string) string, skipErrorLogging bool) (string, error)
 }
 
 func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd, error) {
@@ -48,10 +48,13 @@ func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd,
 }
 
 func NewCmdWithVersion(workDir string, isHelmOci bool, proxy string, noProxy string) (*Cmd, error) {
-	return newCmdWithVersion(workDir, isHelmOci, proxy, noProxy, executil.RunWithRedactor)
+	runWithRedactor := func(cmd *exec.Cmd, redactor func(text string) string, skipErrorLogging bool) (string, error) {
+		return executil.RunWithExecRunOpts(cmd, executil.ExecRunOpts{Redactor: redactor, SkipErrorLogging: skipErrorLogging})
+	}
+	return newCmdWithVersion(workDir, isHelmOci, proxy, noProxy, runWithRedactor)
 }
 
-func newCmdWithVersion(workDir string, isHelmOci bool, proxy string, noProxy string, runWithRedactor func(cmd *exec.Cmd, redactor func(text string) string) (string, error)) (*Cmd, error) {
+func newCmdWithVersion(workDir string, isHelmOci bool, proxy string, noProxy string, runWithRedactor func(cmd *exec.Cmd, redactor func(text string) string, skipErrorLogging bool) (string, error)) (*Cmd, error) {
 	tmpDir, err := os.MkdirTemp("", "helm")
 	if err != nil {
 		return nil, fmt.Errorf("failed to create temporary directory for helm: %w", err)
@@ -64,10 +67,10 @@ var redactor = func(text string) string {
 }
 
 func (c Cmd) run(ctx context.Context, args ...string) (string, string, error) {
-	return c.runWithStdin(ctx, nil, args...)
+	return c.runWithStdin(ctx, nil, false, args...)
 }
 
-func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) (string, string, error) {
+func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, skipErrorLogging bool, args ...string) (string, string, error) {
 	cmd := exec.CommandContext(ctx, "helm", args...)
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
@@ -83,7 +86,7 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy, c.noProxy)
 	fullCommand := executil.GetCommandArgsToLog(cmd)
 
-	out, err := c.runWithRedactor(cmd, redactor)
+	out, err := c.runWithRedactor(cmd, redactor, skipErrorLogging)
 	if err != nil {
 		return out, fullCommand, fmt.Errorf("failed running helm: %w", err)
 	}
@@ -142,7 +145,7 @@ func (c *Cmd) RegistryLogin(ctx context.Context, repo string, creds Creds, plain
 	if helmPassword != "" {
 		stdin = strings.NewReader(helmPassword)
 	}
-	out, _, err := c.runWithStdin(ctx, stdin, args...)
+	out, _, err := c.runWithStdin(ctx, stdin, false, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to login to registry: %w", err)
 	}
@@ -394,6 +397,9 @@ type TemplateOpts struct {
 	SkipCrds             bool
 	SkipSchemaValidation bool
 	SkipTests            bool
+	// SkipErrorLogging skips the default error-level logging of a failed `helm template` command. Used when the
+	// caller expects the command may fail (e.g. due to missing chart dependencies) and will handle/retry it.
+	SkipErrorLogging bool
 }
 
 func cleanSetParameters(val string) string {
@@ -469,7 +475,7 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 		args = append(args, "--skip-tests")
 	}
 
-	out, command, err := c.run(context.Background(), args...)
+	out, command, err := c.runWithStdin(context.Background(), nil, opts.SkipErrorLogging, args...)
 	if err != nil {
 		msg := err.Error()
 		if strings.Contains(msg, "--api-versions") {
