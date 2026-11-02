@@ -74,7 +74,6 @@ func MaxVersion(revision string, tags []string, tagPrefix string) (string, error
 	var maxVersion *semver.Version
 	for _, tag := range strippedTags {
 		v, err := semver.NewVersion(tag)
-
 		// Invalid semantic version ignored. This covers every parse failure,
 		// not just ErrInvalidSemVer: tags whose numeric prerelease has a leading
 		// zero fail with ErrSegmentStartsZero, and tags with an out-of-range

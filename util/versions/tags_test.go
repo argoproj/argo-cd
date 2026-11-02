@@ -109,6 +109,7 @@ func TestTags_IsConstraint(t *testing.T) {
 }
 
 func TestMaxVersion_WithTagPrefix(t *testing.T) {
+	t.Parallel()
 	prefixedTags := []string{
 		"prod/v1.0.0",
 		"prod/v1.0.1",
