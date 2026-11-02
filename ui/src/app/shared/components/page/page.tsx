@@ -4,6 +4,7 @@ import {BehaviorSubject, Observable} from 'rxjs';
 
 import {services} from '../../services';
 import requests from '../../services/requests';
+import {pauseAutoLogin} from '../../sso-auto-login';
 
 const mostRecentLoggedIn = new BehaviorSubject<boolean>(false);
 
@@ -19,7 +20,12 @@ export const AuthOption: React.FC = () => {
         <DataLoader load={() => isLoggedIn()}>
             {loggedIn =>
                 loggedIn ? (
-                    <button className='login-logout-button' onClick={() => (window.location.href = requests.toAbsURL('/auth/logout'))}>
+                    <button
+                        className='login-logout-button'
+                        onClick={() => {
+                            pauseAutoLogin();
+                            window.location.href = requests.toAbsURL('/auth/logout');
+                        }}>
                         Log out
                     </button>
                 ) : (
