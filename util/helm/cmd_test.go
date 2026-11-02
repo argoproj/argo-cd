@@ -305,7 +305,7 @@ func TestRegistryLogout(t *testing.T) {
 	}
 }
 
-func TestRepoAdd_RemovesCertAndKeyFiles(t *testing.T) {
+func TestRepoAdd_CertAndKeyFilesLiveUntilClose(t *testing.T) {
 	t.Parallel()
 	var tmpFiles []string
 	c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(_ string) string) (string, error) {
@@ -314,9 +314,6 @@ func TestRepoAdd_RemovesCertAndKeyFiles(t *testing.T) {
 				tmpFiles = append(tmpFiles, cmd.Args[i+1])
 			}
 		}
-		for _, f := range tmpFiles {
-			assert.FileExists(t, f)
-		}
 		return "", nil
 	})
 	require.NoError(t, err)
@@ -324,7 +321,13 @@ func TestRepoAdd_RemovesCertAndKeyFiles(t *testing.T) {
 	_, err = c.RepoAdd("test", "https://example.com/charts", &HelmCreds{CertData: []byte("cert"), KeyData: []byte("key")}, false)
 	require.NoError(t, err)
 
+	// helm keeps these paths in repositories.yaml and reads them during dependency build.
 	require.Len(t, tmpFiles, 2)
+	for _, f := range tmpFiles {
+		assert.FileExists(t, f)
+	}
+
+	c.Close()
 	for _, f := range tmpFiles {
 		assert.NoFileExists(t, f)
 	}

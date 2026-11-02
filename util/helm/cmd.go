@@ -193,21 +193,33 @@ func (c *Cmd) RepoAdd(name string, url string, opts Creds, passCredentials bool)
 	}
 
 	if len(opts.GetCertData()) > 0 {
-		filePath, closer, err := writeToTmp(opts.GetCertData())
+		// helm stores this path in repositories.yaml and reads it again during dependency build,
+		// so the file lives in helmHome, which Close removes.
+		file, err := os.CreateTemp(c.helmHome, "cert-*")
 		if err != nil {
-			return "", fmt.Errorf("failed to write certificate data to temporary file: %w", err)
+			return "", fmt.Errorf("failed to create temporary certificate file: %w", err)
 		}
-		defer utilio.Close(closer)
-		args = append(args, "--cert-file", filePath)
+		_, err = file.Write(opts.GetCertData())
+		_ = file.Close()
+		if err != nil {
+			return "", fmt.Errorf("failed to write certificate data: %w", err)
+		}
+		args = append(args, "--cert-file", file.Name())
 	}
 
 	if len(opts.GetKeyData()) > 0 {
-		filePath, closer, err := writeToTmp(opts.GetKeyData())
+		// helm stores this path in repositories.yaml and reads it again during dependency build,
+		// so the file lives in helmHome, which Close removes.
+		file, err := os.CreateTemp(c.helmHome, "key-*")
 		if err != nil {
-			return "", fmt.Errorf("failed to write key data to temporary file: %w", err)
+			return "", fmt.Errorf("failed to create temporary key file: %w", err)
 		}
-		defer utilio.Close(closer)
-		args = append(args, "--key-file", filePath)
+		_, err = file.Write(opts.GetKeyData())
+		_ = file.Close()
+		if err != nil {
+			return "", fmt.Errorf("failed to write key data: %w", err)
+		}
+		args = append(args, "--key-file", file.Name())
 	}
 
 	if passCredentials {
