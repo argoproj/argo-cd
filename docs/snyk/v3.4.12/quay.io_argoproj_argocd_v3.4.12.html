@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="133 known vulnerabilities found in 329 vulnerable dependency paths.">
+  <meta name="description" content="138 known vulnerabilities found in 335 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 25th 2026, 12:42:39 am (UTC+00:00)</p>
+                <p class="timestamp">November 1st 2026, 12:33:52 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -507,8 +507,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>133</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>329 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>138</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>335 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>2393</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -3540,6 +3540,104 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Denial of Service (DoS)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.4.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            golang.org/x/net/html
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and golang.org/x/net/html@v0.58.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.58.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        helm.sh/helm/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        golang.org/x/net/html@v0.47.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://pkg.go.dev/golang.org/x/net/html">golang.org/x/net/html</a> is a package that implements an HTML5-compliant tokenizer and parser.</p>
+        <p>Affected versions of this package are vulnerable to Denial of Service (DoS) in the <code>addText</code> and <code>fosterParent</code> functions of the <code>html</code> package. An attacker can force quadratic allocations and byte copies by supplying HTML with many short text runs separated by ignored end tags, because each append to an existing <code>TextNode</code> reallocates and copies the accumulated <code>Data</code> string.</p>
+        <h2 id="details">Details</h2>
+        <p>Denial of Service (DoS) describes a family of attacks, all aimed at making a system inaccessible to its intended and legitimate users.</p>
+        <p>Unlike other vulnerabilities, DoS attacks usually do not aim at breaching security. Rather, they are focused on making websites and services unavailable to genuine users resulting in downtime.</p>
+        <p>One popular Denial of Service vulnerability is DDoS (a Distributed Denial of Service), an attack that attempts to clog network pipes to the system by generating a large volume of traffic from many machines.</p>
+        <p>When it comes to open source libraries, DoS vulnerabilities allow attackers to trigger such a crash or crippling of the service by using a flaw either in the application code or from the use of open source libraries.</p>
+        <p>Two common types of DoS vulnerabilities:</p>
+        <ul>
+        <li><p>High CPU/Memory Consumption- An attacker sending crafted requests that could cause the system to take a disproportionate amount of time to process. For example, <a href="https://security.snyk.io/vuln/SNYK-JAVA-COMMONSFILEUPLOAD-30082">commons-fileupload:commons-fileupload</a>.</p>
+        </li>
+        <li><p>Crash - An attacker sending crafted requests that could cause the system to crash. For Example,  <a href="https://snyk.io/vuln/npm:ws:20171108">npm <code>ws</code> package</a></p>
+        </li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>golang.org/x/net/html</code> to version 0.62.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/golang/net/commit/4af4fce62e93c5621a316363718b9dc78fbb0355">GitHub Commit</a></li>
+        <li><a href="https://pkg.go.dev/vuln/GO-2026-6860">Go Advisory</a></li>
+        <li><a href="https://go.dev/cl/849365">Go Commit</a></li>
+        <li><a href="https://go.dev/issue/82224">Go Issue</a></li>
+        <li><a href="https://groups.google.com/g/golang-announce/c/sqrs2vTx_Xs">Google Groups Forum</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOLANGORGXNETHTML-21762862">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
             <div class="card__section">
         
@@ -3763,6 +3861,80 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.4.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v4
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/go-jose/go-jose/v4@v4.1.4
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4@v4.1.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Inefficient Algorithmic Complexity in the parsing process of JWKs containing RSA keys due to lack of size and consistency checks on RSA modulus and prime values before validation. An attacker can cause excessive CPU consumption and disrupt service availability by submitting specially crafted JWKs with large or malformed RSA parameters.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v4</code> to version 4.1.6 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-mgcc-cww5-fp2q">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/a0111f82742fa92bceec9ede40845e73319e6230">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.6">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4-21755478">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">GPL-3.0 license</h2>
             <div class="card__section">
         
@@ -3857,6 +4029,109 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/snyk:lic:golang:github.com:canonical:x-go:GPL-3.0">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">CVE-2026-111497</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Attacked</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.4.12/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:26.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            brotli/libbrotli1
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    docker-image|quay.io/argoproj/argocd@v3.4.12, git@1:2.53.0-1ubuntu1.1 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.4.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.53.0-1ubuntu1.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.8
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        brotli/libbrotli1@1.2.0-3build1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>brotli</code> package and not the <code>brotli</code> package as distributed by <code>Ubuntu</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
+        <p>A buffer overflow vulnerability in the Brotli decoder (c/dec/decode.c) in Google Brotli versions 1.0.3 through 1.2.0 on all platforms allows a remote unauthenticated attacker to corrupt adjacent decoder state memory, disclose sensitive memory contents, cause a denial of service, or potentially execute arbitrary code using a crafted Brotli-compressed stream.</p>
+        <p>Users need to update any Brotli libraries or binaries between 1.0.3 through 1.2.0 to the latest available version: 1.0.10 or 1.1.1 or 1.2.1.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Ubuntu:26.04</code> <code>brotli</code> to version 1.2.0-3ubuntu0.1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-111497">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-111497</a></li>
+        <li><a href="https://github.com/andybalholm/brotli/releases/tag/v1.2.7">https://github.com/andybalholm/brotli/releases/tag/v1.2.7</a></li>
+        <li><a href="https://nodejs.org/en/blog/vulnerability/october-2026-security-releases#nodejs-brotli-decoder-out-of-bounds-write-permits-remote-code-execution-cve-2026-111497---high">https://nodejs.org/en/blog/vulnerability/october-2026-security-releases#nodejs-brotli-decoder-out-of-bounds-write-permits-remote-code-execution-cve-2026-111497---high</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/10/23/25">http://www.openwall.com/lists/oss-security/2026/10/23/25</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/10/24/6">http://www.openwall.com/lists/oss-security/2026/10/24/6</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/10/26/12">http://www.openwall.com/lists/oss-security/2026/10/26/12</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/10/26/13">http://www.openwall.com/lists/oss-security/2026/10/26/13</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/10/26/16">http://www.openwall.com/lists/oss-security/2026/10/26/16</a></li>
+        <li><a href="https://broccoli2shell.com">https://broccoli2shell.com</a></li>
+        <li><a href="https://github.com/advisories/GHSA-9v8h-qqgm-4m35">https://github.com/advisories/GHSA-9v8h-qqgm-4m35</a></li>
+        <li><a href="https://github.com/dotnet/announcements/issues/494">https://github.com/dotnet/announcements/issues/494</a></li>
+        <li><a href="https://github.com/google/brotli/releases/tag/v1.0.10">https://github.com/google/brotli/releases/tag/v1.0.10</a></li>
+        <li><a href="https://github.com/google/brotli/releases/tag/v1.1.1">https://github.com/google/brotli/releases/tag/v1.1.1</a></li>
+        <li><a href="https://github.com/google/brotli/releases/tag/v1.2.1">https://github.com/google/brotli/releases/tag/v1.2.1</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2026/10/msg00049.html">https://lists.debian.org/debian-lts-announce/2026/10/msg00049.html</a></li>
+        <li><a href="https://patchtheplanet.org/brotli">https://patchtheplanet.org/brotli</a></li>
+        <li><a href="https://www.aikido.dev/blog/node2shell-nodejs-brotli-rce-cve-2026-111497">https://www.aikido.dev/blog/node2shell-nodejs-brotli-rce-cve-2026-111497</a></li>
+        <li><a href="https://ellio.tech/en/blog/node2shell-cve-2026-111497-rce-on-stock-nodejs-builds/">https://ellio.tech/en/blog/node2shell-cve-2026-111497-rce-on-stock-nodejs-builds/</a></li>
+        <li><a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2026-111497">https://www.cisa.gov/known-exploited-vulnerabilities-catalog?field_cve=CVE-2026-111497</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-045512.html">https://cert-portal.siemens.com/productcert/html/ssa-045512.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-443410.html">https://cert-portal.siemens.com/productcert/html/ssa-443410.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-898633.html">https://cert-portal.siemens.com/productcert/html/ssa-898633.html</a></li>
+        <li><a href="https://github.com/caveeroo/cve-2026-111497-wordpress-poc">https://github.com/caveeroo/cve-2026-111497-wordpress-poc</a></li>
+        <li><a href="https://github.com/projectdiscovery/nuclei-templates/blob/main/http/javascript/cves/2026/CVE-2026-111497.yaml">https://github.com/projectdiscovery/nuclei-templates/blob/main/http/javascript/cves/2026/CVE-2026-111497.yaml</a></li>
+        <li><a href="https://www.cisa.gov/known-exploited-vulnerabilities-catalog">https://www.cisa.gov/known-exploited-vulnerabilities-catalog</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-BROTLI-21485786">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -9760,6 +10035,78 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2026-110928</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.4.12/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:26.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssh/openssh-client
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@v3.4.12 and openssh/openssh-client@1:10.2p1-2ubuntu3.8
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@v3.4.12
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:10.2p1-2ubuntu3.8
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>openssh</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-110928">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-110928</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-OPENSSH-21763038">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Cross-site Scripting (XSS)</h2>
             <div class="card__section">
         
@@ -11810,6 +12157,81 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Uncontrolled Recursion</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:v3.4.12/argoproj/argo-cd/v3 <span class="list-paths__item__arrow">›</span> /usr/local/bin/argocd
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/go-jose/go-jose/v4/json
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/argoproj/argo-cd/v3@* and github.com/go-jose/go-jose/v4/json@v4.1.4
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/argoproj/argo-cd/v3@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/go-jose/go-jose/v4/json@v4.1.4
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Uncontrolled Recursion through the JSON parsing process. An attacker can cause the application to crash by submitting deeply nested arrays or objects, leading to stack exhaustion.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/go-jose/go-jose/v4/json</code> to version 4.1.5 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/go-jose/go-jose/security/advisories/GHSA-vvm8-gf78-28g4">GitHub Advisory</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/commit/a31af25836222f4c45d366d6e8f9b1049dd9935a">GitHub Commit</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/pull/290">GitHub PR</a></li>
+        <li><a href="https://github.com/go-jose/go-jose/releases/tag/v4.1.5">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMGOJOSEGOJOSEV4JSON-21755481">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Improper Encoding or Escaping of Output</h2>
             <div class="card__section">
         
@@ -12219,6 +12641,7 @@
         <li><a href="https://access.redhat.com/security/cve/CVE-2026-107161">https://access.redhat.com/security/cve/CVE-2026-107161</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2460420">https://bugzilla.redhat.com/show_bug.cgi?id=2460420</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2026/10/09/20">http://www.openwall.com/lists/oss-security/2026/10/09/20</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2026/10/msg00064.html">https://lists.debian.org/debian-lts-announce/2026/10/msg00064.html</a></li>
         </ul>
         
               <hr/>
