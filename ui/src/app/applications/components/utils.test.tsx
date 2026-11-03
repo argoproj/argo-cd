@@ -1,4 +1,3 @@
-import * as moment from 'moment';
 import * as React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server.node';
 import {
@@ -12,6 +11,7 @@ import {
     State,
     SyncStatuses
 } from '../../shared/models';
+import {formatTimestamp} from '../../shared/components/timestamp';
 import * as jsYaml from 'js-yaml';
 import {
     appRBACName,
@@ -1355,12 +1355,10 @@ describe('formatCreationTimestamp', () => {
         expect(html).not.toContain('<time');
     });
 
-    it('uses an unambiguous year-month-day format', () => {
+    it('formats the creation time in the browser locale', () => {
         const date = '2026-09-03T12:00:00Z';
         const html = renderMarkup(formatCreationTimestamp(date) as React.ReactElement);
-        // The date is rendered in local time, so compute the expected values in the test's timezone.
-        expect(html).toContain(moment(date).format('YYYY-MM-DD HH:mm:ss'));
-        expect(html).not.toContain(moment(date).format('MM/DD/YYYY'));
+        expect(html).toContain(formatTimestamp(date));
     });
 });
 

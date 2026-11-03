@@ -4,7 +4,7 @@ import classNames from 'classnames';
 import * as models from '../../../shared/models';
 import {ResourceIcon} from '../resource-icon';
 import {ResourceLabel} from '../resource-label';
-import {ActionMenuButton, EditablePanel} from '../../../shared/components';
+import {ActionMenuButton, EditablePanel, formatTimestamp} from '../../../shared/components';
 import {
     ComparisonStatusIcon,
     HealthStatusIcon,
@@ -19,7 +19,6 @@ import {
 import {AppDetailsPreferences} from '../../../shared/services';
 import {Consumer} from '../../../shared/context';
 import Moment from 'react-moment';
-import {format} from 'date-fns';
 import {ResourceNode} from '../../../shared/models';
 import {isValidManagedByURL} from '../../../shared/utils';
 import {ApplicationResourceSortKey} from './application-resource-sort';
@@ -216,7 +215,7 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                                     <Moment fromNow={true} ago={true}>
                                                         {res.createdAt}
                                                     </Moment>
-                                                    &nbsp;ago &nbsp; {format(new Date(res.createdAt), 'MM/dd/yy')}
+                                                    &nbsp;ago &nbsp; {formatTimestamp(res.createdAt)}
                                                 </span>
                                             )}
                                         </div>

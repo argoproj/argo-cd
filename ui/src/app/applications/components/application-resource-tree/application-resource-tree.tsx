@@ -8,7 +8,7 @@ import * as moment from 'moment';
 import * as models from '../../../shared/models';
 import {isValidManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_COLOR} from '../../../shared/utils';
 
-import {EmptyState, TIMESTAMP_FORMAT} from '../../../shared/components';
+import {EmptyState, formatTimestamp} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
 import {ApplicationURLs} from '../application-urls';
 import {ResourceIcon} from '../resource-icon';
@@ -704,14 +704,7 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                                                         <Moment fromNow={true} ago={true}>
                                                             {pod.createdAt}
                                                         </Moment>
-                                                        <span>
-                                                            {' '}
-                                                            ago (
-                                                            <Moment local={true} format={TIMESTAMP_FORMAT}>
-                                                                {pod.createdAt}
-                                                            </Moment>
-                                                            )
-                                                        </span>
+                                                        <span> ago ({formatTimestamp(pod.createdAt)})</span>
                                                     </span>
                                                 )}
                                             </div>
