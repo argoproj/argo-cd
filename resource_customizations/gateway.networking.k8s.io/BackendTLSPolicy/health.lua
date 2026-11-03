@@ -56,10 +56,39 @@ function isTargetNotFound(ancestor)
   return accepted.status ~= "True" and accepted.reason == "TargetNotFound"
 end
 
+-- refNamespace returns the namespace a ParentReference identifies, defaulting an
+-- omitted namespace to the policy object's own namespace.
+--
+-- In the Gateway API the ParentReference namespace is optional and, when absent,
+-- defaults to the local namespace of the referring resource rather than to any
+-- fixed value. A Lua health script only has the object itself and no cluster
+-- access, so the best available approximation is to treat an omitted namespace
+-- as the policy object's own namespace. This makes an omitted namespace and an
+-- explicit namespace equal to the policy's namespace compare as equal, which is
+-- the common case, while still distinguishing a namespace that is explicitly set
+-- to a different value. It is nil-safe: when the policy has no metadata or no
+-- namespace, an omitted ref namespace normalizes to an empty string.
+function refNamespace(ref)
+  if ref.namespace ~= nil then
+    return ref.namespace
+  end
+  if obj.metadata ~= nil and obj.metadata.namespace ~= nil then
+    return obj.metadata.namespace
+  end
+  return ""
+end
+
 -- ancestorRefsEqual reports whether two ancestorRefs identify the same target.
--- It compares the meaningful identifying fields (group, kind, name and
--- namespace) with nil-safety, treating an absent field as an empty string so a
--- controller that omits, for example, the namespace still compares correctly.
+-- A PolicyAncestorStatus ancestorRef is a Gateway API ParentReference, so two
+-- refs identify the same target only when every identifying field matches:
+-- group, kind, name, namespace, sectionName and port. sectionName and port must
+-- be part of the identity because two refs that differ only by sectionName or
+-- port point at different sections or ports of the same Gateway, so an
+-- acceptance for one must not be treated as an acceptance for the other.
+-- Comparison is nil-safe: absent group, kind, name, sectionName and port are
+-- treated as an empty string so two refs that both omit a field still compare
+-- equal and a ref that sets it differs from one that does not, and namespace is
+-- normalized through refNamespace to account for its local-namespace default.
 function ancestorRefsEqual(a, b)
   if a == nil or b == nil then
     return false
@@ -67,7 +96,9 @@ function ancestorRefsEqual(a, b)
   return (a.group or "") == (b.group or "")
     and (a.kind or "") == (b.kind or "")
     and (a.name or "") == (b.name or "")
-    and (a.namespace or "") == (b.namespace or "")
+    and refNamespace(a) == refNamespace(b)
+    and (a.sectionName or "") == (b.sectionName or "")
+    and (a.port or "") == (b.port or "")
 end
 
 -- anotherControllerAcceptedRef reports whether some ancestor written by a
