@@ -1,0 +1,136 @@
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
+import {act, renderHook, waitFor} from '@testing-library/react';
+import * as React from 'react';
+import {Subject} from 'rxjs';
+
+import {AnnotationRefreshKey, Application, ApplicationWatchEvent} from '../../../shared/models';
+import {AppsListPreferences, services} from '../../../shared/services';
+import {applyWatchEvents, useApplicationsList} from './applications-list-client';
+import {AppsListSourceQuery} from './applications-list-source';
+
+jest.mock('../../../shared/services', () => {
+    const actual = jest.requireActual('../../../shared/services');
+    return {...actual, services: {...actual.services, applications: {list: jest.fn(), watch: jest.fn(), get: jest.fn()}}};
+});
+
+const app = (name: string, health = 'Healthy') =>
+    ({
+        metadata: {name, namespace: 'argocd'},
+        spec: {destination: {server: 'https://kubernetes.default.svc'}, source: {}},
+        status: {sync: {status: 'Synced'}, health: {status: health}}
+    }) as unknown as Application;
+
+const pref = (overrides: Partial<AppsListPreferences> = {}) =>
+    ({
+        syncFilter: [],
+        autoSyncFilter: [],
+        healthFilter: [],
+        hydrationFilter: [],
+        namespacesFilter: [],
+        clustersFilter: [],
+        reposFilter: [],
+        targetRevisionFilter: [],
+        labelsFilter: [],
+        annotationsFilter: [],
+        operationFilter: [],
+        projectsFilter: [],
+        showFavorites: false,
+        favoritesAppList: [],
+        page: 0,
+        search: '',
+        ...overrides
+    }) as AppsListSourceQuery['pref'];
+
+let watch: Subject<ApplicationWatchEvent>;
+
+const setup = (query: AppsListSourceQuery) => {
+    const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const wrapper = ({children}: {children: React.ReactNode}) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
+    return renderHook(() => useApplicationsList(query), {wrapper}).result;
+};
+
+beforeEach(() => {
+    jest.clearAllMocks();
+    watch = new Subject<ApplicationWatchEvent>();
+    jest.mocked(services.applications.watch).mockReturnValue(watch);
+    jest.mocked(services.applications.list).mockResolvedValue({items: [app('a'), app('b', 'Degraded')], metadata: {resourceVersion: '5'}} as any);
+});
+
+test('loads the list and filters it on the client', async () => {
+    const result = setup({pref: pref({healthFilter: ['Healthy']}), appNamespace: '', hydratorEnabled: false});
+    expect(result.current.loading).toBe(true);
+
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.rows.map(row => row.metadata.name)).toEqual(['a']);
+    expect(result.current.total).toBeUndefined();
+    expect(result.current.stats.total).toBe(1);
+    // The health group ignores its own filter.
+    expect(result.current.facets.totalByHealthStatus).toEqual({Healthy: 1, Degraded: 1});
+    expect(result.current.searchSuggestions).toHaveLength(2);
+    expect(result.current.noApplications).toBe(false);
+});
+
+test('applies watch events from the version the list was read at', async () => {
+    const result = setup({pref: pref(), appNamespace: '', hydratorEnabled: false});
+    await waitFor(() => expect(services.applications.watch).toHaveBeenCalled());
+    expect(jest.mocked(services.applications.watch).mock.calls[0][1]).toEqual({projects: [], resourceVersion: '5'});
+
+    act(() => {
+        watch.next({type: 'ADDED', application: app('c')});
+        watch.next({type: 'MODIFIED', application: app('b', 'Healthy')});
+        watch.next({type: 'DELETED', application: app('a')});
+    });
+
+    await waitFor(() => expect(result.current.rows.map(row => row.metadata.name)).toEqual(['c', 'b']));
+    expect(result.current.stats.totalByHealthStatus).toEqual({Healthy: 2});
+});
+
+test('neither lists nor watches when favorites only is on without favorites', async () => {
+    const result = setup({pref: pref({showFavorites: true, favoritesAppList: []}), appNamespace: '', hydratorEnabled: false});
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.rows).toEqual([]);
+    expect(result.current.noApplications).toBe(false);
+    expect(services.applications.list).not.toHaveBeenCalled();
+    expect(services.applications.watch).not.toHaveBeenCalled();
+});
+
+test('marks an application as refreshing and requests a refresh', async () => {
+    const result = setup({pref: pref(), appNamespace: '', hydratorEnabled: false});
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    const before = result.current.rows[0];
+
+    act(() => result.current.markRefreshing('a', 'argocd'));
+
+    await waitFor(() => expect(result.current.rows[0].metadata.annotations?.[AnnotationRefreshKey]).toBe('refreshing'));
+    // The cached object is replaced, not mutated.
+    expect(before.metadata.annotations).toBeUndefined();
+    expect(services.applications.get).toHaveBeenCalledWith('a', 'argocd', 'application', 'normal');
+});
+
+test('reports a failed load and retries it', async () => {
+    jest.mocked(services.applications.list).mockRejectedValueOnce(new Error('boom'));
+    const result = setup({pref: pref(), appNamespace: '', hydratorEnabled: false});
+    await waitFor(() => expect(result.current.failed).toBe(true));
+
+    act(() => {
+        result.current.retry();
+    });
+
+    await waitFor(() => expect(result.current.rows).toHaveLength(2));
+    expect(result.current.failed).toBe(false);
+});
+
+test('applyWatchEvents adds, replaces and removes by instance name without mutating its input', () => {
+    const list = {items: [app('a'), app('b')], metadata: {resourceVersion: '1'}} as any;
+    const updated = applyWatchEvents(list, [
+        {type: 'ADDED', application: app('c')},
+        {type: 'MODIFIED', application: app('a', 'Degraded')},
+        {type: 'DELETED', application: app('b')}
+    ]);
+    expect(updated.items.map((item: Application) => [item.metadata.name, item.status.health.status])).toEqual([
+        ['c', 'Healthy'],
+        ['a', 'Degraded']
+    ]);
+    expect(updated.metadata.resourceVersion).toBe('1');
+    expect(list.items).toHaveLength(2);
+});
