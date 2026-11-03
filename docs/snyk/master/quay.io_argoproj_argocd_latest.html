@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="65 known vulnerabilities found in 148 vulnerable dependency paths.">
+  <meta name="description" content="68 known vulnerabilities found in 151 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 25th 2026, 12:32:35 am (UTC+00:00)</p>
+                <p class="timestamp">November 1st 2026, 12:24:36 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -507,9 +507,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>65</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>148 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2563</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>68</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>151 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2582</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -1102,6 +1102,154 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-STDNETURL-18858438">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Integer Overflow or Wraparound</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest <span class="list-paths__item__arrow">›</span> /usr/local/bin/git-lfs
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/klauspost/compress/huff0
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                go-distribution@command-line-arguments@* and github.com/klauspost/compress/huff0@v1.19.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        go-distribution@command-line-arguments@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/klauspost/compress/huff0@v1.19.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Integer Overflow or Wraparound via the <code>DecodeAll</code> and streaming decoder <code>process</code>. An attacker can cause an application to crash by providing specially crafted zstd input that triggers a panic when processing two-block frames.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/klauspost/compress/huff0</code> to version 1.20.2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/klauspost/compress/security/advisories/GHSA-fpmh-frq8-7rj8">GitHub Advisory</a></li>
+        <li><a href="https://github.com/klauspost/compress/commit/7f5d8528720c895a6106f201719f87eb030a565d">GitHub Commit</a></li>
+        <li><a href="https://github.com/klauspost/compress/releases/tag/v1.20.2">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMKLAUSPOSTCOMPRESSHUFF0-21755460">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Integer Overflow or Wraparound</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest <span class="list-paths__item__arrow">›</span> /usr/local/bin/git-lfs
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            github.com/klauspost/compress/fse
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                go-distribution@command-line-arguments@* and github.com/klauspost/compress/fse@v1.19.1
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        go-distribution@command-line-arguments@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        github.com/klauspost/compress/fse@v1.19.1
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Integer Overflow or Wraparound via the <code>DecodeAll</code> and streaming decoder <code>process</code>. An attacker can cause an application to crash by providing specially crafted zstd input that triggers a panic when processing two-block frames.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>github.com/klauspost/compress/fse</code> to version 1.20.2 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/klauspost/compress/security/advisories/GHSA-fpmh-frq8-7rj8">GitHub Advisory</a></li>
+        <li><a href="https://github.com/klauspost/compress/commit/7f5d8528720c895a6106f201719f87eb030a565d">GitHub Commit</a></li>
+        <li><a href="https://github.com/klauspost/compress/releases/tag/v1.20.2">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GITHUBCOMKLAUSPOSTCOMPRESSFSE-21755459">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -4296,6 +4444,78 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">CVE-2026-110928</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: ubuntu:26.04
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssh/openssh-client
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|quay.io/argoproj/argocd@latest and openssh/openssh-client@1:10.2p1-2ubuntu3.8
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssh/openssh-client@1:10.2p1-2ubuntu3.8
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>openssh</code>.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-110928">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-110928</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-OPENSSH-21763038">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">CVE-2026-67693</h2>
             <div class="card__section">
         
@@ -6013,6 +6233,7 @@
         <li><a href="https://access.redhat.com/security/cve/CVE-2026-107161">https://access.redhat.com/security/cve/CVE-2026-107161</a></li>
         <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2460420">https://bugzilla.redhat.com/show_bug.cgi?id=2460420</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2026/10/09/20">http://www.openwall.com/lists/oss-security/2026/10/09/20</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2026/10/msg00064.html">https://lists.debian.org/debian-lts-announce/2026/10/msg00064.html</a></li>
         </ul>
         
               <hr/>
