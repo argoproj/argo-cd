@@ -120,25 +120,17 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
     const {queryKey} = options;
     const watchQuery = React.useMemo(() => ({projects: pref.projectsFilter, appNamespace, names}), [keyHash]); // eslint-disable-line react-hooks/exhaustive-deps
     // Keep the current list (and with it the filter sidebar) rendered while a filter change reloads the
-    // data, instead of dropping to the loading placeholder.
-    const query = useQuery({...options, placeholderData: keepPreviousData});
-
-    // Reload after the page was hidden: the watch is closed meanwhile, so the cached list is stale.
-    const wasHidden = React.useRef(false);
+    // data, instead of dropping to the loading placeholder. Don't load while hidden; on becoming visible
+    // the stale list refetches, and isFetching is already set in that render, so the watch waits for it.
+    const query = useQuery({...options, placeholderData: keepPreviousData, enabled: visible});
     const {refetch} = query;
-    React.useEffect(() => {
-        if (!visible) {
-            wasHidden.current = true;
-        } else if (wasHidden.current) {
-            wasHidden.current = false;
-            refetch();
-        }
-    }, [visible, refetch]);
 
     // Stream changes from the version the list was read at. Waiting while a fetch is in flight means a
     // reload restarts the watch from the new version, rather than resuming one that may be too old.
     const resourceVersion = query.isPlaceholderData ? undefined : query.data?.metadata?.resourceVersion;
-    const watching = !!resourceVersion && visible && !query.isFetching;
+    // A failed reload keeps the old data, but the server replays nothing to a watch given a version, so
+    // resuming from it would miss every change since.
+    const watching = !!resourceVersion && visible && !query.isFetching && !query.isError;
     React.useEffect(() => {
         if (!watching) {
             return;

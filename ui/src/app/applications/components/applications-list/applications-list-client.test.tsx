@@ -134,6 +134,63 @@ test('reports a failed load and retries it', async () => {
     expect(result.current.failed).toBe(false);
 });
 
+const setHidden = (hidden: boolean) => {
+    Object.defineProperty(document, 'hidden', {configurable: true, get: () => hidden});
+    document.dispatchEvent(new Event('visibilitychange'));
+};
+
+test('loads only while visible, and reloads before watching again after being hidden', async () => {
+    setHidden(true);
+    try {
+        const result = setup({pref: pref(), appNamespace: '', hydratorEnabled: false});
+        await act(async () => {});
+        expect(services.applications.list).not.toHaveBeenCalled();
+
+        setHidden(false);
+        await waitFor(() => expect(services.applications.watch).toHaveBeenCalledTimes(1), {timeout: 2000});
+        expect(services.applications.list).toHaveBeenCalledTimes(1);
+        expect(result.current.rows).toHaveLength(2);
+
+        jest.mocked(services.applications.list).mockResolvedValue({items: [app('a')], metadata: {resourceVersion: '9'}} as any);
+        setHidden(true);
+        await waitFor(() => expect(watch.observed).toBe(false), {timeout: 2000});
+
+        setHidden(false);
+        await waitFor(() => expect(result.current.rows).toHaveLength(1), {timeout: 2000});
+        await waitFor(() => expect(services.applications.watch).toHaveBeenCalledTimes(2));
+        // The second watch starts from the reloaded list, never resuming the stale version.
+        expect(jest.mocked(services.applications.watch).mock.calls[1][1]).toEqual({projects: [], appNamespace: '', resourceVersion: '9'});
+    } finally {
+        setHidden(false);
+    }
+});
+
+test('does not resume the watch from the stale list when the reload after being hidden fails', async () => {
+    try {
+        const result = setup({pref: pref(), appNamespace: '', hydratorEnabled: false});
+        await waitFor(() => expect(services.applications.watch).toHaveBeenCalledTimes(1));
+
+        setHidden(true);
+        await waitFor(() => expect(watch.observed).toBe(false), {timeout: 2000});
+
+        jest.mocked(services.applications.list).mockRejectedValueOnce(new Error('boom'));
+        setHidden(false);
+        await waitFor(() => expect(services.applications.list).toHaveBeenCalledTimes(2), {timeout: 2000});
+        await act(async () => {});
+        expect(services.applications.watch).toHaveBeenCalledTimes(1);
+        expect(result.current.rows).toHaveLength(2);
+
+        jest.mocked(services.applications.list).mockResolvedValue({items: [app('a')], metadata: {resourceVersion: '9'}} as any);
+        act(() => {
+            result.current.retry();
+        });
+        await waitFor(() => expect(services.applications.watch).toHaveBeenCalledTimes(2));
+        expect(jest.mocked(services.applications.watch).mock.calls[1][1]).toEqual({projects: [], appNamespace: '', resourceVersion: '9'});
+    } finally {
+        setHidden(false);
+    }
+});
+
 test('applyWatchEvents adds, replaces and removes by instance name without mutating its input', () => {
     const list = {items: [app('a'), app('b')], metadata: {resourceVersion: '1'}} as any;
     const updated = applyWatchEvents(list, [

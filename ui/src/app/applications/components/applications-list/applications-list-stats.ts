@@ -72,19 +72,6 @@ function increment(counts: StatusCounts, key: string) {
     counts[key] = (counts[key] || 0) + 1;
 }
 
-class DistinctDestinations {
-    private seen = new Set<string>();
-    public readonly items: DestinationCluster[] = [];
-
-    public add(dest: DestinationCluster) {
-        const key = `${dest.name || ''}\n${dest.server || ''}`;
-        if (!this.seen.has(key)) {
-            this.seen.add(key);
-            this.items.push({name: dest.name, server: dest.server});
-        }
-    }
-}
-
 export function computeAppsListStats(applications: Application[]): AppsListStats {
     const stats: AppsListStats = {
         total: applications.length,
@@ -94,16 +81,16 @@ export function computeAppsListStats(applications: Application[]): AppsListStats
         destinations: [],
         namespaces: []
     };
-    const destinations = new DistinctDestinations();
+    const destinations = new Map<string, DestinationCluster>();
     const namespaces = new Set<string>();
     applications.forEach(app => {
         increment(stats.totalBySyncStatus, app.status.sync.status);
         increment(stats.totalByHealthStatus, app.status.health.status);
         increment(stats.totalByHydrationStatus, app.status.sourceHydrator?.currentOperation?.phase || 'None');
-        destinations.add(app.spec.destination);
+        destinations.set(`${app.spec.destination.name || ''}\n${app.spec.destination.server || ''}`, {name: app.spec.destination.name, server: app.spec.destination.server});
         namespaces.add(app.spec.destination.namespace);
     });
-    stats.destinations = destinations.items;
+    stats.destinations = Array.from(destinations.values());
     stats.namespaces = Array.from(namespaces);
     return stats;
 }
@@ -146,13 +133,13 @@ export function computeAppsListFacets(apps: FilteredApp[]): AppsListFacets {
         revisions: [],
         repos: []
     };
-    const destinations = new DistinctDestinations();
+    const destinations = new Map<string, DestinationCluster>();
     const namespaces: string[] = [];
     const revisions: string[] = [];
     const repos: string[] = [];
 
     apps.forEach(app => {
-        destinations.add(app.spec.destination);
+        destinations.set(`${app.spec.destination.name || ''}\n${app.spec.destination.server || ''}`, {name: app.spec.destination.name, server: app.spec.destination.server});
         namespaces.push(app.spec.destination.namespace);
         getAppAllSources(app).forEach(source => {
             revisions.push(source.targetRevision);
@@ -177,7 +164,7 @@ export function computeAppsListFacets(apps: FilteredApp[]): AppsListFacets {
         count('autosync', facets.totalByAutoSyncStatus, getAutoSyncStatus(app.spec.syncPolicy));
     });
 
-    facets.destinations = destinations.items;
+    facets.destinations = Array.from(destinations.values());
     facets.namespaces = distinct(namespaces);
     facets.revisions = distinct(revisions);
     facets.repos = distinct(repos);
