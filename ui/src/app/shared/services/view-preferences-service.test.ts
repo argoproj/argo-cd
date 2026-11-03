@@ -17,7 +17,7 @@ test.each(['appList', 'resourcesList'] as const)('%s ignores equivalent filter a
     expect((await firstValueFrom(service.getPreferences()))[key].healthFilter).toEqual(['Healthy']);
 });
 
-test('equivalent empty arrays preserve saved filters while changed and reordered arrays persist', async () => {
+test('equivalent empty and reordered arrays preserve saved filters while changed selections persist', async () => {
     window.localStorage.clear();
     const service = new ViewPreferencesService();
     service.init();
@@ -28,7 +28,7 @@ test('equivalent empty arrays preserve saved filters while changed and reordered
     expect((await firstValueFrom(service.getPreferences())).appList.healthFilter).toEqual([]);
     service.updateAppListPreferences({healthFilter: ['Healthy', 'Degraded']}, {healthFilter: []});
     service.updateAppListPreferences({healthFilter: ['Degraded', 'Healthy']}, {healthFilter: ['Healthy', 'Degraded']});
-    expect((await firstValueFrom(service.getPreferences())).appList.healthFilter).toEqual(['Degraded', 'Healthy']);
+    expect((await firstValueFrom(service.getPreferences())).appList.healthFilter).toEqual(['Healthy', 'Degraded']);
 });
 
 test('normalizes filter arrays dropped by a narrower appList write', async () => {

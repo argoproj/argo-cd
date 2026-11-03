@@ -15,6 +15,8 @@ view settings, but their searches are independent. Changing regex mode, the
 health status bar, or the list view saves only that setting. Editing a filter
 saves the fields you changed; unrelated filters supplied by a shared URL are
 not copied into your saved preferences.
+Opening a shared URL preserves saved filters even when its filter values are
+repeated or listed in a different order.
 
 ## Default Application Details View
 

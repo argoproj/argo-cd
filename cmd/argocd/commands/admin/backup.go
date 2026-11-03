@@ -494,7 +494,7 @@ func updateLive(bak, live *unstructured.Unstructured, stopOperation bool) *unstr
 	switch live.GetKind() {
 	case "Secret", "ConfigMap":
 		newLive.Object["data"] = bak.Object["data"]
-	case application.AppProjectKind:
+	case application.AppProjectKind, "ApplicationSet":
 		newLive.Object["spec"] = bak.Object["spec"]
 	case application.ApplicationKind:
 		newLive.Object["spec"] = bak.Object["spec"]
@@ -504,9 +504,6 @@ func updateLive(bak, live *unstructured.Unstructured, stopOperation bool) *unstr
 		if stopOperation {
 			newLive.Object["operation"] = nil
 		}
-
-	case "ApplicationSet":
-		newLive.Object["spec"] = bak.Object["spec"]
 	}
 	return newLive
 }

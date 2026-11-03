@@ -25,6 +25,10 @@ func (r *repoAsCredentials) GetAuthSecret(ctx context.Context, secretName string
 	if repo == nil || repo.GithubAppPrivateKey == "" {
 		return nil, fmt.Errorf("no github app found for %s", secretName)
 	}
+	// Without the app ID GitHub only answers 401 Bad credentials, which hides a misspelled key.
+	if repo.GithubAppId == 0 {
+		return nil, fmt.Errorf("github app secret %s has no githubAppID", secretName)
+	}
 	return &github_app_auth.Authentication{
 		Id:                repo.GithubAppId,
 		InstallationId:    repo.GithubAppInstallationId,

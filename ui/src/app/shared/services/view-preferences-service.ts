@@ -294,7 +294,10 @@ export class ViewPreferencesService {
             }
             const prior = previous[key as keyof T];
             if (Array.isArray(value) && Array.isArray(prior)) {
-                return value.length !== prior.length || value.some((entry, index) => entry !== prior[index]);
+                // Filter normalizes numeric key order and duplicate selections when it mounts.
+                const selection = new Set(value);
+                const priorSelection = new Set(prior);
+                return selection.size !== priorSelection.size || [...selection].some(entry => !priorSelection.has(entry));
             }
             return value !== prior;
         });

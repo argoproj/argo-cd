@@ -1001,15 +1001,39 @@ func disableAutomatedSync(app *argov1alpha1.Application) {
 	app.Spec.SyncPolicy.Automated.Enabled = new(false)
 }
 
+// progressiveSyncOptions holds the sync flags RollingSync applies when it triggers an Application sync.
+type progressiveSyncOptions struct {
+	prune    bool
+	strategy *argov1alpha1.SyncStrategy
+}
+
+// resolveProgressiveSyncOptions derives controller-triggered sync flags from the Application syncPolicy.
+// Prune prefers automated.prune when automated sync is enabled (legacy RollingSync), otherwise
+// manualDefaults.prune. applyOnly/force come from manualDefaults when that object is set.
+// dryRun is intentionally ignored: a dry-run sync never leaves the Application Synced/Healthy,
+// so the RollingSync step would stall and later steps would never start.
+func resolveProgressiveSyncOptions(sp *argov1alpha1.SyncPolicy) progressiveSyncOptions {
+	opts := progressiveSyncOptions{}
+	if sp == nil {
+		return opts
+	}
+	if sp.IsAutomatedSyncEnabled() {
+		opts.prune = sp.Automated.GetPrune()
+	} else if sp.ManualDefaults != nil {
+		opts.prune = sp.GetPrune()
+	}
+	if sp.ManualDefaults != nil {
+		opts.strategy = sp.GetSyncStrategy()
+	}
+	return opts
+}
+
 func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, desiredApplications []argov1alpha1.Application) []argov1alpha1.Application {
 	rolloutApps := []argov1alpha1.Application{}
 	for i := range desiredApplications {
-		pruneEnabled := false
+		syncOpts := resolveProgressiveSyncOptions(desiredApplications[i].Spec.SyncPolicy)
 
 		// ensure that Applications generated with RollingSync do not have an automated sync policy, since the AppSet controller will handle triggering the sync operation instead
-		if desiredApplications[i].Spec.SyncPolicy != nil && desiredApplications[i].Spec.SyncPolicy.IsAutomatedSyncEnabled() {
-			pruneEnabled = desiredApplications[i].Spec.SyncPolicy.Automated.GetPrune()
-		}
 		disableAutomatedSync(&desiredApplications[i])
 
 		appSetStatusPending := false
@@ -1027,9 +1051,10 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 
 		// check appsToSync to determine which Applications are ready to be updated and which should be skipped
 		if appsToSync[desiredApplications[i].Name] && appSetStatusPending {
-			logCtx.Infof("triggering sync for application: %v, prune enabled: %v", desiredApplications[i].Name, pruneEnabled)
+			logCtx.Infof("triggering sync for application: %v, prune=%v force=%v",
+				desiredApplications[i].Name, syncOpts.prune, syncOpts.strategy != nil && syncOpts.strategy.Force())
 
-			desiredApplications[i] = syncApplication(desiredApplications[i], pruneEnabled, pinnedRevisions)
+			desiredApplications[i] = syncApplication(desiredApplications[i], syncOpts, pinnedRevisions)
 			m.dependencies.RecordProgressiveSyncTriggered(applicationSet, applicationSet.Status.ApplicationStatus[idx].Step)
 		}
 
@@ -1042,7 +1067,7 @@ func (m *Manager) SyncDesiredApplications(logCtx *log.Entry, applicationSet *arg
 // revisions pins the sync to the revision(s) recorded on the appset's ApplicationStatus at the time this
 // step was unblocked, so a commit landing while this step is queued or in flight cannot cause it to sync
 // against a newer, unvalidated revision than the one the rollout is progressing.
-func syncApplication(application argov1alpha1.Application, prune bool, revisions []string) argov1alpha1.Application {
+func syncApplication(application argov1alpha1.Application, opts progressiveSyncOptions, revisions []string) argov1alpha1.Application {
 	operation := argov1alpha1.Operation{
 		InitiatedBy: argov1alpha1.OperationInitiator{
 			Username:  "applicationset-controller",
@@ -1054,7 +1079,10 @@ func syncApplication(application argov1alpha1.Application, prune bool, revisions
 				Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
 			},
 		},
-		Sync: &argov1alpha1.SyncOperation{},
+		Sync: &argov1alpha1.SyncOperation{
+			Prune:        opts.prune,
+			SyncStrategy: opts.strategy,
+		},
 		// Set a retry limit of 5, aligning with the default in Argo CD's appcontroller auto-sync behavior.
 		// This provides consistency for retry behavior across controllers.
 		// See: https://github.com/argoproj/argo-cd/blob/af9ebac0bb35dc16eb034c1cefaf7c92d1029927/controller/appcontroller.go#L2126
@@ -1074,7 +1102,6 @@ func syncApplication(application argov1alpha1.Application, prune bool, revisions
 		if application.Spec.SyncPolicy.SyncOptions != nil {
 			operation.Sync.SyncOptions = application.Spec.SyncPolicy.SyncOptions
 		}
-		operation.Sync.Prune = prune
 	}
 	application.Operation = &operation
 
