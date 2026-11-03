@@ -2,6 +2,8 @@ package grpc
 
 import (
 	"context"
+	"crypto/tls"
+	"errors"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -137,6 +139,27 @@ func TestTestTLS(t *testing.T) {
 		assert.True(t, result.TLS)
 		require.Error(t, result.InsecureErr, "the test server certificate is self-signed")
 		assert.Less(t, time.Since(start), dialTime)
+	})
+
+	t.Run("TLS server that requires ALPN", func(t *testing.T) {
+		// Like an Envoy listener that selects its filter chain by ALPN, with no default chain: a handshake
+		// that offers no application protocol is rejected.
+		srv := httptest.NewUnstartedServer(http.NotFoundHandler())
+		srv.EnableHTTP2 = true
+		srv.StartTLS()
+		t.Cleanup(srv.Close)
+		base := srv.TLS.Clone()
+		srv.TLS.GetConfigForClient = func(hello *tls.ClientHelloInfo) (*tls.Config, error) {
+			if len(hello.SupportedProtos) == 0 {
+				return nil, errors.New("no ALPN protocol offered")
+			}
+			return base, nil
+		}
+
+		result, err := TestTLS(srv.Listener.Addr().String(), dialTime)
+		require.NoError(t, err)
+		assert.True(t, result.TLS)
+		require.Error(t, result.InsecureErr, "the test server certificate is self-signed")
 	})
 
 	t.Run("TLS server that negotiates HTTP/2", func(t *testing.T) {

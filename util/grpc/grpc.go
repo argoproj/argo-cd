@@ -95,13 +95,18 @@ func tlsHandshake(ctx context.Context, address string, config *tls.Config) error
 	}
 	defer rawConn.Close()
 
+	config = config.Clone()
 	if config.ServerName == "" {
 		host, _, err := net.SplitHostPort(address)
 		if err != nil {
 			return fmt.Errorf("error parsing address %q: %w", address, err)
 		}
-		config = config.Clone()
 		config.ServerName = host
+	}
+	// Offer the protocols the API is served over, for servers that route or reject on ALPN. The handshake
+	// still succeeds when the server negotiates none.
+	if len(config.NextProtos) == 0 {
+		config.NextProtos = []string{"h2", "http/1.1"}
 	}
 	if err := tls.Client(rawConn, config).HandshakeContext(ctx); err != nil {
 		return fmt.Errorf("error creating connection: %w", err)
