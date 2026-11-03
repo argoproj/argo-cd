@@ -205,15 +205,6 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		cmd.Stderr = io.MultiWriter(&stderr, opts.StderrWriter)
 	}
 
-	start := time.Now()
-	err = cmd.Start()
-	if err != nil {
-		return "", err
-	}
-
-	done := make(chan error)
-	go func() { done <- cmd.Wait() }()
-
 	// Start timers for timeout
 	timeout := DefaultCmdOpts.Timeout
 	fatalTimeout := DefaultCmdOpts.FatalTimeout
@@ -225,6 +216,25 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	if opts.FatalTimeout != time.Duration(0) {
 		fatalTimeout = opts.FatalTimeout
 	}
+	// Bound the wait for inherited pipes. A grandchild that outlives the command
+	// would otherwise keep Wait blocked until that grandchild exits. A caller that
+	// already set WaitDelay, such as the git client, keeps its own value.
+	// WaitDelay has to be set before Start: for a command created with a
+	// cancelable context, Start launches a goroutine that reads it.
+	if cmd.WaitDelay == 0 && fatalTimeout != 0 {
+		cmd.WaitDelay = fatalTimeout
+	}
+
+	start := time.Now()
+	err = cmd.Start()
+	if err != nil {
+		return "", err
+	}
+
+	// Buffered so the timeout path can return without waiting on Wait. An
+	// unbuffered channel leaks the Wait goroutine, which blocks forever on send.
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
 
 	var timoutCh <-chan time.Time
 	if timeout != 0 {
@@ -266,8 +276,11 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 				logCtx.Error(err.Error())
 				return strings.TrimSuffix(output, "\n"), err
 			}
+		} else {
+			// Join the pipe-copy goroutines before reading the buffers. Reading them
+			// here used to race with os/exec still copying command output.
+			<-done //nolint:errcheck // the timeout error replaces the process exit error
 		}
-		// either did not wait for timeout or cmd did respect SIGTERM
 		output := stdout.String()
 		if opts.CaptureStderr {
 			output += stderr.String()

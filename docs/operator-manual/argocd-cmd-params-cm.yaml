@@ -35,6 +35,11 @@ data:
   otlp.attrs: ""
   # Open-Telemetry trace sampling ratio between 0.0 and 1.0: (e.g. "0.1")
   otlp.sample.ratio: "1.0"
+  # Push the Prometheus metrics exposed at /metrics to the Open-Telemetry
+  # collector at otlp.address, in addition to serving them for scraping.
+  otlp.metrics.enabled: "false"
+  # Interval at which Prometheus metrics are pushed: (e.g. "1m")
+  otlp.metrics.interval: "30s"
 
   # List of additional namespaces where applications may be created in and
   # reconciled from. The namespace where Argo CD is installed to will always
@@ -82,6 +87,10 @@ data:
   controller.metrics.sync.windows: "false"
   # List of Cluster labels added to the argocd_cluster_labels metric (comma separated)
   controller.metrics.cluster.labels: "environment"
+  # How stale the Application status.reconciledAt field may become while nothing else in status
+  # changes. "0" (the default) writes it on every reconciliation; a positive value trades staleness
+  # of that one field for far fewer API server writes on large, steady fleets.
+  controller.reconciled.at.heartbeat: "0"
   # Specifies timeout between application self heal attempts
   controller.self.heal.timeout.seconds: "0"
   # Specifies exponential backoff timeout parameters between application self heal attempts
