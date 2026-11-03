@@ -2,7 +2,8 @@ import {Application} from '../../../shared/models';
 import {AppsListPreferences} from '../../../shared/services';
 import {AppsListFacets, AppsListStats} from './applications-list-stats';
 
-// Contract between the applications list and the hook that loads it (see applications-list-client.ts).
+// Contract between the applications list and the hook that loads it (see applications-list-client.tsx,
+// which also provides the paginator for the rows).
 // The list renders only what this returns, so the loading strategy can change without touching the view.
 
 export interface AppsListSourceQuery {

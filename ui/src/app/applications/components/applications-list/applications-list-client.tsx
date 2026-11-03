@@ -2,6 +2,7 @@ import {hashKey, keepPreviousData, queryOptions, useQuery, useQueryClient} from 
 import * as React from 'react';
 import {bufferTime, filter, repeat, retry} from 'rxjs/operators';
 
+import {Paginate, PaginateProps} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import * as AppUtils from '../utils';
@@ -200,3 +201,6 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
         ...derived
     };
 }
+
+/** Renders the list's rows through the paginator, which pages them on the client. */
+export const AppsListPaginate = ({list, ...props}: {list: AppsListSourceResult} & Omit<PaginateProps<models.Application>, 'data'>) => <Paginate {...props} data={list.rows} />;

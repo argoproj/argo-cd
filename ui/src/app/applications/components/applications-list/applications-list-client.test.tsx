@@ -1,12 +1,13 @@
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {act, renderHook, waitFor} from '@testing-library/react';
+import {act, render, renderHook, screen, waitFor} from '@testing-library/react';
+import '@testing-library/jest-dom';
 import * as React from 'react';
-import {Subject} from 'rxjs';
+import {of, Subject} from 'rxjs';
 
 import {AnnotationRefreshKey, Application, ApplicationWatchEvent} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
-import {applyWatchEvents, useApplicationsList} from './applications-list-client';
-import {AppsListSourceQuery} from './applications-list-source';
+import {applyWatchEvents, AppsListPaginate, useApplicationsList} from './applications-list-client';
+import {AppsListSourceQuery, AppsListSourceResult} from './applications-list-source';
 
 jest.mock('../../../shared/services', () => {
     const actual = jest.requireActual('../../../shared/services');
@@ -146,4 +147,15 @@ test('applyWatchEvents adds, replaces and removes by instance name without mutat
     ]);
     expect(updated.metadata.resourceVersion).toBe('1');
     expect(list.items).toHaveLength(2);
+});
+
+test('AppsListPaginate pages through the rows on the client', () => {
+    jest.spyOn(services.viewPreferences, 'getPreferences').mockReturnValue(of({pageSizes: {'applications-list': 2}} as any));
+    const list = {rows: [app('a'), app('b'), app('c')]} as AppsListSourceResult;
+    render(
+        <AppsListPaginate list={list} page={1} preferencesKey='applications-list' onPageChange={jest.fn()}>
+            {rows => <p>{rows.map(row => row.metadata.name).join(',')}</p>}
+        </AppsListPaginate>
+    );
+    expect(screen.getByText('c')).toBeInTheDocument();
 });

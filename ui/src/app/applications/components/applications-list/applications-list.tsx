@@ -5,7 +5,7 @@ import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from} from 'rxjs';
 import {map, mergeMap} from 'rxjs/operators';
-import {ClusterCtx, DataLoader, EmptyState, Page, Paginate, SearchBar, Spinner} from '../../../shared/components';
+import {ClusterCtx, DataLoader, EmptyState, Page, SearchBar, Spinner} from '../../../shared/components';
 import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -14,7 +14,7 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter} from './applications-filter';
-import {useApplicationsList} from './applications-list-client';
+import {AppsListPaginate, useApplicationsList} from './applications-list-client';
 import {AppsListSourceQuery, AppsListSourceResult} from './applications-list-source';
 import {AppsStatusBar} from './applications-status-bar';
 import {ApplicationsTable} from './applications-table';
@@ -409,7 +409,8 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                 )}
 
                                                                 {(pref.view === 'summary' && <ApplicationsSummary stats={stats} />) || (
-                                                                    <Paginate
+                                                                    <AppsListPaginate
+                                                                        list={list}
                                                                         header={stats.total > 1 && <AppsStatusBar stats={stats} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}
                                                                         preferencesKey='applications-list'
@@ -444,7 +445,6 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     a.status.operationState?.finishedAt?.localeCompare(b.status.operationState?.finishedAt)
                                                                             }
                                                                         ]}
-                                                                        data={filteredApps}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
                                                                         {(data, useVirtualScrolling) =>
                                                                             (pref.view === 'tiles' && (
@@ -475,7 +475,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                 />
                                                                             )
                                                                         }
-                                                                    </Paginate>
+                                                                    </AppsListPaginate>
                                                                 )}
                                                             </>
                                                         )}
