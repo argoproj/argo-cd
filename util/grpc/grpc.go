@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"runtime/debug"
@@ -128,20 +129,18 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 
 	// A plain TLS handshake, not a gRPC connection: a proxy that does not negotiate HTTP/2 still
 	// serves TLS, and the client can reach the API through it with gRPC-web.
-	err := tlsHandshake(ctx, address, &tls.Config{InsecureSkipVerify: true})
-	if err == nil {
+	err := tlsHandshake(ctx, address, &tls.Config{})
+	var verifyErr *tls.CertificateVerificationError
+	if err == nil || errors.As(err, &verifyErr) {
 		testResult.TLS = true
-		ctx, cancel := context.WithTimeout(context.Background(), dialTime)
-		defer cancel()
-
-		if err := tlsHandshake(ctx, address, &tls.Config{}); err != nil {
-			// if connection was successful with InsecureSkipVerify true, but unsuccessful with
-			// InsecureSkipVerify false, it means server is not configured securely
+		// A handshake that fails only on certificate verification still means the server speaks TLS, but
+		// is not configured securely
+		if err != nil {
 			testResult.InsecureErr = err
 		}
 		return &testResult, nil
 	}
-	// If we get here, we were unable to connect via TLS (even with InsecureSkipVerify: true)
+	// If we get here, we were unable to connect via TLS (for a reason other than its certificate)
 	// It may be because server is running without TLS, or because of real issues (e.g. connection
 	// refused). Test if server accepts plain-text connections
 	ctx, cancel = context.WithTimeout(context.Background(), dialTime)
