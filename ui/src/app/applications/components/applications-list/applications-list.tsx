@@ -14,6 +14,7 @@ import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-p
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
 import {ApplicationsFilter, FilteredApp, getAppFilterResults} from './applications-filter';
+import {computeAppsListFacets, computeAppsListStats} from './applications-list-stats';
 import {createMatcher} from './applications-list-search';
 import {showCreateFirstAppState} from './applications-list-empty-state';
 import {AppsStatusBar} from './applications-status-bar';
@@ -466,6 +467,8 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
 
                                             const apps = applications as models.Application[];
                                             const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex, authSettings?.hydratorEnabled);
+                                            const facets = computeAppsListFacets(filterResults);
+                                            const stats = computeAppsListStats(filteredApps);
 
                                             return (
                                                 <React.Fragment>
@@ -514,7 +517,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                     <DataLoader load={() => services.viewPreferences.getPreferences()}>
                                                                         {allpref => (
                                                                             <ApplicationsFilter
-                                                                                apps={filterResults}
+                                                                                facets={facets}
                                                                                 onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
                                                                                 pref={pref}
                                                                                 collapsed={allpref.hideSidebar}
@@ -525,9 +528,9 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                     sidebarTarget?.current
                                                                 )}
 
-                                                                {(pref.view === 'summary' && <ApplicationsSummary applications={filteredApps} />) || (
+                                                                {(pref.view === 'summary' && <ApplicationsSummary stats={stats} />) || (
                                                                     <Paginate
-                                                                        header={filteredApps.length > 1 && <AppsStatusBar applications={filteredApps} />}
+                                                                        header={stats.total > 1 && <AppsStatusBar stats={stats} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}
                                                                         preferencesKey='applications-list'
                                                                         page={pref.page}
