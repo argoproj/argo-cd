@@ -353,6 +353,9 @@ func SetPGPTrustLevelById(kids []string, trustLevel string) error {
 	return SetPGPTrustLevel(keys, trustLevel)
 }
 
+// createTemp is swapped in tests to exercise write failures.
+var createTemp = os.CreateTemp
+
 // SetPGPTrustLevel sets the given trust level on specified keys
 func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error {
 	trust, ok := pgpTrustLevels[trustLevel]
@@ -361,7 +364,7 @@ func SetPGPTrustLevel(pgpKeys []*appsv1.GnuPGPublicKey, trustLevel string) error
 	}
 
 	// We need to store ownertrust specification in a temp file. Format is <fingerprint>:<level>
-	f, err := os.CreateTemp("", "gpg-key-fps")
+	f, err := createTemp("", "gpg-key-fps")
 	if err != nil {
 		return err
 	}
