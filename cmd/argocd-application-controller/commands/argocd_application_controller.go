@@ -79,6 +79,7 @@ func NewCommand() *cobra.Command {
 		metricsClusterLabels             []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
+		reconciledAtCacheSource          func() (*cacheutil.Cache, error)
 		redisClient                      *redis.Client
 		repoServerPlaintext              bool
 		repoServerStrictTLS              bool
@@ -175,6 +176,16 @@ func NewCommand() *cobra.Command {
 			cache, err := cacheSource()
 			errors.CheckError(err)
 			cache.Cache.SetClient(cacheutil.NewTwoLevelClient(cache.Cache.GetClient(), 10*time.Minute))
+			// A separate Redis only when pointed at one; otherwise the main cache is shared.
+			var reconciledAtCache *appstatecache.Cache
+			if c.Flags().Changed("reconciled-at-redis") || c.Flags().Changed("reconciled-at-sentinel") {
+				rc, err := reconciledAtCacheSource()
+				errors.CheckError(err)
+				rc.SetClient(cacheutil.NewTwoLevelClient(rc.GetClient(), 10*time.Minute))
+				expiration, err := c.Flags().GetDuration("app-state-cache-expiration")
+				errors.CheckError(err)
+				reconciledAtCache = appstatecache.NewCache(rc, expiration)
+			}
 
 			var appController *controller.ApplicationController
 
@@ -200,6 +211,7 @@ func NewCommand() *cobra.Command {
 				repoClientset,
 				commitClientset,
 				cache,
+				reconciledAtCache,
 				kubectl,
 				resyncDuration,
 				hardResyncDuration,
@@ -327,5 +339,6 @@ func NewCommand() *cobra.Command {
 			redisClient = client
 		},
 	})
+	reconciledAtCacheSource = cacheutil.AddCacheFlagsToCmd(&command, cacheutil.Options{FlagPrefix: "reconciled-at-"})
 	return &command
 }

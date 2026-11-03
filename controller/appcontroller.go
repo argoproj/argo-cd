@@ -154,19 +154,11 @@ type ApplicationController struct {
 	projByNameCache               sync.Map
 	applicationNamespaces         []string
 	ignoreNormalizerOpts          normalizers.IgnoreNormalizerOpts
-
-	// lastReconciledAt tracks in memory when each app was last reconciled, so the
-	// expiry decision does not depend on writing status.reconciledAt every pass.
-	lastReconciledAt      map[string]time.Time
-	lastReconciledAtMutex sync.RWMutex
-
-	// reconciledAtHeartbeat bounds how stale the persisted status.reconciledAt may
-	// get while nothing else in status changes, trading staleness of that one field
-	// for far fewer API server writes. Zero writes it on every full reconciliation.
-	// Set via --reconciled-at-heartbeat.
-	reconciledAtHeartbeat time.Duration
-	// startedAt anchors the jittered first-pass expiry after a restart.
-	startedAt time.Time
+	lastReconciledAt              map[string]time.Time
+	lastReconciledAtMutex         sync.RWMutex
+	reconciledAtCache             *appstatecache.Cache
+	reconciledAtHeartbeat         time.Duration
+	startedAt                     time.Time
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
@@ -184,6 +176,7 @@ func NewApplicationController(
 	repoClientset apiclient.Clientset,
 	commitClientset commitclient.Clientset,
 	argoCache *appstatecache.Cache,
+	reconciledAtCache *appstatecache.Cache,
 	kubectl kube.Kubectl,
 	appResyncPeriod time.Duration,
 	appHardResyncPeriod time.Duration,
@@ -212,12 +205,16 @@ func NewApplicationController(
 ) (*ApplicationController, error) {
 	log.Infof("appResyncPeriod=%v, appHardResyncPeriod=%v, appResyncJitter=%v", appResyncPeriod, appHardResyncPeriod, appResyncJitter)
 	db := db.NewDB(namespace, settingsMgr, kubeClientset)
+	if reconciledAtCache == nil {
+		reconciledAtCache = argoCache
+	}
 	if rateLimiterConfig == nil {
 		rateLimiterConfig = ratelimiter.GetDefaultAppRateLimiterConfig()
 		log.Info("Using default workqueue rate limiter config")
 	}
 	ctrl := ApplicationController{
 		cache:                             argoCache,
+		reconciledAtCache:                 reconciledAtCache,
 		namespace:                         namespace,
 		kubeClientset:                     kubeClientset,
 		kubectl:                           kubectl,
@@ -2580,7 +2577,7 @@ func (ctrl *ApplicationController) statusWithEffectiveReconciledAt(app *appv1.Ap
 			return status
 		}
 		var seed time.Time
-		err := ctrl.cache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &seed)
+		err := ctrl.reconciledAtCache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &seed)
 		if err != nil && !stderrors.Is(err, appstatecache.ErrCacheMiss) {
 			log.WithError(err).Warnf("Failed to read cached reconciledAt for %s", app.QualifiedName())
 		}
@@ -2889,7 +2886,7 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 		if spanErr == nil && reconciledAtChanged && newStatus.ReconciledAt != nil && ctrl.reconciledAtHeartbeat > 0 {
 			name, t := orig.InstanceName(ctrl.namespace), newStatus.ReconciledAt.Time
 			go func() {
-				if err := ctrl.cache.SetAppReconciledAt(name, &t); err != nil {
+				if err := ctrl.reconciledAtCache.SetAppReconciledAt(name, &t); err != nil {
 					log.WithError(err).Warnf("Failed to cache reconciledAt for %s", name)
 				}
 			}()
@@ -3405,6 +3402,7 @@ func (ctrl *ApplicationController) resyncAppsAfterShardChange() error {
 func (ctrl *ApplicationController) invalidateAppLocalCache(obj any) {
 	if app, ok := obj.(*appv1.Application); ok {
 		ctrl.cache.InvalidateAppLocalState(app.InstanceName(ctrl.namespace))
+		ctrl.reconciledAtCache.InvalidateAppReconciledAtLocal(app.InstanceName(ctrl.namespace))
 		ctrl.forgetReconciled(app.QualifiedName())
 	}
 }

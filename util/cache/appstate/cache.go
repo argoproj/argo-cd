@@ -92,6 +92,12 @@ func (c *Cache) SetAppReconciledAt(appName string, reconciledAt *time.Time) erro
 	return c.SetItem(appReconciledAtKey(appName), reconciledAt, c.appStateCacheExpiration, reconciledAt == nil)
 }
 
+// InvalidateAppReconciledAtLocal drops this controller's in-memory copy of the app's reconcile
+// time, so the next read reaches the external cache.
+func (c *Cache) InvalidateAppReconciledAtLocal(appName string) {
+	c.Cache.InvalidateLocalItem(appReconciledAtKey(appName))
+}
+
 func clusterInfoKey(server string) string {
 	return "cluster|info|" + server
 }
@@ -134,13 +140,12 @@ func (c *Cache) SetAppResourcesTree(appName string, resourcesTree *appv1.Applica
 	return c.Cache.NotifyUpdated(appManagedResourcesKey(appName))
 }
 
-// InvalidateAppLocalState drops this controller's in-memory copies of the app's managed resources,
-// resource tree and reconcile time, so the next access reaches the external cache. Call it when another
+// InvalidateAppLocalState drops this controller's in-memory copies of the app's managed resources
+// and resource tree, so the next write always reaches the external cache. Call it when another
 // controller may have written these keys since this one last did, e.g. when the app's destination
 // moves to a cluster managed by this controller.
 func (c *Cache) InvalidateAppLocalState(appName string) {
 	c.Cache.InvalidateLocalItem(appManagedResourcesKey(appName))
-	c.Cache.InvalidateLocalItem(appReconciledAtKey(appName))
 	var tree appv1.ApplicationTree
 	if err := c.Cache.GetLocalItem(appResourcesTreeKey(appName, 0), &tree); err == nil {
 		for i := int64(1); i < tree.ShardsCount; i++ {

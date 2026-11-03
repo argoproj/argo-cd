@@ -243,6 +243,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 			1*time.Minute,
 		),
+		nil,
 		kubectl,
 		appResyncPeriod,
 		time.Hour,
@@ -2691,7 +2692,7 @@ func TestStatusWithEffectiveReconciledAtJitteredFirstPass(t *testing.T) {
 	newCtrl := func(startedAt time.Time) *ApplicationController {
 		return &ApplicationController{
 			lastReconciledAt:      map[string]time.Time{},
-			cache:                 appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+			reconciledAtCache:     appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
 			reconciledAtHeartbeat: 30 * time.Minute,
 			statusRefreshTimeout:  resync,
 			startedAt:             startedAt,
@@ -2744,7 +2745,7 @@ func TestStatusWithEffectiveReconciledAtJitteredFirstPass(t *testing.T) {
 			app.Name, app.Namespace = "app", "argocd"
 			app.Status.ReconciledAt = &persisted
 			cached := time.Now().Add(-time.Minute).Truncate(time.Second)
-			require.NoError(t, ctrl.cache.SetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached))
+			require.NoError(t, ctrl.reconciledAtCache.SetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached))
 
 			got := ctrl.statusWithEffectiveReconciledAt(app)
 			assert.True(t, cached.Equal(got.ReconciledAt.Time))
@@ -2757,7 +2758,7 @@ func TestStatusWithEffectiveReconciledAtJitteredFirstPass(t *testing.T) {
 		app.Name, app.Namespace = "app", "argocd"
 		app.Status.ReconciledAt = &persisted
 		cached := time.Now().Add(-10 * time.Minute)
-		require.NoError(t, ctrl.cache.SetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached))
+		require.NoError(t, ctrl.reconciledAtCache.SetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached))
 
 		got := ctrl.statusWithEffectiveReconciledAt(app)
 		assert.False(t, got.ReconciledAt.Before(&metav1.Time{Time: ctrl.startedAt.Add(-resync)}))
@@ -2767,7 +2768,8 @@ func TestStatusWithEffectiveReconciledAtJitteredFirstPass(t *testing.T) {
 		shared := cacheutil.NewInMemoryCache(time.Hour)
 		replica := func() *ApplicationController {
 			ctrl := newCtrl(time.Now().Add(-2 * resync))
-			ctrl.cache = appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewTwoLevelClient(shared, time.Hour)), time.Hour)
+			ctrl.reconciledAtCache = appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewTwoLevelClient(shared, time.Hour)), time.Hour)
+			ctrl.cache = ctrl.reconciledAtCache
 			return ctrl
 		}
 		a, b := replica(), replica()
@@ -2777,10 +2779,10 @@ func TestStatusWithEffectiveReconciledAtJitteredFirstPass(t *testing.T) {
 		t1 := time.Now().Add(-10 * time.Minute).Truncate(time.Second)
 		t2 := time.Now().Add(-time.Minute).Truncate(time.Second)
 
-		require.NoError(t, a.cache.SetAppReconciledAt(app.InstanceName(a.namespace), &t1))
+		require.NoError(t, a.reconciledAtCache.SetAppReconciledAt(app.InstanceName(a.namespace), &t1))
 		a.noteReconciled(app.QualifiedName(), t1)
 		a.invalidateAppLocalCache(app)
-		require.NoError(t, b.cache.SetAppReconciledAt(app.InstanceName(b.namespace), &t2))
+		require.NoError(t, b.reconciledAtCache.SetAppReconciledAt(app.InstanceName(b.namespace), &t2))
 
 		got := a.statusWithEffectiveReconciledAt(app)
 		assert.True(t, t2.Equal(got.ReconciledAt.Time), "got %v", got.ReconciledAt.Time)
@@ -2793,7 +2795,7 @@ func TestStatusWithEffectiveReconciledAt(t *testing.T) {
 	app.Name, app.Namespace = "app", "argocd"
 
 	t.Run("no in-memory record leaves status untouched", func(t *testing.T) {
-		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, cache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
 		persisted := metav1.NewTime(now.Add(-time.Hour))
 		app.Status.ReconciledAt = &persisted
 		got := ctrl.statusWithEffectiveReconciledAt(app)
@@ -2802,7 +2804,7 @@ func TestStatusWithEffectiveReconciledAt(t *testing.T) {
 	})
 
 	t.Run("in-memory record wins when newer than persisted", func(t *testing.T) {
-		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, cache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
 		persisted := metav1.NewTime(now.Add(-time.Hour))
 		app.Status.ReconciledAt = &persisted
 		ctrl.noteReconciled(app.QualifiedName(), now)
@@ -2821,7 +2823,7 @@ func TestStatusWithEffectiveReconciledAt(t *testing.T) {
 	})
 
 	t.Run("stale in-memory record does not mask a newer persisted value", func(t *testing.T) {
-		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, cache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
 		persisted := metav1.NewTime(now)
 		app.Status.ReconciledAt = &persisted
 		ctrl.noteReconciled(app.QualifiedName(), now.Add(-time.Hour))
@@ -2830,7 +2832,7 @@ func TestStatusWithEffectiveReconciledAt(t *testing.T) {
 	})
 
 	t.Run("forgetReconciled drops the entry", func(t *testing.T) {
-		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, cache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
 		ctrl.noteReconciled("argocd/app", now)
 		ctrl.forgetReconciled("argocd/app")
 		assert.Empty(t, ctrl.lastReconciledAt)
@@ -3169,7 +3171,7 @@ func TestFailedStatusWriteForgetsReconciled(t *testing.T) {
 			}
 			assert.True(t, reconciledAt.Time.Equal(noted), "a failed status write must fall back to the persisted reconcile time")
 			var cached time.Time
-			require.ErrorIs(t, ctrl.cache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached), appstatecache.ErrCacheMiss, "and must not be cached")
+			require.ErrorIs(t, ctrl.reconciledAtCache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached), appstatecache.ErrCacheMiss, "and must not be cached")
 		})
 	}
 }
@@ -3209,6 +3211,8 @@ func TestReconciledAtStampedWhenStatusPatchedAnyway(t *testing.T) {
 		reconciledAtHeartbeat: 10 * time.Minute,
 	}, nil)
 
+	// As with --reconciled-at-redis.
+	ctrl.reconciledAtCache = appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute)
 	key, _ := cache.MetaNamespaceKeyFunc(app)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
@@ -3232,8 +3236,10 @@ func TestReconciledAtStampedWhenStatusPatchedAnyway(t *testing.T) {
 	assert.True(t, present, "reconciledAt must ride along on a write that happens anyway")
 	assert.Eventually(t, func() bool {
 		var cached time.Time
-		return ctrl.cache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached) == nil
+		return ctrl.reconciledAtCache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached) == nil
 	}, 5*time.Second, 10*time.Millisecond, "a successful write must cache reconciledAt")
+	var cached time.Time
+	require.ErrorIs(t, ctrl.cache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached), appstatecache.ErrCacheMiss, "and only in the reconciledAt cache")
 }
 
 // The hydrator shares persistAppStatus; its failed writes say nothing about the
@@ -3366,7 +3372,7 @@ func TestNeedRefreshAppStatusFreshInMemoryStalePersisted(t *testing.T) {
 		Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
 		IgnoreDifferences: app.Spec.IgnoreDifferences,
 	}}
-	ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, cache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: time.Hour, refreshRequestedApps: map[string]CompareWith{}, refreshRequestedAppsMutex: &sync.Mutex{}}
+	ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: time.Hour, refreshRequestedApps: map[string]CompareWith{}, refreshRequestedAppsMutex: &sync.Mutex{}}
 	ctrl.noteReconciled(app.QualifiedName(), time.Now())
 
 	needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 10*time.Minute, time.Hour)
@@ -3392,7 +3398,7 @@ func TestNeedRefreshAppStatusLogsEffectiveReconciledAt(t *testing.T) {
 		hook := logtest.NewGlobal()
 		defer hook.Reset()
 		app := newApp()
-		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, cache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
 		ctrl.noteReconciled(app.QualifiedName(), inMemory)
 
 		needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 10*time.Minute, time.Hour)
@@ -3794,6 +3800,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+		nil,
 		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
 		time.Minute, time.Hour, time.Second, 0, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
@@ -3857,6 +3864,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+		nil,
 		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
 		time.Minute, time.Hour, time.Second, 0, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
