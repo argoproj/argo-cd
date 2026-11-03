@@ -14,6 +14,27 @@ function getCondition(conditions, conditionType)
   return nil
 end
 
+-- ancestorName returns the ancestorRef name of an ancestor, or an empty string
+-- when the ancestorRef or its name is absent. It keeps message building and
+-- logging nil-safe when a controller omits parts of the ancestorRef.
+function ancestorName(ancestor)
+  if ancestor == nil or ancestor.ancestorRef == nil then
+    return ""
+  end
+  return ancestor.ancestorRef.name or ""
+end
+
+-- conditionMessage returns a condition's message, or an empty string when it is
+-- absent. A conformant controller may record a condition without a message, so
+-- every concatenation that includes a message must tolerate a nil value rather
+-- than crash the script.
+function conditionMessage(condition)
+  if condition == nil then
+    return ""
+  end
+  return condition.message or ""
+end
+
 -- isTargetNotFound reports whether an ancestor entry is an Accepted: False
 -- rejection whose reason is TargetNotFound.
 --
@@ -68,7 +89,7 @@ if obj.status ~= nil and obj.status.ancestors ~= nil then
         for _, condition in ipairs(ancestor.conditions) do
           if condition.observedGeneration ~= nil then
             if condition.observedGeneration ~= obj.metadata.generation then
-              hs.message = "Waiting for Ancestor " .. (ancestor.ancestorRef.name or "") .. " to update BackendTLSPolicy status"
+              hs.message = "Waiting for Ancestor " .. ancestorName(ancestor) .. " to update BackendTLSPolicy status"
               return hs
             end
           end
@@ -89,7 +110,7 @@ if obj.status ~= nil and obj.status.ancestors ~= nil then
         if condition.type == "Accepted" then
           if condition.status ~= "True" then
             hs.status = "Degraded"
-            hs.message = "Ancestor " .. (ancestor.ancestorRef.name or "") .. ": " .. condition.message
+            hs.message = "Ancestor " .. ancestorName(ancestor) .. ": " .. conditionMessage(condition)
             return hs
           else
             hs.status = "Healthy"
@@ -100,7 +121,7 @@ if obj.status ~= nil and obj.status.ancestors ~= nil then
         if condition.type == "ResolvedRefs" then
           if condition.status ~= "True" then
             hs.status = "Degraded"
-            hs.message = "Ancestor " .. (ancestor.ancestorRef.name or "") .. ": " .. condition.message
+            hs.message = "Ancestor " .. ancestorName(ancestor) .. ": " .. conditionMessage(condition)
             return hs
           end
         end
@@ -120,7 +141,7 @@ if obj.status ~= nil and obj.status.ancestors ~= nil then
     if isTargetNotFound(ancestor) and not anotherControllerAccepted(obj.status.ancestors, ancestor.controllerName) then
       local accepted = getCondition(ancestor.conditions, "Accepted")
       hs.status = "Degraded"
-      hs.message = "Ancestor " .. (ancestor.ancestorRef.name or "") .. ": " .. accepted.message
+      hs.message = "Ancestor " .. ancestorName(ancestor) .. ": " .. conditionMessage(accepted)
       return hs
     end
   end
