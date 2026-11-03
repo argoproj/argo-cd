@@ -781,7 +781,6 @@ func TestSignedRevisionOnly(t *testing.T) {
 func TestSignedRevisionOnlyWithoutGPGCheck(t *testing.T) {
 	const repoURL = "https://github.com/group/app.git"
 	const keyID = "4cfe068f80b1681b"
-	const problem = "SignedRevisionOnly is enabled, main is not annotated. Un-annotated tags cannot be verified"
 
 	si := func(gpg *v1alpha1.SourceIntegrityGitPolicyGPG) *v1alpha1.SourceIntegrity {
 		return &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
@@ -832,34 +831,19 @@ func TestSignedRevisionOnlyWithoutGPGCheck(t *testing.T) {
 			logrus.AddHook(&logger)
 			t.Cleanup(logger.CleanupHook)
 
-			// An annotated tag passes the gate, and nothing else is verified.
-			annotated := &gitmocks.Client{}
-			annotated.EXPECT().RepoURL().Return(repoURL)
-			annotated.EXPECT().IsAnnotatedTag(mock.Anything, "v1.0").Return(true)
+			for _, revision := range []string{"v1.0", "main"} {
+				gitClient := &gitmocks.Client{}
+				gitClient.EXPECT().RepoURL().Return(repoURL)
 
-			result, legacy, err := VerifyGit(t.Context(), si(tc.gpg), annotated, "v1.0")
-			require.NoError(t, err)
-			require.NotNil(t, result)
-			assert.True(t, result.IsValid())
-			require.NoError(t, result.AsError())
-			assert.Equal(t, []string{"GIT"}, result.PassedChecks())
-			assert.Empty(t, legacy)
-			annotated.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
+				result, legacy, err := VerifyGit(t.Context(), si(tc.gpg), gitClient, revision)
+				require.EqualError(t, err, "SignedRevisionOnly is enabled without verification for SourceIntegrity policy for [{URL:https://github.com/group/*}]", "revision %s", revision)
+				assert.Nil(t, result)
+				assert.Empty(t, legacy)
+				gitClient.AssertNotCalled(t, "IsAnnotatedTag", mock.Anything, mock.Anything)
+				gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
+			}
 
-			// Anything that cannot be verified is still rejected
-			lightweight := &gitmocks.Client{}
-			lightweight.EXPECT().RepoURL().Return(repoURL)
-			lightweight.EXPECT().IsAnnotatedTag(mock.Anything, "main").Return(false)
-
-			result, legacy, err = VerifyGit(t.Context(), si(tc.gpg), lightweight, "main")
-			require.NoError(t, err)
-			require.NotNil(t, result)
-			assert.False(t, result.IsValid())
-			require.EqualError(t, result.AsError(), "GIT: "+problem)
-			assert.Equal(t, problem, legacy)
-			lightweight.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
-
-			// SignedRevisionOnly is a criteria
+			// SignedRevisionOnly is a criteria, so the policy is not skipped over as having nothing to check
 			assert.True(t, HasCriteria(si(tc.gpg), v1alpha1.ApplicationSource{RepoURL: repoURL}))
 
 			assert.Equal(t, tc.expectedLogs, logger.GetEntries())

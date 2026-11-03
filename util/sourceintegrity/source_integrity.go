@@ -83,8 +83,13 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 		}
 	}
 
-	noGuardSet := !policy.SignedRevisionOnly
-	if check == nil && noGuardSet {
+	if check == nil {
+		if policy.SignedRevisionOnly {
+			msg := fmt.Sprintf("SignedRevisionOnly is enabled without verification for SourceIntegrity policy for %+v", policy.Repos)
+			return func(_ context.Context, _ git.Client, _ string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+				return nil, "", errors.New(msg)
+			}
+		}
 		log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
 		return nil
 	}
@@ -103,11 +108,7 @@ func verifyWithGuard(policy *v1alpha1.SourceIntegrityGitPolicy, check gitFunc) g
 				Problems: []string{msg},
 			}}}, msg, nil
 		}
-		if check == nil {
-			return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
-				Name: signedRevisionCheckName,
-			}}}, "", nil
-		}
+
 		return check(ctx, gitClient, verifiedRevision)
 	}
 }
