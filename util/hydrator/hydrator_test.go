@@ -1,14 +1,37 @@
 package hydrator
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+func TestGetDrySHA(t *testing.T) {
+	t.Parallel()
+	dir := t.TempDir()
+	root, err := os.OpenRoot(dir)
+	require.NoError(t, err)
+	defer root.Close()
+	require.NoError(t, os.Mkdir(filepath.Join(dir, "app"), 0o700))
+	metadataPath := filepath.Join(dir, "app", "hydrator.metadata")
+
+	assert.Empty(t, GetDrySHA(root, "app"))
+
+	require.NoError(t, os.WriteFile(metadataPath, []byte(`{"repoURL":"https://example.com/repo","drySha":"abc123"}`), 0o600))
+	assert.Equal(t, "abc123", GetDrySHA(root, "app"))
+	assert.Empty(t, GetDrySHA(root, ""), "the root file is separate from the app's")
+
+	require.NoError(t, os.WriteFile(metadataPath, []byte("{"), 0o600))
+	assert.Empty(t, GetDrySHA(root, "app"))
+}
 
 func TestGetCommitMetadata(t *testing.T) {
 	t.Parallel()

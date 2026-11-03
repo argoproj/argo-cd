@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -201,7 +202,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().Push("main").Return("", nil).Once()
 		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("root-and-blank-sha", nil).Twice()
-		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).RunAndReturn(withMetadata(t, map[string]string{"": "older-dry-sha"}, mockGitClient)).Once()
 
 		requestWithRootAndBlank := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
@@ -210,6 +211,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			TargetBranch:  "main",
 			SyncBranch:    "env/test",
 			CommitMessage: "test commit message",
+			DrySha:        "new-dry-sha",
 			Paths: []*apiclient.PathDetails{
 				{
 					Path: ".",
@@ -234,6 +236,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, "root-and-blank-sha", resp.HydratedSha)
+		assert.Equal(t, map[string]string{".": "new-dry-sha", "": "new-dry-sha"}, resp.HydratedDryShas, "Changed paths record the requested dry SHA")
 	})
 
 	t.Run("subdirectory path - triggers directory removal", func(t *testing.T) {
@@ -382,7 +385,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
 		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything, mock.Anything).Return(strnote, nil).Once()
 		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("dupe-test-sha", nil).Once()
-		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).RunAndReturn(withMetadata(t, map[string]string{"": "older-dry-sha"}, mockGitClient)).Once()
 
 		request := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
@@ -408,6 +411,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		require.NoError(t, err)
 		require.NotNil(t, resp)
 		assert.Equal(t, "dupe-test-sha", resp.HydratedSha, "Should return existing hydrated SHA when already hydrated")
+		assert.Equal(t, map[string]string{".": "older-dry-sha"}, resp.HydratedDryShas, "Should return the dry SHA recorded in the existing commit")
 	})
 
 	t.Run("root path with dot - no changes to manifest - should commit note only", func(t *testing.T) {
@@ -424,7 +428,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(false, nil).Once()
 		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
 		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("root-and-blank-sha", nil).Once()
-		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).RunAndReturn(withMetadata(t, map[string]string{"": "older-dry-sha"}, mockGitClient)).Once()
 
 		requestWithRootAndBlank := &apiclient.CommitHydratedManifestsRequest{
 			Repo: &v1alpha1.Repository{
@@ -451,6 +455,48 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		require.NotNil(t, resp)
 		// BUG FIX: When manifests don't change (no-op), the existing hydrated SHA should be returned.
 		assert.Equal(t, "root-and-blank-sha", resp.HydratedSha, "Should return existing hydrated SHA for no-op")
+		assert.Equal(t, map[string]string{".": "older-dry-sha"}, resp.HydratedDryShas, "No new commit, so the existing commit's dry SHA applies")
+	})
+
+	t.Run("per-path dry SHAs - only changed paths record the requested dry SHA", func(t *testing.T) {
+		t.Parallel()
+
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor(mock.Anything, "Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan(mock.Anything, "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, mock.Anything, mock.Anything).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything, "apps/changed/manifest.yaml").Return(true, nil).Once()
+		mockGitClient.EXPECT().HasFileChanged(mock.Anything, "apps/unchanged/manifest.yaml").Return(false, nil).Once()
+		mockGitClient.EXPECT().Commit("test commit message", "").Return("", nil).Once()
+		mockGitClient.EXPECT().Push("main").Return("", nil).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("per-path-sha", nil).Twice()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).RunAndReturn(withMetadata(t, map[string]string{
+			"apps/changed":   "old-changed-sha",
+			"apps/unchanged": "old-unchanged-sha",
+		}, mockGitClient)).Once()
+
+		manifest := []*apiclient.HydratedManifestDetails{{ManifestJSON: `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"cm"}}`}}
+		request := &apiclient.CommitHydratedManifestsRequest{
+			Repo:          &v1alpha1.Repository{Repo: "https://github.com/argoproj/argocd-example-apps.git"},
+			TargetBranch:  "main",
+			SyncBranch:    "env/test",
+			CommitMessage: "test commit message",
+			DrySha:        "new-dry-sha",
+			Paths: []*apiclient.PathDetails{
+				{Path: "apps/changed", Manifests: manifest},
+				{Path: "apps/unchanged", Manifests: manifest},
+			},
+		}
+
+		resp, err := service.CommitHydratedManifests(t.Context(), request)
+		require.NoError(t, err)
+		assert.Equal(t, "per-path-sha", resp.HydratedSha)
+		assert.Equal(t, map[string]string{"apps/changed": "new-dry-sha", "apps/unchanged": "old-unchanged-sha"}, resp.HydratedDryShas)
 	})
 }
 
@@ -576,6 +622,18 @@ func Test_CommitHydratedManifests_Signing(t *testing.T) {
 func newServiceWithMocks(t *testing.T) (*Service, *mocks.RepoClientFactory) {
 	t.Helper()
 	return newServiceWithMocksAndSigning(t, nil)
+}
+
+// withMetadata simulates checking out a branch whose hydrator.metadata files record the given dry SHA per directory.
+func withMetadata(t *testing.T, dryShas map[string]string, client git.Client) func(*v1alpha1.Repository, string) (git.Client, error) {
+	t.Helper()
+	return func(_ *v1alpha1.Repository, rootPath string) (git.Client, error) {
+		for dir, drySha := range dryShas {
+			require.NoError(t, os.MkdirAll(filepath.Join(rootPath, dir), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(rootPath, dir, "hydrator.metadata"), []byte(`{"drySha":"`+drySha+`"}`), 0o600))
+		}
+		return client, nil
+	}
 }
 
 func newServiceWithMocksAndSigning(t *testing.T, signingConfig *gpgsign.Config) (*Service, *mocks.RepoClientFactory) {

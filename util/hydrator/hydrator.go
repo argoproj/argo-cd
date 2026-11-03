@@ -1,6 +1,9 @@
 package hydrator
 
 import (
+	"encoding/json"
+	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -24,6 +27,19 @@ type HydratorCommitMetadata struct {
 	// Known Argocd- trailers with valid values are removed, but all other trailers are kept.
 	Body       string                    `json:"body,omitempty"`
 	References []appv1.RevisionReference `json:"references,omitempty"`
+}
+
+// GetDrySHA returns the drySha recorded in dir/hydrator.metadata within root, or "" if it is unavailable.
+func GetDrySHA(root *os.Root, dir string) string {
+	data, err := root.ReadFile(filepath.Join(dir, "hydrator.metadata"))
+	if err != nil {
+		return ""
+	}
+	var metadata HydratorCommitMetadata
+	if err := json.Unmarshal(data, &metadata); err != nil {
+		return ""
+	}
+	return metadata.DrySHA
 }
 
 // GetCommitMetadata takes repo, drySha and commitMetadata and returns a HydratorCommitMetadata which is a
