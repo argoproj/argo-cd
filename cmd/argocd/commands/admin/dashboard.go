@@ -3,6 +3,7 @@ package admin
 import (
 	"context"
 	"fmt"
+	"os"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
@@ -39,7 +40,7 @@ func NewDashboard() *dashboard {
 // Run runs the dashboard and blocks until context is done
 func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
 	config.ClientOpts.Core = true
-	println("starting dashboard")
+	fmt.Fprintln(os.Stderr, "starting dashboard")
 	shutDownFunc, err := ds.startLocalServer(ctx, config.ClientOpts, config.Context, &config.Port, &config.Address, config.ClientConfig)
 	if err != nil {
 		return fmt.Errorf("could not start dashboard: %w", err)
@@ -49,7 +50,7 @@ func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
 	if shutDownFunc != nil {
 		shutDownFunc()
 	}
-	println("clean shutdown")
+	fmt.Fprintln(os.Stderr, "clean shutdown")
 	return nil
 }
 

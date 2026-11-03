@@ -166,7 +166,7 @@ func roundRobinDistributionFunction(clusters clusterAccessor, replicas int, gene
 				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
 				return -1
 			}
-			shard := int(clusterIndex % replicas)
+			shard := clusterIndex % replicas
 			log.Debugf("Cluster with id=%s will be processed by shard %d", c.ID, shard)
 			return shard
 		}
@@ -315,7 +315,7 @@ func InferShard() (int, error) {
 		log.Warnf("hostname should end with shard number separated by '-' but got: %s", hostname)
 		return 0, nil
 	}
-	return int(shard), nil
+	return shard, nil
 }
 
 func getSortedClustersList(getCluster clusterAccessor) []*v1alpha1.Cluster {
@@ -431,7 +431,7 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 			shardMapping := shardMappingData[i]
 			if shardMapping.ControllerName == hostname {
 				log.Debugf("Shard matched. Updating heartbeat!!")
-				shard = int(shardMapping.ShardNumber)
+				shard = shardMapping.ShardNumber
 				shardMapping.HeartbeatTime = heartbeatCurrentTime()
 				shardMappingData[i] = shardMapping
 				break
@@ -446,7 +446,7 @@ func getOrUpdateShardNumberForController(shardMappingData []shardApplicationCont
 		for i := range shardMappingData {
 			shardMapping := shardMappingData[i]
 			if (shardMapping.ControllerName == "") || metav1.Now().After(shardMapping.HeartbeatTime.Add(time.Duration(HeartbeatTimeout)*time.Second)) {
-				shard = int(shardMapping.ShardNumber)
+				shard = shardMapping.ShardNumber
 				log.Debugf("Empty shard found %d", shard)
 				shardMapping.ControllerName = hostname
 				shardMapping.HeartbeatTime = heartbeatCurrentTime()

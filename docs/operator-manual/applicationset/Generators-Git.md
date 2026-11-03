@@ -459,6 +459,10 @@ forces the Git provider to resolve Git references directly, bypassing
 the Revision Cache. The ApplicationSet controller removes this
 annotation after reconciliation.
 
+If an Argo CD Application manages the ApplicationSet, you can also set this
+annotation from the UI with the built-in **Refresh ApplicationSet** resource action
+(`refresh`) on the ApplicationSet node of that Application.
+
 ## Webhook Configuration
 
 To eliminate the polling delay, the ApplicationSet webhook
@@ -508,6 +512,27 @@ In your Git provider, navigate to the settings page where webhooks can be config
 URL configured in the Git provider should use the `/api/webhook` endpoint of your ApplicationSet instance
 (e.g. `https://applicationset.example.com/api/webhook`). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
+
+To limit the impact of unauthenticated webhook events, the ApplicationSet webhook rejects payloads
+larger than the `webhook.maxPayloadSizeMB` value in the `argocd-cm` ConfigMap. This is the same
+setting the [API server webhook](../webhook.md) uses, and the default is 50MB:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  webhook.maxPayloadSizeMB: "50"
+```
+
+> [!NOTE]
+> The ApplicationSet controller reads `webhook.maxPayloadSizeMB` when it starts. Restart the
+> controller after changing the value.
 
 ![Add Webhook](../../assets/applicationset/webhook-config.png "Add Webhook")
 

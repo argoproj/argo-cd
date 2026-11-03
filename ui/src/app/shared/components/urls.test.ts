@@ -41,6 +41,25 @@ test('gitlab.com', () => {
     );
 });
 
+// for self-hosted gitlab installations
+test('gitlab.my-enterprise.com', () => {
+    testExample(
+        'https://gitlab.my-enterprise.com/my-org/my-repo.git',
+        'git@gitlab.my-enterprise.com:my-org/my-repo.git',
+        'b1fe9426ead684d7af16958920968342ee295c1f',
+        'https://gitlab.my-enterprise.com/my-org/my-repo',
+        'https://gitlab.my-enterprise.com/my-org/my-repo/-/commit/b1fe9426ead684d7af16958920968342ee295c1f',
+    );
+});
+
+// lookalike hostnames must not be treated as GitLab
+test('gitlab lookalike host is not supported', () => {
+    expect(repoUrl('https://gitlabmalicious.com/my-org/my-repo.git')).toBe(null);
+    expect(repoUrl('git@gitlabmalicious.com:my-org/my-repo.git')).toBe(null);
+    expect(revisionUrl('https://gitlabmalicious.com/my-org/my-repo.git', 'b1fe9426ead684d7af16958920968342ee295c1f', false)).toBe(null);
+    expect(revisionUrl('git@gitlabmalicious.com:my-org/my-repo.git', 'b1fe9426ead684d7af16958920968342ee295c1f', false)).toBe(null);
+});
+
 test('bitbucket.org', () => {
     testExample(
         'https://alexcollinsinuit@bitbucket.org/alexcollinsinuit/test-repo.git',

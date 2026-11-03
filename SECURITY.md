@@ -1,6 +1,6 @@
 # Security Policy for Argo CD
 
-Version: **v1.6 (2026-09-21)**
+Version: **v1.7 (2026-10-22)**
 
 ## Preface
 
@@ -91,6 +91,14 @@ feature to keep our community well-informed, and will credit you for your
 findings (unless you prefer to stay anonymous, of course).
 
 To report a vulnerability to the Argo CD team, create a draft GitHub security advisory at: https://github.com/argoproj/argo-cd/security/advisories/new
+
+### Low and medium severity vulnerabilities
+
+Due to the high volume of reports, many of them LLM-assisted, vulnerabilities
+that we triage as low or medium severity will be fixed in the open: we will
+publish the GitHub security advisory right away, before a fix is available.
+High and critical severity vulnerabilities remain under embargo until a fix
+is released.
 
 ## Securing your Argo CD Instance
 
