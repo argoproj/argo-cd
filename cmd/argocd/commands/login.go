@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"html"
 	"net/http"
+	neturl "net/url"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"strconv"
@@ -20,6 +22,7 @@ import (
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/google/shlex"
 	log "github.com/sirupsen/logrus"
 	"github.com/skratchdot/open-golang/open"
 	"github.com/spf13/cobra"
@@ -224,7 +227,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().StringVar(&callback, "callback", "", "Scheme, Host and Port for the callback URL")
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
-	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the system default browser when performing SSO login")
+	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the browser set in $BROWSER, or the system default browser, when performing SSO login")
 	return command
 }
 
@@ -557,10 +560,56 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 
 func ssoAuthFlow(url string, ssoLaunchBrowser bool) {
 	if ssoLaunchBrowser {
-		fmt.Print("Opening system default browser for authentication\n")
-		err := open.Start(url)
+		fmt.Print("Opening browser for authentication\n")
+		err := launchBrowser(url)
 		errors.CheckError(err)
 	} else {
 		fmt.Printf("To authenticate, copy-and-paste the following URL into your preferred browser: %s\n", url)
 	}
+}
+
+// launchBrowser opens url with the first command of $BROWSER that starts, or with the system default
+// browser when $BROWSER is unset. $BROWSER follows the xdg-open / Python webbrowser convention: a list of
+// commands separated by the OS path-list separator. The URL replaces an argument that is exactly "%s", or
+// is appended, so it is always its own argument and never spliced into a string a shell would parse. Only
+// absolute http(s) URLs are opened, so the URL cannot be read as an option.
+func launchBrowser(url string) error {
+	if u, err := neturl.Parse(url); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return fmt.Errorf("refusing to open %q: not an absolute http(s) URL", url)
+	}
+	browsers := os.Getenv("BROWSER")
+	if browsers == "" {
+		return open.Start(url)
+	}
+	var errs []error
+	for _, browser := range filepath.SplitList(browsers) {
+		args, err := shlex.Split(browser)
+		if err != nil {
+			errs = append(errs, fmt.Errorf("parsing BROWSER entry %q: %w", browser, err))
+			continue
+		}
+		if len(args) == 0 {
+			errs = append(errs, fmt.Errorf("empty BROWSER entry in %q", browsers))
+			continue
+		}
+		substituted := false
+		for i, arg := range args {
+			if arg == "%s" {
+				args[i] = url
+				substituted = true
+			}
+		}
+		if !substituted {
+			args = append(args, url)
+		}
+		// Not tied to the login context: cancelling it would kill a browser started directly.
+		cmd := exec.CommandContext(context.Background(), args[0], args[1:]...)
+		if err := cmd.Start(); err != nil {
+			errs = append(errs, fmt.Errorf("starting BROWSER entry %q: %w", browser, err))
+			continue
+		}
+		go func() { _ = cmd.Wait() }()
+		return nil
+	}
+	return fmt.Errorf("no usable browser in BROWSER: %w", stderrors.Join(errs...))
 }
