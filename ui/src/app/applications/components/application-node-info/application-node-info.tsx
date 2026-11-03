@@ -167,6 +167,16 @@ export const ApplicationNodeInfo = (props: {
             attributes.push({title: 'HOSTNAMES', value: hostNames});
         } else if (props.node.kind === 'ReplicaSet') {
             attributes.push({title: 'REPLICAS', value: `${props.live.spec?.replicas || 0}/${props.live.status?.readyReplicas || 0}/${props.live.status?.replicas || 0}`});
+        } else if (props.node.kind === 'CronJob' && props.node.group === 'batch') {
+            const {lastScheduleTime, lastSuccessfulTime} = props.live.status || {};
+            const health = props.controlled?.summary.health || (props.node as ResourceTreeNode).health;
+            const isHealthy = health?.status === models.HealthStatuses.Healthy;
+            if (lastSuccessfulTime) {
+                attributes.push({title: 'LAST SUCCESSFUL', value: formatCreationTimestamp(lastSuccessfulTime)});
+            }
+            if (lastScheduleTime && (!isHealthy || !lastSuccessfulTime)) {
+                attributes.push({title: 'LAST SCHEDULED', value: formatCreationTimestamp(lastScheduleTime)});
+            }
         }
     }
 
