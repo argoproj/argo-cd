@@ -188,6 +188,17 @@ func Test_parseBrowserEnv(t *testing.T) {
 		assert.Empty(t, failed)
 	})
 
+	t.Run("posix splits commands on : outside quotes only", func(t *testing.T) {
+		args, failed := parse(`firefox -P "Work:Cloud" %s:chromium --user-data-dir='/tmp/a:b' %s:/opt/x\:y/run`, false)
+		assert.Equal(t, [][]string{{"firefox", "-P", "Work:Cloud", "%s"}, {"chromium", "--user-data-dir=/tmp/a:b", "%s"}, {"/opt/x:y/run"}}, args)
+		assert.Empty(t, failed)
+	})
+
+	t.Run("posix reports an unterminated quote", func(t *testing.T) {
+		_, failed := parse(`firefox -P "Work`, false)
+		assert.Equal(t, []int{0}, failed)
+	})
+
 	t.Run("posix keeps backslash escapes", func(t *testing.T) {
 		args, failed := parse(`/opt/my\ browser/run %s`, false)
 		assert.Equal(t, [][]string{{"/opt/my browser/run", "%s"}}, args)
