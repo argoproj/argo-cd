@@ -261,7 +261,9 @@ stringData:
       retry backoff (`ARGOCD_CLUSTER_CACHE_RETRY_USE_BACKOFF`), the list retry function, watch resync timeout
       (`ARGOCD_CLUSTER_CACHE_WATCH_RESYNC_DURATION`), batch events processing
       (`ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING`) and the events processing interval
-      (`ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL`). `ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE` is honoured.
+      (`ARGOCD_CLUSTER_CACHE_EVENTS_PROCESSING_INTERVAL`). `ARGOCD_CLUSTER_CACHE_LIST_SEMAPHORE` is honoured for the
+      classic paged list path; when client-go uses WatchList streaming for the initial state, requests bypass it
+      (streaming does not produce the page-sized allocation spikes the semaphore exists to bound).
     * Events are processed one at a time, so each `argocd_resource_events_processing` sample covers a single event.
 
   > [!WARNING]
