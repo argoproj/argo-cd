@@ -622,58 +622,85 @@ type browserEntry struct {
 	err  error
 }
 
-// parseBrowserEnv splits $BROWSER into commands and each command into arguments. Elsewhere than on
-// Windows, commands are separated by ':' and split with POSIX shell rules (quotes, backslash escapes).
-// On Windows, commands are separated by ';' and double quotes group words, but a backslash is a literal
-// path separator, so `"C:\Program Files\...\chrome.exe" --new-window` keeps its executable path.
+// parseBrowserEnv splits $BROWSER into commands and each command into arguments. Commands are separated
+// by ':' (';' on Windows) outside quotes. Elsewhere than on Windows, a command is split with POSIX shell
+// rules (single and double quotes, backslash escapes). On Windows, double quotes group words but a
+// backslash is a literal path separator, so `"C:\Program Files\...\chrome.exe" --new-window` keeps its
+// executable path.
 func parseBrowserEnv(browsers string, windows bool) []browserEntry {
 	var entries []browserEntry
 	if !windows {
-		for raw := range strings.SplitSeq(browsers, ":") {
+		for _, raw := range splitOutsideQuotes(browsers, ':', true) {
 			args, err := shlex.Split(raw)
 			entries = append(entries, browserEntry{raw: raw, args: args, err: err})
 		}
 		return entries
 	}
+	for _, raw := range splitOutsideQuotes(browsers, ';', false) {
+		args, err := splitWindowsArgs(raw)
+		entries = append(entries, browserEntry{raw: raw, args: args, err: err})
+	}
+	return entries
+}
+
+// splitOutsideQuotes splits s on sep wherever sep is not quoted. With posix, single quotes and backslash
+// escapes are honored as well as double quotes; otherwise only double quotes are.
+func splitOutsideQuotes(s string, sep rune, posix bool) []string {
 	var (
-		raw, arg strings.Builder
-		args     []string
-		inQuote  bool
-		inArg    bool
+		parts                       []string
+		cur                         strings.Builder
+		inSingle, inDouble, escaped bool
 	)
-	endArg := func() {
-		if inArg {
-			args = append(args, arg.String())
-			arg.Reset()
-			inArg = false
-		}
-	}
-	endEntry := func() {
-		endArg()
-		var err error
-		if inQuote {
-			err = stderrors.New("unterminated double quote")
-		}
-		entries = append(entries, browserEntry{raw: raw.String(), args: args, err: err})
-		raw.Reset()
-		args, inQuote = nil, false
-	}
-	for _, r := range browsers {
+	for _, r := range s {
 		switch {
-		case r == ';' && !inQuote:
-			endEntry()
+		case escaped:
+			escaped = false
+		case posix && r == '\\' && !inSingle:
+			escaped = true
+		case posix && r == '\'' && !inDouble:
+			inSingle = !inSingle
+		case r == '"' && !inSingle:
+			inDouble = !inDouble
+		case r == sep && !inSingle && !inDouble:
+			parts = append(parts, cur.String())
+			cur.Reset()
 			continue
+		}
+		cur.WriteRune(r)
+	}
+	return append(parts, cur.String())
+}
+
+// splitWindowsArgs splits one Windows command into arguments: whitespace separates them, double quotes
+// group words and are dropped, and backslashes are kept as is.
+func splitWindowsArgs(s string) ([]string, error) {
+	var (
+		args    []string
+		arg     strings.Builder
+		inQuote bool
+		inArg   bool
+	)
+	for _, r := range s {
+		switch {
 		case r == '"':
 			inQuote = !inQuote
 			inArg = true
 		case (r == ' ' || r == '\t') && !inQuote:
-			endArg()
+			if inArg {
+				args = append(args, arg.String())
+				arg.Reset()
+				inArg = false
+			}
 		default:
 			arg.WriteRune(r)
 			inArg = true
 		}
-		raw.WriteRune(r)
 	}
-	endEntry()
-	return entries
+	if inQuote {
+		return nil, stderrors.New("unterminated double quote")
+	}
+	if inArg {
+		args = append(args, arg.String())
+	}
+	return args, nil
 }
