@@ -45,5 +45,13 @@ tests:
   inputPath: testdata/degraded_other_controller_different_ref.yaml
 - healthStatus:
     status: Degraded
+    message: "Ancestor example-backend: Service \"example-backend\" section \"http\" not found"
+  inputPath: testdata/degraded_other_controller_different_section.yaml
+- healthStatus:
+    status: Healthy
+    message: "BackendTLSPolicy is healthy"
+  inputPath: testdata/healthy_multi_controller_default_namespace.yaml
+- healthStatus:
+    status: Degraded
     message: "Ancestor : "
   inputPath: testdata/degraded_missing_message.yaml
