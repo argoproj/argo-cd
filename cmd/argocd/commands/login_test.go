@@ -7,7 +7,10 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
+	"strings"
 	"testing"
+	"time"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/localconfig"
@@ -82,6 +85,70 @@ func Test_ssoAuthFlow_ssoLaunchBrowser_false(t *testing.T) {
 	})
 
 	assert.Contains(t, out, "To authenticate, copy-and-paste the following URL into your preferred browser: http://test-sso-browser-flow.com")
+}
+
+func Test_launchBrowser(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("uses a shell script as the browser")
+	}
+	const url = "http://test-sso-browser-flow.com/auth?a=1&b=2"
+	dir := t.TempDir()
+	out := filepath.Join(dir, "out")
+	browser := filepath.Join(dir, "browser")
+	require.NoError(t, os.WriteFile(browser, []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" > \"$BROWSER_TEST_OUT\"\n"), 0o700))
+	t.Setenv("BROWSER_TEST_OUT", out)
+
+	invoked := func(t *testing.T) string {
+		t.Helper()
+		var got []byte
+		require.Eventually(t, func() bool {
+			var err error
+			got, err = os.ReadFile(out)
+			return err == nil && len(got) > 0
+		}, 5*time.Second, 10*time.Millisecond)
+		require.NoError(t, os.Remove(out))
+		return strings.TrimSpace(string(got))
+	}
+
+	t.Run("appends the URL to the command", func(t *testing.T) {
+		t.Setenv("BROWSER", browser+" --new-window")
+		require.NoError(t, launchBrowser(url))
+		assert.Equal(t, "--new-window "+url, invoked(t))
+	})
+
+	t.Run("replaces an argument that is exactly %s with the URL", func(t *testing.T) {
+		t.Setenv("BROWSER", browser+` --profile-directory="Profile 1" %s --new-window`)
+		require.NoError(t, launchBrowser(url))
+		assert.Equal(t, "--profile-directory=Profile 1 "+url+" --new-window", invoked(t))
+	})
+
+	t.Run("never splices the URL into a larger argument", func(t *testing.T) {
+		t.Setenv("BROWSER", browser+` "open %s"`)
+		require.NoError(t, launchBrowser(url))
+		assert.Equal(t, "open %s "+url, invoked(t))
+	})
+
+	t.Run("falls back to the next command when one cannot start", func(t *testing.T) {
+		t.Setenv("BROWSER", filepath.Join(dir, "missing")+string(os.PathListSeparator)+browser)
+		require.NoError(t, launchBrowser(url))
+		assert.Equal(t, url, invoked(t))
+	})
+
+	t.Run("refuses a URL that is not absolute http(s)", func(t *testing.T) {
+		t.Setenv("BROWSER", browser)
+		for _, bad := range []string{"--new-window", "-https://example.com", "file:///etc/passwd", "javascript:alert(1)", "https://"} {
+			require.ErrorContains(t, launchBrowser(bad), "not an absolute http(s) URL", bad)
+		}
+		_, err := os.Stat(out)
+		assert.True(t, os.IsNotExist(err), "browser must not be started")
+	})
+
+	t.Run("fails when no command can start", func(t *testing.T) {
+		t.Setenv("BROWSER", filepath.Join(dir, "missing")+string(os.PathListSeparator))
+		err := launchBrowser(url)
+		require.ErrorContains(t, err, "no usable browser in BROWSER")
+		require.ErrorContains(t, err, "empty BROWSER entry")
+	})
 }
 
 func Test_applyCertConfig(t *testing.T) {
