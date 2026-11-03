@@ -58,12 +58,7 @@ func getCommitMetadata(commitSHA string, app *unstructured.Unstructured, argocdS
 	if repoURL == "" {
 		return nil, errors.New("failed to get application source repo URL")
 	}
-	project := application.Spec.Project
-	if project == "" {
-		return nil, errors.New("failed to get application project")
-	}
-
-	meta, err := argocdService.GetCommitMetadata(context.Background(), repoURL, commitSHA, project)
+	meta, err := argocdService.GetCommitMetadata(context.Background(), repoURL, commitSHA, application.Spec.GetProject())
 	if err != nil {
 		return nil, err
 	}

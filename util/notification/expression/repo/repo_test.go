@@ -29,6 +29,13 @@ func TestGetCommitMetadata(t *testing.T) {
 			repoURL: "https://github.com/argoproj/argocd-example-apps.git",
 		},
 		{
+			name: "empty project resolves to the default project",
+			spec: map[string]any{
+				"source": map[string]any{"repoURL": "https://github.com/argoproj/argocd-example-apps.git", "path": "guestbook"},
+			},
+			repoURL: "https://github.com/argoproj/argocd-example-apps.git",
+		},
+		{
 			name: "source hydrator uses the dry source repo",
 			spec: map[string]any{
 				"project": "default",
