@@ -56,20 +56,37 @@ function isTargetNotFound(ancestor)
   return accepted.status ~= "True" and accepted.reason == "TargetNotFound"
 end
 
--- anotherControllerAccepted reports whether some ancestor written by a
--- controller OTHER than controllerName reports Accepted: True.
+-- ancestorRefsEqual reports whether two ancestorRefs identify the same target.
+-- It compares the meaningful identifying fields (group, kind, name and
+-- namespace) with nil-safety, treating an absent field as an empty string so a
+-- controller that omits, for example, the namespace still compares correctly.
+function ancestorRefsEqual(a, b)
+  if a == nil or b == nil then
+    return false
+  end
+  return (a.group or "") == (b.group or "")
+    and (a.kind or "") == (b.kind or "")
+    and (a.name or "") == (b.name or "")
+    and (a.namespace or "") == (b.namespace or "")
+end
+
+-- anotherControllerAcceptedRef reports whether some ancestor written by a
+-- controller OTHER than controllerName reports Accepted: True for an ancestorRef
+-- that matches targetRef.
 --
--- The skip decision for a TargetNotFound rejection is made per controllerName,
--- not globally: status.ancestors is keyed by (AncestorRef, ControllerName), so
--- a TargetNotFound entry is only "another implementation's noise" when a
--- DIFFERENT controller accepted the target. If the SAME controller that
--- emitted the TargetNotFound rejection also reported Accepted: True under its
--- own controllerName, the rejection is a genuine per-controller failure and
--- must degrade the resource; a global "someone accepted" check would wrongly
--- report Healthy in that case.
-function anotherControllerAccepted(ancestors, controllerName)
+-- The skip decision for a TargetNotFound rejection is scoped to the SAME target,
+-- not made globally: status.ancestors is keyed by (AncestorRef, ControllerName),
+-- so a TargetNotFound entry is only "another implementation's noise" when a
+-- DIFFERENT controller accepted the SAME ancestorRef. Matching on ancestorRef is
+-- what makes this correct: another controller accepting a DIFFERENT target tells
+-- us nothing about the rejected target, so it must not suppress the rejection.
+-- If the SAME controller that emitted the TargetNotFound rejection also reported
+-- Accepted: True, the rejection is a genuine per-controller failure and must
+-- degrade the resource; a global "someone accepted" check would wrongly report
+-- Healthy in that case.
+function anotherControllerAcceptedRef(ancestors, controllerName, targetRef)
   for _, ancestor in ipairs(ancestors) do
-    if ancestor.controllerName ~= controllerName then
+    if ancestor.controllerName ~= controllerName and ancestorRefsEqual(ancestor.ancestorRef, targetRef) then
       local accepted = getCondition(ancestor.conditions, "Accepted")
       if accepted ~= nil and accepted.status == "True" then
         return true
@@ -130,15 +147,16 @@ if obj.status ~= nil and obj.status.ancestors ~= nil then
   end
 
   -- Second pass: handle the ambiguous TargetNotFound rejections per controller.
-  -- Each rejection is skipped only when a DIFFERENT controller accepted the
-  -- target, meaning the rejection belongs to another conformant implementation
-  -- that was never going to manage this target. If no other controller
-  -- accepted it, the rejection is a real failure and must degrade the resource:
-  -- either the policy genuinely points at a resource that does not exist, or
-  -- the same controller both accepted and rejected, which is a genuine
-  -- per-controller failure rather than another implementation's noise.
+  -- Each rejection is skipped only when a DIFFERENT controller accepted the SAME
+  -- ancestorRef, meaning the rejection belongs to another conformant
+  -- implementation that was never going to manage this target. If no other
+  -- controller accepted that same target, the rejection is a real failure and
+  -- must degrade the resource: either the policy genuinely points at a resource
+  -- that does not exist, or the same controller both accepted and rejected,
+  -- which is a genuine per-controller failure rather than another
+  -- implementation's noise.
   for _, ancestor in ipairs(obj.status.ancestors) do
-    if isTargetNotFound(ancestor) and not anotherControllerAccepted(obj.status.ancestors, ancestor.controllerName) then
+    if isTargetNotFound(ancestor) and not anotherControllerAcceptedRef(obj.status.ancestors, ancestor.controllerName, ancestor.ancestorRef) then
       local accepted = getCondition(ancestor.conditions, "Accepted")
       hs.status = "Degraded"
       hs.message = "Ancestor " .. ancestorName(ancestor) .. ": " .. conditionMessage(accepted)
