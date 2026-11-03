@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: bucket in CREATING state
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for resource to be ready
+    inputPath: testdata/progressing_no_conditions.yaml
+  - healthStatus:
+      status: Degraded
+      message: Resource already exists
+    inputPath: testdata/degraded.yaml

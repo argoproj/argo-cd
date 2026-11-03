@@ -1,6 +1,6 @@
 import {AutocompleteField, DataLoader, DropDownMenu, FormField} from 'argo-ui';
 import * as React from 'react';
-import {FormApi} from 'react-form';
+import {FormApi} from 'argo-ui';
 import {RevisionHelpIcon} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -93,12 +93,16 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                             if (!source) {
                                                 return;
                                             }
+                                            // These refs are written from a DropDownMenu click handler, which runs on
+                                            // user interaction rather than during render, so ref access here is safe.
+                                            /* eslint-disable react-hooks/refs */
                                             if (repoType === 'git' || repoType === 'helm') {
                                                 lastGitOrHelmUrl.current = source.repoURL;
                                             } else {
                                                 lastOciUrl.current = source.repoURL;
                                             }
                                             currentRepoType.current = type;
+                                            /* eslint-enable react-hooks/refs */
                                             switch (type) {
                                                 case 'git':
                                                 case 'oci':

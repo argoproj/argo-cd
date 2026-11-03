@@ -109,12 +109,11 @@ func initGetVars(argocdService service.Service, cfg *api.Config, configMap *core
 	}, nil
 }
 
-// getAppProjectForTemplate retrieves the AppProject as an unstructured object for an Application object
-// Returns nil if the project cannot be found or an error occurs
+// getAppProjectForTemplate retrieves the AppProject as an unstructured object for an Application object.
+// Returns nil if the project cannot be found or an error occurs. The lookup goes through the argocd
+// Service, whose GetAppProject serves from the AppProject informer cache when one is wired (the
+// controller) and falls back to a live lookup otherwise (CLI).
 func getAppProjectForTemplate(argocdService service.Service, obj map[string]any) map[string]any {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
 	// Extract project name from app.spec.project
 	spec, ok := obj["spec"].(map[string]any)
 	if !ok {
@@ -126,27 +125,17 @@ func getAppProjectForTemplate(argocdService service.Service, obj map[string]any)
 		projectName = "default"
 	}
 
-	// Extract namespace from app.metadata.namespace
-	metadata, ok := obj["metadata"].(map[string]any)
-	if !ok {
-		return nil
-	}
-
-	namespace, ok := metadata["namespace"].(string)
-	if !ok || namespace == "" {
-		return nil
-	}
-
-	// Extract app name for logging context
+	metadata, _ := obj["metadata"].(map[string]any)
 	appName, _ := metadata["name"].(string)
-
-	// Fetch the AppProject
-	appProjectObj, err := argocdService.GetAppProject(ctx, projectName, namespace)
+	appNamespace, _ := metadata["namespace"].(string)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	appProjectObj, err := argocdService.GetAppProject(ctx, projectName)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"app":       appName,
+			"namespace": appNamespace,
 			"project":   projectName,
-			"namespace": namespace,
 		}).Warnf("Failed to get AppProject for notification template: %v", err)
 		return nil
 	}

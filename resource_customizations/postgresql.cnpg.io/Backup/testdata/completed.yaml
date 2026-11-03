@@ -1,0 +1,14 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Backup
+metadata:
+  name: cluster-backup-20260627
+  namespace: db
+spec:
+  cluster:
+    name: cluster-example
+  method: barmanObjectStore
+status:
+  phase: completed
+  startedAt: "2026-06-27T01:00:00Z"
+  stoppedAt: "2026-06-27T01:02:10Z"
+  backupId: "20260627T010000"

@@ -1,18 +1,22 @@
 package e2e
 
 import (
+	"crypto/x509"
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	. "github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
+	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 // createTestPlugin creates a temporary Argo CD CLI plugin script for testing purposes.
@@ -265,4 +269,55 @@ func TestCliPluginStdinHandling(t *testing.T) {
 			assert.Contains(t, NormalizeOutput(output), tc.expected)
 		})
 	}
+}
+
+// TestCliLoginPersistsClientCert verifies that a client certificate passed to `argocd login` is
+// recorded in the CLI context and reused by subsequent commands without repeating the flags.
+func TestCliLoginPersistsClientCert(t *testing.T) {
+	EnsureCleanState(t)
+
+	dir := t.TempDir()
+	configPath := filepath.Join(dir, "config")
+	certPath := filepath.Join(dir, "client.crt")
+	keyPath := filepath.Join(dir, "client.key")
+
+	clientCert, err := tlsutil.GenerateX509KeyPair(tlsutil.CertOptions{
+		Hosts:        []string{"localhost"},
+		Organization: "Argo CD E2E",
+		ECDSACurve:   "P256",
+		ValidFor:     24 * time.Hour,
+		ExtKeyUsage:  []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth},
+	})
+	require.NoError(t, err)
+	certPEM, keyPEM := tlsutil.EncodeX509KeyPair(*clientCert)
+	require.NoError(t, os.WriteFile(certPath, certPEM, 0o600))
+	require.NoError(t, os.WriteFile(keyPath, keyPEM, 0o600))
+
+	args := []string{
+		"login", GetApiServerAddress(),
+		"--username", "admin",
+		"--password", AdminPassword,
+		"--config", configPath,
+		"--insecure",
+		"--client-crt", certPath,
+		"--client-crt-key", keyPath,
+	}
+	if IsPlainText() {
+		args = append(args, "--plaintext")
+	}
+	output, err := Run("", "../../dist/argocd", args...)
+	require.NoError(t, err, "login with a client certificate should succeed: %s", output)
+
+	localCfg, err := localconfig.ReadLocalConfig(configPath)
+	require.NoError(t, err)
+	require.NotNil(t, localCfg)
+	server, err := localCfg.GetServer(GetApiServerAddress())
+	require.NoError(t, err)
+	assert.Equal(t, certPath, server.ClientCertificate)
+	assert.Equal(t, keyPath, server.ClientCertificateKey)
+
+	// The persisted certificate is picked up without passing the flags again.
+	output, err = RunCliWithConfigFile(configPath, "account", "get-user-info")
+	require.NoError(t, err, "output: %s", output)
+	assert.Contains(t, NormalizeOutput(output), "Logged In: true")
 }

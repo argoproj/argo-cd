@@ -1,12 +1,20 @@
-import {DropDownMenu, FormField, NotificationType, SlidingPanel} from 'argo-ui';
-import React, {useRef, useContext} from 'react';
-import {Form, FormApi, TextArea} from 'react-form';
+import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {useQuery} from '@tanstack/react-query';
+import * as React from 'react';
+import * as ReactDOM from 'react-dom';
+import {Form, FormApi, TextArea} from 'argo-ui';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
 
-import {DataLoader, EmptyState, ErrorNotification, Page} from '../../../shared/components';
+import {ActionMenu, EmptyState, ErrorNotification, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
-import * as models from '../../../shared/models';
-import {services} from '../../../shared/services';
+import {useGpgKeyMutations} from '../../../shared/mutations';
+import {gpgkeyQueries} from '../../../shared/queries';
+import {loadFailed, loading} from '../../../shared/query-client';
+import {useSearchParams} from '../../../shared/hooks/query';
+import {useListSort} from '../../../shared/hooks/use-list-sort';
+import {FlexTopBar} from '../../../shared/components';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
+import {GpgKeysFilter, GpgKeysListPreferences, getGpgKeyFilterResults, filterGpgKeys} from './gpgkeys-filter';
 
 require('./gpgkeys-list.scss');
 
@@ -15,13 +23,37 @@ interface NewGnuPGPublicKeyParams {
 }
 
 export const GpgKeysList = ({match, location}: RouteComponentProps) => {
-    const ctx = useContext(Context);
+    const ctx = React.useContext(Context);
+    const query = useSearchParams();
+    const searchText = query.get('search') || '';
+    const [page, setPage] = React.useState(0);
+    const sidebarTarget = useSidebarTarget();
 
-    const formApi = useRef<FormApi>();
-    const loader = useRef<DataLoader>();
+    const formApi = React.useRef<FormApi | null>(null);
+    const gpgkeyMutations = useGpgKeyMutations();
+
+    const [filterPref, setFilterPref] = React.useState<GpgKeysListPreferences>({
+        keyTypeFilter: query.getAll('keyType') || []
+    });
+
+    type SortKey = 'keyId' | 'keyType' | 'identity';
+    const {sortKey, requestSort, sortIcon, compareString} = useListSort<SortKey>('keyId');
+
+    const updateFilterPref = (newPref: GpgKeysListPreferences) => {
+        setFilterPref(newPref);
+        ctx.navigation.goto(
+            '.',
+            {
+                keyType: newPref.keyTypeFilter.length > 0 ? newPref.keyTypeFilter : null,
+                search: searchText || null
+            },
+            {replace: true}
+        );
+        setPage(0);
+    };
 
     const clearForms = () => {
-        formApi.current.resetAll();
+        formApi.current?.resetAll();
     };
 
     const validateKeyInputfield = (data: string): boolean => {
@@ -52,9 +84,8 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                     message: 'Invalid GnuPG key data found - must be ASCII armored'
                 };
             }
-            await services.gpgkeys.create({keyData: params.keyData});
+            await gpgkeyMutations.create.mutateAsync({keyData: params.keyData});
             setAddGnuPGKey(false);
-            loader.current.reload();
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Unable to add GnuPG public key' e={e} />,
@@ -66,8 +97,14 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
     const removeKey = async (keyId: string) => {
         const confirmed = await ctx.popup.confirm('Remove GPG public key', 'Are you sure you want to remove GPG key with ID ' + keyId + '?');
         if (confirmed) {
-            await services.gpgkeys.delete(keyId);
-            loader.current.reload();
+            try {
+                await gpgkeyMutations.delete.mutateAsync(keyId);
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to remove GnuPG public key' e={e} />,
+                    type: NotificationType.Error
+                });
+            }
         }
     };
 
@@ -80,63 +117,120 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
         ctx.history.push(`${match.url}?addGnuPGPublicKey=${val}`);
     };
 
+    const {data: gpgkeys, isError, refetch} = useQuery(gpgkeyQueries.list());
+    const gpgkeysWithFilter = getGpgKeyFilterResults(gpgkeys || [], filterPref);
+    const filteredByFilter = filterGpgKeys(gpgkeysWithFilter);
+
+    const filteredGpgKeys = filteredByFilter
+        .filter(
+            gpgkey =>
+                searchText === '' ||
+                gpgkey.keyID.toLowerCase().includes(searchText.toLowerCase()) ||
+                gpgkey.owner.toLowerCase().includes(searchText.toLowerCase()) ||
+                gpgkey.subType.toLowerCase().includes(searchText.toLowerCase())
+        )
+        .sort((a, b) => {
+            switch (sortKey) {
+                case 'keyId':
+                    return compareString(a.keyID, b.keyID);
+                case 'keyType':
+                    return compareString(a.subType, b.subType);
+                case 'identity':
+                    return compareString(a.owner, b.owner);
+                default:
+                    return 0;
+            }
+        });
+
     return (
-        <Page
-            title='GnuPG public keys'
-            toolbar={{
-                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}],
-                actionMenu: {
-                    className: 'fa fa-plus',
-                    items: [
-                        {
-                            title: 'Add GnuPG key',
-                            iconClassName: 'fa fa-plus',
-                            action: () => setAddGnuPGKey(true)
-                        }
-                    ]
-                }
-            }}>
+        <Page title='GnuPG public keys' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}]}}>
+            <FlexTopBar
+                toolbar={{
+                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'GnuPG public keys'}],
+                    actionMenu: {
+                        className: 'fa fa-plus',
+                        items: [
+                            {
+                                title: 'Add GnuPG key',
+                                iconClassName: 'fa fa-plus',
+                                action: () => setAddGnuPGKey(true)
+                            }
+                        ]
+                    },
+                    tools: (
+                        <SearchBar
+                            value={searchText}
+                            onChange={value => {
+                                ctx.navigation.goto(
+                                    '.',
+                                    {
+                                        keyType: filterPref.keyTypeFilter.length > 0 ? filterPref.keyTypeFilter : null,
+                                        search: value || null
+                                    },
+                                    {replace: true}
+                                );
+                                setPage(0);
+                            }}
+                            placeholder='Search GPG keys...'
+                        />
+                    )
+                }}
+            />
             <div className='gpgkeys-list'>
                 <div className='argo-container'>
-                    <DataLoader load={() => services.gpgkeys.list()} ref={ref => (loader.current = ref)}>
-                        {(gpgkeys: models.GnuPGPublicKey[]) =>
-                            (gpgkeys.length > 0 && (
-                                <div className='argo-table-list'>
-                                    <div className='argo-table-list__head'>
-                                        <div className='row'>
-                                            <div className='columns small-3'>KEY ID</div>
-                                            <div className='columns small-3'>KEY TYPE</div>
-                                            <div className='columns small-6'>IDENTITY</div>
-                                        </div>
-                                    </div>
-                                    {gpgkeys.map(gpgkey => (
-                                        <div className='argo-table-list__row' key={gpgkey.keyID}>
-                                            <div className='row'>
-                                                <div className='columns small-3'>
-                                                    <i className='fa fa-key' /> {gpgkey.keyID}
-                                                </div>
-                                                <div className='columns small-3'>{gpgkey.subType.toUpperCase()}</div>
-                                                <div className='columns small-6'>
-                                                    {gpgkey.owner}
-                                                    <DropDownMenu
-                                                        anchor={() => (
-                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                                <i className='fa fa-ellipsis-v' />
-                                                            </button>
-                                                        )}
-                                                        items={[
-                                                            {
-                                                                title: 'Remove',
-                                                                action: () => removeKey(gpgkey.keyID)
-                                                            }
-                                                        ]}
-                                                    />
+                    {isError ? (
+                        loadFailed(refetch)
+                    ) : !gpgkeys ? (
+                        loading
+                    ) : (
+                        <>
+                            {sidebarTarget &&
+                                ReactDOM.createPortal(<GpgKeysFilter gpgkeys={gpgkeysWithFilter} pref={filterPref} onChange={updateFilterPref} />, sidebarTarget.current)}
+                            {filteredGpgKeys.length > 0 ? (
+                                <Paginate page={page} data={filteredGpgKeys} onPageChange={setPage} preferencesKey='gpgkeys-list'>
+                                    {gpgkeysToDisplay => (
+                                        <div className='argo-table-list'>
+                                            <div className='argo-table-list__head'>
+                                                <div className='row'>
+                                                    <div className='columns small-3 sortable' onClick={() => requestSort('keyId')}>
+                                                        KEY ID
+                                                        {sortIcon('keyId')}
+                                                    </div>
+                                                    <div className='columns small-3 sortable' onClick={() => requestSort('keyType')}>
+                                                        KEY TYPE
+                                                        {sortIcon('keyType')}
+                                                    </div>
+                                                    <div className='columns small-6 sortable' onClick={() => requestSort('identity')}>
+                                                        IDENTITY
+                                                        {sortIcon('identity')}
+                                                    </div>
                                                 </div>
                                             </div>
+                                            {gpgkeysToDisplay.map(gpgkey => (
+                                                <div className='argo-table-list__row' key={gpgkey.keyID}>
+                                                    <div className='row'>
+                                                        <div className='columns small-3'>
+                                                            <i className='fa fa-key' /> {gpgkey.keyID}
+                                                        </div>
+                                                        <div className='columns small-3'>{gpgkey.subType.toUpperCase()}</div>
+                                                        <div className='columns small-6'>
+                                                            {gpgkey.owner}
+                                                            <ActionMenu
+                                                                items={[
+                                                                    {
+                                                                        title: 'Remove',
+                                                                        action: () => removeKey(gpgkey.keyID)
+                                                                    }
+                                                                ]}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
                                         </div>
-                                    ))}
-                                </div>
-                            )) || (
+                                    )}
+                                </Paginate>
+                            ) : gpgkeys.length === 0 ? (
                                 <EmptyState icon='fa fa-key'>
                                     <h4>No GnuPG public keys currently configured</h4>
                                     <h5>You can add GnuPG public keys below.</h5>
@@ -144,9 +238,14 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                                         Add GnuPG public key
                                     </button>
                                 </EmptyState>
-                            )
-                        }
-                    </DataLoader>
+                            ) : (
+                                <EmptyState icon='fa fa-key'>
+                                    <h4>No GPG keys matched your search</h4>
+                                    <h5>Try adjusting your search query</h5>
+                                </EmptyState>
+                            )}
+                        </>
+                    )}
                 </div>
             </div>
             <SlidingPanel
@@ -154,7 +253,7 @@ export const GpgKeysList = ({match, location}: RouteComponentProps) => {
                 onClose={() => setAddGnuPGKey(false)}
                 header={
                     <div>
-                        <button className='argo-button argo-button--base' onClick={() => formApi.current.submitForm(null)}>
+                        <button className='argo-button argo-button--base' disabled={gpgkeyMutations.create.isPending} onClick={() => formApi.current.submitForm(null)}>
                             Create
                         </button>{' '}
                         <button onClick={() => setAddGnuPGKey(false)} className='argo-button argo-button--base-o'>

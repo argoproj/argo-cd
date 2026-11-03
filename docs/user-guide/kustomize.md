@@ -133,7 +133,7 @@ spec:
 
 ## Components
 Kustomize [components](https://github.com/kubernetes-sigs/kustomize/blob/master/examples/components.md) encapsulate both resources and patches together. They provide a powerful way to modularize and reuse configuration in Kubernetes applications. 
-If Kustomize is passed a non-existing component directory, it will error out. Missing component directories can be ignored (meaning, not passed to Kustomize) using `ignoreMissingComponents`. This can be particularly helpful to implement a [default/override pattern].
+If Kustomize is passed a non-existing component directory, it will error out. Missing or invalid (missing a Kustomization file) component directories can be ignored (meaning, not passed to Kustomize) using `ignoreMissingComponents`. This can be particularly helpful to implement a [default/override pattern].
 
 Outside of Argo CD, to utilize components, you must add the following to the `kustomization.yaml` that the Application references. For example:
 ```yaml
@@ -274,7 +274,7 @@ It's possible to [render Helm charts with Kustomize](https://github.com/kubernet
 Doing so requires that you pass the `--enable-helm` flag to the `kustomize build` command.
 This flag is not part of the Kustomize options within Argo CD.
 If you would like to render Helm charts through Kustomize in an Argo CD application, you have two options:
-You can either create a [custom plugin](https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/), or modify the `argocd-cm` ConfigMap to include the `--enable-helm` flag globally for all Kustomize applications:
+You can either create a [custom plugin](../operator-manual/config-management-plugins.md), or modify the `argocd-cm` ConfigMap to include the `--enable-helm` flag globally for all Kustomize applications:
 
 ```yaml
 apiVersion: v1

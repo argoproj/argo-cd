@@ -1,0 +1,61 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: ListenerSet
+metadata:
+  name: example-listenerset
+  namespace: default
+spec:
+  parentRef:
+    name: example-gateway
+  listeners:
+  - name: https
+    protocol: HTTPS
+    port: 443
+    tls:
+      certificateRefs:
+      - kind: Secret
+        name: example-cert
+status:
+  conditions:
+    - lastTransitionTime: "2026-06-15T13:38:39Z"
+      message: ListenerSet has no valid listeners
+      observedGeneration: 1
+      reason: ListenersNotValid
+      status: "False"
+      type: Programmed
+    - lastTransitionTime: "2026-06-15T13:28:40Z"
+      message: ListenerSet has no valid listeners
+      observedGeneration: 1
+      reason: ListenersNotValid
+      status: "False"
+      type: Accepted
+  listeners:
+    - attachedRoutes: 1
+      conditions:
+        - lastTransitionTime: "2026-06-15T13:38:39Z"
+          message: Listener must have references resolved first
+          observedGeneration: 1
+          reason: Invalid
+          status: "False"
+          type: Programmed
+        - lastTransitionTime: "2026-06-15T13:28:40Z"
+          message: Listener is accepted
+          observedGeneration: 1
+          reason: Accepted
+          status: "True"
+          type: Accepted
+        - lastTransitionTime: "2026-06-15T13:28:40Z"
+          message: Referenced certificate secret 'example-cert' does not exist
+          observedGeneration: 1
+          reason: InvalidCertificateRef
+          status: "False"
+          type: ResolvedRefs
+        - lastTransitionTime: "2026-06-15T13:28:40Z"
+          message: No conflicts
+          observedGeneration: 1
+          reason: NoConflicts
+          status: "False"
+          type: Conflicted
+      name: https
+      supportedKinds:
+        - group: gateway.networking.k8s.io
+          kind: HTTPRoute

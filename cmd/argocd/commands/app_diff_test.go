@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/diff"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -34,10 +34,8 @@ import (
 // createTestApp creates a test application
 func createTestApp(name, namespace string, sources ...v1alpha1.ApplicationSource) *v1alpha1.Application {
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+		Name:      name,
+		Namespace: namespace,
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -104,30 +102,22 @@ func mockDiffStrategyNoneModified() diffStrategy {
 
 // TestComputeDiff_DefaultCase tests the default case with both live and target resources
 func TestCompareManifests_DefaultCase(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create test resources with both live and target states
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test"},
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test-deployment",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test"},
 	})
 	targetDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test", "version": "v2"},
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test-deployment",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test", "version": "v2"},
 	})
 
 	getLiveManifests := mockManifestProvider([]*unstructured.Unstructured{liveDeployment})
@@ -146,19 +136,15 @@ func TestCompareManifests_DefaultCase(t *testing.T) {
 
 // TestComputeDiff_AddedResource tests when a resource exists in target but not live
 func TestCompareManifests_AddedResource(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a target-only resource (added) - no live state
 	targetDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "new-deployment",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test"},
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "new-deployment",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test"},
 	})
 
 	getLiveManifests := mockManifestProvider([]*unstructured.Unstructured{})
@@ -177,19 +163,15 @@ func TestCompareManifests_AddedResource(t *testing.T) {
 
 // TestComputeDiff_RemovedResource tests when a resource exists in live but not target
 func TestCompareManifests_RemovedResource(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create a live-only resource (removed) - no target state
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "old-deployment",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test"},
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "old-deployment",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test"},
 	})
 
 	getLiveManifests := mockManifestProvider([]*unstructured.Unstructured{liveDeployment})
@@ -208,53 +190,37 @@ func TestCompareManifests_RemovedResource(t *testing.T) {
 
 // TestComputeDiff_MultipleResources tests handling multiple resources
 func TestCompareManifests_MultipleResources(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Create multiple resources
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test"},
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test-deployment",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test"},
 	})
 	targetDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test", "version": "v2"},
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test-deployment",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test", "version": "v2"},
 	})
 
 	liveService := createTestUnstructured(&corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-service",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test"},
-		},
+		APIVersion: "v1",
+		Kind:       "Service",
+		Name:       "test-service",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test"},
 	})
 	targetService := createTestUnstructured(&corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-service",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test"},
-		},
+		APIVersion: "v1",
+		Kind:       "Service",
+		Name:       "test-service",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test"},
 	})
 
 	getLiveManifests := mockManifestProvider([]*unstructured.Unstructured{liveDeployment, liveService})
@@ -287,7 +253,7 @@ func TestCompareManifests_MultipleResources(t *testing.T) {
 
 // TestComputeDiff_EmptyResources tests with no resources
 func TestCompareManifests_EmptyResources(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	getLiveManifests := mockManifestProvider([]*unstructured.Unstructured{})
 	getTargetManifests := mockManifestProvider([]*unstructured.Unstructured{})
@@ -301,56 +267,40 @@ func TestCompareManifests_EmptyResources(t *testing.T) {
 
 // TestComputeDiff_MixedAddedRemovedModified tests a scenario with added, removed, and modified resources
 func TestCompareManifests_MixedAddedRemovedModified(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	// Modified resource (exists in both live and target)
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "modified-deployment",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test"},
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "modified-deployment",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test"},
 	})
 
 	// Removed resource (exists only in live)
 	liveService := createTestUnstructured(&corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "removed-service",
-			Namespace: "default",
-		},
+		APIVersion: "v1",
+		Kind:       "Service",
+		Name:       "removed-service",
+		Namespace:  "default",
 	})
 
 	// Added resource (exists only in target)
 	addedConfigMap := createTestUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "added-configmap",
-			Namespace: "default",
-		},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "added-configmap",
+		Namespace:  "default",
 	})
 
 	// Modified resource target
 	targetDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "modified-deployment",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test", "version": "v2"},
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "modified-deployment",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test", "version": "v2"},
 	})
 
 	getLiveManifests := mockManifestProvider([]*unstructured.Unstructured{liveDeployment, liveService})
@@ -391,29 +341,21 @@ func TestCompareManifests_MixedAddedRemovedModified(t *testing.T) {
 
 // TestComputeDiff_NoModifications tests that resources without modifications are not returned
 func TestCompareManifests_NoModifications(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	liveDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test"},
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test-deployment",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test"},
 	})
 	targetDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment",
-			Namespace: "default",
-			Labels:    map[string]string{"app": "test"},
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test-deployment",
+		Namespace:  "default",
+		Labels:     map[string]string{"app": "test"},
 	})
 
 	getLiveManifests := mockManifestProvider([]*unstructured.Unstructured{liveDeployment})
@@ -439,14 +381,10 @@ func TestManifestsToUnstructured(t *testing.T) {
 
 	t.Run("Single manifest", func(t *testing.T) {
 		deployment := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apps/v1",
-				Kind:       "Deployment",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-deployment",
-				Namespace: "default",
-			},
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       "test-deployment",
+			Namespace:  "default",
 		})
 		deploymentBytes, _ := json.Marshal(deployment)
 
@@ -459,24 +397,16 @@ func TestManifestsToUnstructured(t *testing.T) {
 
 	t.Run("Multiple manifests", func(t *testing.T) {
 		deployment := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apps/v1",
-				Kind:       "Deployment",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-deployment",
-				Namespace: "default",
-			},
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       "test-deployment",
+			Namespace:  "default",
 		})
 		service := createTestUnstructured(&corev1.Service{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Service",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-service",
-				Namespace: "default",
-			},
+			APIVersion: "v1",
+			Kind:       "Service",
+			Name:       "test-service",
+			Namespace:  "default",
 		})
 
 		deploymentBytes, _ := json.Marshal(deployment)
@@ -497,16 +427,12 @@ func TestManifestsToUnstructured(t *testing.T) {
 }
 
 func TestNewMultiSourceRevisionProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	deployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test-deployment",
+		Namespace:  "default",
 	})
 	deploymentBytes, _ := json.Marshal(deployment)
 
@@ -550,16 +476,12 @@ func TestNewMultiSourceRevisionProvider(t *testing.T) {
 }
 
 func TestNewSingleRevisionProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 	service := createTestUnstructured(&corev1.Service{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-service",
-			Namespace: "default",
-		},
+		APIVersion: "v1",
+		Kind:       "Service",
+		Name:       "test-service",
+		Namespace:  "default",
 	})
 	serviceBytes, _ := json.Marshal(service)
 
@@ -601,30 +523,22 @@ func TestNewSingleRevisionProvider(t *testing.T) {
 }
 
 func TestNewDefaultTargetProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("Success with multiple items", func(t *testing.T) {
 		deployment := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apps/v1",
-				Kind:       "Deployment",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-deployment",
-				Namespace: "default",
-			},
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       "test-deployment",
+			Namespace:  "default",
 		})
 		deploymentBytes, _ := json.Marshal(deployment)
 
 		service := createTestUnstructured(&corev1.Service{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Service",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-service",
-				Namespace: "default",
-			},
+			APIVersion: "v1",
+			Kind:       "Service",
+			Name:       "test-service",
+			Namespace:  "default",
 		})
 		serviceBytes, _ := json.Marshal(service)
 
@@ -678,30 +592,22 @@ func TestNewDefaultTargetProvider(t *testing.T) {
 }
 
 func TestNewLiveManifestProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("Success", func(t *testing.T) {
 		deployment := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apps/v1",
-				Kind:       "Deployment",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-deployment",
-				Namespace: "default",
-			},
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       "test-deployment",
+			Namespace:  "default",
 		})
 		deploymentBytes, _ := json.Marshal(deployment)
 
 		secret := createTestUnstructured(&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Secret",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-secret",
-				Namespace: "default",
-			},
+			APIVersion: "v1",
+			Kind:       "Secret",
+			Name:       "test-secret",
+			Namespace:  "default",
 		})
 		secretBytes, _ := json.Marshal(secret)
 
@@ -743,26 +649,18 @@ func TestNewLiveManifestProvider(t *testing.T) {
 
 	t.Run("Secret excluded", func(t *testing.T) {
 		deployment := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apps/v1",
-				Kind:       "Deployment",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-deployment",
-				Namespace: "default",
-			},
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       "test-deployment",
+			Namespace:  "default",
 		})
 		deploymentBytes, _ := json.Marshal(deployment)
 
 		secret := createTestUnstructured(&corev1.Secret{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Secret",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-secret",
-				Namespace: "default",
-			},
+			APIVersion: "v1",
+			Kind:       "Secret",
+			Name:       "test-secret",
+			Namespace:  "default",
 		})
 		secretBytes, _ := json.Marshal(secret)
 
@@ -793,17 +691,13 @@ func TestNewLiveManifestProvider(t *testing.T) {
 // Test Diff Strategy Functions
 
 func TestNewServerSideDiffStrategy(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	deployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test-deployment",
+		Namespace:  "default",
 	})
 	deploymentKey := kube.GetResourceKey(deployment)
 
@@ -880,14 +774,10 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 		mockClient := applicationmocks.NewApplicationServiceClient(t)
 
 		service := createTestUnstructured(&corev1.Service{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Service",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-service",
-				Namespace: "default",
-			},
+			APIVersion: "v1",
+			Kind:       "Service",
+			Name:       "test-service",
+			Namespace:  "default",
 		})
 		serviceKey := kube.GetResourceKey(service)
 
@@ -961,26 +851,18 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 		}, nil).Once()
 
 		deployment1 := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apps/v1",
-				Kind:       "Deployment",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "deployment1",
-				Namespace: "default",
-			},
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       "deployment1",
+			Namespace:  "default",
 		})
 		deployment1.Object["largeData"] = largeState
 
 		deployment2 := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apps/v1",
-				Kind:       "Deployment",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "deployment2",
-				Namespace: "default",
-			},
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
+			Name:       "deployment2",
+			Namespace:  "default",
 		})
 		deployment2.Object["largeData"] = largeState
 
@@ -1041,20 +923,20 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 		}, nil).Once()
 
 		deployment1 := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-			ObjectMeta: metav1.ObjectMeta{Name: "deployment1", Namespace: "default"},
+			APIVersion: "apps/v1", Kind: "Deployment",
+			Name: "deployment1", Namespace: "default",
 		})
 		deployment1.Object["smallData"] = smallState
 
 		deployment2 := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-			ObjectMeta: metav1.ObjectMeta{Name: "deployment2", Namespace: "default"},
+			APIVersion: "apps/v1", Kind: "Deployment",
+			Name: "deployment2", Namespace: "default",
 		})
 		deployment2.Object["smallData"] = smallState
 
 		deployment3 := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-			ObjectMeta: metav1.ObjectMeta{Name: "deployment3", Namespace: "default"},
+			APIVersion: "apps/v1", Kind: "Deployment",
+			Name: "deployment3", Namespace: "default",
 		})
 		deployment3.Object["smallData"] = smallState
 
@@ -1104,11 +986,9 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 		items := make([]comparisonObject, 5)
 		for i := range 5 {
 			deployment := createTestUnstructured(&appsv1.Deployment{
-				TypeMeta: metav1.TypeMeta{APIVersion: "apps/v1", Kind: "Deployment"},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      fmt.Sprintf("deployment%d", i),
-					Namespace: "default",
-				},
+				APIVersion: "apps/v1", Kind: "Deployment",
+				Name:      fmt.Sprintf("deployment%d", i),
+				Namespace: "default",
 			})
 			deployment.Object["largeData"] = largeState
 			items[i] = comparisonObject{
@@ -1129,30 +1009,22 @@ func TestNewServerSideDiffStrategy(t *testing.T) {
 }
 
 func TestNewClientSideDiffStrategy(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	deployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test-deployment",
+		Namespace:  "default",
 	})
 
 	modifiedDeployment := createTestUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test-deployment",
-			Namespace: "default",
-			Labels: map[string]string{
-				"new": "label",
-			},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "test-deployment",
+		Namespace:  "default",
+		Labels: map[string]string{
+			"new": "label",
 		},
 	})
 
@@ -1223,14 +1095,10 @@ func TestNewClientSideDiffStrategy(t *testing.T) {
 		}
 
 		service := createTestUnstructured(&corev1.Service{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "Service",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test-service",
-				Namespace: "default",
-			},
+			APIVersion: "v1",
+			Kind:       "Service",
+			Name:       "test-service",
+			Namespace:  "default",
 		})
 
 		strategy, err := newClientSideDiffStrategy(app, settings, normalizers.IgnoreNormalizerOpts{})
@@ -1328,14 +1196,12 @@ func TestNewClientSideDiffStrategy(t *testing.T) {
 }
 
 func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
-	ctx := context.Background()
+	ctx := t.Context()
 
 	t.Run("Normalizes manifests with tracking labels", func(t *testing.T) {
 		deployment := createTestUnstructured(&appsv1.Deployment{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "apps/v1",
-				Kind:       "Deployment",
-			},
+			APIVersion: "apps/v1",
+			Kind:       "Deployment",
 			ObjectMeta: metav1.ObjectMeta{
 				Name: "test-deployment",
 				// No namespace specified - should be set to destination namespace
@@ -1399,10 +1265,8 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 
 	t.Run("Normalizes cluster-scoped resource with namespace", func(t *testing.T) {
 		clusterRole := createTestUnstructured(&rbacv1.ClusterRole{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "rbac.authorization.k8s.io/v1",
-				Kind:       "ClusterRole",
-			},
+			APIVersion: "rbac.authorization.k8s.io/v1",
+			Kind:       "ClusterRole",
 			ObjectMeta: metav1.ObjectMeta{
 				Name:      "my-cluster-role",
 				Namespace: "kube-system", // Malformed - cluster-scoped resource shouldn't have namespace
@@ -1451,36 +1315,24 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 	t.Run("Deduplicates resources and keeps last", func(t *testing.T) {
 		// Create three ConfigMaps with the same name
 		configMap1 := createTestUnstructured(&corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "my-config",
-			},
-			Data: map[string]string{"version": "1"},
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "my-config",
+			Data:       map[string]string{"version": "1"},
 		})
 
 		configMap2 := createTestUnstructured(&corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "my-config",
-			},
-			Data: map[string]string{"version": "2"},
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "my-config",
+			Data:       map[string]string{"version": "2"},
 		})
 
 		configMap3 := createTestUnstructured(&corev1.ConfigMap{
-			TypeMeta: metav1.TypeMeta{
-				APIVersion: "v1",
-				Kind:       "ConfigMap",
-			},
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "my-config",
-			},
-			Data: map[string]string{"version": "3"},
+			APIVersion: "v1",
+			Kind:       "ConfigMap",
+			Name:       "my-config",
+			Data:       map[string]string{"version": "3"},
 		})
 
 		baseProvider := mockManifestProvider([]*unstructured.Unstructured{configMap1, configMap2, configMap3})

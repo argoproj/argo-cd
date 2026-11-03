@@ -18,9 +18,10 @@ linters:
     - errorlint
     - exptostd
     - gocritic
-    - gomodguard
+    - gomodguard_v2
     - govet
     - importas
+    - intrange
     - misspell
     - modernize
     - noctx
@@ -30,6 +31,7 @@ linters:
     - testifylint
     - thelper
     - tparallel
+    - unconvert
     - unparam
     - usestdlibvars
     - usetesting
@@ -68,21 +70,18 @@ linters:
         - unnamedResult
         - whyNoLint
 
-    gomodguard:
+    gomodguard_v2:
       blocked:
-        modules:
-          - github.com/golang-jwt/jwt/v4:
-              recommendations:
-                - github.com/golang-jwt/jwt/v5
-
-          - github.com/imdario/mergo:
-              recommendations:
-                - dario.cat/mergo
-              reason: '`github.com/imdario/mergo` has been renamed.'
-
-          - github.com/pkg/errors:
-              recommendations:
-                - errors
+        - module: github.com/golang-jwt/jwt/v4
+          recommendations:
+            - github.com/golang-jwt/jwt/v5
+        - module: github.com/imdario/mergo
+          recommendations:
+            - dario.cat/mergo
+          reason: '`github.com/imdario/mergo` has been renamed.'
+        - module: github.com/pkg/errors
+          recommendations:
+            - errors
 
     govet:
       disable:
@@ -186,6 +185,10 @@ linters:
 
         - name: identical-branches
 
+        - name: identical-ifelseif-branches
+
+        - name: identical-switch-branches
+
         - name: if-return
 
         - name: increment-decrement
@@ -193,6 +196,8 @@ linters:
         - name: indent-error-flow
           arguments:
             - preserve-scope
+
+        - name: inefficient-map-lookup
 
         - name: modifies-parameter
 
@@ -216,6 +221,8 @@ linters:
         - name: time-naming
           disabled: true
 
+        - name: unconditional-recursion
+
         - name: unexported-return
           disabled: true
 
@@ -228,6 +235,8 @@ linters:
         - name: unused-parameter
 
         - name: use-any
+
+        - name: use-fmt-print
 
         - name: useless-break
 

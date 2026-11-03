@@ -55,14 +55,10 @@ func CreateServiceAccount(
 	namespace string,
 ) error {
 	serviceAccount := corev1.ServiceAccount{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ServiceAccount",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceAccountName,
-			Namespace: namespace,
-		},
+		APIVersion: "v1",
+		Kind:       "ServiceAccount",
+		Name:       serviceAccountName,
+		Namespace:  namespace,
 	}
 	_, err := clientset.CoreV1().ServiceAccounts(namespace).Create(context.Background(), &serviceAccount, metav1.CreateOptions{})
 	if err != nil {
@@ -95,14 +91,10 @@ func upsert(kind string, name string, create func() (any, error), update func() 
 
 func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbacv1.PolicyRule) error {
 	clusterRole := rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Rules: rules,
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       name,
+		Rules:      rules,
 	}
 	return upsert("ClusterRole", name, func() (any, error) {
 		return clientset.RbacV1().ClusterRoles().Create(context.Background(), &clusterRole, metav1.CreateOptions{})
@@ -113,14 +105,10 @@ func upsertClusterRole(clientset kubernetes.Interface, name string, rules []rbac
 
 func upsertRole(clientset kubernetes.Interface, name string, namespace string, rules []rbacv1.PolicyRule) error {
 	role := rbacv1.Role{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "Role",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
-		Rules: rules,
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "Role",
+		Name:       name,
+		Rules:      rules,
 	}
 	return upsert("Role", fmt.Sprintf("%s/%s", namespace, name), func() (any, error) {
 		return clientset.RbacV1().Roles(namespace).Create(context.Background(), &role, metav1.CreateOptions{})
@@ -131,13 +119,9 @@ func upsertRole(clientset kubernetes.Interface, name string, namespace string, r
 
 func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clusterRoleName string, subject rbacv1.Subject) error {
 	roleBinding := rbacv1.ClusterRoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRoleBinding",
+		Name:       name,
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "ClusterRole",
@@ -154,13 +138,9 @@ func upsertClusterRoleBinding(clientset kubernetes.Interface, name string, clust
 
 func upsertRoleBinding(clientset kubernetes.Interface, name string, roleName string, namespace string, subject rbacv1.Subject) error {
 	roleBinding := rbacv1.RoleBinding{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "RoleBinding",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name,
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "RoleBinding",
+		Name:       name,
 		RoleRef: rbacv1.RoleRef{
 			APIGroup: "rbac.authorization.k8s.io",
 			Kind:     "Role",
@@ -257,12 +237,10 @@ func GetServiceAccountBearerToken(clientset kubernetes.Interface, ns string, sa 
 // This was added to help add k8s v1.24+ clusters.
 func getOrCreateServiceAccountTokenSecret(clientset kubernetes.Interface, serviceaccount, namespace string) (string, error) {
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      serviceaccount + SATokenSecretSuffix,
-			Namespace: namespace,
-			Annotations: map[string]string{
-				corev1.ServiceAccountNameKey: serviceaccount,
-			},
+		Name:      serviceaccount + SATokenSecretSuffix,
+		Namespace: namespace,
+		Annotations: map[string]string{
+			corev1.ServiceAccountNameKey: serviceaccount,
 		},
 		Type: corev1.SecretTypeServiceAccountToken,
 	}

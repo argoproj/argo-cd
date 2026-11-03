@@ -1,0 +1,14 @@
+apiVersion: tekton.dev/v1
+kind: TaskRun
+metadata:
+  name: unit-tests-run
+  namespace: default
+spec:
+  taskRef:
+    name: unit-tests
+status:
+  conditions:
+  - type: Succeeded
+    status: Unknown
+    reason: Running
+    message: "Tasks Completed: 1 (Failed: 0, Cancelled 0), Incomplete: 2, Skipped: 0"

@@ -2,11 +2,14 @@ package git
 
 import (
 	"fmt"
+	"net"
 	"net/url"
 	"regexp"
+	"strconv"
 	"strings"
 
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/transport"
 )
 
 // EnsurePrefix idempotently ensures that a base string has a given prefix.
@@ -36,7 +39,18 @@ func IsTruncatedCommitSHA(sha string) bool {
 	return truncatedCommitSHARegex.MatchString(sha)
 }
 
-// SameURL returns whether or not the two repository URLs are equivalent in location
+// SanitizeRepoURL strips any embedded userinfo (e.g. https://token@host/org/repo) from a
+// repository URL so credentials are not leaked when the URL is logged or exported (e.g. as a
+// tracing span attribute). If the URL cannot be parsed it is returned unchanged.
+func SanitizeRepoURL(repoURL string) string {
+	u, err := url.Parse(repoURL)
+	if err != nil || u.User == nil {
+		return repoURL
+	}
+	u.User = nil
+	return u.String()
+}
+
 func SameURL(leftRepo, rightRepo string) bool {
 	normalLeft := NormalizeGitURLAllowInvalid(leftRepo)
 	normalRight := NormalizeGitURLAllowInvalid(rightRepo)
@@ -83,6 +97,28 @@ func IsSSHURL(url string) (bool, string) {
 		return true, matches[2]
 	}
 	return false, ""
+}
+
+// SSHHostWithPort returns host:port for the given SSH repo URL in the format
+// expected by known_hosts lookups (net.JoinHostPort). Returns an empty string
+// for non-SSH URLs, URLs that cannot be parsed, or URLs without a host. Port
+// defaults to 22 when not present.
+func SSHHostWithPort(repoURL string) string {
+	if isSSH, _ := IsSSHURL(repoURL); !isSSH {
+		return ""
+	}
+	ep, err := transport.NewEndpoint(repoURL)
+	if err != nil || ep.Host == "" {
+		return ""
+	}
+	// transport.NewEndpoint wraps IPv6 hosts in brackets; strip them so that
+	// net.JoinHostPort doesn't end up double-bracketing the result.
+	host := strings.TrimSuffix(strings.TrimPrefix(ep.Host, "["), "]")
+	port := ep.Port
+	if port <= 0 {
+		port = 22
+	}
+	return net.JoinHostPort(host, strconv.Itoa(port))
 }
 
 // IsHTTPSURL returns true if supplied URL is HTTPS URL

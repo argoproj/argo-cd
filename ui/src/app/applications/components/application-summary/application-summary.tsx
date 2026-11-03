@@ -1,7 +1,7 @@
 /* eslint-disable no-prototype-builtins */
 import {AutocompleteField, Checkbox, DropDownMenu, ErrorNotification, FormField, FormSelect, HelpIcon, NotificationType} from 'argo-ui';
 import * as React from 'react';
-import {FormApi, Text} from 'react-form';
+import {FormApi, Text} from 'argo-ui';
 import {
     ClipboardText,
     Cluster,
@@ -20,10 +20,22 @@ import {BadgePanel} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {isValidURL} from '../../../shared/utils';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
-import {ComparisonStatusIcon, HealthStatusIcon, syncStatusMessage, urlPattern, formatCreationTimestamp, getAppDefaultSource, getAppSpecDefaultSource, appRBACName} from '../utils';
+import {
+    ComparisonStatusIcon,
+    HealthStatusIcon,
+    syncStatusMessage,
+    urlPattern,
+    formatCreationTimestamp,
+    getAppDefaultSource,
+    getAppSpecDefaultSource,
+    getClusterOptions,
+    getHydratorSyncSourceRepoURL,
+    appRBACName
+} from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
 import {ApplicationRetryView} from '../application-retry-view/application-retry-view';
 import {Link} from 'react-router-dom';
@@ -37,6 +49,72 @@ function swap(array: any[], a: number, b: number) {
     array = array.slice();
     [array[a], array[b]] = [array[b], array[a]];
     return array;
+}
+
+type ManualDefaultKey = keyof models.ManualDefaults;
+
+const MANUAL_SYNC_DEFAULT_FIELDS: Array<{
+    key: ManualDefaultKey;
+    id: string;
+    label: string;
+    help: string;
+    enableTitle: string;
+    disableTitle: string;
+    enableText: string;
+    disableText: string;
+}> = [
+    {
+        key: 'prune',
+        id: 'prune-on-manual-sync',
+        label: 'PRUNE ON MANUAL SYNC',
+        help: 'Default prune for manual syncs when manualDefaults is set (default: true). Independent of automated prune. Unset keeps legacy manual-sync behavior.',
+        enableTitle: 'Enable Prune on Manual Sync?',
+        disableTitle: 'Disable Prune on Manual Sync?',
+        enableText: 'Are you sure you want manual syncs to prune resources by default?',
+        disableText: 'Are you sure you want to disable pruning by default on manual syncs?'
+    },
+    {
+        key: 'dryRun',
+        id: 'dry-run-on-manual-sync',
+        label: 'DRY RUN ON MANUAL SYNC',
+        help: 'Default dry-run for manual syncs (default: false)',
+        enableTitle: 'Enable Dry Run on Manual Sync?',
+        disableTitle: 'Disable Dry Run on Manual Sync?',
+        enableText: 'Are you sure you want manual syncs to dry-run by default?',
+        disableText: 'Are you sure you want to disable dry-run by default on manual syncs?'
+    },
+    {
+        key: 'applyOnly',
+        id: 'apply-only-on-manual-sync',
+        label: 'APPLY ONLY ON MANUAL SYNC',
+        help: 'Default apply-only strategy for manual syncs (default: false)',
+        enableTitle: 'Enable Apply Only on Manual Sync?',
+        disableTitle: 'Disable Apply Only on Manual Sync?',
+        enableText: 'Are you sure you want manual syncs to use apply-only by default?',
+        disableText: 'Are you sure you want to disable apply-only by default on manual syncs?'
+    },
+    {
+        key: 'force',
+        id: 'force-on-manual-sync',
+        label: 'FORCE ON MANUAL SYNC',
+        help: 'Default force for manual syncs (default: false)',
+        enableTitle: 'Enable Force on Manual Sync?',
+        disableTitle: 'Disable Force on Manual Sync?',
+        enableText: 'Are you sure you want manual syncs to force by default?',
+        disableText: 'Are you sure you want to disable force by default on manual syncs?'
+    }
+];
+
+function isManualDefaultChecked(app: models.Application, key: ManualDefaultKey): boolean {
+    const defaults = app.spec.syncPolicy?.manualDefaults;
+    if (!defaults) {
+        return false;
+    }
+    // prune defaults to true when manualDefaults is set and the field is omitted
+    if (key === 'prune') {
+        return defaults.prune ?? true;
+    }
+    return !!defaults[key];
 }
 
 function processPath(path: string) {
@@ -117,7 +195,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             title: 'CLUSTER',
             view: <Cluster server={app.spec.destination.server} name={app.spec.destination.name} showUrl={true} />,
             edit: (formApi: FormApi) => (
-                <DataLoader load={() => services.clusters.list().then(clusters => clusters.sort())}>
+                <DataLoader load={() => services.clusters.list()}>
                     {clusters => {
                         return (
                             <div className='row'>
@@ -126,7 +204,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         <FormField
                                             formApi={formApi}
                                             field='spec.destination.server'
-                                            componentProps={{items: clusters.map(cluster => cluster.server)}}
+                                            componentProps={{items: getClusterOptions(clusters, 'server')}}
                                             component={AutocompleteField}
                                         />
                                     </div>
@@ -135,7 +213,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                         <FormField
                                             formApi={formApi}
                                             field='spec.destination.name'
-                                            componentProps={{items: clusters.map(cluster => cluster.name)}}
+                                            componentProps={{items: getClusterOptions(clusters, 'name')}}
                                             component={AutocompleteField}
                                         />
                                     </div>
@@ -272,6 +350,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 <div className='application-summary__links-rows'>
                     {urls
                         .map(item => item.split('|'))
+                        // Drop entries whose URL uses an unsafe protocol (e.g. javascript:, data:,
+                        // vbscript:) to prevent XSS via attacker-controlled
+                        // link.argocd.argoproj.io/* annotations on managed resources.
+                        .filter(parts => isValidURL(parts.length > 1 ? parts[1] : parts[0]))
                         .map((parts, i) => (
                             <div className='application-summary__links-row'>
                                 <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
@@ -395,6 +477,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
               ]
             : [
                   {
+                      title: 'TAG PREFIX',
+                      view: source.tagPrefix ? <span>{source.tagPrefix}</span> : null,
+                      edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.source.tagPrefix' component={Text} />
+                  },
+                  {
                       title: 'TARGET REVISION',
                       view: <Revision repoUrl={source.repoURL} revision={source.targetRevision || 'HEAD'} />,
                       edit: (formApi: FormApi) => (
@@ -452,27 +539,36 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
 
     const syncSourceItems: EditablePanelItem[] = [
         {
+            title: 'REPO URL (OPTIONAL)',
+            hint: 'Git repo for hydrated manifests. Defaults to the dry source repo when unset.',
+            view: <Repo url={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)} />,
+            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.syncSource.repoURL' component={Text} />
+        },
+        {
             title: 'TARGET BRANCH',
             hint: 'Branch where hydrated manifests are written and synced from.',
-            view: <Revision repoUrl={app.spec.sourceHydrator?.drySource?.repoURL} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
-            edit: (formApi: FormApi) => (
-                <RevisionFormField
-                    helpIconTop={'0'}
-                    hideLabel={true}
-                    formApi={formApi}
-                    fieldValue='spec.sourceHydrator.syncSource.targetBranch'
-                    repoURL={source.repoURL}
-                    repoType='git'
-                    revisionType='Branches'
-                />
-            )
+            view: <Revision repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
+            edit: (formApi: FormApi) => {
+                const spec = formApi.getFormState().values.spec as models.ApplicationSpec;
+                return (
+                    <RevisionFormField
+                        helpIconTop={'0'}
+                        hideLabel={true}
+                        formApi={formApi}
+                        fieldValue='spec.sourceHydrator.syncSource.targetBranch'
+                        repoURL={getHydratorSyncSourceRepoURL(spec.sourceHydrator)}
+                        repoType='git'
+                        revisionType='Branches'
+                    />
+                );
+            }
         },
         {
             title: 'PATH',
             hint: 'Output directory for hydrated manifests; must be a non-root path.',
             view: (
                 <Revision
-                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
+                    repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)}
                     revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
                     path={app.spec.sourceHydrator?.syncSource?.path}
                     isForPath={true}>
@@ -489,24 +585,24 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
             hint: 'Optional staging branch to write hydrated output before syncing.',
             view: (
                 <Revision
-                    repoUrl={app.spec.sourceHydrator?.drySource?.repoURL}
-                    revision={
-                        app.spec.sourceHydrator?.hydrateTo?.targetBranch ||
-                        (app.spec.sourceHydrator?.syncSource?.targetBranch ? `${app.spec.sourceHydrator.syncSource.targetBranch}-next` : 'HEAD')
-                    }
+                    repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)}
+                    revision={app.spec.sourceHydrator?.hydrateTo?.targetBranch || app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
                 />
             ),
-            edit: (formApi: FormApi) => (
-                <RevisionFormField
-                    helpIconTop={'0'}
-                    hideLabel={true}
-                    formApi={formApi}
-                    fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
-                    repoURL={source.repoURL}
-                    repoType='git'
-                    revisionType='Branches'
-                />
-            )
+            edit: (formApi: FormApi) => {
+                const spec = formApi.getFormState().values.spec as models.ApplicationSpec;
+                return (
+                    <RevisionFormField
+                        helpIconTop={'0'}
+                        hideLabel={true}
+                        formApi={formApi}
+                        fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
+                        repoURL={getHydratorSyncSourceRepoURL(spec.sourceHydrator)}
+                        repoType='git'
+                        revisionType='Branches'
+                    />
+                );
+            }
         }
     ];
 
@@ -601,6 +697,35 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         }
     }
 
+    async function setManualSyncDefaults(ctx: ContextApis, patch: Partial<models.ManualDefaults>, title: string, text: string) {
+        const confirmed = await ctx.popup.confirm(title, text);
+        if (confirmed) {
+            try {
+                setChangeSync(true);
+                const updatedApp = JSON.parse(JSON.stringify(props.app)) as models.Application;
+                if (!updatedApp.spec.syncPolicy) {
+                    updatedApp.spec.syncPolicy = {};
+                }
+                const existing = updatedApp.spec.syncPolicy.manualDefaults;
+                // Creating manualDefaults for a non-prune field must not opt into
+                // the API's true-when-nil prune default; keep legacy prune=false.
+                updatedApp.spec.syncPolicy.manualDefaults = {
+                    ...(!existing && patch.prune === undefined ? {prune: false} : {}),
+                    ...(existing || {}),
+                    ...patch
+                };
+                await updateApp(updatedApp, {validate: false});
+            } catch (e) {
+                ctx.notifications.show({
+                    content: <ErrorNotification title='Unable to update manual sync defaults' e={e} />,
+                    type: NotificationType.Error
+                });
+            } finally {
+                setChangeSync(false);
+            }
+        }
+    }
+
     const items = app.spec.info || [];
     const [adjustedCount, setAdjustedCount] = React.useState(0);
 
@@ -624,28 +749,30 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                 info.value
             ),
             titleEdit: (formApi: FormApi) => (
-                <React.Fragment>
-                    {i > 0 && (
+                <div className='application-summary__info-field'>
+                    <div className='application-summary__info-sort'>
                         <i
-                            className='fa fa-sort-up application-summary__sort-icon'
+                            className={`fa fa-sort-up application-summary__sort-icon${i > 0 ? '' : ' application-summary__sort-icon--hidden'}`}
                             onClick={() => {
-                                formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i - 1));
+                                if (i > 0) {
+                                    formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i - 1));
+                                }
                             }}
                         />
-                    )}
-                    <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} componentProps={{style: {width: '99%'}}} />
-                    {i < allItems.length - 1 && (
                         <i
-                            className='fa fa-sort-down application-summary__sort-icon'
+                            className={`fa fa-sort-down application-summary__sort-icon${i < allItems.length - 1 ? '' : ' application-summary__sort-icon--hidden'}`}
                             onClick={() => {
-                                formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i + 1));
+                                if (i < allItems.length - 1) {
+                                    formApi.setValue('spec.info', swap(formApi.getFormState().values.spec.info || [], i, i + 1));
+                                }
                             }}
                         />
-                    )}
-                </React.Fragment>
+                    </div>
+                    <FormField formApi={formApi} field={`spec.info[${[i]}].name`} component={Text} />
+                </div>
             ),
             edit: (formApi: FormApi) => (
-                <React.Fragment>
+                <div className='application-summary__info-field'>
                     <FormField formApi={formApi} field={`spec.info[${[i]}].value`} component={Text} />
                     <i
                         className='fa fa-times application-summary__remove-icon'
@@ -655,7 +782,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             setAdjustedCount(adjustedCount - 1);
                         }}
                     />
-                </React.Fragment>
+                </div>
             )
         }))
         .concat({
@@ -706,7 +833,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                             <p>SYNC POLICY</p>
                             <div className='row white-box__details-row'>
                                 <div className='columns small-3'>
-                                    {app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false ? <span>AUTOMATED</span> : <span>NONE</span>}
+                                    <span>AUTOMATED</span>
                                 </div>
                             </div>
                             <div className='row white-box__details-row'>
@@ -724,73 +851,101 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                                     </div>
                                 </div>
                             </div>
-                            {app.spec.syncPolicy && app.spec.syncPolicy.automated && (
-                                <React.Fragment>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-12'>
-                                            <div className='checkbox-container'>
-                                                <Checkbox
-                                                    onChange={async (prune: boolean) => {
-                                                        const automated = app.spec.syncPolicy?.automated || {selfHeal: false, enabled: false};
-                                                        setAutoSync(
-                                                            ctx,
-                                                            prune ? 'Enable Prune Resources?' : 'Disable Prune Resources?',
-                                                            prune
-                                                                ? 'Are you sure you want to enable resource pruning during automated application synchronization?'
-                                                                : 'Are you sure you want to disable resource pruning during automated application synchronization?',
-                                                            prune,
-                                                            automated.selfHeal,
-                                                            automated.enabled
-                                                        );
-                                                    }}
-                                                    checked={!!app.spec.syncPolicy?.automated?.prune}
-                                                    id='prune-resources'
-                                                />
-                                                <label htmlFor='prune-resources'>PRUNE RESOURCES</label>
-                                            </div>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-12'>
+                                    <div className='checkbox-container'>
+                                        <Checkbox
+                                            onChange={async (prune: boolean) => {
+                                                const automated = app.spec.syncPolicy?.automated || {selfHeal: false, enabled: false};
+                                                const autoSyncEnabled = !!(app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false);
+                                                setAutoSync(
+                                                    ctx,
+                                                    prune ? 'Enable Prune Resources?' : 'Disable Prune Resources?',
+                                                    prune
+                                                        ? 'Are you sure you want to enable resource pruning during automated application synchronization?'
+                                                        : 'Are you sure you want to disable resource pruning during automated application synchronization?',
+                                                    prune,
+                                                    !!automated.selfHeal,
+                                                    // Preserve current auto-sync enabled state (including enabled:false in Git).
+                                                    autoSyncEnabled
+                                                );
+                                            }}
+                                            checked={!!app.spec.syncPolicy?.automated?.prune}
+                                            id='prune-resources'
+                                        />
+                                        <label htmlFor='prune-resources'>PRUNE RESOURCES</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-12'>
+                                    <div className='checkbox-container'>
+                                        <Checkbox
+                                            onChange={async (selfHeal: boolean) => {
+                                                const automated = app.spec.syncPolicy?.automated || {prune: false, enabled: false};
+                                                const autoSyncEnabled = !!(app.spec.syncPolicy?.automated && app.spec.syncPolicy.automated.enabled !== false);
+                                                setAutoSync(
+                                                    ctx,
+                                                    selfHeal ? 'Enable Self Heal?' : 'Disable Self Heal?',
+                                                    selfHeal
+                                                        ? 'If checked, application will automatically sync when changes are detected'
+                                                        : 'If unchecked, application will not automatically sync when changes are detected',
+                                                    !!automated.prune,
+                                                    selfHeal,
+                                                    autoSyncEnabled
+                                                );
+                                            }}
+                                            checked={!!app.spec.syncPolicy?.automated?.selfHeal}
+                                            id='self-heal'
+                                        />
+                                        <label htmlFor='self-heal'>SELF HEAL</label>
+                                    </div>
+                                </div>
+                            </div>
+                            <div className='row white-box__details-row'>
+                                <div className='columns small-3'>
+                                    <span>MANUAL</span>
+                                </div>
+                            </div>
+                            {MANUAL_SYNC_DEFAULT_FIELDS.map(field => (
+                                <div className='row white-box__details-row' key={field.key}>
+                                    <div className='columns small-12'>
+                                        <div className='checkbox-container'>
+                                            <Checkbox
+                                                onChange={async (value: boolean) => {
+                                                    await setManualSyncDefaults(
+                                                        ctx,
+                                                        {[field.key]: value},
+                                                        value ? field.enableTitle : field.disableTitle,
+                                                        value ? field.enableText : field.disableText
+                                                    );
+                                                }}
+                                                checked={isManualDefaultChecked(app, field.key)}
+                                                id={field.id}
+                                            />
+                                            <label htmlFor={field.id}>{field.label}</label>
+                                            <HelpIcon title={field.help} />
                                         </div>
                                     </div>
-                                    <div className='row white-box__details-row'>
-                                        <div className='columns small-12'>
-                                            <div className='checkbox-container'>
-                                                <Checkbox
-                                                    onChange={async (selfHeal: boolean) => {
-                                                        const automated = app.spec.syncPolicy?.automated || {prune: false, enabled: false};
-                                                        setAutoSync(
-                                                            ctx,
-                                                            selfHeal ? 'Enable Self Heal?' : 'Disable Self Heal?',
-                                                            selfHeal
-                                                                ? 'If checked, application will automatically sync when changes are detected'
-                                                                : 'If unchecked, application will not automatically sync when changes are detected',
-                                                            automated.prune,
-                                                            selfHeal,
-                                                            automated.enabled
-                                                        );
-                                                    }}
-                                                    checked={!!app.spec.syncPolicy?.automated?.selfHeal}
-                                                    id='self-heal'
-                                                />
-                                                <label htmlFor='self-heal'>SELF HEAL</label>
-                                            </div>
-                                        </div>
-                                    </div>
-                                </React.Fragment>
-                            )}
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
             </Consumer>
             <BadgePanel app={props.app.metadata.name} appNamespace={props.app.metadata.namespace} nsEnabled={useAuthSettingsCtx?.appsInAnyNamespaceEnabled} />
-            <EditablePanel
-                save={updateApp}
-                values={app}
-                title='INFO'
-                items={infoItems}
-                onModeSwitch={() => {
-                    setAdjustedCount(0);
-                    notificationSubscriptions.onResetNotificationSubscriptions();
-                }}
-            />
+            <div className='application-summary__info-panel'>
+                <EditablePanel
+                    save={updateApp}
+                    values={app}
+                    title='INFO'
+                    items={infoItems}
+                    onModeSwitch={() => {
+                        setAdjustedCount(0);
+                        notificationSubscriptions.onResetNotificationSubscriptions();
+                    }}
+                />
+            </div>
         </div>
     );
 };

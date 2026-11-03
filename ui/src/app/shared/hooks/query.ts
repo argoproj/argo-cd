@@ -4,7 +4,7 @@ import {map} from 'rxjs/operators';
 
 import {Context} from '../context';
 
-const useQuery = () => {
+const useSearchParams = () => {
     const context = React.useContext(Context);
 
     return new URLSearchParams(context?.history?.location.search);
@@ -13,7 +13,7 @@ const useQuery = () => {
 function useObservableQuery() {
     const context = React.useContext(Context);
 
-    const search$ = React.useMemo(() => new BehaviorSubject(context.history.location.search), []);
+    const [search$] = React.useState(() => new BehaviorSubject(context.history.location.search));
 
     const searchParams$ = React.useMemo(() => search$.pipe(map(searchStr => new URLSearchParams(searchStr))), [search$]);
 
@@ -33,4 +33,4 @@ function useObservableQuery() {
     return searchParams$;
 }
 
-export {useQuery, useObservableQuery};
+export {useSearchParams, useObservableQuery};

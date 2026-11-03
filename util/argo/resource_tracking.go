@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	kubeutil "github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	kubeutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -51,7 +51,7 @@ func IsOldTrackingMethod(trackingMethod string) bool {
 }
 
 func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, installationID string) *AppInstanceValue {
-	if installationID != "" && un.GetAnnotations() == nil || un.GetAnnotations()[common.AnnotationInstallationID] != installationID {
+	if installationID != "" && (un.GetAnnotations() == nil || un.GetAnnotations()[common.AnnotationInstallationID] != installationID) {
 		return nil
 	}
 	appInstanceAnnotation, err := kube.GetAppInstanceAnnotation(un, common.AnnotationKeyAppInstance)
@@ -67,27 +67,18 @@ func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, i
 
 // GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, instanceID string) string {
-	retrieveAppInstanceValue := func() string {
-		value := rt.getAppInstanceValue(un, instanceID)
-		if value != nil {
-			return value.ApplicationName
-		}
-		return ""
-	}
-	switch trackingMethod {
-	case v1alpha1.TrackingMethodLabel:
+	if trackingMethod == v1alpha1.TrackingMethodLabel {
 		label, err := kube.GetAppInstanceLabel(un, key)
 		if err != nil {
 			return ""
 		}
 		return label
-	case v1alpha1.TrackingMethodAnnotationAndLabel:
-		return retrieveAppInstanceValue()
-	case v1alpha1.TrackingMethodAnnotation:
-		return retrieveAppInstanceValue()
-	default:
-		return retrieveAppInstanceValue()
 	}
+	value := rt.getAppInstanceValue(un, instanceID)
+	if value != nil {
+		return value.ApplicationName
+	}
+	return ""
 }
 
 // GetAppInstance returns the representation of the app instance annotation.
@@ -177,14 +168,12 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
 		return nil
-	case v1alpha1.TrackingMethodAnnotation:
-		return setAppInstanceAnnotation()
 	case v1alpha1.TrackingMethodAnnotationAndLabel:
 		if err := setAppInstanceAnnotation(); err != nil {
 			return err
 		}
 		return setAppInstanceLabel(val)
-	default:
+	default: // v1alpha1.TrackingMethodAnnotation, or no method set
 		return setAppInstanceAnnotation()
 	}
 }
@@ -281,13 +270,31 @@ func (rt *resourceTracking) Normalize(config, live *unstructured.Unstructured, l
 		return nil
 	}
 
-	annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
+	liveAnnotation, err := kube.GetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance)
 	if err != nil {
 		return err
 	}
-	err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
-	if err != nil {
-		return err
+	if liveAnnotation == "" {
+		// The live resource carries the instance label but no tracking annotation,
+		// which happens when it was last synced under label-based tracking.
+		// Backfill the desired annotation so that migrating to annotation-based
+		// tracking does not mark every resource OutOfSync.
+		//
+		// Note that the label is not necessarily owned by Argo CD: charts commonly
+		// render app.kubernetes.io/instance themselves (e.g. Helm's standard
+		// instance label). That is why the backfill must only happen when the
+		// tracking annotation is absent: if the live resource already has one,
+		// leave it untouched — a mismatch (e.g. the resource moved to another
+		// application) is a real difference that must surface in the diff so a
+		// sync can repair it (see issue #17965).
+		annotation, err := kube.GetAppInstanceAnnotation(config, common.AnnotationKeyAppInstance)
+		if err != nil {
+			return err
+		}
+		err = kube.SetAppInstanceAnnotation(live, common.AnnotationKeyAppInstance, annotation)
+		if err != nil {
+			return err
+		}
 	}
 
 	label, err = kube.GetAppInstanceLabel(config, labelKey)

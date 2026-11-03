@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"maps"
+	"math/rand/v2"
 	"strconv"
 	"strings"
 	"time"
@@ -271,6 +272,12 @@ func secretToCluster(s *corev1.Secret) (*appv1.Cluster, error) {
 		Labels:             labels,
 		Annotations:        annotations,
 	}
+
+	// Always recompute the config hash as the secret may have been directly updated.
+	// In case of hashing failure, fall back to a random value as it is safer to trigger
+	// observers' change detection anyway.
+	cluster.ConfigHash = new(cluster.HashIdentity(rand.Uint64()))
+
 	// To ensure the informer cache is properly populated, use the secret's name/namespace as the cache key
 	cluster.ObjectMeta.Name = s.Name
 	cluster.Namespace = s.Namespace
