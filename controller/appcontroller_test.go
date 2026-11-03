@@ -4849,6 +4849,24 @@ func Test_applicationEventHandlerFuncs_UpdateShardingCacheBeforeCanProcessApp(t 
 	assert.Empty(t, spy.deleted)
 }
 
+// Test_resyncAppsAfterShardChange_CountsAppsThisShardCannotProcess verifies
+// that the resync after a shard change records every app in an allowed
+// namespace in the sharding cache, not only the apps this shard processes
+// (#24515).
+func Test_resyncAppsAfterShardChange_CountsAppsThisShardCannotProcess(t *testing.T) {
+	app := newFakeApp()
+	app.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	spy := &shardingCacheSpy{ClusterShardingCache: ctrl.clusterSharding}
+	ctrl.clusterSharding = spy
+	require.False(t, ctrl.canProcessApp(app))
+
+	require.NoError(t, ctrl.resyncAppsAfterShardChange())
+
+	assert.Equal(t, []string{app.QualifiedName()}, spy.added)
+	assert.Equal(t, 0, ctrl.appRefreshQueue.Len(), "an application this shard cannot process must not be queued")
+}
+
 func Test_syncDeleteOption(t *testing.T) {
 	app := newFakeApp()
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
