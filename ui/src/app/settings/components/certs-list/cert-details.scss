@@ -1,0 +1,6 @@
+.cert-details__data {
+    // The details rows use a large line height, which would spread multi-line PEM data apart.
+    line-height: 1.5;
+    padding: 1em 0;
+    overflow-x: auto;
+}

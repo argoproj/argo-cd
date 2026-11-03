@@ -9,6 +9,14 @@ export class CertificatesService {
             .then(list => list.items || []);
     }
 
+    public get(serverName: string, certType?: string): Promise<models.RepoCert[]> {
+        return requests
+            .get(`/certificates/${encodeURIComponent(serverName)}/details`)
+            .query(certType ? {certType} : {})
+            .then(res => res.body as models.RepoCertList)
+            .then(list => list.items || []);
+    }
+
     public create(certificates: models.RepoCertList): Promise<models.RepoCertList> {
         return requests
             .post('/certificates')
