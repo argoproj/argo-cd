@@ -4856,7 +4856,10 @@ func Test_applicationEventHandlerFuncs_UpdateShardingCacheBeforeCanProcessApp(t 
 func Test_resyncAppsAfterShardChange_CountsAppsThisShardCannotProcess(t *testing.T) {
 	app := newFakeApp()
 	app.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}
-	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	// Seed the lister directly: an app in fakeData would fire the informer's
+	// AddFunc, which reads ctrl.clusterSharding concurrently with the swap below.
+	ctrl := newFakeController(t.Context(), &fakeData{}, nil)
+	require.NoError(t, ctrl.appInformer.GetIndexer().Add(app))
 	spy := &shardingCacheSpy{ClusterShardingCache: ctrl.clusterSharding}
 	ctrl.clusterSharding = spy
 	require.False(t, ctrl.canProcessApp(app))
