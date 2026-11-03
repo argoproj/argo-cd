@@ -401,6 +401,9 @@ func (f authFilePaths) Close() error {
 	return retErr
 }
 
+// createTemp is swapped in tests to exercise write failures.
+var createTemp = os.CreateTemp
+
 func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	// use the SHM temp dir from util, more secure
 	file, err := os.CreateTemp(argoio.TempDir, "")
@@ -464,7 +467,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 			parsedProxyURL.Port(),
 		)
 
-		proxyScript, err := os.CreateTemp(argoio.TempDir, "argocd-proxy-cmd-*")
+		proxyScript, err := createTemp(argoio.TempDir, "argocd-proxy-cmd-*")
 		if err != nil {
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to create proxy command script: %w", err)
@@ -472,6 +475,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		proxyScriptPath = proxyScript.Name()
 
 		if _, err := proxyScript.WriteString(proxyScriptContent); err != nil {
+			_ = proxyScript.Close()
 			_ = os.Remove(proxyScriptPath)
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to write proxy command script: %w", err)
