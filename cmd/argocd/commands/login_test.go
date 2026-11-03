@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
-	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -87,15 +86,31 @@ func Test_ssoAuthFlow_ssoLaunchBrowser_false(t *testing.T) {
 	assert.Contains(t, out, "To authenticate, copy-and-paste the following URL into your preferred browser: http://test-sso-browser-flow.com")
 }
 
-func Test_launchBrowser(t *testing.T) {
-	if runtime.GOOS == "windows" {
-		t.Skip("uses a shell script as the browser")
+// TestBrowserHelperProcess is not a real test: Test_launchBrowser runs the test binary itself as the
+// browser, which lands here and records its arguments after "--". This works on every OS, Windows included.
+func TestBrowserHelperProcess(_ *testing.T) {
+	out := os.Getenv("BROWSER_TEST_OUT")
+	if out == "" {
+		return
 	}
+	args := os.Args
+	for i, arg := range args {
+		if arg == "--" {
+			args = args[i+1:]
+			break
+		}
+	}
+	_ = os.WriteFile(out, []byte(strings.Join(args, " ")), 0o600)
+	os.Exit(0)
+}
+
+func Test_launchBrowser(t *testing.T) {
 	const url = "http://test-sso-browser-flow.com/auth?a=1&b=2"
 	dir := t.TempDir()
 	out := filepath.Join(dir, "out")
-	browser := filepath.Join(dir, "browser")
-	require.NoError(t, os.WriteFile(browser, []byte("#!/bin/sh\nprintf '%s\\n' \"$*\" > \"$BROWSER_TEST_OUT\"\n"), 0o700))
+	exe, err := os.Executable()
+	require.NoError(t, err)
+	browser := `"` + exe + `" -test.run=^TestBrowserHelperProcess$ --`
 	t.Setenv("BROWSER_TEST_OUT", out)
 
 	invoked := func(t *testing.T) string {
@@ -174,6 +189,12 @@ func Test_parseBrowserEnv(t *testing.T) {
 	t.Run("windows splits commands on ; outside quotes only", func(t *testing.T) {
 		args, failed := parse(`C:\missing.exe;"C:\a;b\browser.exe" --new-window;`, true)
 		assert.Equal(t, [][]string{{`C:\missing.exe`}, {`C:\a;b\browser.exe`, "--new-window"}, nil}, args)
+		assert.Empty(t, failed)
+	})
+
+	t.Run("windows treats a backslash-escaped quote as literal", func(t *testing.T) {
+		args, failed := parse(`"C:\a\"b;c" --x;"C:\dir\\" --y`, true)
+		assert.Equal(t, [][]string{{`C:\a"b;c`, "--x"}, {`C:\dir\`, "--y"}}, args)
 		assert.Empty(t, failed)
 	})
 
