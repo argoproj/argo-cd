@@ -23,3 +23,7 @@ tests:
     status: Degraded
     message: "unable to determine the target objects"
   inputPath: testdata/NumaflowController/degraded-phase.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed progressive upgrade"
+  inputPath: testdata/NumaflowController/degraded-progressive.yaml

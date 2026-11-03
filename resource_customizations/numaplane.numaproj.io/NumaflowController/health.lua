@@ -1,5 +1,7 @@
 -- Numaplane derives this resource's health from its managed Deployment:
 -- https://github.com/numaproj/numaplane/blob/main/internal/controller/numaflowcontroller/numaflowcontroller_controller.go#L630-L677
+-- A failed progressive upgrade is recorded separately, as it is for Pipeline, MonoVertex, and InterStepBufferService:
+-- https://github.com/numaproj/numaplane/blob/main/internal/common/common.go
 local hs = {}
 
 if obj.status == nil then
@@ -17,6 +19,13 @@ end
 if obj.status.phase == "Failed" then
   hs.status = "Degraded"
   hs.message = obj.status.message
+  return hs
+end
+
+-- The controller can be reconciled and its Deployment healthy while its own progressive assessment has failed.
+if obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/progressive-result-state"] == "failed" then
+  hs.status = "Degraded"
+  hs.message = "Failed progressive upgrade"
   return hs
 end
 
