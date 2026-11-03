@@ -135,3 +135,59 @@ test('bitbucket server (self-hosted, HTTP with explicit port)', () => {
 test('empty url', () => {
     expect(repoUrl('')).toBe(null);
 });
+
+test('Azure DevOps HTTPS and SSH repository and commit links', () => {
+    const urls = [
+        'https://example-org@dev.azure.com/example-org/example-project/_git/example-repo',
+        'https://dev.azure.com/example-org/example-project/_git/example-repo',
+        'git@ssh.dev.azure.com:v3/example-org/example-project/example-repo'
+    ];
+    const expectedRepoUrl = 'https://dev.azure.com/example-org/example-project/_git/example-repo';
+    const revision = '36582dddea28a6ced2b0fdeedceb12f5945bde36';
+
+    for (const url of urls) {
+        expect(repoUrl(url)).toBe(expectedRepoUrl);
+        expect(revisionUrl(url, revision, false)).toBe(`${expectedRepoUrl}/commit/${revision}`);
+    }
+});
+
+test('Azure DevOps lookalike domains are not supported', () => {
+    const url = 'https://dev.azure.com.example.org/example-org/example-project/_git/example-repo';
+
+    expect(repoUrl(url)).toBe(null);
+    expect(revisionUrl(url, '36582dd', false)).toBe(null);
+});
+
+test('Azure DevOps legacy HTTPS and SSH repository and commit links', () => {
+    const urls = ['https://example.visualstudio.com/project/_git/repo', 'git@vs-ssh.visualstudio.com:v3/example/project/repo'];
+    const expectedRepoUrl = 'https://dev.azure.com/example/project/_git/repo';
+    const revision = '36582dddea28a6ced2b0fdeedceb12f5945bde36';
+
+    for (const url of urls) {
+        expect(repoUrl(url)).toBe(expectedRepoUrl);
+        expect(revisionUrl(url, revision, false)).toBe(`${expectedRepoUrl}/commit/${revision}`);
+    }
+});
+
+
+test('Azure DevOps legacy lookalike domains are not supported', () => {
+    const urls = ['https://example.visualstudio.com.evil.org/project/_git/repo', 'https://visualstudio.com.evil.org/project/_git/repo'];
+
+    for (const url of urls) {
+        expect(repoUrl(url)).toBe(null);
+        expect(revisionUrl(url, '36582dd', false)).toBe(null);
+    }
+});
+
+test('Azure DevOps branch, tag and file revisions', () => {
+    const repo = 'https://dev.azure.com/example/project/_git/repo';
+    const sha = '36582dddea28a6ced2b0fdeedceb12f5945bde36';
+
+    expect(revisionUrl(repo, 'main', false)).toBe(`${repo}?version=GBmain`);
+    expect(revisionUrl(repo, 'feature/test', false)).toBe(`${repo}?version=GBfeature%2Ftest`);
+    expect(revisionUrl(repo, 'refs/heads/main', false)).toBe(`${repo}?version=GBmain`);
+    expect(revisionUrl(repo, 'refs/tags/v1.0.0', false)).toBe(`${repo}?version=GTv1.0.0`);
+    expect(revisionUrl(repo, sha, true)).toBe(`${repo}?version=GC${sha}`);
+    expect(revisionUrl(repo, 'HEAD', false)).toBe(repo);
+    expect(revisionUrl(repo, '', false)).toBe(repo);
+});
