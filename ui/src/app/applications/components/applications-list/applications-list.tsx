@@ -412,7 +412,6 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                     <Paginate
                                                                         header={stats.total > 1 && <AppsStatusBar stats={stats} />}
                                                                         showHeader={healthBarPrefs.showHealthStatusBar}
-                                                                        total={list.total}
                                                                         preferencesKey='applications-list'
                                                                         page={pref.page}
                                                                         emptyState={() => (
@@ -478,7 +477,6 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         }
                                                                     </Paginate>
                                                                 )}
-                                                                {pref.view !== 'summary' && list.footer}
                                                             </>
                                                         )}
                                                         <ApplicationsSyncPanel

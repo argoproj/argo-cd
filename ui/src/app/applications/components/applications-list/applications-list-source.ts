@@ -1,5 +1,3 @@
-import * as React from 'react';
-
 import {Application} from '../../../shared/models';
 import {AppsListPreferences} from '../../../shared/services';
 import {AppsListFacets, AppsListStats} from './applications-list-stats';
@@ -21,8 +19,6 @@ export interface AppsListSourceResult {
     retry: () => void;
     /** The applications matching the filters and search, in the order to render them. */
     rows: Application[];
-    /** Set when `rows` is a single page of a larger result, so the paginator must not slice it again. */
-    total?: number;
     facets: AppsListFacets;
     stats: AppsListStats;
     /** The user has no applications at all, as opposed to none matching their filters. */
@@ -31,6 +27,4 @@ export interface AppsListSourceResult {
     searchSuggestions: Application[];
     /** Marks an application as refreshing until its next update arrives. */
     markRefreshing: (appName: string, appNamespace: string) => void;
-    /** Rendered below the list. */
-    footer?: React.ReactNode;
 }

@@ -62,7 +62,6 @@ test('loads the list and filters it on the client', async () => {
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.rows.map(row => row.metadata.name)).toEqual(['a']);
-    expect(result.current.total).toBeUndefined();
     expect(result.current.stats.total).toBe(1);
     // The health group ignores its own filter.
     expect(result.current.facets.totalByHealthStatus).toEqual({Healthy: 1, Degraded: 1});

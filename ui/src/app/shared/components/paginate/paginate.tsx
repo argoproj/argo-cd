@@ -132,8 +132,6 @@ export interface SortOption<T> {
 
 export interface PaginateProps<T> {
     page: number;
-    /** Set when the caller paginates server side: `data` is then already the current page and is not sliced. */
-    total?: number;
     onPageChange: (page: number) => any;
     children: (data: T[], useVirtualScrolling?: boolean) => React.ReactNode;
     data: T[];
@@ -148,13 +146,12 @@ export interface PaginateProps<T> {
     getItemKey?: (item: T) => string;
 }
 
-export function Paginate<T>({page, total, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions, focusItemKey, getItemKey}: PaginateProps<T>) {
+export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions, focusItemKey, getItemKey}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => (
                 <PaginateContent
                     page={page}
-                    total={total}
                     onPageChange={onPageChange}
                     data={data}
                     emptyState={emptyState}
@@ -174,7 +171,6 @@ export function Paginate<T>({page, total, onPageChange, children, data, emptySta
 
 function PaginateContent<T>({
     page,
-    total,
     onPageChange,
     children,
     data,
@@ -187,11 +183,9 @@ function PaginateContent<T>({
     getItemKey,
     pref
 }: PaginateProps<T> & {pref: ViewPreferences}) {
-    const serverSide = total !== undefined;
-    const totalItems = serverSide ? total : data.length;
     const pageSize = pref.pageSizes[preferencesKey] || 10;
     const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
-    const pageCount = pageSize === -1 ? 1 : Math.ceil(totalItems / pageSize);
+    const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
     const currentPage = pageCount <= page ? pageCount - 1 : page;
 
     const sortedData = React.useMemo(() => {
@@ -215,8 +209,6 @@ function PaginateContent<T>({
     // changes rather than latching a one-shot flag: the resource tree streams in incrementally, so
     // the item's index (and therefore its page) can change after the first render. We stop forcing
     // the page only once the user manually paginates (`userPaginatedForKey`), and reset on key change.
-    // Server side pagination is excluded: `data` only holds the current page, so an item's index in
-    // it says nothing about which page it globally belongs to.
     const userPaginatedForKey = React.useRef<string | null>(null);
     const getItemKeyRef = React.useRef(getItemKey);
     const onPageChangeRef = React.useRef(onPageChange);
@@ -232,7 +224,7 @@ function PaginateContent<T>({
     });
 
     React.useEffect(() => {
-        if (!focusItemKey || !getItemKeyRef.current || serverSide) {
+        if (!focusItemKey || !getItemKeyRef.current) {
             userPaginatedForKey.current = null;
             return;
         }
@@ -254,7 +246,7 @@ function PaginateContent<T>({
         if (targetPage !== currentPageRef.current) {
             onPageChangeRef.current(targetPage);
         }
-    }, [focusItemKey, pageCount, pageSize, sortedData, sortOption, serverSide]);
+    }, [focusItemKey, pageCount, pageSize, sortedData, sortOption]);
 
     const handlePageChange = React.useCallback(
         (newPage: number) => {
@@ -322,12 +314,12 @@ function PaginateContent<T>({
     }
 
     const useVirtualScrolling = pageSize === -1;
-    const paginatedData = useVirtualScrolling || serverSide ? sortedData : sortedData.slice(pageSize * currentPage, pageSize * (currentPage + 1));
+    const paginatedData = useVirtualScrolling ? sortedData : sortedData.slice(pageSize * currentPage, pageSize * (currentPage + 1));
 
     return (
         <React.Fragment>
             <div className='paginate'>{paginator()}</div>
-            {totalItems === 0 && emptyState ? emptyState() : children(paginatedData, useVirtualScrolling)}
+            {sortedData.length === 0 && emptyState ? emptyState() : children(paginatedData, useVirtualScrolling)}
             <div className='paginate'>{pageCount > 1 && paginator()}</div>
         </React.Fragment>
     );
