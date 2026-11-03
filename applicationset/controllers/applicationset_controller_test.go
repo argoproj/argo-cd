@@ -2532,6 +2532,28 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 	require.Error(t, err)
 }
 
+func TestGetParametersGeneratedCondition(t *testing.T) {
+	t.Run("parameters generated", func(t *testing.T) {
+		condition := getParametersGeneratedCondition(true, "")
+		assert.Equal(t, v1alpha1.ApplicationSetCondition{
+			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+			Message: "All parameters have been generated successfully",
+			Reason:  v1alpha1.ApplicationSetReasonParametersGenerated,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+		}, condition)
+	})
+
+	t.Run("parameters not generated", func(t *testing.T) {
+		condition := getParametersGeneratedCondition(false, "failed to generate parameters")
+		assert.Equal(t, v1alpha1.ApplicationSetCondition{
+			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+			Message: "failed to generate parameters",
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
+		}, condition)
+	})
+}
+
 func TestSetApplicationSetStatusCondition(t *testing.T) {
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)

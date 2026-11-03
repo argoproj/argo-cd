@@ -3,7 +3,10 @@ package cache
 import (
 	"context"
 	"fmt"
+	"runtime"
 	"testing"
+	"time"
+	"weak"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -12,6 +15,8 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/watch"
+	"k8s.io/client-go/rest"
 	"k8s.io/klog/v2/textlogger"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
@@ -59,7 +64,8 @@ func TestLoadInitialStateDoesNotRetainListPage(t *testing.T) {
 	}
 	resClient := &pagedListResourceInterface{mockResourceInterface: &mockResourceInterface{}, items: items}
 
-	cache := &clusterCache{
+	// loadInitialState is an engine method that writes to the store.
+	cache := &store{
 		listSemaphore:       semaphore.NewWeighted(1),
 		listPageSize:        pageSize,
 		listPageBufferSize:  1,
@@ -79,7 +85,7 @@ func TestLoadInitialStateDoesNotRetainListPage(t *testing.T) {
 		GroupVersionResource: schema.GroupVersionResource{Version: "v1", Resource: "pods"},
 		Meta:                 metav1.APIResource{Namespaced: true},
 	}
-	_, err := cache.loadInitialState(t.Context(), api, resClient, "default", false)
+	_, err := (&legacyEngine{c: cache}).loadInitialState(t.Context(), api, resClient, "default", false)
 	require.NoError(t, err)
 	require.Len(t, cache.resources, pageSize)
 	require.Len(t, resClient.pages, 1, "test assumes the objects arrive in a single page")
@@ -95,4 +101,36 @@ func TestLoadInitialStateDoesNotRetainListPage(t *testing.T) {
 		assert.NotSame(t, &page.Items[i], cached.Resource,
 			"cached manifest points into the list page's backing array, pinning all %d manifests in the page", pageSize)
 	}
+}
+
+func TestProcessEventsDoesNotRetainProcessedBatch(t *testing.T) {
+	t.Parallel()
+
+	c := NewClusterCache(&rest.Config{}, SetEventProcessingInterval(time.Millisecond))
+	e := legacyEngineOf(c)
+	e.eventMetaCh = make(chan eventMeta)
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		e.processEvents()
+	}()
+	t.Cleanup(func() {
+		close(e.eventMetaCh)
+		<-done
+	})
+
+	processed := func() weak.Pointer[unstructured.Unstructured] {
+		un := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata":   map[string]any{"name": "cm", "namespace": "default"},
+		}}
+		e.eventMetaCh <- eventMeta{event: watch.Deleted, un: un}
+		return weak.Make(un)
+	}()
+
+	require.Eventually(t, func() bool {
+		runtime.GC()
+		return processed.Value() == nil
+	}, 5*time.Second, 10*time.Millisecond, "processEvents keeps a processed event reachable until a later batch overwrites its slot")
 }

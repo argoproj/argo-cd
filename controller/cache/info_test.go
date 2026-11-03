@@ -1841,6 +1841,34 @@ func TestExternalUrlWithSubPath(t *testing.T) {
 	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
 }
 
+func TestExternalUrlTlsScheme(t *testing.T) {
+	ingress := strToUnstructured(`
+  apiVersion: networking.k8s.io/v1
+  kind: Ingress
+  metadata:
+    name: helm-guestbook
+    namespace: default
+  spec:
+    rules:
+    - host: ingress-tls-without-secret.example.com
+      http:
+        paths:
+        - backend:
+            service:
+              name: helm-guestbook
+              port:
+                number: 443
+          path: /
+    tls:
+    - hosts:
+      - ingress-tls-without-secret.example.com`)
+
+	info := &ResourceInfo{}
+	populateNodeInfo(ingress, info, []string{})
+	expectedExternalUrls := []string{"https://ingress-tls-without-secret.example.com/"}
+	assert.Equal(t, expectedExternalUrls, info.NetworkingInfo.ExternalURLs)
+}
+
 func TestExternalUrlWithMultipleSubPaths(t *testing.T) {
 	ingress := strToUnstructured(`
   apiVersion: networking.k8s.io/v1

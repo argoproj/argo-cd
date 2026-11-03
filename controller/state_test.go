@@ -2238,6 +2238,54 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 	require.False(t, revisionsMayHaveChanges)
 }
 
+func TestGetRepoObjs_CallUpdateRevisionForPaths_ForShallowClone(t *testing.T) {
+	app := newFakeApp()
+	// Enable the manifest-generate-paths annotation and set a synced revision
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision: "abc123",
+		Status:   v1alpha1.SyncStatusCodeSynced,
+	}
+
+	repoSecret := &corev1.Secret{
+		Name:      "shallow-repo",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+		Data: map[string][]byte{
+			"type":  []byte("git"),
+			"url":   []byte(app.Spec.GetSource().RepoURL),
+			"depth": []byte("1"),
+		},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "def456",
+		},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+			Changes:  false,
+			Revision: "def456",
+		},
+		additionalObjs: []runtime.Object{repoSecret},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	repo, err := ctrl.db.GetRepository(t.Context(), app.Spec.GetSource().RepoURL, defaultProj.Name)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), repo.Depth)
+
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+
+	// A shallow clone must not disable the manifest-generate-paths check: with no changes in the
+	// annotated paths, the new revision must not be reported as possibly changed.
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"def456"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}
+
 func TestGetRepoObjs_CallUpdateRevisionForPaths_ForMultiSource(t *testing.T) {
 	app := newFakeApp()
 	// Enable the manifest-generate-paths annotation and set a synced revision

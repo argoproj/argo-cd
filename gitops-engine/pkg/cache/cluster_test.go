@@ -7,6 +7,7 @@ import (
 	"maps"
 	"sort"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -550,6 +551,57 @@ func TestStatefulSetPVC_WatchEvent_IndexUpdated(t *testing.T) {
 	children, indexUpdated := cluster.parentUIDToChildren[stsUID]
 	require.True(t, indexUpdated, "Index should be updated when inferred refs are added via watch events")
 	require.Contains(t, children, pvcKey, "PVC should be in StatefulSet's children (inferred relationship)")
+}
+
+func TestReplaceResourceCacheTreatsUIDChangeAsDeleteAndAdd(t *testing.T) {
+	t.Parallel()
+	sts := func(uid types.UID, resourceVersion string) *appsv1.StatefulSet {
+		return &appsv1.StatefulSet{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: kube.StatefulSetKind},
+			ObjectMeta: metav1.ObjectMeta{UID: uid, ResourceVersion: resourceVersion, Name: "web", Namespace: "default"},
+			Spec: appsv1.StatefulSetSpec{
+				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
+					ObjectMeta: metav1.ObjectMeta{Name: "data"},
+				}},
+			},
+		}
+	}
+	pvc := &corev1.PersistentVolumeClaim{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.PersistentVolumeClaimKind},
+		ObjectMeta: metav1.ObjectMeta{UID: "pvc-uid", Name: "data-web-0", Namespace: "default"},
+	}
+	cluster := newCluster(t, sts("old-uid", "1"), pvc).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: kube.PersistentVolumeClaimKind},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}})
+	require.NoError(t, cluster.EnsureSynced())
+
+	var dispatched []string
+	cluster.OnResourceUpdated(func(newRes, oldRes *Resource, _ map[kube.ResourceKey]*Resource) {
+		switch {
+		case newRes == nil:
+			dispatched = append(dispatched, "delete "+string(oldRes.Ref.UID))
+		case oldRes == nil:
+			dispatched = append(dispatched, "add "+string(newRes.Ref.UID))
+		default:
+			dispatched = append(dispatched, "update "+string(oldRes.Ref.UID)+" to "+string(newRes.Ref.UID))
+		}
+	})
+
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
+	replacement := cluster.newResource(mustToUnstructured(sts("new-uid", "2")))
+	cluster.replaceResourceCache(schema.GroupKind{Group: "apps", Kind: kube.StatefulSetKind}, []*Resource{replacement}, "")
+
+	pvcKey := kube.NewResourceKey("", kube.PersistentVolumeClaimKind, "default", "data-web-0")
+	pvcResource := cluster.resources[pvcKey]
+	require.NotNil(t, pvcResource)
+	require.Len(t, pvcResource.OwnerRefs, 1, "PVC must not keep an inferred owner ref to the replaced StatefulSet")
+	require.Equal(t, types.UID("new-uid"), pvcResource.OwnerRefs[0].UID)
+	require.NotContains(t, cluster.parentUIDToChildren, types.UID("old-uid"))
+	require.Contains(t, cluster.parentUIDToChildren[types.UID("new-uid")], pvcKey)
+	require.Equal(t, []string{"delete old-uid", "add new-uid"}, dispatched, "handlers must see the replaced StatefulSet as a delete followed by an add")
 }
 
 func TestEnsureSyncedSingleNamespace(t *testing.T) {
@@ -2176,7 +2228,7 @@ func TestDiscoveryGetters_ConcurrentWithResync(t *testing.T) {
 			})
 			cluster.Invalidate()
 			require.NoError(t, cluster.EnsureSynced())
-			require.NoError(t, cluster.reloadOpenAPISchema())
+			require.NoError(t, runSynced(&cluster.lock, cluster.reloadOpenAPISchema))
 			// As the CRD watch does.
 			require.NoError(t, runSynced(&cluster.lock, func() error {
 				cluster.appendAPIResource(crdInfo)
@@ -2222,6 +2274,130 @@ func TestCRDVersionsToAPIResources(t *testing.T) {
 	resources, err = cluster.crdVersionsToAPIResources(crd(map[string]any{"preserveUnknownFields": "not-a-bool"}))
 	require.Error(t, err)
 	assert.Nil(t, resources)
+}
+
+// lockProbe arms kubectl hooks on cluster that record whether c.lock is held
+// when GetAPIResources (startMissingWatches) and LoadOpenAPISchema
+// (reloadOpenAPISchema) run. Arm it after EnsureSynced, since sync calls both.
+type lockProbe struct {
+	held, notHeld atomic.Int32
+}
+
+func armLockProbe(cluster *clusterCache) *lockProbe {
+	p := &lockProbe{}
+	record := func() {
+		if cluster.lock.TryLock() {
+			cluster.lock.Unlock()
+			p.notHeld.Add(1)
+			return
+		}
+		p.held.Add(1)
+	}
+	mock := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	apis := mock.APIResources
+	mock.WithGetAPIResourcesFunc(func(*rest.Config, bool, kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+		record()
+		return apis, nil
+	})
+	mock.WithLoadOpenAPISchemaFunc(func(*rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+		record()
+		return nil, nil, nil
+	})
+	return p
+}
+
+func (p *lockProbe) assertHeld(t *testing.T, calls int32) {
+	t.Helper()
+	assert.Equal(t, calls, p.held.Load(), "kubectl calls made with c.lock held")
+	assert.Zero(t, p.notHeld.Load(), "kubectl calls made without c.lock")
+}
+
+// TestHandleCRDEvent_LockContract checks that handleCRDEvent, called without
+// c.lock, holds the lock during startMissingWatches and reloadOpenAPISchema,
+// and that neither callee takes it again: the non-reentrant lock would
+// deadlock and the test would time out.
+func TestHandleCRDEvent_LockContract(t *testing.T) {
+	t.Parallel()
+	// Not newCluster: its cleanup calls Invalidate, which would wait forever on
+	// the lock a deadlocked handleCRDEvent still holds.
+	cluster := newClusterWithOptions(t, nil)
+	deadlocked := false
+	t.Cleanup(func() {
+		if !deadlocked {
+			cluster.Invalidate()
+		}
+	})
+	require.NoError(t, cluster.EnsureSynced())
+	probe := armLockProbe(cluster)
+
+	crd := strToUnstructured(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: dummies.example.com
+spec:
+  group: example.com
+  scope: Namespaced
+  names:
+    kind: Dummy
+    plural: dummies
+    singular: dummy
+  versions:
+  - name: v1`)
+	require.True(t, kube.IsCRD(crd), "sanity: the fixture must be recognised as a CRD")
+
+	// All three event types take the same locking path as the watch loop.
+	for _, event := range []watch.EventType{watch.Added, watch.Modified, watch.Deleted} {
+		done := make(chan struct{})
+		go func() {
+			defer close(done)
+			cluster.handleCRDEvent(legacyEngineOf(cluster), event, crd)
+		}()
+		select {
+		case <-done:
+		case <-time.After(10 * time.Second):
+			deadlocked = true
+			t.Fatalf("handleCRDEvent(%s) did not return; store.lock is likely acquired twice", event)
+		}
+	}
+	// Added and Modified: startMissingWatches and reloadOpenAPISchema.
+	// Deleted: reloadOpenAPISchema only.
+	probe.assertHeld(t, 5)
+
+	for _, api := range cluster.GetAPIResources() {
+		assert.NotEqual(t, "Dummy", api.GroupKind.Kind, "the deleted CRD must not remain in apiResources")
+	}
+}
+
+// TestReconcileAPIServiceWatches_LockContract checks that
+// reconcileAPIServiceWatches, called without c.lock, holds the lock during
+// startMissingWatches and reloadOpenAPISchema without taking it twice.
+func TestReconcileAPIServiceWatches_LockContract(t *testing.T) {
+	t.Parallel()
+	// Not newCluster, for the same reason as TestHandleCRDEvent_LockContract.
+	cluster := newClusterWithOptions(t, nil)
+	deadlocked := false
+	t.Cleanup(func() {
+		if !deadlocked {
+			cluster.Invalidate()
+		}
+	})
+	require.NoError(t, cluster.EnsureSynced())
+	probe := armLockProbe(cluster)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		// waitForGroup=false reconciles once, without the backoff.
+		cluster.reconcileAPIServiceWatches(legacyEngineOf(cluster), "example.com", false)
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		deadlocked = true
+		t.Fatal("reconcileAPIServiceWatches did not return; store.lock is likely acquired twice")
+	}
+	probe.assertHeld(t, 2)
 }
 
 func buildTestResourceMap() map[kube.ResourceKey]*Resource {
