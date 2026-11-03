@@ -73,7 +73,7 @@ test('loads the list and filters it on the client', async () => {
 test('applies watch events from the version the list was read at', async () => {
     const result = setup({pref: pref(), appNamespace: '', hydratorEnabled: false});
     await waitFor(() => expect(services.applications.watch).toHaveBeenCalled());
-    expect(jest.mocked(services.applications.watch).mock.calls[0][1]).toEqual({projects: [], resourceVersion: '5'});
+    expect(jest.mocked(services.applications.watch).mock.calls[0][1]).toEqual({projects: [], appNamespace: '', resourceVersion: '5'});
 
     act(() => {
         watch.next({type: 'ADDED', application: app('c')});
@@ -83,6 +83,20 @@ test('applies watch events from the version the list was read at', async () => {
 
     await waitFor(() => expect(result.current.rows.map(row => row.metadata.name)).toEqual(['c', 'b']));
     expect(result.current.stats.totalByHealthStatus).toEqual({Healthy: 2});
+});
+
+test('ignores watch events from other namespaces when the list is scoped to one', async () => {
+    const result = setup({pref: pref(), appNamespace: 'argocd', hydratorEnabled: false});
+    await waitFor(() => expect(services.applications.watch).toHaveBeenCalled());
+    expect(jest.mocked(services.applications.watch).mock.calls[0][1]).toEqual({projects: [], appNamespace: 'argocd', resourceVersion: '5'});
+
+    const elsewhere = {...app('c'), metadata: {name: 'c', namespace: 'other'}} as Application;
+    act(() => {
+        watch.next({type: 'ADDED', application: elsewhere});
+        watch.next({type: 'ADDED', application: app('d')});
+    });
+
+    await waitFor(() => expect(result.current.rows.map(row => row.metadata.name)).toEqual(['d', 'a', 'b']));
 });
 
 test('neither lists nor watches when favorites only is on without favorites', async () => {

@@ -117,7 +117,7 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
     const keyHash = hashKey([pref.projectsFilter, appNamespace, names]);
     const options = React.useMemo(() => listViewQuery(pref.projectsFilter, appNamespace, names), [keyHash]); // eslint-disable-line react-hooks/exhaustive-deps
     const {queryKey} = options;
-    const watchQuery = React.useMemo(() => ({projects: pref.projectsFilter, names}), [keyHash]); // eslint-disable-line react-hooks/exhaustive-deps
+    const watchQuery = React.useMemo(() => ({projects: pref.projectsFilter, appNamespace, names}), [keyHash]); // eslint-disable-line react-hooks/exhaustive-deps
     // Keep the current list (and with it the filter sidebar) rendered while a filter change reloads the
     // data, instead of dropping to the loading placeholder.
     const query = useQuery({...options, placeholderData: keepPreviousData});
@@ -143,10 +143,13 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
             return;
         }
         const subscription = services.applications
-            .watch('application', {projects: watchQuery.projects, resourceVersion}, {fields: APP_WATCH_FIELDS, names: watchQuery.names})
+            .watch('application', {projects: watchQuery.projects, appNamespace: watchQuery.appNamespace, resourceVersion}, {fields: APP_WATCH_FIELDS, names: watchQuery.names})
             .pipe(repeat())
             .pipe(retry({delay: WATCH_RETRY_TIMEOUT}))
             // batch events to avoid constant re-rendering and improve UI performance
+            // The list is scoped to appNamespace, but the server only applies it to a watch for a single
+            // application, so drop other namespaces' events rather than adding them to the list.
+            .pipe(filter(change => !watchQuery.appNamespace || change.application.metadata.namespace === watchQuery.appNamespace))
             .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
             .pipe(filter(changes => changes.length > 0))
             .subscribe(changes => queryClient.setQueryData(queryKey, list => list && applyWatchEvents(list, changes)));
