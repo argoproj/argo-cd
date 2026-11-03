@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -582,12 +583,12 @@ func launchBrowser(url string) error {
 		return open.Start(url)
 	}
 	var errs []error
-	for _, browser := range filepath.SplitList(browsers) {
-		args, err := shlex.Split(browser)
-		if err != nil {
-			errs = append(errs, fmt.Errorf("parsing BROWSER entry %q: %w", browser, err))
+	for _, entry := range parseBrowserEnv(browsers, runtime.GOOS == "windows") {
+		if entry.err != nil {
+			errs = append(errs, fmt.Errorf("parsing BROWSER entry %q: %w", entry.raw, entry.err))
 			continue
 		}
+		args := entry.args
 		if len(args) == 0 {
 			errs = append(errs, fmt.Errorf("empty BROWSER entry in %q", browsers))
 			continue
@@ -605,11 +606,74 @@ func launchBrowser(url string) error {
 		// Not tied to the login context: cancelling it would kill a browser started directly.
 		cmd := exec.CommandContext(context.Background(), args[0], args[1:]...)
 		if err := cmd.Start(); err != nil {
-			errs = append(errs, fmt.Errorf("starting BROWSER entry %q: %w", browser, err))
+			errs = append(errs, fmt.Errorf("starting BROWSER entry %q: %w", entry.raw, err))
 			continue
 		}
 		go func() { _ = cmd.Wait() }()
 		return nil
 	}
 	return fmt.Errorf("no usable browser in BROWSER: %w", stderrors.Join(errs...))
+}
+
+// browserEntry is one command of $BROWSER: its raw text and its arguments, or the error parsing it.
+type browserEntry struct {
+	raw  string
+	args []string
+	err  error
+}
+
+// parseBrowserEnv splits $BROWSER into commands and each command into arguments. Elsewhere than on
+// Windows, commands are separated by ':' and split with POSIX shell rules (quotes, backslash escapes).
+// On Windows, commands are separated by ';' and double quotes group words, but a backslash is a literal
+// path separator, so `"C:\Program Files\...\chrome.exe" --new-window` keeps its executable path.
+func parseBrowserEnv(browsers string, windows bool) []browserEntry {
+	var entries []browserEntry
+	if !windows {
+		for raw := range strings.SplitSeq(browsers, ":") {
+			args, err := shlex.Split(raw)
+			entries = append(entries, browserEntry{raw: raw, args: args, err: err})
+		}
+		return entries
+	}
+	var (
+		raw, arg strings.Builder
+		args     []string
+		inQuote  bool
+		inArg    bool
+	)
+	endArg := func() {
+		if inArg {
+			args = append(args, arg.String())
+			arg.Reset()
+			inArg = false
+		}
+	}
+	endEntry := func() {
+		endArg()
+		var err error
+		if inQuote {
+			err = stderrors.New("unterminated double quote")
+		}
+		entries = append(entries, browserEntry{raw: raw.String(), args: args, err: err})
+		raw.Reset()
+		args, inQuote = nil, false
+	}
+	for _, r := range browsers {
+		switch {
+		case r == ';' && !inQuote:
+			endEntry()
+			continue
+		case r == '"':
+			inQuote = !inQuote
+			inArg = true
+		case (r == ' ' || r == '\t') && !inQuote:
+			endArg()
+		default:
+			arg.WriteRune(r)
+			inArg = true
+		}
+		raw.WriteRune(r)
+	}
+	endEntry()
+	return entries
 }

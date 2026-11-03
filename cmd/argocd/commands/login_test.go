@@ -151,6 +151,50 @@ func Test_launchBrowser(t *testing.T) {
 	})
 }
 
+func Test_parseBrowserEnv(t *testing.T) {
+	// parse returns each entry's arguments, and the indexes of the entries that failed to parse.
+	parse := func(browsers string, windows bool) ([][]string, []int) {
+		var args [][]string
+		var failed []int
+		for i, e := range parseBrowserEnv(browsers, windows) {
+			args = append(args, e.args)
+			if e.err != nil {
+				failed = append(failed, i)
+			}
+		}
+		return args, failed
+	}
+
+	t.Run("windows keeps a quoted executable path and its backslashes", func(t *testing.T) {
+		args, failed := parse(`"C:\Program Files\Google\Chrome\Application\chrome.exe" --profile-directory="Profile 1" %s`, true)
+		assert.Equal(t, [][]string{{`C:\Program Files\Google\Chrome\Application\chrome.exe`, "--profile-directory=Profile 1", "%s"}}, args)
+		assert.Empty(t, failed)
+	})
+
+	t.Run("windows splits commands on ; outside quotes only", func(t *testing.T) {
+		args, failed := parse(`C:\missing.exe;"C:\a;b\browser.exe" --new-window;`, true)
+		assert.Equal(t, [][]string{{`C:\missing.exe`}, {`C:\a;b\browser.exe`, "--new-window"}, nil}, args)
+		assert.Empty(t, failed)
+	})
+
+	t.Run("windows reports an unterminated quote", func(t *testing.T) {
+		_, failed := parse(`"C:\Program Files\browser.exe`, true)
+		assert.Equal(t, []int{0}, failed)
+	})
+
+	t.Run("posix splits commands on : and follows shell quoting", func(t *testing.T) {
+		args, failed := parse(`/missing:open -na "Google Chrome" --args --profile-directory="Profile 1" %s`, false)
+		assert.Equal(t, [][]string{{"/missing"}, {"open", "-na", "Google Chrome", "--args", "--profile-directory=Profile 1", "%s"}}, args)
+		assert.Empty(t, failed)
+	})
+
+	t.Run("posix keeps backslash escapes", func(t *testing.T) {
+		args, failed := parse(`/opt/my\ browser/run %s`, false)
+		assert.Equal(t, [][]string{{"/opt/my browser/run", "%s"}}, args)
+		assert.Empty(t, failed)
+	})
+}
+
 func Test_applyCertConfig(t *testing.T) {
 	dir := t.TempDir()
 	certPath := filepath.Join(dir, "client.crt")
