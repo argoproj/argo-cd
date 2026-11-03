@@ -288,8 +288,8 @@ func (sharding *ClusterSharding) UpdateApp(a *v1alpha1.Application) {
 
 // upsertApp stores a and recomputes the distribution when the app is new or
 // its destination cluster changed: the consistent-hashing-with-bounded-loads
-// algorithm weights each cluster by its app count (keyed on
-// Destination.Server), so a destination change shifts load between clusters.
+// algorithm weights each cluster by its app count, so a destination change
+// (server or name) shifts load between clusters.
 // Apps are keyed by QualifiedName (namespace/name) so that same-named apps in
 // different namespaces (apps-in-any-namespace) do not collide and undercount.
 func (sharding *ClusterSharding) upsertApp(a *v1alpha1.Application) {
@@ -299,7 +299,7 @@ func (sharding *ClusterSharding) upsertApp(a *v1alpha1.Application) {
 	key := a.QualifiedName()
 	old, ok := sharding.Apps[key]
 	sharding.Apps[key] = a
-	if !ok || old.Spec.Destination.Server != a.Spec.Destination.Server {
+	if !ok || old.Spec.Destination != a.Spec.Destination {
 		sharding.updateDistribution()
 		return
 	}

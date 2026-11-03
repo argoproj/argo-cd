@@ -820,6 +820,17 @@ func testUpsertAppDestinationChange(t *testing.T, upsert func(*ClusterSharding, 
 	sameApp := createApp("app1", "https://serverB")
 	upsert(sharding, &sameApp)
 	assert.Zero(t, shardCalls, "no destination change should skip updateDistribution")
+
+	// Moving the app to another cluster by name (server unset) must recompute too.
+	shardCalls = 0
+	byName := createApp("app1", "")
+	byName.Spec.Destination.Name = "cluster-a"
+	upsert(sharding, &byName)
+	shardCalls = 0
+	movedByName := createApp("app1", "")
+	movedByName.Spec.Destination.Name = "cluster-b"
+	upsert(sharding, &movedByName)
+	assert.Positive(t, shardCalls, "destination name change should trigger updateDistribution")
 }
 
 // TestClusterSharding_UpdateShard_ConcurrentWithReads exercises UpdateShard
