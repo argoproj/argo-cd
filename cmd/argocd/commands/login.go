@@ -643,13 +643,15 @@ func parseBrowserEnv(browsers string, windows bool) []browserEntry {
 	return entries
 }
 
-// splitOutsideQuotes splits s on sep wherever sep is not quoted. With posix, single quotes and backslash
-// escapes are honored as well as double quotes; otherwise only double quotes are.
+// splitOutsideQuotes splits s on sep wherever sep is not quoted. With posix, single quotes, double quotes
+// and backslash escapes are honored. Otherwise the Windows rules apply: only double quotes group, and a
+// double quote preceded by an odd number of backslashes is a literal quote.
 func splitOutsideQuotes(s string, sep rune, posix bool) []string {
 	var (
 		parts                       []string
 		cur                         strings.Builder
 		inSingle, inDouble, escaped bool
+		backslashes                 int
 	)
 	for _, r := range s {
 		switch {
@@ -659,43 +661,70 @@ func splitOutsideQuotes(s string, sep rune, posix bool) []string {
 			escaped = true
 		case posix && r == '\'' && !inDouble:
 			inSingle = !inSingle
-		case r == '"' && !inSingle:
+		case r == '"' && !inSingle && (posix || backslashes%2 == 0):
 			inDouble = !inDouble
 		case r == sep && !inSingle && !inDouble:
 			parts = append(parts, cur.String())
 			cur.Reset()
+			backslashes = 0
 			continue
+		}
+		if r == '\\' {
+			backslashes++
+		} else {
+			backslashes = 0
 		}
 		cur.WriteRune(r)
 	}
 	return append(parts, cur.String())
 }
 
-// splitWindowsArgs splits one Windows command into arguments: whitespace separates them, double quotes
-// group words and are dropped, and backslashes are kept as is.
+// splitWindowsArgs splits one Windows command into arguments with the CommandLineToArgvW rules:
+// whitespace separates arguments outside double quotes, double quotes group words and are dropped,
+// 2n backslashes before a double quote become n backslashes, 2n+1 become n backslashes and a literal
+// double quote, and any other backslash is kept as is (a path separator).
 func splitWindowsArgs(s string) ([]string, error) {
 	var (
-		args    []string
-		arg     strings.Builder
-		inQuote bool
-		inArg   bool
+		args        []string
+		arg         strings.Builder
+		inQuote     bool
+		inArg       bool
+		backslashes int
 	)
+	flushBackslashes := func(n int) {
+		if n > 0 {
+			arg.WriteString(strings.Repeat("\\", n))
+			inArg = true
+		}
+	}
 	for _, r := range s {
 		switch {
+		case r == '\\':
+			backslashes++
+			continue
 		case r == '"':
-			inQuote = !inQuote
+			flushBackslashes(backslashes / 2)
+			if backslashes%2 == 1 {
+				arg.WriteRune('"')
+			} else {
+				inQuote = !inQuote
+			}
 			inArg = true
 		case (r == ' ' || r == '\t') && !inQuote:
+			flushBackslashes(backslashes)
 			if inArg {
 				args = append(args, arg.String())
 				arg.Reset()
 				inArg = false
 			}
 		default:
+			flushBackslashes(backslashes)
 			arg.WriteRune(r)
 			inArg = true
 		}
+		backslashes = 0
 	}
+	flushBackslashes(backslashes)
 	if inQuote {
 		return nil, stderrors.New("unterminated double quote")
 	}
