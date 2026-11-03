@@ -39,3 +39,11 @@ tests:
     status: Degraded
     message: "Ancestor missing-service: Service \"missing-service\" not found"
   inputPath: testdata/degraded_same_controller_target_not_found.yaml
+- healthStatus:
+    status: Degraded
+    message: "Ancestor missing-service: Service \"missing-service\" not found"
+  inputPath: testdata/degraded_other_controller_different_ref.yaml
+- healthStatus:
+    status: Degraded
+    message: "Ancestor : "
+  inputPath: testdata/degraded_missing_message.yaml
