@@ -113,6 +113,34 @@ func TestStringSliceFlagAtEnd(t *testing.T) {
 	assert.Equal(t, "Strict-Transport-Security: max-age=31536000", strings[0])
 }
 
+func TestStringSliceFlagMultipleHeaders(t *testing.T) {
+	loadOpts(t, "--header 'CF-Access-Client-Id: foo' --header 'CF-Access-Client-Secret: bar'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
+}
+
+func TestStringSliceFlagMultipleHeadersWithEquals(t *testing.T) {
+	loadOpts(t, "--header='CF-Access-Client-Id: foo' --header='CF-Access-Client-Secret: bar'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 2)
+	assert.Equal(t, "CF-Access-Client-Id: foo", strings[0])
+	assert.Equal(t, "CF-Access-Client-Secret: bar", strings[1])
+}
+
+func TestStringSliceFlagMixedRepeatedAndComma(t *testing.T) {
+	loadOpts(t, "--header 'H1: V1,H2: V2' --header 'H3: V3'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 3)
+	assert.Equal(t, "H1: V1", strings[0])
+	assert.Equal(t, "H2: V2", strings[1])
+	assert.Equal(t, "H3: V3", strings[2])
+}
+
 func TestFlagAtStart(t *testing.T) {
 	loadOpts(t, "--foo bar")
 
