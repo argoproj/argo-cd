@@ -17,7 +17,7 @@ import {Filter, FiltersGroup} from '../filter/filter';
 import {createMetadataSelector} from '../selectors';
 import {ComparisonStatusIcon, getAppAllSources, getAppSetHealthStatus, HealthStatusIcon, getOperationStateTitle, isFavorite} from '../utils';
 import {formatClusterQueryParam} from '../../../shared/utils';
-import {COLORS} from '../../../shared/components/colors';
+import {COLORS} from '../../../shared/components';
 import {AppsListFacets, collectMetadataValues, DestinationCluster, getAutoSyncStatus, getHydrationStatus, MetadataValues, StatusCounts} from './applications-list-stats';
 
 export {getAutoSyncStatus, getHydrationStatus};
@@ -149,14 +149,14 @@ export interface AppSetFilterProps {
 }
 
 const getAppSetCounts = (apps: ApplicationSetFilteredApp[], filterType: keyof ApplicationSetFilterResult, filter: (app: ApplicationSet) => string, init?: string[]) => {
-    const map = new Map<string, number>();
-    if (init) {
-        init.forEach(key => map.set(key, 0));
+    const map = new Map<string, number>((init ?? []).map(key => [key, 0]));
+    for (const app of apps) {
+        const value = filter(app);
+        // count only apps matching all other filters, ignoring this filter's own result
+        if (value && Object.keys(app.filterResult).every((key: keyof ApplicationSetFilterResult) => key === filterType || app.filterResult[key])) {
+            map.set(value, (map.get(value) || 0) + 1);
+        }
     }
-    // filter out all apps that does not match other filters and ignore this filter result
-    apps.filter(app => filter(app) && Object.keys(app.filterResult).every((key: keyof ApplicationSetFilterResult) => key === filterType || app.filterResult[key])).forEach(app =>
-        map.set(filter(app), (map.get(filter(app)) || 0) + 1)
-    );
     return map;
 };
 
@@ -275,12 +275,7 @@ const HydrationFilter = (props: AppFilterProps) => (
 );
 
 function metadataOptions(values: MetadataValues[]) {
-    const suggestions: string[] = [];
-    values.forEach(({key, values: keyValues}) => {
-        suggestions.push(key);
-        keyValues.forEach(val => suggestions.push(`${key}=${val}`));
-    });
-    return suggestions.map(s => ({label: s}));
+    return values.flatMap(({key, values: keyValues}) => [{label: key}, ...keyValues.map(val => ({label: `${key}=${val}`}))]);
 }
 
 const MetadataFilter = React.memo((props: {label: string; values: MetadataValues[]; selected: string[]; onChange: (selected: string[]) => void}) => {
