@@ -380,6 +380,15 @@ func (e *informerEngine) startMissingWatches() error {
 // the last namespace goes, the GroupKind itself is dropped: its context is
 // cancelled and it leaves apisMeta and namespacedResources.
 func (e *informerEngine) stopWatching(gk schema.GroupKind, ns string) {
+	e.stopWatchingForContext(gk, ns, nil)
+}
+
+// stopWatchingForContext is stopWatching, but only when expectedCtx is nil
+// (unconditional) or matches the ctx of the informer currently registered
+// for that key. The watch-error handlers pass their informer's own ctx: if a
+// destructive rebuild has replaced the informer since the error fired, the
+// stale handler must not kill the replacement.
+func (e *informerEngine) stopWatchingForContext(gk schema.GroupKind, ns string, expectedCtx context.Context) {
 	c := e.c
 	c.lock.Lock()
 	defer c.lock.Unlock()
@@ -388,6 +397,9 @@ func (e *informerEngine) stopWatching(gk schema.GroupKind, ns string) {
 		return
 	}
 	si, stopped := e.informers[gk][ns]
+	if stopped && expectedCtx != nil && si.ctx != expectedCtx {
+		return
+	}
 	if stopped {
 		si.cancel()
 		delete(e.informers[gk], ns)
@@ -648,7 +660,7 @@ func (e *informerEngine) buildInformer(ctx context.Context, client dynamic.Inter
 	if err := informer.SetTransform(e.transformForInformer); err != nil {
 		panic(fmt.Errorf("unreachable: SetTransform on fresh informer: %w", err))
 	}
-	if err := informer.SetWatchErrorHandlerWithContext(e.informerWatchErrorHandler(api, ns)); err != nil {
+	if err := informer.SetWatchErrorHandlerWithContext(e.informerWatchErrorHandler(ctx, api, ns)); err != nil {
 		panic(fmt.Errorf("unreachable: SetWatchErrorHandler on fresh informer: %w", err))
 	}
 	// Keep the handler registration: its HasSynced covers DELIVERY of the
@@ -678,9 +690,15 @@ func (e *informerEngine) buildInformer(ctx context.Context, client dynamic.Inter
 //     and let the reflector's built-in backoff retry — no legacy equivalent
 //     is missed, since the legacy watch loop also just looped on watch errors.
 //
-// Called from the reflector's goroutine; stopWatching acquires store.lock
-// which is not held here.
-func (e *informerEngine) informerWatchErrorHandler(api kube.APIResourceInfo, ns string) cache.WatchErrorHandlerWithContext {
+// informerCtx is the ctx the informer runs with (sharedInformer.ctx). The
+// teardown only fires while that informer is still the one registered for
+// (GroupKind, ns): a destructive rebuild can swap in a replacement between
+// the error firing and the handler taking store.lock, and the stale handler
+// must not kill it.
+//
+// Called from the reflector's goroutine; stopWatchingForContext acquires
+// store.lock which is not held here.
+func (e *informerEngine) informerWatchErrorHandler(informerCtx context.Context, api kube.APIResourceInfo, ns string) cache.WatchErrorHandlerWithContext {
 	c := e.c
 	return func(ctx context.Context, r *cache.Reflector, err error) {
 		switch {
@@ -688,7 +706,7 @@ func (e *informerEngine) informerWatchErrorHandler(api kube.APIResourceInfo, ns 
 			c.log.Info("Stop watching (resource not found)",
 				"groupKind", api.GroupKind.String(),
 				"namespace", namespaceDescription(ns))
-			e.stopWatching(api.GroupKind, ns)
+			e.stopWatchingForContext(api.GroupKind, ns, informerCtx)
 		case apierrors.IsForbidden(err), apierrors.IsUnauthorized(err):
 			if c.respectRBAC == RespectRbacDisabled {
 				cache.DefaultWatchErrorHandler(ctx, r, err)
@@ -729,7 +747,7 @@ func (e *informerEngine) informerWatchErrorHandler(api kube.APIResourceInfo, ns 
 				"groupKind", api.GroupKind.String(),
 				"namespace", namespaceDescription(ns),
 				"error", err.Error())
-			e.stopWatching(api.GroupKind, ns)
+			e.stopWatchingForContext(api.GroupKind, ns, informerCtx)
 		default:
 			cache.DefaultWatchErrorHandler(ctx, r, err)
 		}

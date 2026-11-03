@@ -840,13 +840,62 @@ func TestInformerWatchErrorHandler_NotFoundStopsWatching(t *testing.T) {
 	// Fire the handler with a NotFound error directly — this is what the
 	// reflector would call on a GroupKind that disappeared (e.g., a CRD
 	// was deleted out from under us).
-	handler := c.informerWatchErrorHandler(podsAPI(), "")
+	c.lock.RLock()
+	handlerCtx := informerEngineOf(c).informers[podsGVK.GroupKind()][""].ctx
+	c.lock.RUnlock()
+	handler := c.informerWatchErrorHandler(handlerCtx, podsAPI(), "")
 	handler(ctx, nil, apierrors.NewNotFound(schema.GroupResource{Resource: "pods"}, ""))
 
 	c.lock.RLock()
 	_, stillWatching := c.apisMeta[podsGVK.GroupKind()]
 	c.lock.RUnlock()
 	assert.False(t, stillWatching, "NotFound should trigger stopWatching")
+}
+
+// TestInformerWatchErrorHandler_StaleHandlerSparesReplacement pins the race
+// where a watch error fires on the old informer's reflector goroutine, a
+// destructive rebuild (Invalidate, timed-out resync) then swaps in a
+// replacement for the same key, and only afterwards does the stale handler
+// get store.lock. It must leave the replacement running.
+func TestInformerWatchErrorHandler_StaleHandlerSparesReplacement(t *testing.T) {
+	c, _ := newInformerTestCache(t, unstructuredPod("nginx", "default"))
+	parent, cancelParent := context.WithCancel(t.Context())
+	defer cancelParent()
+	require.NoError(t, c.startInformersForAPI(parent, podsAPI()))
+	e := informerEngineOf(c)
+	gk := podsGVK.GroupKind()
+
+	c.lock.RLock()
+	oldCtx := e.informers[gk][""].ctx
+	c.lock.RUnlock()
+	handler := c.informerWatchErrorHandler(oldCtx, podsAPI(), "")
+
+	replacementCtx, cancelReplacement := context.WithCancel(t.Context())
+	defer cancelReplacement()
+	c.lock.Lock()
+	replacement := e.informers[gk][""]
+	replacement.ctx, replacement.cancel = replacementCtx, cancelReplacement
+	e.informers[gk][""] = replacement
+	c.lock.Unlock()
+
+	notFound := apierrors.NewNotFound(schema.GroupResource{Resource: "pods"}, "")
+	handler(oldCtx, nil, notFound)
+
+	c.lock.RLock()
+	_, informerPresent := e.informers[gk][""]
+	_, apiPresent := c.apisMeta[gk]
+	c.lock.RUnlock()
+	require.NoError(t, replacementCtx.Err(), "stale handler must not cancel the replacement")
+	assert.True(t, informerPresent, "stale handler must not remove the replacement informer")
+	assert.True(t, apiPresent, "stale handler must not drop the GroupKind")
+
+	c.informerWatchErrorHandler(replacementCtx, podsAPI(), "")(replacementCtx, nil, notFound)
+
+	c.lock.RLock()
+	_, informerPresent = e.informers[gk][""]
+	c.lock.RUnlock()
+	require.Error(t, replacementCtx.Err(), "the current informer's handler must still tear it down")
+	assert.False(t, informerPresent)
 }
 
 func TestInformerWatchErrorHandler_ForbiddenStopsWatchingWhenRBACEnabled(t *testing.T) {
@@ -857,7 +906,10 @@ func TestInformerWatchErrorHandler_ForbiddenStopsWatchingWhenRBACEnabled(t *test
 	defer cancel()
 	require.NoError(t, c.startInformersForAPI(ctx, podsAPI()))
 
-	handler := c.informerWatchErrorHandler(podsAPI(), "")
+	c.lock.RLock()
+	handlerCtx := informerEngineOf(c).informers[podsGVK.GroupKind()][""].ctx
+	c.lock.RUnlock()
+	handler := c.informerWatchErrorHandler(handlerCtx, podsAPI(), "")
 	handler(ctx, nil, apierrors.NewForbidden(schema.GroupResource{Resource: "pods"}, "", nil))
 
 	c.lock.RLock()
@@ -899,7 +951,10 @@ func TestInformerWatchErrorHandler_ForbiddenStrictTransientErrorKeepsWatch(t *te
 	// rest.Config{Host: "https://test"} → SSAR HTTP Create will fail with a
 	// connection error (no DNS, nothing listening) — exercises the perr != nil
 	// branch in informerWatchErrorHandler.
-	handler := c.informerWatchErrorHandler(podsAPI(), "")
+	c.lock.RLock()
+	handlerCtx := informerEngineOf(c).informers[podsGVK.GroupKind()][""].ctx
+	c.lock.RUnlock()
+	handler := c.informerWatchErrorHandler(handlerCtx, podsAPI(), "")
 	handler(ctx, reflector, apierrors.NewForbidden(schema.GroupResource{Resource: "pods"}, "", nil))
 
 	c.lock.RLock()

@@ -68,8 +68,8 @@ func (c *clusterCache) startInformersForAPI(ctx context.Context, api kube.APIRes
 	})
 }
 
-func (c *clusterCache) informerWatchErrorHandler(api kube.APIResourceInfo, ns string) cache.WatchErrorHandlerWithContext {
-	return informerEngineOf(c).informerWatchErrorHandler(api, ns)
+func (c *clusterCache) informerWatchErrorHandler(ctx context.Context, api kube.APIResourceInfo, ns string) cache.WatchErrorHandlerWithContext {
+	return informerEngineOf(c).informerWatchErrorHandler(ctx, api, ns)
 }
 
 func (c *clusterCache) resolveSyncResult(synced bool, watched []watchedInformer) error {
