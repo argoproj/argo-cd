@@ -2,11 +2,15 @@ package grpc
 
 import (
 	"context"
+	"net"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
 )
 
 var proxyEnvKeys = []string{"ALL_PROXY", "HTTP_PROXY", "HTTPS_PROXY", "NO_PROXY"}
@@ -112,4 +116,51 @@ func TestBlockingNewClient_CancelledContextAbortsDial(t *testing.T) {
 	cancel()
 	_, err := BlockingNewClient(ctx, "tcp", "10.255.255.1:443", nil)
 	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestTestTLS(t *testing.T) {
+	clearProxyEnv(t)
+	const dialTime = 5 * time.Second
+
+	t.Run("TLS server that does not negotiate HTTP/2", func(t *testing.T) {
+		// Like a proxy or load balancer terminating TLS without ALPN h2: native gRPC cannot connect,
+		// gRPC-web can, so the server must still be detected as TLS, without waiting for the dial timeout.
+		srv := httptest.NewUnstartedServer(http.NotFoundHandler())
+		srv.EnableHTTP2 = false
+		srv.StartTLS()
+		t.Cleanup(srv.Close)
+		require.NotContains(t, srv.TLS.NextProtos, "h2")
+
+		start := time.Now()
+		result, err := TestTLS(srv.Listener.Addr().String(), dialTime)
+		require.NoError(t, err)
+		assert.True(t, result.TLS)
+		require.Error(t, result.InsecureErr, "the test server certificate is self-signed")
+		assert.Less(t, time.Since(start), dialTime)
+	})
+
+	t.Run("TLS server that negotiates HTTP/2", func(t *testing.T) {
+		srv := httptest.NewUnstartedServer(http.NotFoundHandler())
+		srv.EnableHTTP2 = true
+		srv.StartTLS()
+		t.Cleanup(srv.Close)
+
+		result, err := TestTLS(srv.Listener.Addr().String(), dialTime)
+		require.NoError(t, err)
+		assert.True(t, result.TLS)
+		require.Error(t, result.InsecureErr, "the test server certificate is self-signed")
+	})
+
+	t.Run("plain-text gRPC server", func(t *testing.T) {
+		lis, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+		require.NoError(t, err)
+		srv := grpc.NewServer()
+		go func() { _ = srv.Serve(lis) }()
+		t.Cleanup(srv.Stop)
+
+		result, err := TestTLS(lis.Addr().String(), dialTime)
+		require.NoError(t, err)
+		assert.False(t, result.TLS)
+		assert.NoError(t, result.InsecureErr)
+	})
 }

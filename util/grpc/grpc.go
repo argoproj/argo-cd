@@ -87,33 +87,49 @@ type TLSTestResult struct {
 	InsecureErr error
 }
 
+// tlsHandshake dials address the way BlockingNewClient does and completes a TLS handshake with it.
+func tlsHandshake(ctx context.Context, address string, config *tls.Config) error {
+	rawConn, err := proxy.Dial(ctx, "tcp", address)
+	if err != nil {
+		return fmt.Errorf("error dial proxy: %w", err)
+	}
+	defer rawConn.Close()
+
+	if config.ServerName == "" {
+		host, _, err := net.SplitHostPort(address)
+		if err != nil {
+			return fmt.Errorf("error parsing address %q: %w", address, err)
+		}
+		config = config.Clone()
+		config.ServerName = host
+	}
+	if err := tls.Client(rawConn, config).HandshakeContext(ctx); err != nil {
+		return fmt.Errorf("error creating connection: %w", err)
+	}
+	return nil
+}
+
 func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 	if parts := strings.Split(address, ":"); len(parts) == 1 {
 		// If port is unspecified, assume the most likely port
 		address += ":443"
 	}
 	var testResult TLSTestResult
-	var tlsConfig tls.Config
-	tlsConfig.InsecureSkipVerify = true
-	creds := credentials.NewTLS(&tlsConfig)
 
 	// Set timeout when dialing to the server
 	// fix: https://github.com/argoproj/argo-cd/issues/9679
 	ctx, cancel := context.WithTimeout(context.Background(), dialTime)
 	defer cancel()
 
-	conn, err := BlockingNewClient(ctx, "tcp", address, creds)
+	// A plain TLS handshake, not a gRPC connection: a proxy that does not negotiate HTTP/2 still
+	// serves TLS, and the client can reach the API through it with gRPC-web.
+	err := tlsHandshake(ctx, address, &tls.Config{InsecureSkipVerify: true})
 	if err == nil {
-		_ = conn.Close()
 		testResult.TLS = true
-		creds := credentials.NewTLS(&tls.Config{})
 		ctx, cancel := context.WithTimeout(context.Background(), dialTime)
 		defer cancel()
 
-		conn, err := BlockingNewClient(ctx, "tcp", address, creds)
-		if err == nil {
-			_ = conn.Close()
-		} else {
+		if err := tlsHandshake(ctx, address, &tls.Config{}); err != nil {
 			// if connection was successful with InsecureSkipVerify true, but unsuccessful with
 			// InsecureSkipVerify false, it means server is not configured securely
 			testResult.InsecureErr = err
@@ -125,7 +141,7 @@ func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 	// refused). Test if server accepts plain-text connections
 	ctx, cancel = context.WithTimeout(context.Background(), dialTime)
 	defer cancel()
-	conn, err = BlockingNewClient(ctx, "tcp", address, nil)
+	conn, err := BlockingNewClient(ctx, "tcp", address, nil)
 	if err == nil {
 		_ = conn.Close()
 		testResult.TLS = false
