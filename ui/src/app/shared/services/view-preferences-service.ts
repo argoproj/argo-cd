@@ -77,7 +77,7 @@ export enum ResourcesListViewKey {
 }
 
 export class AbstractAppsListPreferences {
-    public static clearFilters(pref: AbstractAppsListPreferences) {
+    public static clearFilters(pref: Partial<AbstractAppsListPreferences>) {
         pref.healthFilter = [];
         pref.labelsFilter = [];
         pref.annotationsFilter = [];
@@ -96,7 +96,7 @@ export class AbstractAppsListPreferences {
 }
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
-    public static clearFilters(pref: AppsListPreferences) {
+    public static clearFilters(pref: Partial<AppsListPreferences>) {
         super.clearFilters(pref);
 
         pref.clustersFilter = [];
@@ -134,7 +134,7 @@ export class ResourcesListPreferences {
         );
     }
 
-    public static clearFilters(pref: ResourcesListPreferences) {
+    public static clearFilters(pref: Partial<ResourcesListPreferences>) {
         pref.clustersFilter = [];
         pref.healthFilter = [];
         pref.namespacesFilter = [];
@@ -159,7 +159,7 @@ export class ResourcesListPreferences {
 }
 
 export class AppSetsListPreferences extends AbstractAppsListPreferences {
-    public static clearFilters(pref: AppSetsListPreferences) {
+    public static clearFilters(pref: Partial<AppSetsListPreferences>) {
         super.clearFilters(pref);
     }
 }

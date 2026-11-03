@@ -529,8 +529,15 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
     const {List, Summary, Tiles} = AppsListViewKey;
     const sidebarTarget = useSidebarTarget();
 
-    function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences, previous: AppSetsListPreferences) {
-        services.viewPreferences.updateAppListPreferences(newPref, previous);
+    function onAppSetFilterPrefChanged(ctx: ContextApis, newPref: AppSetsListPreferences, previous: AppSetsListPreferences, clearAll = false) {
+        if (clearAll) {
+            // Clearing is an explicit edit, even when an empty URL filter hides a saved value.
+            const cleared: Partial<AppSetsListPreferences> = {};
+            AppSetsListPreferences.clearFilters(cleared);
+            services.viewPreferences.updateAppListPreferences(cleared);
+        } else {
+            services.viewPreferences.updateAppListPreferences(newPref, previous);
+        }
         const params = {
             health: newPref.healthFilter.join(','),
             labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
@@ -608,7 +615,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                                     {allpref => (
                                                                         <AppSetsFilter
                                                                             apps={filterResults}
-                                                                            onChange={newPrefs => onAppSetFilterPrefChanged(ctx, newPrefs, appSetPref)}
+                                                                            onChange={(newPrefs, clearAll) => onAppSetFilterPrefChanged(ctx, newPrefs, appSetPref, clearAll)}
                                                                             pref={appSetPref}
                                                                             collapsed={allpref.hideSidebar}
                                                                         />
@@ -634,7 +641,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                                                                     onClick={() => {
                                                                                         const cleared = {...appSetPref};
                                                                                         AppSetsListPreferences.clearFilters(cleared);
-                                                                                        onAppSetFilterPrefChanged(ctx, cleared, appSetPref);
+                                                                                        onAppSetFilterPrefChanged(ctx, cleared, appSetPref, true);
                                                                                     }}>
                                                                                     clear filters
                                                                                 </a>

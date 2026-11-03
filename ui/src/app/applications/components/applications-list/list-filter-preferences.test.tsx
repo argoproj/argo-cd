@@ -19,7 +19,7 @@ jest.mock('../../../shared/components', () => ({
     ...jest.requireActual('../../../shared/components'),
     Page: ({children}: {children: React.ReactNode}) => children,
     FlexTopBar: () => null,
-    Paginate: () => null
+    Paginate: ({data, emptyState}: {data: unknown[]; emptyState: () => React.ReactNode}) => (data.length ? null : emptyState())
 }));
 
 jest.mock('lodash-es', () => ({
@@ -108,4 +108,55 @@ test.each([
     renderList(page, '?proj=' + projects);
     await waitFor(() => expect(handler.mock.calls.some(([change]) => change.projectsFilter?.join(',') === '2,10')).toBe(true));
     expect(storedPreferences()[key].projectsFilter).toEqual(['saved-project']);
+});
+
+describe.each(pages)('%s clear all persists explicit empty filters', page => {
+    test.each([
+        ['empty state', ''],
+        ['empty state', 'Degraded'],
+        ['sidebar', ''],
+        ['sidebar', 'Degraded']
+    ])('%s with health URL override %s', async (entry, health) => {
+        services.viewPreferences.updateAppListPreferences({
+            healthFilter: ['Healthy'],
+            labelsFilter: ['team=saved'],
+            annotationsFilter: ['saved=true'],
+            projectsFilter: ['saved-project'],
+            view: 'tiles'
+        });
+        services.viewPreferences.updateResourcesListPreferences({healthFilter: ['Healthy'], projectsFilter: ['saved-project'], view: 'summary'});
+        services.viewPreferences.updatePreferences({appListSearch: 'saved-app-search', appSetListSearch: 'saved-set-search', resourcesListSearch: 'saved-resource-search'});
+        const before = storedPreferences();
+        const key = page === 'resources' ? 'resourcesList' : 'appList';
+        renderList(page, '?health=' + health + '&labels=team%3Durl&search=review-no-match&view=list&page=2');
+        await screen.findByTitle('HEALTH STATUS');
+        await waitFor(() => expect(screen.getByText(entry === 'sidebar' ? 'CLEAR ALL' : 'clear filters')).toBeTruthy());
+        expect(storedPreferences()).toEqual(before);
+        fireEvent.click(screen.getByText(entry === 'sidebar' ? 'CLEAR ALL' : 'clear filters'));
+        const expected = JSON.parse(JSON.stringify(before));
+        const fields =
+            page === 'resources'
+                ? ['clustersFilter', 'healthFilter', 'namespacesFilter', 'projectsFilter', 'syncFilter', 'apiGroupFilter', 'kindFilter']
+                : ['healthFilter', 'labelsFilter', 'annotationsFilter'];
+        if (page === 'applications') {
+            fields.push(
+                'clustersFilter',
+                'namespacesFilter',
+                'reposFilter',
+                'targetRevisionFilter',
+                'projectsFilter',
+                'syncFilter',
+                'autoSyncFilter',
+                'operationFilter',
+                'hydrationFilter'
+            );
+        }
+        for (const field of fields) {
+            expected[key][field] = [];
+        }
+        if (page !== 'resources') {
+            expected[key].showFavorites = false;
+        }
+        await waitFor(() => expect(storedPreferences()).toEqual(expected));
+    });
 });

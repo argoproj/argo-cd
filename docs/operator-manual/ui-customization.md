@@ -17,6 +17,11 @@ saves the fields you changed; unrelated filters supplied by a shared URL are
 not copied into your saved preferences.
 Opening a shared URL preserves saved filters even when its filter values are
 repeated or listed in a different order.
+Using **CLEAR ALL** or the empty-list **clear filters** link also clears the
+saved filters for that list, including filters hidden by an explicitly empty
+URL value. It preserves saved search text, view settings, and sorting.
+ApplicationSets clears only its shared filters; Applications-only filters are
+preserved.
 
 ## Default Application Details View
 

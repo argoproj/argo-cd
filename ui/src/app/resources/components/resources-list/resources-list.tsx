@@ -244,8 +244,15 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
     const clusters = React.useMemo(() => services.clusters.list(), []);
     const loaderRef = React.useRef<DataLoader | null>(null);
 
-    function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences, previous: ResourcesListPreferences) {
-        services.viewPreferences.updateResourcesListPreferences(newPref, previous);
+    function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences, previous: ResourcesListPreferences, clearAll = false) {
+        if (clearAll) {
+            // Clearing is an explicit edit, even when an empty URL filter hides a saved value.
+            const cleared: Partial<ResourcesListPreferences> = {};
+            ResourcesListPreferences.clearFilters(cleared);
+            services.viewPreferences.updateResourcesListPreferences(cleared);
+        } else {
+            services.viewPreferences.updateResourcesListPreferences(newPref, previous);
+        }
         const params = {
             proj: newPref.projectsFilter.join(','),
             sync: newPref.syncFilter.join(','),
@@ -334,7 +341,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                         {allpref => (
                                                                             <ResourcesFilter
                                                                                 apps={filterResults}
-                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs, pref)}
+                                                                                onChange={(newPrefs, clearAll) => onFilterPrefChanged(ctx, newPrefs, pref, clearAll)}
                                                                                 pref={pref}
                                                                                 collapsed={allpref.hideSidebar}
                                                                             />
@@ -365,7 +372,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                                                 onClick={() => {
                                                                                                     const cleared = {...pref};
                                                                                                     ResourcesListPreferences.clearFilters(cleared);
-                                                                                                    onFilterPrefChanged(ctx, cleared, pref);
+                                                                                                    onFilterPrefChanged(ctx, cleared, pref, true);
                                                                                                 }}>
                                                                                                 clear filters
                                                                                             </a>

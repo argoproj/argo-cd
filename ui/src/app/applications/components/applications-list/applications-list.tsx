@@ -370,8 +370,15 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
         services.applications.get(appName, appNamespace, 'application', 'normal');
     }
 
-    function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences, previous: AppsListPreferences) {
-        services.viewPreferences.updateAppListPreferences(newPref, previous);
+    function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences, previous: AppsListPreferences, clearAll = false) {
+        if (clearAll) {
+            // Clearing is an explicit edit, even when an empty URL filter hides a saved value.
+            const cleared: Partial<AppsListPreferences> = {};
+            AppsListPreferences.clearFilters(cleared);
+            services.viewPreferences.updateAppListPreferences(cleared);
+        } else {
+            services.viewPreferences.updateAppListPreferences(newPref, previous);
+        }
         const params = {
             proj: newPref.projectsFilter.join(','),
             sync: newPref.syncFilter.join(','),
@@ -513,7 +520,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         {allpref => (
                                                                             <ApplicationsFilter
                                                                                 apps={filterResults}
-                                                                                onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs, pref)}
+                                                                                onChange={(newPrefs, clearAll) => onAppFilterPrefChanged(ctx, newPrefs, pref, clearAll)}
                                                                                 pref={pref}
                                                                                 collapsed={allpref.hideSidebar}
                                                                                 hydratorEnabled={authSettings?.hydratorEnabled}
@@ -538,7 +545,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                         onClick={() => {
                                                                                             const cleared = {...pref};
                                                                                             AppsListPreferences.clearFilters(cleared);
-                                                                                            onAppFilterPrefChanged(ctx, cleared, pref);
+                                                                                            onAppFilterPrefChanged(ctx, cleared, pref, true);
                                                                                         }}>
                                                                                         clear filters
                                                                                     </a>
