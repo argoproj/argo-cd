@@ -1118,7 +1118,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const podCount = nodes.filter(node => node.kind === 'Pod').length;
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
 
-    React.useEffect(() => {
+    // Show the pod grouping help tip (or switch to compact nodes) only when the pod count changes. The callbacks
+    // are recreated on every render and update view preferences, so they must not re-trigger the effect.
+    const onPodCountChange = React.useEffectEvent(() => {
         if (podCount > podGroupCount) {
             const userMsg = getUsrMsgKeyToDisplay(appNode.name, 'groupNodes', userMsgs);
             updateUsrHelpTipMsgs(userMsg);
@@ -1126,6 +1128,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 setShowCompactNodes(true);
             }
         }
+    });
+
+    React.useEffect(() => {
+        onPodCountChange();
     }, [podCount]);
 
     function filterGraph(
