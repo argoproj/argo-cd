@@ -3,7 +3,7 @@ kind: KafkaMirrorMaker2
 metadata:
   name: my-mirror-maker-2
   namespace: kafka
-  generation: 1
+  generation: 2
   annotations:
     strimzi.io/pause-reconciliation: "true"
 spec:
@@ -27,7 +27,7 @@ spec:
     topicsPattern: ".*"
     groupsPattern: ".*"
 status:
-  observedGeneration: 1
+  observedGeneration: 0
   conditions:
   - lastTransitionTime: "2026-11-04T10:00:00.000Z"
     status: "True"

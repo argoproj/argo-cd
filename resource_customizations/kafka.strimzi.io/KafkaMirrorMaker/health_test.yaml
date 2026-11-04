@@ -15,3 +15,7 @@ tests:
     status: Healthy
     message: ""
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Suspended
+    message: "Reconciliation is paused"
+  inputPath: testdata/suspended.yaml
