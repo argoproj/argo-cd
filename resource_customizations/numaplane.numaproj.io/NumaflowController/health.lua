@@ -1,8 +1,3 @@
--- Numaplane derives this resource's health from its managed Deployment:
--- https://github.com/numaproj/numaplane/blob/main/internal/controller/numaflowcontroller/numaflowcontroller_controller.go#L630-L677
--- The assessment window fails the trial whatever its current status is, and records that on
--- numaplane.numaproj.io/progressive-result-state:
--- https://github.com/numaproj/numaplane/blob/main/internal/controller/numaflowcontrollerrollout/numaflowcontrollerrollout_progressive.go#L135-L161
 local hs = {}
 
 if obj.metadata ~= nil and obj.metadata.labels ~= nil and obj.metadata.labels["numaplane.numaproj.io/progressive-result-state"] == "failed" then
