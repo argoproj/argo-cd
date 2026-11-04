@@ -399,6 +399,14 @@
         position: absolute;
         bottom: -14px;
         right: 0;
+        max-width: 100%;
+        display: flex;
+        align-items: baseline;
+        white-space: nowrap;
+
+        > * {
+            flex-shrink: 0;
+        }
     }
 
     &__node-label {
@@ -417,6 +425,12 @@
             border-color: $argo-color-teal-5;
             cursor: pointer;
             text-transform: none;
+            // A long ApplicationSet name must not push the row past the card:
+            // this tag gives way and truncates, the full name stays in the tooltip.
+            flex-shrink: 1;
+            min-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
 
             &:hover {
                 background-color: $argo-color-teal-3;
