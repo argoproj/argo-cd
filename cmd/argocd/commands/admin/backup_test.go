@@ -770,6 +770,13 @@ metadata:
 	})
 }
 
+func TestGetAdditionalNamespacesWithoutCmdParamsConfigMap(t *testing.T) {
+	configMaps := dynfake.NewSimpleDynamicClient(runtime.NewScheme()).Resource(configMapResource).Namespace("argocd")
+	ns := getAdditionalNamespaces(t.Context(), configMaps)
+	assert.Empty(t, ns.applicationNamespaces)
+	assert.Empty(t, ns.applicationsetNamespaces)
+}
+
 func TestIsArgoCDConfigMap(t *testing.T) {
 	for _, name := range []string{
 		common.ArgoCDConfigMapName,

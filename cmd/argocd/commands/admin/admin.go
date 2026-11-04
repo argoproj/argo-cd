@@ -7,6 +7,7 @@ import (
 
 	"github.com/spf13/cobra"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -175,6 +176,12 @@ func getAdditionalNamespaces(ctx context.Context, configMapsClient dynamic.Resou
 	applicationsetNamespaces := make([]string, 0)
 
 	un, err := configMapsClient.Get(ctx, common.ArgoCDCmdParamsConfigMapName, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return &argocdAdditionalNamespaces{
+			applicationNamespaces:    applicationNamespaces,
+			applicationsetNamespaces: applicationsetNamespaces,
+		}
+	}
 	errors.CheckError(err)
 	var cm corev1.ConfigMap
 	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
