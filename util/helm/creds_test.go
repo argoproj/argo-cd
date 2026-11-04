@@ -98,8 +98,10 @@ func TestGetPasswordShouldGenerateTokenIfNotPresentInCache(t *testing.T) {
 func TestAzureWorkloadIdentityCredsHTTPTransportUsesProxy(t *testing.T) {
 	proxy.UseTestingProxyCallback()
 	const proxyURL = "http://proxy-from-env:7878"
-	// httpproxy.FromEnvironment prefers HTTP_PROXY over http_proxy. Clear both
-	// cases so a proxied CI environment cannot override the test value.
+	// Pin HTTP_PROXY/HTTPS_PROXY and the lowercase aliases to this test proxy.
+	// httpproxy.FromEnvironment prefers HTTP_PROXY over http_proxy, so a proxied
+	// CI job would otherwise override the expected URL. Empty NO_PROXY so an
+	// inherited bypass list cannot skip the synthetic registry host.
 	t.Setenv("HTTP_PROXY", proxyURL)
 	t.Setenv("HTTPS_PROXY", proxyURL)
 	t.Setenv("http_proxy", proxyURL)
