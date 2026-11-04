@@ -95,6 +95,18 @@ func TestVersionCoreMode(t *testing.T) {
 		assert.Equal(t, map[string]string{"argocd-server": "unavailable in core mode"}, out.Server)
 	})
 
+	t.Run("root command with --core does not start a local server", func(t *testing.T) {
+		// No server version is injected here: the version comes from the real code path behind `argocd version
+		// --core`. Without a reachable cluster, starting the in-process API server would fail.
+		t.Setenv("KUBECONFIG", filepath.Join(t.TempDir(), "missing-kubeconfig"))
+		buf := new(bytes.Buffer)
+		cmd := NewCommand()
+		cmd.SetOut(buf)
+		cmd.SetArgs([]string{"version", "--core", "--short", "--config", filepath.Join(t.TempDir(), "config")})
+		require.NoError(t, cmd.Execute())
+		assert.Equal(t, "argocd: v99.99.99+unknown\nargocd-server: unavailable in core mode\n", buf.String())
+	})
+
 	t.Run("client only", func(t *testing.T) {
 		buf := new(bytes.Buffer)
 		cmd := NewVersionCmd(&argocdclient.ClientOptions{Core: true}, cliBuiltServerVersion)
