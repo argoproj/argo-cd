@@ -75,6 +75,8 @@ describe('ReposList', () => {
 
         await waitFor(() => expect(connect).toBeDisabled());
         expect(saveTemplate).toBeDisabled();
+        // The Connect spinner only tracks repository creation.
+        expect(connect.querySelector('svg.spin')).toBeNull();
     });
 
     it('skips write repositories when the hydrator is disabled', async () => {

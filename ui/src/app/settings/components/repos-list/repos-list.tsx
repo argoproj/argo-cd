@@ -298,7 +298,6 @@ const SlidingPanelHeader = ({
 };
 
 export const ReposList = ({match, location}: RouteComponentProps) => {
-    const [connecting, setConnecting] = React.useState(false);
     const [method, setMethod] = React.useState<string>(ConnectionMethod.SSH);
     const [currentRepo, setCurrentRepo] = React.useState<UnifiedRepo | null>(null);
     const [displayEditPanel, setDisplayEditPanel] = React.useState(false);
@@ -502,7 +501,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         if (credsTemplate.current) {
             createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey, write: params.write});
         } else {
-            setConnecting(true);
             try {
                 await repoMutations.createSSH.mutateAsync(params);
                 setConnectRepo(false);
@@ -511,8 +509,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     content: <ErrorNotification title='Unable to connect SSH repository' e={e} />,
                     type: NotificationType.Error
                 });
-            } finally {
-                setConnecting(false);
             }
         }
     };
@@ -537,7 +533,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 insecureOCIForceHttp: params.insecureOCIForceHttp
             });
         } else {
-            setConnecting(true);
             try {
                 await repoMutations.createHTTPS.mutateAsync(params);
                 setConnectRepo(false);
@@ -546,8 +541,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     content: <ErrorNotification title='Unable to connect HTTPS repository' e={e} />,
                     type: NotificationType.Error
                 });
-            } finally {
-                setConnecting(false);
             }
         }
     };
@@ -567,8 +560,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 content: <ErrorNotification title='Unable to update HTTPS repository' e={e} />,
                 type: NotificationType.Error
             });
-        } finally {
-            setConnecting(false);
         }
     };
 
@@ -588,7 +579,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 write: params.write
             });
         } else {
-            setConnecting(true);
             try {
                 await repoMutations.createGitHubApp.mutateAsync(params);
                 setConnectRepo(false);
@@ -597,8 +587,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     content: <ErrorNotification title='Unable to connect GitHub App repository' e={e} />,
                     type: NotificationType.Error
                 });
-            } finally {
-                setConnecting(false);
             }
         }
     };
@@ -612,7 +600,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 write: params.write
             });
         } else {
-            setConnecting(true);
             try {
                 await repoMutations.createGoogleCloudSource.mutateAsync(params);
                 setConnectRepo(false);
@@ -621,8 +608,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     content: <ErrorNotification title='Unable to connect Google Cloud Source repository' e={e} />,
                     type: NotificationType.Error
                 });
-            } finally {
-                setConnecting(false);
             }
         }
     };
@@ -641,7 +626,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 write: params.write
             });
         } else {
-            setConnecting(true);
             try {
                 await repoMutations.createAzureServicePrincipal.mutateAsync(params);
                 setConnectRepo(false);
@@ -650,8 +634,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     content: <ErrorNotification title='Unable to connect Azure Service Principal repository' e={e} />,
                     type: NotificationType.Error
                 });
-            } finally {
-                setConnecting(false);
             }
         }
     };
@@ -994,7 +976,13 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     <SlidingPanelHeader
                         showConnectRepo={showConnectRepo()}
                         displayEditPanel={displayEditPanel}
-                        connecting={connecting}
+                        connecting={[
+                            repoMutations.createSSH,
+                            repoMutations.createHTTPS,
+                            repoMutations.createGitHubApp,
+                            repoMutations.createGoogleCloudSource,
+                            repoMutations.createAzureServicePrincipal
+                        ].some(m => m.isPending)}
                         saving={Object.values(repoMutations).some(m => m.isPending)}
                         onConnect={() => {
                             credsTemplate.current = false;
