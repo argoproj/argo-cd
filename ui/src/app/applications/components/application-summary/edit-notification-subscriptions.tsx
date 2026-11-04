@@ -1,8 +1,9 @@
 import {Autocomplete} from 'argo-ui';
+import {useQuery} from '@tanstack/react-query';
 import * as React from 'react';
-import {DataLoader} from '../../../shared/components';
 import * as models from '../../../shared/models';
-import {services} from '../../../shared/services';
+import {notificationQueries} from '../../../shared/queries';
+import {loading, loadFailed} from '../../../shared/query-client';
 
 import {ApplicationSummaryProps} from './application-summary';
 
@@ -134,14 +135,23 @@ export const useEditNotificationSubscriptions = (annotations: models.Application
 export interface EditNotificationSubscriptionsProps extends ReturnType<typeof useEditNotificationSubscriptions> {}
 
 export const EditNotificationSubscriptions = ({subscriptions, onAddNewSubscription, onEditSubscription, onRemoveSubscription}: EditNotificationSubscriptionsProps) => {
+    const triggers = useQuery({...notificationQueries.triggers(), enabled: subscriptions.length > 0});
+    const notificationServices = useQuery({...notificationQueries.services(), enabled: subscriptions.length > 0});
     return (
         <div className='edit-notification-subscriptions argo-field'>
             {subscriptions.map((subscription, idx) => (
                 <div className='edit-notification-subscriptions__subscription' key={idx}>
                     <input className='argo-field edit-notification-subscriptions__input-prefix' disabled={true} value={NOTIFICATION_SUBSCRIPTION_ANNOTATION_PREFIX} />
                     <b>&nbsp;.&nbsp;</b>
-                    <DataLoader load={() => services.notification.listTriggers().then(triggers => triggers.map(trigger => trigger.name))}>
-                        {triggersList => (
+                    {!triggers.data ? (
+                        triggers.isError && !triggers.isFetching ? (
+                            loadFailed(triggers.refetch)
+                        ) : (
+                            loading
+                        )
+                    ) : (
+                        <>
+                            {triggers.isRefetchError && !triggers.isFetching && loadFailed(triggers.refetch)}
                             <Autocomplete
                                 wrapperProps={{
                                     className: 'argo-field edit-notification-subscriptions__autocomplete-wrapper'
@@ -158,16 +168,23 @@ export const EditNotificationSubscriptions = ({subscriptions, onAddNewSubscripti
                                         trigger: e.target.value
                                     });
                                 }}
-                                items={triggersList}
+                                items={triggers.data.map(trigger => trigger.name)}
                                 onSelect={trigger => onEditSubscription(idx, {...subscription, trigger})}
                                 filterSuggestions={true}
                                 qeid='application-edit-notification-subscription-trigger'
                             />
-                        )}
-                    </DataLoader>
+                        </>
+                    )}
                     <b>&nbsp;.&nbsp;</b>
-                    <DataLoader load={() => services.notification.listServices().then(_services => _services.map(service => service.name))}>
-                        {serviceList => (
+                    {!notificationServices.data ? (
+                        notificationServices.isError && !notificationServices.isFetching ? (
+                            loadFailed(notificationServices.refetch)
+                        ) : (
+                            loading
+                        )
+                    ) : (
+                        <>
+                            {notificationServices.isRefetchError && !notificationServices.isFetching && loadFailed(notificationServices.refetch)}
                             <Autocomplete
                                 wrapperProps={{
                                     className: 'argo-field edit-notification-subscriptions__autocomplete-wrapper'
@@ -184,13 +201,13 @@ export const EditNotificationSubscriptions = ({subscriptions, onAddNewSubscripti
                                         service: e.target.value
                                     });
                                 }}
-                                items={serviceList}
+                                items={notificationServices.data.map(service => service.name)}
                                 onSelect={service => onEditSubscription(idx, {...subscription, service})}
                                 filterSuggestions={true}
                                 qeid='application-edit-notification-subscription-service'
                             />
-                        )}
-                    </DataLoader>
+                        </>
+                    )}
                     &nbsp;=&nbsp;
                     <input
                         autoComplete='fake'
