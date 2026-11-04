@@ -46,21 +46,6 @@ Supported values: `json`, `msgpack`
 
 Supported values: `gzip-bestspeed`, `gzip-default`, `s2-encode`, `s2-encodebetter`, `zlib`, `zstd`, `none`
 
-### zstd
-
-`zstd` compresses each manifest with a built-in dictionary: a small sample of field names, label and annotation
-keys, defaults, and status conditions that built-in Kubernetes kinds have in common. Most cached manifests are
-small, and the dictionary gives the compressor shared content to match against, so `zstd` usually stores
-manifests in less memory than `gzip-bestspeed` and decompresses them faster. The gain is largest for common
-kinds such as Deployments, Services, and ConfigMaps, which large clusters have many copies of.
-
-The dictionary is only used for compressed manifests held in memory by the application controller, so it can
-change between Argo CD releases without any migration.
-
-> [!NOTE]
-> `zstd` requires Argo CD v3.7 or later. Its encoders and decoder are created the first time `zstd` is used and
-> use up to about 20 MB of memory in total, regardless of the number of cached manifests.
-
 ### Example ConfigMap
 
 ```yaml

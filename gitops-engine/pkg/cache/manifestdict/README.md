@@ -24,6 +24,15 @@ byte format of the stored manifests. The result is identical on every run.
 Compressed manifests are only kept in memory and are never shared between processes, so changing
 this file is safe in any release. A change only affects compression ratios.
 
+## Memory and concurrency
+
+The encoders and decoder are created the first time `zstd` is used. They use a 1 MiB window and
+at most four encoders and four decoders, which together keep up to about 20 MB regardless of the
+number of cached manifests. zstd's defaults (an 8 MiB window and one encoder per CPU) kept about
+150 MB under concurrent use, with no better compression on Kubernetes manifests. When all four
+encoders or decoders are busy, further calls wait for one to free up; at tens of microseconds per
+manifest, that is roughly 100,000 manifests per second.
+
 ## Rules for the sample
 
 - **Built-in kinds only.** A dictionary entry for a CRD-based kind only helps clusters that run
