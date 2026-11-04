@@ -187,7 +187,9 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
 
     return {
         loading: !applications && !query.isError,
-        failed: !applications && query.isError,
+        // A failed reload shows the error rather than the list it would have replaced, which the watch no
+        // longer keeps current.
+        failed: query.isError,
         retry: () => refetch(),
         markRefreshing,
         ...derived

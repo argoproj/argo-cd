@@ -178,7 +178,7 @@ test('does not resume the watch from the stale list when the reload after being 
         await waitFor(() => expect(services.applications.list).toHaveBeenCalledTimes(2), {timeout: 2000});
         await act(async () => {});
         expect(services.applications.watch).toHaveBeenCalledTimes(1);
-        expect(result.current.rows).toHaveLength(2);
+        expect(result.current.failed).toBe(true);
 
         jest.mocked(services.applications.list).mockResolvedValue({items: [app('a')], metadata: {resourceVersion: '9'}} as any);
         act(() => {
@@ -186,6 +186,8 @@ test('does not resume the watch from the stale list when the reload after being 
         });
         await waitFor(() => expect(services.applications.watch).toHaveBeenCalledTimes(2));
         expect(jest.mocked(services.applications.watch).mock.calls[1][1]).toEqual({projects: [], appNamespace: '', resourceVersion: '9'});
+        expect(result.current.failed).toBe(false);
+        expect(result.current.rows).toHaveLength(1);
     } finally {
         setHidden(false);
     }

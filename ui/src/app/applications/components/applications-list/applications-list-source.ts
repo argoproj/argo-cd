@@ -15,7 +15,7 @@ export interface AppsListSourceQuery {
 export interface AppsListSourceResult {
     /** No data yet: render the loading placeholder. */
     loading: boolean;
-    /** Loading failed and there is no data to show. */
+    /** Loading failed, including a reload of data already shown. */
     failed: boolean;
     retry: () => void;
     /** The applications matching the filters and search, in the order to render them. */
