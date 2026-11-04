@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -97,6 +98,7 @@ func NewExportCommand() *cobra.Command {
 			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdTLSCertsConfigMap, namespace, stripStatus)
+			exportOptionalConfigMap(ctx, writer, acdClients.configMaps, common.ArgoCDCmdParamsConfigMapName, namespace, stripStatus)
 
 			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
@@ -370,6 +372,11 @@ func NewImportCommand() *cobra.Command {
 
 			// Delete objects not in backup
 			for key, liveObj := range pruneObjects {
+				// ConfigMaps are never pruned: argocd-cmd-params-cm is optional and is missing from
+				// backups taken with older versions of the CLI.
+				if key.Kind == "ConfigMap" {
+					continue
+				}
 				// If a live resource has a label to skip the import, it should never be pruned
 				if isSkipLabelMatches(&liveObj, skipResourcesWithLabel) {
 					fmt.Printf("Skipping pruning of %s/%s %s in namespace %s\n", key.Group, key.Kind, liveObj.GetName(), liveObj.GetNamespace())
@@ -454,6 +461,17 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 }
 
 // export writes the unstructured object and removes extraneous cruft from output before writing
+// exportOptionalConfigMap exports the given ConfigMap if it exists in the cluster. It is used for
+// ConfigMaps such as argocd-cmd-params-cm, which an installation is not required to have.
+func exportOptionalConfigMap(ctx context.Context, w io.Writer, configMaps dynamic.ResourceInterface, name string, argocdNamespace string, stripStatus bool) {
+	cm, err := configMaps.Get(ctx, name, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return
+	}
+	errors.CheckError(err)
+	export(w, *cm, argocdNamespace, stripStatus)
+}
+
 func export(w io.Writer, un unstructured.Unstructured, argocdNamespace string, stripStatus bool) {
 	name := un.GetName()
 	finalizers := un.GetFinalizers()

@@ -11,6 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
+	dynfake "k8s.io/client-go/dynamic/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
 )
@@ -728,4 +730,55 @@ func TestUpdateLive(t *testing.T) {
 			assert.NotNil(t, result)
 		})
 	}
+}
+
+func TestExportOptionalConfigMap(t *testing.T) {
+	cmdParamsCM := &unstructured.Unstructured{
+		Object: map[string]any{
+			"apiVersion": "v1",
+			"kind":       "ConfigMap",
+			"metadata": map[string]any{
+				"name":            common.ArgoCDCmdParamsConfigMapName,
+				"namespace":       "argocd",
+				"resourceVersion": "123",
+			},
+			"data": map[string]any{
+				"application.namespaces": "team-*",
+			},
+		},
+	}
+
+	t.Run("exports the ConfigMap when it exists", func(t *testing.T) {
+		configMaps := dynfake.NewSimpleDynamicClient(runtime.NewScheme(), cmdParamsCM).Resource(configMapResource).Namespace("argocd")
+		var buf bytes.Buffer
+		exportOptionalConfigMap(t.Context(), &buf, configMaps, common.ArgoCDCmdParamsConfigMapName, "argocd", false)
+		assert.Equal(t, `apiVersion: v1
+data:
+  application.namespaces: team-*
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+---
+`, buf.String())
+	})
+
+	t.Run("skips the ConfigMap when it does not exist", func(t *testing.T) {
+		configMaps := dynfake.NewSimpleDynamicClient(runtime.NewScheme()).Resource(configMapResource).Namespace("argocd")
+		var buf bytes.Buffer
+		exportOptionalConfigMap(t.Context(), &buf, configMaps, common.ArgoCDCmdParamsConfigMapName, "argocd", false)
+		assert.Empty(t, buf.String())
+	})
+}
+
+func TestIsArgoCDConfigMap(t *testing.T) {
+	for _, name := range []string{
+		common.ArgoCDConfigMapName,
+		common.ArgoCDRBACConfigMapName,
+		common.ArgoCDKnownHostsConfigMapName,
+		common.ArgoCDTLSCertsConfigMapName,
+		common.ArgoCDCmdParamsConfigMapName,
+	} {
+		assert.True(t, isArgoCDConfigMap(name), name)
+	}
+	assert.False(t, isArgoCDConfigMap("my-configmap"))
 }
