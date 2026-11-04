@@ -1,0 +1,45 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaMirrorMaker2
+metadata:
+  name: my-mirror-maker-2
+  namespace: kafka
+  generation: 1
+spec:
+  version: 4.1.0
+  replicas: 1
+  target:
+    alias: target
+    bootstrapServers: target-kafka-bootstrap:9092
+    groupId: mirrormaker2
+    configStorageTopic: mirrormaker2-config
+    offsetStorageTopic: mirrormaker2-offset
+    statusStorageTopic: mirrormaker2-status
+  mirrors:
+  - source:
+      alias: source
+      bootstrapServers: source-kafka-bootstrap:9092
+    sourceConnector:
+      tasksMax: 1
+      config:
+        replication.factor: -1
+    topicsPattern: ".*"
+    groupsPattern: ".*"
+status:
+  observedGeneration: 1
+  replicas: 1
+  labelSelector: strimzi.io/cluster=my-mirror-maker-2,strimzi.io/name=my-mirror-maker-2-mirrormaker2,strimzi.io/kind=KafkaMirrorMaker2
+  url: http://my-mirror-maker-2-mirrormaker2-api.kafka.svc:8083
+  conditions:
+  - lastTransitionTime: "2026-11-04T10:00:00.000Z"
+    status: "True"
+    type: Ready
+  connectors:
+  - name: source->target.MirrorSourceConnector
+    type: source
+    connector:
+      state: RUNNING
+      worker_id: 10.0.0.12:8083
+    tasks:
+    - id: 0
+      state: RUNNING
+      worker_id: 10.0.0.12:8083

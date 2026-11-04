@@ -1,0 +1,15 @@
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaMirrorMaker
+metadata:
+  name: my-mirror-maker
+  namespace: kafka
+  generation: 1
+spec:
+  version: 3.9.0
+  replicas: 1
+  consumer:
+    bootstrapServers: source-kafka-bootstrap:9092
+    groupId: my-mirror-maker
+  producer:
+    bootstrapServers: target-kafka-bootstrap:9092
+  include: ".*"
