@@ -789,3 +789,48 @@ func TestIsArgoCDConfigMap(t *testing.T) {
 	}
 	assert.False(t, isArgoCDConfigMap("my-configmap"))
 }
+
+func TestGetImportAdditionalNamespaces(t *testing.T) {
+	cmdParamsCM := func(namespace string, namespaces string) *unstructured.Unstructured {
+		metadata := map[string]any{"name": common.ArgoCDCmdParamsConfigMapName}
+		if namespace != "" {
+			metadata["namespace"] = namespace
+		}
+		return &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "ConfigMap",
+				"metadata":   metadata,
+				"data": map[string]any{
+					applicationNamespacesCmdParamsKey:    namespaces,
+					applicationsetNamespacesCmdParamsKey: namespaces,
+				},
+			},
+		}
+	}
+
+	t.Run("uses the backup on a fresh cluster", func(t *testing.T) {
+		configMaps := dynfake.NewSimpleDynamicClient(runtime.NewScheme()).Resource(configMapResource).Namespace("argocd")
+		ns := getImportAdditionalNamespaces(t.Context(), configMaps, []*unstructured.Unstructured{cmdParamsCM("", "team-a, team-b")}, "argocd")
+		assert.Equal(t, []string{"team-a", "team-b"}, ns.applicationNamespaces)
+		assert.Equal(t, []string{"team-a", "team-b"}, ns.applicationsetNamespaces)
+	})
+
+	t.Run("prefers the backup over the live ConfigMap", func(t *testing.T) {
+		configMaps := dynfake.NewSimpleDynamicClient(runtime.NewScheme(), cmdParamsCM("argocd", "live")).Resource(configMapResource).Namespace("argocd")
+		ns := getImportAdditionalNamespaces(t.Context(), configMaps, []*unstructured.Unstructured{cmdParamsCM("argocd", "backup")}, "argocd")
+		assert.Equal(t, []string{"backup"}, ns.applicationNamespaces)
+	})
+
+	t.Run("falls back to the live ConfigMap when the backup has none", func(t *testing.T) {
+		configMaps := dynfake.NewSimpleDynamicClient(runtime.NewScheme(), cmdParamsCM("argocd", "live")).Resource(configMapResource).Namespace("argocd")
+		ns := getImportAdditionalNamespaces(t.Context(), configMaps, nil, "argocd")
+		assert.Equal(t, []string{"live"}, ns.applicationNamespaces)
+	})
+
+	t.Run("ignores a ConfigMap from another namespace in the backup", func(t *testing.T) {
+		configMaps := dynfake.NewSimpleDynamicClient(runtime.NewScheme()).Resource(configMapResource).Namespace("argocd")
+		ns := getImportAdditionalNamespaces(t.Context(), configMaps, []*unstructured.Unstructured{cmdParamsCM("other", "team-a")}, "argocd")
+		assert.Empty(t, ns.applicationNamespaces)
+	})
+}

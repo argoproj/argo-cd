@@ -183,8 +183,16 @@ func getAdditionalNamespaces(ctx context.Context, configMapsClient dynamic.Resou
 		}
 	}
 	errors.CheckError(err)
+	return additionalNamespacesFromConfigMap(un)
+}
+
+// additionalNamespacesFromConfigMap reads the additional namespaces from an argocd-cmd-params-cm object
+func additionalNamespacesFromConfigMap(un *unstructured.Unstructured) *argocdAdditionalNamespaces {
+	applicationNamespaces := make([]string, 0)
+	applicationsetNamespaces := make([]string, 0)
+
 	var cm corev1.ConfigMap
-	err = runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
+	err := runtime.DefaultUnstructuredConverter.FromUnstructured(un.Object, &cm)
 	errors.CheckError(err)
 
 	namespacesListFromString := func(namespaces string) []string {

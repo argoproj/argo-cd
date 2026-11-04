@@ -206,8 +206,12 @@ func NewImportCommand() *cobra.Command {
 				dryRunMsg = " (dry run)"
 			}
 
+			// Create or replace existing object
+			backupObjects, err := kube.SplitYAML(input)
+			errors.CheckError(err)
+
 			if len(applicationNamespaces) == 0 || len(applicationsetNamespaces) == 0 {
-				defaultNs := getAdditionalNamespaces(ctx, acdClients.configMaps)
+				defaultNs := getImportAdditionalNamespaces(ctx, acdClients.configMaps, backupObjects, namespace)
 				if len(applicationNamespaces) == 0 {
 					applicationNamespaces = defaultNs.applicationNamespaces
 				}
@@ -268,10 +272,6 @@ func NewImportCommand() *cobra.Command {
 					}
 				}
 			}
-			// Create or replace existing object
-			backupObjects, err := kube.SplitYAML(input)
-
-			errors.CheckError(err)
 			for _, bakObj := range backupObjects {
 				gvk := bakObj.GroupVersionKind()
 				// For objects without namespace, assume they belong in ArgoCD namespace
@@ -460,7 +460,22 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 	return true
 }
 
-// export writes the unstructured object and removes extraneous cruft from output before writing
+// getImportAdditionalNamespaces returns the additional namespaces to import into. The backup's
+// argocd-cmd-params-cm is applied by the import itself, so it takes precedence over the live one,
+// which a fresh cluster does not have yet.
+func getImportAdditionalNamespaces(ctx context.Context, configMaps dynamic.ResourceInterface, backupObjects []*unstructured.Unstructured, argocdNamespace string) *argocdAdditionalNamespaces {
+	for _, bakObj := range backupObjects {
+		if bakObj.GetKind() != "ConfigMap" || bakObj.GetName() != common.ArgoCDCmdParamsConfigMapName {
+			continue
+		}
+		if ns := bakObj.GetNamespace(); ns != "" && ns != argocdNamespace {
+			continue
+		}
+		return additionalNamespacesFromConfigMap(bakObj)
+	}
+	return getAdditionalNamespaces(ctx, configMaps)
+}
+
 // exportOptionalConfigMap exports the given ConfigMap if it exists in the cluster. It is used for
 // ConfigMaps such as argocd-cmd-params-cm, which an installation is not required to have.
 func exportOptionalConfigMap(ctx context.Context, w io.Writer, configMaps dynamic.ResourceInterface, name string, argocdNamespace string, stripStatus bool) {
@@ -472,6 +487,7 @@ func exportOptionalConfigMap(ctx context.Context, w io.Writer, configMaps dynami
 	export(w, *cm, argocdNamespace, stripStatus)
 }
 
+// export writes the unstructured object and removes extraneous cruft from output before writing
 func export(w io.Writer, un unstructured.Unstructured, argocdNamespace string, stripStatus bool) {
 	name := un.GetName()
 	finalizers := un.GetFinalizers()
