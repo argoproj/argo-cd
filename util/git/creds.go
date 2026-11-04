@@ -915,6 +915,7 @@ type GoogleCloudCreds struct {
 }
 
 func NewGoogleCloudCreds(jsonData string, store CredsStore) GoogleCloudCreds {
+	//nolint:staticcheck // SA1019: CredentialsFromJSON is deprecated, but still used for GCP service account JSON until a validated alternative is adopted.
 	creds, err := google.CredentialsFromJSON(context.Background(), []byte(jsonData), "https://www.googleapis.com/auth/cloud-platform")
 	if err != nil {
 		// Invalid JSON
