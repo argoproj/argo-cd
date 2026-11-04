@@ -34,13 +34,14 @@ jest.mock('../repo-details/repo-details', () => ({RepoDetails: (): null => null}
 const mockSidebarTarget = {current: document.createElement('div')};
 jest.mock('../../../sidebar/sidebar', () => ({useSidebarTarget: () => mockSidebarTarget}));
 
+const mockViewPreferences = {hideSidebar: false};
 jest.mock('../../../shared/services', () => ({
     services: {
         authService: {settings: jest.fn()},
         repos: {list: jest.fn(), listNoCache: jest.fn(() => Promise.resolve([])), listWrite: jest.fn(), delete: jest.fn(() => Promise.resolve()), deleteWrite: jest.fn(() => Promise.resolve())},
         repocreds: {list: jest.fn(() => Promise.resolve([])), listWrite: jest.fn(() => Promise.resolve([]))},
         projects: {list: jest.fn(() => Promise.resolve([]))},
-        viewPreferences: {getPreferences: () => of({hideSidebar: false})}
+        viewPreferences: {getPreferences: () => of(mockViewPreferences), getCurrentPreferences: () => mockViewPreferences}
     }
 }));
 
