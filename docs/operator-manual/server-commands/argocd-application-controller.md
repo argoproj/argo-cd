@@ -61,6 +61,18 @@ argocd-application-controller [flags]
       --password string                                           Password for basic authentication to the API server
       --persist-resource-health                                   Enables storing the managed resources health in the Application CRD
       --proxy-url string                                          If provided, this URL will be used to connect via proxy
+      --reconciled-at-default-cache-expiration duration           Cache expiration default (default 24h0m0s)
+      --reconciled-at-heartbeat duration                          How stale the Application status.reconciledAt field may become while nothing else in status changes. Zero (the default) writes it on every reconciliation; a positive value (e.g. 10m) trades staleness of that one field for far fewer API server writes.
+      --reconciled-at-redis string                                Redis server hostname and port (e.g. argocd-redis:6379). 
+      --reconciled-at-redis-ca-certificate string                 Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
+      --reconciled-at-redis-client-certificate string             Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
+      --reconciled-at-redis-client-key string                     Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --reconciled-at-redis-compress string                       Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
+      --reconciled-at-redis-insecure-skip-tls-verify              Skip Redis server certificate validation.
+      --reconciled-at-redis-use-tls                               Use TLS when connecting to Redis. 
+      --reconciled-at-redisdb int                                 Redis database.
+      --reconciled-at-sentinel stringArray                        Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
+      --reconciled-at-sentinelmaster string                       Redis sentinel master group name. (default "master")
       --redis string                                              Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                               Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string                           Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
