@@ -395,7 +395,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		case "/api/v4/groups/test-argocd-proton/projects?include_subgroups=true&per_page=100&topic=&with_shared=false":
+		case "/api/v4/groups/test-argocd-proton/projects?archived=false&include_subgroups=true&per_page=100&topic=&with_shared=false":
 			_, err := io.WriteString(w, `[{
 				"id": 27084533,
 				"description": "",
@@ -648,7 +648,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		case "/api/v4/groups/test-argocd-proton/projects?include_subgroups=false&per_page=100&topic=specific-topic&with_shared=false":
+		case "/api/v4/groups/test-argocd-proton/projects?archived=false&include_subgroups=false&per_page=100&topic=specific-topic&with_shared=false":
 			_, err := io.WriteString(w, `[{
 				"id": 27084533,
 				"description": "",
@@ -778,7 +778,7 @@ func gitlabMockHandler(t *testing.T) func(http.ResponseWriter, *http.Request) {
 			if err != nil {
 				t.Fail()
 			}
-		case "/api/v4/groups/test-argocd-proton/projects?include_subgroups=true&per_page=100&topic=&with_shared=true":
+		case "/api/v4/groups/test-argocd-proton/projects?archived=false&include_subgroups=true&per_page=100&topic=&with_shared=true":
 			_, err := io.WriteString(w, `[{
 				"id": 27084533,
 				"description": "",
