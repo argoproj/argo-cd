@@ -5,7 +5,7 @@ import {ActionMenu, clusterName, ConnectionStateIcon, DataLoader, EmptyState, Ic
 import {Consumer} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {useQuery} from '../../../shared/hooks/query';
+import {useSearchParams} from '../../../shared/hooks/query';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -91,7 +91,7 @@ export const compareServerVersion = (a: string, b: string): number => {
 
 export const ClustersList = () => {
     const clustersLoaderRef = React.useRef<DataLoader | null>(null);
-    const query = useQuery();
+    const query = useSearchParams();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
     const [filterPref, setFilterPref] = React.useState<ClustersListPreferences>({

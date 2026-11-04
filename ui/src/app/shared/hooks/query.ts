@@ -4,7 +4,7 @@ import {map} from 'rxjs/operators';
 
 import {Context} from '../context';
 
-const useQuery = () => {
+const useSearchParams = () => {
     const context = React.useContext(Context);
 
     return new URLSearchParams(context?.history?.location.search);
@@ -33,4 +33,4 @@ function useObservableQuery() {
     return searchParams$;
 }
 
-export {useQuery, useObservableQuery};
+export {useSearchParams, useObservableQuery};

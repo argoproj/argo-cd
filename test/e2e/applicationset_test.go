@@ -1943,6 +1943,167 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 	}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp}))
 }
 
+func TestPullRequestGeneratorExcludedLabels(t *testing.T) {
+	ts := testServerWithPort(t, 8343, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		githubPullMockHandler(t)(w, r)
+	}))
+
+	ts.Start()
+	defer ts.Close()
+
+	expectedApp := v1alpha1.Application{
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "guestbook-1",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
+				Path:           "kustomize-guestbook",
+				Kustomize: &v1alpha1.ApplicationSourceKustomize{
+					NamePrefix: "guestbook-1",
+				},
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook-pull-request",
+			},
+		},
+	}
+
+	Given(t).
+		// Exclude the only mocked PR by its "preview" label, so no Application is generated
+		When().Create(v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ number }}"},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+						TargetRevision: "{{ head_sha }}",
+						Path:           "kustomize-guestbook",
+						Kustomize: &v1alpha1.ApplicationSourceKustomize{
+							NamePrefix: "guestbook-{{ number }}",
+						},
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook-{{ branch }}",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Github: &v1alpha1.PullRequestGeneratorGithub{
+							API:   ts.URL,
+							Owner: "applicationset-test-org",
+							Repo:  "argocd-example-apps",
+							ExcludedLabels: []string{
+								"preview",
+							},
+						},
+					},
+				},
+			},
+		},
+	}).Then().
+		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp})).
+
+		// Remove the exclusion, and verify the Application is generated
+		When().
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Generators[0].PullRequest.Github.ExcludedLabels = nil
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp}))
+}
+
+func TestPullRequestGeneratorIncludeAndExcludeSameLabel(t *testing.T) {
+	ts := testServerWithPort(t, 8343, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		githubPullMockHandler(t)(w, r)
+	}))
+
+	ts.Start()
+	defer ts.Close()
+
+	expectedApp := v1alpha1.Application{
+		Kind:       application.ApplicationKind,
+		APIVersion: "argoproj.io/v1alpha1",
+		Name:       "guestbook-1",
+		Namespace:  fixture.TestNamespace(),
+		Finalizers: []string{v1alpha1.ResourcesFinalizerName},
+		Spec: v1alpha1.ApplicationSpec{
+			Project: "default",
+			Source: &v1alpha1.ApplicationSource{
+				RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+				TargetRevision: "824a5c987fdfb2b0629e9dbf5f31636c69ba4772",
+				Path:           "kustomize-guestbook",
+				Kustomize: &v1alpha1.ApplicationSourceKustomize{
+					NamePrefix: "guestbook-1",
+				},
+			},
+			Destination: v1alpha1.ApplicationDestination{
+				Server:    "https://kubernetes.default.svc",
+				Namespace: "guestbook-pull-request",
+			},
+		},
+	}
+
+	Given(t).
+		// Require and exclude the same label, so the exclusion wins and no Application is generated
+		When().Create(v1alpha1.ApplicationSet{
+		Spec: v1alpha1.ApplicationSetSpec{
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "guestbook-{{ number }}"},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Source: &v1alpha1.ApplicationSource{
+						RepoURL:        "git@github.com:applicationset-test-org/argocd-example-apps.git",
+						TargetRevision: "{{ head_sha }}",
+						Path:           "kustomize-guestbook",
+						Kustomize: &v1alpha1.ApplicationSourceKustomize{
+							NamePrefix: "guestbook-{{ number }}",
+						},
+					},
+					Destination: v1alpha1.ApplicationDestination{
+						Server:    "https://kubernetes.default.svc",
+						Namespace: "guestbook-{{ branch }}",
+					},
+				},
+			},
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Github: &v1alpha1.PullRequestGeneratorGithub{
+							API:   ts.URL,
+							Owner: "applicationset-test-org",
+							Repo:  "argocd-example-apps",
+							Labels: []string{
+								"preview",
+							},
+							ExcludedLabels: []string{
+								"preview",
+							},
+						},
+					},
+				},
+			},
+		},
+	}).Then().
+		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp})).
+
+		// Remove the exclusion, and verify the Application is generated
+		When().
+		Update(func(appset *v1alpha1.ApplicationSet) {
+			appset.Spec.Generators[0].PullRequest.Github.ExcludedLabels = nil
+		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{expectedApp}))
+}
+
 func TestPullRequestGeneratorNotAllowedSCMProvider(t *testing.T) {
 	expectedApp := v1alpha1.Application{
 		Kind:       application.ApplicationKind,
