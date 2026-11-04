@@ -916,30 +916,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 			assertContainsAllParts(t, test.expectedStderr, stderr)
 			assertContainsAllParts(t, test.expectedStdout, stdout)
 		})
-
-		t.Run(test.name+" json output flag", func(t *testing.T) {
-			_, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, test.mockSetup, append([]string{"-o", "json"}, test.args...))
-
-			assert.Equal(t, test.expectedExitCode, exitCode)
-			assertContainsAllParts(t, test.expectedStderr, stderr)
-			// stdout content not important for this sub-test as it uses the standard json print function
-		})
-
-		t.Run(test.name+" yaml output flag", func(t *testing.T) {
-			_, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, test.mockSetup, append([]string{"-o", "yaml"}, test.args...))
-
-			assert.Equal(t, test.expectedExitCode, exitCode)
-			assertContainsAllParts(t, test.expectedStderr, stderr)
-			// stdout content not important for this sub-test as it uses the standard yaml print function
-		})
 	}
-}
-
-func TestProjectSourceIntegrityGpgInspectRepoCommand_UnknownOutputFormat(t *testing.T) {
-	_, stderr, exitCode := setupAndRunInspectCmdAsSubprocess(t, nil, []string{"-o", "unknown", "test-project", "test-app"})
-
-	assert.Equal(t, 1, exitCode)
-	assert.Contains(t, stderr, "unknown output format: unknown")
 }
 
 func TestProjectSourceIntegrityGpgInspectRepoCommand_SealSignHint(t *testing.T) {

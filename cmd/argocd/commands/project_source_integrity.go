@@ -542,10 +542,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	const shortDescription = "Inspect the Git/GPG source integrity of an application in a project"
 
-	var (
-		appNamespace string
-		output       string
-	)
+	var appNamespace string
 	command := &cobra.Command{
 		Use:   "gpg-inspect-repo PROJECT APPNAME",
 		Short: shortDescription,
@@ -566,12 +563,6 @@ Exit codes:
 		Args: func(c *cobra.Command, args []string) error {
 			if len(args) != 2 {
 				c.HelpFunc()(c, args)
-				os.Exit(1)
-			}
-
-			validOutputFormats := []string{"yaml", "json", "wide", ""}
-			if !slices.Contains(validOutputFormats, output) {
-				fmt.Fprintf(c.ErrOrStderr(), "unknown output format: %s\n", output)
 				os.Exit(1)
 			}
 
@@ -601,21 +592,9 @@ Exit codes:
 				os.Exit(3)
 			}
 
-			hasSourceIntegrityProblems := hasSourceIntegrityProblems(data.GetItems())
+			printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
 
-			switch output {
-			// invalid output format already handled in Args function
-			case "yaml", "json":
-				err := PrintResourceList(data.GetItems(), output, false)
-				if err != nil {
-					fmt.Fprintf(c.ErrOrStderr(), "Failed printing git gpg source integrity response in %s format: %v\n", output, err)
-					os.Exit(1)
-				}
-			case "wide", "":
-				printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
-			}
-
-			if hasSourceIntegrityProblems {
+			if hasSourceIntegrityProblems(data.GetItems()) {
 				os.Exit(2)
 			}
 
@@ -623,7 +602,6 @@ Exit codes:
 		}),
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Only inspect application in namespace")
-	command.Flags().StringVarP(&output, "output", "o", "wide", "Output format. One of: json|yaml|wide")
 	return command
 }
 
