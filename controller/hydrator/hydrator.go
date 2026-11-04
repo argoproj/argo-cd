@@ -666,16 +666,35 @@ func (h *Hydrator) canAdvanceHydratorNote(ctx context.Context, app *appv1.Applic
 		return false, "manifests changed since the last successful hydration"
 	}
 
-	// Hydration commits per destination branch; a sibling app that needs hydration would leave the
-	// note attesting content it does not include.
-	apps, err := h.getAppsForHydrationKey(getHydrationQueueKey(app))
+	// A sibling app that needs hydration would leave the note attesting content it does not include.
+	// Compare destinations only: apps with different dry sources can still share a hydrated branch.
+	shared, err := h.isHydratedBranchShared(app)
 	if err != nil {
 		return false, fmt.Sprintf("failed to list apps for the hydrated branch: %v", err)
 	}
-	if len(apps) != 1 {
+	if shared {
 		return false, "hydrated branch is shared with other applications"
 	}
 	return true, ""
+}
+
+func (h *Hydrator) isHydratedBranchShared(app *appv1.Application) (bool, error) {
+	key := getHydrationQueueKey(app)
+	apps, err := h.dependencies.GetProcessableApps()
+	if err != nil {
+		return false, fmt.Errorf("failed to list apps: %w", err)
+	}
+	for i := range apps.Items {
+		other := &apps.Items[i]
+		if other.Spec.SourceHydrator == nil || (other.Name == app.Name && other.Namespace == app.Namespace) {
+			continue
+		}
+		otherKey := getHydrationQueueKey(other)
+		if otherKey.DestinationRepoURL == key.DestinationRepoURL && otherKey.DestinationBranch == key.DestinationBranch {
+			return true, nil
+		}
+	}
+	return false, nil
 }
 
 // advanceHydratorNote calls AdvanceHydratorNote on the commit-server to update the git note for the

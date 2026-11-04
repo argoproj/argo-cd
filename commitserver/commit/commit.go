@@ -109,6 +109,14 @@ func (s *Service) AdvanceHydratorNote(
 	if err := validateRepoAndBranches(r.Repo, r.TargetBranch, r.SyncBranch); err != nil {
 		return nil, err
 	}
+	if r.DrySha == "" {
+		return nil, errors.New("dry sha is required")
+	}
+
+	// Same key as handleCommitRequest, so a note advance never races a hydration of the same branch.
+	branchKey := r.Repo.Repo + "\x00" + r.TargetBranch
+	s.branchLock.Lock(branchKey)
+	defer s.branchLock.Unlock(branchKey)
 
 	logCtx := log.WithFields(log.Fields{"branch": r.TargetBranch, "drySHA": r.DrySha})
 	logCtx.Debug("Initiating git client for hydrator note update")

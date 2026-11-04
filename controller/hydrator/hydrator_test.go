@@ -2282,3 +2282,25 @@ func TestProcessAppHydrateQueueItem_NoNoteAdvance_WhenHydratedBranchShared(t *te
 	h := &Hydrator{dependencies: d, commitClientset: &commitservermocks.Clientset{CommitServiceClient: commitservermocks.NewCommitServiceClient(t)}}
 	h.ProcessAppHydrateQueueItem(app)
 }
+
+// Apps with different dry sources still share the hydrated branch when the destination matches.
+func TestProcessAppHydrateQueueItem_NoNoteAdvance_WhenBranchSharedAcrossDrySources(t *testing.T) {
+	t.Parallel()
+	d := mocks.NewDependencies(t)
+	proj := newTestProject()
+	app := newNoteAdvanceTestApp(v1alpha1.HydrateOperationPhaseHydrated)
+	expectNoChangesSinceLastCompared(d, app, proj, 2)
+	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, mock.MatchedBy(func(a *v1alpha1.Application) bool {
+		return a.Status.SourceHydrator.LastComparedDryRevision == "hydrated-dry-sha"
+	}), app.Spec.SourceHydrator.GetDrySource(), "new-dry-sha", proj, false).Return(false, "new-dry-sha", nil).Once()
+	sibling := newTestApp("sibling")
+	sibling.Spec.SourceHydrator.DrySource.RepoURL = "https://example.com/other-dry-repo"
+	sibling.Spec.SourceHydrator.DrySource.TargetRevision = "release"
+	sibling.Spec.SourceHydrator.SyncSource.RepoURL = app.Spec.GetHydrateToSource().RepoURL
+	require.Equal(t, app.Spec.GetHydrateToSource(), sibling.Spec.GetHydrateToSource())
+	require.NotEqual(t, getHydrationQueueKey(app), getHydrationQueueKey(sibling))
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app, *sibling}}, nil).Once()
+
+	h := &Hydrator{dependencies: d, commitClientset: &commitservermocks.Clientset{CommitServiceClient: commitservermocks.NewCommitServiceClient(t)}}
+	h.ProcessAppHydrateQueueItem(app)
+}
