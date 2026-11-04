@@ -1749,17 +1749,17 @@ func TestCreateAppUpsert(t *testing.T) {
 		require.NotNil(t, app)
 		assert.Equal(t, "my-proj", app.Spec.Project)
 	})
-	t.Run("Existing label and annotations are preserved", func(t *testing.T) {
+	t.Run("Labels and annotations are replaced", func(t *testing.T) {
 		t.Parallel()
 		testApp := newTestApp()
-		testApp.Annotations = map[string]string{"test": "test-value", "update": "old"}
-		testApp.Labels = map[string]string{"test": "test-value", "update": "old"}
+		testApp.Annotations = map[string]string{"removed": "test-value", "update": "old"}
+		testApp.Labels = map[string]string{"removed": "test-value", "update": "old"}
 		appServer := newTestAppServer(t, testApp)
 
 		newApp := newTestAppWithDestName()
 		newApp.TypeMeta = testApp.TypeMeta
-		newApp.Annotations = map[string]string{"update": "new"}
-		newApp.Labels = map[string]string{"update": "new"}
+		newApp.Annotations = map[string]string{"update": "new", "added": "new"}
+		newApp.Labels = map[string]string{"update": "new", "added": "new"}
 		createReq := application.ApplicationCreateRequest{
 			Application: newApp,
 			Upsert:      new(true),
@@ -1767,10 +1767,76 @@ func TestCreateAppUpsert(t *testing.T) {
 		app, err := appServer.Create(t.Context(), &createReq)
 		require.NoError(t, err)
 		require.NotNil(t, app)
-		assert.Len(t, app.Annotations, 2)
-		assert.Equal(t, "new", app.GetAnnotations()["update"])
-		assert.Len(t, app.Labels, 2)
-		assert.Equal(t, "new", app.GetLabels()["update"])
+		assert.Equal(t, map[string]string{"update": "new", "added": "new"}, app.Annotations)
+		assert.Equal(t, map[string]string{"update": "new", "added": "new"}, app.Labels)
+	})
+	t.Run("All labels and annotations can be removed", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		testApp.Annotations = map[string]string{"removed": "test-value"}
+		testApp.Labels = map[string]string{"removed": "test-value"}
+		appServer := newTestAppServer(t, testApp)
+
+		newApp := newTestAppWithDestName()
+		newApp.TypeMeta = testApp.TypeMeta
+		createReq := application.ApplicationCreateRequest{
+			Application: newApp,
+			Upsert:      new(true),
+		}
+		app, err := appServer.Create(t.Context(), &createReq)
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Empty(t, app.Annotations)
+		assert.Empty(t, app.Labels)
+	})
+	t.Run("Controller-managed annotations are preserved", func(t *testing.T) {
+		t.Parallel()
+		testApp := newTestApp()
+		testApp.Annotations = map[string]string{
+			"removed":                            "test-value",
+			"notified.notifications.argoproj.io": `{"abc:on-deployed:[0]:slack:test":1617144615}`,
+			v1alpha1.AnnotationKeyRefresh:        string(v1alpha1.RefreshTypeHard),
+		}
+		appServer := newTestAppServer(t, testApp)
+
+		newApp := newTestAppWithDestName()
+		newApp.TypeMeta = testApp.TypeMeta
+		newApp.Annotations = map[string]string{"added": "new"}
+		createReq := application.ApplicationCreateRequest{
+			Application: newApp,
+			Upsert:      new(true),
+		}
+		app, err := appServer.Create(t.Context(), &createReq)
+		require.NoError(t, err)
+		require.NotNil(t, app)
+		assert.Equal(t, map[string]string{
+			"added":                              "new",
+			"notified.notifications.argoproj.io": `{"abc:on-deployed:[0]:slack:test":1617144615}`,
+			v1alpha1.AnnotationKeyRefresh:        string(v1alpha1.RefreshTypeHard),
+		}, app.Annotations)
+	})
+	t.Run("Controller-managed annotations do not make specs differ", func(t *testing.T) {
+		t.Parallel()
+		appServer := newTestAppServer(t)
+		testApp := newTestApp()
+		testApp.Annotations = map[string]string{"user": "value"}
+		created, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{Application: testApp.DeepCopy()})
+		require.NoError(t, err)
+
+		// Simulate the notifications controller recording its state on the application.
+		created.Annotations["notified.notifications.argoproj.io"] = "{}"
+		_, err = appServer.appclientset.ArgoprojV1alpha1().Applications(created.Namespace).Update(t.Context(), created, metav1.UpdateOptions{})
+		require.NoError(t, err)
+		require.EventuallyWithT(t, func(c *assert.CollectT) {
+			existing, err := appServer.appLister.Applications(created.Namespace).Get(created.Name)
+			require.NoError(c, err)
+			assert.Contains(c, existing.Annotations, "notified.notifications.argoproj.io")
+		}, 5*time.Second, 10*time.Millisecond)
+
+		// Creating the same app again without upsert must succeed.
+		app, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{Application: testApp.DeepCopy()})
+		require.NoError(t, err)
+		assert.Equal(t, "{}", app.Annotations["notified.notifications.argoproj.io"])
 	})
 }
 
