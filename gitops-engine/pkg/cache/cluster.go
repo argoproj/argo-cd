@@ -1414,6 +1414,10 @@ func (c *store) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isMa
 }
 
 func (c *store) onNodeUpdated(oldRes *Resource, newRes *Resource) {
+	if oldRes != nil && oldRes.Ref.UID != newRes.Ref.UID {
+		c.onNodeRemoved(oldRes.ResourceKey())
+		oldRes = nil
+	}
 	c.setNode(newRes)
 	c.dispatchResourceUpdated(newRes, oldRes, c.nsIndex[newRes.Ref.Namespace])
 }
