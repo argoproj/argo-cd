@@ -307,7 +307,15 @@ async function upsertComment({ github, owner, repo, pr, existing, body }) {
 async function setPolicyLabel({ github, core, owner, repo, pr, label }) {
   const current = pr.labels.map(l => l.name);
   for (const stale of POLICY_LABELS.filter(l => l !== label && current.includes(l))) {
-    await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: stale });
+    try {
+      await github.rest.issues.removeLabel({ owner, repo, issue_number: pr.number, name: stale });
+    } catch (e) {
+      // The labels come from the event, so a run for an earlier event, or a
+      // maintainer, may already have removed this one.
+      if (e.status !== 404) {
+        throw e;
+      }
+    }
   }
   if (label && !current.includes(label)) {
     try {

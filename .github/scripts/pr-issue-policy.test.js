@@ -274,6 +274,7 @@ function fakeGitHub({
   sidebar = [],
   comments = [],
   convertError,
+  removeLabelError,
   pullRequest,
   policyStart = '2026-11-01T00:00:00Z',
   permissions = { maintainer: 'write' },
@@ -330,7 +331,13 @@ function fakeGitHub({
         createComment: record('createComment'),
         updateComment: record('updateComment'),
         addLabels: record('addLabels'),
-        removeLabel: record('removeLabel'),
+        removeLabel: async args => {
+          calls.push({ name: 'removeLabel', args });
+          if (removeLabelError) {
+            throw removeLabelError;
+          }
+          return { data: {} };
+        },
       },
     },
   };
@@ -445,6 +452,24 @@ describe('run', () => {
     const pr = { draft: true, body: 'Fixes #9', labels: [{ name: NO_ISSUE_LABEL }] };
     await run({ github, context: context(pr), core, gitattributes: '' });
     assert.deepEqual(names(github), ['removeLabel', 'updateComment']);
+  });
+
+  it('ignores a policy label that was already removed', async () => {
+    // Two events close together: the run for the first removed the label that
+    // the second event still lists.
+    const existing = { id: 1, user: { type: 'Bot' }, body: `${COMMENT_MARKER}\n${CONVERTED_MARKER}\nold` };
+    const removeLabelError = Object.assign(new Error('Label does not exist'), { status: 404 });
+    const github = fakeGitHub({ files: bigChange, comments: [existing], removeLabelError });
+    const pr = { draft: false, labels: [{ name: 'policy/exempt' }, { name: NO_ISSUE_LABEL }] };
+    await run({ github, context: context(pr), core, gitattributes: '' });
+    assert.deepEqual(names(github), ['removeLabel', 'updateComment']);
+  });
+
+  it('fails when a policy label cannot be removed for another reason', async () => {
+    const removeLabelError = Object.assign(new Error('Server Error'), { status: 500 });
+    const github = fakeGitHub({ files: bigChange, removeLabelError });
+    const pr = { labels: [{ name: 'policy/exempt' }, { name: NO_ISSUE_LABEL }] };
+    await assert.rejects(run({ github, context: context(pr), core, gitattributes: '' }), /Server Error/);
   });
 
   it('honours the exempt label', async () => {
