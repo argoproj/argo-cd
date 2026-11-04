@@ -451,7 +451,11 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                 <ApplicationTiles
                                                                                     applications={data}
                                                                                     syncApplication={(appName, appNamespace) =>
-                                                                                        ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
+                                                                                        ctx.navigation.goto(
+                                                                                            '.',
+                                                                                            {syncApp: appName, syncAppNamespace: appNamespace},
+                                                                                            {replace: true}
+                                                                                        )
                                                                                     }
                                                                                     refreshApplication={list.markRefreshing}
                                                                                     deleteApplication={(appName, appNamespace) =>
@@ -464,7 +468,11 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                 <ApplicationsTable
                                                                                     applications={data}
                                                                                     syncApplication={(appName, appNamespace) =>
-                                                                                        ctx.navigation.goto('.', {syncApp: appName, appNamespace}, {replace: true})
+                                                                                        ctx.navigation.goto(
+                                                                                            '.',
+                                                                                            {syncApp: appName, syncAppNamespace: appNamespace},
+                                                                                            {replace: true}
+                                                                                        )
                                                                                     }
                                                                                     refreshApplication={list.markRefreshing}
                                                                                     deleteApplication={(appName, appNamespace) =>
@@ -497,7 +505,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                             observableQuery$.pipe(
                                                                 mergeMap(params => {
                                                                     const syncApp = params.get('syncApp');
-                                                                    const appNamespace = params.get('appNamespace');
+                                                                    const appNamespace = params.get('syncAppNamespace');
                                                                     return (syncApp && from(services.applications.get(syncApp, appNamespace, 'application'))) || from([null]);
                                                                 })
                                                             )
@@ -507,7 +515,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                 key='syncPanel'
                                                                 application={app}
                                                                 selectedResource={'all'}
-                                                                hide={() => ctx.navigation.goto('.', {syncApp: null}, {replace: true})}
+                                                                hide={() => ctx.navigation.goto('.', {syncApp: null, syncAppNamespace: null}, {replace: true})}
                                                             />
                                                         )}
                                                     </DataLoader>
