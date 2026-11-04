@@ -19,7 +19,7 @@
 // already been applied to them.
 //
 // The script runs on pull_request_target events, and on issue_comment events
-// when a maintainer comments TRIAGE_COMMAND on a PR, so that the policy can be
+// when a user with write access comments TRIAGE_COMMAND on a PR, so that the policy can be
 // applied on demand, e.g. to PRs opened before the workflow existed or after a
 // linked enhancement was accepted.
 
@@ -39,6 +39,9 @@ const DOCS_PATTERNS = ['docs/**', '*.md', 'mkdocs.yml'];
 const CHORE_TITLE = /^chore(?:\([^)]*\))?!?:/i;
 // PR comment that makes a maintainer re-run the policy on that PR.
 const TRIAGE_COMMAND = '/triage';
+// Repository permissions that allow running TRIAGE_COMMAND. The API reports
+// the maintain role as write.
+const TRIAGE_PERMISSIONS = ['admin', 'write'];
 // The workflow running this script. PRs opened before it was first committed to
 // the default branch are not checked automatically.
 const WORKFLOW_PATH = '.github/workflows/pr-issue-policy.yaml';
@@ -154,15 +157,29 @@ function isChore(title) {
   return CHORE_TITLE.test((title || '').trim());
 }
 
-// Reports whether an issue_comment event is a maintainer asking to re-run the
-// policy on a pull request. The workflow filters these events as well, but the
-// filter is repeated here so that the script never acts on anyone else's comment.
+// Reports whether an issue_comment event is a TRIAGE_COMMAND on a pull request.
+// Whether the commenter may run it is checked separately, by canTriage.
 function isTriageCommand(payload) {
   const { issue, comment } = payload;
   if (!issue || !issue.pull_request || !comment || !comment.body) {
     return false;
   }
-  return comment.body.trim() === TRIAGE_COMMAND && MAINTAINER_ASSOCIATIONS.includes(comment.author_association);
+  return comment.body.trim() === TRIAGE_COMMAND;
+}
+
+// Reports whether a user has write access to the repository. This uses the
+// user's actual permission rather than the comment's author_association, which
+// also covers read-only collaborators and can hide private organization members.
+async function canTriage({ github, context, username }) {
+  try {
+    const { data } = await github.rest.repos.getCollaboratorPermissionLevel({ ...context.repo, username });
+    return TRIAGE_PERMISSIONS.includes(data.permission);
+  } catch (e) {
+    if (e.status === 404) {
+      return false;
+    }
+    throw e;
+  }
 }
 
 // Decides whether a PR passes the policy. `issues` are the linked issues as
@@ -309,7 +326,12 @@ async function loadPullRequest({ github, context, core }) {
     return context.payload.pull_request;
   }
   if (!isTriageCommand(context.payload)) {
-    core.info('Skipping: the event is not a maintainer triage command on a pull request.');
+    core.info(`Skipping: the event is not a ${TRIAGE_COMMAND} command on a pull request.`);
+    return null;
+  }
+  const username = context.payload.comment.user.login;
+  if (!(await canTriage({ github, context, username }))) {
+    core.info(`Skipping: ${username} does not have write access, which ${TRIAGE_COMMAND} requires.`);
     return null;
   }
   const { data: pr } = await github.rest.pulls.get({ owner, repo, pull_number: context.payload.issue.number });
@@ -454,6 +476,7 @@ Object.assign(module.exports, {
   NO_ISSUE_LABEL,
   NOT_ACCEPTED_LABEL,
   TRIAGE_COMMAND,
+  canTriage,
   countCodeLines,
   evaluate,
   findReferencedNumbers,

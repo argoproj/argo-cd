@@ -63,15 +63,32 @@ checks the PR again and, if it converted the PR to a draft, marks it ready for r
 > Accepting an issue does not trigger the workflow by itself. Edit the PR description afterwards, or ask a maintainer to
 > comment `/triage` on the PR.
 
+### Labels
+
+| Label | Applies to | Added by | Meaning |
+|-------|------------|----------|---------|
+| `enhancement` | Issues | Enhancement proposal template | The issue is a feature request. A PR that links it also needs `triage/accepted` on the issue. |
+| `triage/accepted` | Issues | Maintainers | The enhancement has been accepted and can be implemented. |
+| `policy/no-linked-issue` | PRs | Workflow | The PR does not link to an issue. |
+| `policy/issue-not-accepted` | PRs | Workflow | A linked enhancement does not have `triage/accepted`. |
+| `policy/exempt` | PRs | Maintainers | The workflow does not check the PR. |
+
+The workflow removes `policy/no-linked-issue` and `policy/issue-not-accepted` when the PR meets the policy.
+
 ### For maintainers
 
-* Comment `/triage` on a PR to check it immediately. This also works on PRs opened before the policy was introduced; the
-  workflow keeps checking them afterwards. The workflow reacts with a thumbs-up when it is done.
-* To review a PR that does not meet the policy, add the `policy/exempt` label. Marking the PR ready for review is not
-  enough: the workflow converts it back to a draft.
-* If a PR is titled as a chore but is not one, change its title. The workflow checks it again.
-* To find PRs waiting on an issue, search for
-  [`label:policy/no-linked-issue`](https://github.com/argoproj/argo-cd/pulls?q=is%3Apr+is%3Aopen+label%3Apolicy%2Fno-linked-issue).
+* **Accepting an enhancement:** add `triage/accepted` to the issue, in place of `triage/pending`. Then comment `/triage`
+  on the PRs that link to it, because labeling an issue does not trigger the workflow.
+* **Checking a PR on demand:** comment `/triage` on the PR. This also works on PRs opened before the policy was
+  introduced; the workflow keeps checking them afterwards. The workflow reacts with a thumbs-up when it is done.
+  `/triage` requires write access to the repository; comments from other users are ignored.
+* **Reviewing a PR that does not meet the policy:** add `policy/exempt`. Marking the PR ready for review is not enough,
+  because the workflow converts it back to a draft. Removing `policy/exempt` checks the PR again.
+* **Fixing a misused `chore:` title:** change the title. The workflow checks the PR again.
+* **Finding PRs that wait on an issue:** search for
+  [`label:policy/no-linked-issue`](https://github.com/argoproj/argo-cd/pulls?q=is%3Apr+is%3Aopen+label%3Apolicy%2Fno-linked-issue)
+  or
+  [`label:policy/issue-not-accepted`](https://github.com/argoproj/argo-cd/pulls?q=is%3Apr+is%3Aopen+label%3Apolicy%2Fissue-not-accepted).
 
 ## Before Submitting a PR
 

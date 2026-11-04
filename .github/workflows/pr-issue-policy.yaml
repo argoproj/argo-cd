@@ -19,16 +19,12 @@ env:
   STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
 
 # Only the most recent event for a PR matters. Every comment on a PR starts this
-# workflow, so comments other than a maintainer's /triage command get a group of
-# their own; otherwise they would cancel an in-progress policy check.
+# workflow, so comment events get a group of their own: they can neither cancel
+# a policy check nor be cancelled by one.
 concurrency:
   group: >-
     ${{ github.workflow }}-${{
-      (github.event_name == 'pull_request_target'
-        || (startsWith(github.event.comment.body, '/triage')
-          && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association)))
-      && (github.event.pull_request.number || github.event.issue.number)
-      || github.run_id
+      github.event_name == 'pull_request_target' && github.event.pull_request.number || github.run_id
     }}
   cancel-in-progress: true
 
@@ -44,15 +40,15 @@ jobs:
       pull-requests: write # to label, comment on and convert the PR to a draft, and react to /triage
     name: Check linked issue
     # Bot accounts (Renovate, Dependabot, GitHub Apps) are exempt from the policy.
-    # On comments, only a maintainer's /triage command on a PR runs the check.
+    # On comments, only a /triage command on a PR runs the job. The script then
+    # checks that the commenter has write access to the repository.
     if: >-
       (github.event_name == 'pull_request_target'
         && github.event.pull_request.user.type != 'Bot'
         && !endsWith(github.event.pull_request.user.login, '[bot]'))
       || (github.event_name == 'issue_comment'
         && github.event.issue.pull_request
-        && startsWith(github.event.comment.body, '/triage')
-        && contains(fromJSON('["OWNER","MEMBER","COLLABORATOR"]'), github.event.comment.author_association))
+        && startsWith(github.event.comment.body, '/triage'))
     runs-on: ubuntu-24.04
     steps:
       - name: Harden the runner (Audit all outbound calls)

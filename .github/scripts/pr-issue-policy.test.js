@@ -13,6 +13,7 @@ const {
   NO_ISSUE_LABEL,
   NOT_ACCEPTED_LABEL,
   TRIAGE_COMMAND,
+  canTriage,
   countCodeLines,
   evaluate,
   findReferencedNumbers,
@@ -178,23 +179,15 @@ describe('isChore', () => {
 describe('isTriageCommand', () => {
   const payload = (comment, issue = { number: 100, pull_request: {} }) => ({
     issue,
-    comment: { id: 1, body: TRIAGE_COMMAND, author_association: 'MEMBER', ...comment },
+    comment: { id: 1, body: TRIAGE_COMMAND, user: { login: 'someone' }, ...comment },
   });
 
-  it('accepts a maintainer commenting the command on a PR', () => {
-    for (const association of ['OWNER', 'MEMBER', 'COLLABORATOR']) {
-      assert.equal(isTriageCommand(payload({ author_association: association })), true);
-    }
+  it('accepts the command on a PR', () => {
+    assert.equal(isTriageCommand(payload({})), true);
   });
 
   it('accepts surrounding whitespace', () => {
     assert.equal(isTriageCommand(payload({ body: `  ${TRIAGE_COMMAND}\n` })), true);
-  });
-
-  it('rejects other users', () => {
-    for (const association of ['CONTRIBUTOR', 'FIRST_TIME_CONTRIBUTOR', 'NONE']) {
-      assert.equal(isTriageCommand(payload({ author_association: association })), false);
-    }
   });
 
   it('rejects other comments', () => {
@@ -205,6 +198,43 @@ describe('isTriageCommand', () => {
 
   it('rejects comments on issues', () => {
     assert.equal(isTriageCommand(payload({}, { number: 100 })), false);
+  });
+});
+
+describe('canTriage', () => {
+  const ctx = { repo: { owner: 'argoproj', repo: 'argo-cd' } };
+  const githubReturning = result => ({
+    rest: {
+      repos: {
+        getCollaboratorPermissionLevel: async () => {
+          if (result instanceof Error) {
+            throw result;
+          }
+          return { data: { permission: result } };
+        },
+      },
+    },
+  });
+  const httpError = status => Object.assign(new Error(`HTTP ${status}`), { status });
+
+  it('allows users with write access', async () => {
+    for (const permission of ['admin', 'write']) {
+      assert.equal(await canTriage({ github: githubReturning(permission), context: ctx, username: 'u' }), true);
+    }
+  });
+
+  it('rejects users without write access', async () => {
+    for (const permission of ['read', 'none']) {
+      assert.equal(await canTriage({ github: githubReturning(permission), context: ctx, username: 'u' }), false);
+    }
+  });
+
+  it('rejects users the API does not know', async () => {
+    assert.equal(await canTriage({ github: githubReturning(httpError(404)), context: ctx, username: 'u' }), false);
+  });
+
+  it('fails on other errors', async () => {
+    await assert.rejects(canTriage({ github: githubReturning(httpError(500)), context: ctx, username: 'u' }));
   });
 });
 
@@ -246,6 +276,7 @@ function fakeGitHub({
   convertError,
   pullRequest,
   policyStart = '2026-11-01T00:00:00Z',
+  permissions = { maintainer: 'write' },
 }) {
   const calls = [];
   const record = name => async args => {
@@ -280,6 +311,7 @@ function fakeGitHub({
       },
       reactions: { createForIssueComment: record('react') },
       repos: {
+        getCollaboratorPermissionLevel: async ({ username }) => ({ data: { permission: permissions[username] || 'read' } }),
         listCommits: async () => [
           { commit: { committer: { date: '2026-11-20T00:00:00Z' } } },
           { commit: { committer: { date: policyStart } } },
@@ -330,7 +362,7 @@ const commentContext = comment => ({
   payload: {
     repository: { default_branch: 'master' },
     issue: { number: 100, pull_request: {} },
-    comment: { id: 5, body: TRIAGE_COMMAND, author_association: 'MEMBER', ...comment },
+    comment: { id: 5, body: TRIAGE_COMMAND, user: { login: 'maintainer' }, ...comment },
   },
 });
 // openPR is a PR as returned by the pulls.get REST API.
@@ -450,10 +482,18 @@ describe('run', () => {
     assert.deepEqual(names(github), ['react']);
   });
 
-  it('ignores the triage command from other users', async () => {
-    const github = fakeGitHub({ files: bigChange, pullRequest: openPR({}) });
-    await run({ github, context: commentContext({ author_association: 'CONTRIBUTOR' }), core, gitattributes: '' });
-    assert.deepEqual(names(github), []);
+  it('ignores the triage command from users without write access', async () => {
+    for (const permission of ['read', 'none']) {
+      const github = fakeGitHub({ files: bigChange, pullRequest: openPR({}), permissions: { someone: permission } });
+      await run({ github, context: commentContext({ user: { login: 'someone' } }), core, gitattributes: '' });
+      assert.deepEqual(names(github), []);
+    }
+  });
+
+  it('accepts the triage command from admins', async () => {
+    const github = fakeGitHub({ files: bigChange, pullRequest: openPR({}), permissions: { owner: 'admin' } });
+    await run({ github, context: commentContext({ user: { login: 'owner' } }), core, gitattributes: '' });
+    assert.deepEqual(names(github), ['addLabels', 'convertToDraft', 'createComment', 'react']);
   });
 
   it('ignores the triage command on PRs it does not apply to', async () => {
