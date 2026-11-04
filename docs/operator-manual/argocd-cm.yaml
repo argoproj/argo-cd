@@ -143,7 +143,8 @@ data:
   # Serialization format for cached manifests. Supported values are "json" (default) and "msgpack".
   # resource.manifest.storage: "json"
   # Compression algorithm for cached manifests. Supported values are "gzip-bestspeed" (default), "gzip-default",
-  # "s2-encode", "s2-encodebetter", "zlib", and "none".
+  # "s2-encode", "s2-encodebetter", "zlib", "zstd", and "none". "zstd" uses a built-in dictionary of common
+  # Kubernetes fields and usually stores manifests in the least memory.
   # resource.manifest.compression: "gzip-bestspeed"
 
   # Configuration to define customizations ignoring differences during watched resource updates to skip application reconciles.

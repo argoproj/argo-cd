@@ -23,6 +23,7 @@ func BenchmarkManifestRetainedMemory(b *testing.B) {
 		ManifestCompressionS2Encode,
 		ManifestCompressionS2EncodeBetter,
 		ManifestCompressionZLib,
+		ManifestCompressionZstd,
 		ManifestCompressionNone,
 	}
 

@@ -270,7 +270,8 @@ stringData:
 
 * `resource.manifest.compression` - `argocd-cm` setting controlling the compression algorithm for cached resource
   manifests when manifest compression is enabled. Valid values: `gzip-bestspeed` (default), `gzip-default`, `s2-encode`,
-  `s2-encodebetter`, `zlib`, `none`.
+  `s2-encodebetter`, `zlib`, `zstd`, `none`. `zstd` usually uses the least memory; see
+  [Manifest Compression](manifest-compression.md#zstd).
 
 * `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one
   Redis

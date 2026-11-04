@@ -134,10 +134,10 @@ func TestManifestCodec_UnknownTypes(t *testing.T) {
 	_, err = deserializeManifestObject(nil, "unknown")
 	require.ErrorContains(t, err, "unknown storage type")
 
-	_, err = compressManifestData(nil, "unknown")
+	_, err = compressManifestData(nil, ManifestStorageJSON, "unknown")
 	require.ErrorContains(t, err, "unknown compression type")
 
-	_, err = decompressManifestData(nil, "unknown")
+	_, err = decompressManifestData(nil, ManifestStorageJSON, "unknown")
 	require.ErrorContains(t, err, "unknown compression type")
 }
 
@@ -212,6 +212,7 @@ func TestCompressedManifest_AllCodecs(t *testing.T) {
 		ManifestCompressionS2Encode,
 		ManifestCompressionS2EncodeBetter,
 		ManifestCompressionZLib,
+		ManifestCompressionZstd,
 		ManifestCompressionNone,
 	}
 

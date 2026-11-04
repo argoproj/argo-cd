@@ -141,7 +141,7 @@ func (r *Resource) SetManifestWithCodec(un *unstructured.Unstructured, storageTy
 		return fmt.Errorf("failed to serialize manifest (storage=%s): %w", storageType, err)
 	}
 
-	compressed, err := compressManifestData(data, compressionType)
+	compressed, err := compressManifestData(data, storageType, compressionType)
 	if err != nil {
 		return fmt.Errorf("failed to compress manifest (compression=%s): %w", compressionType, err)
 	}
@@ -162,7 +162,7 @@ func (r *Resource) GetManifest() (*unstructured.Unstructured, error) {
 		return nil, nil
 	}
 
-	data, err := decompressManifestData(r.compressedManifest, r.manifestCompression)
+	data, err := decompressManifestData(r.compressedManifest, r.manifestStorage, r.manifestCompression)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decompress manifest (compression=%s): %w", r.manifestCompression, err)
 	}
