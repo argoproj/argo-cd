@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import * as moment from 'moment';
-import {useQuery, useQueryClient} from '@tanstack/react-query';
+import {useQuery} from '@tanstack/react-query';
 import * as React from 'react';
 import {FieldApi, FormFieldHOC as ReactFormField, Text} from 'argo-ui';
 import {RouteComponentProps, Link} from 'react-router-dom';
@@ -9,6 +9,7 @@ import {FormField, Ticker} from 'argo-ui';
 import {ConnectionStateIcon, EditablePanel, Page, Timestamp, MapInputField} from '../../../shared/components';
 import {Cluster} from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {useClusterMutations} from '../../../shared/mutations';
 import {applicationQueries, clusterQueries} from '../../../shared/queries';
 import {loadFailed, loading} from '../../../shared/query-client';
 import {formatClusterQueryParam} from '../../../shared/utils';
@@ -24,13 +25,11 @@ export const NamespacesEditor = ReactFormField((props: {fieldApi: FieldApi; clas
 
 export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {objectListKind?: string}) => {
     const server = decodeURIComponent(props.match.params.server);
-    const queryClient = useQueryClient();
-    const [updating, setUpdating] = React.useState(false);
+    const clusterMutations = useClusterMutations();
     const objectListKind = props.objectListKind || 'application';
     // Polls like the old 1s timer, but stops on failure so the error notification doesn't repeat every second.
     const {data: cluster, isError, refetch} = useQuery({...clusterQueries.detail(server), refetchInterval: query => (query.state.status === 'error' ? false : 1000)});
     const {data: apps} = useQuery(applicationQueries.list([], objectListKind));
-    const setCluster = (updated: Cluster) => queryClient.setQueryData(clusterQueries.detail(server).queryKey, updated);
     if (isError) {
         return loadFailed(refetch);
     }
@@ -47,16 +46,8 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
                         {
                             iconClassName: classNames('fa fa-redo', {'status-icon--spin': isRefreshRequested(cluster)}),
                             title: 'Invalidate Cache',
-                            disabled: isRefreshRequested(cluster) || updating,
-                            action: async () => {
-                                setUpdating(true);
-                                try {
-                                    const updated = await services.clusters.invalidateCache(props.match.params.server);
-                                    setCluster(updated);
-                                } finally {
-                                    setUpdating(false);
-                                }
-                            }
+                            disabled: isRefreshRequested(cluster) || clusterMutations.invalidateCache.isPending,
+                            action: () => clusterMutations.invalidateCache.mutateAsync(props.match.params.server)
                         }
                     ]
                 }
@@ -72,7 +63,7 @@ export const ClusterDetails = (props: RouteComponentProps<{server: string}> & {o
                         item.namespaces = updated.namespaces;
                         item.labels = updated.labels;
                         item.annotations = updated.annotations;
-                        setCluster(await services.clusters.update(item, 'name', 'namespaces', 'labels', 'annotations'));
+                        await clusterMutations.update.mutateAsync({cluster: item, paths: ['name', 'namespaces', 'labels', 'annotations']});
                     }}
                     title='GENERAL'
                     items={[

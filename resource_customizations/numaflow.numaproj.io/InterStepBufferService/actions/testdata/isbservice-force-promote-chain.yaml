@@ -9,7 +9,7 @@ metadata:
     numaplane.numaproj.io/parent-rollout-name: my-isbsvc
     numaplane.numaproj.io/force-promote-chain: "true"
     numaplane.numaproj.io/progressive-chain-failed: "true"
-    numaplane.numaproj.io/upgrade-state: "in-progress"
+    numaplane.numaproj.io/upgrade-state: "trial"
   name: my-isbsvc-0
   namespace: demo
   ownerReferences:
