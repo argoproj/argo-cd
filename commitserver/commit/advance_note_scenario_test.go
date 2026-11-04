@@ -47,7 +47,8 @@ func TestAdvanceHydratorNote_RealignsEnvSkippedByPathFilter(t *testing.T) {
 	require.NoError(t, AddNote(t.Context(), getClientForClone(t, remotePath), "db205bd", stageNext))
 	require.NotEqual(t, noteDrySHA(t, remotePath, intNext), noteDrySHA(t, remotePath, stageNext), "precondition: stalled state")
 
-	svc := &Service{repoClientFactory: localRepoClientFactory{remotePath: remotePath}}
+	svc := NewService(nil, nil, nil)
+	svc.repoClientFactory = localRepoClientFactory{remotePath: remotePath}
 	req := &apiclient.AdvanceHydratorNoteRequest{
 		Repo:         &v1alpha1.Repository{Repo: remotePath},
 		SyncBranch:   "int",
@@ -66,4 +67,14 @@ func TestAdvanceHydratorNote_RealignsEnvSkippedByPathFilter(t *testing.T) {
 	again, err := svc.AdvanceHydratorNote(t.Context(), req)
 	require.NoError(t, err)
 	assert.False(t, again.NoteAdvanced, "idempotent")
+}
+
+func TestAdvanceHydratorNote_RejectsEmptyDrySha(t *testing.T) {
+	svc := NewService(nil, nil, nil)
+	_, err := svc.AdvanceHydratorNote(t.Context(), &apiclient.AdvanceHydratorNoteRequest{
+		Repo:         &v1alpha1.Repository{Repo: "https://example.com/repo.git"},
+		SyncBranch:   "env",
+		TargetBranch: "env-next",
+	})
+	require.ErrorContains(t, err, "dry sha is required")
 }
