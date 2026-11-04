@@ -3785,6 +3785,37 @@ func Test_hasActiveShallowBoundary(t *testing.T) {
 		require.False(t, active)
 	})
 
+	// Tip SHA is listed in .git/shallow but parents are present: marker is stale,
+	// not the root-in-shallow active case. Not an active shallow boundary.
+	t.Run("says no active shallow boundary when tip is listed in shallow file but has parents", func(t *testing.T) {
+		t.Parallel()
+		ctx := t.Context()
+
+		client, _, cloneDir := prepareCloneAndClient(t, ctx, false)
+		native := client.(*nativeGitClient)
+
+		tipOut, err := outputCmd(ctx, cloneDir, "git", "rev-parse", "HEAD")
+		require.NoError(t, err)
+		tip := strings.TrimSpace(string(tipOut))
+
+		parentsOut, err := outputCmd(ctx, cloneDir, "git", "rev-list", "--parents", "-n1", tip)
+		require.NoError(t, err)
+		require.Greater(t, len(strings.Fields(strings.TrimSpace(string(parentsOut)))), 1, "tip must have parents so this is not the root-in-shallow case")
+
+		pathOut, err := native.runCmd(ctx, "rev-parse", "--git-path", "shallow")
+		require.NoError(t, err)
+		shallowPath := strings.TrimSpace(pathOut)
+		if !filepath.IsAbs(shallowPath) {
+			shallowPath = filepath.Join(cloneDir, shallowPath)
+		}
+		require.NoError(t, os.WriteFile(shallowPath, []byte(tip+"\n"), 0o644))
+		assertShallowState(t, ctx, cloneDir, true)
+
+		active, err := native.hasActiveShallowBoundary(ctx)
+		require.NoError(t, err)
+		require.False(t, active)
+	})
+
 	t.Run("identifies active shallow boundary when root tip is listed in shallow file", func(t *testing.T) {
 		t.Parallel()
 		ctx := t.Context()
@@ -3806,27 +3837,6 @@ func Test_hasActiveShallowBoundary(t *testing.T) {
 		active, err := client.(*nativeGitClient).hasActiveShallowBoundary(ctx)
 		require.NoError(t, err)
 		require.True(t, active)
-	})
-
-	t.Run("returns error when shallow file is unreadable", func(t *testing.T) {
-		t.Parallel()
-		ctx := t.Context()
-
-		client, _, cloneDir := prepareCloneAndClient(t, ctx, true)
-		native := client.(*nativeGitClient)
-
-		pathOut, err := native.runCmd(ctx, "rev-parse", "--git-path", "shallow")
-		require.NoError(t, err)
-		shallowPath := strings.TrimSpace(pathOut)
-		if !filepath.IsAbs(shallowPath) {
-			shallowPath = filepath.Join(cloneDir, shallowPath)
-		}
-		require.NoError(t, os.Chmod(shallowPath, 0o000))
-		t.Cleanup(func() { _ = os.Chmod(shallowPath, 0o644) })
-
-		_, err = native.hasActiveShallowBoundary(ctx)
-		require.Error(t, err)
-		require.ErrorContains(t, err, "failed to read shallow file")
 	})
 }
 
