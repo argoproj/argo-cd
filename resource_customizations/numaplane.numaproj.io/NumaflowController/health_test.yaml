@@ -27,3 +27,11 @@ tests:
     status: Degraded
     message: "Failed progressive upgrade"
   inputPath: testdata/NumaflowController/degraded-progressive.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed progressive upgrade"
+  inputPath: testdata/NumaflowController/degraded-progressive-no-status.yaml
+- healthStatus:
+    status: Degraded
+    message: "Failed progressive upgrade"
+  inputPath: testdata/NumaflowController/degraded-progressive-stale-generation.yaml
