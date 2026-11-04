@@ -114,7 +114,28 @@ func compressManifestData(data []byte, compressionType ManifestCompressionType) 
 	if !ok {
 		return nil, fmt.Errorf("unknown compression type: %s", compressionType)
 	}
-	return c.compress(data)
+	compressed, err := c.compress(data)
+	if err != nil {
+		return nil, err
+	}
+	return trimExcessCapacity(compressed), nil
+}
+
+// trimExcessCapacity copies b into a right-sized allocation when its spare capacity is large.
+// The result of compressManifestData is kept in the cluster cache for the lifetime of the
+// resource, so spare capacity left by the encoder (bytes.Buffer growth, s2.MaxEncodedLen
+// preallocation, serializer output buffers) would otherwise stay allocated alongside every
+// cached manifest.
+//
+// Slack of up to len/8 is left alone: Go rounds allocations up to a size class (at most ~12.5%
+// waste), so a fresh copy would land in the same size class and the copy would buy nothing.
+func trimExcessCapacity(b []byte) []byte {
+	if cap(b)-len(b) <= len(b)/8 {
+		return b
+	}
+	trimmed := make([]byte, len(b))
+	copy(trimmed, b)
+	return trimmed
 }
 
 // decompressManifestData decompresses manifest bytes using the registered compressor.
