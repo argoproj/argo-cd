@@ -19,6 +19,28 @@ const reactCompilerLog = process.env.REACT_COMPILER_LOG === '1';
 console.log(`Bundling in ${isProd ? 'production' : 'development'}...`);
 console.log(`React Compiler: ${reactCompiler ? 'enabled' : 'disabled'}${reactCompiler && reactCompilerLog ? ' (logging)' : ''}`);
 
+// argocd-server applies --rootpath/--basehref by rewriting this exact tag (from src/app/index.html) in the
+// embedded index.html (see replaceBaseHRef in server/server.go). Fail the build if the emitted index.html
+// no longer contains it verbatim, e.g. because a minifier rewrote it (#30763).
+const expectedBaseTag = '<base href="/">';
+
+class BaseHrefGuardPlugin {
+    apply(compiler) {
+        compiler.hooks.thisCompilation.tap('BaseHrefGuardPlugin', compilation => {
+            compilation.hooks.processAssets.tap(
+                // REPORT is the last stage, after every minimizer has run.
+                {name: 'BaseHrefGuardPlugin', stage: webpack.Compilation.PROCESS_ASSETS_STAGE_REPORT},
+                () => {
+                    const asset = compilation.getAsset('index.html');
+                    if (!asset || !asset.source.source().toString().includes(expectedBaseTag)) {
+                        compilation.errors.push(new webpack.WebpackError(`index.html must contain ${expectedBaseTag} verbatim so argocd-server can rewrite it for --rootpath/--basehref`));
+                    }
+                }
+            );
+        });
+    }
+}
+
 const esbuildTsxLoader = {
     loader: 'esbuild-loader',
     options: {
@@ -83,6 +105,10 @@ const config = {
     },
     cache: { type: 'filesystem' },
     optimization: {
+        // Since 5.110, webpack also minifies HTML assets by default. It rewrites index.html with unquoted
+        // attributes (`<base href=/>`), which argocd-server's base href rewrite does not match, so the UI
+        // breaks under --rootpath/--basehref (#30763). html-webpack-plugin already minifies index.html.
+        minimizeOptions: {html: false},
         runtimeChunk: 'single',
         splitChunks: {
             chunks: 'all',
@@ -164,6 +190,7 @@ const config = {
             })
         }),
         new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
+        new BaseHrefGuardPlugin(),
         new webpack.NormalModuleReplacementPlugin(/^\.\/logs-viewer\/logs-viewer$/, resource => {
             if (resource.context.endsWith(path.join('argo-ui', 'src', 'components'))) {
                 resource.request = path.resolve(__dirname, 'shims', 'logs-viewer.tsx');
