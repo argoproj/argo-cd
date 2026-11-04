@@ -16,3 +16,14 @@ export function newQueryClient(notifications: NotificationsApi): QueryClient {
         defaultOptions: {queries: {retry: false, refetchOnWindowFocus: false}}
     });
 }
+
+// Same markup DataLoader rendered while loading and on failure.
+export const loading = <p style={{padding: '0.5em', textAlign: 'center'}}>Loading...</p>;
+
+export function loadFailed(retry: () => void) {
+    return (
+        <p style={{padding: '0.5em', textAlign: 'center'}}>
+            Failed to load data, please <a onClick={() => retry()}>try again</a>.
+        </p>
+    );
+}

@@ -17,13 +17,13 @@ require (
 	github.com/argoproj/argo-cd/gitops-engine/v3 v3.0.0-00010101000000-000000000000 // Tagged as gitops-engine/vX.Y.Z at release time
 	github.com/argoproj/notifications-engine v0.5.1-0.20260923204536-04b5e2683e70
 	github.com/argoproj/pkg/v2 v2.0.1
-	github.com/aws/aws-sdk-go-v2 v1.47.4
-	github.com/aws/aws-sdk-go-v2/config v1.33.10
-	github.com/aws/aws-sdk-go-v2/credentials v1.20.10
-	github.com/aws/aws-sdk-go-v2/service/codecommit v1.44.1
-	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.41.6
-	github.com/aws/aws-sdk-go-v2/service/sts v1.51.5
-	github.com/aws/smithy-go v1.28.6
+	github.com/aws/aws-sdk-go-v2 v1.47.5
+	github.com/aws/aws-sdk-go-v2/config v1.33.13
+	github.com/aws/aws-sdk-go-v2/credentials v1.20.13
+	github.com/aws/aws-sdk-go-v2/service/codecommit v1.44.3
+	github.com/aws/aws-sdk-go-v2/service/resourcegroupstaggingapi v1.41.8
+	github.com/aws/aws-sdk-go-v2/service/sts v1.51.6
+	github.com/aws/smithy-go v1.28.7
 	github.com/bmatcuk/doublestar/v4 v4.10.4
 	github.com/bombsimon/logrusr/v4 v4.2.0
 	github.com/bradleyfalzon/ghinstallation/v2 v2.19.0
@@ -45,13 +45,13 @@ require (
 	// #1515) is mitigated in util/git by populating HostKeyAlgorithms via
 	// skeema/knownhosts. Keep that fix in place when bumping further.
 	github.com/go-git/go-git/v5 v5.19.2
-	github.com/go-jose/go-jose/v4 v4.1.6
+	github.com/go-jose/go-jose/v4 v4.1.7
 	github.com/go-logr/logr v1.4.4
 	github.com/go-openapi/loads v0.25.3
 	github.com/go-openapi/runtime/server-middleware v0.33.3
 	github.com/go-playground/webhooks/v6 v6.4.0
 	github.com/go-redis/cache/v9 v9.0.0
-	github.com/gobwas/glob v1.0.0
+	github.com/gobwas/glob v1.1.0
 	github.com/gogits/go-gogs-client v0.0.0-20210131175652-1d7215cd8d85
 	github.com/gogo/protobuf v1.3.2
 	github.com/golang-jwt/jwt/v5 v5.3.1
@@ -111,15 +111,15 @@ require (
 	go.opentelemetry.io/otel/sdk/metric v1.47.0
 	go.opentelemetry.io/otel/trace v1.47.0
 	go.opentelemetry.io/proto/otlp v1.11.1
-	go.yaml.in/yaml/v3 v3.0.5
+	go.yaml.in/yaml/v3 v3.0.6
 	golang.org/x/crypto v0.58.0
-	golang.org/x/net v0.61.0
+	golang.org/x/net v0.62.0
 	golang.org/x/oauth2 v0.37.0
 	golang.org/x/sync v0.24.0
 	golang.org/x/term v0.47.0
 	golang.org/x/time v0.16.0
 	google.golang.org/genproto/googleapis/api v0.0.0-20260928230214-8a89bd6388cc
-	google.golang.org/grpc v1.84.0
+	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v2 v2.4.0
 	gopkg.in/yaml.v3 v3.0.1
@@ -170,16 +170,16 @@ require (
 	github.com/PagerDuty/go-pagerduty v1.8.0 // indirect
 	github.com/ProtonMail/go-crypto v1.1.6 // indirect
 	github.com/RocketChat/Rocket.Chat.Go.SDK v0.0.0-20240116134246-a8cbe886bab0 // indirect
-	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.4 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.7 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.7 // indirect
-	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.22 // indirect
-	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.7 // indirect
-	github.com/aws/aws-sdk-go-v2/service/signin v1.10.5 // indirect
+	github.com/aws/aws-sdk-go-v2/feature/ec2/imds v1.20.5 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/configsources v1.5.8 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/endpoints/v2 v2.8.8 // indirect
+	github.com/aws/aws-sdk-go-v2/internal/v4a v1.5.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.23 // indirect
+	github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.8 // indirect
+	github.com/aws/aws-sdk-go-v2/service/signin v1.12.1 // indirect
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.42.21 // indirect
-	github.com/aws/aws-sdk-go-v2/service/sso v1.38.5 // indirect
-	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.43.5 // indirect
+	github.com/aws/aws-sdk-go-v2/service/sso v1.39.1 // indirect
+	github.com/aws/aws-sdk-go-v2/service/ssooidc v1.44.1 // indirect
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/blang/semver/v4 v4.0.0 // indirect
 	github.com/cenkalti/backoff/v4 v4.3.0 // indirect

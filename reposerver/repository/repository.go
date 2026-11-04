@@ -137,7 +137,10 @@ type RepoServerInitConstants struct {
 	HelmChartCacheExpiration                     time.Duration // Cache expiration for repo
 }
 
-var manifestGenerateLock = sync.NewKeyLock()
+var (
+	manifestGenerateLock    = sync.NewKeyLock()
+	syncedRevisionFetchLock = sync.NewKeyLock()
+)
 
 // NewService returns a new instance of the Manifest service
 func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initConstants RepoServerInitConstants, gitCredsStore git.CredsStore, rootDir string) *Service {
@@ -3166,6 +3169,9 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 		for _, revision := range targetRevisions {
 			if !gitClient.IsRevisionPresent(ctx, revision) {
 				if err := gitClient.Fetch(ctx, revision, depth); err != nil {
+					if msg := err.Error(); strings.Contains(msg, "not our ref") || strings.Contains(msg, "unadvertised object") || strings.Contains(msg, "couldn't find remote ref") {
+						return fmt.Errorf("failed to fetch revision %s: %w: %w", revision, git.ErrRevisionNotFound, err)
+					}
 					return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 				}
 			}
@@ -3513,9 +3519,9 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		return revision, syncedRevision, false, nil
 	}
 
-	getGitFilesChanges := func() ([]string, error) {
-		var files []string
-
+	// compared is false when syncedRevision is gone from the remote (e.g. force-pushed away); the
+	// caller then treats the source as changed.
+	getGitFilesChanges := func() (files []string, compared bool, err error) {
 		s.metricsServer.IncPendingRepoRequest(repo.Repo)
 		defer s.metricsServer.DecPendingRepoRequest(repo.Repo)
 
@@ -3523,19 +3529,33 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 			return s.checkoutRevision(ctx, gitClient, revision, false, repo.Depth, clean)
 		})
 		if err != nil {
-			return files, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
+			return nil, false, status.Errorf(codes.Internal, "unable to checkout git repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
 		defer utilio.Close(closer)
 
-		if err := s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth); err != nil {
-			return files, fmt.Errorf("unable to fetch git repo %s with syncedRevisions %s: %w", repo.Repo, syncedRevision, err)
+		// Concurrent holders of the shared lock above may all miss syncedRevision; parallel shallow
+		// fetches into one repo fail on .git/shallow.lock. Later holders find it present and skip.
+		// Checked before locking so callers don't queue when it is already present.
+		if !gitClient.IsRevisionPresent(ctx, syncedRevision) {
+			syncedRevisionFetchLock.Lock(gitClient.Root())
+			err = s.fetch(ctx, gitClient, []string{syncedRevision}, repo.Depth)
+			syncedRevisionFetchLock.Unlock(gitClient.Root())
+			// Gone from the remote: only a sync can replace it. Other errors propagate so the caller can
+			// fall back to the compared base (#29430).
+			if errors.Is(err, git.ErrRevisionNotFound) {
+				log.Warnf("Synced revision %s of repo %s is gone from the remote, treating source as changed: %v", syncedRevision, repo.Repo, err)
+				return nil, false, nil
+			}
+			if err != nil {
+				return nil, false, fmt.Errorf("unable to fetch git repo %s with syncedRevisions %s: %w", repo.Repo, syncedRevision, err)
+			}
 		}
 
 		files, err = gitClient.ChangedFiles(ctx, syncedRevision, revision)
 		if err != nil {
-			return files, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+			return nil, false, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
 		}
-		return files, nil
+		return files, true, nil
 	}
 
 	composed := false
@@ -3544,9 +3564,14 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		files, err = composeGitFilesChanges(s.cache, repo.Repo, revision, composeVia, syncedRevision)
 		composed = err == nil
 		if err != nil {
-			files, err = getGitFilesChanges()
+			var compared bool
+			files, compared, err = getGitFilesChanges()
 			if err != nil {
 				return revision, syncedRevision, true, err
+			}
+			if !compared {
+				// Not cached: an empty file list would read as "no changes" on the next lookup.
+				return revision, syncedRevision, true, nil
 			}
 		}
 	}
