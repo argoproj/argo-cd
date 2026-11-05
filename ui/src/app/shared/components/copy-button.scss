@@ -15,6 +15,14 @@
         color: #033160;
     }
 
+    .theme-dark & {
+        color: #6cb6ff;
+
+        &:hover {
+            color: #a8d4ff;
+        }
+    }
+
     &:focus-visible {
         outline: 2px solid #0972d3;
         outline-offset: 1px;

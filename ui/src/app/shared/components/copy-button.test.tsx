@@ -24,10 +24,12 @@ describe('CopyButton', () => {
         jest.useRealTimers();
     });
 
-    test('copies the text verbatim, preserving casing, and shows "Copied!" for 3 seconds', () => {
+    test('copies the text verbatim, preserving casing, and shows "Copied!" for 3 seconds', async () => {
         render(<CopyButton text='Guestbook-App' />);
 
-        fireEvent.click(screen.getByRole('button'));
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button'));
+        });
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Guestbook-App');
         expect(screen.getByTestId('tooltip')).toHaveTextContent('Copied!');
 
@@ -37,7 +39,31 @@ describe('CopyButton', () => {
         expect(screen.getByTestId('tooltip')).toHaveTextContent('Copy to clipboard');
     });
 
-    test('does not propagate the click to parents', () => {
+    test('falls back to execCommand when the clipboard API rejects', async () => {
+        (navigator.clipboard.writeText as jest.Mock).mockRejectedValue(new Error('denied'));
+        document.execCommand = jest.fn().mockReturnValue(true);
+        render(<CopyButton text='guestbook' />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button'));
+        });
+        expect(document.execCommand).toHaveBeenCalledWith('copy');
+        expect(screen.getByTestId('tooltip')).toHaveTextContent('Copied!');
+    });
+
+    test('uses execCommand when the clipboard API is unavailable and reports failure if that fails too', async () => {
+        Object.assign(navigator, {clipboard: undefined});
+        document.execCommand = jest.fn().mockReturnValue(false);
+        render(<CopyButton text='guestbook' />);
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button'));
+        });
+        expect(document.execCommand).toHaveBeenCalledWith('copy');
+        expect(screen.getByTestId('tooltip')).toHaveTextContent('Copy failed');
+    });
+
+    test('does not propagate the click to parents', async () => {
         const onParentClick = jest.fn();
         render(
             <div onClick={onParentClick}>
@@ -45,18 +71,27 @@ describe('CopyButton', () => {
             </div>
         );
 
-        fireEvent.click(screen.getByRole('button'));
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button'));
+        });
         expect(onParentClick).not.toHaveBeenCalled();
     });
 
-    test('renders nothing without text and clears the timer on unmount', () => {
-        const {container, unmount} = render(<CopyButton text='' />);
+    test('renders nothing without text', () => {
+        const {container} = render(<CopyButton text='' />);
         expect(container).toBeEmptyDOMElement();
-        unmount();
+    });
 
-        const second = render(<CopyButton text='guestbook' />);
-        fireEvent.click(screen.getByRole('button'));
-        second.unmount();
-        expect(jest.getTimerCount()).toBe(0);
+    test('does not start a reset timer if the copy resolves after unmount', async () => {
+        const {unmount} = render(<CopyButton text='guestbook' />);
+        const setTimeoutSpy = jest.spyOn(global, 'setTimeout');
+
+        await act(async () => {
+            fireEvent.click(screen.getByRole('button'));
+            unmount();
+        });
+
+        expect(setTimeoutSpy).not.toHaveBeenCalledWith(expect.any(Function), 3000);
+        setTimeoutSpy.mockRestore();
     });
 });
