@@ -926,7 +926,10 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	serverSideDiff := shouldUseServerSideDiff(app, m.serverSideDiff)
 
-	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
+	// With manifest-generate-paths, a new revision whose watched paths have no changes reuses the
+	// previous manifests, so the cached diff is still valid for it.
+	manifestPathsUnchanged := len(localManifests) == 0 && !failedToLoadObjs && !revisionsMayHaveChanges
+	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, manifestPathsUnchanged, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
@@ -1192,7 +1195,7 @@ func shouldUseServerSideDiff(app *v1alpha1.Application, controllerLevelSSD bool)
 
 // useDiffCache will determine if the diff should be calculated based
 // on the existing live state cache or not.
-func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, serverSideDiff bool, log *log.Entry) bool {
+func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, manifestPathsUnchanged bool, statusRefreshTimeout time.Duration, serverSideDiff bool, log *log.Entry) bool {
 	if noCache {
 		log.WithField("useDiffCache", "false").Debug("noCache is true")
 		return false
@@ -1220,8 +1223,11 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 
 	revisionChanged := !reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions)
 	if revisionChanged {
-		log.WithField("useDiffCache", "false").Debug("revisionChanged")
-		return false
+		if !manifestPathsUnchanged {
+			log.WithField("useDiffCache", "false").Debug("revisionChanged")
+			return false
+		}
+		log.Debug("revision changed without changes in the manifest-generate-paths")
 	}
 
 	if !specEqualsCompareTo(app.Spec, sources, app.Status.Sync.ComparedTo) {

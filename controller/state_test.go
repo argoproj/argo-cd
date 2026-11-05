@@ -1766,6 +1766,7 @@ func TestUseDiffCache(t *testing.T) {
 		sources              []v1alpha1.ApplicationSource
 		app                  *v1alpha1.Application
 		manifestRevisions    []string
+		pathsUnchanged       bool
 		statusRefreshTimeout time.Duration
 		expectedUseCache     bool
 		serverSideDiff       bool
@@ -1973,6 +1974,30 @@ func TestUseDiffCache(t *testing.T) {
 			serverSideDiff:       false,
 		},
 		{
+			testName:             "will return true if there is a new revision without changes in the manifest-generate-paths",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev2"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev2"},
+			pathsUnchanged:       true,
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     true,
+			serverSideDiff:       true,
+		},
+		{
+			testName:             "will return false if there is a new revision without changes in the manifest-generate-paths but a refresh is requested",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev2"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", true, nil),
+			manifestRevisions:    []string{"rev2"},
+			pathsUnchanged:       true,
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       true,
+		},
+		{
 			testName:      "will return false if app spec repo changed",
 			noCache:       false,
 			manifestInfos: manifestInfos("rev1"),
@@ -2047,7 +2072,7 @@ func TestUseDiffCache(t *testing.T) {
 			logger, _ := logrustest.NewNullLogger()
 			log := logrus.NewEntry(logger)
 			// When
-			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout, tc.serverSideDiff, log)
+			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.pathsUnchanged, tc.statusRefreshTimeout, tc.serverSideDiff, log)
 			// Then
 			assert.Equal(t, tc.expectedUseCache, useDiffCache)
 		})
