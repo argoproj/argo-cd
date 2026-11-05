@@ -27,6 +27,7 @@ type DexTLSConfig struct {
 	Certificate      []byte
 }
 
+// TLSConfig returns TLS config for Dex connections, or nil if TLS disabled.
 func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 	if tlsConfig == nil || tlsConfig.DisableTLS {
 		return nil
