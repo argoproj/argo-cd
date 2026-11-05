@@ -3022,6 +3022,8 @@ func TestTargetsMatchCachedDiff(t *testing.T) {
 	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{svc(81)}, []*unstructured.Unstructured{live}))
 	assert.False(t, targetsMatchCachedDiff(nil, []*unstructured.Unstructured{svc(80)}, []*unstructured.Unstructured{live}))
 	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{nil}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{svc(80)}, nil))
+	assert.True(t, targetsMatchCachedDiff(nil, []*unstructured.Unstructured{nil}, []*unstructured.Unstructured{nil}))
 
 	secret := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "v1", "kind": "Secret",
