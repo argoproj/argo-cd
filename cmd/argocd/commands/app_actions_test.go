@@ -2,13 +2,12 @@ package commands
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	applicationmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/application/mocks"
@@ -192,7 +191,8 @@ func TestGetActionableResourcesForApplication(t *testing.T) {
 			}, nil)
 		mockClient.On("Get", mock.Anything, mock.Anything).
 			Return(&v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNs},
+				Name:      appName,
+				Namespace: appNs,
 			}, nil)
 
 		result, err := getActionableResourcesForApplication(context.Background(), mockClient, &appNs, &appName)
@@ -210,7 +210,8 @@ func TestGetActionableResourcesForApplication(t *testing.T) {
 			Return(&applicationpkg.ManagedResourcesResponse{Items: nil}, nil)
 		mockClient.On("Get", mock.Anything, mock.Anything).
 			Return(&v1alpha1.Application{
-				ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNs},
+				Name:      appName,
+				Namespace: appNs,
 			}, nil)
 
 		result, err := getActionableResourcesForApplication(context.Background(), mockClient, &appNs, &appName)
@@ -222,7 +223,7 @@ func TestGetActionableResourcesForApplication(t *testing.T) {
 	t.Run("returns error when ManagedResources fails", func(t *testing.T) {
 		mockClient := applicationmocks.NewApplicationServiceClient(t)
 		mockClient.On("ManagedResources", mock.Anything, mock.Anything).
-			Return(nil, fmt.Errorf("connection refused"))
+			Return(nil, errors.New("connection refused"))
 
 		_, err := getActionableResourcesForApplication(context.Background(), mockClient, &appNs, &appName)
 		require.Error(t, err)
@@ -234,7 +235,7 @@ func TestGetActionableResourcesForApplication(t *testing.T) {
 		mockClient.On("ManagedResources", mock.Anything, mock.Anything).
 			Return(&applicationpkg.ManagedResourcesResponse{Items: nil}, nil)
 		mockClient.On("Get", mock.Anything, mock.Anything).
-			Return(nil, fmt.Errorf("application not found"))
+			Return(nil, errors.New("application not found"))
 
 		_, err := getActionableResourcesForApplication(context.Background(), mockClient, &appNs, &appName)
 		require.Error(t, err)
