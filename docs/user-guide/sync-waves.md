@@ -57,6 +57,75 @@ Note that if no deletion policy is specified, Argo CD will automatically assume 
 > on hook Jobs. Argo CD needs to read the Job to find out how the phase went, and if Kubernetes deletes
 > it first, the sync can end up waiting for a hook that is not there any more.
 
+## Read the revision of a sync from a hook
+
+A hook can ask Argo CD to stamp information about its sync operation onto it with
+`argocd.argoproj.io/inject-sync-info`, a comma-separated list of fields. The only field currently
+supported is `revision`, the revision resolved for this sync operation. It stays fixed for the
+operation even if the source branch advances while the hook runs, and each retry or later sync
+stamps its own revision onto the hook it creates.
+
+| Application   | Annotations written                                                                                                         |
+|---------------|-----------------------------------------------------------------------------------------------------------------------------|
+| Single-source | `argocd.argoproj.io/sync-revision`                                                                                          |
+| Multi-source  | `argocd.argoproj.io/sync-revision-<position>` for each source, where `<position>` starts at `1` (as in `--source-position`) |
+|               | `argocd.argoproj.io/sync-revision-<name>` for each source with a [`name`](multiple_sources.md)                              |
+
+The annotations are written on the hook itself and, for a `batch/v1` Job, also on its Pod template so
+that containers can read them through the Kubernetes Downward API:
+
+```yaml
+apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: verify-release-
+  annotations:
+    argocd.argoproj.io/hook: PostSync
+    argocd.argoproj.io/inject-sync-info: revision
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: verify
+          image: busybox:1.37
+          command: ["sh", "-c", 'echo "Synced revision: $SYNC_REVISION"']
+          env:
+            - name: SYNC_REVISION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['argocd.argoproj.io/sync-revision']
+```
+
+An Application that uses `spec.sources` gets the multi-source annotations even if it lists only one source.
+For multi-source Applications, prefer the name-keyed annotation: positions change when `spec.sources` is
+reordered, names do not. A name-keyed annotation is skipped when the name is shared by another source, is
+an integer, or does not form a valid annotation key: only letters, digits, `-`, `_` and `.`, ending in a letter or
+digit, at most 49 characters. Names are never truncated or rewritten, so distinct names never share a key.
+For a Helm repository source the revision is the chart version; for an OCI source it is the digest.
+
+Kubernetes does not allow a Job's Pod template to change. A Job hook with a fixed `metadata.name` must
+therefore be deleted before each sync, or the next sync cannot update it with the new revision and fails.
+Use `generateName`, or keep `BeforeHookCreation` in `argocd.argoproj.io/hook-delete-policy` (the default when
+no policy is set). For example, `HookSucceeded` alone keeps a failed Job, which then blocks the next sync.
+
+Other kinds, such as an Argo Workflow or a Deployment used as a hook, get the annotation only on their own
+metadata; Pods they create do not inherit it, so pass it on explicitly (for example as a Workflow parameter).
+
+For an Application using the Source Hydrator, the revision is the hydrated commit that was synced. The value
+differs from the Application's configured target revision and from the current head of its branch.
+
+The value is the revision the operation is syncing, not proof that it was deployed or verified: a `PreSync`
+hook runs before anything is applied, and a `SyncFail` hook can run after a partial sync. Treat a result as
+evidence for that revision only from a hook that tests the deployment, such as a `PostSync` hook. If an
+expected annotation is missing (for example a skipped source name), the Downward API supplies an empty
+value; fail rather than falling back to resolving a branch.
+
+The sync fails with an error if an opted-in hook lists an unknown field or if the operation has no
+resolved revision, for example when syncing local manifests. The annotations are only added to the
+hook applied for the operation; they do not change the desired manifest used for comparison.
+`PreDelete` and `PostDelete` hooks do not run as part of a sync operation and are not supported.
+
 When Helm hook annotations are mapped onto Argo CD hooks, delete-policy evaluation still follows Argo CD sync phases and sync result semantics rather than Helm's per-hook-event lifecycle. For example, a `PreSync` resource mapped from Helm may remain available until later phases finish, and passive resources such as `ServiceAccount` do not have a completion state like `Job` or `Workflow`.
 
 ## PreDelete and PostDelete Hooks
