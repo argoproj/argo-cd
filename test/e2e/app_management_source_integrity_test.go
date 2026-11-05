@@ -1,11 +1,13 @@
 package e2e
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -492,7 +494,7 @@ func TestSignedRevisionOnlyRejectsLightweightTag(t *testing.T) {
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
-		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedRevisionOnly is enabled, lightweight-tag is not annotated"))
+		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedRevisionOnly is enabled, lightweight-tag resolves to refs/tags/lightweight-tag"))
 }
 
 func TestSignedRevisionOnlyRejectsBranch(t *testing.T) {
@@ -514,6 +516,32 @@ func TestSignedRevisionOnlyRejectsBranch(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
 		Expect(HealthIs(health.HealthStatusMissing)).
 		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedRevisionOnly is enabled"))
+}
+
+func TestSignedRevisionOnlyAcceptsSignedCommitSHA(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+	ctx := Given(t)
+	ctx.
+		ProjectSpec(projectWithSignedRevisionOnly).
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		And(func() {
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			ctx.Revision(strings.TrimSpace(sha))
+		}).
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
 }
 
 func TestSignedRevisionOnlyAcceptsSignedAnnotatedTag(t *testing.T) {

@@ -2,6 +2,7 @@ package sourceintegrity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -705,35 +706,79 @@ func TestSignedRevisionOnly(t *testing.T) {
 			})
 	}
 
+	// `git cat-file -t` reports revType
+	// `git rev-parse --symbolic-full-name` reports refName
 	testCases := []struct {
 		name            string
 		signedTagsOnly  bool
 		revision        string
-		annotated       bool
+		revType         string
+		revTypeErr      error
+		refName         string
 		expectedProblem string
 	}{
 		{
 			name:           "annotated tag passes the gate",
 			signedTagsOnly: true,
 			revision:       "v1.0",
-			annotated:      true,
+			revType:        "tag",
+		},
+		{
+			name:           "commit sha passes the gate",
+			signedTagsOnly: true,
+			revision:       sha,
+			revType:        "commit",
 		},
 		{
 			name:            "lightweight tag is rejected before verification",
 			signedTagsOnly:  true,
 			revision:        "v1.0-lightweight",
-			expectedProblem: "SignedRevisionOnly is enabled, v1.0-lightweight is not annotated. Un-annotated tags cannot be verified",
+			revType:         "commit",
+			refName:         "refs/tags/v1.0-lightweight",
+			expectedProblem: "SignedRevisionOnly is enabled, v1.0-lightweight resolves to refs/tags/v1.0-lightweight. Only commit SHAs and annotated tags can be verified",
 		},
 		{
-			name:            "commit sha is rejected before verification",
+			name:            "branch is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        "main",
+			revType:         "commit",
+			refName:         "refs/heads/main",
+			expectedProblem: "SignedRevisionOnly is enabled, main resolves to refs/heads/main. Only commit SHAs and annotated tags can be verified",
+		},
+		{
+			name:            "remote tracking branch is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        "origin/main",
+			revType:         "commit",
+			refName:         "refs/remotes/origin/main",
+			expectedProblem: "SignedRevisionOnly is enabled, origin/main resolves to refs/remotes/origin/main. Only commit SHAs and annotated tags can be verified",
+		},
+		{
+			name:            "HEAD is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        "HEAD",
+			revType:         "commit",
+			refName:         "refs/heads/main",
+			expectedProblem: "SignedRevisionOnly is enabled, HEAD resolves to refs/heads/main. Only commit SHAs and annotated tags can be verified",
+		},
+		{
+			name:            "revision that does not exist is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        "v9.9",
+			revTypeErr:      errors.New("fatal: Not a valid object name v9.9"),
+			expectedProblem: "SignedRevisionOnly is enabled, revision v9.9 does not exist",
+		},
+		{
+			name:            "revision that is not a commit is rejected before verification",
 			signedTagsOnly:  true,
 			revision:        sha,
-			expectedProblem: "SignedRevisionOnly is enabled, " + sha + " is not annotated. Un-annotated tags cannot be verified",
+			revType:         "blob",
+			expectedProblem: "SignedRevisionOnly is enabled, revision " + sha + " is a git blob, not a commit or an annotated tag",
 		},
 		{
 			name:           "gate is not applied when SignedRevisionOnly is off",
 			signedTagsOnly: false,
-			revision:       sha,
+			revision:       "main",
 		},
 	}
 	for _, tc := range testCases {
@@ -742,7 +787,11 @@ func TestSignedRevisionOnly(t *testing.T) {
 			gitClient.EXPECT().RepoURL().Return(repoURL)
 
 			if tc.signedTagsOnly {
-				gitClient.EXPECT().IsAnnotatedTag(mock.Anything, tc.revision).Return(tc.annotated)
+				gitClient.EXPECT().GetRevisionType(mock.Anything, tc.revision).Return(tc.revType, tc.revTypeErr)
+				// Only reached for a revision that resolves to a commit.
+				if tc.revTypeErr == nil && tc.revType == "commit" {
+					gitClient.EXPECT().GetSymbolicFullName(mock.Anything, tc.revision).Return(tc.refName, nil)
+				}
 			}
 			if tc.expectedProblem == "" {
 				goodSignature(gitClient)
@@ -771,11 +820,38 @@ func TestSignedRevisionOnly(t *testing.T) {
 
 			gitClient.AssertCalled(t, "LsSignatures", mock.Anything, tc.revision, false)
 			if !tc.signedTagsOnly {
-				gitClient.AssertNotCalled(t, "IsAnnotatedTag", mock.Anything, mock.Anything)
+				gitClient.AssertNotCalled(t, "GetRevisionType", mock.Anything, mock.Anything)
+				gitClient.AssertNotCalled(t, "GetSymbolicFullName", mock.Anything, mock.Anything)
 			}
 			assert.Empty(t, logger.GetEntries())
 		})
 	}
+}
+
+func TestSignedRevisionOnlyGitFailure(t *testing.T) {
+	const repoURL = "https://github.com/group/app.git"
+
+	si := &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
+		Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+			Repos:              []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
+			SignedRevisionOnly: true,
+			GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+				Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+				Keys: []string{"4cfe068f80b1681b"},
+			},
+		}},
+	}}
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().RepoURL().Return(repoURL)
+	gitClient.EXPECT().GetRevisionType(mock.Anything, "v1.0").Return("commit", nil)
+	gitClient.EXPECT().GetSymbolicFullName(mock.Anything, "v1.0").Return("", errors.New("fatal: not a git repository"))
+
+	result, legacy, err := VerifyGit(t.Context(), si, gitClient, "v1.0")
+	require.ErrorContains(t, err, "fatal: not a git repository")
+	assert.Nil(t, result)
+	assert.Empty(t, legacy)
+	gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
 }
 
 func TestSignedRevisionOnlyWithoutGPGCheck(t *testing.T) {

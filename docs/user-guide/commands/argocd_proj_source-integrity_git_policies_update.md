@@ -41,7 +41,7 @@ argocd proj source-integrity git policies update PROJECT POLICY_ID [flags]
       --gpg-mode string           Set GPG verification mode (strict, head, or none)
   -h, --help                      help for update
       --repo-url strings          Set repository URL pattern (replaces existing)
-      --signed-revision-only      Only permit syncing from annotated tags
+      --signed-revision-only      Only permit syncing from annotated tags and commit SHAs
   -y, --yes                       Skip explicit confirmation
 ```
 

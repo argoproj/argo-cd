@@ -67,7 +67,7 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 		}
 	}
 
-	var check gitFunc
+	var verify gitFunc
 
 	policy := policies[0]
 
@@ -77,39 +77,69 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 			_gpgDisabledLoggedAlready = true
 		}
 		if IsGPGEnabled() {
-			check = func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+			verify = func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 				return verifyGPG(ctx, policy.GPG, gitClient, verifiedRevision)
 			}
 		}
 	}
 
-	if check == nil {
-		if policy.SignedRevisionOnly {
+	if policy.SignedRevisionOnly {
+		if verify == nil {
 			msg := fmt.Sprintf("SignedRevisionOnly is enabled without verification for SourceIntegrity policy for %+v", policy.Repos)
 			return func(_ context.Context, _ git.Client, _ string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 				return nil, "", errors.New(msg)
 			}
 		}
+
+		return verifyWithGuard(verify)
+	}
+
+	if verify == nil {
 		log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
 		return nil
 	}
 
-	return verifyWithGuard(policy, check)
+	return func(ctx context.Context, gitClient git.Client, revision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+		return verify(ctx, gitClient, revision)
+	}
 }
 
-func verifyWithGuard(policy *v1alpha1.SourceIntegrityGitPolicy, check gitFunc) gitFunc {
+func verifyWithGuard(verify gitFunc) gitFunc {
 	const signedRevisionCheckName = "GIT"
 
-	return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
-		if policy.SignedRevisionOnly && !gitClient.IsAnnotatedTag(ctx, verifiedRevision) {
-			msg := fmt.Sprintf("SignedRevisionOnly is enabled, %s is not annotated. Un-annotated tags cannot be verified", verifiedRevision)
+	return func(ctx context.Context, gitClient git.Client, revision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+		reject := func(msg string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+			msg = "SignedRevisionOnly is enabled, " + msg
 			return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
 				Name:     signedRevisionCheckName,
 				Problems: []string{msg},
 			}}}, msg, nil
 		}
 
-		return check(ctx, gitClient, verifiedRevision)
+		revType, err := gitClient.GetRevisionType(ctx, revision)
+		if err != nil {
+			return reject(fmt.Sprintf("revision %s does not exist", revision))
+		}
+
+		if revType == "tag" {
+			// Annotated tag
+			return verify(ctx, gitClient, revision)
+		}
+
+		if revType != "commit" {
+			return reject(fmt.Sprintf("revision %s is a git %s, not a commit or an annotated tag", revision, revType))
+		}
+
+		// Check SHA, a lightweight tag and a branch
+		refName, err := gitClient.GetSymbolicFullName(ctx, revision)
+		if err != nil {
+			return nil, "", err
+		}
+		if refName != "" {
+			return reject(fmt.Sprintf("%s resolves to %s. Only commit SHAs and annotated tags can be verified", revision, refName))
+		}
+
+		return verify(ctx, gitClient, revision)
 	}
 }
 

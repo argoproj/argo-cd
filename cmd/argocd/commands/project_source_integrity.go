@@ -331,7 +331,7 @@ func NewProjectSourceIntegrityGitPoliciesAddCommand(clientOpts *argocdclient.Cli
 		}),
 	}
 	command.Flags().StringSliceVar(&repoURLs, "repo-url", []string{}, "Repository URL pattern (can be repeated)")
-	command.Flags().BoolVar(&signedRevisionOnly, "signed-revision-only", false, "Only permit syncing from annotated tags")
+	command.Flags().BoolVar(&signedRevisionOnly, "signed-revision-only", false, "Only permit syncing from annotated tags and commit SHAs")
 	command.Flags().StringVar(&gpgMode, "gpg-mode", "", "GPG verification mode (strict, head, or none)")
 	command.Flags().StringSliceVar(&gpgKeys, "gpg-key", []string{}, "GPG key ID (can be repeated)")
 	return command
@@ -536,7 +536,7 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 	command.Flags().StringSliceVar(&repoURLs, "repo-url", []string{}, "Set repository URL pattern (replaces existing)")
 	command.Flags().StringSliceVar(&addRepoURLs, "add-repo-url", []string{}, "Add repository URL pattern")
 	command.Flags().StringSliceVar(&deleteRepoURLs, "delete-repo-url", []string{}, "Delete repository URL pattern")
-	command.Flags().BoolVar(&signedRevisionOnly, "signed-revision-only", false, "Only permit syncing from annotated tags")
+	command.Flags().BoolVar(&signedRevisionOnly, "signed-revision-only", false, "Only permit syncing from annotated tags and commit SHAs")
 	command.Flags().StringSliceVar(&gpgKeys, "gpg-key", []string{}, "Set GPG key ID (replaces existing)")
 	command.Flags().StringSliceVar(&addGPGKeys, "add-gpg-key", []string{}, "Add GPG key ID")
 	command.Flags().StringSliceVar(&deleteGPGKeys, "delete-gpg-key", []string{}, "Delete GPG key ID")
