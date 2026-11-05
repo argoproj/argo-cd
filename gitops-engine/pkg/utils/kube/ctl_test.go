@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"k8s.io/apimachinery/pkg/version"
 	"k8s.io/client-go/rest"
+	"k8s.io/kube-openapi/pkg/util/proto"
 
 	"github.com/stretchr/testify/assert"
 	"k8s.io/klog/v2/textlogger"
@@ -73,7 +74,11 @@ func TestConvertToVersion(t *testing.T) {
 	t.Run("newGVKParser gracefully handles duplicate GVKs", func(t *testing.T) {
 		t.Parallel()
 		client := &fakeOpenAPIClient{}
-		_, err := kubectl.newGVKParser(client)
+		doc, err := client.OpenAPISchema()
+		require.NoError(t, err)
+		models, err := proto.NewOpenAPIData(doc)
+		require.NoError(t, err)
+		_, err = kubectl.newGVKParser(models)
 		require.NoError(t, err)
 	})
 }
