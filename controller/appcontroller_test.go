@@ -100,9 +100,9 @@ type fakeData struct {
 	// reconciledAtHeartbeat bounds how stale the persisted status.reconciledAt may
 	// become. Zero writes it on every full reconciliation.
 	reconciledAtHeartbeat time.Duration
-	// reconciledAtCache, when set, is passed to the controller as a separate
-	// reconciledAt cache (as with --reconciled-at-redis). It must be injected here
-	// rather than assigned afterwards, or it races the informer event handlers.
+	// reconciledAtCache, when set, is passed to the controller as its separate reconciledAt cache
+	// (as with --reconciled-at-redis). It must be set here rather than assigned after
+	// newFakeController returns, because the app informer's event handlers read it.
 	reconciledAtCache *appstatecache.Cache
 }
 
