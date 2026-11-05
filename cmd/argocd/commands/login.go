@@ -13,7 +13,6 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -569,167 +568,41 @@ func ssoAuthFlow(url string, ssoLaunchBrowser bool) {
 	}
 }
 
-// launchBrowser opens url with the first command of $BROWSER that starts, or with the system default
-// browser when $BROWSER is unset. $BROWSER follows the xdg-open / Python webbrowser convention: a list of
-// commands separated by the OS path-list separator. The URL replaces an argument that is exactly "%s", or
-// is appended, so it is always its own argument and never spliced into a string a shell would parse. Only
-// absolute http(s) URLs are opened, so the URL cannot be read as an option.
+// launchBrowser opens url with the command in $BROWSER, or with the system default browser when $BROWSER is
+// unset. The command is split into arguments with shell quoting rules: on Windows, put a path that holds
+// backslashes in single quotes, or write it with forward slashes. The URL replaces an argument that is exactly
+// "%s", or is appended, so it is always its own argument and never spliced into a string a shell would parse.
+// Only absolute http(s) URLs are opened, so the URL cannot be read as an option.
 func launchBrowser(url string) error {
 	if u, err := neturl.Parse(url); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return fmt.Errorf("refusing to open %q: not an absolute http(s) URL", url)
 	}
-	browsers := os.Getenv("BROWSER")
-	if browsers == "" {
+	browser := os.Getenv("BROWSER")
+	if browser == "" {
 		return open.Start(url)
 	}
-	var errs []error
-	for _, entry := range parseBrowserEnv(browsers, runtime.GOOS == "windows") {
-		if entry.err != nil {
-			errs = append(errs, fmt.Errorf("parsing BROWSER entry %q: %w", entry.raw, entry.err))
-			continue
-		}
-		args := entry.args
-		if len(args) == 0 {
-			errs = append(errs, fmt.Errorf("empty BROWSER entry in %q", browsers))
-			continue
-		}
-		substituted := false
-		for i, arg := range args {
-			if arg == "%s" {
-				args[i] = url
-				substituted = true
-			}
-		}
-		if !substituted {
-			args = append(args, url)
-		}
-		// Not tied to the login context: cancelling it would kill a browser started directly.
-		cmd := exec.CommandContext(context.Background(), args[0], args[1:]...)
-		if err := cmd.Start(); err != nil {
-			errs = append(errs, fmt.Errorf("starting BROWSER entry %q: %w", entry.raw, err))
-			continue
-		}
-		go func() { _ = cmd.Wait() }()
-		return nil
+	args, err := shlex.Split(browser)
+	if err != nil {
+		return fmt.Errorf("parsing BROWSER %q: %w", browser, err)
 	}
-	return fmt.Errorf("no usable browser in BROWSER: %w", stderrors.Join(errs...))
-}
-
-// browserEntry is one command of $BROWSER: its raw text and its arguments, or the error parsing it.
-type browserEntry struct {
-	raw  string
-	args []string
-	err  error
-}
-
-// parseBrowserEnv splits $BROWSER into commands and each command into arguments. Commands are separated
-// by ':' (';' on Windows) outside quotes. Elsewhere than on Windows, a command is split with POSIX shell
-// rules (single and double quotes, backslash escapes). On Windows, double quotes group words but a
-// backslash is a literal path separator, so `"C:\Program Files\...\chrome.exe" --new-window` keeps its
-// executable path.
-func parseBrowserEnv(browsers string, windows bool) []browserEntry {
-	var entries []browserEntry
-	if !windows {
-		for _, raw := range splitOutsideQuotes(browsers, ':', true) {
-			args, err := shlex.Split(raw)
-			entries = append(entries, browserEntry{raw: raw, args: args, err: err})
-		}
-		return entries
+	if len(args) == 0 {
+		return fmt.Errorf("no command in BROWSER %q", browser)
 	}
-	for _, raw := range splitOutsideQuotes(browsers, ';', false) {
-		args, err := splitWindowsArgs(raw)
-		entries = append(entries, browserEntry{raw: raw, args: args, err: err})
-	}
-	return entries
-}
-
-// splitOutsideQuotes splits s on sep wherever sep is not quoted. With posix, single quotes, double quotes
-// and backslash escapes are honored. Otherwise the Windows rules apply: only double quotes group, and a
-// double quote preceded by an odd number of backslashes is a literal quote.
-func splitOutsideQuotes(s string, sep rune, posix bool) []string {
-	var (
-		parts                       []string
-		cur                         strings.Builder
-		inSingle, inDouble, escaped bool
-		backslashes                 int
-	)
-	for _, r := range s {
-		switch {
-		case escaped:
-			escaped = false
-		case posix && r == '\\' && !inSingle:
-			escaped = true
-		case posix && r == '\'' && !inDouble:
-			inSingle = !inSingle
-		case r == '"' && !inSingle && (posix || backslashes%2 == 0):
-			inDouble = !inDouble
-		case r == sep && !inSingle && !inDouble:
-			parts = append(parts, cur.String())
-			cur.Reset()
-			backslashes = 0
-			continue
-		}
-		if r == '\\' {
-			backslashes++
-		} else {
-			backslashes = 0
-		}
-		cur.WriteRune(r)
-	}
-	return append(parts, cur.String())
-}
-
-// splitWindowsArgs splits one Windows command into arguments with the CommandLineToArgvW rules:
-// whitespace separates arguments outside double quotes, double quotes group words and are dropped,
-// 2n backslashes before a double quote become n backslashes, 2n+1 become n backslashes and a literal
-// double quote, and any other backslash is kept as is (a path separator).
-func splitWindowsArgs(s string) ([]string, error) {
-	var (
-		args        []string
-		arg         strings.Builder
-		inQuote     bool
-		inArg       bool
-		backslashes int
-	)
-	flushBackslashes := func(n int) {
-		if n > 0 {
-			arg.WriteString(strings.Repeat("\\", n))
-			inArg = true
+	substituted := false
+	for i, arg := range args {
+		if arg == "%s" {
+			args[i] = url
+			substituted = true
 		}
 	}
-	for _, r := range s {
-		switch {
-		case r == '\\':
-			backslashes++
-			continue
-		case r == '"':
-			flushBackslashes(backslashes / 2)
-			if backslashes%2 == 1 {
-				arg.WriteRune('"')
-			} else {
-				inQuote = !inQuote
-			}
-			inArg = true
-		case (r == ' ' || r == '\t') && !inQuote:
-			flushBackslashes(backslashes)
-			if inArg {
-				args = append(args, arg.String())
-				arg.Reset()
-				inArg = false
-			}
-		default:
-			flushBackslashes(backslashes)
-			arg.WriteRune(r)
-			inArg = true
-		}
-		backslashes = 0
+	if !substituted {
+		args = append(args, url)
 	}
-	flushBackslashes(backslashes)
-	if inQuote {
-		return nil, stderrors.New("unterminated double quote")
+	// Not tied to the login context: cancelling it would kill a browser started directly.
+	cmd := exec.CommandContext(context.Background(), args[0], args[1:]...)
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("starting BROWSER %q: %w", browser, err)
 	}
-	if inArg {
-		args = append(args, arg.String())
-	}
-	return args, nil
+	go func() { _ = cmd.Wait() }()
+	return nil
 }

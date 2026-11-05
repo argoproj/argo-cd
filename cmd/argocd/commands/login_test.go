@@ -110,7 +110,8 @@ func Test_launchBrowser(t *testing.T) {
 	out := filepath.Join(dir, "out")
 	exe, err := os.Executable()
 	require.NoError(t, err)
-	browser := `"` + exe + `" -test.run=^TestBrowserHelperProcess$ --`
+	// Single quotes keep the backslashes of a Windows path.
+	browser := `'` + exe + `' -test.run=^TestBrowserHelperProcess$ --`
 	t.Setenv("BROWSER_TEST_OUT", out)
 
 	invoked := func(t *testing.T) string {
@@ -143,12 +144,6 @@ func Test_launchBrowser(t *testing.T) {
 		assert.Equal(t, "open %s "+url, invoked(t))
 	})
 
-	t.Run("falls back to the next command when one cannot start", func(t *testing.T) {
-		t.Setenv("BROWSER", filepath.Join(dir, "missing")+string(os.PathListSeparator)+browser)
-		require.NoError(t, launchBrowser(url))
-		assert.Equal(t, url, invoked(t))
-	})
-
 	t.Run("refuses a URL that is not absolute http(s)", func(t *testing.T) {
 		t.Setenv("BROWSER", browser)
 		for _, bad := range []string{"--new-window", "-https://example.com", "file:///etc/passwd", "javascript:alert(1)", "https://"} {
@@ -158,72 +153,14 @@ func Test_launchBrowser(t *testing.T) {
 		assert.True(t, os.IsNotExist(err), "browser must not be started")
 	})
 
-	t.Run("fails when no command can start", func(t *testing.T) {
-		t.Setenv("BROWSER", filepath.Join(dir, "missing")+string(os.PathListSeparator))
-		err := launchBrowser(url)
-		require.ErrorContains(t, err, "no usable browser in BROWSER")
-		require.ErrorContains(t, err, "empty BROWSER entry")
-	})
-}
-
-func Test_parseBrowserEnv(t *testing.T) {
-	// parse returns each entry's arguments, and the indexes of the entries that failed to parse.
-	parse := func(browsers string, windows bool) ([][]string, []int) {
-		var args [][]string
-		var failed []int
-		for i, e := range parseBrowserEnv(browsers, windows) {
-			args = append(args, e.args)
-			if e.err != nil {
-				failed = append(failed, i)
-			}
-		}
-		return args, failed
-	}
-
-	t.Run("windows keeps a quoted executable path and its backslashes", func(t *testing.T) {
-		args, failed := parse(`"C:\Program Files\Google\Chrome\Application\chrome.exe" --profile-directory="Profile 1" %s`, true)
-		assert.Equal(t, [][]string{{`C:\Program Files\Google\Chrome\Application\chrome.exe`, "--profile-directory=Profile 1", "%s"}}, args)
-		assert.Empty(t, failed)
+	t.Run("fails when the command cannot start", func(t *testing.T) {
+		t.Setenv("BROWSER", filepath.Join(dir, "missing"))
+		require.ErrorContains(t, launchBrowser(url), "starting BROWSER")
 	})
 
-	t.Run("windows splits commands on ; outside quotes only", func(t *testing.T) {
-		args, failed := parse(`C:\missing.exe;"C:\a;b\browser.exe" --new-window;`, true)
-		assert.Equal(t, [][]string{{`C:\missing.exe`}, {`C:\a;b\browser.exe`, "--new-window"}, nil}, args)
-		assert.Empty(t, failed)
-	})
-
-	t.Run("windows treats a backslash-escaped quote as literal", func(t *testing.T) {
-		args, failed := parse(`"C:\a\"b;c" --x;"C:\dir\\" --y`, true)
-		assert.Equal(t, [][]string{{`C:\a"b;c`, "--x"}, {`C:\dir\`, "--y"}}, args)
-		assert.Empty(t, failed)
-	})
-
-	t.Run("windows reports an unterminated quote", func(t *testing.T) {
-		_, failed := parse(`"C:\Program Files\browser.exe`, true)
-		assert.Equal(t, []int{0}, failed)
-	})
-
-	t.Run("posix splits commands on : and follows shell quoting", func(t *testing.T) {
-		args, failed := parse(`/missing:open -na "Google Chrome" --args --profile-directory="Profile 1" %s`, false)
-		assert.Equal(t, [][]string{{"/missing"}, {"open", "-na", "Google Chrome", "--args", "--profile-directory=Profile 1", "%s"}}, args)
-		assert.Empty(t, failed)
-	})
-
-	t.Run("posix splits commands on : outside quotes only", func(t *testing.T) {
-		args, failed := parse(`firefox -P "Work:Cloud" %s:chromium --user-data-dir='/tmp/a:b' %s:/opt/x\:y/run`, false)
-		assert.Equal(t, [][]string{{"firefox", "-P", "Work:Cloud", "%s"}, {"chromium", "--user-data-dir=/tmp/a:b", "%s"}, {"/opt/x:y/run"}}, args)
-		assert.Empty(t, failed)
-	})
-
-	t.Run("posix reports an unterminated quote", func(t *testing.T) {
-		_, failed := parse(`firefox -P "Work`, false)
-		assert.Equal(t, []int{0}, failed)
-	})
-
-	t.Run("posix keeps backslash escapes", func(t *testing.T) {
-		args, failed := parse(`/opt/my\ browser/run %s`, false)
-		assert.Equal(t, [][]string{{"/opt/my browser/run", "%s"}}, args)
-		assert.Empty(t, failed)
+	t.Run("fails when BROWSER holds no command", func(t *testing.T) {
+		t.Setenv("BROWSER", " ")
+		require.ErrorContains(t, launchBrowser(url), "no command in BROWSER")
 	})
 }
 
