@@ -160,32 +160,32 @@ func TestGetTLSVersionByString(t *testing.T) {
 
 func TestGetOutboundTLSMinVersion(t *testing.T) {
 	t.Run("Default to TLS 1.2 when env not set", func(t *testing.T) {
-		t.Setenv("ARGOCD_TLS_MIN_VERSION", "")
+		t.Setenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION", "")
 		assert.Equal(t, uint16(tls.VersionTLS12), GetOutboundTLSMinVersion())
 	})
 
 	t.Run("TLS 1.2 when explicitly set", func(t *testing.T) {
-		t.Setenv("ARGOCD_TLS_MIN_VERSION", "1.2")
+		t.Setenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION", "1.2")
 		assert.Equal(t, uint16(tls.VersionTLS12), GetOutboundTLSMinVersion())
 	})
 
 	t.Run("TLS 1.3 when set", func(t *testing.T) {
-		t.Setenv("ARGOCD_TLS_MIN_VERSION", "1.3")
+		t.Setenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION", "1.3")
 		assert.Equal(t, uint16(tls.VersionTLS13), GetOutboundTLSMinVersion())
 	})
 
 	t.Run("Invalid version defaults to TLS 1.2", func(t *testing.T) {
-		t.Setenv("ARGOCD_TLS_MIN_VERSION", "1.4")
+		t.Setenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION", "1.4")
 		assert.Equal(t, uint16(tls.VersionTLS12), GetOutboundTLSMinVersion())
 	})
 
 	t.Run("TLS 1.0 rejected, defaults to TLS 1.2", func(t *testing.T) {
-		t.Setenv("ARGOCD_TLS_MIN_VERSION", "1.0")
+		t.Setenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION", "1.0")
 		assert.Equal(t, uint16(tls.VersionTLS12), GetOutboundTLSMinVersion())
 	})
 
 	t.Run("TLS 1.1 rejected, defaults to TLS 1.2", func(t *testing.T) {
-		t.Setenv("ARGOCD_TLS_MIN_VERSION", "1.1")
+		t.Setenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION", "1.1")
 		assert.Equal(t, uint16(tls.VersionTLS12), GetOutboundTLSMinVersion())
 	})
 }

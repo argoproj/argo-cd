@@ -100,17 +100,17 @@ func getTLSVersionByString(version string) (uint16, error) {
 }
 
 // GetOutboundTLSMinVersion returns the minimum TLS version for outbound HTTPS connections.
-// Configured via ARGOCD_TLS_MIN_VERSION env var. Defaults to TLS 1.2.
+// Configured via ARGOCD_OUTBOUND_TLS_MIN_VERSION env var. Defaults to TLS 1.2.
 // Valid values: "1.2", "1.3"
 func GetOutboundTLSMinVersion() uint16 {
-	v := os.Getenv("ARGOCD_TLS_MIN_VERSION")
+	v := os.Getenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION")
 	if v == "" {
 		return tls.VersionTLS12
 	}
 	if version, ok := tlsVersionByString[v]; ok && version >= tls.VersionTLS12 {
 		return version
 	}
-	log.Warnf("Invalid ARGOCD_TLS_MIN_VERSION '%s', defaulting to TLS 1.2", v)
+	log.Warnf("Invalid ARGOCD_OUTBOUND_TLS_MIN_VERSION '%s', defaulting to TLS 1.2", v)
 	return tls.VersionTLS12
 }
 
