@@ -1874,6 +1874,48 @@ requestedScopes: ["oidc"]`, oidcTestServer.URL),
 	}
 }
 
+// When refreshTokenThreshold is larger than the ID token's lifetime, a newly refreshed ID token is
+// already within the threshold, so every request refreshes the session. Each refresh still succeeds.
+func TestClientApp_GetUpdatedOidcTokenFromCache_ThresholdLongerThanIDTokenLifetime(t *testing.T) {
+	refreshes := 0
+	// The test server issues ID tokens that are valid for an hour.
+	oidcTestServer := test.GetOIDCTestServer(t, func(_ *http.Request) { refreshes++ })
+	t.Cleanup(oidcTestServer.Close)
+
+	cdSettings := &settings.ArgoCDSettings{
+		URL: "https://argocd.example.com",
+		OIDCConfigRAW: fmt.Sprintf(`
+name: Test
+issuer: %s
+clientID: test-client-id
+clientSecret: test-client-secret
+refreshTokenThreshold: 90m
+requestedScopes: ["oidc"]`, oidcTestServer.URL),
+		OIDCTLSInsecureSkipVerify: true,
+		UserSessionDuration:       24 * time.Hour,
+	}
+	app, err := NewClientApp(cdSettings, "", nil, "/", cache.NewInMemoryCache(24*time.Hour))
+	require.NoError(t, err)
+
+	cachedIDToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{"sub": "alice", "exp": time.Now().Add(time.Hour).Unix()}).SignedString([]byte("test"))
+	require.NoError(t, err)
+	// The access token is valid for longer than the threshold, the ID token is not.
+	cached := (&oauth2.Token{
+		AccessToken:  "cached-access-token",
+		RefreshToken: "cached-refresh-token",
+		Expiry:       time.Now().Add(2 * time.Hour),
+	}).WithExtra(map[string]any{"id_token": cachedIDToken})
+	storeSession(t, app, cached)
+
+	for i := 1; i <= 3; i++ {
+		token, err := app.GetUpdatedOidcTokenFromCache(t.Context(), "alice", "111")
+		require.NoError(t, err)
+		require.NotNil(t, token)
+		assert.Equal(t, i, refreshes, "request %d should refresh the session", i)
+		assert.NotEqual(t, cachedIDToken, token.Extra("id_token"), "request %d should not get the cached ID token", i)
+	}
+}
+
 // Providers such as GitLab rotate refresh tokens: a refresh token works once. When the UI sends
 // several requests at the same moment with an expired ID token, only one may refresh.
 func TestClientApp_GetUpdatedOidcTokenFromCache_ConcurrentRefresh(t *testing.T) {
