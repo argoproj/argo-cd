@@ -3001,3 +3001,34 @@ func TestGitPathsCheckedForAllSources(t *testing.T) {
 	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://charts.example.com", Chart: "app", TargetRevision: "1.*"}}))
 	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "oci://registry.example.com/charts", Path: "."}}))
 }
+
+func TestTargetsMatchCachedDiff(t *testing.T) {
+	t.Parallel()
+	svc := func(port int64) *unstructured.Unstructured {
+		return &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1", "kind": "Service",
+			"metadata": map[string]any{"name": "svc", "namespace": "ns"},
+			"spec":     map[string]any{"ports": []any{map[string]any{"port": port}}},
+		}}
+	}
+	cached := func(target *unstructured.Unstructured) []*v1alpha1.ResourceDiff {
+		data, err := json.Marshal(target)
+		require.NoError(t, err)
+		return []*v1alpha1.ResourceDiff{{Kind: "Service", Namespace: "ns", Name: "svc", TargetState: string(data)}}
+	}
+	live := svc(80)
+
+	assert.True(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{svc(80)}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{svc(81)}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(nil, []*unstructured.Unstructured{svc(80)}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{nil}, []*unstructured.Unstructured{live}))
+
+	secret := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1", "kind": "Secret",
+		"metadata": map[string]any{"name": "s", "namespace": "ns"},
+	}}
+	data, err := json.Marshal(secret)
+	require.NoError(t, err)
+	secretCache := []*v1alpha1.ResourceDiff{{Kind: "Secret", Namespace: "ns", Name: "s", TargetState: string(data)}}
+	assert.False(t, targetsMatchCachedDiff(secretCache, []*unstructured.Unstructured{secret}, []*unstructured.Unstructured{secret}))
+}

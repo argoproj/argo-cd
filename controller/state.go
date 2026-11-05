@@ -929,6 +929,14 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	// With manifest-generate-paths, a new revision whose watched paths have no changes reuses the
 	// previous manifests, so the cached diff is still valid for it.
 	manifestPathsUnchanged := len(localManifests) == 0 && !failedToLoadObjs && !revisionsMayHaveChanges && gitPathsCheckedForAllSources(sources)
+	if manifestPathsUnchanged && !reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions) {
+		// The repo-server regenerates manifests when its cache entry is gone, and they can then
+		// differ (e.g. ARGOCD_APP_REVISION), so also require the targets of the cached diff.
+		var cachedDiff []*v1alpha1.ResourceDiff
+		manifestPathsUnchanged = m.cache != nil &&
+			m.cache.GetAppManagedResources(app.InstanceName(m.namespace), &cachedDiff) == nil &&
+			targetsMatchCachedDiff(cachedDiff, reconciliation.Target, reconciliation.Live)
+	}
 	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, manifestPathsUnchanged, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
@@ -1199,6 +1207,47 @@ func shouldUseServerSideDiff(app *v1alpha1.Application, controllerLevelSSD bool)
 func gitPathsCheckedForAllSources(sources []v1alpha1.ApplicationSource) bool {
 	for _, source := range sources {
 		if source.IsHelm() || source.IsOCI() || (source.IsRef() && source.Path != "") {
+			return false
+		}
+	}
+	return true
+}
+
+// targetsMatchCachedDiff reports whether every target is identical to the target stored with its
+// cached diff. Secrets are stored masked, so an app with a target Secret never matches.
+func targetsMatchCachedDiff(cachedDiff []*v1alpha1.ResourceDiff, targets, lives []*unstructured.Unstructured) bool {
+	if len(targets) != len(lives) {
+		return false
+	}
+	cachedTargets := make(map[kubeutil.ResourceKey]string, len(cachedDiff))
+	for _, res := range cachedDiff {
+		cachedTargets[kubeutil.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = res.TargetState
+	}
+	for i, target := range targets {
+		obj := target
+		if obj == nil {
+			obj = lives[i]
+		}
+		if obj == nil {
+			continue
+		}
+		key := kubeutil.GetResourceKey(obj)
+		if key.Group == "" && key.Kind == kubeutil.SecretKind && target != nil {
+			return false
+		}
+		cachedTarget, ok := cachedTargets[key]
+		if !ok {
+			return false
+		}
+		targetState := "null"
+		if target != nil {
+			data, err := json.Marshal(target)
+			if err != nil {
+				return false
+			}
+			targetState = string(data)
+		}
+		if targetState != cachedTarget {
 			return false
 		}
 	}
