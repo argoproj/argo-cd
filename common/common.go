@@ -220,6 +220,12 @@ const (
 	AnnotationKeyAppInstance = "argocd.argoproj.io/tracking-id"
 	AnnotationInstallationID = "argocd.argoproj.io/installation-id"
 
+	// AnnotationInjectSyncInfo is a comma-separated list of sync operation fields to stamp onto a hook.
+	AnnotationInjectSyncInfo = "argocd.argoproj.io/inject-sync-info"
+	// AnnotationSyncRevision holds the resolved revision of a single-source sync operation. Multi-source
+	// operations use AnnotationSyncRevision + "-<1-based source position>" and "-<source name>" instead.
+	AnnotationSyncRevision = "argocd.argoproj.io/sync-revision"
+
 	// AnnotationCompareOptions is a comma-separated list of options for comparison
 	AnnotationCompareOptions = "argocd.argoproj.io/compare-options"
 

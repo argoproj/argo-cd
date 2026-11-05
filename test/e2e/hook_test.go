@@ -2,11 +2,14 @@ package e2e
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -17,6 +20,7 @@ import (
 	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/hook"
 
+	cdcommon "github.com/argoproj/argo-cd/v3/common"
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
@@ -35,6 +39,179 @@ func TestSyncHookSuccessful(t *testing.T) {
 
 func TestPostSyncHookSuccessful(t *testing.T) {
 	testHookSuccessful(t, HookTypePostSync)
+}
+
+// syncRevisionJob returns an opted-in Job hook labelled sync-revision-test=<label> that sleeps for the given seconds.
+func syncRevisionJob(phase, label, sleep string) string {
+	return `apiVersion: batch/v1
+kind: Job
+metadata:
+  generateName: ` + label + `-
+  labels: {sync-revision-test: ` + label + `}
+  annotations:
+    argocd.argoproj.io/hook: ` + phase + `
+    argocd.argoproj.io/inject-sync-info: revision
+spec:
+  backoffLimit: 0
+  template:
+    metadata:
+      labels: {sync-revision-test: ` + label + `}
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: main
+          image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+          imagePullPolicy: IfNotPresent
+          command: ["sleep", "` + sleep + `"]
+          env:
+            - name: SYNC_REVISION
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.annotations['argocd.argoproj.io/sync-revision']
+`
+}
+
+const syncRevisionConfigMap = "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: sync-revision-config\ndata:\n  version: a\n"
+
+func dryHead(t *testing.T) string {
+	t.Helper()
+	sha, err := Run(TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	return strings.TrimSpace(sha)
+}
+
+// newestSyncRevisionHook returns the newest Job labelled sync-revision-test=<label> and its Pod.
+func newestSyncRevisionHook(t *testing.T, namespace, label string) (*batchv1.Job, *corev1.Pod) {
+	t.Helper()
+	jobs, err := KubeClientset.BatchV1().Jobs(namespace).List(t.Context(), metav1.ListOptions{LabelSelector: "sync-revision-test=" + label})
+	require.NoError(t, err)
+	require.NotEmpty(t, jobs.Items)
+	job := slices.MaxFunc(jobs.Items, func(a, b batchv1.Job) int { return a.CreationTimestamp.Compare(b.CreationTimestamp.Time) })
+	pods, err := KubeClientset.CoreV1().Pods(namespace).List(t.Context(), metav1.ListOptions{LabelSelector: "job-name=" + job.Name})
+	require.NoError(t, err)
+	require.Len(t, pods.Items, 1)
+	return &job, &pods.Items[0]
+}
+
+func assertHookRevision(t *testing.T, namespace, label, want string) {
+	t.Helper()
+	job, pod := newestSyncRevisionHook(t, namespace, label)
+	assert.Equal(t, want, job.Annotations[cdcommon.AnnotationSyncRevision], "Job")
+	assert.Equal(t, want, job.Spec.Template.Annotations[cdcommon.AnnotationSyncRevision], "Job Pod template")
+	// The Downward API reads exactly this Pod annotation.
+	assert.Equal(t, want, pod.Annotations[cdcommon.AnnotationSyncRevision], "Pod")
+}
+
+func runningHookPods(t *testing.T, namespace, label string) int {
+	t.Helper()
+	pods, err := KubeClientset.CoreV1().Pods(namespace).List(t.Context(),
+		metav1.ListOptions{LabelSelector: "sync-revision-test=" + label, FieldSelector: "status.phase=Running"})
+	require.NoError(t, err)
+	return len(pods.Items)
+}
+
+// While sync A is held in PreSync, the branch advances to B and the Application's comparison observes B.
+// The PostSync hook is created after that and must still carry A; the next sync gets B.
+func TestHookInjectSyncRevision(t *testing.T) {
+	// The PreSync hold runs on both syncs, so syncs and completion checks need more than the defaults (20s/25s).
+	const timeout = 90
+	ctx := Given(t)
+	ctx.
+		Path("hook").
+		Timeout(timeout).
+		Async(true).
+		When().
+		DeleteFile("hook.yaml").
+		DeleteFile("pod.yaml").
+		AddFile("presync.yaml", syncRevisionJob("PreSync", "hold", "30")).
+		AddFile("postsync.yaml", syncRevisionJob("PostSync", "verify", "1")).
+		AddFile("config.yaml", syncRevisionConfigMap).
+		CreateApp()
+	revA := dryHead(t)
+
+	ctx.When().Sync()
+	require.Eventually(t, func() bool { return runningHookPods(t, ctx.DeploymentNamespace(), "hold") == 1 },
+		2*time.Minute, time.Second, "PreSync hook for revision A never started")
+
+	ctx.When().PatchFile("config.yaml", `[{"op":"replace","path":"/data/version","value":"b"}]`)
+	revB := dryHead(t)
+	require.NotEqual(t, revA, revB)
+	ctx.When().Refresh(RefreshTypeNormal)
+	require.Eventually(t, func() bool {
+		app, err := AppClientset.ArgoprojV1alpha1().Applications(ctx.AppNamespace()).Get(t.Context(), ctx.AppName(), metav1.GetOptions{})
+		return err == nil && app.Status.Sync.Revision == revB
+	}, time.Minute, time.Second, "comparison never observed revision B")
+	require.Equal(t, 1, runningHookPods(t, ctx.DeploymentNamespace(), "hold"),
+		"PreSync hook finished before the comparison observed B; the PostSync hook would not exercise the race")
+
+	ctx.When().
+		ThenWithTimeout(timeout).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		And(func(app *Application) {
+			assert.Equal(t, revA, app.Status.OperationState.SyncResult.Revision)
+			assertHookRevision(t, ctx.DeploymentNamespace(), "verify", revA)
+		})
+
+	ctx.Async(false).
+		When().
+		Sync().
+		ThenWithTimeout(timeout).
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			assert.Equal(t, revB, app.Status.OperationState.SyncResult.Revision)
+			assertHookRevision(t, ctx.DeploymentNamespace(), "verify", revB)
+		})
+}
+
+// Syncing to an older revision while the comparison tracks a newer one: the hook gets the operation's revision.
+func TestHookInjectSyncRevisionOlderRevision(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path("hook").
+		When().
+		DeleteFile("hook.yaml").
+		DeleteFile("pod.yaml").
+		AddFile("postsync.yaml", syncRevisionJob("PostSync", "verify", "1")).
+		AddFile("config.yaml", syncRevisionConfigMap)
+	revA := dryHead(t)
+	ctx.When().PatchFile("config.yaml", `[{"op":"replace","path":"/data/version","value":"b"}]`)
+	revB := dryHead(t)
+
+	ctx.When().
+		CreateApp().
+		Sync("--revision", revA).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		And(func(app *Application) {
+			assert.Equal(t, revA, app.Status.OperationState.SyncResult.Revision, "operation owns A")
+			assert.Equal(t, revB, app.Status.Sync.Revision, "comparison tracks B")
+			assertHookRevision(t, ctx.DeploymentNamespace(), "verify", revA)
+		})
+}
+
+func TestHookInjectSyncRevisionFixedNameJob(t *testing.T) {
+	fixedName := strings.Replace(syncRevisionJob("PostSync", "verify", "1"), "generateName: verify-", "name: verify", 1)
+	ctx := Given(t)
+	ctx.
+		Path("hook").
+		When().
+		DeleteFile("hook.yaml").
+		DeleteFile("pod.yaml").
+		AddFile("verify-job.yaml", fixedName).
+		AddFile("config.yaml", syncRevisionConfigMap).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		And(func(_ *Application) { assertHookRevision(t, ctx.DeploymentNamespace(), "verify", dryHead(t)) }).
+		When().
+		PatchFile("config.yaml", `[{"op":"replace","path":"/data/version","value":"b"}]`).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(_ *Application) { assertHookRevision(t, ctx.DeploymentNamespace(), "verify", dryHead(t)) })
 }
 
 // make sure we can run a standard sync hook
