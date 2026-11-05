@@ -1097,7 +1097,8 @@ func remarshal(obj *unstructured.Unstructured, o options) *unstructured.Unstruct
 	unmarshalledObj := reflect.New(reflect.TypeOf(item).Elem()).Interface()
 	// Unmarshal data into unmarshalledObj, but detect if there are any unknown fields that are not
 	// found in the target GVK object. The v2 API is faster than v1 and matches field names
-	// case-sensitively, like the API server.
+	// case-sensitively, like the API server. Its stricter defaults (no duplicate names, valid
+	// UTF-8) hold because data is json.Marshal output.
 	if err := jsonv2.Unmarshal(data, unmarshalledObj, jsonv2.RejectUnknownMembers(true)); err != nil {
 		// Likely a field present in obj that is not present in the GVK type, or user
 		// may have specified an invalid spec in git, so return original object
