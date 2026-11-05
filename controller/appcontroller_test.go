@@ -186,7 +186,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 
 	if len(data.updateRevisionForPathsResponses) > 0 {
 		for _, response := range data.updateRevisionForPathsResponses {
-			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Run(captureUpdateRevisionForPaths).Return(response, revisionPathsErr)
+			mockRepoClient.EXPECT().UpdateRevisionForPaths(mock.Anything, mock.Anything).Run(captureUpdateRevisionForPaths).Return(response, revisionPathsErr).Once()
 		}
 	} else {
 		if revisionPathsErr != nil {

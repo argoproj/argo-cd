@@ -6193,6 +6193,33 @@ func TestUpdateRevisionForPaths_LastSyncedBase(t *testing.T) {
 		assert.Equal(t, revResolved, resp.Revision)
 		assert.False(t, manifestCacheContains(cacheMocks, request, revResolved), "cache transfer is skipped when the compared base cannot be evaluated")
 	})
+	t.Run("uncomparable base with no other base: changes reported, not an error", func(t *testing.T) {
+		// Failing the RPC would fail every refresh while the diff keeps failing.
+		s, cacheMocks := newServiceWithFailingDiff(t, revLastSynced, nil)
+		request := newRequest(revLastSynced)
+
+		resp, err := s.UpdateRevisionForPaths(t.Context(), request)
+		require.NoError(t, err)
+		assert.True(t, resp.Changes)
+		assert.Equal(t, revResolved, resp.Revision)
+		_, err = cacheMocks.cache.GetGitFilesChanges(request.Repo.Repo, revResolved, revLastSynced)
+		require.ErrorIs(t, err, cache.ErrCacheMiss)
+	})
+
+	t.Run("malformed ref: error carries a gRPC code", func(t *testing.T) {
+		s, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {
+			gitClient.EXPECT().Init().Return(nil).Maybe()
+			gitClient.EXPECT().Root().Return("").Maybe()
+		}, ".")
+		request := newRequest(revLastSynced)
+		request.Revision = revLastSynced
+		request.HasMultipleSources = true
+		request.ApplicationSource = &v1alpha1.ApplicationSource{Path: ".", Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$missing/values.yaml"}}}
+
+		_, err := s.UpdateRevisionForPaths(t.Context(), request)
+		require.Error(t, err)
+		assert.Equal(t, codes.Internal, status.Code(err))
+	})
 }
 
 func TestUpdateRevisionForPaths_ComposesLastSyncedDiffFromCachedDiffs(t *testing.T) {

@@ -142,6 +142,10 @@ var (
 	syncedRevisionFetchLock = sync.NewKeyLock()
 )
 
+// errSourceNotCompared marks a failed fetch or diff of the base; with no other base to answer from,
+// the source is reported as changed rather than failing every refresh.
+var errSourceNotCompared = errors.New("source could not be compared")
+
 // NewService returns a new instance of the Manifest service
 func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initConstants RepoServerInitConstants, gitCredsStore git.CredsStore, rootDir string) *Service {
 	var parallelismLimitSemaphore *semaphore.Weighted
@@ -3547,13 +3551,13 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 				return nil, false, nil
 			}
 			if err != nil {
-				return nil, false, fmt.Errorf("unable to fetch git repo %s with syncedRevisions %s: %w", repo.Repo, syncedRevision, err)
+				return nil, false, fmt.Errorf("unable to fetch git repo %s with syncedRevisions %s: %w: %w", repo.Repo, syncedRevision, errSourceNotCompared, err)
 			}
 		}
 
 		files, err = gitClient.ChangedFiles(ctx, syncedRevision, revision)
 		if err != nil {
-			return nil, false, status.Errorf(codes.Internal, "unable to get changed files for repo %s with revision %s: %v", repo.Repo, revision, err)
+			return nil, false, fmt.Errorf("unable to get changed files for repo %s with revision %s: %w: %w", repo.Repo, revision, errSourceNotCompared, err)
 		}
 		return files, true, nil
 	}
@@ -3620,7 +3624,8 @@ type baseRevisionEvaluation struct {
 }
 
 // evaluateChangesSinceRevision diffs the refresh paths between a base (with its ref sources) and the
-// requested revision. For a malformed ref it returns an evaluation alongside the error.
+// requested revision. For a malformed ref or an uncomparable base it returns an evaluation alongside
+// the error.
 func (s *Service) evaluateChangesSinceRevision(ctx context.Context, request *apiclient.UpdateRevisionForPathsRequest, baseRevision string, baseRefSources map[string]*v1alpha1.RefTarget, composeVia string, composeRefSources map[string]*v1alpha1.RefTarget, isGitSource bool, gitClientOpts git.ClientOpts, logCtx *log.Entry) (*baseRevisionEvaluation, error) {
 	eval := &baseRevisionEvaluation{
 		resolvedRevision: request.Revision,
@@ -3632,6 +3637,11 @@ func (s *Service) evaluateChangesSinceRevision(ctx context.Context, request *api
 
 	if isGitSource && baseRevision != request.Revision {
 		resolvedRevision, resolvedBase, sourceHasChanges, err := s.gitSourceHasChanges(ctx, request.Repo, request.Revision, baseRevision, refreshPaths, gitClientOpts, composeVia)
+		if errors.Is(err, errSourceNotCompared) {
+			eval.resolvedRevision = resolvedRevision
+			eval.changes = true
+			return eval, err
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -3687,6 +3697,10 @@ func (s *Service) evaluateChangesSinceRevision(ctx context.Context, request *api
 				composeRef = composeRefSource.TargetRevision
 			}
 			resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, request.RefSources[refName].TargetRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts, composeRef)
+			if errors.Is(err, errSourceNotCompared) {
+				eval.changes = true
+				return eval, err
+			}
 			if err != nil {
 				return nil, err
 			}
@@ -3826,6 +3840,14 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 	syncEval, err := s.evaluateChangesSinceRevision(ctx, request, syncBaseRevision, syncBaseRefSources, composeVia, composeRefSources, isGitSource, gitClientOpts, logCtx)
 	if err != nil {
 		if cacheEval == nil {
+			if errors.Is(err, errSourceNotCompared) {
+				logCtx.Warnf("unable to compare against revision %s, reporting changes: %v", syncBaseRevision, err)
+				return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: syncEval.resolvedRevision}, nil
+			}
+			// Errors stay plain up to here so errors.Is works; give clients a gRPC code.
+			if _, ok := status.FromError(err); !ok {
+				err = status.Error(codes.Internal, err.Error())
+			}
 			if syncEval != nil {
 				return &apiclient.UpdateRevisionForPathsResponse{Changes: true, Revision: syncEval.resolvedRevision}, err
 			}
