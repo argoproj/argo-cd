@@ -739,10 +739,11 @@ func (h *Hydrator) advanceHydratorNote(ctx context.Context, logCtx *log.Entry, a
 	defer utilio.Close(closer)
 
 	resp, err := commitService.AdvanceHydratorNote(ctx, &commitclient.AdvanceHydratorNoteRequest{
-		Repo:         repo,
-		SyncBranch:   syncBranch,
-		TargetBranch: targetBranch,
-		DrySha:       resolvedDryRevision,
+		Repo:                repo,
+		SyncBranch:          syncBranch,
+		TargetBranch:        targetBranch,
+		DrySha:              resolvedDryRevision,
+		ExpectedHydratedSha: app.Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA,
 	})
 	if err != nil {
 		logCtx.WithError(err).Error("Failed to advance hydrator git note")
