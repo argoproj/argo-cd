@@ -1,5 +1,6 @@
 'use strict;';
 
+const path = require('path');
 const MonacoWebpackPlugin = require('monaco-editor-webpack-plugin');
 const CopyWebpackPlugin = require('copy-webpack-plugin');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
@@ -17,6 +18,28 @@ const reactCompilerLog = process.env.REACT_COMPILER_LOG === '1';
 
 console.log(`Bundling in ${isProd ? 'production' : 'development'}...`);
 console.log(`React Compiler: ${reactCompiler ? 'enabled' : 'disabled'}${reactCompiler && reactCompilerLog ? ' (logging)' : ''}`);
+
+// argocd-server applies --rootpath/--basehref by rewriting this exact tag (from src/app/index.html) in the
+// embedded index.html (see replaceBaseHRef in server/server.go). Fail the build if the emitted index.html
+// no longer contains it verbatim, e.g. because a minifier rewrote it (#30763).
+const expectedBaseTag = '<base href="/">';
+
+class BaseHrefGuardPlugin {
+    apply(compiler) {
+        compiler.hooks.thisCompilation.tap('BaseHrefGuardPlugin', compilation => {
+            compilation.hooks.processAssets.tap(
+                // REPORT is the last stage, after every minimizer has run.
+                {name: 'BaseHrefGuardPlugin', stage: webpack.Compilation.PROCESS_ASSETS_STAGE_REPORT},
+                () => {
+                    const asset = compilation.getAsset('index.html');
+                    if (!asset || !asset.source.source().toString().includes(expectedBaseTag)) {
+                        compilation.errors.push(new webpack.WebpackError(`index.html must contain ${expectedBaseTag} verbatim so argocd-server can rewrite it for --rootpath/--basehref`));
+                    }
+                }
+            );
+        });
+    }
+}
 
 const esbuildTsxLoader = {
     loader: 'esbuild-loader',
@@ -81,6 +104,24 @@ const config = {
         clean: {keep: /(^|\/)\.?gitkeep$/}
     },
     cache: { type: 'filesystem' },
+    optimization: {
+        // Since 5.110, webpack also minifies HTML assets by default. It rewrites index.html with unquoted
+        // attributes (`<base href=/>`), which argocd-server's base href rewrite does not match, so the UI
+        // breaks under --rootpath/--basehref (#30763). html-webpack-plugin already minifies index.html.
+        minimizeOptions: {html: false},
+        runtimeChunk: 'single',
+        splitChunks: {
+            chunks: 'all',
+            cacheGroups: {
+                vendors: {
+                    test: /[\\/]node_modules[\\/]/,
+                    name: 'vendors',
+                    chunks: 'initial',
+                    priority: -5
+                }
+            }
+        }
+    },
 
     resolve: {
         extensions: ['.ts', '.tsx', '.js', '.json'],
@@ -149,6 +190,13 @@ const config = {
             })
         }),
         new HtmlWebpackPlugin({ template: 'src/app/index.html' }),
+        new BaseHrefGuardPlugin(),
+        new webpack.NormalModuleReplacementPlugin(/^\.\/logs-viewer\/logs-viewer$/, resource => {
+            if (resource.context.endsWith(path.join('argo-ui', 'src', 'components'))) {
+                resource.request = path.resolve(__dirname, 'shims', 'logs-viewer.tsx');
+            }
+        }),
+        new webpack.IgnorePlugin({resourceRegExp: /^\.\/locale$/, contextRegExp: /moment$/}),
         new CopyWebpackPlugin({
             patterns: [{
                     from: 'src/assets',
@@ -163,8 +211,9 @@ const config = {
                     to: 'assets/fonts'
                 },
                 {
-                    from: 'node_modules/redoc/bundles/redoc.standalone.js',
-                    to: 'assets/scripts/redoc.standalone.js'
+                    // consumed by the server-rendered /swagger-ui page; keep in sync with swaggerUIAssetsPath in util/swagger
+                    from: 'node_modules/swagger-ui-dist/{swagger-ui-bundle.js,swagger-ui-standalone-preset.js,swagger-ui.css,favicon-16x16.png,favicon-32x32.png}',
+                    to: 'assets/swagger-ui/[name][ext]'
                 },
                 {
                     from: 'node_modules/monaco-editor/min/vs/base/browser/ui/codicons/codicon',
@@ -222,8 +271,8 @@ const config = {
 if (isProd) {
     config.performance = {
         hints: 'error',
-        // Max size is 6MB before gzip.
-        maxEntrypointSize: 6 * 1024 * 1024,
+        // Sizes are raw bytes before gzip.
+        maxEntrypointSize: 1.75 * 1024 * 1024,
         maxAssetSize: 6 * 1024 * 1024,
     };
 }

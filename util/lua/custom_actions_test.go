@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -122,6 +123,13 @@ func (t testNormalizer) Normalize(un *unstructured.Unstructured) error {
 				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
 			}
 		}
+	case "capsule.clastix.io":
+		switch un.GetKind() {
+		case "TenantResource", "GlobalTenantResource":
+			if err := setCapsuleReconcileAnnotation(un); err != nil {
+				return fmt.Errorf("failed to normalize %s: %w", un.GetKind(), err)
+			}
+		}
 	}
 	return nil
 }
@@ -134,6 +142,16 @@ func setRestartedAtAnnotationOnPodTemplate(un *unstructured.Unstructured) error 
 // Helper: normalize Flux requestedAt annotation across FluxCD kinds
 func setFluxRequestedAtAnnotation(un *unstructured.Unstructured) error {
 	return unstructured.SetNestedStringMap(un.Object, map[string]string{"reconcile.fluxcd.io/requestedAt": "By Argo CD at: 0001-01-01T00:00:00"}, "metadata", "annotations")
+}
+
+// Helper: normalize Capsule reconcile annotation for TenantResource / GlobalTenantResource
+func setCapsuleReconcileAnnotation(un *unstructured.Unstructured) error {
+	existingAnnotations, _, _ := unstructured.NestedStringMap(un.Object, "metadata", "annotations")
+	if existingAnnotations == nil {
+		existingAnnotations = make(map[string]string)
+	}
+	existingAnnotations["reconcile.projectcapsule.dev/requestedAt"] = "0001-01-01T00:00:00Z"
+	return unstructured.SetNestedStringMap(un.Object, existingAnnotations, "metadata", "annotations")
 }
 
 // Helper: normalize PostgreSQL CNPG Cluster annotations while preserving existing ones
@@ -319,6 +337,25 @@ func TestLuaResourceActionsScript(t *testing.T) {
 		return nil
 	})
 	require.NoError(t, err)
+}
+
+// The generic action test normalizes scheduled-time away, so its format is verified here.
+func TestCronWorkflowCreateWorkflowScheduledTime(t *testing.T) {
+	vm := VM{}
+	obj := getObj(t, "../../resource_customizations/argoproj.io/CronWorkflow/actions/testdata/cronworkflow.yaml")
+	action, err := vm.GetResourceAction(obj, "create-workflow")
+	require.NoError(t, err)
+
+	before := time.Now().UTC().Truncate(time.Second)
+	impactedResources, err := vm.ExecuteResourceAction(obj, action.ActionLua, nil)
+	require.NoError(t, err)
+	after := time.Now().UTC()
+	require.Len(t, impactedResources, 1)
+
+	scheduledTime, err := time.Parse(time.RFC3339, impactedResources[0].UnstructuredObj.GetAnnotations()["workflows.argoproj.io/scheduled-time"])
+	require.NoError(t, err)
+	assert.False(t, scheduledTime.Before(before), "scheduled-time %s is before %s", scheduledTime, before)
+	assert.False(t, scheduledTime.After(after), "scheduled-time %s is after %s", scheduledTime, after)
 }
 
 // Handling backward compatibility.

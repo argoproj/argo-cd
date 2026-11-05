@@ -258,8 +258,8 @@ func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImages(t *testing.T) {
 	require.NoError(t, v1alpha1.AddToScheme(scheme))
 
 	live := &v1alpha1.Application{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "argoproj.io/v1alpha1", Kind: "Application"},
-		ObjectMeta: metav1.ObjectMeta{Name: "demo-dev", Namespace: "argocd"},
+		APIVersion: "argoproj.io/v1alpha1", Kind: "Application",
+		Name: "demo-dev", Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Source: &v1alpha1.ApplicationSource{
@@ -316,8 +316,8 @@ func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImagesMultiSource(t *testing
 	require.NoError(t, v1alpha1.AddToScheme(scheme))
 
 	live := &v1alpha1.Application{
-		TypeMeta:   metav1.TypeMeta{APIVersion: "argoproj.io/v1alpha1", Kind: "Application"},
-		ObjectMeta: metav1.ObjectMeta{Name: "demo-dev", Namespace: "argocd"},
+		APIVersion: "argoproj.io/v1alpha1", Kind: "Application",
+		Name: "demo-dev", Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Sources: v1alpha1.ApplicationSources{

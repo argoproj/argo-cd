@@ -4,7 +4,7 @@ import * as ReactDOM from 'react-dom';
 import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {combineLatest, from, merge, Observable} from 'rxjs';
-import {bufferTime, delay, filter, map, mergeMap, repeat, retryWhen} from 'rxjs/operators';
+import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 import {ClusterCtx, DataLoader, EmptyState, FlexTopBar, Page, Paginate, Query, SearchBar} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import {useObservableQuery} from '../../../shared/hooks/query';
@@ -45,7 +45,7 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
                 services.applications
                     .watch('application', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APP_WATCH_FIELDS})
                     .pipe(repeat())
-                    .pipe(retryWhen(errors => errors.pipe(delay(WATCH_RETRY_TIMEOUT))))
+                    .pipe(retry({delay: WATCH_RETRY_TIMEOUT}))
                     // batch events to avoid constant re-rendering and improve UI performance
                     .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
                     .pipe(
@@ -242,19 +242,19 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences) {
         services.viewPreferences.updatePreferences({resourcesList: newPref});
-        ctx.navigation.goto(
-            '.',
-            {
-                proj: newPref.projectsFilter.join(','),
-                sync: newPref.syncFilter.join(','),
-                health: newPref.healthFilter.join(','),
-                namespace: newPref.namespacesFilter.join(','),
-                cluster: newPref.clustersFilter.join(','),
-                apiGroup: newPref.apiGroupFilter.join(','),
-                kind: newPref.kindFilter.join(',')
-            },
-            {replace: true}
-        );
+        const params = {
+            proj: newPref.projectsFilter.join(','),
+            sync: newPref.syncFilter.join(','),
+            health: newPref.healthFilter.join(','),
+            namespace: newPref.namespacesFilter.join(','),
+            cluster: newPref.clustersFilter.join(','),
+            apiGroup: newPref.apiGroupFilter.join(','),
+            kind: newPref.kindFilter.join(',')
+        };
+        // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
+        // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
+        // once the cap is hit, so only navigate when the query string actually changes.
+        ctx.navigation.goto('.', params, {replace: true, skipIfUnchanged: true});
     }
 
     function getPageTitle(view: string) {
@@ -371,7 +371,14 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                         )}
                                                                         data={sortedResources}
                                                                         onPageChange={page => ctx.navigation.goto('.', {page})}>
-                                                                        {data => <ResourcesTable resources={data} onOpenDetails={resource => openResourceDetails(ctx, resource)} />}
+                                                                        {(data, useVirtualScrolling) => (
+                                                                            <ResourcesTable
+                                                                                resources={data}
+                                                                                onOpenDetails={resource => openResourceDetails(ctx, resource)}
+                                                                                useVirtualScrolling={useVirtualScrolling}
+                                                                                statusBarVisible={healthBarPrefs.showHealthStatusBar}
+                                                                            />
+                                                                        )}
                                                                     </Paginate>
                                                                 )}
                                                             </>

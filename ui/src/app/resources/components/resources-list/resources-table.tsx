@@ -2,6 +2,10 @@ import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import classNames from 'classnames';
 import {Key, KeybindingContext, useNav} from 'argo-ui/v2';
+import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
+import List from 'react-virtualized/dist/commonjs/List';
+import WindowScroller from 'react-virtualized/dist/commonjs/WindowScroller';
+import type {ListRowProps} from 'react-virtualized';
 import {take} from 'rxjs/operators';
 import {ActionMenu, CellLink, Cluster, DataLoader} from '../../../shared/components';
 import {Consumer, Context, ContextApis} from '../../../shared/context';
@@ -10,6 +14,15 @@ import {services} from '../../../shared/services';
 import {ResourceIcon} from '../../../applications/components/resource-icon';
 import {ResourceLabel} from '../../../applications/components/resource-label';
 import * as AppUtils from '../../../applications/components/utils';
+import {
+    bidirectionalOverscanIndicesGetter,
+    computeOverscanRowCount,
+    resourcesLayoutKey,
+    shouldUseVirtualScroll,
+    TABLE_OVERSCAN_ROW_COUNT,
+    TABLE_ROW_HEIGHT,
+    useWindowScrollerPosition
+} from '../../../applications/components/applications-list/virtual-scroll';
 import {
     getResourceAppLink,
     getResourceRowLink,
@@ -44,9 +57,21 @@ function handleSort(ctx: ContextApis, key: ResourceSortKey) {
         });
 }
 
-export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetails?: (resource: models.Resource) => void}) => {
+function resourceRowKey(resource: models.Resource): string {
+    return `${resource.appProject}/${resource.appNamespace}/${resource.appName}/${resource.name}/${resource.namespace}/${resource.kind}/${resource.group}/${resource.version}`;
+}
+
+export const ResourcesTable = (props: {
+    resources: models.Resource[];
+    onOpenDetails?: (resource: models.Resource) => void;
+    useVirtualScrolling?: boolean;
+    statusBarVisible?: boolean;
+}) => {
     const [selectedResource, navResource, reset] = useNav(props.resources.length);
     const ctxh = React.useContext(Context);
+    const listRef = React.useRef<List>(null);
+    const windowScrollerRef = React.useRef<WindowScroller>(null);
+    const shouldVirtualize = shouldUseVirtualScroll(props.useVirtualScrolling, props.resources.length);
 
     const {registerKeybinding} = React.useContext(KeybindingContext);
 
@@ -91,6 +116,21 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
         }
     });
 
+    React.useEffect(() => {
+        if (selectedResource >= props.resources.length) {
+            reset();
+        }
+    }, [selectedResource, props.resources.length, reset]);
+
+    React.useEffect(() => {
+        if (selectedResource >= 0 && shouldVirtualize && listRef.current) {
+            listRef.current.scrollToRow(selectedResource);
+        }
+    }, [selectedResource, shouldVirtualize]);
+
+    const layoutKey = React.useMemo(() => (shouldVirtualize ? resourcesLayoutKey(props.resources) : ''), [shouldVirtualize, props.resources]);
+    useWindowScrollerPosition(windowScrollerRef, shouldVirtualize, `${layoutKey}:${!!props.statusBarVisible}`);
+
     const navigateToApplication = (ctx: ContextApis, resource: models.Resource, e?: React.MouseEvent) => {
         navigateToManagingApplication(ctx, resource, e);
     };
@@ -104,73 +144,123 @@ export const ResourcesTable = (props: {resources: models.Resource[]; onOpenDetai
                         const sortDirection = pref.sortDirections?.[RESOURCES_LIST_SORT_KEY] || 'asc';
                         const activeSortKey = RESOURCE_SORT_TITLE_TO_KEY[sortTitle] || 'name';
 
+                        const renderRow = (resource: models.Resource, i: number) => {
+                            const groupKind = [resource.group, resource.kind].filter(Boolean).join('/');
+                            return (
+                                <ResourceTableRow
+                                    key={resourceRowKey(resource)}
+                                    resource={resource}
+                                    groupKind={groupKind}
+                                    index={i}
+                                    selectedResource={selectedResource}
+                                    ctx={ctx}
+                                    navigateToApplication={navigateToApplication}
+                                />
+                            );
+                        };
+
+                        const tableHead = (
+                            <div className='argo-table-list__head'>
+                                <div className='row'>
+                                    <div
+                                        className='columns small-1 large-2 resources-table__col-group-kind resources-table__head-col'
+                                        onClick={() => handleSort(ctx, 'group-kind')}
+                                        style={{cursor: 'pointer'}}
+                                        title='GROUP/KIND'>
+                                        <span className='resources-table__head-text'>GROUP/KIND {getSortArrow(activeSortKey, sortDirection, 'group-kind')}</span>
+                                    </div>
+                                    <div
+                                        className='columns small-2 large-1 resources-table__col-namespace resources-table__head-col'
+                                        onClick={() => handleSort(ctx, 'namespace')}
+                                        style={{cursor: 'pointer'}}
+                                        title='NAMESPACE'>
+                                        <span className='resources-table__head-text'>NAMESPACE {getSortArrow(activeSortKey, sortDirection, 'namespace')}</span>
+                                    </div>
+                                    <div
+                                        className='columns small-3 resources-table__col-name resources-table__head-col'
+                                        onClick={() => handleSort(ctx, 'name')}
+                                        style={{cursor: 'pointer'}}
+                                        title='NAME'>
+                                        <span className='resources-table__head-text'>NAME {getSortArrow(activeSortKey, sortDirection, 'name')}</span>
+                                    </div>
+                                    <div
+                                        className='columns small-1 large-2 resources-table__col-cluster resources-table__head-col'
+                                        onClick={() => handleSort(ctx, 'cluster')}
+                                        style={{cursor: 'pointer'}}
+                                        title='CLUSTER'>
+                                        <span className='resources-table__head-text'>CLUSTER {getSortArrow(activeSortKey, sortDirection, 'cluster')}</span>
+                                    </div>
+                                    <div
+                                        className='columns small-2 resources-table__col-application resources-table__head-col'
+                                        onClick={() => handleSort(ctx, 'application')}
+                                        style={{cursor: 'pointer'}}
+                                        title='Application (opens application page)'>
+                                        <span className='resources-table__head-text resources-table__head-text--application'>
+                                            <span className='resources-table__head-label'>APPLICATION</span>
+                                            <i className='fa fa-external-link-alt resources-table__head-external-icon' aria-hidden={true} />
+                                            {getSortArrow(activeSortKey, sortDirection, 'application')}
+                                        </span>
+                                    </div>
+                                    <div
+                                        className='columns small-3 large-2 resources-table__status-col resources-table__head-col'
+                                        onClick={() => handleSort(ctx, 'status')}
+                                        style={{cursor: 'pointer'}}
+                                        title='STATUS'>
+                                        <span className='resources-table__head-text'>STATUS {getSortArrow(activeSortKey, sortDirection, 'status')}</span>
+                                    </div>
+                                </div>
+                            </div>
+                        );
+
+                        if (shouldVirtualize) {
+                            const rowRenderer = ({index, key, style}: ListRowProps) => {
+                                const resource = props.resources[index];
+                                if (!resource) {
+                                    return null;
+                                }
+                                return (
+                                    <div key={key} style={style} className='resources-table__virtual-row'>
+                                        {renderRow(resource, index)}
+                                    </div>
+                                );
+                            };
+
+                            return (
+                                <div className='application-details resources-table'>
+                                    <div className='argo-table-list argo-table-list--clickable'>
+                                        {tableHead}
+                                        <WindowScroller ref={windowScrollerRef} updateScrollTopOnUpdatePosition={true}>
+                                            {({height, isScrolling, onChildScroll, scrollTop}) => (
+                                                <AutoSizer disableHeight={true}>
+                                                    {({width}) => (
+                                                        <List
+                                                            ref={listRef}
+                                                            autoHeight={true}
+                                                            height={height}
+                                                            width={width}
+                                                            isScrolling={isScrolling}
+                                                            onScroll={onChildScroll}
+                                                            scrollTop={scrollTop}
+                                                            rowCount={props.resources.length}
+                                                            rowHeight={TABLE_ROW_HEIGHT}
+                                                            rowRenderer={rowRenderer}
+                                                            overscanRowCount={computeOverscanRowCount(height, TABLE_ROW_HEIGHT, TABLE_OVERSCAN_ROW_COUNT)}
+                                                            overscanIndicesGetter={bidirectionalOverscanIndicesGetter}
+                                                        />
+                                                    )}
+                                                </AutoSizer>
+                                            )}
+                                        </WindowScroller>
+                                    </div>
+                                </div>
+                            );
+                        }
+
                         return (
                             <div className='application-details resources-table'>
                                 <div className='argo-table-list argo-table-list--clickable'>
-                                    <div className='argo-table-list__head'>
-                                        <div className='row'>
-                                            <div
-                                                className='columns small-1 large-2 resources-table__col-group-kind resources-table__head-col'
-                                                onClick={() => handleSort(ctx, 'group-kind')}
-                                                style={{cursor: 'pointer'}}
-                                                title='GROUP/KIND'>
-                                                <span className='resources-table__head-text'>GROUP/KIND {getSortArrow(activeSortKey, sortDirection, 'group-kind')}</span>
-                                            </div>
-                                            <div
-                                                className='columns small-2 large-1 resources-table__col-namespace resources-table__head-col'
-                                                onClick={() => handleSort(ctx, 'namespace')}
-                                                style={{cursor: 'pointer'}}
-                                                title='NAMESPACE'>
-                                                <span className='resources-table__head-text'>NAMESPACE {getSortArrow(activeSortKey, sortDirection, 'namespace')}</span>
-                                            </div>
-                                            <div
-                                                className='columns small-3 resources-table__col-name resources-table__head-col'
-                                                onClick={() => handleSort(ctx, 'name')}
-                                                style={{cursor: 'pointer'}}
-                                                title='NAME'>
-                                                <span className='resources-table__head-text'>NAME {getSortArrow(activeSortKey, sortDirection, 'name')}</span>
-                                            </div>
-                                            <div
-                                                className='columns small-1 large-2 resources-table__col-cluster resources-table__head-col'
-                                                onClick={() => handleSort(ctx, 'cluster')}
-                                                style={{cursor: 'pointer'}}
-                                                title='CLUSTER'>
-                                                <span className='resources-table__head-text'>CLUSTER {getSortArrow(activeSortKey, sortDirection, 'cluster')}</span>
-                                            </div>
-                                            <div
-                                                className='columns small-2 resources-table__col-application resources-table__head-col'
-                                                onClick={() => handleSort(ctx, 'application')}
-                                                style={{cursor: 'pointer'}}
-                                                title='Application (opens application page)'>
-                                                <span className='resources-table__head-text resources-table__head-text--application'>
-                                                    <span className='resources-table__head-label'>APPLICATION</span>
-                                                    <i className='fa fa-external-link-alt resources-table__head-external-icon' aria-hidden={true} />
-                                                    {getSortArrow(activeSortKey, sortDirection, 'application')}
-                                                </span>
-                                            </div>
-                                            <div
-                                                className='columns small-3 large-2 resources-table__status-col resources-table__head-col'
-                                                onClick={() => handleSort(ctx, 'status')}
-                                                style={{cursor: 'pointer'}}
-                                                title='STATUS'>
-                                                <span className='resources-table__head-text'>STATUS {getSortArrow(activeSortKey, sortDirection, 'status')}</span>
-                                            </div>
-                                        </div>
-                                    </div>
-                                    {props.resources.map((resource, i) => {
-                                        const groupKind = [resource.group, resource.kind].filter(Boolean).join('/');
-                                        return (
-                                            <ResourceTableRow
-                                                key={`${resource.appProject}/${resource.appName}/${resource.name}/${resource.namespace}/${resource.kind}/${resource.group}/${resource.version}`}
-                                                resource={resource}
-                                                groupKind={groupKind}
-                                                index={i}
-                                                selectedResource={selectedResource}
-                                                ctx={ctx}
-                                                navigateToApplication={navigateToApplication}
-                                            />
-                                        );
-                                    })}
+                                    {tableHead}
+                                    {props.resources.map((resource, i) => renderRow(resource, i))}
                                 </div>
                             </div>
                         );

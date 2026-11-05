@@ -14,12 +14,21 @@ function toOption(label: string) {
     return {label};
 }
 
-export function withoutKindResourceFilters(filters: string[]): string[] {
-    return (filters || []).filter(f => !f.startsWith('kind:'));
-}
+// Resource filter categories that don't apply to the ApplicationSet view. The AppSet view hides these
+// filter controls, and its generated Application nodes don't carry kind/sync/health status.
+const APPLICATION_SET_HIDDEN_FILTERS = ['kind:', 'sync:', 'health:'];
 
-export function getEffectiveResourceFilter(isApplication: boolean, resourceFilter?: string[]): string[] {
-    return isApplication ? resourceFilter || [] : withoutKindResourceFilters(resourceFilter);
+// getEffectiveResourceFilter returns the resource filters that should actually be applied for the
+// current view. The resource filter is a single shared preference across the Application and
+// ApplicationSet views, so a filter set in an Application view (e.g. sync:OutOfSync) would otherwise
+// linger in the AppSet view and silently hide all generated Applications with no visible control to
+// clear it (those controls are hidden for the AppSet view). To keep the effective filter consistent
+// with the controls actually shown, we strip the hidden filter categories for the ApplicationSet view.
+export function getEffectiveResourceFilter(isApplicationSet: boolean, resourceFilter?: string[]): string[] {
+    if (!isApplicationSet) {
+        return resourceFilter || [];
+    }
+    return (resourceFilter || []).filter(f => !APPLICATION_SET_HIDDEN_FILTERS.some(prefix => f.startsWith(prefix)));
 }
 
 export interface FiltersProps {
@@ -30,13 +39,13 @@ export interface FiltersProps {
     onSetFilter: (items: string[]) => void;
     onClearFilter: () => void;
     collapsed?: boolean;
-    hideKindFilter?: boolean;
+    isApplicationSet?: boolean;
 }
 
 export const Filters = (props: FiltersProps) => {
     const ctx = React.useContext(Context);
 
-    const {pref, tree, onSetFilter, hideKindFilter} = props;
+    const {pref, tree, onSetFilter, isApplicationSet} = props;
 
     const onClearFilter = () => {
         setLoading(true);
@@ -137,11 +146,11 @@ export const Filters = (props: FiltersProps) => {
         <FiltersGroup
             title='Resource filters'
             content={props.children}
-            appliedFilter={hideKindFilter ? withoutKindResourceFilters(resourceFilter) : pref.resourceFilter}
+            appliedFilter={getEffectiveResourceFilter(!!isApplicationSet, resourceFilter)}
             onClearFilter={onClearFilter}
             collapsed={props.collapsed}>
             {ResourceFilter({label: 'NAME', prefix: 'name', options: names.map(toOption), field: true})}
-            {!hideKindFilter &&
+            {!isApplicationSet &&
                 ResourceFilter({
                     label: 'KINDS',
                     prefix: 'kind',
@@ -152,24 +161,26 @@ export const Filters = (props: FiltersProps) => {
                     abbreviations: resources,
                     field: true
                 })}
-            {ResourceFilter({
-                label: 'SYNC STATUS',
-                prefix: 'sync',
-                options: ['Synced', 'OutOfSync'].map(label => ({
-                    label,
-                    count: getOptionCount(label, 'Sync'),
-                    icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
-                }))
-            })}
-            {ResourceFilter({
-                label: 'HEALTH STATUS',
-                prefix: 'health',
-                options: ['Progressing', 'Suspended', 'Healthy', 'Degraded', 'Missing', 'Unknown'].map(label => ({
-                    label,
-                    count: getOptionCount(label, 'Health'),
-                    icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
-                }))
-            })}
+            {!isApplicationSet &&
+                ResourceFilter({
+                    label: 'SYNC STATUS',
+                    prefix: 'sync',
+                    options: ['Synced', 'OutOfSync'].map(label => ({
+                        label,
+                        count: getOptionCount(label, 'Sync'),
+                        icon: <ComparisonStatusIcon status={label as SyncStatusCode} noSpin={true} />
+                    }))
+                })}
+            {!isApplicationSet &&
+                ResourceFilter({
+                    label: 'HEALTH STATUS',
+                    prefix: 'health',
+                    options: ['Progressing', 'Suspended', 'Healthy', 'Degraded', 'Missing', 'Unknown'].map(label => ({
+                        label,
+                        count: getOptionCount(label, 'Health'),
+                        icon: <HealthStatusIcon state={{status: label as HealthStatusCode, message: ''}} noSpin={true} />
+                    }))
+                })}
             {namespaces.length > 1 && ResourceFilter({label: 'NAMESPACES', prefix: 'namespace', options: (namespaces || []).filter(l => l && l !== '').map(toOption), field: true})}
             {(tree.orphanedNodes || []).length > 0 && (
                 <div className={`filter filter__item ${pref.orphanedResources ? 'filter__item--selected' : ''}`}>

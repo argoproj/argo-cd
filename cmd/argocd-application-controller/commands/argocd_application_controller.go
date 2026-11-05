@@ -4,10 +4,8 @@ import (
 	"context"
 	"fmt"
 	"math"
-	"os"
-	"os/signal"
 	"runtime/debug"
-	"syscall"
+	"sync"
 	"time"
 
 	"github.com/argoproj/pkg/v2/stats"
@@ -58,6 +56,7 @@ func NewCommand() *cobra.Command {
 		appResyncPeriod                  int64
 		appHardResyncPeriod              int64
 		appResyncJitter                  int64
+		reconciledAtHeartbeat            time.Duration
 		repoErrorGracePeriod             int64
 		repoServerAddress                string
 		repoServerTimeoutSeconds         int
@@ -76,9 +75,11 @@ func NewCommand() *cobra.Command {
 		metricsCacheExpiration           time.Duration
 		metricsApplicationLabels         []string
 		metricsApplicationConditions     []string
+		metricsSyncWindows               bool
 		metricsClusterLabels             []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
+		reconciledAtCacheSource          func() (*cacheutil.Cache, error)
 		redisClient                      *redis.Client
 		repoServerPlaintext              bool
 		repoServerStrictTLS              bool
@@ -86,6 +87,8 @@ func NewCommand() *cobra.Command {
 		otlpInsecure                     bool
 		otlpHeaders                      map[string]string
 		otlpAttrs                        []string
+		otlpMetricsEnabled               bool
+		otlpMetricsInterval              time.Duration
 		otlpSampleRatio                  float64
 		applicationNamespaces            []string
 		persistResourceHealth            bool
@@ -105,7 +108,7 @@ func NewCommand() *cobra.Command {
 		Short:             "Run ArgoCD Application Controller",
 		Long:              "ArgoCD application controller is a Kubernetes controller that continuously monitors running applications and compares the current, live state against the desired target state (as specified in the repo). This command runs Application Controller in the foreground.  It can be configured by following options.",
 		DisableAutoGenTag: true,
-		RunE: func(c *cobra.Command, _ []string) error {
+		RunE: cli.WithSignalContextE(func(c *cobra.Command, _ []string, _ context.CancelFunc) error {
 			ctx, cancel := context.WithCancel(c.Context())
 			defer cancel()
 
@@ -173,6 +176,16 @@ func NewCommand() *cobra.Command {
 			cache, err := cacheSource()
 			errors.CheckError(err)
 			cache.Cache.SetClient(cacheutil.NewTwoLevelClient(cache.Cache.GetClient(), 10*time.Minute))
+			// A separate Redis only when pointed at one; otherwise the main cache is shared.
+			var reconciledAtCache *appstatecache.Cache
+			if c.Flags().Changed("reconciled-at-redis") || c.Flags().Changed("reconciled-at-sentinel") {
+				rc, err := reconciledAtCacheSource()
+				errors.CheckError(err)
+				rc.SetClient(cacheutil.NewTwoLevelClient(rc.GetClient(), 10*time.Minute))
+				expiration, err := c.Flags().GetDuration("app-state-cache-expiration")
+				errors.CheckError(err)
+				reconciledAtCache = appstatecache.NewCache(rc, expiration)
+			}
 
 			var appController *controller.ApplicationController
 
@@ -198,10 +211,12 @@ func NewCommand() *cobra.Command {
 				repoClientset,
 				commitClientset,
 				cache,
+				reconciledAtCache,
 				kubectl,
 				resyncDuration,
 				hardResyncDuration,
 				time.Duration(appResyncJitter)*time.Second,
+				reconciledAtHeartbeat,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				selfHealBackoff,
 				time.Duration(syncTimeout)*time.Second,
@@ -210,6 +225,7 @@ func NewCommand() *cobra.Command {
 				metricsCacheExpiration,
 				metricsApplicationLabels,
 				metricsApplicationConditions,
+				metricsSyncWindows,
 				metricsClusterLabels,
 				kubectlParallelismLimit,
 				persistResourceHealth,
@@ -235,31 +251,36 @@ func NewCommand() *cobra.Command {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}
 				defer closeTracer()
+
+				if otlpMetricsEnabled {
+					closeMeter, err := trace.InitMeter(ctx, "argocd-controller", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs, otlpMetricsInterval, appController.GetMetricsServer().Gatherers()...)
+					if err != nil {
+						log.Fatalf("failed to initialize metrics: %v", err)
+					}
+					defer closeMeter()
+				}
+			} else if otlpMetricsEnabled {
+				log.Warn("--otlp-metrics-enabled is set but --otlp-address is empty, no metrics will be pushed")
 			}
 
-			// Graceful shutdown code
-			sigCh := make(chan os.Signal, 1)
-			signal.Notify(sigCh, os.Interrupt, syscall.SIGTERM)
-			go func() {
-				s := <-sigCh
-				log.Printf("got signal %v, attempting graceful shutdown", s)
-				cancel()
-			}()
-
-			go appController.Run(ctx, statusProcessors, operationProcessors, hydrationProcessors)
-
-			<-ctx.Done()
-
+			// Run blocks until ctx is done; Wait joins it so the queue shutdowns land before the deferred
+			// tracer flush. Workers are not joined and ShutDown does not drain in-flight items.
+			wg := sync.WaitGroup{}
+			wg.Go(func() {
+				appController.Run(ctx, statusProcessors, operationProcessors, hydrationProcessors)
+			})
+			wg.Wait()
 			log.Println("clean shutdown")
 
 			return nil
-		},
+		}),
 	}
 
 	clientConfig = cli.AddKubectlFlagsToCmd(&command)
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", defaultAppResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Time period in seconds for application resync.")
 	command.Flags().Int64Var(&appHardResyncPeriod, "app-hard-resync", int64(env.ParseDurationFromEnv("ARGOCD_HARD_RECONCILIATION_TIMEOUT", defaultAppHardResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Time period in seconds for application hard resync.")
 	command.Flags().Int64Var(&appResyncJitter, "app-resync-jitter", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_JITTER", defaultAppResyncPeriodJitter*time.Second, 0, math.MaxInt64).Seconds()), "Maximum time period in seconds to add as a delay jitter for application resync.")
+	command.Flags().DurationVar(&reconciledAtHeartbeat, "reconciled-at-heartbeat", env.ParseDurationFromEnv(common.EnvControllerReconciledAtHeartbeat, 0, 0, math.MaxInt64), "How stale the Application status.reconciledAt field may become while nothing else in status changes. Zero (the default) writes it on every reconciliation; a positive value (e.g. 10m) trades staleness of that one field for far fewer API server writes.")
 	command.Flags().Int64Var(&repoErrorGracePeriod, "repo-error-grace-period-seconds", int64(env.ParseDurationFromEnv("ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS", defaultRepoErrorGracePeriod*time.Second, 0, math.MaxInt64).Seconds()), "Grace period in seconds for ignoring consecutive errors while communicating with repo server.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address.")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
@@ -285,11 +306,14 @@ func NewCommand() *cobra.Command {
 	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))
 	command.Flags().StringSliceVar(&metricsApplicationLabels, "metrics-application-labels", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_LABELS", []string{}, ","), "List of Application labels that will be added to the argocd_app_labels metric")
 	command.Flags().StringSliceVar(&metricsApplicationConditions, "metrics-application-conditions", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_APPLICATION_CONDITIONS", []string{}, ","), "List of Application conditions that will be added to the argocd_app_condition metric")
+	command.Flags().BoolVar(&metricsSyncWindows, "metrics-sync-windows", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_SYNC_WINDOWS", false), "Enable the argocd_app_sync_window, argocd_app_sync_blocked and argocd_app_sync_window_error metrics")
 	command.Flags().StringSliceVar(&metricsClusterLabels, "metrics-cluster-labels", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_METRICS_CLUSTER_LABELS", []string{}, ","), "List of Cluster labels that will be added to the argocd_cluster_labels metric")
 	command.Flags().StringVar(&otlpAddress, "otlp-address", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ADDRESS", ""), "OpenTelemetry collector address to send traces to")
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
+	command.Flags().BoolVar(&otlpMetricsEnabled, "otlp-metrics-enabled", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_ENABLED", false), "Push the Prometheus metrics to the OpenTelemetry collector at --otlp-address")
+	command.Flags().DurationVar(&otlpMetricsInterval, "otlp-metrics-interval", env.ParseDurationFromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_INTERVAL", 30*time.Second, time.Second, math.MaxInt64), "Interval at which Prometheus metrics are pushed to the OpenTelemetry collector")
 	cli.BoundedFloat64Var(command.Flags(), &otlpSampleRatio, "otlp-sample-ratio", env.ParseFloat64FromEnv("ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO", 1.0, 0.0, 1.0), 0.0, 1.0, "Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision")
 	command.Flags().StringSliceVar(&applicationNamespaces, "application-namespaces", env.StringsFromEnv("ARGOCD_APPLICATION_NAMESPACES", []string{}, ","), "List of additional namespaces that applications are allowed to be reconciled from")
 	command.Flags().BoolVar(&persistResourceHealth, "persist-resource-health", env.ParseBoolFromEnv("ARGOCD_APPLICATION_CONTROLLER_PERSIST_RESOURCE_HEALTH", false), "Enables storing the managed resources health in the Application CRD")
@@ -315,5 +339,6 @@ func NewCommand() *cobra.Command {
 			redisClient = client
 		},
 	})
+	reconciledAtCacheSource = cacheutil.AddCacheFlagsToCmd(&command, cacheutil.Options{FlagPrefix: "reconciled-at-"})
 	return &command
 }

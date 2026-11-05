@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for ClusterPolicy to become ready"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Ready"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "Policy is not ready"
+  inputPath: testdata/degraded.yaml

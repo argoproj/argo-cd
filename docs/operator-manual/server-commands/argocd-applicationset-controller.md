@@ -49,6 +49,7 @@ argocd-applicationset-controller [flags]
       --preserved-labels strings                  Sets global preserved field values for labels
       --probe-addr string                         The address the probe endpoint binds to. (default ":8081")
       --proxy-url string                          If provided, this URL will be used to connect via proxy
+      --refresh-grace-period-seconds int          The minimum grace period before a progressive sync may start refreshing outdated applications (default 30)
       --repo-server-ca-cert-path string           Path to the repo-server CA certificate file
       --repo-server-client-cert-key-path string   Path to the client certificate key file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.key")
       --repo-server-client-cert-path string       Path to the client certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS client cert is skipped if the file does not exist. (default "/app/config/reposerver/mtls/client.crt")
@@ -66,5 +67,11 @@ argocd-applicationset-controller [flags]
       --username string                           Username for basic authentication to the API server
       --webhook-addr string                       The address the webhook endpoint binds to. (default ":7000")
       --webhook-parallelism-limit int             Number of webhook requests processed concurrently (default 50)
+      --wq-backoff-factor float                   Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5 (default 1.5)
+      --wq-basedelay duration                     Set Workqueue Per Item Rate Limiter Base Delay duration, default 1ms (default 1ms)
+      --wq-bucket-qps float                       Set Workqueue Rate Limiter Bucket QPS, default set to MaxFloat64 which disables the bucket limiter (default 1.7976931348623157e+308)
+      --wq-bucket-size int                        Set Workqueue Rate Limiter Bucket Size, default 500 (default 500)
+      --wq-cooldown duration                      Set Workqueue Per Item Rate Limiter Cooldown duration, default 0 (per item rate limiter disabled)
+      --wq-maxdelay duration                      Set Workqueue Per Item Rate Limiter Max Delay duration, default 16m40s (matches controller-runtime default) (default 16m40s)
 ```
 

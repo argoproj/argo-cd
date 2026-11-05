@@ -20,10 +20,11 @@ func TestNotificationsListServices(t *testing.T) {
 	})
 }
 
+// TestNotificationsListTemplates verifies that the CLI lists templates configured for Teams Workflows.
 func TestNotificationsListTemplates(t *testing.T) {
 	ctx := notifFixture.Given(t)
 	ctx.When().
-		SetParamInNotificationConfigMap("template.app-created", "email:\n  subject: Application {{.app.metadata.name}} has been created.\nmessage: Application {{.app.metadata.name}} has been created.\nteams:\n  title: Application {{.app.metadata.name}} has been created.\n").
+		SetParamInNotificationConfigMap("template.app-created", "email:\n  subject: Application {{.app.metadata.name}} has been created.\nmessage: Application {{.app.metadata.name}} has been created.\nteams-workflows:\n  title: Application {{.app.metadata.name}} has been created.\n").
 		Then().Templates(func(templates *notification.TemplateList, err error) {
 		require.NoError(t, err)
 		assert.Equal(t, []*notification.Template{{Name: new("app-created")}}, templates.Items)

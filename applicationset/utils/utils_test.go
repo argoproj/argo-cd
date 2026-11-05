@@ -36,14 +36,12 @@ func TestRenderTemplateParams(t *testing.T) {
 	fieldMap["Project"] = func(app *argoappsv1.Application) *string { return &app.Spec.Project }
 
 	emptyApplication := &argoappsv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
-			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
-			CreationTimestamp: metav1.NewTime(time.Now()),
-			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
-			Name:              "application-one",
-			Namespace:         "default",
-		},
+		Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+		Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+		CreationTimestamp: metav1.NewTime(time.Now()),
+		UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+		Name:              "application-one",
+		Namespace:         "default",
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
@@ -201,14 +199,12 @@ func TestRenderHelmValuesObjectJson(t *testing.T) {
 	}
 
 	application := &argoappsv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
-			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
-			CreationTimestamp: metav1.NewTime(time.Now()),
-			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
-			Name:              "application-one",
-			Namespace:         "default",
-		},
+		Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+		Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+		CreationTimestamp: metav1.NewTime(time.Now()),
+		UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+		Name:              "application-one",
+		Namespace:         "default",
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
@@ -254,14 +250,12 @@ func TestRenderHelmValuesObjectYaml(t *testing.T) {
 	}
 
 	application := &argoappsv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
-			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
-			CreationTimestamp: metav1.NewTime(time.Now()),
-			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
-			Name:              "application-one",
-			Namespace:         "default",
-		},
+		Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+		Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+		CreationTimestamp: metav1.NewTime(time.Now()),
+		UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+		Name:              "application-one",
+		Namespace:         "default",
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
@@ -313,14 +307,12 @@ func TestRenderTemplateParamsGoTemplate(t *testing.T) {
 	fieldMap["Project"] = func(app *argoappsv1.Application) *string { return &app.Spec.Project }
 
 	emptyApplication := &argoappsv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
-			Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
-			CreationTimestamp: metav1.NewTime(time.Now()),
-			UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
-			Name:              "application-one",
-			Namespace:         "default",
-		},
+		Annotations:       map[string]string{"annotation-key": "annotation-value", "annotation-key2": "annotation-value2"},
+		Labels:            map[string]string{"label-key": "label-value", "label-key2": "label-value2"},
+		CreationTimestamp: metav1.NewTime(time.Now()),
+		UID:               types.UID("d546da12-06b7-4f9a-8ea2-3adb16a20e2b"),
+		Name:              "application-one",
+		Namespace:         "default",
 		Spec: argoappsv1.ApplicationSpec{
 			Source: &argoappsv1.ApplicationSource{
 				Path:           "",
@@ -716,10 +708,8 @@ func TestRenderGeneratorParams_does_not_panic(t *testing.T) {
 func TestRenderTemplateKeys(t *testing.T) {
 	t.Run("fasttemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					"annotation-{{key}}": "annotation-{{value}}",
-				},
+			Annotations: map[string]string{
+				"annotation-{{key}}": "annotation-{{value}}",
 			},
 		}
 
@@ -736,10 +726,8 @@ func TestRenderTemplateKeys(t *testing.T) {
 	})
 	t.Run("gotemplate", func(t *testing.T) {
 		application := &argoappsv1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Annotations: map[string]string{
-					"annotation-{{ .key }}": "annotation-{{ .value }}",
-				},
+			Annotations: map[string]string{
+				"annotation-{{ .key }}": "annotation-{{ .value }}",
 			},
 		}
 

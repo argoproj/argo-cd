@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/typed/application/v1alpha1"
 	applicationsv1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
@@ -63,8 +64,8 @@ func AugmentSyncMsg(res common.ResourceSyncResult, apiResourceInfoGetter func() 
 // getAPIResourceInfo gets Kubernetes API resource info for the given group and kind. If there's a matching resource
 // group _and_ kind, it will return the resource info. If there's a matching kind but no matching group, it will
 // return the first resource info that matches the kind. If there's no matching kind, it will return nil.
-func getAPIResourceInfo(group, kind string, getAPIResourceInfo func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
-	apiResources, err := getAPIResourceInfo()
+func getAPIResourceInfo(group, kind string, apiResourceInfoGetter func() ([]kube.APIResourceInfo, error)) (*kube.APIResourceInfo, error) {
+	apiResources, err := apiResourceInfoGetter()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get API resource info: %w", err)
 	}
@@ -131,6 +132,41 @@ func FilterByProjectsP(apps []*argoappv1.Application, projects []string) []*argo
 	return items
 }
 
+// FilterByNamesP returns applications whose name is contained in the provided set of names.
+// It is used by the UI favorites filter to restrict the list to a client-selected subset of applications.
+// Names may be namespace-qualified, see MatchesNameFilter.
+func FilterByNamesP(apps []*argoappv1.Application, names []string) []*argoappv1.Application {
+	if len(names) == 0 {
+		return apps
+	}
+	namesMap := NewNameFilter(names)
+	items := []*argoappv1.Application{}
+	for i := range apps {
+		a := apps[i]
+		if MatchesNameFilter(namesMap, a.Namespace, a.Name) {
+			items = append(items, a)
+		}
+	}
+	return items
+}
+
+// NewNameFilter turns a list of application names into a set which can be passed to MatchesNameFilter.
+func NewNameFilter(names []string) map[string]bool {
+	namesMap := make(map[string]bool, len(names))
+	for i := range names {
+		namesMap[names[i]] = true
+	}
+	return namesMap
+}
+
+// MatchesNameFilter returns true if an application is contained in the provided set of names. An entry
+// may be qualified as "namespace/name" to match only the application in that namespace, which matters
+// when apps-in-any-namespace is enabled and the same name exists in more than one namespace. Unqualified
+// entries match on name alone, regardless of the namespace the application lives in.
+func MatchesNameFilter(names map[string]bool, namespace, name string) bool {
+	return names[name] || names[namespace+"/"+name]
+}
+
 // FilterAppSetsByProjects returns applications which belongs to the specified project
 func FilterAppSetsByProjects(appsets []argoappv1.ApplicationSet, projects []string) []argoappv1.ApplicationSet {
 	if len(projects) == 0 {
@@ -157,8 +193,11 @@ func FilterByRepo(apps []argoappv1.Application, repo string) []argoappv1.Applica
 	}
 	items := []argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().RepoURL == repo {
-			items = append(items, apps[i])
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.RepoURL == repo {
+				items = append(items, apps[i])
+				break
+			}
 		}
 	}
 	return items
@@ -171,21 +210,63 @@ func FilterByRepoP(apps []*argoappv1.Application, repo string) []*argoappv1.Appl
 	}
 	items := []*argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().RepoURL == repo {
-			items = append(items, apps[i])
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.RepoURL == repo {
+				items = append(items, apps[i])
+				break
+			}
 		}
 	}
 	return items
 }
 
 // FilterByPath returns an application
-func FilterByPath(apps []argoappv1.Application, path string) []argoappv1.Application {
-	if path == "" {
+func FilterByPath(apps []argoappv1.Application, appPath string) []argoappv1.Application {
+	if appPath == "" {
 		return apps
 	}
 	items := []argoappv1.Application{}
 	for i := range apps {
-		if apps[i].Spec.GetSource().Path == path {
+		for _, source := range apps[i].Spec.GetSources() {
+			if source.Path == appPath {
+				items = append(items, apps[i])
+				break
+			}
+		}
+	}
+	return items
+}
+
+// FilterByFiles returns applications that are affected by the given list of changed files.
+// For each application, it computes the refresh paths (source path + annotation paths) across
+// all sources (including multi-source apps) and checks whether any of the provided files
+// falls under those paths.
+func FilterByFiles(apps []argoappv1.Application, files []string) []argoappv1.Application {
+	if len(files) == 0 {
+		return apps
+	}
+	items := []argoappv1.Application{}
+	for i := range apps {
+		app := &apps[i]
+		matched := false
+		for _, source := range app.Spec.GetSources() {
+			// Skip Helm chart sources (no path) to avoid matching every file
+			// when AppFilesHaveChanged is called with an empty refreshPaths slice.
+			if source.Path == "" {
+				continue
+			}
+			refreshPaths := path.GetSourceRefreshPaths(app, source)
+			// If no annotation, fall back to the source path itself so that any
+			// file under that directory triggers a match.
+			if len(refreshPaths) == 0 {
+				refreshPaths = []string{source.Path}
+			}
+			if path.AppFilesHaveChanged(refreshPaths, files) {
+				matched = true
+				break
+			}
+		}
+		if matched {
 			items = append(items, apps[i])
 		}
 	}
@@ -462,6 +543,12 @@ func validateRepo(ctx context.Context,
 			return nil, err
 		}
 		if err := TestRepoWithKnownType(ctx, repoClient, repo, source.IsHelm(), source.IsHelmOci(), source.IsOCI()); err != nil {
+			// As in verifyGenerateManifests below, a canceled or timed out repository check
+			// says nothing about the spec, so it is reported with its gRPC code instead of
+			// an InvalidSpecError condition.
+			if code := status.Code(err); code == codes.Canceled || code == codes.DeadlineExceeded {
+				return nil, status.Error(code, fmt.Sprintf("unable to test repository %s: %s", repo.StringForLogging(), err))
+			}
 			errMessage = fmt.Sprintf("repositories not accessible: %v: %v", repo.StringForLogging(), err)
 		}
 		repoAccessible := false
@@ -503,7 +590,7 @@ func validateRepo(ctx context.Context,
 	if err != nil {
 		return nil, fmt.Errorf("error getting ref sources: %w", err)
 	}
-	conditions = append(conditions, verifyGenerateManifests(
+	verifyConditions, err := verifyGenerateManifests(
 		ctx,
 		db,
 		permittedHelmRepos,
@@ -519,7 +606,11 @@ func validateRepo(ctx context.Context,
 		permittedOCICredentials,
 		enabledSourceTypes,
 		settingsMgr,
-		refSources)...)
+		refSources)
+	if err != nil {
+		return nil, err
+	}
+	conditions = append(conditions, verifyConditions...)
 
 	return conditions, nil
 }
@@ -831,7 +922,7 @@ func verifyGenerateManifests(
 	enableGenerateManifests map[string]bool,
 	settingsMgr *settings.SettingsManager,
 	refSources argoappv1.RefTargetRevisionMapping,
-) []argoappv1.ApplicationCondition {
+) ([]argoappv1.ApplicationCondition, error) {
 	var conditions []argoappv1.ApplicationCondition
 	// If source is Kustomize add build options
 	kustomizeSettings, err := settingsMgr.GetKustomizeSettings()
@@ -840,7 +931,7 @@ func verifyGenerateManifests(
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
 			Message: fmt.Sprintf("Error getting Kustomize settings: %v", err),
 		})
-		return conditions // Can't perform the next check without settings.
+		return conditions, nil // Can't perform the next check without settings.
 	}
 
 	for _, source := range sources {
@@ -935,6 +1026,13 @@ func verifyGenerateManifests(
 			if status.Code(err) == codes.NotFound && strings.Contains(err.Error(), "matched no files") {
 				continue
 			}
+			// A canceled or timed out manifest generation says nothing about the spec: the
+			// repository may simply be slow or the caller gave up. Report it as a transport
+			// error (keeping its gRPC code) instead of an InvalidSpecError condition, which
+			// makes the API server tell the user their spec is invalid.
+			if code := status.Code(err); code == codes.Canceled || code == codes.DeadlineExceeded {
+				return nil, status.Error(code, fmt.Sprintf("unable to generate manifests in %s: %s", source.Path, err))
+			}
 			errMessage := fmt.Sprintf("Unable to generate manifests in %s: %s", source.Path, err)
 			conditions = append(conditions, argoappv1.ApplicationCondition{
 				Type:    argoappv1.ApplicationConditionInvalidSpecError,
@@ -943,7 +1041,7 @@ func verifyGenerateManifests(
 		}
 	}
 
-	return conditions
+	return conditions, nil
 }
 
 // SetAppOperation updates an application with the specified operation, retrying conflict errors

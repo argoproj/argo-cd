@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubemeta"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -312,6 +313,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	// Filter applications by source repo URL
 	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
 
+	// Filter applications by name
+	filteredApps = argo.FilterByNamesP(filteredApps, q.GetNames())
+
 	newItems := make([]v1alpha1.Application, 0)
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
@@ -336,10 +340,8 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	})
 
 	appList := v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{
-			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
-		},
-		Items: newItems,
+		ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+		Items:           newItems,
 	}
 	return &appList, nil
 }
@@ -626,12 +628,17 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	manifests := &apiclient.ManifestResponse{}
 	for _, manifestInfo := range manifestInfos {
 		for i, manifest := range manifestInfo.Manifests {
-			obj := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(manifest), obj)
+			meta, err := kubemeta.NewKubeJson([]byte(manifest))
 			if err != nil {
-				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+				return nil, fmt.Errorf("error parsing manifest metadata: %w", err)
 			}
-			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+			if meta.GetKind() == kube.SecretKind && meta.GroupVersionKind().Group == "" {
+				// Only Secrets need the full object, for HideSecretData.
+				obj := &unstructured.Unstructured{}
+				err = json.Unmarshal([]byte(manifest), obj)
+				if err != nil {
+					return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+				}
 				obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
 				if err != nil {
 					return nil, fmt.Errorf("error hiding secret data: %w", err)
@@ -754,12 +761,17 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	}
 
 	for i, manifest := range manifestInfo.Manifests {
-		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest), obj)
+		meta, err := kubemeta.NewKubeJson([]byte(manifest))
 		if err != nil {
-			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			return fmt.Errorf("error parsing manifest metadata: %w", err)
 		}
-		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+		if meta.GetKind() == kube.SecretKind && meta.GroupVersionKind().Group == "" {
+			// Only Secrets need the full object, for HideSecretData.
+			obj := &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(manifest), obj)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			}
 			obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
 			if err != nil {
 				return fmt.Errorf("error hiding secret data: %w", err)
@@ -1222,8 +1234,12 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) bool {
+func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, names map[string]bool, a v1alpha1.Application) bool {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
+		return false
+	}
+
+	if len(names) > 0 && !argo.MatchesNameFilter(names, a.Namespace, a.Name) {
 		return false
 	}
 
@@ -1258,6 +1274,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	for _, project := range getProjectsFromApplicationQuery(*q) {
 		projects[project] = true
 	}
+	names := argo.NewNameFilter(q.GetNames())
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
@@ -1273,7 +1290,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, a)
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, a)
 		if !permitted {
 			return
 		}
@@ -1371,6 +1388,11 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 		conditions := make([]v1alpha1.ApplicationCondition, 0)
 		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
+			// Keep the gRPC code of interrupted manifest generation (canceled / deadline
+			// exceeded) so the caller can tell a slow repository apart from an invalid spec.
+			if st, ok := status.FromError(err); ok && st.Code() != codes.Unknown {
+				return err
+			}
 			return fmt.Errorf("error validating the repo: %w", err)
 		}
 		conditions = append(conditions, condition...)
@@ -2002,7 +2024,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				Last:         new(false),
 			}); err != nil {
 				done <- err
-				break
+				return
 			}
 		}
 		now := time.Now()
@@ -2079,6 +2101,21 @@ func isTheSelectedOne(currentNode *v1alpha1.ResourceNode, q *application.Applica
 	return false
 }
 
+// effectiveSyncRequestDryRun returns the dry-run value that will be used for this sync:
+// the request value when set, otherwise syncPolicy.manualDefaults.dryRun.
+// Callers that gate behavior on dry-run (local sync, revision override) must use this
+// instead of syncReq.GetDryRun(), which treats a nil request field as false before
+// manualDefaults are applied.
+func effectiveSyncRequestDryRun(a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) bool {
+	if syncReq != nil && syncReq.DryRun != nil {
+		return *syncReq.DryRun
+	}
+	if a != nil && a.Spec.SyncPolicy != nil {
+		return a.Spec.SyncPolicy.GetDryRun()
+	}
+	return false
+}
+
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*v1alpha1.Application, error) {
 	a, proj, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionGet, syncReq.GetProject(), syncReq.GetAppNamespace(), syncReq.GetName(), "")
@@ -2104,7 +2141,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil {
 			return nil, err
 		}
-		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 			return nil, status.Error(codes.FailedPrecondition, "cannot use local sync when Automatic Sync Policy is enabled unless for dry run")
 		}
 	}
@@ -2152,14 +2189,30 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		source = new(a.Spec.GetSource())
 	}
 
+	// Explicit values in the sync request always win. When omitted, fall back to
+	// syncPolicy.manualDefaults only if that object is populated. Existing apps without
+	// manualDefaults keep legacy behavior (prune/dryRun false, nil strategy) — GetPrune()
+	// also returns false when ManualDefaults is nil so omitted prune never deletes resources.
+	prune := syncReq.GetPrune()
+	dryRun := effectiveSyncRequestDryRun(a, syncReq)
+	strategy := syncReq.Strategy
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.ManualDefaults != nil {
+		if syncReq.Prune == nil {
+			prune = a.Spec.SyncPolicy.GetPrune()
+		}
+		if strategy == nil {
+			strategy = a.Spec.SyncPolicy.GetSyncStrategy()
+		}
+	}
+
 	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
 			Source:       source,
 			Revision:     revision,
-			Prune:        syncReq.GetPrune(),
-			DryRun:       syncReq.GetDryRun(),
+			Prune:        prune,
+			DryRun:       dryRun,
 			SyncOptions:  syncOptions,
-			SyncStrategy: syncReq.Strategy,
+			SyncStrategy: strategy,
 			Resources:    resources,
 			Manifests:    syncReq.Manifests,
 			Sources:      a.Spec.Sources,
@@ -2223,7 +2276,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 						return "", "", nil, nil, err
 					}
 				}
-				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition,
 						"Cannot sync source %s to %s: auto-sync currently set to %s",
 						a.Spec.GetSources()[index].RepoURL, desiredRevision, a.Spec.Sources[index].TargetRevision)
@@ -2249,7 +2302,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 			}
 		}
 		if a.Spec.SyncPolicy != nil &&
-			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 			// If the app has auto-sync enabled, we cannot allow syncing to a different revision
 			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
 		}

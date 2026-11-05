@@ -100,15 +100,11 @@ func TestIsApplicationSetResourcesUpToDate(t *testing.T) {
 func TestPrintApplicationSetNames(t *testing.T) {
 	output, _ := captureOutput(func() error {
 		appSet := &v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "test",
-			},
+			Name: "test",
 		}
 		appSet2 := &v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Namespace: "team-one",
-				Name:      "test",
-			},
+			Namespace: "team-one",
+			Name:      "test",
 		}
 		printApplicationSetNames([]v1alpha1.ApplicationSet{*appSet, *appSet2})
 		return nil
@@ -120,9 +116,7 @@ func TestPrintApplicationSetNames(t *testing.T) {
 func TestPrintApplicationSetTable(t *testing.T) {
 	output, err := captureOutput(func() error {
 		app := &v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "app-name",
-			},
+			Name: "app-name",
 			Spec: v1alpha1.ApplicationSetSpec{
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
@@ -154,10 +148,8 @@ func TestPrintApplicationSetTable(t *testing.T) {
 		}
 
 		app2 := &v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "app-name",
-				Namespace: "team-two",
-			},
+			Name:      "app-name",
+			Namespace: "team-two",
 			Spec: v1alpha1.ApplicationSetSpec{
 				Generators: []v1alpha1.ApplicationSetGenerator{
 					{
@@ -198,9 +190,7 @@ func TestPrintApplicationSetTable(t *testing.T) {
 
 func TestPrintAppSetSummaryTable(t *testing.T) {
 	baseAppSet := &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "app-name",
-		},
+		Name: "app-name",
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{

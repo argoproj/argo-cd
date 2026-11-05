@@ -1,4 +1,4 @@
-import {NotificationType, Tooltip} from 'argo-ui';
+import {Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
 import {Cluster} from '../../../shared/components';
@@ -7,8 +7,7 @@ import * as models from '../../../shared/models';
 import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
-import {isValidManagedByURL} from '../../../shared/utils';
+import {getAppDefaultSource, OperationState} from '../utils';
 import {services} from '../../../shared/services';
 import {ViewPreferences} from '../../../shared/services';
 
@@ -26,47 +25,19 @@ export interface ApplicationTileProps {
 export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplication, refreshApplication, deleteApplication}: ApplicationTileProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
     const favList = pref.appList.favoritesAppList || [];
+    const isFav = AppUtils.isFavorite(favList, app);
 
     const source = getAppDefaultSource(app);
     const isOci = source?.repoURL?.startsWith('oci://');
     const targetRevision = source ? source.targetRevision || 'HEAD' : 'Unknown';
-    const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
     const healthStatus = app.status.health.status;
-    const managedByURL = getManagedByURL(app);
-    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     const view = pref.appDetails.view;
     const appLink = AppUtils.getAppListLink(ctx, app, view);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (favList?.includes(app.metadata.name)) {
-            favList.splice(favList.indexOf(app.metadata.name), 1);
-        } else {
-            favList.push(app.metadata.name);
-        }
-        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
-    };
-
-    const handleExternalLinkClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (managedByURLInvalid) {
-            ctx.notifications.show({
-                content: (
-                    <div>
-                        <div style={{fontWeight: 600}}>{MANAGED_BY_URL_INVALID_TEXT}</div>
-                        <div style={{marginTop: 6}}>{MANAGED_BY_URL_INVALID_TOOLTIP}</div>
-                    </div>
-                ),
-                type: NotificationType.Warning
-            });
-            return;
-        }
-        if (linkInfo.isExternal) {
-            window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
-        } else {
-            ctx.navigation.goto(appLink.path, {view});
-        }
+        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: AppUtils.toggleFavorite(favList, app)}});
     };
 
     return (
@@ -236,22 +207,13 @@ export const ApplicationTile = ({app, selected, pref, ctx, tileRef, syncApplicat
             {/* Header buttons — sibling of the anchor (not nested) so the markup stays valid. */}
             <div className='applications-tiles__header-buttons applications-list__external-link'>
                 <ApplicationURLs urls={app.status.summary?.externalURLs} />
-                {managedByURLInvalid ? (
-                    <button type='button' className='managed-by-url-invalid' onClick={handleExternalLinkClick} style={{cursor: 'not-allowed'}} title={MANAGED_BY_URL_INVALID_TEXT}>
-                        <i className='fa fa-window-maximize' />
-                    </button>
-                ) : (
-                    <button type='button' onClick={handleExternalLinkClick} title={managedByURL ? `Managed by: ${managedByURL}` : 'Open application'}>
-                        <i className='fa fa-window-maximize' />
-                    </button>
-                )}
-                <button title={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'} className='large-text-height' onClick={handleFavoriteToggle}>
+                <button title={isFav ? 'Remove Favorite' : 'Add Favorite'} className='large-text-height' onClick={handleFavoriteToggle}>
                     <i
-                        className={favList?.includes(app.metadata.name) ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
+                        className={isFav ? 'fas fa-star fa-lg' : 'far fa-star fa-lg'}
                         style={{
                             cursor: 'pointer',
                             margin: '-1px 0px 0px 0px',
-                            color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                            color: isFav ? '#FFCE25' : '#8fa4b1'
                         }}
                     />
                 </button>

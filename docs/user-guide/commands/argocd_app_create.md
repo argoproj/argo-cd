@@ -26,8 +26,11 @@ argocd app create APPNAME [flags]
   # Create a Kustomize app
   argocd app create kustomize-guestbook --repo https://github.com/argoproj/argocd-example-apps.git --path kustomize-guestbook --dest-namespace default --dest-server https://kubernetes.default.svc --kustomize-image quay.io/argoprojlabs/argocd-e2e-container:0.1
 
-  # Create a MultiSource app while yaml file contains an application with multiple sources
-  argocd app create guestbook --file <path-to-yaml-file>
+  # Create a multi-source app from a manifest file
+  argocd app create my-billing-app --file path/to/app.yaml
+
+  # Create a multi-source app from stdin (e.g. templated manifests in CI); metadata.name in the manifest is used
+  envsubst < app-template.yaml | argocd app create my-billing-app --file -
 
   # Create a app using a custom tool:
   argocd app create kasane --repo https://github.com/argoproj/argocd-example-apps.git --path plugins/kasane --dest-namespace default --dest-server https://kubernetes.default.svc --config-management-plugin kasane
@@ -52,7 +55,7 @@ argocd app create APPNAME [flags]
       --dry-source-repo string                     Repository URL of the app dry source
       --dry-source-revision string                 Revision of the app dry source
       --env string                                 Application environment to monitor
-  -f, --file string                                Filename or URL to Kubernetes manifests for the app
+  -f, --file string                                Filename, URL, or '-' (stdin) for Kubernetes application manifest(s)
       --helm-api-versions stringArray              Helm api-versions (in format [group/]version/kind) to use when running helm template (Can be repeated to set several values: --helm-api-versions traefik.io/v1alpha1/TLSOption --helm-api-versions v1/Service). If not set, use the api-versions from the destination cluster
       --helm-chart string                          Helm Chart name
       --helm-kube-version string                   Helm kube-version to use when running helm template. If not set, use the kube version from the destination cluster
@@ -102,8 +105,12 @@ argocd app create APPNAME [flags]
       --self-heal                                  Set self healing for automated sync policy
       --set-finalizer                              Sets deletion finalizer on the application, application resources will be cascaded on deletion
       --source-name string                         Name of the source from the list of sources of the app.
+      --sync-apply-only                            Apply-only by default on manual sync (sets syncPolicy.manualDefaults.applyOnly)
+      --sync-dry-run                               Dry-run by default on manual sync (sets syncPolicy.manualDefaults.dryRun)
+      --sync-force                                 Force by default on manual sync (sets syncPolicy.manualDefaults.force)
       --sync-option Prune=false                    Add or remove a sync option, e.g add Prune=false. Remove using `!` prefix, e.g. `!Prune=false`
       --sync-policy string                         Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))
+      --sync-prune                                 Prune resources by default on manual sync (sets syncPolicy.manualDefaults.prune) (default true)
       --sync-retry-backoff-duration duration       Sync retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --sync-retry-backoff-factor int              Factor multiplies the base duration after each failed sync retry (default 2)
       --sync-retry-backoff-max-duration duration   Max sync retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)

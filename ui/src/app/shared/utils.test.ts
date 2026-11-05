@@ -58,3 +58,4 @@ describe('isValidManagedByURL', () => {
         expect(isValidManagedByURL('')).toBe(false);
     });
 });
+

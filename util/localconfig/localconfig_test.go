@@ -3,6 +3,7 @@
 package localconfig
 
 import (
+	"encoding/base64"
 	"errors"
 	"os"
 	"path"
@@ -364,4 +365,71 @@ func TestReadLocalConfig_ValidConfig(t *testing.T) {
 	require.NotNil(t, config)
 	require.Equal(t, "localhost:8080", config.CurrentContext)
 	require.Len(t, config.Contexts, 3)
+}
+
+func TestServerClientCertPEM(t *testing.T) {
+	dir := t.TempDir()
+	certPath := filepath.Join(dir, "client.crt")
+	keyPath := filepath.Join(dir, "client.key")
+	require.NoError(t, os.WriteFile(certPath, []byte("cert-from-file"), 0o600))
+	require.NoError(t, os.WriteFile(keyPath, []byte("key-from-file"), 0o600))
+
+	t.Run("not configured", func(t *testing.T) {
+		cert, key, err := (&Server{}).ClientCertPEM()
+		require.NoError(t, err)
+		require.Nil(t, cert)
+		require.Nil(t, key)
+	})
+
+	t.Run("from files", func(t *testing.T) {
+		server := Server{ClientCertificate: certPath, ClientCertificateKey: keyPath}
+		cert, key, err := server.ClientCertPEM()
+		require.NoError(t, err)
+		require.Equal(t, "cert-from-file", string(cert))
+		require.Equal(t, "key-from-file", string(key))
+	})
+
+	t.Run("files take precedence over data", func(t *testing.T) {
+		server := Server{
+			ClientCertificate:        certPath,
+			ClientCertificateKey:     keyPath,
+			ClientCertificateData:    base64.StdEncoding.EncodeToString([]byte("cert-from-data")),
+			ClientCertificateKeyData: base64.StdEncoding.EncodeToString([]byte("key-from-data")),
+		}
+		cert, _, err := server.ClientCertPEM()
+		require.NoError(t, err)
+		require.Equal(t, "cert-from-file", string(cert))
+	})
+
+	t.Run("from data", func(t *testing.T) {
+		server := Server{
+			ClientCertificateData:    base64.StdEncoding.EncodeToString([]byte("cert-from-data")),
+			ClientCertificateKeyData: base64.StdEncoding.EncodeToString([]byte("key-from-data")),
+		}
+		cert, key, err := server.ClientCertPEM()
+		require.NoError(t, err)
+		require.Equal(t, "cert-from-data", string(cert))
+		require.Equal(t, "key-from-data", string(key))
+	})
+
+	t.Run("missing file", func(t *testing.T) {
+		server := Server{ClientCertificate: filepath.Join(dir, "missing.crt"), ClientCertificateKey: keyPath}
+		_, _, err := server.ClientCertPEM()
+		require.ErrorIs(t, err, os.ErrNotExist)
+	})
+
+	t.Run("key without certificate", func(t *testing.T) {
+		_, _, err := (&Server{ClientCertificateKey: keyPath}).ClientCertPEM()
+		require.ErrorContains(t, err, "must always be specified together")
+	})
+
+	t.Run("key data without certificate data", func(t *testing.T) {
+		_, _, err := (&Server{ClientCertificateKeyData: "Zm9v"}).ClientCertPEM()
+		require.ErrorContains(t, err, "must always be specified together")
+	})
+
+	t.Run("invalid base64 data", func(t *testing.T) {
+		_, _, err := (&Server{ClientCertificateData: "!!!", ClientCertificateKeyData: "Zm9v"}).ClientCertPEM()
+		require.Error(t, err)
+	})
 }
