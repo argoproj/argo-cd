@@ -1,0 +1,17 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: DependentsSuccessfulCommitStatus
+metadata:
+  name: example-dag
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  key: dependents-successful
+  promotionStrategyRef:
+    name: example-promotion-strategy
+status:
+  conditions:
+    - type: Example
+      status: "True"
+      reason: Example
+      message: ok
+      observedGeneration: 1

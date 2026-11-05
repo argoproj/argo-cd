@@ -1,0 +1,17 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: DependentsSuccessfulCommitStatus
+metadata:
+  name: example-dag
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  key: dependents-successful
+  promotionStrategyRef:
+    name: example-promotion-strategy
+status:
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: ReconciliationError
+      message: "Reconciliation failed: PromotionStrategy not found"
+      observedGeneration: 1
