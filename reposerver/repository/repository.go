@@ -2180,6 +2180,9 @@ func getPotentiallyValidManifestFile(path string, f os.FileInfo, appPath, repoRo
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to get relative path of %q: %w", path, err)
 	}
+	// Glob include/exclude patterns are documented with '/', but filepath.Rel
+	// returns OS separators. Normalize so Windows local generation matches.
+	relPath = filepath.ToSlash(relPath)
 
 	// When disableExtensionFilter is false (the default), only files with a standard manifest
 	// extension like yaml/yml/json/jsonnet are considered. When true, the built-in extension check
