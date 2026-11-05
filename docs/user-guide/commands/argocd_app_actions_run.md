@@ -14,7 +14,7 @@ argocd app actions run APPNAME ACTION [flags]
 
 ### Examples
 
-```
+```bash
   # Run an available action for an application
   argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
   

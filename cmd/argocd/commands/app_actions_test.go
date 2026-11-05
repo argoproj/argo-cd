@@ -1,10 +1,18 @@
 package commands
 
 import (
+	"context"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+
+	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	applicationmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/application/mocks"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestParseParamArgs(t *testing.T) {
@@ -168,4 +176,68 @@ func TestParseParamArgs(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGetActionableResourcesForApplication(t *testing.T) {
+	appName := "my-app"
+	appNs := "argocd"
+
+	t.Run("returns managed resources plus the Application resource itself", func(t *testing.T) {
+		mockClient := applicationmocks.NewApplicationServiceClient(t)
+		mockClient.On("ManagedResources", mock.Anything, mock.Anything).
+			Return(&applicationpkg.ManagedResourcesResponse{
+				Items: []*v1alpha1.ResourceDiff{
+					{Group: "apps", Kind: "Deployment", Namespace: "default", Name: "my-deploy"},
+				},
+			}, nil)
+		mockClient.On("Get", mock.Anything, mock.Anything).
+			Return(&v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNs},
+			}, nil)
+
+		result, err := getActionableResourcesForApplication(context.Background(), mockClient, &appNs, &appName)
+		require.NoError(t, err)
+		// one managed resource + the Application appended at the end
+		require.Len(t, result, 2)
+		assert.Equal(t, "Deployment", result[0].Kind)
+		assert.Equal(t, "Application", result[1].Kind)
+		assert.Equal(t, appName, result[1].Name)
+	})
+
+	t.Run("returns only the Application resource when no managed resources exist", func(t *testing.T) {
+		mockClient := applicationmocks.NewApplicationServiceClient(t)
+		mockClient.On("ManagedResources", mock.Anything, mock.Anything).
+			Return(&applicationpkg.ManagedResourcesResponse{Items: nil}, nil)
+		mockClient.On("Get", mock.Anything, mock.Anything).
+			Return(&v1alpha1.Application{
+				ObjectMeta: metav1.ObjectMeta{Name: appName, Namespace: appNs},
+			}, nil)
+
+		result, err := getActionableResourcesForApplication(context.Background(), mockClient, &appNs, &appName)
+		require.NoError(t, err)
+		require.Len(t, result, 1)
+		assert.Equal(t, "Application", result[0].Kind)
+	})
+
+	t.Run("returns error when ManagedResources fails", func(t *testing.T) {
+		mockClient := applicationmocks.NewApplicationServiceClient(t)
+		mockClient.On("ManagedResources", mock.Anything, mock.Anything).
+			Return(nil, fmt.Errorf("connection refused"))
+
+		_, err := getActionableResourcesForApplication(context.Background(), mockClient, &appNs, &appName)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "connection refused")
+	})
+
+	t.Run("returns error when Get fails", func(t *testing.T) {
+		mockClient := applicationmocks.NewApplicationServiceClient(t)
+		mockClient.On("ManagedResources", mock.Anything, mock.Anything).
+			Return(&applicationpkg.ManagedResourcesResponse{Items: nil}, nil)
+		mockClient.On("Get", mock.Anything, mock.Anything).
+			Return(nil, fmt.Errorf("application not found"))
+
+		_, err := getActionableResourcesForApplication(context.Background(), mockClient, &appNs, &appName)
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "application not found")
+	})
 }

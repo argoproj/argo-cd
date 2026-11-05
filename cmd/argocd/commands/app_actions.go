@@ -222,6 +222,9 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			if grpc.UnwrapGRPCStatus(err).Code() != codes.Unimplemented {
 				errors.CheckError(err)
 			}
+			if len(parsedParams) > 0 {
+				log.Fatal("server does not support RunResourceActionV2; upgrade the Argo CD server or omit --param flags to use the legacy API")
+			}
 			fmt.Println("RunResourceActionV2 is not supported by the server, falling back to RunResourceAction.")
 			//nolint:staticcheck // RunResourceAction is deprecated, but we still need to support it for backward compatibility.
 			_, err = appIf.RunResourceAction(ctx, &applicationpkg.ResourceActionRunRequest{
@@ -240,6 +243,8 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	return command
 }
 
+// getActionableResourcesForApplication returns the managed resource diffs for an application,
+// appending the Application resource itself so that actions can also target it directly.
 func getActionableResourcesForApplication(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, appNs *string, appName *string) ([]*v1alpha1.ResourceDiff, error) {
 	resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 		ApplicationName: appName,
@@ -273,16 +278,17 @@ func getActionableResourcesForApplication(ctx context.Context, appIf application
 
 // parseParamArgs converts a slice of "key=value" strings into ResourceActionParameters.
 // Returns an error if any entry lacks an "=" separator or has an empty key.
+// Parameter values are never included in error messages to avoid leaking secrets.
 func parseParamArgs(params []string) ([]*applicationpkg.ResourceActionParameters, error) {
 	result := make([]*applicationpkg.ResourceActionParameters, 0, len(params))
-	for _, param := range params {
+	for i, param := range params {
 		parts := strings.SplitN(param, "=", 2)
 		if len(parts) != 2 {
-			return nil, fmt.Errorf("invalid parameter format %q: expected key=value", param)
+			return nil, fmt.Errorf("--param argument %d: expected key=value format", i+1)
 		}
 		name := strings.TrimSpace(parts[0])
 		if name == "" {
-			return nil, fmt.Errorf("invalid parameter format %q: key must not be empty", param)
+			return nil, fmt.Errorf("--param argument %d: key must not be empty", i+1)
 		}
 		value := parts[1]
 		result = append(result, &applicationpkg.ResourceActionParameters{
