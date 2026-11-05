@@ -33,6 +33,7 @@ const writeToClipboard = async (text: string): Promise<boolean> => {
 // Copies `text` verbatim, regardless of how the surrounding UI renders it (e.g. upper-cased).
 export const CopyButton = ({text, label = 'Copy to clipboard'}: {text: string; label?: string}) => {
     const [status, setStatus] = useState<'idle' | 'copied' | 'failed'>('idle');
+    const [attempt, setAttempt] = useState(0);
     const resetTimeoutRef = useRef<ReturnType<typeof setTimeout>>(undefined);
 
     const mountedRef = useRef(true);
@@ -56,6 +57,7 @@ export const CopyButton = ({text, label = 'Copy to clipboard'}: {text: string; l
             return;
         }
         setStatus(succeeded ? 'copied' : 'failed');
+        setAttempt(n => n + 1);
         clearTimeout(resetTimeoutRef.current);
         resetTimeoutRef.current = setTimeout(() => setStatus('idle'), 3000);
     };
@@ -73,7 +75,8 @@ export const CopyButton = ({text, label = 'Copy to clipboard'}: {text: string; l
                 </button>
             </Tooltip>
             <span role='status' className='copy-button__status'>
-                {statusText}
+                {/* Re-keying per attempt re-inserts the text so identical consecutive results are announced again. */}
+                <span key={attempt}>{statusText}</span>
             </span>
         </>
     );

@@ -38,7 +38,7 @@ describe('CopyButton', () => {
             jest.advanceTimersByTime(3000);
         });
         expect(screen.getByTestId('tooltip')).toHaveTextContent('Copy to clipboard');
-        expect(screen.getByRole('status')).toBeEmptyDOMElement();
+        expect(screen.getByRole('status')).toHaveTextContent('');
     });
 
     test('falls back to execCommand when the clipboard API rejects', async () => {
@@ -64,6 +64,21 @@ describe('CopyButton', () => {
         expect(document.execCommand).toHaveBeenCalledWith('copy');
         expect(screen.getByTestId('tooltip')).toHaveTextContent('Copy failed');
         expect(screen.getByRole('status')).toHaveTextContent('Copy failed');
+    });
+
+    test('re-announces repeated identical results', async () => {
+        render(<CopyButton text='guestbook' />);
+        const click = () =>
+            act(async () => {
+                fireEvent.click(screen.getByRole('button'));
+            });
+
+        await click();
+        const first = screen.getByRole('status').firstElementChild;
+        await click();
+
+        expect(screen.getByRole('status')).toHaveTextContent('Copied!');
+        expect(screen.getByRole('status').firstElementChild).not.toBe(first);
     });
 
     test('does not propagate the click to parents', async () => {
