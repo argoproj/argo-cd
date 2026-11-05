@@ -65,6 +65,10 @@ message AdvanceHydratorNoteRequest {
 
   // DrySha is the commit SHA from the dry branch.
   string drySha = 4;
+
+  // ExpectedHydratedSha is the hydrated commit the caller verified. The note is written only if the target
+  // branch HEAD still equals it.
+  string expectedHydratedSha = 5;
 }
 
 // AdvanceHydratorNoteResponse is the response after attempting to advance the

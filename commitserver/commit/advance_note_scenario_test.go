@@ -50,10 +50,11 @@ func TestAdvanceHydratorNote_RealignsEnvSkippedByPathFilter(t *testing.T) {
 	svc := NewService(nil, nil, nil)
 	svc.repoClientFactory = localRepoClientFactory{remotePath: remotePath}
 	req := &apiclient.AdvanceHydratorNoteRequest{
-		Repo:         &v1alpha1.Repository{Repo: remotePath},
-		SyncBranch:   "int",
-		TargetBranch: "int-next",
-		DrySha:       "db205bd",
+		Repo:                &v1alpha1.Repository{Repo: remotePath},
+		SyncBranch:          "int",
+		TargetBranch:        "int-next",
+		DrySha:              "db205bd",
+		ExpectedHydratedSha: intNext,
 	}
 	resp, err := svc.AdvanceHydratorNote(t.Context(), req)
 	require.NoError(t, err)
@@ -77,4 +78,33 @@ func TestAdvanceHydratorNote_RejectsEmptyDrySha(t *testing.T) {
 		TargetBranch: "env-next",
 	})
 	require.ErrorContains(t, err, "dry sha is required")
+}
+
+// Another writer moves the hydrated branch after the controller verified it: no note is written.
+func TestAdvanceHydratorNote_RefusesWhenBranchMoved(t *testing.T) {
+	remotePath, localPath := setupRepoWithRemote(t)
+	commitAndPushBranch(t, localPath, "int")
+	verified := commitAndPushBranch(t, localPath, "int-next")
+	require.NoError(t, AddNote(t.Context(), getClientForClone(t, remotePath), "1265141", verified))
+
+	_, err := runGitCmd(t.Context(), localPath, "checkout", "-q", "int-next")
+	require.NoError(t, err)
+	moved := commitAndPushBranch(t, localPath, "int-next-moved")
+	_, err = runGitCmd(t.Context(), localPath, "push", "-q", "-f", "origin", moved+":refs/heads/int-next")
+	require.NoError(t, err)
+
+	svc := NewService(nil, nil, nil)
+	svc.repoClientFactory = localRepoClientFactory{remotePath: remotePath}
+	_, err = svc.AdvanceHydratorNote(t.Context(), &apiclient.AdvanceHydratorNoteRequest{
+		Repo:                &v1alpha1.Repository{Repo: remotePath},
+		SyncBranch:          "int",
+		TargetBranch:        "int-next",
+		DrySha:              "db205bd",
+		ExpectedHydratedSha: verified,
+	})
+	require.ErrorContains(t, err, "moved from "+verified+" to "+moved)
+
+	assert.Equal(t, "1265141", noteDrySHA(t, remotePath, verified), "verified commit's note unchanged")
+	_, err = getClientForClone(t, remotePath).GetCommitNote(t.Context(), moved, NoteNamespace)
+	require.Error(t, err, "no note written on the moved head")
 }

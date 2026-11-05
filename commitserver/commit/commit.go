@@ -112,6 +112,9 @@ func (s *Service) AdvanceHydratorNote(
 	if r.DrySha == "" {
 		return nil, errors.New("dry sha is required")
 	}
+	if r.ExpectedHydratedSha == "" {
+		return nil, errors.New("expected hydrated sha is required")
+	}
 
 	// Same key as handleCommitRequest, so a note advance never races a hydration of the same branch.
 	branchKey := r.Repo.Repo + "\x00" + r.TargetBranch
@@ -143,6 +146,10 @@ func (s *Service) AdvanceHydratorNote(
 	hydratedSha, err := gitClient.CommitSHA(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get commit SHA: %w", err)
+	}
+	// Checked after checkout: another writer may have moved the branch since the caller verified it.
+	if hydratedSha != r.ExpectedHydratedSha {
+		return nil, fmt.Errorf("hydrated branch %s moved from %s to %s; not advancing the note", r.TargetBranch, r.ExpectedHydratedSha, hydratedSha)
 	}
 
 	isHydrated, err := IsHydrated(ctx, gitClient, r.DrySha, hydratedSha)

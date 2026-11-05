@@ -1971,6 +1971,7 @@ func TestProcessAppHydrateQueueItem_AdvancesNote_WhenDrySHAMovedButNoManifestCha
 	// The commit-server note advance returns the existing hydrated SHA with NoteAdvanced=true.
 	cc.EXPECT().AdvanceHydratorNote(mock.Anything, mock.MatchedBy(func(req *commitclient.AdvanceHydratorNoteRequest) bool {
 		return req.DrySha == "new-dry-sha" &&
+			req.ExpectedHydratedSha == "old-hydrated-sha" &&
 			req.SyncBranch == app.Spec.SourceHydrator.SyncSource.TargetBranch &&
 			req.TargetBranch == app.Spec.GetHydrateToSource().TargetRevision
 	})).Return(&commitclient.AdvanceHydratorNoteResponse{
