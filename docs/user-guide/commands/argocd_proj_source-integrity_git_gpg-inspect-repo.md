@@ -11,7 +11,7 @@ Inspect the Git/GPG source integrity of an application in a project
 Inspects each Git source of the application without syncing. Verification is always
 evaluated as strict mode, even when the project uses head or none.
 
-Requires get RBAC permission for the application.
+Requires 'applications, get' RBAC permission.
 
 Exit codes:
 
