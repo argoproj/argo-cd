@@ -33,25 +33,18 @@ func NewWithCurrentConfig() *logrus.Logger {
 
 // CreateFormatter create logrus formatter by string
 func CreateFormatter(logFormat string) logrus.Formatter {
-	var formatType logrus.Formatter
 	switch strings.ToLower(logFormat) {
-	case JsonFormat:
-		formatType = &logrus.JSONFormatter{
-			TimestampFormat: checkTimestampFormat(),
-		}
 	case TextFormat:
-		formatType = &logrus.TextFormatter{
+		return &logrus.TextFormatter{
 			ForceColors:     checkForceLogColors(),
 			FullTimestamp:   checkEnableFullTimestamp(),
 			TimestampFormat: checkTimestampFormat(),
 		}
-	default:
-		formatType = &logrus.JSONFormatter{
+	default: // JsonFormat, and the fallback for unrecognized values
+		return &logrus.JSONFormatter{
 			TimestampFormat: checkTimestampFormat(),
 		}
 	}
-
-	return formatType
 }
 
 func createLogLevel() logrus.Level {

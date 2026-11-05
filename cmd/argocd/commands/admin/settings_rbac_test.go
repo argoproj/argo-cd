@@ -102,6 +102,14 @@ func Test_validateRBACResourceAction(t *testing.T) {
 			},
 			valid: false,
 		},
+		{
+			name: "Test valid action for write-repositories",
+			args: args{
+				resource: rbac.ResourceWriteRepositories,
+				action:   rbac.ActionGet,
+			},
+			valid: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -112,6 +120,30 @@ func Test_validateRBACResourceAction(t *testing.T) {
 			} else {
 				assert.Error(t, result)
 			}
+		})
+	}
+}
+
+func Test_validRBACResourcesActionsCoversAllResources(t *testing.T) {
+	for _, resource := range rbac.Resources {
+		assert.Contains(t, validRBACResourcesActions, resource, "RBAC resource %q is missing from validRBACResourcesActions", resource)
+	}
+}
+
+func Test_checkPolicyWriteRepositoriesWildcard(t *testing.T) {
+	policy := "p, role:writer, write-repositories, get, */*, allow"
+	tests := []struct {
+		name        string
+		subResource string
+	}{
+		{name: "empty", subResource: ""},
+		{name: "star", subResource: "*"},
+		{name: "star/star", subResource: "*/*"},
+		{name: "project/repo", subResource: "my-proj/https://github.com/org/repo"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.True(t, checkPolicy("role:writer", "get", "write-repositories", tt.subResource, "", policy, "", "", true))
 		})
 	}
 }

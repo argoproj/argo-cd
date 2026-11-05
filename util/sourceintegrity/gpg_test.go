@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
 )
 
@@ -23,6 +24,7 @@ const (
 var syncTestSources = map[string]string{
 	"F7842A5CEAA9C0B1": "testdata/janedoe.asc",
 	"FDC79815400D88A9": "testdata/johndoe.asc",
+	"B6CB0E2A5167FEF3": "testdata/johndoe-ecc.asc",
 	"4AEE18F83AFDEB23": "testdata/github.asc",
 }
 
@@ -439,7 +441,7 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 
 		newKeys, removed, err := SyncKeyRingFromDirectory(tempDir)
 		require.NoError(t, err)
-		assert.Len(t, newKeys, 3)
+		assert.Len(t, newKeys, 4)
 		assert.Empty(t, removed)
 
 		installed, err := GetInstalledPGPKeys(newKeys)
@@ -465,4 +467,22 @@ func Test_SyncKeyRingFromDirectory(t *testing.T) {
 			assert.NotEqual(t, k.KeyID, removed[0])
 		}
 	}
+}
+
+func TestSetPGPTrustLevelClosesFileOnWriteError(t *testing.T) {
+	var f *os.File
+	orig := createTemp
+	t.Cleanup(func() { createTemp = orig })
+	// A read-only file makes the ownertrust write fail.
+	createTemp = func(_, _ string) (*os.File, error) {
+		p := path.Join(t.TempDir(), "ro")
+		require.NoError(t, os.WriteFile(p, nil, 0o600))
+		var err error
+		f, err = os.Open(p)
+		return f, err
+	}
+
+	err := SetPGPTrustLevel([]*appsv1.GnuPGPublicKey{{KeyID: longKeyID}}, TrustUltimate)
+	require.Error(t, err)
+	require.ErrorIs(t, f.Close(), os.ErrClosed)
 }

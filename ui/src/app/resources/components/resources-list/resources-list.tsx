@@ -242,19 +242,19 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences) {
         services.viewPreferences.updatePreferences({resourcesList: newPref});
-        ctx.navigation.goto(
-            '.',
-            {
-                proj: newPref.projectsFilter.join(','),
-                sync: newPref.syncFilter.join(','),
-                health: newPref.healthFilter.join(','),
-                namespace: newPref.namespacesFilter.join(','),
-                cluster: newPref.clustersFilter.join(','),
-                apiGroup: newPref.apiGroupFilter.join(','),
-                kind: newPref.kindFilter.join(',')
-            },
-            {replace: true}
-        );
+        const params = {
+            proj: newPref.projectsFilter.join(','),
+            sync: newPref.syncFilter.join(','),
+            health: newPref.healthFilter.join(','),
+            namespace: newPref.namespacesFilter.join(','),
+            cluster: newPref.clustersFilter.join(','),
+            apiGroup: newPref.apiGroupFilter.join(','),
+            kind: newPref.kindFilter.join(',')
+        };
+        // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
+        // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
+        // once the cap is hit, so only navigate when the query string actually changes.
+        ctx.navigation.goto('.', params, {replace: true, skipIfUnchanged: true});
     }
 
     function getPageTitle(view: string) {

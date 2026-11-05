@@ -18,9 +18,7 @@ func EnforceToCurrentRoot(currentRoot, requestedPath string) (string, error) {
 }
 
 func isRequestedDirUnderCurrentRoot(currentRoot, requestedPath string) bool {
-	if currentRoot == string(filepath.Separator) {
-		return true
-	} else if currentRoot == requestedPath {
+	if currentRoot == string(filepath.Separator) || currentRoot == requestedPath {
 		return true
 	}
 	if requestedPath[len(requestedPath)-1] != '/' {
