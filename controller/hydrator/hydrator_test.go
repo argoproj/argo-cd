@@ -1988,6 +1988,7 @@ func TestProcessAppHydrateQueueItem_AdvancesNote_WhenDrySHAMovedButNoManifestCha
 			persistCount++
 			finalStatus = st
 		}).Return()
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Once()
 
 	h := &Hydrator{
 		dependencies:         d,
@@ -2047,11 +2048,7 @@ func TestProcessAppHydrateQueueItem_SkipsNoteAdvance_WhenSHAMatches(t *testing.T
 	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).
 		Return(false, "same-sha", nil).Once()
 
-	var persistedStatus *v1alpha1.SourceHydratorStatus
-	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).
-		Run(func(_ *v1alpha1.Application, st *v1alpha1.SourceHydratorStatus) {
-			persistedStatus = st
-		}).Return().Once() // Only the baseline persist; no advanceHydratorNote persist.
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Once()
 
 	h := &Hydrator{
 		dependencies:         d,
@@ -2063,9 +2060,8 @@ func TestProcessAppHydrateQueueItem_SkipsNoteAdvance_WhenSHAMatches(t *testing.T
 	d.AssertNotCalled(t, "AddHydrationQueueItem", mock.Anything)
 	d.AssertNotCalled(t, "GetWriteCredentials", mock.Anything, mock.Anything, mock.Anything)
 	d.AssertNotCalled(t, "RequestAppRefresh", mock.Anything, mock.Anything)
-	require.NotNil(t, persistedStatus)
-	// LastComparedDryRevision must still be "same-sha" (unchanged).
-	assert.Equal(t, "same-sha", persistedStatus.LastComparedDryRevision)
+	d.AssertNotCalled(t, "PersistHydrationStatus", mock.Anything, mock.Anything)
+	d.AssertCalled(t, "RemoveHydrationAnnotations", mock.Anything)
 }
 
 // TestProcessAppHydrateQueueItem_NoteAdvance_NoCommitCreated verifies that the note-advance path does
@@ -2108,6 +2104,7 @@ func TestProcessAppHydrateQueueItem_NoteAdvance_NoCommitCreated(t *testing.T) {
 		}, nil).Once()
 
 	d.EXPECT().PersistHydrationStatus(mock.Anything, mock.Anything).Return()
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Once()
 
 	h := &Hydrator{
 		dependencies:         d,
@@ -2173,6 +2170,7 @@ func TestProcessAppHydrateQueueItem_NoteAdvance_StatusUpdatedCorrectly(t *testin
 		Run(func(_ *v1alpha1.Application, st *v1alpha1.SourceHydratorStatus) {
 			noteAdvanceStatus = st
 		}).Return()
+	d.EXPECT().RemoveHydrationAnnotations(mock.Anything).Return().Once()
 
 	h := &Hydrator{
 		dependencies:         d,
