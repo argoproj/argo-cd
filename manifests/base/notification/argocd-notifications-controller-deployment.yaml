@@ -119,8 +119,10 @@ spec:
               mountPath: /app/config/tls
             - name: argocd-repo-server-tls
               mountPath: /app/config/reposerver/tls
+              readOnly: true
             - name: argocd-repo-server-mtls
               mountPath: /app/config/reposerver/mtls
+              readOnly: true
           securityContext:
             capabilities:
               drop:

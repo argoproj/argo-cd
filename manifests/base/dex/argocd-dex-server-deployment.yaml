@@ -93,6 +93,7 @@ spec:
           name: dexconfig
         - mountPath: /tls
           name: argocd-dex-server-tls
+          readOnly: true
       volumes:
       - emptyDir: {}
         name: static-files

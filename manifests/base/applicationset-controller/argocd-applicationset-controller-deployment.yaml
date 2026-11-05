@@ -308,8 +308,10 @@ spec:
               name: tmp
             - name: argocd-repo-server-tls
               mountPath: /app/config/reposerver/tls
+              readOnly: true
             - name: argocd-repo-server-mtls
               mountPath: /app/config/reposerver/mtls
+              readOnly: true
             - name: argocd-cmd-params-cm
               mountPath: /home/argocd/params
           securityContext:
