@@ -751,6 +751,7 @@ func (_c *Client_GetCommitNote_Call) RunAndReturn(run func(ctx context.Context, 
 	return _c
 }
 
+// GetRevisionType provides a mock function for the type Client
 func (_mock *Client) GetRevisionType(ctx context.Context, revision string) (string, error) {
 	ret := _mock.Called(ctx, revision)
 
@@ -776,10 +777,14 @@ func (_mock *Client) GetRevisionType(ctx context.Context, revision string) (stri
 	return r0, r1
 }
 
+// Client_GetRevisionType_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetRevisionType'
 type Client_GetRevisionType_Call struct {
 	*mock.Call
 }
 
+// GetRevisionType is a helper method to define mock.On call
+//   - ctx context.Context
+//   - revision string
 func (_e *Client_Expecter) GetRevisionType(ctx any, revision any) *Client_GetRevisionType_Call {
 	return &Client_GetRevisionType_Call{Call: _e.mock.On("GetRevisionType", ctx, revision)}
 }
@@ -812,6 +817,7 @@ func (_c *Client_GetRevisionType_Call) RunAndReturn(run func(ctx context.Context
 	return _c
 }
 
+// GetSymbolicFullName provides a mock function for the type Client
 func (_mock *Client) GetSymbolicFullName(ctx context.Context, revision string) (string, error) {
 	ret := _mock.Called(ctx, revision)
 
@@ -837,10 +843,14 @@ func (_mock *Client) GetSymbolicFullName(ctx context.Context, revision string) (
 	return r0, r1
 }
 
+// Client_GetSymbolicFullName_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetSymbolicFullName'
 type Client_GetSymbolicFullName_Call struct {
 	*mock.Call
 }
 
+// GetSymbolicFullName is a helper method to define mock.On call
+//   - ctx context.Context
+//   - revision string
 func (_e *Client_Expecter) GetSymbolicFullName(ctx any, revision any) *Client_GetSymbolicFullName_Call {
 	return &Client_GetSymbolicFullName_Call{Call: _e.mock.On("GetSymbolicFullName", ctx, revision)}
 }
