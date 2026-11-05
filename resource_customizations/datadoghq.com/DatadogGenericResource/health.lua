@@ -15,5 +15,5 @@ for i, condition in ipairs(obj.status.conditions) do
   end
 end
 hs.status = "Healthy"
-hs.message = "DatadogGenericResource is synced"
+hs.message = "DatadogGenericResource is healthy"
 return hs

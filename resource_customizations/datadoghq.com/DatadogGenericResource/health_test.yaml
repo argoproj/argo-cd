@@ -5,8 +5,12 @@ tests:
     inputPath: testdata/degraded.yaml
   - healthStatus:
       status: Healthy
-      message: "DatadogGenericResource is synced"
+      message: "DatadogGenericResource is healthy"
     inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "DatadogGenericResource is healthy"
+    inputPath: testdata/healthy_state_sync_failed.yaml
   - healthStatus:
       status: Progressing
       message: "Waiting for DatadogGenericResource to be synced"
