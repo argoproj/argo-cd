@@ -2993,3 +2993,11 @@ func TestShouldUseServerSideDiff(t *testing.T) {
 		})
 	}
 }
+
+func TestGitPathsCheckedForAllSources(t *testing.T) {
+	t.Parallel()
+	assert.True(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://github.com/a/b", Path: "chart"}, {RepoURL: "https://github.com/a/c", Ref: "values"}}))
+	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://github.com/a/b", Path: "chart", Ref: "values"}}))
+	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://charts.example.com", Chart: "app", TargetRevision: "1.*"}}))
+	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "oci://registry.example.com/charts", Path: "."}}))
+}

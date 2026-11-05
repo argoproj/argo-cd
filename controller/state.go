@@ -928,7 +928,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	// With manifest-generate-paths, a new revision whose watched paths have no changes reuses the
 	// previous manifests, so the cached diff is still valid for it.
-	manifestPathsUnchanged := len(localManifests) == 0 && !failedToLoadObjs && !revisionsMayHaveChanges
+	manifestPathsUnchanged := len(localManifests) == 0 && !failedToLoadObjs && !revisionsMayHaveChanges && gitPathsCheckedForAllSources(sources)
 	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, manifestPathsUnchanged, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
@@ -1191,6 +1191,18 @@ func shouldUseServerSideDiff(app *v1alpha1.Application, controllerLevelSSD bool)
 	return controllerLevelSSD ||
 		resourceutil.HasAnnotationOption(app, common.AnnotationCompareOptions, "ServerSideDiff=true") ||
 		(app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true"))
+}
+
+// gitPathsCheckedForAllSources reports whether evaluateRevisionChanges checked the paths of every
+// source that generates manifests. It does not check ref sources, and the repo-server reports no
+// changes for Helm and OCI sources without checking whether the chart version moved.
+func gitPathsCheckedForAllSources(sources []v1alpha1.ApplicationSource) bool {
+	for _, source := range sources {
+		if source.IsHelm() || source.IsOCI() || (source.IsRef() && source.Path != "") {
+			return false
+		}
+	}
+	return true
 }
 
 // useDiffCache will determine if the diff should be calculated based
