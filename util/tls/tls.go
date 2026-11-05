@@ -99,6 +99,21 @@ func getTLSVersionByString(version string) (uint16, error) {
 	return 0, fmt.Errorf("%s is not valid TLS version", version)
 }
 
+// GetOutboundTLSMinVersion returns the minimum TLS version for outbound HTTPS connections.
+// Configured via ARGOCD_TLS_MIN_VERSION env var. Defaults to TLS 1.2.
+// Valid values: "1.2", "1.3"
+func GetOutboundTLSMinVersion() uint16 {
+	v := os.Getenv("ARGOCD_TLS_MIN_VERSION")
+	if v == "" {
+		return tls.VersionTLS12
+	}
+	if version, ok := tlsVersionByString[v]; ok && version >= tls.VersionTLS12 {
+		return version
+	}
+	log.Warnf("Invalid ARGOCD_TLS_MIN_VERSION '%s', defaulting to TLS 1.2", v)
+	return tls.VersionTLS12
+}
+
 // Parse colon separated string representation of TLS cipher suites into array of values usable by crypto/tls
 func getTLSCipherSuitesByString(cipherSuites string) ([]uint16, error) {
 	suiteMap := make(map[string]uint16)

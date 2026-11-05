@@ -17,6 +17,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	argocdtls "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 type DexTLSConfig struct {
@@ -33,11 +34,13 @@ func TLSConfig(tlsConfig *DexTLSConfig) *tls.Config {
 	if !tlsConfig.StrictValidation {
 		return &tls.Config{
 			InsecureSkipVerify: true,
+			MinVersion:         argocdtls.GetOutboundTLSMinVersion(),
 		}
 	}
 	return &tls.Config{
 		InsecureSkipVerify: false,
 		RootCAs:            tlsConfig.RootCAs,
+		MinVersion:         argocdtls.GetOutboundTLSMinVersion(),
 		VerifyPeerCertificate: func(rawCerts [][]byte, _ [][]*x509.Certificate) error {
 			if !bytes.Equal(rawCerts[0], tlsConfig.Certificate) {
 				return stderrors.New("dex server certificate does not match")

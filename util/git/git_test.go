@@ -1,6 +1,7 @@
 package git
 
 import (
+	"crypto/tls"
 	"io"
 	"net/http"
 	"os"
@@ -261,6 +262,22 @@ func TestCustomHTTPClient(t *testing.T) {
 		assert.False(t, transport.TLSClientConfig.InsecureSkipVerify)
 		assert.NotNil(t, transport.TLSClientConfig.RootCAs)
 	}
+}
+
+func TestGetRepoHTTPClientMinVersion(t *testing.T) {
+	t.Run("Default MinVersion is TLS 1.2", func(t *testing.T) {
+		t.Setenv("ARGOCD_TLS_MIN_VERSION", "")
+		client := GetRepoHTTPClient("https://example.com", false, nil, "", "")
+		transport := client.Transport.(*http.Transport)
+		assert.Equal(t, uint16(tls.VersionTLS12), transport.TLSClientConfig.MinVersion)
+	})
+
+	t.Run("MinVersion TLS 1.3 when configured", func(t *testing.T) {
+		t.Setenv("ARGOCD_TLS_MIN_VERSION", "1.3")
+		client := GetRepoHTTPClient("https://example.com", false, nil, "", "")
+		transport := client.Transport.(*http.Transport)
+		assert.Equal(t, uint16(tls.VersionTLS13), transport.TLSClientConfig.MinVersion)
+	})
 }
 
 func TestLsRemote(t *testing.T) {
