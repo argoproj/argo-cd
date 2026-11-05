@@ -1,0 +1,22 @@
+.copy-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    padding: 2px;
+    border: none;
+    background: transparent;
+    color: #0972d3;
+    cursor: pointer;
+    vertical-align: middle;
+    line-height: 1;
+
+    &:hover {
+        color: #033160;
+    }
+
+    &:focus-visible {
+        outline: 2px solid #0972d3;
+        outline-offset: 1px;
+    }
+}

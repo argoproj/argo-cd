@@ -32,6 +32,7 @@ import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {Filters, FiltersProps, getEffectiveResourceFilter} from './application-resource-filter';
 import {getAppDefaultSource, getAppCurrentVersion, urlPattern, getApplicationDetailsContainerClass} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
+import {CopyButton} from '../../../shared/components/copy-button';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 
@@ -926,7 +927,14 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     title: isApplication ? 'Applications' : 'ApplicationSets',
                                                     path: isApplication ? '/applications' : '/applicationsets'
                                                 },
-                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />}
+                                                {
+                                                    title: (
+                                                        <>
+                                                            <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />
+                                                            <CopyButton text={props.match.params.name} label='Copy application name' />
+                                                        </>
+                                                    )
+                                                }
                                             ],
                                             actionMenu: {
                                                 items: isApplication
