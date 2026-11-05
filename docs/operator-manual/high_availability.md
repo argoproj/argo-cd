@@ -144,6 +144,24 @@ get the actual cluster state.
   > Restart the argocd-application-controller to apply this change. You can do so by running
   > `kubectl rollout restart -n argocd statefulset argocd-application-controller`
 
+* Every full reconciliation stamps `status.reconciledAt` on the Application, so a large fleet writes to the API server
+  once per app per reconciliation even when nothing about the app has changed. Set
+  `controller.reconciled.at.heartbeat` in the `argocd-cmd-params-cm` ConfigMap (a
+  [duration string](https://pkg.go.dev/time#ParseDuration), e.g. `10m`) to bound how stale that one field may become
+  instead: a reconciliation that changes nothing else then writes nothing at all, and at N apps with a reconciliation
+  timeout of R the writes drop from N/R to roughly N/heartbeat. The heartbeat must be longer than R to reduce writes.
+  The controller still tracks the real reconcile time in memory, so refresh scheduling is unaffected, and
+  `reconciledAt` is always written on a requested refresh or when it would otherwise trail the last sync, keeping
+  `argocd app wait`, notifications and progressive sync accurate. The default, `0`, writes the field on every
+  reconciliation.
+
+    > [!NOTE]
+    > The trade-off is visibility: while a heartbeat is configured, the `reconciledAt` field you see on an Application
+    > may lag behind the last reconciliation by up to that duration. The controller also stores the time in Redis, so
+    > apps that move between shards keep it. After a restart, apps without a time cached in Redis from within the last R
+    > have their first refresh spread randomly over R, as in steady state. After that first R, if Redis is unavailable,
+    > apps that move between shards and whose `reconciledAt` is older than R are refreshed at once.
+
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
   controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller`
   `StatefulSet`
@@ -528,12 +546,45 @@ When disabled, the webhook handler will only trigger reconciliation for applicat
 will skip all Redis cache operations for unaffected applications. This is the recommended setting for large monorepos
 with plain YAML manifests.
 
-**Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: true` on the repository via the
-ArgoCD CLI or UI:
+**Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: "true"` in the repository Secret.
+If you manage repositories [declaratively](declarative-setup.md#repositories), add the key to the Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://github.com/org/repo.git
+  webhookManifestCacheWarmDisabled: "true"
+```
+
+To change an existing repository Secret in place, patch it:
 
 ```bash
-argocd repo edit https://github.com/org/repo.git --webhook-manifest-cache-warm-disabled
+kubectl -n argocd patch secret my-repo --type merge -p '{"stringData":{"webhookManifestCacheWarmDisabled":"true"}}'
 ```
+
+The option can also be set with the CLI when adding a repository:
+
+```bash
+argocd repo add https://github.com/org/repo.git --webhook-manifest-cache-warm-disabled
+```
+
+> [!WARNING]
+> There is no `argocd repo edit` command. To change an existing repository with the CLI, you must run
+> `argocd repo add --upsert` and pass **all** of the repository's settings again, including its credentials. `--upsert`
+> replaces the stored repository configuration, so any credentials or options you leave out are removed.
+>
+> ```bash
+> argocd repo add https://github.com/org/repo.git --upsert \
+>   --username <username> --password <password> \
+>   --webhook-manifest-cache-warm-disabled
+> ```
 
 **Global setting**: to disable cache warming for all repositories, set the following environment variable on
 `argocd-server`:
