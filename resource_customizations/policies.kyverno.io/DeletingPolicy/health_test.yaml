@@ -1,7 +1,15 @@
 tests:
 - healthStatus:
+    status: Healthy
+    message: "Policy has not been executed yet"
+  inputPath: testdata/not_executed.yaml
+- healthStatus:
+    status: Healthy
+    message: "Last executed at 2026-11-04T16:00:00Z"
+  inputPath: testdata/executed.yaml
+- healthStatus:
     status: Progressing
-    message: "Waiting for DeletingPolicy status"
+    message: "Waiting for DeletingPolicy status to reflect latest generation"
   inputPath: testdata/progressing.yaml
 - healthStatus:
     status: Healthy
@@ -11,3 +19,7 @@ tests:
     status: Degraded
     message: "Admitted: webhook configuration failed"
   inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Degraded
+    message: "Admitted: webhook configuration failed"
+  inputPath: testdata/degraded_no_ready.yaml
