@@ -544,8 +544,15 @@ start-e2e: test-tools-image
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
 
 # Starts e2e server locally (or within a container)
+# In CI the Procfiles skip the UI dev server (no e2e test uses it), so installing its
+# dependencies there is wasted time and a needless dependency on the npm registry.
+ifeq ($(ARGOCD_IN_CI),true)
+E2E_UI_DEPS=
+else
+E2E_UI_DEPS=dep-ui-local
+endif
 .PHONY: start-e2e-local
-start-e2e-local: mod-download-local dep-ui-local cli-local
+start-e2e-local: mod-download-local $(E2E_UI_DEPS) cli-local
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
 	kubectl create ns argocd-e2e-external-2 || true
