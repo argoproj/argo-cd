@@ -415,7 +415,9 @@
             text-overflow: ellipsis;
         }
 
-        > span[title*=' was created '] {
+        // The age tag is always short and has no tooltip of its own in the pod
+        // group renderer, so it keeps its text.
+        > .application-resource-tree__node-label--age {
             min-width: 0;
             flex-shrink: 0;
         }

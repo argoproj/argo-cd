@@ -595,7 +595,7 @@ function renderPodGroup(
                 </div>
                 <div className='application-resource-tree__node-labels'>
                     {node.createdAt || rootNode ? (
-                        <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
+                        <Moment className='application-resource-tree__node-label application-resource-tree__node-label--age' fromNow={true} ago={true}>
                             {node.createdAt || props.app.metadata.creationTimestamp}
                         </Moment>
                     ) : null}
@@ -967,7 +967,9 @@ function renderResourceNode(
                     </Consumer>
                 )}
                 {node.createdAt || rootNode ? (
-                    <span title={`${node.kind} was created ${moment(node.createdAt || props.app.metadata.creationTimestamp).fromNow()}`}>
+                    <span
+                        className='application-resource-tree__node-label--age'
+                        title={`${node.kind} was created ${moment(node.createdAt || props.app.metadata.creationTimestamp).fromNow()}`}>
                         <Moment className='application-resource-tree__node-label' fromNow={true} ago={true}>
                             {node.createdAt || props.app.metadata.creationTimestamp}
                         </Moment>
