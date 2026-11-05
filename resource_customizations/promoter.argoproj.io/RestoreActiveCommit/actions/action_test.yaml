@@ -1,0 +1,21 @@
+discoveryTests:
+  - inputPath: testdata/restore-active.yaml
+    result:
+      - name: release-environment-block
+        iconClass: fa fa-fw fa-play
+        displayName: Release Environment Block
+  - inputPath: testdata/restore-pending.yaml
+    result: []
+  - inputPath: testdata/restore-empty-active-sha.yaml
+    result: []
+
+actionTests:
+  - action: release-environment-block
+    inputPath: testdata/restore-active.yaml
+    expectedOutputPath: testdata/restore-unblocked.yaml
+  - action: release-environment-block
+    inputPath: testdata/restore-pending.yaml
+    expectedErrorMessage: rollback has not completed
+  - action: release-environment-block
+    inputPath: testdata/restore-empty-active-sha.yaml
+    expectedErrorMessage: rollback has not completed

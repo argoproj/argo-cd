@@ -1,0 +1,13 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: RestoreActiveCommit
+metadata:
+  name: restore-abcdef1234567890abcdef1234567890abcdef12
+  namespace: gitops-promoter
+spec:
+  promotionStrategyRef:
+    name: example-promotion-strategy
+  branch: environment/production
+  sha: abcdef1234567890abcdef1234567890abcdef12
+  blockEnvironment: true
+status:
+  activeSha: ""
