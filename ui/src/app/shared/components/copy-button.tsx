@@ -60,14 +60,21 @@ export const CopyButton = ({text, label = 'Copy to clipboard'}: {text: string; l
         resetTimeoutRef.current = setTimeout(() => setStatus('idle'), 3000);
     };
 
+    const statusText = status === 'copied' ? 'Copied!' : status === 'failed' ? 'Copy failed' : '';
+
     return (
-        <Tooltip content={status === 'copied' ? 'Copied!' : status === 'failed' ? 'Copy failed' : label} hideOnClick={false}>
-            <button type='button' className='copy-button' aria-label={label} onClick={copy}>
-                <svg viewBox='0 0 16 16' width='14' height='14' fill='none' stroke='currentColor' strokeWidth='1.5' aria-hidden='true'>
-                    <rect x='5.5' y='5.5' width='8' height='8' rx='1' />
-                    <path d='M10.5 3.5v-1a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h1' />
-                </svg>
-            </button>
-        </Tooltip>
+        <>
+            <Tooltip content={statusText || label} hideOnClick={false}>
+                <button type='button' className='copy-button' aria-label={label} onClick={copy}>
+                    <svg viewBox='0 0 16 16' width='14' height='14' fill='none' stroke='currentColor' strokeWidth='1.5' aria-hidden='true'>
+                        <rect x='5.5' y='5.5' width='8' height='8' rx='1' />
+                        <path d='M10.5 3.5v-1a1 1 0 0 0-1-1h-7a1 1 0 0 0-1 1v7a1 1 0 0 0 1 1h1' />
+                    </svg>
+                </button>
+            </Tooltip>
+            <span role='status' className='copy-button__status'>
+                {statusText}
+            </span>
+        </>
     );
 };

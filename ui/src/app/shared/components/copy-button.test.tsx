@@ -32,11 +32,13 @@ describe('CopyButton', () => {
         });
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Guestbook-App');
         expect(screen.getByTestId('tooltip')).toHaveTextContent('Copied!');
+        expect(screen.getByRole('status')).toHaveTextContent('Copied!');
 
         act(() => {
             jest.advanceTimersByTime(3000);
         });
         expect(screen.getByTestId('tooltip')).toHaveTextContent('Copy to clipboard');
+        expect(screen.getByRole('status')).toBeEmptyDOMElement();
     });
 
     test('falls back to execCommand when the clipboard API rejects', async () => {
@@ -61,6 +63,7 @@ describe('CopyButton', () => {
         });
         expect(document.execCommand).toHaveBeenCalledWith('copy');
         expect(screen.getByTestId('tooltip')).toHaveTextContent('Copy failed');
+        expect(screen.getByRole('status')).toHaveTextContent('Copy failed');
     });
 
     test('does not propagate the click to parents', async () => {
