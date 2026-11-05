@@ -23,3 +23,11 @@ tests:
     status: Degraded
     message: "Admitted: webhook configuration failed"
   inputPath: testdata/degraded_no_ready.yaml
+- healthStatus:
+    status: Degraded
+    message: "Admitted: webhook configuration failed"
+  inputPath: testdata/degraded_ready_true.yaml
+- healthStatus:
+    status: Healthy
+    message: "Last executed at 2026-11-04T16:00:00Z"
+  inputPath: testdata/executed_no_condition_status.yaml

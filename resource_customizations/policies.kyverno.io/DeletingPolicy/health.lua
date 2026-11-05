@@ -12,9 +12,8 @@
 -- be treated as unhealthy.
 --
 -- ArgoCD health mapping:
---   conditionStatus.ready=false               => Degraded (message from first False condition)
---   conditionStatus.ready unset, False cond.  => Degraded (message from that condition)
---   anything else (incl. no status yet)       => Healthy
+--   conditionStatus.ready=false or any False condition => Degraded (message from first False condition)
+--   anything else (incl. no status yet)                => Healthy
 local hs = {}
 
 if obj.status ~= nil and obj.status.conditionStatus ~= nil then
@@ -40,7 +39,7 @@ if obj.status ~= nil and obj.status.conditionStatus ~= nil then
     end
   end
 
-  if cs.ready == false or (cs.ready == nil and failed ~= nil) then
+  if cs.ready == false or failed ~= nil then
     hs.status = "Degraded"
     if failed ~= nil then
       hs.message = failed.type .. ": " .. failed.message
@@ -73,5 +72,9 @@ if obj.status ~= nil and obj.status.conditionStatus ~= nil then
 end
 
 hs.status = "Healthy"
-hs.message = "Policy has not been executed yet"
+if obj.status ~= nil and obj.status.lastExecutionTime ~= nil then
+  hs.message = "Last executed at " .. obj.status.lastExecutionTime
+else
+  hs.message = "Policy has not been executed yet"
+end
 return hs
