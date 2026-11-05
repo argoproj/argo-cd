@@ -17,6 +17,9 @@ argocd app actions run APPNAME ACTION [flags]
 ```
   # Run an available action for an application
   argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
+  
+  # Run an action with parameters
+  argocd app actions run APPNAME ACTION --kind KIND --param key1=value1 --param key2=value2
 ```
 
 ### Options
@@ -28,6 +31,7 @@ argocd app actions run APPNAME ACTION [flags]
   -h, --help                   help for run
       --kind string            Kind of the resource on which the action should be run
       --namespace string       Namespace of the resource on which the action should be run
+      --param stringArray      Action parameters in key=value format (e.g. --param key1=value1 --param key2=value2)
       --resource-name string   Name of resource on which the action should be run
 ```
 

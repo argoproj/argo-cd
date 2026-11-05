@@ -272,7 +272,7 @@ func getActionableResourcesForApplication(ctx context.Context, appIf application
 }
 
 // parseParamArgs converts a slice of "key=value" strings into ResourceActionParameters.
-// Returns an error if any entry does not contain exactly one "=" separator.
+// Returns an error if any entry lacks an "=" separator or has an empty key.
 func parseParamArgs(params []string) ([]*applicationpkg.ResourceActionParameters, error) {
 	result := make([]*applicationpkg.ResourceActionParameters, 0, len(params))
 	for _, param := range params {
@@ -280,7 +280,10 @@ func parseParamArgs(params []string) ([]*applicationpkg.ResourceActionParameters
 		if len(parts) != 2 {
 			return nil, fmt.Errorf("invalid parameter format %q: expected key=value", param)
 		}
-		name := parts[0]
+		name := strings.TrimSpace(parts[0])
+		if name == "" {
+			return nil, fmt.Errorf("invalid parameter format %q: key must not be empty", param)
+		}
 		value := parts[1]
 		result = append(result, &applicationpkg.ResourceActionParameters{
 			Name:  &name,
