@@ -17,6 +17,15 @@ restore.kind = "RestoreActiveCommit"
 restore.metadata = {}
 restore.metadata.name = "restore-" .. sha
 restore.metadata.namespace = obj.metadata.namespace
+-- A multi-install controller only watches objects that carry its instance label.
+local instanceID = nil
+if obj.metadata.labels ~= nil then
+    instanceID = obj.metadata.labels["promoter.argoproj.io/instance-id"]
+end
+if instanceID ~= nil and instanceID ~= "" then
+    restore.metadata.labels = {}
+    restore.metadata.labels["promoter.argoproj.io/instance-id"] = instanceID
+end
 restore.spec = {}
 restore.spec.promotionStrategyRef = {}
 restore.spec.promotionStrategyRef.name = obj.metadata.name

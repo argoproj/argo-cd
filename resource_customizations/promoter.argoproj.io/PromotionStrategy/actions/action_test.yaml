@@ -16,6 +16,12 @@ actionTests:
       branch: environment/production
       sha: abcdef1234567890abcdef1234567890abcdef12
   - action: rollback-environment
+    inputPath: testdata/promotion-strategy-instance.yaml
+    expectedOutputPath: testdata/restore-active-commit-instance.yaml
+    parameters:
+      branch: environment/production
+      sha: abcdef1234567890abcdef1234567890abcdef12
+  - action: rollback-environment
     inputPath: testdata/promotion-strategy.yaml
     expectedErrorMessage: branch is required
     parameters:
