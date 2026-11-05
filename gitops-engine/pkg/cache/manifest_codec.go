@@ -127,10 +127,12 @@ func compressManifestData(data []byte, compressionType ManifestCompressionType) 
 // preallocation, serializer output buffers) would otherwise stay allocated alongside every
 // cached manifest.
 //
-// Slack of up to len/8 is left alone: Go rounds allocations up to a size class (at most ~12.5%
-// waste), so a fresh copy would land in the same size class and the copy would buy nothing.
+// Small slack is left alone, because a fresh copy would be rounded up to the same allocation size
+// and the copy would buy nothing. Up to 32 KiB, Go rounds allocations to a size class (at most
+// ~12.5% waste, hence len/8). Above that it rounds to whole 8 KiB pages, so slack beyond one page
+// can always be reclaimed.
 func trimExcessCapacity(b []byte) []byte {
-	if cap(b)-len(b) <= len(b)/8 {
+	if cap(b)-len(b) <= min(len(b)/8, 8<<10) {
 		return b
 	}
 	trimmed := make([]byte, len(b))
