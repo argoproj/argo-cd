@@ -32,7 +32,7 @@ export const useSidebarTarget = () => {
 
 export const Sidebar = (props: SidebarProps) => {
     const context = React.useContext(Context);
-    const {data: version, isPending} = useQuery(versionQueries.get());
+    const {data: version, isPending, isFetching} = useQuery(versionQueries.get());
     const locationPath = context.history.location.pathname;
 
     const tooltipProps = {
@@ -63,7 +63,7 @@ export const Sidebar = (props: SidebarProps) => {
                                 className='sidebar__logo__text-logo'
                             />
                             <div className='sidebar__version' onClick={props.onVersionClick}>
-                                {version ? version.Version || 'Unknown' : isPending ? 'Loading...' : 'Unknown'}
+                                {version ? version.Version || 'Unknown' : isPending || isFetching ? 'Loading...' : 'Unknown'}
                             </div>
                         </div>
                     )}

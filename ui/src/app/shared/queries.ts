@@ -80,7 +80,7 @@ export const notificationQueries = {
 };
 
 export const versionQueries = {
-    get: () => queryOptions({queryKey: ['version'], queryFn: () => services.version.version(), gcTime: Infinity})
+    get: () => queryOptions({queryKey: ['version'], queryFn: () => services.version.version(), meta: {silent: true}})
 };
 
 export const helpQueries = {

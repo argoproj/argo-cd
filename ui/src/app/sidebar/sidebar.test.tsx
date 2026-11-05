@@ -1,5 +1,5 @@
 import {QueryClientProvider} from '@tanstack/react-query';
-import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {act, cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import {createMemoryHistory} from 'history';
 import * as React from 'react';
 import {Route, Router, Switch} from 'react-router';
@@ -21,8 +21,7 @@ const navItems = [
     {path: '/help', title: 'Documentation', iconClassName: ''}
 ];
 
-function renderNavigation() {
-    const client = newQueryClient({show: jest.fn()} as any);
+function renderNavigation(client: ReturnType<typeof newQueryClient>) {
     const history = createMemoryHistory({initialEntries: ['/applications']});
     const view = render(
         <QueryClientProvider client={client}>
@@ -39,18 +38,30 @@ function renderNavigation() {
             </Provider>
         </QueryClientProvider>
     );
-    return {...view, client, history};
+    return {...view, history};
 }
 
 describe('sidebar version during navigation', () => {
-    beforeEach(() => jest.resetAllMocks());
+    let notifications: {show: jest.Mock};
+    let client: ReturnType<typeof newQueryClient>;
+
+    beforeEach(() => {
+        jest.resetAllMocks();
+        notifications = {show: jest.fn()};
+        client = newQueryClient(notifications as any);
+    });
+
+    afterEach(() => {
+        cleanup();
+        client.clear();
+    });
 
     it('keeps the resolved version across top-level remounts and a delayed refresh', async () => {
         let resolveRefresh: (value: any) => void;
         jest.mocked(services.version.version)
             .mockResolvedValueOnce({Version: 'v3.7.0'} as any)
             .mockImplementation(() => new Promise(resolve => (resolveRefresh = resolve)));
-        const {client, history, unmount} = renderNavigation();
+        const {history} = renderNavigation(client);
 
         expect(screen.getByText('Loading...')).toBeInTheDocument();
         expect(await screen.findByText('v3.7.0')).toBeInTheDocument();
@@ -63,40 +74,46 @@ describe('sidebar version during navigation', () => {
         expect(services.version.version).toHaveBeenCalledTimes(2);
         await act(async () => resolveRefresh({Version: 'v3.7.1'}));
         expect(await screen.findByText('v3.7.1')).toBeInTheDocument();
-        unmount();
-        client.clear();
     });
 
-    it('keeps the last success after a failed refresh and retries on return', async () => {
+    it('keeps the last success through failed refreshes without notifications and retries on return', async () => {
         jest.mocked(services.version.version)
             .mockResolvedValueOnce({Version: 'v3.7.0'} as any)
             .mockRejectedValueOnce(new Error('unavailable'))
+            .mockRejectedValueOnce(new Error('unavailable'))
             .mockResolvedValueOnce({Version: 'v3.7.1'} as any);
-        const {client, unmount} = renderNavigation();
+        renderNavigation(client);
         expect(await screen.findByText('v3.7.0')).toBeInTheDocument();
 
-        fireEvent.click(screen.getByRole('link', {name: 'Settings'}));
-        await waitFor(() => expect(services.version.version).toHaveBeenCalledTimes(2));
-        await waitFor(() => expect(client.isFetching()).toBe(0));
-        expect(screen.getByText('v3.7.0')).toBeInTheDocument();
-        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
-        expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
+        for (const [index, name] of ['Settings', 'Resources'].entries()) {
+            fireEvent.click(screen.getByRole('link', {name}));
+            await waitFor(() => expect(services.version.version).toHaveBeenCalledTimes(index + 2));
+            await waitFor(() => expect(client.isFetching()).toBe(0));
+            expect(screen.getByText('v3.7.0')).toBeInTheDocument();
+            expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+            expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
+            expect(notifications.show).not.toHaveBeenCalled();
+        }
 
         fireEvent.click(screen.getByRole('link', {name: 'Applications'}));
         expect(await screen.findByText('v3.7.1')).toBeInTheDocument();
-        unmount();
-        client.clear();
     });
 
-    it('can recover on navigation when the initial request fails', async () => {
+    it('shows loading during a delayed retry after the initial request fails', async () => {
+        let resolveRetry: (value: any) => void;
         jest.mocked(services.version.version)
             .mockRejectedValueOnce(new Error('unavailable'))
-            .mockResolvedValueOnce({Version: 'v3.7.0'} as any);
-        const {client, unmount} = renderNavigation();
+            .mockImplementationOnce(() => new Promise(resolve => (resolveRetry = resolve)));
+        renderNavigation(client);
         expect(await screen.findByText('Unknown')).toBeInTheDocument();
+
         fireEvent.click(screen.getByRole('link', {name: 'Settings'}));
+        await waitFor(() => expect(services.version.version).toHaveBeenCalledTimes(2));
+        expect(screen.getByText('Loading...')).toBeInTheDocument();
+        expect(screen.queryByText('Unknown')).not.toBeInTheDocument();
+
+        await act(async () => resolveRetry({Version: 'v3.7.0'}));
         expect(await screen.findByText('v3.7.0')).toBeInTheDocument();
-        unmount();
-        client.clear();
+        expect(notifications.show).not.toHaveBeenCalled();
     });
 });
