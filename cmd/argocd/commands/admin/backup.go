@@ -211,7 +211,7 @@ func NewImportCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			if len(applicationNamespaces) == 0 || len(applicationsetNamespaces) == 0 {
-				defaultNs := getImportAdditionalNamespaces(ctx, acdClients.configMaps, backupObjects, namespace)
+				defaultNs := getImportAdditionalNamespaces(ctx, acdClients.configMaps, backupObjects, namespace, skipResourcesWithLabel)
 				if len(applicationNamespaces) == 0 {
 					applicationNamespaces = defaultNs.applicationNamespaces
 				}
@@ -462,13 +462,17 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 
 // getImportAdditionalNamespaces returns the additional namespaces to import into. The backup's
 // argocd-cmd-params-cm is applied by the import itself, so it takes precedence over the live one,
-// which a fresh cluster does not have yet.
-func getImportAdditionalNamespaces(ctx context.Context, configMaps dynamic.ResourceInterface, backupObjects []*unstructured.Unstructured, argocdNamespace string) *argocdAdditionalNamespaces {
+// which a fresh cluster does not have yet. A backup ConfigMap that --skip-resources-with-label
+// excludes from the import is ignored.
+func getImportAdditionalNamespaces(ctx context.Context, configMaps dynamic.ResourceInterface, backupObjects []*unstructured.Unstructured, argocdNamespace, skipResourcesWithLabel string) *argocdAdditionalNamespaces {
 	for _, bakObj := range backupObjects {
 		if bakObj.GetKind() != "ConfigMap" || bakObj.GetName() != common.ArgoCDCmdParamsConfigMapName {
 			continue
 		}
 		if ns := bakObj.GetNamespace(); ns != "" && ns != argocdNamespace {
+			continue
+		}
+		if isSkipLabelMatches(bakObj, skipResourcesWithLabel) {
 			continue
 		}
 		return additionalNamespacesFromConfigMap(bakObj)
