@@ -1111,7 +1111,7 @@ func TestManifestGenErrorCacheByNumRequests(t *testing.T) {
 
 			totalAttempts := service.initConstants.PauseGenerationAfterFailedGenerationAttempts + service.initConstants.PauseGenerationOnFailureForRequests
 
-			for invocationCount := 0; invocationCount < tt.TotalCacheInvocations; invocationCount++ {
+			for invocationCount := range tt.TotalCacheInvocations {
 				adjustedInvocation := invocationCount % totalAttempts
 
 				fmt.Printf("%d )-------------------------------------------\n", invocationCount)
