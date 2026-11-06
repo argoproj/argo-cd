@@ -1494,6 +1494,35 @@ func TestSyncOptionPruneFalseResourceOverride(t *testing.T) {
 		Expect(ResourceSyncStatusIs("Pod", "pod-1", SyncStatusCodeOutOfSync))
 }
 
+// make sure that if we deleted a resource from the app, it is pruned if annotated with Prune=true, even if the sync does not enable pruning
+func TestSyncOptionPruneTrueResourceLevel(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		// Fixture defaults Prune(true); disable so Sync() omits --prune.
+		Prune(false).
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=true"}}]`).
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		DeleteFile("pod-1.yaml").
+		Refresh(RefreshTypeHard).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "pod-1" })).
+		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "pod-2" })).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState)
+			require.NotNil(t, app.Status.OperationState.Operation.Sync)
+			assert.False(t, app.Status.OperationState.Operation.Sync.Prune)
+		})
+}
+
 // make sure that if we have an invalid manifest, we can add it if we disable validation, we get a server error rather than a client error
 func TestSyncOptionValidateFalse(t *testing.T) {
 	Given(t).
