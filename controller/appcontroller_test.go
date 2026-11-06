@@ -952,6 +952,8 @@ func TestAutoSyncNotAllowEmptyPruneRequested(t *testing.T) {
 	assert.Nil(t, app.Operation)
 }
 
+// TestAutoSyncAllowEmptyPruneRequested verifies that auto-sync removes all resources with the Prune=true sync option
+// when automated prune is disabled and allowEmpty is true
 func TestAutoSyncAllowEmptyPruneRequested(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated.AllowEmpty = new(true)

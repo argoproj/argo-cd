@@ -1300,6 +1300,8 @@ func TestPruneConfirmAppLevel(t *testing.T) {
 	assert.Equal(t, "pruned", resources[0].Message)
 }
 
+// TestPruneTrueOverridesPruneDisabled verifies that a resource with the Prune=true sync option is pruned
+// when pruning is disabled for the sync
 func TestPruneTrueOverridesPruneDisabled(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(true, false, false, false))
 	pod := testingutils.NewPod()
@@ -1319,6 +1321,8 @@ func TestPruneTrueOverridesPruneDisabled(t *testing.T) {
 	assert.Equal(t, "pruned (dry run)", resources[0].Message)
 }
 
+// TestPruneTrueNotBlockedByPruneConfirmWhenPruneDisabled verifies that when pruning is disabled for the sync,
+// a Prune=confirm resource that is skipped does not wait for confirmation and block Prune=true resources
 func TestPruneTrueNotBlockedByPruneConfirmWhenPruneDisabled(t *testing.T) {
 	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, false, false, false))
 	prunePod := testingutils.NewPod()

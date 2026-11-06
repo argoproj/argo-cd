@@ -443,6 +443,8 @@ type syncContext struct {
 	modificationResult map[kubeutil.ResourceKey]bool
 }
 
+// setRunningPhase sets the operation phase to Running with a message describing what the sync is waiting for,
+// such as hook completion, healthy resources, deletion, or prune confirmation.
 func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) {
 	if tasks.Len() == 0 {
 		sc.setOperationPhase(common.OperationRunning, "")
@@ -1644,6 +1646,8 @@ const (
 	failed
 )
 
+// runTasks prunes, deletes, and applies the given tasks, and returns the resulting run state.
+// It returns pending without running any task if a prune task requires confirmation that has not been given.
 func (sc *syncContext) runTasks(ctx context.Context, tasks syncTasks, dryRun bool) runState {
 	dryRun = dryRun || sc.dryRun
 
