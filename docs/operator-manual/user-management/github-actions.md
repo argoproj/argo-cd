@@ -148,24 +148,42 @@ This assumes Argo CD is already configured to trust Entra ID directly via
 
 ### Configuring Argo CD
 
-Edit the `argocd-cm` and configure the `oidc.config` section so Argo CD trusts
-tokens issued by your Entra tenant:
+Configure the App Registration to issue v2.0 access tokens, so they
+match the v2.0 issuer already used in `oidc.config`:
+
+1. In the App Registration, open **Manifest**.
+2. Set `api.requestedAccessTokenVersion` to `2` and save. Older manifests show
+   this setting as `accessTokenAcceptedVersion` at the top level.
+
+    ```json
+    "api": {
+      "requestedAccessTokenVersion": 2
+    }
+    ```
+
+Then edit `argocd-cm` and add `allowedAudiences` to the existing `oidc.config`
+from
+[Microsoft Entra ID App Registration Auth using OIDC](microsoft.md#entra-id-app-registration-auth-using-oidc).
+Keep the issuer and all other settings as they are:
 
 ```yaml
 oidc.config: |
-  name: GitHub Actions
-  issuer: https://sts.windows.net/{tenant-id}/
-  clientID: {argocd-app-registration-client-id}
+  name: Azure
+  issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
+  clientID: {azure_ad_application_client_id}
+  # ...existing clientSecret / azure.useWorkloadIdentity /
+  # requestedIDTokenClaims / requestedScopes settings stay unchanged...
   allowedAudiences:
-    - {argocd-app-registration-client-id}
+    - {azure_ad_application_client_id}
 ```
 
 > [!NOTE]
-> Tokens minted via the `client_credentials` grant are v1.0 access tokens
-> issued by `https://sts.windows.net/{tenant-id}/`. Make sure the `issuer` in
-> `oidc.config` matches (not the `login.microsoftonline.com/{tenant}/v2.0`
-> form), and that the token's `aud` claim — the Argo CD App Registration client
-> ID — is listed in `allowedAudiences`.
+> With v2.0 access tokens, the `iss` claim is
+> `https://login.microsoftonline.com/{tenant-id}/v2.0` and the `aud` claim is
+> always the Argo CD App Registration client ID (a GUID), even when the scope
+> is requested as `api://.../.default`. Setting `allowedAudiences` replaces the
+> default audience (`clientID`), so keep the client ID in the list, or
+> interactive SSO logins will be rejected.
 
 Here is an example of a GitHub Action that retrieves a valid Argo CD
 authentication token by federating the GitHub OIDC JWT into Entra ID, and uses
