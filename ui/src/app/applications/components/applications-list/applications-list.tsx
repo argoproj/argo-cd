@@ -116,16 +116,16 @@ function loadApplications(projects: string[], appNamespace: string, names?: stri
     );
 }
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
+export const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
     const observableQuery$ = useObservableQuery();
 
     return (
         <DataLoader
             load={() =>
-                combineLatest([services.viewPreferences.getPreferences().pipe(map(item => item.appList)), observableQuery$]).pipe(
+                combineLatest([services.viewPreferences.getPreferences().pipe(map(item => ({...item.appList, search: item.appListSearch}))), observableQuery$]).pipe(
                     map(items => {
                         const params = items[1];
-                        const viewPref: AppsListPreferences = {...items[0]};
+                        const viewPref = {...items[0]};
                         if (params.get('proj') != null) {
                             viewPref.projectsFilter = params
                                 .get('proj')
@@ -211,7 +211,7 @@ const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: num
                         return {
                             ...viewPref,
                             page: parseInt(params.get('page') || '0', 10),
-                            search: params.get('search') || ''
+                            search: params.get('search') ?? viewPref.search
                         };
                     })
                 )
@@ -252,7 +252,7 @@ function tryJsonParse(input: string) {
     }
 }
 
-const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
+export const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]; pref: AppsListPreferences}) => {
     const {content, searchRegex, ctx, apps} = props;
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
 
@@ -262,7 +262,10 @@ const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean
     return (
         <SearchBar
             value={content || ''}
-            onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
+            onChange={value => {
+                services.viewPreferences.updatePreferences({appListSearch: value});
+                ctx.navigation.goto('.', {search: value}, {replace: true});
+            }}
             placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
             disableKeyboardShortcuts={!!appInput}
             regexEnabled={searchRegex}
@@ -298,7 +301,7 @@ interface ApplicationsToolbarProps {
     healthBarPrefs: HealthStatusBarPreferences;
 }
 
-const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
+export const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
     const regexInvalid = pref.searchRegex && isInvalidRegex(pref.search);
 
     const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${pref.searchRegex ? '' : '-o'}${
@@ -307,7 +310,7 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
 
     return (
         <div className='applications-list__toolbar-controls' key='app-list-tools'>
-            <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
+            <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} pref={pref} />
             <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
                 <button
                     type='button'
@@ -315,9 +318,7 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
                     aria-pressed={pref.searchRegex}
                     className={regexToggleClass}
                     onClick={() => {
-                        services.viewPreferences.updatePreferences({
-                            appList: {...pref, searchRegex: !pref.searchRegex}
-                        });
+                        services.viewPreferences.updateAppListPreferences({searchRegex: !pref.searchRegex});
                     }}>
                     .*
                 </button>
@@ -328,13 +329,10 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
                     style={{border: 'none'}}
                     onClick={() => {
                         const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
-                        services.viewPreferences.updatePreferences({
-                            appList: {
-                                ...pref,
-                                statusBarView: {
-                                    ...healthBarPrefs,
-                                    showHealthStatusBar
-                                }
+                        services.viewPreferences.updateAppListPreferences({
+                            statusBarView: {
+                                ...healthBarPrefs,
+                                showHealthStatusBar
                             }
                         });
                     }}>
@@ -372,8 +370,15 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
         services.applications.get(appName, appNamespace, 'application', 'normal');
     }
 
-    function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
-        services.viewPreferences.updatePreferences({appList: newPref});
+    function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences, previous: AppsListPreferences, clearAll = false) {
+        if (clearAll) {
+            // Clearing is an explicit edit, even when an empty URL filter hides a saved value.
+            const cleared: Partial<AppsListPreferences> = {};
+            AppsListPreferences.clearFilters(cleared);
+            services.viewPreferences.updateAppListPreferences(cleared);
+        } else {
+            services.viewPreferences.updateAppListPreferences(newPref, previous);
+        }
         const params = {
             proj: newPref.projectsFilter.join(','),
             sync: newPref.syncFilter.join(','),
@@ -515,7 +520,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                         {allpref => (
                                                                             <ApplicationsFilter
                                                                                 apps={filterResults}
-                                                                                onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
+                                                                                onChange={(newPrefs, clearAll) => onAppFilterPrefChanged(ctx, newPrefs, pref, clearAll)}
                                                                                 pref={pref}
                                                                                 collapsed={allpref.hideSidebar}
                                                                                 hydratorEnabled={authSettings?.hydratorEnabled}
@@ -538,8 +543,9 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     Change filter criteria or&nbsp;
                                                                                     <a
                                                                                         onClick={() => {
-                                                                                            AppsListPreferences.clearFilters(pref);
-                                                                                            onAppFilterPrefChanged(ctx, pref);
+                                                                                            const cleared = {...pref};
+                                                                                            AppsListPreferences.clearFilters(cleared);
+                                                                                            onAppFilterPrefChanged(ctx, cleared, pref, true);
                                                                                         }}>
                                                                                         clear filters
                                                                                     </a>

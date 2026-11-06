@@ -77,7 +77,7 @@ export enum ResourcesListViewKey {
 }
 
 export class AbstractAppsListPreferences {
-    public static clearFilters(pref: AbstractAppsListPreferences) {
+    public static clearFilters(pref: Partial<AbstractAppsListPreferences>) {
         pref.healthFilter = [];
         pref.labelsFilter = [];
         pref.annotationsFilter = [];
@@ -96,7 +96,7 @@ export class AbstractAppsListPreferences {
 }
 
 export class AppsListPreferences extends AbstractAppsListPreferences {
-    public static clearFilters(pref: AppsListPreferences) {
+    public static clearFilters(pref: Partial<AppsListPreferences>) {
         super.clearFilters(pref);
 
         pref.clustersFilter = [];
@@ -134,7 +134,7 @@ export class ResourcesListPreferences {
         );
     }
 
-    public static clearFilters(pref: ResourcesListPreferences) {
+    public static clearFilters(pref: Partial<ResourcesListPreferences>) {
         pref.clustersFilter = [];
         pref.healthFilter = [];
         pref.namespacesFilter = [];
@@ -159,7 +159,7 @@ export class ResourcesListPreferences {
 }
 
 export class AppSetsListPreferences extends AbstractAppsListPreferences {
-    public static clearFilters(pref: AppSetsListPreferences) {
+    public static clearFilters(pref: Partial<AppSetsListPreferences>) {
         super.clearFilters(pref);
     }
 }
@@ -168,6 +168,10 @@ export interface ViewPreferences {
     version: number;
     appDetails: AppDetailsPreferences;
     appList: AppsListPreferences;
+    // Applications and ApplicationSets share filters, but keep searches separate.
+    appListSearch: string;
+    appSetListSearch: string;
+    resourcesListSearch: string;
     resourcesList: ResourcesListPreferences;
     pageSizes: {[key: string]: number};
     sortOptions?: {[key: string]: string};
@@ -232,6 +236,9 @@ const DEFAULT_PREFERENCES: ViewPreferences = {
             showHealthStatusBar: true
         }
     },
+    appListSearch: '',
+    appSetListSearch: '',
+    resourcesListSearch: '',
     resourcesList: {
         projectsFilter: new Array<string>(),
         namespacesFilter: new Array<string>(),
@@ -271,9 +278,38 @@ export class ViewPreferencesService {
         return this.preferencesSubj;
     }
 
+    public updateAppListPreferences(change: Partial<AppsListPreferences>, previous?: Partial<AppsListPreferences>) {
+        this.updatePreferences({appList: this.mergeListPreferences(this.preferencesSubj.getValue().appList, change, previous)});
+    }
+
+    public updateResourcesListPreferences(change: Partial<ResourcesListPreferences>, previous?: Partial<ResourcesListPreferences>) {
+        this.updatePreferences({resourcesList: this.mergeListPreferences(this.preferencesSubj.getValue().resourcesList, change, previous)});
+    }
+
+    private mergeListPreferences<T>(stored: T, change: Partial<T>, previous?: Partial<T>): T {
+        // A rendered list includes URL overrides. Persist only the user's edits.
+        const edits = Object.entries(change).filter(([key, value]) => {
+            if (!previous) {
+                return true;
+            }
+            const prior = previous[key as keyof T];
+            if (Array.isArray(value) && Array.isArray(prior)) {
+                // Filter normalizes numeric key order and duplicate selections when it mounts.
+                const selection = new Set(value);
+                const priorSelection = new Set(prior);
+                return selection.size !== priorSelection.size || [...selection].some(entry => !priorSelection.has(entry));
+            }
+            return value !== prior;
+        });
+        return {...stored, ...Object.fromEntries(edits)};
+    }
+
     public updatePreferences(change: Partial<ViewPreferences>) {
         const current = this.preferencesSubj.getValue();
         const nextPref = Object.assign({}, current, change, {version: minVer});
+        for (const key of ['appListSearch', 'appSetListSearch', 'resourcesListSearch'] as const) {
+            nextPref[key] = typeof nextPref[key] === 'string' ? nextPref[key] : '';
+        }
         // Normalize appList to ensure all filter arrays are initialized
         if (nextPref.appList) {
             this.normalizeAppListPreferences(nextPref.appList);
@@ -301,6 +337,9 @@ export class ViewPreferencesService {
             preferences = DEFAULT_PREFERENCES;
         }
         const merged = deepMerge(DEFAULT_PREFERENCES, preferences);
+        for (const key of ['appListSearch', 'appSetListSearch', 'resourcesListSearch'] as const) {
+            merged[key] = typeof merged[key] === 'string' ? merged[key] : '';
+        }
         // Ensure all filter arrays are initialized to prevent undefined errors
         this.normalizeAppListPreferences(merged.appList);
         this.normalizeResourcesListPreferences(merged.resourcesList);
