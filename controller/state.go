@@ -121,6 +121,11 @@ type comparisonResult struct {
 	revisionsMayHaveChanges bool
 }
 
+// hasTargetObjs returns true if the desired state contains at least one resource, not counting hooks
+func (res *comparisonResult) hasTargetObjs() bool {
+	return slices.ContainsFunc(res.reconciliationResult.Target, func(obj *unstructured.Unstructured) bool { return obj != nil })
+}
+
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
 	return res.syncStatus
 }

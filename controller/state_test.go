@@ -724,6 +724,7 @@ func TestCompareAppStatePruneRequested(t *testing.T) {
 			require.Len(t, compRes.resources, 1)
 			assert.Equal(t, tt.expectedRequiresPruning, compRes.resources[0].RequiresPruning)
 			assert.Equal(t, tt.expectedPruneRequested, compRes.resources[0].PruneRequested)
+			assert.Equal(t, tt.inGit, compRes.hasTargetObjs())
 		})
 	}
 }

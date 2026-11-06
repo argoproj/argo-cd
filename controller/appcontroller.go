@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -2322,7 +2323,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
 	if canSync {
-		syncErrCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
+		syncErrCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.hasTargetObjs(), compareResult.revisionsMayHaveChanges)
 		setOpDuration = opDuration
 		if syncErrCond != nil {
 			app.Status.SetConditions(
@@ -2978,8 +2979,9 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	return patchDuration
 }
 
-// autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
+// autoSync will initiate a sync operation for an application configured with automated sync.
+// hasTargetObjs reports whether the desired state contains any resources, and is used by the allowEmpty safeguard.
+func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, hasTargetObjs bool, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
 	_, span := tracer.Start(ctx, "controller.autoSync")
 	setAppTraceAttrs(span, app)
 	defer span.End()
@@ -3012,18 +3014,13 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		return nil, 0
 	}
 
-	hasPruneRequested := false
+	hasPruneRequested := slices.ContainsFunc(resources, func(r appv1.ResourceStatus) bool { return r.PruneRequested })
 	if !app.Spec.SyncPolicy.Automated.GetPrune() {
 		requirePruneOnly := true
 		for _, r := range resources {
-			if r.Status != appv1.SyncStatusCodeSynced {
-				if !r.RequiresPruning {
-					requirePruneOnly = false
-					break
-				}
-				if r.PruneRequested {
-					hasPruneRequested = true
-				}
+			if r.Status != appv1.SyncStatusCodeSynced && !r.RequiresPruning {
+				requirePruneOnly = false
+				break
 			}
 		}
 		if requirePruneOnly && !hasPruneRequested {
@@ -3097,14 +3094,19 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
 
-	// Resources with the Prune=true sync option are pruned even when automated prune is disabled,
-	// so the allowEmpty safeguard applies to them as well.
-	if (app.Spec.SyncPolicy.Automated.GetPrune() || hasPruneRequested) && !app.Spec.SyncPolicy.Automated.GetAllowEmpty() {
-		bAllNeedPrune := true
-		for _, r := range resources {
-			if !r.RequiresPruning {
-				bAllNeedPrune = false
+	if !app.Spec.SyncPolicy.Automated.GetAllowEmpty() {
+		bAllNeedPrune := false
+		if app.Spec.SyncPolicy.Automated.GetPrune() {
+			bAllNeedPrune = true
+			for _, r := range resources {
+				if !r.RequiresPruning {
+					bAllNeedPrune = false
+				}
 			}
+		} else if hasPruneRequested {
+			// Resources with the Prune=true sync option are pruned even when automated prune is disabled,
+			// so do not prune them when the desired state is empty.
+			bAllNeedPrune = !hasTargetObjs
 		}
 		if bAllNeedPrune {
 			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resources", desiredRevisions)
