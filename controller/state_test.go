@@ -676,6 +676,7 @@ func TestCompareAppStatePruneRequested(t *testing.T) {
 		name                    string
 		syncOptions             string
 		inGit                   bool
+		hook                    bool
 		expectedRequiresPruning bool
 		expectedPruneRequested  bool
 	}{
@@ -684,14 +685,20 @@ func TestCompareAppStatePruneRequested(t *testing.T) {
 		{name: "extra object without sync options", expectedRequiresPruning: true},
 		{name: "extra object with Prune=false", syncOptions: "Prune=false", expectedRequiresPruning: true},
 		{name: "object in git with Prune=true", syncOptions: "Prune=true", inGit: true},
+		{name: "extra hook with Prune=true", syncOptions: "Prune=true", hook: true, expectedRequiresPruning: true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			pod := NewPod()
 			pod.SetNamespace(test.FakeDestNamespace)
+			annotations := map[string]string{}
 			if tt.syncOptions != "" {
-				pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: tt.syncOptions})
+				annotations[synccommon.AnnotationSyncOptions] = tt.syncOptions
 			}
+			if tt.hook {
+				annotations[synccommon.AnnotationKeyHook] = string(synccommon.HookTypePreSync)
+			}
+			pod.SetAnnotations(annotations)
 			app := newFakeApp()
 			manifests := []string{}
 			if tt.inGit {
