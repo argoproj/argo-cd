@@ -3,6 +3,7 @@ import * as React from 'react';
 import {bufferTime, filter, repeat, retry} from 'rxjs/operators';
 
 import {Paginate, PaginateProps} from '../../../shared/components';
+import {usePageVisible} from '../../../shared/hooks/use-page-visible';
 import * as models from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
 import * as AppUtils from '../utils';
@@ -17,7 +18,6 @@ import {computeAppsListFacets, computeAppsListStats} from './applications-list-s
 
 const EVENTS_BUFFER_TIMEOUT = 500;
 const WATCH_RETRY_TIMEOUT = 500;
-const VISIBILITY_DEBOUNCE = 500;
 
 // The applications list/watch API supports only selected set of fields.
 // Make sure to register any new fields in the `appFields` map of `pkg/apiclient/application/forwarder_overwrite.go`.
@@ -78,24 +78,6 @@ export function applyWatchEvents(list: models.ApplicationList, changes: models.A
         }
     });
     return {...list, items};
-}
-
-function usePageVisible(): boolean {
-    const [visible, setVisible] = React.useState(() => !document.hidden);
-    React.useEffect(() => {
-        let timer: ReturnType<typeof setTimeout>;
-        // Wait until the user stops switching tabs back and forth, so the list isn't restarted too often.
-        const onChange = () => {
-            clearTimeout(timer);
-            timer = setTimeout(() => setVisible(!document.hidden), VISIBILITY_DEBOUNCE);
-        };
-        document.addEventListener('visibilitychange', onChange);
-        return () => {
-            clearTimeout(timer);
-            document.removeEventListener('visibilitychange', onChange);
-        };
-    }, []);
-    return visible;
 }
 
 function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string, searchRegex: boolean, hydratorEnabled: boolean) {
