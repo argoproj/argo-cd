@@ -22,8 +22,10 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
@@ -825,6 +827,70 @@ func TestLoadCacheSettings(t *testing.T) {
 	assert.NotNil(t, res.resourceOverrides)
 	assert.NotNil(t, res.clusterSettings)
 	assert.True(t, res.ignoreResourceUpdatesEnabled)
+}
+
+const inClusterRESTConfigHost = "https://10.96.0.1:443"
+
+func inClusterResourcesFilter() *argosettings.ResourcesFilter {
+	return &argosettings.ResourcesFilter{
+		ResourceInclusions: []argosettings.FilteredResource{{
+			APIGroups: []string{"argoproj.io"},
+			Kinds:     []string{"Application"},
+			Clusters:  []string{appv1.KubernetesInternalAPIServerAddr},
+		}},
+		ResourceSelectors: []argosettings.FilteredResource{{
+			APIGroups: []string{"argoproj.io"},
+			Kinds:     []string{"Application"},
+			Clusters:  []string{appv1.KubernetesInternalAPIServerAddr},
+			Selector:  "team=a",
+		}},
+	}
+}
+
+func TestClusterSettingsForServer(t *testing.T) {
+	t.Parallel()
+	filter := inClusterResourcesFilter()
+	settings := cacheSettings{clusterSettings: cache.Settings{ResourcesFilter: filter}}
+
+	// gitops-engine passes the REST config host, which never matches the registered in-cluster URL
+	require.False(t, filter.IsExcludedResource("apps", "Deployment", inClusterRESTConfigHost))
+
+	inCluster := settings.clusterSettingsForServer(appv1.KubernetesInternalAPIServerAddr).ResourcesFilter
+	assert.True(t, inCluster.IsExcludedResource("apps", "Deployment", inClusterRESTConfigHost))
+	assert.False(t, inCluster.IsExcludedResource("argoproj.io", "Application", inClusterRESTConfigHost))
+	assert.Equal(t, "team=a", inCluster.GetLabelSelector("argoproj.io", "Application", inClusterRESTConfigHost))
+
+	other := settings.clusterSettingsForServer("https://other-cluster").ResourcesFilter
+	assert.False(t, other.IsExcludedResource("apps", "Deployment", appv1.KubernetesInternalAPIServerAddr))
+	assert.Empty(t, other.GetLabelSelector("argoproj.io", "Application", appv1.KubernetesInternalAPIServerAddr))
+
+	// the shared settings must stay unchanged since they are compared to detect settings updates
+	assert.Same(t, filter, settings.clusterSettings.ResourcesFilter)
+
+	assert.Nil(t, cacheSettings{}.clusterSettingsForServer(appv1.KubernetesInternalAPIServerAddr).ResourcesFilter)
+}
+
+func TestInvalidate_BindsResourcesFilterToClusterServer(t *testing.T) {
+	t.Parallel()
+	var appliedFilter kube.ResourceFilter
+	kubectl := (&kubetest.MockKubectlCmd{}).WithGetAPIResourcesFunc(func(_ *rest.Config, preferred bool, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+		if !preferred {
+			return nil, nil
+		}
+		appliedFilter = resourceFilter
+		return nil, errors.New("stop sync")
+	})
+	clusterCache := cache.NewClusterCache(&rest.Config{Host: inClusterRESTConfigHost}, cache.SetKubectl(kubectl))
+	liveCache := liveStateCache{
+		clusters: map[string]cache.ClusterCache{appv1.KubernetesInternalAPIServerAddr: clusterCache},
+	}
+
+	liveCache.invalidate(cacheSettings{clusterSettings: cache.Settings{ResourcesFilter: inClusterResourcesFilter()}})
+	require.Error(t, clusterCache.EnsureSynced())
+
+	require.NotNil(t, appliedFilter)
+	assert.True(t, appliedFilter.IsExcludedResource("apps", "Deployment", inClusterRESTConfigHost))
+	assert.False(t, appliedFilter.IsExcludedResource("argoproj.io", "Application", inClusterRESTConfigHost))
 }
 
 func Test_ownerRefGV(t *testing.T) {

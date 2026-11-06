@@ -223,6 +223,33 @@ type cacheSettings struct {
 	manifestCompressionType    clustercache.ManifestCompressionType
 }
 
+// clusterSettingsForServer returns the cluster cache settings with the resources filter bound to the
+// registered server URL of the cluster.
+func (s cacheSettings) clusterSettingsForServer(server string) clustercache.Settings {
+	clusterSettings := s.clusterSettings
+	if clusterSettings.ResourcesFilter != nil {
+		clusterSettings.ResourcesFilter = &clusterResourcesFilter{filter: clusterSettings.ResourcesFilter, server: server}
+	}
+	return clusterSettings
+}
+
+// clusterResourcesFilter evaluates resource filter rules against the registered server URL of a
+// cluster instead of the host of its REST config. For the in-cluster destination the REST config
+// host is built by rest.InClusterConfig() from KUBERNETES_SERVICE_HOST and KUBERNETES_SERVICE_PORT,
+// so it never matches rules targeting https://kubernetes.default.svc.
+type clusterResourcesFilter struct {
+	filter kube.ResourceFilter
+	server string
+}
+
+func (f *clusterResourcesFilter) IsExcludedResource(group, kind, _ string) bool {
+	return f.filter.IsExcludedResource(group, kind, f.server)
+}
+
+func (f *clusterResourcesFilter) GetLabelSelector(group, kind, _ string) string {
+	return f.filter.GetLabelSelector(group, kind, f.server)
+}
+
 type liveStateCache struct {
 	db                   db.ArgoDB
 	appInformer          cache.SharedIndexInformer
@@ -561,7 +588,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		clustercache.SetWatchResyncTimeout(clusterCacheWatchResyncDuration),
 		clustercache.SetClusterSyncRetryTimeout(clusterSyncRetryTimeoutDuration),
 		clustercache.SetResyncTimeout(clusterCacheResyncDuration),
-		clustercache.SetSettings(cacheSettings.clusterSettings),
+		clustercache.SetSettings(cacheSettings.clusterSettingsForServer(cluster.Server)),
 		clustercache.SetNamespaces(cluster.Namespaces),
 		clustercache.SetClusterResources(cluster.ClusterResources),
 		clustercache.SetPopulateResourceInfoHandler(func(un *unstructured.Unstructured, isRoot bool) (any, bool) {
@@ -684,9 +711,9 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 	clusters := c.clusters
 	c.lock.Unlock()
 
-	for _, clust := range clusters {
+	for server, clust := range clusters {
 		clust.Invalidate(
-			clustercache.SetSettings(cacheSettings.clusterSettings),
+			clustercache.SetSettings(cacheSettings.clusterSettingsForServer(server)),
 			clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
 			clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
 			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
