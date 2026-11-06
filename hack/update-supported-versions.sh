@@ -16,7 +16,7 @@ for _ in {1..3}; do
     (.["k3s-version"] // (.k3s | map(.version))) |
     .[]' .github/workflows/ci-build.yaml | \
     jq --arg argocd_version "$argocd_version" --raw-input --slurp --raw-output \
-    'split("\n")[:-1] | map(sub("\\.[0-9]+$"; "")) | join(", ") | "| \($argocd_version) | \(.) |"')
+    'split("\n")[:-1] | map(sub("\\.[0-9]+(-.+)?$"; "")) | join(", ") | "| \($argocd_version) | \(.) |"')
   out+="$line\n"
 
 

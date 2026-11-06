@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"maps"
 	"math"
 	"reflect"
 	"slices"
@@ -14,13 +15,15 @@ import (
 	"time"
 
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
 
-	kubecache "github.com/argoproj/gitops-engine/pkg/cache"
-	"github.com/argoproj/gitops-engine/pkg/diff"
-	"github.com/argoproj/gitops-engine/pkg/health"
-	"github.com/argoproj/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/gitops-engine/pkg/utils/text"
+	kubecache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubemeta"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
 	log "github.com/sirupsen/logrus"
@@ -38,18 +41,19 @@ import (
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
-	"k8s.io/client-go/util/retry"
-	"k8s.io/utils/ptr"
 
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	"github.com/argoproj/argo-cd/v3/server/broadcast"
 	servercache "github.com/argoproj/argo-cd/v3/server/cache"
 	"github.com/argoproj/argo-cd/v3/server/deeplinks"
+	serverevents "github.com/argoproj/argo-cd/v3/server/events"
 	applog "github.com/argoproj/argo-cd/v3/util/app/log"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/collections"
@@ -64,12 +68,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
-	resourceutil "github.com/argoproj/gitops-engine/pkg/sync/resource"
+	resourceutil "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/resource"
 
 	applicationType "github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argodiff "github.com/argoproj/argo-cd/v3/util/argo/diff"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
-	kubeutil "github.com/argoproj/argo-cd/v3/util/kube"
 )
 
 type AppResourceTreeFn func(ctx context.Context, app *v1alpha1.Application) (*v1alpha1.ApplicationTree, error)
@@ -91,7 +94,7 @@ type Server struct {
 	appclientset           appclientset.Interface
 	appLister              applisters.ApplicationLister
 	appInformer            cache.SharedIndexInformer
-	appBroadcaster         Broadcaster
+	appBroadcaster         broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent]
 	repoClientset          apiclient.Clientset
 	kubectl                kube.Kubectl
 	db                     db.ArgoDB
@@ -112,7 +115,7 @@ func NewServer(
 	appclientset appclientset.Interface,
 	appLister applisters.ApplicationLister,
 	appInformer cache.SharedIndexInformer,
-	appBroadcaster Broadcaster,
+	appBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationWatchEvent],
 	repoClientset apiclient.Clientset,
 	cache *servercache.Cache,
 	kubectl kube.Kubectl,
@@ -126,8 +129,15 @@ func NewServer(
 	syncWithReplaceAllowed bool,
 ) (application.ApplicationServiceServer, AppResourceTreeFn) {
 	if appBroadcaster == nil {
-		appBroadcaster = &broadcasterHandler{}
+		appBroadcaster = broadcast.NewHandler[v1alpha1.Application, v1alpha1.ApplicationWatchEvent](
+			func(app *v1alpha1.Application, eventType watch.EventType) *v1alpha1.ApplicationWatchEvent {
+				return &v1alpha1.ApplicationWatchEvent{Application: *app, Type: eventType}
+			},
+			applog.GetAppLogFields,
+		)
 	}
+	// Register Application-level broadcaster to receive create/update/delete events
+	// and handle general application event processing.
 	_, err := appInformer.AddEventHandler(appBroadcaster)
 	if err != nil {
 		log.Error(err)
@@ -145,7 +155,7 @@ func NewServer(
 		kubectl:                kubectl,
 		enf:                    enf,
 		projectLock:            projectLock,
-		auditLogger:            argo.NewAuditLogger(kubeclientset, "argocd-server", enableK8sEvent),
+		auditLogger:            argo.NewAuditLogger(kubeclientset, namespace, "argocd-server", enableK8sEvent),
 		settingsMgr:            settingsMgr,
 		projInformer:           projInformer,
 		enabledNamespaces:      enabledNamespaces,
@@ -303,6 +313,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	// Filter applications by source repo URL
 	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
 
+	// Filter applications by name
+	filteredApps = argo.FilterByNamesP(filteredApps, q.GetNames())
+
 	newItems := make([]v1alpha1.Application, 0)
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
@@ -327,10 +340,8 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	})
 
 	appList := v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{
-			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
-		},
-		Items: newItems,
+		ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+		Items:           newItems,
 	}
 	return &appList, nil
 }
@@ -458,7 +469,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("error getting settings enabled source types: %w", err)
 	}
-	ociRepos, err := s.db.ListOCIRepositories(context.Background())
+	ociRepos, err := s.db.ListOCIRepositories(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to list OCI repositories: %w", err)
 	}
@@ -466,7 +477,7 @@ func (s *Server) queryRepoServer(ctx context.Context, proj *v1alpha1.AppProject,
 	if err != nil {
 		return fmt.Errorf("failed to get permitted OCI repositories for project %q: %w", proj.Name, err)
 	}
-	ociRepositoryCredentials, err := s.db.GetAllOCIRepositoryCredentials(context.Background())
+	ociRepositoryCredentials, err := s.db.GetAllOCIRepositoryCredentials(ctx)
 	if err != nil {
 		return fmt.Errorf("failed to get OCI credentials: %w", err)
 	}
@@ -501,7 +512,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			return fmt.Errorf("error getting app instance label key from settings: %w", err)
 		}
 
-		config, err := s.getApplicationClusterConfig(ctx, a)
+		config, err := s.getApplicationClusterConfig(ctx, a, proj)
 		if err != nil {
 			return fmt.Errorf("error getting application cluster config: %w", err)
 		}
@@ -528,7 +539,14 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 			}
 			sources = appSpec.GetSources()
 		} else {
-			source := a.Spec.GetSource()
+			// For sourceHydrator applications, use the dry source to generate manifests
+			var source v1alpha1.ApplicationSource
+			if a.Spec.SourceHydrator != nil {
+				source = a.Spec.SourceHydrator.GetDrySource()
+			} else {
+				source = a.Spec.GetSource()
+			}
+
 			if q.GetRevision() != "" {
 				source.TargetRevision = q.GetRevision()
 			}
@@ -536,7 +554,7 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 		}
 
 		// Store the map of all sources having ref field into a map for applications with sources field
-		refSources, err := argo.GetRefSources(context.Background(), sources, appSpec.Project, s.db.GetRepository, []string{})
+		refSources, err := argo.GetRefSources(ctx, sources, appSpec.Project, s.db.GetRepository, []string{})
 		if err != nil {
 			return fmt.Errorf("failed to get ref sources: %w", err)
 		}
@@ -610,12 +628,17 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	manifests := &apiclient.ManifestResponse{}
 	for _, manifestInfo := range manifestInfos {
 		for i, manifest := range manifestInfo.Manifests {
-			obj := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(manifest), obj)
+			meta, err := kubemeta.NewKubeJson([]byte(manifest))
 			if err != nil {
-				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+				return nil, fmt.Errorf("error parsing manifest metadata: %w", err)
 			}
-			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+			if meta.GetKind() == kube.SecretKind && meta.GroupVersionKind().Group == "" {
+				// Only Secrets need the full object, for HideSecretData.
+				obj := &unstructured.Unstructured{}
+				err = json.Unmarshal([]byte(manifest), obj)
+				if err != nil {
+					return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+				}
 				obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
 				if err != nil {
 					return nil, fmt.Errorf("error hiding secret data: %w", err)
@@ -663,7 +686,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting trackingMethod from settings: %w", err)
 		}
 
-		config, err := s.getApplicationClusterConfig(ctx, a)
+		config, err := s.getApplicationClusterConfig(ctx, a, proj)
 		if err != nil {
 			return fmt.Errorf("error getting application cluster config: %w", err)
 		}
@@ -699,7 +722,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			Repo:                            repo,
 			Revision:                        source.TargetRevision,
 			AppLabelKey:                     appInstanceLabelKey,
-			AppName:                         a.Name,
+			AppName:                         a.InstanceName(s.ns),
 			Namespace:                       a.Spec.Destination.Namespace,
 			ApplicationSource:               &source,
 			Repos:                           helmRepos,
@@ -738,12 +761,17 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	}
 
 	for i, manifest := range manifestInfo.Manifests {
-		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest), obj)
+		meta, err := kubemeta.NewKubeJson([]byte(manifest))
 		if err != nil {
-			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			return fmt.Errorf("error parsing manifest metadata: %w", err)
 		}
-		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+		if meta.GetKind() == kube.SecretKind && meta.GroupVersionKind().Group == "" {
+			// Only Secrets need the full object, for HideSecretData.
+			obj := &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(manifest), obj)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			}
 			obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
 			if err != nil {
 				return fmt.Errorf("error hiding secret data: %w", err)
@@ -799,7 +827,16 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 	})
 	defer unsubscribe()
 
-	app, err := argo.RefreshApp(appIf, appName, refreshType, true)
+	var hydrateType *v1alpha1.HydrateType
+	if refreshType == v1alpha1.RefreshTypeHard {
+		ht := v1alpha1.HydrateTypeHard
+		hydrateType = &ht
+	} else {
+		ht := v1alpha1.HydrateTypeNormal
+		hydrateType = &ht
+	}
+
+	app, err := argo.RefreshApp(appIf, appName, refreshType, hydrateType)
 	if err != nil {
 		return nil, fmt.Errorf("error refreshing the app: %w", err)
 	}
@@ -871,8 +908,8 @@ func (s *Server) Get(ctx context.Context, q *application.ApplicationQuery) (*v1a
 }
 
 // ListResourceEvents returns a list of event resources
-func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*corev1.EventList, error) {
-	a, _, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+func (s *Server) ListResourceEvents(ctx context.Context, q *application.ApplicationResourceEventsQuery) (*eventspb.EventList, error) {
+	a, p, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, err
 	}
@@ -911,7 +948,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 
 		namespace = q.GetResourceNamespace()
 		var config *rest.Config
-		config, err = s.getApplicationClusterConfig(ctx, a)
+		config, err = s.getApplicationClusterConfig(ctx, a, p)
 		if err != nil {
 			return nil, fmt.Errorf("error getting application cluster config: %w", err)
 		}
@@ -931,7 +968,7 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *application.Applicat
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
 	}
-	return list.DeepCopy(), nil
+	return serverevents.K8sEventListToAPIEventList(list), nil
 }
 
 // validateAndUpdateApp validates and updates the application. currentProject is the name of the project the app
@@ -991,15 +1028,7 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 }
 
 func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
-	var res *v1alpha1.Application
-	err := retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		var err error
-		app, err = s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, newApp.Name, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("error getting application: %w", err)
-		}
-		s.inferResourcesStatusHealth(app)
-
+	for range 10 {
 		app.Spec = newApp.Spec
 		if merge {
 			app.Labels = collections.Merge(app.Labels, newApp.Labels)
@@ -1011,19 +1040,23 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 
 		app.Finalizers = newApp.Finalizers
 
-		res, err = s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
-		if err != nil {
-			return err
+		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
+		if err == nil {
+			s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec")
+			s.waitSync(res)
+			return res, nil
+		}
+		if !apierrors.IsConflict(err) {
+			return nil, err
 		}
 
-		s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec")
-		s.waitSync(res)
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error updating application: %w", err)
+		app, err = s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, newApp.Name, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("error getting application: %w", err)
+		}
+		s.inferResourcesStatusHealth(app)
 	}
-	return res, nil
+	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
 }
 
 // Update updates an application
@@ -1124,8 +1157,7 @@ func (s *Server) getAppProject(ctx context.Context, a *v1alpha1.Application, log
 		return nil, vagueError
 	}
 
-	var applicationNotAllowedToUseProjectErr *argo.ErrApplicationNotAllowedToUseProject
-	if errors.As(err, &applicationNotAllowedToUseProjectErr) {
+	if _, ok := errors.AsType[*argo.ErrApplicationNotAllowedToUseProject](err); ok {
 		return nil, vagueError
 	}
 
@@ -1164,7 +1196,10 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 		if policyFinalizer == "" {
 			return nil, status.Errorf(codes.InvalidArgument, "invalid propagation policy: %s", *q.PropagationPolicy)
 		}
-		if !a.IsFinalizerPresent(policyFinalizer) {
+		// Kubernetes forbids adding finalizers to an object that is already being deleted,
+		// so skip the patch if the app is mid-deletion. The underlying Delete call below is
+		// still issued to keep the RPC idempotent for callers retrying a cascade delete.
+		if !a.IsFinalizerPresent(policyFinalizer) && a.DeletionTimestamp == nil {
 			a.SetCascadedDeletion(policyFinalizer)
 			patchFinalizer = true
 		}
@@ -1199,8 +1234,12 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) bool {
+func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, names map[string]bool, a v1alpha1.Application) bool {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
+		return false
+	}
+
+	if len(names) > 0 && !argo.MatchesNameFilter(names, a.Namespace, a.Name) {
 		return false
 	}
 
@@ -1235,6 +1274,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	for _, project := range getProjectsFromApplicationQuery(*q) {
 		projects[project] = true
 	}
+	names := argo.NewNameFilter(q.GetNames())
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
@@ -1250,7 +1290,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, a)
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, a)
 		if !permitted {
 			return
 		}
@@ -1348,6 +1388,11 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 		conditions := make([]v1alpha1.ApplicationCondition, 0)
 		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
+			// Keep the gRPC code of interrupted manifest generation (canceled / deadline
+			// exceeded) so the caller can tell a slow repository apart from an invalid spec.
+			if st, ok := status.FromError(err); ok && st.Code() != codes.Unknown {
+				return err
+			}
 			return fmt.Errorf("error validating the repo: %w", err)
 		}
 		conditions = append(conditions, condition...)
@@ -1374,7 +1419,7 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 	return nil
 }
 
-func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Application) (*rest.Config, error) {
+func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Application, p *v1alpha1.AppProject) (*rest.Config, error) {
 	cluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
 	if err != nil {
 		return nil, fmt.Errorf("error validating destination: %w", err)
@@ -1384,7 +1429,40 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 		return nil, fmt.Errorf("error getting cluster REST config: %w", err)
 	}
 
-	return config, err
+	impersonationEnabled, err := s.settingsMgr.IsImpersonationEnabled()
+	if err != nil {
+		return nil, fmt.Errorf("error getting impersonation setting: %w", err)
+	}
+
+	if !impersonationEnabled {
+		return config, nil
+	}
+
+	serviceAccountToImpersonate, err := settings.DeriveServiceAccountToImpersonate(p, a, cluster)
+	if err != nil {
+		return nil, fmt.Errorf("error deriving service account to impersonate: %w", err)
+	}
+	if serviceAccountToImpersonate == "" {
+		// No matching service account found - check enforcement
+		impersonationEnforced, enforcedErr := s.settingsMgr.IsImpersonationEnforced()
+		if enforcedErr != nil {
+			return nil, fmt.Errorf("error getting impersonation enforcement setting: %w", enforcedErr)
+		}
+
+		if impersonationEnforced {
+			return nil, fmt.Errorf("no matching service account found for destination server %s and namespace %s", cluster.Server, a.Spec.Destination.Namespace)
+		}
+
+		// Service Account is not enforced
+		log.Infof("no matching service account found for impersonation for app %s/%s (project: %s, server: %s, namespace: %s), falling back to controller service account", a.Namespace, a.Name, p.Name, cluster.Server, a.Spec.Destination.Namespace)
+		return config, nil
+	}
+
+	config.Impersonate = rest.ImpersonationConfig{
+		UserName: serviceAccountToImpersonate,
+	}
+
+	return config, nil
 }
 
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing
@@ -1399,9 +1477,9 @@ func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application,
 			return errors.New(argo.FormatAppConditions(conditions))
 		}
 		_, err = s.Get(ctx, &application.ApplicationQuery{
-			Name:         ptr.To(a.GetName()),
-			AppNamespace: ptr.To(a.GetNamespace()),
-			Refresh:      ptr.To(string(v1alpha1.RefreshTypeNormal)),
+			Name:         new(a.GetName()),
+			AppNamespace: new(a.GetNamespace()),
+			Refresh:      new(string(v1alpha1.RefreshTypeNormal)),
 		})
 		if err != nil {
 			return fmt.Errorf("error getting application by query: %w", err)
@@ -1434,7 +1512,7 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 	if fineGrainedInheritanceDisabled && (action == rbac.ActionDelete || action == rbac.ActionUpdate) {
 		action = fmt.Sprintf("%s/%s/%s/%s/%s", action, q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 	}
-	a, _, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	a, p, err := s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if !fineGrainedInheritanceDisabled && err != nil && errors.Is(err, argocommon.PermissionDeniedAPIError) && (action == rbac.ActionDelete || action == rbac.ActionUpdate) {
 		action = fmt.Sprintf("%s/%s/%s/%s/%s", action, q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 		a, _, err = s.getApplicationEnforceRBACInformer(ctx, action, q.GetProject(), q.GetAppNamespace(), q.GetName())
@@ -1452,10 +1530,11 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 	if found == nil || found.UID == "" {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.GetKind(), q.GetGroup(), q.GetResourceName(), q.GetName())
 	}
-	config, err := s.getApplicationClusterConfig(ctx, a)
+	config, err := s.getApplicationClusterConfig(ctx, a, p)
 	if err != nil {
 		return nil, nil, nil, fmt.Errorf("error getting application cluster config: %w", err)
 	}
+
 	return found, config, a, nil
 }
 
@@ -1568,6 +1647,7 @@ func (s *Server) DeleteResource(ctx context.Context, q *application.ApplicationR
 		propagationPolicy := metav1.DeletePropagationForeground
 		deleteOption = metav1.DeleteOptions{PropagationPolicy: &propagationPolicy}
 	}
+
 	err = s.kubectl.DeleteResource(ctx, config, res.GroupKindVersion(), res.Name, res.Namespace, deleteOption)
 	if err != nil {
 		return nil, fmt.Errorf("error deleting resource: %w", err)
@@ -1603,7 +1683,8 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 }
 
 func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMetadataQuery) (*v1alpha1.RevisionMetadata, error) {
-	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	// Read via the client instead of the informer cache to avoid "revision history not found" errors due to stale informer cache
+	a, proj, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -1622,10 +1703,13 @@ func (s *Server) RevisionMetadata(ctx context.Context, q *application.RevisionMe
 		return nil, fmt.Errorf("error creating repo server client: %w", err)
 	}
 	defer utilio.Close(conn)
+	sourceIntegrity := proj.EffectiveSourceIntegrity()
 	return repoClient.GetRevisionMetadata(ctx, &apiclient.RepoServerRevisionMetadataRequest{
-		Repo:           repo,
-		Revision:       q.GetRevision(),
-		CheckSignature: len(proj.Spec.SignatureKeys) > 0,
+		Repo:            repo,
+		Revision:        q.GetRevision(),
+		SourceIntegrity: sourceIntegrity,
+		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
+		CheckSignature: sourceIntegrity != nil, // nolint:staticcheck
 	})
 }
 
@@ -1776,8 +1860,7 @@ func (s *Server) ManagedResources(ctx context.Context, q *application.ResourcesQ
 		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &items)
 	})
 	if err != nil {
-		log.Warnf("error getting cached app managed resources for %s/%s, cache unavailable, returning empty managed resources: %v", a.Namespace, a.Name, err)
-		return &application.ManagedResourcesResponse{Items: []*v1alpha1.ResourceDiff{}}, nil
+		return nil, fmt.Errorf("error getting cached app managed resources: %w", err)
 	}
 	res := &application.ManagedResourcesResponse{}
 	for i := range items {
@@ -1799,10 +1882,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 
 	var sinceSeconds, tailLines *int64
 	if q.GetSinceSeconds() > 0 {
-		sinceSeconds = ptr.To(q.GetSinceSeconds())
+		sinceSeconds = new(q.GetSinceSeconds())
 	}
 	if q.GetTailLines() > 0 {
-		tailLines = ptr.To(q.GetTailLines())
+		tailLines = new(q.GetTailLines())
 	}
 	var untilTime *metav1.Time
 	if q.GetUntilTime() != "" {
@@ -1824,7 +1907,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		}
 	}
 
-	a, _, err := s.getApplicationEnforceRBACInformer(ws.Context(), rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
+	a, p, err := s.getApplicationEnforceRBACInformer(ws.Context(), rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return err
 	}
@@ -1838,7 +1921,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 		return fmt.Errorf("error getting app resource tree: %w", err)
 	}
 
-	config, err := s.getApplicationClusterConfig(ws.Context(), a)
+	config, err := s.getApplicationClusterConfig(ws.Context(), a, p)
 	if err != nil {
 		return fmt.Errorf("error getting application cluster config: %w", err)
 	}
@@ -1886,17 +1969,23 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			// if k8s failed to start steaming logs (typically because Pod is not ready yet)
 			// then the error should be shown in the UI so that user know the reason
 			if err != nil {
-				logStream <- logEntry{line: err.Error()}
+				select {
+				case logStream <- logEntry{line: err.Error()}:
+				case <-ws.Context().Done():
+				}
 			} else {
-				parseLogsStream(podName, stream, logStream)
+				parseLogsStream(ws.Context(), podName, stream, logStream)
 			}
 			close(logStream)
 		}()
 	}
 
-	logStream := mergeLogStreams(streams, time.Millisecond*100)
+	logStream := mergeLogStreams(ws.Context(), streams, time.Millisecond*100)
 	sentCount := int64(0)
-	done := make(chan error)
+	// Buffered so the goroutine below can always send and exit, even if PodLogs has already
+	// returned due to client disconnect (ws.Context().Done). Without this, the goroutine
+	// would block on "done <- err" forever, leaking memory via bufio and mergeLogStreams buffers.
+	done := make(chan error, 1)
 	go func() {
 		for entry := range logStream {
 			if entry.err != nil {
@@ -1918,10 +2007,10 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			ts := metav1.NewTime(entry.timeStamp)
 			if untilTime != nil && entry.timeStamp.After(untilTime.Time) {
 				done <- ws.Send(&application.LogEntry{
-					Last:         ptr.To(true),
+					Last:         new(true),
 					PodName:      &entry.podName,
 					Content:      &entry.line,
-					TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+					TimeStampStr: new(entry.timeStamp.Format(time.RFC3339Nano)),
 					TimeStamp:    &ts,
 				})
 				return
@@ -1930,21 +2019,21 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 			if err := ws.Send(&application.LogEntry{
 				PodName:      &entry.podName,
 				Content:      &entry.line,
-				TimeStampStr: ptr.To(entry.timeStamp.Format(time.RFC3339Nano)),
+				TimeStampStr: new(entry.timeStamp.Format(time.RFC3339Nano)),
 				TimeStamp:    &ts,
-				Last:         ptr.To(false),
+				Last:         new(false),
 			}); err != nil {
 				done <- err
-				break
+				return
 			}
 		}
 		now := time.Now()
 		nowTS := metav1.NewTime(now)
 		done <- ws.Send(&application.LogEntry{
-			Last:         ptr.To(true),
-			PodName:      ptr.To(""),
-			Content:      ptr.To(""),
-			TimeStampStr: ptr.To(now.Format(time.RFC3339Nano)),
+			Last:         new(true),
+			PodName:      new(""),
+			Content:      new(""),
+			TimeStampStr: new(now.Format(time.RFC3339Nano)),
 			TimeStamp:    &nowTS,
 		})
 	}()
@@ -2012,6 +2101,21 @@ func isTheSelectedOne(currentNode *v1alpha1.ResourceNode, q *application.Applica
 	return false
 }
 
+// effectiveSyncRequestDryRun returns the dry-run value that will be used for this sync:
+// the request value when set, otherwise syncPolicy.manualDefaults.dryRun.
+// Callers that gate behavior on dry-run (local sync, revision override) must use this
+// instead of syncReq.GetDryRun(), which treats a nil request field as false before
+// manualDefaults are applied.
+func effectiveSyncRequestDryRun(a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) bool {
+	if syncReq != nil && syncReq.DryRun != nil {
+		return *syncReq.DryRun
+	}
+	if a != nil && a.Spec.SyncPolicy != nil {
+		return a.Spec.SyncPolicy.GetDryRun()
+	}
+	return false
+}
+
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*v1alpha1.Application, error) {
 	a, proj, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionGet, syncReq.GetProject(), syncReq.GetAppNamespace(), syncReq.GetName(), "")
@@ -2021,7 +2125,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	s.inferResourcesStatusHealth(a)
 
-	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true)
+	canSync, err := proj.Spec.SyncWindows.Matches(a).CanSync(true, nil)
 	if err != nil {
 		return a, status.Errorf(codes.PermissionDenied, "cannot sync: invalid sync window: %v", err)
 	}
@@ -2037,7 +2141,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil {
 			return nil, err
 		}
-		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 			return nil, status.Error(codes.FailedPrecondition, "cannot use local sync when Automatic Sync Policy is enabled unless for dry run")
 		}
 	}
@@ -2067,9 +2171,8 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		return nil, status.Error(codes.FailedPrecondition, "sync with replace was disabled on the API Server level via the server configuration")
 	}
 
-	// We cannot use local manifests if we're only allowed to sync to signed commits
-	if syncReq.Manifests != nil && len(proj.Spec.SignatureKeys) > 0 {
-		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local sync when signature keys are required.")
+	if syncReq.Manifests != nil && sourceintegrity.HasCriteria(proj.EffectiveSourceIntegrity(), a.Spec.GetSources()...) {
+		return nil, status.Errorf(codes.FailedPrecondition, "Cannot use local manifests when source integrity is enforced")
 	}
 
 	resources := []v1alpha1.SyncOperationResource{}
@@ -2083,17 +2186,33 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 
 	var source *v1alpha1.ApplicationSource
 	if !a.Spec.HasMultipleSources() {
-		source = ptr.To(a.Spec.GetSource())
+		source = new(a.Spec.GetSource())
+	}
+
+	// Explicit values in the sync request always win. When omitted, fall back to
+	// syncPolicy.manualDefaults only if that object is populated. Existing apps without
+	// manualDefaults keep legacy behavior (prune/dryRun false, nil strategy) — GetPrune()
+	// also returns false when ManualDefaults is nil so omitted prune never deletes resources.
+	prune := syncReq.GetPrune()
+	dryRun := effectiveSyncRequestDryRun(a, syncReq)
+	strategy := syncReq.Strategy
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.ManualDefaults != nil {
+		if syncReq.Prune == nil {
+			prune = a.Spec.SyncPolicy.GetPrune()
+		}
+		if strategy == nil {
+			strategy = a.Spec.SyncPolicy.GetSyncStrategy()
+		}
 	}
 
 	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
 			Source:       source,
 			Revision:     revision,
-			Prune:        syncReq.GetPrune(),
-			DryRun:       syncReq.GetDryRun(),
+			Prune:        prune,
+			DryRun:       dryRun,
 			SyncOptions:  syncOptions,
-			SyncStrategy: syncReq.Strategy,
+			SyncStrategy: strategy,
 			Resources:    resources,
 			Manifests:    syncReq.Manifests,
 			Sources:      a.Spec.Sources,
@@ -2157,7 +2276,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 						return "", "", nil, nil, err
 					}
 				}
-				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition,
 						"Cannot sync source %s to %s: auto-sync currently set to %s",
 						a.Spec.GetSources()[index].RepoURL, desiredRevision, a.Spec.Sources[index].TargetRevision)
@@ -2183,7 +2302,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 			}
 		}
 		if a.Spec.SyncPolicy != nil &&
-			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 			// If the app has auto-sync enabled, we cannot allow syncing to a different revision
 			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
 		}
@@ -2196,7 +2315,15 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
-	a, _, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionSync, rollbackReq.GetProject(), rollbackReq.GetAppNamespace(), rollbackReq.GetName(), "")
+	rollbackEnforceEnable, err := s.settingsMgr.GetServerRBACRollbackEnforceEnable()
+	if err != nil {
+		return nil, fmt.Errorf("error getting server.rbac.rollback.enforce.enable config: %w", err)
+	}
+	action := rbac.ActionSync
+	if rollbackEnforceEnable {
+		action = rbac.ActionRollback
+	}
+	a, _, err := s.getApplicationEnforceRBACClient(ctx, action, rollbackReq.GetProject(), rollbackReq.GetAppNamespace(), rollbackReq.GetName(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -2424,11 +2551,13 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 		}
 	}
 
+	// Do not use cache for revision resolution since this is a user triggered operation
 	resolveRevisionResponse, err := repoClient.ResolveRevision(ctx, &apiclient.ResolveRevisionRequest{
 		Repo:              repo,
 		App:               app,
 		AmbiguousRevision: ambiguousRevision,
 		SourceIndex:       int64(sourceIndex),
+		NoRevisionCache:   true,
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("error resolving repo revision: %w", err)
@@ -2444,30 +2573,28 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		return nil, err
 	}
 
-	err = retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		var err error
-		a, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
-		if err != nil {
-			return fmt.Errorf("error getting application by name: %w", err)
-		}
-
+	for range 10 {
 		if a.Operation == nil || a.Status.OperationState == nil {
-			return status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
+			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
 		a.Status.OperationState.Phase = common.OperationTerminating
 		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
-		if err != nil {
-			return fmt.Errorf("error updating application status: %w", err)
+		if err == nil {
+			s.waitSync(updated)
+			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
+			return &application.OperationTerminateResponse{}, nil
 		}
-
-		s.waitSync(updated)
-		s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
-		return nil
-	})
-	if err != nil {
-		return nil, fmt.Errorf("error terminating application: %w", err)
+		if !apierrors.IsConflict(err) {
+			return nil, fmt.Errorf("error updating application: %w", err)
+		}
+		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", *termOpReq.Name)
+		time.Sleep(100 * time.Millisecond)
+		a, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
+		if err != nil {
+			return nil, fmt.Errorf("error getting application by name: %w", err)
+		}
 	}
-	return &application.OperationTerminateResponse{}, nil
+	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 }
 
 func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason string, action string) {
@@ -2515,15 +2642,21 @@ func (s *Server) ListResourceActions(ctx context.Context, q *application.Applica
 
 func (s *Server) getUnstructuredLiveResourceOrApp(ctx context.Context, rbacRequest string, q *application.ApplicationResourceRequest) (obj *unstructured.Unstructured, res *v1alpha1.ResourceNode, app *v1alpha1.Application, config *rest.Config, err error) {
 	if q.GetKind() == applicationType.ApplicationKind && q.GetGroup() == applicationType.Group && q.GetName() == q.GetResourceName() {
-		app, _, err = s.getApplicationEnforceRBACInformer(ctx, rbacRequest, q.GetProject(), q.GetAppNamespace(), q.GetName())
+		var p *v1alpha1.AppProject
+		app, p, err = s.getApplicationEnforceRBACInformer(ctx, rbacRequest, q.GetProject(), q.GetAppNamespace(), q.GetName())
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
+		app.SetGroupVersionKind(schema.GroupVersionKind{
+			Group:   applicationType.Group,
+			Version: v1alpha1.SchemeGroupVersion.Version,
+			Kind:    applicationType.ApplicationKind,
+		})
 		err = s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbacRequest, app.RBACName(s.ns))
 		if err != nil {
 			return nil, nil, nil, nil, err
 		}
-		config, err = s.getApplicationClusterConfig(ctx, app)
+		config, err = s.getApplicationClusterConfig(ctx, app, p)
 		if err != nil {
 			return nil, nil, nil, nil, fmt.Errorf("error getting application cluster config: %w", err)
 		}
@@ -2653,7 +2786,7 @@ func (s *Server) RunResourceActionV2(ctx context.Context, q *application.Resourc
 	// the dry-run for relevant apply/delete operation would have to be invoked as well.
 	for _, impactedResource := range newObjects {
 		newObj := impactedResource.UnstructuredObj
-		err := s.verifyResourcePermitted(destCluster, proj, newObj)
+		err := s.verifyResourcePermitted(ctx, destCluster, proj, newObj)
 		if err != nil {
 			return nil, err
 		}
@@ -2745,9 +2878,9 @@ func (s *Server) patchResource(ctx context.Context, config *rest.Config, liveObj
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) verifyResourcePermitted(destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
+func (s *Server) verifyResourcePermitted(ctx context.Context, destCluster *v1alpha1.Cluster, proj *v1alpha1.AppProject, obj *unstructured.Unstructured) error {
 	permitted, err := proj.IsResourcePermitted(schema.GroupKind{Group: obj.GroupVersionKind().Group, Kind: obj.GroupVersionKind().Kind}, obj.GetName(), obj.GetNamespace(), destCluster, func(project string) ([]*v1alpha1.Cluster, error) {
-		clusters, err := s.db.GetProjectClusters(context.TODO(), project)
+		clusters, err := s.db.GetProjectClusters(ctx, project)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get project clusters: %w", err)
 		}
@@ -2811,7 +2944,7 @@ func (s *Server) GetApplicationSyncWindows(ctx context.Context, q *application.A
 	}
 
 	windows := proj.Spec.SyncWindows.Matches(a)
-	sync, err := windows.CanSync(true)
+	sync, err := windows.CanSync(true, nil)
 	if err != nil {
 		return nil, fmt.Errorf("invalid sync windows: %w", err)
 	}
@@ -2904,6 +3037,16 @@ func getProjectsFromApplicationQuery(q application.ApplicationQuery) []string {
 	return q.Projects
 }
 
+// isCoreSecret reports whether the given object is a core/v1 Secret. It is used to decide
+// Secret data masking from server-parsed objects rather than caller-supplied metadata.
+func isCoreSecret(obj *unstructured.Unstructured) bool {
+	if obj == nil {
+		return false
+	}
+	gvk := obj.GroupVersionKind()
+	return gvk.Group == "" && gvk.Kind == kube.SecretKind
+}
+
 // ServerSideDiff gets the destination cluster and creates a server-side dry run applier and performs the diff
 // It returns the diff result in the form of a list of ResourceDiffs.
 func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationServerSideDiffQuery) (*application.ApplicationServerSideDiffResponse, error) {
@@ -2924,9 +3067,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 
 	// Convert to map format expected by DiffConfigBuilder
 	overrides := make(map[string]v1alpha1.ResourceOverride)
-	for k, v := range resourceOverrides {
-		overrides[k] = v
-	}
+	maps.Copy(overrides, resourceOverrides)
 
 	// Get cluster connection for server-side dry run
 	cluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
@@ -2940,14 +3081,12 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 	}
 
 	// Create server-side diff dry run applier
-	openAPISchema, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
+	_, gvkParser, err := s.kubectl.LoadOpenAPISchema(clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get OpenAPI schema: %w", err)
 	}
 
-	applier, cleanup, err := kubeutil.ManageServerSideDiffDryRuns(clusterConfig, openAPISchema, func(_ string) (kube.CleanupFunc, error) {
-		return func() {}, nil
-	})
+	applier, cleanup, err := s.kubectl.ManageServerSideDiffDryRuns(clusterConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error creating server-side dry run applier: %w", err)
 	}
@@ -2976,6 +3115,14 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		return nil, fmt.Errorf("error building diff config: %w", err)
 	}
 
+	managedResources := make([]*v1alpha1.ResourceDiff, 0)
+	err = s.getCachedAppState(ctx, a, func() error {
+		return s.cache.GetAppManagedResources(a.InstanceName(s.ns), &managedResources)
+	})
+	if err != nil {
+		return nil, fmt.Errorf("error getting managed resources: %w", err)
+	}
+
 	// Convert live resources to unstructured objects
 	liveObjs := make([]*unstructured.Unstructured, 0, len(q.GetLiveResources()))
 	for _, liveResource := range q.GetLiveResources() {
@@ -2984,6 +3131,29 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 			err := json.Unmarshal([]byte(liveResource.LiveState), liveObj)
 			if err != nil {
 				return nil, fmt.Errorf("error unmarshaling live state for %s/%s: %w", liveResource.Kind, liveResource.Name, err)
+			}
+			if liveObj.GetName() != liveResource.Name {
+				return nil, status.Errorf(codes.InvalidArgument, "name mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Name, liveObj.GetName(), liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			if liveObj.GetNamespace() != liveResource.Namespace {
+				return nil, status.Errorf(codes.InvalidArgument, "namespace mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Namespace, liveObj.GetNamespace(), liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			if liveObj.GroupVersionKind().Group != liveResource.Group {
+				return nil, status.Errorf(codes.InvalidArgument, "group mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Group, liveObj.GroupVersionKind().Group, liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			if liveObj.GroupVersionKind().Kind != liveResource.Kind {
+				return nil, status.Errorf(codes.InvalidArgument, "kind mismatch: expected %s, got %s for live resource %s/%s/%s", liveResource.Kind, liveObj.GroupVersionKind().Kind, liveResource.Group, liveResource.Kind, liveResource.Name)
+			}
+			// Validate permissions for the requested live object. It has to be part of the application's managed resources.
+			found := false
+			for _, item := range managedResources {
+				if item.Kind == liveResource.Kind && item.Group == liveResource.Group && item.Namespace == liveResource.Namespace && item.Name == liveResource.Name {
+					found = true
+					break
+				}
+			}
+			if !found {
+				return nil, status.Errorf(codes.PermissionDenied, "%s/%s %s not found as part of application %s", liveResource.Group, liveResource.Kind, liveResource.Name, a.Name)
 			}
 			liveObjs = append(liveObjs, liveObj)
 		} else {
@@ -3001,7 +3171,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		targetObjs = append(targetObjs, obj)
 	}
 
-	diffResults, err := argodiff.StateDiffs(liveObjs, targetObjs, diffConfig)
+	diffResults, err := argodiff.StateDiffs(ctx, liveObjs, targetObjs, diffConfig)
 	if err != nil {
 		return nil, fmt.Errorf("error performing state diffs: %w", err)
 	}
@@ -3050,13 +3220,61 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		// Create ResourceDiff with StateDiffs results
 		// TargetState = PredictedLive (what the target should be after applying)
 		// LiveState = NormalizedLive (current normalized live state)
+		targetState := string(diffRes.PredictedLive)
+		liveState := string(diffRes.NormalizedLive)
+
+		// Whether to mask Secret data must be decided from the objects the server
+		// itself parsed (targetObjs[i]/liveObjs[i]), never from the caller-supplied
+		// kind/group metadata. Otherwise a request can pair a spoofed non-Secret
+		// liveResources[i].Kind with a Secret target manifest to bypass masking and
+		// leak the dry-run result's Secret data. The live side is checked too as
+		// defense-in-depth, in case the live-resource consistency validation above
+		// is ever relaxed.
+		isSecret := (i < len(targetObjs) && isCoreSecret(targetObjs[i])) ||
+			(i < len(liveObjs) && isCoreSecret(liveObjs[i]))
+
+		if isSecret {
+			var targetObj, liveObj *unstructured.Unstructured
+			if len(diffRes.PredictedLive) > 0 && string(diffRes.PredictedLive) != "null" {
+				targetObj = &unstructured.Unstructured{}
+				if err := json.Unmarshal(diffRes.PredictedLive, targetObj); err != nil {
+					return nil, fmt.Errorf("error unmarshaling predicted live for secret masking: %w", err)
+				}
+			}
+			if len(diffRes.NormalizedLive) > 0 && string(diffRes.NormalizedLive) != "null" {
+				liveObj = &unstructured.Unstructured{}
+				if err := json.Unmarshal(diffRes.NormalizedLive, liveObj); err != nil {
+					return nil, fmt.Errorf("error unmarshaling normalized live for secret masking: %w", err)
+				}
+			}
+			maskedTarget, maskedLive, err := diff.HideSecretData(targetObj, liveObj, s.settingsMgr.GetSensitiveAnnotations())
+			if err != nil {
+				return nil, fmt.Errorf("error masking secret data: %w", err)
+			}
+			if maskedTarget != nil {
+				data, err := json.Marshal(maskedTarget)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling masked target state: %w", err)
+				}
+				targetState = string(data)
+			}
+			if maskedLive != nil {
+				data, err := json.Marshal(maskedLive)
+				if err != nil {
+					return nil, fmt.Errorf("error marshaling masked live state: %w", err)
+				}
+				liveState = string(data)
+			}
+		}
+
 		responseDiffs = append(responseDiffs, &v1alpha1.ResourceDiff{
-			Group:           group,
-			Kind:            kind,
-			Namespace:       namespace,
-			Name:            name,
-			TargetState:     string(diffRes.PredictedLive),
-			LiveState:       string(diffRes.NormalizedLive),
+			Group:       group,
+			Kind:        kind,
+			Namespace:   namespace,
+			Name:        name,
+			TargetState: targetState,
+			LiveState:   liveState,
+			//nolint:staticcheck // SA1019: Diff is deprecated, but we still need to support it for backward compatibility.
 			Diff:            "", // Diff string is generated client-side
 			Hook:            hook,
 			Modified:        diffRes.Modified,

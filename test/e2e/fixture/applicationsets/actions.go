@@ -7,6 +7,9 @@ import (
 	"strings"
 	"time"
 
+	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/util/retry"
+
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 
 	log "github.com/sirupsen/logrus"
@@ -54,13 +57,13 @@ func (a *Actions) DoNotIgnoreErrors() *Actions {
 }
 
 func (a *Actions) And(block func()) *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	block()
 	return a
 }
 
 func (a *Actions) Then() *Consequences {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	time.Sleep(fixture.WhenThenSleepInterval)
 	return &Consequences{a.context, a}
 }
@@ -80,8 +83,8 @@ func (a *Actions) SwitchToArgoCDNamespace() *Actions {
 // CreateClusterSecret creates a faux cluster secret, with the given cluster server and cluster name (this cluster
 // will not actually be used by the Argo CD controller, but that's not needed for our E2E tests)
 func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clusterServer string) *Actions {
-	a.context.t.Helper()
-	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t)
+	a.context.T().Helper()
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
 
 	var serviceAccountName string
 
@@ -118,13 +121,11 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 
 		// bearerToken
 		secret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      secretName,
-				Namespace: fixture.TestNamespace(),
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-					utils.TestingLabel:        "true",
-				},
+			Name:      secretName,
+			Namespace: fixture.TestNamespace(),
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+				utils.TestingLabel:        "true",
 			},
 			Data: map[string][]byte{
 				"name":   []byte(clusterName),
@@ -154,8 +155,8 @@ func (a *Actions) CreateClusterSecret(secretName string, clusterName string, clu
 
 // DeleteClusterSecret deletes a faux cluster secret
 func (a *Actions) DeleteClusterSecret(secretName string) *Actions {
-	a.context.t.Helper()
-	err := utils.GetE2EFixtureK8sClient(a.context.t).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
+	a.context.T().Helper()
+	err := utils.GetE2EFixtureK8sClient(a.context.T()).KubeClientset.CoreV1().Secrets(fixture.TestNamespace()).Delete(context.Background(), secretName, metav1.DeleteOptions{})
 
 	a.describeAction = fmt.Sprintf("deleting cluster Secret '%s'", secretName)
 	a.lastOutput, a.lastError = "", err
@@ -166,8 +167,8 @@ func (a *Actions) DeleteClusterSecret(secretName string) *Actions {
 
 // DeleteConfigMap deletes a faux cluster secret
 func (a *Actions) DeleteConfigMap(configMapName string) *Actions {
-	a.context.t.Helper()
-	err := utils.GetE2EFixtureK8sClient(a.context.t).KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Delete(context.Background(), configMapName, metav1.DeleteOptions{})
+	a.context.T().Helper()
+	err := utils.GetE2EFixtureK8sClient(a.context.T()).KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Delete(context.Background(), configMapName, metav1.DeleteOptions{})
 
 	a.describeAction = fmt.Sprintf("deleting configMap '%s'", configMapName)
 	a.lastOutput, a.lastError = "", err
@@ -178,8 +179,8 @@ func (a *Actions) DeleteConfigMap(configMapName string) *Actions {
 
 // DeletePlacementDecision deletes a faux cluster secret
 func (a *Actions) DeletePlacementDecision(placementDecisionName string) *Actions {
-	a.context.t.Helper()
-	err := utils.GetE2EFixtureK8sClient(a.context.t).DynamicClientset.Resource(pdGVR).Namespace(fixture.TestNamespace()).Delete(context.Background(), placementDecisionName, metav1.DeleteOptions{})
+	a.context.T().Helper()
+	err := utils.GetE2EFixtureK8sClient(a.context.T()).DynamicClientset.Resource(pdGVR).Namespace(fixture.TestNamespace()).Delete(context.Background(), placementDecisionName, metav1.DeleteOptions{})
 
 	a.describeAction = fmt.Sprintf("deleting placement decision '%s'", placementDecisionName)
 	a.lastOutput, a.lastError = "", err
@@ -191,12 +192,12 @@ func (a *Actions) DeletePlacementDecision(placementDecisionName string) *Actions
 // Create a temporary namespace, from utils.ApplicationSet, for use by the test.
 // This namespace will be deleted on subsequent tests.
 func (a *Actions) CreateNamespace(namespace string) *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 
-	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t)
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
 
 	_, err := fixtureClient.KubeClientset.CoreV1().Namespaces().Create(context.Background(),
-		&corev1.Namespace{ObjectMeta: metav1.ObjectMeta{Name: namespace}}, metav1.CreateOptions{})
+		&corev1.Namespace{Name: namespace}, metav1.CreateOptions{})
 
 	a.describeAction = fmt.Sprintf("creating namespace '%s'", namespace)
 	a.lastOutput, a.lastError = "", err
@@ -207,9 +208,9 @@ func (a *Actions) CreateNamespace(namespace string) *Actions {
 
 // Create creates an ApplicationSet using the provided value
 func (a *Actions) Create(appSet v1alpha1.ApplicationSet) *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 
-	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t)
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
 
 	appSet.APIVersion = "argoproj.io/v1alpha1"
 	appSet.Kind = "ApplicationSet"
@@ -227,10 +228,25 @@ func (a *Actions) Create(appSet v1alpha1.ApplicationSet) *Actions {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
 
+	// AppSet name is not configurable and should always be unique, based on the context name
+	appSet.Name = a.context.GetName()
+
+	// Tests running in short succession using the same dummy generator URL, can cause repo-server to pull revisions
+	// from gitRefCache effectively using the repo from a previous test when used before the cache expiry. This prevents
+	// using the reference cache on appset creation to avoid that.
+	for _, generator := range appSet.Spec.Generators {
+		if generator.Git != nil {
+			if appSet.Annotations == nil {
+				appSet.Annotations = map[string]string{}
+			}
+			appSet.Annotations[common.AnnotationApplicationSetRefresh] = "true"
+			break
+		}
+	}
+
 	newResource, err := appSetClientSet.Create(context.Background(), utils.MustToUnstructured(&appSet), metav1.CreateOptions{})
 
 	if err == nil {
-		a.context.name = newResource.GetName()
 		a.context.namespace = newResource.GetNamespace()
 	}
 
@@ -243,13 +259,13 @@ func (a *Actions) Create(appSet v1alpha1.ApplicationSet) *Actions {
 
 // Create Role/RoleBinding to allow ApplicationSet to list the PlacementDecisions
 func (a *Actions) CreatePlacementRoleAndRoleBinding() *Actions {
-	a.context.t.Helper()
-	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t)
+	a.context.T().Helper()
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
 
 	var err error
 
 	_, err = fixtureClient.KubeClientset.RbacV1().Roles(fixture.TestNamespace()).Create(context.Background(), &rbacv1.Role{
-		ObjectMeta: metav1.ObjectMeta{Name: "placement-role", Namespace: fixture.TestNamespace()},
+		Name: "placement-role", Namespace: fixture.TestNamespace(),
 		Rules: []rbacv1.PolicyRule{
 			{
 				Verbs:     []string{"get", "list", "watch"},
@@ -265,7 +281,7 @@ func (a *Actions) CreatePlacementRoleAndRoleBinding() *Actions {
 	if err == nil {
 		_, err = fixtureClient.KubeClientset.RbacV1().RoleBindings(fixture.TestNamespace()).Create(context.Background(),
 			&rbacv1.RoleBinding{
-				ObjectMeta: metav1.ObjectMeta{Name: "placement-role-binding", Namespace: fixture.TestNamespace()},
+				Name: "placement-role-binding", Namespace: fixture.TestNamespace(),
 				Subjects: []rbacv1.Subject{
 					{
 						Name:      "argocd-applicationset-controller",
@@ -293,9 +309,9 @@ func (a *Actions) CreatePlacementRoleAndRoleBinding() *Actions {
 
 // Create a ConfigMap for the ClusterResourceList generator
 func (a *Actions) CreatePlacementDecisionConfigMap(configMapName string) *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 
-	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t)
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
 
 	_, err := fixtureClient.KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Get(context.Background(), configMapName, metav1.GetOptions{})
 
@@ -306,9 +322,7 @@ func (a *Actions) CreatePlacementDecisionConfigMap(configMapName string) *Action
 
 	_, err = fixtureClient.KubeClientset.CoreV1().ConfigMaps(fixture.TestNamespace()).Create(context.Background(),
 		&corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: configMapName,
-			},
+			Name: configMapName,
 			Data: map[string]string{
 				"apiVersion":    "cluster.open-cluster-management.io/v1alpha1",
 				"kind":          "placementdecisions",
@@ -325,9 +339,9 @@ func (a *Actions) CreatePlacementDecisionConfigMap(configMapName string) *Action
 }
 
 func (a *Actions) CreatePlacementDecision(placementDecisionName string) *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 
-	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t).DynamicClientset
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T()).DynamicClientset
 
 	_, err := fixtureClient.Resource(pdGVR).Namespace(fixture.TestNamespace()).Get(
 		context.Background(),
@@ -363,9 +377,9 @@ func (a *Actions) CreatePlacementDecision(placementDecisionName string) *Actions
 }
 
 func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, clusterList []any) *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 
-	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t).DynamicClientset
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T()).DynamicClientset
 	placementDecision, err := fixtureClient.Resource(pdGVR).Namespace(fixture.TestNamespace()).Get(
 		context.Background(),
 		placementDecisionName,
@@ -389,10 +403,10 @@ func (a *Actions) StatusUpdatePlacementDecision(placementDecisionName string, cl
 }
 
 // Delete deletes the ApplicationSet within the context
-func (a *Actions) Delete() *Actions {
-	a.context.t.Helper()
+func (a *Actions) Delete(propagationPolicy metav1.DeletionPropagation) *Actions {
+	a.context.T().Helper()
 
-	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t)
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
 
 	var appSetClientSet dynamic.ResourceInterface
 
@@ -406,10 +420,8 @@ func (a *Actions) Delete() *Actions {
 	} else {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
-
-	deleteProp := metav1.DeletePropagationForeground
-	err := appSetClientSet.Delete(context.Background(), a.context.name, metav1.DeleteOptions{PropagationPolicy: &deleteProp})
-	a.describeAction = fmt.Sprintf("Deleting ApplicationSet '%s/%s' %v", a.context.namespace, a.context.name, err)
+	err := appSetClientSet.Delete(context.Background(), a.context.GetName(), metav1.DeleteOptions{PropagationPolicy: &propagationPolicy})
+	a.describeAction = fmt.Sprintf("Deleting ApplicationSet '%s/%s' %v", a.context.namespace, a.context.GetName(), err)
 	a.lastOutput, a.lastError = "", err
 	a.verifyAction()
 
@@ -420,7 +432,7 @@ func (a *Actions) Delete() *Actions {
 func (a *Actions) get() (*v1alpha1.ApplicationSet, error) {
 	appSet := v1alpha1.ApplicationSet{}
 
-	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t)
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
 
 	var appSetClientSet dynamic.ResourceInterface
 
@@ -434,7 +446,7 @@ func (a *Actions) get() (*v1alpha1.ApplicationSet, error) {
 		appSetClientSet = fixtureClient.AppSetClientset
 	}
 
-	newResource, err := appSetClientSet.Get(context.Background(), a.context.name, metav1.GetOptions{})
+	newResource, err := appSetClientSet.Get(context.Background(), a.context.GetName(), metav1.GetOptions{})
 	if err != nil {
 		return nil, err
 	}
@@ -455,7 +467,7 @@ func (a *Actions) get() (*v1alpha1.ApplicationSet, error) {
 // Update retrieves the latest copy the ApplicationSet, then allows the caller to mutate it via 'toUpdate', with
 // the result applied back to the cluster resource
 func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 
 	timeout := 30 * time.Second
 
@@ -483,7 +495,7 @@ func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
 			toUpdate(appSet)
 			a.describeAction = fmt.Sprintf("updating ApplicationSet '%s/%s'", appSet.Namespace, appSet.Name)
 
-			fixtureClient := utils.GetE2EFixtureK8sClient(a.context.t)
+			fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
 
 			var appSetClientSet dynamic.ResourceInterface
 
@@ -515,7 +527,7 @@ func (a *Actions) Update(toUpdate func(*v1alpha1.ApplicationSet)) *Actions {
 }
 
 func (a *Actions) verifyAction() {
-	a.context.t.Helper()
+	a.context.T().Helper()
 
 	if a.describeAction != "" {
 		log.Infof("action: %s", a.describeAction)
@@ -528,21 +540,130 @@ func (a *Actions) verifyAction() {
 }
 
 func (a *Actions) AppSet(appName string, flags ...string) *Actions {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	args := []string{"app", "set", appName}
 	args = append(args, flags...)
 	a.runCli(args...)
 	return a
 }
 
+// AppSetGet runs 'argocd appset get' CLI command and stores the output
+func (a *Actions) AppSetGet(flags ...string) *Actions {
+	a.context.T().Helper()
+	args := []string{"appset", "get", a.context.GetName()}
+	args = append(args, flags...)
+	a.runCli(args...)
+	return a
+}
+
+// AppSetList runs 'argocd appset list' CLI command and stores the output
+func (a *Actions) AppSetList(flags ...string) *Actions {
+	a.context.T().Helper()
+	args := []string{"appset", "list"}
+	args = append(args, flags...)
+	a.runCli(args...)
+	return a
+}
+
 func (a *Actions) runCli(args ...string) {
-	a.context.t.Helper()
+	a.context.T().Helper()
 	a.lastOutput, a.lastError = fixture.RunCli(args...)
 	a.verifyAction()
 }
 
+func (a *Actions) AddFile(fileName, fileContents string) *Actions {
+	a.context.T().Helper()
+	fixture.AddFile(a.context.T(), a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
 func (a *Actions) AddSignedFile(fileName, fileContents string) *Actions {
-	a.context.t.Helper()
-	fixture.AddSignedFile(a.context.t, a.context.path+"/"+fileName, fileContents)
+	a.context.T().Helper()
+	fixture.AddSignedFile(a.context.T(), a.context.path+"/"+fileName, fileContents)
+	return a
+}
+
+func (a *Actions) RemoveFinalizerFromApps(appNames []string, finalizer string) *Actions {
+	a.context.T().Helper()
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
+
+	var namespace string
+	if a.context.switchToNamespace != "" {
+		namespace = string(a.context.switchToNamespace)
+	} else {
+		namespace = fixture.TestNamespace()
+	}
+	for _, appName := range appNames {
+		err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+			app, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Get(
+				a.context.T().Context(), appName, metav1.GetOptions{})
+			if err != nil {
+				return err
+			}
+			// Remove provided finalizer
+			finalizers := []string{}
+			for _, f := range app.Finalizers {
+				if f != finalizer {
+					finalizers = append(finalizers, f)
+				}
+			}
+			patch, _ := json.Marshal(map[string]any{
+				"metadata": map[string]any{
+					"finalizers":      finalizers,
+					"resourceVersion": app.ResourceVersion,
+				},
+			})
+			_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Patch(
+				a.context.T().Context(), app.Name, types.MergePatchType, patch, metav1.PatchOptions{})
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		if err != nil {
+			a.lastError = err
+		}
+	}
+	a.describeAction = fmt.Sprintf("removing finalizer '%s' from apps %v", finalizer, appNames)
+	a.verifyAction()
+	return a
+}
+
+func (a *Actions) RefreshApp(appNames []string) *Actions {
+	a.context.T().Helper()
+	for _, appName := range appNames {
+		a.runCli("app", "get", appName, "--refresh")
+	}
+	return a
+}
+
+func (a *Actions) AddAppAnnotation(appName, key, value string) *Actions {
+	a.context.T().Helper()
+	fixtureClient := utils.GetE2EFixtureK8sClient(a.context.T())
+
+	namespace := fixture.TestNamespace()
+	if a.context.switchToNamespace != "" {
+		namespace = string(a.context.switchToNamespace)
+	}
+
+	err := retry.RetryOnConflict(retry.DefaultRetry, func() error {
+		app, err := fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Get(
+			a.context.T().Context(), appName, metav1.GetOptions{})
+		if err != nil {
+			return err
+		}
+		if app.Annotations == nil {
+			app.Annotations = map[string]string{}
+		}
+		app.Annotations[key] = value
+		_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Update(
+			a.context.T().Context(), app, metav1.UpdateOptions{})
+		return err
+	})
+	if err != nil {
+		a.lastError = err
+	}
+	a.describeAction = fmt.Sprintf("adding annotation %s=%s to app %s", key, value, appName)
+	a.verifyAction()
 	return a
 }

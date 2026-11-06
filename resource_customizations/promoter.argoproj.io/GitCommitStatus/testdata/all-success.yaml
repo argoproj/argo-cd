@@ -1,0 +1,32 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: GitCommitStatus
+metadata:
+  name: gitcommitstatus-proposed-mode
+  generation: 1
+spec:
+  promotionStrategyRef:
+    name: promotion-strategy-sample
+  key: commit-format-check
+  description: Commit message format validation
+  target: proposed
+  expression: 'Commit.Subject matches "^(feat|fix|docs|chore)(\\(.+\\))?: .+"'
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: ReconciliationSuccess
+      message: Reconciliation successful
+      observedGeneration: 1
+  environments:
+    - branch: env/dev
+      proposedHydratedSha: "0123456789abcdef0123456789abcdef01234567"
+      targetedSha: "0123456789abcdef0123456789abcdef01234567"
+      activeHydratedSha: "fedcba0987654321fedcba0987654321fedcba09"
+      phase: success
+      expressionResult: true
+    - branch: env/staging
+      proposedHydratedSha: "abcdef0123456789abcdef0123456789abcdef01"
+      targetedSha: "abcdef0123456789abcdef0123456789abcdef01"
+      activeHydratedSha: "0123456789abcdef0123456789abcdef01234567"
+      phase: success
+      expressionResult: true

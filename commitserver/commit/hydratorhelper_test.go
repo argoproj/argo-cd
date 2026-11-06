@@ -8,8 +8,10 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -23,6 +25,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
 	"github.com/argoproj/argo-cd/v3/util/hydrator"
+	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
 // tempRoot creates a temporary directory and returns an os.Root object for it.
@@ -47,6 +50,7 @@ func tempRoot(t *testing.T) *os.Root {
 }
 
 func TestWriteForPaths(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	repoURL := "https://github.com/example/repo"
@@ -97,9 +101,9 @@ Argocd-reference-commit-sha: abc123
 		},
 	}
 	mockGitClient := gitmocks.NewClient(t)
-	mockGitClient.On("HasFileChanged", mock.Anything).Return(true, nil).Times(len(paths))
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Times(len(paths))
 
-	shouldCommit, err := WriteForPaths(root, repoURL, drySha, metadata, paths, mockGitClient)
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 	require.True(t, shouldCommit)
 
@@ -108,7 +112,7 @@ Argocd-reference-commit-sha: abc123
 	topMetadataBytes, err := os.ReadFile(topMetadataPath)
 	require.NoError(t, err)
 
-	var topMetadata hydratorMetadataFile
+	var topMetadata hydrator.HydratorCommitMetadata
 	err = json.Unmarshal(topMetadataBytes, &topMetadata)
 	require.NoError(t, err)
 	assert.Equal(t, repoURL, topMetadata.RepoURL)
@@ -131,7 +135,7 @@ Argocd-reference-commit-sha: abc123
 		metadataBytes, err := os.ReadFile(metadataPath)
 		require.NoError(t, err)
 
-		var readMetadata hydratorMetadataFile
+		var readMetadata hydrator.HydratorCommitMetadata
 		err = json.Unmarshal(metadataBytes, &readMetadata)
 		require.NoError(t, err)
 		assert.Equal(t, repoURL, readMetadata.RepoURL)
@@ -150,6 +154,7 @@ Argocd-reference-commit-sha: abc123
 }
 
 func TestWriteForPaths_WithOneManifestMatchesExisting(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	repoURL := "https://github.com/example/repo"
@@ -200,11 +205,11 @@ Argocd-reference-commit-sha: abc123
 		},
 	}
 	mockGitClient := gitmocks.NewClient(t)
-	mockGitClient.On("HasFileChanged", "path1/manifest.yaml").Return(true, nil).Once()
-	mockGitClient.On("HasFileChanged", "path2/manifest.yaml").Return(true, nil).Once()
-	mockGitClient.On("HasFileChanged", "path3/nested/manifest.yaml").Return(false, nil).Once()
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path1/manifest.yaml").Return(true, nil).Once()
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path2/manifest.yaml").Return(true, nil).Once()
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path3/nested/manifest.yaml").Return(false, nil).Once()
 
-	shouldCommit, err := WriteForPaths(root, repoURL, drySha, metadata, paths, mockGitClient)
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 	require.True(t, shouldCommit)
 
@@ -213,7 +218,7 @@ Argocd-reference-commit-sha: abc123
 	topMetadataBytes, err := os.ReadFile(topMetadataPath)
 	require.NoError(t, err)
 
-	var topMetadata hydratorMetadataFile
+	var topMetadata hydrator.HydratorCommitMetadata
 	err = json.Unmarshal(topMetadataBytes, &topMetadata)
 	require.NoError(t, err)
 	assert.Equal(t, repoURL, topMetadata.RepoURL)
@@ -242,7 +247,7 @@ Argocd-reference-commit-sha: abc123
 		metadataBytes, err := os.ReadFile(metadataPath)
 		require.NoError(t, err)
 
-		var readMetadata hydratorMetadataFile
+		var readMetadata hydrator.HydratorCommitMetadata
 		err = json.Unmarshal(metadataBytes, &readMetadata)
 		require.NoError(t, err)
 		assert.Equal(t, repoURL, readMetadata.RepoURL)
@@ -261,6 +266,7 @@ Argocd-reference-commit-sha: abc123
 }
 
 func TestWriteMetadata(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	metadata := hydrator.HydratorCommitMetadata{
@@ -282,6 +288,7 @@ func TestWriteMetadata(t *testing.T) {
 }
 
 func TestWriteReadme(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	randomData := make([]byte, 32)
@@ -306,7 +313,7 @@ func TestWriteReadme(t *testing.T) {
 		},
 	}
 
-	err = writeReadme(root, "", metadata)
+	err = writeReadme(root, "", metadata, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 
 	readmePath := filepath.Join(root.Name(), "README.md")
@@ -328,6 +335,7 @@ git checkout abc123
 }
 
 func TestWriteManifests(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	manifests := []*apiclient.HydratedManifestDetails{
@@ -344,6 +352,7 @@ func TestWriteManifests(t *testing.T) {
 }
 
 func TestWriteGitAttributes(t *testing.T) {
+	t.Parallel()
 	root := tempRoot(t)
 
 	err := writeGitAttributes(root)
@@ -352,52 +361,191 @@ func TestWriteGitAttributes(t *testing.T) {
 	gitAttributesPath := filepath.Join(root.Name(), ".gitattributes")
 	gitAttributesBytes, err := os.ReadFile(gitAttributesPath)
 	require.NoError(t, err)
-	assert.Contains(t, string(gitAttributesBytes), "*/README.md linguist-generated=true")
-	assert.Contains(t, string(gitAttributesBytes), "*/hydrator.metadata linguist-generated=true")
+	assert.Contains(t, string(gitAttributesBytes), "README.md linguist-generated=true")
+	assert.Contains(t, string(gitAttributesBytes), "hydrator.metadata linguist-generated=true")
+}
+
+func TestWriteGitAttributes_MatchesAllDepths(t *testing.T) {
+	t.Parallel()
+	root := tempRoot(t)
+
+	err := writeGitAttributes(root)
+	require.NoError(t, err)
+
+	// The gitattributes pattern needs to match files at all depths:
+	// - hydrator.metadata (root level)
+	// - path1/hydrator.metadata (one level deep)
+	// - path1/nested/deep/hydrator.metadata (multiple levels deep)
+	// Same for README.md files
+	//
+	// The pattern "**/hydrator.metadata" matches at any depth including root
+	// The pattern "*/hydrator.metadata" only matches exactly one directory level deep
+
+	// Test actual Git behavior using git check-attr
+	// Initialize a git repo
+	ctx := t.Context()
+	repoPath := root.Name()
+	cmd := exec.CommandContext(ctx, "git", "init")
+	cmd.Dir = repoPath
+	output, err := cmd.CombinedOutput()
+	require.NoError(t, err, "Failed to init git repo: %s", string(output))
+
+	// Test files at different depths
+	testCases := []struct {
+		path        string
+		shouldMatch bool
+		description string
+	}{
+		{"hydrator.metadata", true, "root level hydrator.metadata"},
+		{"README.md", true, "root level README.md"},
+		{"path1/hydrator.metadata", true, "one level deep hydrator.metadata"},
+		{"path1/README.md", true, "one level deep README.md"},
+		{"path1/nested/hydrator.metadata", true, "two levels deep hydrator.metadata"},
+		{"path1/nested/README.md", true, "two levels deep README.md"},
+		{"path1/nested/deep/hydrator.metadata", true, "three levels deep hydrator.metadata"},
+		{"path1/nested/deep/README.md", true, "three levels deep README.md"},
+		{"manifest.yaml", false, "manifest.yaml should not match"},
+		{"path1/manifest.yaml", false, "nested manifest.yaml should not match"},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.description, func(t *testing.T) {
+			// Use git check-attr to verify if linguist-generated attribute is set
+			t.Parallel()
+			cmd := exec.CommandContext(ctx, "git", "check-attr", "linguist-generated", tc.path)
+			cmd.Dir = repoPath
+			output, err := cmd.CombinedOutput()
+			require.NoError(t, err, "Failed to run git check-attr: %s", string(output))
+
+			// Output format: <path>: <attribute>: <value>
+			// Example: "hydrator.metadata: linguist-generated: true"
+			outputStr := strings.TrimSpace(string(output))
+
+			if tc.shouldMatch {
+				expectedOutput := tc.path + ": linguist-generated: true"
+				assert.Equal(t, expectedOutput, outputStr,
+					"File %s should have linguist-generated=true attribute", tc.path)
+			} else {
+				// Attribute should be unspecified
+				expectedOutput := tc.path + ": linguist-generated: unspecified"
+				assert.Equal(t, expectedOutput, outputStr,
+					"File %s should not have linguist-generated=true attribute", tc.path)
+			}
+		})
+	}
 }
 
 func TestIsHydrated(t *testing.T) {
+	t.Parallel()
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
 	commitSha := "fff456"
 	commitShaNoNoteFoundErr := "abc456"
 	commitShaErr := "abc999"
 	strnote := "{\"drySha\":\"abc123\"}"
-	mockGitClient.On("GetCommitNote", commitSha, mock.Anything).Return(strnote, nil).Once()
-	mockGitClient.On("GetCommitNote", commitShaNoNoteFoundErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", git.ErrNoNoteFound)).Once()
+	mockGitClient.EXPECT().GetCommitNote(mock.Anything, commitSha, mock.Anything).Return(strnote, nil).Once()
+	mockGitClient.EXPECT().GetCommitNote(mock.Anything, commitShaNoNoteFoundErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", git.ErrNoNoteFound)).Once()
 	// an existing note
-	isHydrated, err := IsHydrated(mockGitClient, drySha, commitSha)
+	isHydrated, err := IsHydrated(t.Context(), mockGitClient, drySha, commitSha)
 	require.NoError(t, err)
 	assert.True(t, isHydrated)
 
 	// no note found treated as success.. no error returned
-	isHydrated, err = IsHydrated(mockGitClient, drySha, commitShaNoNoteFoundErr)
+	isHydrated, err = IsHydrated(t.Context(), mockGitClient, drySha, commitShaNoNoteFoundErr)
 	require.NoError(t, err)
 	assert.False(t, isHydrated)
 
 	// Test that non-ErrNoNoteFound errors are propagated: when GetCommitNote fails with
 	// an error other than "no note found", IsHydrated should return that error to the caller
 	err = errors.New("some other error")
-	mockGitClient.On("GetCommitNote", commitShaErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", err)).Once()
-	isHydrated, err = IsHydrated(mockGitClient, drySha, commitShaErr)
+	mockGitClient.EXPECT().GetCommitNote(mock.Anything, commitShaErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", err)).Once()
+	isHydrated, err = IsHydrated(t.Context(), mockGitClient, drySha, commitShaErr)
 	require.Error(t, err)
 	assert.False(t, isHydrated)
 }
 
 func TestAddNote(t *testing.T) {
+	t.Parallel()
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
 	commitSha := "fff456"
 	commitShaErr := "abc456"
 	err := errors.New("test error")
-	mockGitClient.On("AddAndPushNote", commitSha, mock.Anything, mock.Anything).Return(nil).Once()
-	mockGitClient.On("AddAndPushNote", commitShaErr, mock.Anything, mock.Anything).Return(err).Once()
+	mockGitClient.EXPECT().AddAndPushNote(mock.Anything, commitSha, mock.Anything, mock.Anything).Return(nil).Once()
+	mockGitClient.EXPECT().AddAndPushNote(mock.Anything, commitShaErr, mock.Anything, mock.Anything).Return(err).Once()
 
 	// success
-	err = AddNote(mockGitClient, drySha, commitSha)
+	err = AddNote(t.Context(), mockGitClient, drySha, commitSha)
 	require.NoError(t, err)
 
 	// failure
-	err = AddNote(mockGitClient, drySha, commitShaErr)
+	err = AddNote(t.Context(), mockGitClient, drySha, commitShaErr)
 	require.Error(t, err)
+}
+
+// TestWriteForPaths_NoOpScenario tests that when manifests don't change between two hydrations,
+// shouldCommit returns false. This reproduces the bug where a new DRY commit that doesn't affect
+// manifests should not create a new hydrated commit.
+func TestWriteForPaths_NoOpScenario(t *testing.T) {
+	t.Parallel()
+	root := tempRoot(t)
+
+	repoURL := "https://github.com/example/repo"
+	drySha1 := "abc123"
+	drySha2 := "def456" // Different dry SHA
+	paths := []*apiclient.PathDetails{
+		{
+			Path: "guestbook",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"apiVersion":"v1","kind":"Service","metadata":{"name":"guestbook-ui"}}`},
+				{ManifestJSON: `{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"guestbook-ui"}}`},
+			},
+			Commands: []string{"kustomize build ."},
+		},
+	}
+
+	now1 := metav1.NewTime(time.Now())
+	metadata1 := &appsv1.RevisionMetadata{
+		Author:  "test-author",
+		Date:    &now1,
+		Message: "Initial commit",
+	}
+
+	// First hydration - manifests are new, so HasFileChanged should return true
+	mockGitClient1 := gitmocks.NewClient(t)
+	mockGitClient1.EXPECT().HasFileChanged(mock.Anything, "guestbook/manifest.yaml").Return(true, nil).Once()
+
+	shouldCommit1, err := WriteForPaths(t.Context(), root, repoURL, drySha1, metadata1, paths, mockGitClient1, settings.DefaultManifestHydrationReadmeTemplate)
+	require.NoError(t, err)
+	require.True(t, shouldCommit1, "First hydration should commit because manifests are new")
+
+	// Second hydration - same manifest content but different dry SHA and metadata
+	// Simulate adding a README.md to the dry source (which doesn't affect manifests)
+	now2 := metav1.NewTime(time.Now().Add(1 * time.Hour)) // Different timestamp
+	metadata2 := &appsv1.RevisionMetadata{
+		Author:  "test-author",
+		Date:    &now2,
+		Message: "Add README.md", // Different commit message
+	}
+
+	// The manifests are identical, so HasFileChanged should return false
+	mockGitClient2 := gitmocks.NewClient(t)
+	mockGitClient2.EXPECT().HasFileChanged(mock.Anything, "guestbook/manifest.yaml").Return(false, nil).Once()
+
+	shouldCommit2, err := WriteForPaths(t.Context(), root, repoURL, drySha2, metadata2, paths, mockGitClient2, settings.DefaultManifestHydrationReadmeTemplate)
+	require.NoError(t, err)
+	require.False(t, shouldCommit2, "Second hydration should NOT commit because manifests didn't change")
+
+	// Verify that the root-level metadata WAS updated (even though we're not committing)
+	// The files get written to the working directory, but since shouldCommit is false, they won't be committed
+	topMetadataPath := filepath.Join(root.Name(), "hydrator.metadata")
+	topMetadataBytes, err := os.ReadFile(topMetadataPath)
+	require.NoError(t, err)
+
+	var topMetadata hydrator.HydratorCommitMetadata
+	err = json.Unmarshal(topMetadataBytes, &topMetadata)
+	require.NoError(t, err)
+	// The top-level metadata should have the NEW dry SHA (files are written, just not committed)
+	assert.Equal(t, drySha2, topMetadata.DrySHA)
+	assert.Equal(t, metadata2.Date.Format(time.RFC3339), topMetadata.Date)
 }

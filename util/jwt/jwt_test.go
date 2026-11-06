@@ -10,12 +10,14 @@ import (
 )
 
 func TestGetSingleStringScope(t *testing.T) {
+	t.Parallel()
 	claims := jwt.MapClaims{"groups": "my-org:my-team"}
 	groups := GetScopeValues(claims, []string{"groups"})
 	assert.Contains(t, groups, "my-org:my-team")
 }
 
 func TestGetMultipleListScopes(t *testing.T) {
+	t.Parallel()
 	claims := jwt.MapClaims{"groups1": []string{"my-org:my-team1"}, "groups2": []string{"my-org:my-team2"}}
 	groups := GetScopeValues(claims, []string{"groups1", "groups2"})
 	assert.Contains(t, groups, "my-org:my-team1")
@@ -23,11 +25,13 @@ func TestGetMultipleListScopes(t *testing.T) {
 }
 
 func TestClaims(t *testing.T) {
+	t.Parallel()
 	assert.Nil(t, Claims(nil))
 	assert.NotNil(t, Claims(jwt.MapClaims{}))
 }
 
 func TestIsMember(t *testing.T) {
+	t.Parallel()
 	assert.False(t, IsMember(jwt.MapClaims{}, nil, []string{"groups"}))
 	assert.False(t, IsMember(jwt.MapClaims{"groups": []string{""}}, []string{"my-group"}, []string{"groups"}))
 	assert.False(t, IsMember(jwt.MapClaims{"groups": []string{"my-group"}}, []string{""}, []string{"groups"}))
@@ -35,11 +39,13 @@ func TestIsMember(t *testing.T) {
 }
 
 func TestGetGroups(t *testing.T) {
+	t.Parallel()
 	assert.Empty(t, GetGroups(jwt.MapClaims{}, []string{"groups"}))
 	assert.Equal(t, []string{"foo"}, GetGroups(jwt.MapClaims{"groups": []string{"foo"}}, []string{"groups"}))
 }
 
 func TestIssuedAtTime_Int64(t *testing.T) {
+	t.Parallel()
 	// Tuesday, 1 December 2020 14:00:00
 	claims := jwt.MapClaims{"iat": int64(1606831200)}
 	issuedAt, err := IssuedAtTime(claims)
@@ -49,12 +55,14 @@ func TestIssuedAtTime_Int64(t *testing.T) {
 }
 
 func TestIssuedAtTime_Error_NoInt(t *testing.T) {
+	t.Parallel()
 	claims := jwt.MapClaims{"iat": 1606831200}
 	_, err := IssuedAtTime(claims)
 	assert.Error(t, err)
 }
 
 func TestIssuedAtTime_Error_Missing(t *testing.T) {
+	t.Parallel()
 	claims := jwt.MapClaims{}
 	iat, err := IssuedAtTime(claims)
 	require.Error(t, err)
@@ -62,6 +70,7 @@ func TestIssuedAtTime_Error_Missing(t *testing.T) {
 }
 
 func TestIsValid(t *testing.T) {
+	t.Parallel()
 	assert.True(t, IsValid("foo.bar.foo"))
 	assert.True(t, IsValid("foo.bar.foo.bar"))
 	assert.False(t, IsValid("foo.bar"))
@@ -70,6 +79,7 @@ func TestIsValid(t *testing.T) {
 }
 
 func TestGetUserIdentifier(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name   string
 		claims jwt.MapClaims
@@ -131,6 +141,7 @@ func TestGetUserIdentifier(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got := GetUserIdentifier(tt.claims)
 			assert.Equal(t, tt.want, got)
 		})

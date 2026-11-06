@@ -55,6 +55,10 @@ spec:
         # Labels is used to filter the PRs that you want to target. (optional)
         labels:
         - preview
+        # ExcludedLabels is used to exclude PRs with these labels. (optional)
+        excludedLabels:
+        - stale
+        - wip
       requeueAfterSeconds: 1800
   template:
   # ...
@@ -65,6 +69,7 @@ spec:
 * `api`: If using GitHub Enterprise, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitHub access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+* `excludedLabels`: Exclude PRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
 * `appSecretName`: A `Secret` name containing a GitHub App secret in [repo-creds format][repo-creds].
 
 [repo-creds]: ../declarative-setup.md#repository-credentials
@@ -84,7 +89,7 @@ spec:
   generators:
   - pullRequest:
       gitlab:
-        # The GitLab project ID.
+        # The GitLab project ID or full path.
         project: "12341234"
         # For self-hosted GitLab (optional)
         api: https://git.example.com/
@@ -108,10 +113,11 @@ spec:
   # ...
 ```
 
-* `project`: Required project ID of the GitLab project.
+* `project`: Required project ID or full path (e.g. `group/subgroup/project`) of the GitLab project.
 * `api`: If using self-hosted GitLab, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the GitLab access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Labels is used to filter the MRs that you want to target. (Optional)
+* `excludedLabels`: Exclude MRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
 * `pullRequestState`: PullRequestState is an additional MRs filter to get only those with a certain state. By default all states. Default: "" (all states). Valid values: `""`, `opened`, `closed`, `merged` or `locked`. (Optional)
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the GitLab certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
@@ -143,6 +149,13 @@ spec:
         tokenRef:
           secretName: gitea-token
           key: token
+        # Labels is used to filter the PRs that you want to target. (optional)
+        labels:
+        - preview
+        # ExcludedLabels is used to exclude PRs with these labels. (optional)
+        excludedLabels:
+        - stale
+        - wip
         # many gitea deployments use TLS, but many are self-hosted and self-signed certificates
         insecure: true
       requeueAfterSeconds: 1800
@@ -154,6 +167,8 @@ spec:
 * `repo`: Required name of the Gitea repository.
 * `api`: The url of the Gitea instance.
 * `tokenRef`: A `Secret` name and key containing the Gitea access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
+* `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+* `excludedLabels`: Exclude PRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
 * `insecure`: `Allow for self-signed certificates, primarily for testing.`
 
 ## Bitbucket Server
@@ -217,7 +232,7 @@ If you want to access a private repository, you must also provide the credential
 In case of Bitbucket App Token, go with `bearerToken` section.
 * `tokenRef`: A `Secret` name and key containing the app token to use for requests.
 
-In case self-signed BitBucket Server certificates, the following options can be usefully:
+In case of self-signed BitBucket Server certificates, the following options can be useful:
 * `insecure`: By default (false) - Skip checking the validity of the SCM's certificate - useful for self-signed TLS certificates.
 * `caRef`: Optional `ConfigMap` name and key containing the BitBucket server certificates to trust - useful for self-signed TLS certificates. Possibly reference the ArgoCD CM holding the trusted certs.
 
@@ -282,7 +297,8 @@ You can use branch `filters` like
 - `branchMatch`: Optional regexp filter which should match the source branch name.
 - `targetBranchMatch`: Optional regexp filter which should match destination branch name.
 
-> Note: Labels are not supported by Bitbucket.
+> [!NOTE]
+> Labels are not supported by Bitbucket.
 
 If you want to access a private repository, Argo CD will need credentials to access repository in Bitbucket Cloud. You can use Bitbucket App Password (generated per user, with access to whole workspace), or Bitbucket App Token (generated per repository, with access limited to repository scope only). If both App Password and App Token are defined, App Token will be used.
 
@@ -334,6 +350,7 @@ spec:
 * `api`: If using self-hosted Azure DevOps Repos, the URL to access it. (Optional)
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
+* `excludedLabels`: Exclude PRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
 
 ## Filters
 
@@ -364,7 +381,7 @@ spec:
 * `targetBranchMatch`: A regexp matched against target branch names.
 * `titleMatch`: A regexp matched against Pull Request title. 
 
-[GitHub](#github) and [GitLab](#gitlab) also support a `labels` filter.
+[GitHub](#github), [GitLab](#gitlab), [Gitea](#gitea) and [Azure DevOps](#azure-devops) also support `labels` and `excludedLabels` filters.
 
 ## Template
 
@@ -453,7 +470,7 @@ When using a Pull Request generator, the ApplicationSet controller polls every `
 The configuration is almost the same as the one described [in the Git generator](Generators-Git.md), but there is one difference: if you want to use the Pull Request Generator as well, additionally configure the following settings.
 
 > [!NOTE]
-> The ApplicationSet controller webhook does not use the same webhook as the API server as defined [here](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
+> The ApplicationSet controller webhook does not use the same [API server webhook](../webhook.md). ApplicationSet exposes a webhook server as a service of type ClusterIP. An ApplicationSet specific Ingress resource needs to be created to expose this service to the webhook source.
 
 ### Github webhook configuration
 

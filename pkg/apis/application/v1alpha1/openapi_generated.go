@@ -168,12 +168,13 @@ func GetOpenAPIDefinitions(ref common.ReferenceCallback) map[string]common.OpenA
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncOperationResult":                     schema_pkg_apis_application_v1alpha1_SyncOperationResult(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicy":                              schema_pkg_apis_application_v1alpha1_SyncPolicy(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyAutomated":                     schema_pkg_apis_application_v1alpha1_SyncPolicyAutomated(ref),
+		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyManualDefaults":                schema_pkg_apis_application_v1alpha1_SyncPolicyManualDefaults(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncSource":                              schema_pkg_apis_application_v1alpha1_SyncSource(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStatus":                              schema_pkg_apis_application_v1alpha1_SyncStatus(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategy":                            schema_pkg_apis_application_v1alpha1_SyncStrategy(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategyApply":                       schema_pkg_apis_application_v1alpha1_SyncStrategyApply(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncStrategyHook":                        schema_pkg_apis_application_v1alpha1_SyncStrategyHook(ref),
-		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncWindow":                              schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
+		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.InlineSyncWindow":                        schema_pkg_apis_application_v1alpha1_SyncWindow(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TLSClientConfig":                         schema_pkg_apis_application_v1alpha1_TLSClientConfig(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.TagFilter":                               schema_pkg_apis_application_v1alpha1_TagFilter(ref),
 		"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.objectMeta":                              schema_pkg_apis_application_v1alpha1_objectMeta(ref),
@@ -410,7 +411,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 							Items: &spec.SchemaOrArray{
 								Schema: &spec.Schema{
 									SchemaProps: spec.SchemaProps{
-										Ref: ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncWindow"),
+										Ref: ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.InlineSyncWindow"),
 									},
 								},
 							},
@@ -498,7 +499,7 @@ func schema_pkg_apis_application_v1alpha1_AppProjectSpec(ref common.ReferenceCal
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestinationServiceAccount", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
+			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestination", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ApplicationDestinationServiceAccount", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.OrphanedResourcesMonitorSettings", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ProjectRole", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SignatureKey", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.InlineSyncWindow", "k8s.io/apimachinery/pkg/apis/meta/v1.GroupKind"},
 	}
 }
 
@@ -6109,7 +6110,7 @@ func schema_pkg_apis_application_v1alpha1_RepositoryCertificate(ref common.Refer
 					},
 					"certInfo": {
 						SchemaProps: spec.SchemaProps{
-							Description: "CertInfo will hold additional certificate info, depdendent on the certificate type (e.g. SSH fingerprint, X509 CommonName)",
+							Description: "CertInfo will hold additional certificate info, dependent on the certificate type (e.g. SSH fingerprint, X509 CommonName)",
 							Default:     "",
 							Type:        []string{"string"},
 							Format:      "",
@@ -8171,11 +8172,58 @@ func schema_pkg_apis_application_v1alpha1_SyncPolicy(ref common.ReferenceCallbac
 							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata"),
 						},
 					},
+					"manualDefaults": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ManualDefaults controls the default behavior of a manual sync",
+							Ref:         ref("github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyManualDefaults"),
+						},
+					},
 				},
 			},
 		},
 		Dependencies: []string{
-			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.RetryStrategy", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyAutomated"},
+			"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.ManagedNamespaceMetadata", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.RetryStrategy", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyAutomated", "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1.SyncPolicyManualDefaults"},
+	}
+}
+
+func schema_pkg_apis_application_v1alpha1_SyncPolicyManualDefaults(ref common.ReferenceCallback) common.OpenAPIDefinition {
+	return common.OpenAPIDefinition{
+		Schema: spec.Schema{
+			SchemaProps: spec.SchemaProps{
+				Description: "SyncPolicyManualDefaults controls the default behavior of a manual sync",
+				Type:        []string{"object"},
+				Properties: map[string]spec.Schema{
+					"prune": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Prune specifies whether to delete resources from the cluster that are not found in the sources anymore as part of manual sync (default: true)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"dryRun": {
+						SchemaProps: spec.SchemaProps{
+							Description: "DryRun specifies whether manual syncs should be performed as a dry run by default (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"applyOnly": {
+						SchemaProps: spec.SchemaProps{
+							Description: "ApplyOnly specifies whether manual syncs should use apply-only strategy by default (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"force": {
+						SchemaProps: spec.SchemaProps{
+							Description: "Force specifies whether manual syncs should supply --force to kubectl by default (default: false)",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+				},
+			},
+		},
 	}
 }
 
@@ -8367,7 +8415,7 @@ func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallbac
 	return common.OpenAPIDefinition{
 		Schema: spec.Schema{
 			SchemaProps: spec.SchemaProps{
-				Description: "SyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
+				Description: "InlineSyncWindow contains the kind, time, duration and attributes that are used to assign the syncWindows to apps",
 				Type:        []string{"object"},
 				Properties: map[string]spec.Schema{
 					"kind": {
@@ -8453,6 +8501,13 @@ func schema_pkg_apis_application_v1alpha1_SyncWindow(ref common.ReferenceCallbac
 					"andOperator": {
 						SchemaProps: spec.SchemaProps{
 							Description: "UseAndOperator use AND operator for matching applications, namespaces and clusters instead of the default OR operator",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
+					"syncOverrun": {
+						SchemaProps: spec.SchemaProps{
+							Description: "SyncOverrun allows syncs that started before this deny window to continue running",
 							Type:        []string{"boolean"},
 							Format:      "",
 						},

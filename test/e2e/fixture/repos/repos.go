@@ -1,6 +1,7 @@
 package repos
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -9,7 +10,10 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	"github.com/argoproj/argo-cd/v3/util/errors"
 )
@@ -152,6 +156,7 @@ func AddHelmOCIRepo(t *testing.T, name string) {
 		"--type", "helm",
 		"--name", name,
 		"--enable-oci",
+		"--insecure-oci-force-http",
 	}
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
@@ -208,7 +213,7 @@ func AddHelmoOCICredentialsWithoutUserPass(t *testing.T) {
 	t.Helper()
 	args := []string{
 		"repocreds", "add", fixture.RepoURL(fixture.RepoURLTypeHelmOCI),
-		"--enable-oci", "--type", "helm",
+		"--enable-oci", "--type", "helm", "--insecure-oci-force-http",
 	}
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
@@ -234,13 +239,14 @@ func PushChartToOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion
 	chartAbsPath, err2 := filepath.Abs("./" + chartPathName)
 	require.NoError(t, err2)
 
-	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", "--plain-http", chartAbsPath))
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
 	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
 	errors.NewHandler(t).FailOnErr(fixture.Run(
 		"",
 		"helm",
 		"push",
+		"--plain-http",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
 		"oci://"+fixture.HelmOCIRegistryURL,
 	))
@@ -257,7 +263,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 	chartAbsPath, err2 := filepath.Abs("./" + chartPathName)
 	require.NoError(t, err2)
 
-	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", chartAbsPath))
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", "--plain-http", chartAbsPath))
 	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
 	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
 
@@ -266,6 +272,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"helm",
 		"registry",
 		"login",
+		"--plain-http",
 		"--username", fixture.GitUsername,
 		"--password", fixture.GitPassword,
 		"localhost:5001",
@@ -275,6 +282,7 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"",
 		"helm",
 		"push",
+		"--plain-http",
 		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
 		"oci://"+fixture.HelmAuthenticatedOCIRegistryURL,
 	))
@@ -289,16 +297,23 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 }
 
 // PushImageToOCIRegistry adds a helm chart to helm OCI registry
-func PushImageToOCIRegistry(t *testing.T, pathName, tag string) {
+// The optional pushPath parameter specifies what to push from the pathName directory.
+// If not provided, it defaults to "." (everything in the directory).
+func PushImageToOCIRegistry(t *testing.T, pathName, tag string, pushPath ...string) {
 	t.Helper()
 	imagePath := "./" + pathName
+
+	pathToPush := "."
+	if len(pushPath) > 0 && pushPath[0] != "" {
+		pathToPush = pushPath[0]
+	}
 
 	errors.NewHandler(t).FailOnErr(fixture.Run(
 		imagePath,
 		"oras",
 		"push",
 		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.OCIHostURL, "oci://"), filepath.Base(pathName)), tag),
-		".",
+		pathToPush,
 	))
 }
 
@@ -314,4 +329,34 @@ func PushImageToAuthenticatedOCIRegistry(t *testing.T, pathName, tag string) {
 		fmt.Sprintf("%s:%s", fmt.Sprintf("%s/%s", strings.TrimPrefix(fixture.AuthenticatedOCIHostURL, "oci://"), filepath.Base(pathName)), tag),
 		".",
 	))
+}
+
+// AddWriteCredentials adds write credentials for a repository.
+// Write credentials are used by the commit-server to push hydrated manifests back to the repository.
+// TODO: add CLI support for managing write credentials and use that here instead.
+func AddWriteCredentials(t *testing.T, name string, insecure bool, repoURLType fixture.RepoURLType) {
+	t.Helper()
+	repoURL := fixture.RepoURL(repoURLType)
+
+	// Create a Kubernetes secret with the repository-write label
+	// Replace invalid characters for secret name
+	secretName := "write-creds-" + name
+
+	_, err := fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Create(
+		context.Background(),
+		&corev1.Secret{
+			Name: secretName,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
+			},
+			StringData: map[string]string{
+				"url":      repoURL,
+				"username": fixture.GitUsername,
+				"password": fixture.GitPassword,
+				"insecure": strconv.FormatBool(insecure),
+			},
+		},
+		metav1.CreateOptions{},
+	)
+	require.NoError(t, err)
 }

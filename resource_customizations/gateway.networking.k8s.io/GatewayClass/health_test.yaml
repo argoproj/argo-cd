@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: GatewayClass has been accepted
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: GatewayClass has not been accepted by any controller
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for controller
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for GatewayClass status"
+  inputPath: testdata/progressing_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for GatewayClass status"
+  inputPath: testdata/progressing_stale_generation.yaml

@@ -190,7 +190,9 @@ export function PodView(props: PodViewProps) {
                                                                 </Moment>
                                                             </div>
                                                         ) : null}
-                                                        {group.info?.map(infoItem => <div key={infoItem.name}>{infoItem.value}</div>)}
+                                                        {group.info?.map(infoItem => (
+                                                            <div key={infoItem.name}>{infoItem.value}</div>
+                                                        ))}
                                                     </div>
                                                 )}
                                             </div>

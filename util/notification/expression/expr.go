@@ -1,6 +1,8 @@
 package expression
 
 import (
+	"maps"
+
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	service "github.com/argoproj/argo-cd/v3/util/notification/argocd"
@@ -27,9 +29,7 @@ func Spawn(app *unstructured.Unstructured, argocdService service.Service, vars m
 	for k := range vars {
 		clone[k] = vars[k]
 	}
-	for namespace, helper := range helpers {
-		clone[namespace] = helper
-	}
+	maps.Copy(clone, helpers)
 	clone["repo"] = repo.NewExprs(argocdService, app)
 
 	return clone

@@ -10,7 +10,14 @@ export const Revision = ({repoUrl, revision, path, isForPath, children}: {repoUr
     const hasPath = path && path !== '.';
     let url = revisionUrl(repoUrl, revision, hasPath);
     if (url !== null && hasPath) {
-        url += '/' + path;
+        // For Bitbucket Server the URL ends with ?at=REF; the path must be inserted
+        // before the query param to produce /browse/PATH?at=REF.
+        const qIndex = url.indexOf('?');
+        if (qIndex >= 0) {
+            url = url.slice(0, qIndex) + '/' + path + url.slice(qIndex);
+        } else {
+            url += '/' + path;
+        }
     }
     const content = children || (isSHA(revision) ? (revision.startsWith('sha256:') ? revision.substr(0, 14) : revision.substr(0, 7)) : revision);
     return url !== null ? (

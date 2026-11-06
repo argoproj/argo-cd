@@ -1,0 +1,95 @@
+import * as React from 'react';
+import {render} from '@testing-library/react';
+import {RevisionMetadataPanel} from './revision-metadata-panel';
+
+jest.mock('../../../shared/services', () => ({
+    services: {
+        applications: {
+            revisionMetadata: jest.fn(() =>
+                Promise.resolve({
+                    author: 'Test Author',
+                    date: '2026-01-01T00:00:00Z',
+                    message: 'Test commit message',
+                    tags: ['v1.0.0'],
+                    signatureInfo: ''
+                })
+            ),
+            ociMetadata: jest.fn(() =>
+                Promise.resolve({
+                    authors: 'OCI Author',
+                    createdAt: '2026-01-01T00:00:00Z',
+                    description: 'Test OCI description',
+                    version: '1.0.0'
+                })
+            )
+        }
+    }
+}));
+
+describe('RevisionMetadataPanel', () => {
+    const defaultProps = {
+        appName: 'test-app',
+        appNamespace: 'default',
+        revision: 'abc123',
+        versionId: 1
+    };
+
+    it('returns null for helm type', () => {
+        const {container} = render(<RevisionMetadataPanel {...defaultProps} type='helm' />);
+        expect(container.firstChild).toBeNull();
+    });
+
+    it('does NOT return null for oci type', () => {
+        const {container} = render(<RevisionMetadataPanel {...defaultProps} type='oci' />);
+        expect(container.firstChild).not.toBeNull();
+    });
+
+    it('does NOT return null for git type', () => {
+        const {container} = render(<RevisionMetadataPanel {...defaultProps} type='git' />);
+        expect(container.firstChild).not.toBeNull();
+    });
+
+    it('calls ociMetadata service for oci type', () => {
+        const {services} = require('../../../shared/services');
+        render(<RevisionMetadataPanel {...defaultProps} type='oci' />);
+        expect(services.applications.ociMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 1);
+    });
+
+    it('calls revisionMetadata service for git type', () => {
+        const {services} = require('../../../shared/services');
+        render(<RevisionMetadataPanel {...defaultProps} type='git' />);
+        expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 1);
+    });
+
+    it('reloads git metadata when the history version changes for the same revision', () => {
+        const {services} = require('../../../shared/services');
+        const {rerender} = render(<RevisionMetadataPanel {...defaultProps} type='git' />);
+        expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 1);
+        rerender(<RevisionMetadataPanel {...defaultProps} versionId={2} type='git' />);
+        expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 2);
+    });
+
+    it('reloads metadata when the application changes for the same revision', () => {
+        const {services} = require('../../../shared/services');
+        const {rerender} = render(<RevisionMetadataPanel {...defaultProps} type='git' />);
+        expect(services.applications.revisionMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 1);
+        rerender(<RevisionMetadataPanel {...defaultProps} appName='other-app' type='git' />);
+        expect(services.applications.revisionMetadata).toHaveBeenCalledWith('other-app', 'default', 'abc123', 0, 1);
+    });
+
+    it('reloads through the right service when the metadata source type changes', () => {
+        const {services} = require('../../../shared/services');
+        (services.applications.ociMetadata as jest.Mock).mockClear();
+        const {rerender} = render(<RevisionMetadataPanel {...defaultProps} type='git' />);
+        rerender(<RevisionMetadataPanel {...defaultProps} type='oci' />);
+        expect(services.applications.ociMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 1);
+    });
+
+    it('reloads oci metadata when the history version changes for the same revision', () => {
+        const {services} = require('../../../shared/services');
+        const {rerender} = render(<RevisionMetadataPanel {...defaultProps} type='oci' />);
+        expect(services.applications.ociMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 1);
+        rerender(<RevisionMetadataPanel {...defaultProps} versionId={2} type='oci' />);
+        expect(services.applications.ociMetadata).toHaveBeenCalledWith('test-app', 'default', 'abc123', 0, 2);
+    });
+});

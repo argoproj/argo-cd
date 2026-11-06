@@ -1,7 +1,7 @@
 # Progressive Syncs
 
 > [!WARNING]
-> **Beta Feature (Since v2.6.0)**
+> **Beta Feature (Since v3.3.0)**
 >
 
     This feature is in the [Beta](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta) stage. It is generally considered stable, but there may be unhandled edge cases.
@@ -14,7 +14,7 @@ The Progressive Syncs feature set is intended to be light and flexible. The feat
 
 - Progressive Syncs watch for the managed Application resources to become "Healthy" before proceeding to the next stage.
 - Deployments, DaemonSets, StatefulSets, and [Argo Rollouts](https://argoproj.github.io/argo-rollouts/) are all supported, because the Application enters a "Progressing" state while pods are being rolled out. In fact, any resource with a health check that can report a "Progressing" status is supported.
-- [Argo CD Resource Hooks](../../user-guide/resource_hooks.md) are supported. We recommend this approach for users that need advanced functionality when an Argo Rollout cannot be used, such as smoke testing after a DaemonSet change.
+- [Argo CD Resource Hooks](../../user-guide/sync-waves.md) are supported. We recommend this approach for users that need advanced functionality when an Argo Rollout cannot be used, such as smoke testing after a DaemonSet change.
 
 ## Enabling Progressive Syncs
 
@@ -64,7 +64,7 @@ When the ApplicationSet changes, the changes will be applied to each group of Ap
 - RollingSync will capture external changes outside the ApplicationSet resource, since it relies on watching the OutOfSync status of the managed Applications.
 - RollingSync will force all generated Applications to have autosync disabled. Warnings are printed in the applicationset-controller logs for any Application specs with an automated syncPolicy enabled.
 - Sync operations are triggered the same way as if they were triggered by the UI or CLI (by directly setting the `operation` status field on the Application resource). This means that a RollingSync will respect sync windows just as if a user had clicked the "Sync" button in the Argo UI.
-- When a sync is triggered, the sync is performed with the same syncPolicy configured for the Application. For example, this preserves the Application's retry settings.
+- When a sync is triggered, the sync is performed with the same syncPolicy configured for the Application. For example, this preserves the Application's retry settings and applies `syncPolicy.manualDefaults` (`prune`, `applyOnly`, `force`) to the triggered operation. `manualDefaults.dryRun` is ignored so the rollout can still reach Synced/Healthy. For prune, `automated.prune` is used when automated sync is still enabled on the generated Application; otherwise RollingSync falls back to `manualDefaults.prune`.
 - If an Application is not selected in any step, it will be excluded from the rolling sync and needs to be manually synced through the CLI or UI.
 
 ```yaml
@@ -155,7 +155,7 @@ In this example, when applications are deleted:
 
 This deletion order is useful for scenarios where you need to tear down dependent services in the correct sequence, such as deleting frontend services before backend dependencies.
 
-#### Example
+### Example
 
 The following example illustrates how to stage a progressive sync over Applications with explicitly configured environment labels.
 

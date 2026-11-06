@@ -124,7 +124,7 @@ func NewAzureWorkloadIdentityCreds(repoURL string, caPath string, certData []byt
 }
 
 func (creds AzureWorkloadIdentityCreds) GetAccessToken() (string, error) {
-	registryHost := strings.Split(creds.repoURL, "/")[0]
+	registryHost, _, _ := strings.Cut(creds.repoURL, "/")
 	ctx := context.Background()
 
 	// Compute hash as key for refresh token in the cache
@@ -277,7 +277,7 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(ctx cont
 
 	tokenParams := make(map[string]string)
 
-	for _, token := range strings.Split(tokens[1], ",") {
+	for token := range strings.SplitSeq(tokens[1], ",") {
 		kvPair := strings.Split(token, "=")
 		tokenParams[kvPair[0]] = strings.Trim(kvPair[1], "\"")
 	}

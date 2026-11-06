@@ -1,0 +1,12 @@
+apiVersion: bitnami.com/v1alpha1
+kind: SealedSecret
+metadata:
+  name: test
+  namespace: test
+  generation: 2
+status:
+  observedGeneration: 1
+  conditions:
+  - type: Synced
+    status: "False"
+    message: previous failure

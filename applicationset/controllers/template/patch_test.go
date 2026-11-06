@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -20,15 +19,11 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 		{
 			name: "patch with JSON",
 			appTemplate: &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "my-cluster-guestbook",
-					Namespace:  "namespace",
-					Finalizers: []string{appv1.ResourcesFinalizerName},
-				},
+				Kind:       "Application",
+				APIVersion: "argoproj.io/v1alpha1",
+				Name:       "my-cluster-guestbook",
+				Namespace:  "namespace",
+				Finalizers: []string{appv1.ResourcesFinalizerName},
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1.ApplicationSource{
@@ -65,17 +60,13 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 				}
 			}`,
 			expectedApp: &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "my-cluster-guestbook",
-					Namespace:  "namespace",
-					Finalizers: []string{appv1.ResourcesFinalizerName},
-					Annotations: map[string]string{
-						"annotation-some-key": "annotation-some-value",
-					},
+				Kind:       "Application",
+				APIVersion: "argoproj.io/v1alpha1",
+				Name:       "my-cluster-guestbook",
+				Namespace:  "namespace",
+				Finalizers: []string{appv1.ResourcesFinalizerName},
+				Annotations: map[string]string{
+					"annotation-some-key": "annotation-some-value",
 				},
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
@@ -96,7 +87,7 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 					},
 					SyncPolicy: &appv1.SyncPolicy{
 						Automated: &appv1.SyncPolicyAutomated{
-							Prune: true,
+							Prune: new(true),
 						},
 					},
 				},
@@ -105,15 +96,11 @@ func Test_ApplyTemplatePatch(t *testing.T) {
 		{
 			name: "patch with YAML",
 			appTemplate: &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "my-cluster-guestbook",
-					Namespace:  "namespace",
-					Finalizers: []string{appv1.ResourcesFinalizerName},
-				},
+				Kind:       "Application",
+				APIVersion: "argoproj.io/v1alpha1",
+				Name:       "my-cluster-guestbook",
+				Namespace:  "namespace",
+				Finalizers: []string{appv1.ResourcesFinalizerName},
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1.ApplicationSource{
@@ -141,17 +128,13 @@ spec:
     automated:
       prune: true`,
 			expectedApp: &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:       "my-cluster-guestbook",
-					Namespace:  "namespace",
-					Finalizers: []string{appv1.ResourcesFinalizerName},
-					Annotations: map[string]string{
-						"annotation-some-key": "annotation-some-value",
-					},
+				Kind:       "Application",
+				APIVersion: "argoproj.io/v1alpha1",
+				Name:       "my-cluster-guestbook",
+				Namespace:  "namespace",
+				Finalizers: []string{appv1.ResourcesFinalizerName},
+				Annotations: map[string]string{
+					"annotation-some-key": "annotation-some-value",
 				},
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
@@ -172,7 +155,7 @@ spec:
 					},
 					SyncPolicy: &appv1.SyncPolicy{
 						Automated: &appv1.SyncPolicyAutomated{
-							Prune: true,
+							Prune: new(true),
 						},
 					},
 				},
@@ -181,14 +164,10 @@ spec:
 		{
 			name: "project field isn't overwritten",
 			appTemplate: &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-cluster-guestbook",
-					Namespace: "namespace",
-				},
+				Kind:       "Application",
+				APIVersion: "argoproj.io/v1alpha1",
+				Name:       "my-cluster-guestbook",
+				Namespace:  "namespace",
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1.ApplicationSource{
@@ -206,14 +185,10 @@ spec:
 spec:
   project: my-project`,
 			expectedApp: &appv1.Application{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "Application",
-					APIVersion: "argoproj.io/v1alpha1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "my-cluster-guestbook",
-					Namespace: "namespace",
-				},
+				Kind:       "Application",
+				APIVersion: "argoproj.io/v1alpha1",
+				Name:       "my-cluster-guestbook",
+				Namespace:  "namespace",
 				Spec: appv1.ApplicationSpec{
 					Project: "default",
 					Source: &appv1.ApplicationSource{
@@ -241,6 +216,7 @@ spec:
 }
 
 func TestError(t *testing.T) {
+	t.Parallel()
 	app := &appv1.Application{}
 
 	result, err := applyTemplatePatch(app, "hello world")

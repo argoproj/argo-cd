@@ -19,7 +19,7 @@ which might cause health check to return `Progressing` state instead of `Healthy
 
 * `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value
   for `hostname` or `IP`. Some ingress controllers
-  ([contour](https://github.com/heptio/contour/issues/403)
+  ([contour](https://github.com/projectcontour/contour/issues/403)
   , [traefik](https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913)) don't update
   `status.loadBalancer.ingress` field which causes `Ingress` to stuck in `Progressing` state forever.
 
@@ -82,6 +82,26 @@ or a randomly generated password stored in a secret (Argo CD 1.9 and later).
 
 Add `admin.enabled: "false"` to the `argocd-cm` ConfigMap
 (see [user management](./operator-manual/user-management/index.md)).
+
+## How to view orphaned resources?
+
+Orphaned Kubernetes resources are top-level namespaced resources that do not belong to any Argo CD Application. For more information, see [Orphaned Resources Monitoring](./user-guide/orphaned-resources.md).
+
+!!! warning
+    Enabling orphaned resource monitoring has performance implications. If an AppProject monitors a namespace containing many resources not managed by Argo CD (e.g. `kube-system`), it can significantly impact your Argo CD instance. Enable this feature only on projects with well-scoped namespaces.
+
+To view orphaned resources in the Argo CD UI:
+
+1. Click on **Settings** in the sidebar.
+2. Click on **Projects**.
+3. Select the desired project.
+4. Scroll down to the **RESOURCE MONITORING** section.
+5. Click **Edit** and enable the monitoring feature.
+6. Check **Enable application warning conditions?** to enable warnings.
+7. Click **Save**.
+8. Navigate back to **Applications** and select an application under the configured project.
+9. In the **Sync Panel**, under **APP CONDITIONS**, you will see the orphaned resources warning.
+10. Click **Show Orphaned** below the **HEALTH STATUS** filters to display orphaned resources.
 
 ## Argo CD cannot deploy Helm Chart based applications without internet access, how can I solve it?
 
@@ -232,6 +252,11 @@ fixed CRD if you want this feature to work at all.
 
 The controller of the `SealedSecret` resource may expose the status condition on resource it provisioned. Since
 version `v2.0.0` Argo CD picks up that status condition to derive a health status for the `SealedSecret`.
+The health check waits for `status.observedGeneration` to match `metadata.generation` before using the condition,
+so a status from an earlier update cannot mark the current `SealedSecret` healthy.
+Version `v0.24.2` of the `SealedSecret` controller does not keep `status.observedGeneration` in sync with
+`metadata.generation`, so `SealedSecret` resources stay `Progressing` with that version. Upgrade the controller
+to `v0.24.3` or later to fix this.
 
 Versions before `v0.15.0` of the `SealedSecret` controller are affected by an issue regarding this status
 conditions updates, which is why this feature is disabled by default in these versions. Status condition updates may be
@@ -311,7 +336,7 @@ Argo CD default installation is now configured to automatically enable Redis aut
 If for some reason authenticated Redis does not work for you and you want to use non-authenticated Redis, here are the steps:
 
 1. You need to have your own Redis installation.
-2. Configure Argo CD to use your own Redis instance. See this [doc](https://argo-cd.readthedocs.io/en/stable/operator-manual/argocd-cmd-params-cm-yaml/) for the Argo CD configuration.
+2. Configure Argo CD to use your own Redis instance, as shown in the [example configuration](operator-manual/argocd-cmd-params-cm-yaml.md).
 3. If you already installed Redis shipped with Argo CD, you also need to clean up the existing components:
 
     * When HA Redis is used:
@@ -441,3 +466,79 @@ If you can avoid using these features, you can avoid triggering the error. The o
    Excluding mutation webhooks from the diff could cause undesired diffing behavior.
 3. **Disable mutation webhooks when using server-side diff**: see [server-side diff docs](user-guide/diff-strategies.md#mutation-webhooks)
    for details about that feature. Disabling mutation webhooks may have undesired effects on sync behavior.
+
+### How do I fix `grpc: error while marshaling: string field contains invalid UTF-8`?
+
+On Kubernetes v1.34.x clusters, Argo CD components may stop working and pods may 
+fail to start with errors such as:
+
+```
+Error: grpc: error while marshaling: string field contains invalid UTF-8
+```
+This issue typically affects pods that reference Kubernetes secrets via environment variables, e.g. 
+```yaml
+env:
+  - name: REDIS_PASSWORD
+    valueFrom:
+      secretKeyRef:
+        name: argocd-redis
+        key: auth
+        optional: false
+```
+Kubernetes environment variables must be valid UTF-8 strings. In affected clusters, the argocd-redis Secret contained non-UTF-8 (binary) data, while other clusters used
+ASCII-only values.
+
+#### How do I fix the issue?
+Inspect the decoded Redis password
+```bash
+kubectl get -n argocd secret argocd-redis -o json \
+    | jq -r '.data.auth' | base64 --decode | xxd
+```
+If the output contains non-printable characters or bytes outside the UTF-8 range, the Secret is invalid for use as an
+environment variable. It is recommended to regenerate the secret using a UTF-8-safe password.
+
+## How do I fix `missing github.com/argoproj/argo-cd/gitops-engine/go.mod` when importing Argo CD as a Go library?
+
+When your Go module imports Argo CD packages, such as `github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1`,
+`go get` or `go mod tidy` may fail with errors like:
+
+```text
+github.com/argoproj/argo-cd/gitops-engine@v0.7.1-0.20250908182407-97ad5b59a627: invalid version: missing github.com/argoproj/argo-cd/gitops-engine/go.mod at revision 97ad5b59a627
+```
+
+```text
+k8s.io/kubelet/pkg/apis: reading k8s.io/kubelet/go.mod at revision v0.0.0: unknown revision v0.0.0
+```
+
+Argo CD's `go.mod` relies on `replace` directives, and Go ignores `replace` directives in dependencies. You have to add
+the ones your build needs to your own `go.mod`:
+
+* **gitops-engine (Argo CD v3.4.x and v3.5.x only):** these versions require the `gitops-engine` module at a version
+  that only resolves inside the Argo CD repository. Starting with v3.6.0, `gitops-engine` is tagged at release time and
+  needs no `replace`.
+* **Kubernetes libraries (all versions):** Argo CD depends on `k8s.io/kubernetes`, which requires the other `k8s.io/*`
+  modules at version `v0.0.0`. These only resolve through the `replace` directives in Argo CD's `go.mod`.
+
+Run the following in the directory of your Go module, setting `ARGOCD_VERSION` to the Argo CD release you depend on:
+
+```bash
+ARGOCD_VERSION=v3.5.6
+
+go mod edit -require="github.com/argoproj/argo-cd/v3@${ARGOCD_VERSION}"
+
+# v3.4.x and v3.5.x only: use the gitops-engine module from the same commit as the Argo CD release.
+ARGOCD_COMMIT=$(go list -mod=mod -m -f '{{.Origin.Hash}}' "github.com/argoproj/argo-cd/v3@${ARGOCD_VERSION}")
+GITOPS_ENGINE_VERSION=$(go list -mod=mod -m -f '{{.Version}}' "github.com/argoproj/argo-cd/gitops-engine@${ARGOCD_COMMIT}")
+go mod edit -replace="github.com/argoproj/argo-cd/gitops-engine=github.com/argoproj/argo-cd/gitops-engine@${GITOPS_ENGINE_VERSION}"
+
+# All versions: copy the k8s.io/* replace directives from Argo CD's go.mod.
+curl -sSfL "https://raw.githubusercontent.com/argoproj/argo-cd/${ARGOCD_VERSION}/go.mod" |
+  awk '/^replace \(/{r=1; next} r && /^\)/{r=0} r && $1 ~ /^k8s\.io\// && $2 == "=>" {print "-replace=" $1 "=" $3 "@" $4}' |
+  xargs go mod edit
+
+go mod tidy
+```
+
+> [!NOTE]
+> The `replace` directives are specific to the Argo CD version. When you upgrade Argo CD, remove the old `k8s.io/*`
+> and `gitops-engine` replace directives and run the commands again with the new version.

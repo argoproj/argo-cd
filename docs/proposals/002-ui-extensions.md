@@ -142,7 +142,7 @@ We provide the entire application tree to accomplish two things:
 Further, if an Extension needs richer information than that provided by the Resource Tree, it can request additional information about a resource from the Argo CD API server.
 
 ```typescript
-interface Extention {
+interface Extension {
     ResourceTab: React.Component<{resource: any}>;
 }
 ```

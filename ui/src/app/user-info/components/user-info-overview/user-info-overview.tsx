@@ -1,8 +1,9 @@
-import React, {useCallback, useContext, useRef, useState} from 'react';
+import * as React from 'react';
+import {useCallback, useContext, useRef, useState} from 'react';
 
-import {FormField, NotificationType, SlidingPanel} from 'argo-ui/src/index';
-import {Form, FormApi, FormValue, Nested, Text} from 'react-form';
-import {DataLoader, ErrorNotification, Page, Spinner} from '../../../shared/components';
+import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {Form, FormApi, FormValue, Nested, Text} from 'argo-ui';
+import {AuthOption, DataLoader, ErrorNotification, Page, Spinner} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 
@@ -84,6 +85,7 @@ export const UserInfoComponent = ({userInfo}: {userInfo: UserInfo}) => {
             title='User Info'
             toolbar={{
                 breadcrumbs: [{title: 'User Info'}],
+                tools: <AuthOption />,
                 actionMenu: isPasswordChangeAvailable
                     ? {
                           items: [

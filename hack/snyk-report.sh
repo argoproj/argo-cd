@@ -79,7 +79,7 @@ for version in $versions; do
   cp "$argocd_dir/.snyk" .snyk
 
   # || [ $? == 1 ] ignores errors due to vulnerabilities.
-  snyk test --all-projects --exclude=docs,site,ui-test --org=argoproj --policy-path=.snyk --sarif-file-output=/tmp/argocd-test.sarif --json-file-output=/tmp/argocd-test.json || [ $? == 1 ]
+  snyk test --all-projects --exclude=docs,site --org=argoproj --policy-path=.snyk --sarif-file-output=/tmp/argocd-test.sarif --json-file-output=/tmp/argocd-test.json || [ $? == 1 ]
   snyk-to-html -i /tmp/argocd-test.json -o "$argocd_dir/docs/snyk/$version/argocd-test.html"
   { echo "|    | Critical | High | Medium | Low |"
     echo "|---:|:--------:|:----:|:------:|:---:|"
@@ -92,7 +92,7 @@ for version in $versions; do
         }
       )
       # Hack to make sure even if there are no vulnerabilities, a row is added to the table.
-      + [{displayTargetFile: "go.mod"}, {displayTargetFile: "ui/yarn.lock"}]
+      + [{displayTargetFile: "go.mod"}, {displayTargetFile: "ui/pnpm-lock.yaml"}]
       # Group by target file (e.g. go.mod) so we can see where the vulnerabilities are.
       | group_by(.displayTargetFile)
       | map(

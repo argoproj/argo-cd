@@ -1,0 +1,48 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultStaticSecret
+metadata:
+  creationTimestamp: "2026-10-28T22:56:57Z"
+  finalizers:
+  - vaultstaticsecret.secrets.hashicorp.com/finalizer
+  generation: 2
+  name: vault-static-secret-missing-path
+  namespace: app
+  resourceVersion: "1232"
+  uid: 3fcff2a4-e656-4678-bd5a-8d1ca58d2002
+spec:
+  destination:
+    create: true
+    name: webapp-missing
+    overwrite: false
+    transformation: {}
+  hmacSecretData: true
+  mount: secret
+  path: webapp/does-not-exist
+  refreshAfter: 30s
+  type: kv-v2
+  vaultAuthRef: default
+status:
+  conditions:
+  - lastTransitionTime: "2026-10-28T22:56:59Z"
+    message: Failed to sync the secret, horizon=1m27.416040517s, err=empty response
+      from Vault, path="secret/data/webapp/does-not-exist"
+    observedGeneration: 2
+    reason: Synced
+    status: "False"
+    type: SecretSynced
+  - lastTransitionTime: "2026-10-28T22:56:59Z"
+    message: VaultStaticSecretUnhealthy
+    observedGeneration: 2
+    reason: Unhealthy
+    status: "False"
+    type: Healthy
+  - lastTransitionTime: "2026-10-28T22:56:59Z"
+    message: VaultStaticSecretReady
+    observedGeneration: 2
+    reason: Ready
+    status: "False"
+    type: Ready
+  lastGeneration: 2
+  vaultClientMeta:
+    cacheKey: kubernetes-8bffdde229f7060d332a47
+    id: be8b872f0d43279d4e513a94bf9b98506de2d2befe586443bfa9ef2609d50b6e

@@ -7,6 +7,7 @@ import (
 )
 
 func TestNormalizeLabels(t *testing.T) {
+	t.Parallel()
 	inputLabels := []string{
 		"already_normalized",
 		"replace-dash",

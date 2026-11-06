@@ -1,0 +1,37 @@
+apiVersion: microgateway.airlock.com/v1alpha1
+kind: RateLimitPolicy
+metadata:
+  name: example-ratelimitpolicy
+  namespace: default
+  generation: 3
+spec:
+  targetRefs:
+  - group: gateway.networking.k8s.io
+    kind: HTTPRoute
+    name: example-httproute
+status:
+  ancestors:
+  - ancestorRef:
+      group: gateway.networking.k8s.io
+      kind: Gateway
+      name: example-gateway
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: RateLimitPolicy is accepted
+      observedGeneration: 3
+      reason: Accepted
+      status: 'True'
+      type: Accepted
+    controllerName: example.com/gatewayclass-controller
+  - ancestorRef:
+      group: gateway.networking.k8s.io
+      kind: Gateway
+      name: example-gateway-2
+    conditions:
+      - lastTransitionTime: '2026-04-16T12:20:11Z'
+        message: FooBar
+        observedGeneration: 3
+        reason: Foo
+        status: 'True'
+        type: Bar
+    controllerName: example.com/gatewayclass-controller

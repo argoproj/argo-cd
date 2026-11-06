@@ -9,7 +9,6 @@ import (
 
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
@@ -22,19 +21,15 @@ var _ Generator = (*ClusterGenerator)(nil)
 // ClusterGenerator generates Applications for some or all clusters registered with ArgoCD.
 type ClusterGenerator struct {
 	client.Client
-	ctx       context.Context
-	clientset kubernetes.Interface
 	// namespace is the Argo CD namespace
 	namespace string
 }
 
 var render = &utils.Render{}
 
-func NewClusterGenerator(ctx context.Context, c client.Client, clientset kubernetes.Interface, namespace string) Generator {
+func NewClusterGenerator(c client.Client, namespace string) Generator {
 	g := &ClusterGenerator{
 		Client:    c,
-		ctx:       ctx,
-		clientset: clientset,
 		namespace: namespace,
 	}
 	return g
@@ -64,16 +59,7 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	// - Since local clusters do not have secrets, they do not have labels to match against
 	ignoreLocalClusters := len(appSetGenerator.Clusters.Selector.MatchExpressions) > 0 || len(appSetGenerator.Clusters.Selector.MatchLabels) > 0
 
-	// ListCluster will include the local cluster in the list of clusters
-	clustersFromArgoCD, err := utils.ListClusters(g.ctx, g.clientset, g.namespace)
-	if err != nil {
-		return nil, fmt.Errorf("error listing clusters: %w", err)
-	}
-
-	if clustersFromArgoCD == nil {
-		return nil, nil
-	}
-
+	// Get cluster secrets using the cached controller-runtime client
 	clusterSecrets, err := g.getSecretsByClusterName(logCtx, appSetGenerator)
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster secrets: %w", err)
@@ -82,32 +68,14 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 	paramHolder := &paramHolder{isFlatMode: appSetGenerator.Clusters.FlatList}
 	logCtx.Debugf("Using flat mode = %t for cluster generator", paramHolder.isFlatMode)
 
-	secretsFound := []corev1.Secret{}
-	for _, cluster := range clustersFromArgoCD {
-		// If there is a secret for this cluster, then it's a non-local cluster, so it will be
-		// handled by the next step.
-		if secretForCluster, exists := clusterSecrets[cluster.Name]; exists {
-			secretsFound = append(secretsFound, secretForCluster)
-		} else if !ignoreLocalClusters {
-			// If there is no secret for the cluster, it's the local cluster, so handle it here.
-			params := map[string]any{}
-			params["name"] = cluster.Name
-			params["nameNormalized"] = cluster.Name
-			params["server"] = cluster.Server
-			params["project"] = ""
-
-			err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
-			if err != nil {
-				return nil, fmt.Errorf("error appending templated values for local cluster: %w", err)
-			}
-
-			paramHolder.append(params)
-			logCtx.WithField("cluster", "local cluster").Info("matched local cluster")
-		}
+	// Convert map values to slice to check for an in-cluster secret
+	secretsList := make([]corev1.Secret, 0, len(clusterSecrets))
+	for _, secret := range clusterSecrets {
+		secretsList = append(secretsList, secret)
 	}
 
 	// For each matching cluster secret (non-local clusters only)
-	for _, cluster := range secretsFound {
+	for _, cluster := range clusterSecrets {
 		params := g.getClusterParameters(cluster, appSet)
 
 		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
@@ -117,6 +85,23 @@ func (g *ClusterGenerator) GenerateParams(appSetGenerator *argoappsetv1alpha1.Ap
 
 		paramHolder.append(params)
 		logCtx.WithField("cluster", cluster.Name).Debug("matched cluster secret")
+	}
+
+	// Add the in-cluster last if it doesn't have a secret, and we're not ignoring in-cluster
+	if !ignoreLocalClusters && !utils.SecretsContainInClusterCredentials(secretsList) {
+		params := map[string]any{}
+		params["name"] = argoappsetv1alpha1.KubernetesInClusterName
+		params["nameNormalized"] = argoappsetv1alpha1.KubernetesInClusterName
+		params["server"] = argoappsetv1alpha1.KubernetesInternalAPIServerAddr
+		params["project"] = ""
+
+		err = appendTemplatedValues(appSetGenerator.Clusters.Values, params, appSet.Spec.GoTemplate, appSet.Spec.GoTemplateOptions)
+		if err != nil {
+			return nil, fmt.Errorf("error appending templated values for local cluster: %w", err)
+		}
+
+		paramHolder.append(params)
+		logCtx.WithField("cluster", "local cluster").Info("matched local cluster")
 	}
 
 	return paramHolder.consolidate(), nil
@@ -140,6 +125,30 @@ func (p *paramHolder) consolidate() []map[string]any {
 	return p.params
 }
 
+// excludedClusterAnnotations are written onto cluster Secrets by Argo CD or kubectl as their
+// own state, or are one-shot Application triggers. Copied into a generated Application they
+// cause loops (e.g. the cache-invalidation timestamp in argocd.argoproj.io/refresh) or leak
+// the Secret's data (last-applied-configuration), so they are not exposed as parameters.
+var excludedClusterAnnotations = map[string]bool{
+	argoappsetv1alpha1.AnnotationKeyRefresh:          true,
+	argoappsetv1alpha1.AnnotationKeyRefreshTimestamp: true,
+	argoappsetv1alpha1.AnnotationKeyHydrate:          true,
+	argoappsetv1alpha1.AnnotationKeyHydrateTimestamp: true,
+	common.AnnotationKeyAppInstance:                  true,
+	common.AnnotationInstallationID:                  true,
+	corev1.LastAppliedConfigAnnotation:               true,
+}
+
+func clusterAnnotationParams(annotations map[string]string) map[string]string {
+	params := make(map[string]string, len(annotations))
+	for key, value := range annotations {
+		if !excludedClusterAnnotations[key] {
+			params[key] = value
+		}
+	}
+	return params
+}
+
 func (g *ClusterGenerator) getClusterParameters(cluster corev1.Secret, appSet *argoappsetv1alpha1.ApplicationSet) map[string]any {
 	params := map[string]any{}
 
@@ -154,11 +163,13 @@ func (g *ClusterGenerator) getClusterParameters(cluster corev1.Secret, appSet *a
 		params["project"] = ""
 	}
 
+	annotations := clusterAnnotationParams(cluster.Annotations)
 	if appSet.Spec.GoTemplate {
 		meta := map[string]any{}
 
+		// Gate on the unfiltered map so the key exists whenever it did before filtering.
 		if len(cluster.Annotations) > 0 {
-			meta["annotations"] = cluster.Annotations
+			meta["annotations"] = annotations
 		}
 		if len(cluster.Labels) > 0 {
 			meta["labels"] = cluster.Labels
@@ -166,7 +177,7 @@ func (g *ClusterGenerator) getClusterParameters(cluster corev1.Secret, appSet *a
 
 		params["metadata"] = meta
 	} else {
-		for key, value := range cluster.Annotations {
+		for key, value := range annotations {
 			params["metadata.annotations."+key] = value
 		}
 
@@ -186,7 +197,7 @@ func (g *ClusterGenerator) getSecretsByClusterName(log *log.Entry, appSetGenerat
 		return nil, fmt.Errorf("error converting label selector: %w", err)
 	}
 
-	if err := g.List(context.Background(), clusterSecretList, client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
+	if err := g.List(context.Background(), clusterSecretList, client.InNamespace(g.namespace), client.MatchingLabelsSelector{Selector: secretSelector}); err != nil {
 		return nil, err
 	}
 	log.Debugf("clusters matching labels: %d", len(clusterSecretList.Items))

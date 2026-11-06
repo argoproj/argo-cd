@@ -37,7 +37,7 @@ the resulting manifests.
 > [!WARNING]
 > **Do not abuse multiple sources**
 >
-> Note this feature is **NOT** destined as a generic way to group different/unrelated applications. Take a look at [applicationsets](../user-guide/application-set.md) and the [app-of-apps](../../operator-manual/cluster-bootstrapping/) pattern if you want to have a single entity for multiple applications. If you find yourself using more than 2-3 items in the `sources` array then you are almost certainly abusing this feature and you need to rethink your application grouping strategy.
+> Note this feature is **NOT** destined as a generic way to group different/unrelated applications. Take a look at [applicationsets](../user-guide/application-set.md) and the [app-of-apps](../operator-manual/cluster-bootstrapping.md) pattern if you want to have a single entity for multiple applications. If you find yourself using more than 2-3 items in the `sources` array then you are almost certainly abusing this feature and you need to rethink your application grouping strategy.
 
 If multiple sources produce the same resource (same `group`, `kind`, `name`, and `namespace`), the last source to 
 produce the resource will take precedence. Argo CD will produce a `RepeatedResourceWarning` in this case, but it will 
@@ -86,3 +86,20 @@ at that URL. If the `path` field is not set, Argo CD will use the repository sol
 
 > [!NOTE]
 > Even when the `ref` field is configured with the `path` field, `$value` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.
+
+## Creating with the CLI
+
+Multi-source applications cannot be created using individual flags like `--repo` and `--path` (those apply to a single source). Instead, provide a full Application manifest via `--file`:
+
+```bash
+argocd app create my-billing-app --file app.yaml
+```
+
+For parameterized pipelines, pipe a rendered manifest on stdin. The application name is taken from `metadata.name` in the manifest:
+
+```bash
+envsubst < app-template.yaml | argocd app create my-billing-app --file -
+```
+
+> [!NOTE]
+> When using `--file` with a multi-source manifest, source-related flags (`--repo`, `--path`, `--helm-set`, etc.) are ignored.

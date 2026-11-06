@@ -56,13 +56,27 @@ else
     protoc_include=${PROJECT_ROOT}/dist/protoc-include
 fi
 
-# go-to-protobuf expects dependency proto files to be in $GOPATH/src. Copy them there.
-rm -rf "${GOPATH}/src/github.com/gogo/protobuf" && mkdir -p "${GOPATH}/src/github.com/gogo" && cp -r "${PROJECT_ROOT}/vendor/github.com/gogo/protobuf" "${GOPATH}/src/github.com/gogo"
-rm -rf "${GOPATH}/src/k8s.io/apimachinery" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apimachinery" "${GOPATH}/src/k8s.io"
-rm -rf "${GOPATH}/src/k8s.io/api" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/api" "${GOPATH}/src/k8s.io"
-rm -rf "${GOPATH}/src/k8s.io/apiextensions-apiserver" && mkdir -p "${GOPATH}/src/k8s.io" && cp -r "${PROJECT_ROOT}/vendor/k8s.io/apiextensions-apiserver" "${GOPATH}/src/k8s.io"
+# go-to-protobuf expects dependency proto files to be in $GOPATH/src. Copy them there from the module cache,
+# made writable: go-to-protobuf rewrites generated.proto in the directory it loads each package from.
+DEP_MODULES=(github.com/gogo/protobuf k8s.io/apimachinery k8s.io/api k8s.io/apiextensions-apiserver)
+go mod download "${DEP_MODULES[@]}"
+# Load the k8s packages from those copies rather than the read-only module cache.
+PROTOGEN_TMP=$(mktemp -d)
+trap 'rm -rf "${PROTOGEN_TMP}"' EXIT
+PROTOGEN_MODFILE=${PROTOGEN_TMP}/go.mod
+cp "${PROJECT_ROOT}/go.mod" "${PROTOGEN_MODFILE}"
+cp "${PROJECT_ROOT}/go.sum" "${PROTOGEN_MODFILE%.mod}.sum"
+for mod in "${DEP_MODULES[@]}"; do
+    # An interrupted run can leave the copy read-only.
+    [ ! -e "${GOPATH}/src/${mod}" ] || chmod -R u+w "${GOPATH}/src/${mod}"
+    rm -rf "${GOPATH:?}/src/${mod}" && mkdir -p "$(dirname "${GOPATH}/src/${mod}")"
+    cp -r "$(go list -mod=mod -m -f '{{.Dir}}' "${mod}")" "${GOPATH}/src/${mod}"
+    chmod -R u+w "${GOPATH}/src/${mod}"
+    go mod edit -modfile="${PROTOGEN_MODFILE}" -replace="${mod}=${GOPATH}/src/${mod}"
+done
 
-go-to-protobuf \
+GOFLAGS="${GOFLAGS:-} -mod=mod -modfile=${PROTOGEN_MODFILE}" go-to-protobuf \
+    --drop-gogo-go=false \
     --go-header-file="${PROJECT_ROOT}"/hack/custom-boilerplate.go.txt \
     --packages="$(
         IFS=,
@@ -72,12 +86,8 @@ go-to-protobuf \
         IFS=,
         echo "${APIMACHINERY_PKGS[*]}"
     )" \
-    --proto-import="${PROJECT_ROOT}"/vendor \
     --proto-import="${protoc_include}" \
     --output-dir="${GOPATH}/src/"
-
-# go-to-protobuf modifies vendored code. Re-vendor code so it's available for subsequent steps.
-go mod vendor
 
 # Either protoc-gen-go, protoc-gen-gofast, or protoc-gen-gogofast can be used to build
 # server/*/<service>.pb.go from .proto files. golang/protobuf and gogo/protobuf can be used
@@ -92,15 +102,14 @@ GOPROTOBINARY=gogofast
 
 # Generate server/<service>/(<service>.pb.go|<service>.pb.gw.go)
 MOD_ROOT=${GOPATH}/pkg/mod
-grpc_gateway_version=$(go list -m github.com/grpc-ecosystem/grpc-gateway | awk '{print $NF}' | head -1)
+grpc_gateway_version=$(go list -mod=mod -m github.com/grpc-ecosystem/grpc-gateway | awk '{print $NF}' | head -1)
 GOOGLE_PROTO_API_PATH=${MOD_ROOT}/github.com/grpc-ecosystem/grpc-gateway@${grpc_gateway_version}/third_party/googleapis
-GOGO_PROTOBUF_PATH=${PROJECT_ROOT}/vendor/github.com/gogo/protobuf
+GOGO_PROTOBUF_PATH=${GOPATH}/src/github.com/gogo/protobuf
 PROTO_FILES=$(find "$PROJECT_ROOT" \( -name "*.proto" -and -path '*/server/*' -or -path '*/reposerver/*' -and -name "*.proto" -or -path '*/cmpserver/*' -and -name "*.proto" -or -path '*/commitserver/*' -and -name "*.proto" -or -path '*/util/askpass/*' -and -name "*.proto" \) | sort)
 for i in ${PROTO_FILES}; do
     protoc \
         -I"${PROJECT_ROOT}" \
         -I"${protoc_include}" \
-        -I./vendor \
         -I"$GOPATH"/src \
         -I"${GOOGLE_PROTO_API_PATH}" \
         -I"${GOGO_PROTOBUF_PATH}" \

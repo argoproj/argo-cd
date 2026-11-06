@@ -9,175 +9,11 @@ import (
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
-	"k8s.io/utils/ptr"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
-
-func Test_generateParamsFromGitFile(t *testing.T) {
-	defaultContent := []byte(`
-foo:
-  bar: baz
-`)
-	type args struct {
-		filePath          string
-		fileContent       []byte
-		values            map[string]string
-		useGoTemplate     bool
-		goTemplateOptions []string
-		pathParamPrefix   string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []map[string]any
-		wantErr bool
-	}{
-		{
-			name: "empty file returns path parameters",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   []byte(""),
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			want: []map[string]any{
-				{
-					"path":                    "path/dir",
-					"path.basename":           "dir",
-					"path.filename":           "file_name.yaml",
-					"path.basenameNormalized": "dir",
-					"path.filenameNormalized": "file-name.yaml",
-					"path[0]":                 "path",
-					"path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "invalid json/yaml file returns error",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   []byte("this is not json or yaml"),
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			wantErr: true,
-		},
-		{
-			name: "file parameters are added to params",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   defaultContent,
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			want: []map[string]any{
-				{
-					"foo.bar":                 "baz",
-					"path":                    "path/dir",
-					"path.basename":           "dir",
-					"path.filename":           "file_name.yaml",
-					"path.basenameNormalized": "dir",
-					"path.filenameNormalized": "file-name.yaml",
-					"path[0]":                 "path",
-					"path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "path parameter are prefixed",
-			args: args{
-				filePath:        "path/dir/file_name.yaml",
-				fileContent:     defaultContent,
-				values:          map[string]string{},
-				useGoTemplate:   false,
-				pathParamPrefix: "myRepo",
-			},
-			want: []map[string]any{
-				{
-					"foo.bar":                        "baz",
-					"myRepo.path":                    "path/dir",
-					"myRepo.path.basename":           "dir",
-					"myRepo.path.filename":           "file_name.yaml",
-					"myRepo.path.basenameNormalized": "dir",
-					"myRepo.path.filenameNormalized": "file-name.yaml",
-					"myRepo.path[0]":                 "path",
-					"myRepo.path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "file parameters are added to params with go template",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   defaultContent,
-				values:        map[string]string{},
-				useGoTemplate: true,
-			},
-			want: []map[string]any{
-				{
-					"foo": map[string]any{
-						"bar": "baz",
-					},
-					"path": map[string]any{
-						"path":               "path/dir",
-						"basename":           "dir",
-						"filename":           "file_name.yaml",
-						"basenameNormalized": "dir",
-						"filenameNormalized": "file-name.yaml",
-						"segments": []string{
-							"path",
-							"dir",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "path parameter are prefixed with go template",
-			args: args{
-				filePath:        "path/dir/file_name.yaml",
-				fileContent:     defaultContent,
-				values:          map[string]string{},
-				useGoTemplate:   true,
-				pathParamPrefix: "myRepo",
-			},
-			want: []map[string]any{
-				{
-					"foo": map[string]any{
-						"bar": "baz",
-					},
-					"myRepo": map[string]any{
-						"path": map[string]any{
-							"path":               "path/dir",
-							"basename":           "dir",
-							"filename":           "file_name.yaml",
-							"basenameNormalized": "dir",
-							"filenameNormalized": "file-name.yaml",
-							"segments": []string{
-								"path",
-								"dir",
-							},
-						},
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.fileContent, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.pathParamPrefix)
-			if tt.wantErr {
-				assert.Error(t, err, "GitGenerator.generateParamsFromGitFile()")
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.want, params)
-			}
-		})
-	}
-}
 
 func TestGitGenerateParamsFromDirectories(t *testing.T) {
 	t.Parallel()
@@ -310,7 +146,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
+			expectedError: errors.New("error generating params from git: error getting directories from git: error"),
 		},
 	}
 
@@ -326,9 +162,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -611,7 +445,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
+			expectedError: errors.New("error generating params from git: error getting directories from git: error"),
 		},
 	}
 
@@ -627,9 +461,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -821,7 +653,7 @@ func TestGitGenerateParamsFromFiles(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]any{},
-			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
+			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json' from repository 'RepoURL': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
@@ -1002,9 +834,7 @@ cluster:
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1344,9 +1174,7 @@ env: testing
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1681,9 +1509,7 @@ env: testing
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1912,9 +1738,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -2052,7 +1876,7 @@ func TestGitGenerateParamsFromFilesGoTemplate(t *testing.T) {
 			},
 			repoPathsError: nil,
 			expected:       []map[string]any{},
-			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
+			expectedError:  errors.New("error generating params from git: unable to process file 'cluster-config/production/config.json' from repository 'RepoURL': unable to parse file: error unmarshaling JSON: while decoding JSON: json: cannot unmarshal string into Go value of type []map[string]interface {}"),
 		},
 		{
 			name:  "test JSON array",
@@ -2267,9 +2091,7 @@ cluster:
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -2423,7 +2245,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedProject: ptr.To("project"),
+			expectedProject: new("project"),
 			expectedError:   nil,
 		},
 		{
@@ -2457,7 +2279,7 @@ func TestGitGenerator_GenerateParams(t *testing.T) {
 				},
 			},
 			expected:        []map[string]any{{"path": "app1", "path.basename": "app1", "path.basenameNormalized": "app1", "path[0]": "app1", "values.foo": "bar"}},
-			expectedProject: ptr.To(""),
+			expectedProject: new(""),
 			expectedError:   nil,
 		},
 	}

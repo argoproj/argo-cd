@@ -18,12 +18,22 @@ if obj.status ~= nil then
       if condition.type == "AllReplicasReady" then
         allReplicasReady.status = condition.status
         allReplicasReady.message = condition.message
+        allReplicasReady.reason = condition.reason
       end
     end
 
+    -- Treat transient/initial 'Unknown' condition as Progressing instead of Degraded.
+    -- The RabbitMQ operator sets these conditions to Unknown briefly while forming the cluster,
+    -- so mapping Unknown->Progressing prevents false Degraded states during normal reconciliation.
     if clusterAvailable.status == "Unknown" or allReplicasReady.status == "Unknown" then
-      hs.status = "Degraded"
-      hs.message = "No statefulset or endpoints found"
+      hs.status = "Progressing"
+      hs.message = "Waiting for RabbitMQ cluster readiness (conditions unknown)"
+      return hs
+    end
+
+    if (allReplicasReady.reason == "ScaledToZero" and allReplicasReady.status == "False" and obj.spec.replicas == 0) then
+      hs.status = "Suspended"
+      hs.message = "RabbitmqCluster is scaled to 0 replicas"
       return hs
     end
 

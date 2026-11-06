@@ -1,13 +1,41 @@
+-- CRD spec: https://gitops-promoter.readthedocs.io/en/latest/crd-specs/#changetransferpolicy
+-- Promoter finalizers: https://gitops-promoter.readthedocs.io/en/latest/debugging/finalizers/
+
+local function formatDeletingWithFinalizers(base, finalizers, catalog)
+    if not finalizers then
+        return base
+    end
+    local parts = { base }
+    for _, f in ipairs(finalizers) do
+        local e = catalog[f]
+        if e then
+            table.insert(parts, f .. ": " .. e.wait .. " Risk if removed manually: " .. e.risk)
+        else
+            table.insert(parts, f .. ": still present.")
+        end
+    end
+    return table.concat(parts, " ")
+end
+
+if obj.metadata and obj.metadata.deletionTimestamp then
+    local hs = {}
+    hs.status = "Progressing"
+    hs.deletionMessage = formatDeletingWithFinalizers(
+        "Change transfer policy is being deleted.",
+        obj.metadata.finalizers,
+        {
+            ["changetransferpolicy.promoter.argoproj.io/finalizer"] = {
+                wait = "Waiting to clear related PullRequest finalizers and finish cleanup before this policy is removed.",
+                risk = "The 'changetransferpolicy.promoter.argoproj.io/pullrequest-finalizer' finalizer may not be cleaned up from PullRequests owned by this ChangeTransferPolicy.",
+            },
+        }
+    )
+    return hs
+end
 local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing change transfer policy"
 
--- Check for deletion timestamp
-if obj.metadata.deletionTimestamp then
-    hs.status = "Progressing"
-    hs.message = "Change transfer policy is being deleted"
-    return hs
-end
 
 -- Check if status exists
 if not obj.status then
@@ -89,7 +117,7 @@ if obj.status.proposed.dry.sha ~= obj.status.active.dry.sha then
         end
     end
 
-    hs.status = "Progressing"
+    hs.status = "Healthy"
     hs.message =
         "Promotion in progress from '" .. getShortSha(obj.status.active.dry.sha) ..
         "' to '" .. getShortSha(obj.status.proposed.dry.sha) .. "': " ..

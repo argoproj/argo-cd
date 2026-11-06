@@ -1,6 +1,36 @@
 ### **time**
 Time related functions.
 
+#### Configuring the local timezone
+
+The `time` functions can be used in both notification templates and triggers.
+
+When converting a time value to local time using `.Local()`, Argo CD Notifications uses the local timezone configured for the `argocd-notifications-controller` container.
+
+You can configure this timezone by setting the `TZ` environment variable on the `argocd-notifications-controller` container:
+
+
+```yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-notifications-controller
+spec:
+  template:
+    spec:
+      containers:
+      - name: argocd-notifications-controller
+        env:
+        - name: TZ
+          value: Asia/Tokyo
+```
+
+For example, a notification template can format an application timestamp in the configured local timezone:
+
+```
+{{ (call .time.Parse .app.status.operationState.startedAt).Local.Format "2006-01-02T15:04:05Z07:00" }}
+```
+
 <hr>
 **`time.Now() Time`**
 

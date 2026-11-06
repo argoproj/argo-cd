@@ -12,16 +12,45 @@ import (
 	applicationv1alpha1 "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	v1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	runtime "k8s.io/apimachinery/pkg/runtime"
+	schema "k8s.io/apimachinery/pkg/runtime/schema"
 	watch "k8s.io/apimachinery/pkg/watch"
 	cache "k8s.io/client-go/tools/cache"
 )
 
 // AppProjectInformer provides access to a shared informer and lister for
-// AppProjects.
+// AppProjects. Prefer using the type-safe variant (see [TypedAppProjectInformer]).
 type AppProjectInformer interface {
 	Informer() cache.SharedIndexInformer
 	Lister() applicationv1alpha1.AppProjectLister
 }
+
+// TypedAppProjectInformer provides access to a shared informer and lister for
+// AppProjects, including the type-safe TypedInformer variant.
+// It is a superset of AppProjectInformer.
+type TypedAppProjectInformer interface {
+	Informer() cache.SharedIndexInformer
+	TypedInformer() AppProjectIndexInformer
+	Lister() applicationv1alpha1.AppProjectLister
+}
+
+// AppProjectIndexInformer is a wrapper around the underlying [cache.SharedIndexInformer]
+// with type-safe variants of several methods.
+type AppProjectIndexInformer cache.TypedSharedIndexInformer[*apisapplicationv1alpha1.AppProject]
+
+// AppProjectHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerFuncs] for AppProject.
+type AppProjectHandlerFuncs = cache.TypedResourceEventHandlerFuncs[*apisapplicationv1alpha1.AppProject]
+
+// AppProjectDetailedHandlerFuncs is a specialization of [cache.TypedResourceEventHandlerDetailedFuncs] for AppProject.
+type AppProjectDetailedHandlerFuncs = cache.TypedResourceEventHandlerDetailedFuncs[*apisapplicationv1alpha1.AppProject]
+
+// AppProjectFilteringHandler is a specialization of [cache.TypedFilteringResourceEventHandler] for AppProject.
+type AppProjectFilteringHandler = cache.TypedFilteringResourceEventHandler[*apisapplicationv1alpha1.AppProject]
+
+// AppProjectIndexers is a specialization of [cache.TypedIndexers] for AppProject.
+type AppProjectIndexers = cache.TypedIndexers[*apisapplicationv1alpha1.AppProject]
+
+// DeletedAppProject is a specialization of [cache.DeletedObject] for AppProject.
+type DeletedAppProject = cache.DeletedObject[*apisapplicationv1alpha1.AppProject]
 
 type appProjectInformer struct {
 	factory          internalinterfaces.SharedInformerFactory
@@ -32,55 +61,132 @@ type appProjectInformer struct {
 // NewAppProjectInformer constructs a new informer for AppProject type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedAppProjectInformer]).
 func NewAppProjectInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers) cache.SharedIndexInformer {
-	return NewFilteredAppProjectInformer(client, namespace, resyncPeriod, indexers, nil)
+	return NewAppProjectInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers})
+}
+
+// NewTypedAppProjectInformer constructs a new informer for AppProject type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedAppProjectInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers AppProjectIndexers) AppProjectIndexInformer {
+	return NewTypedAppProjectInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers)})
 }
 
 // NewFilteredAppProjectInformer constructs a new informer for AppProject type.
 // Always prefer using an informer factory to get a shared informer instead of getting an independent
 // one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedFilteredAppProjectInformer]).
 func NewFilteredAppProjectInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers cache.Indexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) cache.SharedIndexInformer {
-	return cache.NewSharedIndexInformer(
-		&cache.ListWatch{
-			ListFunc: func(options v1.ListOptions) (runtime.Object, error) {
+	return NewTypedAppProjectInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: indexers, TweakListOptions: tweakListOptions})
+}
+
+// NewTypedFilteredAppProjectInformer constructs a new informer for AppProject type.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedFilteredAppProjectInformer(client versioned.Interface, namespace string, resyncPeriod time.Duration, indexers AppProjectIndexers, tweakListOptions internalinterfaces.TweakListOptionsFunc) AppProjectIndexInformer {
+	return NewTypedAppProjectInformerWithOptions(client, namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.TypedIndexersToIndexers(indexers), TweakListOptions: tweakListOptions})
+}
+
+// NewAppProjectInformerWithOptions constructs a new informer for AppProject type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+// If you really need an independent one, prefer using the type-safe variant (see [NewTypedAppProjectInformerWithOptions]).
+func NewAppProjectInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) cache.SharedIndexInformer {
+	return NewTypedAppProjectInformerWithOptions(client, namespace, options)
+}
+
+// NewTypedAppProjectInformerWithOptions constructs a new informer for AppProject type with additional options.
+// Always prefer using an informer factory to get a shared informer instead of getting an independent
+// one. This reduces memory footprint and number of connections to the server.
+func NewTypedAppProjectInformerWithOptions(client versioned.Interface, namespace string, options internalinterfaces.InformerOptions) AppProjectIndexInformer {
+	gvr := schema.GroupVersionResource{Group: "argoproj.io", Version: "v1alpha1", Resource: "appprojects"}
+	identifier := options.InformerName.WithResource(gvr)
+	tweakListOptions := options.TweakListOptions
+	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.AppProject](cache.NewSharedIndexInformerWithOptions(
+		cache.ToListWatcherWithWatchListSemantics(&cache.ListWatch{
+			ListFunc: func(opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ArgoprojV1alpha1().AppProjects(namespace).List(context.Background(), options)
+				return client.ArgoprojV1alpha1().AppProjects(namespace).List(context.Background(), opts)
 			},
-			WatchFunc: func(options v1.ListOptions) (watch.Interface, error) {
+			WatchFunc: func(opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ArgoprojV1alpha1().AppProjects(namespace).Watch(context.Background(), options)
+				return client.ArgoprojV1alpha1().AppProjects(namespace).Watch(context.Background(), opts)
 			},
-			ListWithContextFunc: func(ctx context.Context, options v1.ListOptions) (runtime.Object, error) {
+			ListWithContextFunc: func(ctx context.Context, opts v1.ListOptions) (runtime.Object, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ArgoprojV1alpha1().AppProjects(namespace).List(ctx, options)
+				return client.ArgoprojV1alpha1().AppProjects(namespace).List(ctx, opts)
 			},
-			WatchFuncWithContext: func(ctx context.Context, options v1.ListOptions) (watch.Interface, error) {
+			WatchFuncWithContext: func(ctx context.Context, opts v1.ListOptions) (watch.Interface, error) {
 				if tweakListOptions != nil {
-					tweakListOptions(&options)
+					tweakListOptions(&opts)
 				}
-				return client.ArgoprojV1alpha1().AppProjects(namespace).Watch(ctx, options)
+				return client.ArgoprojV1alpha1().AppProjects(namespace).Watch(ctx, opts)
 			},
-		},
+		}, client),
 		&apisapplicationv1alpha1.AppProject{},
-		resyncPeriod,
-		indexers,
-	)
+		cache.SharedIndexInformerOptions{
+			ResyncPeriod: options.ResyncPeriod,
+			Indexers:     options.Indexers,
+			Identifier:   identifier,
+		},
+	))
 }
 
 func (f *appProjectInformer) defaultInformer(client versioned.Interface, resyncPeriod time.Duration) cache.SharedIndexInformer {
-	return NewFilteredAppProjectInformer(client, f.namespace, resyncPeriod, cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, f.tweakListOptions)
+	return NewTypedAppProjectInformerWithOptions(client, f.namespace, internalinterfaces.InformerOptions{ResyncPeriod: resyncPeriod, Indexers: cache.Indexers{cache.NamespaceIndex: cache.MetaNamespaceIndexFunc}, InformerName: f.factory.InformerName(), TweakListOptions: f.tweakListOptions})
 }
 
 func (f *appProjectInformer) Informer() cache.SharedIndexInformer {
-	return f.factory.InformerFor(&apisapplicationv1alpha1.AppProject{}, f.defaultInformer)
+	return f.TypedInformer()
+}
+
+func (f *appProjectInformer) TypedInformer() AppProjectIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.AppProject](f.factory.InformerFor(&apisapplicationv1alpha1.AppProject{}, f.defaultInformer))
 }
 
 func (f *appProjectInformer) Lister() applicationv1alpha1.AppProjectLister {
 	return applicationv1alpha1.NewAppProjectLister(f.Informer().GetIndexer())
+}
+
+// ToTypedAppProjectInformer converts an untyped informer into a TypedAppProjectInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *AppProject. If that is not the case, calling type-safe methods of the returned
+// TypedAppProjectInformer leads to runtime panics. A safer alternative is to pass
+// around a TypedAppProjectInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToTypedAppProjectInformer(informer AppProjectInformer) TypedAppProjectInformer {
+	if informer, ok := informer.(TypedAppProjectInformer); ok {
+		return informer
+	}
+	return &appProjectTypedInformerAdapter{informer}
+}
+
+type appProjectTypedInformerAdapter struct {
+	AppProjectInformer
+}
+
+func (a *appProjectTypedInformerAdapter) TypedInformer() AppProjectIndexInformer {
+	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.AppProject](a.Informer())
+}
+
+// ToAppProjectIndexInformer converts an untyped informer into a AppProjectIndexInformer.
+//
+// WARNING: this conversion is only safe if the informer handles objects of type
+// *AppProject. If that is not the case, calling type-safe methods of the returned
+// AppProjectIndexInformer leads to runtime panics. A safer alternative is to pass
+// around a AppProjectIndexInformer instances that was obtained from a
+// SharedInformerFactory.
+func ToAppProjectIndexInformer(informer cache.SharedIndexInformer) AppProjectIndexInformer {
+	if informer, ok := informer.(AppProjectIndexInformer); ok {
+		return informer
+	}
+	return cache.NewTypedSharedIndexInformer[*apisapplicationv1alpha1.AppProject](informer)
 }

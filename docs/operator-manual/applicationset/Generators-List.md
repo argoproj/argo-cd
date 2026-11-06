@@ -30,7 +30,7 @@ spec:
         server: '{{.url}}'
         namespace: guestbook
 ```
-(*The full example can be found [here](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/list-generator).*)
+(*The [full example](https://github.com/argoproj/argo-cd/tree/master/applicationset/examples/list-generator).*)
 
 In this example, the List generator passes the `url` and `cluster` fields as parameters into the template. If we wanted to add a second environment, we could uncomment the second element and the ApplicationSet controller would automatically target it with the defined application.
 
