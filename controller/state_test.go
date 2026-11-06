@@ -2994,6 +2994,7 @@ func TestShouldUseServerSideDiff(t *testing.T) {
 	}
 }
 
+// TestGitPathsCheckedForAllSources checks which sources can rely on the manifest-generate-paths check.
 func TestGitPathsCheckedForAllSources(t *testing.T) {
 	t.Parallel()
 	assert.True(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://github.com/a/b", Path: "chart"}, {RepoURL: "https://github.com/a/c", Ref: "values"}}))
@@ -3002,6 +3003,7 @@ func TestGitPathsCheckedForAllSources(t *testing.T) {
 	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "oci://registry.example.com/charts", Path: "."}}))
 }
 
+// TestTargetsMatchCachedDiff checks the target comparison used before reusing a cached diff across a revision change.
 func TestTargetsMatchCachedDiff(t *testing.T) {
 	t.Parallel()
 	svc := func(port int64) *unstructured.Unstructured {
@@ -3035,6 +3037,7 @@ func TestTargetsMatchCachedDiff(t *testing.T) {
 	assert.False(t, targetsMatchCachedDiff(secretCache, []*unstructured.Unstructured{secret}, []*unstructured.Unstructured{secret}))
 }
 
+// TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged checks that CompareAppState keeps the diff cache across a revision change only when the manifest-generate-paths, the targets and the live resourceVersions are unchanged.
 func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *testing.T) {
 	t.Parallel()
 	newCM := func(value string) *unstructured.Unstructured {
@@ -3049,7 +3052,7 @@ func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *tes
 	targetJSON, err := json.Marshal(target)
 	require.NoError(t, err)
 
-	run := func(t *testing.T, cachedTarget func(compared *unstructured.Unstructured) string) *comparisonResult {
+	run := func(t *testing.T, cachedTarget func(compared *unstructured.Unstructured) string, cachedResourceVersion func(live string) string) *comparisonResult {
 		t.Helper()
 		app := newFakeApp()
 		app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
@@ -3080,7 +3083,7 @@ func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *tes
 		liveJSON, err := json.Marshal(live)
 		require.NoError(t, err)
 		require.NoError(t, ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), []*v1alpha1.ResourceDiff{{
-			Kind: "ConfigMap", Namespace: test.FakeDestNamespace, Name: "cm", ResourceVersion: first.managedResources[0].ResourceVersion,
+			Kind: "ConfigMap", Namespace: test.FakeDestNamespace, Name: "cm", ResourceVersion: cachedResourceVersion(first.managedResources[0].ResourceVersion),
 			TargetState:         cachedTarget(first.managedResources[0].Target),
 			NormalizedLiveState: string(liveJSON),
 			PredictedLiveState:  string(liveJSON),
@@ -3098,19 +3101,28 @@ func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *tes
 		return second
 	}
 
+	sameTarget := func(compared *unstructured.Unstructured) string {
+		data, err := json.Marshal(compared)
+		require.NoError(t, err)
+		return string(data)
+	}
+	sameResourceVersion := func(live string) string { return live }
+
 	t.Run("targets match the cached diff", func(t *testing.T) {
 		t.Parallel()
-		res := run(t, func(compared *unstructured.Unstructured) string {
-			data, err := json.Marshal(compared)
-			require.NoError(t, err)
-			return string(data)
-		})
+		res := run(t, sameTarget, sameResourceVersion)
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, res.syncStatus.Status, "the cached diff should be reused")
 	})
 
 	t.Run("targets differ from the cached diff", func(t *testing.T) {
 		t.Parallel()
-		res := run(t, func(*unstructured.Unstructured) string { return "{}" })
+		res := run(t, func(*unstructured.Unstructured) string { return "{}" }, sameResourceVersion)
 		assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, res.syncStatus.Status, "the diff should be recomputed")
+	})
+
+	t.Run("live resourceVersion changed since the cached diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, sameTarget, func(live string) string { return live + "-old" })
+		assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, res.syncStatus.Status, "the changed resource should be re-diffed")
 	})
 }
