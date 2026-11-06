@@ -3012,9 +3012,9 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		return nil, 0
 	}
 
+	hasPruneRequested := false
 	if !app.Spec.SyncPolicy.Automated.GetPrune() {
 		requirePruneOnly := true
-		hasPruneRequested := false
 		for _, r := range resources {
 			if r.Status != appv1.SyncStatusCodeSynced {
 				if !r.RequiresPruning {
@@ -3097,7 +3097,9 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
 
-	if app.Spec.SyncPolicy.Automated.GetPrune() && !app.Spec.SyncPolicy.Automated.GetAllowEmpty() {
+	// Resources with the Prune=true sync option are pruned even when automated prune is disabled,
+	// so the allowEmpty safeguard applies to them as well.
+	if (app.Spec.SyncPolicy.Automated.GetPrune() || hasPruneRequested) && !app.Spec.SyncPolicy.Automated.GetAllowEmpty() {
 		bAllNeedPrune := true
 		for _, r := range resources {
 			if !r.RequiresPruning {

@@ -932,6 +932,45 @@ func TestAutoSyncAllowEmpty(t *testing.T) {
 	assert.Nil(t, cond)
 }
 
+// TestAutoSyncNotAllowEmptyPruneRequested verifies the allowEmpty safeguard applies to resources with the
+// Prune=true sync option when automated prune is disabled
+func TestAutoSyncNotAllowEmptyPruneRequested(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	syncStatus := v1alpha1.SyncStatus{
+		Status:   v1alpha1.SyncStatusCodeOutOfSync,
+		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{
+		{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: true, PruneRequested: true},
+		{Name: "guestbook-extra", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: true},
+	}, true)
+	require.NotNil(t, cond)
+	assert.Contains(t, cond.Message, "auto-sync will wipe out all resources")
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+	require.NoError(t, err)
+	assert.Nil(t, app.Operation)
+}
+
+func TestAutoSyncAllowEmptyPruneRequested(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.Automated.AllowEmpty = new(true)
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	syncStatus := v1alpha1.SyncStatus{
+		Status:   v1alpha1.SyncStatusCodeOutOfSync,
+		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{
+		{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: true, PruneRequested: true},
+	}, true)
+	assert.Nil(t, cond)
+	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, app.Operation)
+	require.NotNil(t, app.Operation.Sync)
+	assert.False(t, app.Operation.Sync.Prune)
+}
+
 func TestSkipAutoSync(t *testing.T) {
 	// Verify we skip when we previously synced to it in our most recent history
 	// Set current to 'aaaaa', desired to 'aaaa' and mark system OutOfSync
@@ -1087,7 +1126,8 @@ func TestSkipAutoSync(t *testing.T) {
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
 		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{
-			{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: true, PruneRequested: true},
+			{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeSynced},
+			{Name: "guestbook-extra", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: true, PruneRequested: true},
 		}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
