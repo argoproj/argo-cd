@@ -63,7 +63,7 @@ export const listViewQuery = (projects: string[], appNamespace: string, names?: 
         }
     });
 
-export function applyWatchEvents(list: models.ApplicationList, changes: models.ApplicationWatchEvent[]): models.ApplicationList {
+export function applyWatchEvents<T extends models.AbstractApplication, L extends {items: T[]}>(list: L, changes: {type: models.WatchType; application: T}[]): L {
     const items = list.items.slice();
     changes.forEach(change => {
         const index = items.findIndex(item => AppUtils.appInstanceName(item) === AppUtils.appInstanceName(change.application));
