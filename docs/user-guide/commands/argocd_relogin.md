@@ -36,7 +36,7 @@ argocd login cd.argoproj.io --core
   -h, --help                 help for relogin
       --no-browser           Perform SSO relogin without a browser using the device code flow
       --password string      The password of an account to authenticate
-      --sso-launch-browser   Automatically launch the browser set in $BROWSER, or the system default browser, when performing SSO login (default true)
+      --sso-launch-browser   Automatically launch the browser set in $BROWSER (one command, see the environment variables docs), or the system default browser, when performing SSO login (default true)
       --sso-port int         Port to run local OAuth2 login application (default 8085)
 ```
 

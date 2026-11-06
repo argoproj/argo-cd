@@ -13,6 +13,7 @@ import (
 	"os/exec"
 	"os/signal"
 	"path/filepath"
+	"runtime"
 	"strconv"
 	"strings"
 	"syscall"
@@ -227,7 +228,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().StringVar(&callback, "callback", "", "Scheme, Host and Port for the callback URL")
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
-	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the browser set in $BROWSER, or the system default browser, when performing SSO login")
+	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the browser set in $BROWSER (one command, see the environment variables docs), or the system default browser, when performing SSO login")
 	return command
 }
 
@@ -561,32 +562,54 @@ func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username,
 func ssoAuthFlow(url string, ssoLaunchBrowser bool) {
 	if ssoLaunchBrowser {
 		fmt.Print("Opening browser for authentication\n")
-		err := launchBrowser(url)
-		errors.CheckError(err)
+		// The URL is already printed, so a browser that cannot be opened must not stop the login.
+		if err := launchBrowser(url); err != nil {
+			log.Warnf("Could not open a browser, open the URL above by hand: %v", err)
+		}
 	} else {
 		fmt.Printf("To authenticate, copy-and-paste the following URL into your preferred browser: %s\n", url)
 	}
 }
 
+// openDefaultBrowser opens a URL with the system default browser. Tests replace it.
+var openDefaultBrowser = open.Start
+
 // launchBrowser opens url with the command in $BROWSER, or with the system default browser when $BROWSER is
-// unset. The command is split into arguments with shell quoting rules: on Windows, put a path that holds
-// backslashes in single quotes, or write it with forward slashes. The URL replaces an argument that is exactly
-// "%s", or is appended, so it is always its own argument and never spliced into a string a shell would parse.
-// Only absolute http(s) URLs are opened, so the URL cannot be read as an option.
+// unset or its command cannot be used. Only absolute http(s) URLs are opened, so the URL cannot be read as an
+// option.
 func launchBrowser(url string) error {
 	if u, err := neturl.Parse(url); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
 		return fmt.Errorf("refusing to open %q: not an absolute http(s) URL", url)
 	}
-	browser := os.Getenv("BROWSER")
-	if browser == "" {
-		return open.Start(url)
+	if browser := os.Getenv("BROWSER"); browser != "" {
+		err := startBrowserCommand(browser, url)
+		if err == nil {
+			return nil
+		}
+		log.Warnf("Ignoring BROWSER, opening the system default browser instead: %v", err)
 	}
+	return openDefaultBrowser(url)
+}
+
+// startBrowserCommand starts the command in browser, split into arguments with shell quoting rules (on Windows,
+// put a path that holds backslashes in single quotes, or write it with forward slashes). The URL replaces an
+// argument that is exactly "%s", or is appended, so it is always its own argument and never spliced into a
+// string a shell would parse. On Windows, cmd.exe and batch files are refused: Go does not quote arguments for
+// cmd.exe, which would run whatever follows a "&" in the URL.
+func startBrowserCommand(browser, url string) error {
 	args, err := shlex.Split(browser)
 	if err != nil {
 		return fmt.Errorf("parsing BROWSER %q: %w", browser, err)
 	}
 	if len(args) == 0 {
 		return fmt.Errorf("no command in BROWSER %q", browser)
+	}
+	path, err := exec.LookPath(args[0])
+	if err != nil {
+		return fmt.Errorf("starting BROWSER %q: %w", browser, err)
+	}
+	if runtime.GOOS == "windows" && runsThroughCmdExe(path) {
+		return fmt.Errorf("refusing BROWSER %q: cmd.exe would interpret the URL", browser)
 	}
 	substituted := false
 	for i, arg := range args {
@@ -599,10 +622,21 @@ func launchBrowser(url string) error {
 		args = append(args, url)
 	}
 	// Not tied to the login context: cancelling it would kill a browser started directly.
-	cmd := exec.CommandContext(context.Background(), args[0], args[1:]...)
+	cmd := exec.CommandContext(context.Background(), path, args[1:]...)
 	if err := cmd.Start(); err != nil {
 		return fmt.Errorf("starting BROWSER %q: %w", browser, err)
 	}
 	go func() { _ = cmd.Wait() }()
 	return nil
+}
+
+// runsThroughCmdExe reports whether Windows runs the executable at path with cmd.exe: cmd.exe itself, or a
+// batch file.
+func runsThroughCmdExe(path string) bool {
+	base := strings.ToLower(filepath.Base(strings.ReplaceAll(path, `\`, "/")))
+	switch filepath.Ext(base) {
+	case ".bat", ".cmd":
+		return true
+	}
+	return base == "cmd" || base == "cmd.exe"
 }

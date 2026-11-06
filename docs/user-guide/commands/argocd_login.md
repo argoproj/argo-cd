@@ -46,7 +46,7 @@ argocd login cd.argoproj.io --core
       --password string      The password of an account to authenticate
       --skip-test-tls        Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)
       --sso                  Perform SSO login
-      --sso-launch-browser   Automatically launch the browser set in $BROWSER, or the system default browser, when performing SSO login (default true)
+      --sso-launch-browser   Automatically launch the browser set in $BROWSER (one command, see the environment variables docs), or the system default browser, when performing SSO login (default true)
       --sso-port int         Port to run local OAuth2 login application (default 8085)
       --username string      The username of an account to authenticate
 ```
