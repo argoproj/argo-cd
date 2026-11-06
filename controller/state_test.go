@@ -669,6 +669,58 @@ func TestCompareAppStateExtra(t *testing.T) {
 	assert.Empty(t, app.Status.Conditions)
 }
 
+// TestCompareAppStatePruneRequested tests that PruneRequested is only set for extra live objects
+// that opt in to pruning with the Prune=true sync option
+func TestCompareAppStatePruneRequested(t *testing.T) {
+	tests := []struct {
+		name                    string
+		syncOptions             string
+		inGit                   bool
+		expectedRequiresPruning bool
+		expectedPruneRequested  bool
+	}{
+		{name: "extra object with Prune=true", syncOptions: "Prune=true", expectedRequiresPruning: true, expectedPruneRequested: true},
+		{name: "extra object with Prune=true among other options", syncOptions: "PruneLast=true,Prune=true", expectedRequiresPruning: true, expectedPruneRequested: true},
+		{name: "extra object without sync options", expectedRequiresPruning: true},
+		{name: "extra object with Prune=false", syncOptions: "Prune=false", expectedRequiresPruning: true},
+		{name: "object in git with Prune=true", syncOptions: "Prune=true", inGit: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			pod := NewPod()
+			pod.SetNamespace(test.FakeDestNamespace)
+			if tt.syncOptions != "" {
+				pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: tt.syncOptions})
+			}
+			app := newFakeApp()
+			manifests := []string{}
+			if tt.inGit {
+				manifests = append(manifests, toJSON(t, pod))
+			}
+			key := kube.ResourceKey{Group: "", Kind: "Pod", Namespace: test.FakeDestNamespace, Name: pod.GetName()}
+			data := fakeData{
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: manifests,
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  "abc123",
+				},
+				managedLiveObjs: map[kube.ResourceKey]*unstructured.Unstructured{
+					key: pod,
+				},
+			}
+			ctrl := newFakeController(t.Context(), &data, nil)
+			sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+			revisions := []string{""}
+			compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+			require.NoError(t, err)
+			require.Len(t, compRes.resources, 1)
+			assert.Equal(t, tt.expectedRequiresPruning, compRes.resources[0].RequiresPruning)
+			assert.Equal(t, tt.expectedPruneRequested, compRes.resources[0].PruneRequested)
+		})
+	}
+}
+
 // TestCompareAppStateHook checks that hooks are detected during manifest generation, and not
 // considered as part of resources when assessing Synced status
 func TestCompareAppStateHook(t *testing.T) {
