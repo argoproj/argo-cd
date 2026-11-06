@@ -3034,3 +3034,83 @@ func TestTargetsMatchCachedDiff(t *testing.T) {
 	secretCache := []*v1alpha1.ResourceDiff{{Kind: "Secret", Namespace: "ns", Name: "s", TargetState: string(data)}}
 	assert.False(t, targetsMatchCachedDiff(secretCache, []*unstructured.Unstructured{secret}, []*unstructured.Unstructured{secret}))
 }
+
+func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *testing.T) {
+	t.Parallel()
+	newCM := func(value string) *unstructured.Unstructured {
+		return &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1", "kind": "ConfigMap",
+			"metadata": map[string]any{"name": "cm", "namespace": test.FakeDestNamespace},
+			"data":     map[string]any{"key": value},
+		}}
+	}
+	live := newCM("live")
+	target := newCM("target")
+	targetJSON, err := json.Marshal(target)
+	require.NoError(t, err)
+
+	run := func(t *testing.T, cachedTarget func(compared *unstructured.Unstructured) string) *comparisonResult {
+		t.Helper()
+		app := newFakeApp()
+		app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+		// CompareAppState consumes the map the fake cache returns, so refill it before each compare.
+		liveObjs := map[kube.ResourceKey]*unstructured.Unstructured{}
+		manifest := &apiclient.ManifestResponse{
+			Manifests: []string{string(targetJSON)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "def456",
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses:              []*apiclient.ManifestResponse{manifest, manifest},
+			managedLiveObjs:                liveObjs,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false, Revision: "def456"},
+		}, nil)
+		sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+
+		// The real diff is OutOfSync because live and target data differ.
+		app.Status.Sync = v1alpha1.SyncStatus{Revision: "abc123"}
+		liveObjs[kube.GetResourceKey(live)] = live
+		first, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, sources, true, false, nil, false)
+		require.NoError(t, err)
+		require.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, first.syncStatus.Status)
+		require.Len(t, first.managedResources, 1)
+
+		// Cache a Synced diff, then compare again at a new revision with unchanged paths.
+		liveJSON, err := json.Marshal(live)
+		require.NoError(t, err)
+		require.NoError(t, ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), []*v1alpha1.ResourceDiff{{
+			Kind: "ConfigMap", Namespace: test.FakeDestNamespace, Name: "cm", ResourceVersion: first.managedResources[0].ResourceVersion,
+			TargetState:         cachedTarget(first.managedResources[0].Target),
+			NormalizedLiveState: string(liveJSON),
+			PredictedLiveState:  string(liveJSON),
+			Modified:            false,
+		}}))
+		app.Status.Sync = v1alpha1.SyncStatus{
+			Revision:   "abc123",
+			ComparedTo: v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination},
+		}
+		now := metav1.Now()
+		app.Status.ReconciledAt = &now
+		liveObjs[kube.GetResourceKey(live)] = live
+		second, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, sources, false, false, nil, false)
+		require.NoError(t, err)
+		return second
+	}
+
+	t.Run("targets match the cached diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, func(compared *unstructured.Unstructured) string {
+			data, err := json.Marshal(compared)
+			require.NoError(t, err)
+			return string(data)
+		})
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, res.syncStatus.Status, "the cached diff should be reused")
+	})
+
+	t.Run("targets differ from the cached diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, func(*unstructured.Unstructured) string { return "{}" })
+		assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, res.syncStatus.Status, "the diff should be recomputed")
+	})
+}
