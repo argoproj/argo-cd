@@ -1397,8 +1397,8 @@ rules: []
 		TargetRevision: "HEAD",
 	})
 	proj := &v1alpha1.AppProject{
-		ObjectMeta: metav1.ObjectMeta{Name: "default"},
-		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}},
+		Name: "default",
+		Spec: v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}},
 	}
 	clusterInfo := &v1alpha1.ClusterInfo{ServerVersion: "1.30"}
 
