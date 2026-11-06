@@ -4,6 +4,10 @@ $applications-list-label-min: 5.75rem;
 $applications-list-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
 .applications-table {
+    > .project-group-heading {
+        margin: 12px 0 8px;
+    }
+
     &__virtual-row {
         box-sizing: border-box;
         padding: 4px 0;

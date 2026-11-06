@@ -21,5 +21,8 @@
                 min-width: 160px;
             }
         }
+        & .row + .row {
+            margin-top: 16px;
+        }
     }
 }
