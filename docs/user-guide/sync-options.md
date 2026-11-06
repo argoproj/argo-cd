@@ -39,9 +39,14 @@ The app will be out of sync if Argo CD expects a resource to be pruned. You may 
 If pruning is disabled at the application or operation level, you can still allow specific resources to be pruned by setting `Prune=true` on those resources:
 
 ```yaml
+apiVersion: v1
+kind: ConfigMap
 metadata:
+  name: my-config
   annotations:
     argocd.argoproj.io/sync-options: Prune=true
+data:
+  key: value
 ```
 
 A resource with this option is pruned when it is removed from Git, even if `spec.syncPolicy.automated.prune` is `false` or a manual sync is run without pruning.
