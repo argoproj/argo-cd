@@ -1,16 +1,12 @@
-import {hashKey, keepPreviousData, queryOptions, useQuery, useQueryClient} from '@tanstack/react-query';
+import {hashKey, queryOptions} from '@tanstack/react-query';
 import * as React from 'react';
-import {bufferTime, filter, repeat, retry} from 'rxjs/operators';
+import {Observable} from 'rxjs';
 
-import {usePageVisible} from '../../../shared/hooks/use-page-visible';
+import {useWatchedList, WatchEvent} from '../../../shared/hooks/use-watched-list';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {applyWatchEvents} from './applications-list-client';
 
 // Loads every ApplicationSet the user can see and keeps it current through the watch stream.
-
-const EVENTS_BUFFER_TIMEOUT = 500;
-const WATCH_RETRY_TIMEOUT = 500;
 
 const APPSET_FIELDS = [
     'metadata.name',
@@ -45,38 +41,17 @@ export interface ApplicationSetsListResult {
 }
 
 export function useApplicationSetsList(projects: string[]): ApplicationSetsListResult {
-    const queryClient = useQueryClient();
-    const visible = usePageVisible();
     // Preferences arrive as fresh objects on every emission, so pin the query to its key's content.
     const keyHash = hashKey([projects]);
     const options = React.useMemo(() => appSetsListViewQuery(projects), [keyHash]); // eslint-disable-line react-hooks/exhaustive-deps
-    const {queryKey} = options;
-    const watchProjects = React.useMemo(() => projects, [keyHash]); // eslint-disable-line react-hooks/exhaustive-deps
-    // Don't load while hidden; on becoming visible the stale list refetches, and isFetching is already set
-    // in that render, so the watch waits for it.
-    const query = useQuery({...options, placeholderData: keepPreviousData, enabled: visible});
+    const watch = React.useCallback(
+        (resourceVersion: string) =>
+            // The service puts ApplicationSet watch events in the application field.
+            services.applications.watch('applicationset', {projects, resourceVersion}, {fields: APPSET_WATCH_FIELDS}) as unknown as Observable<WatchEvent<models.ApplicationSet>>,
+        [keyHash] // eslint-disable-line react-hooks/exhaustive-deps
+    );
+    const query = useWatchedList(options, watch);
     const {refetch} = query;
-
-    // Stream changes from the version the list was read at, and never from a failed reload's old version:
-    // the server replays nothing to a watch given a version.
-    const resourceVersion = query.isPlaceholderData ? undefined : query.data?.metadata?.resourceVersion;
-    const watching = !!resourceVersion && visible && !query.isFetching && !query.isError;
-    React.useEffect(() => {
-        if (!watching) {
-            return;
-        }
-        const subscription = services.applications
-            .watch('applicationset', {projects: watchProjects, resourceVersion}, {fields: APPSET_WATCH_FIELDS})
-            .pipe(repeat())
-            .pipe(retry({delay: WATCH_RETRY_TIMEOUT}))
-            // batch events to avoid constant re-rendering and improve UI performance
-            .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
-            .pipe(filter(changes => changes.length > 0))
-            .subscribe(changes =>
-                queryClient.setQueryData(queryKey, list => list && applyWatchEvents(list, changes as unknown as {type: models.WatchType; application: models.ApplicationSet}[]))
-            );
-        return () => subscription.unsubscribe();
-    }, [queryClient, queryKey, watchProjects, resourceVersion, watching]);
 
     const appSets = query.data?.items;
     return {
