@@ -1,6 +1,7 @@
 package reposerver
 
 import (
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"fmt"
@@ -13,11 +14,13 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/contrib/instrumentation/google.golang.org/grpc/otelgrpc"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/credentials"
 	"google.golang.org/grpc/health"
 	"google.golang.org/grpc/health/grpc_health_v1"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
+	"google.golang.org/grpc/status"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	versionpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/version"
@@ -27,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/repository"
 	"github.com/argoproj/argo-cd/v3/server/version"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
@@ -44,6 +48,22 @@ type ArgoCDRepoServer struct {
 
 // The hostnames to generate self-signed certificates with
 var tlsHostList = []string{"localhost", "reposerver"}
+
+// shutdownErrToGRPC reports a request that fails after exec.Shutdown as Unavailable, which the repo
+// client retries - on another replica, since GracefulStop has sent GOAWAY - instead of callers
+// taking a terminated command for a broken spec. Any error qualifies, not just exec.ErrShuttingDown:
+// paths such as checkoutRevision flatten it into a status of their own. A genuine failure in that
+// window costs one retry.
+func shutdownErrToGRPC(err error, shuttingDown bool) error {
+	if err == nil || !shuttingDown {
+		return err
+	}
+	msg := err.Error()
+	if st := grpc_util.UnwrapGRPCStatus(err); st != nil {
+		msg = st.Message()
+	}
+	return status.Error(codes.Unavailable, msg)
+}
 
 // NewServer returns a new instance of the Argo CD Repo server
 func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cache, tlsConfCustomizer tlsutil.ConfigCustomizer, initConstants repository.RepoServerInitConstants, gitCredsStore git.CredsStore, clientCAPath string, disableTLS bool) (*ArgoCDRepoServer, error) {
@@ -96,12 +116,20 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.StreamServerInterceptor(),
 		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
+		func(srv any, ss grpc.ServerStream, _ *grpc.StreamServerInfo, handler grpc.StreamHandler) error {
+			return shutdownErrToGRPC(handler(srv, ss), executil.ShuttingDown())
+		},
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.UnaryServerInterceptor(),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 		grpc_util.ErrorSanitizerUnaryServerInterceptor(),
+		// Inside the sanitizer, which keeps a status code but flattens anything else to Unknown.
+		func(ctx context.Context, req any, _ *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (any, error) {
+			resp, err := handler(ctx, req)
+			return resp, shutdownErrToGRPC(err, executil.ShuttingDown())
+		},
 	}
 
 	serverOpts := []grpc.ServerOption{
