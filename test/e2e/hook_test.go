@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
@@ -107,6 +108,43 @@ func TestPreDeleteHookFailureAndRetry(t *testing.T) {
 		Then().
 		// After fixing the hook, deletion should eventually succeed
 		Expect(DoesNotExist())
+}
+
+// TestPreDeleteHookProjectRestriction verifies that a PreDelete hook cannot be
+// used to escape the AppProject destination boundary. The hook manifest pins an
+// explicit metadata.namespace (kube-system) that the restricted AppProject does
+// not permit. The controller must refuse to create it and surface a deletion
+// error instead of silently creating the resource in the forbidden namespace.
+func TestPreDeleteHookProjectRestriction(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path("pre-delete-hook-restricted").
+		// Restrict the project to only the app's own destination namespace, so a
+		// delete hook pinned to kube-system is out of bounds.
+		ProjectSpec(AppProjectSpec{
+			SourceRepos:              []string{"*"},
+			Destinations:             []ApplicationDestination{{Server: "*", Namespace: ctx.DeploymentNamespace()}},
+			ClusterResourceWhitelist: []ClusterResourceRestrictionItem{{Group: "*", Kind: "*"}},
+		}).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		When().
+		// Non-blocking delete: with the hard-fail enforcement the pre-delete
+		// finalizer remains and the app reports a deletion error.
+		Delete(false).
+		Then().
+		Expect(Condition(ApplicationConditionDeletionError, "")).
+		And(func(_ *Application) {
+			// The forbidden hook must never be created in kube-system.
+			_, err := KubeClientset.CoreV1().Pods("kube-system").Get(
+				t.Context(), "restricted-pre-delete-hook", metav1.GetOptions{},
+			)
+			require.True(t, apierrors.IsNotFound(err),
+				"forbidden PreDelete hook must not be created in kube-system (got err=%v)", err)
+		})
 }
 
 func TestPostDeleteHook(t *testing.T) {

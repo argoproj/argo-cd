@@ -50,6 +50,39 @@ The Makefile's `start-e2e` target starts instances of ArgoCD on your local machi
 
 If you have changed the port for `argocd-server`, be sure to also set `ARGOCD_SERVER` environment variable to point to that port, e.g. `export ARGOCD_SERVER=localhost:8888` before running `make test-e2e` so that the test will communicate to the correct server component.
 
+## Running a Shard of the Suite
+
+CI splits the e2e suite into shards and runs each shard as its own job. You can run a single shard locally with `make test-e2e` or `make test-e2e-local` by setting both of these environment variables:
+
+- `ARGOCD_E2E_SHARD`: The shard to run, starting at `1`
+- `ARGOCD_E2E_SHARD_COUNT`: The total number of shards
+
+When either variable is unset, the whole suite runs. For example, to run the first of four shards:
+
+```bash
+ARGOCD_E2E_SHARD=1 ARGOCD_E2E_SHARD_COUNT=4 make test-e2e-local
+```
+
+`hack/e2e-shard.sh` assigns tests to shards by their measured duration, which it reads from `test/e2e/shard-weights.txt`. Tests missing from that file get the mean duration. When every e2e job of a CI run passes, `hack/e2e-check-shard-coverage.sh` checks that each test in `test/e2e` ran in one of the shards of the latest Kubernetes version. If a test did not run, the required `E2E Tests - Composite result` check fails. To read durations from a different file when you run `make test-e2e-local`, set `ARGOCD_E2E_SHARD_WEIGHTS` to its path.
+
+> [!NOTE]
+> The e2e environment must be running before you run a shard, because listing the tests starts the test binary, and the test binary connects to the API server when it starts.
+
+### Refreshing the Shard Weights
+
+The shards become unbalanced when tests are added or their durations change. Each CI shard of the latest Kubernetes version uploads its test timings as an `e2e-test-timings-shard<N>` artifact. The `Refresh e2e shard weights` workflow uses these artifacts to keep `test/e2e/shard-weights.txt` up to date. It runs every Monday, and maintainers can also start it by hand from the Actions tab.
+
+The workflow reads the test timings of the 10 most recent successful master builds from the last 7 days that ran the e2e tests and takes the median duration of each test. It needs at least 3 builds and does nothing otherwise. It then builds a new weights file:
+
+- A test that is missing from the file is added with its median.
+- A test that no longer exists in `test/e2e` is removed.
+- A test gets its median only if the median differs from its current duration by at least 2 seconds and at least 20%. Every other test keeps its current duration.
+
+The workflow opens a PR only if a test was added or removed, or if the slowest shard would finish at least 30 seconds sooner. The PR description lists every change and the estimated slowest shard before and after. Later runs add a commit to the same PR, or close it if the change is no longer justified.
+
+> [!NOTE]
+> Only this workflow updates `test/e2e/shard-weights.txt`, so do not edit the file by hand. A run that opens or updates the refresh PR rewrites it from CI timings on that PR branch.
+
 ## Test Isolation
 
 Some effort has been made to balance test isolation with speed. Tests are isolated as follows as each test gets:
@@ -58,31 +91,6 @@ Some effort has been made to balance test isolation with speed. Tests are isolat
 - A unique Git repository containing the `testdata` in `/tmp/argo-e2e/${id}`.
 - A namespace `argocd-e2e-ns-${id}`.
 - A primary name for the app `argocd-e2e-${id}`.
-
-## Tests that need multiple controller shards
-
-The local stack normally runs a single application controller. A test that needs
-to exercise sharded behaviour can replace it with one controller process per
-shard:
-
-```go
-// Restarts the controller as 2 single-shard processes and waits for both to
-// become ready. The single controller is restored when the test finishes.
-fixture.StartControllerShards(t, 2)
-```
-
-Point each Application at a cluster assigned to the shard that should own it.
-`createClusterSecretWithShard` in `sharding_test.go` creates such a cluster.
-
-Shard processes share a terminal, so each one's output goes to its own file at
-`/tmp/argocd-e2e-controller-shard-${shard}.log`
-(`fixture.ControllerShardLogPath`). Shard 0 serves metrics on
-`fixture.ControllerShardMetricsPortBase`, and each subsequent shard listens one
-port higher.
-
-> [!NOTE]
-> These tests restart a shared process, so they cannot run in parallel with
-> other tests and are skipped when the suite runs against a remote cluster.
 
 ## Run only a subset of tests
 

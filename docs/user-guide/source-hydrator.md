@@ -648,8 +648,7 @@ clusters managed by different application-controller shards.
 
 Argo CD assigns each hydration group to one controller shard by hashing the group's source and destination Git
 coordinates. All controller shards observe the Applications, but only the assigned shard queues and processes the
-group. If dynamic cluster distribution changes the controller replica count, hydration ownership is recalculated and
-the newly assigned groups are queued on their new owners.
+group.
 
 > [!NOTE]
 > Hydration ownership is automatic and requires no additional configuration. It is separate from destination-cluster

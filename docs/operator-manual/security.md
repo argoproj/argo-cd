@@ -336,8 +336,9 @@ REST requests, grpc-gateway forwards only the first `X-Forwarded-For` header lin
 lines, `forwarded.for` can omit entries that `source.ip` was resolved from. Proxies that merge the lines into one,
 such as Traefik, are not affected.
 
-The endpoints that are not served through grpc-gateway (`/api/webhook`, `/api/badge`, `/auth/callback`,
-`/terminal`) do not carry these fields.
+The web terminal (`/terminal`) is not served through grpc-gateway, but its session logs carry both fields, resolved
+from the HTTP request in the same way. The other endpoints that are not served through grpc-gateway (`/api/webhook`,
+`/api/badge`, `/auth/callback`) do not carry these fields.
 
 > [!NOTE]
 > IP addresses are personal data under several privacy regimes, which is why this is opt-in. Check your retention

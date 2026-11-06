@@ -1028,6 +1028,29 @@ func TestValidateApplications_DuplicateDestination(t *testing.T) {
 	require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator uses the same destination")
 }
 
+func TestValidateApplications_DuplicateDestination_EquivalentPaths(t *testing.T) {
+	t.Parallel()
+	for _, path := range []string{"app/", "./app", "other/../app", "app//"} {
+		t.Run(path, func(t *testing.T) {
+			t.Parallel()
+			d := mocks.NewDependencies(t)
+			app1 := newTestApp("app1")
+			app2 := newTestApp("app2")
+			app2.Spec.SourceHydrator.SyncSource.Path = path // same directory as app1's "app"
+			proj := newTestProject()
+			d.EXPECT().GetProcessableAppProj(app1).Return(proj, nil).Once()
+			d.EXPECT().GetProcessableAppProj(app2).Return(proj, nil).Once()
+			h := &Hydrator{dependencies: d}
+
+			projects, errs := h.validateApplications([]*v1alpha1.Application{app1, app2})
+			require.Nil(t, projects)
+			require.Len(t, errs, 2)
+			require.ErrorContains(t, errs[app1.QualifiedName()], "app default/app2 hydrator uses the same destination")
+			require.ErrorContains(t, errs[app2.QualifiedName()], "app default/app1 hydrator uses the same destination")
+		})
+	}
+}
+
 func TestValidateApplications_DifferentDestinationRepo_Success(t *testing.T) {
 	t.Parallel()
 	d := mocks.NewDependencies(t)

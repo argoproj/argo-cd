@@ -13,7 +13,7 @@ Argo CD supports Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbu
 
 Argo CD also supports webhooks from OCI-compliant container registries to trigger application refreshes when new OCI artifacts are pushed. See [Webhook Configuration for OCI-Compliant Registries](#3-webhook-configuration-for-oci-compliant-registries) for details.
 
-Application Sets use a separate webhook configuration for generating applications. [Webhook support for the Git Generator can be found here](applicationset/Generators-Git.md#webhook-configuration).
+Application Sets use a separate webhook configuration for generating applications. See [Webhook support for the Git Generator](applicationset/Generators-Git.md#webhook-configuration), and [webhook support for the OCI Generator](applicationset/Generators-OCI.md#webhook-configuration).
 
 > [!NOTE]
 > The webhook handler does not differentiate between branch events and tag events where the branch and tag names are
@@ -27,7 +27,7 @@ URL configured in the Git provider should use the `/api/webhook` endpoint of you
 (e.g. `https://argocd.example.com/api/webhook`). If you wish to use a shared secret, input an
 arbitrary value in the secret. This value will be used when configuring the webhook in the next step.
 
-To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 50MB.
+To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 50MB. The same setting also limits the payload size of the [ApplicationSet webhook](applicationset/Generators-Git.md#webhook-configuration).
 
 ### Github
 
