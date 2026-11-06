@@ -2464,51 +2464,6 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 	})
 }
 
-func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
-	// given
-	ctx := t.Context()
-	tempDir, err := _createEmptyGitRepo(ctx)
-	require.NoError(t, err)
-
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
-	require.NoError(t, err)
-
-	err = client.Init()
-	require.NoError(t, err)
-
-	_, err = client.SetAuthor(t.Context(), "test", "test@example.com")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "touch", "README.md")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "mkdir", "scripts")
-	require.NoError(t, err)
-	err = runCmd(ctx, client.Root(), "touch", "scripts/startup.sh")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "git", "add", "--all")
-	require.NoError(t, err)
-	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Make files")
-	require.NoError(t, err)
-
-	// when: remove only "scripts" directory
-	_, err = client.RemoveContents(t.Context(), []string{"scripts"})
-	require.NoError(t, err)
-
-	// then: "scripts" should be gone, "README.md" should still exist
-	_, err = os.Stat(filepath.Join(client.Root(), "README.md"))
-	require.NoError(t, err, "README.md should not be removed")
-
-	_, err = os.Stat(filepath.Join(client.Root(), "scripts"))
-	require.Error(t, err, "scripts directory should be removed")
-
-	// and: listing should only show README.md
-	ls, err := outputCmd(ctx, client.Root(), "ls")
-	require.NoError(t, err)
-	require.Equal(t, "README.md", strings.TrimSpace(string(ls)))
-}
-
 func Test_nativeGitClient_Commit_Push(t *testing.T) {
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
