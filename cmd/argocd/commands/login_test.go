@@ -3,6 +3,7 @@ package commands
 import (
 	"crypto/sha256"
 	"encoding/base64"
+	stderrors "errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -114,6 +115,17 @@ func Test_launchBrowser(t *testing.T) {
 	browser := `'` + exe + `' -test.run=^TestBrowserHelperProcess$ --`
 	t.Setenv("BROWSER_TEST_OUT", out)
 
+	// The system default browser is never really opened: record the URL it would get, or fail like it would.
+	var defaultOpened []string
+	var defaultErr error
+	orig := openDefaultBrowser
+	openDefaultBrowser = func(u string) error {
+		defaultOpened = append(defaultOpened, u)
+		return defaultErr
+	}
+	t.Cleanup(func() { openDefaultBrowser = orig })
+	reset := func() { defaultOpened, defaultErr = nil, nil }
+
 	invoked := func(t *testing.T) string {
 		t.Helper()
 		var got []byte
@@ -153,15 +165,51 @@ func Test_launchBrowser(t *testing.T) {
 		assert.True(t, os.IsNotExist(err), "browser must not be started")
 	})
 
-	t.Run("fails when the command cannot start", func(t *testing.T) {
-		t.Setenv("BROWSER", filepath.Join(dir, "missing"))
-		require.ErrorContains(t, launchBrowser(url), "starting BROWSER")
+	t.Run("opens the default browser when BROWSER is unset", func(t *testing.T) {
+		reset()
+		t.Setenv("BROWSER", "")
+		require.NoError(t, launchBrowser(url))
+		assert.Equal(t, []string{url}, defaultOpened)
 	})
 
-	t.Run("fails when BROWSER holds no command", func(t *testing.T) {
-		t.Setenv("BROWSER", " ")
-		require.ErrorContains(t, launchBrowser(url), "no command in BROWSER")
+	for name, value := range map[string]string{
+		"cannot start":         filepath.Join(dir, "missing"),
+		"holds no command":     " ",
+		"cannot be parsed":     `firefox -P "Work`,
+		"is an xdg-style list": "firefox:chromium",
+	} {
+		t.Run("falls back to the default browser when BROWSER "+name, func(t *testing.T) {
+			reset()
+			t.Setenv("BROWSER", value)
+			require.NoError(t, launchBrowser(url))
+			assert.Equal(t, []string{url}, defaultOpened)
+		})
+	}
+
+	t.Run("does not stop the login when no browser opens", func(t *testing.T) {
+		reset()
+		defaultErr = stderrors.New("no default browser")
+		t.Setenv("BROWSER", filepath.Join(dir, "missing"))
+		require.Error(t, launchBrowser(url))
+		// errors.CheckError would exit the test binary here.
+		ssoAuthFlow(url, true)
+		assert.Len(t, defaultOpened, 2)
 	})
+}
+
+func Test_runsThroughCmdExe(t *testing.T) {
+	for path, want := range map[string]bool{
+		`C:\Windows\System32\cmd.exe`: true,
+		`C:\Windows\System32\CMD.EXE`: true,
+		"cmd":                         true,
+		`C:\tools\browser.cmd`:        true,
+		`C:\tools\browser.BAT`:        true,
+		`C:\Program Files\Google\Chrome\Application\chrome.exe`: false,
+		"/usr/bin/firefox":     false,
+		"/opt/cmdline/browser": false,
+	} {
+		assert.Equal(t, want, runsThroughCmdExe(path), path)
+	}
 }
 
 func Test_applyCertConfig(t *testing.T) {

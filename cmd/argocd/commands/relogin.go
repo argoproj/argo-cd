@@ -121,7 +121,7 @@ argocd login cd.argoproj.io --core
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().StringVar(&callback, "callback", "", "Host and Port for the callback URL")
-	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the browser set in $BROWSER, or the system default browser, when performing SSO login")
+	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the browser set in $BROWSER (one command, see the environment variables docs), or the system default browser, when performing SSO login")
 	command.Flags().BoolVar(&noBrowser, "no-browser", false, "Perform SSO relogin without a browser using the device code flow")
 	return command
 }
