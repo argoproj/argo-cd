@@ -51,6 +51,8 @@ data:
 
 A resource with this option is pruned when it is removed from Git, even if `spec.syncPolicy.automated.prune` is `false` or a manual sync is run without pruning.
 When automated sync is enabled with pruning disabled, Argo CD also triggers an automated sync if the only pending changes are resources with `Prune=true` that need to be pruned.
+As with automated pruning, automated sync does not prune these resources when there are no target resources, unless `spec.syncPolicy.automated.allowEmpty` is `true`.
+See [Automatic Pruning with Allow-Empty](auto_sync.md#automatic-pruning-with-allow-empty-v18).
 
 This option is useful when pruning is generally disabled but you need a targeted opt-in for specific resources.
 
