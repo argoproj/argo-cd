@@ -334,6 +334,12 @@ func groupDiffResults(diffResultList *diff.DiffResultList) map[kubeutil.Resource
 	return modifiedResources
 }
 
+// isPruneAllowed returns true if the object can be pruned, either because pruning is enabled for the sync or
+// because the object opts in with the Prune=true sync option
+func isPruneAllowed(obj *unstructured.Unstructured, prune bool) bool {
+	return prune || resourceutil.HasAnnotationOption(obj, common.AnnotationSyncOptions, common.SyncOptionEnablePrune)
+}
+
 func objRequiresPruneConfirmation(obj *unstructured.Unstructured, defaultPruneOption *string) bool {
 	var pruneOptionValue *string
 	if obj != nil {
@@ -472,7 +478,7 @@ func (sc *syncContext) setRunningPhase(tasks syncTasks, isPendingDeletion bool) 
 
 	if !sc.pruneConfirmed {
 		tasksToPrune := tasks.Filter(func(task *syncTask) bool {
-			return task.isPrune() && objRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption)
+			return task.isPrune() && isPruneAllowed(task.liveObj, sc.prune) && objRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption)
 		})
 
 		if len(tasksToPrune) > 0 {
@@ -1509,8 +1515,7 @@ func (sc *syncContext) pruneObject(ctx context.Context, t *syncTask, prune, dryR
 	defer span.End()
 
 	liveObj := t.liveObj
-	pruneAllowed := prune || resourceutil.HasAnnotationOption(liveObj, common.AnnotationSyncOptions, common.SyncOptionEnablePrune)
-	if !pruneAllowed {
+	if !isPruneAllowed(liveObj, prune) {
 		return common.ResultCodePruneSkipped, "ignored (requires pruning)"
 	} else if isPruningDisabled(liveObj, sc.defaultPruneOption) {
 		return common.ResultCodePruneSkipped, "ignored (no prune)"
@@ -1684,7 +1689,8 @@ func (sc *syncContext) runTasks(ctx context.Context, tasks syncTasks, dryRun boo
 	{
 		if !sc.pruneConfirmed {
 			for _, task := range pruneTasks {
-				if objRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption) {
+				// tasks that are not allowed to be pruned are skipped, so they do not need confirmation
+				if isPruneAllowed(task.liveObj, sc.prune) && objRequiresPruneConfirmation(task.liveObj, sc.defaultPruneOption) {
 					sc.log.WithValues("task", task).Info("Prune requires confirmation")
 					return pending
 				}
