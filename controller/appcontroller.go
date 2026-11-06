@@ -3094,21 +3094,11 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 	}
 	ts.AddCheckpoint("already_attempted_check_ms")
 
-	if !app.Spec.SyncPolicy.Automated.GetAllowEmpty() {
-		bAllNeedPrune := false
-		if app.Spec.SyncPolicy.Automated.GetPrune() {
-			bAllNeedPrune = true
-			for _, r := range resources {
-				if !r.RequiresPruning {
-					bAllNeedPrune = false
-				}
-			}
-		} else if hasPruneRequested {
-			// Resources with the Prune=true sync option are pruned even when automated prune is disabled,
-			// so do not prune them when the desired state is empty.
-			bAllNeedPrune = !hasTargetObjs
-		}
-		if bAllNeedPrune {
+	// Do not prune resources when the desired state is empty, unless allowEmpty is set. Resources are pruned when
+	// automated prune is enabled, or when they have the Prune=true sync option. The check is based on the desired
+	// state, because live resources that are not managed by the app may still be listed.
+	if (app.Spec.SyncPolicy.Automated.GetPrune() || hasPruneRequested) && !app.Spec.SyncPolicy.Automated.GetAllowEmpty() {
+		if !hasTargetObjs {
 			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resources", desiredRevisions)
 			logCtx.Warn(message)
 			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0

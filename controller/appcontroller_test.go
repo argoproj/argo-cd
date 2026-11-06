@@ -919,6 +919,25 @@ func TestAutoSyncNotAllowEmpty(t *testing.T) {
 	assert.NotNil(t, cond)
 }
 
+// TestAutoSyncNotAllowEmptyWithUnmanagedResource verifies the allowEmpty safeguard is based on the desired state,
+// so a live resource that is not managed by the app (e.g. a copy with the same tracking annotation) does not bypass it
+func TestAutoSyncNotAllowEmptyWithUnmanagedResource(t *testing.T) {
+	app := newFakeApp()
+	app.Spec.SyncPolicy.Automated.Prune = new(true)
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+	syncStatus := v1alpha1.SyncStatus{
+		Status:   v1alpha1.SyncStatusCodeOutOfSync,
+		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+	}
+	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{
+		{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: true},
+		// resources that are not self-referenced have no sync status and do not require pruning
+		{Name: "guestbook-copy", Kind: kube.DeploymentKind},
+	}, false, true)
+	require.NotNil(t, cond)
+	assert.Contains(t, cond.Message, "auto-sync will wipe out all resources")
+}
+
 func TestAutoSyncAllowEmpty(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated.Prune = new(true)
