@@ -3172,10 +3172,9 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 	if depth > 0 {
 		for _, revision := range targetRevisions {
 			if !gitClient.IsRevisionPresent(ctx, revision) {
+				// Not classified as ErrRevisionNotFound: servers without uploadpack.allowReachableSHA1InWant
+				// refuse an existing commit outside the shallow window with the same "not our ref".
 				if err := gitClient.Fetch(ctx, revision, depth); err != nil {
-					if msg := err.Error(); strings.Contains(msg, "not our ref") || strings.Contains(msg, "unadvertised object") || strings.Contains(msg, "couldn't find remote ref") {
-						return fmt.Errorf("failed to fetch revision %s: %w: %w", revision, git.ErrRevisionNotFound, err)
-					}
 					return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 				}
 			}
@@ -3195,7 +3194,8 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
 			if err := gitClient.Fetch(ctx, revision, 0); err != nil {
-				// Only git's missing-object answers mean the remote no longer has the revision.
+				// After a full fetch, only git's missing-object answers mean the remote no longer has the
+				// revision. These are git's English messages; a localized miss is handled as transient.
 				if msg := err.Error(); strings.Contains(msg, "not our ref") || strings.Contains(msg, "unadvertised object") || strings.Contains(msg, "couldn't find remote ref") {
 					return fmt.Errorf("failed to fetch revision %s: %w: %w", revision, git.ErrRevisionNotFound, err)
 				}

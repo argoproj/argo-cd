@@ -6193,6 +6193,34 @@ func TestUpdateRevisionForPaths_LastSyncedBase(t *testing.T) {
 		assert.Equal(t, revResolved, resp.Revision)
 		assert.False(t, manifestCacheContains(cacheMocks, request, revResolved), "cache transfer is skipped when the compared base cannot be evaluated")
 	})
+	t.Run("shallow fetch of last-synced base refused: answers from the compared base", func(t *testing.T) {
+		// Without uploadpack.allowReachableSHA1InWant, a commit outside the shallow window that still
+		// exists is refused with "not our ref"; reporting it as gone would full-sync on every reconcile.
+		s, _, cacheMocks := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			gitClient.EXPECT().Init().Return(nil)
+			gitClient.EXPECT().Fetch(mock.Anything, revLastSynced, int64(1)).Return(errors.New("fatal: remote error: upload-pack: not our ref " + revLastSynced))
+			gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
+			gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(false)
+			gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+			gitClient.EXPECT().LsRemote("HEAD").Return(revResolved, nil)
+			gitClient.EXPECT().LsRemote(revResolved).Return(revResolved, nil).Maybe()
+			gitClient.EXPECT().LsRemote(revLastSynced).Return(revLastSynced, nil)
+			gitClient.EXPECT().LsRemote(revCompared).Return(revCompared, nil)
+			gitClient.EXPECT().Root().Return("")
+			gitClient.EXPECT().ChangedFiles(mock.Anything, revCompared, revResolved).Return(nil, nil)
+			paths.EXPECT().GetPath(mock.Anything).Return(".", nil)
+			paths.EXPECT().GetPathIfExists(mock.Anything).Return(".")
+		}, ".")
+		request := newRequest(revCompared)
+		request.Repo.Depth = 1
+		seedManifestCache(t, cacheMocks, request, revCompared)
+
+		resp, err := s.UpdateRevisionForPaths(t.Context(), request)
+		require.NoError(t, err)
+		assert.False(t, resp.Changes)
+		assert.Equal(t, revResolved, resp.Revision)
+	})
+
 	t.Run("uncomparable base with no other base: changes reported, not an error", func(t *testing.T) {
 		// Failing the RPC would fail every refresh while the diff keeps failing.
 		s, cacheMocks := newServiceWithFailingDiff(t, revLastSynced, nil)

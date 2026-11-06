@@ -913,28 +913,44 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 }
 
 func TestAutoSyncManifestGeneratePathsNewCommit(t *testing.T) {
-	// Regression for #27875 and #28227: revisionsMayHaveChanges is based on the last sync attempt (see
+	// Regression for #27875 and #28227: change detection is based on the last sync attempt (see
 	// lastAttemptedSyncRevisions in state.go). A newer commit with relevant changes must auto-sync
 	// (#27875); cluster drift plus commits without relevant changes must not (#28227).
 	revA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 	revB := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
 
-	t.Run("NewCommitWithChangesSinceLastSyncTriggersAutoSync", func(t *testing.T) {
+	// autoSyncAfterCompare runs GetRepoObjs for an app last synced at revA and compared at revB, with
+	// the repo-server reporting changes, then feeds the result to autoSync.
+	autoSyncAfterCompare := func(t *testing.T, changes bool) *v1alpha1.Application {
+		t.Helper()
 		app := newFakeApp()
 		app.Annotations = map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."}
 		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
-		app.Status.OperationState.SyncResult.Revision = revA
-		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-		syncStatus := v1alpha1.SyncStatus{
-			Status:   v1alpha1.SyncStatusCodeOutOfSync,
-			Revision: revB,
-		}
-		// revB touched files under the app's manifest-generate-paths relative to revA.
-		revisionsMayHaveChanges := true
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, revisionsMayHaveChanges)
-		assert.Nil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revision: revB}
+		require.Equal(t, revA, app.Status.OperationState.SyncResult.Revision)
+		var req *apiclient.UpdateRevisionForPathsRequest
+		ctrl := newFakeController(t.Context(), &fakeData{
+			apps:                           []runtime.Object{app},
+			manifestResponse:               &apiclient.ManifestResponse{Manifests: []string{}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: revB},
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: changes, Revision: revB},
+			onUpdateRevisionForPaths:       func(r *apiclient.UpdateRevisionForPathsRequest) { req = r },
+		}, nil)
+
+		_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{revB}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
 		require.NoError(t, err)
+		require.NotNil(t, req)
+		assert.Equal(t, revA, req.LastSyncedRevision)
+		assert.Equal(t, changes, revisionsMayHaveChanges)
+
+		cond, _ := ctrl.autoSync(t.Context(), app, &app.Status.Sync, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, revisionsMayHaveChanges)
+		assert.Nil(t, cond)
+		app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+		require.NoError(t, err)
+		return app
+	}
+
+	t.Run("NewCommitWithChangesSinceLastSyncTriggersAutoSync", func(t *testing.T) {
+		app := autoSyncAfterCompare(t, true)
 		require.NotNil(t, app.Operation)
 		require.NotNil(t, app.Operation.Sync)
 		assert.Equal(t, revB, app.Operation.Sync.Revision)
@@ -942,22 +958,8 @@ func TestAutoSyncManifestGeneratePathsNewCommit(t *testing.T) {
 	})
 
 	t.Run("DriftWithoutChangesSinceLastSyncDoesNotTriggerAutoSync", func(t *testing.T) {
-		app := newFakeApp()
-		app.Annotations = map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."}
-		app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
-		app.Status.OperationState.SyncResult.Revision = revA
-		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-		syncStatus := v1alpha1.SyncStatus{
-			Status:   v1alpha1.SyncStatusCodeOutOfSync,
-			Revision: revB,
-		}
-		// revB has no relevant changes since revA; the OutOfSync status stems from cluster drift.
 		// Without self-heal, no new sync (and no new history entry) may be triggered.
-		revisionsMayHaveChanges := false
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, revisionsMayHaveChanges)
-		assert.Nil(t, cond)
-		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
-		require.NoError(t, err)
+		app := autoSyncAfterCompare(t, false)
 		assert.Nil(t, app.Operation)
 	})
 
@@ -978,6 +980,36 @@ func TestAutoSyncManifestGeneratePathsNewCommit(t *testing.T) {
 		require.NoError(t, err)
 		assert.Nil(t, app.Operation)
 	})
+}
+
+func TestAutoSyncDriftWithoutManifestGeneratePaths(t *testing.T) {
+	// Without the annotation there are no paths to diff, so a commit that leaves the app Synced at revB
+	// while the last sync stayed at revA reports changes on later drift: auto-sync runs a full sync to
+	// revB even with selfHeal off. This matches pre-3.5 behaviour.
+	revA := "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+	revB := "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+	app := newFakeApp()
+	app.Spec.SyncPolicy.Automated.SelfHeal = new(false)
+	app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revision: revB}
+	require.Equal(t, revA, app.Status.OperationState.SyncResult.Revision)
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:             []runtime.Object{app},
+		manifestResponse: &apiclient.ManifestResponse{Manifests: []string{}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: revB},
+	}, nil)
+
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, "", []string{revB}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+	require.NoError(t, err)
+	assert.True(t, revisionsMayHaveChanges)
+
+	cond, _ := ctrl.autoSync(t.Context(), app, &app.Status.Sync, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, revisionsMayHaveChanges)
+	assert.Nil(t, cond)
+	app, err = ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, app.Operation)
+	require.NotNil(t, app.Operation.Sync)
+	assert.Equal(t, revB, app.Operation.Sync.Revision)
+	assert.Empty(t, app.Operation.Sync.Resources)
 }
 
 func TestAutoSyncCompareWithRecentAfterBlockedSync(t *testing.T) {
