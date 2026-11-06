@@ -41,12 +41,14 @@ describe('EditNotificationSubscriptions', () => {
     });
 
     it('loads suggestions once for multiple rows and preserves subscription values when editing', async () => {
+        jest.mocked(services.notification.listTriggers).mockResolvedValue([{name: 'on-sync-running'}] as any);
+        jest.mocked(services.notification.listServices).mockResolvedValue([{name: 'email'}] as any);
         const onEdit = renderEditor([subscription, {...subscription, value: 'another-channel'}]);
         const triggers = await screen.findAllByTitle('Trigger');
         const serviceInputs = await screen.findAllByTitle('Service');
         expect(triggers).toHaveLength(2);
-        expect(triggers[0]).toHaveAttribute('data-items', 'on-sync-succeeded');
-        expect(serviceInputs[0]).toHaveAttribute('data-items', 'slack');
+        expect(triggers[0]).toHaveAttribute('data-items', 'on-sync-running');
+        expect(serviceInputs[0]).toHaveAttribute('data-items', 'email');
         expect(services.notification.listTriggers).toHaveBeenCalledTimes(1);
         expect(services.notification.listServices).toHaveBeenCalledTimes(1);
 
