@@ -591,6 +591,9 @@ func Test_IsAnnotatedTag(t *testing.T) {
 }
 
 func Test_nativeGitClient_Checkout_reclaimsStaleIndexLock(t *testing.T) {
+	// Pin the timeouts so the hour-old lock is past the grace period regardless of the host environment.
+	t.Setenv("ARGOCD_EXEC_TIMEOUT", "90s")
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "10s")
 	client, err := NewClientExt("file://"+t.TempDir(), t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
@@ -621,6 +624,20 @@ func Test_nativeGitClient_reclaimStaleGitLocks_leavesFreshLock(t *testing.T) {
 
 func Test_nativeGitClient_reclaimStaleGitLocks_timeoutDisabled(t *testing.T) {
 	t.Setenv("ARGOCD_EXEC_TIMEOUT", "0s")
+	client := &nativeGitClient{root: t.TempDir(), repoURL: "https://example.com/repo.git"}
+	lock := filepath.Join(client.root, ".git", "HEAD.lock")
+	require.NoError(t, os.MkdirAll(filepath.Dir(lock), 0o755))
+	require.NoError(t, os.WriteFile(lock, []byte("stale"), 0o644))
+	old := time.Now().Add(-48 * time.Hour)
+	require.NoError(t, os.Chtimes(lock, old, old))
+
+	client.reclaimStaleGitLocks()
+	require.FileExists(t, lock)
+}
+
+func Test_nativeGitClient_reclaimStaleGitLocks_fatalTimeoutDisabled(t *testing.T) {
+	t.Setenv("ARGOCD_EXEC_TIMEOUT", "90s")
+	t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "0s")
 	client := &nativeGitClient{root: t.TempDir(), repoURL: "https://example.com/repo.git"}
 	lock := filepath.Join(client.root, ".git", "HEAD.lock")
 	require.NoError(t, os.MkdirAll(filepath.Dir(lock), 0o755))

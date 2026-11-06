@@ -833,11 +833,14 @@ func (m *nativeGitClient) submodule(ctx context.Context) error {
 
 // reclaimStaleGitLocks removes git lock files left behind when a previous
 // process was killed. A lock younger than the cleanup grace period, and every
-// lock when the exec timeout is disabled, is left in place.
+// lock when the exec or fatal timeout is disabled, is left in place.
 func (m *nativeGitClient) reclaimStaleGitLocks() {
 	// A disabled exec timeout means a git process may legitimately hold a lock
-	// for an arbitrarily long time. Age is no longer evidence that it was abandoned.
-	if env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64) == 0 {
+	// for an arbitrarily long time. A disabled fatal timeout means a git process
+	// that survives SIGTERM is never killed. Either way, age is no longer
+	// evidence that the lock was abandoned.
+	if env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64) == 0 ||
+		env.ParseDurationFromEnv("ARGOCD_EXEC_FATAL_TIMEOUT", 10*time.Second, 0, math.MaxInt64) == 0 {
 		return
 	}
 	grace := gitCleanupGracePeriod()
