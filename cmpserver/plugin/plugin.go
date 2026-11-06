@@ -129,8 +129,8 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 	exited := false
 	go func() {
 		<-ctx.Done()
-		// The timeout context is cancelled when this function returns. Do not signal a
-		// process that has already been waited on.
+		// The timeout context is also cancelled when this function returns. Skip the
+		// group signal only if the command exited before the context ended.
 		exitMu.Lock()
 		alreadyExited := exited
 		exitMu.Unlock()
@@ -152,7 +152,10 @@ func runCommand(ctx context.Context, command Command, path string, env []string)
 
 	err = cmd.Wait()
 	exitMu.Lock()
-	exited = true
+	// On timeout or cancellation, os/exec kills only the direct child, so Wait can
+	// return before the goroutine above signals the group. Leave exited false then,
+	// so descendants that no longer hold the output pipes are still terminated.
+	exited = ctx.Err() == nil
 	exitMu.Unlock()
 
 	duration := time.Since(start)
