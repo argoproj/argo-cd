@@ -31,6 +31,7 @@ import (
 	"github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/config"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	gitssh "github.com/go-git/go-git/v5/plumbing/transport/ssh"
@@ -191,6 +192,8 @@ type Client interface {
 	AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error
 	// HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 	HasFileChanged(ctx context.Context, filePath string) (bool, error)
+	// EnsureNotShallow ensures that the repository is not shallow. If it is, it converts it to a full repository.
+	EnsureNotShallow(ctx context.Context) error
 }
 
 type EventHandlers struct {
@@ -627,6 +630,10 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 	}
 	args = append(args, "--force", "--prune")
 	return m.runCredentialedCmd(ctx, args...)
+}
+
+func (m *nativeGitClient) fetchUnshallow(ctx context.Context) error {
+	return m.runCredentialedCmd(ctx, "fetch", "origin", "--tags", "--force", "--prune", "--unshallow")
 }
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
@@ -1637,6 +1644,16 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 }
 
 func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision string, deep bool) ([]RevisionSignatureInfo, string, error) {
+	if deep {
+		shallow, err := m.isShallowRepo(ctx)
+		if err != nil {
+			return nil, "", fmt.Errorf("failed listing signatures: %w", err)
+		}
+		if shallow {
+			return nil, "", errors.New("shallow repository lacks history required for deep signature verification, use full clone")
+		}
+	}
+
 	legacyVerification := ""
 
 	// Resolve eventual semantic tag constraint before annotated tag detection
@@ -2177,6 +2194,240 @@ func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (
 	}
 	// always return the actual wrapped error
 	return false, fmt.Errorf("git diff failed: %w", err)
+}
+
+func (m *nativeGitClient) EnsureNotShallow(ctx context.Context) error {
+	isShallow, err := m.isShallowRepo(ctx)
+	if err != nil {
+		return err
+	}
+	if !isShallow {
+		return nil
+	}
+	err = m.fetchUnshallow(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to unshallow repo: %w", err)
+	}
+	// check again, if origin is also shallow --unshallow succeeds and local repo remains shallow
+	isShallow, err = m.isShallowRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check if repository is shallow after unshallowing: %w", err)
+	}
+	if !isShallow {
+		return nil
+	}
+
+	// Still shallow after --unshallow is ambiguous; hasActiveShallowBoundary decides:
+	// - active (return error, do not wipe): origin tip has a missing parent, or a
+	//   root tip is listed in .git/shallow — origin cannot deepen / wipe cannot help
+	// - not active (wipe+clone): tip histories are complete and .git/shallow is
+	//   stale (e.g. rewritten history) — a fresh full clone should recover
+	active, err := m.hasActiveShallowBoundary(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check for active shallow boundary: %w", err)
+	}
+	if active {
+		return fmt.Errorf("repository is still shallow after unshallowing: %s", SanitizeRepoURL(m.repoURL))
+	}
+
+	err = m.wipeAndClone(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to wipe and re-clone repository: %w", err)
+	}
+
+	isShallow, err = m.isShallowRepo(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to check if repository is shallow after wiping and cloning: %w", err)
+	}
+	if isShallow {
+		return fmt.Errorf("repository is still shallow after wiping and re-cloning: %s", SanitizeRepoURL(m.repoURL))
+	}
+
+	return nil
+}
+
+// hasActiveShallowBoundary reports if an origin tip is truncated.
+// When the active shallow boundary is present, wiping and re-cloning the repository
+// to fix the stale shallow state would not work.
+// When there is no shallow boundary, wiping and re-cloning the repository would work.
+//
+// Returns true when any refs/remotes/origin/* tip:
+//   - has a missing parent object (typical multi-commit shallow origin), or
+//   - is a root commit listed in .git/shallow (single-commit / orphan shallow
+//     origin: no parent to be missing, only the shallow marker remains).
+//
+// Returns false (wipe helps) when every origin tip has complete ancestry, even
+// if a tip SHA is still named in .git/shallow but its parents are present
+// (stale marker after for example history rewrite with GCing the unreacheable objects).
+//
+// No origin hash tips also returns true.
+func (m *nativeGitClient) hasActiveShallowBoundary(ctx context.Context) (bool, error) {
+	errActiveShallowBoundary := errors.New("active shallow boundary")
+
+	shallowSet, err := m.readShallowCommits(ctx)
+	if err != nil {
+		return false, err
+	}
+
+	repo, err := git.PlainOpen(m.root)
+	if err != nil {
+		return false, fmt.Errorf("failed to open repository: %w", err)
+	}
+	iter, err := repo.References()
+	if err != nil {
+		return false, fmt.Errorf("failed to list refs: %w", err)
+	}
+	defer iter.Close()
+
+	checked := 0
+	err = iter.ForEach(func(ref *plumbing.Reference) error {
+		name := ref.Name()
+		if !name.IsRemote() || !strings.HasPrefix(name.String(), "refs/remotes/origin/") {
+			return nil
+		}
+		// skip symbolic refs (e.g. origin/HEAD that point to another refs)
+		// hash refs are enough
+		if ref.Type() != plumbing.HashReference {
+			return nil
+		}
+		tip := ref.Hash()
+		complete, err := hasCompleteHistory(repo, tip)
+		if err != nil {
+			return err
+		}
+		if !complete {
+			return errActiveShallowBoundary
+		}
+		if _, inShallow := shallowSet[tip]; inShallow {
+			commit, err := repo.CommitObject(tip)
+			if err != nil {
+				return fmt.Errorf("failed to load tip %s: %w", tip, err)
+			}
+			if len(commit.ParentHashes) == 0 {
+				// root tip in .git/shallow: no missing parent to detect.
+				return errActiveShallowBoundary
+			}
+		}
+		checked++
+		return nil
+	})
+	if errors.Is(err, errActiveShallowBoundary) {
+		return true, nil
+	}
+	if err != nil {
+		return false, err
+	}
+	// No origin hash tips: refuse wipe.
+	if checked == 0 {
+		return true, nil
+	}
+	return false, nil
+}
+
+// readShallowCommits returns the set of OIDs listed in the repository's shallow file.
+func (m *nativeGitClient) readShallowCommits(ctx context.Context) (map[plumbing.Hash]struct{}, error) {
+	pathOut, err := m.runCmd(ctx, "rev-parse", "--git-path", "shallow")
+	if err != nil {
+		return nil, fmt.Errorf("failed to resolve shallow file path: %w", err)
+	}
+	shallowPath := strings.TrimSpace(pathOut)
+	if !filepath.IsAbs(shallowPath) {
+		shallowPath = filepath.Join(m.root, shallowPath)
+	}
+
+	data, err := os.ReadFile(shallowPath)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return map[plumbing.Hash]struct{}{}, nil
+		}
+		return nil, fmt.Errorf("failed to read shallow file: %w", err)
+	}
+
+	set := make(map[plumbing.Hash]struct{})
+	for line := range strings.SplitSeq(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		hash := plumbing.NewHash(line)
+		if hash.IsZero() {
+			continue
+		}
+		set[hash] = struct{}{}
+	}
+	return set, nil
+}
+
+// hasCompleteHistory reports whether tip's ancestry has all parent objects.
+// Shallow boundaries still advertise ParentHashes whose objects are missing.
+func hasCompleteHistory(repo *git.Repository, tip plumbing.Hash) (bool, error) {
+	errIncompleteHistory := errors.New("incomplete history")
+
+	iter, err := repo.Log(&git.LogOptions{From: tip})
+	if err != nil {
+		return false, fmt.Errorf("failed to walk history from %s: %w", tip, err)
+	}
+	defer iter.Close()
+
+	err = iter.ForEach(func(c *object.Commit) error {
+		for _, parent := range c.ParentHashes {
+			if _, err := repo.CommitObject(parent); err != nil {
+				return errIncompleteHistory
+			}
+		}
+		return nil
+	})
+	if errors.Is(err, errIncompleteHistory) {
+		return false, nil
+	}
+	return err == nil, err
+}
+
+// wipeAndClone replaces the local cache with a fresh full clone from origin.
+// Prefer clone over init+fetch: fetching without --depth from a shallow origin can
+// leave an empty non-shallow repo, while clone preserves origin's shallow state.
+func (m *nativeGitClient) wipeAndClone(ctx context.Context) error {
+	log.Infof("Wiping and re-cloning %s at %s", SanitizeRepoURL(m.repoURL), m.root)
+
+	// clear contents in place so m.root remains - the reposerver
+	// cache parent is 0300 (wx-only), so the directory cannot be removed
+	entries, err := os.ReadDir(m.root)
+	if err != nil {
+		return fmt.Errorf("cannot wipe repo: failed to read directory %s: %w", m.root, err)
+	}
+	for _, entry := range entries {
+		err := os.RemoveAll(filepath.Join(m.root, entry.Name()))
+		if err != nil {
+			return fmt.Errorf("cannot wipe repo: failed to remove entry %s: %w", entry.Name(), err)
+		}
+	}
+
+	// --no-checkout: checkoutRevision checks out the target revision as necessary
+	err = m.runCredentialedCmd(ctx, "clone", "--no-checkout", m.repoURL, ".")
+	if err != nil {
+		return fmt.Errorf("failed to clone repository: %w", err)
+	}
+
+	if m.IsLFSEnabled() {
+		largeFiles, err := m.lsLargeFiles(ctx)
+		if err == nil && len(largeFiles) > 0 {
+			err = m.runCredentialedCmd(ctx, "lfs", "fetch", "--all")
+			if err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// isShallowRepo returns true if the repository is shallow
+func (m *nativeGitClient) isShallowRepo(ctx context.Context) (bool, error) {
+	out, err := m.runCmd(ctx, "rev-parse", "--is-shallow-repository")
+	if err != nil {
+		return false, fmt.Errorf("failed to check if repository is shallow: %w", err)
+	}
+
+	return strings.TrimSpace(out) == "true", nil
 }
 
 // cmdWithGPG creates git Cmd with a GPG-enabled environment

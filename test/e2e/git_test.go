@@ -55,6 +55,31 @@ func TestGitShallowClone(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+// Ensures a depth=0 sync still works when origin history was rewritten after a
+// shallow fetch left a stale repo-server cache.
+func TestGitEnsureNotShallowRecoversAfterHistoryRewrite(t *testing.T) {
+	fixture.EnsureCleanState(t)
+
+	Given(t).
+		Path("deployment").
+		HTTPSInsecureRepoURLAdded(true, repos.WithDepth(1)).
+		RepoURLType(fixture.RepoURLTypeHTTPS).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Given().
+		HTTPSInsecureRepoURLAdded(true, repos.WithUpsert()). // reset depth to 0
+		When().
+		RecreateGitRepository(). // new and separate origin history
+		AddFile("extra-after-full-clone.txt", "after-rewrite").
+		Refresh(RefreshTypeHard).
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
 func TestGitSemverResolutionNotUsingConstraintWithLeadingZero(t *testing.T) {
 	Given(t).
 		Path("deployment").
