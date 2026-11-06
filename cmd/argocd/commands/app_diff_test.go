@@ -5,6 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
@@ -21,6 +23,7 @@ import (
 
 	"k8s.io/utils/ptr"
 
+	argocommon "github.com/argoproj/argo-cd/v3/common"
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	applicationmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/application/mocks"
 	settingspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
@@ -1373,4 +1376,58 @@ func TestNewNormalizeTargetManifestsProvider(t *testing.T) {
 		assert.NotNil(t, labels)
 		assert.Equal(t, "test-app", labels["app.kubernetes.io/instance"])
 	})
+}
+
+func TestGetLocalObjectsString_SetsInstallationID(t *testing.T) {
+	// Resources with an explicit namespace are not touched by NormalizeTargetObjects later on, so the
+	// installation ID must already be set when the local manifests are generated.
+	localDir := t.TempDir()
+	role := `apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: my-role
+  namespace: explicit-namespace
+rules: []
+`
+	require.NoError(t, os.WriteFile(filepath.Join(localDir, "role.yaml"), []byte(role), 0o644))
+
+	app := createTestApp("test-app", "argocd", v1alpha1.ApplicationSource{
+		RepoURL:        "https://example.com/repo.git",
+		Path:           ".",
+		TargetRevision: "HEAD",
+	})
+	proj := &v1alpha1.AppProject{
+		ObjectMeta: metav1.ObjectMeta{Name: "default"},
+		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}},
+	}
+	clusterInfo := &v1alpha1.ClusterInfo{ServerVersion: "1.30"}
+
+	for _, tc := range []struct {
+		name           string
+		installationID string
+	}{
+		{name: "with installation ID", installationID: "my-instance"},
+		{name: "without installation ID", installationID: ""},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			settings := &settingspkg.Settings{
+				AppLabelKey:         "app.kubernetes.io/instance",
+				TrackingMethod:      string(v1alpha1.TrackingMethodAnnotation),
+				InstallationID:      tc.installationID,
+				ControllerNamespace: "argocd",
+			}
+
+			manifests := getLocalObjectsString(t.Context(), app, proj, localDir, localDir, settings, clusterInfo)
+			require.Len(t, manifests, 1)
+
+			obj := &unstructured.Unstructured{}
+			require.NoError(t, json.Unmarshal([]byte(manifests[0]), obj))
+			assert.Equal(t, "explicit-namespace", obj.GetNamespace())
+			if tc.installationID == "" {
+				assert.NotContains(t, obj.GetAnnotations(), argocommon.AnnotationInstallationID)
+			} else {
+				assert.Equal(t, tc.installationID, obj.GetAnnotations()[argocommon.AnnotationInstallationID])
+			}
+		})
+	}
 }
