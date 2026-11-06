@@ -1,0 +1,29 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: LLMInferenceService is healthy.
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: 'MainWorkloadReady: Unknown | WorkloadNotReady | Waiting for deployment "llama-3-8b-kserve" rollout to finish; WorkloadsReady: Unknown | WorkloadNotReady | Waiting for deployment "llama-3-8b-kserve" rollout to finish'
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for LLMInferenceService to report status...
+  inputPath: testdata/progressing_nostatus.yaml
+- healthStatus:
+    status: Degraded
+    message: 'MainWorkloadReady: False | WorkloadFailed | pod "llama-3-8b-kserve-0" is in CrashLoopBackOff; WorkloadsReady: False | WorkloadFailed | pod "llama-3-8b-kserve-0" is in CrashLoopBackOff'
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Suspended
+    message: LLMInferenceService is Stopped
+  inputPath: testdata/stopped.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for LLMInferenceService reconciliation (generation mismatch)
+  inputPath: testdata/stale.yaml
+- healthStatus:
+    status: Progressing
+    message: Waiting for LLMInferenceService reconciliation (generation mismatch)
+  inputPath: testdata/stale_condition.yaml

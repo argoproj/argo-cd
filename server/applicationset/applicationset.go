@@ -33,6 +33,7 @@ import (
 	appsetutils "github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
+	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
@@ -47,6 +48,8 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/session"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+
+	serverevents "github.com/argoproj/argo-cd/v3/server/events"
 )
 
 type Server struct {
@@ -58,6 +61,7 @@ type Server struct {
 	client                   client.Client
 	repoClientSet            repoapiclient.Clientset
 	appclientset             appclientset.Interface
+	appLister                applisters.ApplicationLister
 	appsetInformer           cache.SharedIndexInformer
 	appsetLister             applisters.ApplicationSetLister
 	appSetBroadcaster        broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent]
@@ -173,6 +177,7 @@ func NewServer(
 	enf *rbac.Enforcer,
 	repoClientSet repoapiclient.Clientset,
 	appclientset appclientset.Interface,
+	appLister applisters.ApplicationLister,
 	appsetInformer cache.SharedIndexInformer,
 	appsetLister applisters.ApplicationSetLister,
 	appSetBroadcaster broadcast.Broadcaster[v1alpha1.ApplicationSetWatchEvent],
@@ -211,6 +216,7 @@ func NewServer(
 		k8sClient:                kubeclientset,
 		repoClientSet:            repoClientSet,
 		appclientset:             appclientset,
+		appLister:                appLister,
 		appsetInformer:           appsetInformer,
 		appsetLister:             appsetLister,
 		appSetBroadcaster:        appSetBroadcaster,
@@ -272,10 +278,8 @@ func (s *Server) List(ctx context.Context, q *applicationset.ApplicationSetListQ
 	})
 
 	appsetList := &v1alpha1.ApplicationSetList{
-		ListMeta: metav1.ListMeta{
-			ResourceVersion: s.appsetInformer.LastSyncResourceVersion(),
-		},
-		Items: newItems,
+		ResourceVersion: s.appsetInformer.LastSyncResourceVersion(),
+		Items:           newItems,
 	}
 	return appsetList, nil
 }
@@ -509,16 +513,28 @@ func (s *Server) buildApplicationSetTree(a *v1alpha1.ApplicationSet) (*v1alpha1.
 
 	apps := a.Status.Resources
 	for _, app := range apps {
+		// The generated Application may not be in the informer cache yet (e.g. it was just created); in that case createdAt stays unset.
+		var createdAt *metav1.Time
+		namespace := app.Namespace
+		if namespace == "" {
+			namespace = a.Namespace
+		}
+		generatedApp, err := s.appLister.Applications(namespace).Get(app.Name)
+		switch {
+		case err == nil:
+			createdAt = generatedApp.CreationTimestamp.DeepCopy()
+		case !apierrors.IsNotFound(err):
+			log.WithField("applicationset", a.Name).Warnf("failed to get generated Application %s/%s: %v", namespace, app.Name, err)
+		}
 		tree.Nodes = append(tree.Nodes, v1alpha1.ResourceNode{
-			Health: app.Health,
-			ResourceRef: v1alpha1.ResourceRef{
-				Name:      app.Name,
-				Group:     app.Group,
-				Version:   app.Version,
-				Kind:      app.Kind,
-				Namespace: a.Namespace,
-			},
+			Health:     app.Health,
+			Name:       app.Name,
+			Group:      app.Group,
+			Version:    app.Version,
+			Kind:       app.Kind,
+			Namespace:  a.Namespace,
 			ParentRefs: parentRefs,
+			CreatedAt:  createdAt,
 		})
 	}
 	tree.Normalize()
@@ -638,7 +654,7 @@ func (s *Server) getAppSetEnforceRBAC(ctx context.Context, action, namespace, na
 }
 
 // ListResourceEvents returns a list of event resources for an applicationset
-func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*corev1.EventList, error) {
+func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.ApplicationSetGetQuery) (*eventspb.EventList, error) {
 	namespace := s.appsetNamespaceOrDefault(q.AppsetNamespace)
 
 	appset, err := s.getAppSetEnforceRBAC(ctx, rbac.ActionGet, namespace, q.Name)
@@ -658,5 +674,5 @@ func (s *Server) ListResourceEvents(ctx context.Context, q *applicationset.Appli
 	if err != nil {
 		return nil, fmt.Errorf("error listing resource events: %w", err)
 	}
-	return list.DeepCopy(), nil
+	return serverevents.K8sEventListToAPIEventList(list), nil
 }

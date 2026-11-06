@@ -9,7 +9,9 @@ import (
 )
 
 func TestRepositoryNotFoundError(t *testing.T) {
+	t.Parallel()
 	t.Run("NewRepositoryNotFoundError creates correct error type", func(t *testing.T) {
+		t.Parallel()
 		originalErr := errors.New("repository does not exist")
 		repoNotFoundErr := NewRepositoryNotFoundError(originalErr)
 
@@ -18,6 +20,7 @@ func TestRepositoryNotFoundError(t *testing.T) {
 	})
 
 	t.Run("IsRepositoryNotFoundError identifies RepositoryNotFoundError", func(t *testing.T) {
+		t.Parallel()
 		originalErr := errors.New("repository does not exist")
 		repoNotFoundErr := NewRepositoryNotFoundError(originalErr)
 
@@ -25,16 +28,19 @@ func TestRepositoryNotFoundError(t *testing.T) {
 	})
 
 	t.Run("IsRepositoryNotFoundError returns false for regular errors", func(t *testing.T) {
+		t.Parallel()
 		regularErr := errors.New("some other error")
 
 		assert.False(t, IsRepositoryNotFoundError(regularErr))
 	})
 
 	t.Run("IsRepositoryNotFoundError returns false for nil error", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, IsRepositoryNotFoundError(nil))
 	})
 
 	t.Run("IsRepositoryNotFoundError works with wrapped errors", func(t *testing.T) {
+		t.Parallel()
 		originalErr := errors.New("repository does not exist")
 		repoNotFoundErr := NewRepositoryNotFoundError(originalErr)
 		wrappedErr := errors.New("wrapped: " + repoNotFoundErr.Error())

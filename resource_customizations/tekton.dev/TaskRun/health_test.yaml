@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "All Tasks have completed executing"
+    inputPath: testdata/succeeded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Tasks Completed: 1 (Failed: 0, Cancelled 0), Incomplete: 2, Skipped: 0"
+    inputPath: testdata/running.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Tasks Completed: 2 (Failed: 1, Cancelled 0), Skipped: 0"
+    inputPath: testdata/failed.yaml

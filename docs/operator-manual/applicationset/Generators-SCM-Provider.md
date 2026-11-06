@@ -25,6 +25,24 @@ spec:
 > `project` field of an ApplicationSet with an SCM generator is templated, to avoid granting management of
 > out-of-bounds resources.
 
+## Proxy Configuration
+
+If your ApplicationSet controller needs to reach SCM provider APIs (GitHub, GitLab, Gitea, Bitbucket Server) through an HTTP/HTTPS proxy, use the dedicated SCM proxy flags:
+
+```sh
+argocd-applicationset-controller \
+  --scm-proxy-url=http://proxy.corp.example.com:3128 \
+  --scm-no-proxy=internal.gitlab.corp.example.com,10.0.0.0/8
+```  
+These flags can also be set via environment variables:
+
+- `ARGOCD_APPLICATIONSET_CONTROLLER_SCM_PROXY_URL`
+- `ARGOCD_APPLICATIONSET_CONTROLLER_SCM_NO_PROXY`
+
+> [!NOTE]
+> --scm-proxy-url only affects outbound SCM API requests. It does not affect Kubernetes API server connectivity. 
+> Use --proxy-url (the standard kubectl flag) to proxy Kubernetes API traffic.
+
 ## GitHub
 
 The GitHub mode uses the GitHub API to scan an organization in either github.com or GitHub Enterprise.

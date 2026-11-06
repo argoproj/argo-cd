@@ -53,7 +53,7 @@ workflow.metadata.labels["workflows.argoproj.io/cron-workflow"] = obj.metadata.n
 if (obj.metadata.labels ~= nil and obj.metadata.labels["workflows.argoproj.io/controller-instanceid"] ~= nil) then
     workflow.metadata.labels["workflows.argoproj.io/controller-instanceid"] = obj.metadata.labels["workflows.argoproj.io/controller-instanceid"]
 end
-workflow.metadata.annotations["workflows.argoproj.io/scheduled-time"] = os.date("!%Y-%m-%dT%d:%H:%MZ")
+workflow.metadata.annotations["workflows.argoproj.io/scheduled-time"] = os.date("!%Y-%m-%dT%H:%M:%SZ")
 
 workflow.finalizers = {}
 -- add all finalizers from obj.spec.workflowMetadata.finalizers

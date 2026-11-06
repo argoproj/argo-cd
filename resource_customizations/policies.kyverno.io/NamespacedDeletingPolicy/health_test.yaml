@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Waiting for NamespacedDeletingPolicy status"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Healthy
+    message: "Policy is ready"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Degraded
+    message: "Admitted: webhook configuration failed"
+  inputPath: testdata/degraded.yaml

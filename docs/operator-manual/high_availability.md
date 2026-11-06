@@ -38,6 +38,37 @@ the appropriate tool.
   and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed
   requests.
 
+* For repositories with very large ref advertisements, enable `--git-ls-remote-optimized` to resolve `HEAD`, branches,
+  and tags with protocol v2 server-side narrowing. For each optimized cache refresh, one cache-lock owner runs
+  `git -c protocol.version=2 ls-remote --heads --tags` and a targeted
+  `git -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 <repository> HEAD` from a
+  temporary bare repository.
+  The results are stored together, so concurrent `HEAD` requests share the same two-query cache fill. The dry-run fetch
+  uses a bounded set of `HEAD`-related ref prefixes with protocol v2 servers. Because Git still transfers a pack during
+  a dry-run, `--depth=1` prevents full-history transfer and `--filter=tree:0` omits trees and blobs when the server
+  supports object filtering. The temporary repository is removed after the query. If either optimized query fails,
+  Argo CD uses the default go-git resolver as a last resort. This fallback can require another full remote listing, so
+  disable the optimization if native queries fail persistently. Unsupported refs, including GitHub pull request refs such
+  as `refs/pull/<pr-number>/head` and GitLab merge request refs such as `refs/merge-requests/<mr-number>/head`, continue
+  to use the default resolver directly. See
+  [Use Fully Qualified Git References](#use-fully-qualified-git-references) for related `targetRevision` guidance.
+
+  > [!WARNING]
+  > `--filter=tree:0` limits object transfer only when the Git server supports partial-fetch object filtering. On
+  > self-hosted servers, enable [`uploadpack.allowFilter`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-uploadpackallowFilter)
+  > and ensure `tree` filters are allowed before enabling this optimization. Otherwise, Git ignores the filter and the
+  > targeted `HEAD` query may transfer the complete tip tree on every revision-cache refresh. Argo CD logs a warning
+  > when Git reports that the filter was ignored.
+
+  > [!NOTE]
+  > `--git-ls-remote-optimized` is a global repo-server flag. Configure it consistently across all repo-server replicas.
+  > During a rolling update, the optimized and default resolvers use separate cache entries, so mutable refs might briefly
+  > resolve from snapshots captured at different times.
+
+  > [!NOTE]
+  > The heads/tags query and targeted `HEAD` query run concurrently, and each receives the configured Git request timeout.
+  > The optimized cache refresh can therefore wait up to one Git request timeout before falling back to the default resolver.
+
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With
   Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected
@@ -85,6 +116,12 @@ get the actual cluster state.
   processors if your Argo CD instance manages too many applications.
   For 1000 applications, we use 50 for `--status-processors` and 25 for `--operation-processors`
 
+* when the [Source Hydrator](../user-guide/source-hydrator.md) is enabled, the controller hydrates manifests using a
+  separate queue whose concurrency is controlled by the `--hydration-processors` flag (5 by default). The hydration
+  queue is keyed by source repo, target revision, and destination branch, so the same key is never hydrated by more
+  than one processor at a time; increasing the count only parallelizes hydration across distinct keys. Increase it if a
+  single controller hydrates many independent repositories or branches and hydration becomes a bottleneck.
+
 * The manifest generation typically takes the most time during reconciliation. The duration of manifest generation is
   limited to make sure the controller refresh queue does not overflow.
   The app reconciliation fails with `Context deadline exceeded` error if the manifest generation is taking too much
@@ -102,6 +139,28 @@ get the actual cluster state.
 * The controller polls Git every 3m by default. You can change this duration using the `timeout.reconciliation` and
   `timeout.reconciliation.jitter` setting in the `argocd-cm` ConfigMap. The value of the fields is
   a [duration string](https://pkg.go.dev/time#ParseDuration) e.g `60s`, `1m` or `1h`.
+
+  > [!NOTE]
+  > Restart the argocd-application-controller to apply this change. You can do so by running
+  > `kubectl rollout restart -n argocd statefulset argocd-application-controller`
+
+* Every full reconciliation stamps `status.reconciledAt` on the Application, so a large fleet writes to the API server
+  once per app per reconciliation even when nothing about the app has changed. Set
+  `controller.reconciled.at.heartbeat` in the `argocd-cmd-params-cm` ConfigMap (a
+  [duration string](https://pkg.go.dev/time#ParseDuration), e.g. `10m`) to bound how stale that one field may become
+  instead: a reconciliation that changes nothing else then writes nothing at all, and at N apps with a reconciliation
+  timeout of R the writes drop from N/R to roughly N/heartbeat. The heartbeat must be longer than R to reduce writes.
+  The controller still tracks the real reconcile time in memory, so refresh scheduling is unaffected, and
+  `reconciledAt` is always written on a requested refresh or when it would otherwise trail the last sync, keeping
+  `argocd app wait`, notifications and progressive sync accurate. The default, `0`, writes the field on every
+  reconciliation.
+
+    > [!NOTE]
+    > The trade-off is visibility: while a heartbeat is configured, the `reconciledAt` field you see on an Application
+    > may lag behind the last reconciliation by up to that duration. The controller also stores the time in Redis, so
+    > apps that move between shards keep it. After a restart, apps without a time cached in Redis from within the last R
+    > have their first refresh spread randomly over R, as in steady state. After that first R, if Redis is unavailable,
+    > apps that move between shards and whose `reconciledAt` is older than R are refreshed at once.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
   controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller`
@@ -205,6 +264,13 @@ stringData:
   The valid value is in the format of Go time duration string, e.g. `1ms`, `1s`, `1m`, `1h`. The default value is
   `100ms`.
   The variable is used only when `ARGOCD_CLUSTER_CACHE_BATCH_EVENTS_PROCESSING` is set to `true`.
+
+* `resource.manifest.storage` - `argocd-cm` setting controlling the serialization format for cached resource
+  manifests when manifest compression is enabled. Valid values: `json` (default), `msgpack`.
+
+* `resource.manifest.compression` - `argocd-cm` setting controlling the compression algorithm for cached resource
+  manifests when manifest compression is enabled. Valid values: `gzip-bestspeed` (default), `gzip-default`, `s2-encode`,
+  `s2-encodebetter`, `zlib`, `none`.
 
 * `ARGOCD_APPLICATION_TREE_SHARD_SIZE` - environment variable controlling the max number of resources stored in one
   Redis
@@ -347,6 +413,13 @@ get no benefit from using these annotations.
 Similarly, applications referencing an external Helm values file will not get the benefits of this feature when an
 unrelated change happens in the external source.
 
+> [!NOTE]
+> The comparison also works with shallow cloning (`depth` greater than `0`). Argo CD fetches the previously synced commit
+> at the configured depth and compares it directly with the new commit. This requires the Git server to allow fetching
+> commits by SHA (for self-hosted servers, `uploadpack.allowReachableSHA1InWant` or `uploadpack.allowAnySHA1InWant`).
+> If that fetch fails, Argo CD treats the application as changed and regenerates manifests, retrying the fetch on each
+> refresh.
+
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
 > [!NOTE]
@@ -473,12 +546,45 @@ When disabled, the webhook handler will only trigger reconciliation for applicat
 will skip all Redis cache operations for unaffected applications. This is the recommended setting for large monorepos
 with plain YAML manifests.
 
-**Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: true` on the repository via the
-ArgoCD CLI or UI:
+**Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: "true"` in the repository Secret.
+If you manage repositories [declaratively](declarative-setup.md#repositories), add the key to the Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://github.com/org/repo.git
+  webhookManifestCacheWarmDisabled: "true"
+```
+
+To change an existing repository Secret in place, patch it:
 
 ```bash
-argocd repo edit https://github.com/org/repo.git --webhook-manifest-cache-warm-disabled
+kubectl -n argocd patch secret my-repo --type merge -p '{"stringData":{"webhookManifestCacheWarmDisabled":"true"}}'
 ```
+
+The option can also be set with the CLI when adding a repository:
+
+```bash
+argocd repo add https://github.com/org/repo.git --webhook-manifest-cache-warm-disabled
+```
+
+> [!WARNING]
+> There is no `argocd repo edit` command. To change an existing repository with the CLI, you must run
+> `argocd repo add --upsert` and pass **all** of the repository's settings again, including its credentials. `--upsert`
+> replaces the stored repository configuration, so any credentials or options you leave out are removed.
+>
+> ```bash
+> argocd repo add https://github.com/org/repo.git --upsert \
+>   --username <username> --password <password> \
+>   --webhook-manifest-cache-warm-disabled
+> ```
 
 **Global setting**: to disable cache warming for all repositories, set the following environment variable on
 `argocd-server`:
@@ -501,6 +607,45 @@ jitter is 1 minute, then the actual timeout will be between 5 and 6 minutes.
 To configure the jitter you can set the following environment variables:
 
 * `ARGOCD_RECONCILIATION_JITTER` - The jitter to apply to the sync timeout. Disabled when value is 0. Defaults to 60.
+
+### Webhook Reconciliation Jitter
+
+When a webhook event arrives (e.g. after a bulk merge to a monorepo), Argo CD may simultaneously enqueue refreshes for
+a large number of applications, causing a spike in load on the repo-server. To spread these refreshes out over time you
+can configure a random jitter that is applied before each webhook-triggered refresh is processed.
+
+The following `argocd-cm` ConfigMap keys control this behaviour:
+
+* `webhook.refresh.jitter` – The maximum duration of the random delay added before each webhook-triggered
+  application refresh. For example, if set to `60s`, each refresh will wait between 0 and 60 seconds before being
+  processed. Disabled when the value is `0` (default).
+* `webhook.refresh.jitter.threshold` – The minimum number of applications that must be affected by a single
+  webhook event before jitter is applied. This prevents unnecessary delays for small events. For example, if set to
+  `10` (the default), jitter is only applied when more than 10 applications are affected.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+data:
+  # Apply up to 60s of jitter when more than 10 applications are affected
+  webhook.refresh.jitter: "60s"
+  webhook.refresh.jitter.threshold: "10"
+```
+
+You can also tune the number of concurrent workers that process the refresh queue using the
+`server.webhook.refresh.workers` key in `argocd-cmd-params-cm` (default: `20`). Under high webhook load it may be
+beneficial to raise this value alongside the jitter settings to drain the queue faster once the jitter delay expires.
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+data:
+  server.webhook.refresh.workers: "40"
+```
 
 ## Rate Limiting Application Reconciliations
 
@@ -566,6 +711,53 @@ backoff = time.Since(lastRequeueTime) >= WORKQUEUE_FAILURE_COOLDOWN_NS ?
 backoff = WORKQUEUE_BASE_DELAY_NS
 ```
 
+## Rate Limiting ApplicationSet Reconciliations
+
+The `argocd-applicationset-controller` also exposes workqueue rate limiter flags, using the same two-layer model
+(global bucket + per-item exponential backoff) as the application controller. Because ApplicationSet generators may
+call external APIs (SCM providers, Kubernetes secrets, cluster API servers), the defaults are deliberately conservative
+to avoid hammering downstream services during failure storms.
+
+### Global rate limits (ApplicationSet controller)
+
+Disabled by default. Limits the total number of reconcile requests queued per second across all ApplicationSets.
+
+| Flag | Env var | Default | Description |
+|------|---------|---------|-------------|
+| `--wq-bucket-size` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_SIZE` | `500` | Burst size — max items queued in a single burst |
+| `--wq-bucket-qps` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_QPS` | `MaxFloat64` (disabled) | Max items queued per second |
+
+### Per-item rate limits (ApplicationSet controller)
+
+Disabled by default (cooldown = 0). When enabled, applies exponential backoff per ApplicationSet.
+
+| Flag | Env var | Default | Description |
+|------|---------|---------|-------------|
+| `--wq-cooldown` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_FAILURE_COOLDOWN_NS` | `0` (disabled) | Cooldown before backoff resets. Set to a non-zero value to enable per-item backoff. |
+| `--wq-basedelay` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BASE_DELAY_NS` | `1ms` | Initial backoff delay |
+| `--wq-maxdelay` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_MAX_DELAY_NS` | `16m40s` | Maximum backoff cap |
+| `--wq-backoff-factor` | `ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BACKOFF_FACTOR` | `1.5` | Exponential backoff multiplier |
+
+### When to tune these settings
+
+The default max delay of ~16m40s means that after repeated failures an ApplicationSet may not be retried for up to
+16 minutes. This is intentional — SCM generators (GitHub, GitLab, Bitbucket) and cluster secret lookups benefit from
+this back-pressure during outages.
+
+If you have ApplicationSets backed only by internal sources (Git repositories, cluster secrets with no external
+dependencies) and need faster recovery from transient errors, you can lower the max delay:
+
+```bash
+# Example: lower max backoff to 2 minutes, enable per-item backoff with 30s cooldown
+--wq-maxdelay=2m
+--wq-cooldown=30s
+--wq-basedelay=1ms
+```
+
+> [!WARNING]
+> Setting `--wq-maxdelay` to a very low value (e.g. `1s`) with SCM-backed ApplicationSets can cause a high volume
+> of requests to external APIs when generators fail repeatedly. Ensure your SCM provider rate limits are accounted for.
+
 ## HTTP Request Retry Strategy
 
 In scenarios where network instability or transient server errors occur, the retry strategy ensures the robustness of
@@ -623,6 +815,35 @@ Once the endpoint is enabled, you can use the go profile tool to collect the CPU
 $ kubectl port-forward svc/argocd-metrics 8082:8082
 $ go tool pprof http://localhost:8082/debug/pprof/heap
 ```
+
+## Mitigating OOMKilled Events from Memory Spikes
+
+To mitigate `OOMKilled` events caused by sudden memory spikes without over-provisioning resources, you can configure the `GOMEMLIMIT` environment variable on the relevant Argo CD containers (supported in Argo CD versions >= 2.7.0).
+
+Setting `GOMEMLIMIT` to **80%–90%** of your container's total memory limit forces the Go runtime to trigger garbage collection before the Kubernetes hard limit is reached. For more detail, see the [Go GC Guide](https://go.dev/doc/gc-guide#Memory_limit) and the [Environment variables](https://pkg.go.dev/runtime#hdr-Environment_Variables) reference.
+
+```yaml
+containers:
+  - name: argocd-application-controller
+    resources:
+      limits:
+        memory: "2Gi"
+    env:
+      - name: GOMEMLIMIT
+        value: "1800MiB"  # ~90% of the 2Gi memory limit above; GOMEMLIMIT uses MiB/GiB units
+```
+
+### Known Use Cases
+
+* Application controller cold-start memory spike
+* Expensive per-request memory spikes in argocd-server
+
+### Trade-Offs & Tuning
+
+> [!WARNING]
+> Setting `GOMEMLIMIT` too close to the application's actual working set can cause **GC thrashing**. The Go runtime will spend excessive CPU cycles continuously attempting to reclaim memory, significantly degrading application performance.
+
+If you observe sustained high CPU utilization alongside frequent GC activity or ongoing `OOMKilled` events, increase the container's total memory limit and recalculate `GOMEMLIMIT` proportionally to give the runtime more breathing room.
 
 ## Shallow Clone
 

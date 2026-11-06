@@ -1,7 +1,6 @@
 package e2e
 
 import (
-	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -99,7 +98,7 @@ rules:
 			defer io.Close(closer)
 
 			// Invalidate cache for the default cluster (https://kubernetes.default.svc)
-			cluster, err := clusterClient.InvalidateCache(context.Background(), &clusterpkg.ClusterQuery{
+			cluster, err := clusterClient.InvalidateCache(t.Context(), &clusterpkg.ClusterQuery{
 				Server: "https://kubernetes.default.svc",
 			})
 			if err != nil {
@@ -118,7 +117,7 @@ rules:
 			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer io.Close(closer)
 
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{
+			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{
 				ApplicationName: &app.Name,
 				AppNamespace:    &app.Namespace,
 			})
@@ -166,12 +165,12 @@ rules:
 			assert.Len(t, roleSameNs.ParentRefs, 1, "Role in same namespace should have one parent")
 			assert.Equal(t, "ClusterRole", roleSameNs.ParentRefs[0].Kind)
 			assert.Equal(t, "test-cluster-role", roleSameNs.ParentRefs[0].Name)
-			assert.Equal(t, string(clusterRoleUID), roleSameNs.ParentRefs[0].UID)
+			assert.Equal(t, clusterRoleUID, roleSameNs.ParentRefs[0].UID)
 
 			assert.Len(t, roleOtherNs.ParentRefs, 1, "Role in other namespace should have one parent")
 			assert.Equal(t, "ClusterRole", roleOtherNs.ParentRefs[0].Kind)
 			assert.Equal(t, "test-cluster-role", roleOtherNs.ParentRefs[0].Name)
-			assert.Equal(t, string(clusterRoleUID), roleOtherNs.ParentRefs[0].UID)
+			assert.Equal(t, clusterRoleUID, roleOtherNs.ParentRefs[0].UID)
 
 			t.Log("✓ Both Roles correctly show ClusterRole as their parent in the resource tree")
 		}).
@@ -232,7 +231,7 @@ rules:
 			closer, cdClient := ArgoCDClientset.NewApplicationClientOrDie()
 			defer io.Close(closer)
 
-			tree, err := cdClient.ResourceTree(context.Background(), &applicationpkg.ResourcesQuery{
+			tree, err := cdClient.ResourceTree(t.Context(), &applicationpkg.ResourcesQuery{
 				ApplicationName: &app.Name,
 				AppNamespace:    &app.Namespace,
 			})

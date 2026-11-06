@@ -16,7 +16,7 @@ import (
 // GHCRParser parses webhook payloads sent by GitHub Container Registry (GHCR).
 //
 // It extracts container image publication events from GitHub package webhooks
-// and converts them into a normalized WebhookRegistryEvent structure.
+// and converts them into a normalized RegistryEvent structure.
 type GHCRParser struct {
 	secret string
 }
@@ -41,7 +41,7 @@ type GHCRPayload struct {
 	} `json:"package"`
 }
 
-// NewGHCRParser creates a new GHCRParser instance.
+// NewGHCRParser creates a new ghcrParser instance.
 //
 // The parser supports GitHub package webhook events for container images
 // published to GitHub Container Registry (ghcr.io).
@@ -50,16 +50,6 @@ func NewGHCRParser(secret string) *GHCRParser {
 		log.Warn("GHCR webhook secret is not configured; incoming webhook events will not be validated")
 	}
 	return &GHCRParser{secret: secret}
-}
-
-// ProcessWebhook reads the request body and parses the GHCR webhook payload.
-// Returns nil, nil for events that should be skipped.
-func (p *GHCRParser) ProcessWebhook(r *http.Request) (*RegistryEvent, error) {
-	body, err := io.ReadAll(r.Body)
-	if err != nil {
-		return nil, err
-	}
-	return p.Parse(r, body)
 }
 
 // CanHandle reports whether the HTTP request corresponds to a GHCR webhook.
@@ -74,12 +64,16 @@ func (p *GHCRParser) CanHandle(r *http.Request) bool {
 // details from a GHCR webhook payload.
 //
 // The method expects a GitHub package event with action "published" for a
-// container package. It returns a normalized WebhookRegistryEvent containing
-// the registry host, repository, tag, and digest. Returns nil, nil for events
-// that are intentionally skipped (unsupported actions, non-container packages,
-// or missing tags). Only returns an error for genuinely malformed payloads or
+// container package. It returns a normalized RegistryEvent containing the
+// registry host, repository, and tag. Returns nil, nil for events that are
+// intentionally skipped (unsupported actions, non-container packages, or
+// missing tags). Only returns an error for genuinely malformed payloads or
 // signature verification failures.
-func (p *GHCRParser) Parse(r *http.Request, body []byte) (*RegistryEvent, error) {
+func (p *GHCRParser) Parse(r *http.Request) (any, error) {
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, err
+	}
 	if err := p.validateSignature(r, body); err != nil {
 		return nil, err
 	}

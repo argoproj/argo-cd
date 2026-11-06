@@ -110,15 +110,29 @@ func (c *client) executeRequest(ctx context.Context, fullMethodName string, msg 
 }
 
 func (c *client) startGRPCProxy(ctx context.Context) (*grpc.Server, net.Listener, error) {
+	// Fail with clear message in case the /tmp directory does not exist
+	tmpDir := os.TempDir()
+	if _, err := os.Stat(tmpDir); err != nil {
+		return nil, nil, fmt.Errorf(
+			"failed to access temporary directory %q: %w",
+			tmpDir,
+			err,
+		)
+	}
+
 	randSuffix, err := rand.String(16)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to generate random socket filename: %w", err)
 	}
-	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", os.TempDir(), randSuffix)
+	serverAddr := fmt.Sprintf("%s/argocd-%s.sock", tmpDir, randSuffix)
 	lc := &net.ListenConfig{}
 	ln, err := lc.Listen(ctx, "unix", serverAddr)
 	if err != nil {
-		return nil, nil, err
+		return nil, nil, fmt.Errorf(
+			"failed to create gRPC-Web proxy socket %q: %w",
+			serverAddr,
+			err,
+		)
 	}
 	proxySrv := grpc.NewServer(
 		grpc.ForceServerCodec(&noopCodec{}),
@@ -156,7 +170,15 @@ func (c *client) startGRPCProxy(ctx context.Context) (*grpc.Server, net.Listener
 				utilio.Close(resp.Body)
 			}()
 			defer utilio.Close(resp.Body)
-			c.httpClient.CloseIdleConnections()
+			// When retries are enabled, httpClient wraps a retryablehttp
+			// RoundTripper that does not implement CloseIdleConnections, so
+			// closing on httpClient would be a no-op. Close idle connections on
+			// the underlying TLS transport directly when we have one.
+			if c.tlsTransport != nil {
+				c.tlsTransport.CloseIdleConnections()
+			} else {
+				c.httpClient.CloseIdleConnections()
+			}
 
 			for {
 				header := make([]byte, frameHeaderLength)

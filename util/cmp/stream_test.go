@@ -23,6 +23,91 @@ type streamMock struct {
 	done     chan bool
 }
 
+type failingSender struct{}
+
+func (failingSender) Send(*pluginclient.AppStreamRequest) error {
+	return errors.New("send failed")
+}
+
+type discardSender struct{}
+
+func (discardSender) Send(*pluginclient.AppStreamRequest) error {
+	return nil
+}
+
+func TestSendRepoStreamCleansTemporaryDirectoryOnSuccess(t *testing.T) {
+	tempRoot := t.TempDir()
+	appPath := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "config.yaml"), []byte("kind: ConfigMap\n"), 0o600))
+
+	require.NoError(t, cmp.SendRepoStream(t.Context(), appPath, appPath, discardSender{}, nil, nil))
+
+	entries, err := os.ReadDir(tempRoot)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestSendRepoStreamCleansTemporaryDirectoryWhenMetadataSendFails(t *testing.T) {
+	tempRoot := t.TempDir()
+	appPath := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+
+	require.NoError(t, os.WriteFile(filepath.Join(appPath, "config.yaml"), []byte("kind: ConfigMap\n"), 0o600))
+
+	err := cmp.SendRepoStream(t.Context(), appPath, appPath, failingSender{}, nil, nil)
+	require.ErrorContains(t, err, "send failed")
+
+	entries, err := os.ReadDir(tempRoot)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
+
+func TestGetCompressedRepoAndMetadataCleansTemporaryDirectoryOnEarlyReturn(t *testing.T) {
+	tests := map[string]struct {
+		rootPath string
+		appPath  string
+		addFile  bool
+	}{
+		"no files": {
+			rootPath: t.TempDir(),
+		},
+		"app path outside root": {
+			rootPath: t.TempDir(),
+			appPath:  t.TempDir(),
+			addFile:  true,
+		},
+	}
+
+	for name, tt := range tests {
+		t.Run(name, func(t *testing.T) {
+			tempRoot := t.TempDir()
+			t.Setenv("TMP", tempRoot)
+			t.Setenv("TEMP", tempRoot)
+			t.Setenv("TMPDIR", tempRoot)
+
+			appPath := tt.appPath
+			if appPath == "" {
+				appPath = tt.rootPath
+			}
+			if tt.addFile {
+				require.NoError(t, os.WriteFile(filepath.Join(tt.rootPath, "config.yaml"), []byte("kind: ConfigMap\n"), 0o600))
+			}
+			_, _, err := cmp.GetCompressedRepoAndMetadata(tt.rootPath, appPath, nil, nil, nil)
+			require.Error(t, err)
+
+			entries, err := os.ReadDir(tempRoot)
+			require.NoError(t, err)
+			assert.Empty(t, entries)
+		})
+	}
+}
+
 func (m *streamMock) Recv() (*pluginclient.AppStreamRequest, error) {
 	select {
 	case message := <-m.messages:
@@ -49,8 +134,10 @@ func newStreamMock() *streamMock {
 }
 
 func TestReceiveApplicationStream(t *testing.T) {
+	t.Parallel()
 	t.Run("will receive the application stream successfully", func(t *testing.T) {
 		// given
+		t.Parallel()
 		streamMock := newStreamMock()
 		appDir := filepath.Join(getTestDataDir(t), "app")
 		workdir, err := files.CreateTempDir("")
@@ -79,6 +166,30 @@ func TestReceiveApplicationStream(t *testing.T) {
 		assert.NotContains(t, names, "DUMMY.md")
 		assert.NotContains(t, names, "dummy")
 		assert.NotNil(t, env)
+	})
+
+	t.Run("slash-pattern in plugin-tar-exclude excludes by relative path", func(t *testing.T) {
+		t.Parallel()
+		streamMock := newStreamMock()
+		appDir := filepath.Join(getTestDataDir(t), "app")
+		workdir, err := files.CreateTempDir("")
+		require.NoError(t, err)
+		defer func() {
+			close(streamMock.messages)
+			if removeErr := os.RemoveAll(workdir); removeErr != nil {
+				t.Fatal(removeErr)
+			}
+		}()
+		go streamMock.sendFile(t.Context(), t, appDir, streamMock, nil, []string{"applicationset/latest/**"})
+
+		_, err = cmp.ReceiveRepoStream(t.Context(), streamMock, workdir, false)
+		require.NoError(t, err)
+		latestDir := filepath.Join(workdir, "applicationset", "latest")
+		stableDir := filepath.Join(workdir, "applicationset", "stable")
+		_, statErr := os.Stat(filepath.Join(latestDir, "kustomization.yaml"))
+		assert.True(t, os.IsNotExist(statErr), "applicationset/latest/kustomization.yaml should be excluded")
+		_, statErr = os.Stat(filepath.Join(stableDir, "kustomization.yaml"))
+		assert.NoError(t, statErr, "applicationset/stable/kustomization.yaml should be present")
 	})
 }
 

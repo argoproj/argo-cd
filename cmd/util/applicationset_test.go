@@ -32,6 +32,7 @@ spec:
 `
 
 func TestReadAppSet(t *testing.T) {
+	t.Parallel()
 	var appSets []*argoprojiov1alpha1.ApplicationSet
 	err := readAppset([]byte(appSet), &appSets)
 	if err != nil {

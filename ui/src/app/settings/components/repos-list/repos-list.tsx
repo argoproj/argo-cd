@@ -1,15 +1,63 @@
-/* eslint-disable no-case-declarations */
 import {AutocompleteField, DropDownMenu, FormField, FormSelect, HelpIcon, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
-import React, {useEffect, useState, useContext, useRef} from 'react';
+import {useQuery, useQueryClient} from '@tanstack/react-query';
+import * as React from 'react';
+import * as ReactDOM from 'react-dom';
 import {withRouter, RouteComponentProps} from 'react-router-dom';
-import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'react-form';
+import {Form, FormValues, FormApi, Text, TextArea, FormErrors} from 'argo-ui';
 import {Context} from '../../../shared/context';
-import {CheckboxField, ConnectionStateIcon, DataLoader, EmptyState, ErrorNotification, NumberField, Page, Repo, Spinner} from '../../../shared/components';
+import {
+    ActionMenu,
+    CheckboxField,
+    ConnectionStateIcon,
+    DataLoader,
+    EmptyState,
+    ErrorNotification,
+    IconColumn,
+    NumberField,
+    Page,
+    Paginate,
+    Repo,
+    SearchBar,
+    Spinner
+} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
+import {projectQueries, repoQueries} from '../../../shared/queries';
+import {useRepoMutations} from '../../../shared/mutations';
+import {loadFailed, loading} from '../../../shared/query-client';
 import {RepoDetails} from '../repo-details/repo-details';
+import {useSearchParams} from '../../../shared/hooks/query';
+import {useListSort} from '../../../shared/hooks/use-list-sort';
+import {FlexTopBar} from '../../../shared/components';
+import {useSidebarTarget} from '../../../sidebar/sidebar';
+import {
+    filterRepos,
+    getRepoFilterResults,
+    ReposFilter,
+    ReposListPreferences,
+    ReposListPreferencesHelper,
+    UnifiedRepo,
+    getRepoUrl,
+    getRepoName,
+    getRepoType,
+    getRepoProject,
+    getConnectionState,
+    isWrite,
+    isTemplate
+} from './repos-filter';
 
-require('./repos-list.scss');
+// Helper functions to convert to UnifiedRepo
+const repoToUnified = (repo: models.Repository, isWriteFlag: boolean): UnifiedRepo => (isWriteFlag ? {writeRepo: repo} : {readRepo: repo});
+
+const credToUnified = (cred: models.RepoCreds, isWriteFlag: boolean): UnifiedRepo => (isWriteFlag ? {writeCred: cred} : {readCred: cred});
+
+// Module-level so react-query can memoize the select result across renders.
+const toUnifiedRepos = ([readRepos, readCreds, writeRepos, writeCreds]: [models.Repository[], models.RepoCreds[], models.Repository[], models.RepoCreds[]]): UnifiedRepo[] => [
+    ...readRepos.map(r => repoToUnified(r, false)),
+    ...readCreds.map(c => credToUnified(c, false)),
+    ...writeRepos.map(r => repoToUnified(r, true)),
+    ...writeCreds.map(c => credToUnified(c, true))
+];
 
 interface NewSSHRepoParams {
     type: string;
@@ -48,6 +96,16 @@ export interface NewHTTPSRepoParams {
     write: boolean;
     useAzureWorkloadIdentity: boolean;
 }
+
+export const normalizeHTTPSRepoParams = (params: NewHTTPSRepoParams): NewHTTPSRepoParams => {
+    const enableOCI = params.type === 'helm' && !!params.enableOCI;
+    return {
+        ...params,
+        url: enableOCI ? params.url.replace(/^(https?|oci):\/\//, '') : params.url,
+        enableOCI,
+        insecureOCIForceHttp: (params.type === 'oci' || enableOCI) && !!params.insecureOCIForceHttp
+    };
+};
 
 interface NewGitHubAppRepoParams {
     type: string;
@@ -164,26 +222,124 @@ export enum ConnectionMethod {
     AZURESERVICEPRINCIPAL = 'via Azure Service Principal'
 }
 
+const ConnectRepoFormButton = ({method, onSelection, formApi}: {method: string; onSelection: (method: string) => void; formApi: React.MutableRefObject<FormApi | null>}) => {
+    return (
+        <div className='white-box'>
+            <p>Choose your connection method:</p>
+            <DropDownMenu
+                anchor={() => (
+                    <p>
+                        {method.toUpperCase()} <i className='fa fa-caret-down' />
+                    </p>
+                )}
+                items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD, ConnectionMethod.AZURESERVICEPRINCIPAL].map(
+                    (
+                        connectMethod:
+                            ConnectionMethod.SSH | ConnectionMethod.HTTPS | ConnectionMethod.GITHUBAPP | ConnectionMethod.GOOGLECLOUD | ConnectionMethod.AZURESERVICEPRINCIPAL
+                    ) => ({
+                        title: connectMethod.toUpperCase(),
+                        action: () => {
+                            onSelection(connectMethod);
+                            const formState = formApi.current.getFormState();
+                            formApi.current.setFormState({
+                                ...formState,
+                                errors: {}
+                            });
+                        }
+                    })
+                )}
+            />
+        </div>
+    );
+};
+
+const SlidingPanelHeader = ({
+    showConnectRepo,
+    displayEditPanel,
+    connecting,
+    saving,
+    onConnect,
+    onSaveCredsTemplate,
+    setConnectRepo,
+    setDisplayEditPanel
+}: {
+    showConnectRepo: boolean;
+    displayEditPanel: boolean;
+    connecting: boolean;
+    saving: boolean;
+    onConnect: () => void;
+    onSaveCredsTemplate: () => void;
+    setConnectRepo: (val: boolean) => void;
+    setDisplayEditPanel: (val: boolean) => void;
+}) => {
+    return (
+        <>
+            {showConnectRepo && (
+                <>
+                    <button className='argo-button argo-button--base' disabled={saving} onClick={onConnect}>
+                        <Spinner show={connecting} style={{marginRight: '5px'}} />
+                        Connect
+                    </button>{' '}
+                    <button className='argo-button argo-button--base' disabled={saving} onClick={onSaveCredsTemplate}>
+                        Save as credentials template
+                    </button>{' '}
+                    <button onClick={() => setConnectRepo(false)} className='argo-button argo-button--base-o'>
+                        Cancel
+                    </button>
+                </>
+            )}
+            {displayEditPanel && (
+                <button onClick={() => setDisplayEditPanel(false)} className='argo-button argo-button--base-o'>
+                    Cancel
+                </button>
+            )}
+        </>
+    );
+};
+
 export const ReposList = ({match, location}: RouteComponentProps) => {
-    const [connecting, setConnecting] = useState(false);
-    const [method, setMethod] = useState<string>(ConnectionMethod.SSH);
-    const [currentRepo, setCurrentRepo] = useState<models.Repository | null>(null);
-    const [displayEditPanel, setDisplayEditPanel] = useState(false);
-    const [authSettings, setAuthSettings] = useState<models.AuthSettings | null>(null);
-    // States related to repository sorting
-    const [statusProperty, setStatusProperty] = useState<'all' | 'Successful' | 'Failed' | 'Unknown'>('all');
-    const [projectProperty, setProjectProperty] = useState<string>('all');
-    const [typeProperty, setTypeProperty] = useState<'all' | 'git' | 'helm'>('all');
-    const [name, setName] = useState<string>('');
+    const [method, setMethod] = React.useState<string>(ConnectionMethod.SSH);
+    const [currentRepo, setCurrentRepo] = React.useState<UnifiedRepo | null>(null);
+    const [displayEditPanel, setDisplayEditPanel] = React.useState(false);
+    const [authSettings, setAuthSettings] = React.useState<models.AuthSettings | null>(null);
+    const query = useSearchParams();
+    const name = query.get('search') || '';
+    const [filterPref, setFilterPref] = React.useState<ReposListPreferences>({
+        typeFilter: query.getAll('type') || [],
+        projectFilter: query.getAll('project') || [],
+        statusFilter: query.getAll('status') || [],
+        credentialTypeFilter: query.getAll('permission') || [],
+        templateFilter: query.getAll('category') || []
+    });
+    const [page, setPage] = React.useState(0);
+    const sidebarTarget = useSidebarTarget();
 
-    const ctx = useContext(Context);
+    const ctx = React.useContext(Context);
 
-    const formApi = useRef<FormApi | null>(null);
-    const credsTemplate = useRef<boolean>(false);
-    const repoLoader = useRef<DataLoader | null>(null);
-    const credsLoader = useRef<DataLoader | null>(null);
+    const filterQuery = (pref: ReposListPreferences, search: string) => ({
+        type: pref.typeFilter.length > 0 ? pref.typeFilter : null,
+        project: pref.projectFilter.length > 0 ? pref.projectFilter : null,
+        status: pref.statusFilter.length > 0 ? pref.statusFilter : null,
+        permission: pref.credentialTypeFilter.length > 0 ? pref.credentialTypeFilter : null,
+        category: pref.templateFilter.length > 0 ? pref.templateFilter : null,
+        search: search || null
+    });
 
-    useEffect(() => {
+    const onFilterChange = (newPref: ReposListPreferences) => {
+        setFilterPref(newPref);
+        ctx.navigation.goto('.', filterQuery(newPref, name), {replace: true});
+        setPage(0);
+    };
+
+    type SortKey = 'type' | 'name' | 'repository' | 'project' | 'permission';
+    const {sortKey, requestSort, sortIcon, compareString, compareNumber} = useListSort<SortKey>('name');
+
+    const formApi = React.useRef<FormApi | null>(null);
+    const credsTemplate = React.useRef<boolean>(false);
+    const queryClient = useQueryClient();
+    const repoMutations = useRepoMutations();
+
+    React.useEffect(() => {
         const fetchAuthSettings = async () => {
             const settings = await services.authService.settings();
             setAuthSettings(settings);
@@ -191,60 +347,32 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         fetchAuthSettings();
     }, []);
 
-    const ConnectRepoFormButton = ({method, onSelection}: {method: string; onSelection: (method: string) => void}) => {
-        return (
-            <div className='white-box'>
-                <p>Choose your connection method:</p>
-                <DropDownMenu
-                    anchor={() => (
-                        <p>
-                            {method.toUpperCase()} <i className='fa fa-caret-down' />
-                        </p>
-                    )}
-                    items={[ConnectionMethod.SSH, ConnectionMethod.HTTPS, ConnectionMethod.GITHUBAPP, ConnectionMethod.GOOGLECLOUD, ConnectionMethod.AZURESERVICEPRINCIPAL].map(
-                        (
-                            connectMethod:
-                                | ConnectionMethod.SSH
-                                | ConnectionMethod.HTTPS
-                                | ConnectionMethod.GITHUBAPP
-                                | ConnectionMethod.GOOGLECLOUD
-                                | ConnectionMethod.AZURESERVICEPRINCIPAL
-                        ) => ({
-                            title: connectMethod.toUpperCase(),
-                            action: () => {
-                                onSelection(connectMethod);
-                                const formState = formApi.current.getFormState();
-                                formApi.current.setFormState({
-                                    ...formState,
-                                    errors: {}
-                                });
-                            }
-                        })
-                    )}
-                />
-            </div>
-        );
-    };
-
     const onChooseDefaultValues = (): FormValues => {
         return {type: 'git', ghType: 'GitHub', azureType: 'Azure Public Cloud', write: false};
     };
 
     const onValidateErrors = (params: FormValues): FormErrors => {
         switch (method) {
-            case ConnectionMethod.SSH:
+            case ConnectionMethod.SSH: {
                 const sshValues = params as NewSSHRepoParams;
                 return {
                     url: !sshValues.url && 'Repository URL is required',
                     depth: sshValues.depth != undefined && sshValues.depth < 0 && 'Depth must be a non-negative number'
                 };
-            case ConnectionMethod.HTTPS:
+            }
+            case ConnectionMethod.HTTPS: {
                 const validURLValues = params as NewHTTPSRepoParams;
                 return {
                     url:
                         (!validURLValues.url && 'Repository URL is required') ||
-                        (credsTemplate && !isHTTPOrHTTPSUrl(validURLValues.url) && !validURLValues.enableOCI && params.type != 'oci' && 'Not a valid HTTP/HTTPS URL') ||
+                        (credsTemplate &&
+                            !isHTTPOrHTTPSUrl(validURLValues.url) &&
+                            !(validURLValues.type === 'helm' && validURLValues.enableOCI) &&
+                            params.type != 'oci' &&
+                            'Not a valid HTTP/HTTPS URL') ||
                         (credsTemplate && !isOCIUrl(validURLValues.url) && params.type == 'oci' && 'Not a valid OCI URL'),
+                    // The hydrator only pushes to git, so a write credential of any other type can never be used.
+                    type: validURLValues.write && validURLValues.type !== 'git' && 'Write credentials only support git repositories.',
                     name: validURLValues.type === 'helm' && !validURLValues.name && 'Name is required',
                     username: !validURLValues.username && validURLValues.password && 'Username is required if password is given.',
                     password: !validURLValues.password && validURLValues.username && 'Password is required if username is given.',
@@ -254,7 +382,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         (validURLValues.bearerToken && validURLValues.type != 'git' && 'Bearer token is only supported for Git BitBucket Data Center repositories.'),
                     depth: validURLValues.depth != undefined && validURLValues.depth < 0 && 'Depth must be a non-negative number'
                 };
-            case ConnectionMethod.GITHUBAPP:
+            }
+            case ConnectionMethod.GITHUBAPP: {
                 const githubAppValues = params as NewGitHubAppRepoParams;
                 return {
                     url: (!githubAppValues.url && 'Repository URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(githubAppValues.url) && 'Not a valid HTTP/HTTPS URL'),
@@ -262,14 +391,16 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     githubAppPrivateKey: !githubAppValues.githubAppPrivateKey && 'GitHub App private Key is required',
                     depth: githubAppValues.depth != undefined && githubAppValues.depth < 0 && 'Depth must be a non-negative number'
                 };
-            case ConnectionMethod.GOOGLECLOUD:
+            }
+            case ConnectionMethod.GOOGLECLOUD: {
                 const googleCloudValues = params as NewGoogleCloudSourceRepoParams;
                 return {
                     url: (!googleCloudValues.url && 'Repo URL is required') || (credsTemplate && !isHTTPOrHTTPSUrl(googleCloudValues.url) && 'Not a valid HTTP/HTTPS URL'),
                     gcpServiceAccountKey: !googleCloudValues.gcpServiceAccountKey && 'GCP service account key is required',
                     depth: googleCloudValues.depth != undefined && googleCloudValues.depth < 0 && 'Depth must be a non-negative number'
                 };
-            case ConnectionMethod.AZURESERVICEPRINCIPAL:
+            }
+            case ConnectionMethod.AZURESERVICEPRINCIPAL: {
                 const azureServicePrincipalValues = params as NewAzureServicePrincipalRepoParams;
                 return {
                     url:
@@ -279,43 +410,8 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     azureServicePrincipalClientSecret: !azureServicePrincipalValues.azureServicePrincipalClientSecret && 'Azure Service Principal Client Secret is required',
                     azureServicePrincipalTenantId: !azureServicePrincipalValues.azureServicePrincipalTenantId && 'Azure Service Principal Tenant ID is required'
                 };
+            }
         }
-    };
-
-    const SlidingPanelHeader = () => {
-        return (
-            <>
-                {showConnectRepo() && (
-                    <>
-                        <button
-                            className='argo-button argo-button--base'
-                            onClick={() => {
-                                credsTemplate.current = false;
-                                formApi.current.submitForm(null);
-                            }}>
-                            <Spinner show={connecting} style={{marginRight: '5px'}} />
-                            Connect
-                        </button>{' '}
-                        <button
-                            className='argo-button argo-button--base'
-                            onClick={() => {
-                                credsTemplate.current = true;
-                                formApi.current.submitForm(null);
-                            }}>
-                            Save as credentials template
-                        </button>{' '}
-                        <button onClick={() => setConnectRepo(false)} className='argo-button argo-button--base-o'>
-                            Cancel
-                        </button>
-                    </>
-                )}
-                {displayEditPanel && (
-                    <button onClick={() => setDisplayEditPanel(false)} className='argo-button argo-button--base-o'>
-                        Cancel
-                    </button>
-                )}
-            </>
-        );
     };
 
     const onSubmitForm = (params: FormValues) => {
@@ -323,8 +419,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             case ConnectionMethod.SSH:
                 return connectSSHRepo(params as NewSSHRepoParams);
             case ConnectionMethod.HTTPS:
-                params.url = params.enableOCI && params.type != 'oci' ? stripProtocol(params.url) : params.url;
-                return connectHTTPSRepo(params as NewHTTPSRepoParams);
+                return connectHTTPSRepo(normalizeHTTPSRepoParams(params as NewHTTPSRepoParams));
             case ConnectionMethod.GITHUBAPP:
                 return connectGitHubAppRepo(params as NewGitHubAppRepoParams);
             case ConnectionMethod.GOOGLECLOUD:
@@ -334,7 +429,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         }
     };
 
-    const displayEditSliding = (repo: models.Repository) => {
+    const displayEditSliding = (repo: UnifiedRepo) => {
         setCurrentRepo(repo);
         setDisplayEditPanel(true);
     };
@@ -357,31 +452,40 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         }
     };
 
-    const stripProtocol = (url: string) => {
-        return url.replace('https://', '').replace('oci://', '');
-    };
-
     // only connections of git type which are not via GitHub App or Azure Service Principal are updatable
-    const isRepoUpdatable = (repo: models.Repository) => {
-        return isHTTPOrHTTPSUrl(repo.repo) && repo.type === 'git' && !repo.githubAppID && !repo.azureServicePrincipalClientId;
+    const isRepoUpdatable = (item: UnifiedRepo) => {
+        // Only readRepo or writeRepo can be updated (not templates)
+        const repo = item.readRepo || item.writeRepo;
+        if (!repo || isTemplate(item)) {
+            return false;
+        }
+        // Check if it's an updatable repository (HTTP/HTTPS git repo without GitHub App or Azure SP)
+        return isHTTPOrHTTPSUrl(repo.repo) && getRepoType(item) === 'git' && !repo.githubAppID && !repo.azureServicePrincipalClientId;
     };
 
     // Forces a reload of configured repositories, circumventing the cache
     const refreshRepoList = async (updatedRepo?: string) => {
-        // Refresh the credentials template list
-        credsLoader.current.reload();
-
         try {
             await services.repos.listNoCache();
-            repoLoader.current.reload();
-            ctx.notifications.show({
-                content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
-                type: NotificationType.Success
-            });
         } catch (e) {
             ctx.notifications.show({
                 content: <ErrorNotification title='Could not refresh list of repositories' e={e} />,
                 type: NotificationType.Error
+            });
+            return;
+        }
+        // The query client already notifies on refetch failures; only the success toast depends on it.
+        // Without auth settings the query is disabled, so invalidation resolves without refetching.
+        const refetched =
+            !!authSettings &&
+            (await queryClient.invalidateQueries({queryKey: repoQueries.all}, {throwOnError: true}).then(
+                () => true,
+                () => false
+            ));
+        if (refetched) {
+            ctx.notifications.show({
+                content: updatedRepo ? `Successfully updated ${updatedRepo} repository` : 'Successfully reloaded list of repositories',
+                type: NotificationType.Success
             });
         }
     };
@@ -397,22 +501,14 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         if (credsTemplate.current) {
             createSSHCreds({url: params.url, sshPrivateKey: params.sshPrivateKey, write: params.write});
         } else {
-            setConnecting(true);
             try {
-                if (params.write) {
-                    await services.repos.createSSHWrite(params);
-                } else {
-                    await services.repos.createSSH(params);
-                }
-                repoLoader.current.reload();
+                await repoMutations.createSSH.mutateAsync(params);
                 setConnectRepo(false);
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect SSH repository' e={e} />,
                     type: NotificationType.Error
                 });
-            } finally {
-                setConnecting(false);
             }
         }
     };
@@ -437,22 +533,14 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 insecureOCIForceHttp: params.insecureOCIForceHttp
             });
         } else {
-            setConnecting(true);
             try {
-                if (params.write) {
-                    await services.repos.createHTTPSWrite(params);
-                } else {
-                    await services.repos.createHTTPS(params);
-                }
-                repoLoader.current.reload();
+                await repoMutations.createHTTPS.mutateAsync(params);
                 setConnectRepo(false);
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect HTTPS repository' e={e} />,
                     type: NotificationType.Error
                 });
-            } finally {
-                setConnecting(false);
             }
         }
     };
@@ -465,7 +553,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
             } else {
                 await services.repos.updateHTTPS(params);
             }
-            repoLoader.current.reload();
             setDisplayEditPanel(false);
             refreshRepoList(params.url);
         } catch (e) {
@@ -473,8 +560,6 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 content: <ErrorNotification title='Unable to update HTTPS repository' e={e} />,
                 type: NotificationType.Error
             });
-        } finally {
-            setConnecting(false);
         }
     };
 
@@ -494,22 +579,14 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 write: params.write
             });
         } else {
-            setConnecting(true);
             try {
-                if (params.write) {
-                    await services.repos.createGitHubAppWrite(params);
-                } else {
-                    await services.repos.createGitHubApp(params);
-                }
-                repoLoader.current.reload();
+                await repoMutations.createGitHubApp.mutateAsync(params);
                 setConnectRepo(false);
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect GitHub App repository' e={e} />,
                     type: NotificationType.Error
                 });
-            } finally {
-                setConnecting(false);
             }
         }
     };
@@ -523,22 +600,14 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 write: params.write
             });
         } else {
-            setConnecting(true);
             try {
-                if (params.write) {
-                    await services.repos.createGoogleCloudSourceWrite(params);
-                } else {
-                    await services.repos.createGoogleCloudSource(params);
-                }
-                repoLoader.current.reload();
+                await repoMutations.createGoogleCloudSource.mutateAsync(params);
                 setConnectRepo(false);
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect Google Cloud Source repository' e={e} />,
                     type: NotificationType.Error
                 });
-            } finally {
-                setConnecting(false);
             }
         }
     };
@@ -557,34 +626,21 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                 write: params.write
             });
         } else {
-            setConnecting(true);
             try {
-                if (params.write) {
-                    await services.repos.createAzureServicePrincipalWrite(params);
-                } else {
-                    await services.repos.createAzureServicePrincipal(params);
-                }
-                repoLoader.current.reload();
+                await repoMutations.createAzureServicePrincipal.mutateAsync(params);
                 setConnectRepo(false);
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to connect Azure Service Principal repository' e={e} />,
                     type: NotificationType.Error
                 });
-            } finally {
-                setConnecting(false);
             }
         }
     };
 
     const createHTTPSCreds = async (params: NewHTTPSRepoCredsParams) => {
         try {
-            if (params.write) {
-                await services.repocreds.createHTTPSWrite(params);
-            } else {
-                await services.repocreds.createHTTPS(params);
-            }
-            credsLoader.current.reload();
+            await repoMutations.createHTTPSCreds.mutateAsync(params);
             setConnectRepo(false);
         } catch (e) {
             ctx.notifications.show({
@@ -596,12 +652,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     const createSSHCreds = async (params: NewSSHRepoCredsParams) => {
         try {
-            if (params.write) {
-                await services.repocreds.createSSHWrite(params);
-            } else {
-                await services.repocreds.createSSH(params);
-            }
-            credsLoader.current.reload();
+            await repoMutations.createSSHCreds.mutateAsync(params);
             setConnectRepo(false);
         } catch (e) {
             ctx.notifications.show({
@@ -613,12 +664,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     const createGitHubAppCreds = async (params: NewGitHubAppRepoCredsParams) => {
         try {
-            if (params.write) {
-                await services.repocreds.createGitHubAppWrite(params);
-            } else {
-                await services.repocreds.createGitHubApp(params);
-            }
-            credsLoader.current.reload();
+            await repoMutations.createGitHubAppCreds.mutateAsync(params);
             setConnectRepo(false);
         } catch (e) {
             ctx.notifications.show({
@@ -630,12 +676,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     const createGoogleCloudSourceCreds = async (params: NewGoogleCloudSourceRepoCredsParams) => {
         try {
-            if (params.write) {
-                await services.repocreds.createGoogleCloudSourceWrite(params);
-            } else {
-                await services.repocreds.createGoogleCloudSource(params);
-            }
-            credsLoader.current.reload();
+            await repoMutations.createGoogleCloudSourceCreds.mutateAsync(params);
             setConnectRepo(false);
         } catch (e) {
             ctx.notifications.show({
@@ -647,12 +688,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
 
     const createAzureServicePrincipalCreds = async (params: NewAzureServicePrincipalRepoCredsParams) => {
         try {
-            if (params.write) {
-                await services.repocreds.createAzureServicePrincipalWrite(params);
-            } else {
-                await services.repocreds.createAzureServicePrincipal(params);
-            }
-            credsLoader.current.reload();
+            await repoMutations.createAzureServicePrincipalCreds.mutateAsync(params);
             setConnectRepo(false);
         } catch (e) {
             ctx.notifications.show({
@@ -667,12 +703,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         const confirmed = await ctx.popup.confirm('Disconnect repository', `Are you sure you want to disconnect '${repo}'?`);
         if (confirmed) {
             try {
-                if (write) {
-                    await services.repos.deleteWrite(repo, project || '');
-                } else {
-                    await services.repos.delete(repo, project || '');
-                }
-                repoLoader.current.reload();
+                await repoMutations.delete.mutateAsync({url: repo, project: project || '', write});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to disconnect repository' e={e} />,
@@ -687,12 +718,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         const confirmed = await ctx.popup.confirm('Remove repository credentials', `Are you sure you want to remove credentials for URL prefix '${url}'?`);
         if (confirmed) {
             try {
-                if (write) {
-                    await services.repocreds.deleteWrite(url);
-                } else {
-                    await services.repocreds.delete(url);
-                }
-                credsLoader.current.reload();
+                await repoMutations.deleteCreds.mutateAsync({url, write});
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to remove repository credentials' e={e} />,
@@ -702,57 +728,16 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         }
     };
 
-    // filtering function
-    const filterRepos = (repos: models.Repository[], type: string, project: string, status: string, name: string) => {
-        let newRepos = repos;
-
-        if (name && name.trim() !== '') {
-            const response = filteredName(newRepos, name);
-            newRepos = response;
-        }
-
-        if (type !== 'all') {
-            const response = filteredType(newRepos, type);
-            newRepos = response;
-        }
-
-        if (status !== 'all') {
-            const response = filteredStatus(newRepos, status);
-            newRepos = response;
-        }
-
-        if (project !== 'all') {
-            const response = filteredProject(newRepos, project);
-            newRepos = response;
-        }
-
-        return newRepos;
-    };
-
-    const filteredName = (repos: models.Repository[], name: string) => {
-        const trimmedName = name.trim();
+    const filteredName = (repos: UnifiedRepo[], search: string) => {
+        const trimmedName = search.trim();
         if (trimmedName === '') {
             return repos;
         }
-        const newRepos = repos.filter(
-            repo => (repo.name && repo.name.toLowerCase().includes(trimmedName.toLowerCase())) || repo.repo.toLowerCase().includes(trimmedName.toLowerCase())
-        );
-        return newRepos;
-    };
-
-    const filteredStatus = (repos: models.Repository[], status: string) => {
-        const newRepos = repos.filter(repo => repo.connectionState.status.includes(status));
-        return newRepos;
-    };
-
-    const filteredProject = (repos: models.Repository[], project: string) => {
-        const newRepos = repos.filter(repo => repo.project && repo.project.includes(project));
-        return newRepos;
-    };
-
-    const filteredType = (repos: models.Repository[], type: string) => {
-        const newRepos = repos.filter(repo => repo.type.includes(type));
-        return newRepos;
+        return repos.filter(repo => {
+            const repoUrl = getRepoUrl(repo);
+            const repoName = getRepoName(repo);
+            return (repoName && repoName.toLowerCase().includes(trimmedName.toLowerCase())) || repoUrl.toLowerCase().includes(trimmedName.toLowerCase());
+        });
     };
 
     // Whether to show the new repository connection dialogue on the page
@@ -768,373 +753,214 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
         });
     };
 
+    const {
+        data: allRepos,
+        isError,
+        refetch
+    } = useQuery({
+        ...repoQueries.connections(!!authSettings?.hydratorEnabled),
+        enabled: !!authSettings,
+        select: toUnifiedRepos
+    });
+    const {data: projects, isError: projectsError, refetch: refetchProjects} = useQuery(projectQueries.names());
+    const filterResults = getRepoFilterResults(allRepos || [], filterPref);
+    const filteredRepos = filteredName(filterRepos(filterResults), name).sort((a, b) => {
+        switch (sortKey) {
+            case 'type':
+                return compareString(getRepoType(a), getRepoType(b));
+            case 'name':
+                return compareString(getRepoName(a), getRepoName(b));
+            case 'repository':
+                return compareString(getRepoUrl(a), getRepoUrl(b));
+            case 'project':
+                return compareString(getRepoProject(a), getRepoProject(b));
+            case 'permission':
+                return compareNumber(Number(isWrite(a)), Number(isWrite(b)));
+            default:
+                return 0;
+        }
+    });
+
     return (
-        <Page
-            title='Repositories'
-            toolbar={{
-                breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repositories'}],
-                actionMenu: {
-                    items: [
-                        {
-                            iconClassName: 'fa fa-plus',
-                            title: 'Connect Repo',
-                            action: () => setConnectRepo(true)
-                        },
-                        {
-                            iconClassName: 'fa fa-redo',
-                            title: 'Refresh list',
-                            action: () => {
-                                refreshRepoList();
+        <Page title='Repositories' toolbar={{breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repositories'}]}}>
+            <FlexTopBar
+                toolbar={{
+                    breadcrumbs: [{title: 'Settings', path: '/settings'}, {title: 'Repositories'}],
+                    actionMenu: {
+                        items: [
+                            {
+                                iconClassName: 'fa fa-plus',
+                                title: 'Connect Repo',
+                                action: () => setConnectRepo(true)
+                            },
+                            {
+                                iconClassName: 'fa fa-redo',
+                                title: 'Refresh list',
+                                action: () => {
+                                    refreshRepoList();
+                                }
                             }
-                        }
-                    ]
-                }
-            }}>
+                        ]
+                    },
+                    tools: (
+                        <SearchBar
+                            value={name}
+                            onChange={value => {
+                                ctx.navigation.goto('.', filterQuery(filterPref, value), {replace: true});
+                                setPage(0);
+                            }}
+                            placeholder='Search repositories...'
+                        />
+                    )
+                }}
+            />
             <div className='repos-list'>
                 <div className='argo-container'>
-                    <div style={{display: 'flex', margin: '20px 0', justifyContent: 'space-between'}}>
-                        <div style={{display: 'flex', gap: '8px', width: '50%'}}>
-                            <DropDownMenu
-                                items={[
-                                    {
-                                        title: 'all',
-                                        action: () => setTypeProperty('all')
-                                    },
-                                    {
-                                        title: 'git',
-                                        action: () => setTypeProperty('git')
-                                    },
-                                    {
-                                        title: 'helm',
-                                        action: () => setTypeProperty('helm')
-                                    }
-                                ]}
-                                anchor={() => (
-                                    <>
-                                        <a style={{whiteSpace: 'nowrap'}}>
-                                            Type: {typeProperty} <i className='fa fa-caret-down' />
+                    {isError && !allRepos ? (
+                        loadFailed(refetch)
+                    ) : !allRepos ? (
+                        loading
+                    ) : (
+                        <>
+                            {ReactDOM.createPortal(
+                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
+                                    {allpref => <ReposFilter repos={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={allpref.hideSidebar} />}
+                                </DataLoader>,
+                                sidebarTarget?.current
+                            )}
+                            {filteredRepos.length > 0 ? (
+                                <Paginate page={page} data={filteredRepos} onPageChange={setPage} preferencesKey='repos-list'>
+                                    {reposToDisplay => (
+                                        <div className='argo-table-list argo-table-list--clickable'>
+                                            <div className='argo-table-list__head'>
+                                                <div className='row'>
+                                                    <IconColumn />
+                                                    <div className='columns small-1 sortable' onClick={() => requestSort('type')}>
+                                                        TYPE
+                                                        {sortIcon('type')}
+                                                    </div>
+                                                    <div className='columns small-2 sortable' onClick={() => requestSort('name')}>
+                                                        NAME
+                                                        {sortIcon('name')}
+                                                    </div>
+                                                    <div className='columns small-4 sortable' onClick={() => requestSort('repository')}>
+                                                        REPOSITORY
+                                                        {sortIcon('repository')}
+                                                    </div>
+                                                    <div className='columns small-1 sortable' onClick={() => requestSort('project')}>
+                                                        PROJECT
+                                                        {sortIcon('project')}
+                                                    </div>
+                                                    <div className='columns small-1 sortable' onClick={() => requestSort('permission')}>
+                                                        PERMISSION
+                                                        {sortIcon('permission')}
+                                                    </div>
+                                                    <div className='columns small-2'>CONNECTION STATUS</div>
+                                                </div>
+                                            </div>
+                                            {reposToDisplay.map(repo => {
+                                                const repoUrl = getRepoUrl(repo);
+                                                const repoKey = `${isTemplate(repo) ? 'template' : 'repo'}-${isWrite(repo) ? 'write' : 'read'}-${repoUrl}`;
+                                                const connectionState = getConnectionState(repo);
+                                                return (
+                                                    <div className='argo-table-list__row' key={repoKey} onClick={() => displayEditSliding(repo)}>
+                                                        <div className='row'>
+                                                            <IconColumn icon={'argo-icon-' + getRepoType(repo)} />
+                                                            <div className='columns small-1'>
+                                                                <span>{getRepoType(repo)}</span>
+                                                            </div>
+                                                            <div className='columns small-2'>
+                                                                <Tooltip content={getRepoName(repo)}>
+                                                                    <span>{getRepoName(repo)}</span>
+                                                                </Tooltip>
+                                                            </div>
+                                                            <div className='columns small-4'>
+                                                                <Tooltip content={repoUrl}>
+                                                                    <span>
+                                                                        <Repo url={repoUrl} />
+                                                                    </span>
+                                                                </Tooltip>
+                                                            </div>
+                                                            <div className='columns small-1'>
+                                                                <Tooltip content={getRepoProject(repo)}>
+                                                                    <span>{getRepoProject(repo)}</span>
+                                                                </Tooltip>
+                                                            </div>
+                                                            <div className='columns small-1'>
+                                                                <span>{isWrite(repo) ? 'Write' : 'Read'}</span>
+                                                            </div>
+                                                            <div className='columns small-2'>
+                                                                {connectionState ? (
+                                                                    <>
+                                                                        <ConnectionStateIcon state={connectionState} /> {connectionState.status}
+                                                                    </>
+                                                                ) : (
+                                                                    <span>-</span>
+                                                                )}
+                                                                {!isTemplate(repo) && (
+                                                                    <ActionMenu
+                                                                        items={[
+                                                                            // Write credentials are only used to push hydrated manifests, so apps can't be created from them.
+                                                                            ...(isWrite(repo)
+                                                                                ? []
+                                                                                : [
+                                                                                      {
+                                                                                          title: 'Create application',
+                                                                                          action: () =>
+                                                                                              ctx.navigation.goto('/applications', {
+                                                                                                  new: JSON.stringify({spec: {source: {repoURL: repoUrl}}})
+                                                                                              })
+                                                                                      }
+                                                                                  ]),
+                                                                            {
+                                                                                title: 'Disconnect',
+                                                                                action: () => disconnectRepo(repoUrl, getRepoProject(repo), isWrite(repo))
+                                                                            }
+                                                                        ]}
+                                                                    />
+                                                                )}
+                                                                {isTemplate(repo) && (
+                                                                    <ActionMenu
+                                                                        items={[
+                                                                            {
+                                                                                title: 'Remove',
+                                                                                action: () => removeRepoCreds(repoUrl, isWrite(repo))
+                                                                            }
+                                                                        ]}
+                                                                    />
+                                                                )}
+                                                            </div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    )}
+                                </Paginate>
+                            ) : allRepos.length === 0 ? (
+                                <EmptyState icon='argo-icon-git'>
+                                    <h4>No repositories connected</h4>
+                                    <h5>Connect your repo to deploy apps.</h5>
+                                </EmptyState>
+                            ) : (
+                                <EmptyState icon='fa fa-search'>
+                                    <h4>No matching repositories found</h4>
+                                    <h5>
+                                        Change filter criteria or&nbsp;
+                                        <a
+                                            onClick={() => {
+                                                const newPref = {...filterPref};
+                                                ReposListPreferencesHelper.clearFilters(newPref);
+                                                onFilterChange(newPref);
+                                            }}>
+                                            clear filters
                                         </a>
-                                        &nbsp;
-                                    </>
-                                )}
-                                qeId='type-menu'
-                            />
-                            <DataLoader load={services.repos.list} ref={loader => (repoLoader.current = loader)}>
-                                {(repos: models.Repository[]) => {
-                                    const projectValues = Array.from(new Set(repos.map(repo => repo.project)));
-
-                                    const projectItems = [
-                                        {
-                                            title: 'all',
-                                            action: () => setProjectProperty('all')
-                                        },
-                                        ...projectValues
-                                            .filter(project => project && project.trim() !== '')
-                                            .map(project => ({
-                                                title: project,
-                                                action: () => setProjectProperty(project)
-                                            }))
-                                    ];
-
-                                    return (
-                                        <DropDownMenu
-                                            items={projectItems}
-                                            anchor={() => (
-                                                <>
-                                                    <a style={{whiteSpace: 'nowrap'}}>
-                                                        Project: {projectProperty} <i className='fa fa-caret-down' />
-                                                    </a>
-                                                    &nbsp;
-                                                </>
-                                            )}
-                                            qeId='project-menu'
-                                        />
-                                    );
-                                }}
-                            </DataLoader>
-                            <DropDownMenu
-                                items={[
-                                    {
-                                        title: 'all',
-                                        action: () => setStatusProperty('all')
-                                    },
-                                    {
-                                        title: 'Successful',
-                                        action: () => setStatusProperty('Successful')
-                                    },
-                                    {
-                                        title: 'Failed',
-                                        action: () => setStatusProperty('Failed')
-                                    },
-                                    {
-                                        title: 'Unknown',
-                                        action: () => setStatusProperty('Unknown')
-                                    }
-                                ]}
-                                anchor={() => (
-                                    <>
-                                        <a style={{whiteSpace: 'nowrap'}}>
-                                            Status: {statusProperty} <i className='fa fa-caret-down' />
-                                        </a>
-                                        &nbsp;
-                                    </>
-                                )}
-                                qeId='status-menu'
-                            />
-                        </div>
-                        <div className='search-bar' style={{display: 'flex', alignItems: 'flex-end', width: '100%'}}></div>
-                        <input type='text' className='argo-field' placeholder='Search Name' value={name} onChange={e => setName(e.target.value)} />
-                    </div>
-                    <DataLoader load={services.repos.list} ref={loader => (repoLoader.current = loader)}>
-                        {(repos: models.Repository[]) => {
-                            const filteredRepos = filterRepos(repos, typeProperty, projectProperty, statusProperty, name);
-
-                            return (
-                                (filteredRepos.length > 0 && (
-                                    <div className='argo-table-list'>
-                                        <div className='argo-table-list__head'>
-                                            <div className='row'>
-                                                <div className='columns small-1' />
-                                                <div className='columns small-1'>TYPE</div>
-                                                <div className='columns small-2'>NAME</div>
-                                                <div className='columns small-2'>PROJECT</div>
-                                                <div className='columns small-4'>REPOSITORY</div>
-                                                <div className='columns small-2'>CONNECTION STATUS</div>
-                                            </div>
-                                        </div>
-                                        {filteredRepos.map(repo => (
-                                            <div
-                                                className={`argo-table-list__row ${isRepoUpdatable(repo) ? 'item-clickable' : ''}`}
-                                                key={repo.repo}
-                                                onClick={() => (isRepoUpdatable(repo) ? displayEditSliding(repo) : null)}>
-                                                <div className='row'>
-                                                    <div className='columns small-1'>
-                                                        <i className={'icon argo-icon-' + (repo.type || 'git')} />
-                                                    </div>
-                                                    <div className='columns small-1'>
-                                                        <span>{repo.type || 'git'}</span>
-                                                        {repo.enableOCI && <span> OCI</span>}
-                                                    </div>
-                                                    <div className='columns small-2'>
-                                                        <Tooltip content={repo.name}>
-                                                            <span>{repo.name}</span>
-                                                        </Tooltip>
-                                                    </div>
-                                                    <div className='columns small-2'>
-                                                        <Tooltip content={repo.project}>
-                                                            <span>{repo.project}</span>
-                                                        </Tooltip>
-                                                    </div>
-                                                    <div className='columns small-4'>
-                                                        <Tooltip content={repo.repo}>
-                                                            <span>
-                                                                <Repo url={repo.repo} />
-                                                            </span>
-                                                        </Tooltip>
-                                                    </div>
-                                                    <div className='columns small-2'>
-                                                        <ConnectionStateIcon state={repo.connectionState} /> {repo.connectionState.status}
-                                                        <DropDownMenu
-                                                            anchor={() => (
-                                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                                    <i className='fa fa-ellipsis-v' />
-                                                                </button>
-                                                            )}
-                                                            items={[
-                                                                {
-                                                                    title: 'Create application',
-                                                                    action: () =>
-                                                                        ctx.navigation.goto('/applications', {
-                                                                            new: JSON.stringify({spec: {source: {repoURL: repo.repo}}})
-                                                                        })
-                                                                },
-                                                                {
-                                                                    title: 'Disconnect',
-                                                                    action: () => disconnectRepo(repo.repo, repo.project, false)
-                                                                }
-                                                            ]}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )) || (
-                                    <EmptyState icon='argo-icon-git'>
-                                        {repos.length > 0 ? (
-                                            <>
-                                                <h4>No repositories matched your filters</h4>
-                                                <h5>Try adjusting Type/Project/Status or your search.</h5>
-                                            </>
-                                        ) : (
-                                            <>
-                                                <h4>No repositories connected</h4>
-                                                <h5>Connect your repo to deploy apps.</h5>
-                                            </>
-                                        )}
-                                    </EmptyState>
-                                )
-                            );
-                        }}
-                    </DataLoader>
+                                    </h5>
+                                </EmptyState>
+                            )}
+                        </>
+                    )}
                 </div>
-                <div className='argo-container'>
-                    <DataLoader load={() => services.repocreds.list()} ref={loader => (credsLoader.current = loader)}>
-                        {(creds: models.RepoCreds[]) =>
-                            creds.length > 0 && (
-                                <div className='argo-table-list'>
-                                    <div className='argo-table-list__head'>
-                                        <div className='row'>
-                                            <div className='columns small-9'>CREDENTIALS TEMPLATE URL</div>
-                                            <div className='columns small-3'>CREDS</div>
-                                        </div>
-                                    </div>
-                                    {creds.map(repo => (
-                                        <div className='argo-table-list__row' key={repo.url}>
-                                            <div className='row'>
-                                                <div className='columns small-9'>
-                                                    <i className='icon argo-icon-git' /> <Repo url={repo.url} />
-                                                </div>
-                                                <div className='columns small-3'>
-                                                    -
-                                                    <DropDownMenu
-                                                        anchor={() => (
-                                                            <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                                <i className='fa fa-ellipsis-v' />
-                                                            </button>
-                                                        )}
-                                                        items={[
-                                                            {
-                                                                title: 'Remove',
-                                                                action: () => removeRepoCreds(repo.url, false)
-                                                            }
-                                                        ]}
-                                                    />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            )
-                        }
-                    </DataLoader>
-                </div>
-                {authSettings?.hydratorEnabled && (
-                    <div className='argo-container'>
-                        <DataLoader load={() => services.repos.listWrite()} ref={loader => (repoLoader.current = loader)}>
-                            {(repos: models.Repository[]) =>
-                                (repos.length > 0 && (
-                                    <div className='argo-table-list'>
-                                        <div className='argo-table-list__head'>
-                                            <div className='row'>
-                                                <div className='columns small-1' />
-                                                <div className='columns small-1'>TYPE</div>
-                                                <div className='columns small-2'>NAME</div>
-                                                <div className='columns small-2'>PROJECT</div>
-                                                <div className='columns small-4'>REPOSITORY</div>
-                                                <div className='columns small-2'>CONNECTION STATUS</div>
-                                            </div>
-                                        </div>
-                                        {repos.map(repo => (
-                                            <div
-                                                className={`argo-table-list__row ${isRepoUpdatable(repo) ? 'item-clickable' : ''}`}
-                                                key={repo.repo}
-                                                onClick={() => (isRepoUpdatable(repo) ? displayEditSliding(repo) : null)}>
-                                                <div className='row'>
-                                                    <div className='columns small-1'>
-                                                        <i className='icon argo-icon-git' />
-                                                    </div>
-                                                    <div className='columns small-1'>write</div>
-                                                    <div className='columns small-2'>
-                                                        <Tooltip content={repo.name}>
-                                                            <span>{repo.name}</span>
-                                                        </Tooltip>
-                                                    </div>
-                                                    <div className='columns small-2'>
-                                                        <Tooltip content={repo.project}>
-                                                            <span>{repo.project}</span>
-                                                        </Tooltip>
-                                                    </div>
-                                                    <div className='columns small-4'>
-                                                        <Tooltip content={repo.repo}>
-                                                            <span>
-                                                                <Repo url={repo.repo} />
-                                                            </span>
-                                                        </Tooltip>
-                                                    </div>
-                                                    <div className='columns small-2'>
-                                                        <ConnectionStateIcon state={repo.connectionState} /> {repo.connectionState.status}
-                                                        <DropDownMenu
-                                                            anchor={() => (
-                                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                                    <i className='fa fa-ellipsis-v' />
-                                                                </button>
-                                                            )}
-                                                            items={[
-                                                                {
-                                                                    title: 'Disconnect',
-                                                                    action: () => disconnectRepo(repo.repo, repo.project, true)
-                                                                }
-                                                            ]}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )) || (
-                                    <EmptyState icon='argo-icon-git'>
-                                        <h4>No repositories connected</h4>
-                                        <h5>Connect your repo to deploy apps.</h5>
-                                    </EmptyState>
-                                )
-                            }
-                        </DataLoader>
-                    </div>
-                )}
-                {authSettings?.hydratorEnabled && (
-                    <div className='argo-container'>
-                        <DataLoader load={() => services.repocreds.listWrite()} ref={loader => (credsLoader.current = loader)}>
-                            {(creds: models.RepoCreds[]) =>
-                                creds.length > 0 && (
-                                    <div className='argo-table-list'>
-                                        <div className='argo-table-list__head'>
-                                            <div className='row'>
-                                                <div className='columns small-9'>CREDENTIALS TEMPLATE URL</div>
-                                                <div className='columns small-3'>CREDS</div>
-                                            </div>
-                                        </div>
-                                        {creds.map(repo => (
-                                            <div className='argo-table-list__row' key={repo.url}>
-                                                <div className='row'>
-                                                    <div className='columns small-9'>
-                                                        <i className='icon argo-icon-git' /> <Repo url={repo.url} />
-                                                    </div>
-                                                    <div className='columns small-3'>
-                                                        -
-                                                        <DropDownMenu
-                                                            anchor={() => (
-                                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
-                                                                    <i className='fa fa-ellipsis-v' />
-                                                                </button>
-                                                            )}
-                                                            items={[
-                                                                {
-                                                                    title: 'Remove',
-                                                                    action: () => removeRepoCreds(repo.url, true)
-                                                                }
-                                                            ]}
-                                                        />
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        ))}
-                                    </div>
-                                )
-                            }
-                        </DataLoader>
-                    </div>
-                )}
             </div>
             <SlidingPanel
                 isShown={showConnectRepo() || displayEditPanel}
@@ -1146,340 +972,366 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                         setDisplayEditPanel(false);
                     }
                 }}
-                header={<SlidingPanelHeader />}>
-                {showConnectRepo() && <ConnectRepoFormButton method={method} onSelection={setMethod} />}
-                {displayEditPanel && <RepoDetails repo={currentRepo} save={(params: NewHTTPSRepoParams) => updateHTTPSRepo(params)} />}
-                {!displayEditPanel && (
-                    <DataLoader load={() => services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort())}>
-                        {projects => (
-                            <Form
-                                onSubmit={onSubmitForm}
-                                getApi={api => (formApi.current = api)}
-                                defaultValues={onChooseDefaultValues()}
-                                validateError={(values: FormValues) => onValidateErrors(values)}>
-                                {formApi => (
-                                    <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
-                                        {authSettings?.hydratorEnabled && (
-                                            <div className='white-box'>
-                                                <p>SAVE AS WRITE CREDENTIAL (ALPHA)</p>
-                                                <p>
-                                                    The Source Hydrator is an Alpha feature which enables Applications to push hydrated manifests to git before syncing. To use
-                                                    Source Hydrator for a repository, you must save two credentials: a read credential for pulling manifests and a write credential
-                                                    for pushing hydrated manifests. If you add a write credential for a repository, then{' '}
-                                                    <strong>any Application that can sync from the repo can also push hydrated manifests to that repo.</strong> Do not use this
-                                                    feature until you've read its documentation and understand the security implications.
-                                                </p>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Save as write credential' field='write' component={CheckboxField} />
-                                                </div>
+                header={
+                    <SlidingPanelHeader
+                        showConnectRepo={showConnectRepo()}
+                        displayEditPanel={displayEditPanel}
+                        connecting={[
+                            repoMutations.createSSH,
+                            repoMutations.createHTTPS,
+                            repoMutations.createGitHubApp,
+                            repoMutations.createGoogleCloudSource,
+                            repoMutations.createAzureServicePrincipal
+                        ].some(m => m.isPending)}
+                        saving={Object.values(repoMutations).some(m => m.isPending)}
+                        onConnect={() => {
+                            credsTemplate.current = false;
+                            formApi.current.submitForm(null);
+                        }}
+                        onSaveCredsTemplate={() => {
+                            credsTemplate.current = true;
+                            formApi.current.submitForm(null);
+                        }}
+                        setConnectRepo={setConnectRepo}
+                        setDisplayEditPanel={setDisplayEditPanel}
+                    />
+                }>
+                {showConnectRepo() && <ConnectRepoFormButton method={method} onSelection={setMethod} formApi={formApi} />}
+                {displayEditPanel && currentRepo && (
+                    <RepoDetails item={currentRepo} save={(params: NewHTTPSRepoParams) => updateHTTPSRepo(params)} readonly={!isRepoUpdatable(currentRepo)} />
+                )}
+                {!displayEditPanel &&
+                    (projectsError && !projects ? (
+                        loadFailed(refetchProjects)
+                    ) : !projects ? (
+                        loading
+                    ) : (
+                        <Form
+                            onSubmit={onSubmitForm}
+                            getApi={api => (formApi.current = api)}
+                            defaultValues={onChooseDefaultValues()}
+                            validateError={(values: FormValues) => onValidateErrors(values)}>
+                            {formApi => (
+                                <form onSubmit={formApi.submitForm} role='form' className='repos-list width-control'>
+                                    {authSettings?.hydratorEnabled && (
+                                        <div className='white-box'>
+                                            <p>SAVE AS WRITE CREDENTIAL (BETA)</p>
+                                            <p>
+                                                The Source Hydrator is a Beta feature which enables Applications to push hydrated manifests to git before syncing. To use Source
+                                                Hydrator for a repository, you must save two credentials: a read credential for pulling manifests and a write credential for pushing
+                                                hydrated manifests. If you add a write credential for a repository, then{' '}
+                                                <strong>any Application that can sync from the repo can also push hydrated manifests to that repo.</strong> Do not use this feature
+                                                until you've read its documentation and understand the security implications.
+                                            </p>
+                                            <div className='argo-form-row'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    label='Save as write credential'
+                                                    field='write'
+                                                    component={CheckboxField}
+                                                    componentProps={{
+                                                        onChange: (checked: boolean) => {
+                                                            if (checked) {
+                                                                formApi.setValue('type', 'git');
+                                                                formApi.setValue('depth', undefined);
+                                                            }
+                                                        }
+                                                    }}
+                                                />
                                             </div>
-                                        )}
-                                        {method === ConnectionMethod.SSH && (
-                                            <div className='white-box'>
-                                                <p>CONNECT REPO USING SSH</p>
-                                                {formApi.getFormState().values.write === false && (
-                                                    <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text} />
-                                                    </div>
-                                                )}
-                                                {formApi.getFormState().values.write === false && (
-                                                    <div className='argo-form-row'>
-                                                        <FormField
-                                                            formApi={formApi}
-                                                            label='Project'
-                                                            field='project'
-                                                            component={AutocompleteField}
-                                                            componentProps={{items: projects}}
-                                                        />
-                                                    </div>
-                                                )}
+                                        </div>
+                                    )}
+                                    {method === ConnectionMethod.SSH && (
+                                        <div className='white-box'>
+                                            <p>CONNECT REPO USING SSH</p>
+                                            {formApi.getFormState().values.write === false && (
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                                    <FormField formApi={formApi} label='Name (mandatory for Helm)' field='name' component={Text} />
                                                 </div>
+                                            )}
+                                            {formApi.getFormState().values.write === false && (
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='SSH private key data' field='sshPrivateKey' component={TextArea} />
+                                                    <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
                                                 </div>
+                                            )}
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='SSH private key data' field='sshPrivateKey' component={TextArea} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                            </div>
+                                            {formApi.getFormState().values.write === false && (
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                                    <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
                                                     <HelpIcon title='This setting is ignored when creating as credential template.' />
                                                 </div>
-                                                {formApi.getFormState().values.write === false && (
-                                                    <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                                        <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                    </div>
-                                                )}
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
-                                                </div>
+                                            )}
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                            </div>
+                                            {formApi.getFormState().values.write === false && (
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
                                                     <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
                                                 </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {method === ConnectionMethod.HTTPS && (
+                                        <div className='white-box'>
+                                            <p>CONNECT REPO USING HTTP/HTTPS</p>
+                                            <div className='argo-form-row'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    label='Type'
+                                                    field='type'
+                                                    component={FormSelect}
+                                                    componentProps={{options: formApi.getFormState().values.write ? ['git'] : ['git', 'helm', 'oci']}}
+                                                />
                                             </div>
-                                        )}
-                                        {method === ConnectionMethod.HTTPS && (
-                                            <div className='white-box'>
-                                                <p>CONNECT REPO USING HTTP/HTTPS</p>
+                                            {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={formApi}
-                                                        label='Type'
-                                                        field='type'
-                                                        component={FormSelect}
-                                                        componentProps={{options: ['git', 'helm', 'oci']}}
+                                                        label={`Name ${formApi.getFormState().values.type === 'git' ? '(optional)' : ''}`}
+                                                        field='name'
+                                                        component={Text}
                                                     />
                                                 </div>
-                                                {(formApi.getFormState().values.type === 'helm' || formApi.getFormState().values.type === 'git') && (
-                                                    <div className='argo-form-row'>
-                                                        <FormField
-                                                            formApi={formApi}
-                                                            label={`Name ${formApi.getFormState().values.type === 'git' ? '(optional)' : ''}`}
-                                                            field='name'
-                                                            component={Text}
-                                                        />
-                                                    </div>
-                                                )}
-                                                {formApi.getFormState().values.write === false && (
-                                                    <div className='argo-form-row'>
-                                                        <FormField
-                                                            formApi={formApi}
-                                                            label='Project'
-                                                            field='project'
-                                                            component={AutocompleteField}
-                                                            componentProps={{items: projects}}
-                                                        />
-                                                    </div>
-                                                )}
+                                            )}
+                                            {formApi.getFormState().values.write === false && (
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                                    <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Username (optional)' field='username' component={Text} />
-                                                </div>
+                                            )}
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Username (optional)' field='username' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Password (optional)' field='password' component={Text} componentProps={{type: 'password'}} />
+                                            </div>
+                                            {formApi.getFormState().values.type === 'git' && (
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={formApi}
-                                                        label='Password (optional)'
-                                                        field='password'
+                                                        label='Bearer token (optional, for BitBucket Data Center only)'
+                                                        field='bearerToken'
                                                         component={Text}
                                                         componentProps={{type: 'password'}}
                                                     />
                                                 </div>
-                                                {formApi.getFormState().values.type === 'git' && (
-                                                    <div className='argo-form-row'>
-                                                        <FormField
-                                                            formApi={formApi}
-                                                            label='Bearer token (optional, for BitBucket Data Center only)'
-                                                            field='bearerToken'
-                                                            component={Text}
-                                                            componentProps={{type: 'password'}}
-                                                        />
-                                                    </div>
-                                                )}
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='TLS client certificate (optional)' field='tlsClientCertData' component={TextArea} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                </div>
-                                                {formApi.getFormState().values.type === 'git' && (
-                                                    <>
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Force HTTP basic auth' field='forceHttpBasicAuth' component={CheckboxField} />
-                                                        </div>
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                                            <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                        </div>
-                                                    </>
-                                                )}
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    {formApi.getFormState().values.type !== 'oci' ? (
-                                                        <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
-                                                    ) : (
-                                                        <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIForceHttp' component={CheckboxField} />
-                                                    )}
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
-                                                </div>
-                                                {formApi.getFormState().values.type === 'git' && (
-                                                    <div className='argo-form-row'>
-                                                        <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
-                                                        <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
-                                                    </div>
-                                                )}
+                                            )}
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='TLS client certificate (optional)' field='tlsClientCertData' component={TextArea} />
                                             </div>
-                                        )}
-                                        {method === ConnectionMethod.GITHUBAPP && (
-                                            <div className='white-box'>
-                                                <p>CONNECT REPO USING GITHUB APP</p>
-                                                <div className='argo-form-row'>
-                                                    <FormField
-                                                        formApi={formApi}
-                                                        label='Type'
-                                                        field='ghType'
-                                                        component={FormSelect}
-                                                        componentProps={{options: ['GitHub', 'GitHub Enterprise']}}
-                                                    />
-                                                </div>
-                                                {formApi.getFormState().values.ghType === 'GitHub Enterprise' && (
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                            </div>
+                                            {formApi.getFormState().values.type === 'git' && (
+                                                <>
                                                     <div className='argo-form-row'>
-                                                        <FormField
-                                                            formApi={formApi}
-                                                            label='GitHub Enterprise Base URL (e.g. https://ghe.example.com/formApi/v3)'
-                                                            field='githubAppEnterpriseBaseURL'
-                                                            component={Text}
-                                                        />
+                                                        <FormField formApi={formApi} label='Force HTTP basic auth' field='forceHttpBasicAuth' component={CheckboxField} />
                                                     </div>
-                                                )}
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
+                                                        <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                                    </div>
+                                                </>
+                                            )}
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                            </div>
+                                            {formApi.getFormState().values.type === 'helm' && (
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
+                                                    <FormField formApi={formApi} label='Enable OCI' field='enableOCI' component={CheckboxField} />
                                                 </div>
+                                            )}
+                                            {(formApi.getFormState().values.type === 'oci' ||
+                                                (formApi.getFormState().values.type === 'helm' && formApi.getFormState().values.enableOCI)) && (
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                                    <FormField formApi={formApi} label='Insecure HTTP Only' field='insecureOCIForceHttp' component={CheckboxField} />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='GitHub App ID' field='githubAppId' component={NumberField} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='GitHub App Installation ID' field='githubAppInstallationId' component={NumberField} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='GitHub App private key' field='githubAppPrivateKey' component={TextArea} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                </div>
-                                                {formApi.getFormState().values.ghType === 'GitHub Enterprise' && (
-                                                    <>
-                                                        <div className='argo-form-row'>
-                                                            <FormField formApi={formApi} label='TLS client certificate (optional)' field='tlsClientCertData' component={TextArea} />
-                                                        </div>
-                                                        <div className='argo-form-row'>
-                                                            <FormField
-                                                                formApi={formApi}
-                                                                label='TLS client certificate key (optional)'
-                                                                field='tlsClientCertKey'
-                                                                component={TextArea}
-                                                            />
-                                                        </div>
-                                                    </>
-                                                )}
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
-                                                </div>
+                                            )}
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Use Azure Workload Identity' field='useAzureWorkloadIdentity' component={CheckboxField} />
+                                            </div>
+                                            {formApi.getFormState().values.type === 'git' && formApi.getFormState().values.write === false && (
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
                                                     <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
                                                 </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {method === ConnectionMethod.GITHUBAPP && (
+                                        <div className='white-box'>
+                                            <p>CONNECT REPO USING GITHUB APP</p>
+                                            <div className='argo-form-row'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    label='Type'
+                                                    field='ghType'
+                                                    component={FormSelect}
+                                                    componentProps={{options: ['GitHub', 'GitHub Enterprise']}}
+                                                />
                                             </div>
-                                        )}
-                                        {method === ConnectionMethod.GOOGLECLOUD && (
-                                            <div className='white-box'>
-                                                <p>CONNECT REPO USING GOOGLE CLOUD</p>
+                                            {formApi.getFormState().values.ghType === 'GitHub Enterprise' && (
                                                 <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
+                                                    <FormField
+                                                        formApi={formApi}
+                                                        label='GitHub Enterprise Base URL (e.g. https://ghe.example.com/formApi/v3)'
+                                                        field='githubAppEnterpriseBaseURL'
+                                                        component={Text}
+                                                    />
                                                 </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='GCP service account key' field='gcpServiceAccountKey' component={TextArea} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
-                                                </div>
+                                            )}
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='GitHub App ID' field='githubAppId' component={NumberField} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='GitHub App Installation ID' field='githubAppInstallationId' component={NumberField} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='GitHub App private key' field='githubAppPrivateKey' component={TextArea} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
+                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                            </div>
+                                            {formApi.getFormState().values.ghType === 'GitHub Enterprise' && (
+                                                <>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='TLS client certificate (optional)' field='tlsClientCertData' component={TextArea} />
+                                                    </div>
+                                                    <div className='argo-form-row'>
+                                                        <FormField formApi={formApi} label='TLS client certificate key (optional)' field='tlsClientCertKey' component={TextArea} />
+                                                    </div>
+                                                </>
+                                            )}
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                            </div>
+                                            {formApi.getFormState().values.write === false && (
                                                 <div className='argo-form-row'>
                                                     <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
                                                     <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
                                                 </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {method === ConnectionMethod.GOOGLECLOUD && (
+                                        <div className='white-box'>
+                                            <p>CONNECT REPO USING GOOGLE CLOUD</p>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
                                             </div>
-                                        )}
-                                        {method === ConnectionMethod.AZURESERVICEPRINCIPAL && (
-                                            <div className='white-box'>
-                                                <p>CONNECT REPO USING AZURE SERVICE PRINCIPAL</p>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='GCP service account key' field='gcpServiceAccountKey' component={TextArea} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                            </div>
+                                            {formApi.getFormState().values.write === false && (
+                                                <div className='argo-form-row'>
+                                                    <FormField formApi={formApi} label='Depth (optional)' field='depth' component={NumberField} />
+                                                    <HelpIcon title='Depth for shallow clones. Leave empty or 0 for a full clone.' />
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
+                                    {method === ConnectionMethod.AZURESERVICEPRINCIPAL && (
+                                        <div className='white-box'>
+                                            <p>CONNECT REPO USING AZURE SERVICE PRINCIPAL</p>
+                                            <div className='argo-form-row'>
+                                                <FormField
+                                                    formApi={formApi}
+                                                    label='Type'
+                                                    field='azureType'
+                                                    component={FormSelect}
+                                                    componentProps={{options: ['Azure Public Cloud', 'Azure Other Cloud']}}
+                                                />
+                                            </div>
+                                            {formApi.getFormState().values.azureType === 'Azure Other Cloud' && (
                                                 <div className='argo-form-row'>
                                                     <FormField
                                                         formApi={formApi}
-                                                        label='Type'
-                                                        field='azureType'
-                                                        component={FormSelect}
-                                                        componentProps={{options: ['Azure Public Cloud', 'Azure Other Cloud']}}
+                                                        label='Azure Active Directory Endpoint (e.g. https://login.microsoftonline.de)'
+                                                        field='azureActiveDirectoryEndpoint'
+                                                        component={Text}
                                                     />
                                                 </div>
-                                                {formApi.getFormState().values.azureType === 'Azure Other Cloud' && (
-                                                    <div className='argo-form-row'>
-                                                        <FormField
-                                                            formApi={formApi}
-                                                            label='Azure Active Directory Endpoint (e.g. https://login.microsoftonline.de)'
-                                                            field='azureActiveDirectoryEndpoint'
-                                                            component={Text}
-                                                        />
-                                                    </div>
-                                                )}
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='AzureTenant ID' field='azureServicePrincipalTenantId' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Azure Client ID' field='azureServicePrincipalClientId' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Azure Client Secret' field='azureServicePrincipalClientSecret' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
-                                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
-                                                    <HelpIcon title='This setting is ignored when creating as credential template.' />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
-                                                </div>
-                                                <div className='argo-form-row'>
-                                                    <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
-                                                </div>
+                                            )}
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Project' field='project' component={AutocompleteField} componentProps={{items: projects}} />
                                             </div>
-                                        )}
-                                    </form>
-                                )}
-                            </Form>
-                        )}
-                    </DataLoader>
-                )}
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Repository URL' field='url' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='AzureTenant ID' field='azureServicePrincipalTenantId' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Azure Client ID' field='azureServicePrincipalClientId' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Azure Client Secret' field='azureServicePrincipalClientSecret' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Skip server verification' field='insecure' component={CheckboxField} />
+                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Enable LFS support (Git only)' field='enableLfs' component={CheckboxField} />
+                                                <HelpIcon title='This setting is ignored when creating as credential template.' />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='Proxy (optional)' field='proxy' component={Text} />
+                                            </div>
+                                            <div className='argo-form-row'>
+                                                <FormField formApi={formApi} label='NoProxy (optional)' field='noProxy' component={Text} />
+                                            </div>
+                                        </div>
+                                    )}
+                                </form>
+                            )}
+                        </Form>
+                    ))}
             </SlidingPanel>
         </Page>
     );

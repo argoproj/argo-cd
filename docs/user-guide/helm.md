@@ -16,7 +16,7 @@ spec:
   project: default
   source:
     chart: sealed-secrets
-    repoURL: https://bitnami-labs.github.io/sealed-secrets
+    repoURL: https://bitnami.github.io/sealed-secrets
     targetRevision: 1.16.1
     helm:
       releaseName: sealed-secrets
@@ -48,6 +48,135 @@ spec:
 > Order of precedence is `parameters > valuesObject > values > valueFiles > helm repository values.yaml`. [Value precedence](./helm.md#helm-value-precedence) has a more detailed example.
 
 The [Declarative Setup section on Helm](../operator-manual/declarative-setup.md#helm) has more info about how to configure private Helm repositories and private OCI registries.
+
+## Worked examples
+
+The examples below use the [ingress-nginx](https://kubernetes.github.io/ingress-nginx/) Helm chart. They show one Application in three forms: chart defaults, inlined `valuesObject` (declarative YAML instead of `argocd app set -p`), and a values file stored in a separate Git repository.
+
+### Chart defaults
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 4.11.3
+    helm:
+      releaseName: ingress-nginx
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+```
+
+### Controller settings via `valuesObject`
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://kubernetes.github.io/ingress-nginx
+    chart: ingress-nginx
+    targetRevision: 4.11.3
+    helm:
+      releaseName: ingress-nginx
+      valuesObject:
+        controller:
+          replicaCount: 2
+          service:
+            type: LoadBalancer
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+```
+
+### Values file from another Git repository
+
+As of Argo CD v2.6, values files do not have to live in the same repository as the chart. You can keep the upstream chart and store only your overrides in Git, without copying the chart into your repository. See [multiple sources](./multiple_sources.md#helm-value-files-from-external-git-repository).
+
+For example, organize shared and production settings in your values repository:
+
+```text
+helm/
+  ingress-nginx/
+    values-common.yaml
+    values-production.yaml
+```
+
+In `helm/ingress-nginx/values-common.yaml`, set the defaults shared by your environments:
+
+```yaml
+controller:
+  replicaCount: 1
+  metrics:
+    enabled: true
+  service:
+    type: ClusterIP
+```
+
+In `helm/ingress-nginx/values-production.yaml`, override the production settings:
+
+```yaml
+controller:
+  replicaCount: 3
+  service:
+    type: LoadBalancer
+```
+
+Reference both files in the Application, with the environment override listed last. Replace `https://git.example.com/org/gitops-values.git` with your repository URL and `main` with the branch, tag, or commit containing the files.
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: ingress-nginx
+  namespace: argocd
+spec:
+  project: default
+  sources:
+    - repoURL: https://kubernetes.github.io/ingress-nginx
+      chart: ingress-nginx
+      targetRevision: 4.11.3
+      helm:
+        releaseName: ingress-nginx
+        valueFiles:
+          - $values/helm/ingress-nginx/values-common.yaml
+          - $values/helm/ingress-nginx/values-production.yaml
+    - repoURL: https://git.example.com/org/gitops-values.git
+      targetRevision: main
+      ref: values
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ingress-nginx
+  syncPolicy:
+    syncOptions:
+      - CreateNamespace=true
+```
+
+The rendered controller has three replicas, a `LoadBalancer` Service, and metrics enabled. Helm merges the chart defaults with the shared values, then the production values. The last values file wins for conflicting keys; settings omitted from the production file, such as `controller.metrics.enabled`, retain their shared values. See [value precedence](#helm-value-precedence) for how inline values and parameters can override these files.
+
+`ref: values` defines the `$values` prefix. Paths following it are relative to the root of the values repository, not to the chart directory. Leave `path` unset on this source when the repository only supplies values; setting `path` also asks Argo CD to generate Kubernetes resources from that directory.
+
+> [!NOTE]
+> If the values repository is private, configure its [repository credentials](./private-repositories.md#credentials) in Argo CD. Access to the public chart repository does not grant access to the private values repository. The Application's [project](./projects.md) must permit both source repositories.
+
+For another environment, create a separate Application with its own name and destination, and replace the production file with that environment's values file. Keep the chart version the same when you want to promote the same chart across environments. To manage many such Applications from a template, see [ApplicationSet](./application-set.md).
 
 ## Values Files
 
@@ -640,7 +769,7 @@ RUN helm plugin install ${GCS_PLUGIN_REPO} --version ${GCS_PLUGIN_VERSION}
 ENV HELM_PLUGINS="/home/argocd/.local/share/helm/plugins/"
 ```
 
-The `HELM_PLUGINS` environment property required for ArgoCD to locate plugins correctly.
+The `HELM_PLUGINS` environment variable required for Argo CD to locate plugins correctly.
 
 Once built, use the custom image for ArgoCD installation.
 
@@ -689,24 +818,23 @@ repoServer:
           chmod -R 777 $HELM_DATA_HOME;
 ```
 
-## Helm Version
+## Helm Version 
 
-Argo CD will assume that the Helm chart is v3 (even if the apiVersion field in the chart is Helm v2), unless v2 is explicitly specified within the Argo CD Application (see below).
+This field was used in the past, during the transition period from Helm 2 to Helm 3.
+Before Helm 2 became EOL, Argo CD was shipped with both Helm binaries (v2 and v3) and users could specify which Helm binary Argo CD should use to render their charts, by setting this field.
 
-If needed, it is possible to specifically set the Helm version to template with by setting the `helm-version` flag on the cli (either v2 or v3):
+Since Helm 2 became EOL, this field does not need to be configured anymore. It exists for backwards-compatibility only. The only Helm binary used to render charts in Argo CD (starting with version 3.5) is v4.
 
-```bash
-argocd app set helm-guestbook --helm-version v3
-```
-
-Or using declarative syntax:
-
+If you historically have the following setting on your Helm applications:
 ```yaml
 spec:
   source:
     helm:
       version: v3
 ```
+
+you are not required to update or remove this field, and can leave this setting as is.
+
 
 ## Helm `--pass-credentials`
 

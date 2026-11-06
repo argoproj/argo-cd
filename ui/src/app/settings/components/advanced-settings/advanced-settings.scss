@@ -1,0 +1,11 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.advanced-settings {
+    &__panels {
+        padding: 1em;
+        
+        > * {
+            margin-bottom: 1em;
+        }
+    }
+}

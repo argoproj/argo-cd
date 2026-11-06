@@ -120,6 +120,56 @@ func TestGitSemverResolutionUsingConstraintWithLeadingZero(t *testing.T) {
 		Expect(Pod(func(p corev1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
 }
 
+func TestGitSemverResolutionWithTagPrefix(t *testing.T) {
+	Given(t).
+		Path("deployment").
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.*").
+		TagPrefix("component-a/").
+		When().
+		AddTag("component-a/v0.1.0").
+		AddTag("v9.9.9").
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Equal(t, "component-a/", app.Spec.Source.TagPrefix)
+			require.NotEmpty(t, app.Status.Sync.Revision)
+		})
+}
+
+func TestGitSemverResolutionWithTagPrefixMultipleTags(t *testing.T) {
+	Given(t).
+		Path("deployment").
+		CustomSSHKnownHostsAdded().
+		SSHRepoURLAdded(true).
+		RepoURLType(fixture.RepoURLTypeSSH).
+		Revision("v0.1.*").
+		TagPrefix("component-a/").
+		When().
+		AddTag("component-a/v0.1.0").
+		CreateApp().
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.Equal(t, "component-a/", app.Spec.Source.TagPrefix)
+		}).
+		When().
+		PatchFile("deployment.yaml", `[
+	{"op": "replace", "path": "/metadata/name", "value": "new-app"},
+	{"op": "replace", "path": "/spec/replicas", "value": 1}
+]`).
+		AddTag("component-a/v0.1.2").
+		Sync().
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Pod(func(p corev1.Pod) bool { return strings.HasPrefix(p.Name, "new-app") }))
+}
+
 func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 	Given(t).
 		Path(guestbookPath).
@@ -139,7 +189,7 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 			require.NotEmpty(t, annotatedTagIDOutput)
 			// example command output:
 			// "569798c430515ffe170bdb23e3aafaf8ae24b9ff refs/tags/annotated-tag"
-			annotatedTagIDFields := strings.Fields(string(annotatedTagIDOutput))
+			annotatedTagIDFields := strings.Fields(annotatedTagIDOutput)
 			require.Len(t, annotatedTagIDFields, 2)
 
 			targetCommitID, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "--verify", "annotated-tag^{commit}")
@@ -151,7 +201,7 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 			require.NotEmpty(t, app.Status.Sync.Revision, "revision in sync status should be set by sync operation")
 
 			require.NotEqual(t, app.Status.Sync.Revision, annotatedTagIDFields[0], "revision should not match the annotated tag id")
-			require.Equal(t, app.Status.Sync.Revision, strings.TrimSpace(string(targetCommitID)), "revision SHOULD match the target commit SHA")
+			require.Equal(t, app.Status.Sync.Revision, strings.TrimSpace(targetCommitID), "revision SHOULD match the target commit SHA")
 		})
 }
 

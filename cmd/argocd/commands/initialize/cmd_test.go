@@ -93,6 +93,7 @@ func Test_InitCommand_FiltersUnsupportedKubectlFlags(t *testing.T) {
 		"as",
 		"as-group",
 		"as-uid",
+		"tls-server-name",
 	}
 
 	for _, f := range unsupported {

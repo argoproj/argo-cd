@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "All instances are available"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: "SomePodsNotReady"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Degraded
+      message: "pod thanos-ruler-prometheus-stack-kube-prom-thanos-ruler-0: 0/5 nodes are available: 2 node(s) didn't match Pod's node affinity/selector, 3 node(s) were unschedulable."
+    inputPath: testdata/degraded.yaml

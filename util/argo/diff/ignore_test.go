@@ -5,12 +5,14 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo/diff"
 )
 
 func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
+	t.Parallel()
 	getOverride := func(gk string) map[string]v1alpha1.ResourceOverride {
 		return map[string]v1alpha1.ResourceOverride{
 			gk: {
@@ -35,6 +37,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	}
 	t.Run("will return ignore diffs from resource override", func(t *testing.T) {
 		// given
+		t.Parallel()
 		gk := "apps/Deployment"
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
@@ -56,6 +59,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will return ignore diffs from resource override with wildcard", func(t *testing.T) {
 		// given
+		t.Parallel()
 		gk := "*/*"
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
@@ -77,6 +81,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will return ignore diffs from application resource", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -93,6 +98,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will return ignore diffs from application resource with no app name and namespace configured", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -109,6 +115,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will return ignore diffs for all resources from group", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "*", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -125,6 +132,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will return ignore diffs for all resources", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("*", "*", "", "")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -141,6 +149,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("no ignore diffs if namespace do not match", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -154,6 +163,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("no ignore diffs if name do not match", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -167,6 +177,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("no ignore diffs if resource do not match", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -180,6 +191,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("no ignore diffs if group do not match", func(t *testing.T) {
 		// given
+		t.Parallel()
 		ignoreDiff := getIgnoreDiff("apps", "Deployment", "app-name", "default")
 		ignoreDiffs := []v1alpha1.ResourceIgnoreDifferences{ignoreDiff}
 		ignoreConfig := diff.NewIgnoreDiffConfig(ignoreDiffs, nil)
@@ -193,6 +205,7 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 	})
 	t.Run("will merge ignore differences correctly removing duplicated configs", func(t *testing.T) {
 		// given
+		t.Parallel()
 		gk := "*/*"
 		override := getOverride(gk)
 		ignoreDiff := getIgnoreDiff("*", "*", "", "")
@@ -217,5 +230,221 @@ func TestIgnoreDiffConfig_HasIgnoreDifference(t *testing.T) {
 		assert.ElementsMatch(t, expectedManagers, actual.ManagedFieldsManagers)
 		assert.ElementsMatch(t, expectedJSONPointers, actual.JSONPointers)
 		assert.ElementsMatch(t, expectedJQPath, actual.JQPathExpressions)
+	})
+}
+
+func TestExtractIgnoreDifferencesFromAnnotations(t *testing.T) {
+	t.Parallel()
+	newDeployment := func() *unstructured.Unstructured {
+		return &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "apps/v1",
+				"kind":       "Deployment",
+				"metadata": map[string]any{
+					"name":      "test-deployment",
+					"namespace": "default",
+				},
+			},
+		}
+	}
+
+	newService := func() *unstructured.Unstructured {
+		return &unstructured.Unstructured{
+			Object: map[string]any{
+				"apiVersion": "v1",
+				"kind":       "Service",
+				"metadata": map[string]any{
+					"name":      "test-service",
+					"namespace": "default",
+				},
+			},
+		}
+	}
+
+	t.Run("extracts single JSON pointer from annotation", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resource := newDeployment()
+		resource.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas",
+		})
+		resources := []*unstructured.Unstructured{resource}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		require.Len(t, result, 1)
+		assert.Equal(t, "Deployment", result[0].Kind)
+		assert.Equal(t, []string{"/spec/replicas"}, result[0].JSONPointers)
+	})
+
+	t.Run("extracts multiple JSON pointers from annotation", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resource := newDeployment()
+		resource.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas\n- /metadata/labels/version\n- /spec/template/metadata/annotations",
+		})
+		resources := []*unstructured.Unstructured{resource}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		require.Len(t, result, 1)
+		assert.ElementsMatch(t, []string{"/spec/replicas", "/metadata/labels/version", "/spec/template/metadata/annotations"}, result[0].JSONPointers)
+	})
+
+	t.Run("handles block scalar YAML annotation value", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resource := newDeployment()
+		resource.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas\n- /metadata/labels\n- /status",
+		})
+		resources := []*unstructured.Unstructured{resource}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		require.Len(t, result, 1)
+		assert.ElementsMatch(t, []string{"/spec/replicas", "/metadata/labels", "/status"}, result[0].JSONPointers)
+	})
+
+	t.Run("returns empty list when no annotation present", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resource := newDeployment()
+		resources := []*unstructured.Unstructured{resource}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		assert.Empty(t, result)
+	})
+
+	t.Run("handles nil resource", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resources := []*unstructured.Unstructured{nil}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		assert.Empty(t, result)
+	})
+
+	t.Run("handles empty annotation value", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resource := newDeployment()
+		resource.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "",
+		})
+		resources := []*unstructured.Unstructured{resource}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		assert.Empty(t, result)
+	})
+
+	t.Run("extracts from multiple resources", func(t *testing.T) {
+		// given
+		t.Parallel()
+		deployment := newDeployment()
+		deployment.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/replicas",
+		})
+		service := newService()
+		service.SetAnnotations(map[string]string{
+			"argocd.argoproj.io/ignore-differences": "jsonPointers:\n- /spec/ports",
+		})
+		resources := []*unstructured.Unstructured{deployment, service}
+
+		// when
+		result := diff.ExtractIgnoreDifferencesFromAnnotations(resources)
+
+		// then
+		require.Len(t, result, 2)
+		assert.Equal(t, "Deployment", result[0].Kind)
+		assert.Equal(t, []string{"/spec/replicas"}, result[0].JSONPointers)
+		assert.Equal(t, "Service", result[1].Kind)
+		assert.Equal(t, []string{"/spec/ports"}, result[1].JSONPointers)
+	})
+}
+
+func TestMergeResourceIgnoreDifferences(t *testing.T) {
+	t.Parallel()
+	t.Run("merges application and resource-level ignores", func(t *testing.T) {
+		// given
+		t.Parallel()
+		appIgnores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			},
+		}
+		resourceIgnores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				Name:         "my-app",
+				Namespace:    "default",
+				JSONPointers: []string{"/metadata/labels/version"},
+			},
+		}
+
+		// when
+		result := diff.MergeResourceIgnoreDifferences(appIgnores, resourceIgnores)
+
+		// then
+		require.Len(t, result, 2)
+		assert.Equal(t, appIgnores[0], result[0])
+		assert.Equal(t, resourceIgnores[0], result[1])
+	})
+
+	t.Run("returns app ignores when no resource ignores", func(t *testing.T) {
+		// given
+		t.Parallel()
+		appIgnores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			},
+		}
+
+		// when
+		result := diff.MergeResourceIgnoreDifferences(appIgnores, nil)
+
+		// then
+		assert.Equal(t, appIgnores, result)
+	})
+
+	t.Run("returns resource ignores when no app ignores", func(t *testing.T) {
+		// given
+		t.Parallel()
+		resourceIgnores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				Name:         "my-app",
+				JSONPointers: []string{"/metadata/labels/version"},
+			},
+		}
+
+		// when
+		result := diff.MergeResourceIgnoreDifferences(nil, resourceIgnores)
+
+		// then
+		require.Len(t, result, 1)
+		assert.Equal(t, resourceIgnores[0], result[0])
 	})
 }

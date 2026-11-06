@@ -1,0 +1,32 @@
+apiVersion: pulumi.com/v1
+kind: Stack
+metadata:
+  name: my-stack
+  namespace: default
+  generation: 3
+spec:
+  stack: dev
+  programRef:
+    name: my-stack
+status:
+  observedGeneration: 3
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:10:00Z"
+    observedGeneration: 3
+    reason: NotReadyStalled
+    status: "False"
+    type: Ready
+    message: reconciliation is stalled
+  - lastTransitionTime: "2024-07-16T12:10:00Z"
+    observedGeneration: 3
+    reason: UpdateFailed
+    status: "True"
+    type: Stalled
+    message: up failed 5 times; not retrying until the spec or source changes
+  lastUpdate:
+    generation: 3
+    name: my-stack-19f00c2328f
+    type: up
+    state: failed
+    failures: 5
+    permalink: https://app.pulumi.com/org/my-stack/dev/updates/6

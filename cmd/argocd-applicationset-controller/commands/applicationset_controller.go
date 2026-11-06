@@ -8,6 +8,10 @@ import (
 	"runtime/debug"
 	"time"
 
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
+
+	"github.com/argoproj/argo-cd/v3/applicationset/progressivesync"
+
 	"github.com/argoproj/pkg/v2/stats"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
@@ -23,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/applicationset/webhook"
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/ratelimiter"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/github_app"
 
@@ -63,6 +68,7 @@ func NewCommand() *cobra.Command {
 		debugLog                     bool
 		dryRun                       bool
 		enableProgressiveSyncs       bool
+		refreshGracePeriodSeconds    int
 		enableNewGitFileGlobbing     bool
 		repoServerPlaintext          bool
 		repoServerStrictTLS          bool
@@ -80,6 +86,10 @@ func NewCommand() *cobra.Command {
 		maxResourcesStatusCount      int
 		cacheSyncPeriod              time.Duration
 		concurrentApplicationUpdates int
+		repoServerClientTLSConfigSrc func() (tls.Configuration, error)
+		scmProxyURL                  string
+		scmNoProxy                   string
+		workqueueRateLimit           ratelimiter.AppControllerRateLimiterConfig
 	)
 	scheme := runtime.NewScheme()
 	_ = clientgoscheme.AddToScheme(scheme)
@@ -135,7 +145,7 @@ func NewCommand() *cobra.Command {
 			var watchedNamespace string
 			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
 			if len(applicationSetNamespaces) == 1 {
-				watchedNamespace = (applicationSetNamespaces)[0]
+				watchedNamespace = applicationSetNamespaces[0]
 			} else if enableScmProviders && len(allowedScmProviders) == 0 {
 				log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
 				os.Exit(1)
@@ -202,14 +212,22 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			scmConfig := generators.NewSCMConfig(scmRootCAPath, allowedScmProviders, enableScmProviders, enableGitHubAPIMetrics, github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)), tokenRefStrictMode)
+			scmConfig := generators.NewSCMConfig(
+				scmRootCAPath,
+				allowedScmProviders,
+				enableScmProviders,
+				enableGitHubAPIMetrics,
+				github_app.NewAuthCredentials(argoCDDB.(db.RepoCredsDB)),
+				tokenRefStrictMode, generators.WithProxyURL(scmProxyURL),
+				generators.WithNoProxyList(scmNoProxy),
+			)
 
-			tlsConfig := apiclient.TLSConfiguration{
-				DisableTLS:       repoServerPlaintext,
-				StrictValidation: repoServerStrictTLS,
-			}
+			tlsConfig, err := repoServerClientTLSConfigSrc()
+			errors.CheckError(err)
+			tlsConfig.DisableTLS = repoServerPlaintext
+			tlsConfig.StrictValidation = tlsConfig.StrictValidation || repoServerStrictTLS
 
-			if !repoServerPlaintext && repoServerStrictTLS {
+			if !repoServerPlaintext && repoServerStrictTLS && tlsConfig.Certificates == nil {
 				pool, err := tls.LoadX509CertPool(
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/tls.crt",
 					env.StringFromEnv(common.EnvAppConfigPath, common.DefaultAppConfigPath)+"/reposerver/tls/ca.crt",
@@ -222,6 +240,7 @@ func NewCommand() *cobra.Command {
 			argoCDService := services.NewArgoCDService(argoCDDB, gitSubmoduleEnabled, repoClientset, enableNewGitFileGlobbing)
 
 			topLevelGenerators := generators.GetGenerators(ctx, mgr.GetClient(), k8sClient, namespace, argoCDService, dynamicClient, scmConfig, clusterInformer)
+			cacheSyncClient := utils.NewCacheSyncingClient(mgr.GetClient(), mgr.GetCache())
 
 			// start a webhook server that listens to incoming webhook payloads
 			webhookHandler, err := webhook.NewWebhookHandler(webhookParallelism, argoSettingsMgr, mgr.GetClient(), topLevelGenerators)
@@ -237,12 +256,14 @@ func NewCommand() *cobra.Command {
 				metricsAplicationsetLabels,
 				func(appset *appv1alpha1.ApplicationSet) bool {
 					return utils.IsNamespaceAllowed(applicationSetNamespaces, appset.Namespace)
-				})
-
-			if err = (&controllers.ApplicationSetReconciler{
-				Generators:                   topLevelGenerators,
-				Client:                       utils.NewCacheSyncingClient(mgr.GetClient(), mgr.GetCache()),
-				Scheme:                       mgr.GetScheme(),
+				},
+			)
+			appsetReconciler := &controllers.ApplicationSetReconciler{
+				Generators: topLevelGenerators,
+				Client:     cacheSyncClient,
+				Scheme:     mgr.GetScheme(),
+				// FIXME: record.EventRecorder -> events.EventRecorder
+				// nolint:staticcheck
 				Recorder:                     mgr.GetEventRecorderFor("applicationset-controller"),
 				Renderer:                     &utils.Render{},
 				Policy:                       policyObj,
@@ -252,6 +273,7 @@ func NewCommand() *cobra.Command {
 				ArgoCDNamespace:              namespace,
 				ApplicationSetNamespaces:     applicationSetNamespaces,
 				EnableProgressiveSyncs:       enableProgressiveSyncs,
+				RefreshGracePeriodSeconds:    refreshGracePeriodSeconds,
 				SCMRootCAPath:                scmRootCAPath,
 				GlobalPreservedAnnotations:   globalPreservedAnnotations,
 				GlobalPreservedLabels:        globalPreservedLabels,
@@ -259,7 +281,18 @@ func NewCommand() *cobra.Command {
 				MaxResourcesStatusCount:      maxResourcesStatusCount,
 				ClusterInformer:              clusterInformer,
 				ConcurrentApplicationUpdates: concurrentApplicationUpdates,
-			}).SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations); err != nil {
+			}
+			appClientset, err := appclientset.NewForConfig(mgr.GetConfig())
+			if err != nil {
+				log.Error(err, "failed to create app clientset")
+			}
+			if appClientset == nil && enableProgressiveSyncs {
+				log.Error(err, "appClientset is nil, progressive sync when enabled expects to have app clientset")
+				os.Exit(1)
+			}
+			appsetReconciler.ProgressiveSyncManager = progressivesync.NewManager(cacheSyncClient, mgr.GetAPIReader(), appClientset, appsetReconciler)
+
+			if err = appsetReconciler.SetupWithManager(mgr, enableProgressiveSyncs, maxConcurrentReconciliations, &workqueueRateLimit); err != nil {
 				log.Error(err, "unable to create controller", "controller", "ApplicationSet")
 				os.Exit(1)
 			}
@@ -292,12 +325,16 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&dryRun, "dry-run", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_DRY_RUN", false), "Enable dry run mode")
 	command.Flags().BoolVar(&tokenRefStrictMode, "token-ref-strict-mode", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_TOKENREF_STRICT_MODE", false), fmt.Sprintf("Set to true to require secrets referenced by SCM providers to have the %s=%s label set (Default: false)", common.LabelKeySecretType, common.LabelValueSecretTypeSCMCreds))
 	command.Flags().BoolVar(&enableProgressiveSyncs, "enable-progressive-syncs", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS", false), "Enable use of the experimental progressive syncs feature.")
+	command.Flags().IntVar(&refreshGracePeriodSeconds, "refresh-grace-period-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REFRESH_GRACE_PERIOD_SECONDS", 30, 0, math.MaxInt64), "The minimum grace period before a progressive sync may start refreshing outdated applications")
 	command.Flags().BoolVar(&enableNewGitFileGlobbing, "enable-new-git-file-globbing", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_GIT_FILE_GLOBBING", false), "Enable new globbing in Git files generator.")
 	command.Flags().BoolVar(&repoServerPlaintext, "repo-server-plaintext", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_PLAINTEXT", false), "Disable TLS on connections to repo server")
 	command.Flags().BoolVar(&repoServerStrictTLS, "repo-server-strict-tls", env.ParseBoolFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_STRICT_TLS", false), "Whether to use strict validation of the TLS cert presented by the repo server")
+	errors.CheckError(command.Flags().MarkDeprecated("repo-server-strict-tls", "use --repo-server-ca-cert-path instead"))
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
 	command.Flags().IntVar(&maxConcurrentReconciliations, "concurrent-reconciliations", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_RECONCILIATIONS", 10, 1, math.MaxInt), "Max concurrent reconciliations limit for the controller")
 	command.Flags().StringVar(&scmRootCAPath, "scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")
+	command.Flags().StringVar(&scmProxyURL, "scm-proxy-url", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_PROXY_URL", ""), "HTTP/HTTPS proxy URL for outbound SCM provider API requests (GitHub, GitLab, etc.). Does NOT affect Kubernetes API server connectivity — use --proxy-url (kubectl flag) for that.")
+	command.Flags().StringVar(&scmNoProxy, "scm-no-proxy", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_NO_PROXY", ""), "Comma-separated list of hosts that should bypass the --scm-proxy-url proxy.")
 	command.Flags().StringSliceVar(&globalPreservedAnnotations, "preserved-annotations", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_ANNOTATIONS", []string{}, ","), "Sets global preserved field values for annotations")
 	command.Flags().StringSliceVar(&globalPreservedLabels, "preserved-labels", env.StringsFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_GLOBAL_PRESERVED_LABELS", []string{}, ","), "Sets global preserved field values for labels")
 	command.Flags().IntVar(&webhookParallelism, "webhook-parallelism-limit", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WEBHOOK_PARALLELISM_LIMIT", 50, 1, 1000), "Number of webhook requests processed concurrently")
@@ -306,7 +343,16 @@ func NewCommand() *cobra.Command {
 	command.Flags().IntVar(&maxResourcesStatusCount, "max-resources-status-count", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_MAX_RESOURCES_STATUS_COUNT", 5000, 0, math.MaxInt), "Max number of resources stored in appset status.")
 	command.Flags().DurationVar(&cacheSyncPeriod, "cache-sync-period", env.ParseDurationFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CACHE_SYNC_PERIOD", time.Hour*10, 0, time.Hour*24), "Period at which the manager client cache is forcefully resynced with the Kubernetes API server. 0 disables periodic resync.")
 	command.Flags().IntVar(&concurrentApplicationUpdates, "concurrent-application-updates", env.ParseNumFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_CONCURRENT_APPLICATION_UPDATES", 1, 1, 200), "Number of concurrent Application create/update/delete operations per ApplicationSet reconcile.")
-
+	// global queue rate limit config
+	command.Flags().Int64Var(&workqueueRateLimit.BucketSize, "wq-bucket-size", env.ParseInt64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_SIZE", 500, 1, math.MaxInt64), "Set Workqueue Rate Limiter Bucket Size, default 500")
+	command.Flags().Float64Var(&workqueueRateLimit.BucketQPS, "wq-bucket-qps", env.ParseFloat64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BUCKET_QPS", math.MaxFloat64, 1, math.MaxFloat64), "Set Workqueue Rate Limiter Bucket QPS, default set to MaxFloat64 which disables the bucket limiter")
+	// individual item rate limit config
+	// when WORKQUEUE_FAILURE_COOLDOWN is 0 per item rate limiting is disabled(default)
+	command.Flags().DurationVar(&workqueueRateLimit.FailureCoolDown, "wq-cooldown", time.Duration(env.ParseInt64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_FAILURE_COOLDOWN_NS", 0, 0, (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Cooldown duration, default 0 (per item rate limiter disabled)")
+	command.Flags().DurationVar(&workqueueRateLimit.BaseDelay, "wq-basedelay", time.Duration(env.ParseInt64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BASE_DELAY_NS", time.Millisecond.Nanoseconds(), time.Nanosecond.Nanoseconds(), (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Base Delay duration, default 1ms")
+	command.Flags().DurationVar(&workqueueRateLimit.MaxDelay, "wq-maxdelay", time.Duration(env.ParseInt64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_MAX_DELAY_NS", (1000*time.Second).Nanoseconds(), 1*time.Millisecond.Nanoseconds(), (24*time.Hour).Nanoseconds())), "Set Workqueue Per Item Rate Limiter Max Delay duration, default 16m40s (matches controller-runtime default)")
+	command.Flags().Float64Var(&workqueueRateLimit.BackoffFactor, "wq-backoff-factor", env.ParseFloat64FromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_WORKQUEUE_BACKOFF_FACTOR", 1.5, 1, 100), "Set Workqueue Per Item Rate Limiter Backoff Factor, default is 1.5")
+	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "APPLICATIONSET_CONTROLLER")
 	return &command
 }
 

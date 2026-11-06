@@ -27,12 +27,13 @@ argocd app resources APPNAME [flags]
 ### Options
 
 ```
-  -h, --help             help for resources
-      --orphaned         Lists only orphaned resources
-      --output string    Output format. One of: tree|tree=detailed. 
-                           tree: Shows resource hierarchy with parent-child relationships
-                           tree=detailed: Same as tree, but includes AGE, HEALTH, and REASON columns
-      --project string   The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist
+  -N, --app-namespace string   Namespace of the application
+  -h, --help                   help for resources
+      --orphaned               Lists only orphaned resources
+      --output string          Output format. One of: tree|tree=detailed.
+                                 tree: Shows resource hierarchy with parent-child relationships
+                                 tree=detailed: Same as tree, but includes AGE, HEALTH, and REASON columns
+      --project string         The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist
 ```
 
 ### Options inherited from parent commands

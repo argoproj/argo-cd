@@ -6,8 +6,8 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/text"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	log "github.com/sirupsen/logrus"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
@@ -212,7 +212,7 @@ func (s *Server) ListWriteRepositories(ctx context.Context, q *repositorypkg.Rep
 	return &v1alpha1.RepositoryList{Items: items}, nil
 }
 
-// ListRepositoriesByAppProject returns a list of all configured repositories and the state of their connections. It
+// prepareRepoList returns a list of all configured repositories and the state of their connections. It
 // normalizes, sanitizes, and filters out repositories that the user does not have access to in the specified project.
 // It also sorts the repositories by project and repo name.
 func (s *Server) prepareRepoList(ctx context.Context, resourceType string, repos []*v1alpha1.Repository, forceRefresh bool) (v1alpha1.Repositories, error) {

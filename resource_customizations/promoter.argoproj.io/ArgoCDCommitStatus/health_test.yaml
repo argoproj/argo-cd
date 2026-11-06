@@ -5,7 +5,7 @@ tests:
   inputPath: testdata/no-status.yaml
 - healthStatus:
     status: Progressing
-    message: Argo CD commit status is being deleted
+    deletionMessage: Argo CD commit status is being deleted
   inputPath: testdata/deleting.yaml
 - healthStatus:
     status: Progressing

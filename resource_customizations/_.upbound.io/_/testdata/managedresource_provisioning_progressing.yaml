@@ -1,0 +1,15 @@
+# A managed resource the provider has not reconciled yet: accepted by
+# the API server, no status written. This is the case the fix is for --
+# it reported Healthy while the condition read as `A or (B and C)`,
+# because the nil branch answered before has_no_conditions was consulted.
+apiVersion: ec2.aws.upbound.io/v1beta1
+kind: Instance
+metadata:
+  name: sample-instance
+spec:
+  forProvider:
+    region: us-west-1
+    instanceType: t2.micro
+    ami: ami-0d5ae304a0b933620
+  providerConfigRef:
+    name: default
