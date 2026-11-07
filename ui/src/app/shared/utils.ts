@@ -1,6 +1,7 @@
 import {useCallback, useSyncExternalStore} from 'react';
 import type {CSSProperties} from 'react';
 import {AuthSettings, Cluster, UserInfo} from './models';
+import {hasSSOProvider, isExternalIssuer} from './sso-auto-login';
 
 export function hashCode(str: string) {
     let hash = 0;
@@ -204,8 +205,5 @@ export const isInvalidRegex = (pattern: string): boolean => {
  * @returns true if SSO should be used, otherwise false
  */
 export function isSSOConfigured(userInfo: UserInfo | null | undefined, authSettings: AuthSettings): boolean {
-    const isExternalIssuer = userInfo?.iss && userInfo.iss !== 'argocd';
-    const hasDexConnectors = (authSettings.dexConfig?.connectors?.length ?? 0) > 0;
-    const hasOidcConfig = !!authSettings.oidcConfig;
-    return isExternalIssuer && (hasDexConnectors || hasOidcConfig);
+    return isExternalIssuer(userInfo) && hasSSOProvider(authSettings);
 }

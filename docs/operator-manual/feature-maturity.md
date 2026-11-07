@@ -26,6 +26,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Service Account Impersonation][10]       | v2.13.0    | Beta   |
 | [Source Hydrator][11]                     | v2.14.0    | Beta   |
 | [ApplicationSet Web UI][12]               | v3.5.0     | Alpha  |
+| [Automatic SSO login][13]                 | v3.7.0     | Beta   |
 
 ## Unstable Configurations
 
@@ -68,6 +69,7 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Source Hydrator][11]                     | `ConfigMap/argocd-cmd-params-cm`              | `hydrator.enabled`                                          | Beta   |
 | [Source Hydrator][11]                     | `Deployment/argocd-application-controller`    | `ARGOCD_HYDRATOR_ENABLED`                                   | Beta   |
 | [Source Hydrator][11]                     | `Deployment/argocd-server`                    | `ARGOCD_HYDRATOR_ENABLED`                                   | Beta   |
+| [Automatic SSO login][13]                 | `ConfigMap/argocd-cm`                         | `sso.autoLogin`                                             | Beta   |
 
 [2]: applicationset/Progressive-Syncs.md
 [3]: ../developer-guide/extensions/proxy-extensions.md
@@ -79,3 +81,4 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 [10]: app-sync-using-impersonation.md
 [11]: ../user-guide/source-hydrator.md
 [12]: ../user-guide/application-set-ui.md
+[13]: user-management/index.md#automatic-sso-login
