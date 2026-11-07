@@ -55,6 +55,14 @@ type forwardCacheClient struct {
 
 func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error) error {
 	c.init.Do(func() {
+		// Check for external Redis server address to bypass in-cluster pod discovery and port-forwarding.
+		externalRedis := os.Getenv("ARGOCD_REDIS_SERVER")
+		if externalRedis != "" {
+			redisClient := redis.NewClient(&redis.Options{Addr: externalRedis, Password: c.redisPassword})
+			c.client = cache.NewRedisCache(redisClient, time.Hour, c.compression)
+			return
+		}
+
 		overrides := clientcmd.ConfigOverrides{
 			CurrentContext: c.context,
 		}
