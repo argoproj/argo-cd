@@ -11,3 +11,39 @@ tests:
       status: Healthy
       message: 'Secret was synced'
     inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for ExternalSecret to sync generation 2
+    inputPath: testdata/progressing_spec_not_synced.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for ExternalSecret to sync generation 2
+    inputPath: testdata/progressing_on_change_spec_not_synced.yaml
+  - healthStatus:
+      status: Healthy
+      message: secret synced
+    inputPath: testdata/healthy_on_change_spec_synced.yaml
+  - healthStatus:
+      status: Degraded
+      message: could not get secret data from provider
+    inputPath: testdata/degraded_spec_not_synced.yaml
+  - healthStatus:
+      status: Healthy
+      message: secret synced
+    inputPath: testdata/healthy_created_once_spec_changed.yaml
+  - healthStatus:
+      status: Healthy
+      message: secret synced
+    inputPath: testdata/healthy_refresh_disabled_spec_changed.yaml
+  - healthStatus:
+      status: Healthy
+      message: secret synced
+    inputPath: testdata/healthy_negative_refresh_interval_spec_changed.yaml
+  - healthStatus:
+      status: Healthy
+      message: Secret was synced
+    inputPath: testdata/healthy_immutable_spec_changed_v0.10.yaml
+  - healthStatus:
+      status: Healthy
+      message: secret deleted due to DeletionPolicy
+    inputPath: testdata/healthy_secret_deleted_spec_changed_v0.10.yaml
