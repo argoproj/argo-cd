@@ -9,6 +9,7 @@ import (
 	"os"
 	"path"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -1173,6 +1174,31 @@ func TestAppProject_GetRoleByName(t *testing.T) {
 		assert.Equal(t, 0, i)
 		assert.Equal(t, &ProjectRole{Name: "test-role"}, role)
 	})
+}
+
+func TestAppProject_ProjectPoliciesString_GroupNames(t *testing.T) {
+	tcs := []struct {
+		name     string
+		group    string
+		expected string
+	}{
+		{"Plain group name", "my-org:my-team", "g, my-org:my-team, proj:my-proj:my-role"},
+		{"Quoted with comma", `"AWS: A,B"`, `g, "AWS: A,B", proj:my-proj:my-role`},
+		{"Quoted with escaped double quotes", `"team ""A"""`, `g, "team ""A""", proj:my-proj:my-role`},
+		{"Unquoted with comma", "AWS: A,B", `g, "AWS: A,B", proj:my-proj:my-role`},
+		{"Unquoted with double quote", `AWS: "A"`, `g, "AWS: ""A""", proj:my-proj:my-role`},
+		{"Several quoted fields", `"QA","admins"`, `g, """QA"",""admins""", proj:my-proj:my-role`},
+	}
+	for _, tt := range tcs {
+		t.Run(tt.name, func(t *testing.T) {
+			p := AppProject{
+				Name: "my-proj",
+				Spec: AppProjectSpec{Roles: []ProjectRole{{Name: "my-role", Groups: []string{tt.group}}}},
+			}
+			policies := strings.Split(p.ProjectPoliciesString(), "\n")
+			assert.Equal(t, tt.expected, policies[len(policies)-1])
+		})
+	}
 }
 
 func TestAppProject_AddGroupToRole(t *testing.T) {
