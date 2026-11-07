@@ -40,6 +40,11 @@ test('URLs format', () => {
     });
 });
 
+test('allows URLs containing pipe characters', () => {
+    const url = 'https://preview.example.com/123(/|$)(.*)';
+    expect(new ExternalLink(url)).toEqual({ref: url, title: url});
+});
+
 test('malicious URLs from list to be removed', () => {
     const urls: string[] = ['javascript:alert("hi")', 'https://localhost:8080/applications'];
     const links = ExternalLinks(urls);
