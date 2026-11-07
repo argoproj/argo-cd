@@ -3,6 +3,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {fireEvent, render, screen, waitForElementToBeRemoved} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
+import {settingsQueries} from '../../../shared/queries';
 import {newQueryClient} from '../../../shared/query-client';
 import {services} from '../../../shared/services';
 import {ApplicationSyncOptions} from './application-sync-options';
@@ -37,6 +38,18 @@ describe('ApplicationSyncOptions', () => {
         await waitForElementToBeRemoved(() => screen.queryByText('Loading...'));
         expect(screen.queryByLabelText('Replace')).not.toBeInTheDocument();
         expect(screen.getByLabelText('Prune Last')).toBeInTheDocument();
+    });
+
+    it('does not offer Replace from cached settings the server no longer allows', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue({syncWithReplaceAllowed: false} as any);
+        const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+        client.setQueryData(settingsQueries.get().queryKey, {syncWithReplaceAllowed: true} as any);
+        renderOptions({}, client);
+
+        expect(screen.queryByLabelText('Replace')).not.toBeInTheDocument();
+        await waitForElementToBeRemoved(() => screen.queryByText('Loading...'));
+        expect(screen.queryByLabelText('Replace')).not.toBeInTheDocument();
+        expect(services.authService.settings).toHaveBeenCalledTimes(1);
     });
 
     it('shares settings between sync option panels', async () => {

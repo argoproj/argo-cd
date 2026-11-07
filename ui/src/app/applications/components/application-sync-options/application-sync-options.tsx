@@ -134,8 +134,9 @@ const optionStyle = {marginTop: '0.5em'};
 // Replace is only offered when the server allows it (--sync-with-replace-allowed).
 const ReplaceOption = (props: ApplicationSyncOptionProps) => {
     const settings = useQuery(settingsQueries.get());
-    if (!settings.data) {
-        return settings.isFetching || !settings.isError ? loading : loadFailed(settings.refetch);
+    // Decide on freshly loaded settings, as before: a cached value could still offer Replace after the server stopped allowing it.
+    if (settings.isFetching || settings.isError || !settings.data) {
+        return settings.isError && !settings.isFetching ? loadFailed(settings.refetch) : loading;
     }
     if (!settings.data.syncWithReplaceAllowed) {
         return null;
