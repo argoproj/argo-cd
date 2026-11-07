@@ -1,0 +1,22 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogGenericResource
+metadata:
+  name: foo-monitor
+  namespace: foo-namespace
+spec:
+  type: monitor
+  jsonSpec: |-
+    {
+      "name": "foo monitor",
+      "type": "metric alert",
+      "query": "avg(last_5m):avg:foo.bar{*} >",
+      "message": "foo"
+    }
+status:
+  conditions:
+    - lastTransitionTime: "2026-10-21T10:00:00Z"
+      message: "error creating object: 400 Bad Request: {\"errors\":[\"The value provided for parameter 'query' is invalid\"]}"
+      reason: CreatingCustomResource
+      status: "True"
+      type: Error
+  syncStatus: error creating object
