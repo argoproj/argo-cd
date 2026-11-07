@@ -66,6 +66,8 @@ management tools (Helm, Kustomize, etc.).
   It's very easy to write an insecure shell script. People copy/paste code from documentation to start their own work.
   Maybe by using a different language in examples, we can encourage more secure CMP development.
 
+* Should we introduce a new RBAC action specific to applications which only allows to set parameters and not update the whole application spec?
+
 ## Summary
 
 [Config Management Plugins](https://argo-cd.readthedocs.io/en/stable/user-guide/config-management-plugins/) 
