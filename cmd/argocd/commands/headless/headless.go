@@ -295,7 +295,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 		return nil, fmt.Errorf("failed to listen: %w", err)
 	}
 	go srv.Run(ctx, lns)
-	clientOpts.ServerAddr = fmt.Sprintf("%s:%d", *address, *port)
+	clientOpts.ServerAddr = lns.Main.Addr().String()
 	clientOpts.PlainText = true
 	if !cache2.WaitForCacheSync(ctx.Done(), srv.Initialized) {
 		log.Fatal("Timed out waiting for project cache to sync")
