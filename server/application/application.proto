@@ -325,6 +325,7 @@ message ApplicationServerSideDiffQuery {
 	required string appName = 1;
 	optional string appNamespace = 2;
 	optional string project = 3;
+	// Deprecated: this field is ignored. Live resources will be calulcated server-side instead.
 	repeated github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.ResourceDiff liveResources = 4;
 	repeated string targetManifests = 5;
 }
