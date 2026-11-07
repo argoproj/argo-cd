@@ -1,0 +1,27 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: NodePool
+metadata:
+  name: example
+  namespace: clusters
+  generation: 2
+spec:
+  clusterName: example
+  replicas: 3
+  release:
+    image: quay.io/openshift-release-dev/ocp-release:4.17.0-x86_64
+status:
+  replicas: 3
+  version: "4.16.0"
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Updating nodes to version 4.17.0"
+    observedGeneration: 2
+    reason: AsExpected
+    status: "True"
+    type: UpdatingVersion
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: ""
+    observedGeneration: 2
+    reason: AsExpected
+    status: "False"
+    type: Ready

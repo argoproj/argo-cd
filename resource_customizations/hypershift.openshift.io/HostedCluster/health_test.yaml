@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: The hosted cluster is available
+  inputPath: testdata/healthy_available.yaml
+- healthStatus:
+    status: Progressing
+    message: "The hosted cluster is deploying the initial version"
+  inputPath: testdata/progressing_initial_deploy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for HostedCluster status"
+  inputPath: testdata/progressing_no_status.yaml
+- healthStatus:
+    status: Progressing
+    message: "Upgrading the hosted cluster to 4.17.0"
+  inputPath: testdata/progressing_upgrading.yaml
+- healthStatus:
+    status: Degraded
+    message: "HostedCluster is invalid: unsupported platform configuration"
+  inputPath: testdata/degraded_invalid_config.yaml
