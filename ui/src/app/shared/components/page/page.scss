@@ -83,14 +83,29 @@
         overflow: hidden;
         text-overflow: ellipsis;
 
-        // On application details the last crumb is the app switcher. Keep its icon and dropdown
-        // visible and truncate only the application name.
+        // On application details the last crumb is the app switcher plus copy icon. Keep its icon,
+        // dropdown caret, and copy button visible and truncate only the application name.
+        .application-details__breadcrumb-app {
+            display: flex;
+            align-items: center;
+            min-width: 0;
+            max-width: 100%;
+
+            > a {
+                flex: none;
+            }
+        }
+
         .argo-dropdown,
         .argo-dropdown__anchor {
             display: flex;
             align-items: center;
             min-width: 0;
             max-width: 100%;
+        }
+
+        .argo-dropdown {
+            flex: 0 1 auto;
         }
 
         .argo-dropdown__anchor > span {

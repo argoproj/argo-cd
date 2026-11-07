@@ -812,7 +812,11 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     'spec.destination.name': !input.spec.destination.name && input.spec.destination.hasOwnProperty('name') && 'Cluster name is required'
                 })}
                 values={app}
-                title={app.metadata.name.toLocaleUpperCase()}
+                title={
+                    <ClipboardText text={app.metadata.name} label='Copy application name'>
+                        {app.metadata.name.toLocaleUpperCase()}
+                    </ClipboardText>
+                }
                 items={attributes}
                 onModeSwitch={() => notificationSubscriptions.onResetNotificationSubscriptions()}
             />

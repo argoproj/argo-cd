@@ -2,7 +2,7 @@ import {DataLoader, DropDown, MockupList, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
 import {BehaviorSubject} from 'rxjs';
-import {EventsList} from '../../../shared/components';
+import {ClipboardText, EventsList} from '../../../shared/components';
 import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import * as models from '../../../shared/models';
 import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
@@ -403,7 +403,9 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                     {ResourceLabel({kind: selectedNode.kind})}
                                 </div>
                                 <div className='resource-details__header-name'>
-                                    <h1 className='resource-details__header-title'>{selectedNode.name}</h1>
+                                    <h1 className='resource-details__header-title'>
+                                        <ClipboardText text={selectedNode.name} label={isAppSelected || props.generatedAppNode ? 'Copy application name' : 'Copy resource name'} />
+                                    </h1>
                                     <span className='resource-details__header-status'>
                                         {props.generatedAppNode ? (
                                             (() => {
