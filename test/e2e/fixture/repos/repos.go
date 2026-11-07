@@ -161,6 +161,37 @@ func AddHelmOCIRepo(t *testing.T, name string) {
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 }
 
+func AddHelmAuthenticatedOCIRepo(t *testing.T, name string) {
+	t.Helper()
+	args := []string{
+		"repo",
+		"add",
+		fixture.HelmAuthenticatedOCIRegistryURL,
+		"--type", "helm",
+		"--name", name,
+		"--enable-oci",
+		"--insecure-oci-force-http",
+		"--username", fixture.GitUsername,
+		"--password", fixture.GitPassword,
+	}
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+}
+
+func AddHelmTLSAuthenticatedOCIRepo(t *testing.T, name string) {
+	t.Helper()
+	args := []string{
+		"repo",
+		"add",
+		fixture.HelmTLSAuthenticatedOCIRegistryURL,
+		"--type", "helm",
+		"--name", name,
+		"--enable-oci",
+		"--username", fixture.GitUsername,
+		"--password", fixture.GitPassword,
+	}
+	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
+}
+
 // AddHTTPSRepoCredentialsUserPass adds E2E username/password credentials for HTTPS repos to context
 func AddHTTPSCredentialsUserPass(t *testing.T) {
 	t.Helper()
@@ -294,6 +325,43 @@ func PushChartToAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName,
 		"logout",
 		"localhost:5001",
 	))
+}
+
+// PushChartToTLSAuthenticatedOCIRegistry adds a helm chart to the TLS-enabled helm OCI registry.
+func PushChartToTLSAuthenticatedOCIRegistry(t *testing.T, chartPathName, chartName, chartVersion string) {
+	t.Helper()
+	tempDest, err := os.MkdirTemp("", "helm")
+	require.NoError(t, err)
+	defer func() { _ = os.RemoveAll(tempDest) }()
+
+	chartAbsPath, err := filepath.Abs("./" + chartPathName)
+	require.NoError(t, err)
+
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "dependency", "build", "--plain-http", chartAbsPath))
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "package", chartAbsPath, "--destination", tempDest))
+	_ = os.RemoveAll(fmt.Sprintf("%s/%s", chartAbsPath, "charts"))
+
+	errors.NewHandler(t).FailOnErr(fixture.Run(
+		"",
+		"helm",
+		"registry",
+		"login",
+		"--ca-file", "../fixture/certs/argocd-test-ca.crt",
+		"--username", fixture.GitUsername,
+		"--password", fixture.GitPassword,
+		fixture.HelmTLSAuthenticatedOCIHostURL,
+	))
+
+	errors.NewHandler(t).FailOnErr(fixture.Run(
+		"",
+		"helm",
+		"push",
+		"--ca-file", "../fixture/certs/argocd-test-ca.crt",
+		fmt.Sprintf("%s/%s-%s.tgz", tempDest, chartName, chartVersion),
+		"oci://"+fixture.HelmTLSAuthenticatedOCIRegistryURL,
+	))
+
+	errors.NewHandler(t).FailOnErr(fixture.Run("", "helm", "registry", "logout", fixture.HelmTLSAuthenticatedOCIHostURL))
 }
 
 // PushImageToOCIRegistry adds a helm chart to helm OCI registry
