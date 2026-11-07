@@ -25,7 +25,11 @@ const (
 // It sets a default login method of WorkloadIdentityLogin when none is provided,
 // applies the AAD server application ID and environment overrides, and configures
 // POP token support for ServicePrincipalLogin.
-func buildAzureTokenOptions() (*token.Options, error) {
+//
+// When verbose is false, an invalid AAD_IS_POP_TOKEN_ENABLED value is treated as
+// disabled (pre-verbose behavior). When verbose is true, invalid values error so
+// misconfiguration is visible during troubleshooting.
+func buildAzureTokenOptions(verbose bool) (*token.Options, error) {
 	o := token.OptionsWithEnv()
 	if o.LoginMethod == "" {
 		o.LoginMethod = token.WorkloadIdentityLogin
@@ -39,7 +43,13 @@ func buildAzureTokenOptions() (*token.Options, error) {
 	}
 	if o.LoginMethod == token.ServicePrincipalLogin {
 		if v, ok := os.LookupEnv(envIsPoPTokenEnabled); ok {
-			if enabled, err := strconv.ParseBool(v); err == nil && enabled {
+			enabled, err := strconv.ParseBool(v)
+			if err != nil {
+				if verbose {
+					return nil, fmt.Errorf("invalid %s value %q: %w", envIsPoPTokenEnabled, v, err)
+				}
+				// Preserve historical behavior: invalid/empty ⇒ PoP disabled.
+			} else if enabled {
 				popClaims, ok := os.LookupEnv(envPoPTokenClaims)
 				if !ok || popClaims == "" {
 					return nil, fmt.Errorf("env %s is enabled but %s is not set", envIsPoPTokenEnabled, envPoPTokenClaims)
@@ -56,13 +66,19 @@ func newAzureCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use: "azure",
 		Run: func(c *cobra.Command, _ []string) {
-			o, err := buildAzureTokenOptions()
+			ctx, err := contextWithVerboseFromCmd(c)
 			errors.CheckError(err)
+			o, err := buildAzureTokenOptions(verboseFromContext(ctx))
+			errors.CheckError(err)
+			verboseLog(ctx, "argocd-k8s-auth azure: login-method=%q server-id=%q environment=%q", o.LoginMethod, o.ServerID, o.Environment)
+			verboseLog(ctx, "argocd-k8s-auth azure: creating token provider")
 			tp, err := token.GetTokenProvider(o)
 			errors.CheckError(err)
-			tok, err := tp.GetAccessToken(c.Context())
+			verboseLog(ctx, "argocd-k8s-auth azure: requesting access token")
+			tok, err := tp.GetAccessToken(ctx)
 			errors.CheckError(err)
-			_, _ = fmt.Fprint(os.Stdout, formatJSON(tok.Token, tok.ExpiresOn))
+			verboseLog(ctx, "argocd-k8s-auth azure: obtained access token expiring at %s", tok.ExpiresOn)
+			_, _ = fmt.Fprint(c.OutOrStdout(), formatJSON(tok.Token, tok.ExpiresOn))
 		},
 	}
 	return command
