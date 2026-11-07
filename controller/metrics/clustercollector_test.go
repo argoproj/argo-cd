@@ -1,8 +1,10 @@
 package metrics
 
 import (
+	"context"
 	"errors"
 	"testing"
+	"time"
 
 	gitopsCache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	"github.com/stretchr/testify/mock"
@@ -122,5 +124,25 @@ argocd_cluster_labels{label_env="production",label_team="team3",name="cluster3",
 				runTest(t, cfg)
 			}
 		})
+	}
+}
+
+func TestClusterCollectorRun_StopsOnContextCancel(t *testing.T) {
+	collector := &clusterCollector{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+
+	go func() {
+		collector.run(ctx)
+		close(done)
+	}()
+
+	cancel()
+
+	select {
+	case <-done:
+	case <-time.After(2 * time.Second):
+		t.Fatal("cluster collector run loop did not stop after context cancellation")
 	}
 }

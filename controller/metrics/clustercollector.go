@@ -100,12 +100,13 @@ func NewClusterCollector(ctx context.Context, source HasClustersInfo, clusterLis
 }
 
 func (c *clusterCollector) run(ctx context.Context) {
-	//nolint:staticcheck // FIXME: complains about SA1015
-	tick := time.Tick(metricsCollectionInterval)
+	tick := time.NewTicker(metricsCollectionInterval)
+	defer tick.Stop()
 	for {
 		select {
 		case <-ctx.Done():
-		case <-tick:
+			return
+		case <-tick.C:
 			c.setClusterData()
 		}
 	}
