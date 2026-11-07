@@ -1,0 +1,50 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: example-backendtlspolicy
+  namespace: default
+  generation: 1
+spec:
+  targetRefs:
+  - group: ''
+    kind: Service
+    name: example-backend
+  validation:
+    hostname: example.com
+    wellKnownCACertificates: System
+status:
+  ancestors:
+  # A different controller accepted the target with the namespace left omitted.
+  # An omitted namespace defaults to the policy object's own namespace, so this
+  # ref identifies the same target as the rejection below that sets namespace
+  # explicitly to default.
+  - ancestorRef:
+      group: ''
+      kind: Service
+      name: example-backend
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: BackendTLSPolicy is accepted
+      observedGeneration: 1
+      reason: Accepted
+      status: 'True'
+      type: Accepted
+    controllerName: istio.io/mesh-controller
+  # A second implementation reports TargetNotFound for the same target with the
+  # namespace set explicitly to the policy's own namespace. After normalizing the
+  # omitted namespace above to the policy namespace, both refs match, so the
+  # acceptance from the other controller suppresses this rejection and the policy
+  # stays healthy.
+  - ancestorRef:
+      group: ''
+      kind: Service
+      name: example-backend
+      namespace: default
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: 'Service "example-backend" not found'
+      observedGeneration: 1
+      reason: TargetNotFound
+      status: 'False'
+      type: Accepted
+    controllerName: example.com/gatewayclass-controller

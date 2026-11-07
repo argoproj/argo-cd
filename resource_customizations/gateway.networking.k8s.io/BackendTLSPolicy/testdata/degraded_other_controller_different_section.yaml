@@ -1,0 +1,51 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: example-backendtlspolicy
+  namespace: default
+  generation: 1
+spec:
+  targetRefs:
+  - group: ''
+    kind: Service
+    name: example-backend
+  validation:
+    hostname: example.com
+    wellKnownCACertificates: System
+status:
+  ancestors:
+  # A different controller accepted the same group/kind/name/namespace but for a
+  # DIFFERENT sectionName. Because sectionName is part of the ancestorRef
+  # identity, this acceptance applies to another section of the target and says
+  # nothing about the section rejected below, so it must not suppress the
+  # TargetNotFound rejection.
+  - ancestorRef:
+      group: ''
+      kind: Service
+      name: example-backend
+      sectionName: https
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: BackendTLSPolicy is accepted
+      observedGeneration: 1
+      reason: Accepted
+      status: 'True'
+      type: Accepted
+    controllerName: istio.io/mesh-controller
+  # The responsible controller genuinely could not resolve the policy for a
+  # different section of the same target. No controller accepted this same
+  # ancestorRef (the acceptance above is for a different sectionName), so the
+  # rejection is a real failure and must degrade the resource.
+  - ancestorRef:
+      group: ''
+      kind: Service
+      name: example-backend
+      sectionName: http
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      message: 'Service "example-backend" section "http" not found'
+      observedGeneration: 1
+      reason: TargetNotFound
+      status: 'False'
+      type: Accepted
+    controllerName: example.com/gatewayclass-controller
