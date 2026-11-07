@@ -528,9 +528,9 @@ func (mgr *SessionManager) VerifyUsernamePassword(username string, password stri
 
 // AuthMiddlewareFunc returns a function that can be used as an
 // authentication middleware for HTTP requests.
-func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp) func(http.Handler) http.Handler {
+func (mgr *SessionManager) AuthMiddlewareFunc(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp, scopes func() []string) func(http.Handler) http.Handler {
 	return func(h http.Handler) http.Handler {
-		return WithAuthMiddleware(disabled, isSSOConfigured, ssoClientApp, mgr, h)
+		return WithAuthMiddleware(disabled, isSSOConfigured, ssoClientApp, mgr, scopes, h)
 	}
 }
 
@@ -543,7 +543,8 @@ type TokenVerifier interface {
 // WithAuthMiddleware is an HTTP middleware used to ensure incoming
 // requests are authenticated before invoking the target handler. If
 // disabled is true, it will just invoke the next handler in the chain.
-func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp, authn TokenVerifier, next http.Handler) http.Handler {
+// scopes returns the RBAC scopes (claims holding groups) and is evaluated per request since they can change at runtime.
+func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcutil.ClientApp, authn TokenVerifier, scopes func() []string, next http.Handler) http.Handler {
 	if disabled {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			next.ServeHTTP(w, r)
@@ -566,7 +567,7 @@ func WithAuthMiddleware(disabled bool, isSSOConfigured bool, ssoClientApp *oidcu
 
 		finalClaims := claims
 		if isSSOConfigured {
-			finalClaims, err = ssoClientApp.SetGroupsClaimFromEndpoint(ctx, claims, SessionManagerClaimsIssuer)
+			finalClaims, err = ssoClientApp.SetGroupsClaimFromEndpoint(ctx, claims, SessionManagerClaimsIssuer, scopes())
 			if err != nil {
 				http.Error(w, "Invalid session", http.StatusUnauthorized)
 				return
