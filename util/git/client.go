@@ -742,6 +742,7 @@ func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int6
 
 	// An OOMKilled fetch never reaches the error path below, so sweep on the way in too.
 	m.cleanupOrphanedTempPackfiles()
+	m.reclaimStaleGitLocks()
 
 	err := m.fetch(ctx, revision, depth)
 	if err != nil {
@@ -830,8 +831,37 @@ func (m *nativeGitClient) submodule(ctx context.Context) error {
 	return m.runCredentialedCmd(ctx, "submodule", "update", "--init", "--recursive")
 }
 
+// reclaimStaleGitLocks removes git lock files left behind when a previous
+// process was killed. A lock younger than the cleanup grace period, and every
+// lock when the exec or fatal timeout is disabled, is left in place.
+func (m *nativeGitClient) reclaimStaleGitLocks() {
+	// A disabled exec timeout means a git process may legitimately hold a lock
+	// for an arbitrarily long time. A disabled fatal timeout means a git process
+	// that survives SIGTERM is never killed. Either way, age is no longer
+	// evidence that the lock was abandoned.
+	if env.ParseDurationFromEnv("ARGOCD_EXEC_TIMEOUT", 90*time.Second, 0, math.MaxInt64) == 0 ||
+		env.ParseDurationFromEnv("ARGOCD_EXEC_FATAL_TIMEOUT", 10*time.Second, 0, math.MaxInt64) == 0 {
+		return
+	}
+	grace := gitCleanupGracePeriod()
+	for _, name := range []string{"index.lock", "HEAD.lock", "shallow.lock"} {
+		path := filepath.Join(m.root, ".git", name)
+		info, err := os.Stat(path)
+		if err != nil {
+			continue
+		}
+		if time.Since(info.ModTime()) < grace {
+			continue
+		}
+		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
+			log.Warnf("git cleanup: failed to remove stale lock %s: %v", path, err)
+		}
+	}
+}
+
 // Checkout checks out the specified revision
 func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error) {
+	m.reclaimStaleGitLocks()
 	if revision == "" || revision == headRevision {
 		revision = "origin/HEAD"
 	}
