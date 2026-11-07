@@ -177,6 +177,9 @@ export interface TopBarActionMenuExtFlyoutProps {
 export class ExtensionsService {
     public addEventListener(evtType: ExtensionsEventType, cb: (ext: ExtensionsType) => void) {
         extensions.eventTarget.addEventListener(evtType, cb);
+        if (evtType === 'systemLevel') {
+            extensions.systemLevelExtensions.forEach(extension => cb(extension));
+        }
     }
 
     public removeEventListener(evtType: ExtensionsEventType, cb: (ext: ExtensionsType) => void) {
