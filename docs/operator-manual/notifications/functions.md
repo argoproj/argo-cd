@@ -112,9 +112,14 @@ Functions that provide additional information about Application source repositor
 Transforms given GIT URL into HTTPs format.
 
 <hr>
-**`repo.FullNameByRepoURL(url string) string`**
+**`repo.FullNameByRepoURL(url string, [segments int]) string`**
 
-Returns repository URL full name `(<owner>/<repoName>)`. Currently supports only Github, GitLab and Bitbucket.
+Returns the first path segments of the repository URL, without the `.git` suffix. By default it returns two segments (`<owner>/<repoName>`), which matches GitHub and Bitbucket Cloud. The optional `segments` argument sets how many segments to return; `0` or a negative value returns every segment, which is what GitLab projects in nested groups (`<group>/<subgroup>/.../<repoName>`) need.
+
+Example:
+```
+{{ call .repo.FullNameByRepoURL .app.spec.source.repoURL 0 }}
+```
 
 <hr>
 **`repo.QueryEscape(s string) string`**
@@ -123,7 +128,7 @@ QueryEscape escapes the string, so it can be safely placed inside a URL
 
 Example:
 ```
-/projects/{{ call .repo.QueryEscape (call .repo.FullNameByRepoURL .app.status.RepoURL) }}/merge_requests
+/projects/{{ call .repo.QueryEscape (call .repo.FullNameByRepoURL .app.status.RepoURL 0) }}/merge_requests
 ```
 
 <hr>
