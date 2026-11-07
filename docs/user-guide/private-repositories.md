@@ -126,7 +126,7 @@ argocd repo add https://github.com/argoproj/argocd-example-apps.git --github-app
 > To add a private Git repository on GitHub Enterprise using the CLI add `--github-app-enterprise-base-url https://ghe.example.com/api/v3` flag.
 
 > [!NOTE]
-> The `--github-app-installation-id` flag is optional. If omitted, Argo CD will automatically discover the installation ID based on the repository's organization.
+> The `--github-app-installation-id` flag is optional. If omitted, Argo CD will automatically discover the installation ID based on the repository's owner, which can be an organization or a user account.
 
 Using the UI:
 
