@@ -1,8 +1,9 @@
+import {useQuery} from '@tanstack/react-query';
 import {Tooltip} from 'argo-ui';
 import {Boundary, Placement} from 'popper.js';
-import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {Context} from '../shared/context';
+import {versionQueries} from '../shared/queries';
 import {services, ViewPreferences} from '../shared/services';
 
 require('./sidebar.scss');
@@ -31,7 +32,7 @@ export const useSidebarTarget = () => {
 
 export const Sidebar = (props: SidebarProps) => {
     const context = React.useContext(Context);
-    const [version, loading, error] = useData(() => services.version.version());
+    const {data: version, isPending, isFetching} = useQuery(versionQueries.get());
     const locationPath = context.history.location.pathname;
 
     const tooltipProps = {
@@ -62,7 +63,7 @@ export const Sidebar = (props: SidebarProps) => {
                                 className='sidebar__logo__text-logo'
                             />
                             <div className='sidebar__version' onClick={props.onVersionClick}>
-                                {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
+                                {version ? version.Version || 'Unknown' : isPending || isFetching ? 'Loading...' : 'Unknown'}
                             </div>
                         </div>
                     )}
