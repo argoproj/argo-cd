@@ -40,8 +40,9 @@ func TestHelmHookWeight(t *testing.T) {
 		Path("hook").
 		When().
 		// this create a weird hook, that runs during sync - but before the pod, and because it'll fail - the pod will never be created
+		// (pure Helm hook: Helm hook attributes are ignored when Argo CD hooks are defined)
 		PatchFile("hook.yaml", `[
-	{"op": "replace", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/hook": "Sync", "helm.sh/hook-weight": "-1"}},
+	{"op": "replace", "path": "/metadata/annotations", "value": {"helm.sh/hook": "pre-install", "helm.sh/hook-weight": "-1"}},
 	{"op": "replace", "path": "/spec/containers/0/command/0", "value": "false"}
 ]`).
 		CreateApp().
@@ -57,7 +58,8 @@ func TestHelmHookDeletePolicy(t *testing.T) {
 	Given(t).
 		Path("hook").
 		When().
-		PatchFile("hook.yaml", `[{"op": "add", "path": "/metadata/annotations/helm.sh~1hook-delete-policy", "value": "hook-succeeded"}]`).
+		// (pure Helm hook: Helm hook attributes are ignored when Argo CD hooks are defined)
+		PatchFile("hook.yaml", `[{"op": "replace", "path": "/metadata/annotations", "value": {"helm.sh/hook": "pre-install", "helm.sh/hook-delete-policy": "hook-succeeded"}}]`).
 		CreateApp().
 		Sync().
 		Then().
