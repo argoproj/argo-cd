@@ -379,6 +379,9 @@ func reconcileApplications(
 	)
 
 	appInformer := appInformerFactory.Argoproj().V1alpha1().Applications().Informer()
+	if err := appInformer.AddIndexers(kubecache.Indexers{cache.ManagedCRDIndex: cache.ManagedCRDIndexFunc}); err != nil {
+		return nil, fmt.Errorf("error adding indexers to application informer: %w", err)
+	}
 	projInformer := appInformerFactory.Argoproj().V1alpha1().AppProjects().Informer()
 	go appInformer.Run(ctx.Done())
 	go projInformer.Run(ctx.Done())
