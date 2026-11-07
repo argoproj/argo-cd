@@ -273,9 +273,9 @@ export const SourcePanel = (props: {
                                                 </React.Fragment>
                                             )) || (
                                                 <DataLoader
-                                                    input={{repoURL: api.getFormState().values.spec.source.repoURL}}
+                                                    input={{repoURL: api.getFormState().values.spec.source.repoURL, appProject: props.appCurrent.spec.project}}
                                                     load={async src =>
-                                                        (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
+                                                        (src.repoURL && services.repos.charts(src.repoURL, src.appProject).catch(() => new Array<models.HelmChart>())) ||
                                                         new Array<models.HelmChart>()
                                                     }>
                                                     {(charts: models.HelmChart[]) => {
