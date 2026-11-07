@@ -1,0 +1,25 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: DependentsSuccessfulCommitStatus
+metadata:
+  name: example-dag
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  key: dependents-successful
+  promotionStrategyRef:
+    name: example-promotion-strategy
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: ReconciliationSuccess
+      message: Reconciliation succeeded
+      observedGeneration: 1
+  environments:
+    - branch: environment/dev
+      upstreams: []
+    - branch: environment/prod
+      upstreams:
+        - branch: environment/staging
+          satisfied: false
+          reason: Waiting for "environment/staging" to be promoted

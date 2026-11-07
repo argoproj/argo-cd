@@ -1,0 +1,11 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: RestoreActiveCommit
+metadata:
+  name: restore-abcdef1234567890abcdef1234567890abcdef12
+  namespace: gitops-promoter
+  deletionTimestamp: "2025-07-04T12:00:00Z"
+spec:
+  promotionStrategyRef:
+    name: example-promotion-strategy
+  branch: environment/production
+  sha: abcdef1234567890abcdef1234567890abcdef12
