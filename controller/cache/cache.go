@@ -531,7 +531,6 @@ func isTransientNetworkErr(err error) bool {
 func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.ClusterCache, error) {
 	c.lock.RLock()
 	clusterCache, ok := c.clusters[cluster.Server]
-	cacheSettings := c.cacheSettings
 	c.lock.RUnlock()
 
 	if ok {
@@ -545,6 +544,10 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	if ok {
 		return clusterCache, nil
 	}
+
+	// Read the settings under the write lock so that a concurrent invalidate() cannot update them
+	// after they are read but before the new cluster cache is registered.
+	cacheSettings := c.cacheSettings
 
 	if c.clusterSharding == nil {
 		return nil, fmt.Errorf("unable to handle cluster %s: cluster sharding is not configured", cluster.Server)
