@@ -7,8 +7,13 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
@@ -349,5 +354,70 @@ func TestParamSetsAreUniqueByMergeKeys(t *testing.T) {
 				assert.Equal(t, testCaseCopy.expected, got)
 			}
 		})
+	}
+}
+
+// https://github.com/argoproj/argo-cd/issues/16417
+func TestMergeGenerateGoTemplateMixedLabelMapTypes(t *testing.T) {
+	const namespace = "namespace"
+	fakeClient := fake.NewClientBuilder().WithObjects(stagingClusterSecret(namespace)...).Build()
+	mergeGenerator := NewMergeGenerator(map[string]Generator{
+		"List":     &ListGenerator{},
+		"Clusters": NewClusterGenerator(fakeClient, namespace),
+	})
+
+	got, err := mergeGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+		Merge: &argoprojiov1alpha1.MergeGenerator{
+			Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{Clusters: &argoprojiov1alpha1.ClusterGenerator{Selector: metav1.LabelSelector{MatchLabels: map[string]string{"environment": "staging"}}}},
+				*getNestedListGenerator(`{"name":"staging-01","metadata":{"labels":{"team":"a"}}}`),
+			},
+			MergeKeys: []string{"name"},
+		},
+	}, &argoprojiov1alpha1.ApplicationSet{
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{GoTemplate: true},
+	}, fakeClient)
+
+	require.NoError(t, err)
+	require.Len(t, got, 1)
+	assert.Equal(t, map[string]any{
+		"argocd.argoproj.io/secret-type": "cluster",
+		"environment":                    "staging",
+		"team":                           "a",
+	}, got[0]["metadata"].(map[string]any)["labels"])
+}
+
+// Merged and unmerged param sets must keep the same label map type, so a missing key renders
+// the same way in both under missingkey=error.
+func TestMergeGenerateGoTemplateMissingLabelKey(t *testing.T) {
+	const namespace = "namespace"
+	secrets := stagingClusterSecret(namespace)
+	second := secrets[0].DeepCopyObject().(client.Object)
+	second.SetName("staging-02")
+	second.(*corev1.Secret).Data["name"] = []byte("staging-02")
+	fakeClient := fake.NewClientBuilder().WithObjects(append(secrets, second)...).Build()
+	mergeGenerator := NewMergeGenerator(map[string]Generator{
+		"List":     &ListGenerator{},
+		"Clusters": NewClusterGenerator(fakeClient, namespace),
+	})
+
+	got, err := mergeGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+		Merge: &argoprojiov1alpha1.MergeGenerator{
+			Generators: []argoprojiov1alpha1.ApplicationSetNestedGenerator{
+				{Clusters: &argoprojiov1alpha1.ClusterGenerator{Selector: metav1.LabelSelector{MatchLabels: map[string]string{"environment": "staging"}}}},
+				*getNestedListGenerator(`{"name":"staging-01","extra":"x"}`),
+			},
+			MergeKeys: []string{"name"},
+		},
+	}, &argoprojiov1alpha1.ApplicationSet{
+		Spec: argoprojiov1alpha1.ApplicationSetSpec{GoTemplate: true},
+	}, fakeClient)
+
+	require.NoError(t, err)
+	require.Len(t, got, 2)
+	for _, params := range got {
+		rendered, err := (&utils.Render{}).Replace(`{{ index .metadata.labels "optional" | lower }}`, params, true, []string{"missingkey=error"})
+		require.NoError(t, err, "param set %v", params["name"])
+		assert.Empty(t, rendered)
 	}
 }
