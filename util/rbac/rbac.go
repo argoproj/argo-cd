@@ -5,6 +5,7 @@ import (
 	"encoding/csv"
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 	"sync"
@@ -184,16 +185,21 @@ func (e *Enforcer) tryGetCasbinEnforcer(project string, policy string) (CasbinEn
 		matchFunc = util.RegexMatchFunc
 	}
 
+	adapter := newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, "")
+	adapter.builtinPolicyAsRegex = e.matchMode == RegexMatchMode
+
 	var err error
 	var enforcer CasbinEnforcer
 	if policy != "" {
-		if enforcer, err = newEnforcerSafe(matchFunc, e.model, newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy)); err != nil {
+		projectAdapter := newAdapter(adapter.builtinPolicy, adapter.userDefinedPolicy, policy)
+		projectAdapter.builtinPolicyAsRegex = adapter.builtinPolicyAsRegex
+		if enforcer, err = newEnforcerSafe(matchFunc, e.model, projectAdapter); err != nil {
 			// fallback to default policy if project policy is invalid
 			log.Errorf("Failed to load project '%s' policy", project)
-			enforcer, err = newEnforcerSafe(matchFunc, e.model, e.adapter)
+			enforcer, err = newEnforcerSafe(matchFunc, e.model, adapter)
 		}
 	} else {
-		enforcer, err = newEnforcerSafe(matchFunc, e.model, e.adapter)
+		enforcer, err = newEnforcerSafe(matchFunc, e.model, adapter)
 	}
 	if err != nil {
 		return nil, fmt.Errorf("error creating casbin enforcer: %w", err)
@@ -300,6 +306,11 @@ func globMatchFunc(args ...any) (any, error) {
 	}
 
 	return glob.Match(pattern, val), nil
+}
+
+// globToRegex converts a glob pattern using the '*' wildcard to an equivalent anchored regular expression
+func globToRegex(pattern string) string {
+	return "^" + strings.ReplaceAll(regexp.QuoteMeta(pattern), `\*`, ".*") + "$"
 }
 
 // SetMatchMode set match mode on runtime, glob match or regex match
@@ -590,6 +601,9 @@ type argocdAdapter struct {
 	builtinPolicy     string
 	userDefinedPolicy string
 	runtimePolicy     string
+	// builtinPolicyAsRegex translates the glob patterns of the built-in policy to regular
+	// expressions, so the built-in roles keep working when policy.matchMode is regex.
+	builtinPolicyAsRegex bool
 }
 
 func newAdapter(builtinPolicy, userDefinedPolicy, runtimePolicy string) *argocdAdapter {
@@ -601,11 +615,30 @@ func newAdapter(builtinPolicy, userDefinedPolicy, runtimePolicy string) *argocdA
 }
 
 func (a *argocdAdapter) LoadPolicy(model model.Model) error {
-	for _, policyStr := range []string{a.builtinPolicy, a.userDefinedPolicy, a.runtimePolicy} {
-		for line := range strings.SplitSeq(policyStr, "\n") {
-			if err := loadPolicyLine(strings.TrimSpace(line), model); err != nil {
-				return fmt.Errorf("error loading policy line: %w", err)
+	firstBuiltinRule := len(model["p"]["p"].Policy)
+	if err := loadPolicy(a.builtinPolicy, model); err != nil {
+		return err
+	}
+	if a.builtinPolicyAsRegex {
+		// rule is [sub, res, act, obj, eft]; only res, act and obj are matched by globOrRegexMatch
+		for _, rule := range model["p"]["p"].Policy[firstBuiltinRule:] {
+			for i := 1; i <= 3; i++ {
+				rule[i] = globToRegex(rule[i])
 			}
+		}
+	}
+	for _, policyStr := range []string{a.userDefinedPolicy, a.runtimePolicy} {
+		if err := loadPolicy(policyStr, model); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func loadPolicy(policy string, model model.Model) error {
+	for line := range strings.SplitSeq(policy, "\n") {
+		if err := loadPolicyLine(strings.TrimSpace(line), model); err != nil {
+			return fmt.Errorf("error loading policy line: %w", err)
 		}
 	}
 	return nil
