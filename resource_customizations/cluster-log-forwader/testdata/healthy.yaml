@@ -1,0 +1,13 @@
+apiVersion: logging.openshift.io/v1
+kind: ClusterLogForwarder
+metadata:
+  name: instance
+spec: {}
+status:
+  conditions:
+    - lastTransitionTime: '2023-05-30T15:57:25Z'
+      message: 'ClusterLogForwarder is functioning normally.'
+      reason: Ready
+      status: 'True'
+      type: Ready
+
