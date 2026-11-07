@@ -935,18 +935,20 @@ func (m *Manager) getProgressingCondition(applicationSet *argov1alpha1.Applicati
 
 	if isProgressing {
 		return &argov1alpha1.ApplicationSetCondition{
-			Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
-			Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-			Message: "ApplicationSet is performing rollout of step " + progressingStep,
-			Reason:  argov1alpha1.ApplicationSetReasonApplicationSetModified,
+			Type:               argov1alpha1.ApplicationSetConditionRolloutProgressing,
+			Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
+			Message:            "ApplicationSet is performing rollout of step " + progressingStep,
+			Reason:             argov1alpha1.ApplicationSetReasonApplicationSetModified,
+			ObservedGeneration: applicationSet.Generation,
 		}
 	}
 
 	return &argov1alpha1.ApplicationSetCondition{
-		Type:    argov1alpha1.ApplicationSetConditionRolloutProgressing,
-		Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-		Message: "ApplicationSet Rollout has completed",
-		Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
+		Type:               argov1alpha1.ApplicationSetConditionRolloutProgressing,
+		Status:             argov1alpha1.ApplicationSetConditionStatusFalse,
+		Message:            "ApplicationSet Rollout has completed",
+		Reason:             argov1alpha1.ApplicationSetReasonApplicationSetRolloutComplete,
+		ObservedGeneration: applicationSet.Generation,
 	}
 }
 
@@ -956,18 +958,20 @@ func (m *Manager) getInvalidRolloutConfig(applicationSet *argov1alpha1.Applicati
 	}
 	if m.validationIssues.HasIssues() {
 		return &argov1alpha1.ApplicationSetCondition{
-			Type:    argov1alpha1.ApplicationSetConditionInvalidRolloutConfig,
-			Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
-			Reason:  argov1alpha1.ApplicationSetReasonInvalidRolloutConfig,
-			Message: m.validationIssues.getConditionMessage(),
+			Type:               argov1alpha1.ApplicationSetConditionInvalidRolloutConfig,
+			Status:             argov1alpha1.ApplicationSetConditionStatusTrue,
+			Reason:             argov1alpha1.ApplicationSetReasonInvalidRolloutConfig,
+			Message:            m.validationIssues.getConditionMessage(),
+			ObservedGeneration: applicationSet.Generation,
 		}
 	}
 
 	return &argov1alpha1.ApplicationSetCondition{
-		Type:    argov1alpha1.ApplicationSetConditionInvalidRolloutConfig,
-		Status:  argov1alpha1.ApplicationSetConditionStatusFalse,
-		Message: "Rolling Sync Configured correctly",
-		Reason:  argov1alpha1.ApplicationSetReasonValidRolloutConfig,
+		Type:               argov1alpha1.ApplicationSetConditionInvalidRolloutConfig,
+		Status:             argov1alpha1.ApplicationSetConditionStatusFalse,
+		Message:            "Rolling Sync Configured correctly",
+		Reason:             argov1alpha1.ApplicationSetReasonValidRolloutConfig,
+		ObservedGeneration: applicationSet.Generation,
 	}
 }
 

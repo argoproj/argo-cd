@@ -258,6 +258,9 @@ message ApplicationSetCondition {
 
   // Single word camelcase representing the reason for the status eg ErrorOccurred
   optional string reason = 5;
+
+  // Generation which controller has processed
+  optional int64 observedGeneration = 6;
 }
 
 // ApplicationSetGenerator represents a generator at the top level of an ApplicationSet.
