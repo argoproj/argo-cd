@@ -1,0 +1,31 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: NumaflowController
+metadata:
+  creationTimestamp: '2025-04-28T22:39:27Z'
+  generation: 1
+  labels:
+    numaplane.numaproj.io/parent-rollout-name: numaflow-controller
+    numaplane.numaproj.io/upgrade-state: "trial"
+  name: numaflow-controller-1
+  namespace: demo
+  ownerReferences:
+    - apiVersion: numaplane.numaproj.io/v1alpha1
+      blockOwnerDeletion: true
+      controller: true
+      kind: NumaflowControllerRollout
+      name: numaflow-controller
+      uid: 4f0e2d9a-8c51-4a3e-9b1f-2d6c7e8a9b10
+  resourceVersion: '1687384'
+  uid: 7a1c3e5f-2b4d-4c6e-8f0a-1b3d5f7a9c2e
+spec:
+  instanceID: "1"
+  version: 1.5.0
+status:
+  conditions:
+    - lastTransitionTime: '2025-04-28T22:39:57Z'
+      message: Successful
+      reason: Successful
+      status: 'True'
+      type: Deployed
+  observedGeneration: 1
+  phase: Deployed
