@@ -87,6 +87,20 @@ func (c *cacheSyncingClient) retrieveStore(ctx context.Context, obj client.Objec
 }
 
 func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() error, obj client.Object, deleteObj bool) error {
+	return c.execAndSync(ctx, op, obj, deleteObj, false)
+}
+
+// execAndSync executes op and then syncs the informer cache.
+//
+// refreshOnly must be set for operations on an object that is expected to be in the cache already
+// (Update, Patch). In that case a successful write only refreshes an existing store entry; it never
+// adds a missing one. A missing entry means the informer has processed the object's DELETED event
+// while the write was in flight. Writing the (older, still-live-looking) response back in would
+// resurrect a phantom entry: nothing evicts it afterwards, since the informer will not see another
+// event for an object that no longer exists, so every later cache-backed read reports the
+// Application as present and it is never recreated. Create is the only operation that has to add
+// an entry, because the informer has not observed the new object yet.
+func (c *cacheSyncingClient) execAndSync(ctx context.Context, op func() error, obj client.Object, deleteObj, refreshOnly bool) error {
 	// Execute the operation first; on success sync the informer cache. If it returns NotFound, also attempt to evict any stale entry from the cache.
 	var opErr error
 	// gone records that the API server confirmed the object no longer exists.
@@ -126,9 +140,19 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 	if err != nil {
 		logger.Errorf("failed to get cache store: %v", err)
 	} else {
-		if deleteObj {
+		switch {
+		case deleteObj:
 			err = store.Delete(obj)
-		} else {
+		case refreshOnly:
+			var exists bool
+			if _, exists, err = store.Get(obj); err == nil {
+				if exists {
+					err = store.Update(obj)
+				} else {
+					logger.Debug("skipping cache refresh: object is no longer in the informer store")
+				}
+			}
+		default:
 			err = store.Update(obj)
 		}
 	}
@@ -145,15 +169,15 @@ func (c *cacheSyncingClient) Create(ctx context.Context, obj client.Object, opts
 }
 
 func (c *cacheSyncingClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
-	return c.execAndSyncCache(ctx, func() error {
+	return c.execAndSync(ctx, func() error {
 		return c.Client.Update(ctx, obj, opts...)
-	}, obj, false)
+	}, obj, false, true)
 }
 
 func (c *cacheSyncingClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
-	return c.execAndSyncCache(ctx, func() error {
+	return c.execAndSync(ctx, func() error {
 		return c.Client.Patch(ctx, obj, patch, opts...)
-	}, obj, false)
+	}, obj, false, true)
 }
 
 func (c *cacheSyncingClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
