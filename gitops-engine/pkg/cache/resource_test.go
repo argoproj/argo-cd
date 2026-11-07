@@ -141,6 +141,35 @@ func TestManifestCodec_UnknownTypes(t *testing.T) {
 	require.ErrorContains(t, err, "unknown compression type")
 }
 
+// TestSetManifestWithCodec_NoExcessCapacity guards against cached manifests retaining encoder
+// scratch space: the stored slice lives as long as the resource is cached, so its spare
+// capacity must stay within allocator size-class rounding (len/8).
+func TestSetManifestWithCodec_NoExcessCapacity(t *testing.T) {
+	for _, testCase := range []struct {
+		name string
+		un   *unstructured.Unstructured
+	}{
+		{name: "typical-deployment", un: typicalDeploymentManifest()},
+		{name: "large-configmap", un: largeConfigMapManifest()},
+	} {
+		for _, storageType := range []ManifestStorageType{ManifestStorageJSON, ManifestStorageJSONIter, ManifestStorageMsgPack} {
+			for compressionType := range compressors {
+				t.Run(testCase.name+"/"+string(storageType)+"/"+string(compressionType), func(t *testing.T) {
+					r := &Resource{}
+					require.NoError(t, r.SetManifestWithCodec(testCase.un, storageType, compressionType))
+					stored := r.compressedManifest
+					assert.LessOrEqual(t, cap(stored)-len(stored), len(stored)/8,
+						"stored manifest retains excess capacity: len=%d cap=%d", len(stored), cap(stored))
+
+					got, err := r.GetManifest()
+					require.NoError(t, err)
+					assert.Equal(t, testCase.un.GetName(), got.GetName())
+				})
+			}
+		}
+	}
+}
+
 func TestCompressedManifest_CorruptData(t *testing.T) {
 	r := &Resource{
 		compressedManifest:  []byte("not a gzip stream"),
