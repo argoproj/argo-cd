@@ -18,8 +18,25 @@ function isGitlab(parsed: GitUrl): boolean {
     return parsed.resource.startsWith('gitlab.');
 }
 
+function isAzureDevOps(parsed: GitUrl): boolean {
+    return (
+        parsed.resource === 'dev.azure.com' ||
+        parsed.resource === 'ssh.dev.azure.com' ||
+        parsed.resource === 'vs-ssh.visualstudio.com' ||
+        /^[^.]+\.visualstudio\.com$/.test(parsed.resource)
+    );
+}
+
 function supportedSource(parsed: GitUrl): boolean {
-    return parsed.resource.startsWith('github') || parsed.source === 'bitbucket.org' || isBitbucketServer(parsed) || isGitlab(parsed);
+    return parsed.resource.startsWith('github') || parsed.source === 'bitbucket.org' || isBitbucketServer(parsed) || isGitlab(parsed) || isAzureDevOps(parsed);
+}
+
+function azureDevOpsRepoUrl(parsed: GitUrl): string {
+    const isLegacyHttps = parsed.resource !== 'vs-ssh.visualstudio.com' && /^[^.]+\.visualstudio\.com$/.test(parsed.resource);
+    const organization = isLegacyHttps ? parsed.resource.split('.')[0] : parsed.organization || parsed.owner;
+    const project = isLegacyHttps || Boolean(parsed.organization) ? `/${encodeURIComponent(parsed.owner)}` : '';
+
+    return `https://dev.azure.com/${encodeURIComponent(organization)}${project}/_git/${encodeURIComponent(parsed.name)}`;
 }
 
 // Bitbucket Server browse URLs differ from clone URLs:
@@ -46,6 +63,11 @@ export function repoUrl(url: string): string {
 
         if (!supportedSource(parsed)) {
             return null;
+        }
+
+        if (isAzureDevOps(parsed)) {
+            const browseUrl = azureDevOpsRepoUrl(parsed);
+            return isValidURL(browseUrl) ? browseUrl : null;
         }
 
         // Self-hosted Bitbucket Server has a different browse URL structure
@@ -78,6 +100,26 @@ export function revisionUrl(url: string, revision: string, forPath: boolean): st
 
     if (!supportedSource(parsed)) {
         return null;
+    }
+
+    if (isAzureDevOps(parsed)) {
+        const base = azureDevOpsRepoUrl(parsed);
+
+        if (isSHA(revision) && !forPath) {
+            return `${base}/commit/${revision}`;
+        }
+        if (!revision || revision === 'HEAD') {
+            return base;
+        }
+        if (isSHA(revision)) {
+            return `${base}?version=GC${revision}`;
+        }
+        if (revision.startsWith('refs/tags/')) {
+            return `${base}?version=GT${encodeURIComponent(revision.slice('refs/tags/'.length))}`;
+        }
+
+        const branch = revision.startsWith('refs/heads/') ? revision.slice('refs/heads/'.length) : revision;
+        return `${base}?version=GB${encodeURIComponent(branch)}`;
     }
 
     // Bitbucket Server uses /commits/SHA for bare commit links, and /browse[/PATH]?at=REF
