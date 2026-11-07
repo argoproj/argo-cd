@@ -31,6 +31,10 @@ export function getEffectiveResourceFilter(isApplicationSet: boolean, resourceFi
     return (resourceFilter || []).filter(f => !APPLICATION_SET_HIDDEN_FILTERS.some(prefix => f.startsWith(prefix)));
 }
 
+export function getKindResourceCount(resourceNodes: models.ResourceStatus[], kind: string): number {
+    return resourceNodes.filter(res => res.kind === kind).length;
+}
+
 export interface FiltersProps {
     children?: React.ReactNode;
     pref: AppDetailsPreferences;
@@ -136,7 +140,7 @@ export const Filters = (props: FiltersProps) => {
             case 'Health':
                 return props.resourceNodes.filter(res => res.health?.status === HealthStatuses[label]).length;
             case 'Kind':
-                return props.resourceNodes.reduce((count, res) => (res.group && label === 'Pod' ? res.group.length : res.kind === label ? count + 1 : count), 0);
+                return getKindResourceCount(props.resourceNodes, label);
             default:
                 return 0;
         }
