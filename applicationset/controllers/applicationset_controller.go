@@ -75,6 +75,10 @@ const (
 	specChangedMsg                    = "Application has pending changes (spec differs), setting status to Waiting"
 )
 
+// ReconcileRequeueOnSyncWindow is how often an ApplicationSet is requeued while a RollingSync sync is
+// held back by a sync window, so that the sync starts soon after the window allows it.
+const ReconcileRequeueOnSyncWindow = time.Minute
+
 var defaultPreservedFinalizers = []string{
 	argov1alpha1.PreDeleteFinalizerName,
 	argov1alpha1.PostDeleteFinalizerName,
@@ -332,9 +336,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		}
 	}
 
+	syncHeldBySyncWindow := false
 	if r.EnableProgressiveSyncs {
 		// trigger appropriate application syncs if RollingSync strategy is enabled
 		if progressivesync.RollingSyncStrategyEnabled(&applicationSetInfo) {
+			syncHeldBySyncWindow = r.holdSyncsBlockedBySyncWindows(ctx, logCtx, &applicationSetInfo, appSyncMap, validApps)
 			if len(appSyncMap) > 0 {
 				r.Metrics.ObserveTimeToStartSyncAfterDetection(&applicationSetInfo, time.Since(timeBeforePerformProgressiveSync))
 			}
@@ -454,6 +460,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	} else if requeueAfter == time.Duration(0) {
 		// Ensure that the request is requeued if there are validation errors.
 		requeueAfter = ReconcileRequeueOnValidationError
+	}
+
+	if syncHeldBySyncWindow && (requeueAfter == time.Duration(0) || requeueAfter > ReconcileRequeueOnSyncWindow) {
+		// Nothing else may trigger a reconcile when the window opens, so check back periodically.
+		requeueAfter = ReconcileRequeueOnSyncWindow
 	}
 
 	logCtx.WithField("requeueAfter", requeueAfter).Info("end reconcile in ", time.Since(startReconcile))
@@ -635,6 +646,61 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	}
 
 	return errorsByApp, nil
+}
+
+// holdSyncsBlockedBySyncWindows removes from appSyncMap every Application that RollingSync is about to
+// sync (selected in appSyncMap and Pending) while its project sync windows deny automated syncs, and
+// reports whether any Application was held back.
+//
+// RollingSync starts a sync by writing an automated Operation to the Application. If a sync window
+// denies that sync, the application controller parks the operation as "blocked by sync window",
+// where it occupies the Application's single operation slot: manual syncs, which the window may
+// still allow, are then rejected because another operation is already in progress. Not writing the
+// Operation leaves the Application Pending, and it is synced once the window allows it.
+func (r *ApplicationSetReconciler) holdSyncsBlockedBySyncWindows(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appSyncMap map[string]bool, apps []argov1alpha1.Application) bool {
+	held := false
+	projects := map[string]*argov1alpha1.AppProject{}
+	for i := range apps {
+		app := &apps[i]
+		if !appSyncMap[app.Name] {
+			continue
+		}
+		// Same condition as SyncDesiredApplications: only Pending Applications get a sync triggered.
+		idx := utils.FindApplicationStatusIndex(applicationSet.Status.ApplicationStatus, app.Name)
+		if idx < 0 || applicationSet.Status.ApplicationStatus[idx].Status != argov1alpha1.ProgressiveSyncPending {
+			continue
+		}
+		appLogCtx := logCtx.WithField("app", app.Name)
+
+		proj, ok := projects[app.Spec.GetProject()]
+		if !ok {
+			proj = &argov1alpha1.AppProject{}
+			if err := r.Get(ctx, types.NamespacedName{Name: app.Spec.GetProject(), Namespace: r.ArgoCDNamespace}, proj); err != nil {
+				// The project is validated before this point, so this is unexpected. Hold the sync
+				// rather than risk starting an operation the application controller may block.
+				appLogCtx.WithError(err).Warn("failed to get the application's project to evaluate sync windows, not triggering sync")
+				appSyncMap[app.Name] = false
+				held = true
+				continue
+			}
+			projects[app.Spec.GetProject()] = proj
+		}
+
+		// This is a new automated operation: it is not manual and has no start time yet.
+		canSync, err := proj.Spec.SyncWindows.Matches(app).CanSync(false, nil)
+		switch {
+		case err != nil:
+			// The application controller treats an invalid sync window as blocking.
+			appLogCtx.WithError(err).Warn("failed to evaluate sync windows, not triggering sync")
+		case !canSync:
+			appLogCtx.Info("not triggering sync, automated sync is blocked by a sync window")
+		default:
+			continue
+		}
+		appSyncMap[app.Name] = false
+		held = true
+	}
+	return held
 }
 
 func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1alpha1.ApplicationSet) time.Duration {
