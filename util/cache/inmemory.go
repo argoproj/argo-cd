@@ -80,6 +80,16 @@ func (i *InMemoryCache) Get(key string, obj any) error {
 	return gob.NewDecoder(&buf).Decode(obj)
 }
 
+// GetExpiration returns the time at which the entry for the given key expires.
+// It returns ErrCacheMiss if the key is not in the cache, and the zero time if the entry never expires.
+func (i *InMemoryCache) GetExpiration(key string) (time.Time, error) {
+	_, expiration, found := i.memCache.GetWithExpiration(key)
+	if !found {
+		return time.Time{}, ErrCacheMiss
+	}
+	return expiration, nil
+}
+
 func (i *InMemoryCache) Delete(key string) error {
 	i.memCache.Delete(key)
 	return nil
