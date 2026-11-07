@@ -163,6 +163,8 @@ func (g *DuckTypeGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.A
 			"server": cluster.Server,
 		}
 
+		addClusterMetadataParams(appSet, params, cluster)
+
 		for key, value := range clusterDecision.(map[string]any) {
 			params[key] = fmt.Sprintf("%v", value)
 		}
@@ -217,6 +219,29 @@ func findCluster(clustersFromArgoCD []utils.ClusterSpecifier, cluster any, match
 
 	log.WithField(matchKey, strMatchValue).Warning("unmatched cluster in ArgoCD")
 	return nil
+}
+
+func addClusterMetadataParams(appSet *argoprojiov1alpha1.ApplicationSet, params map[string]any, cluster *utils.ClusterSpecifier) {
+	if appSet.Spec.GoTemplate {
+		metadata := map[string]any{}
+
+		if len(cluster.Annotations) > 0 {
+			metadata["annotations"] = cluster.Annotations
+		}
+		if len(cluster.Labels) > 0 {
+			metadata["labels"] = cluster.Labels
+		}
+
+		params["metadata"] = metadata
+	} else {
+		for key, value := range cluster.Annotations {
+			params["metadata.annotations."+key] = value
+		}
+
+		for key, value := range cluster.Labels {
+			params["metadata.labels."+key] = value
+		}
+	}
 }
 
 func collectParams(appSet *argoprojiov1alpha1.ApplicationSet, params map[string]any, key string, value string) {
