@@ -29,6 +29,7 @@ const (
 	ManifestCompressionS2Encode       ManifestCompressionType = "s2-encode"
 	ManifestCompressionS2EncodeBetter ManifestCompressionType = "s2-encodebetter"
 	ManifestCompressionZLib           ManifestCompressionType = "zlib"
+	ManifestCompressionZstd           ManifestCompressionType = "zstd"
 	ManifestCompressionNone           ManifestCompressionType = "none"
 
 	ManifestStorageJSON     ManifestStorageType = "json"
@@ -42,10 +43,11 @@ type manifestSerializer interface {
 	unmarshal(data []byte) (map[string]any, error)
 }
 
-// manifestCompressor handles compression and decompression of manifest bytes.
+// manifestCompressor handles compression and decompression of manifest bytes. storageType is the
+// byte format of data, for compressors that tune themselves to it.
 type manifestCompressor interface {
-	compress(data []byte) ([]byte, error)
-	decompress(data []byte) ([]byte, error)
+	compress(data []byte, storageType ManifestStorageType) ([]byte, error)
+	decompress(data []byte, storageType ManifestStorageType) ([]byte, error)
 }
 
 // serializers maps each ManifestStorageType to its codec implementation.
@@ -62,6 +64,7 @@ var compressors = map[ManifestCompressionType]manifestCompressor{
 	ManifestCompressionS2Encode:       s2Compressor{better: false},
 	ManifestCompressionS2EncodeBetter: s2Compressor{better: true},
 	ManifestCompressionZLib:           zlibCompressor{},
+	ManifestCompressionZstd:           &zstdCompressor{},
 	ManifestCompressionNone:           noneCompressor{},
 }
 
@@ -73,7 +76,7 @@ func normalizeManifestCompressionType(ct ManifestCompressionType) ManifestCompre
 		return ManifestCompressionGZipBestSpeed
 	case ManifestCompressionGZipDefault, ManifestCompressionGZipBestSpeed,
 		ManifestCompressionS2Encode, ManifestCompressionS2EncodeBetter,
-		ManifestCompressionZLib, ManifestCompressionNone:
+		ManifestCompressionZLib, ManifestCompressionZstd, ManifestCompressionNone:
 		return ct
 	default:
 		return ManifestCompressionGZipBestSpeed
@@ -109,22 +112,45 @@ func deserializeManifestObject(data []byte, storageType ManifestStorageType) (ma
 	return s.unmarshal(data)
 }
 
-// compressManifestData compresses manifest bytes using the registered compressor.
-func compressManifestData(data []byte, compressionType ManifestCompressionType) ([]byte, error) {
+// compressManifestData compresses manifest bytes of the given storage type using the registered
+// compressor.
+func compressManifestData(data []byte, storageType ManifestStorageType, compressionType ManifestCompressionType) ([]byte, error) {
 	c, ok := compressors[compressionType]
 	if !ok {
 		return nil, fmt.Errorf("unknown compression type: %s", compressionType)
 	}
-	return c.compress(data)
+	compressed, err := c.compress(data, storageType)
+	if err != nil {
+		return nil, err
+	}
+	return trimExcessCapacity(compressed), nil
 }
 
-// decompressManifestData decompresses manifest bytes using the registered compressor.
-func decompressManifestData(data []byte, compressionType ManifestCompressionType) ([]byte, error) {
+// trimExcessCapacity copies b into a right-sized allocation when its spare capacity is large.
+// The result of compressManifestData is kept in the cluster cache for the lifetime of the
+// resource, so spare capacity left by the encoder (bytes.Buffer growth, s2.MaxEncodedLen
+// preallocation, serializer output buffers) would otherwise stay allocated alongside every
+// cached manifest.
+//
+// Slack of up to len/8 is left alone: Go rounds allocations up to a size class (at most ~12.5%
+// waste), so a fresh copy would land in the same size class and the copy would buy nothing.
+func trimExcessCapacity(b []byte) []byte {
+	if cap(b)-len(b) <= len(b)/8 {
+		return b
+	}
+	trimmed := make([]byte, len(b))
+	copy(trimmed, b)
+	return trimmed
+}
+
+// decompressManifestData decompresses manifest bytes of the given storage type using the
+// registered compressor.
+func decompressManifestData(data []byte, storageType ManifestStorageType, compressionType ManifestCompressionType) ([]byte, error) {
 	c, ok := compressors[compressionType]
 	if !ok {
 		return nil, fmt.Errorf("unknown compression type: %s", compressionType)
 	}
-	return c.decompress(data)
+	return c.decompress(data, storageType)
 }
 
 type jsonSerializer struct{}
@@ -192,7 +218,7 @@ type gzipCompressor struct {
 	pool  sync.Pool
 }
 
-func (c *gzipCompressor) compress(data []byte) ([]byte, error) {
+func (c *gzipCompressor) compress(data []byte, _ ManifestStorageType) ([]byte, error) {
 	var buf bytes.Buffer
 
 	var gz *gzip.Writer
@@ -217,7 +243,7 @@ func (c *gzipCompressor) compress(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (*gzipCompressor) decompress(data []byte) ([]byte, error) {
+func (*gzipCompressor) decompress(data []byte, _ ManifestStorageType) ([]byte, error) {
 	gz, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create gzip reader: %w", err)
@@ -232,14 +258,14 @@ func (*gzipCompressor) decompress(data []byte) ([]byte, error) {
 
 type s2Compressor struct{ better bool }
 
-func (c s2Compressor) compress(data []byte) ([]byte, error) {
+func (c s2Compressor) compress(data []byte, _ ManifestStorageType) ([]byte, error) {
 	if c.better {
 		return s2.EncodeBetter(nil, data), nil
 	}
 	return s2.Encode(nil, data), nil
 }
 
-func (s2Compressor) decompress(data []byte) ([]byte, error) {
+func (s2Compressor) decompress(data []byte, _ ManifestStorageType) ([]byte, error) {
 	result, err := s2.Decode(nil, data)
 	if err != nil {
 		return nil, fmt.Errorf("failed to decode s2 data: %w", err)
@@ -249,7 +275,7 @@ func (s2Compressor) decompress(data []byte) ([]byte, error) {
 
 type zlibCompressor struct{}
 
-func (zlibCompressor) compress(data []byte) ([]byte, error) {
+func (zlibCompressor) compress(data []byte, _ ManifestStorageType) ([]byte, error) {
 	var buf bytes.Buffer
 	w := zlib.NewWriter(&buf)
 	if _, err := w.Write(data); err != nil {
@@ -261,7 +287,7 @@ func (zlibCompressor) compress(data []byte) ([]byte, error) {
 	return buf.Bytes(), nil
 }
 
-func (zlibCompressor) decompress(data []byte) ([]byte, error) {
+func (zlibCompressor) decompress(data []byte, _ ManifestStorageType) ([]byte, error) {
 	r, err := zlib.NewReader(bytes.NewReader(data))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create zlib reader: %w", err)
@@ -276,8 +302,13 @@ func (zlibCompressor) decompress(data []byte) ([]byte, error) {
 
 type noneCompressor struct{}
 
-func (noneCompressor) compress(data []byte) ([]byte, error)   { return data, nil }
-func (noneCompressor) decompress(data []byte) ([]byte, error) { return data, nil }
+func (noneCompressor) compress(data []byte, _ ManifestStorageType) ([]byte, error) {
+	return data, nil
+}
+
+func (noneCompressor) decompress(data []byte, _ ManifestStorageType) ([]byte, error) {
+	return data, nil
+}
 
 // normalizeManifestValue normalizes msgpack-decoded values to match
 // unstructured.Unstructured expectations: integers become int64 where possible,

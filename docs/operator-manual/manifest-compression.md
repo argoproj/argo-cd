@@ -44,7 +44,7 @@ Supported values: `json`, `msgpack`
 |---------------------|-------------|
 | `resource.manifest.compression` | Compression algorithm. Default: `gzip-bestspeed` |
 
-Supported values: `gzip-bestspeed`, `gzip-default`, `s2-encode`, `s2-encodebetter`, `zlib`, `none`
+Supported values: `gzip-bestspeed`, `gzip-default`, `s2-encode`, `s2-encodebetter`, `zlib`, `zstd`, `none`
 
 ### Example ConfigMap
 
