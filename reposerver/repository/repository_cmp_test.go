@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,6 +14,7 @@ import (
 	"runtime"
 	"runtime/pprof"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -28,6 +30,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	cmputil "github.com/argoproj/argo-cd/v3/util/cmp"
 )
 
 // fakeCMP is a minimal sidecar config management plugin. A successful
@@ -37,13 +40,59 @@ type fakeCMP struct {
 	pluginclient.UnimplementedConfigManagementPluginServiceServer
 	fail    atomic.Bool
 	version atomic.Int32
+	// recordFiles makes GenerateManifest extract the received archive and
+	// record the files it holds, relative to the archive root.
+	recordFiles   atomic.Bool
+	mu            sync.Mutex
+	receivedFiles []string
 }
 
 func (f *fakeCMP) CheckPluginConfiguration(context.Context, *emptypb.Empty) (*pluginclient.CheckPluginConfigurationResponse, error) {
 	return &pluginclient.CheckPluginConfigurationResponse{}, nil
 }
 
+func (f *fakeCMP) received() []string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	return f.receivedFiles
+}
+
+func (f *fakeCMP) receiveFiles(stream pluginclient.ConfigManagementPluginService_GenerateManifestServer) error {
+	destDir, err := os.MkdirTemp("", "cmp-received")
+	if err != nil {
+		return err
+	}
+	defer os.RemoveAll(destDir)
+	if _, err := cmputil.ReceiveRepoStream(stream.Context(), stream, destDir, false); err != nil {
+		return err
+	}
+	var received []string
+	err = filepath.WalkDir(destDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		relPath, err := filepath.Rel(destDir, path)
+		if err != nil {
+			return err
+		}
+		received = append(received, filepath.ToSlash(relPath))
+		return nil
+	})
+	if err != nil {
+		return err
+	}
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.receivedFiles = received
+	return nil
+}
+
 func (f *fakeCMP) GenerateManifest(stream pluginclient.ConfigManagementPluginService_GenerateManifestServer) error {
+	if f.recordFiles.Load() {
+		if err := f.receiveFiles(stream); err != nil {
+			return err
+		}
+	}
 	for {
 		if _, err := stream.Recv(); err != nil {
 			if errors.Is(err, io.EOF) {
@@ -164,5 +213,87 @@ func TestGenerateManifest_CMPWithFailureStampedCacheEntry(t *testing.T) {
 			t.Fatalf("runManifestGenAsync goroutines leaked: %d still running after 5s", count)
 		}
 		time.Sleep(50 * time.Millisecond)
+	}
+}
+
+// The repo-server options must reach the sender, so that the sidecar only
+// receives the paths the manifest generate paths annotation names.
+func TestGenerateManifest_CMPManifestGeneratePathsOnly(t *testing.T) {
+	allFiles := []string{"app/values.yaml", "infra/infra.yaml", "other/other.yaml"}
+	tests := []struct {
+		name                      string
+		annotation                string
+		useManifestGeneratePaths  bool
+		manifestGeneratePathsOnly bool
+		// expected is relative to the root of the received archive.
+		expected []string
+	}{
+		{
+			name:       "whole repository by default",
+			annotation: ".;../infra",
+			expected:   allFiles,
+		},
+		{
+			name:                     "whole common root without paths only",
+			annotation:               ".",
+			useManifestGeneratePaths: true,
+			expected:                 []string{"values.yaml"},
+		},
+		{
+			name:                     "common root of all annotated paths without paths only",
+			annotation:               ".;../infra",
+			useManifestGeneratePaths: true,
+			expected:                 allFiles,
+		},
+		{
+			name:                      "paths only has no effect without manifest generate paths",
+			annotation:                ".;../infra",
+			manifestGeneratePathsOnly: true,
+			expected:                  allFiles,
+		},
+		{
+			name:                      "annotated paths only",
+			annotation:                ".;../infra",
+			useManifestGeneratePaths:  true,
+			manifestGeneratePathsOnly: true,
+			expected:                  []string{"app/values.yaml", "infra/infra.yaml"},
+		},
+		{
+			name:                      "whole repository without annotation",
+			useManifestGeneratePaths:  true,
+			manifestGeneratePathsOnly: true,
+			expected:                  allFiles,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cmp := startFakeCMP(t, "test-plugin")
+			cmp.recordFiles.Store(true)
+
+			root := t.TempDir()
+			for _, file := range allFiles {
+				require.NoError(t, os.MkdirAll(filepath.Join(root, filepath.Dir(file)), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(root, file), []byte("key: value\n"), 0o644))
+			}
+
+			service := newService(t, root)
+			service.initConstants = RepoServerInitConstants{
+				ParallelismLimit:                1,
+				CMPUseManifestGeneratePaths:     tt.useManifestGeneratePaths,
+				CMPTarManifestGeneratePathsOnly: tt.manifestGeneratePathsOnly,
+			}
+			_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
+				Repo:    &v1alpha1.Repository{},
+				AppName: "test",
+				ApplicationSource: &v1alpha1.ApplicationSource{
+					Path:   "app",
+					Plugin: &v1alpha1.ApplicationSourcePlugin{Name: "test-plugin"},
+				},
+				AnnotationManifestGeneratePaths: tt.annotation,
+				NoCache:                         true,
+			})
+			require.NoError(t, err)
+			assert.ElementsMatch(t, tt.expected, cmp.received())
+		})
 	}
 }
