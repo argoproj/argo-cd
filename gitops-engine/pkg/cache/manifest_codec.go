@@ -5,6 +5,7 @@ import (
 	"compress/gzip"
 	"compress/zlib"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"fmt"
 	"io"
 	"math"
@@ -138,7 +139,10 @@ func (jsonSerializer) marshal(obj map[string]any) ([]byte, error) {
 
 func (jsonSerializer) unmarshal(data []byte) (map[string]any, error) {
 	var obj map[string]any
-	if err := json.Unmarshal(data, &obj); err != nil {
+	// v2 API is ~2x faster: v1's AllowDuplicateNames disables v2's non-reflective path for any.
+	// Its stricter defaults (no duplicate names, valid UTF-8) always hold because data is our
+	// own json.Marshal output.
+	if err := jsonv2.Unmarshal(data, &obj); err != nil {
 		return nil, fmt.Errorf("json unmarshal failed: %w", err)
 	}
 	return obj, nil
