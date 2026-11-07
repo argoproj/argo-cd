@@ -1,5 +1,5 @@
 import {Autocomplete} from 'argo-ui';
-import {useQuery} from '@tanstack/react-query';
+import {useQuery, UseQueryResult} from '@tanstack/react-query';
 import * as React from 'react';
 import * as models from '../../../shared/models';
 import {notificationQueries} from '../../../shared/queries';
@@ -134,80 +134,72 @@ export const useEditNotificationSubscriptions = (annotations: models.Application
 
 export interface EditNotificationSubscriptionsProps extends ReturnType<typeof useEditNotificationSubscriptions> {}
 
+const SuggestionField = ({
+    query,
+    title,
+    placeholder,
+    value,
+    onChange
+}: {
+    query: UseQueryResult<models.NotificationChunk[]>;
+    title: 'Trigger' | 'Service';
+    placeholder: string;
+    value: string;
+    onChange: (value: string) => void;
+}) => {
+    if (!query.data) {
+        return query.isError && !query.isFetching ? loadFailed(query.refetch) : loading;
+    }
+    return (
+        <Autocomplete
+            wrapperProps={{className: 'argo-field edit-notification-subscriptions__autocomplete-wrapper'}}
+            inputProps={{className: 'argo-field', placeholder, title}}
+            value={value}
+            onChange={e => onChange(e.target.value)}
+            items={query.data.map(item => item.name)}
+            onSelect={onChange}
+            filterSuggestions={true}
+            qeid={`application-edit-notification-subscription-${title.toLowerCase()}`}
+        />
+    );
+};
+
 export const EditNotificationSubscriptions = ({subscriptions, onAddNewSubscription, onEditSubscription, onRemoveSubscription}: EditNotificationSubscriptionsProps) => {
     const triggers = useQuery({...notificationQueries.triggers(), enabled: subscriptions.length > 0});
     const notificationServices = useQuery({...notificationQueries.services(), enabled: subscriptions.length > 0});
+    const triggersRefreshFailed = triggers.isRefetchError && !triggers.isFetching;
+    const servicesRefreshFailed = notificationServices.isRefetchError && !notificationServices.isFetching;
     return (
         <div className='edit-notification-subscriptions argo-field'>
+            {subscriptions.length > 0 &&
+                (triggersRefreshFailed || servicesRefreshFailed) &&
+                loadFailed(() => {
+                    if (triggersRefreshFailed) {
+                        triggers.refetch();
+                    }
+                    if (servicesRefreshFailed) {
+                        notificationServices.refetch();
+                    }
+                })}
             {subscriptions.map((subscription, idx) => (
                 <div className='edit-notification-subscriptions__subscription' key={idx}>
                     <input className='argo-field edit-notification-subscriptions__input-prefix' disabled={true} value={NOTIFICATION_SUBSCRIPTION_ANNOTATION_PREFIX} />
                     <b>&nbsp;.&nbsp;</b>
-                    {!triggers.data ? (
-                        triggers.isError && !triggers.isFetching ? (
-                            loadFailed(triggers.refetch)
-                        ) : (
-                            loading
-                        )
-                    ) : (
-                        <>
-                            {triggers.isRefetchError && !triggers.isFetching && loadFailed(triggers.refetch)}
-                            <Autocomplete
-                                wrapperProps={{
-                                    className: 'argo-field edit-notification-subscriptions__autocomplete-wrapper'
-                                }}
-                                inputProps={{
-                                    className: 'argo-field',
-                                    placeholder: 'on-sync-running',
-                                    title: 'Trigger'
-                                }}
-                                value={subscription.trigger}
-                                onChange={e => {
-                                    onEditSubscription(idx, {
-                                        ...subscription,
-                                        trigger: e.target.value
-                                    });
-                                }}
-                                items={triggers.data.map(trigger => trigger.name)}
-                                onSelect={trigger => onEditSubscription(idx, {...subscription, trigger})}
-                                filterSuggestions={true}
-                                qeid='application-edit-notification-subscription-trigger'
-                            />
-                        </>
-                    )}
+                    <SuggestionField
+                        query={triggers}
+                        title='Trigger'
+                        placeholder='on-sync-running'
+                        value={subscription.trigger}
+                        onChange={trigger => onEditSubscription(idx, {...subscription, trigger})}
+                    />
                     <b>&nbsp;.&nbsp;</b>
-                    {!notificationServices.data ? (
-                        notificationServices.isError && !notificationServices.isFetching ? (
-                            loadFailed(notificationServices.refetch)
-                        ) : (
-                            loading
-                        )
-                    ) : (
-                        <>
-                            {notificationServices.isRefetchError && !notificationServices.isFetching && loadFailed(notificationServices.refetch)}
-                            <Autocomplete
-                                wrapperProps={{
-                                    className: 'argo-field edit-notification-subscriptions__autocomplete-wrapper'
-                                }}
-                                inputProps={{
-                                    className: 'argo-field',
-                                    placeholder: 'slack',
-                                    title: 'Service'
-                                }}
-                                value={subscription.service}
-                                onChange={e => {
-                                    onEditSubscription(idx, {
-                                        ...subscription,
-                                        service: e.target.value
-                                    });
-                                }}
-                                items={notificationServices.data.map(service => service.name)}
-                                onSelect={service => onEditSubscription(idx, {...subscription, service})}
-                                filterSuggestions={true}
-                                qeid='application-edit-notification-subscription-service'
-                            />
-                        </>
-                    )}
+                    <SuggestionField
+                        query={notificationServices}
+                        title='Service'
+                        placeholder='slack'
+                        value={subscription.service}
+                        onChange={service => onEditSubscription(idx, {...subscription, service})}
+                    />
                     &nbsp;=&nbsp;
                     <input
                         autoComplete='fake'

@@ -70,18 +70,38 @@ describe('EditNotificationSubscriptions', () => {
 
     it('keeps cached suggestions and subscription values after a failed refresh', async () => {
         const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
-        renderEditor([subscription], client);
-        expect(await screen.findByTitle('Trigger')).toHaveValue(subscription.trigger);
+        renderEditor([subscription, {...subscription, value: 'another-channel'}], client);
+        expect((await screen.findAllByTitle('Trigger'))[0]).toHaveValue(subscription.trigger);
         jest.mocked(services.notification.listTriggers)
             .mockRejectedValueOnce(new Error('boom'))
             .mockResolvedValueOnce([{name: 'on-sync-failed'}] as any);
 
         await act(() => client.invalidateQueries({queryKey: notificationQueries.triggers().queryKey}));
         const retry = await screen.findByText('try again');
-        expect(screen.getByTitle('Trigger')).toHaveAttribute('data-items', 'on-sync-succeeded');
-        expect(screen.getByTitle('Trigger')).toHaveValue(subscription.trigger);
-        expect(screen.getByTitle('Value')).toHaveValue(subscription.value);
+        expect(screen.getAllByText('try again')).toHaveLength(1);
+        expect(screen.getAllByTitle('Trigger')[0]).toHaveAttribute('data-items', 'on-sync-succeeded');
+        expect(screen.getAllByTitle('Trigger')[0]).toHaveValue(subscription.trigger);
+        expect(screen.getAllByTitle('Value')[0]).toHaveValue(subscription.value);
         fireEvent.click(retry);
-        await waitFor(() => expect(screen.getByTitle('Trigger')).toHaveAttribute('data-items', 'on-sync-failed'));
+        await waitFor(() => expect(screen.getAllByTitle('Trigger')[0]).toHaveAttribute('data-items', 'on-sync-failed'));
+        expect(services.notification.listServices).toHaveBeenCalledTimes(1);
+    });
+
+    it('shows one refresh error and retries both failed lists', async () => {
+        const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+        renderEditor([subscription, {...subscription, value: 'another-channel'}], client);
+        await screen.findAllByTitle('Trigger');
+        await screen.findAllByTitle('Service');
+        jest.mocked(services.notification.listTriggers).mockRejectedValueOnce(new Error('boom'));
+        jest.mocked(services.notification.listServices).mockRejectedValueOnce(new Error('boom'));
+
+        await act(() => client.invalidateQueries({queryKey: ['notifications']}));
+        expect(await screen.findAllByText('try again')).toHaveLength(1);
+        expect(screen.getAllByTitle('Trigger')).toHaveLength(2);
+        expect(screen.getAllByTitle('Service')).toHaveLength(2);
+        fireEvent.click(screen.getByText('try again'));
+        await waitFor(() => expect(screen.queryByText('try again')).not.toBeInTheDocument());
+        expect(services.notification.listTriggers).toHaveBeenCalledTimes(3);
+        expect(services.notification.listServices).toHaveBeenCalledTimes(3);
     });
 });
