@@ -148,3 +148,36 @@ func getTestDataDir(t *testing.T) string {
 	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }
+
+type sliceRepoStreamReceiver struct {
+	messages []*apiclient.ManifestRequestWithFiles
+}
+
+func (r *sliceRepoStreamReceiver) Recv() (*apiclient.ManifestRequestWithFiles, error) {
+	if len(r.messages) == 0 {
+		return nil, io.EOF
+	}
+	m := r.messages[0]
+	r.messages = r.messages[1:]
+	return m, nil
+}
+
+func TestReceiveManifestFileStreamCleansTemporaryFileOnChecksumMismatch(t *testing.T) {
+	tempRoot := t.TempDir()
+	t.Setenv("TMP", tempRoot)
+	t.Setenv("TEMP", tempRoot)
+	t.Setenv("TMPDIR", tempRoot)
+
+	receiver := &sliceRepoStreamReceiver{messages: []*apiclient.ManifestRequestWithFiles{
+		{Part: &apiclient.ManifestRequestWithFiles_Request{Request: &apiclient.ManifestRequest{}}},
+		{Part: &apiclient.ManifestRequestWithFiles_Metadata{Metadata: &apiclient.ManifestFileMetadata{Checksum: "wrong"}}},
+		{Part: &apiclient.ManifestRequestWithFiles_Chunk{Chunk: &apiclient.ManifestFileChunk{Chunk: []byte("data")}}},
+	}}
+
+	_, _, err := manifeststream.ReceiveManifestFileStream(t.Context(), receiver, t.TempDir(), math.MaxInt64, math.MaxInt64)
+	require.ErrorContains(t, err, "checksum validation error")
+
+	entries, err := os.ReadDir(tempRoot)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
