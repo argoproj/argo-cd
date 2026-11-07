@@ -1,0 +1,43 @@
+.copy-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-left: 8px;
+    padding: 2px;
+    border: none;
+    background: transparent;
+    color: #0972d3;
+    cursor: pointer;
+    vertical-align: middle;
+    line-height: 1;
+
+    &:hover {
+        color: #033160;
+    }
+
+    .theme-dark & {
+        color: #6cb6ff;
+
+        &:hover {
+            color: #a8d4ff;
+        }
+    }
+
+    &:focus-visible {
+        outline: 2px solid #0972d3;
+        outline-offset: 1px;
+    }
+}
+
+// Visually hidden live region so screen readers announce the copy result.
+.copy-button__status {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
