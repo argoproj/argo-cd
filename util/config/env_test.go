@@ -141,6 +141,56 @@ func TestStringSliceFlagMixedRepeatedAndComma(t *testing.T) {
 	assert.Equal(t, "H3: V3", strings[2])
 }
 
+func TestStringSliceFlagMixedEqualsAndSeparate(t *testing.T) {
+	loadOpts(t, "--header='H1: V1' --header 'H2: V2' --header='H3: V3'")
+	strings := GetStringSliceFlag("header", []string{})
+
+	assert.Len(t, strings, 3)
+	assert.Equal(t, "H1: V1", strings[0])
+	assert.Equal(t, "H2: V2", strings[1])
+	assert.Equal(t, "H3: V3", strings[2])
+}
+
+func TestStringSliceFlagFallbackAndEmpty(t *testing.T) {
+	loadOpts(t, "")
+	strings := GetStringSliceFlag("missing", []string{"default"})
+	assert.Equal(t, []string{"default"}, strings)
+
+	loadOpts(t, "--header=''")
+	strings = GetStringSliceFlag("header", []string{"default"})
+	assert.Empty(t, strings)
+}
+
+func TestRepeatedScalarFlags(t *testing.T) {
+	loadOpts(t, "--server=a --server=b")
+	assert.Equal(t, "b", GetFlag("server", ""))
+
+	loadOpts(t, "--server=a --server b")
+	assert.Equal(t, "b", GetFlag("server", ""))
+
+	loadOpts(t, "--server a --server=b")
+	assert.Equal(t, "b", GetFlag("server", ""))
+
+	loadOpts(t, "--server a --server b")
+	assert.Equal(t, "b", GetFlag("server", ""))
+}
+
+func TestIntFlagFallbackWhenAbsent(t *testing.T) {
+	loadOpts(t, "")
+	assert.Equal(t, 42, GetIntFlag("missing", 42))
+
+	loadOpts(t, "--other 10")
+	assert.Equal(t, 42, GetIntFlag("missing", 42))
+}
+
+func TestRepeatedIntFlag(t *testing.T) {
+	loadOpts(t, "--port=8080 --port 9090")
+	assert.Equal(t, 9090, GetIntFlag("port", 0))
+
+	loadOpts(t, "--port 8080 --port=9090")
+	assert.Equal(t, 9090, GetIntFlag("port", 0))
+}
+
 func TestFlagAtStart(t *testing.T) {
 	loadOpts(t, "--foo bar")
 

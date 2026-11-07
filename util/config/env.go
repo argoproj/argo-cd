@@ -34,8 +34,16 @@ func LoadFlags() error {
 		case strings.HasPrefix(opt, "--"):
 			if key != "" {
 				flags[key] = append(flags[key], "true")
+				key = ""
 			}
-			key = strings.TrimPrefix(opt, "--")
+			trimmed := strings.TrimPrefix(opt, "--")
+			// pkg shellquote doesn't recognize `=` so that the opts in format `foo=bar` could not work.
+			// issue ref: https://github.com/argoproj/argo-cd/issues/6822
+			if k, v, ok := strings.Cut(trimmed, "="); ok {
+				flags[k] = append(flags[k], v)
+			} else {
+				key = trimmed
+			}
 		case key != "":
 			flags[key] = append(flags[key], opt)
 			key = ""
@@ -45,19 +53,6 @@ func LoadFlags() error {
 	}
 	if key != "" {
 		flags[key] = append(flags[key], "true")
-	}
-	// pkg shellquote doesn't recognize `=` so that the opts in format `foo=bar` could not work.
-	// issue ref: https://github.com/argoproj/argo-cd/issues/6822
-	for k, vList := range flags {
-		if strings.Contains(k, "=") {
-			for _, v := range vList {
-				if v == "true" {
-					kv := strings.SplitN(k, "=", 2)
-					actualKey, actualValue := kv[0], kv[1]
-					flags[actualKey] = append(flags[actualKey], actualValue)
-				}
-			}
-		}
 	}
 	return nil
 }
@@ -75,10 +70,11 @@ func GetBoolFlag(key string) bool {
 }
 
 func GetIntFlag(key string, fallback int) int {
-	val := GetFlag(key, "")
-	if val == "" {
+	vals, ok := flags[key]
+	if !ok || len(vals) == 0 {
 		return fallback
 	}
+	val := vals[len(vals)-1]
 
 	v, err := strconv.Atoi(val)
 	if err != nil {
