@@ -53,6 +53,8 @@ const (
 	SyncOptionClientSideApplyMigration = "ClientSideApplyMigration=true"
 	// Sync option that disables client-side apply migration
 	SyncOptionDisableClientSideApplyMigration = "ClientSideApplyMigration=false"
+	// Sync option that marks a resource as synced once it is applied, without waiting for it to become healthy
+	SyncOptionSkipHealthCheck = "SkipHealthCheck=true"
 
 	// Default field manager for client-side apply migration
 	DefaultClientSideApplyMigrationManager = "kubectl-client-side-apply"

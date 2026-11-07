@@ -851,7 +851,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 		},
 		func() error {
 			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
-			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=false")
+			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=true", "--timeout=60s")
 			return err
 		},
 		func() error {

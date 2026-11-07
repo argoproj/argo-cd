@@ -26,6 +26,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
 	giturls "github.com/chainguard-dev/git-urls"
 	"github.com/google/go-github/v69/github"
+	"github.com/kballard/go-shellquote"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
@@ -400,6 +401,9 @@ func (f authFilePaths) Close() error {
 	return retErr
 }
 
+// createTemp is swapped in tests to exercise write failures.
+var createTemp = os.CreateTemp
+
 func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	// use the SHM temp dir from util, more secure
 	file, err := os.CreateTemp(argoio.TempDir, "")
@@ -463,7 +467,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 			parsedProxyURL.Port(),
 		)
 
-		proxyScript, err := os.CreateTemp(argoio.TempDir, "argocd-proxy-cmd-*")
+		proxyScript, err := createTemp(argoio.TempDir, "argocd-proxy-cmd-*")
 		if err != nil {
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to create proxy command script: %w", err)
@@ -471,6 +475,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		proxyScriptPath = proxyScript.Name()
 
 		if _, err := proxyScript.WriteString(proxyScriptContent); err != nil {
+			_ = proxyScript.Close()
 			_ = os.Remove(proxyScriptPath)
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to write proxy command script: %w", err)
@@ -480,13 +485,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to close proxy command script: %w", err)
 		}
-		if err := os.Chmod(proxyScriptPath, 0o700); err != nil {
-			_ = os.Remove(proxyScriptPath)
-			sshCloser.Close()
-			return nil, nil, fmt.Errorf("failed to chmod proxy command script: %w", err)
-		}
-
-		args = append(args, "-o", "ProxyCommand="+proxyScriptPath+" %h %p")
+		args = append(args, "-o", "ProxyCommand="+shellquote.Join("/bin/sh", proxyScriptPath)+" %h %p")
 
 		if parsedProxyURL.User != nil {
 			proxyEnv = append(proxyEnv, "SOCKS5_USER="+parsedProxyURL.User.Username())
@@ -496,7 +495,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		}
 	}
 
-	env = append(env, []string{"GIT_SSH_COMMAND=" + strings.Join(args, " ")}...)
+	env = append(env, []string{"GIT_SSH_COMMAND=" + shellquote.Join(args...)}...)
 	env = append(env, proxyEnv...)
 
 	// We need a combined closer that removes both the SSH private key tempfile
@@ -698,7 +697,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", SanitizeRepoURL(g.repoURL))
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
 		defer cancel()
 
 		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)

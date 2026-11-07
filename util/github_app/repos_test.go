@@ -31,6 +31,10 @@ func Test_repoAsCredentials_GetAuth(t *testing.T) {
 		wantErr bool
 	}{
 		{name: "missing", wantErr: true},
+		{name: "missing app id", repo: v1alpha1.RepoCreds{
+			GithubAppInstallationId: 456,
+			GithubAppPrivateKey:     "private key",
+		}, wantErr: true},
 		{name: "found", repo: v1alpha1.RepoCreds{
 			GithubAppId:             123,
 			GithubAppInstallationId: 456,

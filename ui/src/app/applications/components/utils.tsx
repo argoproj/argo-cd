@@ -2017,3 +2017,7 @@ export function formatResourceInfo(name: string, value: string): {displayValue: 
         tooltipValue: `${name}: ${value}`
     };
 }
+
+export function getClusterOptions(clusters: appModels.Cluster[], field: 'server' | 'name'): string[] {
+    return clusters.map(cluster => cluster[field]).sort();
+}

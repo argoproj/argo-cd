@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"strconv"
@@ -35,6 +36,8 @@ type ExecRunOpts struct {
 	SkipErrorLogging bool
 	// CaptureStderr determines whether to capture stderr in addition to stdout
 	CaptureStderr bool
+	// StderrWriter receives stderr without adding it to the returned output
+	StderrWriter io.Writer
 }
 
 func init() {
@@ -63,7 +66,15 @@ func RunWithRedactor(cmd *exec.Cmd, redactor func(text string) string) (string, 
 }
 
 func RunWithExecRunOpts(cmd *exec.Cmd, opts ExecRunOpts) (string, error) {
-	cmdOpts := CmdOpts{Timeout: timeout, FatalTimeout: fatalTimeout, Redactor: opts.Redactor, TimeoutBehavior: opts.TimeoutBehavior, SkipErrorLogging: opts.SkipErrorLogging, CaptureStderr: opts.CaptureStderr}
+	cmdOpts := CmdOpts{
+		Timeout:          timeout,
+		FatalTimeout:     fatalTimeout,
+		Redactor:         opts.Redactor,
+		TimeoutBehavior:  opts.TimeoutBehavior,
+		SkipErrorLogging: opts.SkipErrorLogging,
+		CaptureStderr:    opts.CaptureStderr,
+		StderrWriter:     opts.StderrWriter,
+	}
 	span := tracing.NewLoggingTracer(log.NewLogrusLogger(log.NewWithCurrentConfig())).StartSpan(fmt.Sprintf("exec %v", cmd.Args[0]))
 	span.SetBaggageItem("dir", cmd.Dir)
 	if cmdOpts.Redactor != nil {
@@ -146,6 +157,8 @@ type CmdOpts struct {
 	SkipErrorLogging bool
 	// CaptureStderr defines whether to capture stderr in addition to stdout
 	CaptureStderr bool
+	// StderrWriter receives stderr without adding it to the returned output
+	StderrWriter io.Writer
 }
 
 var DefaultCmdOpts = CmdOpts{
@@ -188,15 +201,9 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	var stderr bytes.Buffer
 	cmd.Stdout = &stdout
 	cmd.Stderr = &stderr
-
-	start := time.Now()
-	err = cmd.Start()
-	if err != nil {
-		return "", err
+	if opts.StderrWriter != nil {
+		cmd.Stderr = io.MultiWriter(&stderr, opts.StderrWriter)
 	}
-
-	done := make(chan error)
-	go func() { done <- cmd.Wait() }()
 
 	// Start timers for timeout
 	timeout := DefaultCmdOpts.Timeout
@@ -209,6 +216,25 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 	if opts.FatalTimeout != time.Duration(0) {
 		fatalTimeout = opts.FatalTimeout
 	}
+	// Bound the wait for inherited pipes. A grandchild that outlives the command
+	// would otherwise keep Wait blocked until that grandchild exits. A caller that
+	// already set WaitDelay, such as the git client, keeps its own value.
+	// WaitDelay has to be set before Start: for a command created with a
+	// cancelable context, Start launches a goroutine that reads it.
+	if cmd.WaitDelay == 0 && fatalTimeout != 0 {
+		cmd.WaitDelay = fatalTimeout
+	}
+
+	start := time.Now()
+	err = cmd.Start()
+	if err != nil {
+		return "", err
+	}
+
+	// Buffered so the timeout path can return without waiting on Wait. An
+	// unbuffered channel leaks the Wait goroutine, which blocks forever on send.
+	done := make(chan error, 1)
+	go func() { done <- cmd.Wait() }()
 
 	var timoutCh <-chan time.Time
 	if timeout != 0 {
@@ -234,12 +260,12 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 		// wait on timeout signal and fallback to fatal timeout signal
 		if timeoutBehavior.ShouldWait {
 			select {
-			case <-done:
+			case <-done: //nolint:errcheck // exit error after our signal is expected
 			case <-fatalTimeoutCh:
 				// upgrades to SIGKILL if cmd does not respect SIGTERM
 				_ = cmd.Process.Signal(fatalTimeoutBehaviour)
 				// now original cmd should exit immediately after SIGKILL
-				<-done
+				<-done //nolint:errcheck
 				// return error with a marker indicating that cmd exited only after fatal SIGKILL
 				output := stdout.String()
 				if opts.CaptureStderr {
@@ -250,8 +276,11 @@ func RunCommandExt(cmd *exec.Cmd, opts CmdOpts) (string, error) {
 				logCtx.Error(err.Error())
 				return strings.TrimSuffix(output, "\n"), err
 			}
+		} else {
+			// Join the pipe-copy goroutines before reading the buffers. Reading them
+			// here used to race with os/exec still copying command output.
+			<-done //nolint:errcheck // the timeout error replaces the process exit error
 		}
-		// either did not wait for timeout or cmd did respect SIGTERM
 		output := stdout.String()
 		if opts.CaptureStderr {
 			output += stderr.String()
