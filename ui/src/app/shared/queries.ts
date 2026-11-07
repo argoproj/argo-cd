@@ -1,5 +1,6 @@
 import {queryOptions} from '@tanstack/react-query';
 
+import * as models from './models';
 import {services} from './services';
 
 // Keys are hierarchical so invalidating a prefix (e.g. projectQueries.byName) refreshes everything under it.
@@ -47,7 +48,13 @@ export const repoQueries = {
 
 export const clusterQueries = {
     list: () => queryOptions({queryKey: ['clusters', 'list'], queryFn: () => services.clusters.list()}),
-    detail: (server: string) => queryOptions({queryKey: ['clusters', 'detail', server], queryFn: () => services.clusters.get(server, '')})
+    detail: (server: string) => queryOptions({queryKey: ['clusters', 'detail', server], queryFn: () => services.clusters.get(server, '')}),
+    // Best-effort lookup for showing a cluster's name: a failure yields null, and callers fall back to the server URL.
+    lookup: (server: string, name?: string) =>
+        queryOptions({
+            queryKey: ['clusters', 'lookup', server ?? '', name ?? ''],
+            queryFn: () => services.clusters.get(server, name).catch((): models.Cluster => null)
+        })
 };
 
 export const certQueries = {

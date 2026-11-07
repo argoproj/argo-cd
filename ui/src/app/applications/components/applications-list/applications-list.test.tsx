@@ -1,3 +1,4 @@
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import '@testing-library/jest-dom';
 import {NavigationManager} from 'argo-ui';
@@ -90,9 +91,11 @@ const renderAt = (url: string) => {
     const apis = {navigation: new NavigationManager(history), notifications: {show: jest.fn()}, popup: {confirm: jest.fn()}, baseHref: '/'};
     const props = {match: {url: '/applications'}} as any;
     render(
-        <Context.Provider value={{...apis, history} as any}>
-            <ApplicationsList {...props} />
-        </Context.Provider>
+        <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
+            <Context.Provider value={{...apis, history} as any}>
+                <ApplicationsList {...props} />
+            </Context.Provider>
+        </QueryClientProvider>
     );
     return history;
 };
