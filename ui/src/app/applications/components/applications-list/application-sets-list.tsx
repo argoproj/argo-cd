@@ -112,9 +112,7 @@ function filterApplicationSets(
 }
 
 // Render-prop wrapper so the list body, which still sits inside render callbacks, can use the hook.
-const AppSetsListData = ({projects, children}: {projects: string[]; children: (list: ApplicationSetsListResult) => React.ReactNode}) => (
-    <React.Fragment>{children(useApplicationSetsList(projects))}</React.Fragment>
-);
+const AppSetsListData = ({children}: {children: (list: ApplicationSetsListResult) => React.ReactNode}) => <React.Fragment>{children(useApplicationSetsList())}</React.Fragment>;
 
 const ApplicationSetsSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; appSets: models.ApplicationSet[]}) => {
     const {content, searchRegex, ctx, appSets} = props;
@@ -510,7 +508,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                     <ViewPref>
                         {pref => (
                             <Page key={pref.view} title={getPageTitle(pref.view)} useTitleOnly={true} toolbar={{breadcrumbs: [{title: 'ApplicationSets', path: props.match.url}]}}>
-                                <AppSetsListData projects={pref.projectsFilter}>
+                                <AppSetsListData>
                                     {list => {
                                         if (list.loading) {
                                             return (

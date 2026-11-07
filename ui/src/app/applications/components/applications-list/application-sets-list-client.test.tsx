@@ -19,10 +19,10 @@ const event = (type: ApplicationWatchEvent['type'], item: ApplicationSet) => ({t
 
 let watch: Subject<ApplicationWatchEvent>;
 
-const setup = (projects: string[] = []) => {
+const setup = () => {
     const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
     const wrapper = ({children}: {children: React.ReactNode}) => <QueryClientProvider client={client}>{children}</QueryClientProvider>;
-    return renderHook(() => useApplicationSetsList(projects), {wrapper}).result;
+    return renderHook(() => useApplicationSetsList(), {wrapper}).result;
 };
 
 const setHidden = (hidden: boolean) => {
@@ -38,12 +38,12 @@ beforeEach(() => {
 });
 
 test('loads the list and applies watch events from the version it was read at', async () => {
-    const result = setup(['default']);
+    const result = setup();
     expect(result.current.loading).toBe(true);
 
     await waitFor(() => expect(services.applications.watch).toHaveBeenCalled());
     expect(result.current.appSets.map(item => item.metadata.name)).toEqual(['a', 'b']);
-    expect(jest.mocked(services.applications.watch).mock.calls[0].slice(0, 2)).toEqual(['applicationset', {projects: ['default'], resourceVersion: '5'}]);
+    expect(jest.mocked(services.applications.watch).mock.calls[0].slice(0, 2)).toEqual(['applicationset', {resourceVersion: '5'}]);
 
     act(() => {
         watch.next(event('ADDED', appSet('c')));
@@ -91,7 +91,7 @@ test('reloads before watching again after being hidden, and reports a failed rel
             result.current.retry();
         });
         await waitFor(() => expect(services.applications.watch).toHaveBeenCalledTimes(2));
-        expect(jest.mocked(services.applications.watch).mock.calls[1][1]).toEqual({projects: [], resourceVersion: '9'});
+        expect(jest.mocked(services.applications.watch).mock.calls[1][1]).toEqual({resourceVersion: '9'});
         expect(result.current.failed).toBe(false);
         expect(result.current.appSets).toHaveLength(1);
     } finally {
