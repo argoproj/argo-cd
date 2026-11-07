@@ -358,7 +358,13 @@ controller:
 build-ui:
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -not -name .gitkeep -delete
-	$(DOCKER) run $(PODMAN_ARGS) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app:Z --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
+	# Rootless Docker maps container root to the invoking host user.
+	user="$(CONTAINER_UID):$(CONTAINER_GID)"; \
+	if [ "$(DOCKER)" != podman ]; then \
+		security_options=$$($(DOCKER) info --format '{{.SecurityOptions}}') || exit $$?; \
+		case "$$security_options" in *rootless*) user=0:0 ;; esac; \
+	fi; \
+	$(DOCKER) run -u "$$user" $(PODMAN_ARGS) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app:Z --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
