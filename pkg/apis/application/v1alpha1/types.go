@@ -1298,6 +1298,9 @@ type SuccessfulHydrateOperation struct {
 	HydratedSHA string `json:"hydratedSHA,omitempty" protobuf:"bytes,6,opt,name=hydratedSHA"`
 	// SourceHydrator holds the hydrator config used for the hydrate operation
 	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,7,opt,name=sourceHydrator"`
+	// HydratedGroupApps holds the qualified names of every app committed together as of this operation, so a
+	// membership change (an app added to or removed from the group) can be detected
+	HydratedGroupApps []string `json:"hydratedGroupApps,omitempty" protobuf:"bytes,8,rep,name=hydratedGroupApps"`
 }
 
 // HydrateOperationPhase indicates the status of a hydrate operation
