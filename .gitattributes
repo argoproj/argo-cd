@@ -1,3 +1,4 @@
+.github/workflows/*.lock.yml linguist-generated=true merge=ours
 **/*.pb.go linguist-generated=true
 **/mocks/*.go linguist-generated=true
 assets/swagger.json linguist-generated=true
