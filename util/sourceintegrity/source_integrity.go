@@ -67,26 +67,80 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 		}
 	}
 
-	policy := policies[0]
-	if policy.GPG != nil {
-		if policy.GPG.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeNone {
-			// Declare missing check because there is no verification performed
-			return nil
-		}
+	var verify gitFunc
 
+	policy := policies[0]
+
+	if policy.GPG != nil && policy.GPG.Mode != v1alpha1.SourceIntegrityGitPolicyGPGModeNone {
 		if !_gpgDisabledLoggedAlready && !IsGPGEnabled() {
 			log.Warnf("SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED")
 			_gpgDisabledLoggedAlready = true
-			return nil
 		}
-
-		return func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
-			return verify(ctx, policy.GPG, gitClient, verifiedRevision)
+		if IsGPGEnabled() {
+			verify = func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+				return verifyGPG(ctx, policy.GPG, gitClient, verifiedRevision)
+			}
 		}
 	}
 
-	log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
-	return nil
+	if policy.SignedRevisionOnly {
+		if verify == nil {
+			msg := fmt.Sprintf("SignedRevisionOnly is enabled without verification for SourceIntegrity policy for %+v", policy.Repos)
+			return func(_ context.Context, _ git.Client, _ string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+				return nil, "", errors.New(msg)
+			}
+		}
+
+		return verifyWithGuard(verify)
+	}
+
+	if verify == nil {
+		log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
+		return nil
+	}
+
+	return func(ctx context.Context, gitClient git.Client, revision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+		return verify(ctx, gitClient, revision)
+	}
+}
+
+func verifyWithGuard(verify gitFunc) gitFunc {
+	const signedRevisionCheckName = "GIT"
+
+	return func(ctx context.Context, gitClient git.Client, revision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+		reject := func(msg string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+			msg = "SignedRevisionOnly is enabled, " + msg
+			return &v1alpha1.SourceIntegrityCheckResult{Checks: []v1alpha1.SourceIntegrityCheckResultItem{{
+				Name:     signedRevisionCheckName,
+				Problems: []string{msg},
+			}}}, msg, nil
+		}
+
+		revType, err := gitClient.GetRevisionType(ctx, revision)
+		if err != nil {
+			return reject(fmt.Sprintf("revision %s does not exist", revision))
+		}
+
+		if revType == "tag" {
+			// Annotated tag
+			return verify(ctx, gitClient, revision)
+		}
+
+		if revType != "commit" {
+			return reject(fmt.Sprintf("revision %s is a git %s, not a commit or an annotated tag", revision, revType))
+		}
+
+		// Check SHA, a lightweight tag and a branch
+		refName, err := gitClient.GetSymbolicFullName(ctx, revision)
+		if err != nil {
+			return nil, "", err
+		}
+		if refName != "" {
+			return reject(fmt.Sprintf("%s resolves to %s. Only commit SHAs and annotated tags can be verified", revision, refName))
+		}
+
+		return verify(ctx, gitClient, revision)
+	}
 }
 
 func findMatchingGitPolicies(si *v1alpha1.SourceIntegrityGit, repoURL string) (policies []*v1alpha1.SourceIntegrityGitPolicy) {
@@ -122,7 +176,7 @@ func repoMatches(urlGlob string, repoURL string) int {
 	return 0
 }
 
-func verify(ctx context.Context, g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+func verifyGPG(ctx context.Context, g *v1alpha1.SourceIntegrityGitPolicyGPG, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
 	const checkName = "GIT/GPG"
 
 	var deep bool

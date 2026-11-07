@@ -34162,6 +34162,10 @@ spec:
                                 - url
                                 type: object
                               type: array
+                            signedRevisionOnly:
+                              description: Only permit syncing from annotated tags,
+                                un-annotated tags cannot be verified
+                              type: boolean
                           required:
                           - gpg
                           - repos

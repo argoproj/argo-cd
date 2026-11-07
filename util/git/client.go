@@ -151,6 +151,8 @@ type Client interface {
 	LsRemote(revision string) (string, error)
 	LsFiles(ctx context.Context, path string, enableNewGitFileGlobbing bool) ([]string, error)
 	CommitSHA(ctx context.Context) (string, error)
+	GetRevisionType(ctx context.Context, revision string) (string, error)
+	GetSymbolicFullName(ctx context.Context, revision string) (string, error)
 	RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error)
 	// Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
 	VerifyCommitSignature(ctx context.Context, revision string) (string, error)
@@ -1878,6 +1880,26 @@ func (m *nativeGitClient) IsAnnotatedTag(ctx context.Context, revision string) b
 		return true
 	}
 	return false
+}
+
+// GetRevisionType returns the type of the git object the revision resolves to: "commit", "tag", "blob" or "tree"
+func (m *nativeGitClient) GetRevisionType(ctx context.Context, revision string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "cat-file", "-t", revision)
+	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
+}
+
+// GetSymbolicFullName returns the full name of the reference the revision resolves to
+func (m *nativeGitClient) GetSymbolicFullName(ctx context.Context, revision string) (string, error) {
+	cmd := exec.CommandContext(ctx, "git", "rev-parse", "--symbolic-full-name", revision)
+	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(out), nil
 }
 
 // ChangedFiles returns a list of files changed between two revisions

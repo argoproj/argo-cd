@@ -2146,6 +2146,61 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.NotEmpty(t, res.SignatureInfo) // nolint:staticcheck
 }
 
+func TestGetRevisionMetadataSignedRevisionOnly(t *testing.T) {
+	signedRevisionOnly := &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos:              []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				SignedRevisionOnly: true,
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+					Keys: []string{"f24e21389b25a3c1"},
+				},
+			}},
+		},
+	}
+
+	for _, revision := range []string{"c0b400fc458875d925171398f9ba9eabd5529923", "c0b400f"} {
+		t.Run("commit sha "+revision+" passes the guard", func(t *testing.T) {
+			service, gitClient, _ := newServiceWithMocks(t, "../..")
+
+			gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("commit", nil)
+			gitClient.EXPECT().GetSymbolicFullName(mock.Anything, mock.Anything).Return("", nil)
+			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockOk)
+			gitClient.EXPECT().RevisionMetadata(mock.Anything, mock.Anything).Return(&git.RevisionMetadata{
+				Message: "test",
+				Author:  "author",
+				Date:    time.Now(),
+			}, nil)
+
+			res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+				Repo:            &v1alpha1.Repository{},
+				Revision:        revision,
+				SourceIntegrity: signedRevisionOnly,
+			})
+			require.NoError(t, err)
+
+			gitClient.AssertCalled(t, "GetRevisionType", mock.Anything, revision)
+
+			require.NotNil(t, res.SourceIntegrityResult)
+			assert.True(t, res.SourceIntegrityResult.IsValid(), "revision %s should pass the guard, got %v", revision, res.SourceIntegrityResult.AsError())
+			assert.Equal(t, []string{"GIT/GPG"}, res.SourceIntegrityResult.PassedChecks())
+		})
+	}
+
+	t.Run("a revision that is not a commit sha never reaches the guard", func(t *testing.T) {
+		service, gitClient, _ := newServiceWithMocks(t, "../..")
+
+		_, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+			Repo:            &v1alpha1.Repository{},
+			Revision:        "v1.0",
+			SourceIntegrity: signedRevisionOnly,
+		})
+		require.EqualError(t, err, "revision v1.0 must be resolved")
+		gitClient.AssertNotCalled(t, "GetRevisionType", mock.Anything, mock.Anything)
+	})
+}
+
 func TestGetSignatureVerificationResult(t *testing.T) {
 	// Commit with signature and verification requested
 	{

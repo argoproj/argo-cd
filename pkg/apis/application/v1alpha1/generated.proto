@@ -2786,6 +2786,9 @@ message SourceIntegrityGitPolicy {
 
   // Verify GPG commit/tag signatures
   optional SourceIntegrityGitPolicyGPG gpg = 2;
+
+  // Only permit syncing from annotated tags, un-annotated tags cannot be verified
+  optional bool signedRevisionOnly = 3;
 }
 
 // SourceIntegrityGitPolicyGPG verifies that the commit(s) are both correctly signed by a key in the repo-server keyring,

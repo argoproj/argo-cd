@@ -1,11 +1,13 @@
 package e2e
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -21,6 +23,23 @@ var projectWithNoKeys = AppProjectSpec{
 				Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
 				GPG: &SourceIntegrityGitPolicyGPG{
 					Keys: []string{}, // Verifying but permitting no keys
+					Mode: "head",
+				},
+			}},
+		},
+	},
+}
+
+var projectWithSignedRevisionOnly = AppProjectSpec{
+	SourceRepos:  []string{"*"},
+	Destinations: []ApplicationDestination{{Namespace: "*", Server: "*"}},
+	SourceIntegrity: &SourceIntegrity{
+		Git: &SourceIntegrityGit{
+			Policies: []*SourceIntegrityGitPolicy{{
+				Repos:              []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				SignedRevisionOnly: true, // Verifying annotated tags
+				GPG: &SourceIntegrityGitPolicyGPG{
+					Keys: []string{fixture.GpgGoodKeyID},
 					Mode: "head",
 				},
 			}},
@@ -454,4 +473,95 @@ func TestArtifactCacheInvalidatedOnSourceIntegrityChange(t *testing.T) {
 		Expect(OperationPhaseIs(OperationError)).
 		Expect(Condition(ApplicationConditionComparisonError, "GIT/GPG: Failed verifying revision")).
 		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key (key_id="+fixture.GpgGoodKeyID+")"))
+}
+
+func TestSignedRevisionOnlyRejectsLightweightTag(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+	Given(t).
+		ProjectSpec(projectWithSignedRevisionOnly).
+		Revision("lightweight-tag").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		AddTag("lightweight-tag").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedRevisionOnly is enabled, lightweight-tag resolves to refs/tags/lightweight-tag"))
+}
+
+func TestSignedRevisionOnlyRejectsBranch(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+	Given(t).
+		ProjectSpec(projectWithSignedRevisionOnly).
+		Revision("master").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(HealthIs(health.HealthStatusMissing)).
+		Expect(Condition(ApplicationConditionComparisonError, "GIT: SignedRevisionOnly is enabled"))
+}
+
+func TestSignedRevisionOnlyAcceptsSignedCommitSHA(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+	ctx := Given(t)
+	ctx.
+		ProjectSpec(projectWithSignedRevisionOnly).
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddSignedFile("test.yaml", "null").
+		And(func() {
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			ctx.Revision(strings.TrimSpace(sha))
+		}).
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
+func TestSignedRevisionOnlyAcceptsSignedAnnotatedTag(t *testing.T) {
+	fixture.SkipOnEnv(t, "GPG")
+	fixture.EnsureCleanState(t)
+	Given(t).
+		ProjectSpec(projectWithSignedRevisionOnly).
+		Revision("v2.0").
+		Path(guestbookPath).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		When().
+		AddFile("test.yaml", "null").
+		AddSignedTag("v2.0").
+		IgnoreErrors().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
 }

@@ -538,6 +538,100 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	assert.False(t, atag)
 }
 
+func setupRevisionRepo(t *testing.T) (Client, string) {
+	t.Helper()
+	ctx := t.Context()
+
+	client, err := NewClient("file://"+t.TempDir(), NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+
+	require.NoError(t, os.WriteFile(path.Join(client.Root(), "README"), []byte("Hello."), 0o644))
+	require.NoError(t, runCmd(ctx, client.Root(), "git", "add", "README"))
+	require.NoError(t, runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial commit", "-a"))
+	require.NoError(t, runCmd(ctx, client.Root(), "git", "tag", "annot-tag", "-a", "-m", "Create annotated tag"))
+	require.NoError(t, runCmd(ctx, client.Root(), "git", "tag", "light-tag"))
+	// A lightweight tag whose name is valid hex, to pin down that classification asks git rather
+	// than matching on the shape of the string.
+	require.NoError(t, runCmd(ctx, client.Root(), "git", "tag", "deadbeef1234"))
+	require.NoError(t, runCmd(ctx, client.Root(), "git", "branch", "a-branch"))
+
+	sha, err := client.CommitSHA(ctx)
+	require.NoError(t, err)
+
+	return client, sha
+}
+
+func Test_GetRevisionType(t *testing.T) {
+	client, sha := setupRevisionRepo(t)
+
+	testCases := []struct {
+		revision     string
+		expectedType string
+		expectedErr  bool
+	}{
+		{revision: "annot-tag", expectedType: "tag"},
+		{revision: "light-tag", expectedType: "commit"},
+		{revision: "deadbeef1234", expectedType: "commit"},
+		{revision: "a-branch", expectedType: "commit"},
+		{revision: "HEAD", expectedType: "commit"},
+		{revision: sha, expectedType: "commit"},
+		{revision: sha[:8], expectedType: "commit"},
+		{revision: "refs/tags/annot-tag", expectedType: "tag"},
+		{revision: "refs/tags/light-tag", expectedType: "commit"},
+		{revision: "blorp", expectedErr: true},
+		{revision: "", expectedErr: true},
+		// A well-formed non-existent SHA for git rev-parse` will echo it back as success
+		// but `git cat-file` catches it
+		{revision: "1111111111111111111111111111111111111111", expectedErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.revision, func(t *testing.T) {
+			revType, err := client.GetRevisionType(t.Context(), tc.revision)
+			if tc.expectedErr {
+				require.Error(t, err)
+				assert.Empty(t, revType)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedType, revType)
+		})
+	}
+}
+
+func Test_GetSymbolicFullName(t *testing.T) {
+	client, sha := setupRevisionRepo(t)
+
+	testCases := []struct {
+		revision        string
+		expectedRefName string
+		expectedErr     bool
+	}{
+		{revision: "annot-tag", expectedRefName: "refs/tags/annot-tag"},
+		{revision: "light-tag", expectedRefName: "refs/tags/light-tag"},
+		{revision: "deadbeef1234", expectedRefName: "refs/tags/deadbeef1234"},
+		{revision: "a-branch", expectedRefName: "refs/heads/a-branch"},
+		{revision: "HEAD", expectedRefName: "refs/heads/master"},
+		{revision: sha, expectedRefName: ""},
+		{revision: sha[:8], expectedRefName: ""},
+		{revision: "blorp", expectedErr: true},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.revision, func(t *testing.T) {
+			refName, err := client.GetSymbolicFullName(t.Context(), tc.revision)
+			if tc.expectedErr {
+				require.Error(t, err)
+				assert.Empty(t, refName)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectedRefName, refName)
+		})
+	}
+}
+
 func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 	client, err := NewClientExt("file://"+t.TempDir(), t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)

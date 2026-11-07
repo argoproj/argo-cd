@@ -2,6 +2,7 @@ package sourceintegrity
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -25,6 +26,13 @@ func stubPrimaryKeyLookup(t *testing.T, fn func(signingKeyID string) (string, er
 	t.Cleanup(func() { lookupPrimaryKeyID = prev })
 }
 
+func resetGPGDisabledWarning(t *testing.T) {
+	t.Helper()
+	previouslyLogged := _gpgDisabledLoggedAlready
+	_gpgDisabledLoggedAlready = false
+	t.Cleanup(func() { _gpgDisabledLoggedAlready = previouslyLogged })
+}
+
 func Test_IsGPGEnabled(t *testing.T) {
 	t.Run("true", func(t *testing.T) {
 		t.Setenv("ARGOCD_GPG_ENABLED", "true")
@@ -44,6 +52,7 @@ func Test_IsGPGEnabled(t *testing.T) {
 
 func Test_GPGDisabledLogging(t *testing.T) {
 	t.Setenv("ARGOCD_GPG_ENABLED", "false")
+	resetGPGDisabledWarning(t)
 
 	si := &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
 		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
@@ -58,13 +67,15 @@ func Test_GPGDisabledLogging(t *testing.T) {
 	t.Cleanup(logger.CleanupHook)
 
 	fun := lookupGit(si, "https://github.com/argoproj/argo-cd.git")
-	assert.Equal(t, []string{"SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED"}, logger.GetEntries())
+	assert.Equal(t, []string{
+		"SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED",
+		"No verification configured for SourceIntegrity policy for [{URL:*}]",
+	}, logger.GetEntries())
 	assert.Nil(t, fun)
 
-	// No logs on the second call
 	logger.Entries = []logrus.Entry{}
-	lookupGit(si, "https://github.com/argoproj/argo-cd-ext.git")
-	assert.Equal(t, []string{}, logger.GetEntries())
+	fun = lookupGit(si, "https://github.com/argoproj/argo-cd-ext.git")
+	assert.Equal(t, []string{"No verification configured for SourceIntegrity policy for [{URL:*}]"}, logger.GetEntries())
 	assert.Nil(t, fun)
 }
 
@@ -74,7 +85,7 @@ func TestGPGUnknownMode(t *testing.T) {
 	gitClient.EXPECT().CommitSHA(mock.Anything).Return("DEADBEEF", nil)
 
 	s := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: "foobar", Keys: []string{}}
-	result, _, err := verify(t.Context(), s, gitClient, "https://github.com/argoproj/argo-cd.git")
+	result, _, err := verifyGPG(t.Context(), s, gitClient, "https://github.com/argoproj/argo-cd.git")
 	require.ErrorContains(t, err, `unknown GPG mode "foobar" configured for GIT source integrity`)
 	assert.Nil(t, result)
 }
@@ -183,8 +194,9 @@ func TestPolicyMatching(t *testing.T) {
 		{
 			repo:             "https://github.com/group/foo-legacy.git",
 			expectedPolicies: p(legacy),
-			expectedLogs:     []string{},
-			expectedNoFunc:   true, // The mode is "none"
+			// No criteria is declared, so nothing is verified
+			expectedLogs:   []string{"No verification configured for SourceIntegrity policy for [{URL:https://github.com/group/*-legacy.git}]"},
+			expectedNoFunc: true,
 		},
 		{
 			repo:             "https://github.com/group/bar-critical.git",
@@ -245,7 +257,7 @@ gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, fingerp
 
 	gpgWithTag := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{fingerprint}}
 	// And verifying a given revision
-	result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, "1.0")
+	result, legacy, err := verifyGPG(t.Context(), gpgWithTag, gitClient, "1.0")
 	require.NoError(t, err)
 
 	assert.True(t, result.IsValid())
@@ -301,7 +313,7 @@ gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, keyId)
 				Keys: []string{keyId, "0000000000000000"},
 			}
 			// And verifying a given revision
-			result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, test.revision)
+			result, legacy, err := verifyGPG(t.Context(), gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 			// Then it is checked and valid
 			assert.True(t, result.IsValid())
@@ -342,7 +354,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 
 	t.Run("subkey accepted when its primary is allowed", func(t *testing.T) {
 		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{primaryKeyID}}
-		result, _, err := verify(t.Context(), gpg, subkeySignature(), "1.0")
+		result, _, err := verifyGPG(t.Context(), gpg, subkeySignature(), "1.0")
 		require.NoError(t, err)
 		assert.True(t, result.IsValid())
 		require.NoError(t, result.AsError())
@@ -350,7 +362,7 @@ func TestGPGSubkeySignature(t *testing.T) {
 
 	t.Run("subkey rejected when its primary is not allowed", func(t *testing.T) {
 		gpg := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{unrelatedKeyID}}
-		result, _, err := verify(t.Context(), gpg, subkeySignature(), "1.0")
+		result, _, err := verifyGPG(t.Context(), gpg, subkeySignature(), "1.0")
 		require.NoError(t, err)
 		assert.False(t, result.IsValid())
 		require.ErrorContains(t, result.AsError(), "signed with unallowed key (key_id="+subkeyID+")")
@@ -645,7 +657,7 @@ gpg: Good signature from "%s" [ultimate]`, "Wed Feb 26 23:22:34 2020 CET", ret[0
 				Keys: []string{keyOfFirst, keyOfSecond},
 			}
 			// And verifying a given revision
-			result, legacy, err := verify(t.Context(), gpgWithTag, gitClient, test.revision)
+			result, legacy, err := verifyGPG(t.Context(), gpgWithTag, gitClient, test.revision)
 			require.NoError(t, err)
 
 			// Then it is checked and valid
@@ -661,6 +673,256 @@ gpg: Good signature from "%s" [ultimate]`, "Wed Feb 26 23:22:34 2020 CET", ret[0
 			assert.Equal(t, test.expectedLegacy, legacy)
 			assert.Equal(t, test.expectedPassed, result.PassedChecks())
 			assert.Empty(t, logger.GetEntries())
+		})
+	}
+}
+
+func TestSignedRevisionOnly(t *testing.T) {
+	const repoURL = "https://github.com/group/app.git"
+	const keyID = "4cfe068f80b1681b"
+	const sha = "0c7a9c3f939c1f19b518bcdd11e2fce9703c4901"
+
+	si := func(signedTagsOnly bool) *v1alpha1.SourceIntegrity {
+		return &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos:              []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
+				SignedRevisionOnly: signedTagsOnly,
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+					Keys: []string{keyID},
+				},
+			}},
+		}}
+	}
+
+	// Make the inner GPG check succeed
+	goodSignature := func(gitClient *gitmocks.Client) {
+		gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(
+			func(_ context.Context, revision string, _ bool) ([]git.RevisionSignatureInfo, string, error) {
+				return []git.RevisionSignatureInfo{{
+					Revision: revision, VerificationResult: git.GPGVerificationResultGood,
+					SignatureKeyID: keyID, Date: "ignored", AuthorIdentity: "ignored",
+				}}, `gpg: Good signature from "test user <testuser@example.com>" [ultimate]`, nil
+			})
+	}
+
+	// `git cat-file -t` reports revType
+	// `git rev-parse --symbolic-full-name` reports refName
+	testCases := []struct {
+		name            string
+		signedTagsOnly  bool
+		revision        string
+		revType         string
+		revTypeErr      error
+		refName         string
+		expectedProblem string
+	}{
+		{
+			name:           "annotated tag passes the gate",
+			signedTagsOnly: true,
+			revision:       "v1.0",
+			revType:        "tag",
+		},
+		{
+			name:           "commit sha passes the gate",
+			signedTagsOnly: true,
+			revision:       sha,
+			revType:        "commit",
+		},
+		{
+			name:            "lightweight tag is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        "v1.0-lightweight",
+			revType:         "commit",
+			refName:         "refs/tags/v1.0-lightweight",
+			expectedProblem: "SignedRevisionOnly is enabled, v1.0-lightweight resolves to refs/tags/v1.0-lightweight. Only commit SHAs and annotated tags can be verified",
+		},
+		{
+			name:            "branch is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        "main",
+			revType:         "commit",
+			refName:         "refs/heads/main",
+			expectedProblem: "SignedRevisionOnly is enabled, main resolves to refs/heads/main. Only commit SHAs and annotated tags can be verified",
+		},
+		{
+			name:            "remote tracking branch is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        "origin/main",
+			revType:         "commit",
+			refName:         "refs/remotes/origin/main",
+			expectedProblem: "SignedRevisionOnly is enabled, origin/main resolves to refs/remotes/origin/main. Only commit SHAs and annotated tags can be verified",
+		},
+		{
+			name:            "HEAD is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        "HEAD",
+			revType:         "commit",
+			refName:         "refs/heads/main",
+			expectedProblem: "SignedRevisionOnly is enabled, HEAD resolves to refs/heads/main. Only commit SHAs and annotated tags can be verified",
+		},
+		{
+			name:            "revision that does not exist is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        "v9.9",
+			revTypeErr:      errors.New("fatal: Not a valid object name v9.9"),
+			expectedProblem: "SignedRevisionOnly is enabled, revision v9.9 does not exist",
+		},
+		{
+			name:            "revision that is not a commit is rejected before verification",
+			signedTagsOnly:  true,
+			revision:        sha,
+			revType:         "blob",
+			expectedProblem: "SignedRevisionOnly is enabled, revision " + sha + " is a git blob, not a commit or an annotated tag",
+		},
+		{
+			name:           "gate is not applied when SignedRevisionOnly is off",
+			signedTagsOnly: false,
+			revision:       "main",
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			gitClient := &gitmocks.Client{}
+			gitClient.EXPECT().RepoURL().Return(repoURL)
+
+			if tc.signedTagsOnly {
+				gitClient.EXPECT().GetRevisionType(mock.Anything, tc.revision).Return(tc.revType, tc.revTypeErr)
+				// Only reached for a revision that resolves to a commit.
+				if tc.revTypeErr == nil && tc.revType == "commit" {
+					gitClient.EXPECT().GetSymbolicFullName(mock.Anything, tc.revision).Return(tc.refName, nil)
+				}
+			}
+			if tc.expectedProblem == "" {
+				goodSignature(gitClient)
+			}
+
+			logger := utilTest.LogHook{}
+			logrus.AddHook(&logger)
+			t.Cleanup(logger.CleanupHook)
+
+			result, legacy, err := VerifyGit(t.Context(), si(tc.signedTagsOnly), gitClient, tc.revision)
+			require.NoError(t, err)
+			require.NotNil(t, result)
+
+			if tc.expectedProblem != "" {
+				assert.False(t, result.IsValid())
+				require.EqualError(t, result.AsError(), "GIT: "+tc.expectedProblem)
+				assert.Empty(t, result.PassedChecks())
+				assert.Equal(t, tc.expectedProblem, legacy)
+				gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
+				assert.Empty(t, logger.GetEntries())
+				return
+			}
+
+			assert.True(t, result.IsValid())
+			assert.Equal(t, []string{"GIT/GPG"}, result.PassedChecks())
+
+			gitClient.AssertCalled(t, "LsSignatures", mock.Anything, tc.revision, false)
+			if !tc.signedTagsOnly {
+				gitClient.AssertNotCalled(t, "GetRevisionType", mock.Anything, mock.Anything)
+				gitClient.AssertNotCalled(t, "GetSymbolicFullName", mock.Anything, mock.Anything)
+			}
+			assert.Empty(t, logger.GetEntries())
+		})
+	}
+}
+
+func TestSignedRevisionOnlyGitFailure(t *testing.T) {
+	const repoURL = "https://github.com/group/app.git"
+
+	si := &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
+		Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+			Repos:              []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
+			SignedRevisionOnly: true,
+			GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+				Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+				Keys: []string{"4cfe068f80b1681b"},
+			},
+		}},
+	}}
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().RepoURL().Return(repoURL)
+	gitClient.EXPECT().GetRevisionType(mock.Anything, "v1.0").Return("commit", nil)
+	gitClient.EXPECT().GetSymbolicFullName(mock.Anything, "v1.0").Return("", errors.New("fatal: not a git repository"))
+
+	result, legacy, err := VerifyGit(t.Context(), si, gitClient, "v1.0")
+	require.ErrorContains(t, err, "fatal: not a git repository")
+	assert.Nil(t, result)
+	assert.Empty(t, legacy)
+	gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
+}
+
+func TestSignedRevisionOnlyWithoutGPGCheck(t *testing.T) {
+	const repoURL = "https://github.com/group/app.git"
+	const keyID = "4cfe068f80b1681b"
+
+	si := func(gpg *v1alpha1.SourceIntegrityGitPolicyGPG) *v1alpha1.SourceIntegrity {
+		return &v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos:              []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "https://github.com/group/*"}},
+				SignedRevisionOnly: true,
+				GPG:                gpg,
+			}},
+		}}
+	}
+
+	testCases := []struct {
+		name         string
+		gpg          *v1alpha1.SourceIntegrityGitPolicyGPG
+		gpgDisabled  bool
+		expectedLogs []string
+	}{
+		{
+			name:         "no GPG criteria declared",
+			expectedLogs: []string{},
+		},
+		{
+			name:         "GPG mode none",
+			gpg:          &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeNone},
+			expectedLogs: []string{},
+		},
+		{
+			name:         "GPG turned off by ARGOCD_GPG_ENABLED",
+			gpg:          &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead, Keys: []string{keyID}},
+			gpgDisabled:  true,
+			expectedLogs: []string{"SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED"},
+		},
+		{
+			name:         "GPG mode none while turned off by ARGOCD_GPG_ENABLED",
+			gpg:          &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeNone},
+			gpgDisabled:  true,
+			expectedLogs: []string{},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			if tc.gpgDisabled {
+				t.Setenv("ARGOCD_GPG_ENABLED", "false")
+				resetGPGDisabledWarning(t)
+			}
+
+			logger := utilTest.LogHook{}
+			logrus.AddHook(&logger)
+			t.Cleanup(logger.CleanupHook)
+
+			for _, revision := range []string{"v1.0", "main"} {
+				gitClient := &gitmocks.Client{}
+				gitClient.EXPECT().RepoURL().Return(repoURL)
+
+				result, legacy, err := VerifyGit(t.Context(), si(tc.gpg), gitClient, revision)
+				require.EqualError(t, err, "SignedRevisionOnly is enabled without verification for SourceIntegrity policy for [{URL:https://github.com/group/*}]", "revision %s", revision)
+				assert.Nil(t, result)
+				assert.Empty(t, legacy)
+				gitClient.AssertNotCalled(t, "IsAnnotatedTag", mock.Anything, mock.Anything)
+				gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
+			}
+
+			// SignedRevisionOnly is a criteria, so the policy is not skipped over as having nothing to check
+			assert.True(t, HasCriteria(si(tc.gpg), v1alpha1.ApplicationSource{RepoURL: repoURL}))
+
+			assert.Equal(t, tc.expectedLogs, logger.GetEntries())
 		})
 	}
 }
