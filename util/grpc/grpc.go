@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"crypto/tls"
+	"errors"
 	"fmt"
 	"net"
 	"runtime/debug"
@@ -87,45 +88,64 @@ type TLSTestResult struct {
 	InsecureErr error
 }
 
+// tlsHandshake dials address the way BlockingNewClient does and completes a TLS handshake with it.
+func tlsHandshake(ctx context.Context, address string, config *tls.Config) error {
+	rawConn, err := proxy.Dial(ctx, "tcp", address)
+	if err != nil {
+		return fmt.Errorf("error dial proxy: %w", err)
+	}
+	defer rawConn.Close()
+
+	config = config.Clone()
+	if config.ServerName == "" {
+		host, _, err := net.SplitHostPort(address)
+		if err != nil {
+			return fmt.Errorf("error parsing address %q: %w", address, err)
+		}
+		config.ServerName = host
+	}
+	// Offer the protocols the API is served over, for servers that route or reject on ALPN. The handshake
+	// still succeeds when the server negotiates none.
+	if len(config.NextProtos) == 0 {
+		config.NextProtos = []string{"h2", "http/1.1"}
+	}
+	if err := tls.Client(rawConn, config).HandshakeContext(ctx); err != nil {
+		return fmt.Errorf("error creating connection: %w", err)
+	}
+	return nil
+}
+
 func TestTLS(address string, dialTime time.Duration) (*TLSTestResult, error) {
 	if parts := strings.Split(address, ":"); len(parts) == 1 {
 		// If port is unspecified, assume the most likely port
 		address += ":443"
 	}
 	var testResult TLSTestResult
-	var tlsConfig tls.Config
-	tlsConfig.InsecureSkipVerify = true
-	creds := credentials.NewTLS(&tlsConfig)
 
 	// Set timeout when dialing to the server
 	// fix: https://github.com/argoproj/argo-cd/issues/9679
 	ctx, cancel := context.WithTimeout(context.Background(), dialTime)
 	defer cancel()
 
-	conn, err := BlockingNewClient(ctx, "tcp", address, creds)
-	if err == nil {
-		_ = conn.Close()
+	// A plain TLS handshake, not a gRPC connection: a proxy that does not negotiate HTTP/2 still
+	// serves TLS, and the client can reach the API through it with gRPC-web.
+	err := tlsHandshake(ctx, address, &tls.Config{})
+	var verifyErr *tls.CertificateVerificationError
+	if err == nil || errors.As(err, &verifyErr) {
 		testResult.TLS = true
-		creds := credentials.NewTLS(&tls.Config{})
-		ctx, cancel := context.WithTimeout(context.Background(), dialTime)
-		defer cancel()
-
-		conn, err := BlockingNewClient(ctx, "tcp", address, creds)
-		if err == nil {
-			_ = conn.Close()
-		} else {
-			// if connection was successful with InsecureSkipVerify true, but unsuccessful with
-			// InsecureSkipVerify false, it means server is not configured securely
+		// A handshake that fails only on certificate verification still means the server speaks TLS, but
+		// is not configured securely
+		if err != nil {
 			testResult.InsecureErr = err
 		}
 		return &testResult, nil
 	}
-	// If we get here, we were unable to connect via TLS (even with InsecureSkipVerify: true)
+	// If we get here, we were unable to connect via TLS (for a reason other than its certificate)
 	// It may be because server is running without TLS, or because of real issues (e.g. connection
 	// refused). Test if server accepts plain-text connections
 	ctx, cancel = context.WithTimeout(context.Background(), dialTime)
 	defer cancel()
-	conn, err = BlockingNewClient(ctx, "tcp", address, nil)
+	conn, err := BlockingNewClient(ctx, "tcp", address, nil)
 	if err == nil {
 		_ = conn.Close()
 		testResult.TLS = false
