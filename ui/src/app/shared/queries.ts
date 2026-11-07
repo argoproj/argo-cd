@@ -63,6 +63,10 @@ export const accountQueries = {
     detail: (name: string) => queryOptions({queryKey: ['accounts', 'detail', name], queryFn: () => services.accounts.get(name)})
 };
 
+export const userQueries = {
+    info: () => queryOptions({queryKey: ['userinfo'], queryFn: () => services.users.get()})
+};
+
 export const settingsQueries = {
     get: () => queryOptions({queryKey: ['settings'], queryFn: () => services.authService.settings()})
 };
