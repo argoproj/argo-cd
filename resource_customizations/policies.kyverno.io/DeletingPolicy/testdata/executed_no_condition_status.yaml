@@ -1,0 +1,7 @@
+apiVersion: policies.kyverno.io/v1
+kind: DeletingPolicy
+metadata:
+  name: sample-deleting-policy
+spec: {}
+status:
+  lastExecutionTime: "2026-11-04T16:00:00Z"
