@@ -23,6 +23,91 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/gpgsign/gpgsigntest"
 )
 
+func Test_AdvanceHydratorNote(t *testing.T) {
+	t.Parallel()
+
+	request := func(expectedHydratedSha string) *apiclient.AdvanceHydratorNoteRequest {
+		return &apiclient.AdvanceHydratorNoteRequest{
+			Repo: &v1alpha1.Repository{
+				Repo: "https://github.com/argoproj/argocd-example-apps.git",
+			},
+			TargetBranch:        "main",
+			SyncBranch:          "env/test",
+			DrySha:              "dry-sha-123",
+			ExpectedHydratedSha: expectedHydratedSha,
+		}
+	}
+
+	t.Run("already hydrated returns current head and skips note write", func(t *testing.T) {
+		t.Parallel()
+
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor(mock.Anything, "Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan(mock.Anything, "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("existing-head-sha", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, "existing-head-sha", NoteNamespace).Return(`{"drySha":"dry-sha-123"}`, nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+
+		resp, err := service.AdvanceHydratorNote(t.Context(), request("existing-head-sha"))
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, "existing-head-sha", resp.HydratedSha)
+		assert.False(t, resp.NoteAdvanced)
+	})
+
+	t.Run("writes a note when not hydrated", func(t *testing.T) {
+		t.Parallel()
+
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor(mock.Anything, "Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan(mock.Anything, "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("new-head-sha", nil).Once()
+		mockGitClient.EXPECT().GetCommitNote(mock.Anything, "new-head-sha", NoteNamespace).Return("", fmt.Errorf("test %w", git.ErrNoNoteFound)).Once()
+		mockGitClient.EXPECT().AddAndPushNote(mock.Anything, "new-head-sha", NoteNamespace, `{"drySha":"dry-sha-123"}`).Return(nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+
+		resp, err := service.AdvanceHydratorNote(t.Context(), request("new-head-sha"))
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		assert.Equal(t, "new-head-sha", resp.HydratedSha)
+		assert.True(t, resp.NoteAdvanced)
+	})
+
+	t.Run("branch moved since the caller verified it: refuses without writing a note", func(t *testing.T) {
+		t.Parallel()
+
+		service, mockRepoClientFactory := newServiceWithMocks(t)
+		mockGitClient := gitmocks.NewClient(t)
+		mockGitClient.EXPECT().Init().Return(nil).Once()
+		mockGitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil).Once()
+		mockGitClient.EXPECT().SetAuthor(mock.Anything, "Argo CD", "argo-cd@example.com").Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrOrphan(mock.Anything, "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CheckoutOrNew(mock.Anything, "main", "env/test", false).Return("", nil).Once()
+		mockGitClient.EXPECT().CommitSHA(mock.Anything).Return("moved-head-sha", nil).Once()
+		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
+
+		_, err := service.AdvanceHydratorNote(t.Context(), request("verified-head-sha"))
+		require.ErrorContains(t, err, "moved from verified-head-sha to moved-head-sha")
+		mockGitClient.AssertNotCalled(t, "AddAndPushNote", mock.Anything, mock.Anything, mock.Anything, mock.Anything)
+	})
+
+	t.Run("missing expected hydrated sha is rejected", func(t *testing.T) {
+		t.Parallel()
+
+		service, _ := newServiceWithMocks(t)
+		_, err := service.AdvanceHydratorNote(t.Context(), request(""))
+		require.ErrorContains(t, err, "expected hydrated sha is required")
+	})
+}
+
 func Test_CommitHydratedManifests(t *testing.T) {
 	t.Parallel()
 
