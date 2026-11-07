@@ -1,9 +1,10 @@
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {fireEvent, render, screen} from '@testing-library/react';
+import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import {Provider} from '../../../shared/context';
+import {userQueries} from '../../../shared/queries';
 import {newQueryClient} from '../../../shared/query-client';
 import {services} from '../../../shared/services';
 import {UserInfoOverview} from './user-info-overview';
@@ -43,6 +44,21 @@ describe('UserInfoOverview', () => {
         renderOverview();
 
         expect(await screen.findByText('You are not logged in')).toBeInTheDocument();
+    });
+
+    it('does not show the previous user after the page is left', async () => {
+        jest.mocked(services.users.get)
+            .mockResolvedValueOnce({loggedIn: true, username: 'alice', iss: 'argocd', groups: []})
+            .mockResolvedValueOnce({loggedIn: true, username: 'bob', iss: 'argocd', groups: []});
+        const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+        const first = renderOverview(client);
+        expect(await screen.findByText('Username: alice')).toBeInTheDocument();
+        first.unmount();
+
+        await waitFor(() => expect(client.getQueryData(userQueries.info().queryKey)).toBeUndefined());
+        renderOverview(client);
+        expect(screen.queryByText('Username: alice')).not.toBeInTheDocument();
+        expect(await screen.findByText('Username: bob')).toBeInTheDocument();
     });
 
     it('offers retry after a failed load', async () => {
