@@ -129,6 +129,10 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	// the transition time that will be set in the current reconcile loop
 	previousWaitingTime := GetLatestWaitingTransitionTimeOfAppset(&appset)
 
+	// Capture the Pending applications whose sync already started BEFORE updating status, so they
+	// are not synced again in this reconcile loop, including the one that moves them to Progressing
+	appsWithSyncStarted := getAppsWithSyncStarted(&appset, applications)
+
 	_, err := m.UpdateApplicationSetApplicationStatus(ctx, logCtx, &appset, applications, desiredApplications, appStepMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset app status: %w", err)
@@ -157,6 +161,12 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	_, err = m.UpdateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
+	}
+
+	// Triggering the sync again once the application controller clears the operation would sync these applications twice
+	for appName := range appsWithSyncStarted {
+		logCtx.Debugf("not triggering sync for application: %v, its sync already started", appName)
+		delete(appsToSync, appName)
 	}
 
 	progressingCondition := m.getProgressingCondition(&appset)
@@ -528,9 +538,9 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			// The target revision is the same, so we need to evaluate the current revision progress
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending {
 				// No need to evaluate status health further if the application did not change since our last transition
-				if app.Status.ReconciledAt == nil || (newAppStatus.LastTransitionTime != nil && app.Status.ReconciledAt.After(newAppStatus.LastTransitionTime.Time)) {
-					// Validate that at least one sync was triggered after the pending transition time
-					if app.Status.OperationState != nil && app.Status.OperationState.StartedAt.After(currentAppStatus.LastTransitionTime.Time) {
+				if app.Status.ReconciledAt == nil || (newAppStatus.LastTransitionTime != nil && app.Status.ReconciledAt.After(newAppStatus.LastTransitionTime.Time)) || reconciledSinceSync(app, currentAppStatus.LastTransitionTime, currentAppStatus.TargetRevisions) {
+					// Validate that at least one sync was triggered since the pending transition time
+					if operationStartedSince(app, currentAppStatus.LastTransitionTime, currentAppStatus.TargetRevisions) {
 						statusLogCtx = statusLogCtx.WithField("app.operation", app.Status.OperationState.Phase)
 						newAppStatus.LastTransitionTime = &now
 						newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
@@ -631,6 +641,23 @@ func getAppsToSync(applicationSet argov1alpha1.ApplicationSet, appDependencyList
 	return appSyncMap
 }
 
+// getAppsWithSyncStarted returns the Pending applications that have an operation started since they became Pending
+func getAppsWithSyncStarted(applicationSet *argov1alpha1.ApplicationSet, currentApplications []argov1alpha1.Application) map[string]bool {
+	currentAppsMap := make(map[string]argov1alpha1.Application, len(currentApplications))
+	for _, app := range currentApplications {
+		currentAppsMap[app.Name] = app
+	}
+
+	appsWithSyncStarted := map[string]bool{}
+	for _, appStatus := range applicationSet.Status.ApplicationStatus {
+		app, ok := currentAppsMap[appStatus.Application]
+		if ok && appStatus.Status == argov1alpha1.ProgressiveSyncPending && operationStartedSince(app, appStatus.LastTransitionTime, appStatus.TargetRevisions) {
+			appsWithSyncStarted[appStatus.Application] = true
+		}
+	}
+	return appsWithSyncStarted
+}
+
 func IsRollingSyncStrategy(appset *argov1alpha1.ApplicationSet) bool {
 	// It's only RollingSync if the type specifically sets it
 	return appset.Spec.Strategy != nil && appset.Spec.Strategy.Type == "RollingSync" && appset.Spec.Strategy.RollingSync != nil
@@ -690,6 +717,65 @@ func GetLatestWaitingTransitionTimeOfAppset(appset *argov1alpha1.ApplicationSet)
 
 func hasPendingChanges(appStatus argov1alpha1.ApplicationSetApplicationStatus) bool {
 	return appStatus.Message == revisionChangedMsg || appStatus.Message == revisionAndSpecChangedMsg || appStatus.Message == specChangedMsg
+}
+
+// operationStartedSince returns true if the Application has an operation that started after since. Both times are
+// stored with second precision, so an operation that started in the same second may also have started before since.
+// That operation only counts if it syncs the target revisions with the Application's current sources, which tells the
+// sync triggered for them apart from an earlier sync of other revisions or sources.
+func operationStartedSince(app argov1alpha1.Application, since *metav1.Time, targetRevisions []string) bool {
+	if since == nil || app.Status.OperationState == nil {
+		return false
+	}
+	startedAt := app.Status.OperationState.StartedAt
+	if startedAt.After(since.Time) {
+		return true
+	}
+	return startedAt.Equal(since) && operationSyncsTargets(app, targetRevisions)
+}
+
+// operationSyncsTargets returns true if the Application's operation syncs the target revisions with the Application's
+// current sources. It compares the revisions and sources in the result of the sync, as alreadyAttemptedSync in the
+// application controller does. If the sync has not recorded a result yet, it compares the revisions the operation
+// requested. Without target revisions, the sync is not pinned to a revision, so only the sources are compared.
+func operationSyncsTargets(app argov1alpha1.Application, targetRevisions []string) bool {
+	opState := app.Status.OperationState
+	if opState.SyncResult == nil {
+		// Until it records a result, the sync uses the requested revisions with the Application's sources
+		syncOp := opState.Operation.Sync
+		if syncOp == nil || syncOp.Source != nil || len(syncOp.Sources) > 0 {
+			return false
+		}
+		return revisionsMatchTargets(app, syncOp.Revision, syncOp.Revisions, targetRevisions)
+	}
+
+	syncResult := opState.SyncResult
+	if !revisionsMatchTargets(app, syncResult.Revision, syncResult.Revisions, targetRevisions) {
+		return false
+	}
+	if app.Spec.HasMultipleSources() {
+		return reflect.DeepEqual(app.Spec.Sources, syncResult.Sources)
+	}
+	return reflect.DeepEqual(app.Spec.GetSource(), syncResult.Source)
+}
+
+// revisionsMatchTargets returns true if the revision, or the revisions for multiple sources, are the target revisions
+func revisionsMatchTargets(app argov1alpha1.Application, revision string, revisions, targetRevisions []string) bool {
+	if len(targetRevisions) == 0 {
+		return true
+	}
+	if app.Spec.HasMultipleSources() {
+		return slices.Equal(revisions, targetRevisions)
+	}
+	return len(targetRevisions) == 1 && revision == targetRevisions[0]
+}
+
+// reconciledSinceSync returns true if an operation that started since the transition has finished and the Application
+// has been reconciled since then. A reconcile in the same second as the transition can't be ordered against it, but
+// one after the operation finished reflects the sync.
+func reconciledSinceSync(app argov1alpha1.Application, since *metav1.Time, targetRevisions []string) bool {
+	return operationStartedSince(app, since, targetRevisions) && app.Status.OperationState.FinishedAt != nil &&
+		app.Status.ReconciledAt != nil && !app.Status.ReconciledAt.Before(app.Status.OperationState.FinishedAt)
 }
 
 // addRefreshAnnotationToApplications adds the refresh annotation to all Applications owned by the ApplicationSet

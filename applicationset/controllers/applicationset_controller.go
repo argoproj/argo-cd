@@ -1305,7 +1305,8 @@ func getApplicationOwnsHandler(enableProgressiveSyncs bool) predicate.Funcs {
 // application change
 // The applicationset controller owns a subset of the Application CR.
 // We do not need to re-reconcile if parts of the application change outside the applicationset's control.
-// An example being, Application.ApplicationStatus.ReconciledAt which gets updated by the application controller.
+// An example being, Application.ApplicationStatus.ReconciledAt which gets updated by the application controller,
+// apart from the first reconcile after an operation finished, which progressive syncs wait for.
 // Additionally, Application.ObjectMeta.ResourceVersion and Application.ObjectMeta.Generation which are set by K8s.
 func shouldRequeueForApplication(appOld *argov1alpha1.Application, appNew *argov1alpha1.Application, enableProgressiveSyncs bool) bool {
 	if appOld == nil || appNew == nil {
@@ -1334,6 +1335,14 @@ func shouldRequeueForApplication(appOld *argov1alpha1.Application, appNew *argov
 				appOld.Status.OperationState.StartedAt != appNew.Status.OperationState.StartedAt {
 				return true
 			}
+		}
+
+		// A Pending application may need the first reconcile after its sync finished to move on, so requeue on
+		// that reconcile, even though ReconciledAt changes are otherwise ignored.
+		if op := appNew.Status.OperationState; op != nil && op.FinishedAt != nil && appNew.Status.ReconciledAt != nil &&
+			!appNew.Status.ReconciledAt.Before(op.FinishedAt) &&
+			(appOld.Status.ReconciledAt == nil || appOld.Status.ReconciledAt.Before(op.FinishedAt)) {
+			return true
 		}
 	}
 
