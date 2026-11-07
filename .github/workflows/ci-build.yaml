@@ -713,6 +713,9 @@ jobs:
       ARGOCD_E2E_APISERVER_PORT: '8088'
       ARGOCD_E2E_SHARD: ${{ matrix.shard }}
       ARGOCD_E2E_SHARD_COUNT: ${{ needs.changes.outputs.e2e_shard_count }}
+      # Draft-only, from #27998: run this branch's e2e suite on the informer cache.
+      # Remove before merging; master's e2e must keep testing the default engine.
+      ARGOCD_CLUSTER_CACHE_USE_INFORMERS: 'true'
       ARGOCD_APPLICATION_NAMESPACES: 'argocd-e2e-external,argocd-e2e-external-2'
       ARGOCD_SERVER: '127.0.0.1:8088'
       GITHUB_TOKEN: ${{ secrets.E2E_TEST_GITHUB_TOKEN || secrets.GITHUB_TOKEN }}
