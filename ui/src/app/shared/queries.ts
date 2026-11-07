@@ -67,6 +67,11 @@ export const settingsQueries = {
     get: () => queryOptions({queryKey: ['settings'], queryFn: () => services.authService.settings()})
 };
 
+export const notificationQueries = {
+    triggers: () => queryOptions({queryKey: ['notifications', 'triggers'], queryFn: () => services.notification.listTriggers()}),
+    services: () => queryOptions({queryKey: ['notifications', 'services'], queryFn: () => services.notification.listServices()})
+};
+
 export const helpQueries = {
     // Best-effort: the version only labels the download link, so a failure yields an empty Platform instead of an
     // error notification. Kept under 'help' so other version readers don't get the cached fallback.
