@@ -232,6 +232,8 @@ func (c *gzipCompressor) compress(data []byte) ([]byte, error) {
 	if err := gz.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close gzip writer: %w", err)
 	}
+	// Detach the writer from buf before pooling it so the pool doesn't keep the untrimmed output buffer alive.
+	gz.Reset(io.Discard)
 	c.pool.Put(gz)
 	return buf.Bytes(), nil
 }
