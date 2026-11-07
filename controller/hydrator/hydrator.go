@@ -7,6 +7,7 @@ import (
 	"maps"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -341,8 +342,26 @@ func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
 	app.Status.SourceHydrator.CurrentOperation.Phase = appv1.HydrateOperationPhaseFailed
 	failedAt := metav1.Now()
 	app.Status.SourceHydrator.CurrentOperation.FinishedAt = &failedAt
-	app.Status.SourceHydrator.CurrentOperation.Message = fmt.Sprintf("Failed to hydrate: %v", err.Error())
+	app.Status.SourceHydrator.CurrentOperation.Message = hydrateFailureMessagePrefix + err.Error()
 	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
+}
+
+// hydrateFailureMessagePrefix prefixes the message that is persisted to the application status when
+// a hydrate operation fails. See HydrationFailureCause for the reverse operation.
+const hydrateFailureMessagePrefix = "Failed to hydrate: "
+
+// HydrationFailureCause returns the underlying cause recorded on a failed hydrate operation, without
+// the "Failed to hydrate: " prefix. It returns an empty string if the operation did not fail or did
+// not record a message.
+//
+// Consumers that surface a hydration failure in a different context (for example the app
+// controller's "app path does not exist" target state error) need the cause rather than the
+// status message so they don't nest one "failed to hydrate" sentence inside another.
+func HydrationFailureCause(op *appv1.HydrateOperation) string {
+	if op == nil || op.Phase != appv1.HydrateOperationPhaseFailed {
+		return ""
+	}
+	return strings.TrimSpace(strings.TrimPrefix(op.Message, hydrateFailureMessagePrefix))
 }
 
 // getAppsForHydrationKey returns the applications matching the hydration key.
@@ -717,6 +736,11 @@ func getTemplatedCommitMessage(repoURL, revision, commitMessageTemplate string, 
 }
 
 // genericHydrationError returns an error that summarizes the hydration errors for all applications.
+// The cause of the first (alphabetically) failure is included so that every application in the
+// hydration group can tell why the group failed. Without it, an app that only failed because one of
+// its siblings failed says nothing more than "some other app has an error", and the actual cause
+// can only be found in the repo server logs
+// (https://github.com/argoproj/argo-cd/issues/30258).
 func genericHydrationError(validationErrors map[string]error) error {
 	if len(validationErrors) == 0 {
 		return nil
@@ -726,6 +750,9 @@ func genericHydrationError(validationErrors map[string]error) error {
 	remainder := "has an error"
 	if len(keys) > 1 {
 		remainder = fmt.Sprintf("and %d more have errors", len(keys)-1)
+	}
+	if cause := validationErrors[keys[0]]; cause != nil {
+		return fmt.Errorf("cannot hydrate because application %s %s: %w", keys[0], remainder, cause)
 	}
 	return fmt.Errorf("cannot hydrate because application %s %s", keys[0], remainder)
 }

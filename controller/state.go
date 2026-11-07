@@ -37,6 +37,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned"
@@ -421,7 +422,7 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 			if err != nil {
 				genErr := fmt.Errorf("failed to generate manifest for source %d of %d: %w", i+1, len(sources), err)
 				if app.Spec.SourceHydrator != nil && app.Spec.SourceHydrator.HydrateTo != nil && strings.Contains(err.Error(), path.ErrMessageAppPathDoesNotExist) {
-					genErr = fmt.Errorf("%w - waiting for an external process to update %s from %s", genErr, app.Spec.SourceHydrator.SyncSource.TargetBranch, app.Spec.SourceHydrator.HydrateTo.TargetBranch)
+					genErr = fmt.Errorf("%w - %s", genErr, hydratedPathMissingReason(app))
 				}
 				return genErr
 			}
@@ -458,6 +459,48 @@ func (m *appStateManager) GetRepoObjs(ctx context.Context, app *v1alpha1.Applica
 	logCtx.Info("GetRepoObjs stats")
 
 	return targetObjs, manifestInfos, revisionsMayHaveChanges, nil
+}
+
+// hydratedPathMissingReason explains why the manifests of an app that promotes its hydrated
+// manifests through a separate branch (spec.sourceHydrator.hydrateTo) are missing from the sync
+// branch.
+//
+// By default the reason is that nothing has promoted the hydrated manifests from the hydrateTo
+// branch to the sync branch yet. That explanation is misleading when hydration itself is failing,
+// because then the sync branch is stale *because* no hydrated commit was ever produced, and the
+// hydration failure - not the missing promotion - is what the user needs to see
+// (https://github.com/argoproj/argo-cd/issues/30258).
+func hydratedPathMissingReason(app *v1alpha1.Application) string {
+	syncBranch := app.Spec.SourceHydrator.SyncSource.TargetBranch
+	hydrateToBranch := app.Spec.SourceHydrator.HydrateTo.TargetBranch
+
+	if op := app.Status.SourceHydrator.CurrentOperation; op != nil && hydrationOperationIsCurrent(app, op) {
+		switch op.Phase {
+		case v1alpha1.HydrateOperationPhaseFailed:
+			if cause := hydrator.HydrationFailureCause(op); cause != "" {
+				return "hydration failed: " + cause
+			}
+			return "hydration failed: check status.sourceHydrator.currentOperation for details"
+		case v1alpha1.HydrateOperationPhaseHydrating:
+			return fmt.Sprintf("hydration is still in progress - waiting for an external process to update %s from %s", syncBranch, hydrateToBranch)
+		}
+	}
+	return fmt.Sprintf("waiting for an external process to update %s from %s", syncBranch, hydrateToBranch)
+}
+
+// hydrationOperationIsCurrent reports whether the recorded hydrate operation still describes the app's
+// current configuration and dry revision. A new dry revision is compared - and hydration is queued for
+// it - before markAppsHydrating replaces a previously failed operation, so an operation that does not
+// match the current spec or the last compared dry revision may already be obsolete. Reporting its
+// failure would blame a cause that no longer applies.
+func hydrationOperationIsCurrent(app *v1alpha1.Application, op *v1alpha1.HydrateOperation) bool {
+	if !app.Spec.SourceHydrator.DeepEquals(op.SourceHydrator) {
+		return false
+	}
+	if op.DrySHA == "" || app.Status.SourceHydrator.LastComparedDryRevision == "" {
+		return true
+	}
+	return op.DrySHA == app.Status.SourceHydrator.LastComparedDryRevision
 }
 
 // evaluateRevisionChanges checks if a single source revision has changes without generating manifests.

@@ -1113,7 +1113,7 @@ func TestGenericHydrationError(t *testing.T) {
 		}
 		err := genericHydrationError(errs)
 		require.Error(t, err)
-		assert.Equal(t, "cannot hydrate because application default/app1 has an error", err.Error())
+		assert.Equal(t, "cannot hydrate because application default/app1 has an error: error1", err.Error())
 	})
 
 	t.Run("multiple errors", func(t *testing.T) {
@@ -1124,8 +1124,47 @@ func TestGenericHydrationError(t *testing.T) {
 		}
 		err := genericHydrationError(errs)
 		require.Error(t, err)
-		// Sorted keys, so default/app1 is first
-		assert.Equal(t, "cannot hydrate because application default/app1 and 2 more have errors", err.Error())
+		// Sorted keys, so default/app1 is first. Its cause is included so that the other apps in
+		// the group can tell why the group failed (https://github.com/argoproj/argo-cd/issues/30258).
+		assert.Equal(t, "cannot hydrate because application default/app1 and 2 more have errors: error1", err.Error())
+	})
+
+	t.Run("wraps the cause", func(t *testing.T) {
+		cause := errors.New("values-production.yaml: no such file or directory")
+		err := genericHydrationError(map[string]error{"default/app1": cause})
+		require.Error(t, err)
+		assert.ErrorIs(t, err, cause)
+	})
+}
+
+func TestHydrationFailureCause(t *testing.T) {
+	t.Run("nil operation", func(t *testing.T) {
+		assert.Empty(t, HydrationFailureCause(nil))
+	})
+
+	t.Run("not failed", func(t *testing.T) {
+		for _, phase := range []v1alpha1.HydrateOperationPhase{v1alpha1.HydrateOperationPhaseHydrating, v1alpha1.HydrateOperationPhaseHydrated} {
+			op := &v1alpha1.HydrateOperation{Phase: phase, Message: "Failed to hydrate: boom"}
+			assert.Empty(t, HydrationFailureCause(op), "phase %s", phase)
+		}
+	})
+
+	t.Run("failed with message", func(t *testing.T) {
+		op := &v1alpha1.HydrateOperation{
+			Phase:   v1alpha1.HydrateOperationPhaseFailed,
+			Message: "Failed to hydrate: failed to get manifests: values-production.yaml: no such file or directory",
+		}
+		assert.Equal(t, "failed to get manifests: values-production.yaml: no such file or directory", HydrationFailureCause(op))
+	})
+
+	t.Run("failed without message", func(t *testing.T) {
+		op := &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseFailed}
+		assert.Empty(t, HydrationFailureCause(op))
+	})
+
+	t.Run("message without prefix", func(t *testing.T) {
+		op := &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseFailed, Message: "some error"}
+		assert.Equal(t, "some error", HydrationFailureCause(op))
 	})
 }
 
