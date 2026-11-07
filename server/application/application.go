@@ -1776,8 +1776,17 @@ func (s *Server) GetOCIMetadata(ctx context.Context, q *application.RevisionMeta
 // version ID are optional. If the source index is not specified, it defaults to 0. If the version ID is not specified,
 // we use the source(s) currently configured for the app. If the version ID is specified, we find the source for that
 // version ID. If the version ID is not found, we return an error. If the source index is out of bounds for whichever
-// source we choose (configured sources or sources for a specific version), we return an error.
+// source we choose (configured sources or sources for a specific version), we return an error. For source hydrator
+// apps, a negative source index refers to the dry source, which is always taken from the app spec.
 func getAppSourceBySourceIndexAndVersionId(a *v1alpha1.Application, sourceIndexMaybe *int32, versionIdMaybe *int32) (v1alpha1.ApplicationSource, error) {
+	if sourceIndexMaybe != nil && *sourceIndexMaybe < 0 {
+		if a.Spec.SourceHydrator == nil {
+			return v1alpha1.ApplicationSource{}, fmt.Errorf("source index %d is only valid for applications using the source hydrator", *sourceIndexMaybe)
+		}
+		// The revision history only records the sync source, so the version ID can't be used to look up the dry source.
+		return a.Spec.SourceHydrator.GetDrySource(), nil
+	}
+
 	// Start with all the app's configured sources.
 	sources := a.Spec.GetSources()
 

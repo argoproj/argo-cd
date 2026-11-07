@@ -3,8 +3,9 @@ import * as React from 'react';
 import {Timestamp} from '../../../shared/components/timestamp';
 import {services} from '../../../shared/services';
 
-export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number}) => {
-    const loaderKey = `${props.appNamespace}/${props.appName}/${props.type}/${props.revision}/${props.versionId}`;
+export const RevisionMetadataPanel = (props: {appName: string; appNamespace: string; type: string; revision: string; versionId: number; sourceIndex?: number}) => {
+    const sourceIndex = props.sourceIndex ?? 0;
+    const loaderKey = `${props.appNamespace}/${props.appName}/${props.type}/${props.revision}/${props.versionId}/${sourceIndex}`;
     if (props.type === 'helm') {
         return null;
     }
@@ -12,7 +13,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
         return (
             <DataLoader
                 key={loaderKey}
-                load={() => services.applications.ociMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)}
+                load={() => services.applications.ociMetadata(props.appName, props.appNamespace, props.revision, sourceIndex, props.versionId)}
                 errorRenderer={() => <div />}>
                 {m => (
                     <Tooltip
@@ -57,7 +58,7 @@ export const RevisionMetadataPanel = (props: {appName: string; appNamespace: str
     return (
         <DataLoader
             key={loaderKey}
-            load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision, 0, props.versionId)}
+            load={() => services.applications.revisionMetadata(props.appName, props.appNamespace, props.revision, sourceIndex, props.versionId)}
             errorRenderer={() => <div />}>
             {m => (
                 <Tooltip
