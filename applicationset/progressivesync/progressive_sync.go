@@ -34,6 +34,7 @@ const (
 	revisionAndSpecChangedMsg = "Application has pending changes (revision and spec differ), setting status to Waiting"
 	revisionChangedMsg        = "Application has pending changes, setting status to Waiting"
 	specChangedMsg            = "Application has pending changes (spec differs), setting status to Waiting"
+	applicationOutOfSyncMsg   = "Application is OutOfSync for the current target revision, setting status to Waiting"
 )
 
 type deleteInOrder struct {
@@ -513,7 +514,9 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			// App has changed to waiting because the TargetRevisions changed or it is a new selected app
 			// This does not mean we should always sync the app. The app may not be OutOfSync
 			// and may not require a sync if it does not have differences.
-			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
+			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced &&
+				applicationSyncedToTarget(&app, newAppStatus.TargetRevisions) &&
+				(idx == -1 || operationStartedAfterTransition(&app, newAppStatus.LastTransitionTime)) {
 				if app.Status.Health.Status == health.HealthStatusHealthy {
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
@@ -562,6 +565,24 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
 				}
+			}
+
+			if (newAppStatus.Status == argov1alpha1.ProgressiveSyncHealthy || newAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing) &&
+				appSyncStatus == argov1alpha1.SyncStatusCodeOutOfSync &&
+				!operationInFlight(&app) &&
+				!lastOperationFailed(&app) &&
+				!applicationSyncedToTarget(&app, currentAppStatus.TargetRevisions) &&
+				applicationReconciledAfter(&app, currentAppStatus.LastTransitionTime) {
+				newAppStatus.LastTransitionTime = &now
+				newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
+				newAppStatus.Message = applicationOutOfSyncMsg
+
+				statusLogCtx.WithFields(log.Fields{
+					"new_status.status":          newAppStatus.Status,
+					"new_status.message":         newAppStatus.Message,
+					"new_status.step":            newAppStatus.Step,
+					"new_status.targetRevisions": strings.Join(newAppStatus.TargetRevisions, ","),
+				}).Info("Application is OutOfSync for the recorded target, rolling status back to Waiting")
 			}
 		}
 
@@ -648,6 +669,41 @@ func RollingSyncStrategyEnabled(appset *argov1alpha1.ApplicationSet) bool {
 func IsDeletionOrderReversed(appset *argov1alpha1.ApplicationSet) bool {
 	// When progressive sync is enabled + deletionOrder is set to Reverse (case-insensitive)
 	return RollingSyncStrategyEnabled(appset) && strings.EqualFold(appset.Spec.Strategy.DeletionOrder, ReverseDeletionOrder)
+}
+
+func applicationSyncedToTarget(app *argov1alpha1.Application, targetRevisions []string) bool {
+	if app.Status.OperationState == nil || app.Status.OperationState.SyncResult == nil || !app.Status.OperationState.Phase.Successful() {
+		return false
+	}
+	if app.Spec.HasMultipleSources() {
+		return slices.Equal(app.Status.OperationState.SyncResult.Revisions, targetRevisions)
+	}
+	return len(targetRevisions) == 1 && app.Status.OperationState.SyncResult.Revision == targetRevisions[0]
+}
+
+func operationStartedAfterTransition(app *argov1alpha1.Application, since *metav1.Time) bool {
+	if app.Status.OperationState == nil || since == nil {
+		return false
+	}
+	return app.Status.OperationState.StartedAt.After(since.Time)
+}
+
+func applicationReconciledAfter(app *argov1alpha1.Application, since *metav1.Time) bool {
+	if app.Status.ReconciledAt == nil {
+		return false
+	}
+	if since == nil {
+		return true
+	}
+	return app.Status.ReconciledAt.After(since.Time)
+}
+
+func operationInFlight(app *argov1alpha1.Application) bool {
+	return app.Status.OperationState != nil && !app.Status.OperationState.Phase.Completed()
+}
+
+func lastOperationFailed(app *argov1alpha1.Application) bool {
+	return app.Status.OperationState != nil && app.Status.OperationState.Phase.Completed() && !app.Status.OperationState.Phase.Successful()
 }
 
 func isApplicationWithError(app argov1alpha1.Application) bool {
