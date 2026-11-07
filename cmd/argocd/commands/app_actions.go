@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 	"text/tabwriter"
 
 	log "github.com/sirupsen/logrus"
@@ -151,6 +152,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	var kind string
 	var group string
 	var all bool
+	var resourceActionParameters []string
 	command := &cobra.Command{
 		Use:   "run APPNAME ACTION",
 		Short: "Runs an available action on resource(s) matching the specified filters.",
@@ -158,6 +160,9 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 		Example: templates.Examples(`
 	# Run an available action for an application
 	argocd app actions run APPNAME ACTION --kind KIND [--resource-name RESOURCE] [--namespace NAMESPACE] [--group GROUP]
+
+	# Run an action with parameters
+	argocd app actions run APPNAME ACTION --kind KIND --param key1=value1 --param key2=value2
 	`),
 	}
 
@@ -168,6 +173,7 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	command.Flags().StringVar(&group, "group", "", "Group of the resource on which the action should be run")
 	errors.CheckError(command.MarkFlagRequired("kind"))
 	command.Flags().BoolVar(&all, "all", false, "Indicates whether to run the action on multiple matching resources")
+	command.Flags().StringArrayVar(&resourceActionParameters, "param", []string{}, "Action parameters in key=value format (e.g. --param key1=value1 --param key2=value2)")
 
 	command.Run = cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
 		ctx := c.Context()
@@ -192,26 +198,32 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 			}
 		}
 
+		parsedParams, err := parseParamArgs(resourceActionParameters)
+		errors.CheckError(err)
+
 		for i := range filteredObjects {
 			obj := filteredObjects[i]
 			gvk := obj.GroupVersionKind()
 			objResourceName := obj.GetName()
 			_, err := appIf.RunResourceActionV2(ctx, &applicationpkg.ResourceActionRunRequestV2{
-				Name:         &appName,
-				AppNamespace: &appNs,
-				Namespace:    new(obj.GetNamespace()),
-				ResourceName: new(objResourceName),
-				Group:        new(gvk.Group),
-				Kind:         new(gvk.Kind),
-				Version:      new(gvk.GroupVersion().Version),
-				Action:       new(actionName),
-				// TODO: add support for parameters
+				Name:                     &appName,
+				AppNamespace:             &appNs,
+				Namespace:                new(obj.GetNamespace()),
+				ResourceName:             new(objResourceName),
+				Group:                    new(gvk.Group),
+				Kind:                     new(gvk.Kind),
+				Version:                  new(gvk.GroupVersion().Version),
+				Action:                   new(actionName),
+				ResourceActionParameters: parsedParams,
 			})
 			if err == nil {
 				continue
 			}
 			if grpc.UnwrapGRPCStatus(err).Code() != codes.Unimplemented {
 				errors.CheckError(err)
+			}
+			if len(parsedParams) > 0 {
+				log.Fatal("server does not support RunResourceActionV2; upgrade the Argo CD server or omit --param flags to use the legacy API")
 			}
 			fmt.Println("RunResourceActionV2 is not supported by the server, falling back to RunResourceAction.")
 			//nolint:staticcheck // RunResourceAction is deprecated, but we still need to support it for backward compatibility.
@@ -231,6 +243,8 @@ func NewApplicationResourceActionsRunCommand(clientOpts *argocdclient.ClientOpti
 	return command
 }
 
+// getActionableResourcesForApplication returns the managed resource diffs for an application,
+// appending the Application resource itself so that actions can also target it directly.
 func getActionableResourcesForApplication(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, appNs *string, appName *string) ([]*v1alpha1.ResourceDiff, error) {
 	resources, err := appIf.ManagedResources(ctx, &applicationpkg.ResourcesQuery{
 		ApplicationName: appName,
@@ -260,4 +274,27 @@ func getActionableResourcesForApplication(ctx context.Context, appIf application
 		Name:      *appName,
 		LiveState: string(appManifest),
 	}), nil
+}
+
+// parseParamArgs converts a slice of "key=value" strings into ResourceActionParameters.
+// Returns an error if any entry lacks an "=" separator or has an empty key.
+// Parameter values are never included in error messages to avoid leaking secrets.
+func parseParamArgs(params []string) ([]*applicationpkg.ResourceActionParameters, error) {
+	result := make([]*applicationpkg.ResourceActionParameters, 0, len(params))
+	for i, param := range params {
+		parts := strings.SplitN(param, "=", 2)
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("--param argument %d: expected key=value format", i+1)
+		}
+		name := strings.TrimSpace(parts[0])
+		if name == "" {
+			return nil, fmt.Errorf("--param argument %d: key must not be empty", i+1)
+		}
+		value := parts[1]
+		result = append(result, &applicationpkg.ResourceActionParameters{
+			Name:  &name,
+			Value: &value,
+		})
+	}
+	return result, nil
 }
