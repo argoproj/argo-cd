@@ -17,6 +17,10 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
+// coreModeServerVersion is reported as the server version in core mode, where the version of the Argo CD
+// components running in the cluster cannot be determined by the CLI.
+const coreModeServerVersion = "unavailable in core mode"
+
 // NewVersionCmd returns a new `version` command to be used as a sub-command to root
 func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *version.VersionMessage) *cobra.Command {
 	var (
@@ -55,12 +59,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 				}
 
 				if !client {
-					var sv *version.VersionMessage
-					if serverVersion == nil {
-						sv = getServerVersion(ctx, clientOpts, cmd)
-					} else {
-						sv = serverVersion
-					}
+					sv := resolveServerVersion(ctx, clientOpts, serverVersion, cmd)
 
 					if short {
 						v["server"] = map[string]string{"argocd-server": sv.Version}
@@ -74,12 +73,7 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 			case "wide", "short", "":
 				fmt.Fprint(cmd.OutOrStdout(), printClientVersion(&cv, short || (output == "short")))
 				if !client {
-					var sv *version.VersionMessage
-					if serverVersion == nil {
-						sv = getServerVersion(ctx, clientOpts, cmd)
-					} else {
-						sv = serverVersion
-					}
+					sv := resolveServerVersion(ctx, clientOpts, serverVersion, cmd)
 					fmt.Fprint(cmd.OutOrStdout(), printServerVersion(sv, short || (output == "short")))
 				}
 			default:
@@ -91,6 +85,21 @@ func NewVersionCmd(clientOpts *argocdclient.ClientOptions, serverVersion *versio
 	versionCmd.Flags().BoolVar(&short, "short", false, "print just the version number")
 	versionCmd.Flags().BoolVar(&client, "client", false, "client version only (no server required)")
 	return &versionCmd
+}
+
+// resolveServerVersion returns the version of the Argo CD API server. In core mode there is no API server to ask:
+// the CLI starts an in-process API server built from its own code, which would report the CLI's version as the
+// server version. In that case a placeholder is returned instead, so the output does not claim a wrong version.
+func resolveServerVersion(ctx context.Context, clientOpts *argocdclient.ClientOptions, serverVersion *version.VersionMessage, c *cobra.Command) *version.VersionMessage {
+	core, err := headless.IsCoreMode(clientOpts)
+	errors.CheckError(err)
+	if core {
+		return &version.VersionMessage{Version: coreModeServerVersion}
+	}
+	if serverVersion != nil {
+		return serverVersion
+	}
+	return getServerVersion(ctx, clientOpts, c)
 }
 
 func getServerVersion(ctx context.Context, options *argocdclient.ClientOptions, c *cobra.Command) *version.VersionMessage {
