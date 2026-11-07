@@ -31,7 +31,7 @@ export const useSidebarTarget = () => {
 
 export const Sidebar = (props: SidebarProps) => {
     const context = React.useContext(Context);
-    const [version, loading, error] = useData(() => services.version.version());
+    const [version, loading, error] = useData(() => services.version.version(), services.version.getCachedVersion());
     const locationPath = context.history.location.pathname;
 
     const tooltipProps = {
@@ -62,7 +62,7 @@ export const Sidebar = (props: SidebarProps) => {
                                 className='sidebar__logo__text-logo'
                             />
                             <div className='sidebar__version' onClick={props.onVersionClick}>
-                                {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
+                                {error?.state ? 'Unknown' : loading && !version ? 'Loading...' : version?.Version || 'Unknown'}
                             </div>
                         </div>
                     )}
