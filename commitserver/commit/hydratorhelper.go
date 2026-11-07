@@ -106,6 +106,19 @@ func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha string, d
 	return atleastOneManifestChanged, nil
 }
 
+// getDryShasForPaths returns the drySha recorded in each path's hydrator.metadata in the worktree, keyed by path.
+func getDryShasForPaths(root *os.Root, paths []*apiclient.PathDetails) map[string]string {
+	dryShas := make(map[string]string, len(paths))
+	for _, p := range paths {
+		dir := p.Path
+		if dir == "." {
+			dir = ""
+		}
+		dryShas[p.Path] = hydrator.GetDrySHA(root, dir)
+	}
+	return dryShas
+}
+
 // writeMetadata writes the metadata to the hydrator.metadata file.
 func writeMetadata(root *os.Root, dirPath string, metadata hydrator.HydratorCommitMetadata) error {
 	hydratorMetadataPath := filepath.Join(dirPath, "hydrator.metadata")

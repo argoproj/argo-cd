@@ -17,6 +17,7 @@ import {
     getHealthStatusColor,
     HydrateOperationPhaseIcon,
     hydrationStatusMessage,
+    syncSourceBehindMessage,
     getProgressiveSyncStatusColor,
     getProgressiveSyncStatusIcon
 } from '../utils';
@@ -268,6 +269,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
         new Map<string, number>()
     );
     const appOperationState = getAppOperationState(application);
+    const behindMessage = syncSourceBehindMessage(visibleApplication);
 
     // Unknown's palette color is too low-contrast for text; inherit the themed color there
     const healthTextColor = application.status.health.status === models.HealthStatuses.Unknown ? undefined : getHealthStatusColor(application.status.health.status);
@@ -420,6 +422,7 @@ export const ApplicationStatusPanel = ({application, collapsed, showDiff, showOp
                             </div>
                             <div className='application-status-panel__item-value__revision show-for-large'>{renderSyncStatusRevision(application)}</div>
                         </div>
+                        {behindMessage && <div className='application-status-panel__item-name'>{behindMessage}</div>}
                         <div className='application-status-panel__item-name' style={{marginBottom: '0.5em'}}>
                             {application.spec.syncPolicy?.automated && application.spec.syncPolicy.automated.enabled !== false
                                 ? 'Auto sync is enabled.'

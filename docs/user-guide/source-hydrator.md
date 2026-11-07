@@ -321,6 +321,12 @@ spec:
 In this example, the hydrated manifests will be pushed to the `environments/dev-next` branch, and Argo CD will not sync
 the changes until something moves them to the `environments/dev` branch.
 
+When `hydrateTo` is configured, the Sync Status panel shows "`<syncSource>` is behind `<hydrateTo>`"
+when the dry SHA recorded in the application's `hydrator.metadata` (in the `syncSource.path` directory) of the last
+hydrated commit differs from the one recorded at the currently synced revision. Changes to other applications'
+directories on the same branch do not affect this message. These values are available in
+`status.sourceHydrator.lastSuccessfulOperation.hydratedDrySHA` and `status.sourceHydrator.syncedDrySHA`.
+
 You could use a CI action to move the hydrated manifests from the `hydrateTo` branch to the `syncSource` branch. To
 introduce a gating mechanism, you could require a Pull Request to be opened to merge the changes from the `hydrateTo`
 branch to the `syncSource` branch.

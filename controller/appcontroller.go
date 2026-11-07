@@ -2345,6 +2345,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.ReconciledAt = &now
 	}
 	app.Status.Sync = *compareResult.syncStatus
+	if app.Spec.SourceHydrator != nil {
+		app.Status.SourceHydrator.SyncedDrySHA = compareResult.syncedDrySHA
+	}
 	app.Status.Health.Status = compareResult.healthStatus
 	app.Status.Health.Message = compareResult.healthMessage
 	app.Status.Resources = compareResult.resources
