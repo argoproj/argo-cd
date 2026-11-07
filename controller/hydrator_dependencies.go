@@ -26,9 +26,11 @@ func (ctrl *ApplicationController) GetProcessableAppProj(app *appv1.Application)
 	return ctrl.getAppProj(app)
 }
 
-// GetProcessableApps returns a list of applications that are processable by the controller.
+// GetProcessableApps returns every Application in a namespace watched by the
+// controller. It deliberately does not filter by destination-cluster shard:
+// the owner of a hydration group needs all group members to produce one atomic
+// commit, including Applications reconciled by other shards.
 func (ctrl *ApplicationController) GetProcessableApps() (*appv1.ApplicationList, error) {
-	// getAppList already filters out applications that are not processable by the controller.
 	return ctrl.getAppList(metav1.ListOptions{})
 }
 
