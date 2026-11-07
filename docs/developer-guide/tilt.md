@@ -24,7 +24,7 @@ Port forwarding is automatically setup from the cluster to localhost host for th
 |------------|-----|---------|---------|-------|
 | argocd-server | 8080 | 8083 | | 9345 |
 | argocd-repo-server | 8081 | 8084 | | 9346 |
-| argocd-redis | 6379 | | | |
+| argocd-redis (Valkey) | 6379 | | | |
 | argocd-applicationset-controller | | 8085 | 7000 | 9347 |
 | argocd-application-controller | | 8086 | | 9348 |
 | argocd-notifications-controller | | 8087 | | 9349 |
