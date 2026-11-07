@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
+import {onlineManager, QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {fireEvent, render, screen, waitForElementToBeRemoved} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
@@ -50,6 +50,21 @@ describe('ApplicationSyncOptions', () => {
         await waitForElementToBeRemoved(() => screen.queryByText('Loading...'));
         expect(screen.queryByLabelText('Replace')).not.toBeInTheDocument();
         expect(services.authService.settings).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not offer Replace from cached settings while offline', async () => {
+        jest.mocked(services.authService.settings).mockRejectedValue(new Error('offline'));
+        const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+        client.setQueryData(settingsQueries.get().queryKey, {syncWithReplaceAllowed: true} as any);
+        onlineManager.setOnline(false);
+        try {
+            renderOptions({}, client);
+
+            expect(await screen.findByText('try again')).toBeInTheDocument();
+            expect(screen.queryByLabelText('Replace')).not.toBeInTheDocument();
+        } finally {
+            onlineManager.setOnline(true);
+        }
     });
 
     it('shares settings between sync option panels', async () => {

@@ -133,7 +133,8 @@ const optionStyle = {marginTop: '0.5em'};
 
 // Replace is only offered when the server allows it (--sync-with-replace-allowed).
 const ReplaceOption = (props: ApplicationSyncOptionProps) => {
-    const settings = useQuery(settingsQueries.get());
+    // networkMode 'always': offline, the refetch fails (as DataLoader's did) instead of pausing with the cached value shown.
+    const settings = useQuery({...settingsQueries.get(), networkMode: 'always'});
     // Decide on freshly loaded settings, as before: a cached value could still offer Replace after the server stopped allowing it.
     if (settings.isFetching || settings.isError || !settings.data) {
         return settings.isError && !settings.isFetching ? loadFailed(settings.refetch) : loading;
