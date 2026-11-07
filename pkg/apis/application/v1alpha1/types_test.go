@@ -5009,6 +5009,9 @@ func TestIsValidAction(t *testing.T) {
 		{"NoMatchActionSuffix", "actionfoo", false},
 		{"NoMatchUpdateSuffix", "updatebar", false},
 		{"NoMatchDeleteSuffix", "deletebaz", false},
+		{"NoMatchPrefixedUpdate", "xupdate/y", false},
+		{"NoMatchPrefixedDelete", "pre-delete/x", false},
+		{"NoMatchEmbeddedAction", "foo/action/bar", false},
 
 		// invalid
 		{"RandomString", "random", false},
