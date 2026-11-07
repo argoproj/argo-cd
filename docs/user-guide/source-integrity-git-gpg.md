@@ -202,6 +202,14 @@ There are situations where verifying the entire history is not practical - typic
 This happens when GnuPG verification is introduced later to the git repository, or when formerly accepted keys get removed, revoked, or rotated.
 While this can be addressed by re-signing with git rebase, there is a better way that does not require rewriting the Git history.
 
+> [!TIP]
+> To check whether an application would pass **strict** Git/GPG verification-or to prepare a seal commit-inspect it without syncing:
+> ```bash
+> argocd proj source-integrity git gpg-inspect-repo PROJECT APPNAME
+> ```
+> The command simulates strict verification (even when the project uses `head` or `none`), lists problematic commits for each Git source (Helm and OCI sources are skipped), and prints `git` hints for reviewing commits and creating a seal commit.
+> See the [command reference](./commands/argocd_proj_source-integrity_git_gpg-inspect-repo.md).
+
 ###### Commit seal-signing with `strict` mode
 
 A sealing commit is a GnuPG signed commit that works as a "seal of approval" attesting that all its ancestor commits were either signed by a trusted key, or reviewed and trusted by the author of the sealing commit.
