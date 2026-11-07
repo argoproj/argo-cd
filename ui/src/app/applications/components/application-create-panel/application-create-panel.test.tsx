@@ -1,3 +1,4 @@
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as React from 'react';
 
@@ -69,8 +70,13 @@ jest.mock('./source-panel', () => ({SourcePanel: () => null}));
 jest.mock('../application-parameters/application-parameters', () => ({ApplicationParameters: () => null}));
 jest.mock('../../../shared/components/yaml-editor/yaml-editor', () => ({YamlEditor: () => null}));
 
+// The sync options read settings through react-query; one client is shared so rerenders keep the same provider.
+const queryClient = new QueryClient({defaultOptions: {queries: {retry: false}}});
+
 const renderPanel = (onAppChanged: (app: models.Application) => any, onFormApi: (api: FormApi) => void) => (
-    <ApplicationCreatePanel app={{} as models.Application} onAppChanged={onAppChanged} createApp={jest.fn()} getFormApi={onFormApi} />
+    <QueryClientProvider client={queryClient}>
+        <ApplicationCreatePanel app={{} as models.Application} onAppChanged={onAppChanged} createApp={jest.fn()} getFormApi={onFormApi} />
+    </QueryClientProvider>
 );
 
 describe('ApplicationCreatePanel', () => {
