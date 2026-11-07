@@ -9,6 +9,7 @@ import (
 func TestExpr(t *testing.T) {
 	t.Parallel()
 	namespaces := []string{
+		"argo",
 		"time",
 		"repo",
 		"strings",

@@ -2,7 +2,6 @@ package repo
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"net/url"
 	"regexp"
@@ -15,27 +14,12 @@ import (
 	"github.com/argoproj/notifications-engine/pkg/util/text"
 	giturls "github.com/chainguard-dev/git-urls"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 var gitSuffix = regexp.MustCompile(`\.git$`)
 
-func getApplication(obj *unstructured.Unstructured) (*v1alpha1.Application, error) {
-	data, err := json.Marshal(obj)
-	if err != nil {
-		return nil, err
-	}
-	application := &v1alpha1.Application{}
-	err = json.Unmarshal(data, application)
-	if err != nil {
-		return nil, err
-	}
-	return application, nil
-}
-
 func getAppDetails(un *unstructured.Unstructured, argocdService service.Service) (*shared.AppDetail, error) {
-	app, err := getApplication(un)
+	app, err := shared.GetApplication(un)
 	if err != nil {
 		return nil, err
 	}
