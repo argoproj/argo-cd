@@ -1344,6 +1344,7 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			},
 			seedCache:    true,
 			cacheUpdated: true,
+			cacheWarmed:  true,
 			errExpected:  false,
 		},
 		{
