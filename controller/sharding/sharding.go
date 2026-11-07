@@ -243,11 +243,30 @@ func getAppDistribution(getCluster clusterAccessor, getApps appAccessor) map[str
 	clusters := getCluster()
 	appDistribution := make(map[string]int64, len(clusters))
 
-	for _, a := range apps {
-		if _, ok := appDistribution[a.Spec.Destination.Server]; !ok {
-			appDistribution[a.Spec.Destination.Server] = 0
+	// Applications can target a cluster by name instead of server, so resolve the name
+	// to the server URL. Names shared by several clusters are ambiguous and are skipped.
+	serverByName := make(map[string]string, len(clusters))
+	ambiguousNames := make(map[string]bool)
+	for _, c := range clusters {
+		if c.Name == "" {
+			continue
 		}
-		appDistribution[a.Spec.Destination.Server]++
+		if _, ok := serverByName[c.Name]; ok {
+			ambiguousNames[c.Name] = true
+			continue
+		}
+		serverByName[c.Name] = c.Server
+	}
+
+	for _, a := range apps {
+		server := a.Spec.Destination.Server
+		if server == "" && a.Spec.Destination.Name != "" && !ambiguousNames[a.Spec.Destination.Name] {
+			server = serverByName[a.Spec.Destination.Name]
+		}
+		if _, ok := appDistribution[server]; !ok {
+			appDistribution[server] = 0
+		}
+		appDistribution[server]++
 	}
 	return appDistribution
 }
