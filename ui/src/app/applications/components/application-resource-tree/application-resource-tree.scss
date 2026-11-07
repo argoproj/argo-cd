@@ -399,6 +399,28 @@
         position: absolute;
         bottom: -14px;
         right: 0;
+        max-width: 100%;
+        display: flex;
+        align-items: baseline;
+        white-space: nowrap;
+
+        // A long tag gives way and truncates instead of pushing the row past
+        // the card; the full text stays in each tag's title. The floor keeps a
+        // short tag readable when another one is long, and the age tag, which
+        // is always short, never shrinks.
+        > * {
+            min-width: 8ch;
+            flex-shrink: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        // The age tag is always short and has no tooltip of its own in the pod
+        // group renderer, so it keeps its text.
+        > .application-resource-tree__node-label--age {
+            min-width: 0;
+            flex-shrink: 0;
+        }
     }
 
     &__node-label {
@@ -417,6 +439,9 @@
             border-color: $argo-color-teal-5;
             cursor: pointer;
             text-transform: none;
+            // The ApplicationSet name is the long one in practice: it gives way
+            // first, so the age and info tags keep their text as long as they can.
+            flex-shrink: 4;
 
             &:hover {
                 background-color: $argo-color-teal-3;
