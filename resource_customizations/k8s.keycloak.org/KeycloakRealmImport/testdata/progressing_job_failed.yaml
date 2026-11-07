@@ -1,0 +1,26 @@
+apiVersion: k8s.keycloak.org/v2beta1
+kind: KeycloakRealmImport
+metadata:
+  creationTimestamp: "2026-10-29T20:03:18Z"
+  generation: 1
+  name: broken-realm
+  namespace: keycloak
+  resourceVersion: "13244"
+  uid: f6d15a56-ae0e-4a3e-bc5f-c0503a55e40e
+spec:
+  keycloakCRName: keycloak
+  realm:
+    enabled: true
+    realm: invalid-ssl
+    sslRequired: not-a-valid-value
+status:
+  conditions:
+  - message: ""
+    status: "False"
+    type: Done
+  - message: ""
+    status: "False"
+    type: Started
+  - message: Import Job failed
+    status: "True"
+    type: HasErrors
