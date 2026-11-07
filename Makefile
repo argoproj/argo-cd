@@ -417,8 +417,9 @@ lint: test-tools-image
 # Run linter on the code (local version)
 .PHONY: lint-local
 lint-local: actionlint-local
-	golangci-lint --version
-	golangci-lint run --fix --verbose
+	golangci-lint custom
+	./dist/custom-gcl --version
+	./dist/custom-gcl run --fix --verbose
 
 # Run actionlint on the GitHub Actions workflows
 .PHONY: actionlint
