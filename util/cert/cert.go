@@ -63,6 +63,8 @@ const (
 	CertificateMaxLines = 128
 	// Maximum number of certificates or known host entries in a stream
 	CertificateMaxEntriesPerStream = 256
+	// The following special key can be used to have a catch-all CA matching all servers
+	DefaultCatchAllCertificateKey = "_default_ca_fallback_"
 )
 
 // Regular expression that matches a valid hostname
@@ -313,16 +315,14 @@ func ServerNameWithoutPort(serverName string) string {
 	return strings.Split(serverName, ":")[0]
 }
 
-// Load certificate data from a file. If the file does not exist, we do not
-// consider it an error and just return empty data.
-func GetCertificateForConnect(serverName string) ([]string, error) {
+func getCertificateForConnectWithName(name string) ([]string, error) {
 	dataPath := GetTLSCertificateDataPath()
-	certPath, err := filepath.Abs(filepath.Join(dataPath, ServerNameWithoutPort(serverName)))
+	certPath, err := filepath.Abs(filepath.Join(dataPath, name))
 	if err != nil {
 		return nil, err
 	}
 	if !strings.HasPrefix(certPath, dataPath) {
-		return nil, fmt.Errorf("could not get certificate for host %s", serverName)
+		return nil, fmt.Errorf("could not get certificate for host: %s", name)
 	}
 	certificates, err := ParseTLSCertificatesFromPath(certPath)
 	if err != nil {
@@ -333,17 +333,26 @@ func GetCertificateForConnect(serverName string) ([]string, error) {
 	}
 
 	if len(certificates) == 0 {
-		return nil, errors.New("no certificates found in existing file")
+		return nil, fmt.Errorf("no certificates found in existing file: %s", certPath)
 	}
-
 	return certificates, nil
+}
+
+// Load certificate data from a file. If the file does not exist, we do not
+// consider it an error and just return empty data (after trying to see if there is
+// a default certificate as well)
+func GetCertificateForConnect(serverName string) ([]string, error) {
+	certificates, err := getCertificateForConnectWithName(ServerNameWithoutPort(serverName))
+	if certificates == nil && err == nil {
+		certificates, err = getCertificateForConnectWithName(DefaultCatchAllCertificateKey)
+	}
+	return certificates, err
 }
 
 // Gets the full path for a certificate bundle configured from a ConfigMap
 // mount. This function makes sure that the path returned actually contain
 // at least one valid certificate, and no invalid data.
 func GetCertBundlePathForRepository(serverName string) (string, error) {
-	certPath := filepath.Join(GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
 	certs, err := GetCertificateForConnect(serverName)
 	if err != nil {
 		return "", nil
@@ -351,7 +360,25 @@ func GetCertBundlePathForRepository(serverName string) (string, error) {
 	if len(certs) == 0 {
 		return "", nil
 	}
-	return certPath, nil
+	// We did get some data back from GetCertificateForConnect(), let's establish if it
+	// came from the per-server entry or the default one
+	certPath := filepath.Join(GetTLSCertificateDataPath(), ServerNameWithoutPort(serverName))
+	defaultCertPath := filepath.Join(GetTLSCertificateDataPath(), DefaultCatchAllCertificateKey)
+	if fileExist(certPath) {
+		return certPath, nil
+	}
+	if fileExist(defaultCertPath) {
+		return defaultCertPath, nil
+	}
+
+	return "", fmt.Errorf("GetCertificateForConnect returned certs, but neither the per-server (%s) nor the default fallback (%s) file could be opened", certPath, defaultCertPath)
+}
+
+func fileExist(filePath string) bool {
+	if _, err := os.Stat(filePath); err != nil {
+		return false
+	}
+	return true
 }
 
 // Convert a list of certificates in PEM format to a x509.CertPool object,
