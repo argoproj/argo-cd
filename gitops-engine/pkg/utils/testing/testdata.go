@@ -149,3 +149,32 @@ roleRef:
   name: my-cluster-role
   apiGroup: rbac.authorization.k8s.io`)
 }
+
+func NewCustomResourceDefinition() *unstructured.Unstructured {
+	return Unstructured(`apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: tests.argocd.argoproj.io
+spec:
+  group: argocd.argoproj.io
+  versions:
+    - name: v1
+      served: true
+      storage: true
+      schema:
+        openAPIV3Schema:
+          type: object
+          properties:
+            spec:
+              type: object
+              properties:
+                image:
+                  type: string
+  scope: Namespaced
+  names:
+    plural: tests
+    singular: test
+    kind: Test
+    shortNames:
+    - tt`)
+}
