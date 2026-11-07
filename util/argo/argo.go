@@ -1051,13 +1051,21 @@ func SetAppOperation(appIf v1alpha1.ApplicationInterface, appName string, op *ar
 		if err != nil {
 			return nil, fmt.Errorf("error getting application %q: %w", appName, err)
 		}
-		a = a.DeepCopy()
 		if a.Operation != nil {
 			return nil, ErrAnotherOperationInProgress
 		}
-		a.Operation = op
-		a.Status.OperationState = nil
-		a, err = appIf.Update(context.Background(), a, metav1.UpdateOptions{})
+		// A merge patch is used so that fields the user set to their zero value
+		// (e.g. spec.source.helm.ignoreMissingValueFiles: false) are not dropped when the
+		// application is re-serialized. The resourceVersion keeps the optimistic concurrency check.
+		patch, err := json.Marshal(map[string]any{
+			"metadata":  map[string]any{"resourceVersion": a.ResourceVersion},
+			"operation": op,
+			"status":    map[string]any{"operationState": nil},
+		})
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling operation patch: %w", err)
+		}
+		a, err = appIf.Patch(context.Background(), appName, types.MergePatchType, patch, metav1.PatchOptions{})
 		if op.Sync == nil {
 			return nil, status.Errorf(codes.InvalidArgument, "Operation unspecified")
 		}
