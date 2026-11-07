@@ -20,6 +20,7 @@ HOST_OS:=$(shell go env GOOS)
 HOST_ARCH:=$(shell go env GOARCH)
 
 TARGET_ARCH?=linux/amd64
+KUBECONFIG?=${HOME}/.kube/config
 
 VERSION=$(shell cat ${CURRENT_DIR}/VERSION)
 BUILD_DATE:=$(if $(BUILD_DATE),$(BUILD_DATE),$(shell date -u +'%Y-%m-%dT%H:%M:%SZ'))
@@ -125,7 +126,7 @@ define run-in-test-server
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
-		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
+		--mount type=bind,source=$(KUBECONFIG),target=/home/user/.kube/config \
 		-w ${DOCKER_WORKDIR} \
 		-p ${ARGOCD_E2E_APISERVER_PORT}:8080 \
 		-p 4000:4000 \
@@ -149,7 +150,7 @@ define run-in-test-client
 		-v ${DOCKER_SRC_MOUNT} \
 		-v ${GOPATH}/pkg/mod:/go/pkg/mod${VOLUME_MOUNT} \
 		-v ${GOCACHE}:/tmp/go-build-cache${VOLUME_MOUNT} \
-		-v ${HOME}/.kube:/home/user/.kube${VOLUME_MOUNT} \
+		--mount type=bind,source=$(KUBECONFIG),target=/home/user/.kube/config \
 		-w ${DOCKER_WORKDIR} \
 		$(DOCKER_NETWORK_ARG)\
 		$(PODMAN_ARGS) \
