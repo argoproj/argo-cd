@@ -2,6 +2,7 @@ package admin
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -97,6 +98,7 @@ func NewExportCommand() *cobra.Command {
 			acdTLSCertsConfigMap, err := acdClients.configMaps.Get(ctx, common.ArgoCDTLSCertsConfigMapName, metav1.GetOptions{})
 			errors.CheckError(err)
 			export(writer, *acdTLSCertsConfigMap, namespace, stripStatus)
+			exportOptionalConfigMap(ctx, writer, acdClients.configMaps, common.ArgoCDCmdParamsConfigMapName, namespace, stripStatus)
 
 			secrets, err := acdClients.secrets.List(ctx, metav1.ListOptions{})
 			errors.CheckError(err)
@@ -204,8 +206,12 @@ func NewImportCommand() *cobra.Command {
 				dryRunMsg = " (dry run)"
 			}
 
+			// Create or replace existing object
+			backupObjects, err := kube.SplitYAML(input)
+			errors.CheckError(err)
+
 			if len(applicationNamespaces) == 0 || len(applicationsetNamespaces) == 0 {
-				defaultNs := getAdditionalNamespaces(ctx, acdClients.configMaps)
+				defaultNs := getImportAdditionalNamespaces(ctx, acdClients.configMaps, backupObjects, namespace, skipResourcesWithLabel)
 				if len(applicationNamespaces) == 0 {
 					applicationNamespaces = defaultNs.applicationNamespaces
 				}
@@ -266,10 +272,6 @@ func NewImportCommand() *cobra.Command {
 					}
 				}
 			}
-			// Create or replace existing object
-			backupObjects, err := kube.SplitYAML(input)
-
-			errors.CheckError(err)
 			for _, bakObj := range backupObjects {
 				gvk := bakObj.GroupVersionKind()
 				// For objects without namespace, assume they belong in ArgoCD namespace
@@ -370,6 +372,11 @@ func NewImportCommand() *cobra.Command {
 
 			// Delete objects not in backup
 			for key, liveObj := range pruneObjects {
+				// ConfigMaps are never pruned: argocd-cmd-params-cm is optional and is missing from
+				// backups taken with older versions of the CLI.
+				if key.Kind == "ConfigMap" {
+					continue
+				}
 				// If a live resource has a label to skip the import, it should never be pruned
 				if isSkipLabelMatches(&liveObj, skipResourcesWithLabel) {
 					fmt.Printf("Skipping pruning of %s/%s %s in namespace %s\n", key.Group, key.Kind, liveObj.GetName(), liveObj.GetNamespace())
@@ -451,6 +458,37 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 		return liveObj.Object["operation"] == nil
 	}
 	return true
+}
+
+// getImportAdditionalNamespaces returns the additional namespaces to import into. The backup's
+// argocd-cmd-params-cm is applied by the import itself, so it takes precedence over the live one,
+// which a fresh cluster does not have yet. A backup ConfigMap that --skip-resources-with-label
+// excludes from the import is ignored.
+func getImportAdditionalNamespaces(ctx context.Context, configMaps dynamic.ResourceInterface, backupObjects []*unstructured.Unstructured, argocdNamespace, skipResourcesWithLabel string) *argocdAdditionalNamespaces {
+	for _, bakObj := range backupObjects {
+		if bakObj.GetKind() != "ConfigMap" || bakObj.GetName() != common.ArgoCDCmdParamsConfigMapName {
+			continue
+		}
+		if ns := bakObj.GetNamespace(); ns != "" && ns != argocdNamespace {
+			continue
+		}
+		if isSkipLabelMatches(bakObj, skipResourcesWithLabel) {
+			continue
+		}
+		return additionalNamespacesFromConfigMap(bakObj)
+	}
+	return getAdditionalNamespaces(ctx, configMaps)
+}
+
+// exportOptionalConfigMap exports the given ConfigMap if it exists in the cluster. It is used for
+// ConfigMaps such as argocd-cmd-params-cm, which an installation is not required to have.
+func exportOptionalConfigMap(ctx context.Context, w io.Writer, configMaps dynamic.ResourceInterface, name string, argocdNamespace string, stripStatus bool) {
+	cm, err := configMaps.Get(ctx, name, metav1.GetOptions{})
+	if apierrors.IsNotFound(err) {
+		return
+	}
+	errors.CheckError(err)
+	export(w, *cm, argocdNamespace, stripStatus)
 }
 
 // export writes the unstructured object and removes extraneous cruft from output before writing
