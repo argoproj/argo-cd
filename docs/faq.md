@@ -18,10 +18,8 @@ Argo CD provides health for several standard Kubernetes types. The `Ingress`, `S
 which might cause health check to return `Progressing` state instead of `Healthy`.
 
 * `Ingress` is considered healthy if `status.loadBalancer.ingress` list is non-empty, with at least one value
-  for `hostname` or `IP`. Some ingress controllers
-  ([contour](https://github.com/projectcontour/contour/issues/403)
-  , [traefik](https://github.com/argoproj/argo-cd/issues/968#issuecomment-451082913)) don't update
-  `status.loadBalancer.ingress` field which causes `Ingress` to stuck in `Progressing` state forever.
+  for `hostname` or `IP`. If the ingress controller never populates this field, the `Ingress` stays in `Progressing`
+  state forever. See [Why is my `Ingress` stuck in the `Progressing` state?](#ingress-stuck-progressing)
 
 * `StatefulSet` is considered healthy if value of `status.updatedReplicas` field matches to `spec.replicas` field. Due
   to Kubernetes bug
@@ -36,14 +34,86 @@ which might cause health check to return `Progressing` state instead of `Healthy
 As workaround Argo CD allows providing [health check](operator-manual/health.md) customization which overrides default
 behavior.
 
-If you are using Traefik for your Ingress, you can update the Traefik config to publish the loadBalancer IP using [publishedservice](https://doc.traefik.io/traefik/providers/kubernetes-ingress/#publishedservice), which will resolve this issue.
+## <a name="ingress-stuck-progressing"></a>Why is my `Ingress` stuck in the `Progressing` state?
+
+Argo CD considers an `Ingress` healthy once its ingress controller has written an address to
+`status.loadBalancer.ingress`. Check whether the field is populated:
+
+```bash
+kubectl get ingress <name> -n <namespace> -o jsonpath='{.status.loadBalancer}'
+```
+
+If the output is empty or `{}`, the ingress controller has not published an address. Ingress controllers usually copy the address
+from their own `Service`, so this happens when that `Service` has no external address, for example:
+
+* a `LoadBalancer` `Service` whose `EXTERNAL-IP` stays `<pending>` (no load balancer implementation in the cluster),
+* a `NodePort` or `ClusterIP` `Service` behind an externally provisioned load balancer,
+* a controller running with `hostNetwork` or host ports.
+
+### Configure the ingress controller to publish its address
+
+Most ingress controllers can either copy the address of a `Service` or report a fixed address:
+
+| Controller    | Copy the address of a `Service`                                                       | Report a fixed address                                                                                     |
+|---------------|---------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|
+| Traefik       | `--providers.kubernetesingress.ingressendpoint.publishedservice=<namespace>/<service>` | `--providers.kubernetesingress.ingressendpoint.ip=<ip>` or `--providers.kubernetesingress.ingressendpoint.hostname=<hostname>` |
+| ingress-nginx | `--publish-service=<namespace>/<service>`                                             | `--publish-status-address=<ip or hostname>`                                                                |
+
+The [Traefik Helm chart](https://github.com/traefik/traefik-helm-chart) enables `publishedService` by default, which
+only works if the Traefik `Service` has an external address. While `publishedService` is enabled, Traefik ignores
+`ingressEndpoint.ip` and `ingressEndpoint.hostname`, so you must disable it to report a fixed address:
 
 ```yaml
 providers:
   kubernetesIngress:
     publishedService:
-      enabled: true
+      enabled: false
+    ingressEndpoint:
+      ip: 203.0.113.10 # or hostname: ingress.example.com
 ```
+
+See the [Traefik documentation](https://doc.traefik.io/traefik/reference/install-configuration/providers/kubernetes/kubernetes-ingress/)
+for details.
+
+### Exclude the `Ingress` from the Application health
+
+If the `Ingress` is not expected to get an address, for example because another controller only uses it as a template,
+set the `argocd.argoproj.io/ignore-healthcheck` annotation on it:
+
+```yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    argocd.argoproj.io/ignore-healthcheck: "true"
+```
+
+The `Ingress` itself is still shown as `Progressing`, but it no longer affects the health of the Application. See
+[Ignoring Child Resource Health Check in Applications](operator-manual/health.md#ignoring-child-resource-health-check-in-applications)
+for limitations, including how it interacts with sync waves.
+
+### Override the `Ingress` health check
+
+To change how Argo CD assesses every `networking.k8s.io/Ingress`, override the built-in health check in `argocd-cm`.
+For example, to always consider an `Ingress` healthy:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  resource.customizations.health.networking.k8s.io_Ingress: |
+    hs = {}
+    hs.status = "Healthy"
+    return hs
+```
+
+See [Overriding Go-Based Health Checks](operator-manual/health.md#overriding-go-based-health-checks).
 
 ## I forgot the admin password, how do I reset it?
 
