@@ -6994,6 +6994,13 @@ func schema_pkg_apis_application_v1alpha1_ResourceStatus(ref common.ReferenceCal
 							Format: "",
 						},
 					},
+					"pruneRequested": {
+						SchemaProps: spec.SchemaProps{
+							Description: "PruneRequested is true if the resource opted in to pruning via sync-option Prune=true.",
+							Type:        []string{"boolean"},
+							Format:      "",
+						},
+					},
 					"syncWave": {
 						SchemaProps: spec.SchemaProps{
 							Type:   []string{"integer"},

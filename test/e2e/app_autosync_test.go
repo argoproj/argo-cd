@@ -8,6 +8,7 @@ import (
 	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/types"
 
@@ -93,6 +94,35 @@ func TestAutoSyncSelfHealEnabled(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		And(func(app *Application) {
 			assert.Empty(t, app.Status.Conditions)
+		})
+}
+
+// TestAutoSyncPruneTrueResourceLevelWithAutomatedPruneDisabled verifies that auto-sync prunes a resource annotated
+// with Prune=true even when automated pruning is disabled and pruning is the only pending change
+func TestAutoSyncPruneTrueResourceLevelWithAutomatedPruneDisabled(t *testing.T) {
+	Given(t).
+		Path("two-nice-pods").
+		When().
+		PatchFile("pod-1.yaml", `[{"op": "add", "path": "/metadata/annotations", "value": {"argocd.argoproj.io/sync-options": "Prune=true"}}]`).
+		// app should be auto-synced once created
+		CreateFromFile(func(app *Application) {
+			app.Spec.SyncPolicy = &SyncPolicy{Automated: &SyncPolicyAutomated{Prune: new(false)}}
+		}).
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// app should be auto-synced and pod-1 pruned once it is removed from git
+		When().
+		DeleteFile("pod-1.yaml").
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(NotPod(func(p corev1.Pod) bool { return p.Name == "pod-1" })).
+		Expect(Pod(func(p corev1.Pod) bool { return p.Name == "pod-2" })).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState)
+			require.NotNil(t, app.Status.OperationState.Operation.Sync)
+			assert.False(t, app.Status.OperationState.Operation.Sync.Prune)
 		})
 }
 
