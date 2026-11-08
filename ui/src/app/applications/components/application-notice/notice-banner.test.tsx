@@ -19,6 +19,8 @@ describe('NoticeBanner', () => {
     beforeEach(() => {
         window.localStorage.clear();
         services.viewPreferences.init();
+        // init() keeps the in-memory preferences after the first test, so clear dismissals explicitly.
+        services.viewPreferences.updatePreferences({dismissedNotices: {}});
     });
 
     it('shows the notice with its link right away', () => {
