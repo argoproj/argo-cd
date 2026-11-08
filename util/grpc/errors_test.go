@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"testing"
 
+	giterr "github.com/go-git/go-git/v5/plumbing/transport"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -32,12 +33,17 @@ func Test_gitErrToGRPC(t *testing.T) {
 	assert.Equal(t, codes.Unknown, se.GRPCStatus().Code())
 	assert.Equal(t, se.GRPCStatus().Message(), grpcErrorMsg)
 
-	notFoundMsg := "repository not found"
-	notFound := gitErrToGRPC(status.Error(codes.NotFound, notFoundMsg))
+	notFound := gitErrToGRPC(status.Error(codes.NotFound, "repository not found"))
 	se1, ok := notFound.(interface{ GRPCStatus() *status.Status })
 	assert.True(t, ok)
 	assert.Equal(t, codes.NotFound, se1.GRPCStatus().Code())
-	assert.Equal(t, se1.GRPCStatus().Message(), notFoundMsg)
+	assert.Equal(t, "repository not found. If the repository exists, verify that the provided credentials have access to it", se1.GRPCStatus().Message())
+
+	wrappedNotFound := gitErrToGRPC(fmt.Errorf("failed to list refs: %w", giterr.ErrRepositoryNotFound))
+	se2, ok := wrappedNotFound.(interface{ GRPCStatus() *status.Status })
+	assert.True(t, ok)
+	assert.Equal(t, codes.NotFound, se2.GRPCStatus().Code())
+	assert.Equal(t, "repository not found. If the repository exists, verify that the provided credentials have access to it", se2.GRPCStatus().Message())
 }
 
 func Test_kubeErrToGRPC(t *testing.T) {
