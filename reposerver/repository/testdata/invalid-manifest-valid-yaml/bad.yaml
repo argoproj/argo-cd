@@ -1,0 +1,6 @@
+# Valid YAML with apiVersion and kind at the root, but kind has the wrong type.
+apiVersion: v1
+kind:
+  - ConfigMap
+metadata:
+  name: bad

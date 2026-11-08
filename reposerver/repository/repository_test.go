@@ -897,6 +897,20 @@ func TestSkippedInvalidManifestsInDir(t *testing.T) {
 	require.NoError(t, err)
 }
 
+// A Helm values file (e.g. consumed via `ref: values` with `path` set) may embed Kubernetes-shaped
+// YAML below its root. It is not a manifest, so it must not block manifest generation.
+func TestNestedManifestLikeYAMLInDir(t *testing.T) {
+	service := newService(t, ".")
+
+	src := v1alpha1.ApplicationSource{Path: "./testdata/nested-manifest-like-yaml"}
+
+	q := apiclient.ManifestRequest{Repo: &v1alpha1.Repository{}, ApplicationSource: &src}
+
+	res, err := service.GenerateManifest(t.Context(), &q)
+	require.NoError(t, err)
+	assert.Len(t, res.Manifests, 1)
+}
+
 func TestInvalidMetadata(t *testing.T) {
 	service := newService(t, ".")
 
@@ -3437,6 +3451,19 @@ func Test_findManifests(t *testing.T) {
 		manifests, err := findManifests(logCtx, "./testdata/irrelevant-yaml", "./testdata/irrelevant-yaml", nil, noRecurse, nil, resource.MustParse("0"))
 		assert.Len(t, manifests, 1)
 		require.NoError(t, err)
+	})
+
+	t.Run("YAML with manifest-like content nested below the root gets skipped", func(t *testing.T) {
+		manifests, err := findManifests(logCtx, "./testdata/nested-manifest-like-yaml", "./testdata/nested-manifest-like-yaml", nil, noRecurse, nil, resource.MustParse("0"))
+		require.NoError(t, err)
+		assert.Len(t, manifests, 1)
+	})
+
+	t.Run("valid YAML with an invalid manifest at the root throws an error", func(t *testing.T) {
+		require.DirExists(t, "./testdata/invalid-manifest-valid-yaml")
+		manifests, err := findManifests(logCtx, "./testdata/invalid-manifest-valid-yaml", "./testdata/invalid-manifest-valid-yaml", nil, noRecurse, nil, resource.MustParse("0"))
+		assert.Empty(t, manifests)
+		require.Error(t, err)
 	})
 
 	t.Run("multiple JSON objects in one file throws an error", func(t *testing.T) {
@@ -7068,4 +7095,27 @@ func TestGetOciFiles(t *testing.T) {
 			})
 		}
 	})
+}
+
+func Test_looksLikeManifest(t *testing.T) {
+	tests := []struct {
+		name string
+		data string
+		want bool
+	}{
+		{name: "empty file", data: "", want: false},
+		{name: "unrelated YAML", data: "some: [irrelevant, yaml]\n", want: false},
+		{name: "top-level list", data: "- apiVersion: v1\n  kind: ConfigMap\n  metadata: {}\n", want: false},
+		{name: "manifest-like YAML nested below the root", data: "extraManifests:\n  - apiVersion: v1\n    kind: ConfigMap\n    metadata:\n      name: example\n", want: false},
+		{name: "apiVersion and kind at the root", data: "apiVersion: v1\nkind:\n  - ConfigMap\nmetadata:\n  name: bad\n", want: true},
+		{name: "apiVersion and kind at the root of a later document", data: "foo: bar\n---\napiVersion: v1\nkind: ConfigMap\n", want: true},
+		{name: "only kind at the root", data: "kind: ConfigMap\nmetadata:\n  name: example\n", want: false},
+		{name: "invalid YAML containing manifest keys", data: "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: {{ .Release.Name }}\ndata:\n  {{- range .Values }}\n", want: true},
+		{name: "invalid YAML without manifest keys", data: "foo: [unclosed\n", want: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.want, looksLikeManifest([]byte(tt.data)))
+		})
+	}
 }
