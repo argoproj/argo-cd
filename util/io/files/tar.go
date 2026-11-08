@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/fs"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -289,6 +290,9 @@ func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
 		if err != nil {
 			return fmt.Errorf("error getting link target: %w", err)
 		}
+		// the archive is extracted on a Linux repo-server, so a target read on
+		// Windows ("..\README.md") must use forward slashes like the entry names
+		link = filepath.ToSlash(link)
 	}
 
 	header, err := tar.FileInfoHeader(fi, link)
@@ -368,5 +372,7 @@ func matchesExclusionPattern(pattern, relativePath string) (bool, error) {
 	if strings.Contains(normPattern, "/") {
 		return matchPath(normPattern, relativePath)
 	}
-	return filepath.Match(normPattern, relativePath)
+	// relativePath is slash-separated, so match with path.Match: on Windows
+	// filepath.Match lets "*" cross "/" and "*.yaml" would exclude nested files
+	return path.Match(normPattern, relativePath)
 }
