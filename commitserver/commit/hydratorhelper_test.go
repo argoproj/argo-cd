@@ -206,9 +206,9 @@ Argocd-reference-commit-sha: abc123
 		},
 	}
 	mockGitClient := gitmocks.NewClient(t)
-	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path1/manifest.yaml").Return(true, nil).Once()
-	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path2/manifest.yaml").Return(true, nil).Once()
-	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path3/nested/manifest.yaml").Return(false, nil).Once()
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path1").Return(true, nil).Once()
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path2").Return(true, nil).Once()
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path3/nested").Return(false, nil).Once()
 
 	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSimple)
 	require.NoError(t, err)
@@ -532,7 +532,7 @@ func TestWriteForPaths_NoOpScenario(t *testing.T) {
 
 	// The manifests are identical, so HasFileChanged should return false
 	mockGitClient2 := gitmocks.NewClient(t)
-	mockGitClient2.EXPECT().HasFileChanged(mock.Anything, "guestbook/manifest.yaml").Return(false, nil).Once()
+	mockGitClient2.EXPECT().HasFileChanged(mock.Anything, "guestbook").Return(false, nil).Once()
 
 	shouldCommit2, err := WriteForPaths(t.Context(), root, repoURL, drySha2, metadata2, paths, mockGitClient2, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSimple)
 	require.NoError(t, err)
