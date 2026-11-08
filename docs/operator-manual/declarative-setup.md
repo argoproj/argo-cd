@@ -1360,6 +1360,43 @@ volumes:
             expirationSeconds: 3600
 ```
 
+### OKE (Oracle Cloud Infrastructure)
+
+Oracle Kubernetes Engine (OKE) cluster secret example using `argocd-k8s-auth` and OKE Workload Identity:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: my-oke-cluster
+  server: https://mycluster.example.com:6443
+  config: |
+    {
+      "execProviderConfig": {
+        "command": "argocd-k8s-auth",
+        "args": ["oci", "--cluster-id", "ocid1.cluster.oc1.<region>.<cluster-id>", "--region", "<region>"],
+        "apiVersion": "client.authentication.k8s.io/v1beta1"
+      },
+      "tlsClientConfig": {
+        "insecure": false,
+        "caData": "<base64 encoded certificate>"
+      }
+    }
+```
+
+> [!NOTE]
+> The management OKE cluster running Argo CD must be an Enhanced Cluster, and OCI IAM policies must grant the `argocd-application-controller` and `argocd-server` Kubernetes ServiceAccounts permission to manage `cluster-family` in the target cluster's compartment:
+>
+> ```text
+> Allow any-user to manage cluster-family in compartment id <target-compartment-ocid> where all {request.principal.type='workload', request.principal.cluster_id='<mgmt-cluster-ocid>', request.principal.namespace='argocd', request.principal.service_account='argocd-application-controller'}
+> Allow any-user to manage cluster-family in compartment id <target-compartment-ocid> where all {request.principal.type='workload', request.principal.cluster_id='<mgmt-cluster-ocid>', request.principal.namespace='argocd', request.principal.service_account='argocd-server'}
+> ```
+
 ## Helm
 
 Helm charts can be sourced from a Helm repository or OCI registry.
