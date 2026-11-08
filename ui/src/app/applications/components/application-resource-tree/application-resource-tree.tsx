@@ -1336,7 +1336,7 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                             nodesHavingChildren.set(parentId, 1);
                         }
                         allChildNodes.push(node);
-                        if (node.kind !== 'Pod' || !props.showCompactNodes) {
+                        if (!isGroupedPod(node)) {
                             if (props.getNodeExpansion(parentId)) {
                                 children.push(node);
                                 childrenByParentKey.set(parentId, children);
