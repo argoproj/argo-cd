@@ -65,7 +65,8 @@ export const SourcePanel = (props: {
     getFormApi: (api: FormApi) => any;
 }) => {
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
-    const appInEdit = deepMerge(DEFAULT_APP, {});
+    // The new source belongs to the existing app, so its project scopes the repository lookups (revisions, tags, charts).
+    const appInEdit = deepMerge(DEFAULT_APP, {spec: {project: props.appCurrent.spec.project}});
 
     return (
         <DataLoader key='add-new-source' load={() => Promise.all([services.repos.list()]).then(([reposInfo]) => ({reposInfo}))}>
