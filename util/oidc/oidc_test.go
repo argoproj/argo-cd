@@ -2062,6 +2062,18 @@ func TestClientApp_GetUpdatedOidcTokenFromCache_RefreshedByAnotherReplica(t *tes
 			expectRefresh: true,
 		},
 		{
+			name: "stored with only a new ID token",
+			otherReplica: func(t *testing.T, app *ClientApp, refreshed *oauth2.Token) {
+				t.Helper()
+				storeSession(t, app, (&oauth2.Token{
+					AccessToken:  "cached-access-token",
+					RefreshToken: "cached-refresh-token",
+					Expiry:       time.Now().Add(2 * time.Hour),
+				}).WithExtra(map[string]any{"id_token": refreshed.Extra("id_token")}))
+			},
+			expectRefresh: true,
+		},
+		{
 			name:        "no other replica refreshed",
 			expectError: "invalid_grant",
 		},
@@ -2105,6 +2117,55 @@ func TestClientApp_GetUpdatedOidcTokenFromCache_RefreshedByAnotherReplica(t *tes
 			assert.Equal(t, refreshedIDToken, token.Extra("id_token"))
 		})
 	}
+}
+
+// The shared refresh ignores the cancellation of the request that started it, so a provider that stops
+// responding must not block requests indefinitely: the refresh times out, and a cancelled request stops
+// waiting for it.
+func TestClientApp_GetUpdatedOidcTokenFromCache_UnresponsiveProvider(t *testing.T) {
+	newHangingApp := func(t *testing.T) *ClientApp {
+		t.Helper()
+		release := make(chan struct{})
+		oidcTestServer := test.GetOIDCTestServer(t, nil)
+		provider := oidcTestServer.Config.Handler
+		oidcTestServer.Config.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.RequestURI != "/token" {
+				provider.ServeHTTP(w, r)
+				return
+			}
+			select {
+			case <-r.Context().Done():
+			case <-release:
+			}
+		})
+		t.Cleanup(func() {
+			close(release)
+			oidcTestServer.Close()
+		})
+		app, _ := newRefreshTestApp(t, oidcTestServer.URL)
+		return app
+	}
+
+	t.Run("the refresh times out", func(t *testing.T) {
+		prevTimeout := refreshTimeout
+		refreshTimeout = 100 * time.Millisecond
+		t.Cleanup(func() { refreshTimeout = prevTimeout })
+		app := newHangingApp(t)
+
+		_, err := app.GetUpdatedOidcTokenFromCache(t.Context(), "alice", "111")
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+
+	t.Run("a cancelled request stops waiting", func(t *testing.T) {
+		app := newHangingApp(t)
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		defer cancel()
+
+		start := time.Now()
+		_, err := app.GetUpdatedOidcTokenFromCache(ctx, "alice", "111")
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+		assert.Less(t, time.Since(start), 5*time.Second)
+	})
 }
 
 func TestClientApp_GetUpdatedOidcTokenFromCache_SessionCeiling(t *testing.T) {

@@ -793,14 +793,22 @@ func (a *ClientApp) GetUpdatedOidcTokenFromCache(ctx context.Context, subject st
 	// The UI sends several requests at once; without this, each would refresh with the same
 	// refresh token, and all but the first fail when the provider rotates refresh tokens.
 	// The shared call doesn't use the first request's cancellation, so one aborted request
-	// doesn't fail the others.
-	token, err, _ := a.refreshGroup.Do(formatOidcTokenCacheKey(subject, sessionId), func() (any, error) {
-		return a.getUpdatedOidcTokenFromCache(context.WithoutCancel(ctx), subject, sessionId)
+	// doesn't fail the others; refreshTimeout bounds it instead, and each caller stops
+	// waiting when its own request is cancelled.
+	result := a.refreshGroup.DoChan(formatOidcTokenCacheKey(subject, sessionId), func() (any, error) {
+		refreshCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), refreshTimeout)
+		defer cancel()
+		return a.getUpdatedOidcTokenFromCache(refreshCtx, subject, sessionId)
 	})
-	if err != nil {
-		return nil, err
+	select {
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	case res := <-result:
+		if res.Err != nil {
+			return nil, res.Err
+		}
+		return res.Val.(*oauth2.Token), nil
 	}
-	return token.(*oauth2.Token), nil
 }
 
 func (a *ClientApp) getUpdatedOidcTokenFromCache(ctx context.Context, subject string, sessionId string) (*oauth2.Token, error) {
@@ -878,6 +886,10 @@ func (a *ClientApp) getUpdatedOidcTokenFromCache(ctx context.Context, subject st
 	return token, nil
 }
 
+// refreshTimeout bounds a shared token refresh, since no single caller's cancellation applies to it
+// and the HTTP client only times out dialing and the TLS handshake.
+var refreshTimeout = 30 * time.Second
+
 // refreshedElsewhereWait is how long a failed refresh waits before reading the cache a second time,
 // giving a replica whose refresh is still in flight time to store its result.
 var refreshedElsewhereWait = 500 * time.Millisecond
@@ -903,7 +915,7 @@ func (a *ClientApp) tokenRefreshedElsewhere(ctx context.Context, cacheKey string
 			return nil
 		}
 		current := oidcTokenCache.Token
-		if current.RefreshToken != previous.RefreshToken || current.AccessToken != previous.AccessToken {
+		if current.RefreshToken != previous.RefreshToken || current.AccessToken != previous.AccessToken || current.Extra("id_token") != previous.Extra("id_token") {
 			log.Info("using token refreshed by another replica")
 			return current
 		}
