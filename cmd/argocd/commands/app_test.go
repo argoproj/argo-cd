@@ -497,6 +497,64 @@ func TestResolveSyncStrategyFromFlags(t *testing.T) {
 	})
 }
 
+func TestSyncOptionsFromFlags(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name                     string
+		replace                  bool
+		serverSideApply          bool
+		applyOutOfSyncOnly       bool
+		respectIgnoreDifferences bool
+		expected                 *applicationpkg.SyncOptions
+	}{
+		{
+			name:     "no flags leaves sync options nil so the server uses the spec",
+			expected: nil,
+		},
+		{
+			name:                     "respect-ignore-differences alone",
+			respectIgnoreDifferences: true,
+			expected:                 &applicationpkg.SyncOptions{Items: []string{"RespectIgnoreDifferences=true"}},
+		},
+		{
+			name:                     "respect-ignore-differences with server-side",
+			serverSideApply:          true,
+			respectIgnoreDifferences: true,
+			expected:                 &applicationpkg.SyncOptions{Items: []string{"ServerSideApply=true", "RespectIgnoreDifferences=true"}},
+		},
+		{
+			name:                     "all flags",
+			replace:                  true,
+			serverSideApply:          true,
+			applyOutOfSyncOnly:       true,
+			respectIgnoreDifferences: true,
+			expected: &applicationpkg.SyncOptions{Items: []string{
+				"Replace=true",
+				"ServerSideApply=true",
+				"ApplyOutOfSyncOnly=true",
+				"RespectIgnoreDifferences=true",
+			}},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			syncOptions := syncOptionsFromFlags(tt.replace, tt.serverSideApply, tt.applyOutOfSyncOnly, tt.respectIgnoreDifferences)
+			assert.Equal(t, tt.expected, syncOptions)
+		})
+	}
+}
+
+func TestApplicationSyncCommandRespectIgnoreDifferencesFlag(t *testing.T) {
+	t.Parallel()
+
+	cmd := NewApplicationSyncCommand(&argocdclient.ClientOptions{})
+	flag := cmd.Flags().Lookup("respect-ignore-differences")
+	require.NotNil(t, flag)
+	assert.Equal(t, "false", flag.DefValue)
+}
+
 func TestFormatConditionSummary(t *testing.T) {
 	t.Run("No conditions are defined", func(t *testing.T) {
 		app := v1alpha1.Application{

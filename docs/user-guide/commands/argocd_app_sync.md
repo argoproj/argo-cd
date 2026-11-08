@@ -60,6 +60,7 @@ argocd app sync [APPNAME... | -l selector | --project project-name] [flags]
       --prune                                             Allow deleting unexpected resources. If omitted, syncPolicy.manualDefaults.prune is used when manualDefaults is set; otherwise false
       --replace                                           Use a kubectl create/replace instead apply
       --resource stringArray                              Sync only specific resources as GROUP:KIND:NAME or !GROUP:KIND:NAME. Fields may be blank and '*' can be used. This option may be specified repeatedly
+      --respect-ignore-differences                        Keep the live values of fields ignored by ignoreDifferences when syncing existing resources (RespectIgnoreDifferences=true)
       --retry-backoff-duration duration                   Retry backoff base duration. Input needs to be a duration (e.g. 2m, 1h) (default 5s)
       --retry-backoff-factor int                          Factor multiplies the base duration after each failed retry (default 2)
       --retry-backoff-max-duration duration               Max retry backoff duration. Input needs to be a duration (e.g. 2m, 1h) (default 3m0s)

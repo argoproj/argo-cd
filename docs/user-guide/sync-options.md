@@ -458,6 +458,11 @@ The annotation accepts yaml with key jsonPointers of paths whose diff should be 
 > [!NOTE]
 > This annotation only supports JSON Pointers. JQ path expressions and managed field manager exclusions are not available via this annotation; those must be configured in `spec.ignoreDifferences`.
 
+To enable `RespectIgnoreDifferences` for a single manual sync from the CLI, use `argocd app sync --respect-ignore-differences`.
+
+> [!NOTE]
+> The sync option flags of `argocd app sync` (`--replace`, `--server-side`, `--apply-out-of-sync-only` and `--respect-ignore-differences`) replace `spec.syncPolicy.syncOptions` for that sync. For example, `argocd app sync --server-side` does not use `RespectIgnoreDifferences=true` from the Application spec. To use both, run `argocd app sync --server-side --respect-ignore-differences`.
+
 ## Skip Health Check During Sync
 
 When an application uses [sync phases or waves](sync-waves.md), Argo CD waits for every resource in a wave to become
