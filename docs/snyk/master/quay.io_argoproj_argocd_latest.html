@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="68 known vulnerabilities found in 151 vulnerable dependency paths.">
+  <meta name="description" content="59 known vulnerabilities found in 124 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 1st 2026, 12:24:36 am (UTC+00:00)</p>
+                <p class="timestamp">November 8th 2026, 12:22:20 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -507,9 +507,9 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>68</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>151 vulnerable dependency paths</span></div>
-                <div class="meta-count"><span>2582</span> <span>dependencies</span></div>
+                <div class="meta-count"><span>59</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>124 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>2584</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
           </header><!-- .project__header -->
@@ -3432,7 +3432,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Improper Protection of Alternate Path</h2>
+            <h2 class="card__title">CVE-2026-82560</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -3456,13 +3456,13 @@
                     <li class="card__meta__item">
                             Vulnerable module:
         
-                            pcre2/libpcre2-8-0
+                            perl/perl-modules-5.40
                     </li>
         
                     <li class="card__meta__item">Introduced through:
         
-                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.46-1build1
         
+                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
                     </li>
                 </ul>
         
@@ -3476,7 +3476,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        git@1:2.53.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl@5.40.1-7ubuntu0.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl/perl-modules-5.40@5.40.1-7ubuntu0.3
                                         
                                 </span>
         
@@ -3487,7 +3491,11 @@
                                          <span class="list-paths__item__arrow">›</span> 
                                         git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        perl@5.40.1-7ubuntu0.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl/libperl5.40@5.40.1-7ubuntu0.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl/perl-modules-5.40@5.40.1-7ubuntu0.3
                                         
                                 </span>
         
@@ -3496,9 +3504,11 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        grep@3.12-1
+                                        git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        perl@5.40.1-7ubuntu0.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl/libperl5.40@5.40.1-7ubuntu0.3
                                         
                                 </span>
         
@@ -3507,13 +3517,46 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
+                                        perl/perl-base@5.40.1-7ubuntu0.3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        base-passwd@3.6.8
+                                        git@1:2.53.0-1ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        libselinux/libselinux1@3.9-4build1
+                                        perl@5.40.1-7ubuntu0.3
                                          <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
+                                        perl/perl-base@5.40.1-7ubuntu0.3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.53.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl@5.40.1-7ubuntu0.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl/perl-modules-5.40@5.40.1-7ubuntu0.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl/perl-base@5.40.1-7ubuntu0.3
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|quay.io/argoproj/argocd@latest
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        git@1:2.53.0-1ubuntu1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        perl@5.40.1-7ubuntu0.3
                                         
                                 </span>
         
@@ -3525,814 +3568,26 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>perl</code> package and not the <code>perl</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>PCRE2 before 10.48 allows a pcre2_dfa_match out-of-bounds write because reuse of a cached workspace block, in a recursive DFA matching workspace, lacks a size check (even though a newly allocated block, for the same purpose, does have a size check). This outcome requires an attacker-controlled regular expression, or a recursive pattern in conjunction with a small heap limit (this can be set through the API).</p>
+        <p>Pod::Text versions before 6.1.1 for Perl allow CPU and memory exhaustion formatting a POD document whose =over nesting drives the margin to the output width.</p>
+        <p>Each =over adds its indent to the margin, which wrap() subtracts from the output width to get the space available for text. When that space reaches zero, the line-splitting substitution matches the empty string, and the loop consumes no input while appending the margin padding on every pass.</p>
+        <p>Formatting an attacker-supplied POD document never returns, and the output grows until memory is exhausted.</p>
         <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>pcre2</code>.</p>
+        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>perl</code>.</p>
         <h2 id="references">References</h2>
         <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-86145">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-86145</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48">https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-3r4p-g7gg-ppmf">https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-3r4p-g7gg-ppmf</a></li>
-        <li><a href="http://www.openwall.com/lists/oss-security/2026/09/05/3">http://www.openwall.com/lists/oss-security/2026/09/05/3</a></li>
+        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-82560">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-82560</a></li>
+        <li><a href="https://github.com/rra/podlators/commit/70510174f69eb54aa6d617bde4e1402cd9b7c61f.patch">https://github.com/rra/podlators/commit/70510174f69eb54aa6d617bde4e1402cd9b7c61f.patch</a></li>
+        <li><a href="https://metacpan.org/release/RRA/podlators-v6.1.0/source/lib/Pod/Text.pm#L245-261">https://metacpan.org/release/RRA/podlators-v6.1.0/source/lib/Pod/Text.pm#L245-261</a></li>
+        <li><a href="https://metacpan.org/release/RRA/podlators-v6.1.1/changes">https://metacpan.org/release/RRA/podlators-v6.1.1/changes</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/09/19/6">http://www.openwall.com/lists/oss-security/2026/09/19/6</a></li>
         </ul>
         
               <hr/>
         
             <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PCRE2-19638410">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pcre2/libpcre2-8-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.46-1build1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        grep@3.12-1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        base-passwd@3.6.8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libselinux/libselinux1@3.9-4build1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>PCRE2 before 10.48, on 32-bit platforms, has a pcre2_pattern_convert out-of-bounds write when an attacker can provide a large pattern.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>pcre2</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89157">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89157</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48">https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-q8g2-wprr-34m9">https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-q8g2-wprr-34m9</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PCRE2-19785454">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Free of Memory not on the Heap</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pcre2/libpcre2-8-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.46-1build1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        grep@3.12-1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        base-passwd@3.6.8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libselinux/libselinux1@3.9-4build1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>In PCRE2 before 10.48, pcre2_jit_match mishandles a previously copied subject being passed in as a context. An incorrect free operation can occur.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>pcre2</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89161">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89161</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/pull/937">https://github.com/PCRE2Project/pcre2/pull/937</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48">https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PCRE2-19785458">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Incorrect Resource Transfer Between Spheres</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pcre2/libpcre2-8-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.46-1build1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        grep@3.12-1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        base-passwd@3.6.8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libselinux/libselinux1@3.9-4build1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>In PCRE2 before 10.48, pcre2_serialize_encode might disclose two bytes to an adversary, typically in a situation where the access available to the adversary is already unsafe.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>pcre2</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89162">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89162</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48">https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-q7rw-r7qq-2hx6">https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-q7rw-r7qq-2hx6</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PCRE2-19785466">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pcre2/libpcre2-8-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.46-1build1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        grep@3.12-1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        base-passwd@3.6.8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libselinux/libselinux1@3.9-4build1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>PCRE2 before 10.48 has a pcre2_match out-of-bounds read after a JIT fallback when an attacker can provide invalid UTF data.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>pcre2</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89156">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89156</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48">https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-2p8c-ff85-vh9x">https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-2p8c-ff85-vh9x</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PCRE2-19785467">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pcre2/libpcre2-8-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.46-1build1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        grep@3.12-1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        base-passwd@3.6.8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libselinux/libselinux1@3.9-4build1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>PCRE2 before 10.48 has a pcre2_match out-of-bounds read during the PCRE2_MATCH_INVALID_UTF matching of an invalid UTF subject.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>pcre2</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89160">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89160</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48">https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-9qww-pwc4-77qq">https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-9qww-pwc4-77qq</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PCRE2-19785565">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Integer Overflow or Wraparound</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pcre2/libpcre2-8-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.46-1build1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        grep@3.12-1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        base-passwd@3.6.8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libselinux/libselinux1@3.9-4build1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>PCRE2 before 10.48, on 32-bit platforms, has a pcre2_compile_32 integer overflow and resultant out-of-bounds write.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>pcre2</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89158">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-89158</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48">https://github.com/PCRE2Project/pcre2/releases/tag/pcre2-10.48</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-fmgr-6ggq-9859">https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-fmgr-6ggq-9859</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PCRE2-19785640">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">Out-of-bounds Write</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            pcre2/libpcre2-8-0
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and pcre2/libpcre2-8-0@10.46-1build1
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        grep@3.12-1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        base-passwd@3.6.8
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        libselinux/libselinux1@3.9-4build1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        pcre2/libpcre2-8-0@10.46-1build1
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>pcre2</code> package and not the <code>pcre2</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>PCRE2 before 10.49, when there is an attacker-controlled regular expression and certain JIT API usage, allows an out-of-bounds write with arbitrary data.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>pcre2</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-103111">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-103111</a></li>
-        <li><a href="https://lists.debian.org/debian-lts-announce/2026/10/msg00008.html">https://lists.debian.org/debian-lts-announce/2026/10/msg00008.html</a></li>
-        <li><a href="https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-r9hj-j2rw-4q3m">https://github.com/PCRE2Project/pcre2/security/advisories/GHSA-r9hj-j2rw-4q3m</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PCRE2-20338637">More about this vulnerability</a></p>
+                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-PERL-20028733">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -4593,7 +3848,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>gnutls28</code> package and not the <code>gnutls28</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>An issue in gnutls v.3.8.13 allows an attacker to obtain sensitive information via failing to reject end-entity X.509 certificates that contain a contradictory combination of Key Usage (KU) and Extended Key Usage (EKU)</p>
+        <p>GnuTLS v3.8.13 does not reject end-entity X.509 certificates that contain a contradictory combination of Key Usage (KU) and Extended Key Usage (EKU). NOTE: the Supplier does not consider this an actionable security vulnerability because of its &#34;threat model doesn&#39;t consider attacks only possible by modifying anything within the trust boundary (private keys, trusted certificate authorities and their issued certificates including intermediate CAs, etc.)&#34; policy.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>gnutls28</code>.</p>
         <h2 id="references">References</h2>
@@ -4603,6 +3858,9 @@
         <li><a href="https://gist.github.com/lkloliver/6fbfc191bc6163942c8017551ac3f238">https://gist.github.com/lkloliver/6fbfc191bc6163942c8017551ac3f238</a></li>
         <li><a href="https://gitlab.com/gnutls/gnutls/-/blob/3.8.13/lib/x509/verify.c#L1119-1178">https://gitlab.com/gnutls/gnutls/-/blob/3.8.13/lib/x509/verify.c#L1119-1178</a></li>
         <li><a href="https://gitlab.com/gnutls/gnutls/-/work_items/1642">https://gitlab.com/gnutls/gnutls/-/work_items/1642</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/blob/e2169a87c7fb91935c2845088204b102baed4c5f/SECURITY.md">https://gitlab.com/gnutls/gnutls/-/blob/e2169a87c7fb91935c2845088204b102baed4c5f/SECURITY.md</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/work_items/1965">https://gitlab.com/gnutls/gnutls/-/work_items/1965</a></li>
+        <li><a href="https://github.com/lkloliver/poc/tree/main/CVE-2026-67693">https://github.com/lkloliver/poc/tree/main/CVE-2026-67693</a></li>
         </ul>
         
               <hr/>
@@ -4690,7 +3948,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>gnutls28</code> package and not the <code>gnutls28</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>An issue in gnutls v3.8.13 causes legitimate CA certificates to be rejected, leading to a Denial of Service (DoS).</p>
+        <p>Rejected reason: ** REJECT ** DO NOT USE THIS CANDIDATE NUMBER. ConsultIDs: none. Reason: This candidate was withdrawn by its CNA. Further investigation showed that it was not a security issue. Notes: none.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>gnutls28</code>.</p>
         <h2 id="references">References</h2>
@@ -4787,7 +4045,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>gnutls28</code> package and not the <code>gnutls28</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>Improper certificate validation in gnutls v3.8.13 causes the application to reject legitimate certificates for valid users, leading to a Denial of Service (DoS).</p>
+        <p>GnuTLS v3.8.13 does not properly enforce name constraints, as demonstrated by a permitted subtree violation for &#34;EE O=Evil accepted although outside permitted O=Good.&#34; NOTE: the Supplier does not consider this an actionable security vulnerability because of its &#34;threat model doesn&#39;t consider attacks only possible by modifying anything within the trust boundary (private keys, trusted certificate authorities and their issued certificates including intermediate CAs, etc.)&#34; policy.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>gnutls28</code>.</p>
         <h2 id="references">References</h2>
@@ -4797,6 +4055,9 @@
         <li><a href="https://evil.com">https://evil.com</a></li>
         <li><a href="https://gist.github.com/lkloliver/0c8b47fa75a0958fa88587665b82ae15">https://gist.github.com/lkloliver/0c8b47fa75a0958fa88587665b82ae15</a></li>
         <li><a href="https://www.gnutls.org">https://www.gnutls.org</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/blob/e2169a87c7fb91935c2845088204b102baed4c5f/SECURITY.md">https://gitlab.com/gnutls/gnutls/-/blob/e2169a87c7fb91935c2845088204b102baed4c5f/SECURITY.md</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/work_items/1965">https://gitlab.com/gnutls/gnutls/-/work_items/1965</a></li>
+        <li><a href="https://github.com/lkloliver/poc/tree/main/CVE-2026-95184">https://github.com/lkloliver/poc/tree/main/CVE-2026-95184</a></li>
         </ul>
         
               <hr/>
@@ -4884,7 +4145,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>gnutls28</code> package and not the <code>gnutls28</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>A hostname verification bypass in GnuTLS v3.8.13 allows attackers to circumvent the Common Name fallback mechanism and eavesdrop on communications via a crafted certificate.</p>
+        <p>GnuTLS v3.8.13 can perhaps unexpectedly trust a certificate on the basis of Common Name when Subject Alternative Name has an SRV otherName (1.3.6.1.5.5.7.8.7) whose value is an OCTET STRING. NOTE: the Supplier does not consider this an actionable security vulnerability because of its &#34;threat model doesn&#39;t consider attacks only possible by modifying anything within the trust boundary (private keys, trusted certificate authorities and their issued certificates including intermediate CAs, etc.)&#34; policy.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>gnutls28</code>.</p>
         <h2 id="references">References</h2>
@@ -4892,6 +4153,8 @@
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-88647">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-88647</a></li>
         <li><a href="https://gist.github.com/lkloliver/f98ec3de1a871fdfc02b70b8b9ba7642">https://gist.github.com/lkloliver/f98ec3de1a871fdfc02b70b8b9ba7642</a></li>
         <li><a href="https://gitlab.com/gnutls/gnutls/-/issues/1802">https://gitlab.com/gnutls/gnutls/-/issues/1802</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/blob/e2169a87c7fb91935c2845088204b102baed4c5f/SECURITY.md">https://gitlab.com/gnutls/gnutls/-/blob/e2169a87c7fb91935c2845088204b102baed4c5f/SECURITY.md</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/work_items/1965">https://gitlab.com/gnutls/gnutls/-/work_items/1965</a></li>
         <li><a href="https://github.com/lkloliver/poc/tree/main/CVE-2026-88647">https://github.com/lkloliver/poc/tree/main/CVE-2026-88647</a></li>
         </ul>
         
@@ -4980,7 +4243,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>gnutls28</code> package and not the <code>gnutls28</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>Improper certificate validation in gnutls v3.8.13 causes the application to accept certificates containing invalid extensions.</p>
+        <p>GnuTLS v3.8.13 does not reject a critical keyUsage extension when it cannot be processed, such as when extnValue is an ASN.1 NULL (05 00) instead of a BIT STRING. NOTE: the Supplier does not consider this an actionable security vulnerability because of its &#34;threat model doesn&#39;t consider attacks only possible by modifying anything within the trust boundary (private keys, trusted certificate authorities and their issued certificates including intermediate CAs, etc.)&#34; policy.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>gnutls28</code>.</p>
         <h2 id="references">References</h2>
@@ -4988,6 +4251,8 @@
         <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-95210">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-95210</a></li>
         <li><a href="http://gnutls.com">http://gnutls.com</a></li>
         <li><a href="https://gist.github.com/lkloliver/4aad23689202720c4068f43b3c6069c7">https://gist.github.com/lkloliver/4aad23689202720c4068f43b3c6069c7</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/blob/e2169a87c7fb91935c2845088204b102baed4c5f/SECURITY.md">https://gitlab.com/gnutls/gnutls/-/blob/e2169a87c7fb91935c2845088204b102baed4c5f/SECURITY.md</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/work_items/1965">https://gitlab.com/gnutls/gnutls/-/work_items/1965</a></li>
         <li><a href="https://github.com/lkloliver/poc/tree/main/CVE-2026-95210">https://github.com/lkloliver/poc/tree/main/CVE-2026-95210</a></li>
         </ul>
         
@@ -5076,7 +4341,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>gnutls28</code> package and not the <code>gnutls28</code> package as distributed by <code>Ubuntu</code>.</em>
         <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>Incomplete X.509 implementation in GnuTLS v3.8.13 allows attackers controlling a subordinate Certificate Authority to bypass cross-domain PKI restrictions and issue unauthorized certificates.</p>
+        <p>In GnuTLS v3.8.13, an excluded msUPN/SRV otherName is never checked. NOTE: the Supplier does not consider this an actionable security vulnerability because of its &#34;threat model doesn&#39;t consider attacks only possible by modifying anything within the trust boundary (private keys, trusted certificate authorities and their issued certificates including intermediate CAs, etc.)&#34; policy.</p>
         <h2 id="remediation">Remediation</h2>
         <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>gnutls28</code>.</p>
         <h2 id="references">References</h2>
@@ -5085,6 +4350,9 @@
         <li><a href="https://gist.github.com/lkloliver/1f2a97cb8d0b31aa27b6bd0354358d7d">https://gist.github.com/lkloliver/1f2a97cb8d0b31aa27b6bd0354358d7d</a></li>
         <li><a href="https://www.rfc-editor.org/rfc/rfc5280#section-4.2.1.10">https://www.rfc-editor.org/rfc/rfc5280#section-4.2.1.10</a></li>
         <li><a href="https://www.rfc-editor.org/rfc/rfc5280#section-6.1.4">https://www.rfc-editor.org/rfc/rfc5280#section-6.1.4</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/blob/e2169a87c7fb91935c2845088204b102baed4c5f/SECURITY.md">https://gitlab.com/gnutls/gnutls/-/blob/e2169a87c7fb91935c2845088204b102baed4c5f/SECURITY.md</a></li>
+        <li><a href="https://gitlab.com/gnutls/gnutls/-/work_items/1965">https://gitlab.com/gnutls/gnutls/-/work_items/1965</a></li>
+        <li><a href="https://github.com/lkloliver/poc/tree/main/CVE-2026-88648">https://github.com/lkloliver/poc/tree/main/CVE-2026-88648</a></li>
         </ul>
         
               <hr/>
@@ -6243,88 +5511,6 @@
             </div>
         
         </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
-            <h2 class="card__title">CVE-2026-19931</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--medium">
-                        <span class="label__text">medium severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            curl/libcurl3t64-gnutls
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-        
-                                    docker-image|quay.io/argoproj/argocd@latest, git@1:2.53.0-1ubuntu1 and others
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        git@1:2.53.0-1ubuntu1
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        curl/libcurl3t64-gnutls@8.18.0-1ubuntu2.8
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>curl</code> package and not the <code>curl</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>A flaw in libcurl makes it wrongly reuse an HTTP connection setup for a given
-        hostname using Negotiate authentication, when the initial request is done
-        using empty credentials. This can make user B&#39;s request get sent over user A&#39;s
-        previously authenticated connection.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>curl</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-19931">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-19931</a></li>
-        <li><a href="https://curl.se/docs/CVE-2026-19931.html">https://curl.se/docs/CVE-2026-19931.html</a></li>
-        <li><a href="https://curl.se/docs/CVE-2026-19931.json">https://curl.se/docs/CVE-2026-19931.json</a></li>
-        <li><a href="https://hackerone.com/reports/3923520">https://hackerone.com/reports/3923520</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-CURL-19499142">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">Incorrect Resource Transfer Between Spheres</h2>
             <div class="card__section">
@@ -6379,7 +5565,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
+                                        apt@3.2.1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libsystemd0@259.9-0ubuntu0.1
                                         
@@ -6434,9 +5620,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
+                                        apt@3.2.1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt/libapt-pkg7.0@3.2.0
+                                        apt/libapt-pkg7.0@3.2.1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libsystemd0@259.9-0ubuntu0.1
                                         
@@ -6477,7 +5663,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
+                                        apt@3.2.1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         adduser@3.153ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -6494,7 +5680,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
+                                        apt@3.2.1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         adduser@3.153ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -6533,9 +5719,9 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
+                                        apt@3.2.1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt/libapt-pkg7.0@3.2.0
+                                        apt/libapt-pkg7.0@3.2.1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         systemd/libudev1@259.9-0ubuntu0.1
                                         
@@ -6646,7 +5832,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
+                                        apt@3.2.1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         adduser@3.153ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -6681,7 +5867,7 @@
                                 <span class="list-paths__item__introduced"><em>Introduced through</em>:
                                         docker-image|quay.io/argoproj/argocd@latest
                                          <span class="list-paths__item__arrow">›</span> 
-                                        apt@3.2.0
+                                        apt@3.2.1ubuntu0.1
                                          <span class="list-paths__item__arrow">›</span> 
                                         adduser@3.153ubuntu1
                                          <span class="list-paths__item__arrow">›</span> 
@@ -6715,87 +5901,6 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-SHADOW-16227238">More about this vulnerability</a></p>
-            </div>
-        
-        </div><!-- .card -->
-        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">Out-of-bounds Read</h2>
-            <div class="card__section">
-        
-                <div class="card__labels">
-                    <div class="label label--low">
-                        <span class="label__text">low severity</span>
-                    </div>
-                    <div class="label label--exploit">
-                        <span class="label__text">Exploit: Not Defined</span>
-                    </div>
-                </div>
-        
-                <hr/>
-        
-                <ul class="card__meta">
-                    <li class="card__meta__item">
-                        Manifest file: quay.io/argoproj/argocd:latest/argoproj/argocd <span class="list-paths__item__arrow">›</span> Dockerfile
-                    </li>
-                    <li class="card__meta__item">
-                        Package Manager: ubuntu:26.04
-                    </li>
-                    <li class="card__meta__item">
-                            Vulnerable module:
-        
-                            openssh/openssh-client
-                    </li>
-        
-                    <li class="card__meta__item">Introduced through:
-        
-                                docker-image|quay.io/argoproj/argocd@latest and openssh/openssh-client@1:10.2p1-2ubuntu3.8
-        
-                    </li>
-                </ul>
-        
-                <hr/>
-        
-        
-                        <h3 class="card__section__title">Detailed paths</h3>
-        
-                    <ul class="card__meta__paths">
-                                <li>
-                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
-                                        docker-image|quay.io/argoproj/argocd@latest
-                                         <span class="list-paths__item__arrow">›</span> 
-                                        openssh/openssh-client@1:10.2p1-2ubuntu3.8
-                                        
-                                </span>
-        
-                            </li>
-                    </ul><!-- .list-paths -->
-        
-            </div><!-- .card__section -->
-        
-              <hr/>
-              <!-- Overview -->
-              <h2 id="nvd-description">NVD Description</h2>
-        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssh</code> package and not the <code>openssh</code> package as distributed by <code>Ubuntu</code>.</em>
-        <em>See <code>How to fix?</code> for <code>Ubuntu:26.04</code> relevant fixed versions and status.</em></p>
-        <p>A flaw was found in OpenSSH. This vulnerability, a heap out-of-bounds read, occurs during the cleanup of GSSAPI (Generic Security Service Application Programming Interface) indicators when a trailing NULL termination is missing in the auth-indicators array. A remote attacker, under specific configurations involving GSSAPI authentication and a Kerberos environment, could exploit this to cause the SSH authentication path to crash or abort. This leads to a denial of service (DoS), impacting the availability of the SSH service.</p>
-        <h2 id="remediation">Remediation</h2>
-        <p>There is no fixed version for <code>Ubuntu:26.04</code> <code>openssh</code>.</p>
-        <h2 id="references">References</h2>
-        <ul>
-        <li><a href="http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-55654">http://people.ubuntu.com/~ubuntu-security/cve/CVE-2026-55654</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:36759">https://access.redhat.com/errata/RHSA-2026:36759</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:47756">https://access.redhat.com/errata/RHSA-2026:47756</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:47757">https://access.redhat.com/errata/RHSA-2026:47757</a></li>
-        <li><a href="https://access.redhat.com/security/cve/CVE-2026-55654">https://access.redhat.com/security/cve/CVE-2026-55654</a></li>
-        <li><a href="https://bugzilla.redhat.com/show_bug.cgi?id=2462493">https://bugzilla.redhat.com/show_bug.cgi?id=2462493</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:54387">https://access.redhat.com/errata/RHSA-2026:54387</a></li>
-        <li><a href="https://access.redhat.com/errata/RHSA-2026:58981">https://access.redhat.com/errata/RHSA-2026:58981</a></li>
-        </ul>
-        
-              <hr/>
-        
-            <div class="cta card__cta">
-                <p><a href="https://snyk.io/vuln/SNYK-UBUNTU2604-OPENSSH-17427814">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
