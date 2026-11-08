@@ -71,7 +71,7 @@ func TestGenerateListParamsNonStringValueError(t *testing.T) {
 		}, &applicationSetInfo, nil)
 
 		require.Error(t, err, testCase.name)
-		assert.EqualError(t, err, testCase.expected, testCase.name)
+		require.EqualError(t, err, testCase.expected, testCase.name)
 		assert.NotContains(t, err.Error(), "%!", testCase.name)
 	}
 }
