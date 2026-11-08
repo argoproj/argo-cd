@@ -283,6 +283,10 @@ func StateDiff(ctx context.Context, live, config *unstructured.Unstructured, dif
 // StateDiffs will apply all required normalizations and calculate the diffs between
 // the live and the config/desired states.
 func StateDiffs(ctx context.Context, lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*diff.DiffResultList, error) {
+	if diffConfig == nil {
+		return nil, errors.New("StateDiffs error: diffConfig can not be nil")
+	}
+
 	// Extract annotation-based ignores from configs BEFORE normalization
 	mergedIgnores := resolvedIgnores(configs, diffConfig.Ignores())
 

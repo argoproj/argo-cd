@@ -1,11 +1,17 @@
 import {queryOptions} from '@tanstack/react-query';
 
+import * as models from './models';
 import {services} from './services';
 
 // Keys are hierarchical so invalidating a prefix (e.g. projectQueries.byName) refreshes everything under it.
 // Per-item keys sit under 'detail' so an item named "list" can't share a prefix with the list query.
 export const projectQueries = {
     list: () => queryOptions({queryKey: ['projects', 'list'], queryFn: () => services.projects.list()}),
+    names: () =>
+        queryOptions({
+            queryKey: ['projects', 'list', 'names'],
+            queryFn: () => services.projects.list('items.metadata.name').then(projects => projects.map(proj => proj.metadata.name).sort())
+        }),
     byName: (name: string) => ['projects', 'detail', name] as const,
     detailed: (name: string) => queryOptions({queryKey: [...projectQueries.byName(name), 'detailed'], queryFn: () => services.projects.getDetailed(name)}),
     links: (name: string) => queryOptions({queryKey: [...projectQueries.byName(name), 'links'], queryFn: () => services.projects.getLinks(name)}),
@@ -15,16 +21,44 @@ export const projectQueries = {
 
 export const applicationQueries = {
     list: (projects: string[], objectListKind: string) =>
-        queryOptions({queryKey: ['applications', 'list', projects, objectListKind], queryFn: () => services.applications.list(projects, objectListKind)})
+        queryOptions({queryKey: ['applications', 'list', projects, objectListKind], queryFn: () => services.applications.list(projects, objectListKind)}),
+    names: (projects: string[], objectListKind: string) =>
+        queryOptions({
+            queryKey: ['applications', 'list', projects, objectListKind, 'names'],
+            queryFn: () => services.applications.list(projects, objectListKind, {fields: ['items.metadata.name']}).then(list => list.items)
+        })
 };
 
 export const repoQueries = {
-    list: () => queryOptions({queryKey: ['repos', 'list'], queryFn: () => services.repos.list()})
+    all: ['repos'] as const,
+    list: () => queryOptions({queryKey: ['repos', 'list'], queryFn: () => services.repos.list()}),
+    // Repositories and credential templates, read and (with the hydrator) write, as the repositories page lists them.
+    connections: (hydratorEnabled: boolean) =>
+        queryOptions({
+            queryKey: ['repos', 'connections', hydratorEnabled],
+            queryFn: () =>
+                Promise.all([
+                    services.repos.list(),
+                    services.repocreds.list(),
+                    hydratorEnabled ? services.repos.listWrite() : Promise.resolve([]),
+                    hydratorEnabled ? services.repocreds.listWrite() : Promise.resolve([])
+                ])
+        })
 };
 
 export const clusterQueries = {
     list: () => queryOptions({queryKey: ['clusters', 'list'], queryFn: () => services.clusters.list()}),
-    detail: (server: string) => queryOptions({queryKey: ['clusters', 'detail', server], queryFn: () => services.clusters.get(server, '')})
+    detail: (server: string) => queryOptions({queryKey: ['clusters', 'detail', server], queryFn: () => services.clusters.get(server, '')}),
+    // Best-effort lookup for showing a cluster's name: a failure yields null, and callers fall back to the server URL.
+    lookup: (server: string, name?: string) =>
+        queryOptions({
+            queryKey: ['clusters', 'lookup', server ?? '', name ?? ''],
+            queryFn: () => services.clusters.get(server, name).catch((): models.Cluster => null)
+        })
+};
+
+export const certQueries = {
+    list: () => queryOptions({queryKey: ['certs', 'list'], queryFn: () => services.certs.list()})
 };
 
 export const gpgkeyQueries = {
@@ -38,6 +72,11 @@ export const accountQueries = {
 
 export const settingsQueries = {
     get: () => queryOptions({queryKey: ['settings'], queryFn: () => services.authService.settings()})
+};
+
+export const notificationQueries = {
+    triggers: () => queryOptions({queryKey: ['notifications', 'triggers'], queryFn: () => services.notification.listTriggers()}),
+    services: () => queryOptions({queryKey: ['notifications', 'services'], queryFn: () => services.notification.listServices()})
 };
 
 export const helpQueries = {

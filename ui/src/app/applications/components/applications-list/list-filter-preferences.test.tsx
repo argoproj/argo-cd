@@ -1,4 +1,5 @@
 import * as React from 'react';
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {cleanup, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import {createMemoryHistory} from 'history';
 import {NavigationManager} from 'argo-ui';
@@ -72,10 +73,13 @@ function renderList(page: (typeof pages)[number], query: string) {
     const ctx = {history, navigation: new NavigationManager(history)} as React.ContextType<typeof Context>;
     const props = {history, location: history.location, match: {path: '/' + page, url: '/' + page, isExact: true, params: {}}};
     const List = {applications: ApplicationsList, applicationsets: ApplicationSetsList, resources: ResourcesList}[page];
+    const queryClient = new QueryClient({defaultOptions: {queries: {retry: false, gcTime: 0}}});
     return render(
-        <Context.Provider value={ctx}>
-            <List {...props} />
-        </Context.Provider>
+        <QueryClientProvider client={queryClient}>
+            <Context.Provider value={ctx}>
+                <List {...props} />
+            </Context.Provider>
+        </QueryClientProvider>
     );
 }
 
