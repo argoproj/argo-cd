@@ -28,10 +28,11 @@ jest.mock('../../../shared/components', () => ({
 const mockSidebarTarget = {current: document.createElement('div')};
 jest.mock('../../../sidebar/sidebar', () => ({useSidebarTarget: () => mockSidebarTarget}));
 
+const mockViewPreferences = {hideSidebar: false};
 jest.mock('../../../shared/services', () => ({
     services: {
         clusters: {list: jest.fn(), delete: jest.fn(() => Promise.resolve())},
-        viewPreferences: {getPreferences: () => of({hideSidebar: false})}
+        viewPreferences: {getPreferences: () => of(mockViewPreferences), getCurrentPreferences: () => mockViewPreferences}
     }
 }));
 
