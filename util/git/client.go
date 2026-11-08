@@ -2161,7 +2161,13 @@ func isRetryableNotePushError(errStr string) bool {
 
 // HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (bool, error) {
-	gitStatusOutput, gitStatusErr := m.runCmd(ctx, "status", "--porcelain", filePath)
+	var gitStatusOutput string
+	var gitStatusErr error
+	if filePath != "" {
+		gitStatusOutput, gitStatusErr = m.runCmd(ctx, "status", "--porcelain", filePath)
+	} else {
+		gitStatusOutput, gitStatusErr = m.runCmd(ctx, "status", "--porcelain")
+	}
 
 	if gitStatusErr != nil {
 		return true, fmt.Errorf("git status failed: %w", gitStatusErr)

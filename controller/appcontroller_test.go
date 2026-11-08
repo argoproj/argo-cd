@@ -273,6 +273,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
 		false,
+		common.HydrationFormatSimple,
 	)
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
@@ -3810,7 +3811,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, common.HydrationFormatSimple,
 	)
 	require.NoError(t, err)
 
@@ -3874,7 +3875,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
-		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false, common.HydrationFormatSimple,
 	)
 	require.NoError(t, err)
 

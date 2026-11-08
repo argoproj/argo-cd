@@ -67,6 +67,7 @@ func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha string, d
 	var atleastOneManifestChanged bool
 	for _, p := range paths {
 		hydratePath := p.Path
+		// TODO: ask if this case is even required since the hydratePath "" and "." cannot be used anymore in the syncSource.path field
 		if hydratePath == "." {
 			hydratePath = ""
 		}
