@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="56 known vulnerabilities found in 492 vulnerable dependency paths.">
+  <meta name="description" content="57 known vulnerabilities found in 494 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 1st 2026, 12:23:54 am (UTC+00:00)</p>
+                <p class="timestamp">November 8th 2026, 12:21:39 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -502,8 +502,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>56</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>492 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>57</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>494 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>19</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -2257,6 +2257,89 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-4738</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            zlib/zlib
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and zlib/zlib@1.3.1-r2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib@1.3.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib@1.3.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>zlib</code> package and not the <code>zlib</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Improper Restriction of Operations within the Bounds of a Memory Buffer vulnerability in OSGeo gdal (frmts/zlib/contrib/infback9 modules). This vulnerability is associated with program files inftree9.C‎.</p>
+        <p>This issue affects gdal: before 3.11.0.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>zlib</code> to version 1.4-r0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/OSGeo/gdal/pull/12244">https://github.com/OSGeo/gdal/pull/12244</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-ZLIB-22265606">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">Improper Protection of Alternate Path</h2>
             <div class="card__section">
         
@@ -2806,6 +2889,7 @@
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-032379.html">https://cert-portal.siemens.com/productcert/html/ssa-032379.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-089022.html">https://cert-portal.siemens.com/productcert/html/ssa-089022.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-585531.html">https://cert-portal.siemens.com/productcert/html/ssa-585531.html</a></li>
         </ul>
         
               <hr/>
@@ -3005,6 +3089,7 @@
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-089022.html">https://cert-portal.siemens.com/productcert/html/ssa-089022.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-485750.html">https://cert-portal.siemens.com/productcert/html/ssa-485750.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-585531.html">https://cert-portal.siemens.com/productcert/html/ssa-585531.html</a></li>
         </ul>
         
               <hr/>
@@ -10118,7 +10203,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2026-107891</h2>
+            <h2 class="card__title">Integer Overflow or Wraparound</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -10328,9 +10413,18 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>musl</code> package and not the <code>musl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>musl libc before 1.2.7, when an untrusted regular expression is used with regcomp, has multiple integer overflows, possibly leading to incorrect allocation sizes and out-of-bounds heap writes.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Alpine:3.21</code> <code>musl</code> to version 1.2.5-r12 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://git.musl-libc.org/cgit/musl/commit/?id=7813e9119eb5fe681b6750b8a033a0490bca0941">https://git.musl-libc.org/cgit/musl/commit/?id=7813e9119eb5fe681b6750b8a033a0490bca0941</a></li>
+        <li><a href="https://musl.libc.org">https://musl.libc.org</a></li>
+        <li><a href="https://www.openwall.com/lists/musl/2026/10/21/1">https://www.openwall.com/lists/musl/2026/10/21/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/10/21/18">http://www.openwall.com/lists/oss-security/2026/10/21/18</a></li>
+        </ul>
         
               <hr/>
         
