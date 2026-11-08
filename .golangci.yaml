@@ -18,6 +18,7 @@ linters:
     - errorlint
     - exptostd
     - gocritic
+    - gohawk
     - gomodguard_v2
     - govet
     - importas
@@ -52,6 +53,11 @@ linters:
     warn-unused: true
 
   settings:
+    custom:
+      # Module plugin, built via .custom-gcl.yml.
+      gohawk:
+        type: module
+        description: Ownership, lifecycle and concurrency checks.
     gocritic:
       enable-all: true
       # Most of these should probably be enabled one-by-one.
