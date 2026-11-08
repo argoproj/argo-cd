@@ -1,3 +1,4 @@
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import '@testing-library/jest-dom';
 import {NavigationManager} from 'argo-ui';
@@ -90,9 +91,11 @@ const renderAt = (url: string) => {
     const apis = {navigation: new NavigationManager(history), notifications: {show: jest.fn()}, popup: {confirm: jest.fn()}, baseHref: '/'};
     const props = {match: {url: '/applications'}} as any;
     render(
-        <Context.Provider value={{...apis, history} as any}>
-            <ApplicationsList {...props} />
-        </Context.Provider>
+        <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
+            <Context.Provider value={{...apis, history} as any}>
+                <ApplicationsList {...props} />
+            </Context.Provider>
+        </QueryClientProvider>
     );
     return history;
 };
@@ -136,4 +139,11 @@ test('keeps the list scoped to the namespace in the URL across syncing an applic
 
     expect(params(history).get('appNamespace')).toBe('team-a');
     expect(listedNamespace()).toBe('team-a');
+});
+
+test('a failed cluster list is not an unhandled rejection outside the summary view', async () => {
+    jest.mocked(services.clusters.list).mockRejectedValueOnce(new Error('boom'));
+    renderAt('/applications?view=list');
+    await screen.findByText('Sync guestbook');
+    await act(async () => {});
 });
