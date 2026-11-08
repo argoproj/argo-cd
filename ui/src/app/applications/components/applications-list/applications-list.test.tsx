@@ -140,3 +140,10 @@ test('keeps the list scoped to the namespace in the URL across syncing an applic
     expect(params(history).get('appNamespace')).toBe('team-a');
     expect(listedNamespace()).toBe('team-a');
 });
+
+test('a failed cluster list is not an unhandled rejection outside the summary view', async () => {
+    jest.mocked(services.clusters.list).mockRejectedValueOnce(new Error('boom'));
+    renderAt('/applications?view=list');
+    await screen.findByText('Sync guestbook');
+    await act(async () => {});
+});

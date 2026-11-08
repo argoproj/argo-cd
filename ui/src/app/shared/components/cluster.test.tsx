@@ -67,10 +67,34 @@ describe('Cluster', () => {
             expect(services.clusters.get).not.toHaveBeenCalled();
         });
 
+        it('does not match a cluster without a name when no name is given', async () => {
+            jest.mocked(services.clusters.list).mockResolvedValue([{server: 'https://nameless.example.com'} as any, prod]);
+            renderWithList(<Cluster server='https://unknown.example.com' showUrl={true} />);
+
+            expect(await screen.findByText('https://unknown.example.com (https://unknown.example.com)')).toBeInTheDocument();
+        });
+
+        it('does not refetch a failed list for rows mounting later', async () => {
+            jest.mocked(services.clusters.list).mockRejectedValue(new Error('boom'));
+            const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+            const {rerender} = renderWithList(<Cluster server={prod.server} />, client);
+            await screen.findByText('try again');
+
+            rerender(
+                <QueryClientProvider client={client}>
+                    <ClusterCtx.Provider value={Promise.resolve([])}>
+                        <Cluster server={prod.server} />
+                        <Cluster server={inCluster.server} />
+                    </ClusterCtx.Provider>
+                </QueryClientProvider>
+            );
+
+            expect(await screen.findAllByText('try again')).toHaveLength(2);
+            expect(services.clusters.list).toHaveBeenCalledTimes(1);
+        });
+
         it('offers retry when the list fails', async () => {
-            jest.mocked(services.clusters.list)
-                .mockRejectedValueOnce(new Error('boom'))
-                .mockResolvedValueOnce([prod]);
+            jest.mocked(services.clusters.list).mockRejectedValueOnce(new Error('boom')).mockResolvedValueOnce([prod]);
             const show = jest.fn();
             renderWithList(<Cluster server={prod.server} />, newQueryClient({show} as any));
 

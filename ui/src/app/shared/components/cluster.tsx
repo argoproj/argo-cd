@@ -27,8 +27,9 @@ export const ClusterCtx = React.createContext<Promise<Array<models.Cluster>>>(nu
 export const Cluster = (props: {server: string; name?: string; showUrl?: boolean}) => {
     // List pages provide ClusterCtx and load all clusters once; elsewhere each cluster is looked up on its own.
     const inList = React.useContext(ClusterCtx) !== null;
-    // The list page refreshes the list when it mounts, so its rows only read it.
-    const list = useQuery({...clusterQueries.list(), enabled: inList, staleTime: Infinity});
+    // The list page refreshes the list when it mounts, so its rows only read it, and rows mounting
+    // after a failure don't refetch it ("try again" still does).
+    const list = useQuery({...clusterQueries.list(), enabled: inList, staleTime: Infinity, retryOnMount: false});
     const lookup = useQuery({...clusterQueries.lookup(props.server, props.name), enabled: !inList});
 
     if (inList && list.isError && !list.data) {
@@ -38,6 +39,10 @@ export const Cluster = (props: {server: string; name?: string; showUrl?: boolean
     if (!loaded) {
         return <span>{props.server}</span>;
     }
-    const cluster = (inList ? list.data.find(item => item.server === props.server || item.name === props.name) : lookup.data) || {name: props.server, server: props.server};
+    // Match by name only when one is given, so a cluster without a name doesn't match every nameless lookup.
+    const cluster = (inList ? list.data.find(item => item.server === props.server || (props.name && item.name === props.name)) : lookup.data) || {
+        name: props.server,
+        server: props.server
+    };
     return clusterHTML(cluster, props.showUrl);
 };

@@ -245,7 +245,12 @@ const ResourcesViewTypeSwitcher: React.FC<{pref: ResourcesListPreferences & {pag
 export const ResourcesList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
     const queryClient = useQueryClient();
-    const clusters = React.useMemo(() => queryClient.fetchQuery(clusterQueries.list()), [queryClient]);
+    const clusters = React.useMemo(() => {
+        const list = queryClient.fetchQuery(clusterQueries.list());
+        // Only the summary view awaits this; rows show a failure through the query.
+        list.catch((): void => undefined);
+        return list;
+    }, [queryClient]);
     const loaderRef = React.useRef<DataLoader | null>(null);
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences) {

@@ -259,7 +259,12 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const refreshAppsInput = tryJsonParse(query.get('refreshApps'));
     const [createApi, setCreateApi] = React.useState(null);
     const queryClient = useQueryClient();
-    const clusters = React.useMemo(() => queryClient.fetchQuery(clusterQueries.list()), [queryClient]);
+    const clusters = React.useMemo(() => {
+        const list = queryClient.fetchQuery(clusterQueries.list());
+        // Only the summary view awaits this; rows show a failure through the query.
+        list.catch((): void => undefined);
+        return list;
+    }, [queryClient]);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const {List, Summary, Tiles} = AppsListViewKey;
     const authSettings = React.useContext(AuthSettingsCtx);
