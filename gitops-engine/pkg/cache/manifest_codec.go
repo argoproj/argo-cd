@@ -115,7 +115,30 @@ func compressManifestData(data []byte, compressionType ManifestCompressionType) 
 	if !ok {
 		return nil, fmt.Errorf("unknown compression type: %s", compressionType)
 	}
-	return c.compress(data)
+	compressed, err := c.compress(data)
+	if err != nil {
+		return nil, err
+	}
+	return trimExcessCapacity(compressed), nil
+}
+
+// trimExcessCapacity copies b into a right-sized allocation when its spare capacity is large.
+// The result of compressManifestData is kept in the cluster cache for the lifetime of the
+// resource, so spare capacity left by the encoder (bytes.Buffer growth, s2.MaxEncodedLen
+// preallocation, serializer output buffers) would otherwise stay allocated alongside every
+// cached manifest.
+//
+// Small slack is left alone, because a fresh copy would be rounded up to the same allocation size
+// and the copy would buy nothing. Up to 32 KiB, Go rounds allocations to a size class (at most
+// ~12.5% waste, hence len/8). Above that it rounds to whole 8 KiB pages, so slack beyond one page
+// can always be reclaimed.
+func trimExcessCapacity(b []byte) []byte {
+	if cap(b)-len(b) <= min(len(b)/8, 8<<10) {
+		return b
+	}
+	trimmed := make([]byte, len(b))
+	copy(trimmed, b)
+	return trimmed
 }
 
 // decompressManifestData decompresses manifest bytes using the registered compressor.
@@ -213,6 +236,8 @@ func (c *gzipCompressor) compress(data []byte) ([]byte, error) {
 	if err := gz.Close(); err != nil {
 		return nil, fmt.Errorf("failed to close gzip writer: %w", err)
 	}
+	// Detach the writer from buf before pooling it so the pool doesn't keep the untrimmed output buffer alive.
+	gz.Reset(io.Discard)
 	c.pool.Put(gz)
 	return buf.Bytes(), nil
 }
