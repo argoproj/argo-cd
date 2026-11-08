@@ -81,15 +81,13 @@ func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha string, d
 
 		// Write the manifests
 		var err error
-		if hydrationFormat == common.HydrationFormatSplit {
+		switch hydrationFormat {
+		case common.HydrationFormatSimple:
 			err = writeSplitManifests(root, hydratePath, p.Manifests)
-		} else if hydrationFormat == common.HydrationFormatSimple {
+		case common.HydrationFormatSplit:
 			err = writeManifests(root, hydratePath, p.Manifests)
-		} else {
+		default:
 			return false, fmt.Errorf("unknown hydrationFormat %s, valid values are 'simple' or 'split'", hydrationFormat)
-		}
-		if err != nil {
-			return false, fmt.Errorf("failed to write manifests: %w", err)
 		}
 
 		// check whether hydration has led to any changes in the hydratePath
