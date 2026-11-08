@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
@@ -103,7 +104,7 @@ Argocd-reference-commit-sha: abc123
 	mockGitClient := gitmocks.NewClient(t)
 	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Times(len(paths))
 
-	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSimple)
 	require.NoError(t, err)
 	require.True(t, shouldCommit)
 
@@ -209,7 +210,7 @@ Argocd-reference-commit-sha: abc123
 	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path2/manifest.yaml").Return(true, nil).Once()
 	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path3/nested/manifest.yaml").Return(false, nil).Once()
 
-	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSimple)
 	require.NoError(t, err)
 	require.True(t, shouldCommit)
 
@@ -439,19 +440,20 @@ func TestIsHydrated(t *testing.T) {
 	t.Parallel()
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
+	hydrationFormat := common.HydrationFormatSimple
 	commitSha := "fff456"
 	commitShaNoNoteFoundErr := "abc456"
 	commitShaErr := "abc999"
-	strnote := "{\"drySha\":\"abc123\"}"
+	strnote := "{\"drySha\":\"abc123\",\"hydrationFormat\":\"simple\"}"
 	mockGitClient.EXPECT().GetCommitNote(mock.Anything, commitSha, mock.Anything).Return(strnote, nil).Once()
 	mockGitClient.EXPECT().GetCommitNote(mock.Anything, commitShaNoNoteFoundErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", git.ErrNoNoteFound)).Once()
 	// an existing note
-	isHydrated, err := IsHydrated(t.Context(), mockGitClient, drySha, commitSha)
+	isHydrated, err := IsHydrated(t.Context(), mockGitClient, drySha, commitSha, hydrationFormat)
 	require.NoError(t, err)
 	assert.True(t, isHydrated)
 
 	// no note found treated as success.. no error returned
-	isHydrated, err = IsHydrated(t.Context(), mockGitClient, drySha, commitShaNoNoteFoundErr)
+	isHydrated, err = IsHydrated(t.Context(), mockGitClient, drySha, commitShaNoNoteFoundErr, hydrationFormat)
 	require.NoError(t, err)
 	assert.False(t, isHydrated)
 
@@ -459,7 +461,7 @@ func TestIsHydrated(t *testing.T) {
 	// an error other than "no note found", IsHydrated should return that error to the caller
 	err = errors.New("some other error")
 	mockGitClient.EXPECT().GetCommitNote(mock.Anything, commitShaErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", err)).Once()
-	isHydrated, err = IsHydrated(t.Context(), mockGitClient, drySha, commitShaErr)
+	isHydrated, err = IsHydrated(t.Context(), mockGitClient, drySha, commitShaErr, hydrationFormat)
 	require.Error(t, err)
 	assert.False(t, isHydrated)
 }
@@ -475,11 +477,11 @@ func TestAddNote(t *testing.T) {
 	mockGitClient.EXPECT().AddAndPushNote(mock.Anything, commitShaErr, mock.Anything, mock.Anything).Return(err).Once()
 
 	// success
-	err = AddNote(t.Context(), mockGitClient, drySha, commitSha)
+	err = AddNote(t.Context(), mockGitClient, drySha, commitSha, common.HydrationFormatSimple)
 	require.NoError(t, err)
 
 	// failure
-	err = AddNote(t.Context(), mockGitClient, drySha, commitShaErr)
+	err = AddNote(t.Context(), mockGitClient, drySha, commitShaErr, common.HydrationFormatSimple)
 	require.Error(t, err)
 }
 
@@ -513,9 +515,9 @@ func TestWriteForPaths_NoOpScenario(t *testing.T) {
 
 	// First hydration - manifests are new, so HasFileChanged should return true
 	mockGitClient1 := gitmocks.NewClient(t)
-	mockGitClient1.EXPECT().HasFileChanged(mock.Anything, "guestbook/manifest.yaml").Return(true, nil).Once()
+	mockGitClient1.EXPECT().HasFileChanged(mock.Anything, "guestbook").Return(true, nil).Once()
 
-	shouldCommit1, err := WriteForPaths(t.Context(), root, repoURL, drySha1, metadata1, paths, mockGitClient1, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit1, err := WriteForPaths(t.Context(), root, repoURL, drySha1, metadata1, paths, mockGitClient1, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSimple)
 	require.NoError(t, err)
 	require.True(t, shouldCommit1, "First hydration should commit because manifests are new")
 
@@ -532,7 +534,7 @@ func TestWriteForPaths_NoOpScenario(t *testing.T) {
 	mockGitClient2 := gitmocks.NewClient(t)
 	mockGitClient2.EXPECT().HasFileChanged(mock.Anything, "guestbook/manifest.yaml").Return(false, nil).Once()
 
-	shouldCommit2, err := WriteForPaths(t.Context(), root, repoURL, drySha2, metadata2, paths, mockGitClient2, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit2, err := WriteForPaths(t.Context(), root, repoURL, drySha2, metadata2, paths, mockGitClient2, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSimple)
 	require.NoError(t, err)
 	require.False(t, shouldCommit2, "Second hydration should NOT commit because manifests didn't change")
 
