@@ -70,8 +70,12 @@ jest.mock('./source-panel', () => ({SourcePanel: () => null}));
 jest.mock('../application-parameters/application-parameters', () => ({ApplicationParameters: () => null}));
 jest.mock('../../../shared/components/yaml-editor/yaml-editor', () => ({YamlEditor: () => null}));
 
-// The sync options read settings through react-query; one client is shared so rerenders keep the same provider.
-const queryClient = new QueryClient({defaultOptions: {queries: {retry: false}}});
+// The sync options read settings through react-query. A fresh client per test keeps caches apart,
+// and rerenders within a test keep the same provider.
+let queryClient: QueryClient;
+beforeEach(() => {
+    queryClient = new QueryClient({defaultOptions: {queries: {retry: false}}});
+});
 
 const renderPanel = (onAppChanged: (app: models.Application) => any, onFormApi: (api: FormApi) => void) => (
     <QueryClientProvider client={queryClient}>

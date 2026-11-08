@@ -52,6 +52,17 @@ describe('ApplicationSyncOptions', () => {
         expect(services.authService.settings).toHaveBeenCalledTimes(1);
     });
 
+    it('refetches settings on mount even when they are not stale', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue({syncWithReplaceAllowed: false} as any);
+        const client = new QueryClient({defaultOptions: {queries: {retry: false, staleTime: Infinity}}});
+        client.setQueryData(settingsQueries.get().queryKey, {syncWithReplaceAllowed: true} as any);
+        renderOptions({}, client);
+
+        await waitForElementToBeRemoved(() => screen.queryByText('Loading...'));
+        expect(screen.queryByLabelText('Replace')).not.toBeInTheDocument();
+        expect(services.authService.settings).toHaveBeenCalledTimes(1);
+    });
+
     it('does not offer Replace from cached settings while offline', async () => {
         jest.mocked(services.authService.settings).mockRejectedValue(new Error('offline'));
         const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
