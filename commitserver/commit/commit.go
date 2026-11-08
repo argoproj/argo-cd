@@ -19,8 +19,9 @@ import (
 )
 
 const (
-	NoteNamespace = "hydrator.metadata" // NoteNamespace is the custom git notes namespace used by the hydrator to store and retrieve commit-related metadata.
-	ManifestYaml  = "manifest.yaml"     // ManifestYaml constant for the manifest yaml
+	NoteNamespace      = "hydrator.metadata" // NoteNamespace is the custom git notes namespace used by the hydrator to store and retrieve commit-related metadata.
+	ManifestYaml       = "manifest.yaml"     // ManifestYaml constant for the manifest yaml
+	ManifestsDirectory = "manifests/"
 )
 
 // Service is the service that handles commit requests.
@@ -54,6 +55,7 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, sig
 // stored in the custom note namespace by the hydrator.
 type CommitNote struct {
 	DrySHA string `json:"drySha"` // SHA of original commit that triggered the hydrator
+	HydrationFormat string `json:"hydrationFormat"`
 }
 
 // CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out
@@ -166,7 +168,8 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	3b. Else, hydrate the manifest.
 	3c. Push the updated note
 	*/
-	isHydrated, err := IsHydrated(ctx, gitClient, r.DrySha, hydratedSha)
+	isHydrated, err := IsHydrated(ctx, gitClient, r.DrySha, hydratedSha, r.HydrationFormat)
+	log.Infof("sha %s: %t", r.DrySha, isHydrated)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get notes from git %w", err)
 	}
@@ -177,7 +180,8 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	}
 
 	logCtx.Debug("Writing manifests")
-	shouldCommit, err := WriteForPaths(ctx, root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient, r.ReadmeMessage)
+	log.Infof("writing manifests with hydrationFormat %s", r.HydrationFormat)
+	shouldCommit, err := WriteForPaths(ctx, root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient, r.ReadmeMessage, r.HydrationFormat)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}
@@ -185,7 +189,7 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		// Manifests did not change, so we don't need to create a new commit.
 		// Add a git note to track that this dry SHA has been processed, and return the existing hydrated SHA.
 		logCtx.Debug("Adding commit note")
-		err = AddNote(ctx, gitClient, r.DrySha, hydratedSha)
+		err = AddNote(ctx, gitClient, r.DrySha, hydratedSha, r.HydrationFormat)
 		if err != nil {
 			return "", "", fmt.Errorf("failed to add commit note: %w", err)
 		}
@@ -240,7 +244,7 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 
 	// add the commit note
 	logCtx.Debug("Adding commit note")
-	err = AddNote(ctx, gitClient, r.DrySha, sha)
+	err = AddNote(ctx, gitClient, r.DrySha, sha, r.HydrationFormat)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to add commit note: %w", err)
 	}

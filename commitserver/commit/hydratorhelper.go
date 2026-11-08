@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"reflect"
+	"strings"
 	"text/template"
 
 	"github.com/Masterminds/sprig/v3"
@@ -27,6 +29,15 @@ var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
 const gitAttributesContents = `**/README.md linguist-generated=true
 **/hydrator.metadata linguist-generated=true`
 
+type manifestMetadata struct {
+	ApiVersion string `json:"ApiVersion"`
+	Kind       string `json:"kind"`
+	Metadata   struct {
+		Namespace string `json:"namespace,omitempty"`
+		Name      string `json:"name"`
+	} `json:"metadata"`
+}
+
 func init() {
 	// Avoid allowing the user to learn things about the environment.
 	delete(sprigFuncMap, "env")
@@ -36,7 +47,7 @@ func init() {
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
 // also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client, rawReadmeTemplate string) (bool, error) { //nolint:revive //FIXME(var-naming)
+func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client, rawReadmeTemplate string, hydrationFormat string) (bool, error) { //nolint:revive //FIXME(var-naming)
 	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, dryCommitMetadata)
 	if err != nil {
 		return false, fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
@@ -69,12 +80,20 @@ func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha string, d
 		}
 
 		// Write the manifests
-		err := writeManifests(root, hydratePath, p.Manifests)
+		var err error
+		if hydrationFormat == common.HydrationFormatSplit {
+			err = writeSplitManifests(root, hydratePath, p.Manifests)
+		} else if hydrationFormat == common.HydrationFormatSimple {
+			err = writeManifests(root, hydratePath, p.Manifests)
+		} else {
+			return false, fmt.Errorf("unknown hydrationFormat %s, valid values are 'simple' or 'split'", hydrationFormat)
+		}
 		if err != nil {
 			return false, fmt.Errorf("failed to write manifests: %w", err)
 		}
-		// Check if the manifest file has been modified compared to the git index
-		changed, err := gitClient.HasFileChanged(ctx, filepath.Join(hydratePath, ManifestYaml))
+
+		// check whether hydration has led to any changes in the hydratePath
+		changed, err := gitClient.HasFileChanged(ctx, hydratePath)
 		if err != nil {
 			return false, fmt.Errorf("failed to check if anything changed on the manifest: %w", err)
 		}
@@ -178,6 +197,14 @@ func writeGitAttributes(root *os.Root) error {
 // writeManifests writes the manifests to the manifest.yaml file, truncating the file if it exists and appending the
 // manifests in the order they are provided.
 func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.HydratedManifestDetails) error {
+	// clean up existing manifests dir (e.g. in case someone switches between the hydration formats)
+	manifestsDirPath := filepath.Join(dirPath, ManifestsDirectory)
+	err := root.RemoveAll(manifestsDirPath)
+	// return errors other than file not found
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to clean up dir 'manifests/': %w", err)
+	}
+
 	// If the file exists, truncate it.
 	// No need to use SecureJoin here, as the path is already sanitized.
 	manifestPath := filepath.Join(dirPath, ManifestYaml)
@@ -216,11 +243,122 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 	return nil
 }
 
+func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.HydratedManifestDetails) error {
+	// clean up the manifest.yaml if it exists -> relevant for people switching from one format to another
+	manifestFilePath := filepath.Join(dirPath, ManifestYaml)
+	err := root.Remove(manifestFilePath)
+	// return errors other than file not found
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to clean up dir 'manifests/': %w", err)
+	}
+
+	// If the file exists, truncate it.
+	// No need to use SecureJoin here, as the path is already sanitized.
+	manifestsDirectoryPath := filepath.Join(dirPath, ManifestsDirectory)
+
+	err = ensureDirectoryExists(root, manifestsDirectoryPath, true)
+	if err != nil {
+		return fmt.Errorf("failed to ensure that directory exists: %w", err)
+	}
+
+	for _, m := range manifests {
+		log.Infof("processing manifest: %s", m.ManifestJSON)
+
+		// collect required metadata
+		metaObj := &manifestMetadata{}
+		err = json.Unmarshal([]byte(m.ManifestJSON), metaObj)
+		if err != nil {
+			return fmt.Errorf("failed to unmarshal manifest: %w", err)
+		}
+
+		// prepare subdirectory
+		namespaceSubDirectory := "_unnamespaced"
+		if metaObj.Metadata.Namespace != "" {
+			namespaceSubDirectory = metaObj.Metadata.Namespace
+		}
+
+		currentManifestDirectoryPath := filepath.Join(manifestsDirectoryPath, namespaceSubDirectory, metaObj.ApiVersion)
+		err = ensureDirectoryExists(root, currentManifestDirectoryPath, false)
+
+		// prepare and write manifest
+		manifestName := fmt.Sprintf("%s-%s.yaml", strings.ToLower(metaObj.Kind), metaObj.Metadata.Name)
+		manifestPath := filepath.Join(currentManifestDirectoryPath, manifestName)
+		err = writeManifestToFile(root, m.ManifestJSON, manifestPath)
+	}
+	return nil
+}
+
+func ensureDirectoryExists(root *os.Root, directoryPath string, recreate bool) error {
+	_, err := root.Stat(directoryPath)
+	// return errors other than file not found
+	if err != nil && !os.IsNotExist(err) {
+		return fmt.Errorf("failed to stat directory: %w", err)
+	}
+
+	// if the directory exists and recreate flag is set, remove it so it is recreated
+	if recreate {
+		if err == nil {
+			err = root.RemoveAll(directoryPath)
+			if err != nil {
+				return fmt.Errorf("failed to removed directory: %w", err)
+			}
+		}
+	}
+
+	err = root.MkdirAll(directoryPath, os.ModePerm)
+	// return an error if mkdir crashed despite the directory being non-existent
+	if err != nil && os.IsNotExist(err) {
+		return fmt.Errorf("failed to create directory: %w", err)
+	}
+
+	return nil
+}
+
+func writeManifestToFile(root *os.Root, manifest string, filePath string) error {
+	_, err := root.Stat(filePath)
+
+	// return error if file already exists (collision)
+	if err == nil {
+		return fmt.Errorf("identified collision for manifest %s", filePath)
+	}
+
+	if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to stat directory: %w", err)
+	}
+
+	file, err := root.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+	if err != nil {
+		return fmt.Errorf("failed to open manifest file %s: %w", filePath, err)
+	}
+
+	defer func() {
+		err := file.Close()
+		if err != nil {
+			log.WithError(err).Error("failed to close file")
+		}
+	}()
+
+	obj := &unstructured.Unstructured{}
+	err = json.Unmarshal([]byte(manifest), obj)
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal manifest: %w", err)
+	}
+
+	enc := yaml.NewEncoder(file)
+
+	err = enc.Encode(&obj.Object)
+	if err != nil {
+		return fmt.Errorf("failed to encode manifest: %w", err)
+	}
+
+	return nil
+}
+
 // IsHydrated checks whether the given commit (commitSha) has already been hydrated with the specified Dry SHA (drySha).
 // It does this by retrieving the commit note in the NoteNamespace and examining the DrySHA value.
 // Returns true if the stored DrySHA matches the provided drySha, false if not or if no note exists.
 // Gracefully handles missing notes as a normal outcome (not an error), but returns an error on retrieval or parse failures.
-func IsHydrated(ctx context.Context, gitClient git.Client, drySha, commitSha string) (bool, error) {
+func IsHydrated(ctx context.Context, gitClient git.Client, drySha, commitSha string, hydrationFormat string) (bool, error) {
 	note, err := gitClient.GetCommitNote(ctx, commitSha, NoteNamespace)
 	if err != nil {
 		// note not found is a valid and acceptable outcome in this context so returning false and nil to let the hydration continue
@@ -235,14 +373,22 @@ func IsHydrated(ctx context.Context, gitClient git.Client, drySha, commitSha str
 	if err != nil {
 		return false, fmt.Errorf("json unmarshal failed %w", err)
 	}
-	return commitNote.DrySHA == drySha, nil
+	expectedCommitNote := CommitNote{
+		DrySHA:          drySha,
+		HydrationFormat: hydrationFormat,
+	}
+
+	return reflect.DeepEqual(commitNote, expectedCommitNote), nil
 }
 
 // AddNote attaches a commit note containing the specified dry SHA (`drySha`) to the given commit (`commitSha`)
 // in the configured note namespace. The note is marshaled as JSON and pushed to the remote repository using
 // the provided gitClient. Returns an error if marshalling or note addition fails.
-func AddNote(ctx context.Context, gitClient git.Client, drySha, commitSha string) error {
-	note := CommitNote{DrySHA: drySha}
+func AddNote(ctx context.Context, gitClient git.Client, drySha, commitSha string, hydrationFormat string) error {
+	note := CommitNote{
+		DrySHA:          drySha,
+		HydrationFormat: hydrationFormat,
+	}
 	jsonBytes, err := json.Marshal(note)
 	if err != nil {
 		return fmt.Errorf("failed to marshal commit note: %w", err)
