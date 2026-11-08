@@ -1,0 +1,35 @@
+apiVersion: kafka.strimzi.io/v1
+kind: KafkaMirrorMaker2
+metadata:
+  name: my-mirror-maker-2
+  namespace: kafka
+  generation: 1
+spec:
+  version: 4.1.0
+  replicas: 1
+  target:
+    alias: target
+    bootstrapServers: target-kafka-bootstrap:9092
+    groupId: mirrormaker2
+    configStorageTopic: mirrormaker2-config
+    offsetStorageTopic: mirrormaker2-offset
+    statusStorageTopic: mirrormaker2-status
+  mirrors:
+  - source:
+      alias: source
+      bootstrapServers: source-kafka-bootstrap:9092
+    sourceConnector:
+      tasksMax: 1
+      config:
+        replication.factor: -1
+    topicsPattern: ".*"
+    groupsPattern: ".*"
+status:
+  observedGeneration: 1
+  replicas: 1
+  conditions:
+  - lastTransitionTime: "2026-11-04T10:00:00.000Z"
+    message: Failed to connect to the source cluster
+    reason: ConnectRestException
+    status: "True"
+    type: NotReady
