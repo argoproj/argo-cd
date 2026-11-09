@@ -35,7 +35,8 @@ import (
 const (
 	ConfigMapPolicyCSVKey     = "policy.csv"
 	ConfigMapPolicyDefaultKey = "policy.default"
-	ConfigMapScopesKey        = "scopes"
+	ConfigMapClaimsKey        = "claims"
+	ConfigMapScopesKey        = "scopes" // Deprecated: use ConfigMapClaimsKey ("claims") instead.
 	ConfigMapMatchModeKey     = "policy.matchMode"
 	GlobMatchMode             = "glob"
 	RegexMatchMode            = "regex"
