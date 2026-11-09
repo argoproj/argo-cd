@@ -132,6 +132,26 @@ export interface ApplicationSummaryProps {
     updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>;
 }
 
+export const ApplicationSummaryExternalURLs = ({urls}: {urls: string[]}) => (
+    <div className='application-summary__links-rows'>
+        {urls
+            // Preserve valid URLs as-is because Ingress regex paths may contain '|'.
+            // Only split title|URL annotations when the full value is not a URL.
+            .map(item => (/^https?:\\/\\//i.test(item) ? [item] : item.split('|')))
+            // Drop entries whose URL uses an unsafe protocol (e.g. javascript:, data:,
+            // vbscript:) to prevent XSS via attacker-controlled
+            // link.argocd.argoproj.io/* annotations on managed resources.
+            .filter(parts => isValidURL(parts.length > 1 ? parts[1] : parts[0]))
+            .map((parts, i) => (
+                <div className='application-summary__links-row' key={i}>
+                    <a href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
+                        {parts[0]} &nbsp;
+                    </a>
+                </div>
+            ))}
+    </div>
+);
+
 export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;
     const source = getAppDefaultSource(app);
@@ -346,25 +366,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     if (urls.length > 0) {
         attributes.push({
             title: 'URLs',
-            view: (
-                <div className='application-summary__links-rows'>
-                    {urls
-                        // Preserve valid URLs as-is because Ingress regex paths may contain '|'.
-                        // Only split title|URL annotations when the full value is not a URL.
-                        .map(item => (/^https?:\/\//i.test(item) ? [item] : item.split('|')))
-                        // Drop entries whose URL uses an unsafe protocol (e.g. javascript:, data:,
-                        // vbscript:) to prevent XSS via attacker-controlled
-                        // link.argocd.argoproj.io/* annotations on managed resources.
-                        .filter(parts => isValidURL(parts.length > 1 ? parts[1] : parts[0]))
-                        .map((parts, i) => (
-                            <div className='application-summary__links-row'>
-                                <a key={i} href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
-                                    {parts[0]} &nbsp;
-                                </a>
-                            </div>
-                        ))}
-                </div>
-            )
+            view: <ApplicationSummaryExternalURLs urls={urls} />
         });
     }
 
