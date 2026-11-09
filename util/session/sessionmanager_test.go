@@ -446,7 +446,7 @@ userInfoPath: /`,
 				if tc.userInfoCacheClaims != nil {
 					cacheClaims, err := json.Marshal(tc.userInfoCacheClaims)
 					require.NoError(t, err)
-					encCacheClaims, err := crypto.Encrypt([]byte(cacheClaims), encryptionKey)
+					encCacheClaims, err := crypto.Encrypt(cacheClaims, encryptionKey)
 					require.NoError(t, err, "failed encrypting cache Claims")
 					err = userInfoCache.Set(&cache.Item{
 						Key:    oidc.FormatUserInfoResponseCacheKey("randomUser"),
@@ -633,7 +633,7 @@ func TestLoginRateLimiter(t *testing.T) {
 	mgr := newSessionManager(settingsMgr, getProjLister(), storage)
 
 	t.Run("Test login delay valid user", func(t *testing.T) {
-		for i := 0; i < getMaxLoginFailures(); i++ {
+		for range getMaxLoginFailures() {
 			err := mgr.VerifyUsernamePassword("admin", "wrong")
 			require.Error(t, err)
 		}
@@ -653,7 +653,7 @@ func TestLoginRateLimiter(t *testing.T) {
 	})
 
 	t.Run("Test login delay invalid user", func(t *testing.T) {
-		for i := 0; i < getMaxLoginFailures(); i++ {
+		for range getMaxLoginFailures() {
 			err := mgr.VerifyUsernamePassword("invalid", "wrong")
 			require.Error(t, err)
 		}
