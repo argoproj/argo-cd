@@ -18,7 +18,7 @@ describe('ApplicationSummaryExternalURLs', () => {
     it('continues to support titled external URLs', () => {
         const url = 'https://preview.example.com/app';
 
-        render(<ApplicationSummaryExternalURLs urls={[`Preview|\u0024{url}`]} />);
+        render(<ApplicationSummaryExternalURLs urls={['Preview|' + url]} />);
 
         const link = screen.getByRole('link', {name: 'Preview'});
         expect(link).toHaveTextContent('Preview');
