@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/common"
 )
 
 // TestAddNoteConcurrentStaggered tests that when multiple AddNote operations run
@@ -48,7 +49,7 @@ func TestAddNoteConcurrentStaggered(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			time.Sleep(time.Duration(idx*50) * time.Millisecond)
-			errors[idx] = AddNote(t.Context(), cloneClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
+			errors[idx] = AddNote(t.Context(), cloneClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx], common.HydrationFormatSimple)
 		}(i)
 	}
 	wg.Wait()
@@ -94,7 +95,7 @@ func TestAddNoteConcurrentSimultaneous(t *testing.T) {
 		go func(idx int) {
 			defer wg.Done()
 			<-startChan
-			_ = AddNote(t.Context(), cloneClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx])
+			_ = AddNote(t.Context(), cloneClients[idx], fmt.Sprintf("dry-sha-%d", idx), commitSHAs[idx], common.HydrationFormatSimple)
 		}(i)
 	}
 
