@@ -11,7 +11,7 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-var flags map[string]string
+var flags map[string][]string
 
 func init() {
 	err := LoadFlags()
@@ -21,7 +21,7 @@ func init() {
 }
 
 func LoadFlags() error {
-	flags = make(map[string]string)
+	flags = make(map[string][]string)
 
 	opts, err := shellquote.Split(os.Getenv("ARGOCD_OPTS"))
 	if err != nil {
@@ -33,47 +33,65 @@ func LoadFlags() error {
 		switch {
 		case strings.HasPrefix(opt, "--"):
 			if key != "" {
-				flags[key] = "true"
+				processFlagKey(flags, key)
 			}
 			key = strings.TrimPrefix(opt, "--")
 		case key != "":
-			flags[key] = opt
+			flags[key] = append(flags[key], opt)
 			key = ""
 		default:
 			return errors.New("ARGOCD_OPTS invalid at '" + opt + "'")
 		}
 	}
 	if key != "" {
-		flags[key] = "true"
-	}
-	// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
-	// issue ref: https://github.com/argoproj/argo-cd/issues/6822
-	for k, v := range flags {
-		if strings.Contains(k, "=") && v == "true" {
-			kv := strings.SplitN(k, "=", 2)
-			actualKey, actualValue := kv[0], kv[1]
-			if _, ok := flags[actualKey]; !ok {
-				flags[actualKey] = actualValue
-			}
-		}
+		processFlagKey(flags, key)
 	}
 	return nil
 }
 
-func GetFlag(key, fallback string) string {
-	val, ok := flags[key]
-	if ok {
-		return val
+func processFlagKey(flags map[string][]string, key string) {
+	// pkg shellquota doesn't recognize `=` so that the opts in format `foo=bar` could not work.
+	// issue ref: https://github.com/argoproj/argo-cd/issues/6822
+	if strings.Contains(key, "=") {
+		kv := strings.SplitN(key, "=", 2)
+		actualKey, actualValue := kv[0], kv[1]
+		flags[actualKey] = append(flags[actualKey], actualValue)
+	} else {
+		if _, ok := flags[key]; !ok {
+			// empty slice means bool flag.
+			flags[key] = []string{}
+		}
 	}
-	return fallback
+}
+
+func getFlag(key string) (string, bool) {
+	val, ok := flags[key]
+	if !ok {
+		return "", false
+	}
+	if len(val) == 0 {
+		// return "true" string for bool flag.
+		return "true", true
+	}
+	// last flag wins for backward compatibility.
+	return val[len(val)-1], true
+}
+
+func GetFlag(key, fallback string) string {
+	val, ok := getFlag(key)
+	if !ok {
+		return fallback
+	}
+	return val
 }
 
 func GetBoolFlag(key string) bool {
-	return GetFlag(key, "false") == "true"
+	_, ok := flags[key]
+	return ok
 }
 
 func GetIntFlag(key string, fallback int) int {
-	val, ok := flags[key]
+	val, ok := getFlag(key)
 	if !ok {
 		return fallback
 	}
@@ -91,14 +109,15 @@ func GetStringSliceFlag(key string, fallback []string) []string {
 		return fallback
 	}
 
-	if val == "" {
-		return []string{}
+	s := []string{}
+	for _, v := range val {
+		// use csv reader to parse quoted string with comma
+		csvReader := csv.NewReader(strings.NewReader(v))
+		v, err := csvReader.Read()
+		if err != nil {
+			log.Fatal(err)
+		}
+		s = append(s, v...)
 	}
-	stringReader := strings.NewReader(val)
-	csvReader := csv.NewReader(stringReader)
-	v, err := csvReader.Read()
-	if err != nil {
-		log.Fatal(err)
-	}
-	return v
+	return s
 }
