@@ -9,6 +9,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"errors"
 	"fmt"
 	"reflect"
@@ -1095,10 +1096,10 @@ func remarshal(obj *unstructured.Unstructured, o options) *unstructured.Unstruct
 	// This will drop any omitempty fields, perform resource conversion etc...
 	unmarshalledObj := reflect.New(reflect.TypeOf(item).Elem()).Interface()
 	// Unmarshal data into unmarshalledObj, but detect if there are any unknown fields that are not
-	// found in the target GVK object.
-	decoder := json.NewDecoder(bytes.NewReader(data))
-	decoder.DisallowUnknownFields()
-	if err := decoder.Decode(&unmarshalledObj); err != nil {
+	// found in the target GVK object. The v2 API is faster than v1 and matches field names
+	// case-sensitively, like the API server. Its stricter defaults (no duplicate names, valid
+	// UTF-8) hold because data is json.Marshal output.
+	if err := jsonv2.Unmarshal(data, unmarshalledObj, jsonv2.RejectUnknownMembers(true)); err != nil {
 		// Likely a field present in obj that is not present in the GVK type, or user
 		// may have specified an invalid spec in git, so return original object
 		o.log.V(1).Info(fmt.Sprintf(couldNotMarshalErrMsg, gvk, err))
