@@ -267,6 +267,17 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-option", "!a=1"))
 		assert.Nil(t, f.spec.SyncPolicy)
 	})
+	t.Run("DirectoryDisableExtensionFilter", func(t *testing.T) {
+		f := newAppOptionsFixture()
+
+		require.NoError(t, f.SetFlag("directory-disable-extension-filter", "true"))
+		require.NotNil(t, f.spec.Source.Directory)
+		assert.True(t, f.spec.Source.Directory.DisableExtensionFilter)
+
+		require.NoError(t, f.SetFlag("directory-disable-extension-filter", "false"))
+		require.NotNil(t, f.spec.Source.Directory)
+		assert.False(t, f.spec.Source.Directory.DisableExtensionFilter)
+	})
 	t.Run("AutoPruneFlag", func(t *testing.T) {
 		f := newAppOptionsFixture()
 
@@ -283,6 +294,43 @@ func Test_setAppSpecOptions(t *testing.T) {
 		assert.True(t, *f.spec.SyncPolicy.Automated.Enabled)
 		require.NotNil(t, f.spec.SyncPolicy.Automated.Prune)
 		assert.False(t, *f.spec.SyncPolicy.Automated.Prune)
+	})
+	t.Run("SyncPruneFlag", func(t *testing.T) {
+		f := newAppOptionsFixture()
+
+		require.NoError(t, f.SetFlag("sync-prune", "true"))
+		require.NotNil(t, f.spec.SyncPolicy)
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults)
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults.Prune)
+		assert.True(t, *f.spec.SyncPolicy.ManualDefaults.Prune)
+		assert.Nil(t, f.spec.SyncPolicy.Automated)
+
+		require.NoError(t, f.SetFlag("sync-prune", "false"))
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults.Prune)
+		assert.False(t, *f.spec.SyncPolicy.ManualDefaults.Prune)
+	})
+	t.Run("SyncForceCreatesManualDefaultsWithPruneFalse", func(t *testing.T) {
+		f := newAppOptionsFixture()
+
+		// Enabling force alone must not opt into GetPrune()'s true-when-nil default.
+		require.NoError(t, f.SetFlag("sync-force", "true"))
+		require.NotNil(t, f.spec.SyncPolicy)
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults)
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults.Force)
+		assert.True(t, *f.spec.SyncPolicy.ManualDefaults.Force)
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults.Prune)
+		assert.False(t, *f.spec.SyncPolicy.ManualDefaults.Prune)
+		assert.False(t, f.spec.SyncPolicy.GetPrune())
+	})
+	t.Run("SyncDryRunCreatesManualDefaultsWithPruneFalse", func(t *testing.T) {
+		f := newAppOptionsFixture()
+
+		require.NoError(t, f.SetFlag("sync-dry-run", "true"))
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults)
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults.DryRun)
+		assert.True(t, *f.spec.SyncPolicy.ManualDefaults.DryRun)
+		require.NotNil(t, f.spec.SyncPolicy.ManualDefaults.Prune)
+		assert.False(t, *f.spec.SyncPolicy.ManualDefaults.Prune)
 	})
 	t.Run("SelfHealFlag", func(t *testing.T) {
 		f := newAppOptionsFixture()

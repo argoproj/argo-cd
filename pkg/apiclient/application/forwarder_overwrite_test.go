@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	//nolint:staticcheck
@@ -69,17 +70,104 @@ func TestProcessApplicationListField_SyncOperationMissing(t *testing.T) {
 	require.False(t, ok)
 }
 
+func TestProcessApplicationListField_OperationStateOperationSync(t *testing.T) {
+	t.Parallel()
+	list := v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{{Status: v1alpha1.ApplicationStatus{
+			OperationState: &v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{
+					Revision:  "abc",
+					Resources: []v1alpha1.SyncOperationResource{{Group: "apps", Kind: "Deployment", Name: "web"}},
+					Manifests: []string{"apiVersion: v1\nkind: ConfigMap"},
+				}},
+				SyncResult: &v1alpha1.SyncOperationResult{Revision: "def"},
+			},
+		}}},
+	}
+
+	res, err := processApplicationListField(&list, map[string]any{"items.status.operationState.operation.sync": true}, false)
+	require.NoError(t, err)
+	resMap, ok := res.(map[string]any)
+	require.True(t, ok)
+
+	items, ok := resMap["items"].([]map[string]any)
+	require.True(t, ok)
+	item := test.ToMap(items[0])
+
+	syncMap, ok, err := unstructured.NestedMap(item, "status", "operationState", "operation", "sync")
+	require.NoError(t, err)
+	require.True(t, ok)
+	// The field is a pure presence marker: it must be an empty object, with none
+	// of the operation's payload (revision, resources, manifests, sources).
+	require.Empty(t, syncMap)
+}
+
+func TestProcessApplicationListField_OperationStateOperationSyncMultiSource(t *testing.T) {
+	t.Parallel()
+	list := v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{{Status: v1alpha1.ApplicationStatus{
+			OperationState: &v1alpha1.OperationState{
+				Operation: v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{
+					Revisions: []string{"abc", "def"},
+					Sources: v1alpha1.ApplicationSources{
+						{RepoURL: "https://example.com/repo1.git"},
+						{RepoURL: "https://example.com/repo2.git"},
+					},
+				}},
+			},
+		}}},
+	}
+
+	res, err := processApplicationListField(&list, map[string]any{"items.status.operationState.operation.sync": true}, false)
+	require.NoError(t, err)
+	resMap, ok := res.(map[string]any)
+	require.True(t, ok)
+
+	items, ok := resMap["items"].([]map[string]any)
+	require.True(t, ok)
+	item := test.ToMap(items[0])
+
+	syncMap, ok, err := unstructured.NestedMap(item, "status", "operationState", "operation", "sync")
+	require.NoError(t, err)
+	require.True(t, ok)
+	// Multi-source operations get the same empty presence marker; their sources
+	// and revisions must not leak into the list payload.
+	require.Empty(t, syncMap)
+}
+
+func TestProcessApplicationListField_OperationStateOperationSyncMissing(t *testing.T) {
+	t.Parallel()
+	list := v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{{Status: v1alpha1.ApplicationStatus{
+			OperationState: &v1alpha1.OperationState{Operation: v1alpha1.Operation{Sync: nil}},
+		}}},
+	}
+
+	res, err := processApplicationListField(&list, map[string]any{"items.status.operationState.operation.sync": true}, false)
+	require.NoError(t, err)
+	resMap, ok := res.(map[string]any)
+	require.True(t, ok)
+
+	items, ok := resMap["items"].([]map[string]any)
+	require.True(t, ok)
+	item := test.ToMap(items[0])
+
+	_, ok, err = unstructured.NestedMap(item, "status")
+	require.NoError(t, err)
+	require.False(t, ok)
+}
+
 func TestStreamApplicationListJSON_WithFieldFilter(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{ResourceVersion: "100"},
+		ResourceVersion: "100",
 		Items: []v1alpha1.Application{
 			{
-				ObjectMeta: metav1.ObjectMeta{Name: "app1", Namespace: "default"},
-				Status:     v1alpha1.ApplicationStatus{Health: v1alpha1.AppHealthStatus{Status: "Healthy"}},
+				Name: "app1", Namespace: "default",
+				Status: v1alpha1.ApplicationStatus{Health: v1alpha1.AppHealthStatus{Status: "Healthy"}},
 			},
 			{
-				ObjectMeta: metav1.ObjectMeta{Name: "app2", Namespace: "default"},
-				Status:     v1alpha1.ApplicationStatus{Health: v1alpha1.AppHealthStatus{Status: "Degraded"}},
+				Name: "app2", Namespace: "default",
+				Status: v1alpha1.ApplicationStatus{Health: v1alpha1.AppHealthStatus{Status: "Degraded"}},
 			},
 		},
 	}
@@ -111,9 +199,9 @@ func TestStreamApplicationListJSON_WithFieldFilter(t *testing.T) {
 
 func TestStreamApplicationListJSON_NoFieldFilter(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{ResourceVersion: "42"},
+		ResourceVersion: "42",
 		Items: []v1alpha1.Application{
-			{ObjectMeta: metav1.ObjectMeta{Name: "myapp", Namespace: "ns"}},
+			{Name: "myapp", Namespace: "ns"},
 		},
 	}
 
@@ -137,8 +225,8 @@ func TestStreamApplicationListJSON_NoFieldFilter(t *testing.T) {
 
 func TestStreamApplicationListJSON_EmptyList(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{ResourceVersion: "1"},
-		Items:    []v1alpha1.Application{},
+		ResourceVersion: "1",
+		Items:           []v1alpha1.Application{},
 	}
 
 	var buf bytes.Buffer
@@ -156,8 +244,8 @@ func TestStreamApplicationListJSON_EmptyList(t *testing.T) {
 
 func TestStreamApplicationListJSON_NilItems(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{ResourceVersion: "1"},
-		Items:    nil,
+		ResourceVersion: "1",
+		Items:           nil,
 	}
 
 	var buf bytes.Buffer
@@ -185,8 +273,8 @@ func TestStreamApplicationListJSON_NilVsEmptyMatchesJSONMarshal(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			list := &v1alpha1.ApplicationList{
-				ListMeta: metav1.ListMeta{ResourceVersion: "1"},
-				Items:    tt.items,
+				ResourceVersion: "1",
+				Items:           tt.items,
 			}
 
 			oldJSON, err := json.Marshal(list)
@@ -206,11 +294,11 @@ func TestStreamApplicationListJSON_NilVsEmptyMatchesJSONMarshal(t *testing.T) {
 
 func TestStreamApplicationListJSON_MatchesProcessApplicationListField(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{ResourceVersion: "99"},
+		ResourceVersion: "99",
 		Items: []v1alpha1.Application{
 			{
-				ObjectMeta: metav1.ObjectMeta{Name: "app1"},
-				Operation:  &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc"}},
+				Name:      "app1",
+				Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "abc"}},
 				Status: v1alpha1.ApplicationStatus{
 					Health: v1alpha1.AppHealthStatus{Status: "Healthy"},
 					Sync:   v1alpha1.SyncStatus{Status: "Synced"},
@@ -247,14 +335,12 @@ func TestStreamApplicationListJSON_MatchesProcessApplicationListField(t *testing
 // path produces the same parsed JSON as json.Marshal on the full ApplicationList struct.
 func TestStreamApplicationListJSON_MatchesJSONMarshal(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{ResourceVersion: "200"},
+		ResourceVersion: "200",
 		Items: []v1alpha1.Application{
 			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "app1",
-					Namespace: "ns1",
-					Labels:    map[string]string{"env": "prod"},
-				},
+				Name:      "app1",
+				Namespace: "ns1",
+				Labels:    map[string]string{"env": "prod"},
 				Spec: v1alpha1.ApplicationSpec{
 					Project: "default",
 					Sources: v1alpha1.ApplicationSources{{RepoURL: "https://github.com/example/repo"}},
@@ -268,8 +354,8 @@ func TestStreamApplicationListJSON_MatchesJSONMarshal(t *testing.T) {
 				},
 			},
 			{
-				ObjectMeta: metav1.ObjectMeta{Name: "app2", Namespace: "ns2"},
-				Operation:  &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "def456"}},
+				Name: "app2", Namespace: "ns2",
+				Operation: &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "def456"}},
 			},
 		},
 	}
@@ -293,10 +379,10 @@ func TestStreamApplicationListJSON_MatchesJSONMarshal(t *testing.T) {
 // are preserved in the unfiltered streaming path.
 func TestStreamApplicationListJSON_MatchesJSONMarshal_WithTypeMeta(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
-		TypeMeta: metav1.TypeMeta{Kind: "ApplicationList", APIVersion: "argoproj.io/v1alpha1"},
-		ListMeta: metav1.ListMeta{ResourceVersion: "300"},
+		Kind: "ApplicationList", APIVersion: "argoproj.io/v1alpha1",
+		ResourceVersion: "300",
 		Items: []v1alpha1.Application{
-			{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+			{Name: "app1"},
 		},
 	}
 
@@ -319,17 +405,15 @@ func TestStreamApplicationListJSON_MatchesFieldFilter_AllFields(t *testing.T) {
 	startedAt := metav1.Now()
 	finishedAt := metav1.Now()
 	list := &v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{ResourceVersion: "500"},
+		ResourceVersion: "500",
 		Items: []v1alpha1.Application{
 			{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:              "full-app",
-					Namespace:         "argocd",
-					Annotations:       map[string]string{"note": "test"},
-					Labels:            map[string]string{"team": "platform"},
-					CreationTimestamp: metav1.Now(),
-				},
-				Spec: v1alpha1.ApplicationSpec{Project: "default"},
+				Name:              "full-app",
+				Namespace:         "argocd",
+				Annotations:       map[string]string{"note": "test"},
+				Labels:            map[string]string{"team": "platform"},
+				CreationTimestamp: metav1.Now(),
+				Spec:              v1alpha1.ApplicationSpec{Project: "default"},
 				Operation: &v1alpha1.Operation{
 					Sync: &v1alpha1.SyncOperation{Revision: "HEAD"},
 				},
@@ -440,11 +524,11 @@ func TestSelectAppFields_OverlappingFields(t *testing.T) {
 // TestStreamApplicationListJSON_MatchesFieldFilter_Exclude tests the exclude (negative) field selector.
 func TestStreamApplicationListJSON_MatchesFieldFilter_Exclude(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{ResourceVersion: "600"},
+		ResourceVersion: "600",
 		Items: []v1alpha1.Application{
 			{
-				ObjectMeta: metav1.ObjectMeta{Name: "app1", Namespace: "default"},
-				Spec:       v1alpha1.ApplicationSpec{Project: "myproject"},
+				Name: "app1", Namespace: "default",
+				Spec: v1alpha1.ApplicationSpec{Project: "myproject"},
 				Status: v1alpha1.ApplicationStatus{
 					Health: v1alpha1.AppHealthStatus{Status: "Healthy"},
 					Sync:   v1alpha1.SyncStatus{Status: "Synced"},
@@ -476,9 +560,9 @@ func TestStreamApplicationListJSON_MatchesFieldFilter_Exclude(t *testing.T) {
 // to verify that gRPC metadata, trailers, Content-Type, and forward-response options are handled identically.
 func TestForwarder_HeadersMatchForwardResponseMessage(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{ResourceVersion: "700"},
+		ResourceVersion: "700",
 		Items: []v1alpha1.Application{
-			{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+			{Name: "app1"},
 		},
 	}
 
@@ -565,9 +649,9 @@ func (f *failAfterNWriter) Write(p []byte) (int, error) {
 
 func TestForwarder_StreamErrorPanicsWithErrAbortHandler(t *testing.T) {
 	list := &v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{ResourceVersion: "1"},
+		ResourceVersion: "1",
 		Items: []v1alpha1.Application{
-			{ObjectMeta: metav1.ObjectMeta{Name: "app1"}},
+			{Name: "app1"},
 		},
 	}
 
@@ -605,4 +689,38 @@ type failingResponseWriter struct {
 
 func (f *failingResponseWriter) Write(p []byte) (int, error) {
 	return f.Writer.Write(p)
+}
+
+func TestLogsForwarder_DownloadFileName(t *testing.T) {
+	t.Parallel()
+	tests := []struct {
+		name     string
+		query    string
+		expected string
+	}{
+		{"pod", "namespace=default&podName=guestbook-ui-5d7f9c8b4-x2k9p&container=guestbook-ui", "default-guestbook-ui-5d7f9c8b4-x2k9p-guestbook-ui.log"},
+		{"deployment", "namespace=default&group=apps&kind=Deployment&resourceName=guestbook-ui&container=guestbook-ui", "default-guestbook-ui-guestbook-ui.log"},
+		{"replicaset", "namespace=default&group=apps&kind=ReplicaSet&resourceName=guestbook-ui-5d7f9c8b4&container=guestbook-ui", "default-guestbook-ui-5d7f9c8b4-guestbook-ui.log"},
+		{"invalid part", "namespace=default&podName=..%2Fetc&container=guestbook-ui", "log.log"},
+		{"empty", "", "log.log"},
+		{"dotted deployment", "namespace=default&group=apps&kind=Deployment&resourceName=guestbook.ui.v2&container=guestbook-ui", "default-guestbook.ui.v2-guestbook-ui.log"},
+		{"long deployment", "namespace=default&group=apps&kind=Deployment&resourceName=" + strings.Repeat("a", 100) + "&container=guestbook-ui", "default-" + strings.Repeat("a", 100) + "-guestbook-ui.log"},
+		{"253 char deployment", "namespace=default&group=apps&kind=Deployment&resourceName=" + strings.Repeat("a", 253) + "&container=guestbook-ui", "default-" + strings.Repeat("a", 253) + "-guestbook-ui.log"},
+		{"254 char deployment", "namespace=default&group=apps&kind=Deployment&resourceName=" + strings.Repeat("a", 254) + "&container=guestbook-ui", "log.log"},
+		{"deployment traversal", "namespace=default&group=apps&kind=Deployment&resourceName=..%2Fetc&container=guestbook-ui", "log.log"},
+		{"deployment slash", "namespace=default&group=apps&kind=Deployment&resourceName=guestbook%2Fui&container=guestbook-ui", "log.log"},
+		{"dotted pod", "namespace=default&podName=guestbook.ui&container=guestbook-ui", "log.log"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			rec := httptest.NewRecorder()
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/v1/applications/guestbook/logs?download=true&"+tt.query, http.NoBody)
+			recv := func() (proto.Message, error) {
+				return &LogEntry{Content: proto.String(""), Last: proto.Bool(true)}, nil
+			}
+			forward_ApplicationService_PodLogs_1(t.Context(), runtime.NewServeMux(), nil, rec, req, recv)
+			assert.Equal(t, `attachment;filename="`+tt.expected+`"`, rec.Header().Get("Content-Disposition"))
+		})
+	}
 }

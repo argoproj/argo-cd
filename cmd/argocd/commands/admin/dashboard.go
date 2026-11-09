@@ -3,8 +3,7 @@ package admin
 import (
 	"context"
 	"fmt"
-	"os/signal"
-	"syscall"
+	"os"
 
 	"github.com/spf13/cobra"
 	"k8s.io/client-go/tools/clientcmd"
@@ -40,34 +39,34 @@ func NewDashboard() *dashboard {
 
 // Run runs the dashboard and blocks until context is done
 func (ds *dashboard) Run(ctx context.Context, config *DashboardConfig) error {
-	ctx, stop := signal.NotifyContext(ctx, syscall.SIGINT, syscall.SIGTERM)
-	defer stop()
 	config.ClientOpts.Core = true
-	println("starting dashboard")
+	fmt.Fprintln(os.Stderr, "starting dashboard")
 	shutDownFunc, err := ds.startLocalServer(ctx, config.ClientOpts, config.Context, &config.Port, &config.Address, config.ClientConfig)
 	if err != nil {
 		return fmt.Errorf("could not start dashboard: %w", err)
 	}
 	fmt.Printf("Argo CD UI is available at http://%s:%d\n", config.Address, config.Port)
 	<-ctx.Done()
-	stop() // unregister the signal handler as soon as we receive a signal
-	println("signal received, shutting down dashboard")
 	if shutDownFunc != nil {
 		shutDownFunc()
 	}
-	println("clean shutdown")
+	fmt.Fprintln(os.Stderr, "clean shutdown")
 	return nil
 }
 
 func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	return newDashboardCommand(NewDashboard(), clientOpts)
+}
+
+func newDashboardCommand(ds *dashboard, clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	config := &DashboardConfig{ClientOpts: clientOpts}
 	cmd := &cobra.Command{
 		Use:   "dashboard",
 		Short: "Starts Argo CD Web UI locally",
-		Run: func(cmd *cobra.Command, _ []string) {
+		Run: cli.WithSignalContext(func(cmd *cobra.Command, _ []string, _ context.CancelFunc) {
 			config.Context = initialize.RetrieveContextIfChanged(cmd.Flag("context"))
-			errors.CheckError(NewDashboard().Run(cmd.Context(), config))
-		},
+			errors.CheckError(ds.Run(cmd.Context(), config))
+		}),
 		Example: `# Start the Argo CD Web UI locally on the default port and address
 $ argocd admin dashboard
 

@@ -2,6 +2,7 @@ package files_test
 
 import (
 	"archive/tar"
+	"bytes"
 	"compress/gzip"
 	"fmt"
 	"io"
@@ -9,6 +10,7 @@ import (
 	"os"
 	"path"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -185,23 +187,7 @@ func TestUntgz(t *testing.T) {
 		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
 
 		// then
-		assert.ErrorContains(t, err, "illegal filepath in symlink")
-	})
-	t.Run("will protect against symlink exploit when relativizing symlinks", func(t *testing.T) {
-		// given
-		tmpDir := createTmpDir(t)
-		defer deleteTmpDir(t, tmpDir)
-		tgzFile := createTgz(t, filepath.Join(getTestDataDir(t), "symlink-exploit"), tmpDir)
-
-		defer tgzFile.Close()
-
-		destDir := filepath.Join(tmpDir, "untgz2")
-
-		// when
-		err := files.Untgz(destDir, tgzFile, math.MaxInt64, false)
-
-		// then
-		assert.ErrorContains(t, err, "illegal filepath in symlink")
+		assert.ErrorContains(t, err, "path escapes from parent")
 	})
 
 	t.Run("preserves file mode", func(t *testing.T) {
@@ -243,6 +229,420 @@ func TestUntgz(t *testing.T) {
 		require.NoError(t, err)
 		names := readFiles(t, destDir)
 		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
+	})
+	t.Run("allows extraction when dstPath is a symlink", func(t *testing.T) {
+		// Models macOS where paths under /tmp resolve to /private/tmp.
+		// Untgz should accept symlinked dstPath so in-bounds entries can be extracted.
+
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+
+		realDest := filepath.Join(tmpDir, "real-dest")
+		require.NoError(t, os.MkdirAll(realDest, 0o755))
+
+		linkDest := filepath.Join(tmpDir, "link-dest")
+		require.NoError(t, os.Symlink(realDest, linkDest))
+
+		tgzFile := createTgz(t, getTestAppDir(t), tmpDir)
+		defer tgzFile.Close()
+
+		// when
+		err := files.Untgz(linkDest, tgzFile, math.MaxInt64, false)
+
+		// then
+		require.NoError(t, err)
+		names := readFiles(t, realDest)
+		assert.Len(t, names, 8)
+		assert.Contains(t, names, "README.md")
+		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/readme-symlink")
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
+	})
+	t.Run("resolves symlinks for non-existent final component", func(t *testing.T) {
+		// given
+
+		// tmpdir/link -> tmpdir/dest
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+
+		realDest := filepath.Join(tmpDir, "dest")
+		require.NoError(t, os.MkdirAll(realDest, 0o755))
+
+		linkDest := filepath.Join(tmpDir, "link")
+		require.NoError(t, os.Symlink(realDest, linkDest))
+
+		realTarget := filepath.Join(realDest, "non-existent")
+		linkTarget := filepath.Join(linkDest, "non-existent")
+
+		tgzFile := createTgz(t, getTestAppDir(t), tmpDir)
+		defer tgzFile.Close()
+
+		// when
+		err := files.Untgz(linkTarget, tgzFile, math.MaxInt64, false)
+
+		// then
+		require.NoError(t, err)
+
+		names := readFiles(t, realTarget)
+		assert.Len(t, names, 8)
+		assert.Contains(t, names, "README.md")
+		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/readme-symlink")
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
+
+		names = readFiles(t, linkTarget)
+		assert.Len(t, names, 8)
+		assert.Contains(t, names, "README.md")
+		assert.Contains(t, names, "applicationset/latest/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/stable/kustomization.yaml")
+		assert.Contains(t, names, "applicationset/readme-symlink")
+		assert.Equal(t, "../README.md", names["applicationset/readme-symlink"])
+	})
+	t.Run("will fail if not absolute dstPath", func(t *testing.T) {
+		// given
+		dummyTgz := prepareCraftedTgz(t)
+		relativePath := "./relative/path"
+
+		// when
+		err := files.Untgz(relativePath, bytes.NewReader(dummyTgz), math.MaxInt64, false)
+
+		// then
+		assert.ErrorContains(t, err, "dstPath points to a relative path")
+	})
+	t.Run("will protect against zip-slip in names", func(t *testing.T) {
+		names := []string{
+			"../outside",
+			"../../outside",
+			"foo/../../outside",
+		}
+
+		for _, name := range names {
+			t.Run(name, func(t *testing.T) {
+				tmpDir := createTmpDir(t)
+				defer deleteTmpDir(t, tmpDir)
+				destDir := filepath.Join(tmpDir, "untgz")
+
+				tar := prepareCraftedTgz(t, func(tw *tar.Writer) {
+					writeTarFile(t, tw, name, "evil")
+				})
+				err := files.Untgz(destDir, bytes.NewReader(tar), math.MaxInt64, false)
+				require.Error(t, err)
+				// when run with tarinsecurepath=0 (Makefile does this), the error message is "insecure file path" from tar reader Next()
+				// when run without (e.g. directly go test) the error is from the os.Root API
+				assert.True(t,
+					strings.Contains(err.Error(), "insecure file path") ||
+						strings.Contains(err.Error(), "path escapes from parent"),
+					"unexpected error: %s", err.Error())
+			})
+		}
+	})
+	t.Run("allows for symlink to non existing target file", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		destDir := filepath.Join(tmpDir, "untgz")
+		require.NoError(t, os.MkdirAll(destDir, 0o755))
+
+		tar := prepareCraftedTgz(t, func(tw *tar.Writer) {
+			writeTarSymlink(t, tw, "link.txt", "non-existent.txt")
+		})
+
+		// when
+		err := files.Untgz(destDir, bytes.NewReader(tar), math.MaxInt64, false)
+		require.NoError(t, err)
+
+		// then
+		names := readFiles(t, destDir)
+		assert.Len(t, names, 2)
+		assert.Equal(t, "non-existent.txt", names["link.txt"])
+	})
+	t.Run("allows for symlink to file first", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		destDir := filepath.Join(tmpDir, "untgz")
+		require.NoError(t, os.MkdirAll(destDir, 0o755))
+
+		tar := prepareCraftedTgz(t, func(tw *tar.Writer) {
+			// first write the symlink, then the file so when reading
+			// there is the link entry first
+			writeTarSymlink(t, tw, "link.txt", "future-data.txt")
+			writeTarFile(t, tw, "future-data.txt", "content")
+		})
+
+		// when
+		err := files.Untgz(destDir, bytes.NewReader(tar), math.MaxInt64, false)
+		require.NoError(t, err)
+
+		// then
+		names := readFiles(t, destDir)
+		assert.Len(t, names, 3)
+		assert.Equal(t, "future-data.txt", names["link.txt"])
+		assert.Empty(t, names["future-data.txt"])
+		content, err := os.ReadFile(filepath.Join(destDir, "link.txt"))
+		require.NoError(t, err)
+		assert.Equal(t, "content", string(content))
+	})
+	t.Run("will protect against symlink chain escape", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		destDir := filepath.Join(tmpDir, "untgz")
+		require.NoError(t, os.MkdirAll(destDir, 0o755))
+
+		tar := prepareCraftedTgz(t, func(tw *tar.Writer) {
+			writeTarSymlink(t, tw, "link", "link2")
+			writeTarSymlink(t, tw, "link2", "../../../outside")
+		})
+
+		// when
+		err := files.Untgz(destDir, bytes.NewReader(tar), math.MaxInt64, false)
+		assert.ErrorContains(t, err, "path escapes from parent")
+	})
+	t.Run("rewrites absolute linkname into in-bounds relative target", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		destDir := filepath.Join(tmpDir, "untgz")
+		require.NoError(t, os.MkdirAll(destDir, 0o755))
+
+		asboluteOutsidePath := filepath.Join(tmpDir, "outside")
+
+		tar := prepareCraftedTgz(t, func(tw *tar.Writer) {
+			writeTarSymlink(t, tw, "link", asboluteOutsidePath)
+		})
+
+		// when
+		err := files.Untgz(destDir, bytes.NewReader(tar), math.MaxInt64, false)
+		// then
+		require.NoError(t, err)
+		names := readFiles(t, destDir)
+		assert.Len(t, names, 2)
+		assert.Equal(t, strings.TrimPrefix(asboluteOutsidePath, "/"), names["link"])
+	})
+	t.Run("has correct file content", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		destDir := filepath.Join(tmpDir, "untgz")
+
+		tar := prepareCraftedTgz(t, func(tw *tar.Writer) {
+			writeTarFile(t, tw, "file", "content")
+		})
+
+		// when
+		err := files.Untgz(destDir, bytes.NewReader(tar), math.MaxInt64, false)
+		require.NoError(t, err)
+
+		// then
+		content, err := os.ReadFile(filepath.Join(destDir, "file"))
+		require.NoError(t, err)
+		assert.Equal(t, "content", string(content))
+	})
+	t.Run("creates nested directories", func(t *testing.T) {
+		// given
+		tmpDir := createTmpDir(t)
+		defer deleteTmpDir(t, tmpDir)
+		destDir := filepath.Join(tmpDir, "untgz")
+
+		tar := prepareCraftedTgz(t, func(tw *tar.Writer) {
+			writeTarDir(t, tw, "dir")
+			writeTarDir(t, tw, "dir2/nested")
+		})
+
+		// when
+		err := files.Untgz(destDir, bytes.NewReader(tar), math.MaxInt64, false)
+		require.NoError(t, err)
+
+		// then
+		names := readFiles(t, destDir)
+		assert.Len(t, names, 4)
+		assert.Empty(t, names["dir"])
+		assert.Empty(t, names["dir2"])
+		assert.Empty(t, names["dir2/nested"])
+		for _, name := range []string{"dir", "dir2", "dir2/nested"} {
+			stat, err := os.Stat(filepath.Join(destDir, name))
+			require.NoError(t, err)
+			assert.True(t, stat.IsDir())
+		}
+	})
+
+	t.Run("prevents symlink ancestor escape", func(t *testing.T) {
+		parent := t.TempDir()
+		destDir := filepath.Join(parent, "dst")
+		require.NoError(t, os.WriteFile(filepath.Join(parent, "secret"), []byte("outside dst"), 0o600))
+
+		tgz := prepareCraftedTgz(t,
+			// d/up -> .. resolves to dst itself, so it is in bounds.
+			func(tw *tar.Writer) { writeTarSymlink(t, tw, "d/up", "..") },
+			// Lexically d/up/../secret == d/secret (in bounds), so Stat passes and
+			// Rel("d/up", "d/secret") writes "../secret". But the kernel places the
+			// link at dst/escape (d/up is dst), so it points at <parent>/secret.
+			func(tw *tar.Writer) { writeTarSymlink(t, tw, "d/up/escape", "../secret") },
+		)
+
+		err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
+
+		require.Error(t, err)
+		require.ErrorContains(t, err, "illegal symlink parent directory \"d/up\" for \"d/up/escape\"")
+	})
+
+	t.Run("prevents direct escape", func(t *testing.T) {
+		parent := t.TempDir()
+		destDir := filepath.Join(parent, "dst")
+		require.NoError(t, os.WriteFile(filepath.Join(parent, "secret"), []byte("outside dst"), 0o600))
+
+		tgz := prepareCraftedTgz(t,
+			func(tw *tar.Writer) { writeTarDir(t, tw, "dir") },
+			func(tw *tar.Writer) { writeTarSymlink(t, tw, "link", "dir/../../secret") },
+		)
+
+		err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
+
+		require.Error(t, err)
+		require.ErrorContains(t, err, "path escapes from parent")
+	})
+
+	t.Run("rejects symlink ancestors", func(t *testing.T) {
+		parent := t.TempDir()
+		destDir := filepath.Join(parent, "dst")
+
+		tgz := prepareCraftedTgz(t,
+			func(tw *tar.Writer) { writeTarDir(t, tw, "dir") },
+			func(tw *tar.Writer) { writeTarSymlink(t, tw, "dir/d/up", "..") },
+			func(tw *tar.Writer) { writeTarSymlink(t, tw, "dir/d/up/link", "target") },
+		)
+
+		err := files.Untgz(destDir, bytes.NewReader(tgz), math.MaxInt64, false)
+
+		require.Error(t, err)
+		require.ErrorContains(t, err, "illegal symlink parent directory \"dir/d/up\" for \"dir/d/up/link\"")
+	})
+}
+
+func TestTgz_HelmChartInclusionExclusions(t *testing.T) {
+	t.Parallel()
+
+	helmAppDir := filepath.Join(getTestDataDir(t), "helm-app")
+
+	type fixture struct {
+		file *os.File
+	}
+	setup := func(t *testing.T) *fixture {
+		t.Helper()
+		f, err := os.CreateTemp(getTestDataDir(t), "")
+		require.NoError(t, err)
+		return &fixture{file: f}
+	}
+	teardown := func(f *fixture) {
+		f.file.Close()
+		os.Remove(f.file.Name())
+	}
+	prepareRead := func(t *testing.T, f *fixture) {
+		t.Helper()
+		_, err := f.file.Seek(0, io.SeekStart)
+		require.NoError(t, err)
+	}
+
+	t.Run("default patterns include helm helper templates after fix", func(t *testing.T) {
+		t.Parallel()
+		f := setup(t)
+		defer teardown(f)
+		inclusions := []string{"*.yaml", "*.yml", "*.json", "*.tpl", "Chart.lock"}
+
+		_, err := files.Tgz(helmAppDir, inclusions, nil, f.file)
+		require.NoError(t, err)
+		prepareRead(t, f)
+		got, err := read(f.file)
+		require.NoError(t, err)
+
+		assert.Contains(t, got, "templates/_helpers.tpl",
+			"root chart _helpers.tpl should be included by *.tpl pattern")
+		assert.Contains(t, got, "charts/podinfo/templates/_helpers.tpl",
+			"sub-chart _helpers.tpl should be included by *.tpl pattern")
+		assert.Contains(t, got, "Chart.lock",
+			"Chart.lock should be included by Chart.lock pattern")
+		assert.Contains(t, got, "charts/podinfo/templates/deployment.yaml")
+		assert.Contains(t, got, "charts/podinfo/Chart.yaml")
+		assert.Contains(t, got, "charts/podinfo/values.yaml")
+	})
+
+	t.Run("explicit charts/** pattern includes everything in charts", func(t *testing.T) {
+		t.Parallel()
+		f := setup(t)
+		defer teardown(f)
+		inclusions := []string{"*.yaml", "*.yml", "*.json", "charts/**"}
+
+		_, err := files.Tgz(helmAppDir, inclusions, nil, f.file)
+		require.NoError(t, err)
+		prepareRead(t, f)
+		got, err := read(f.file)
+		require.NoError(t, err)
+
+		assert.Contains(t, got, "charts/podinfo/templates/_helpers.tpl",
+			"_helpers.tpl must be included when charts/** is in the inclusion list")
+		assert.Contains(t, got, "charts/podinfo/templates/deployment.yaml")
+		assert.Contains(t, got, "charts/podinfo/Chart.yaml")
+		assert.Contains(t, got, "charts/podinfo/values.yaml")
+		assert.Contains(t, got, "kustomization.yaml")
+	})
+
+	t.Run("wildcard star includes all files including helm helpers", func(t *testing.T) {
+		t.Parallel()
+		f := setup(t)
+		defer teardown(f)
+
+		_, err := files.Tgz(helmAppDir, []string{"*"}, nil, f.file)
+		require.NoError(t, err)
+		prepareRead(t, f)
+		got, err := read(f.file)
+		require.NoError(t, err)
+
+		assert.Contains(t, got, "charts/podinfo/templates/_helpers.tpl")
+		assert.Contains(t, got, "kustomization.yaml")
+	})
+
+	t.Run("exclude charts/** excludes all helm chart files", func(t *testing.T) {
+		t.Parallel()
+		f := setup(t)
+		defer teardown(f)
+
+		exclusions := []string{"charts/**"}
+
+		_, err := files.Tgz(helmAppDir, nil, exclusions, f.file)
+		require.NoError(t, err)
+		prepareRead(t, f)
+		got, err := read(f.file)
+		require.NoError(t, err)
+
+		assert.NotContains(t, got, "charts/podinfo/templates/_helpers.tpl")
+		assert.NotContains(t, got, "charts/podinfo/templates/deployment.yaml")
+		assert.NotContains(t, got, "charts/podinfo/Chart.yaml")
+		assert.NotContains(t, got, "charts/podinfo/values.yaml")
+		assert.Contains(t, got, "kustomization.yaml")
+	})
+
+	t.Run("selective path exclusion filters only matching files", func(t *testing.T) {
+		t.Parallel()
+		f := setup(t)
+		defer teardown(f)
+
+		inclusions := []string{"charts/**"}
+		exclusions := []string{"charts/**/templates/*.yaml"}
+
+		_, err := files.Tgz(helmAppDir, inclusions, exclusions, f.file)
+		require.NoError(t, err)
+		prepareRead(t, f)
+		got, err := read(f.file)
+		require.NoError(t, err)
+
+		assert.NotContains(t, got, "charts/podinfo/templates/deployment.yaml")
+		assert.Contains(t, got, "charts/podinfo/templates/_helpers.tpl")
+		assert.Contains(t, got, "charts/podinfo/Chart.yaml")
+		assert.Contains(t, got, "charts/podinfo/values.yaml")
 	})
 }
 
@@ -287,4 +687,52 @@ func getTestAppDir(t *testing.T) string {
 func getTestDataDir(t *testing.T) string {
 	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
+}
+
+func prepareCraftedTgz(t *testing.T, entries ...func(*tar.Writer)) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	gzw := gzip.NewWriter(&buf)
+	tw := tar.NewWriter(gzw)
+	for _, writeEntry := range entries {
+		writeEntry(tw)
+	}
+	require.NoError(t, tw.Close())
+	require.NoError(t, gzw.Close())
+	return buf.Bytes()
+}
+
+func writeTarFile(t *testing.T, tw *tar.Writer, name, content string) {
+	t.Helper()
+
+	header := &tar.Header{
+		Name:     name,
+		Mode:     0o666,
+		Size:     int64(len(content)),
+		Typeflag: tar.TypeReg,
+	}
+	require.NoError(t, tw.WriteHeader(header))
+	_, err := tw.Write([]byte(content))
+	require.NoError(t, err)
+}
+
+func writeTarSymlink(t *testing.T, tw *tar.Writer, name, target string) {
+	t.Helper()
+	header := &tar.Header{
+		Name:     name,
+		Mode:     0o777,
+		Typeflag: tar.TypeSymlink,
+		Linkname: target,
+	}
+	require.NoError(t, tw.WriteHeader(header))
+}
+
+func writeTarDir(t *testing.T, tw *tar.Writer, name string) {
+	t.Helper()
+	header := &tar.Header{
+		Name:     name,
+		Mode:     0o755,
+		Typeflag: tar.TypeDir,
+	}
+	require.NoError(t, tw.WriteHeader(header))
 }

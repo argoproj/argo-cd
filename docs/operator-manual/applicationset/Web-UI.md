@@ -38,6 +38,16 @@ The Preview tab is the one operation that requires more than `get`. It calls `Ge
 A user who can view an ApplicationSet but does not have `create` on its project's template will see a permission-denied response from the Preview tab.
 See [Security](Security.md) for the full ApplicationSet RBAC model.
 
+Because that permission check needs a concrete project, ApplicationSets with a [templated `project` field](Security.md#templated-project-field) cannot be previewed at all. The API rejects them with:
+
+```text
+error validating ApplicationSets: the Argo CD API does not currently support creating ApplicationSets with templated `project` fields
+```
+
+The same validation runs on `Create`, so `argocd appset create` — including [`--dry-run`](Controlling-Resource-Modification.md#previewing-changes) — is rejected too. ApplicationSets with a templated `project` must therefore be applied to the cluster directly (`kubectl apply`, or by a GitOps tool managing the ApplicationSet resource).
+
+The ApplicationSet controller reads the ApplicationSet from the cluster rather than through the API server, so generation and reconciliation are unaffected. There is no equivalent preview for these ApplicationSets: the resource tree and `status.resources` are written by the controller *after* it reconciles, and list the Applications it currently observes in the cluster — not the candidate Applications a preview would render. That list can be stale or missing after a failed reconcile, and is truncated at `--max-resources-status-count` entries (default 5000).
+
 ## `status.health` on the ApplicationSet CR
 
 The ApplicationSet controller writes a `status.health` field on each ApplicationSet (with `status` and `message`), computed from the ApplicationSet's `status.conditions`. The UI reads this field through the regular `Get`, `List`, and `Watch` endpoints; no separate health-evaluation API call is made.

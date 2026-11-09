@@ -18,7 +18,7 @@ with at least one value for `hostname` or `IP`.
 
 ### CronJob
 * If the last scheduled job for this CronJob failed, the CronJob will be marked as "Degraded"
-* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Progressing"
+* If the last scheduled job for this CronJob is running, the CronJob will be marked as "Healthy"
 
 ### Job
 * If job `.spec.suspended` is set to 'true', then the job and app health will be marked as suspended.
@@ -118,6 +118,12 @@ Custom health checks can be defined in
 ```
 field of `argocd-cm`. If you are using argocd-operator, this is overridden by [the argocd-operator resourceCustomizations](https://argocd-operator.readthedocs.io/en/latest/reference/argocd/#resource-customizations).
 
+> [!NOTE]
+> The `<group>_` prefix is used for resources that belong to an API group (for example, `resource.customizations.health.batch_Job` for `batch/Job`).
+> Core Kubernetes resources (such as `PersistentVolumeClaim`, `Pod`, or `Service`) do not belong to an API group. For core resources, omit the `<group>_` prefix and use the resource kind directly:
+>
+> `resource.customizations.health.PersistentVolumeClaim`
+
 The following example demonstrates a health check for `cert-manager.io/Certificate`.
 
 ```yaml
@@ -189,6 +195,55 @@ By default, health typically returns a `Progressing` status.
 >   resource.customizations.health.cert-manager.io_Certificate: |
 >     # Lua standard libraries are enabled for this script
 > ```
+
+### Terminating resources
+
+When a resource has `metadata.deletionTimestamp` set (and it is not blocked on the Argo CD hook
+finalizer `argocd.argoproj.io/hook-finalizer`), Argo CD runs the health check and may adjust the
+result.
+
+If the check does **not** set `deletionMessage`, Argo CD returns a Progressing health with a default
+message listing pending finalizers.
+
+If the check **does** set `deletionMessage`, Argo CD uses the returned status and `deletionMessage`
+(ignoring any set `message` value).
+
+This feature exists mostly so that health checks can help users understand the finalizers that are
+set, what they're for, and what might go wrong if the user were to manually clear them.
+
+Example:
+
+```lua
+local finalizerMessages = {
+  ["widget.example.com/cleanup"] = "Waiting for the external API to acknowledge deletion before the Widget can be removed.",
+}
+
+if obj.metadata ~= nil and obj.metadata.deletionTimestamp ~= nil then
+  local hs = {}
+  hs.status = "Progressing"
+  local parts = { "Widget is being deleted." }
+  if obj.metadata.finalizers ~= nil then
+    for _, f in ipairs(obj.metadata.finalizers) do
+      local msg = finalizerMessages[f]
+      if msg ~= nil then
+        table.insert(parts, f .. ": " .. msg)
+      else
+        table.insert(parts, f .. ": still present.")
+      end
+    end
+  end
+  hs.deletionMessage = table.concat(parts, " ")
+  return hs
+end
+
+local hs = {}
+hs.status = "Progressing"
+hs.message = "Initializing"
+
+-- ... evaluate normal health into hs ...
+
+return hs
+```
 
 ### Way 2. Contribute a Custom Health Check
 
@@ -329,3 +384,7 @@ metadata:
 ```
 
 By doing this, the health status of the Deployment will not affect the health of its parent Application.
+
+This annotation only affects the health of the Application. It does not change how [sync waves](../user-guide/sync-waves.md)
+wait for the resource to become healthy. To let later waves proceed without waiting for the resource, use the
+[`SkipHealthCheck=true` sync option](../user-guide/sync-options.md#skip-health-check-during-sync).

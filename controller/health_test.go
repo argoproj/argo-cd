@@ -304,7 +304,7 @@ func TestSetApplicationHealth_HealthImproves(t *testing.T) {
 		}}
 		resourceStatuses := initStatuses(resources)
 
-		t.Run(string(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus)), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus), func(t *testing.T) {
 			healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 			require.NoError(t, err)
 			assert.Equal(t, tc.newStatus, healthStatus)
@@ -320,13 +320,9 @@ func TestSetApplicationHealth_HealthImproves(t *testing.T) {
 
 func newAppLiveObj(status health.HealthStatusCode) *unstructured.Unstructured {
 	app := appv1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "foo",
-		},
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "argoproj.io/v1alpha1",
-			Kind:       application.ApplicationKind,
-		},
+		Name:       "foo",
+		APIVersion: "argoproj.io/v1alpha1",
+		Kind:       application.ApplicationKind,
 		Status: appv1.ApplicationStatus{
 			Health: appv1.AppHealthStatus{
 				Status: status,

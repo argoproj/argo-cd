@@ -189,7 +189,7 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 			require.NotEmpty(t, annotatedTagIDOutput)
 			// example command output:
 			// "569798c430515ffe170bdb23e3aafaf8ae24b9ff refs/tags/annotated-tag"
-			annotatedTagIDFields := strings.Fields(string(annotatedTagIDOutput))
+			annotatedTagIDFields := strings.Fields(annotatedTagIDOutput)
 			require.Len(t, annotatedTagIDFields, 2)
 
 			targetCommitID, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "--verify", "annotated-tag^{commit}")
@@ -201,7 +201,7 @@ func TestAnnotatedTagInStatusSyncRevision(t *testing.T) {
 			require.NotEmpty(t, app.Status.Sync.Revision, "revision in sync status should be set by sync operation")
 
 			require.NotEqual(t, app.Status.Sync.Revision, annotatedTagIDFields[0], "revision should not match the annotated tag id")
-			require.Equal(t, app.Status.Sync.Revision, strings.TrimSpace(string(targetCommitID)), "revision SHOULD match the target commit SHA")
+			require.Equal(t, app.Status.Sync.Revision, strings.TrimSpace(targetCommitID), "revision SHOULD match the target commit SHA")
 		})
 }
 

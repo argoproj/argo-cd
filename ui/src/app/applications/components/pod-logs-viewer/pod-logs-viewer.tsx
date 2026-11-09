@@ -2,7 +2,7 @@ import {DataLoader} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
 import {useEffect, useMemo, useState, useRef} from 'react';
-import {bufferTime, catchError, delay, retryWhen} from 'rxjs/operators';
+import {bufferTime, catchError, retry} from 'rxjs/operators';
 
 import {LogEntry} from '../../../shared/models';
 import {services, ViewPreferences} from '../../../shared/services';
@@ -10,6 +10,7 @@ import {services, ViewPreferences} from '../../../shared/services';
 import AutoSizer from 'react-virtualized/dist/commonjs/AutoSizer';
 
 import './pod-logs-viewer.scss';
+import {ClearLogsButton} from './clear-logs-button';
 import {CopyLogsButton} from './copy-logs-button';
 import {DownloadLogsButton} from './download-logs-button';
 import {ContainerSelector} from './container-selector';
@@ -28,7 +29,7 @@ import {AutoScrollButton} from './auto-scroll-button';
 import {WrapLinesButton} from './wrap-lines-button';
 import {MatchCaseToggleButton} from './match-case-toggle-button';
 import Ansi from 'ansi-to-react';
-import {EMPTY} from 'rxjs';
+import {EMPTY, throwError} from 'rxjs';
 
 export interface PodLogsProps {
     namespace: string;
@@ -110,6 +111,7 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     const highlight = useMemo(() => buildHighlightRegExp(filter, matchCase), [filter, matchCase]);
     const [scrollToBottom, setScrollToBottom] = useState(true);
     const [logs, setLogs] = useState<LogEntry[]>([]);
+    const [receivedLogs, setReceivedLogs] = useState<LogEntry[]>([]);
     const logsContainerRef = useRef(null);
     const uniquePods = Array.from(new Set(logs.map(log => log.podName)));
     const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -167,6 +169,10 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
     if (prevQueryKey !== queryKey) {
         setPrevQueryKey(queryKey);
         setLogs([]);
+        setReceivedLogs([]);
+        // The highlighted pod may be absent from the new logs, and the button that clears the
+        // highlight is only shown while several pods are in view, so drop the highlight with them.
+        setSelectedPod(null);
     }
 
     useEffect(() => {
@@ -197,19 +203,45 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
             .pipe(
                 bufferTime(100),
                 catchError((error: any) => {
-                    const errorBody = JSON.parse(error.body);
-                    if (errorBody.error && errorBody.error.message) {
-                        if (errorBody.error.message.includes('max pods to view logs are reached')) {
-                            setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
-                            return EMPTY; // Non-retryable condition, stop the stream and display the error message.
-                        }
+                    // The error may be a plain string (e.g. the stream was closed by a proxy), in
+                    // which case there is no JSON body to inspect - just retry.
+                    let errorBody: any;
+                    try {
+                        errorBody = JSON.parse(error?.body);
+                    } catch {
+                        errorBody = null;
                     }
+                    if (errorBody?.error?.message?.includes('max pods to view logs are reached')) {
+                        setErrorMessage('Max pods to view logs are reached. Please provide more granular query.');
+                        return EMPTY; // Non-retryable condition, stop the stream and display the error message.
+                    }
+                    return throwError(() => error); // Retryable condition, let retry re-subscribe.
                 }),
-                retryWhen(errors => errors.pipe(delay(500)))
+                retry({delay: 500})
             )
             .subscribe(log => {
-                if (log.length) {
+                if (!log.length) {
+                    return;
+                }
+                // getContainerLogs marks the first entry of every (re)connection with `first`. A
+                // reconnect replays the pod's logs from the start, so the buffer must be dropped
+                // rather than appended to, otherwise every reconnect duplicates the whole log.
+                // bufferTime may batch the reconnect together with trailing entries of the previous
+                // connection, so look for the last restart marker in the batch. See issue #29080.
+                let restartIdx = -1;
+                for (let i = log.length - 1; i >= 0; i--) {
+                    if (log[i].first) {
+                        restartIdx = i;
+                        break;
+                    }
+                }
+                if (restartIdx >= 0) {
+                    const replayedLogs = log.slice(restartIdx);
+                    setLogs(replayedLogs);
+                    setReceivedLogs(replayedLogs);
+                } else {
                     setLogs(previousLogs => previousLogs.concat(log));
+                    setReceivedLogs(previousLogs => previousLogs.concat(log));
                 }
             });
 
@@ -302,8 +334,12 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                                 {follow && <AutoScrollButton scrollToBottom={scrollToBottom} setScrollToBottom={setScrollToBottom} />}
                                 <ShowPreviousLogsToggleButton setPreviousLogs={setPreviousLogsWithQueryParams} showPreviousLogs={previous} />
                                 <Spacer />
-                                <PodHighlightButton selectedPod={selectedPod} setSelectedPod={setSelectedPod} pods={uniquePods} darkMode={prefs.appDetails.darkMode} />
-                                <Spacer />
+                                {uniquePods.length > 1 && (
+                                    <>
+                                        <PodHighlightButton selectedPod={selectedPod} setSelectedPod={setSelectedPod} pods={uniquePods} darkMode={prefs.appDetails.darkMode} />
+                                        <Spacer />
+                                    </>
+                                )}
                                 <ContainerSelector containerGroups={containerGroups} containerName={containerName} onClickContainer={onClickContainer} />
                                 <Spacer />
                                 {!follow && (
@@ -324,7 +360,8 @@ export const PodsLogsViewer = (props: PodLogsProps) => {
                             </span>
                             <Spacer />
                             <span>
-                                <CopyLogsButton logs={logs} />
+                                <ClearLogsButton disabled={logs.length === 0} onClear={() => setLogs([])} />
+                                <CopyLogsButton logs={receivedLogs} />
                                 <DownloadLogsButton {...props} previous={previous} />
                                 <FullscreenButton
                                     {...props}

@@ -6,6 +6,7 @@ import {ClusterCtx, COLORS} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {HealthStatusCode, SyncStatusCode} from '../../../shared/models';
 import {ComparisonStatusIcon, HealthStatusIcon, HydrateOperationPhaseIcon} from '../utils';
+import {AppsListStats} from './applications-list-stats';
 
 const healthColors = new Map<models.HealthStatusCode, string>();
 healthColors.set('Unknown', COLORS.health.unknown);
@@ -26,17 +27,7 @@ hydratorColors.set('Hydrated', COLORS.operation.success);
 hydratorColors.set('Failed', COLORS.operation.failed);
 hydratorColors.set('None', COLORS.sync.unknown);
 
-export const ApplicationsSummary = ({applications}: {applications: models.Application[]}) => {
-    const sync = new Map<string, number>();
-    applications.forEach(app => sync.set(app.status.sync.status, (sync.get(app.status.sync.status) || 0) + 1));
-    const health = new Map<string, number>();
-    applications.forEach(app => health.set(app.status.health.status, (health.get(app.status.health.status) || 0) + 1));
-    const hydrator = new Map<string, number>();
-    applications.forEach(app => {
-        const phase = app.status.sourceHydrator?.currentOperation?.phase || 'None';
-        hydrator.set(phase, (hydrator.get(phase) || 0) + 1);
-    });
-
+export const ApplicationsSummary = ({stats}: {stats: AppsListStats}) => {
     const clusterP = React.useContext(ClusterCtx);
     const [clusters = []] = useData(() => clusterP);
     const clusterMap = new Map(
@@ -52,36 +43,40 @@ export const ApplicationsSummary = ({applications}: {applications: models.Applic
     );
 
     const attributes = [
-        {title: 'APPLICATIONS', value: applications.length},
-        {title: 'SYNCED', value: applications.filter(app => app.status.sync.status === 'Synced').length},
-        {title: 'HEALTHY', value: applications.filter(app => app.status.health.status === 'Healthy').length},
-        {title: 'HYDRATED', value: applications.filter(app => app.status.sourceHydrator?.currentOperation?.phase === 'Hydrated').length},
+        {title: 'APPLICATIONS', value: stats.total},
+        {title: 'SYNCED', value: stats.totalBySyncStatus.Synced || 0},
+        {title: 'HEALTHY', value: stats.totalByHealthStatus.Healthy || 0},
+        {title: 'HYDRATED', value: stats.totalByHydrationStatus.Hydrated || 0},
         {
             title: 'CLUSTERS',
             value: new Set(
-                applications.map(app => {
-                    const destination = app.spec.destination.server || app.spec.destination.name;
+                stats.destinations.map(dest => {
+                    const destination = dest.server || dest.name;
                     return clusterMap.get(destination) || destination;
                 })
             ).size
         },
-        {title: 'NAMESPACES', value: new Set(applications.map(app => app.spec.destination.namespace)).size}
+        {title: 'NAMESPACES', value: stats.namespaces.length}
     ];
 
     const charts = [
         {
             title: 'Sync',
-            data: Array.from(sync.keys()).map(key => ({title: key, value: sync.get(key), color: syncColors.get(key as models.SyncStatusCode)})),
+            data: Object.keys(stats.totalBySyncStatus).map(key => ({title: key, value: stats.totalBySyncStatus[key], color: syncColors.get(key as models.SyncStatusCode)})),
             legend: syncColors as Map<string, string>
         },
         {
             title: 'Health',
-            data: Array.from(health.keys()).map(key => ({title: key, value: health.get(key), color: healthColors.get(key as models.HealthStatusCode)})),
+            data: Object.keys(stats.totalByHealthStatus).map(key => ({
+                title: key,
+                value: stats.totalByHealthStatus[key],
+                color: healthColors.get(key as models.HealthStatusCode)
+            })),
             legend: healthColors as Map<string, string>
         },
         {
             title: 'Hydrator',
-            data: Array.from(hydrator.keys()).map(key => ({title: key, value: hydrator.get(key), color: hydratorColors.get(key)})),
+            data: Object.keys(stats.totalByHydrationStatus).map(key => ({title: key, value: stats.totalByHydrationStatus[key], color: hydratorColors.get(key)})),
             legend: hydratorColors as Map<string, string>
         }
     ];

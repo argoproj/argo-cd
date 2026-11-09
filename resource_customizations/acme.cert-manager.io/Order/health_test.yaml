@@ -1,0 +1,13 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Order is valid"
+    inputPath: testdata/valid.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Order is pending"
+    inputPath: testdata/pending.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Failed to retrieve the ACME order: 400 urn:ietf:params:acme:error:malformed"
+    inputPath: testdata/errored.yaml

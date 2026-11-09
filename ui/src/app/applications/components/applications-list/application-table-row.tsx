@@ -1,4 +1,4 @@
-import {NotificationType, Tooltip} from 'argo-ui';
+import {Tooltip} from 'argo-ui';
 import * as React from 'react';
 import Moment from 'react-moment';
 import {ActionMenu, CellLink, Cluster} from '../../../shared/components';
@@ -7,8 +7,7 @@ import * as models from '../../../shared/models';
 import {NoticeIcon} from '../application-notice/notice-icon';
 import {ApplicationURLs} from '../application-urls';
 import * as AppUtils from '../utils';
-import {getAppDefaultSource, OperationState, getApplicationLinkURL, getManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_TOOLTIP} from '../utils';
-import {isValidManagedByURL} from '../../../shared/utils';
+import {getAppDefaultSource, OperationState} from '../utils';
 import {ApplicationsLabels} from './applications-labels';
 import {ApplicationsSource} from './applications-source';
 import {EntryField, EntryFieldList} from './entry-fields';
@@ -29,46 +28,18 @@ export interface ApplicationTableRowProps {
 
 export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, refreshApplication, deleteApplication}: ApplicationTableRowProps) => {
     const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
+    const appDisplayName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
     const favList = pref.appList.favoritesAppList || [];
+    const isFav = AppUtils.isFavorite(favList, app);
     const healthStatus = app.status.health.status;
-    const linkInfo = getApplicationLinkURL(app, ctx.baseHref);
     const source = getAppDefaultSource(app);
-    const managedByURL = getManagedByURL(app);
-    const managedByURLInvalid = !!managedByURL && !isValidManagedByURL(managedByURL);
 
     const view = pref.appDetails.view;
     const appLink = AppUtils.getAppListLink(ctx, app, view);
-    const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
 
     const handleFavoriteToggle = (e: React.MouseEvent) => {
         e.stopPropagation();
-        if (favList?.includes(app.metadata.name)) {
-            favList.splice(favList.indexOf(app.metadata.name), 1);
-        } else {
-            favList.push(app.metadata.name);
-        }
-        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: favList}});
-    };
-
-    const handleExternalLinkClick = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (managedByURLInvalid) {
-            ctx.notifications.show({
-                content: (
-                    <div>
-                        <div style={{fontWeight: 600}}>{MANAGED_BY_URL_INVALID_TEXT}</div>
-                        <div style={{marginTop: 6}}>{MANAGED_BY_URL_INVALID_TOOLTIP}</div>
-                    </div>
-                ),
-                type: NotificationType.Warning
-            });
-            return;
-        }
-        if (linkInfo.isExternal) {
-            window.open(linkInfo.url, '_blank', 'noopener,noreferrer');
-        } else {
-            ctx.navigation.goto(appLink.path, {view});
-        }
+        services.viewPreferences.updatePreferences({appList: {...pref.appList, favoritesAppList: AppUtils.toggleFavorite(favList, app)}});
     };
 
     return (
@@ -77,31 +48,30 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
         // splitting into per-column <dl>s would otherwise lose. (Matches the tile's outer div.)
         <div
             role='group'
-            aria-label={qualifiedName}
+            aria-label={appDisplayName}
             className={`argo-table-list__row applications-list__entry applications-list__entry--health-${healthStatus} ${selected ? 'applications-tiles__selected' : ''}`}>
             <div className='row applications-list__table-row'>
                 {/* The overlay anchor is the row's accessible link: a real link in tab order with an
                     aria-label so screen readers announce the application name once per row. It sits
                     behind the row's interactive children (lifted via z-index in the SCSS) so the
                     visible buttons, dropdowns, status icons, etc. still receive their own clicks. */}
-                <a className='applications-list__table-row__overlay-link' href={appLink.href} onClick={appLink.onClick} aria-label={qualifiedName} />
+                <a className='applications-list__table-row__overlay-link' href={appLink.href} onClick={appLink.onClick} aria-label={appDisplayName} />
 
-                {/* Favourite + external URLs: its own content-width `shrink` column. The Project/Name
+                {/* Favourite: its own content-width `shrink` column. The Project/Name
                     <dl> that follows expands to fill the rest, so together they occupy the old
                     small-4 region — no wrapping meta-column/small-4 div needed. */}
                 <div className='applications-list__fav-col columns shrink'>
-                    <Tooltip content={favList?.includes(app.metadata.name) ? 'Remove Favorite' : 'Add Favorite'}>
+                    <Tooltip content={isFav ? 'Remove Favorite' : 'Add Favorite'}>
                         <button type='button' onClick={handleFavoriteToggle}>
                             <i
-                                className={favList?.includes(app.metadata.name) ? 'fas fa-star' : 'far fa-star'}
+                                className={isFav ? 'fas fa-star' : 'far fa-star'}
                                 style={{
                                     cursor: 'pointer',
-                                    color: favList?.includes(app.metadata.name) ? '#FFCE25' : '#8fa4b1'
+                                    color: isFav ? '#FFCE25' : '#8fa4b1'
                                 }}
                             />
                         </button>
                     </Tooltip>
-                    <ApplicationURLs urls={app.status.summary?.externalURLs} />
                 </div>
                 {/* One flat <dl> for the whole record, laid out as the legacy three visual columns —
                     Project/Name · Source/Destination · Status, each a (label | value) pair stacked
@@ -114,13 +84,13 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                     <EntryField name='project' label='Project'>
                         {app.spec.project}
                     </EntryField>
-                    <EntryField name='name' label='Name'>
-                        {/* NoticeIcon before the name so it stays visible when the name truncates. */}
+                    <EntryField name='name' label='Name' valueClassName='applications-list__name-value'>
+                        {/* Keep the notice before the truncatable name and the link actions after it. */}
                         <NoticeIcon annotations={app.metadata.annotations} />
                         <Tooltip
                             content={
                                 <>
-                                    {app.metadata.name}
+                                    {appDisplayName}
                                     <br />
                                     <Moment fromNow={true} ago={true}>
                                         {app.metadata.creationTimestamp}
@@ -128,17 +98,10 @@ export const ApplicationTableRow = ({app, selected, pref, ctx, syncApplication, 
                                 </>
                             }>
                             <a className='applications-list__table-row-name' href={appLink.href} onClick={appLink.onClick} tabIndex={-1}>
-                                {app.metadata.name}
+                                {appDisplayName}
                             </a>
                         </Tooltip>
-                        <button
-                            type='button'
-                            className={managedByURLInvalid ? 'managed-by-url-invalid' : undefined}
-                            onClick={handleExternalLinkClick}
-                            style={{marginLeft: '0.5em', cursor: managedByURLInvalid ? 'not-allowed' : undefined}}
-                            title={managedByURLInvalid ? MANAGED_BY_URL_INVALID_TEXT : `Link: ${linkInfo.url}\nmanaged-by-url: ${managedByURL || 'none'}`}>
-                            <i className='fa fa-window-maximize' />
-                        </button>
+                        <ApplicationURLs urls={app.status.summary?.externalURLs} />
                     </EntryField>
                     <EntryField name='source' label='Source' valueClassName='applications-table-source'>
                         <CellLink href={appLink.href} onClick={appLink.onClick} className='applications-table-source__link'>

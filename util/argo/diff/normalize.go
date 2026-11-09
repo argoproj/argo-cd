@@ -1,21 +1,24 @@
 package diff
 
 import (
-	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
-
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
 
 // Normalize applies the full normalization on the lives and configs resources based
 // on the provided DiffConfig.
 func Normalize(lives, configs []*unstructured.Unstructured, diffConfig DiffConfig) (*NormalizationResult, error) {
+	// Extract annotation-based ignores from configs BEFORE normalization
+	mergedIgnores := resolvedIgnores(configs, diffConfig.Ignores())
+
 	result, err := preDiffNormalize(lives, configs, diffConfig)
 	if err != nil {
 		return nil, err
 	}
-	diffNormalizer, err := newDiffNormalizer(diffConfig.Ignores(), diffConfig.Overrides(), diffConfig.IgnoreNormalizerOpts())
+	diffNormalizer, err := newDiffNormalizer(mergedIgnores, diffConfig.Overrides(), diffConfig.IgnoreNormalizerOpts())
 	if err != nil {
 		return nil, err
 	}

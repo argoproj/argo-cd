@@ -72,7 +72,7 @@ func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 		return err
 	}
 	applications := generator.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
-	for i := 0; i < opts.ApplicationOpts.Samples; i++ {
+	for i := range opts.ApplicationOpts.Samples {
 		log.Printf("Generate application #%v", i)
 		source, err := generator.buildSource(opts, repositories)
 		if err != nil {
@@ -86,11 +86,9 @@ func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 		log.Printf("Pick destination %q", destination)
 		log.Print("Create application")
 		_, err = applications.Create(context.TODO(), &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				GenerateName: "application-",
-				Namespace:    opts.Namespace,
-				Labels:       labels,
-			},
+			GenerateName: "application-",
+			Namespace:    opts.Namespace,
+			Labels:       labels,
 			Spec: v1alpha1.ApplicationSpec{
 				Project:     "default",
 				Destination: *destination,

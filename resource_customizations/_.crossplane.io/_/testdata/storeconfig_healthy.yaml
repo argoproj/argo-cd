@@ -1,0 +1,8 @@
+# v1 only. Has a ConditionedStatus but nothing ever writes to it.
+apiVersion: aws.crossplane.io/v1alpha1
+kind: StoreConfig
+metadata:
+  name: vault
+spec:
+  type: Vault
+  defaultScope: crossplane-system

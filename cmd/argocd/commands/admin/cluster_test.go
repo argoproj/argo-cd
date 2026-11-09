@@ -16,45 +16,37 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
+	"k8s.io/client-go/tools/clientcmd"
 )
 
 func Test_loadClustersSkipsApplicationWithRemovedCluster(t *testing.T) {
 	argoCDCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDCmdCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cmd-params-cm",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cmd-params-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: "argocd",
-		},
+		Name:      "argocd-secret",
+		Namespace: "argocd",
 		Data: map[string][]byte{
 			"server.secretkey": []byte("test"),
 		},
 	}
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "argocd",
-		},
+		Name:      "test",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -88,7 +80,8 @@ func Test_loadClustersSkipsApplicationWithRemovedCluster(t *testing.T) {
 	}
 	assert.True(t, foundWarning, "expected a warning about the application with a removed destination cluster")
 	for i := range clusters {
-		// This changes, nil it to avoid testing it.
+		// These change, nil them to avoid testing them.
+		clusters[i].ConfigHash = nil
 		clusters[i].Info.ConnectionState.ModifiedAt = nil
 	}
 	expected := []ClusterWithInfo{{
@@ -120,39 +113,31 @@ func Test_loadClusters_ShardingAlgorithm(t *testing.T) {
 	defer log.SetLevel(originalLevel)
 
 	argoCDCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDCmdCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cmd-params-cm",
-			Namespace: "argocd",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cmd-params-cm",
+		Namespace: "argocd",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string]string{},
 	}
 	argoCDSecret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: "argocd",
-		},
+		Name:      "argocd-secret",
+		Namespace: "argocd",
 		Data: map[string][]byte{
 			"server.secretkey": []byte("test"),
 		},
 	}
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "argocd",
-		},
+		Name:      "test",
+		Namespace: "argocd",
 		Spec: v1alpha1.ApplicationSpec{
 			Project: "default",
 			Destination: v1alpha1.ApplicationDestination{
@@ -200,4 +185,18 @@ func Test_loadClusters_ShardingAlgorithm(t *testing.T) {
 		require.NoError(t, err)
 		require.Contains(t, logOutput.String(), "Using filter function:  legacy")
 	})
+}
+
+func TestNewGenClusterConfigCommand_QPSAndBurstFlagsRegistered(t *testing.T) {
+	cmd := NewGenClusterConfigCommand(clientcmd.NewDefaultPathOptions())
+
+	qpsFlag := cmd.Flags().Lookup("k8s-client-qps")
+	require.NotNil(t, qpsFlag, "--k8s-client-qps flag should be registered")
+	assert.Equal(t, "0", qpsFlag.DefValue)
+	assert.Contains(t, qpsFlag.Usage, "QPS")
+
+	burstFlag := cmd.Flags().Lookup("k8s-client-burst")
+	require.NotNil(t, burstFlag, "--k8s-client-burst flag should be registered")
+	assert.Equal(t, "0", burstFlag.DefValue)
+	assert.Contains(t, burstFlag.Usage, "Burst")
 }

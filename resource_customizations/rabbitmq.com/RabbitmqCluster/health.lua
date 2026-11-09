@@ -18,6 +18,7 @@ if obj.status ~= nil then
       if condition.type == "AllReplicasReady" then
         allReplicasReady.status = condition.status
         allReplicasReady.message = condition.message
+        allReplicasReady.reason = condition.reason
       end
     end
 
@@ -27,6 +28,12 @@ if obj.status ~= nil then
     if clusterAvailable.status == "Unknown" or allReplicasReady.status == "Unknown" then
       hs.status = "Progressing"
       hs.message = "Waiting for RabbitMQ cluster readiness (conditions unknown)"
+      return hs
+    end
+
+    if (allReplicasReady.reason == "ScaledToZero" and allReplicasReady.status == "False" and obj.spec.replicas == 0) then
+      hs.status = "Suspended"
+      hs.message = "RabbitmqCluster is scaled to 0 replicas"
       return hs
     end
 

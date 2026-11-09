@@ -16,8 +16,6 @@ export * from './tags-input/tags-input-field';
 export * from './paginate/paginate';
 export * from './empty-state/empty-state';
 export * from './tags-input/tags-input';
-export * from './monaco-editor';
-export * from './yaml-editor/yaml-editor';
 export * from './progress/progress-popup';
 export * from './repo';
 export * from './revision';

@@ -22,6 +22,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubemeta"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
 	jsonpatch "github.com/evanphx/json-patch"
@@ -36,10 +37,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
@@ -84,6 +87,16 @@ const (
 var (
 	ErrCacheMiss       = cacheutil.ErrCacheMiss
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
+
+	// appUpdateBackoff is used to retry Application updates that fail due to a conflict. The application controller
+	// frequently writes to Application status, so conflicts are expected on busy apps. Ten attempts with a gently
+	// growing delay (~750ms total) keeps the retry budget in line with the previous hand-rolled retry loops.
+	appUpdateBackoff = wait.Backoff{
+		Steps:    10,
+		Duration: 10 * time.Millisecond,
+		Factor:   1.5,
+		Jitter:   0.1,
+	}
 )
 
 // Server provides an Application service
@@ -312,6 +325,9 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	// Filter applications by source repo URL
 	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
 
+	// Filter applications by name
+	filteredApps = argo.FilterByNamesP(filteredApps, q.GetNames())
+
 	newItems := make([]v1alpha1.Application, 0)
 	for _, a := range filteredApps {
 		// Skip any application that is neither in the control plane's namespace
@@ -336,10 +352,8 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	})
 
 	appList := v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{
-			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
-		},
-		Items: newItems,
+		ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+		Items:           newItems,
 	}
 	return &appList, nil
 }
@@ -626,12 +640,17 @@ func (s *Server) GetManifests(ctx context.Context, q *application.ApplicationMan
 	manifests := &apiclient.ManifestResponse{}
 	for _, manifestInfo := range manifestInfos {
 		for i, manifest := range manifestInfo.Manifests {
-			obj := &unstructured.Unstructured{}
-			err = json.Unmarshal([]byte(manifest), obj)
+			meta, err := kubemeta.NewKubeJson([]byte(manifest))
 			if err != nil {
-				return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+				return nil, fmt.Errorf("error parsing manifest metadata: %w", err)
 			}
-			if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+			if meta.GetKind() == kube.SecretKind && meta.GroupVersionKind().Group == "" {
+				// Only Secrets need the full object, for HideSecretData.
+				obj := &unstructured.Unstructured{}
+				err = json.Unmarshal([]byte(manifest), obj)
+				if err != nil {
+					return nil, fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+				}
 				obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
 				if err != nil {
 					return nil, fmt.Errorf("error hiding secret data: %w", err)
@@ -754,12 +773,17 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 	}
 
 	for i, manifest := range manifestInfo.Manifests {
-		obj := &unstructured.Unstructured{}
-		err = json.Unmarshal([]byte(manifest), obj)
+		meta, err := kubemeta.NewKubeJson([]byte(manifest))
 		if err != nil {
-			return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			return fmt.Errorf("error parsing manifest metadata: %w", err)
 		}
-		if obj.GetKind() == kube.SecretKind && obj.GroupVersionKind().Group == "" {
+		if meta.GetKind() == kube.SecretKind && meta.GroupVersionKind().Group == "" {
+			// Only Secrets need the full object, for HideSecretData.
+			obj := &unstructured.Unstructured{}
+			err = json.Unmarshal([]byte(manifest), obj)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling manifest into unstructured: %w", err)
+			}
 			obj, _, err = diff.HideSecretData(obj, nil, s.settingsMgr.GetSensitiveAnnotations())
 			if err != nil {
 				return fmt.Errorf("error hiding secret data: %w", err)
@@ -1016,7 +1040,20 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 }
 
 func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
-	for range 10 {
+	var res *v1alpha1.Application
+	firstAttempt := true
+	err := retry.RetryOnConflict(appUpdateBackoff, func() error {
+		if !firstAttempt {
+			// The previous attempt hit a conflict, so re-apply the changes on top of the latest version.
+			latest, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, newApp.Name, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("error getting application: %w", err)
+			}
+			s.inferResourcesStatusHealth(latest)
+			app = latest
+		}
+		firstAttempt = false
+
 		app.Spec = newApp.Spec
 		if merge {
 			app.Labels = collections.Merge(app.Labels, newApp.Labels)
@@ -1028,23 +1065,22 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 
 		app.Finalizers = newApp.Finalizers
 
-		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
-		if err == nil {
-			s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec")
-			s.waitSync(res)
-			return res, nil
-		}
-		if !apierrors.IsConflict(err) {
-			return nil, err
-		}
-
-		app, err = s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, newApp.Name, metav1.GetOptions{})
+		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("error getting application: %w", err)
+			return fmt.Errorf("error updating application: %w", err)
 		}
-		s.inferResourcesStatusHealth(app)
+		res = updated
+		return nil
+	})
+	if apierrors.IsConflict(err) {
+		return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
 	}
-	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
+	if err != nil {
+		return nil, err
+	}
+	s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec")
+	s.waitSync(res)
+	return res, nil
 }
 
 // Update updates an application
@@ -1145,8 +1181,7 @@ func (s *Server) getAppProject(ctx context.Context, a *v1alpha1.Application, log
 		return nil, vagueError
 	}
 
-	var applicationNotAllowedToUseProjectErr *argo.ErrApplicationNotAllowedToUseProject
-	if errors.As(err, &applicationNotAllowedToUseProjectErr) {
+	if _, ok := errors.AsType[*argo.ErrApplicationNotAllowedToUseProject](err); ok {
 		return nil, vagueError
 	}
 
@@ -1223,8 +1258,12 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, a v1alpha1.Application) bool {
+func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, names map[string]bool, a v1alpha1.Application) bool {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
+		return false
+	}
+
+	if len(names) > 0 && !argo.MatchesNameFilter(names, a.Namespace, a.Name) {
 		return false
 	}
 
@@ -1259,6 +1298,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	for _, project := range getProjectsFromApplicationQuery(*q) {
 		projects[project] = true
 	}
+	names := argo.NewNameFilter(q.GetNames())
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
@@ -1274,7 +1314,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
 	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, a)
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, a)
 		if !permitted {
 			return
 		}
@@ -1372,6 +1412,11 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 		conditions := make([]v1alpha1.ApplicationCondition, 0)
 		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
+			// Keep the gRPC code of interrupted manifest generation (canceled / deadline
+			// exceeded) so the caller can tell a slow repository apart from an invalid spec.
+			if st, ok := status.FromError(err); ok && st.Code() != codes.Unknown {
+				return err
+			}
 			return fmt.Errorf("error validating the repo: %w", err)
 		}
 		conditions = append(conditions, condition...)
@@ -2003,7 +2048,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				Last:         new(false),
 			}); err != nil {
 				done <- err
-				break
+				return
 			}
 		}
 		now := time.Now()
@@ -2080,6 +2125,21 @@ func isTheSelectedOne(currentNode *v1alpha1.ResourceNode, q *application.Applica
 	return false
 }
 
+// effectiveSyncRequestDryRun returns the dry-run value that will be used for this sync:
+// the request value when set, otherwise syncPolicy.manualDefaults.dryRun.
+// Callers that gate behavior on dry-run (local sync, revision override) must use this
+// instead of syncReq.GetDryRun(), which treats a nil request field as false before
+// manualDefaults are applied.
+func effectiveSyncRequestDryRun(a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) bool {
+	if syncReq != nil && syncReq.DryRun != nil {
+		return *syncReq.DryRun
+	}
+	if a != nil && a.Spec.SyncPolicy != nil {
+		return a.Spec.SyncPolicy.GetDryRun()
+	}
+	return false
+}
+
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*v1alpha1.Application, error) {
 	a, proj, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionGet, syncReq.GetProject(), syncReq.GetAppNamespace(), syncReq.GetName(), "")
@@ -2105,7 +2165,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil {
 			return nil, err
 		}
-		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 			return nil, status.Error(codes.FailedPrecondition, "cannot use local sync when Automatic Sync Policy is enabled unless for dry run")
 		}
 	}
@@ -2153,14 +2213,30 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		source = new(a.Spec.GetSource())
 	}
 
+	// Explicit values in the sync request always win. When omitted, fall back to
+	// syncPolicy.manualDefaults only if that object is populated. Existing apps without
+	// manualDefaults keep legacy behavior (prune/dryRun false, nil strategy) — GetPrune()
+	// also returns false when ManualDefaults is nil so omitted prune never deletes resources.
+	prune := syncReq.GetPrune()
+	dryRun := effectiveSyncRequestDryRun(a, syncReq)
+	strategy := syncReq.Strategy
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.ManualDefaults != nil {
+		if syncReq.Prune == nil {
+			prune = a.Spec.SyncPolicy.GetPrune()
+		}
+		if strategy == nil {
+			strategy = a.Spec.SyncPolicy.GetSyncStrategy()
+		}
+	}
+
 	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
 			Source:       source,
 			Revision:     revision,
-			Prune:        syncReq.GetPrune(),
-			DryRun:       syncReq.GetDryRun(),
+			Prune:        prune,
+			DryRun:       dryRun,
 			SyncOptions:  syncOptions,
-			SyncStrategy: syncReq.Strategy,
+			SyncStrategy: strategy,
 			Resources:    resources,
 			Manifests:    syncReq.Manifests,
 			Sources:      a.Spec.Sources,
@@ -2224,7 +2300,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 						return "", "", nil, nil, err
 					}
 				}
-				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition,
 						"Cannot sync source %s to %s: auto-sync currently set to %s",
 						a.Spec.GetSources()[index].RepoURL, desiredRevision, a.Spec.Sources[index].TargetRevision)
@@ -2250,7 +2326,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 			}
 		}
 		if a.Spec.SyncPolicy != nil &&
-			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 			// If the app has auto-sync enabled, we cannot allow syncing to a different revision
 			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
 		}
@@ -2263,7 +2339,15 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 }
 
 func (s *Server) Rollback(ctx context.Context, rollbackReq *application.ApplicationRollbackRequest) (*v1alpha1.Application, error) {
-	a, _, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionSync, rollbackReq.GetProject(), rollbackReq.GetAppNamespace(), rollbackReq.GetName(), "")
+	rollbackEnforceEnable, err := s.settingsMgr.GetServerRBACRollbackEnforceEnable()
+	if err != nil {
+		return nil, fmt.Errorf("error getting server.rbac.rollback.enforce.enable config: %w", err)
+	}
+	action := rbac.ActionSync
+	if rollbackEnforceEnable {
+		action = rbac.ActionRollback
+	}
+	a, _, err := s.getApplicationEnforceRBACClient(ctx, action, rollbackReq.GetProject(), rollbackReq.GetAppNamespace(), rollbackReq.GetName(), "")
 	if err != nil {
 		return nil, err
 	}
@@ -2513,28 +2597,40 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		return nil, err
 	}
 
-	for range 10 {
+	var updated *v1alpha1.Application
+	firstAttempt := true
+	err = retry.RetryOnConflict(appUpdateBackoff, func() error {
+		if !firstAttempt {
+			log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", appName)
+			latest, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("error getting application by name: %w", err)
+			}
+			a = latest
+		}
+		firstAttempt = false
+
 		if a.Operation == nil || a.Status.OperationState == nil {
-			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
+			// Returned unwrapped so that the gRPC status message is preserved as-is.
+			return status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
 		a.Status.OperationState.Phase = common.OperationTerminating
-		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
-		if err == nil {
-			s.waitSync(updated)
-			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
-			return &application.OperationTerminateResponse{}, nil
-		}
-		if !apierrors.IsConflict(err) {
-			return nil, fmt.Errorf("error updating application: %w", err)
-		}
-		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", *termOpReq.Name)
-		time.Sleep(100 * time.Millisecond)
-		a, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
+		res, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("error getting application by name: %w", err)
+			return fmt.Errorf("error updating application: %w", err)
 		}
+		updated = res
+		return nil
+	})
+	if apierrors.IsConflict(err) {
+		return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 	}
-	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
+	if err != nil {
+		return nil, err
+	}
+	s.waitSync(updated)
+	s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
+	return &application.OperationTerminateResponse{}, nil
 }
 
 func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason string, action string) {
@@ -3208,12 +3304,13 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		}
 
 		responseDiffs = append(responseDiffs, &v1alpha1.ResourceDiff{
-			Group:           group,
-			Kind:            kind,
-			Namespace:       namespace,
-			Name:            name,
-			TargetState:     targetState,
-			LiveState:       liveState,
+			Group:       group,
+			Kind:        kind,
+			Namespace:   namespace,
+			Name:        name,
+			TargetState: targetState,
+			LiveState:   liveState,
+			//nolint:staticcheck // SA1019: Diff is deprecated, but we still need to support it for backward compatibility.
 			Diff:            "", // Diff string is generated client-side
 			Hook:            hook,
 			Modified:        diffRes.Modified,

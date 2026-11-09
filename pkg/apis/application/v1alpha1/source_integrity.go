@@ -3,6 +3,12 @@ package v1alpha1
 import (
 	"errors"
 	"fmt"
+	"maps"
+	"slices"
+)
+
+const (
+	SourceIntegrityMethodNameGitGPG = "GIT/GPG"
 )
 
 type SourceIntegrity struct {
@@ -57,6 +63,33 @@ type SourceIntegrityGitPolicyGPG struct {
 // The key's value will change if any of the fields in SourceIntegrity change.
 func (s *SourceIntegrity) CacheKey() string {
 	return s.String()
+}
+
+// ConfiguredMethods returns the list of names of methods that are configured for the SourceIntegrity.
+func (s *SourceIntegrity) ConfiguredMethods() []string {
+	methods := make([]string, 0)
+	if s == nil {
+		return methods
+	}
+	if s.Git != nil {
+		methods = append(methods, getGitSourceIntegrityMethods(s.Git.Policies)...)
+	}
+	return methods
+}
+
+func getGitSourceIntegrityMethods(policies []*SourceIntegrityGitPolicy) []string {
+	methods := make(map[string]any, 0)
+	for _, policy := range policies {
+		if policy == nil {
+			continue
+		}
+
+		if policy.GPG != nil {
+			methods[SourceIntegrityMethodNameGitGPG] = nil
+		}
+	}
+
+	return slices.Sorted(maps.Keys(methods))
 }
 
 // SourceIntegrityCheckResult represents a conclusion of the SourceIntegrity evaluation.

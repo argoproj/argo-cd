@@ -12,6 +12,7 @@ import (
 	"strings"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/validation"
 
 	"github.com/argoproj/argo-cd/v3/util/kube"
 
@@ -79,8 +80,12 @@ var appFields = map[string]func(app *v1alpha1.Application) any{
 		return nil
 	},
 	"status.operationState.operation.sync": func(app *v1alpha1.Application) any {
-		if app.Status.OperationState != nil {
-			return app.Status.OperationState.SyncResult
+		if app.Status.OperationState != nil && app.Status.OperationState.Operation.Sync != nil {
+			// The UI only needs the field's presence to classify the operation type,
+			// so project an empty object as a pure presence marker and drop the
+			// potentially large fields such as resources, manifests and sources to
+			// keep the list/watch payload small.
+			return &v1alpha1.SyncOperation{}
 		}
 		return nil
 	},
@@ -284,8 +289,19 @@ func init() {
 			fileName := "log"
 			namespace := req.URL.Query().Get("namespace")
 			podName := req.URL.Query().Get("podName")
+			fromResourceName := podName == ""
+			if fromResourceName {
+				podName = req.URL.Query().Get("resourceName")
+			}
 			container := req.URL.Query().Get("container")
-			if kube.IsValidResourceName(namespace) && kube.IsValidResourceName(podName) && kube.IsValidResourceName(container) {
+			// Pod names are DNS-1123 labels, but Deployment/ReplicaSet names (passed via
+			// resourceName) are DNS-1123 subdomains, which additionally allow dots and are
+			// longer, so they need the more permissive check.
+			validName := kube.IsValidResourceName(podName)
+			if fromResourceName {
+				validName = len(validation.IsDNS1123Subdomain(podName)) == 0
+			}
+			if kube.IsValidResourceName(namespace) && validName && kube.IsValidResourceName(container) {
 				fileName = fmt.Sprintf("%s-%s-%s", namespace, podName, container)
 			}
 			w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment;filename="%s.log"`, fileName))

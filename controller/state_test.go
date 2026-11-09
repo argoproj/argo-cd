@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -44,9 +45,9 @@ func newSecretManagedResource(name string, targetData, liveData map[string][]byt
 			return nil
 		}
 		return kube.MustToUnstructured(&corev1.Secret{
-			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.SecretKind},
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
-			Data:       data,
+			APIVersion: "v1", Kind: kube.SecretKind,
+			Name: name, Namespace: "default",
+			Data: data,
 		})
 	}
 	return managedResource{
@@ -259,6 +260,56 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	assert.Empty(t, compRes.resources)
 	assert.Empty(t, compRes.managedResources)
 	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStateServerSideDiffApplierError verifies that when the server-side diff dry run
+// applier can't be created, CompareAppState doesn't panic and reports the failure as conditions.
+func TestCompareAppStateServerSideDiffApplierError(t *testing.T) {
+	t.Parallel()
+
+	app := newFakeApp()
+	app.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true"})
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		// Impersonation is enabled, but defaultProj has no destinationServiceAccounts, so creating
+		// the server-side diff dry run applier fails.
+		configMapData: map[string]string{
+			"application.sync.impersonation.enabled": "true",
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+	revisions := []string{""}
+
+	var compRes *comparisonResult
+	var err error
+	require.NotPanics(t, func() {
+		compRes, err = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+	})
+	require.NoError(t, err)
+	require.NotNil(t, compRes)
+
+	var unknownErr, comparisonErr bool
+	for _, c := range app.Status.Conditions {
+		switch c.Type {
+		case v1alpha1.ApplicationConditionUnknownError:
+			if strings.Contains(c.Message, "no matching service account found") {
+				unknownErr = true
+			}
+		case v1alpha1.ApplicationConditionComparisonError:
+			if strings.Contains(c.Message, "Failed to compare desired state to live state") {
+				comparisonErr = true
+			}
+		}
+	}
+	assert.True(t, unknownErr, "expected an UnknownError condition for the applier failure, got %v", app.Status.Conditions)
+	assert.True(t, comparisonErr, "expected a ComparisonError condition, got %v", app.Status.Conditions)
 }
 
 // TestCompareAppStateRepoError tests the case when CompareAppState notices a repo error
@@ -517,6 +568,74 @@ func TestCompareAppStateMissing(t *testing.T) {
 	assert.Len(t, compRes.resources, 1)
 	assert.Len(t, compRes.managedResources, 1)
 	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStateResourceSelector tests that a managed resource filtered out by a configured
+// resource selector is reported with an ExcludedResourceWarning, as it will never have a live state
+func TestCompareAppStateResourceSelector(t *testing.T) {
+	labeledPodManifest := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","labels":{"app":"my-app"}}}`
+
+	compare := func(t *testing.T, manifest string, selector string) (*comparisonResult, *v1alpha1.Application) {
+		t.Helper()
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{manifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			configMapData: map[string]string{
+				"resource.selectors": fmt.Sprintf("- kinds: [\"Pod\"]\n  selector: %q\n", selector),
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		return compRes, app
+	}
+
+	t.Run("resource not matching the selector is reported", func(t *testing.T) {
+		// PodManifest has no labels, so it does not match
+		compRes, app := compare(t, PodManifest, "app=my-app")
+
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, v1alpha1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
+		assert.Contains(t, app.Status.Conditions[0].Message, `Resource /Pod my-pod does not match the resource selector "app=my-app" in the settings`)
+		// the resource stays managed, it is only unwatched
+		assert.Len(t, compRes.resources, 1)
+		assert.Len(t, compRes.managedResources, 1)
+	})
+
+	t.Run("resource matching the selector is not reported", func(t *testing.T) {
+		compRes, app := compare(t, labeledPodManifest, "app=my-app")
+
+		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, compRes.resources, 1)
+	})
+
+	t.Run("selector of another kind is ignored", func(t *testing.T) {
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{PodManifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			configMapData: map[string]string{
+				"resource.selectors": "- kinds: [\"Service\"]\n  selector: \"app=my-app\"\n",
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		_, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		assert.Empty(t, app.Status.Conditions)
+	})
 }
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
@@ -975,10 +1094,8 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *te
 }
 
 var defaultProj = v1alpha1.AppProject{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "default",
-		Namespace: test.FakeArgoCDNamespace,
-	},
+	Name:      "default",
+	Namespace: test.FakeArgoCDNamespace,
 	Spec: v1alpha1.AppProjectSpec{
 		SourceRepos: []string{"*"},
 		Destinations: []v1alpha1.ApplicationDestination{
@@ -1022,14 +1139,10 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 func TestSetHealth(t *testing.T) {
 	app := newFakeApp()
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -1058,14 +1171,10 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	timestamp := metav1.Now()
 	app := newFakeAppWithHealthAndTime(health.HealthStatusHealthy, timestamp)
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -1094,14 +1203,10 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	app := newFakeApp()
 	unstructuredApp := kube.MustToUnstructured(app)
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -1294,10 +1399,8 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 }
 
 var projWithSourceIntegrity = v1alpha1.AppProject{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "default",
-		Namespace: test.FakeArgoCDNamespace,
-	},
+	Name:      "default",
+	Namespace: test.FakeArgoCDNamespace,
 	Spec: v1alpha1.AppProjectSpec{
 		SourceRepos: []string{"*"},
 		Destinations: []v1alpha1.ApplicationDestination{
@@ -1331,7 +1434,8 @@ func TestNoSourceIntegrity(t *testing.T) {
 				Server:                test.FakeClusterURL,
 				Revision:              "abc123",
 				SourceIntegrityResult: nil, // No verification requested
-				VerifyResult:          "",
+				//nolint:staticcheck // SA1019: VerifyResult is deprecated, but we still need to support it for backward compatibility.
+				VerifyResult: "",
 			},
 			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 		}
@@ -1506,94 +1610,66 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	t.Parallel()
 
 	managedObj := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap1",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap1",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
 		},
 	})
 	managedObjWithLabel := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap1",
-			Namespace: "default",
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: "guestbook",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap1",
+		Namespace:  "default",
+		Labels: map[string]string{
+			common.LabelKeyAppInstance: "guestbook",
 		},
 	})
 	unmanagedObjWrongName := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
 		},
 	})
 	unmanagedObjWrongKind := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/Service:default/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/Service:default/configmap2",
 		},
 	})
 	unmanagedObjWrongGroup := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:apps/ConfigMap:default/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:apps/ConfigMap:default/configmap2",
 		},
 	})
 	unmanagedObjWrongNamespace := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:fakens/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:fakens/configmap2",
 		},
 	})
 	managedWrongAPIGroup := kube.MustToUnstructured(&networkingv1.Ingress{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1",
-			Kind:       "Ingress",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "some-ingress",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:extensions/Ingress:default/some-ingress",
-			},
+		APIVersion: "networking.k8s.io/v1",
+		Kind:       "Ingress",
+		Name:       "some-ingress",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:extensions/Ingress:default/some-ingress",
 		},
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
@@ -1721,10 +1797,8 @@ func TestUseDiffCache(t *testing.T) {
 
 	app := func(namespace string, revision string, refresh bool, a *v1alpha1.Application) *v1alpha1.Application {
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "httpbin",
-				Namespace: namespace,
-			},
+			Name:      "httpbin",
+			Namespace: namespace,
 			Spec: v1alpha1.ApplicationSpec{
 				Source: new(source()),
 				Destination: v1alpha1.ApplicationDestination{
@@ -2028,10 +2102,8 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 
 func Test_NormalizeTargetObjects_ClusterScopeTracking(t *testing.T) {
 	obj := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "test",
-		},
+		Name:      "test",
+		Namespace: "test",
 	})
 	c := &cachemocks.ClusterCache{}
 	c.EXPECT().IsNamespaced(mock.Anything).Return(false, nil)
@@ -2051,37 +2123,25 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 	// Create three cluster-scoped objects with the same Group/Kind/Name
 	// Using cluster-scoped to work with resourceInfoProviderStub
 	obj1 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"get"}, Resources: []string{"pods"}},
 		},
 	})
 	obj2 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"list"}, Resources: []string{"pods"}},
 		},
 	})
 	obj3 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"watch"}, Resources: []string{"pods"}},
 		},
@@ -2118,24 +2178,16 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 	// Create two objects with the same generateName
 	obj1 := kube.MustToUnstructured(&corev1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-pod-",
-			Namespace:    "default",
-		},
+		APIVersion:   "v1",
+		Kind:         "Pod",
+		GenerateName: "test-pod-",
+		Namespace:    "default",
 	})
 	obj2 := kube.MustToUnstructured(&corev1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-pod-",
-			Namespace:    "default",
-		},
+		APIVersion:   "v1",
+		Kind:         "Pod",
+		GenerateName: "test-pod-",
+		Namespace:    "default",
 	})
 
 	result, conditions, err := NormalizeTargetObjects(
@@ -2156,10 +2208,8 @@ func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
 	// Create a namespaced resource without namespace set
 	obj := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "my-config",
 			// No namespace specified
@@ -2234,6 +2284,54 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 	sources = append(sources, source)
 
 	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}
+
+func TestGetRepoObjs_CallUpdateRevisionForPaths_ForShallowClone(t *testing.T) {
+	app := newFakeApp()
+	// Enable the manifest-generate-paths annotation and set a synced revision
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision: "abc123",
+		Status:   v1alpha1.SyncStatusCodeSynced,
+	}
+
+	repoSecret := &corev1.Secret{
+		Name:      "shallow-repo",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+		Data: map[string][]byte{
+			"type":  []byte("git"),
+			"url":   []byte(app.Spec.GetSource().RepoURL),
+			"depth": []byte("1"),
+		},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "def456",
+		},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+			Changes:  false,
+			Revision: "def456",
+		},
+		additionalObjs: []runtime.Object{repoSecret},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	repo, err := ctrl.db.GetRepository(t.Context(), app.Spec.GetSource().RepoURL, defaultProj.Name)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), repo.Depth)
+
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+
+	// A shallow clone must not disable the manifest-generate-paths check: with no changes in the
+	// annotated paths, the new revision must not be reported as possibly changed.
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"def456"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
 }
@@ -2786,6 +2884,87 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			assert.Equal(t, tc.expectedHasChanges, hasChanges)
 			require.Len(t, resolvedRevisions, len(tc.sources))
 			assert.Equal(t, tc.expectedResolvedRevisions, resolvedRevisions)
+		})
+	}
+}
+
+func TestShouldUseServerSideDiff(t *testing.T) {
+	appWith := func(compareOptions string, syncOptions ...string) *v1alpha1.Application {
+		app := &v1alpha1.Application{}
+		if compareOptions != "" {
+			app.Annotations = map[string]string{common.AnnotationCompareOptions: compareOptions}
+		}
+		if syncOptions != nil {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
+		}
+		return app
+	}
+
+	testCases := []struct {
+		name               string
+		app                *v1alpha1.Application
+		controllerLevelSSD bool
+		expected           bool
+	}{
+		{
+			name:               "no controller flag, no annotation, no sync option -> false",
+			app:                appWith(""),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "controller level enabled -> true",
+			app:                appWith(""),
+			controllerLevelSSD: true,
+			expected:           true,
+		},
+		{
+			name:               "ServerSideDiff=true annotation -> true",
+			app:                appWith("ServerSideDiff=true"),
+			controllerLevelSSD: false,
+			expected:           true,
+		},
+		{
+			name:               "ServerSideApply=true sync option -> true",
+			app:                appWith("", "ServerSideApply=true"),
+			controllerLevelSSD: false,
+			expected:           true,
+		},
+		{
+			name:               "other sync options only -> false",
+			app:                appWith("", "Validate=false", "Prune=false"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides controller level flag -> false",
+			app:                appWith("ServerSideDiff=false"),
+			controllerLevelSSD: true,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides ServerSideApply=true sync option -> false",
+			app:                appWith("ServerSideDiff=false", "ServerSideApply=true"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides ServerSideDiff=true annotation -> false",
+			app:                appWith("ServerSideDiff=false,ServerSideDiff=true"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "nil SyncPolicy is handled gracefully -> false",
+			app:                &v1alpha1.Application{},
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, shouldUseServerSideDiff(tc.app, tc.controllerLevelSSD))
 		})
 	}
 }
