@@ -1,0 +1,27 @@
+apiVersion: druid.apache.org/v1alpha1
+kind: Druid
+metadata:
+  name: druid-test
+  namespace: druid-test
+spec:
+  image: apache/druid:latest
+  nodes:
+    coordinators:
+      kind: Deployment
+      nodeType: coordinator
+      replicas: 1
+      druid.port: 8081
+    historicals:
+      kind: StatefulSet
+      nodeType: historical
+      replicas: 1
+      druid.port: 8083
+status:
+  druidNodeStatus:
+    druidNode: druid-test-historicals-0
+    druidNodeConditionStatus: "True"
+    druidNodeConditionType: DruidNodeErrorState
+    reason: ContainersNotReady
+  pods:
+  - druid-test-coordinators-0
+  - druid-test-historicals-0

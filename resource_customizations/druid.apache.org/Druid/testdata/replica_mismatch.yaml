@@ -1,0 +1,21 @@
+apiVersion: druid.apache.org/v1alpha1
+kind: Druid
+metadata:
+  name: druid-test
+  namespace: druid-test
+spec:
+  image: apache/druid:latest
+  nodes:
+    historicals:
+      kind: StatefulSet
+      nodeType: historical
+      replicas: 3
+      druid.port: 8083
+status:
+  druidNodeStatus:
+    druidNode: All
+    druidNodeConditionStatus: "True"
+    druidNodeConditionType: DruidClusterReady
+    reason: All Druid Nodes are in Ready Condition
+  pods:
+  - druid-test-historicals-0

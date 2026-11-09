@@ -1,0 +1,11 @@
+apiVersion: druid.apache.org/v1alpha1
+kind: Druid
+metadata:
+  name: druid-sandbox
+  namespace: druid-sandbox
+status:
+  druidNodeStatus:
+    druidNode: druid-druid-sandbox-routers-676fccd99d-sgs97
+    druidNodeConditionStatus: "True"
+    druidNodeConditionType: DruidNodeErrorState
+    reason: ContainersNotReady
