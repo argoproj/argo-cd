@@ -1122,6 +1122,58 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 	})
 }
 
+func TestGitHubAppGetInstallationTransport_DiscoveryHonorsGitClientTimeout(t *testing.T) {
+	// These tests mutate gitClientTimeout so they must NOT run in parallel
+	// with each other.
+	previousTimeout := gitClientTimeout
+	t.Cleanup(func() {
+		gitClientTimeout = previousTimeout
+	})
+
+	newSlowDiscoveryServer := func(t *testing.T, delay time.Duration) *httptest.Server {
+		t.Helper()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/app/installations") {
+				time.Sleep(delay)
+				w.WriteHeader(http.StatusOK)
+				//nolint:errcheck
+				json.NewEncoder(w).Encode([]map[string]any{
+					{"id": 98765, "account": map[string]any{"login": "test-org"}},
+				})
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		t.Cleanup(server.Close)
+		t.Cleanup(func() {
+			domain, _ := domainFromBaseURL(server.URL)
+			githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 12345))
+		})
+		return server
+	}
+
+	t.Run("discovery times out after gitClientTimeout", func(t *testing.T) {
+		gitClientTimeout = 100 * time.Millisecond
+		server := newSlowDiscoveryServer(t, 1*time.Second)
+
+		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+		_, err := creds.getInstallationTransport()
+
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+
+	t.Run("discovery within gitClientTimeout succeeds", func(t *testing.T) {
+		gitClientTimeout = 5 * time.Second
+		server := newSlowDiscoveryServer(t, 300*time.Millisecond)
+
+		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+		itr, err := creds.getInstallationTransport()
+
+		require.NoError(t, err)
+		require.NotNil(t, itr)
+	})
+}
+
 // ---------------------------------------------------------------------------
 // 5. Dialer Default Timeout (30 seconds)
 // ---------------------------------------------------------------------------
@@ -1273,4 +1325,22 @@ func TestCredentialTypeFromJSON(t *testing.T) {
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
+}
+
+func Test_SSHCreds_Environ_ClosesProxyScriptOnWriteError(t *testing.T) {
+	var f *os.File
+	orig := createTemp
+	t.Cleanup(func() { createTemp = orig })
+	// A read-only file makes the proxy script write fail.
+	createTemp = func(_, _ string) (*os.File, error) {
+		p := path.Join(t.TempDir(), "ro")
+		require.NoError(t, os.WriteFile(p, nil, 0o600))
+		var err error
+		f, err = os.Open(p)
+		return f, err
+	}
+
+	_, _, err := NewSSHCreds("sshPrivateKey", "", false, "socks5://127.0.0.1:1080").Environ()
+	require.ErrorContains(t, err, "failed to write proxy command script")
+	require.ErrorIs(t, f.Close(), os.ErrClosed)
 }

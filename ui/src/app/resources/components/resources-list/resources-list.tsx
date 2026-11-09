@@ -1,5 +1,6 @@
 import {MockupList, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import {useQueryClient} from '@tanstack/react-query';
 import * as ReactDOM from 'react-dom';
 import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
@@ -8,6 +9,7 @@ import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 import {ClusterCtx, DataLoader, EmptyState, FlexTopBar, Page, Paginate, Query, SearchBar} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
 import {useObservableQuery} from '../../../shared/hooks/query';
+import {clusterQueries} from '../../../shared/queries';
 import * as models from '../../../shared/models';
 import {services, ResourcesListPreferences, HealthStatusBarPreferences, ResourcesListViewKey} from '../../../shared/services';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -164,7 +166,7 @@ interface ResourcesToolbarProps {
     healthBarPrefs: HealthStatusBarPreferences;
 }
 
-const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBarPrefs}) => {
+export const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBarPrefs}) => {
     const regexInvalid = pref.searchRegex && isInvalidRegex(pref.search);
     const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${pref.searchRegex ? '' : '-o'}${
         regexInvalid ? ' applications-list__regex-toggle--invalid' : ''
@@ -172,7 +174,12 @@ const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, healthBar
 
     return (
         <div className='applications-list__toolbar-controls' key='resources-list-tools'>
-            <SearchBar value={pref.search} onChange={value => ctx.navigation.goto('.', {search: value || null}, {replace: true})} placeholder='Search resources...' />
+            <SearchBar
+                value={pref.search}
+                onChange={value => ctx.navigation.goto('.', {search: value || null}, {replace: true})}
+                placeholder={pref.searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search resources...'}
+                regexEnabled={pref.searchRegex}
+            />
             <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
                 <button
                     type='button'
@@ -237,7 +244,13 @@ const ResourcesViewTypeSwitcher: React.FC<{pref: ResourcesListPreferences & {pag
 
 export const ResourcesList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
-    const clusters = React.useMemo(() => services.clusters.list(), []);
+    const queryClient = useQueryClient();
+    const clusters = React.useMemo(() => {
+        const list = queryClient.fetchQuery(clusterQueries.list());
+        // Only the summary view awaits this; rows show a failure through the query.
+        list.catch((): void => undefined);
+        return list;
+    }, [queryClient]);
     const loaderRef = React.useRef<DataLoader | null>(null);
 
     function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences) {

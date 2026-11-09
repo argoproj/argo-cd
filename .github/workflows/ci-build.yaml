@@ -126,6 +126,16 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
+      - name: Restore go build and module cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-
       - name: Download all Go modules
         run: |
           go mod download
@@ -160,9 +170,9 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-build-v1-
+            ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-
       - name: Download Go modules
         run: |
           go mod download
@@ -192,6 +202,16 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
+      - name: Restore go build and module cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-
       - name: Run golangci-lint
         uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
         with:
@@ -309,9 +329,10 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-test-v2-${{ env.GOLANG_VERSION }}-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-build-v1-
+            ${{ runner.os }}-go-test-v2-${{ env.GOLANG_VERSION }}-
+            ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
@@ -386,9 +407,10 @@ jobs:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-race-v2-${{ env.GOLANG_VERSION }}-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-build-v1-
+            ${{ runner.os }}-go-race-v2-${{ env.GOLANG_VERSION }}-
+            ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-
       - name: Install all tools required for building & testing
         run: |
           make install-test-tools-local
@@ -431,6 +453,16 @@ jobs:
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: ${{ env.GOLANG_VERSION }}
+          cache: false
+      - name: Restore go build and module cache
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-
       - name: Create symlink in GOPATH
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
         run: |
@@ -444,11 +476,9 @@ jobs:
       - name: Add /usr/local/bin to PATH
         run: |
           echo "/usr/local/bin" >> $GITHUB_PATH
-      - name: Download & vendor dependencies
+      - name: Download dependencies
         run: |
-          # We need to vendor go modules for codegen yet
           go mod download
-          go mod vendor -v
         # generalizing repo name for forks:  ${{ github.event.repository.name }}
         working-directory: /home/runner/go/src/github.com/argoproj/${{ github.event.repository.name }}
       - name: Install toolchain for codegen
@@ -502,7 +532,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           # renovate: datasource=node-version packageName=node versioning=node
-          node-version: '24.22.1'
+          node-version: '26.13.0'
           cache: 'pnpm'
           cache-dependency-path: '**/pnpm-lock.yaml'
       - name: Install node dependencies
@@ -692,8 +722,13 @@ jobs:
         if: ${{ vars.disable_harden_runner != 'true' }}
         uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
         with:
-          egress-policy: audit      
+          egress-policy: audit
       - name: Free Disk Space (Ubuntu)
+        # The upstream repository runs this job on the Oracle runners selected above, which
+        # start with well over 200 GB free. Removing ~20 GB of unused toolchains there costs
+        # close to four minutes per job for nothing. GitHub-hosted runners, which forks use,
+        # have far less headroom, so the cleanup still runs for them.
+        if: ${{ github.repository != 'argoproj/argo-cd' }}
         uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           large-packages: false
@@ -716,7 +751,7 @@ jobs:
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           # renovate: datasource=node-version packageName=node versioning=node
-          node-version: '24.22.1'
+          node-version: '26.13.0'
       - name: Install pnpm
         uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
         with:
@@ -738,14 +773,14 @@ jobs:
           sudo chmod go-r $HOME/.kube/config
           kubectl version
       - name: Restore go build and module cache
-        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: |
             ~/.cache/go-build
             ~/go/pkg/mod
-          key: ${{ runner.os }}-go-build-v1-${{ hashFiles('**/go.sum') }}
+          key: ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-${{ hashFiles('go.sum', 'gitops-engine/go.sum') }}
           restore-keys: |
-            ${{ runner.os }}-go-build-v1-
+            ${{ runner.os }}-go-build-v2-${{ env.GOLANG_VERSION }}-
       - name: Add ~/go/bin to PATH
         run: |
           echo "$HOME/go/bin" >> $GITHUB_PATH
