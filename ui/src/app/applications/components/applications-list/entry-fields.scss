@@ -85,8 +85,8 @@ $entry-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
         // Status is a single-pair list: its term stays sr-only at every width (the table never
         // shows a visible "Status" label), so keep it hidden even at xxlarge (overrides the
-        // restore above). Its value spans the whole column and may wrap to multiple lines,
-        // unlike the other single-line, truncating value cells.
+        // restore above). Its value spans the whole column; like the legacy small-2 column it
+        // truncates (via `.applications-list__meta-value`) rather than wrapping and growing the row.
         .entry-fields__dt--status {
             @media screen and (min-width: $entry-xxlarge) {
                 position: absolute;
@@ -99,8 +99,6 @@ $entry-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
 
         .entry-fields__dd--status {
             grid-column: 1 / -1;
-            white-space: normal;
-            overflow: visible;
         }
     }
 
@@ -202,7 +200,7 @@ $entry-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
         // it's the last group, so the gap separates it from nothing while narrowing the
         // cell — and the status track is already tighter than the legacy small-2 column
         // (16.667% of the <dl> content box, i.e. after the fav-col and the 3em reserved
-        // for the actions menu), so the lost width wraps the status text a line earlier.
+        // for the actions menu), so the lost width would truncate the status text sooner.
         .entry-fields__dd:not(.entry-fields__dd--status) {
             padding-right: 1.25rem;
         }
