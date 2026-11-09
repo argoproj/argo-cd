@@ -1336,11 +1336,12 @@ func (c *store) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isMa
 // It reads that key's bucket plus the target objects, instead of copying every cached resource.
 // SetManagedResourceKey must be configured; otherwise this returns an error.
 func (c *store) GetManagedLiveObjsForKey(appKey string, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	if c.managedIndexKey == nil {
-		return nil, fmt.Errorf("managed resource index is not configured")
-	}
-
 	c.lock.RLock()
+	keyFn := c.managedIndexKey
+	if keyFn == nil {
+		c.lock.RUnlock()
+		return nil, ErrManagedIndexNotConfigured
+	}
 	if err := c.validateManagedNamespaces(targetObjs); err != nil {
 		c.lock.RUnlock()
 		return nil, err
@@ -1362,7 +1363,6 @@ func (c *store) GetManagedLiveObjsForKey(appKey string, targetObjs []*unstructur
 		}
 	}
 	watchedGKs := c.snapshotWatchedGroupKinds()
-	keyFn := c.managedIndexKey
 	c.lock.RUnlock()
 
 	return c.resolveManagedObjects(targetObjs, resources, watchedGKs, func(r *Resource) bool {

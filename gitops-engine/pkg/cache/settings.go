@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -58,6 +59,10 @@ func SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler) Updat
 		cache.populateResourceInfoHandler = handler
 	}
 }
+
+// ErrManagedIndexNotConfigured is returned by GetManagedLiveObjsForKey when
+// SetManagedResourceKey has not been applied.
+var ErrManagedIndexNotConfigured = errors.New("managed resource index is not configured")
 
 // SetManagedResourceKey installs the function that keys the managed-resource index.
 // GetManagedLiveObjsForKey uses that index instead of scanning every cached object.

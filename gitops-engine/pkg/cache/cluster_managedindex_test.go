@@ -117,5 +117,5 @@ func TestGetManagedLiveObjsForKeyRequiresIndex(t *testing.T) {
 	cluster := newCluster(t, testDeploy())
 	require.NoError(t, cluster.EnsureSynced())
 	_, err := cluster.GetManagedLiveObjsForKey("helm-guestbook", nil)
-	require.Error(t, err)
+	require.ErrorIs(t, err, ErrManagedIndexNotConfigured)
 }
