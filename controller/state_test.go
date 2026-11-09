@@ -262,6 +262,56 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	assert.Empty(t, app.Status.Conditions)
 }
 
+// TestCompareAppStateServerSideDiffApplierError verifies that when the server-side diff dry run
+// applier can't be created, CompareAppState doesn't panic and reports the failure as conditions.
+func TestCompareAppStateServerSideDiffApplierError(t *testing.T) {
+	t.Parallel()
+
+	app := newFakeApp()
+	app.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true"})
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		// Impersonation is enabled, but defaultProj has no destinationServiceAccounts, so creating
+		// the server-side diff dry run applier fails.
+		configMapData: map[string]string{
+			"application.sync.impersonation.enabled": "true",
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+	revisions := []string{""}
+
+	var compRes *comparisonResult
+	var err error
+	require.NotPanics(t, func() {
+		compRes, err = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+	})
+	require.NoError(t, err)
+	require.NotNil(t, compRes)
+
+	var unknownErr, comparisonErr bool
+	for _, c := range app.Status.Conditions {
+		switch c.Type {
+		case v1alpha1.ApplicationConditionUnknownError:
+			if strings.Contains(c.Message, "no matching service account found") {
+				unknownErr = true
+			}
+		case v1alpha1.ApplicationConditionComparisonError:
+			if strings.Contains(c.Message, "Failed to compare desired state to live state") {
+				comparisonErr = true
+			}
+		}
+	}
+	assert.True(t, unknownErr, "expected an UnknownError condition for the applier failure, got %v", app.Status.Conditions)
+	assert.True(t, comparisonErr, "expected a ComparisonError condition, got %v", app.Status.Conditions)
+}
+
 // TestCompareAppStateRepoError tests the case when CompareAppState notices a repo error
 func TestCompareAppStateRepoError(t *testing.T) {
 	app := newFakeApp()
@@ -2234,6 +2284,54 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 	sources = append(sources, source)
 
 	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}
+
+func TestGetRepoObjs_CallUpdateRevisionForPaths_ForShallowClone(t *testing.T) {
+	app := newFakeApp()
+	// Enable the manifest-generate-paths annotation and set a synced revision
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision: "abc123",
+		Status:   v1alpha1.SyncStatusCodeSynced,
+	}
+
+	repoSecret := &corev1.Secret{
+		Name:      "shallow-repo",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+		Data: map[string][]byte{
+			"type":  []byte("git"),
+			"url":   []byte(app.Spec.GetSource().RepoURL),
+			"depth": []byte("1"),
+		},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "def456",
+		},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+			Changes:  false,
+			Revision: "def456",
+		},
+		additionalObjs: []runtime.Object{repoSecret},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	repo, err := ctrl.db.GetRepository(t.Context(), app.Spec.GetSource().RepoURL, defaultProj.Name)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), repo.Depth)
+
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+
+	// A shallow clone must not disable the manifest-generate-paths check: with no changes in the
+	// annotated paths, the new revision must not be reported as possibly changed.
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"def456"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
 }

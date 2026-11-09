@@ -1,0 +1,17 @@
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  annotations:
+    crossplane.io/paused: "true"
+  generation: 1
+  name: upbound-provider-aws-efs
+spec:
+  package: xpkg.upbound.io/upbound/provider-aws-efs:v2.2.0
+  revisionActivationPolicy: Automatic
+status:
+  conditions:
+  - lastTransitionTime: "2025-06-11T23:11:26Z"
+    message: Reconciliation (including deletion) is paused via the pause annotation
+    reason: ReconcilePaused
+    status: "False"
+    type: Synced

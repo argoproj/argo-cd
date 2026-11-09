@@ -505,7 +505,7 @@ func (m *appStateManager) evaluateRevisionChanges(ctx context.Context, app *v1al
 
 	keyManifestGenerateAnnotationVal := app.Annotations[v1alpha1.AnnotationKeyManifestGeneratePaths]
 
-	if syncedRevision != "" && repo.Depth == 0 && keyManifestGenerateAnnotationVal != "" {
+	if syncedRevision != "" && keyManifestGenerateAnnotationVal != "" {
 		updateRevisionResult, err := repoClient.UpdateRevisionForPaths(ctx, &apiclient.UpdateRevisionForPathsRequest{
 			Repo:               repo,
 			Revision:           revision,
@@ -930,7 +930,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
-		WithTracking(appLabelKey, string(trackingMethod))
+		WithTracking(appLabelKey, trackingMethod)
 
 	if useDiffCache {
 		diffConfigBuilder.WithCache(m.cache, app.InstanceName(m.namespace))
