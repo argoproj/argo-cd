@@ -1197,6 +1197,10 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 		log.WithField("useDiffCache", "false").Debug("noCache is true")
 		return false
 	}
+	if app.Status.Sync.Status == v1alpha1.SyncStatusCodeUnknown {
+		log.WithField("useDiffCache", "false").Debug("sync status is Unknown")
+		return false
+	}
 	refreshType, refreshRequested := app.IsRefreshRequested()
 	if refreshRequested {
 		log.WithField("useDiffCache", "false").Debugf("refresh type %s requested", string(refreshType))
