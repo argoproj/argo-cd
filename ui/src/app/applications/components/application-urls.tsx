@@ -22,11 +22,12 @@ export class ExternalLink {
         // Ingress path using a regular expression). Only interpret a pipe as
         // the title/URL separator when the complete value is not itself a URL.
         const isAbsoluteHttpUrl = /^https?:\/\//i.test(url);
-        const parts = isAbsoluteHttpUrl ? [url] : url.split('|');
-        const title = parts.length === 2 ? parts[0] : url;
-        const ref = parts.length === 2 ? parts[1] : url;
+        const separatorIndex = isAbsoluteHttpUrl ? -1 : url.indexOf('|');
+        const hasTitle = separatorIndex >= 0;
+        const title = hasTitle ? url.slice(0, separatorIndex) : url;
+        const ref = hasTitle ? url.slice(separatorIndex + 1) : url;
         this.ref = getExternalURL(ref);
-        this.title = isAbsoluteHttpUrl || parts.length !== 2 ? this.ref : title;
+        this.title = hasTitle ? title : this.ref;
         if (!isValidURL(this.ref)) {
             throw new InvalidExternalLinkError('Invalid URL');
         }

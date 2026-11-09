@@ -2,7 +2,7 @@ import * as React from 'react';
 import {render, screen} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
-import {ApplicationSummaryExternalURLs} from './application-summary';
+import {ApplicationSummaryExternalURLs} from './application-summary-external-urls';
 
 describe('ApplicationSummaryExternalURLs', () => {
     it('trims regex paths from the displayed URL and href', () => {

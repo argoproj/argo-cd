@@ -20,8 +20,7 @@ import {BadgePanel} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {isValidURL} from '../../../shared/utils';
-import {getExternalURL} from '../application-urls';
+import {ApplicationSummaryExternalURLs} from './application-summary-external-urls';
 
 import {ApplicationSyncOptionsField} from '../application-sync-options/application-sync-options';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
@@ -132,27 +131,6 @@ export interface ApplicationSummaryProps {
     app: models.Application;
     updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>;
 }
-
-export const ApplicationSummaryExternalURLs = ({urls}: {urls: string[]}) => (
-    <div className='application-summary__links-rows'>
-        {urls
-            // Preserve valid URLs as-is because Ingress regex paths may contain '|'.
-            // Only split title|URL annotations when the full value is not a URL.
-            .map(item => (/^https?:\/\//i.test(item) ? [item] : item.split('|')))
-            .map(parts => (parts.length > 1 ? [parts[0], getExternalURL(parts[1])] : [getExternalURL(parts[0])]))
-            // Drop entries whose URL uses an unsafe protocol (e.g. javascript:, data:,
-            // vbscript:) to prevent XSS via attacker-controlled
-            // link.argocd.argoproj.io/* annotations on managed resources.
-            .filter(parts => isValidURL(parts.length > 1 ? parts[1] : parts[0]))
-            .map((parts, i) => (
-                <div className='application-summary__links-row' key={i}>
-                    <a href={parts.length > 1 ? parts[1] : parts[0]} target='_blank'>
-                        {parts[0]} &nbsp;
-                    </a>
-                </div>
-            ))}
-    </div>
-);
 
 export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const app = JSON.parse(JSON.stringify(props.app)) as models.Application;

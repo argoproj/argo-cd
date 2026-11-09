@@ -48,10 +48,9 @@ test('trims regex paths from URLs containing pipe characters', () => {
 
 test('trims regex paths while preserving titled URL annotations', () => {
     const url = 'https://preview.example.com/123(/|$)(.*)';
-    expect(new ExternalLink('Preview|' + url)).toEqual({
-        ref: 'https://preview.example.com/123',
-        title: 'Preview'
-    });
+    const link = new ExternalLink('Preview|' + url);
+    expect(link.ref).toEqual('https://preview.example.com/123');
+    expect(link.title).toEqual('Preview');
 });
 
 test('malicious URLs from list to be removed', () => {
