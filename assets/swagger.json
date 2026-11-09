@@ -10282,8 +10282,7 @@
       "type": "object",
       "properties": {
         "group": {
-          "type": "string",
-          "title": "+kubebuilder:validation:MinLength=1"
+          "type": "string"
         },
         "kind": {
           "type": "string",
