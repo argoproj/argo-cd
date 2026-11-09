@@ -563,6 +563,23 @@ func (sc *syncContext) Sync(ctx context.Context) {
 		if task.isHook() {
 			// update the hook's result
 			operationState, message, err := sc.getOperationPhase(task.liveObj)
+			if err == nil && operationState.Completed() {
+				// task.liveObj comes from the cluster cache, matched by name only. A hook that
+				// this operation re-created (BeforeHookCreation) can still be represented there
+				// by its deleted, completed predecessor. Confirm against the API server before
+				// completing the hook, so it is neither judged nor finalized by a stale object.
+				liveObj, getErr := sc.getResource(ctx, task)
+				switch {
+				case getErr == nil:
+					task.liveObj = liveObj
+					operationState, message, err = sc.getOperationPhase(liveObj)
+				case apierrors.IsNotFound(getErr):
+					// the hook is gone from the cluster: keep the result from the cache
+				default:
+					operationState = common.OperationRunning
+					message = fmt.Sprintf("failed to confirm hook state: %v", getErr)
+				}
+			}
 			if err != nil {
 				sc.setResourceResult(task, task.syncStatus, common.OperationError, fmt.Sprintf("failed to get resource health: %v", err))
 			} else {
