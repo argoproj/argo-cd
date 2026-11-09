@@ -369,11 +369,12 @@ func NewServer(ctx context.Context, opts ArgoCDServerOpts, appsetOpts Applicatio
 	sessionMgr := util_session.NewSessionManager(settingsMgr, projLister, opts.DexServerAddr, opts.DexTLSConfig, userStateStorage)
 	enf := rbac.NewEnforcer(opts.KubeClientset, opts.Namespace, common.ArgoCDRBACConfigMapName, nil)
 	enf.EnableEnforce(!opts.DisableAuth)
-	err = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+	err = enf.SetBuiltinPolicy(rbacpolicy.BuiltinPolicyCSV(settings.RBACLocalUserStrictMode))
 	errorsutil.CheckError(err)
 	enf.EnableLog(os.Getenv(common.EnvVarRBACDebug) == "1")
 
 	policyEnf := rbacpolicy.NewRBACPolicyEnforcer(enf, projLister)
+	policyEnf.SetEnableLocalUserStrictMode(settings.RBACLocalUserStrictMode)
 	enf.SetClaimsEnforcerFunc(policyEnf.EnforceClaims)
 
 	staticFS, err := fs.Sub(ui.Embedded, "dist/app")
@@ -857,7 +858,13 @@ func (server *ArgoCDServer) watchSettings() {
 
 	for {
 		newSettings := <-updateCh
+		prevStrictMode := server.settings.RBACLocalUserStrictMode
 		server.settings = newSettings
+		if prevStrictMode != newSettings.RBACLocalUserStrictMode {
+			if err := server.policyEnforcer.ApplyLocalUserStrictMode(newSettings.RBACLocalUserStrictMode); err != nil {
+				log.WithError(err).Error("failed to switch local-user strict mode; SSO identities ending in @local remain ignored")
+			}
+		}
 		newDexCfgBytes, err := dexutil.GenerateDexConfigYAML(server.settings, server.DexTLSConfig == nil || server.DexTLSConfig.DisableTLS)
 		errorsutil.CheckError(err)
 		if !bytes.Equal(newDexCfgBytes, prevDexCfgBytes) {

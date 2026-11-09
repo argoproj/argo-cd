@@ -122,6 +122,9 @@ const (
 const (
 	// ArgoCDAdminUsername is the username of the 'admin' user
 	ArgoCDAdminUsername = "admin"
+	// ArgoCDSessionClaimsIssuer is the value of the "iss" claim for Argo CD local account (session) tokens,
+	// as opposed to tokens issued by an external SSO/IDP provider.
+	ArgoCDSessionClaimsIssuer = "argocd"
 	// ArgoCDUserAgentName is the default user-agent name used by the gRPC API client library and grpc-gateway
 	ArgoCDUserAgentName = "argocd-client"
 	// ArgoCDSSAManager is the default argocd manager name used by server-side apply syncs
