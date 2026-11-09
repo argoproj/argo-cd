@@ -728,7 +728,6 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 		}
 	}
 
-	allNodesInfo := map[string]statecache.NodeInfo{}
 	allPodsByNode := map[string][]statecache.PodInfo{}
 	appPodsByNode := map[string][]statecache.PodInfo{}
 	snapshot, err := ctrl.getClusterHostSnapshot(destCluster)
@@ -736,9 +735,8 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 	if err != nil {
 		return nil, err
 	}
-	for name, node := range snapshot.nodes {
-		allNodesInfo[name] = node
-	}
+	// The snapshot is immutable after publish, so the node map can be used directly.
+	allNodesInfo := snapshot.nodes
 	for nodeName, pods := range snapshot.pods {
 		for _, pod := range pods {
 			if appPods[pod.key] {
