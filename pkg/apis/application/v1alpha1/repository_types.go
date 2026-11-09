@@ -329,13 +329,14 @@ func (repo *Repository) GetHelmCreds() helm.Creds {
 // GetOCICreds returns the credentials from a repository configuration used to authenticate an OCI repository
 func (repo *Repository) GetOCICreds() oci.Creds {
 	return oci.Creds{
-		Username:           repo.Username,
-		Password:           repo.Password,
-		CAPath:             getCAPath(repo.Repo),
-		CertData:           []byte(repo.TLSClientCertData),
-		KeyData:            []byte(repo.TLSClientCertKey),
-		InsecureSkipVerify: repo.Insecure,
-		InsecureHTTPOnly:   repo.InsecureOCIForceHttp,
+		Username:             repo.Username,
+		Password:             repo.Password,
+		GCPServiceAccountKey: repo.GCPServiceAccountKey,
+		CAPath:               getCAPath(repo.Repo),
+		CertData:             []byte(repo.TLSClientCertData),
+		KeyData:              []byte(repo.TLSClientCertKey),
+		InsecureSkipVerify:   repo.Insecure,
+		InsecureHTTPOnly:     repo.InsecureOCIForceHttp,
 	}
 }
 
