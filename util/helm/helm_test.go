@@ -324,7 +324,7 @@ func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			var capturedArgs []string
-			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+			c, err := newCmdWithVersion(".", false, "", "", func(cmd *exec.Cmd, _ func(string) string, _ bool) (string, error) {
 				capturedArgs = cmd.Args
 				return "", nil
 			})
