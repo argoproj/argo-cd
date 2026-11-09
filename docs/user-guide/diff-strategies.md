@@ -59,9 +59,15 @@ informed to Argo CD during the diff stage rather than during the sync
 stage.
 
 Admission webhooks that do not support dry-run requests can cause Server-Side
-Diff to fail. For a webhook to support dry-run, its `sideEffects` field must
-be set to `None` or `NoneOnDryRun`, as appropriate for the webhook's actual
-behavior. See the Kubernetes [webhook side effects documentation](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#side-effects).
+Diff to fail, resulting in a comparison error for the affected Application.
+
+To support dry-run requests, the webhook's `sideEffects` field must be
+configured according to its actual behavior:
+- Set it to `None` if the webhook does not produce side effects for any request.
+- Set it to `NoneOnDryRun` if the webhook produces side effects for normal
+  requests but suppresses them for dry-run requests.
+
+See the Kubernetes [webhook side effects documentation](https://kubernetes.io/docs/reference/access-authn-authz/extensible-admission-controllers/#side-effects).
 If a webhook cannot safely support dry-run, disable Server-Side Diff for the
 affected Application by setting the `argocd.argoproj.io/compare-options:
 ServerSideDiff=false` annotation, as described below.
