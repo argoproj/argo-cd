@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/labels"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
 
@@ -140,6 +139,16 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 				},
 			},
 			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": []any{"bar"}}},
+		},
+		{
+			name:     "large numeric param should match selector on plain digits",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","buildId": 1762000000}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"buildId": "1762000000",
+				},
+			},
+			expected: []map[string]any{{"cluster": "cluster", "buildId": float64(1762000000)}},
 		},
 	}
 
@@ -948,20 +957,13 @@ func TestFlattenParametersNumberFormatting(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	assert.Equal(t, "42", out["small"])
-	assert.Equal(t, "1000000", out["big"])
-	assert.Equal(t, "1762000000", out["epoch"])
-	assert.Equal(t, "0.00001", out["tiny"])
-	assert.Equal(t, "1762000000", out["int"])
-	assert.Equal(t, "1762000000", out["string"])
-	assert.Equal(t, "2000000", out["nested.big"])
-}
-
-func TestPostGeneratorSelectorMatchesLargeNumericParams(t *testing.T) {
-	out, err := flattenParameters(map[string]any{"n": float64(1762000000)})
-	require.NoError(t, err)
-
-	selector, err := labels.Parse("n=1762000000")
-	require.NoError(t, err)
-	assert.True(t, selector.Matches(labels.Set(out)))
+	assert.Equal(t, map[string]string{
+		"small":      "42",
+		"big":        "1000000",
+		"epoch":      "1762000000",
+		"tiny":       "0.00001",
+		"int":        "1762000000",
+		"string":     "1762000000",
+		"nested.big": "2000000",
+	}, out)
 }
