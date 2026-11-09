@@ -197,6 +197,7 @@ on:
 
 permissions:
   id-token: write # This is required for requesting the JWT
+  content: read
 
 jobs:
   argocd-test:
@@ -216,20 +217,6 @@ jobs:
           install -m 555 argocd-linux-amd64 "$RUNNER_TEMP/argocd/argocd"
           echo "$RUNNER_TEMP/argocd" >> "$GITHUB_PATH"
           rm argocd-linux-amd64
-
-      # Which ApplicationSets changed in this PR? Empty output => nothing to do.
-      - name: Select changed ApplicationSets
-        id: select
-        env:
-          BASE_REF: ${{ github.base_ref }}
-        run: |
-          set -euo pipefail
-          git fetch --no-tags --depth=1 origin "$BASE_REF"
-          targets="$(git diff --name-only "origin/${BASE_REF}...HEAD" \
-            -- 'appSet/**/*.yaml' 'appSet/**/*.yml' 'appSet/*.yaml' 'appSet/*.yml' \
-            | tr '\n' ' ' | sed 's/ *$//')"
-          echo "Changed appsets: ${targets:-<none>}"
-          echo "targets=${targets}" >> "$GITHUB_OUTPUT"
 
       - name: Authenticate (GitHub OIDC -> Entra) and validate
         if: steps.select.outputs.targets != ''
