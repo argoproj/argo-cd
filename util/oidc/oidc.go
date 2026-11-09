@@ -906,12 +906,19 @@ func (a *ClientApp) tokenRefreshedElsewhere(ctx context.Context, cacheKey string
 			case <-time.After(refreshedElsewhereWait):
 			}
 		}
+		// A failed read returns nil like "not refreshed elsewhere", so the caller surfaces the original
+		// refresh error; log it so the miss is still diagnosable.
 		oidcTokenCacheJSON, err := a.GetValueFromEncryptedCache(ctx, cacheKey)
-		if err != nil || oidcTokenCacheJSON == nil {
+		if err != nil {
+			log.Debugf("Failed to read the token cache to check for a refresh by another replica: %v", err)
+			return nil
+		}
+		if oidcTokenCacheJSON == nil {
 			return nil
 		}
 		oidcTokenCache, err := GetOidcTokenCacheFromJSON(oidcTokenCacheJSON)
 		if err != nil {
+			log.Debugf("Failed to parse the token cache to check for a refresh by another replica: %v", err)
 			return nil
 		}
 		current := oidcTokenCache.Token
