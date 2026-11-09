@@ -8,6 +8,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	hydratortypes "github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/db"
 )
@@ -22,6 +23,7 @@ type ClusterShardingCache interface {
 	UpdateApp(a *v1alpha1.Application)
 	IsManagedCluster(c *v1alpha1.Cluster) bool
 	IsManagedClusterByServer(server string) (managed bool, known bool)
+	IsManagedHydrationKey(key hydratortypes.HydrationQueueKey) bool
 	GetDistribution() map[string]int
 	GetAppDistribution() map[string]int
 	UpdateShard(shard int) bool
@@ -79,6 +81,16 @@ func (sharding *ClusterSharding) IsManagedClusterByServer(server string) (bool, 
 		return sharding.Shard == 0, false
 	}
 	return sharding.isManagedShard(server, c.Annotations), true
+}
+
+// IsManagedHydrationKey reports whether this controller owns the hydration
+// group. Every controller computes the same owner from the group key, which
+// prevents per-process workqueue deduplication from scheduling the group on
+// multiple shards.
+func (sharding *ClusterSharding) IsManagedHydrationKey(key hydratortypes.HydrationQueueKey) bool {
+	sharding.lock.RLock()
+	defer sharding.lock.RUnlock()
+	return key.Shard(sharding.Replicas) == sharding.Shard
 }
 
 // isManagedShard reports whether the cluster identified by the given server URL and annotations

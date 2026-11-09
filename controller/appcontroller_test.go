@@ -97,6 +97,7 @@ type fakeData struct {
 	// persistResourceHealth controls whether managed resource health is stored
 	// inline on the Application. When nil it defaults to true.
 	persistResourceHealth *bool
+	clusterSharding       sharding.ClusterShardingCache
 	// reconciledAtHeartbeat bounds how stale the persisted status.reconciledAt may
 	// become. Zero writes it on every full reconciliation.
 	reconciledAtHeartbeat time.Duration
@@ -236,6 +237,12 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	if data.persistResourceHealth != nil {
 		persistResourceHealth = *data.persistResourceHealth
 	}
+	clusterSharding := data.clusterSharding
+	if clusterSharding == nil {
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+		clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
+	}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
@@ -265,7 +272,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		[]string{},
 		0,
 		persistResourceHealth,
-		nil,
+		clusterSharding,
 		data.applicationNamespaces,
 		nil,
 		false,
@@ -274,10 +281,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		testEnableEventList,
 		false,
 	)
-	db := &dbmocks.ArgoDB{}
-	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
-	// Setting a default sharding algorithm for the tests where we cannot set it.
-	ctrl.clusterSharding = sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
 	if err != nil {
 		panic(err)
 	}
