@@ -2404,7 +2404,7 @@ func (m *nativeGitClient) wipeAndClone(ctx context.Context) error {
 	}
 
 	// --no-checkout: checkoutRevision checks out the target revision as necessary
-	err = m.runCredentialedCmd(ctx, "clone", "--no-checkout", m.repoURL, ".")
+	_, err = m.runCredentialedCmdOutput(ctx, runOpts{Redactor: repoURLRedactor(m.repoURL)}, "clone", "--no-checkout", m.repoURL, ".")
 	if err != nil {
 		return fmt.Errorf("failed to clone repository: %w", err)
 	}

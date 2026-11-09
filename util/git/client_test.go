@@ -1244,6 +1244,30 @@ exit 1
 	}
 }
 
+func TestWipeAndCloneRedactsCredentials(t *testing.T) {
+	fakeBin := t.TempDir()
+	fakeGit := filepath.Join(fakeBin, "git")
+	require.NoError(t, os.WriteFile(fakeGit, []byte(`#!/bin/sh
+printf 'failed' >&2
+exit 1
+`), 0o755))
+	t.Setenv("PATH", fakeBin+string(os.PathListSeparator)+os.Getenv("PATH"))
+
+	hook := logtest.NewGlobal()
+	t.Cleanup(hook.Reset)
+	const repoURL = "https://user:secret@example.com/repo.git"
+	client := &nativeGitClient{repoURL: repoURL, root: t.TempDir(), creds: NopCreds{}}
+
+	err := client.wipeAndClone(t.Context())
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "user:secret")
+	assert.Contains(t, err.Error(), "https://example.com/repo.git")
+
+	for _, entry := range hook.AllEntries() {
+		assert.NotContains(t, entry.Message, "user:secret")
+	}
+}
+
 func TestRunLsRemoteIgnoresDiscoveredRepositoryConfig(t *testing.T) {
 	setupGitEnv(t)
 	ctx := t.Context()
