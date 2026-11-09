@@ -182,8 +182,8 @@ oidc.config: |
 > `https://login.microsoftonline.com/{tenant-id}/v2.0` and the `aud` claim is
 > always the Argo CD App Registration client ID (a GUID), even when the scope
 > is requested as `api://.../.default`. Setting `allowedAudiences` replaces the
-> default audience (`clientID`), so keep the client ID in the list, or
-> interactive SSO logins will be rejected.
+> default audiences. Keep `clientID` in the list for interactive SSO. If
+> `cliClientID` is configured, also add it to the list for CLI SSO.
 
 Here is an example of a GitHub Action that retrieves a valid Argo CD
 authentication token by federating the GitHub OIDC JWT into Entra ID, and uses
@@ -220,10 +220,12 @@ jobs:
       # Which ApplicationSets changed in this PR? Empty output => nothing to do.
       - name: Select changed ApplicationSets
         id: select
+        env:
+          BASE_REF: ${{ github.base_ref }}
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin "${{ github.base_ref }}"
-          targets="$(git diff --name-only "origin/${{ github.base_ref }}...HEAD" \
+          git fetch --no-tags --depth=1 origin "$BASE_REF"
+          targets="$(git diff --name-only "origin/${BASE_REF}...HEAD" \
             -- 'appSet/**/*.yaml' 'appSet/**/*.yml' 'appSet/*.yaml' 'appSet/*.yml' \
             | tr '\n' ' ' | sed 's/ *$//')"
           echo "Changed appsets: ${targets:-<none>}"
