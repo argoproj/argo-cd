@@ -23,13 +23,10 @@ export class ExternalLink {
         // the title/URL separator when the complete value is not itself a URL.
         const isAbsoluteHttpUrl = /^https?:\/\//i.test(url);
         const parts = isAbsoluteHttpUrl ? [url] : url.split('|');
-        if (parts.length === 2) {
-            this.title = parts[0];
-            this.ref = parts[1];
-        } else {
-            this.title = url;
-            this.ref = url;
-        }
+        const title = parts.length === 2 ? parts[0] : url;
+        const ref = parts.length === 2 ? parts[1] : url;
+        this.ref = getExternalURL(ref);
+        this.title = isAbsoluteHttpUrl || parts.length !== 2 ? this.ref : title;
         if (!isValidURL(this.ref)) {
             throw new InvalidExternalLinkError('Invalid URL');
         }
