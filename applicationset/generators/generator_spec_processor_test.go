@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+	"k8s.io/apimachinery/pkg/labels"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/services/mocks"
@@ -933,4 +934,34 @@ func TestInterpolateGeneratorValuesHandling(t *testing.T) {
 			assert.Equal(t, tt.want.Git.Template, got.Git.Template)
 		})
 	}
+}
+
+func TestFlattenParametersNumberFormatting(t *testing.T) {
+	out, err := flattenParameters(map[string]any{
+		"small":  float64(42),
+		"big":    float64(1000000),
+		"epoch":  float64(1762000000),
+		"tiny":   float64(0.00001),
+		"int":    int64(1762000000),
+		"string": "1762000000",
+		"nested": map[string]any{"big": float64(2000000)},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, "42", out["small"])
+	assert.Equal(t, "1000000", out["big"])
+	assert.Equal(t, "1762000000", out["epoch"])
+	assert.Equal(t, "0.00001", out["tiny"])
+	assert.Equal(t, "1762000000", out["int"])
+	assert.Equal(t, "1762000000", out["string"])
+	assert.Equal(t, "2000000", out["nested.big"])
+}
+
+func TestPostGeneratorSelectorMatchesLargeNumericParams(t *testing.T) {
+	out, err := flattenParameters(map[string]any{"n": float64(1762000000)})
+	require.NoError(t, err)
+
+	selector, err := labels.Parse("n=1762000000")
+	require.NoError(t, err)
+	assert.True(t, selector.Matches(labels.Set(out)))
 }
