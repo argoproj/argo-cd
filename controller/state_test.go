@@ -3005,8 +3005,8 @@ func TestCompareAppStateServerSideDiffStaleCacheAfterFailedCompare(t *testing.T)
 	app.Annotations = map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true,IncludeMutationWebhook=true"}
 	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
 	app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced, Revision: "rev1", ComparedTo: app.Spec.BuildComparedToStatus(sources)}
-	liveCM := Unstructured(fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cm","namespace":"%s"},"data":{"value":"a"}}`, test.FakeDestNamespace))
-	targetManifest := fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cm","namespace":"%s"},"data":{"value":"b"}}`, test.FakeDestNamespace)
+	liveCM := Unstructured(fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cm","namespace":%q},"data":{"value":"a"}}`, test.FakeDestNamespace))
+	targetManifest := fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cm","namespace":%q},"data":{"value":"b"}}`, test.FakeDestNamespace)
 	manifestResp := &apiclient.ManifestResponse{Manifests: []string{targetManifest}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "rev2"}
 	cmKey := kube.NewResourceKey("", "ConfigMap", test.FakeDestNamespace, "test-cm")
 	data := fakeData{
