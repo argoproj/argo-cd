@@ -6483,7 +6483,7 @@ func TestResourceIgnoreDuplicate_Matches(t *testing.T) {
 			expected: true,
 		},
 		{
-			name:     "empty selector matches nothing (all empty fields act as wildcards)",
+			name:     "empty selector matches everything (all empty fields act as wildcards)",
 			selector: ResourceIgnoreDuplicate{},
 			key:      kube.ResourceKey{Group: "apps", Kind: "Deployment", Name: "guestbook", Namespace: "default"},
 			expected: true,
