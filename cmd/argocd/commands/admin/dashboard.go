@@ -14,7 +14,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/initialize"
 	"github.com/argoproj/argo-cd/v3/common"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
-	"github.com/argoproj/argo-cd/v3/util/errors"
 )
 
 // DashboardConfig holds the configuration for starting the dashboard
@@ -58,14 +57,19 @@ func NewDashboardCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command 
 	return newDashboardCommand(NewDashboard(), clientOpts)
 }
 
+// newDashboardCommand builds the local dashboard command and applies the selected core kubeconfig.
 func newDashboardCommand(ds *dashboard, clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	config := &DashboardConfig{ClientOpts: clientOpts}
 	cmd := &cobra.Command{
 		Use:   "dashboard",
 		Short: "Starts Argo CD Web UI locally",
-		Run: cli.WithSignalContext(func(cmd *cobra.Command, _ []string, _ context.CancelFunc) {
+		RunE: cli.WithSignalContextE(func(cmd *cobra.Command, _ []string, _ context.CancelFunc) error {
+			clientOpts.Core = true
+			if err := headless.ConfigureKubeConfig(clientOpts, cmd); err != nil {
+				return err
+			}
 			config.Context = initialize.RetrieveContextIfChanged(cmd.Flag("context"))
-			errors.CheckError(ds.Run(cmd.Context(), config))
+			return ds.Run(cmd.Context(), config)
 		}),
 		Example: `# Start the Argo CD Web UI locally on the default port and address
 $ argocd admin dashboard
@@ -78,6 +82,7 @@ $ argocd admin dashboard --redis-compress gzip
   `,
 	}
 	config.ClientConfig = cli.AddKubectlFlagsToSet(cmd.Flags())
+	initialize.MarkCoreKubeConfigFlag(cmd.Flag("kubeconfig"))
 	cmd.Flags().IntVar(&config.Port, "port", common.DefaultPortAPIServer, "Listen on given port")
 	cmd.Flags().StringVar(&config.Address, "address", common.DefaultAddressAdminDashboard, "Listen on given address")
 	return cmd
