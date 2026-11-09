@@ -197,7 +197,7 @@ on:
 
 permissions:
   id-token: write # This is required for requesting the JWT
-  content: read
+  contents: read
 
 jobs:
   argocd-test:
