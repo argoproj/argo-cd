@@ -49,6 +49,7 @@ import (
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/common"
 	statecache "github.com/argoproj/argo-cd/v3/controller/cache"
+	"github.com/argoproj/argo-cd/v3/controller/hostscan"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator"
 	hydratortypes "github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
@@ -165,6 +166,21 @@ type ApplicationController struct {
 	deploymentInformer                informerv1.DeploymentInformer
 
 	hydrator *hydrator.Hydrator
+
+	// hostScans memoizes the cluster-wide Node/Pod walk used by getAppHosts.
+	// That walk is identical for every Application on a cluster, so reconcile
+	// CPU would otherwise scale with apps × cached objects.
+	hostScans hostscan.Cache[*clusterHostSnapshot]
+}
+
+type cachedPod struct {
+	key  kube.ResourceKey
+	info statecache.PodInfo
+}
+
+type clusterHostSnapshot struct {
+	nodes map[string]statecache.NodeInfo
+	pods  map[string][]cachedPod
 }
 
 // NewApplicationController creates new instance of ApplicationController.
@@ -245,6 +261,7 @@ func NewApplicationController(
 		dynamicClusterDistributionEnabled: dynamicClusterDistributionEnabled,
 		ignoreNormalizerOpts:              ignoreNormalizerOpts,
 		metricsClusterLabels:              metricsClusterLabels,
+		hostScans:                         hostscan.Cache[*clusterHostSnapshot]{TTL: 2 * time.Second},
 	}
 	if hydratorEnabled {
 		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db)
@@ -714,23 +731,22 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 	allNodesInfo := map[string]statecache.NodeInfo{}
 	allPodsByNode := map[string][]statecache.PodInfo{}
 	appPodsByNode := map[string][]statecache.PodInfo{}
-	err := ctrl.stateCache.IterateResources(destCluster, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
-		key := res.ResourceKey()
-
-		switch {
-		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
-			allNodesInfo[key.Name] = *info.NodeInfo
-		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
-			if appPods[key] {
-				appPodsByNode[info.PodInfo.NodeName] = append(appPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
-			} else {
-				allPodsByNode[info.PodInfo.NodeName] = append(allPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
-			}
-		}
-	})
+	snapshot, err := ctrl.getClusterHostSnapshot(destCluster)
 	ts.AddCheckpoint("iterate_resources_ms")
 	if err != nil {
 		return nil, err
+	}
+	for name, node := range snapshot.nodes {
+		allNodesInfo[name] = node
+	}
+	for nodeName, pods := range snapshot.pods {
+		for _, pod := range pods {
+			if appPods[pod.key] {
+				appPodsByNode[nodeName] = append(appPodsByNode[nodeName], pod.info)
+			} else {
+				allPodsByNode[nodeName] = append(allPodsByNode[nodeName], pod.info)
+			}
+		}
 	}
 
 	var hosts []appv1.HostInfo
@@ -795,6 +811,31 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 	}
 	ts.AddCheckpoint("process_app_pods_by_node_ms")
 	return hosts, nil
+}
+
+// getClusterHostSnapshot returns Node and Pod info for a cluster.
+// Concurrent callers and later reconciles inside the snapshot TTL share one IterateResources scan.
+func (ctrl *ApplicationController) getClusterHostSnapshot(destCluster *appv1.Cluster) (*clusterHostSnapshot, error) {
+	return ctrl.hostScans.Get(destCluster.Server, func() (*clusterHostSnapshot, error) {
+		nodes := make(map[string]statecache.NodeInfo)
+		pods := make(map[string][]cachedPod)
+		scanErr := ctrl.stateCache.IterateResources(destCluster, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
+			if info == nil {
+				return
+			}
+			key := res.ResourceKey()
+			switch {
+			case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
+				nodes[key.Name] = *info.NodeInfo
+			case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
+				pods[info.PodInfo.NodeName] = append(pods[info.PodInfo.NodeName], cachedPod{key: key, info: *info.PodInfo})
+			}
+		})
+		if scanErr != nil {
+			return nil, scanErr
+		}
+		return &clusterHostSnapshot{nodes: nodes, pods: pods}, nil
+	})
 }
 
 func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destCluster *appv1.Cluster, app *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
