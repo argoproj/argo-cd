@@ -38,6 +38,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
+	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	repocredspkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repocreds"
+	repositorypkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/repository"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/session"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	apps "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
@@ -2031,4 +2034,106 @@ func TestAPIResponsesAreNotCacheable(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestBug21955WorkaroundInterceptor(t *testing.T) {
+	passthrough := func(_ context.Context, req any) (any, error) { return req, nil }
+
+	t.Run("nil sub-messages do not panic", func(t *testing.T) {
+		for _, req := range []any{
+			&repositorypkg.RepoAppDetailsQuery{},
+			&repositorypkg.RepoUpdateRequest{},
+			&clusterpkg.ClusterQuery{},
+			&clusterpkg.ClusterUpdateRequest{},
+		} {
+			assert.NotPanics(t, func() {
+				resp, err := bug21955WorkaroundInterceptor(t.Context(), req, nil, passthrough)
+				require.NoError(t, err)
+				assert.Same(t, req, resp)
+			}, "%T", req)
+		}
+	})
+
+	t.Run("unescapes URL fields", func(t *testing.T) {
+		const escaped = "https%3A%2F%2Fgithub.com%2Fargoproj%2Fargo-cd"
+		const unescaped = "https://github.com/argoproj/argo-cd"
+
+		repoQuery := &repositorypkg.RepoQuery{Repo: escaped}
+		appsQuery := &repositorypkg.RepoAppsQuery{Repo: escaped}
+		detailsQuery := &repositorypkg.RepoAppDetailsQuery{Source: &v1alpha1.ApplicationSource{RepoURL: escaped}}
+		updateReq := &repositorypkg.RepoUpdateRequest{Repo: &v1alpha1.Repository{Repo: escaped}}
+		credsQuery := &repocredspkg.RepoCredsQuery{Url: escaped}
+		credsDelete := &repocredspkg.RepoCredsDeleteRequest{Url: escaped}
+		clusterQuery := &clusterpkg.ClusterQuery{Id: &clusterpkg.ClusterID{Value: escaped}}
+		clusterUpdate := &clusterpkg.ClusterUpdateRequest{Id: &clusterpkg.ClusterID{Value: escaped}}
+
+		for _, req := range []any{repoQuery, appsQuery, detailsQuery, updateReq, credsQuery, credsDelete, clusterQuery, clusterUpdate} {
+			_, err := bug21955WorkaroundInterceptor(t.Context(), req, nil, passthrough)
+			require.NoError(t, err, "%T", req)
+		}
+		assert.Equal(t, unescaped, repoQuery.Repo)
+		assert.Equal(t, unescaped, appsQuery.Repo)
+		assert.Equal(t, unescaped, detailsQuery.Source.RepoURL)
+		assert.Equal(t, unescaped, updateReq.Repo.Repo)
+		assert.Equal(t, unescaped, credsQuery.Url)
+		assert.Equal(t, unescaped, credsDelete.Url)
+		assert.Equal(t, unescaped, clusterQuery.Id.Value)
+		assert.Equal(t, unescaped, clusterUpdate.Id.Value)
+	})
+}
+
+// TestUnauthenticatedEmptyMessagesDoNotCrashServer sends empty messages, without credentials, to methods whose
+// pre-authentication interceptor handling previously dereferenced nil sub-messages and crashed the process.
+func TestUnauthenticatedEmptyMessagesDoNotCrashServer(t *testing.T) {
+	s, closer := fakeServer(t)
+	defer closer()
+	s.DisableAuth = false
+	defer test.StartInformer(s.projInformer)()
+	defer test.StartInformer(s.appInformer)()
+	defer test.StartInformer(s.appsetInformer)()
+	defer test.StartInformer(s.clusterInformer)()
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	var wg gosync.WaitGroup
+	wg.Go(func() { s.Run(t.Context(), lns) })
+	defer func() {
+		s.stopCh <- syscall.SIGINT
+		wg.Wait()
+	}()
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	conn, err := grpc.NewClient(fmt.Sprintf("127.0.0.1:%d", s.ListenPort), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	defer conn.Close()
+	repoClient := repositorypkg.NewRepositoryServiceClient(conn)
+
+	// Every RPC taking a RepoAppDetailsQuery or RepoUpdateRequest goes through the affected interceptor cases.
+	calls := map[string]func() error{
+		"GetAppDetails": func() error {
+			_, err := repoClient.GetAppDetails(t.Context(), &repositorypkg.RepoAppDetailsQuery{})
+			return err
+		},
+		"Update": func() error {
+			_, err := repoClient.Update(t.Context(), &repositorypkg.RepoUpdateRequest{}) //nolint:staticcheck // deprecated but still served
+			return err
+		},
+		"UpdateRepository": func() error {
+			_, err := repoClient.UpdateRepository(t.Context(), &repositorypkg.RepoUpdateRequest{})
+			return err
+		},
+		"UpdateWriteRepository": func() error {
+			_, err := repoClient.UpdateWriteRepository(t.Context(), &repositorypkg.RepoUpdateRequest{})
+			return err
+		},
+	}
+	for name, call := range calls {
+		assert.Equal(t, codes.Unauthenticated, status.Code(call()), name)
+	}
+
+	resp, err := grpc_health_v1.NewHealthClient(conn).Check(t.Context(), &grpc_health_v1.HealthCheckRequest{})
+	require.NoError(t, err)
+	assert.Equal(t, grpc_health_v1.HealthCheckResponse_SERVING, resp.GetStatus())
 }
