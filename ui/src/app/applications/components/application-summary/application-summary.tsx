@@ -139,6 +139,7 @@ export const ApplicationSummaryExternalURLs = ({urls}: {urls: string[]}) => (
             // Preserve valid URLs as-is because Ingress regex paths may contain '|'.
             // Only split title|URL annotations when the full value is not a URL.
             .map(item => (/^https?:\/\//i.test(item) ? [item] : item.split('|')))
+            .map(parts => (parts.length > 1 ? [parts[0], getExternalURL(parts[1])] : [getExternalURL(parts[0])]))
             // Drop entries whose URL uses an unsafe protocol (e.g. javascript:, data:,
             // vbscript:) to prevent XSS via attacker-controlled
             // link.argocd.argoproj.io/* annotations on managed resources.
