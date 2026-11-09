@@ -85,3 +85,18 @@ test('omits the optional classes rather than emitting undefined', () => {
     expect(dl(container).className).toBe('entry-fields entry-fields--tile');
     expect(container.querySelector('dd').className).toBe('entry-fields__dd entry-fields__dd--project applications-tiles__field-value');
 });
+
+test.each([
+    ['tile', 'Project:'],
+    ['table', null]
+] as const)('%s label title is %p', (variant, title) => {
+    const {container} = render(
+        <EntryFieldList variant={variant}>
+            <EntryField name='project' label='Project'>
+                default
+            </EntryField>
+        </EntryFieldList>
+    );
+
+    expect(container.querySelector('dt').getAttribute('title')).toBe(title);
+});

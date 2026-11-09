@@ -41,10 +41,12 @@ export interface EntryFieldProps {
 }
 
 export const EntryField = ({name, label, children, valueClassName}: EntryFieldProps) => {
-    const cls = FIELD_CLASSES[React.useContext(VariantContext)];
+    const variant = React.useContext(VariantContext);
+    const cls = FIELD_CLASSES[variant];
     return (
         <>
-            <dt className={`entry-fields__dt entry-fields__dt--${name} ${cls.dt}`} title={`${label}:`}>
+            {/* Tile-only title, as on master: in the table, `[title]` lifts the label above the row overlay link, making it a dead click zone. */}
+            <dt className={`entry-fields__dt entry-fields__dt--${name} ${cls.dt}`} title={variant === 'tile' ? `${label}:` : undefined}>
                 {label}:
             </dt>
             <dd className={`entry-fields__dd entry-fields__dd--${name} ${cls.dd}${valueClassName ? ` ${valueClassName}` : ''}`}>{children}</dd>

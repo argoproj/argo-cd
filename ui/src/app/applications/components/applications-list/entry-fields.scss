@@ -144,7 +144,9 @@ $entry-xxlarge: calc(map-get($breakpoints, xxlarge) - 1px);
             $entry-label-min calc(33.333% - #{$entry-label-min})
             $entry-label-min calc(50% - #{$entry-label-min})
             0 16.667%;
-        grid-template-rows: auto auto;
+        // 1fr, not auto: a spanning item's extra height goes only to flexible tracks, so a
+        // 3-line Status (with hydrator) grows row 2 instead of splitting into row 1 too.
+        grid-template-rows: auto 1fr;
         // Top-align each cell so a single-line value doesn't get vertically centred
         // inside a taller row — that's what lets Name/Destination sit flush under
         // Project/Source rather than floating in the middle of the row's height.
