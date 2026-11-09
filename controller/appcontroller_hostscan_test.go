@@ -38,9 +38,8 @@ func TestGetAppHostsScansEachClusterOncePerTTL(t *testing.T) {
 
 	var scans atomic.Int32
 	mockStateCache := &mockstatecache.LiveStateCache{}
-	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.Anything).Run(func(args mock.Arguments) {
+	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Cluster, callback func(res *clustercache.Resource, info *statecache.ResourceInfo)) {
 		scans.Add(1)
-		callback := args.Get(1).(func(*clustercache.Resource, *statecache.ResourceInfo))
 		callback(&clustercache.Resource{
 			Ref: corev1.ObjectReference{Name: "minikube", Kind: "Node", APIVersion: "v1"},
 		}, &statecache.ResourceInfo{NodeInfo: &statecache.NodeInfo{
