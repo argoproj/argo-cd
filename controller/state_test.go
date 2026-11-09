@@ -1766,6 +1766,7 @@ func TestUseDiffCache(t *testing.T) {
 		sources              []v1alpha1.ApplicationSource
 		app                  *v1alpha1.Application
 		manifestRevisions    []string
+		pathsUnchanged       bool
 		statusRefreshTimeout time.Duration
 		expectedUseCache     bool
 		serverSideDiff       bool
@@ -1962,6 +1963,36 @@ func TestUseDiffCache(t *testing.T) {
 			serverSideDiff:       true,
 		},
 		{
+			testName:      "will return false if the last sync status is Unknown",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: func() *v1alpha1.Application {
+				a := app("httpbin", "rev1", false, nil)
+				a.Status.Sync.Status = v1alpha1.SyncStatusCodeUnknown
+				return a
+			}(),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       false,
+		},
+		{
+			testName:      "will return false if the last sync status is Unknown and server-side diff",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: func() *v1alpha1.Application {
+				a := app("httpbin", "rev1", false, nil)
+				a.Status.Sync.Status = v1alpha1.SyncStatusCodeUnknown
+				return a
+			}(),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       true,
+		},
+		{
 			testName:             "will return false if there is a new revision",
 			noCache:              false,
 			manifestInfos:        manifestInfos("rev1"),
@@ -1971,6 +2002,30 @@ func TestUseDiffCache(t *testing.T) {
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     false,
 			serverSideDiff:       false,
+		},
+		{
+			testName:             "will return true if there is a new revision without changes in the manifest-generate-paths",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev2"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev2"},
+			pathsUnchanged:       true,
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     true,
+			serverSideDiff:       true,
+		},
+		{
+			testName:             "will return false if there is a new revision without changes in the manifest-generate-paths but a refresh is requested",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev2"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", true, nil),
+			manifestRevisions:    []string{"rev2"},
+			pathsUnchanged:       true,
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       true,
 		},
 		{
 			testName:      "will return false if app spec repo changed",
@@ -2047,11 +2102,144 @@ func TestUseDiffCache(t *testing.T) {
 			logger, _ := logrustest.NewNullLogger()
 			log := logrus.NewEntry(logger)
 			// When
-			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout, tc.serverSideDiff, log)
+			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.pathsUnchanged, tc.statusRefreshTimeout, tc.serverSideDiff, log)
 			// Then
 			assert.Equal(t, tc.expectedUseCache, useDiffCache)
 		})
 	}
+}
+
+// TestGitPathsCheckedForAllSources checks which sources can rely on the manifest-generate-paths check.
+func TestGitPathsCheckedForAllSources(t *testing.T) {
+	t.Parallel()
+	assert.True(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://github.com/a/b", Path: "chart"}, {RepoURL: "https://github.com/a/c", Ref: "values"}}))
+	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://github.com/a/b", Path: "chart", Ref: "values"}}))
+	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://charts.example.com", Chart: "app", TargetRevision: "1.*"}}))
+	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "oci://registry.example.com/charts", Path: "."}}))
+}
+
+// TestTargetsMatchCachedDiff checks the target comparison used before reusing a cached diff across a revision change.
+func TestTargetsMatchCachedDiff(t *testing.T) {
+	t.Parallel()
+	svc := func(port int64) *unstructured.Unstructured {
+		return &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1", "kind": "Service",
+			"metadata": map[string]any{"name": "svc", "namespace": "ns"},
+			"spec":     map[string]any{"ports": []any{map[string]any{"port": port}}},
+		}}
+	}
+	cached := func(target *unstructured.Unstructured) []*v1alpha1.ResourceDiff {
+		data, err := json.Marshal(target)
+		require.NoError(t, err)
+		return []*v1alpha1.ResourceDiff{{Kind: "Service", Namespace: "ns", Name: "svc", TargetState: string(data)}}
+	}
+	live := svc(80)
+
+	assert.True(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{svc(80)}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{svc(81)}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(nil, []*unstructured.Unstructured{svc(80)}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{nil}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{svc(80)}, nil))
+	assert.True(t, targetsMatchCachedDiff(nil, []*unstructured.Unstructured{nil}, []*unstructured.Unstructured{nil}))
+
+	secret := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1", "kind": "Secret",
+		"metadata": map[string]any{"name": "s", "namespace": "ns"},
+	}}
+	data, err := json.Marshal(secret)
+	require.NoError(t, err)
+	secretCache := []*v1alpha1.ResourceDiff{{Kind: "Secret", Namespace: "ns", Name: "s", TargetState: string(data)}}
+	assert.False(t, targetsMatchCachedDiff(secretCache, []*unstructured.Unstructured{secret}, []*unstructured.Unstructured{secret}))
+}
+
+// TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged checks that CompareAppState keeps the diff cache across a revision change only when the manifest-generate-paths, the targets and the live resourceVersions are unchanged.
+func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *testing.T) {
+	t.Parallel()
+	newCM := func(value string) *unstructured.Unstructured {
+		return &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1", "kind": "ConfigMap",
+			"metadata": map[string]any{"name": "cm", "namespace": test.FakeDestNamespace},
+			"data":     map[string]any{"key": value},
+		}}
+	}
+	live := newCM("live")
+	target := newCM("target")
+	targetJSON, err := json.Marshal(target)
+	require.NoError(t, err)
+
+	run := func(t *testing.T, cachedTarget func(compared *unstructured.Unstructured) string, cachedResourceVersion func(live string) string) *comparisonResult {
+		t.Helper()
+		app := newFakeApp()
+		app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+		// CompareAppState consumes the map the fake cache returns, so refill it before each compare.
+		liveObjs := map[kube.ResourceKey]*unstructured.Unstructured{}
+		manifest := &apiclient.ManifestResponse{
+			Manifests: []string{string(targetJSON)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "def456",
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses:              []*apiclient.ManifestResponse{manifest, manifest},
+			managedLiveObjs:                liveObjs,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: false, Revision: "def456"},
+		}, nil)
+		sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+
+		// The real diff is OutOfSync because live and target data differ.
+		app.Status.Sync = v1alpha1.SyncStatus{Revision: "abc123"}
+		liveObjs[kube.GetResourceKey(live)] = live
+		first, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, sources, true, false, nil, false)
+		require.NoError(t, err)
+		require.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, first.syncStatus.Status)
+		require.Len(t, first.managedResources, 1)
+
+		// Cache a Synced diff, then compare again at a new revision with unchanged paths.
+		liveJSON, err := json.Marshal(live)
+		require.NoError(t, err)
+		require.NoError(t, ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), []*v1alpha1.ResourceDiff{{
+			Kind: "ConfigMap", Namespace: test.FakeDestNamespace, Name: "cm", ResourceVersion: cachedResourceVersion(first.managedResources[0].ResourceVersion),
+			TargetState:         cachedTarget(first.managedResources[0].Target),
+			NormalizedLiveState: string(liveJSON),
+			PredictedLiveState:  string(liveJSON),
+			Modified:            false,
+		}}))
+		app.Status.Sync = v1alpha1.SyncStatus{
+			Revision:   "abc123",
+			ComparedTo: v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination},
+		}
+		now := metav1.Now()
+		app.Status.ReconciledAt = &now
+		liveObjs[kube.GetResourceKey(live)] = live
+		second, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, sources, false, false, nil, false)
+		require.NoError(t, err)
+		return second
+	}
+
+	sameTarget := func(compared *unstructured.Unstructured) string {
+		data, err := json.Marshal(compared)
+		require.NoError(t, err)
+		return string(data)
+	}
+	sameResourceVersion := func(live string) string { return live }
+
+	t.Run("targets match the cached diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, sameTarget, sameResourceVersion)
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, res.syncStatus.Status, "the cached diff should be reused")
+	})
+
+	t.Run("targets differ from the cached diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, func(*unstructured.Unstructured) string { return "{}" }, sameResourceVersion)
+		assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, res.syncStatus.Status, "the diff should be recomputed")
+	})
+
+	t.Run("live resourceVersion changed since the cached diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, sameTarget, func(live string) string { return live + "-old" })
+		assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, res.syncStatus.Status, "the changed resource should be re-diffed")
+	})
 }
 
 func TestCompareAppStateDefaultRevisionUpdated(t *testing.T) {
@@ -2967,4 +3155,44 @@ func TestShouldUseServerSideDiff(t *testing.T) {
 			assert.Equal(t, tc.expected, shouldUseServerSideDiff(tc.app, tc.controllerLevelSSD))
 		})
 	}
+}
+
+// TestCompareAppStateServerSideDiffStaleCacheAfterFailedCompare checks that a failed server-side diff leaves no cached result that reports Synced on the next compare.
+func TestCompareAppStateServerSideDiffStaleCacheAfterFailedCompare(t *testing.T) {
+	app := newFakeApp()
+	app.Annotations = map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true,IncludeMutationWebhook=true"}
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+	app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced, Revision: "rev1", ComparedTo: app.Spec.BuildComparedToStatus(sources)}
+	liveCM := Unstructured(fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cm","namespace":%q},"data":{"value":"a"}}`, test.FakeDestNamespace))
+	targetManifest := fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cm","namespace":%q},"data":{"value":"b"}}`, test.FakeDestNamespace)
+	manifestResp := &apiclient.ManifestResponse{Manifests: []string{targetManifest}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "rev2"}
+	cmKey := kube.NewResourceKey("", "ConfigMap", test.FakeDestNamespace, "test-cm")
+	data := fakeData{
+		apps:              []runtime.Object{app, &defaultProj},
+		manifestResponses: []*apiclient.ManifestResponse{manifestResp, manifestResp, manifestResp},
+		managedLiveObjs:   map[kube.ResourceKey]*unstructured.Unstructured{cmKey: liveCM},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	revisions := []string{""}
+
+	compRes1, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, compRes1.syncStatus.Status)
+	assert.NotEmpty(t, app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true}))
+
+	app.Status.Sync = *compRes1.syncStatus
+	_, err = ctrl.setAppManagedResources(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes1)
+	require.NoError(t, err)
+	data.managedLiveObjs[cmKey] = liveCM
+
+	compRes2, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, compRes2.syncStatus.Status)
+
+	t.Run("NegativeControlNoCache", func(t *testing.T) {
+		data.managedLiveObjs[cmKey] = liveCM
+		compResControl, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, true, false, nil, false)
+		require.NoError(t, err)
+		assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, compResControl.syncStatus.Status)
+	})
 }
