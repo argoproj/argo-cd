@@ -209,6 +209,8 @@ While this can be addressed by re-signing with git rebase, there is a better way
 > ```
 > The command simulates strict verification (even when the project uses `head` or `none`), lists problematic commits for each Git source (Helm and OCI sources are skipped), and prints `git` hints for reviewing commits and creating a seal commit.
 > See the [command reference](./commands/argocd_proj_source-integrity_git_gpg-inspect-repo.md).
+>
+> On very large repositories the history walk can exceed the default timeouts. Raise `ARGOCD_EXEC_TIMEOUT` and `server.repo.server.timeout.seconds` / `--repo-server-timeout-seconds` if needed — the same adjustments can help to run `strict` mode successfully on large repositories. See [High Availability](../operator-manual/high_availability.md) for details on configuring timeouts.
 
 ###### Commit seal-signing with `strict` mode
 
