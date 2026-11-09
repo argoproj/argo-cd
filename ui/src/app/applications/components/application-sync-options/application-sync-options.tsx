@@ -1,10 +1,12 @@
-import {Checkbox, DataLoader, Select, Tooltip} from 'argo-ui';
+import {Checkbox, Select, Tooltip} from 'argo-ui';
 import classNames from 'classnames';
 import * as React from 'react';
+import {useQuery} from '@tanstack/react-query';
 import {ReactForm} from 'argo-ui';
 
 import './application-sync-options.scss';
-import {services} from '../../../shared/services';
+import {settingsQueries} from '../../../shared/queries';
+import {loading, loadFailed} from '../../../shared/query-client';
 
 const ReplaceWarning = () => (
     <div>
@@ -129,6 +131,25 @@ const syncOptions: Array<(props: ApplicationSyncOptionProps) => React.ReactNode>
 
 const optionStyle = {marginTop: '0.5em'};
 
+// Replace is only offered when the server allows it (--sync-with-replace-allowed).
+const ReplaceOption = (props: ApplicationSyncOptionProps) => {
+    // refetchOnMount 'always': every mount refetches, whatever staleTime the query or client sets.
+    // networkMode 'always': offline, the refetch fails (as DataLoader's did) instead of pausing with the cached value shown.
+    const settings = useQuery({...settingsQueries.get(), networkMode: 'always', refetchOnMount: 'always'});
+    // Decide on freshly loaded settings, as before: a cached value could still offer Replace after the server stopped allowing it.
+    if (settings.isFetching || settings.isError || !settings.data) {
+        return settings.isError && !settings.isFetching ? loadFailed(settings.refetch) : loading;
+    }
+    if (!settings.data.syncWithReplaceAllowed) {
+        return null;
+    }
+    return (
+        <div className='small-12' style={optionStyle}>
+            {booleanOption('Replace', 'Replace', false, props, false)}
+        </div>
+    );
+};
+
 export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
     <div className='row application-sync-options'>
         {syncOptions.map((render, i) => (
@@ -141,20 +162,7 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 {render(props)}
             </div>
         ))}
-        <DataLoader
-            load={async () => {
-                const settings = await services.authService.settings();
-                return settings.syncWithReplaceAllowed;
-            }}>
-            {syncWithReplaceAllowed =>
-                (syncWithReplaceAllowed && (
-                    <div className='small-12' style={optionStyle}>
-                        {booleanOption('Replace', 'Replace', false, props, false)}
-                    </div>
-                )) ||
-                null
-            }
-        </DataLoader>
+        <ReplaceOption {...props} />
     </div>
 );
 

@@ -1,5 +1,6 @@
 import {ErrorNotification, MockupList, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
+import {useQueryClient} from '@tanstack/react-query';
 import * as ReactDOM from 'react-dom';
 import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
@@ -26,6 +27,7 @@ import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useSearchParams, useObservableQuery} from '../../../shared/hooks/query';
 import {isInvalidRegex} from '../../../shared/utils';
 import {loadFailed} from '../../../shared/query-client';
+import {clusterQueries} from '../../../shared/queries';
 
 import './applications-list.scss';
 
@@ -256,7 +258,13 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
     const refreshAppsInput = tryJsonParse(query.get('refreshApps'));
     const [createApi, setCreateApi] = React.useState(null);
-    const clusters = React.useMemo(() => services.clusters.list(), []);
+    const queryClient = useQueryClient();
+    const clusters = React.useMemo(() => {
+        const list = queryClient.fetchQuery(clusterQueries.list());
+        // Only the summary view awaits this; rows show a failure through the query.
+        list.catch((): void => undefined);
+        return list;
+    }, [queryClient]);
     const [isAppCreatePending, setAppCreatePending] = React.useState(false);
     const {List, Summary, Tiles} = AppsListViewKey;
     const authSettings = React.useContext(AuthSettingsCtx);

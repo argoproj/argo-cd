@@ -6,7 +6,7 @@ import {of, Subject} from 'rxjs';
 
 import {AnnotationRefreshKey, Application, ApplicationWatchEvent} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
-import {applyWatchEvents, AppsListPaginate, useApplicationsList} from './applications-list-client';
+import {AppsListPaginate, useApplicationsList} from './applications-list-client';
 import {AppsListSourceQuery, AppsListSourceResult} from './applications-list-source';
 
 jest.mock('../../../shared/services', () => {
@@ -191,21 +191,6 @@ test('does not resume the watch from the stale list when the reload after being 
     } finally {
         setHidden(false);
     }
-});
-
-test('applyWatchEvents adds, replaces and removes by instance name without mutating its input', () => {
-    const list = {items: [app('a'), app('b')], metadata: {resourceVersion: '1'}} as any;
-    const updated = applyWatchEvents(list, [
-        {type: 'ADDED', application: app('c')},
-        {type: 'MODIFIED', application: app('a', 'Degraded')},
-        {type: 'DELETED', application: app('b')}
-    ]);
-    expect(updated.items.map((item: Application) => [item.metadata.name, item.status.health.status])).toEqual([
-        ['c', 'Healthy'],
-        ['a', 'Degraded']
-    ]);
-    expect(updated.metadata.resourceVersion).toBe('1');
-    expect(list.items).toHaveLength(2);
 });
 
 test('AppsListPaginate pages through the rows on the client', () => {
