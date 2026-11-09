@@ -1,13 +1,12 @@
+import {useQuery} from '@tanstack/react-query';
 import {MockupList} from 'argo-ui';
 import * as React from 'react';
 
-import {DataLoader, EventsList} from '../../../shared/components';
-import {services} from '../../../shared/services';
+import {EventsList} from '../../../shared/components';
+import {projectQueries} from '../../../shared/queries';
+import {loadFailed} from '../../../shared/query-client';
 
-export const ProjectEvents = (props: {projectName: string}) => (
-    <div className='application-resource-events'>
-        <DataLoader load={() => services.projects.events(props.projectName)} loadingRenderer={() => <MockupList height={50} marginTop={10} />}>
-            {events => <EventsList events={events} />}
-        </DataLoader>
-    </div>
-);
+export const ProjectEvents = (props: {projectName: string}) => {
+    const {data: events, isError, refetch} = useQuery(projectQueries.events(props.projectName));
+    return <div className='application-resource-events'>{isError ? loadFailed(refetch) : events ? <EventsList events={events} /> : <MockupList height={50} marginTop={10} />}</div>;
+};

@@ -1,8 +1,10 @@
 package pull_request
 
 import (
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/google/go-github/v69/github"
@@ -187,4 +189,67 @@ func TestGitHubListReturnsRepositoryNotFoundError(t *testing.T) {
 	// Should return RepositoryNotFoundError
 	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
+}
+
+type mockRoundTripper struct {
+	lastRequest *http.Request
+}
+
+func (m *mockRoundTripper) RoundTrip(req *http.Request) (*http.Response, error) {
+	m.lastRequest = req
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Body:       io.NopCloser(strings.NewReader(`[]`)),
+		Header:     make(http.Header),
+		Request:    req,
+	}, nil
+}
+
+// The token must be sent with or without an enterprise URL (#21292 dropped it when a URL was set).
+func TestNewGithubService(t *testing.T) {
+	// NewGithubService falls back to GITHUB_TOKEN when no token is given.
+	t.Setenv("GITHUB_TOKEN", "")
+
+	tests := []struct {
+		name         string
+		token        string
+		url          string
+		expectedHost string
+	}{
+		{"No token, no URL", "", "", "api.github.com"},
+		{"Token, no URL", "dummy-token", "", "api.github.com"},
+		{"No token, URL", "", "https://github.example.com", "github.example.com"},
+		{"Token and URL", "dummy-token", "https://github.example.com", "github.example.com"},
+	}
+
+	owner := "test-owner"
+	repo := "test-repo"
+	labels := []string{"test-label-1", "test-label-2"}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			mockTransport := &mockRoundTripper{}
+			httpClient := &http.Client{Transport: mockTransport}
+
+			service, err := NewGithubService(tt.token, tt.url, owner, repo, labels, nil, httpClient)
+			require.NoError(t, err)
+
+			gs, ok := service.(*GithubService)
+			require.True(t, ok)
+			assert.Equal(t, owner, gs.owner)
+			assert.Equal(t, repo, gs.repo)
+			assert.Equal(t, labels, gs.labels)
+
+			_, err = gs.List(t.Context())
+			require.NoError(t, err)
+
+			require.NotNil(t, mockTransport.lastRequest)
+			assert.Equal(t, tt.expectedHost, mockTransport.lastRequest.URL.Host)
+			if tt.token != "" {
+				assert.Equal(t, "Bearer "+tt.token, mockTransport.lastRequest.Header.Get("Authorization"))
+			} else {
+				assert.Empty(t, mockTransport.lastRequest.Header.Get("Authorization"))
+			}
+		})
+	}
 }

@@ -132,7 +132,6 @@ spec:
                                   items:
                                     properties:
                                       group:
-                                        minLength: 1
                                         type: string
                                       kind:
                                         minLength: 1
@@ -937,6 +936,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -1069,7 +1079,6 @@ spec:
                                   items:
                                     properties:
                                       group:
-                                        minLength: 1
                                         type: string
                                       kind:
                                         minLength: 1
@@ -1874,6 +1883,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -2007,7 +2027,6 @@ spec:
                                   items:
                                     properties:
                                       group:
-                                        minLength: 1
                                         type: string
                                       kind:
                                         minLength: 1
@@ -2812,6 +2831,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -2923,7 +2953,6 @@ spec:
                                   items:
                                     properties:
                                       group:
-                                        minLength: 1
                                         type: string
                                       kind:
                                         minLength: 1
@@ -3728,6 +3757,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -3864,7 +3904,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -4669,6 +4708,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -4801,7 +4851,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -5606,6 +5655,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -5739,7 +5799,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -6544,6 +6603,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -6655,7 +6725,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -7460,6 +7529,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -7593,7 +7673,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -8398,6 +8477,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -8520,7 +8610,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -9325,6 +9414,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -9687,7 +9787,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -10492,6 +10591,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -10835,7 +10945,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -11641,6 +11750,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -11768,7 +11888,6 @@ spec:
                                   items:
                                     properties:
                                       group:
-                                        minLength: 1
                                         type: string
                                       kind:
                                         minLength: 1
@@ -12573,6 +12692,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -12711,7 +12841,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -13516,6 +13645,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -13648,7 +13788,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -14453,6 +14592,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -14586,7 +14736,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -15391,6 +15540,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -15502,7 +15662,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -16307,6 +16466,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -16440,7 +16610,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -17245,6 +17414,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -17367,7 +17547,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -18172,6 +18351,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -18534,7 +18724,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -19339,6 +19528,17 @@ spec:
                                                     additionalProperties:
                                                       type: string
                                                     type: object
+                                                type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
                                                 type: object
                                               retry:
                                                 properties:
@@ -19682,7 +19882,6 @@ spec:
                                             items:
                                               properties:
                                                 group:
-                                                  minLength: 1
                                                   type: string
                                                 kind:
                                                   minLength: 1
@@ -20488,6 +20687,17 @@ spec:
                                                       type: string
                                                     type: object
                                                 type: object
+                                              manualDefaults:
+                                                properties:
+                                                  applyOnly:
+                                                    type: boolean
+                                                  dryRun:
+                                                    type: boolean
+                                                  force:
+                                                    type: boolean
+                                                  prune:
+                                                    type: boolean
+                                                type: object
                                               retry:
                                                 properties:
                                                   backoff:
@@ -20619,7 +20829,6 @@ spec:
                                   items:
                                     properties:
                                       group:
-                                        minLength: 1
                                         type: string
                                       kind:
                                         minLength: 1
@@ -21424,6 +21633,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -21556,7 +21776,6 @@ spec:
                                   items:
                                     properties:
                                       group:
-                                        minLength: 1
                                         type: string
                                       kind:
                                         minLength: 1
@@ -22361,6 +22580,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -22483,7 +22713,6 @@ spec:
                                   items:
                                     properties:
                                       group:
-                                        minLength: 1
                                         type: string
                                       kind:
                                         minLength: 1
@@ -23288,6 +23517,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -23650,7 +23890,6 @@ spec:
                                   items:
                                     properties:
                                       group:
-                                        minLength: 1
                                         type: string
                                       kind:
                                         minLength: 1
@@ -24455,6 +24694,17 @@ spec:
                                           additionalProperties:
                                             type: string
                                           type: object
+                                      type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
                                       type: object
                                     retry:
                                       properties:
@@ -24798,7 +25048,6 @@ spec:
                                   items:
                                     properties:
                                       group:
-                                        minLength: 1
                                         type: string
                                       kind:
                                         minLength: 1
@@ -25604,6 +25853,17 @@ spec:
                                             type: string
                                           type: object
                                       type: object
+                                    manualDefaults:
+                                      properties:
+                                        applyOnly:
+                                          type: boolean
+                                        dryRun:
+                                          type: boolean
+                                        force:
+                                          type: boolean
+                                        prune:
+                                          type: boolean
+                                      type: object
                                     retry:
                                       properties:
                                         backoff:
@@ -25808,7 +26068,6 @@ spec:
                         items:
                           properties:
                             group:
-                              minLength: 1
                               type: string
                             kind:
                               minLength: 1
@@ -26613,6 +26872,17 @@ spec:
                                 additionalProperties:
                                   type: string
                                 type: object
+                            type: object
+                          manualDefaults:
+                            properties:
+                              applyOnly:
+                                type: boolean
+                              dryRun:
+                                type: boolean
+                              force:
+                                type: boolean
+                              prune:
+                                type: boolean
                             type: object
                           retry:
                             properties:

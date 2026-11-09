@@ -3,8 +3,8 @@ import * as React from 'react';
 import * as ReactDOM from 'react-dom';
 import {Key, KeybindingContext, KeybindingProvider, NumKey, NumKeyToNumber, NumPadKey, useNav} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
-import {combineLatest, from, merge, Observable} from 'rxjs';
-import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
+import {combineLatest} from 'rxjs';
+import {map} from 'rxjs/operators';
 import {DataLoader, EmptyState, FlexTopBar, Page, Paginate, SearchBar} from '../../../shared/components';
 import {AuthSettingsCtx, Consumer, Context, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -12,7 +12,9 @@ import {AppsListPreferences, AppsListViewKey, AppsListViewType, AppSetsListPrefe
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useObservableQuery} from '../../../shared/hooks/query';
 import {isInvalidRegex} from '../../../shared/utils';
+import {loadFailed} from '../../../shared/query-client';
 import * as AppUtils from '../utils';
+import {useApplicationSetsList, ApplicationSetsListResult} from './application-sets-list-client';
 import {AppSetsFilter, ApplicationSetFilteredApp, getAppSetFilterResults} from './applications-filter';
 import {createMatcher} from './applications-list-search';
 import {AppSetsStatusBar} from './applications-status-bar';
@@ -51,66 +53,6 @@ const ApplicationSetsSummary = lazyWithBoundary(
     React.lazy(() => import(/* webpackChunkName: "appset-summary" */ './application-sets-summary').then(m => ({default: m.ApplicationSetsSummary}))),
     'Failed to load application sets summary. Please reload and try again.'
 );
-
-const EVENTS_BUFFER_TIMEOUT = 500;
-const WATCH_RETRY_TIMEOUT = 500;
-
-const APPSET_FIELDS = [
-    'metadata.name',
-    'metadata.namespace',
-    'metadata.annotations',
-    'metadata.labels',
-    'metadata.creationTimestamp',
-    'metadata.deletionTimestamp',
-    'spec',
-    'status.conditions',
-    'status.resources',
-    'status.resourcesCount',
-    'status.health'
-];
-const APPSET_LIST_FIELDS = ['metadata.resourceVersion', ...APPSET_FIELDS.map(field => `items.${field}`)];
-const APPSET_WATCH_FIELDS = ['result.type', ...APPSET_FIELDS.map(field => `result.applicationSet.${field}`)];
-
-function loadApplicationSets(projects: string[]): Observable<models.ApplicationSet[]> {
-    return from(services.applications.list(projects, 'applicationset', {fields: APPSET_LIST_FIELDS})).pipe(
-        mergeMap(applicationsList => {
-            const appSets = applicationsList.items as models.ApplicationSet[];
-            return merge(
-                from([appSets]),
-                services.applications
-                    .watch('applicationset', {projects, resourceVersion: applicationsList.metadata.resourceVersion}, {fields: APPSET_WATCH_FIELDS})
-                    .pipe(repeat())
-                    .pipe(retry({delay: WATCH_RETRY_TIMEOUT}))
-                    .pipe(bufferTime(EVENTS_BUFFER_TIMEOUT))
-                    .pipe(
-                        map(appChanges => {
-                            appChanges.forEach(appChange => {
-                                const appSet = appChange.application as unknown as models.ApplicationSet;
-                                const index = appSets.findIndex(item => AppUtils.appInstanceName(item) === AppUtils.appInstanceName(appSet));
-                                switch (appChange.type) {
-                                    case 'DELETED':
-                                        if (index > -1) {
-                                            appSets.splice(index, 1);
-                                        }
-                                        break;
-                                    default:
-                                        if (index > -1) {
-                                            appSets[index] = appSet;
-                                        } else {
-                                            appSets.unshift(appSet);
-                                        }
-                                        break;
-                                }
-                            });
-                            return {appSets, updated: appChanges.length > 0};
-                        })
-                    )
-                    .pipe(filter(item => item.updated))
-                    .pipe(map(item => item.appSets))
-            );
-        })
-    );
-}
 
 const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
     const observableQuery$ = useObservableQuery();
@@ -168,6 +110,9 @@ function filterApplicationSets(
         filteredApps: filterResults.filter(app => matchesSearch(app.metadata.name, app.metadata.namespace) && Object.values(app.filterResult).every(val => val))
     };
 }
+
+// Render-prop wrapper so the list body, which still sits inside render callbacks, can use the hook.
+const AppSetsListData = ({children}: {children: (list: ApplicationSetsListResult) => React.ReactNode}) => <React.Fragment>{children(useApplicationSetsList())}</React.Fragment>;
 
 const ApplicationSetsSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; appSets: models.ApplicationSet[]}) => {
     const {content, searchRegex, ctx, appSets} = props;
@@ -563,15 +508,19 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                     <ViewPref>
                         {pref => (
                             <Page key={pref.view} title={getPageTitle(pref.view)} useTitleOnly={true} toolbar={{breadcrumbs: [{title: 'ApplicationSets', path: props.match.url}]}}>
-                                <DataLoader
-                                    input={pref.projectsFilter?.join(',')}
-                                    load={() => AppUtils.handlePageVisibility(() => loadApplicationSets(pref.projectsFilter))}
-                                    loadingRenderer={() => (
-                                        <div className='argo-container'>
-                                            <MockupList height={100} marginTop={30} />
-                                        </div>
-                                    )}>
-                                    {(appSets: models.ApplicationSet[]) => {
+                                <AppSetsListData>
+                                    {list => {
+                                        if (list.loading) {
+                                            return (
+                                                <div className='argo-container'>
+                                                    <MockupList height={100} marginTop={30} />
+                                                </div>
+                                            );
+                                        }
+                                        if (list.failed) {
+                                            return loadFailed(list.retry);
+                                        }
+                                        const {appSets} = list;
                                         const healthBarPrefs = pref.statusBarView || ({} as HealthStatusBarPreferences);
                                         const appSetPref: AppSetsListPreferences = {
                                             labelsFilter: pref.labelsFilter,
@@ -677,7 +626,7 @@ export const ApplicationSetsList = (props: RouteComponentProps<any>) => {
                                             </React.Fragment>
                                         );
                                     }}
-                                </DataLoader>
+                                </AppSetsListData>
                             </Page>
                         )}
                     </ViewPref>

@@ -1075,7 +1075,6 @@ spec:
                     generated when that resource appears multiple times among application resources.
                   properties:
                     group:
-                      minLength: 1
                       type: string
                     kind:
                       minLength: 1
@@ -2362,6 +2361,28 @@ spec:
                         additionalProperties:
                           type: string
                         type: object
+                    type: object
+                  manualDefaults:
+                    description: ManualDefaults controls the default behavior of a
+                      manual sync
+                    properties:
+                      applyOnly:
+                        description: 'ApplyOnly specifies whether manual syncs should
+                          use apply-only strategy by default (default: false)'
+                        type: boolean
+                      dryRun:
+                        description: 'DryRun specifies whether manual syncs should
+                          be performed as a dry run by default (default: false)'
+                        type: boolean
+                      force:
+                        description: 'Force specifies whether manual syncs should
+                          supply --force to kubectl by default (default: false)'
+                        type: boolean
+                      prune:
+                        description: 'Prune specifies whether to delete resources
+                          from the cluster that are not found in the sources anymore
+                          as part of manual sync (default: true)'
+                        type: boolean
                     type: object
                   retry:
                     description: Retry controls failed sync retry behavior
@@ -6406,7 +6427,6 @@ spec:
                             generated when that resource appears multiple times among application resources.
                           properties:
                             group:
-                              minLength: 1
                               type: string
                             kind:
                               minLength: 1
