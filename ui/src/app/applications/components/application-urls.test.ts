@@ -46,6 +46,14 @@ test('trims regex paths from URLs containing pipe characters', () => {
     expect(new ExternalLink(url)).toEqual({ref: expected, title: expected});
 });
 
+test('trims regex paths while preserving titled URL annotations', () => {
+    const url = 'https://preview.example.com/123(/|$)(.*)';
+    expect(new ExternalLink('Preview|' + url)).toEqual({
+        ref: 'https://preview.example.com/123',
+        title: 'Preview'
+    });
+});
+
 test('malicious URLs from list to be removed', () => {
     const urls: string[] = ['javascript:alert("hi")', 'https://localhost:8080/applications'];
     const links = ExternalLinks(urls);
