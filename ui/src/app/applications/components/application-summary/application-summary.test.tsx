@@ -17,12 +17,12 @@ describe('ApplicationSummaryExternalURLs', () => {
     });
 
     it('continues to support titled external URLs', () => {
-        const url = 'https://preview.example.com/app';
+        const url = 'https://preview.example.com/123(/|$)(.*)';
 
         render(<ApplicationSummaryExternalURLs urls={['Preview|' + url]} />);
 
         const link = screen.getByRole('link', {name: 'Preview'});
         expect(link).toHaveTextContent('Preview');
-        expect(link).toHaveAttribute('href', url);
+        expect(link).toHaveAttribute('href', 'https://preview.example.com/123');
     });
 });
