@@ -203,7 +203,7 @@ This happens when GnuPG verification is introduced later to the git repository, 
 While this can be addressed by re-signing with git rebase, there is a better way that does not require rewriting the Git history.
 
 > [!TIP]
-> To check whether an application would pass **strict** Git/GPG verification-or to prepare a seal commit-inspect it without syncing:
+> To check whether an application would pass **strict** Git/GPG verification, or to prepare a seal commit, inspect it without syncing:
 > ```bash
 > argocd proj source-integrity git gpg-inspect-repo PROJECT APPNAME
 > ```
