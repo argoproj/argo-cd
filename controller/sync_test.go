@@ -2445,14 +2445,13 @@ func TestSyncWindowPreventsSyncUsesCurrentOperation(t *testing.T) {
 			}},
 		},
 	}
-	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "app_a", Namespace: test.FakeArgoCDNamespace},
-		Status: v1alpha1.ApplicationStatus{
-			OperationState: &v1alpha1.OperationState{ // stale in-memory status: the PREVIOUS completed manual sync
-				Phase:     synccommon.OperationSucceeded,
-				StartedAt: metav1.NewTime(metav1.Now().Add(-2 * time.Hour)),
-				Operation: v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "admin"}},
-			},
+	app := newFakeApp()
+	app.Name = "app_a"
+	app.Status = v1alpha1.ApplicationStatus{
+		OperationState: &v1alpha1.OperationState{ // stale in-memory status: the PREVIOUS completed manual sync
+			Phase:     synccommon.OperationSucceeded,
+			StartedAt: metav1.NewTime(metav1.Now().Add(-2 * time.Hour)),
+			Operation: v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "admin"}},
 		},
 	}
 	currentState := &v1alpha1.OperationState{
@@ -2484,14 +2483,13 @@ func TestSyncWindowPreventsSyncAllowsCurrentManualOperation(t *testing.T) {
 			}},
 		},
 	}
-	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "app_a", Namespace: test.FakeArgoCDNamespace},
-		Status: v1alpha1.ApplicationStatus{
-			OperationState: &v1alpha1.OperationState{
-				Phase:     synccommon.OperationSucceeded,
-				StartedAt: metav1.NewTime(metav1.Now().Add(-2 * time.Hour)),
-				Operation: v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "applicationset-controller", Automated: true}},
-			},
+	app := newFakeApp()
+	app.Name = "app_a"
+	app.Status = v1alpha1.ApplicationStatus{
+		OperationState: &v1alpha1.OperationState{
+			Phase:     synccommon.OperationSucceeded,
+			StartedAt: metav1.NewTime(metav1.Now().Add(-2 * time.Hour)),
+			Operation: v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "applicationset-controller", Automated: true}},
 		},
 	}
 	currentState := &v1alpha1.OperationState{
