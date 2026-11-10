@@ -56,7 +56,7 @@ Use `argocd login --core` to [configure](./user-guide/commands/argocd_login.md) 
 
 ## 2. Download Argo CD CLI
 
-Download the latest Argo CD version from [https://github.com/argoproj/argo-cd/releases/latest](https://github.com/argoproj/argo-cd/releases/latest). More detailed installation instructions can be found via the [CLI installation documentation](cli_installation.md).
+Download the latest Argo CD version from [https://github.com/argoproj/argo-cd/releases/latest](https://github.com/argoproj/argo-cd/releases/latest). Feature-level release notes live on the [Argo Project blog](https://blog.argoproj.io) rather than the GitHub Releases page. More detailed installation instructions can be found via the [CLI installation documentation](cli_installation.md).
 
 Also available in Mac, Linux and WSL Homebrew:
 
