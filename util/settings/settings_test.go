@@ -1730,6 +1730,74 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	assert.Equal(t, "deadbeef", oidcConfig.ClientSecret)
 }
 
+func TestGitLabWebhookSigningSecret(t *testing.T) {
+	t.Run("resolves signing secret from webhook.gitlab.signing.secret", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+			},
+		}
+		argocdSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+			},
+			Data: map[string][]byte{
+				"webhook.gitlab.signing.secret": []byte("whsec_12345"),
+			},
+		}
+		settingsManager := NewSettingsManager(t.Context(), fake.NewClientset(cm, argocdSecret), "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, "whsec_12345", settings.GetWebhookGitLabSigningSecret())
+	})
+
+	t.Run("falls back to webhook.gitlab.secret when starting with whsec_", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+			},
+		}
+		argocdSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+			},
+			Data: map[string][]byte{
+				"webhook.gitlab.secret": []byte("whsec_fallback"),
+			},
+		}
+		settingsManager := NewSettingsManager(t.Context(), fake.NewClientset(cm, argocdSecret), "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, "whsec_fallback", settings.GetWebhookGitLabSigningSecret())
+	})
+
+	t.Run("custom timestamp tolerance from configmap", func(t *testing.T) {
+		cm := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+			},
+			Data: map[string]string{
+				"webhook.gitlab.timestamp.tolerance": "10m",
+			},
+		}
+		argocdSecret := &corev1.Secret{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+			},
+		}
+		settingsManager := NewSettingsManager(t.Context(), fake.NewClientset(cm, argocdSecret), "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 10*time.Minute, settings.GetWebhookGitLabTimestampTolerance())
+	})
+}
+
 func TestValidateOIDCConfigWithSecrets(t *testing.T) {
 	tests := []struct {
 		name    string

@@ -29,6 +29,15 @@ arbitrary value in the secret. This value will be used when configuring the webh
 
 To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 50MB. The same setting also limits the payload size of the [ApplicationSet webhook](applicationset/Generators-Git.md#webhook-configuration).
 
+### GitLab
+
+GitLab supports two webhook authentication mechanisms:
+
+1. **Signed Webhooks (Standard Webhooks)**: GitLab 19.0+ signs outgoing webhook requests using HMAC-SHA256 according to the [Standard Webhooks specification](https://www.standardwebhooks.com/). Configure the signing token in `argocd-secret` under `webhook.gitlab.signing.secret` (or `webhook.gitlab.secret` starting with `whsec_`).
+2. **Secret Token (Legacy)**: Configure a static secret token sent via the `X-Gitlab-Token` header under `webhook.gitlab.secret` in `argocd-secret`.
+
+Both mechanisms can be configured simultaneously to ensure smooth migration.
+
 ### Github
 
 ![Add Webhook](../assets/webhook-config.png "Add Webhook")
@@ -57,7 +66,8 @@ provider's webhook secret configured in step 1.
 | Provider        | K8s Secret Key                   |
 |-----------------|----------------------------------|
 | GitHub          | `webhook.github.secret`          |
-| GitLab          | `webhook.gitlab.secret`          |
+| GitLab          | `webhook.gitlab.secret` (legacy) |
+|                 | `webhook.gitlab.signing.secret`  |
 | BitBucket       | `webhook.bitbucket.uuid`         |
 | BitBucketServer | `webhook.bitbucketserver.secret` |
 | Gogs            | `webhook.gogs.secret`            |
@@ -90,8 +100,11 @@ stringData:
   # github webhook secret
   webhook.github.secret: shhhh! it's a GitHub secret
 
-  # gitlab webhook secret
+  # gitlab webhook secret (legacy static token)
   webhook.gitlab.secret: shhhh! it's a GitLab secret
+
+  # gitlab webhook signing secret (Standard Webhooks HMAC-SHA256)
+  webhook.gitlab.signing.secret: whsec_shhhh! it's a GitLab signing secret
 
   # bitbucket webhook secret
   webhook.bitbucket.uuid: your-bitbucket-uuid
