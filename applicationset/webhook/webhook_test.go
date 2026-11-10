@@ -245,7 +245,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerValue:        "{some-uuid}",
 			extraHeaders:       map[string]string{"X-Event-Key": "repo:push"},
 			payloadFile:        "bitbucket-cloud-push.json",
-			effectedAppSets:    []string{"plugin", "matrix-pull-request-github-plugin"},
+			effectedAppSets:    []string{"git-bitbucket-cloud", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -301,6 +301,27 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
+		{
+			// A push with no changes (e.g. a deleted branch) names no revision to match.
+			desc:               "WebHook from a Bitbucket Cloud repository via push event without changes",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "repo:push"},
+			payloadFile:        "bitbucket-cloud-push-no-changes.json",
+			effectedAppSets:    []string{"plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from an unrelated Bitbucket Cloud repository does not refresh its pull request generator",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "pullrequest:created"},
+			payloadFile:        "bitbucket-cloud-pull-request-other-repo.json",
+			effectedAppSets:    []string{"plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
 	}
 
 	namespace := "test"
@@ -336,6 +357,7 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab-path-nomatch", namespace, "group/other"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
 				fakeAppWithBitbucketCloudPullRequestGenerator("pull-request-bitbucket-cloud", namespace, "my-org", "myrepo"),
+				fakeAppWithGitGeneratorWithRevision("git-bitbucket-cloud", namespace, "https://bitbucket.org/my-org/myrepo", "main"),
 				fakeAppWithPluginGenerator("plugin", namespace),
 				fakeAppWithOciGenerator("oci-ghcr", namespace, "oci://ghcr.io/org/image", "1.0.0"),
 				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
@@ -513,6 +535,42 @@ func TestWebhookHandlerRejectsRequests(t *testing.T) {
 			assert.Equal(t, test.expectedBody, strings.TrimSpace(w.Body.String()))
 		})
 	}
+}
+
+// A Bitbucket Cloud webhook signed with a different UUID than the one configured in
+// argocd-secret must be rejected without refreshing anything.
+func TestWebhookHandlerRejectsBitbucketCloudUUIDMismatch(t *testing.T) {
+	t.Parallel()
+	namespace := "test"
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	kubeClient := newFakeClientWithSettings(namespace, nil,
+		map[string][]byte{"webhook.bitbucket.uuid": []byte("{expected-uuid}")},
+	)
+	fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+		fakeAppWithBitbucketCloudPullRequestGenerator("pull-request-bitbucket-cloud", namespace, "my-org", "myrepo"),
+	).Build()
+	set := argosettings.NewSettingsManager(t.Context(), kubeClient, namespace)
+	h, err := NewWebhookHandler(1, set, fc, mockGenerators())
+	require.NoError(t, err)
+
+	eventJSON, err := os.ReadFile(filepath.Join("testdata", "bitbucket-cloud-pull-request-created.json"))
+	require.NoError(t, err)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+	req.Header.Set("X-Hook-UUID", "{other-uuid}")
+	req.Header.Set("X-Event-Key", "pullrequest:created")
+	w := httptest.NewRecorder()
+
+	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	list := &v1alpha1.ApplicationSetList{}
+	require.NoError(t, fc.List(t.Context(), list))
+	require.Len(t, list.Items, 1)
+	assert.Empty(t, list.Items[0].Annotations[common.AnnotationApplicationSetRefresh])
 }
 
 // TestParserOptionsParity makes sure every webhook event the Argo CD API server
