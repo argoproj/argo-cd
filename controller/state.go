@@ -927,8 +927,9 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	serverSideDiff := shouldUseServerSideDiff(app, m.serverSideDiff)
 
 	// With manifest-generate-paths, a new revision whose watched paths have no changes reuses the
-	// previous manifests, so the cached diff is still valid for it.
-	manifestPathsUnchanged := len(localManifests) == 0 && !failedToLoadObjs && !revisionsMayHaveChanges && gitPathsCheckedForAllSources(sources)
+	// previous manifests, so the cached diff is still valid for it. Only server-side diff needs this:
+	// re-diffing there dry-runs every resource against the API server.
+	manifestPathsUnchanged := serverSideDiff && len(localManifests) == 0 && !failedToLoadObjs && !revisionsMayHaveChanges && gitPathsCheckedForAllSources(sources)
 	if manifestPathsUnchanged && !reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions) {
 		// The repo-server regenerates manifests when its cache entry is gone, and they can then
 		// differ (e.g. ARGOCD_APP_REVISION), so also require the targets of the cached diff.
@@ -1288,7 +1289,7 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 
 	revisionChanged := !reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions)
 	if revisionChanged {
-		if !manifestPathsUnchanged {
+		if !manifestPathsUnchanged || !serverSideDiff {
 			log.WithField("useDiffCache", "false").Debug("revisionChanged")
 			return false
 		}

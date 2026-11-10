@@ -2016,6 +2016,18 @@ func TestUseDiffCache(t *testing.T) {
 			serverSideDiff:       true,
 		},
 		{
+			testName:             "will return false if there is a new revision without changes in the manifest-generate-paths and client-side diff",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev2"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev2"},
+			pathsUnchanged:       true,
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       false,
+		},
+		{
 			testName:             "will return false if there is a new revision without changes in the manifest-generate-paths but a refresh is requested",
 			noCache:              false,
 			manifestInfos:        manifestInfos("rev2"),
@@ -2167,7 +2179,7 @@ func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *tes
 	targetJSON, err := json.Marshal(target)
 	require.NoError(t, err)
 
-	run := func(t *testing.T, cachedTarget func(compared *unstructured.Unstructured) string, cachedResourceVersion func(live string) string) *comparisonResult {
+	run := func(t *testing.T, serverSideDiff bool, cachedTarget func(compared *unstructured.Unstructured) string, cachedResourceVersion func(live string) string) *comparisonResult {
 		t.Helper()
 		app := newFakeApp()
 		app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
@@ -2210,6 +2222,10 @@ func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *tes
 		}
 		now := metav1.Now()
 		app.Status.ReconciledAt = &now
+		if serverSideDiff {
+			// The fake controller cannot dry-run, so only enable server-side diff for the cached compare.
+			app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: ".", common.AnnotationCompareOptions: "ServerSideDiff=true"})
+		}
 		liveObjs[kube.GetResourceKey(live)] = live
 		second, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, sources, false, false, nil, false)
 		require.NoError(t, err)
@@ -2225,20 +2241,26 @@ func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *tes
 
 	t.Run("targets match the cached diff", func(t *testing.T) {
 		t.Parallel()
-		res := run(t, sameTarget, sameResourceVersion)
+		res := run(t, true, sameTarget, sameResourceVersion)
 		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, res.syncStatus.Status, "the cached diff should be reused")
 	})
 
 	t.Run("targets differ from the cached diff", func(t *testing.T) {
 		t.Parallel()
-		res := run(t, func(*unstructured.Unstructured) string { return "{}" }, sameResourceVersion)
-		assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, res.syncStatus.Status, "the diff should be recomputed")
+		res := run(t, true, func(*unstructured.Unstructured) string { return "{}" }, sameResourceVersion)
+		assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, res.syncStatus.Status, "the diff should be recomputed")
 	})
 
 	t.Run("live resourceVersion changed since the cached diff", func(t *testing.T) {
 		t.Parallel()
-		res := run(t, sameTarget, func(live string) string { return live + "-old" })
-		assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, res.syncStatus.Status, "the changed resource should be re-diffed")
+		res := run(t, true, sameTarget, func(live string) string { return live + "-old" })
+		assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, res.syncStatus.Status, "the changed resource should be re-diffed")
+	})
+
+	t.Run("client-side diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, false, sameTarget, sameResourceVersion)
+		assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, res.syncStatus.Status, "the diff should be recomputed")
 	})
 }
 
