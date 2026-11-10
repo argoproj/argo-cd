@@ -30,6 +30,7 @@ Target GA date: ___. __, ____
     - [ ] Run `./hack/trigger-release.sh` to push the release tag
     - [ ] Monitor the [Publish ArgoCD Release workflow](https://github.com/argoproj/argo-cd/actions/workflows/release.yaml)
     - [ ] Verify the release on [GitHub releases](https://github.com/argoproj/argo-cd/releases)
+    - [ ] Once the blog post is published, edit the RC1 GitHub release and replace `INSERT_BLOGPOST_URL_HERE` in the `Release Notes Blog Post` section with the blog post URL
     - [ ] Verify the container image on [Quay.io](https://quay.io/repository/argoproj/argocd?tab=tags)
     - [ ] Confirm the new version appears in [Read the Docs](https://argo-cd.readthedocs.io/)
     - [ ] Verify the docs release build in https://app.readthedocs.org/projects/argo-cd/ succeeded and retry if failed (requires an Approver with admin creds to readthedocs)

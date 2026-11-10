@@ -20,11 +20,12 @@ triggered. This will be automated in the very near future.
 
 * Update `CHANGELOG.md` with changes for this release
 * Commit & push changes to `CHANGELOG.md`
-* Update `goreleaser.yaml` with the updated blog post link in the `Release Notes Blog Post` section.
+* If the release blog post is already published, have its URL ready for the `Init ArgoCD Release` workflow (see [Release Notes Blog Post](#release-notes-blog-post)).
 
 **The `Init ArgoCD Release` workflow will perform the following steps:**
 
 * Update `VERSION` file in the release branch
+* Write the optional blog post URL to the `RELEASE_BLOG_POST_URL` file in the release branch
 * Update manifests with image tags of the new version in the release branch
 * Create a pull request to submit the above changes
 
@@ -47,12 +48,29 @@ triggered. This will be automated in the very near future.
 and choose which branch you would like to work from.
 3. Enter the TARGET_BRANCH to checkout.
 4. Enter the TARGET_VERSION that will be used to build manifest and `VERSION` file. (e.g `2.7.0-rc1`)
+5. Optionally, enter the RELEASE_BLOG_POST_URL (an `https://` URL). Leave it empty if the blog post is not published yet,
+   which is usually the case for RC1 (see [Release Notes Blog Post](#release-notes-blog-post)).
 
 ![GitHub Release Action](../assets/release-action.png)
 
 When the action is completed a pull request will be generated that contains the updated manifest and `Version` file.
 
-5. Merge the pull request and proceed to step 2.
+6. Merge the pull request and proceed to step 2.
+
+### Release Notes Blog Post
+
+The GitHub release notes always contain a `Release Notes Blog Post` section. If the release branch contains a
+`RELEASE_BLOG_POST_URL` file (a single line with the URL), the section links to that blog post. Otherwise it contains
+the placeholder link `INSERT_BLOGPOST_URL_HERE`.
+
+The file is written by the `Init ArgoCD Release` workflow when its optional `RELEASE_BLOG_POST_URL` input is set.
+Because the file lives on the release branch, every later release from that branch (further release candidates,
+the GA release and patch releases) links to the same post, and releases from other branches are not affected.
+
+The blog post URL is usually not known when RC1 is initialized. In that case, leave the input empty and, once the
+post is published, edit the RC1 [GitHub release](https://github.com/argoproj/argo-cd/releases) and replace
+`INSERT_BLOGPOST_URL_HERE` with the blog post URL. Pass the URL to the workflow when initializing the next release
+on that branch.
 
 ### Step 2 - Tag Release Branch
 

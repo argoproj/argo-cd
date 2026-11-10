@@ -75,6 +75,13 @@ if git ls-remote "${GIT_REMOTE}" "refs/tags/${NEW_TAG}" | grep -q -E "${NEW_TAG}
 	exit 1
 fi
 
+if test -s RELEASE_BLOG_POST_URL; then
+	echo ">> Release notes will link to blog post: $(head -n 1 RELEASE_BLOG_POST_URL)"
+else
+	echo ">> NOTE: No RELEASE_BLOG_POST_URL file in this branch. After the release is published, edit the"
+	echo ">>       GitHub release and replace INSERT_BLOGPOST_URL_HERE with the blog post URL."
+fi
+
 echo ">> Creating new release '${NEW_TAG}' by pushing '${NEW_TAG}' to '${GIT_REMOTE}'"
 
 # Create new tag in local repository
