@@ -363,7 +363,7 @@ func (k *kustomize) Build(opts *v1alpha1.ApplicationSourceKustomize, kustomizeOp
 						if err == nil && kustomization.Mode().IsRegular() {
 							foundComponents = append(foundComponents, c)
 							log.Infof("Adding component '%s' to kustomization.yaml", c)
-							break component
+							continue component
 						}
 					}
 					log.Infof("Ignoring component '%s': directory does not exist or unable to find one of %s",
