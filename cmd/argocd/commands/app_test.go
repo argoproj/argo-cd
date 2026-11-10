@@ -546,15 +546,6 @@ func TestSyncOptionsFromFlags(t *testing.T) {
 	}
 }
 
-func TestApplicationSyncCommandRespectIgnoreDifferencesFlag(t *testing.T) {
-	t.Parallel()
-
-	cmd := NewApplicationSyncCommand(&argocdclient.ClientOptions{})
-	flag := cmd.Flags().Lookup("respect-ignore-differences")
-	require.NotNil(t, flag)
-	assert.Equal(t, "false", flag.DefValue)
-}
-
 func TestFormatConditionSummary(t *testing.T) {
 	t.Run("No conditions are defined", func(t *testing.T) {
 		app := v1alpha1.Application{

@@ -2110,7 +2110,6 @@ func syncOptionsFromFlags(replace, serverSideApply, applyOutOfSyncOnly, respectI
 	}
 
 	if len(items) == 0 {
-		// for prevent send even empty array if not need
 		return nil
 	}
 	return &application.SyncOptions{Items: items}

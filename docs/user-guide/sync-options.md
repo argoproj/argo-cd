@@ -461,7 +461,7 @@ The annotation accepts yaml with key jsonPointers of paths whose diff should be 
 To enable `RespectIgnoreDifferences` for a single manual sync from the CLI, use `argocd app sync --respect-ignore-differences`.
 
 > [!NOTE]
-> The sync option flags of `argocd app sync` (`--replace`, `--server-side`, `--apply-out-of-sync-only` and `--respect-ignore-differences`) replace `spec.syncPolicy.syncOptions` for that sync. For example, `argocd app sync --server-side` does not use `RespectIgnoreDifferences=true` from the Application spec. To use both, run `argocd app sync --server-side --respect-ignore-differences`.
+> The sync option flags of `argocd app sync` (`--replace`, `--server-side`, `--apply-out-of-sync-only` and `--respect-ignore-differences`) replace all of `spec.syncPolicy.syncOptions` for that sync, not only the matching option. For example, `argocd app sync --respect-ignore-differences` does not use `CreateNamespace=true` or any other option from the Application spec. Options without a matching flag, such as `CreateNamespace=true`, cannot be added from the CLI. In the same way, `argocd app sync --server-side` does not use `RespectIgnoreDifferences=true` from the spec. To use both, run `argocd app sync --server-side --respect-ignore-differences`.
 
 ## Skip Health Check During Sync
 
