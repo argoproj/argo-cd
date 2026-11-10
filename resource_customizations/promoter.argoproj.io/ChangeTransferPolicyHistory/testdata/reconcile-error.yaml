@@ -1,0 +1,17 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ChangeTransferPolicyHistory
+metadata:
+  name: example-promotion-strategy-environment-dev-history
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  gitRepositoryRef:
+    name: example-git-repository
+  activeBranch: environment/dev
+status:
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: ReconciliationError
+      message: "Reconciliation failed: GitRepository not found"
+      observedGeneration: 1
