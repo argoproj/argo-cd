@@ -1,6 +1,6 @@
 import {act, renderHook} from '@testing-library/react';
 
-import {AppsListPreferences, services} from '../services';
+import {services} from '../services';
 import {useViewPreferences} from './use-view-preferences';
 
 jest.mock('../services', () => {
@@ -39,14 +39,11 @@ test('with a selector, re-renders only when the selected section changes', () =>
     expect(renders()).toBe(2);
 });
 
-test('with a selector, re-renders when a section changed in place is passed back', () => {
-    const {result, renders} = renderCounting(() => useViewPreferences(pref => pref.appList));
-    const before = result.current;
+test('with a selector, does not re-render when the whole preferences are passed back with another change', () => {
+    const {renders} = renderCounting(() => useViewPreferences(pref => pref.appList));
 
-    // clearFilters changes the section it is given, as the list pages' "clear filters" links do.
-    AppsListPreferences.clearFilters(before);
-    act(() => services.viewPreferences.updatePreferences({appList: before}));
+    // As the sidebar toggle does: {...pref, hideSidebar}.
+    act(() => services.viewPreferences.updatePreferences({...services.viewPreferences.getCurrentPreferences(), hideSidebar: true}));
 
-    expect(renders()).toBe(2);
-    expect(result.current).not.toBe(before);
+    expect(renders()).toBe(1);
 });

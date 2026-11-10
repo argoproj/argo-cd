@@ -277,10 +277,7 @@ export class ViewPreferencesService {
 
     public updatePreferences(change: Partial<ViewPreferences>) {
         const current = this.preferencesSubj.getValue();
-        // Copy the changed sections, so useViewPreferences selectors see a new object even when a caller
-        // changed one in place (e.g. clearFilters) and passed it back.
-        const copied = Object.fromEntries(Object.entries(change).map(([key, value]) => [key, value && typeof value === 'object' && !Array.isArray(value) ? {...value} : value]));
-        const nextPref = Object.assign({}, current, copied, {version: minVer});
+        const nextPref = Object.assign({}, current, change, {version: minVer});
         // Normalize appList to ensure all filter arrays are initialized
         if (nextPref.appList) {
             this.normalizeAppListPreferences(nextPref.appList);
