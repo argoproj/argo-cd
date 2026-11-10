@@ -440,8 +440,8 @@ func TestGitLabSignedWebhookPushEvent(t *testing.T) {
 	signingSecret := "whsec_" + base64.StdEncoding.EncodeToString(testKey)
 
 	h := NewMockHandler(nil, []string{})
-	h.argocdSettings.WebhookGitLabSigningSecret = signingSecret
-	h.parsers = NewParsers(h.argocdSettings, ArgoCDParserOptions())
+	h.settings.WebhookGitLabSigningSecret = signingSecret
+	h.parsers = NewParsers(h.settings, ArgoCDParserOptions())
 
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
 	require.NoError(t, err)
