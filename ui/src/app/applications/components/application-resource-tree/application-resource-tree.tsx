@@ -370,10 +370,10 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
     );
 }
 
-function renderTrafficNode(node: dagre.Node) {
+export function renderTrafficNode(node: dagre.Node) {
     return (
         <div style={{position: 'absolute', left: 0, top: node.y, width: node.width, height: node.height}}>
-            <div className='application-resource-tree__node-kind-icon' style={{fontSize: '2em'}}>
+            <div className='application-resource-tree__node-kind-icon application-resource-tree__node-kind-icon--traffic'>
                 <i className='icon fa fa-cloud' />
             </div>
         </div>
