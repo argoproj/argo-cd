@@ -1,0 +1,52 @@
+import {act, renderHook} from '@testing-library/react';
+
+import {AppsListPreferences, services} from '../services';
+import {useViewPreferences} from './use-view-preferences';
+
+jest.mock('../services', () => {
+    const actual = jest.requireActual('../services/view-preferences-service');
+    return {...actual, services: {viewPreferences: new actual.ViewPreferencesService()}};
+});
+
+beforeAll(() => services.viewPreferences.init());
+
+const renderCounting = <T>(read: () => T) => {
+    let renders = 0;
+    const hook = renderHook(() => {
+        renders++;
+        return read();
+    });
+    return {result: hook.result, renders: () => renders};
+};
+
+test('returns all preferences and re-renders on any change', () => {
+    const {result, renders} = renderCounting(() => useViewPreferences());
+
+    act(() => services.viewPreferences.updatePreferences({theme: 'dark'}));
+
+    expect(result.current.theme).toBe('dark');
+    expect(renders()).toBe(2);
+});
+
+test('with a selector, re-renders only when the selected section changes', () => {
+    const {result, renders} = renderCounting(() => useViewPreferences(pref => pref.appList));
+
+    act(() => services.viewPreferences.updatePreferences({theme: 'light'}));
+    expect(renders()).toBe(1);
+
+    act(() => services.viewPreferences.updatePreferences({appList: {...result.current, search: 'guestbook'}}));
+    expect(result.current.search).toBe('guestbook');
+    expect(renders()).toBe(2);
+});
+
+test('with a selector, re-renders when a section changed in place is passed back', () => {
+    const {result, renders} = renderCounting(() => useViewPreferences(pref => pref.appList));
+    const before = result.current;
+
+    // clearFilters changes the section it is given, as the list pages' "clear filters" links do.
+    AppsListPreferences.clearFilters(before);
+    act(() => services.viewPreferences.updatePreferences({appList: before}));
+
+    expect(renders()).toBe(2);
+    expect(result.current).not.toBe(before);
+});
