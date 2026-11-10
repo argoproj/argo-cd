@@ -2425,11 +2425,11 @@ func TestValidateSyncPermissions(t *testing.T) {
 }
 
 // Regression for #30914: when a newly queued operation starts processing, the
-// in-memory app.Status.OperationState still holds the PREVIOUS operation
-// (setOperationState only patches the API server). The window check must use
-// the operation being processed, not the stale previous one — otherwise an
-// automated sync runs through a deny window whenever the previous operation
-// was a manual sync.
+// in-memory app.Status.OperationState still holds the previous operation
+// (setOperationState only patches the API server). The window check must read
+// the initiator from the operation being processed: with these windows an
+// automated sync is denied, while a previous manual operation made the stale
+// check allow it through the deny window.
 func TestSyncWindowPreventsSyncUsesCurrentOperation(t *testing.T) {
 	project := &v1alpha1.AppProject{
 		Spec: v1alpha1.AppProjectSpec{
