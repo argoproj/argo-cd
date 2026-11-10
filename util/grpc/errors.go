@@ -3,6 +3,7 @@ package grpc
 import (
 	"context"
 	"errors"
+	"strings"
 
 	giterr "github.com/go-git/go-git/v5/plumbing/transport"
 	"google.golang.org/grpc"
@@ -24,7 +25,7 @@ func gitErrToGRPC(err error) error {
 		errMsg = grpcStatus.Message()
 	}
 
-	if errors.Is(err, giterr.ErrRepositoryNotFound) || errMsg == giterr.ErrRepositoryNotFound.Error() {
+	if strings.Contains(errMsg, giterr.ErrRepositoryNotFound.Error()) {
 		err = rewrapError(errors.New("repository not found. If the repository exists, verify that the provided credentials have access to it"), codes.NotFound)
 	}
 	return err

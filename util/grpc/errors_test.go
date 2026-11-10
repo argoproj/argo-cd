@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"testing"
 
-	giterr "github.com/go-git/go-git/v5/plumbing/transport"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
@@ -39,8 +38,11 @@ func Test_gitErrToGRPC(t *testing.T) {
 	assert.Equal(t, codes.NotFound, se1.GRPCStatus().Code())
 	assert.Equal(t, "repository not found. If the repository exists, verify that the provided credentials have access to it", se1.GRPCStatus().Message())
 
-	wrappedNotFound := gitErrToGRPC(fmt.Errorf("failed to list refs: %w", giterr.ErrRepositoryNotFound))
-	se2, ok := wrappedNotFound.(interface{ GRPCStatus() *status.Status })
+	// Simulate the real RPC path: git errors reach the API server interceptor as
+	// gRPC status strings so the original error chain is lost. The message may
+	// contain wrapping text from the repo server (e.g. "failed to list refs: …").
+	rpcWrappedNotFound := gitErrToGRPC(status.Error(codes.Unknown, "failed to list refs: repository not found"))
+	se2, ok := rpcWrappedNotFound.(interface{ GRPCStatus() *status.Status })
 	assert.True(t, ok)
 	assert.Equal(t, codes.NotFound, se2.GRPCStatus().Code())
 	assert.Equal(t, "repository not found. If the repository exists, verify that the provided credentials have access to it", se2.GRPCStatus().Message())
