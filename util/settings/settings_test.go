@@ -1732,66 +1732,83 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 
 func TestGitLabWebhookSigningSecret(t *testing.T) {
 	t.Run("resolves signing secret from webhook.gitlab.signing.secret", func(t *testing.T) {
-		cm := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
 				Name:      common.ArgoCDConfigMapName,
 				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
 			},
-		}
-		argocdSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+			&corev1.Secret{
 				Name:      common.ArgoCDSecretName,
 				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+				Data: map[string][]byte{
+					"server.secretkey":              nil,
+					"webhook.gitlab.signing.secret": []byte("whsec_12345"),
+				},
 			},
-			Data: map[string][]byte{
-				"webhook.gitlab.signing.secret": []byte("whsec_12345"),
-			},
-		}
-		settingsManager := NewSettingsManager(t.Context(), fake.NewClientset(cm, argocdSecret), "default")
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, "whsec_12345", settings.GetWebhookGitLabSigningSecret())
 	})
 
 	t.Run("falls back to webhook.gitlab.secret when starting with whsec_", func(t *testing.T) {
-		cm := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
 				Name:      common.ArgoCDConfigMapName,
 				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
 			},
-		}
-		argocdSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+			&corev1.Secret{
 				Name:      common.ArgoCDSecretName,
 				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+				Data: map[string][]byte{
+					"server.secretkey":      nil,
+					"webhook.gitlab.secret": []byte("whsec_fallback"),
+				},
 			},
-			Data: map[string][]byte{
-				"webhook.gitlab.secret": []byte("whsec_fallback"),
-			},
-		}
-		settingsManager := NewSettingsManager(t.Context(), fake.NewClientset(cm, argocdSecret), "default")
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, "whsec_fallback", settings.GetWebhookGitLabSigningSecret())
 	})
 
 	t.Run("custom timestamp tolerance from configmap", func(t *testing.T) {
-		cm := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
 				Name:      common.ArgoCDConfigMapName,
 				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+				Data: map[string]string{
+					"webhook.gitlab.timestamp.tolerance": "10m",
+				},
 			},
-			Data: map[string]string{
-				"webhook.gitlab.timestamp.tolerance": "10m",
-			},
-		}
-		argocdSecret := &corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
+			&corev1.Secret{
 				Name:      common.ArgoCDSecretName,
 				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+				},
 			},
-		}
-		settingsManager := NewSettingsManager(t.Context(), fake.NewClientset(cm, argocdSecret), "default")
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
 		settings, err := settingsManager.GetSettings()
 		require.NoError(t, err)
 		assert.Equal(t, 10*time.Minute, settings.GetWebhookGitLabTimestampTolerance())

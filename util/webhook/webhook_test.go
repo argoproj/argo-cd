@@ -447,8 +447,7 @@ func TestGitLabSignedWebhookPushEvent(t *testing.T) {
 	require.NoError(t, err)
 
 	now := strconv.FormatInt(time.Now().Unix(), 10)
-	key, err := parseSigningSecret(signingSecret)
-	require.NoError(t, err)
+	key := parseSigningSecret(signingSecret)
 	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte("msg_test"))
 	mac.Write([]byte("."))

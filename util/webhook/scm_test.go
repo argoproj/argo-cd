@@ -235,8 +235,7 @@ func TestGitLabWebhookAuthentication(t *testing.T) {
 	require.NoError(t, err)
 
 	signRequest := func(signingSecret, msgID, msgTimestamp string, body []byte) string {
-		key, err := parseSigningSecret(signingSecret)
-		require.NoError(t, err)
+		key := parseSigningSecret(signingSecret)
 		mac := hmac.New(sha256.New, key)
 		mac.Write([]byte(msgID))
 		mac.Write([]byte("."))

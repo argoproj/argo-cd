@@ -316,15 +316,14 @@ func (p *gitlabParser) Parse(r *http.Request) (any, error) {
 			// If signing secret is enabled and signature header is missing, check if legacy secret can authenticate.
 			// Only allow fallback to legacy secret if it is configured and does not start with whsec_.
 			hasLegacySecret := p.secret != "" && !strings.HasPrefix(p.secret, "whsec_")
-			if hasLegacySecret {
-				token := r.Header.Get("X-Gitlab-Token")
-				if subtle.ConstantTimeCompare([]byte(token), []byte(p.secret)) != 1 {
-					log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
-					return nil, gitlab.ErrGitLabTokenVerificationFailed
-				}
-			} else {
+			if !hasLegacySecret {
 				log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab signed webhook verification failed: %v", ErrMissingSignatureHeader)
 				return nil, ErrMissingSignatureHeader
+			}
+			token := r.Header.Get("X-Gitlab-Token")
+			if subtle.ConstantTimeCompare([]byte(token), []byte(p.secret)) != 1 {
+				log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
+				return nil, gitlab.ErrGitLabTokenVerificationFailed
 			}
 		}
 	} else if p.secret != "" {
@@ -369,10 +368,7 @@ func (p *gitlabParser) verifySignature(h http.Header, body []byte) error {
 		return ErrStaleWebhookTimestamp
 	}
 
-	key, err := parseSigningSecret(p.signingSecret)
-	if err != nil {
-		return fmt.Errorf("failed to parse signing secret: %w", err)
-	}
+	key := parseSigningSecret(p.signingSecret)
 
 	mac := hmac.New(sha256.New, key)
 	mac.Write([]byte(msgID))
@@ -382,8 +378,7 @@ func (p *gitlabParser) verifySignature(h http.Header, body []byte) error {
 	mac.Write(body)
 	expectedMAC := mac.Sum(nil)
 
-	signatures := strings.Fields(sigHeader)
-	for _, sig := range signatures {
+	for sig := range strings.FieldsSeq(sigHeader) {
 		parts := strings.SplitN(sig, ",", 2)
 		if len(parts) == 2 && parts[0] == "v1" {
 			sigBytes, err := base64.StdEncoding.DecodeString(parts[1])
@@ -399,16 +394,15 @@ func (p *gitlabParser) verifySignature(h http.Header, body []byte) error {
 	return ErrSignedWebhookVerificationFailed
 }
 
-func parseSigningSecret(secret string) ([]byte, error) {
+func parseSigningSecret(secret string) []byte {
 	trimmed := strings.TrimPrefix(secret, "whsec_")
-	key, err := base64.StdEncoding.DecodeString(trimmed)
-	if err != nil {
-		if urlKey, urlErr := base64.URLEncoding.DecodeString(trimmed); urlErr == nil {
-			return urlKey, nil
-		}
-		return []byte(trimmed), nil
+	if key, err := base64.StdEncoding.DecodeString(trimmed); err == nil {
+		return key
 	}
-	return key, nil
+	if urlKey, err := base64.URLEncoding.DecodeString(trimmed); err == nil {
+		return urlKey
+	}
+	return []byte(trimmed)
 }
 
 func getHeader(h http.Header, keys ...string) string {
