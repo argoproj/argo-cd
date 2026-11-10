@@ -326,6 +326,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
       bitbucket:
@@ -340,14 +342,26 @@ spec:
             secretName: bitbucket-bearer-token
             key: token
   template:
-  # ...
+    metadata:
+      name: '{{ .repository }}-{{ .branchNormalized }}'
+    spec:
+      source:
+        repoURL: '{{ .url }}'
+        targetRevision: '{{ .branch }}'
+        path: kubernetes/
+      project: default
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
 ```
 
 * `owner`: The workspace ID (slug) to use when looking up repositories.
 * `allBranches`: By default (false) the template will only be evaluated for the main branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
-* `user`: The user to use for authentication. Required when using `appPasswordRef`.
+* `user`: The user to use for authentication. Required when using `appPasswordRef`; must not be set with `bearerToken`.
 * `appPasswordRef`: A `Secret` name and key containing the Bitbucket app password to use for requests.
 * `bearerToken.tokenRef`: A `Secret` name and key containing the bearer token (workspace access token or OAuth consumer token) to use for requests. Use this instead of `appPasswordRef` for service principals — app passwords require a user account with workspace membership, while bearer tokens work for tokens scoped directly to the workspace.
+
+Argo CD does not renew bearer tokens. Workspace access tokens can have an expiry date, and OAuth consumer client-credential access tokens expire shortly after they are issued; Bitbucket then returns `401` until the Secret holds a valid token. The generator reads the Secret on every reconcile, so rotate the token in the Secret before it expires.
 
 This SCM provider does not yet support label filtering.
 
