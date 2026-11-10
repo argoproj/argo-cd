@@ -34,6 +34,34 @@
   display: none;
 }
 
+/* Linked anchors (#30885): keep the target below everything pinned to the
+   top of the viewport. --argocd-sticky-height is the header height by
+   default; versions.js raises it when it shows the version banner. */
+:root {
+  --argocd-sticky-height: 2.4rem;
+}
+html {
+  scroll-padding-top: calc(var(--argocd-sticky-height) + 1rem);
+}
+/* mkdocs-material 7 offsets anchors by a fixed header height, which ignores
+   the banner. Drop those offsets so scroll-padding-top is the only one. */
+.md-typeset :target {
+  scroll-margin-top: 0;
+}
+.md-typeset h1:target::before,
+.md-typeset h2:target::before,
+.md-typeset h3:target::before,
+.md-typeset h4:target::before,
+.md-typeset h5:target::before,
+.md-typeset h6:target::before {
+  content: none;
+}
+.md-typeset [id^="fnref:"]:target,
+.md-typeset [id^="fn:"]:target {
+  margin-top: 0;
+  padding-top: 0;
+}
+
 /* Version Warning */
 div[data-md-component=announce] {
   background-color: rgb(248, 243, 236);
