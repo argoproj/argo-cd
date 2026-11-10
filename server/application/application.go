@@ -1489,16 +1489,26 @@ func (s *Server) getApplicationClusterConfig(ctx context.Context, a *v1alpha1.Ap
 	return config, nil
 }
 
+type appStateRefreshBlockedError string
+
+func (e appStateRefreshBlockedError) Error() string {
+	return string(e)
+}
+
+func getAppStateRefreshBlockingConditions(a *v1alpha1.Application) []v1alpha1.ApplicationCondition {
+	return a.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
+		v1alpha1.ApplicationConditionComparisonError:  true,
+		v1alpha1.ApplicationConditionInvalidSpecError: true,
+	})
+}
+
 // getCachedAppState loads the cached state and trigger app refresh if cache is missing
 func (s *Server) getCachedAppState(ctx context.Context, a *v1alpha1.Application, getFromCache func() error) error {
 	err := getFromCache()
 	if err != nil && errors.Is(err, servercache.ErrCacheMiss) {
-		conditions := a.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
-			v1alpha1.ApplicationConditionComparisonError:  true,
-			v1alpha1.ApplicationConditionInvalidSpecError: true,
-		})
+		conditions := getAppStateRefreshBlockingConditions(a)
 		if len(conditions) > 0 {
-			return errors.New(argo.FormatAppConditions(conditions))
+			return appStateRefreshBlockedError(argo.FormatAppConditions(conditions))
 		}
 		_, err = s.Get(ctx, &application.ApplicationQuery{
 			Name:         new(a.GetName()),
@@ -1547,11 +1557,39 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 
 	tree, err := s.getAppResources(ctx, a)
 	if err != nil {
-		return nil, nil, nil, fmt.Errorf("error getting app resources: %w", err)
+		if action != rbac.ActionGet {
+			return nil, nil, nil, fmt.Errorf("error getting app resources: %w", err)
+		}
+		if _, ok := errors.AsType[appStateRefreshBlockedError](err); !ok {
+			return nil, nil, nil, fmt.Errorf("error getting app resources: %w", err)
+		}
 	}
 
 	found := tree.FindNode(q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
-	if found == nil || found.UID == "" {
+	if found != nil && found.UID == "" {
+		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.GetKind(), q.GetGroup(), q.GetResourceName(), q.GetName())
+	}
+
+	canFallbackToStatus := action == rbac.ActionGet &&
+		(err != nil ||
+			(len(tree.Nodes) == 0 &&
+				len(tree.OrphanedNodes) == 0 &&
+				len(getAppStateRefreshBlockingConditions(a)) > 0))
+
+	if found == nil && canFallbackToStatus {
+		key := kube.NewResourceKey(q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
+		if res, ok := a.Status.FindResource(key); ok {
+			found = &v1alpha1.ResourceNode{
+				Group:     res.Group,
+				Version:   res.Version,
+				Kind:      res.Kind,
+				Namespace: res.Namespace,
+				Name:      res.Name,
+			}
+		}
+	}
+
+	if found == nil {
 		return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.GetKind(), q.GetGroup(), q.GetResourceName(), q.GetName())
 	}
 	config, err := s.getApplicationClusterConfig(ctx, a, p)
