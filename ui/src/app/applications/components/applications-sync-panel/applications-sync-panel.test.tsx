@@ -1,4 +1,5 @@
 import * as React from 'react';
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import {Provider} from '../../../shared/context';
 import * as models from '../../../shared/models';
@@ -48,10 +49,14 @@ const ctx = {
 } as any;
 
 const renderPanel = (apps: models.Application[]) => {
+    // The sync options load the server settings through react-query.
+    const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
     const ui = (list: models.Application[]) => (
-        <Provider value={ctx}>
-            <ApplicationsSyncPanel show={true} apps={list} hide={jest.fn()} />
-        </Provider>
+        <QueryClientProvider client={client}>
+            <Provider value={ctx}>
+                <ApplicationsSyncPanel show={true} apps={list} hide={jest.fn()} />
+            </Provider>
+        </QueryClientProvider>
     );
     const result = render(ui(apps));
     return {rerender: (list: models.Application[]) => result.rerender(ui(list))};
