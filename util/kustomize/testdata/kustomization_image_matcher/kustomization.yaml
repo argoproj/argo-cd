@@ -1,0 +1,13 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ./deployment.yaml
+images:
+  - name: my-image
+    newName: ghcr.io/my-org/my-image
+    newTag: main
+  - name: other-image
+    newName: quay.io/my-org/other-image
+    digest: sha256:24a0c4b4a4c0eb97a1aabb8e29f18e917d05abfe1b7a7c07857230879ce7d3d3
+  - name: mirrored
+    newName: mirror.example.com/mirrored
