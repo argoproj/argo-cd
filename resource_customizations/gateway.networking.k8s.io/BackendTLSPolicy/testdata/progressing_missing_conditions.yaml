@@ -1,0 +1,29 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: example-backendtlspolicy
+  namespace: default
+  generation: 1
+spec:
+  targetRefs:
+  - group: ''
+    kind: Service
+    name: example-service
+    namespace: default
+  validation:
+    caCertificateRefs:
+    - group: ''
+      kind: ConfigMap
+      name: example-ca
+    hostname: www.example.com
+status:
+  ancestors:
+  # An ancestor that has been recorded by a controller which has not yet
+  # written any conditions. The conditions field is absent entirely (not an
+  # empty list), exercising the nil guard so the health check stays
+  # Progressing instead of crashing on ipairs(nil).
+  - ancestorRef:
+      group: gateway.networking.k8s.io
+      kind: Gateway
+      name: example-gateway
+    controllerName: example.com/gatewayclass-controller
