@@ -75,6 +75,8 @@ status:
       revisions:
         - 38cfa22edf9148caabfecb288bfb47dc4352dfc6
         - 38cfa22edf9148caabfecb288bfb47dc4352dfc6
+```
+
 Quick fix for this is to use `index` function to get the first revision:
 ```yaml
 template.example: |
