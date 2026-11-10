@@ -440,6 +440,29 @@ func TestSCMProviderBitbucketCloudRequiresAuth(t *testing.T) {
 		assert.ErrorContains(t, err, "bitbucket scm provider bearerToken and appPasswordRef are mutually exclusive")
 	})
 
+	t.Run("bearerToken with user", func(t *testing.T) {
+		t.Parallel()
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			Name: "set",
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+					SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
+						Bitbucket: &argoprojiov1alpha1.SCMProviderGeneratorBitbucket{
+							Owner:       "myorg",
+							User:        "myuser",
+							BearerToken: &argoprojiov1alpha1.BearerTokenBitbucketCloud{TokenRef: &argoprojiov1alpha1.SecretRef{SecretName: "s", Key: "k"}},
+						},
+					},
+				}},
+			},
+		}
+
+		_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
+		require.Error(t, err)
+		assert.ErrorContains(t, err, "bitbucket scm provider user is only used with appPasswordRef")
+	})
+
 	t.Run("appPasswordRef without user", func(t *testing.T) {
 		t.Parallel()
 

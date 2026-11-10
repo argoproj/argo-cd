@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strings"
+	"net/http"
 
 	bitbucket "github.com/ktrysmt/go-bitbucket"
 )
@@ -101,8 +101,7 @@ func (g *BitBucketCloudProvider) RepoHasPath(_ context.Context, repo *Repository
 		Path:     path,
 	})
 	if err != nil {
-		var statusErr *bitbucket.UnexpectedResponseStatusError
-		if errors.As(err, &statusErr) && strings.HasPrefix(statusErr.Status, "404") {
+		if statusErr, ok := errors.AsType[*bitbucket.UnexpectedResponseStatusError](err); ok && statusErr.StatusCode == http.StatusNotFound {
 			return false, nil
 		}
 		return false, err

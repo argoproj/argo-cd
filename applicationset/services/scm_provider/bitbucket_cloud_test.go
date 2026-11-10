@@ -559,3 +559,41 @@ func TestBitbucketListRepos(t *testing.T) {
 		})
 	}
 }
+
+// With allBranches, every page of branches is read; before, only the first page was used.
+func TestBitbucketGetBranchesFollowsNextPage(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/repositories/test-owner/testmike/refs/branches" {
+			res.WriteHeader(http.StatusNotFound)
+			return
+		}
+		res.WriteHeader(http.StatusOK)
+		var body string
+		switch req.URL.Query().Get("page") {
+		case "1":
+			body = `{"pagelen":1,"page":1,"size":2,
+				"next":"https://api.bitbucket.org/2.0/repositories/test-owner/testmike/refs/branches?page=2",
+				"values":[{"name":"main","type":"branch","target":{"hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}]}`
+		case "2":
+			body = `{"pagelen":1,"page":2,"size":2,
+				"values":[{"name":"feature","type":"branch","target":{"hash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}]}`
+		default:
+			t.Errorf("unexpected page %q", req.URL.Query().Get("page"))
+		}
+		_, err := res.Write([]byte(body))
+		require.NoError(t, err)
+	}))
+	defer testServer.Close()
+
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	provider, err := NewBitBucketCloudProvider("test-owner", "user", "password", true)
+	require.NoError(t, err)
+
+	branches, err := provider.GetBranches(t.Context(), &Repository{Organization: "test-owner", Repository: "testmike", Branch: "main"})
+	require.NoError(t, err)
+	require.Len(t, branches, 2)
+	assert.Equal(t, "main", branches[0].Branch)
+	assert.Equal(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", branches[0].SHA)
+	assert.Equal(t, "feature", branches[1].Branch)
+	assert.Equal(t, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", branches[1].SHA)
+}
