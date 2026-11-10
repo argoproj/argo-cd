@@ -60,7 +60,7 @@ data:
   controller.repo.server.plaintext: "false"
   # Whether to use strict validation of the TLS cert presented by the repo server
   controller.repo.server.strict.tls: "false"
-  # Path to the CA certificate file for verifying the repo server's TLS certificate 
+  # Path to the CA certificate file for verifying the repo server's TLS certificate
   controller.repo.server.ca.cert.path: ""
   # Path to the client certificate file for mTLS connections to repo server
   controller.repo.server.client.cert.path: ""
@@ -300,7 +300,7 @@ data:
   # much as 300x the manifest file size. Limit this to stay within the memory limits of the repo-server while allowing
   # for 300x memory expansion and N Applications running at the same time.
   # (example 10M max * 300 expansion * 10 Apps = 30G max theoretical memory usage).
-  reposerver.max.combined.directory.manifests.size: '10M'
+  reposerver.max.combined.directory.manifests.size: "10M"
   # Paths to be excluded from the tarball streamed to plugins. Separate with ;
   reposerver.plugin.tar.exclusions: ""
   # Enable the repo server to use the 'argocd.argoproj.io/manifest-generate-paths' annotation to guide manifest generation.
@@ -337,6 +337,8 @@ data:
   reposerver.grpc.enable.txt.service.config: "false"
   # Enables profile endpoint on the internal metrics port
   reposerver.profile.enabled: "false"
+  # Enable the Argo CD tracking label/annotation to be applied to all Custom Resource Definitions managed by Argo CD.
+  reposerver.enable.tracking.on.crds: "false"
 
   ## Commit-server properties
   # Listen on given address for incoming connections (default "0.0.0.0")
