@@ -141,12 +141,6 @@ func (b *BitbucketCloudService) listBranchNames() (map[string]struct{}, error) {
 }
 
 func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) {
-	// Drain hints before the API call so they are consumed regardless of API outcome.
-	var hinted []*PullRequest
-	if b.hints != nil {
-		hinted = b.hints.Take(b.owner, b.repositorySlug)
-	}
-
 	// Fetch live branches once; PRs whose source branch is gone are skipped.
 	// Fail-open on listing error: a transient API failure should not block previews.
 	branches, err := b.listBranchNames()
@@ -217,7 +211,12 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 	}
 
 	// Merge hinted PRs not yet visible in the API (eventual-consistency lag).
+	// Taken only after the API call succeeds, so a failed List keeps them for the next reconcile.
 	// Apply the same branch filter so a stale hint for a deleted branch is dropped.
+	var hinted []*PullRequest
+	if b.hints != nil {
+		hinted = b.hints.Take(b.owner, b.repositorySlug)
+	}
 	if len(hinted) > 0 {
 		seen := make(map[int64]struct{}, len(pullRequests))
 		for _, pr := range pullRequests {
@@ -233,6 +232,7 @@ func (b *BitbucketCloudService) List(_ context.Context) ([]*PullRequest, error) 
 				}
 			}
 			pullRequests = append(pullRequests, pr)
+			seen[pr.Number] = struct{}{}
 		}
 	}
 

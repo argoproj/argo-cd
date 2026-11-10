@@ -77,3 +77,28 @@ func TestPRHintStoreConcurrentSet(t *testing.T) {
 		assert.True(t, seen[int64(i)], "missing PR number "+strconv.Itoa(i))
 	}
 }
+
+// A pullrequest:updated hint must replace the pullrequest:created hint for the same PR,
+// or List returns the PR twice.
+func TestPRHintStoreSetReplacesSamePR(t *testing.T) {
+	var s PRHintStore
+
+	s.Set("owner", "repo", []*PullRequest{{Number: 1, HeadSHA: "created"}})
+	s.Set("owner", "repo", []*PullRequest{{Number: 1, HeadSHA: "updated"}, {Number: 2}})
+
+	got := s.Take("owner", "repo")
+	require.Len(t, got, 2)
+	assert.Equal(t, int64(1), got[0].Number)
+	assert.Equal(t, "updated", got[0].HeadSHA)
+	assert.Equal(t, int64(2), got[1].Number)
+}
+
+func TestPRHintStoreKeyIsCaseInsensitive(t *testing.T) {
+	var s PRHintStore
+
+	s.Set("My-Org", "MyRepo", []*PullRequest{{Number: 1}})
+
+	got := s.Take("my-org", "myrepo")
+	require.Len(t, got, 1)
+	assert.Equal(t, int64(1), got[0].Number)
+}

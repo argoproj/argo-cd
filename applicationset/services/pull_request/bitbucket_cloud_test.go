@@ -544,3 +544,24 @@ func TestBitbucketCloudListReturnsRepositoryNotFoundError(t *testing.T) {
 	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
 }
+
+func TestBitbucketCloudListKeepsHintsWhenAPIFails(t *testing.T) {
+	t.Parallel()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer server.Close()
+
+	hints := &PRHintStore{}
+	hints.Set("owner", "repo", []*PullRequest{{Number: 7, Branch: "feature"}})
+
+	svc, err := NewBitbucketCloudServiceNoAuth(server.URL, "owner", "repo", hints)
+	require.NoError(t, err)
+
+	_, err = svc.List(t.Context())
+	require.Error(t, err)
+
+	kept := hints.Take("owner", "repo")
+	require.Len(t, kept, 1, "a failed List must leave the hints for the next reconcile")
+	assert.Equal(t, int64(7), kept[0].Number)
+}
