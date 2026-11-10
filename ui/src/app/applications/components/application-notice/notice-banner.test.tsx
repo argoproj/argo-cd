@@ -1,5 +1,5 @@
 import * as React from 'react';
-import {fireEvent, render, screen} from '@testing-library/react';
+import {act, fireEvent, render, screen} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import {services} from '../../../shared/services';
@@ -42,6 +42,15 @@ describe('NoticeBanner', () => {
     it('does not show a notice that was dismissed before', () => {
         services.viewPreferences.updatePreferences({dismissedNotices: {[dismissalKey('argocd', 'payments', content)]: true}});
         renderBanner({[NoticeAnnotationContent]: content});
+
+        expect(screen.queryByText(content)).not.toBeInTheDocument();
+    });
+
+    it('hides the notice when it is dismissed elsewhere, such as in another tab', () => {
+        renderBanner({[NoticeAnnotationContent]: content});
+        expect(screen.getByText(content)).toBeInTheDocument();
+
+        act(() => services.viewPreferences.updatePreferences({dismissedNotices: {[dismissalKey('argocd', 'payments', content)]: true}}));
 
         expect(screen.queryByText(content)).not.toBeInTheDocument();
     });
