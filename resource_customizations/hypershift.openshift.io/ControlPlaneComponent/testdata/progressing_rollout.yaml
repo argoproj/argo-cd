@@ -1,0 +1,21 @@
+apiVersion: hypershift.openshift.io/v1beta1
+kind: ControlPlaneComponent
+metadata:
+  name: kube-apiserver
+  namespace: clusters-example
+  generation: 1
+spec: {}
+status:
+  observedGeneration: 1
+  version: "4.17.0"
+  conditions:
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Component is available"
+    reason: AsExpected
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2024-01-01T00:00:00Z"
+    message: "Rollout in progress: waiting for pods to become ready"
+    reason: AsExpected
+    status: "False"
+    type: RolloutComplete
