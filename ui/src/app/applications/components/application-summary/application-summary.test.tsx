@@ -16,6 +16,15 @@ describe('ApplicationSummaryExternalURLs', () => {
         expect(link).toHaveAttribute('href', expected);
     });
 
+    it('preserves literal pipes and parentheses in ordinary URLs', () => {
+        const url = 'https://preview.example.com/a|b/(c)';
+
+        render(<ApplicationSummaryExternalURLs urls={[url]} />);
+
+        const link = screen.getByRole('link', {name: url});
+        expect(link).toHaveAttribute('href', url);
+    });
+
     it('continues to support titled external URLs', () => {
         const url = 'https://preview.example.com/123(/|$)(.*)';
 

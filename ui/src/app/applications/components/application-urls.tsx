@@ -2,8 +2,9 @@ import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
 import {isValidURL} from '../../shared/utils';
 
-// Ingress regex paths are not directly navigable. Keep the usable prefix before the first regex group.
-export const getExternalURL = (url: string): string => url.split('(')[0];
+// Convert the common NGINX Ingress regex suffix into a concrete request path.
+// Do not strip arbitrary parentheses: they may be part of a valid URL path.
+export const getExternalURL = (url: string): string => url.replace(/\(\/\|\$\)\(\.\*\)$/, '');
 
 export class InvalidExternalLinkError extends Error {
     constructor(message: string) {

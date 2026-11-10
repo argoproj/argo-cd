@@ -46,7 +46,14 @@ test('trims regex paths from URLs containing pipe characters', () => {
     expect(new ExternalLink(url)).toEqual({ref: expected, title: expected});
 });
 
-test('trims regex paths while preserving titled URL annotations', () => {
+test('preserves literal pipes and parentheses in ordinary URLs', () => {
+    const url = 'https://preview.example.com/a|b/(c)';
+    const link = new ExternalLink(url);
+    expect(link.ref).toEqual(url);
+    expect(link.title).toEqual(url);
+});
+
+test('trims the supported NGINX Ingress regex suffix while preserving titled URL annotations', () => {
     const url = 'https://preview.example.com/123(/|$)(.*)';
     const link = new ExternalLink('Preview|' + url);
     expect(link.ref).toEqual('https://preview.example.com/123');
