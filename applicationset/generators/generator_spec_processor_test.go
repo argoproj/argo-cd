@@ -140,6 +140,26 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 			},
 			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": []any{"bar"}}},
 		},
+		{
+			name:     "numeric parameter >= 1e6 matches selector with real digits",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","buildId":1762000000}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"buildId": "1762000000",
+				},
+			},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "buildId": float64(1762000000)}},
+		},
+		{
+			name:     "numeric parameter < 1e-4 matches selector with real digits",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","ratio":0.00001}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"ratio": "0.00001",
+				},
+			},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "ratio": 0.00001}},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -931,6 +951,79 @@ func TestInterpolateGeneratorValuesHandling(t *testing.T) {
 			assert.Equal(t, tt.want.Git.Files, got.Git.Files)
 			assert.Equal(t, tt.want.Git.Directories, got.Git.Directories)
 			assert.Equal(t, tt.want.Git.Template, got.Git.Template)
+		})
+	}
+}
+
+func TestFlattenParameters(t *testing.T) {
+	testCases := []struct {
+		name     string
+		in       map[string]any
+		expected map[string]string
+	}{
+		{
+			name: "plain float64 values formatted without scientific notation",
+			in: map[string]any{
+				"small":     float64(42),
+				"hundred_k": float64(100000),
+				"million":   float64(1000000),
+				"epoch":     float64(1762000000),
+				"fraction":  float64(0.00001),
+				"decimal":   float64(123.456),
+			},
+			expected: map[string]string{
+				"small":     "42",
+				"hundred_k": "100000",
+				"million":   "1000000",
+				"epoch":     "1762000000",
+				"fraction":  "0.00001",
+				"decimal":   "123.456",
+			},
+		},
+		{
+			name: "float32 values formatted without scientific notation",
+			in: map[string]any{
+				"million":  float32(1000000),
+				"fraction": float32(0.00001),
+			},
+			expected: map[string]string{
+				"million":  "1000000",
+				"fraction": "0.00001",
+			},
+		},
+		{
+			name: "integers, strings, booleans unaffected",
+			in: map[string]any{
+				"int":    1762000000,
+				"int64":  int64(1762000000),
+				"str":    "hello",
+				"bool":   true,
+			},
+			expected: map[string]string{
+				"int":   "1762000000",
+				"int64": "1762000000",
+				"str":   "hello",
+				"bool":  "true",
+			},
+		},
+		{
+			name: "nested numeric params flattened correctly",
+			in: map[string]any{
+				"metrics": map[string]any{
+					"buildId": float64(1762000000),
+				},
+			},
+			expected: map[string]string{
+				"metrics.buildId": "1762000000",
+			},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			out, err := flattenParameters(tc.in)
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, out)
 		})
 	}
 }

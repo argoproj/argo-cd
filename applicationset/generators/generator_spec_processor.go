@@ -3,6 +3,7 @@ package generators
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/jeremywohl/flatten"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -131,7 +132,14 @@ func flattenParameters(in map[string]any) (map[string]string, error) {
 
 	out := make(map[string]string, len(flat))
 	for k, v := range flat {
-		out[k] = fmt.Sprintf("%v", v)
+		switch val := v.(type) {
+		case float64:
+			out[k] = strconv.FormatFloat(val, 'f', -1, 64)
+		case float32:
+			out[k] = strconv.FormatFloat(float64(val), 'f', -1, 32)
+		default:
+			out[k] = fmt.Sprintf("%v", v)
+		}
 	}
 
 	return out, nil
