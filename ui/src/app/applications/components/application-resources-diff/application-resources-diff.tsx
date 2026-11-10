@@ -34,7 +34,7 @@ export const ApplicationResourcesDiff = (props: ApplicationResourcesDiffProps) =
             // react-diff-view, awesome as it is, does not accept unidiff format, you must add a git header section
             return `diff --git a/${i.name} b/${i.name}
 index 6829b8a2..4c565f1b 100644
-${formatLines(diffLines(i.a, i.b), {context, aname: `a/${name}}`, bname: `b/${i.name}`})}`;
+${formatLines(diffLines(i.a, i.b), {context, aname: `a/${i.name}`, bname: `b/${i.name}`})}`;
         })
         .join('\n');
     // assume that if you only have one file, we don't need the file path
