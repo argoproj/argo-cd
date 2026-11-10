@@ -10,6 +10,9 @@ jest.mock('../services', () => {
 
 beforeAll(() => services.viewPreferences.init());
 
+// The service keeps its state across tests; start each from the same theme and sidebar.
+beforeEach(() => services.viewPreferences.updatePreferences({theme: 'light', hideSidebar: false}));
+
 const renderCounting = <T>(read: () => T) => {
     let renders = 0;
     const hook = renderHook(() => {
@@ -31,7 +34,7 @@ test('returns all preferences and re-renders on any change', () => {
 test('with a selector, re-renders only when the selected section changes', () => {
     const {result, renders} = renderCounting(() => useViewPreferences(pref => pref.appList));
 
-    act(() => services.viewPreferences.updatePreferences({theme: 'light'}));
+    act(() => services.viewPreferences.updatePreferences({theme: 'dark'}));
     expect(renders()).toBe(1);
 
     act(() => services.viewPreferences.updatePreferences({appList: {...result.current, search: 'guestbook'}}));

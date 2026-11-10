@@ -145,6 +145,7 @@ test('re-renders the list for its own preferences only', async () => {
     const settled = tableRenders;
 
     act(() => services.viewPreferences.updatePreferences({theme: 'dark'}));
+    act(() => services.viewPreferences.updatePreferences({hideSidebar: true}));
     expect(tableRenders).toBe(settled);
 
     act(() => services.viewPreferences.updatePreferences({resourcesList: {...services.viewPreferences.getCurrentPreferences().resourcesList, statusBarView: {showHealthStatusBar: false}}}));
@@ -153,6 +154,7 @@ test('re-renders the list for its own preferences only', async () => {
 
 test('clear filters resets the stored filters and the URL', async () => {
     const history: MemoryHistory = renderAt('/resources?kind=ConfigMap');
+    expect(await screen.findByTestId('filter')).toHaveTextContent('kinds=ConfigMap');
     fireEvent.click(await screen.findByText('clear filters'));
 
     await waitFor(() => expect(screen.getByText('Deployment/a-deploy')).toBeInTheDocument());

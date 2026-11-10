@@ -80,6 +80,9 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
     );
 }
 
+// Reads the sidebar flag itself, so toggling the sidebar re-renders only the filter.
+const SidebarFilter = (props: React.ComponentProps<typeof ResourcesFilter>) => <ResourcesFilter {...props} collapsed={useViewPreferences(pref => pref.hideSidebar)} />;
+
 const ViewPref = ({
     children
 }: {
@@ -238,7 +241,6 @@ const ResourcesViewTypeSwitcher: React.FC<{pref: ResourcesListPreferences & {pag
 
 export const ResourcesList = (props: RouteComponentProps<{}>) => {
     const query = new URLSearchParams(props.location.search);
-    const hideSidebar = useViewPreferences(pref => pref.hideSidebar);
     const queryClient = useQueryClient();
     const clusters = React.useMemo(() => {
         const list = queryClient.fetchQuery(clusterQueries.list());
@@ -334,12 +336,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                         ) : (
                                                             <>
                                                                 {ReactDOM.createPortal(
-                                                                    <ResourcesFilter
-                                                                        apps={filterResults}
-                                                                        onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
-                                                                        pref={pref}
-                                                                        collapsed={hideSidebar}
-                                                                    />,
+                                                                    <SidebarFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} />,
                                                                     sidebarTarget?.current
                                                                 )}
                                                                 {(pref.view === ResourcesListViewKey.Summary && <ResourcesSummary resources={filteredResources} />) || (
@@ -363,8 +360,10 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                                             Change filter criteria or&nbsp;
                                                                                             <a
                                                                                                 onClick={() => {
-                                                                                                    ResourcesListPreferences.clearFilters(pref);
-                                                                                                    onFilterPrefChanged(ctx, pref);
+                                                                                                    // On a copy: pref is memoized and shared with this render's children.
+                                                                                                    const cleared = {...pref};
+                                                                                                    ResourcesListPreferences.clearFilters(cleared);
+                                                                                                    onFilterPrefChanged(ctx, cleared);
                                                                                                 }}>
                                                                                                 clear filters
                                                                                             </a>

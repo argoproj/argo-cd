@@ -14,7 +14,7 @@ import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarP
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
-import {ApplicationsFilter} from './applications-filter';
+import {AppFilterProps, ApplicationsFilter} from './applications-filter';
 import {AppsListPaginate, useApplicationsList} from './applications-list-client';
 import {AppsListSourceQuery, AppsListSourceResult} from './applications-list-source';
 import {AppsStatusBar} from './applications-status-bar';
@@ -40,6 +40,9 @@ const ApplicationsSummary = lazyWithBoundary(
     React.lazy(() => import(/* webpackChunkName: "apps-summary" */ './applications-summary').then(m => ({default: m.ApplicationsSummary}))),
     'Failed to load applications summary. Please reload and try again.'
 );
+
+// Reads the sidebar flag itself, so toggling the sidebar re-renders only the filter.
+const SidebarFilter = (props: AppFilterProps) => <ApplicationsFilter {...props} collapsed={useViewPreferences(pref => pref.hideSidebar)} />;
 
 const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
     const appList = useViewPreferences(pref => pref.appList);
@@ -246,7 +249,6 @@ const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, 
 
 export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const query = useSearchParams();
-    const hideSidebar = useViewPreferences(pref => pref.hideSidebar);
     const observableQuery$ = useObservableQuery();
     const appInput = tryJsonParse(query.get('new'));
     const syncAppsInput = tryJsonParse(query.get('syncApps'));
@@ -396,11 +398,10 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                         ) : (
                                                             <>
                                                                 {ReactDOM.createPortal(
-                                                                    <ApplicationsFilter
+                                                                    <SidebarFilter
                                                                         facets={facets}
                                                                         onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
                                                                         pref={pref}
-                                                                        collapsed={hideSidebar}
                                                                         hydratorEnabled={authSettings?.hydratorEnabled}
                                                                     />,
                                                                     sidebarTarget?.current
@@ -420,8 +421,10 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     Change filter criteria or&nbsp;
                                                                                     <a
                                                                                         onClick={() => {
-                                                                                            AppsListPreferences.clearFilters(pref);
-                                                                                            onAppFilterPrefChanged(ctx, pref);
+                                                                                            // On a copy: pref is memoized and shared with this render's children.
+                                                                                            const cleared = {...pref};
+                                                                                            AppsListPreferences.clearFilters(cleared);
+                                                                                            onAppFilterPrefChanged(ctx, cleared);
                                                                                         }}>
                                                                                         clear filters
                                                                                     </a>
