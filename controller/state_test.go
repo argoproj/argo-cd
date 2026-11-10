@@ -1757,6 +1757,7 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	})
 }
 
+// TestUseDiffCache checks when CompareAppState may reuse the cached diff instead of re-diffing every resource.
 func TestUseDiffCache(t *testing.T) {
 	t.Parallel()
 	type fixture struct {
@@ -2164,7 +2165,7 @@ func TestTargetsMatchCachedDiff(t *testing.T) {
 	assert.False(t, targetsMatchCachedDiff(secretCache, []*unstructured.Unstructured{secret}, []*unstructured.Unstructured{secret}))
 }
 
-// TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged checks that CompareAppState keeps the diff cache across a revision change only when the manifest-generate-paths, the targets and the live resourceVersions are unchanged.
+// TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged checks that CompareAppState keeps the diff cache across a revision change only with server-side diff, and only when the manifest-generate-paths, the targets and the live resourceVersions are unchanged.
 func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *testing.T) {
 	t.Parallel()
 	newCM := func(value string) *unstructured.Unstructured {
