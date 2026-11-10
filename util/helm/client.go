@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
-	"crypto/x509"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +31,7 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+	tlsutil "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 var (
@@ -439,7 +439,10 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 		if err != nil {
 			return nil, fmt.Errorf("error reading CA file %s: %w", creds.GetCAPath(), err)
 		}
-		caCertPool := x509.NewCertPool()
+		// The repository CA is added to the system trust store rather than replacing it. A
+		// repository may redirect downloads to a host it does not control (for example a
+		// pre-signed S3 URL), which is signed by a publicly trusted CA.
+		caCertPool := tlsutil.BestEffortSystemCertPool()
 		caCertPool.AppendCertsFromPEM(caData)
 		tlsConfig.RootCAs = caCertPool
 	}
