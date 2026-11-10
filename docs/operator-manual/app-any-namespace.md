@@ -73,6 +73,8 @@ kubectl apply -k examples/k8s-rbac/argocd-server-applications/
 
 `argocd-notifications-controller-rbac-clusterrole.yaml` and `argocd-notifications-controller-rbac-clusterrolebinding.yaml` are used to support notifications controller to notify apps in all namespaces.
 
+If you have restricted the default cluster-wide permissions of the `argocd-application-controller`, it also needs cluster-wide permissions on `Application` resources, since it watches them in all namespaces once application namespaces are configured. Otherwise it cannot reconcile them. `argocd-application-controller-rbac-clusterrole.yaml` and `argocd-application-controller-rbac-clusterrolebinding.yaml` grant `get`, `list`, `watch` and `patch` on `Application` resources, plus permission to create `events`. They are included in the `kustomization.yaml` above, so applying the directory as-is grants them as well. As with the server binding, adjust the `namespace` in the binding if Argo CD is installed in a namespace other than `argocd`.
+
 > [!NOTE]
 > At some later point in time, we may make this cluster role part of the default installation manifests.
 
