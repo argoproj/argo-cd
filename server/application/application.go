@@ -730,6 +730,11 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			return fmt.Errorf("error getting kustomize settings: %w", err)
 		}
 
+		installationID, err := s.settingsMgr.GetInstallationID()
+		if err != nil {
+			return fmt.Errorf("error getting installation ID: %w", err)
+		}
+
 		req := &apiclient.ManifestRequest{
 			Repo:                            repo,
 			Revision:                        source.TargetRevision,
@@ -744,6 +749,7 @@ func (s *Server) GetManifestsWithFiles(stream application.ApplicationService_Get
 			HelmRepoCreds:                   helmCreds,
 			HelmOptions:                     helmOptions,
 			TrackingMethod:                  trackingMethod,
+			InstallationID:                  installationID,
 			EnabledSourceTypes:              enableGenerateManifests,
 			ProjectName:                     proj.Name,
 			ProjectSourceRepos:              proj.Spec.SourceRepos,

@@ -199,6 +199,7 @@ func getLocalObjectsString(
 		KubeVersion:                     clusterInfo.ServerVersion,
 		ApiVersions:                     clusterInfo.APIVersions,
 		TrackingMethod:                  argoSettings.TrackingMethod,
+		InstallationID:                  argoSettings.GetInstallationID(),
 		ProjectName:                     proj.Name,
 		ProjectSourceRepos:              proj.Spec.SourceRepos,
 		AnnotationManifestGeneratePaths: app.GetAnnotation(argoappv1.AnnotationKeyManifestGeneratePaths),
