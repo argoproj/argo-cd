@@ -29,11 +29,8 @@ render service-specific fields.
 > [!NOTE]
 > Since Argo CD 3.0, the health of each resource is not stored in the Application by default, so
 > `.app.status.resources[].health` is empty in templates and renders as `<no value>`. The health of the Application itself,
-> `.app.status.health`, is still available. To use the health of each resource in templates, set
-> `controller.resource.health.persist` to `"true"` in the `argocd-cmd-params-cm` ConfigMap and restart
-> the application controller. This stores the health in the Application again, which increases the
-> number of updates to the Application and the load on the application controller. See
-> [Health status in the Application CR](../upgrading/2.14-3.0.md#health-status-in-the-application-cr).
+> `.app.status.health`, is still available. To use resource health in templates, individual resource health persistence must be enabled
+> on the application controller. See [Health status in the Application CR](../upgrading/2.14-3.0.md#health-status-in-the-application-cr).
 
 ## Defining user-defined `context`
 
