@@ -119,7 +119,7 @@ func verifyWithGuard(verify gitFunc) gitFunc {
 		revType, err := gitClient.GetRevisionType(ctx, revision)
 		if err != nil {
 			log.Error(err.Error())
-			return reject(fmt.Sprintf("cannot verify revision %s", revision))
+			return reject("cannot verify revision " + revision)
 		}
 
 		if revType == "tag" {
