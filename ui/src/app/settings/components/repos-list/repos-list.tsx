@@ -9,7 +9,6 @@ import {
     ActionMenu,
     CheckboxField,
     ConnectionStateIcon,
-    DataLoader,
     EmptyState,
     ErrorNotification,
     IconColumn,
@@ -28,6 +27,7 @@ import {loadFailed, loading} from '../../../shared/query-client';
 import {RepoDetails} from '../repo-details/repo-details';
 import {useSearchParams} from '../../../shared/hooks/query';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
+import {useViewPreferences} from '../../../shared/hooks/use-view-preferences';
 import {FlexTopBar} from '../../../shared/components';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {
@@ -313,6 +313,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
     });
     const [page, setPage] = React.useState(0);
     const sidebarTarget = useSidebarTarget();
+    const viewPref = useViewPreferences();
 
     const ctx = React.useContext(Context);
 
@@ -823,9 +824,7 @@ export const ReposList = ({match, location}: RouteComponentProps) => {
                     ) : (
                         <>
                             {ReactDOM.createPortal(
-                                <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                    {allpref => <ReposFilter repos={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={allpref.hideSidebar} />}
-                                </DataLoader>,
+                                <ReposFilter repos={filterResults} pref={filterPref} onChange={onFilterChange} collapsed={viewPref.hideSidebar} />,
                                 sidebarTarget?.current
                             )}
                             {filteredRepos.length > 0 ? (

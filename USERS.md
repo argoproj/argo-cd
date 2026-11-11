@@ -228,6 +228,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Lucid Motors](https://www.lucidmotors.com/)
 1. [Lytt](https://www.lytt.co/)
 1. [LY Corporation](https://www.lycorp.co.jp/en/)
+1. [MAB](https://www.mortgageadvicebureau.com/)
 1. [Magic Leap](https://www.magicleap.com/)
 1. [Majid Al Futtaim](https://www.majidalfuttaim.com/)
 1. [Major League Baseball](https://mlb.com)
@@ -416,6 +417,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [UBIO](https://ub.io/)
 1. [UFirstGroup](https://www.ufirstgroup.com/en/)
 1. [ungleich.ch](https://ungleich.ch/)
+1. [Unified Techs](https://unifiedtechs.net/)
 1. [Unifonic Inc](https://www.unifonic.com/)
 1. [Universidad Mesoamericana](https://www.umes.edu.gt/)
 1. [Upsider Inc.](https://up-sider.com/lp/)
@@ -453,3 +455,4 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Zimpler](https://www.zimpler.com/)
 1. [ZipRecruiter](https://www.ziprecruiter.com/)
 1. [ZOZO](https://corp.zozo.com/)
+
