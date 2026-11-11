@@ -90,6 +90,19 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 		}
 	}
 
+	// newSettledOperationState builds a successful operation whose sync finished
+	// well before the drift re-sync backoff (driftResyncBackoff, 30s). It
+	// represents genuine drift observed long after the last sync, as opposed to
+	// the transient window right after a corrective sync, which newOperationState
+	// (finished ~1s ago) models.
+	newSettledOperationState := func() *v1alpha1.OperationState {
+		return &v1alpha1.OperationState{
+			Phase:      common.OperationSucceeded,
+			StartedAt:  metav1.Time{Time: time.Now().Add(-2 * time.Minute)},
+			FinishedAt: &metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
+		}
+	}
+
 	for _, cc := range []struct {
 		name              string
 		appSet            v1alpha1.ApplicationSet
@@ -263,7 +276,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 			},
 		},
 		{
-			name: "does not move a Healthy application to another status if the revision has not changed",
+			name: "does not move a Healthy application to another status if it is in sync and the revision has not changed",
 			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
 				{
 					Application:        "app1",
@@ -275,7 +288,7 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 				},
 			}),
 			apps: []v1alpha1.Application{
-				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationSucceeded)),
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "next", newOperationState(common.OperationSucceeded)),
 			},
 			appStepMap: map[string]int{
 				"app1": 0,
@@ -582,6 +595,212 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Application:     "app1",
 					Message:         "",
 					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "re-queues a progressing application to waiting when it has drifted OutOfSync after a successful sync and the backoff elapsed",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncProgressing,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newSettledOperationState()),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application has drifted and is OutOfSync after its last sync, re-queuing for progressive sync",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "re-queues a healthy application to waiting when it has drifted OutOfSync after a successful sync and the backoff elapsed",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newSettledOperationState()),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application has drifted and is OutOfSync after its last sync, re-queuing for progressive sync",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "does not re-queue a drifted progressing application within the re-sync backoff window",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncProgressing,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				// The last successful sync finished ~1s ago (newOperationState) and the
+				// app is still OutOfSync: a corrective sync did not resolve the difference.
+				// Re-queuing again immediately would loop every reconcile, so the backoff
+				// must suppress it until driftResyncBackoff elapses.
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "does not re-queue a drifted healthy application within the re-sync backoff window",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "does not re-queue a drifted application while a sync is still in flight",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncProgressing,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusProgressing, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationRunning)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "does not re-queue a drifted application when the last sync failed",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncProgressing,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeOutOfSync, "next", newOperationState(common.OperationFailed)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"next"},
+				},
+			},
+		},
+		{
+			name: "does not re-queue a drifted application observed before its last sync finished",
+			appSet: newDefaultAppSet(2, []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "",
+					Status:             v1alpha1.ProgressiveSyncHealthy,
+					Step:               "1",
+					TargetRevisions:    []string{"next"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				// ReconciledAt (set to now by newApp) is before FinishedAt, so the
+				// OutOfSync state has not been confirmed by a reconcile after the sync.
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeOutOfSync, "next", &v1alpha1.OperationState{
+					Phase:      common.OperationSucceeded,
+					StartedAt:  metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
+					FinishedAt: &metav1.Time{Time: time.Now().Add(1 * time.Minute)},
+				}),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
 					Step:            "1",
 					TargetRevisions: []string{"next"},
 				},

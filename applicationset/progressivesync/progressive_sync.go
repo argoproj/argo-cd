@@ -36,6 +36,14 @@ const (
 	specChangedMsg            = "Application has pending changes (spec differs), setting status to Waiting"
 )
 
+// driftResyncBackoff is the minimum time that must elapse after an Application's
+// last successful sync before progressive sync will re-queue it for drift. It
+// rate-limits corrective syncs for a difference that a sync cannot resolve (for
+// example an orphaned resource left OutOfSync when pruning is disabled), while
+// still re-syncing genuine drift promptly because that drift is observed long
+// after the last sync finished.
+const driftResyncBackoff = 30 * time.Second
+
 type deleteInOrder struct {
 	AppName string
 	Step    int
@@ -563,6 +571,21 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 					newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
 				}
 			}
+
+			// An application that RollingSync already synced can drift back to OutOfSync
+			// after a live resource is changed outside of Argo CD. With RollingSync driving
+			// syncs (and automated sync typically disabled) nothing re-syncs it: a Progressing
+			// app never reaches Healthy and blocks subsequent waves, and a Healthy app is left
+			// silently out of sync. Re-queue it through Waiting so the normal
+			// Waiting -> Pending -> sync machinery (honoring maxUpdate and the pinned target
+			// revisions) brings it back in line.
+			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing || currentAppStatus.Status == argov1alpha1.ProgressiveSyncHealthy {
+				if isApplicationDrifted(app) {
+					newAppStatus.LastTransitionTime = &now
+					newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
+					newAppStatus.Message = "Application has drifted and is OutOfSync after its last sync, re-queuing for progressive sync"
+				}
+			}
 		}
 
 		if newAppStatus.LastTransitionTime == &now {
@@ -660,6 +683,63 @@ func isApplicationWithError(app argov1alpha1.Application) bool {
 		}
 	}
 	return false
+}
+
+// driftResyncSettledOp returns the last sync operation when the application is
+// OutOfSync after a settled, successful sync with no sync in flight, or nil
+// otherwise. When non-nil, the returned operation has a non-nil FinishedAt and
+// the application a non-nil ReconciledAt.
+//
+// The checks encode: the app is OutOfSync; no sync is already requested
+// (Operation set but possibly without an OperationState yet) that a re-queue
+// would race or replace; and the last sync completed successfully. A failed or
+// in-flight sync is left to the Application's own retry policy, not the appset's
+// (see the Pending -> Progressing handling above). Timing is not considered
+// here; callers add the observation-order and backoff checks.
+func driftResyncSettledOp(app argov1alpha1.Application) *argov1alpha1.OperationState {
+	if app.Status.Sync.Status != argov1alpha1.SyncStatusCodeOutOfSync || app.Operation != nil {
+		return nil
+	}
+	opState := app.Status.OperationState
+	if opState == nil || !opState.Phase.Successful() || opState.FinishedAt == nil || app.Status.ReconciledAt == nil {
+		return nil
+	}
+	return opState
+}
+
+// isDriftResyncCandidate reports whether an application has drifted OutOfSync
+// after a settled, successful sync and a reconciliation has observed that drift
+// strictly after the sync finished. This is the time-independent part of drift
+// detection; isApplicationDrifted additionally requires the re-sync backoff to
+// have elapsed.
+func isDriftResyncCandidate(app argov1alpha1.Application) bool {
+	opState := driftResyncSettledOp(app)
+	// metav1.Time serializes at second precision, so "strictly after" avoids
+	// trusting an observation in the same second as (or before) the sync
+	// finished, which would react to the transient OutOfSync window that
+	// normally precedes the status recompute after a successful sync.
+	return opState != nil && app.Status.ReconciledAt.After(opState.FinishedAt.Time)
+}
+
+// isApplicationDrifted reports whether an application that RollingSync already
+// synced has settled back into an OutOfSync state that no sync is addressing.
+//
+// This happens when a live resource is changed outside of Argo CD (for example a
+// manual `kubectl scale`). With RollingSync driving syncs and automated sync
+// typically disabled, nothing re-syncs the app on its own: an app still in the
+// Progressing state never reaches Healthy and blocks subsequent waves, while an
+// app that already reached Healthy is silently left out of sync.
+//
+// Corrective syncs are rate-limited: driftResyncBackoff must have elapsed since
+// the last sync finished. A difference that a sync cannot resolve (for example
+// an orphaned resource left OutOfSync when pruning is disabled) is observed
+// again right after each corrective sync, so without this gate it would be
+// re-queued on every reconcile; the backoff throttles it to at most one sync per
+// interval. Genuine drift is observed long after the last sync finished, so it
+// is still re-queued without delay.
+func isApplicationDrifted(app argov1alpha1.Application) bool {
+	return isDriftResyncCandidate(app) &&
+		time.Since(app.Status.OperationState.FinishedAt.Time) >= driftResyncBackoff
 }
 
 // GetLatestWaitingTransitionTimeOfAppset extracts the latest (most recent) LastTransitionTime from
