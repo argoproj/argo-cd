@@ -714,6 +714,86 @@ metadata:
 	}, managedObjs)
 }
 
+// A target whose live object isn't managed (e.g. missing the tracking label)
+// is still returned.
+func TestGetManagedLiveObjs_UnmanagedTarget(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
+		return nil, true
+	}))
+	require.NoError(t, cluster.EnsureSynced())
+
+	targetDeploy := strToUnstructured(`
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: helm-guestbook
+  namespace: default`)
+
+	managedObjs, err := cluster.GetManagedLiveObjs([]*unstructured.Unstructured{targetDeploy}, func(*Resource) bool {
+		return false
+	})
+	require.NoError(t, err)
+	assert.Equal(t, map[kube.ResourceKey]*unstructured.Unstructured{
+		kube.NewResourceKey("apps", "Deployment", "default", "helm-guestbook"): mustToUnstructured(testDeploy()),
+	}, managedObjs)
+}
+
+// GetManagedLiveObjs returns cached resources without copying them, which is
+// only safe while nothing it reads after unlocking changes in place. Run it
+// against setOwnerRef, the in-place writer, so -race flags a regression.
+func TestGetManagedLiveObjs_ConcurrentOwnerRefUpdates(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
+	cluster.Invalidate(SetPopulateResourceInfoHandler(func(_ *unstructured.Unstructured, _ bool) (info any, cacheManifest bool) {
+		return nil, true
+	}))
+	require.NoError(t, cluster.EnsureSynced())
+
+	targets := []*unstructured.Unstructured{mustToUnstructured(testDeploy()), mustToUnstructured(testRS())}
+	owner := metav1.OwnerReference{APIVersion: "v1", Kind: "ConfigMap", Name: "owner", UID: "owner-uid"}
+	stop := make(chan struct{})
+	var wg sync.WaitGroup
+	wg.Go(func() {
+		for add := true; ; add = !add {
+			select {
+			case <-stop:
+				return
+			default:
+			}
+			cluster.lock.Lock()
+			for _, r := range cluster.resources {
+				r.setOwnerRef(owner, add)
+			}
+			cluster.lock.Unlock()
+		}
+	})
+	for range 200 {
+		_, err := cluster.GetManagedLiveObjs(targets, func(*Resource) bool { return true })
+		require.NoError(t, err)
+	}
+	close(stop)
+	wg.Wait()
+}
+
+// A panicking isManaged must not leave the read lock held, or the next writer
+// blocks forever.
+func TestGetManagedLiveObjs_PanickingIsManagedReleasesLock(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
+	require.NoError(t, cluster.EnsureSynced())
+
+	assert.Panics(t, func() {
+		_, _ = cluster.GetManagedLiveObjs(nil, func(*Resource) bool { panic("boom") })
+	})
+	if !cluster.lock.TryLock() {
+		cluster.lock.RUnlock() // undo the leak so cleanup doesn't hang
+		t.Fatal("read lock leaked after isManaged panicked")
+	}
+	cluster.lock.Unlock()
+}
+
 func TestGetManagedLiveObjsNamespacedModeClusterLevelResource(t *testing.T) {
 	t.Parallel()
 	cluster := newCluster(t, testPod1(), testRS(), testDeploy())
