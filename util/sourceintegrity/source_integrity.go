@@ -118,7 +118,8 @@ func verifyWithGuard(verify gitFunc) gitFunc {
 
 		revType, err := gitClient.GetRevisionType(ctx, revision)
 		if err != nil {
-			return reject(fmt.Sprintf("revision %s does not exist", revision))
+			log.Error(err.Error())
+			return reject(fmt.Sprintf("cannot verify revision %s", revision))
 		}
 
 		if revType == "tag" {

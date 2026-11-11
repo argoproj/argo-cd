@@ -197,17 +197,11 @@ spec:
               - "D56C4FCA57A46444"
 ```
 
-Applications in the project can then only sync from an annotated tag or a commit SHA, the two kinds of revision that are either signed or immutable.
-Lightweight tags, branch names, remote-tracking branches and reference names such as `HEAD` are mutable pointers that carry no signature of their own, so they are rejected before any signature is looked at, and the application reports a comparison error:
+Applications in the project can then only sync from an annotated tag or a commit SHA, the two kinds of revision that are both signed and immutable.
+Lightweight tags, branch names, remote-tracking branches and reference names such as `HEAD` are mutable pointers that carry no signature of their own, so they can be pointed to other commit without the need to re-sign. With `signedRevisionOnly` they are rejected, and the application reports a comparison error:
 
 ```
 SignedRevisionOnly is enabled, v1.0 resolves to refs/tags/v1.0. Only commit SHAs and annotated tags can be verified
-```
-
-A revision that does not exist in the repository is rejected the same way:
-
-```
-SignedRevisionOnly is enabled, revision v9.9 does not exist
 ```
 
 > [!NOTE]

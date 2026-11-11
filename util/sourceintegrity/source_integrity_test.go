@@ -716,6 +716,7 @@ func TestSignedRevisionOnly(t *testing.T) {
 		revTypeErr      error
 		refName         string
 		expectedProblem string
+		loggerOutput    []string
 	}{
 		{
 			name:           "annotated tag passes the gate",
@@ -766,7 +767,8 @@ func TestSignedRevisionOnly(t *testing.T) {
 			signedTagsOnly:  true,
 			revision:        "v9.9",
 			revTypeErr:      errors.New("fatal: Not a valid object name v9.9"),
-			expectedProblem: "SignedRevisionOnly is enabled, revision v9.9 does not exist",
+			expectedProblem: "SignedRevisionOnly is enabled, cannot verify revision v9.9",
+			loggerOutput:    []string{"fatal: Not a valid object name v9.9"},
 		},
 		{
 			name:            "revision that is not a commit is rejected before verification",
@@ -811,7 +813,11 @@ func TestSignedRevisionOnly(t *testing.T) {
 				assert.Empty(t, result.PassedChecks())
 				assert.Equal(t, tc.expectedProblem, legacy)
 				gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
-				assert.Empty(t, logger.GetEntries())
+				if len(tc.loggerOutput) == 0 {
+					assert.Empty(t, logger.GetEntries())
+				} else {
+					assert.Equal(t, tc.loggerOutput, logger.GetEntries())
+				}
 				return
 			}
 
@@ -823,7 +829,11 @@ func TestSignedRevisionOnly(t *testing.T) {
 				gitClient.AssertNotCalled(t, "GetRevisionType", mock.Anything, mock.Anything)
 				gitClient.AssertNotCalled(t, "GetSymbolicFullName", mock.Anything, mock.Anything)
 			}
-			assert.Empty(t, logger.GetEntries())
+			if len(tc.loggerOutput) == 0 {
+				assert.Empty(t, logger.GetEntries())
+			} else {
+				assert.Equal(t, tc.loggerOutput, logger.GetEntries())
+			}
 		})
 	}
 }
