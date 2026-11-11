@@ -311,8 +311,8 @@ spec:
                                 type: object
                               type: array
                             signedRevisionOnly:
-                              description: Only permit syncing from annotated tags,
-                                un-annotated tags cannot be verified
+                              description: Only permit syncing from annotated tags
+                                and full commit SHAs.
                               type: boolean
                           required:
                           - gpg

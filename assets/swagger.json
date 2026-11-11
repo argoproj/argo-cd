@@ -10968,8 +10968,8 @@
           }
         },
         "signedRevisionOnly": {
-          "type": "boolean",
-          "title": "Only permit syncing from annotated tags, un-annotated tags cannot be verified"
+          "description": "Only permit syncing from annotated tags and full commit SHAs.",
+          "type": "boolean"
         }
       }
     },
