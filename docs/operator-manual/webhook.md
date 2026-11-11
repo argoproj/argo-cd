@@ -9,6 +9,8 @@ this delay from polling, the API server can be configured to receive webhook eve
 
 Argo CD supports Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbucket Server, Azure DevOps and Gogs. The following explains how to configure a Git webhook for GitHub, but the same process should be applicable to other providers.
 
+Gitea webhooks are handled as Gogs webhooks, see [Gitea](#gitea).
+
 ### OCI Registry Webhooks
 
 Argo CD also supports webhooks from OCI-compliant container registries to trigger application refreshes when new OCI artifacts are pushed. See [Webhook Configuration for OCI-Compliant Registries](#3-webhook-configuration-for-oci-compliant-registries) for details.
@@ -35,6 +37,12 @@ To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` 
 
 > [!NOTE]
 > When creating the webhook in GitHub, the "Content type" needs to be set to "application/json". The default value "application/x-www-form-urlencoded" is not supported by the library used to handle the hooks
+
+### Gitea
+
+Gitea sends its webhooks with Gogs and GitHub headers and a Gogs compatible payload, so Argo CD handles them
+as Gogs webhooks. Add a webhook of type "Gitea" with "POST Content Type" set to "application/json", and put its
+secret in the `webhook.gogs.secret` key described in the next step.
 
 ### Azure DevOps
 
