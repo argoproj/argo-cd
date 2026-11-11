@@ -50,9 +50,9 @@ are only triggered when:
 - There is a new revision in the repo which the Argo CD Application is
   targeting, unless the Application uses the
   [`manifest-generate-paths` annotation](../operator-manual/high_availability.md#manifest-paths-annotation),
-  no files under those paths changed, and the generated manifests are the
-  same. In that case the cached diff results are considered valid for the
-  new commit.
+  no files under those paths changed, the generated manifests are the
+  same, and the Application manages no Secrets. In that case the cached
+  diff results are considered valid for the new commit.
 - The Argo CD Application spec changed.
 - The [Resource Version][3] of the resource itself in live state changed
 
