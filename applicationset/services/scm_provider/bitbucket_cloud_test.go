@@ -106,6 +106,57 @@ func TestBitbucketHasRepo(t *testing.T) {
 	}
 }
 
+func TestBitbucketHasRepoBearerToken(t *testing.T) {
+	var capturedAuthHeader string
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		capturedAuthHeader = req.Header.Get("Authorization")
+		if req.URL.Path == "/repositories/test-owner/testmike/src/dc1edb6c7d650d8ba67719ddf7b662ad8f8fb798/.gitignore" {
+			res.WriteHeader(http.StatusOK)
+			_, err := res.Write([]byte(`{}`))
+			require.NoError(t, err)
+		} else {
+			res.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer testServer.Close()
+
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	provider, err := NewBitBucketCloudProviderBearerToken("test-owner", "my-workspace-token", false)
+	require.NoError(t, err)
+
+	repo := &Repository{
+		Organization: "test-owner",
+		Repository:   "testmike",
+		SHA:          "dc1edb6c7d650d8ba67719ddf7b662ad8f8fb798",
+		Branch:       "main",
+	}
+	hasPath, err := provider.RepoHasPath(t.Context(), repo, ".gitignore")
+	require.NoError(t, err)
+	assert.True(t, hasPath)
+	assert.Equal(t, "Bearer my-workspace-token", capturedAuthHeader)
+}
+
+func TestBitbucketListReposBearerTokenNoRoleFilter(t *testing.T) {
+	var capturedQuery string
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		if req.URL.Path == "/repositories/test-owner" {
+			capturedQuery = req.URL.RawQuery
+		}
+		res.WriteHeader(http.StatusOK)
+		_, err := res.Write([]byte(`{"pagelen":10,"values":[],"page":1,"size":0}`))
+		require.NoError(t, err)
+	}))
+	defer testServer.Close()
+
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	provider, err := NewBitBucketCloudProviderBearerToken("test-owner", "my-workspace-token", false)
+	require.NoError(t, err)
+
+	_, err = provider.ListRepos(t.Context(), "https")
+	require.NoError(t, err)
+	assert.NotContains(t, capturedQuery, "role=member", "bearer token auth must not send role=member filter")
+}
+
 func TestBitbucketListRepos(t *testing.T) {
 	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
 		res.WriteHeader(http.StatusOK)
@@ -507,4 +558,42 @@ func TestBitbucketListRepos(t *testing.T) {
 			}
 		})
 	}
+}
+
+// With allBranches, every page of branches is read; before, only the first page was used.
+func TestBitbucketGetBranchesFollowsNextPage(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		if req.URL.Path != "/repositories/test-owner/testmike/refs/branches" {
+			res.WriteHeader(http.StatusNotFound)
+			return
+		}
+		res.WriteHeader(http.StatusOK)
+		var body string
+		switch req.URL.Query().Get("page") {
+		case "1":
+			body = `{"pagelen":1,"page":1,"size":2,
+				"next":"https://api.bitbucket.org/2.0/repositories/test-owner/testmike/refs/branches?page=2",
+				"values":[{"name":"main","type":"branch","target":{"hash":"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"}}]}`
+		case "2":
+			body = `{"pagelen":1,"page":2,"size":2,
+				"values":[{"name":"feature","type":"branch","target":{"hash":"bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"}}]}`
+		default:
+			t.Errorf("unexpected page %q", req.URL.Query().Get("page"))
+		}
+		_, err := res.Write([]byte(body))
+		require.NoError(t, err)
+	}))
+	defer testServer.Close()
+
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	provider, err := NewBitBucketCloudProvider("test-owner", "user", "password", true)
+	require.NoError(t, err)
+
+	branches, err := provider.GetBranches(t.Context(), &Repository{Organization: "test-owner", Repository: "testmike", Branch: "main"})
+	require.NoError(t, err)
+	require.Len(t, branches, 2)
+	assert.Equal(t, "main", branches[0].Branch)
+	assert.Equal(t, "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", branches[0].SHA)
+	assert.Equal(t, "feature", branches[1].Branch)
+	assert.Equal(t, "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb", branches[1].SHA)
 }
