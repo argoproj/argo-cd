@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
@@ -2020,4 +2021,42 @@ func TestSourceIPLoggingThroughGateway(t *testing.T) {
 		assert.Equal(t, "198.51.100.7", fields["source.ip"])
 		assert.Equal(t, "9.9.9.9, 198.51.100.7", fields["forwarded.for"], "the address the gateway appends is dropped")
 	})
+}
+
+// The REST gateway reaches the gRPC server over TCP, so it has to dial the address the server listens on.
+func TestGatewayReachesNonDefaultListenHost(t *testing.T) {
+	const listenHost = "127.0.0.2"
+	lc := net.ListenConfig{}
+	probe, err := lc.Listen(t.Context(), "tcp", net.JoinHostPort(listenHost, "0"))
+	if err != nil {
+		t.Skipf("cannot listen on %s: %v", listenHost, err)
+	}
+	require.NoError(t, probe.Close())
+
+	s, closer := fakeServer(t)
+	defer closer()
+	s.ListenHost = listenHost
+	defer test.StartInformer(s.projInformer)()
+	defer test.StartInformer(s.appInformer)()
+	defer test.StartInformer(s.appsetInformer)()
+	defer test.StartInformer(s.clusterInformer)()
+
+	lns, err := s.Listen()
+	require.NoError(t, err)
+	var wg gosync.WaitGroup
+	wg.Go(func() { s.Run(t.Context(), lns) })
+	defer func() {
+		s.stopCh <- syscall.SIGINT
+		wg.Wait()
+	}()
+	for !s.available.Load() {
+		time.Sleep(10 * time.Millisecond)
+	}
+
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, fmt.Sprintf("http://%s/api/version", lns.Main.Addr()), http.NoBody)
+	require.NoError(t, err)
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	require.NoError(t, resp.Body.Close())
+	assert.Equal(t, http.StatusOK, resp.StatusCode)
 }

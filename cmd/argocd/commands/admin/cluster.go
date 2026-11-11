@@ -113,13 +113,13 @@ func loadClusters(ctx context.Context, kubeClient kubernetes.Interface, appClien
 		overrides := clientcmd.ConfigOverrides{}
 		redisHaProxyPodLabelSelector := common.LabelKeyAppName + "=" + redisHaProxyName
 		redisPodLabelSelector := common.LabelKeyAppName + "=" + redisName
-		port, err := kubeutil.PortForward(6379, namespace, &overrides,
+		redisAddr, err := kubeutil.PortForward(6379, namespace, &overrides,
 			redisHaProxyPodLabelSelector, redisPodLabelSelector)
 		if err != nil {
 			return nil, err
 		}
 
-		redisOptions := &redis.Options{Addr: fmt.Sprintf("localhost:%d", port)}
+		redisOptions := &redis.Options{Addr: redisAddr}
 		if err = common.SetOptionalRedisPasswordFromKubeConfig(ctx, kubeClient, namespace, redisOptions); err != nil {
 			log.Warnf("Failed to fetch & set redis password for namespace %s: %v", namespace, err)
 		}

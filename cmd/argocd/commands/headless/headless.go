@@ -60,14 +60,14 @@ func (c *forwardCacheClient) doLazy(action func(client cache.CacheClient) error)
 		}
 		redisHaProxyPodLabelSelector := common.LabelKeyAppName + "=" + c.redisHaProxyName
 		redisPodLabelSelector := common.LabelKeyAppName + "=" + c.redisName
-		redisPort, err := kubeutil.PortForward(6379, c.namespace, &overrides,
+		redisAddr, err := kubeutil.PortForward(6379, c.namespace, &overrides,
 			redisHaProxyPodLabelSelector, redisPodLabelSelector)
 		if err != nil {
 			c.err = err
 			return
 		}
 
-		redisClient := redis.NewClient(&redis.Options{Addr: fmt.Sprintf("localhost:%d", redisPort), Password: c.redisPassword})
+		redisClient := redis.NewClient(&redis.Options{Addr: redisAddr, Password: c.redisPassword})
 		c.client = cache.NewRedisCache(redisClient, time.Hour, c.compression)
 	})
 	if c.err != nil {
@@ -140,12 +140,12 @@ func (c *forwardRepoClientset) NewRepoServerClient() (utilio.Closer, repoapiclie
 			}
 		}
 		repoServerPodLabelSelector := common.LabelKeyAppName + "=" + repoServerName
-		repoServerPort, err := kubeutil.PortForward(8081, c.namespace, &overrides, repoServerPodLabelSelector)
+		repoServerAddr, err := kubeutil.PortForward(8081, c.namespace, &overrides, repoServerPodLabelSelector)
 		if err != nil {
 			c.err = err
 			return
 		}
-		c.repoClientset = repoapiclient.NewRepoServerClientset(fmt.Sprintf("localhost:%d", repoServerPort), 60, tls.Configuration{
+		c.repoClientset = repoapiclient.NewRepoServerClientset(repoServerAddr, 60, tls.Configuration{
 			DisableTLS: false, StrictValidation: false,
 		})
 	})

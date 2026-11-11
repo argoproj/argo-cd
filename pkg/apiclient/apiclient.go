@@ -233,11 +233,11 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 			opts.KubeOverrides = &clientcmd.ConfigOverrides{}
 		}
 		serverPodLabelSelector := common.LabelKeyAppName + "=" + opts.ServerName
-		port, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
+		serverAddr, err := kube.PortForward(8080, opts.PortForwardNamespace, opts.KubeOverrides, serverPodLabelSelector)
 		if err != nil {
 			return nil, err
 		}
-		opts.ServerAddr = fmt.Sprintf("127.0.0.1:%d", port)
+		opts.ServerAddr = serverAddr
 		opts.Insecure = true
 	}
 	if opts.ServerAddr != "" {
