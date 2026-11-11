@@ -100,7 +100,8 @@ data:
   controller.self.heal.backoff.timeout.seconds: "2"
   controller.self.heal.backoff.factor: "3"
   controller.self.heal.backoff.cap.seconds: "300"
-  # Period of time an application needs to stay synced before the self heal backoff resets (default 330)
+  # Deprecated and has no effect: the controller no longer uses a cooldown when configuring self heal backoff.
+  # The key is still wired into the controller environment and accepted for compatibility. (default 330)
   controller.self.heal.backoff.cooldown.seconds: "330"
   # Specifies a sync timeout for applications. "0" means no timeout (default "0")
   controller.sync.timeout.seconds: "0"
@@ -234,7 +235,8 @@ data:
   server.client.ip.header: ""
   # Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
   server.x.frame.options: "sameorigin"
-  # Set Content-Security-Policy header in HTTP responses to value. To disable, set to "". (default "frame-ancestors 'self';")
+  # Set Content-Security-Policy header in HTTP responses to value. An empty value here falls back to the default,
+  # so to disable the header pass --content-security-policy="" on the argocd-server command line instead. (default "frame-ancestors 'self';")
   server.content.security.policy: "frame-ancestors 'self';"
   # Maximum number of chunks a large cookie (such as the auth token) can be split into (default 20)
   server.http.cookie.maxnumber: "20"
@@ -336,7 +338,8 @@ data:
   reposerver.helm.manifest.max.extracted.size: "1G"
   # Disable the maximum size check of helm manifest archives when extracted (default "false")
   reposerver.disable.helm.manifest.max.extracted.size: "false"
-  # User-Agent header sent with Helm repository requests. Empty uses the Helm default. (default "")
+  # User-Agent header sent with Helm repository and OCI registry requests. Empty uses the built-in
+  # default "argocd-repo-server/<version> (<platform>)". (default "")
   reposerver.helm.user.agent: ""
   # The allowlist of the OCI media types which the repo-server will make use of. If an OCI media type for a given artifact is not in the given list, the repo-server will return an error.
   reposerver.oci.layer.media.types: "application/vnd.oci.image.layer.v1.tar,application/vnd.oci.image.layer.v1.tar+gzip,application/vnd.cncf.helm.chart.content.v1.tar+gzip"
@@ -354,7 +357,9 @@ data:
   reposerver.enable.builtin.git.config: "true"
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
-  # Maximum gRPC message size in MB for the repo server and commit server clients (default 100)
+  # Maximum gRPC message size in MB for the repo server process: its gRPC server and the commit server client it
+  # creates. The application controller and API server read ARGOCD_GRPC_MAX_SIZE_MB from their own environment for
+  # their repo server client limits, so set it there as well when raising this value. (default 100)
   reposerver.grpc.max.size: "100"
   # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
