@@ -580,6 +580,22 @@ func TestHasShardingUpdates(t *testing.T) {
 			},
 			expected: true,
 		},
+		{
+			name: "Name has changed",
+			old: &v1alpha1.Cluster{
+				ID:     "1",
+				Name:   "cluster1",
+				Server: "https://server1",
+				Shard:  new(int64(2)),
+			},
+			new: &v1alpha1.Cluster{
+				ID:     "1",
+				Name:   "cluster2",
+				Server: "https://server1",
+				Shard:  new(int64(2)),
+			},
+			expected: true,
+		},
 	}
 
 	for _, tc := range testCases {
