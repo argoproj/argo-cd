@@ -1,0 +1,38 @@
+apiVersion: external-secrets.io/v1
+kind: ExternalSecret
+metadata:
+  creationTimestamp: "2026-10-29T17:47:54Z"
+  finalizers:
+  - externalsecrets.external-secrets.io/externalsecret-cleanup
+  generation: 2
+  name: app-db-negative-interval
+  namespace: demo
+  resourceVersion: "2361"
+  uid: e51637db-3b25-4ce6-ade0-9f81bfeefd5f
+spec:
+  data:
+  - remoteRef:
+      key: /app/db
+    secretKey: password
+  - remoteRef:
+      key: /app/api
+    secretKey: apiToken
+  refreshInterval: -1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: fake
+  target:
+    creationPolicy: Owner
+    deletionPolicy: Retain
+    name: app-db-negative-interval
+status:
+  binding:
+    name: app-db-negative-interval
+  conditions:
+  - lastTransitionTime: "2026-10-29T17:47:54Z"
+    message: secret synced
+    reason: SecretSynced
+    status: "True"
+    type: Ready
+  refreshTime: "2026-10-29T17:47:54Z"
+  syncedResourceVersion: 1-f47fe3c0b255b6dd8047cdffa772587bb829efe7a1cb70febeda2eb2
