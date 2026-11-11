@@ -30,7 +30,7 @@ import {ApplicationResourceList, ApplicationResourceParentRef} from './applicati
 import {APPLICATION_DETAILS_SORT_KEY, ApplicationResourceSortKey, compareApplicationResource, GROUPED_NODES_DETAILS_SORT_KEY} from './application-resource-sort';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {Filters, FiltersProps, getEffectiveResourceFilter} from './application-resource-filter';
-import {getAppDefaultSource, getAppCurrentVersion, urlPattern, getApplicationDetailsContainerClass} from '../utils';
+import {getAppDefaultSource, getAppVersionIdForRevision, urlPattern, getApplicationDetailsContainerClass} from '../utils';
 import {ChartDetails, OCIMetadata} from '../../../shared/models';
 import {ApplicationsDetailsAppDropdown} from './application-details-app-dropdown';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
@@ -600,21 +600,21 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
         if (sources?.length > 0 && revisions) {
             revisions.forEach((rev, indx) => {
                 if (sources[indx].repoURL.startsWith('oci://')) {
-                    cont.push(getContentForOci(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
+                    cont.push(getContentForOci(rev, indx, getAppVersionIdForRevision(application, rev, indx), indx, sources[indx], <div>Source {indx + 1}</div>));
                 } else if (sources[indx].chart) {
-                    cont.push(getContentForChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
+                    cont.push(getContentForChart(rev, indx, getAppVersionIdForRevision(application, rev, indx), indx, sources[indx], <div>Source {indx + 1}</div>));
                 } else {
-                    cont.push(getContentForNonChart(rev, indx, getAppCurrentVersion(application), indx, sources[indx], <div>Source {indx + 1}</div>));
+                    cont.push(getContentForNonChart(rev, indx, getAppVersionIdForRevision(application, rev, indx), indx, sources[indx], <div>Source {indx + 1}</div>));
                 }
             });
             return <>{cont}</>;
         } else if (application.spec.source) {
             if (source.repoURL.startsWith('oci://')) {
-                cont.push(getContentForOci(revision, null, getAppCurrentVersion(application), 0, source));
+                cont.push(getContentForOci(revision, null, getAppVersionIdForRevision(application, revision), 0, source));
             } else if (source.chart) {
                 cont.push(getContentForChart(revision, null, null, 0, source));
             } else {
-                cont.push(getContentForNonChart(revision, null, getAppCurrentVersion(application), 0, source));
+                cont.push(getContentForNonChart(revision, null, getAppVersionIdForRevision(application, revision), 0, source));
             }
             return <>{cont}</>;
         } else {

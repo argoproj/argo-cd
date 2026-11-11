@@ -1497,13 +1497,19 @@ export function getAppDefaultOperationSyncRevision(app?: appModels.Application) 
         : app.status.operationState.syncResult.revision;
 }
 
-// getAppCurrentVersion gets the first app revisions from `status.sync.revisions` or, if that list is missing or empty, the `revision`
-// field.
-export function getAppCurrentVersion(app?: appModels.Application): number | null {
-    if (!app || !app.status || !app.status.history || app.status.history.length === 0) {
+// getAppVersionIdForRevision returns the ID of the latest history entry if that entry deployed the given revision for the given
+// source index, or null otherwise. The server resolves the source (and so the repo) from the history entry when a version ID is
+// passed, so a revision must only be paired with the version ID of the history entry it came from. For example, after the repo
+// URL changes and before the next successful sync, the sync status revision belongs to the new repo while the latest history
+// entry still references the old one; returning null makes the server use the current spec instead.
+export function getAppVersionIdForRevision(app: appModels.Application | undefined, revision: string, sourceIndex = 0): number | null {
+    const history = app?.status?.history;
+    if (!revision || !history || history.length === 0) {
         return null;
     }
-    return app.status.history[app.status.history.length - 1].id;
+    const latest = history[history.length - 1];
+    const latestRevision = latest.revisions?.length > 0 ? latest.revisions[sourceIndex] : sourceIndex === 0 ? latest.revision : undefined;
+    return latestRevision === revision ? latest.id : null;
 }
 
 // getAppDefaultSyncRevisionExtra gets the extra message with others revision count
