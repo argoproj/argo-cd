@@ -133,7 +133,7 @@ const optionsFrom = (options: string[], filter: string[]) => {
 export interface AppFilterProps {
     facets: AppsListFacets;
     pref: AppsListPreferences;
-    onChange: (newPref: AppsListPreferences) => void;
+    onChange: (newPref: AppsListPreferences, clearAll?: boolean) => void;
     collapsed?: boolean;
     hydratorEnabled?: boolean;
     children?: React.ReactNode;
@@ -143,7 +143,7 @@ export interface AppFilterProps {
 export interface AppSetFilterProps {
     apps: ApplicationSetFilteredApp[];
     pref: AppSetsListPreferences;
-    onChange: (newPrefs: AppSetsListPreferences) => void;
+    onChange: (newPrefs: AppSetsListPreferences, clearAll?: boolean) => void;
     children?: React.ReactNode;
     collapsed?: boolean;
 }
@@ -492,7 +492,7 @@ export const ApplicationsFilter = (props: AppFilterProps) => {
     const onClearFilter = () => {
         const newPref: AppsListPreferences = {...props.pref};
         AppsListPreferences.clearFilters(newPref);
-        props.onChange(newPref);
+        props.onChange(newPref, true);
     };
 
     return (
@@ -531,7 +531,7 @@ export const AppSetsFilter = (props: AppSetFilterProps) => {
     const onClearFilter = () => {
         const newPref: AppSetsListPreferences = {...props.pref};
         AppSetsListPreferences.clearFilters(newPref);
-        props.onChange(newPref);
+        props.onChange(newPref, true);
     };
 
     return (

@@ -18,7 +18,7 @@ export const ViewTypeSwitcher: React.FC<ViewTypeSwitcherProps> = ({pref, ctx}) =
                 title='Tiles'
                 onClick={() => {
                     ctx.navigation.goto('.', {view: Tiles});
-                    services.viewPreferences.updatePreferences({appList: {...pref, view: Tiles}});
+                    services.viewPreferences.updateAppListPreferences({view: Tiles});
                 }}
             />
             <i
@@ -26,7 +26,7 @@ export const ViewTypeSwitcher: React.FC<ViewTypeSwitcherProps> = ({pref, ctx}) =
                 title='List'
                 onClick={() => {
                     ctx.navigation.goto('.', {view: List});
-                    services.viewPreferences.updatePreferences({appList: {...pref, view: List}});
+                    services.viewPreferences.updateAppListPreferences({view: List});
                 }}
             />
             <i
@@ -34,7 +34,7 @@ export const ViewTypeSwitcher: React.FC<ViewTypeSwitcherProps> = ({pref, ctx}) =
                 title='Summary'
                 onClick={() => {
                     ctx.navigation.goto('.', {view: Summary});
-                    services.viewPreferences.updatePreferences({appList: {...pref, view: Summary}});
+                    services.viewPreferences.updateAppListPreferences({view: Summary});
                 }}
             />
         </div>
