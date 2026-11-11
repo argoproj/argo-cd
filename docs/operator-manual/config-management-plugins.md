@@ -354,12 +354,13 @@ If you are actively developing a sidecar-installed CMP, keep a few things in min
 ### Inspecting the files received by a plugin
 
 For each manifest generation request, the sidecar extracts the repository files it received into a new temporary
-directory under `/tmp/_cmp_server` and runs the `init` and `generate` commands in the Application source directory
-inside it. The directory is deleted as soon as the request completes, and `/tmp/_cmp_server` is also cleared whenever
-the sidecar starts, so you can't inspect it later.
+directory under `/tmp/_cmp_server` by default (`$ARGOCD_CMP_WORKDIR/_cmp_server` if the `ARGOCD_CMP_WORKDIR`
+environment variable is set on the sidecar) and runs the `init` and `generate` commands in the Application source
+directory inside it. The directory is deleted as soon as the request completes, and the `_cmp_server` directory is also
+cleared whenever the sidecar starts, so you can't inspect it later.
 
 To keep a copy of the files, add a copy step to the beginning of your `generate` command that writes to a directory
-outside `/tmp/_cmp_server`:
+outside the `_cmp_server` directory:
 
 ```yaml
 apiVersion: argoproj.io/v1alpha1
@@ -374,7 +375,7 @@ spec:
         # Temporary debugging step: keep a copy of the files and environment variables received by the plugin.
         DEBUG_DIR="/tmp/cmp-debug/$ARGOCD_APP_NAME"
         rm -rf "$DEBUG_DIR" && mkdir -p "$DEBUG_DIR" && cp -R . "$DEBUG_DIR"
-        export -p | grep -E '^(export|declare -x) (ARGOCD_|KUBE_|PARAM_)' > "$DEBUG_DIR.env"
+        export -p > "$DEBUG_DIR.env"
         my-tool generate .
 ```
 
@@ -383,8 +384,11 @@ the `init` command, and doesn't change the exit code of the `generate` command. 
 to stdout, because the output of `generate` is parsed as manifests.
 
 Each manifest generation for the Application replaces the previous copy. If several requests for the same Application
-run at the same time, or several Applications share the same name, the copy may mix their files, so debug one
-Application at a time.
+run at the same time, the copy may mix their files.
+
+`ARGOCD_APP_NAME` is the Application name for Applications in the Argo CD namespace, and `<namespace>_<name>` for
+Applications in [other namespaces](app-any-namespace.md), so Applications with the same name in different namespaces
+are copied to different directories.
 
 After the next manifest generation (do a "Hard Refresh" to force one), open a shell in the sidecar, load the saved
 environment variables, and run your commands from the copied directory:
@@ -398,8 +402,10 @@ my-tool generate .
 
 The shell started with `kubectl exec` doesn't inherit the variables that Argo CD sets for each manifest generation
 request, such as the [build environment](../user-guide/build-environment.md) variables, `ARGOCD_ENV_` variables,
-and `PARAM_` variables. The copy step saves them to `/tmp/cmp-debug/<app-name>.env`. Load that file in the same shell
-that your `generate` command uses (`sh` in the example above).
+and `PARAM_` variables. The copy step saves all exported variables, including those, to
+`/tmp/cmp-debug/<app-name>.env`. The shell quotes the values, so variables with multi-line values, such as
+certificates, are restored correctly. Load that file in the same shell that your `generate` command uses (`sh` in the
+example above).
 
 Because the commands run in the Application source directory, only that directory is copied. Files elsewhere in the
 repository are not copied. Some files may also be missing because of
