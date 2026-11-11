@@ -2,6 +2,7 @@ package cache
 
 import (
 	"encoding/json"
+	jsonv2 "encoding/json/v2"
 	"fmt"
 	"regexp"
 
@@ -65,7 +66,8 @@ func isStatefulSetChild(un *unstructured.Unstructured) (func(kube.ResourceKey) b
 	if err != nil {
 		return nil, fmt.Errorf("failed to marshal unstructured object: %w", err)
 	}
-	err = json.Unmarshal(data, &sts)
+	// v2's stricter defaults (no duplicate names, valid UTF-8) hold because data is json.Marshal output.
+	err = jsonv2.Unmarshal(data, &sts)
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal statefulset: %w", err)
 	}

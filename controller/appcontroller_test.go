@@ -100,6 +100,10 @@ type fakeData struct {
 	// reconciledAtHeartbeat bounds how stale the persisted status.reconciledAt may
 	// become. Zero writes it on every full reconciliation.
 	reconciledAtHeartbeat time.Duration
+	// reconciledAtCache, when set, is passed to the controller as its separate reconciledAt cache
+	// (as with --reconciled-at-redis). It must be set here rather than assigned after
+	// newFakeController returns, because the app informer's event handlers read it.
+	reconciledAtCache *appstatecache.Cache
 }
 
 type MockKubectl struct {
@@ -243,7 +247,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 			1*time.Minute,
 		),
-		nil,
+		data.reconciledAtCache,
 		kubectl,
 		appResyncPeriod,
 		time.Hour,
@@ -3209,10 +3213,10 @@ func TestReconciledAtStampedWhenStatusPatchedAnyway(t *testing.T) {
 		},
 		managedLiveObjs:       make(map[kube.ResourceKey]*unstructured.Unstructured),
 		reconciledAtHeartbeat: 10 * time.Minute,
+		// As with --reconciled-at-redis.
+		reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
 	}, nil)
 
-	// As with --reconciled-at-redis.
-	ctrl.reconciledAtCache = appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute)
 	key, _ := cache.MetaNamespaceKeyFunc(app)
 	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
 	fakeAppCs.ReactionChain = nil
