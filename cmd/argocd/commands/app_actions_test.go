@@ -92,10 +92,9 @@ func TestParseParamArgs(t *testing.T) {
 			wantValues: []string{"値"},
 		},
 		{
-			name:       "duplicate keys are both preserved",
-			params:     []string{"key=first", "key=second"},
-			wantNames:  []string{"key", "key"},
-			wantValues: []string{"first", "second"},
+			name:    "duplicate keys returns error",
+			params:  []string{"key=first", "key=second"},
+			wantErr: true,
 		},
 		{
 			name:       "kubernetes style dotted key",

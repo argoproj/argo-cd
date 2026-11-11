@@ -277,10 +277,13 @@ func getActionableResourcesForApplication(ctx context.Context, appIf application
 }
 
 // parseParamArgs converts a slice of "key=value" strings into ResourceActionParameters.
-// Returns an error if any entry lacks an "=" separator or has an empty key.
+// Returns an error if any entry lacks an "=" separator, has an empty key, or repeats a key.
+// Duplicate keys are rejected because the Lua RawSetH used during action execution silently
+// overwrites the first value with the last, which would discard user-supplied data without warning.
 // Parameter values are never included in error messages to avoid leaking secrets.
 func parseParamArgs(params []string) ([]*applicationpkg.ResourceActionParameters, error) {
 	result := make([]*applicationpkg.ResourceActionParameters, 0, len(params))
+	seen := make(map[string]struct{}, len(params))
 	for i, param := range params {
 		parts := strings.SplitN(param, "=", 2)
 		if len(parts) != 2 {
@@ -290,6 +293,10 @@ func parseParamArgs(params []string) ([]*applicationpkg.ResourceActionParameters
 		if name == "" {
 			return nil, fmt.Errorf("--param argument %d: key must not be empty", i+1)
 		}
+		if _, dup := seen[name]; dup {
+			return nil, fmt.Errorf("--param argument %d: duplicate key %q", i+1, name)
+		}
+		seen[name] = struct{}{}
 		value := parts[1]
 		result = append(result, &applicationpkg.ResourceActionParameters{
 			Name:  &name,
