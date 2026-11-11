@@ -378,10 +378,6 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		}
 	}
 
-	if len(syncOp.Resources) > 0 && state.Operation.InitiatedBy.Automated && syncOp.SyncOptions.HasOption(common.SyncOptionRunHooksOnPartialSync) {
-		logEntry.Debugf("Ignoring sync option %s for automated sync", common.SyncOptionRunHooksOnPartialSync)
-	}
-
 	opts := []sync.SyncOpt{
 		sync.WithLogr(logutils.NewLogrusLogger(logEntry)),
 		sync.WithHealthOverride(lua.ResourceHealthOverrides(resourceOverrides)),
