@@ -339,14 +339,27 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                                 denied: loaded.denied
                             };
                         }
-                        const managedResources = await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
-                            id: {
-                                name: selectedNode.name,
-                                namespace: selectedNode.namespace,
-                                kind: selectedNode.kind,
-                                group: selectedNode.group
+                        const refreshBlocked =
+                            application.status.conditions?.some(condition => condition.type === 'ComparisonError' || condition.type === 'InvalidSpecError') ?? false;
+
+                        let managedResources: models.ResourceDiff[];
+                        let managedResourcesError: unknown;
+                        try {
+                            managedResources = await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
+                                id: {
+                                    name: selectedNode.name,
+                                    namespace: selectedNode.namespace,
+                                    kind: selectedNode.kind,
+                                    group: selectedNode.group
+                                }
+                            });
+                        } catch (error) {
+                            if (!refreshBlocked) {
+                                throw error;
                             }
-                        });
+                            managedResources = [];
+                            managedResourcesError = error;
+                        }
                         const controlled = managedResources.find(item => AppUtils.isSameNode(selectedNode, item));
                         const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
                         const controlledState = (controlled && summary && {summary, state: controlled}) || null;
@@ -354,14 +367,26 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         if (controlled && controlled.targetState) {
                             resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
                         }
-                        const liveState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, resQuery).catch((): null => null);
+                        const liveState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, resQuery).catch((): null => {
+                            if (managedResourcesError) {
+                                throw managedResourcesError;
+                            }
+                            return null;
+                        });
                         const events =
                             (liveState &&
-                                (await services.applications.resourceEvents(application.metadata.name, application.metadata.namespace, {
-                                    name: liveState.metadata.name,
-                                    namespace: liveState.metadata.namespace,
-                                    uid: liveState.metadata.uid
-                                }))) ||
+                                (await services.applications
+                                    .resourceEvents(application.metadata.name, application.metadata.namespace, {
+                                        name: liveState.metadata.name,
+                                        namespace: liveState.metadata.namespace,
+                                        uid: liveState.metadata.uid
+                                    })
+                                    .catch(error => {
+                                        if (!refreshBlocked) {
+                                            throw error;
+                                        }
+                                        return [] as Event[];
+                                    }))) ||
                             [];
                         let podState: State;
                         let childResources: models.ResourceNode[] = [];
