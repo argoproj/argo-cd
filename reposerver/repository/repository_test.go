@@ -2146,6 +2146,43 @@ func TestGetRevisionMetadata(t *testing.T) {
 	assert.NotEmpty(t, res.SignatureInfo) // nolint:staticcheck
 }
 
+// TestGetRevisionMetadataRevisionNotInRepo verifies that when the requested revision is not
+// present in the repository - e.g. after an Application's repoURL is changed to a repository
+// that does not contain the previously synced commit, which makes git fetch fail with
+// "upload-pack: not our ref" - GetRevisionMetadata responds gracefully with empty metadata
+// instead of returning an error that would surface in the UI's Sync Status panel.
+func TestGetRevisionMetadataRevisionNotInRepo(t *testing.T) {
+	const revision = "deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"
+	root := t.TempDir()
+	service, gitClient, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Root().Return(root)
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().LsRemote(revision).Return(revision, nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, revision).Return(false)
+		// The generic fetch succeeds, but the revision is not among the fetched refs...
+		gitClient.EXPECT().Fetch(mock.Anything, "", mock.Anything).Return(nil)
+		gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", errors.New("reference not found"))
+		// ...and the fallback fetch of the specific revision is rejected by the remote.
+		gitClient.EXPECT().Fetch(mock.Anything, revision, mock.Anything).Return(
+			errors.New("`git fetch origin " + revision + " --tags --force --prune` failed exit status 128: " +
+				"fatal: remote error: upload-pack: not our ref " + revision))
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil).Maybe()
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root).Maybe()
+	}, root)
+
+	res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+		Repo:     &v1alpha1.Repository{Repo: "https://github.com/argoproj/new-repo.git"},
+		Revision: revision,
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, res)
+	assert.Empty(t, res.Author)
+	assert.Empty(t, res.Message)
+	assert.Empty(t, res.Tags)
+	gitClient.AssertExpectations(t)
+}
+
 func TestGetSignatureVerificationResult(t *testing.T) {
 	// Commit with signature and verification requested
 	{

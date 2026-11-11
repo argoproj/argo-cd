@@ -3437,3 +3437,43 @@ func Test_LsRemote_htmlLoginPageReproducesInvalidPktLen(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid pkt-len found")
 	assert.Contains(t, err.Error(), "check repository authentication")
 }
+
+func TestIsRevisionNotFound(t *testing.T) {
+	tests := []struct {
+		name     string
+		err      error
+		expected bool
+	}{
+		{
+			name:     "nil error",
+			err:      nil,
+			expected: false,
+		},
+		{
+			name:     "unrelated error",
+			err:      errors.New("could not connect to remote"),
+			expected: false,
+		},
+		{
+			name:     "wrapped sentinel error",
+			err:      fmt.Errorf("unable to resolve 'abc123' to a commit SHA: %w", ErrRevisionNotFound),
+			expected: true,
+		},
+		{
+			name: "upload-pack not our ref, as flattened into a status message",
+			err: errors.New("error acquiring repo lock: rpc error: code = Internal desc = Failed to checkout revision abc123: " +
+				"`git fetch origin abc123 --tags --force --prune` failed exit status 128: fatal: remote error: upload-pack: not our ref abc123"),
+			expected: true,
+		},
+		{
+			name:     "couldn't find remote ref",
+			err:      errors.New("`git fetch origin some-branch` failed: fatal: couldn't find remote ref some-branch"),
+			expected: true,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, IsRevisionNotFound(tt.err))
+		})
+	}
+}

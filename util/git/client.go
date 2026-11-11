@@ -57,6 +57,24 @@ var (
 	ErrRevisionNotFound = errors.New("revision not found")
 )
 
+// IsRevisionNotFound reports whether err indicates that the requested revision
+// does not exist in the repository. This covers the typed ErrRevisionNotFound as
+// well as the raw messages emitted by the git remote when a specific commit or ref
+// cannot be served (for example after an Application's repoURL is changed to a
+// repository that does not contain the previously synced commit). The error chain
+// is often flattened into a gRPC status message before it reaches callers, so the
+// raw remote messages are matched in addition to the sentinel error.
+func IsRevisionNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+	if errors.Is(err, ErrRevisionNotFound) {
+		return true
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "not our ref") || strings.Contains(msg, "couldn't find remote ref")
+}
+
 // Values returned by CommitSignatureStatus for the GPG signature status code
 // (git's %G? placeholder). The full set is documented under PRETTY FORMATS
 // in git-log(1); only G and U represent good signatures that callers should

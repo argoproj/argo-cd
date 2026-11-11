@@ -2895,6 +2895,15 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 		return s.checkoutRevision(ctx, gitClient, q.Revision, s.initConstants.SubmoduleEnabled, q.Repo.Depth, clean)
 	})
 	if err != nil {
+		// The revision may legitimately be absent from the repository, e.g. when an
+		// Application's repoURL is changed to a repository that does not contain the
+		// previously synced commit. There is no commit metadata to return in that case,
+		// so respond gracefully with an empty result instead of failing the request,
+		// which would otherwise surface as an error in the UI's Sync Status panel.
+		if git.IsRevisionNotFound(err) {
+			log.Infof("revision metadata unavailable: revision %s not found in repo %s (the repository URL may have changed): %v", q.Revision, q.Repo.Repo, err)
+			return &v1alpha1.RevisionMetadata{}, nil
+		}
 		return nil, fmt.Errorf("error acquiring repo lock: %w", err)
 	}
 
