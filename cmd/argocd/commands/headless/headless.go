@@ -172,6 +172,26 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 	return nil
 }
 
+// IsCoreMode returns true if the CLI is in core mode, either because the --core flag is set or because the
+// current context in the local config was created with `argocd login --core`.
+func IsCoreMode(clientOpts *apiclient.ClientOptions) (bool, error) {
+	if clientOpts.Core {
+		return true, nil
+	}
+	localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
+	if err != nil {
+		return false, fmt.Errorf("error reading local config: %w", err)
+	}
+	if localCfg == nil {
+		return false, nil
+	}
+	configCtx, err := localCfg.ResolveContext(clientOpts.Context)
+	if err != nil {
+		return false, fmt.Errorf("error resolving context: %w", err)
+	}
+	return configCtx.Server.Core, nil
+}
+
 // MaybeStartLocalServer allows executing command in a headless mode. If we're in core mode, starts the Argo CD API
 // server on the fly and changes provided client options to use started API server port.
 //
@@ -181,21 +201,9 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	if clientConfig == nil {
 		clientConfig = newClientConfig(clientOpts.KubeOverrides)
 	}
-	startInProcessAPI := clientOpts.Core
-	if !startInProcessAPI {
-		// Core mode is enabled on client options. Check the local config to see if we should start the API server.
-		localCfg, err := localconfig.ReadLocalConfig(clientOpts.ConfigPath)
-		if err != nil {
-			return nil, fmt.Errorf("error reading local config: %w", err)
-		}
-		if localCfg != nil {
-			configCtx, err := localCfg.ResolveContext(clientOpts.Context)
-			if err != nil {
-				return nil, fmt.Errorf("error resolving context: %w", err)
-			}
-			// There was a local config file, so determine whether core mode is enabled per the config file.
-			startInProcessAPI = configCtx.Server.Core
-		}
+	startInProcessAPI, err := IsCoreMode(clientOpts)
+	if err != nil {
+		return nil, err
 	}
 	// If we're in core mode, start the API server on the fly.
 	if !startInProcessAPI {
