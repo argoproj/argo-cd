@@ -19,9 +19,9 @@ One additional advantage of adopting applications in any namespace is to allow e
 
 This feature can only be enabled and used when your Argo CD is installed as a cluster-wide instance, so it has permissions to list and manipulate resources on a cluster scope. It will not work with an Argo CD installed in namespace-scoped mode.
 
-### Switch resource tracking method
+### Switch resource tracking method 
 
-Also, while technically not necessary, it is strongly suggested that you switch the application tracking method from the default `label` setting to either `annotation` or `annotation+label`. The reasoning for this is, that application names will be a composite of the namespace's name and the name of the `Application`, and this can easily exceed the 63 characters length limit imposed on label values. Annotations have a notably greater length limit.
+Also, while technically not necessary, if you use `label` resource tracking, it is strongly suggested that you switch the application tracking method setting to either `annotation` or `annotation+label` (Argo CD by default is using `annotation`). The reasoning for this is, that application names will be a composite of the namespace's name and the name of the `Application`, and this can easily exceed the 63 characters length limit imposed on label values. Annotations have a notably greater length limit.
 
 To enable annotation based resource tracking, refer to the documentation about [resource tracking methods](../user-guide/resource_tracking.md)
 
@@ -72,6 +72,8 @@ kubectl apply -k examples/k8s-rbac/argocd-server-applications/
 ```
 
 `argocd-notifications-controller-rbac-clusterrole.yaml` and `argocd-notifications-controller-rbac-clusterrolebinding.yaml` are used to support notifications controller to notify apps in all namespaces.
+
+If you have restricted the default cluster-wide permissions of the `argocd-application-controller`, it also needs cluster-wide permissions on `Application` resources, since it watches them in all namespaces once application namespaces are configured. Otherwise it cannot reconcile them. `argocd-application-controller-rbac-clusterrole.yaml` and `argocd-application-controller-rbac-clusterrolebinding.yaml` grant `get`, `list`, `watch` and `patch` on `Application` resources, plus permission to create `events`. They are included in the `kustomization.yaml` above, so applying the directory as-is grants them as well. As with the server binding, adjust the `namespace` in the binding if Argo CD is installed in a namespace other than `argocd`.
 
 > [!NOTE]
 > At some later point in time, we may make this cluster role part of the default installation manifests.

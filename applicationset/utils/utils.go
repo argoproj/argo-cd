@@ -140,7 +140,7 @@ func (r *Render) deeplyReplaceWithFilter(destination, original reflect.Value, re
 
 	// If it is a struct we translate each field
 	case reflect.Struct:
-		for i := 0; i < original.NumField(); i++ {
+		for i := range original.NumField() {
 			currentType := fmt.Sprintf("%s.%s", original.Type().Field(i).Name, original.Type().PkgPath())
 			if filter != nil {
 				matched, filterErr := filter(destination.Field(i), original.Field(i), original,
@@ -192,7 +192,7 @@ func (r *Render) deeplyReplaceWithFilter(destination, original reflect.Value, re
 			copyValueIntoUnexported(destination, reflect.MakeSlice(original.Type(), original.Len(), original.Cap()))
 		}
 
-		for i := 0; i < original.Len(); i++ {
+		for i := range original.Len() {
 			if err := r.deeplyReplaceWithFilter(destination.Index(i), original.Index(i), replaceMap, useGoTemplate, goTemplateOptions, filter); err != nil {
 				// Not wrapping the error, since this is a recursive function. Avoids excessively long error messages.
 				return err

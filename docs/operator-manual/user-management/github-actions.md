@@ -6,7 +6,9 @@ to generate tokens that identifies the repository and where it runs.
 See: <https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/about-security-hardening-with-openid-connect>
 
 You need to use OAuth 2.0 Token Exchange. Some identity providers supports this
-out of the box such as Dex.
+out of the box such as Dex. Alternatively, you can federate the GitHub OIDC
+token directly into Microsoft Entra ID and have Argo CD trust Entra via
+`oidc.config`.
 
 ## Using Dex
 
@@ -118,6 +120,153 @@ jobs:
           argocd app list
 ```
 
+## Using Microsoft Entra ID
+
+Instead of exchanging the GitHub OIDC token through Dex, you can federate it
+directly into Microsoft Entra ID using
+[Workload Identity Federation](https://learn.microsoft.com/en-us/entra/workload-id/workload-identity-federation).
+Entra ID trusts the GitHub-issued JWT as a client assertion and returns an
+access token for the Argo CD App Registration — no client secret is stored in
+GitHub.
+
+This assumes Argo CD is already configured to trust Entra ID directly via
+`oidc.config` as described in
+[Microsoft Entra ID App Registration Auth using OIDC](microsoft.md#entra-id-app-registration-auth-using-oidc).
+
+### Prerequisites
+
+1. An Entra ID App Registration for Argo CD (the one referenced by
+   `oidc.config`).
+2. An App Registration representing the GitHub Actions workload, with a
+   **Federated credential** configured:
+    - **Scenario:** GitHub Actions deploying Azure resources
+    - **Organization / Repository:** your GitHub org and repo
+    - **Entity type:** Pull request (or Branch / Environment as appropriate)
+    - Keep the default audience `api://AzureADTokenExchange`.
+3. The workload App Registration must be authorized to request tokens for the
+   Argo CD App Registration (the `{ARGOCD_ENTRA_APP_ID}/.default` scope).
+
+### Configuring Argo CD
+
+Configure the App Registration to issue v2.0 access tokens, so they
+match the v2.0 issuer already used in `oidc.config`:
+
+1. In the App Registration, open **Manifest**.
+2. Set `api.requestedAccessTokenVersion` to `2` and save. Older manifests show
+   this setting as `accessTokenAcceptedVersion` at the top level.
+
+    ```json
+    "api": {
+      "requestedAccessTokenVersion": 2
+    }
+    ```
+
+Then edit `argocd-cm` and add `allowedAudiences` to the existing `oidc.config`
+from
+[Microsoft Entra ID App Registration Auth using OIDC](microsoft.md#entra-id-app-registration-auth-using-oidc).
+Keep the issuer and all other settings as they are:
+
+```yaml
+oidc.config: |
+  name: Azure
+  issuer: https://login.microsoftonline.com/{directory_tenant_id}/v2.0
+  clientID: {azure_ad_application_client_id}
+  # ...existing clientSecret / azure.useWorkloadIdentity /
+  # requestedIDTokenClaims / requestedScopes settings stay unchanged...
+  allowedAudiences:
+    - {azure_ad_application_client_id}
+```
+
+> [!NOTE]
+> With v2.0 access tokens, the `iss` claim is
+> `https://login.microsoftonline.com/{tenant-id}/v2.0` and the `aud` claim is
+> always the Argo CD App Registration client ID (a GUID), even when the scope
+> is requested as `api://.../.default`. Setting `allowedAudiences` replaces the
+> default audiences. Keep `clientID` in the list for interactive SSO. If
+> `cliClientID` is configured, also add it to the list for CLI SSO.
+
+Here is an example of a GitHub Action that retrieves a valid Argo CD
+authentication token by federating the GitHub OIDC JWT into Entra ID, and uses
+it to perform actions with the CLI:
+
+```yaml
+name: argocd-test
+
+on:
+  pull_request:
+
+permissions:
+  id-token: write # This is required for requesting the JWT
+  contents: read
+
+jobs:
+  argocd-test:
+    runs-on: ubuntu-latest
+    env:
+      ARGOCD_SERVER: argocd.example.com
+      ARGOCD_OPTS: --grpc-web
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0        # need the base ref to diff against
+
+      - name: Setup ArgoCD CLI
+        run: |
+          curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+          mkdir -p "$RUNNER_TEMP/argocd"
+          install -m 555 argocd-linux-amd64 "$RUNNER_TEMP/argocd/argocd"
+          echo "$RUNNER_TEMP/argocd" >> "$GITHUB_PATH"
+          rm argocd-linux-amd64
+
+      - name: Authenticate (GitHub OIDC -> Entra) and validate
+        if: steps.select.outputs.targets != ''
+        env:
+          # Prefer repo/org Actions variables over inline literals.
+          AZURE_TENANT_ID: ${{ vars.AZURE_TENANT_ID }}
+          AZURE_CLIENT_ID: ${{ vars.AZURE_CLIENT_ID }}
+          ARGOCD_ENTRA_APP_ID: ${{ vars.ARGOCD_ENTRA_APP_ID }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${ARGOCD_SERVER:-}" ]]; then
+            echo "::error::ARGOCD_SERVER is empty. Define the repo/org Actions variable ARGOCD_SERVER (host only)."
+            exit 1
+          fi
+
+          # 1) GitHub OIDC JWT, audience fixed to Entra's WIF exchange audience.
+          gh_jwt="$(curl -sSf \
+            "${ACTIONS_ID_TOKEN_REQUEST_URL}&audience=api://AzureADTokenExchange" \
+            -H "Authorization: bearer ${ACTIONS_ID_TOKEN_REQUEST_TOKEN}" \
+            -H "Accept: application/json; api-version=2.0" \
+            | jq -r '.value')"
+
+          # 2) Federate into Entra: the GitHub JWT is the client assertion, and we
+          #    request a token whose audience is Argo CD's Entra app (no secret).
+          resp="$(curl -sSf \
+            "https://login.microsoftonline.com/${AZURE_TENANT_ID}/oauth2/v2.0/token" \
+            --data-urlencode "grant_type=client_credentials" \
+            --data-urlencode "client_id=${AZURE_CLIENT_ID}" \
+            --data-urlencode "client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer" \
+            --data-urlencode "client_assertion=${gh_jwt}" \
+            --data-urlencode "scope=${ARGOCD_ENTRA_APP_ID}/.default")"
+
+          argocd_token="$(jq -r '.access_token // empty' <<< "$resp")"
+          if [[ -z "$argocd_token" ]]; then
+            echo "::error::Entra token exchange failed: $(jq -rc '{error, error_description}' <<< "$resp" 2>/dev/null || echo "$resp")"
+            exit 1
+          fi
+          echo "::add-mask::${argocd_token}"
+
+          # 3) Argo CD trusts Entra directly via oidc.config; pass the token as-is.
+          export ARGOCD_AUTH_TOKEN="${argocd_token}"
+          argocd version
+          argocd account get-user-info
+          argocd app list
+```
+
+> [!NOTE]
+> The GitHub OIDC token must be requested with the audience
+> `api://AzureADTokenExchange`. This is the fixed audience Entra ID expects for
+> workload identity federation token exchanges.
 
 ## Configuring RBAC
 
@@ -131,6 +280,24 @@ configs:
       p, repo:my-org/my-repo:pull_request, applications, get, my-project/*, allow
       p, repo:my-org/my-repo:pull_request, applicationsets, get, my-project/*, allow
 ```
+
+When authenticating through **Microsoft Entra ID**, the subject differs. Tokens
+obtained via the `client_credentials` grant identify the workload App
+Registration itself, not a repository, so the subject is the **object ID of the
+service principal** (`sub`/`oid` claim) rather than a `repo:org/repo:ref`
+subject. Bind your role to that ID instead:
+
+```yaml
+configs:
+  rbac:
+    policy.csv: |
+      p, role:ci-argo-app, applications, get, */*, allow
+      g, {obj-id}, role:ci-argo-app
+```
+
+Where `{obj-id}` is the object ID of the service
+principal used by the workflow. Grant only the minimum permissions the workflow
+needs — in this example, read-only access to applications.
 
 More info: [RBAC Configuration](../rbac.md)
 

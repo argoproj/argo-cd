@@ -1,0 +1,29 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: 'Secret synced, horizon=24.480216556s'
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'Failed to sync the secret, horizon=1m27.416040517s, err=empty response from Vault, path="secret/data/webapp/does-not-exist"'
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for VaultStaticSecret to be synced
+    inputPath: testdata/progressing_no_status.yaml
+  - healthStatus:
+      status: Progressing
+      message: Waiting for VaultStaticSecret to be synced
+    inputPath: testdata/progressing_spec_not_observed.yaml
+  - healthStatus:
+      status: Healthy
+      message: 'Secret synced, horizon=24.147335132s'
+    inputPath: testdata/healthy_without_ready_condition.yaml
+  - healthStatus:
+      status: Healthy
+      message: Secret synced
+    inputPath: testdata/healthy_stale_secret_synced.yaml
+  - healthStatus:
+      status: Healthy
+      message: Secret synced
+    inputPath: testdata/healthy_pre_1.0.yaml

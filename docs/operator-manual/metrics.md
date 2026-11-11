@@ -1,6 +1,8 @@
 # Metrics
 
-Argo CD exposes different sets of Prometheus metrics per server.
+Argo CD exposes different sets of Prometheus metrics per server. To push these metrics to an
+OpenTelemetry collector instead of scraping them, see
+[Pushing metrics via OTLP](observability.md#pushing-metrics-via-otlp).
 
 ## Application Controller Metrics
 

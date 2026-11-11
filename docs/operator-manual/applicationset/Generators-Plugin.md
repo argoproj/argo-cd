@@ -61,7 +61,7 @@ spec:
     metadata:
       name: myplugin
       annotations:
-        example.from.input.parameters: "{{ index .generator.input.parameters.map "key1" }}"
+        example.from.input.parameters: '{{ index .generator.input.parameters.map "key1" }}'
         example.from.values: "{{ .values.value1 }}"
         # The plugin determines what else it produces.
         example.from.plugin.output: "{{ .something.from.the.plugin }}"

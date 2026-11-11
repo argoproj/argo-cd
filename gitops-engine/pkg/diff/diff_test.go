@@ -1187,6 +1187,62 @@ func TestServerSideDiff(t *testing.T) {
 		assert.NotContains(t, string(result.NormalizedLive), "resourceVersion")
 	})
 
+	t.Run("will not report diff for generation bumped by the dry-run of an ignored field", func(t *testing.T) {
+		// given
+		t.Parallel()
+		// An HPA holds 1 replica, git has 2, and spec.replicas is ignored. The dry-run
+		// changes the spec, so the API server increments metadata.generation. With
+		// IncludeMutationWebhook=true, removeWebhookMutation does not take it from live.
+		predictedLiveJSON := `{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default",
+				"generation": 496,
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:replicas":{}}}}]
+			},
+			"spec": {"replicas": 2}
+		}`
+		liveState := StrToUnstructured(`{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default",
+				"generation": 495,
+				"managedFields": [{"manager":"argocd-controller","operation":"Apply","fieldsType":"FieldsV1","fieldsV1":{"f:spec":{"f:replicas":{}}}}]
+			},
+			"spec": {"replicas": 1}
+		}`)
+		desiredState := StrToUnstructured(`{
+			"apiVersion": "apps/v1",
+			"kind": "Deployment",
+			"metadata": {
+				"name": "my-deploy",
+				"namespace": "default"
+			},
+			"spec": {"replicas": 2}
+		}`)
+		normalizer := &testIgnoreDifferencesNormalizer{
+			fieldsToRemove: [][]string{
+				{"spec", "replicas"},
+			},
+		}
+		opts := buildOptsWithNormalizer(predictedLiveJSON, normalizer)
+		opts = append(opts, WithIgnoreMutationWebhook(false))
+
+		// when
+		result, err := serverSideDiff(t.Context(), desiredState, liveState, opts...)
+
+		// then
+		require.NoError(t, err)
+		assert.NotNil(t, result)
+		assert.False(t, result.Modified, "a generation bumped by the dry-run should not cause a diff")
+		assert.NotContains(t, string(result.PredictedLive), "generation")
+		assert.NotContains(t, string(result.NormalizedLive), "generation")
+	})
+
 	t.Run("will detect ConfigMap data key removal", func(t *testing.T) {
 		// given
 		t.Parallel()
@@ -2178,6 +2234,32 @@ metadata:
 	metadata := newUn.Object["metadata"].(map[string]any)
 	_, ok = metadata["creationTimestamp"]
 	assert.False(t, ok)
+}
+
+// Field names match case-sensitively, like the API server, so a mis-cased field is unknown and
+// remarshal falls back to the unstructured object instead of normalizing it away.
+func TestRemarshalMisCasedField(t *testing.T) {
+	manifest := []byte(`
+apiVersion: v1
+kind: ServiceAccount
+ImagePullSecrets: []
+metadata:
+  name: my-sa
+`)
+	var un unstructured.Unstructured
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
+	newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
+	_, ok := newUn.Object["ImagePullSecrets"]
+	assert.True(t, ok)
+}
+
+func BenchmarkRemarshal(b *testing.B) {
+	un := unmarshalFile("testdata/deployment-live.json")
+	opts := applyOptions(diffOptionsForTest())
+	b.ReportAllocs()
+	for b.Loop() {
+		remarshal(un, opts)
+	}
 }
 
 func TestRemarshalStatefulSetCreationTimestamp(t *testing.T) {
