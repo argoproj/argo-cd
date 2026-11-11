@@ -368,8 +368,10 @@ spec:
           mountPath: /app/config/gpg/keys
         - name: argocd-repo-server-tls
           mountPath: /app/config/reposerver/tls
+          readOnly: true
         - name: argocd-repo-server-mtls
           mountPath: /app/config/reposerver/mtls
+          readOnly: true
         - name: tmp
           mountPath: /tmp
         - mountPath: /helm-working-dir

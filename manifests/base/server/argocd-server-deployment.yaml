@@ -463,10 +463,13 @@ spec:
               mountPath: /app/config/tls
             - name: argocd-repo-server-tls
               mountPath: /app/config/server/tls
+              readOnly: true
             - name: argocd-repo-server-mtls
               mountPath: /app/config/reposerver/mtls
+              readOnly: true
             - name: argocd-dex-server-tls
               mountPath: /app/config/dex/tls
+              readOnly: true
             - mountPath: /home/argocd
               name: plugins-home
             - mountPath: /tmp
