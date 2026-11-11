@@ -1,0 +1,7 @@
+paths:
+  '.github/workflows/{bump-major-version,image,image-reuse,init-release,release,ci-build}.yaml':
+    ignore:
+      - 'shellcheck reported issue in this script: SC(2086|2129|2006|2015):.+'
+  .github/workflows/cherry-pick-single.yml:
+    ignore:
+      - 'shellcheck reported issue in this script: SC(2086|2129|2006|2015):.+'

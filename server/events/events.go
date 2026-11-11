@@ -2,6 +2,7 @@ package events
 
 import (
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	eventspb "github.com/argoproj/argo-cd/v3/pkg/apiclient/events"
 )
@@ -25,7 +26,7 @@ func K8sEventListToAPIEventList(in *corev1.EventList) *eventspb.EventList {
 }
 
 func k8sEventToAPIEvent(in *corev1.Event) eventspb.Event {
-	return eventspb.Event{
+	out := eventspb.Event{
 		Metadata:            in.ObjectMeta,
 		InvolvedObject:      k8sObjectReferenceToAPIObjectReference(in.InvolvedObject),
 		Reason:              in.Reason,
@@ -42,6 +43,22 @@ func k8sEventToAPIEvent(in *corev1.Event) eventspb.Event {
 		ReportingController: in.ReportingController,
 		ReportingInstance:   in.ReportingInstance,
 	}
+	// events.k8s.io/v1 events keep occurrence data in EventTime and Series; fill the legacy fields like kubectl does
+	if in.Series != nil {
+		out.Count = in.Series.Count
+		if !in.Series.LastObservedTime.IsZero() {
+			out.LastTimestamp = metav1.NewTime(in.Series.LastObservedTime.Time)
+		}
+	} else if out.Count == 0 && !in.EventTime.IsZero() {
+		out.Count = 1
+	}
+	if out.FirstTimestamp.IsZero() && !in.EventTime.IsZero() {
+		out.FirstTimestamp = metav1.NewTime(in.EventTime.Time)
+	}
+	if out.LastTimestamp.IsZero() && !in.EventTime.IsZero() {
+		out.LastTimestamp = metav1.NewTime(in.EventTime.Time)
+	}
+	return out
 }
 
 func k8sEventSourceToAPIEventSource(in corev1.EventSource) eventspb.EventSource {

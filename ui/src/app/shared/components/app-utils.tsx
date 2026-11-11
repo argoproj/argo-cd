@@ -165,29 +165,41 @@ export const ComparisonStatusIcon = ({
     );
 };
 
+export const getHealthStatusColor = (status: appModels.HealthStatusCode): string => {
+    switch (status) {
+        case appModels.HealthStatuses.Healthy:
+            return COLORS.health.healthy;
+        case appModels.HealthStatuses.Suspended:
+            return COLORS.health.suspended;
+        case appModels.HealthStatuses.Degraded:
+            return COLORS.health.degraded;
+        case appModels.HealthStatuses.Progressing:
+            return COLORS.health.progressing;
+        case appModels.HealthStatuses.Missing:
+            return COLORS.health.missing;
+        default:
+            return COLORS.health.unknown;
+    }
+};
+
 export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
-    let color = COLORS.health.unknown;
+    const color = getHealthStatusColor(state.status);
     let icon = 'fa-question-circle';
 
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
-            color = COLORS.health.healthy;
             icon = 'fa-heart';
             break;
         case appModels.HealthStatuses.Suspended:
-            color = COLORS.health.suspended;
             icon = 'fa-pause-circle';
             break;
         case appModels.HealthStatuses.Degraded:
-            color = COLORS.health.degraded;
             icon = 'fa-heart-broken';
             break;
         case appModels.HealthStatuses.Progressing:
-            color = COLORS.health.progressing;
             icon = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
             break;
         case appModels.HealthStatuses.Missing:
-            color = COLORS.health.missing;
             icon = 'fa-ghost';
             break;
     }

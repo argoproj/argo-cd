@@ -1,6 +1,7 @@
 import * as React from 'react';
-import {fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import * as models from '../../../shared/models';
+import {COLORS} from '../../../shared/components/colors';
 import {Context} from '../../../shared/context';
 import {services} from '../../../shared/services';
 import {ApplicationStatusPanel} from './application-status-panel';
@@ -49,6 +50,28 @@ const appSet = {
 } as unknown as models.ApplicationSet;
 
 describe('ApplicationStatusPanel', () => {
+    it('colors the health status text by its status', () => {
+        render(<ApplicationStatusPanel application={application} />);
+        expect(screen.getByText('Healthy')).toHaveStyle({color: COLORS.health.healthy});
+    });
+
+    it('colors the collapsed health status text by its status', () => {
+        const degraded = {...application, status: {...application.status, health: {status: 'Degraded'}}} as unknown as models.Application;
+        render(<ApplicationStatusPanel application={degraded} collapsed={true} />);
+        expect(screen.getByTitle('App Health')).toHaveStyle({color: COLORS.health.degraded});
+    });
+
+    it('keeps the themed text color for an Unknown health status', () => {
+        const unknown = {...application, status: {...application.status, health: {status: 'Unknown'}}} as unknown as models.Application;
+        render(<ApplicationStatusPanel application={unknown} collapsed={true} />);
+        expect(screen.getByTitle('App Health')).not.toHaveStyle({color: COLORS.health.unknown});
+    });
+
+    it('spaces the expanded condition counters with sync-condition-details', () => {
+        const {container} = render(<ApplicationStatusPanel application={application} />);
+        expect(container.querySelectorAll('.application-status-panel__item .sync-condition-details').length).toBeGreaterThan(0);
+    });
+
     it('renders the full panel by default', () => {
         const {container} = render(<ApplicationStatusPanel application={application} />);
         expect(screen.getByText('APP HEALTH')).toBeInTheDocument();
@@ -112,13 +135,17 @@ describe('ApplicationStatusPanel', () => {
         const {rerender} = render(<ApplicationStatusPanel application={appV1} collapsed={false} />);
         await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1));
 
+        // collapsing mounts the visible compact progressive sync loader (one call); its
+        // input is the stable owner ref name, so app updates do not refetch anything
         rerender(<ApplicationStatusPanel application={appV1} collapsed={true} />);
+        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2));
         rerender(<ApplicationStatusPanel application={appV2} collapsed={true} />);
         await waitFor(() => expect(screen.getAllByText('Degraded').length).toBeGreaterThan(0));
-        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1);
+        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2);
 
+        // expanding unmounts the compact loader and refreshes the full-panel one once
         rerender(<ApplicationStatusPanel application={appV2} collapsed={false} />);
-        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2));
+        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(3));
     });
 
     it('refreshes the sync window state on re-expand even when the application is unchanged', async () => {
@@ -205,10 +232,14 @@ describe('ApplicationStatusPanel', () => {
         const {rerender} = render(<ApplicationStatusPanel application={withOwner} collapsed={false} />);
         await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1));
 
+        // ownership transitions only mount/unmount the visible compact loader; the
+        // hidden full-panel loader stays frozen (it would add further calls otherwise)
         rerender(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2));
         rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
+        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2);
         rerender(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
-        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1);
+        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(3));
     });
 
     it('does not remount the hydrator metadata loader on live hydrator transitions while collapsed', async () => {
@@ -262,9 +293,98 @@ describe('ApplicationStatusPanel', () => {
         rerender(<ApplicationStatusPanel application={opApp} collapsed={true} />);
         expect(opCalls()).toBe(1);
     });
+
+    describe('compact progressive sync entry', () => {
+        const withOwner = {
+            ...application,
+            metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name: 'demo-appset'}]}
+        } as unknown as models.Application;
+        const appSetWith = (overrides: object) => ({
+            items: [{metadata: {name: 'demo-appset', namespace: 'argocd'}, spec: {strategy: {type: 'RollingSync'}}, status: {applicationStatus: []}, ...overrides}]
+        });
+
+        afterEach(() => (services.applications.listApplicationSets as jest.Mock).mockResolvedValue({items: []}));
+
+        it('ignores a stale pending load after the ApplicationSet owner changes', async () => {
+            const resolvers: Array<(value: object) => void> = [];
+            (services.applications.listApplicationSets as jest.Mock).mockImplementation(() => new Promise(resolve => resolvers.push(resolve)));
+            const ownedBy = (name: string) =>
+                ({...application, metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name}]}} as unknown as models.Application);
+            const itemsFor = (name: string, status: string) => ({
+                items: [{metadata: {name, namespace: 'argocd'}, spec: {strategy: {type: 'RollingSync'}}, status: {applicationStatus: [{application: 'test-app', status}]}}]
+            });
+
+            const {rerender} = render(<ApplicationStatusPanel application={ownedBy('appset-a')} collapsed={true} />);
+            rerender(<ApplicationStatusPanel application={ownedBy('appset-b')} collapsed={true} />);
+            await waitFor(() => expect(resolvers.length).toBe(2));
+
+            // the new owner's request resolves first; the stale one afterwards
+            await act(async () => resolvers[1](itemsFor('appset-b', 'Progressing')));
+            await waitFor(() => expect(screen.getByTitle('Progressive Sync')).toHaveTextContent('Progressing'));
+            await act(async () => resolvers[0](itemsFor('appset-a', 'Healthy')));
+            expect(screen.getByTitle('Progressive Sync')).toHaveTextContent('Progressing');
+        });
+
+        it('shows the progressive sync status while collapsed', async () => {
+            (services.applications.listApplicationSets as jest.Mock).mockResolvedValue(
+                appSetWith({status: {applicationStatus: [{application: 'test-app', status: 'Progressing', step: 1}]}})
+            );
+            render(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+            await waitFor(() => expect(screen.getByTitle('Progressive Sync')).toHaveTextContent('Progressing'));
+        });
+
+        it('shows Waiting while collapsed when the ApplicationSet has no status for the app', async () => {
+            (services.applications.listApplicationSets as jest.Mock).mockResolvedValue(
+                appSetWith({status: {applicationStatus: [{application: 'some-other-app', status: 'Healthy'}]}})
+            );
+            render(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+            await waitFor(() => expect(screen.getByTitle('Progressive Sync')).toHaveTextContent('Waiting'));
+        });
+
+        it('ignores a same-named ApplicationSet in another namespace', async () => {
+            (services.applications.listApplicationSets as jest.Mock).mockResolvedValue({
+                items: [
+                    {
+                        metadata: {name: 'demo-appset', namespace: 'other-namespace'},
+                        spec: {strategy: {type: 'RollingSync'}},
+                        status: {applicationStatus: [{application: 'test-app', status: 'Healthy'}]}
+                    }
+                ]
+            });
+            render(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+            await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalled());
+            await act(async () => undefined);
+            expect(screen.queryByTitle('Progressive Sync')).toBeNull();
+        });
+
+        it('shows no entry while collapsed when the strategy is not RollingSync', async () => {
+            (services.applications.listApplicationSets as jest.Mock).mockResolvedValue(appSetWith({spec: {strategy: {type: 'AllAtOnce'}}}));
+            render(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+            await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalled());
+            // flush the resolved load so the assertion checks the rendered data, not the loading state
+            await act(async () => undefined);
+            expect(screen.queryByTitle('Progressive Sync')).toBeNull();
+        });
+    });
 });
 
 describe('ApplicationSetStatusPanel', () => {
+    it('colors the appset health status text by its status', () => {
+        render(<ApplicationSetStatusPanel appSet={appSet} />);
+        expect(screen.getByText('Healthy')).toHaveStyle({color: COLORS.health.healthy});
+    });
+
+    it('colors the collapsed appset health status text by its status', () => {
+        render(<ApplicationSetStatusPanel appSet={appSet} collapsed={true} />);
+        expect(screen.getByTitle('AppSet Health')).toHaveStyle({color: COLORS.health.healthy});
+    });
+
+    it('keeps the themed text color for an Unknown appset health status', () => {
+        const unknownAppSet = {...appSet, status: {conditions: []}} as unknown as models.ApplicationSet;
+        render(<ApplicationSetStatusPanel appSet={unknownAppSet} collapsed={true} />);
+        expect(screen.getByTitle('AppSet Health')).not.toHaveStyle({color: COLORS.health.unknown});
+    });
+
     it('renders the full panel by default', () => {
         const {container} = render(<ApplicationSetStatusPanel appSet={appSet} />);
         expect(screen.getByText('APPSET HEALTH')).toBeInTheDocument();

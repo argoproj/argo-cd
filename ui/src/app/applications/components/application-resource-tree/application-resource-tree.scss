@@ -166,7 +166,9 @@
             }
         }
 
-        &--applicationset {
+        // Synthesized parent node ("show application's parent node"): the parent
+        // Application (app-of-apps) or ApplicationSet rendered above the current app.
+        &--parent {
             border: 1.5px dashed $argo-color-teal-6 !important;
             opacity: 0.65;
             @include themify($themes) {

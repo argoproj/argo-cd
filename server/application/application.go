@@ -37,10 +37,12 @@ import (
 	"k8s.io/apimachinery/pkg/labels"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
+	"k8s.io/client-go/util/retry"
 
 	argocommon "github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
@@ -85,6 +87,16 @@ const (
 var (
 	ErrCacheMiss       = cacheutil.ErrCacheMiss
 	watchAPIBufferSize = env.ParseNumFromEnv(argocommon.EnvWatchAPIBufferSize, 1000, 0, math.MaxInt32)
+
+	// appUpdateBackoff is used to retry Application updates that fail due to a conflict. The application controller
+	// frequently writes to Application status, so conflicts are expected on busy apps. Ten attempts with a gently
+	// growing delay (~750ms total) keeps the retry budget in line with the previous hand-rolled retry loops.
+	appUpdateBackoff = wait.Backoff{
+		Steps:    10,
+		Duration: 10 * time.Millisecond,
+		Factor:   1.5,
+		Jitter:   0.1,
+	}
 )
 
 // Server provides an Application service
@@ -1028,7 +1040,20 @@ func (s *Server) waitSync(app *v1alpha1.Application) {
 }
 
 func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newApp *v1alpha1.Application, merge bool) (*v1alpha1.Application, error) {
-	for range 10 {
+	var res *v1alpha1.Application
+	firstAttempt := true
+	err := retry.RetryOnConflict(appUpdateBackoff, func() error {
+		if !firstAttempt {
+			// The previous attempt hit a conflict, so re-apply the changes on top of the latest version.
+			latest, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, newApp.Name, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("error getting application: %w", err)
+			}
+			s.inferResourcesStatusHealth(latest)
+			app = latest
+		}
+		firstAttempt = false
+
 		app.Spec = newApp.Spec
 		if merge {
 			app.Labels = collections.Merge(app.Labels, newApp.Labels)
@@ -1040,23 +1065,22 @@ func (s *Server) updateApp(ctx context.Context, app *v1alpha1.Application, newAp
 
 		app.Finalizers = newApp.Finalizers
 
-		res, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
-		if err == nil {
-			s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec")
-			s.waitSync(res)
-			return res, nil
-		}
-		if !apierrors.IsConflict(err) {
-			return nil, err
-		}
-
-		app, err = s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, newApp.Name, metav1.GetOptions{})
+		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(app.Namespace).Update(ctx, app, metav1.UpdateOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("error getting application: %w", err)
+			return fmt.Errorf("error updating application: %w", err)
 		}
-		s.inferResourcesStatusHealth(app)
+		res = updated
+		return nil
+	})
+	if apierrors.IsConflict(err) {
+		return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
 	}
-	return nil, status.Errorf(codes.Internal, "Failed to update application. Too many conflicts")
+	if err != nil {
+		return nil, err
+	}
+	s.logAppEvent(ctx, app, argo.EventReasonResourceUpdated, "updated application spec")
+	s.waitSync(res)
+	return res, nil
 }
 
 // Update updates an application
@@ -1388,6 +1412,11 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 		conditions := make([]v1alpha1.ApplicationCondition, 0)
 		condition, err := argo.ValidateRepo(ctx, app, s.repoClientset, s.db, s.kubectl, proj, s.settingsMgr)
 		if err != nil {
+			// Keep the gRPC code of interrupted manifest generation (canceled / deadline
+			// exceeded) so the caller can tell a slow repository apart from an invalid spec.
+			if st, ok := status.FromError(err); ok && st.Code() != codes.Unknown {
+				return err
+			}
 			return fmt.Errorf("error validating the repo: %w", err)
 		}
 		conditions = append(conditions, condition...)
@@ -2019,7 +2048,7 @@ func (s *Server) PodLogs(q *application.ApplicationPodLogsQuery, ws application.
 				Last:         new(false),
 			}); err != nil {
 				done <- err
-				break
+				return
 			}
 		}
 		now := time.Now()
@@ -2096,6 +2125,21 @@ func isTheSelectedOne(currentNode *v1alpha1.ResourceNode, q *application.Applica
 	return false
 }
 
+// effectiveSyncRequestDryRun returns the dry-run value that will be used for this sync:
+// the request value when set, otherwise syncPolicy.manualDefaults.dryRun.
+// Callers that gate behavior on dry-run (local sync, revision override) must use this
+// instead of syncReq.GetDryRun(), which treats a nil request field as false before
+// manualDefaults are applied.
+func effectiveSyncRequestDryRun(a *v1alpha1.Application, syncReq *application.ApplicationSyncRequest) bool {
+	if syncReq != nil && syncReq.DryRun != nil {
+		return *syncReq.DryRun
+	}
+	if a != nil && a.Spec.SyncPolicy != nil {
+		return a.Spec.SyncPolicy.GetDryRun()
+	}
+	return false
+}
+
 // Sync syncs an application to its target state
 func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncRequest) (*v1alpha1.Application, error) {
 	a, proj, err := s.getApplicationEnforceRBACClient(ctx, rbac.ActionGet, syncReq.GetProject(), syncReq.GetAppNamespace(), syncReq.GetName(), "")
@@ -2121,7 +2165,7 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		if err := s.enf.EnforceErr(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionOverride, a.RBACName(s.ns)); err != nil {
 			return nil, err
 		}
-		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+		if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 			return nil, status.Error(codes.FailedPrecondition, "cannot use local sync when Automatic Sync Policy is enabled unless for dry run")
 		}
 	}
@@ -2169,14 +2213,30 @@ func (s *Server) Sync(ctx context.Context, syncReq *application.ApplicationSyncR
 		source = new(a.Spec.GetSource())
 	}
 
+	// Explicit values in the sync request always win. When omitted, fall back to
+	// syncPolicy.manualDefaults only if that object is populated. Existing apps without
+	// manualDefaults keep legacy behavior (prune/dryRun false, nil strategy) — GetPrune()
+	// also returns false when ManualDefaults is nil so omitted prune never deletes resources.
+	prune := syncReq.GetPrune()
+	dryRun := effectiveSyncRequestDryRun(a, syncReq)
+	strategy := syncReq.Strategy
+	if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.ManualDefaults != nil {
+		if syncReq.Prune == nil {
+			prune = a.Spec.SyncPolicy.GetPrune()
+		}
+		if strategy == nil {
+			strategy = a.Spec.SyncPolicy.GetSyncStrategy()
+		}
+	}
+
 	op := v1alpha1.Operation{
 		Sync: &v1alpha1.SyncOperation{
 			Source:       source,
 			Revision:     revision,
-			Prune:        syncReq.GetPrune(),
-			DryRun:       syncReq.GetDryRun(),
+			Prune:        prune,
+			DryRun:       dryRun,
 			SyncOptions:  syncOptions,
-			SyncStrategy: syncReq.Strategy,
+			SyncStrategy: strategy,
 			Resources:    resources,
 			Manifests:    syncReq.Manifests,
 			Sources:      a.Spec.Sources,
@@ -2240,7 +2300,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 						return "", "", nil, nil, err
 					}
 				}
-				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+				if a.Spec.SyncPolicy != nil && a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 					return "", "", nil, nil, status.Errorf(codes.FailedPrecondition,
 						"Cannot sync source %s to %s: auto-sync currently set to %s",
 						a.Spec.GetSources()[index].RepoURL, desiredRevision, a.Spec.Sources[index].TargetRevision)
@@ -2266,7 +2326,7 @@ func (s *Server) resolveSourceRevisions(ctx context.Context, a *v1alpha1.Applica
 			}
 		}
 		if a.Spec.SyncPolicy != nil &&
-			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !syncReq.GetDryRun() {
+			a.Spec.SyncPolicy.IsAutomatedSyncEnabled() && !effectiveSyncRequestDryRun(a, syncReq) {
 			// If the app has auto-sync enabled, we cannot allow syncing to a different revision
 			return "", "", nil, nil, status.Errorf(codes.FailedPrecondition, "Cannot sync to %s: auto-sync currently set to %s", syncReq.GetRevision(), source.TargetRevision)
 		}
@@ -2537,28 +2597,40 @@ func (s *Server) TerminateOperation(ctx context.Context, termOpReq *application.
 		return nil, err
 	}
 
-	for range 10 {
+	var updated *v1alpha1.Application
+	firstAttempt := true
+	err = retry.RetryOnConflict(appUpdateBackoff, func() error {
+		if !firstAttempt {
+			log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", appName)
+			latest, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
+			if err != nil {
+				return fmt.Errorf("error getting application by name: %w", err)
+			}
+			a = latest
+		}
+		firstAttempt = false
+
 		if a.Operation == nil || a.Status.OperationState == nil {
-			return nil, status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
+			// Returned unwrapped so that the gRPC status message is preserved as-is.
+			return status.Errorf(codes.InvalidArgument, "Unable to terminate operation. No operation is in progress")
 		}
 		a.Status.OperationState.Phase = common.OperationTerminating
-		updated, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
-		if err == nil {
-			s.waitSync(updated)
-			s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
-			return &application.OperationTerminateResponse{}, nil
-		}
-		if !apierrors.IsConflict(err) {
-			return nil, fmt.Errorf("error updating application: %w", err)
-		}
-		log.Warnf("failed to set operation for app %q due to update conflict. retrying again...", *termOpReq.Name)
-		time.Sleep(100 * time.Millisecond)
-		a, err = s.appclientset.ArgoprojV1alpha1().Applications(appNs).Get(ctx, appName, metav1.GetOptions{})
+		res, err := s.appclientset.ArgoprojV1alpha1().Applications(appNs).Update(ctx, a, metav1.UpdateOptions{})
 		if err != nil {
-			return nil, fmt.Errorf("error getting application by name: %w", err)
+			return fmt.Errorf("error updating application: %w", err)
 		}
+		updated = res
+		return nil
+	})
+	if apierrors.IsConflict(err) {
+		return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
 	}
-	return nil, status.Errorf(codes.Internal, "Failed to terminate app. Too many conflicts")
+	if err != nil {
+		return nil, err
+	}
+	s.waitSync(updated)
+	s.logAppEvent(ctx, a, argo.EventReasonResourceUpdated, "terminated running operation")
+	return &application.OperationTerminateResponse{}, nil
 }
 
 func (s *Server) logAppEvent(ctx context.Context, a *v1alpha1.Application, reason string, action string) {

@@ -192,6 +192,11 @@ kubectl edit configmap argocd-cm -n argocd
 * In the `url` key, input the base URL of Argo CD. In this example, it is `https://argocd.example.com`
 * (Optional): If Argo CD should be accessible via multiple base URLs you may
   specify any additional base URLs via the `additionalUrls` key.
+  When Argo CD is served under a non-root path, each entry must include that path.
+  For example, with `--rootpath=/argocd`, use `https://anotherhost.org/argocd`,
+  not `https://anotherhost.org`. Omitting the path causes SSO callback URLs to omit it as well.
+  Requests must match the configured host and either the base path or a child path;
+  for example, `/argo` matches `/argo/login` but not `/argocd/login`.
 * In the `dex.config` key, add the `github` connector to the `connectors` sub field. See Dex's
   [GitHub connector](https://github.com/dexidp/website/blob/main/content/docs/connectors/github.md)
   documentation for explanation of the fields. A minimal config should populate the clientID,
@@ -460,7 +465,7 @@ Some OIDC providers don't return the group information for a user in the ID toke
 oidc.config: |
     enableUserInfoGroups: true
     userInfoPath: /userinfo
-    userInfoURL: "https://users.example.com"
+    userInfoBaseURL: "https://users.example.com"
     userInfoCacheExpiration: "5m"
 ```
 
@@ -544,6 +549,63 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
       -----END CERTIFICATE-----
 ```
 
+### Browserless CLI SSO login using the OAuth 2.0 Device Code Authorization Grant
+
+Cloud-based IDEs and remote development environments run the CLI inside a container, so the standard
+`argocd login --sso` flow — which opens `localhost` in a browser and captures the OIDC callback — does not work.
+The OAuth 2.0 Device Code Authorization Grant
+([RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)) solves this by decoupling the device running the
+CLI from the browser used to complete authentication:
+
+1. The CLI requests a short-lived *device code* from the OIDC provider.
+2. The OIDC provider returns a *verification URL* and a human-readable *user code*.
+3. The CLI prints the URL. The user opens it in **any** browser — even on a completely different machine.
+4. The user authenticates and approves the request in the browser.
+5. The CLI polls the token endpoint until the provider confirms approval, then stores the token locally.
+
+#### Using the flag
+
+```bash
+# First-time login
+argocd login <server> --sso --no-browser
+
+# Refresh an expired token
+argocd relogin --no-browser
+```
+
+The CLI prints a URL like:
+
+```text
+Open the following URL in your browser to authenticate:
+
+  https://argocd.example.com/api/dex/device?user_code=ABCD-1234
+
+Waiting for authentication...
+```
+
+#### Provider requirements
+
+The OIDC provider must support the device code grant type
+(`urn:ietf:params:oauth:grant-type:device_code`) and advertise a
+`device_authorization_endpoint` in its OIDC discovery document
+(`/.well-known/openid-configuration`). Most modern providers (Keycloak, Okta, Azure AD, Google) do.
+
+**Bundled Dex**: Device code support is enabled automatically when Argo CD configures the bundled Dex
+instance — no additional Dex configuration is required.
+
+**External OIDC providers**: The device authorization endpoint is discovered automatically from the
+provider's OIDC discovery document. Some providers also require the device code grant to be enabled
+on the OIDC client used by the CLI. For Keycloak, see [Enabling the Device Code Grant](keycloak.md#enabling-the-device-code-grant).
+
+For providers that support the device code grant but do **not** advertise the endpoint in their discovery
+document, you can configure the URLs explicitly:
+
+```yaml
+  oidc.config: |
+    ...
+    tokenURL: https://example-OIDC-provider.example.com/token
+    deviceURL: https://example-OIDC-provider.example.com/device/code
+```
 
 ## CI/CD Pipeline Authentication
 
