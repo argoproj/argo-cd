@@ -15,14 +15,11 @@ end
 -- The operator also sets HasErrors while it waits for the Keycloak StatefulSet to be created and become ready.
 -- From 23.0.0 to 26.3.3 the second message is "Deployment not yet ready, waiting for it to be ready".
 -- "Keycloak Deployment not found" is the message of Keycloak 21 and earlier.
--- "Import Job failed" is set after the first failed pod while the Job may still retry, and stays the same once the
--- retries are used up. The Job is owned by the realm import, and its own health turns Degraded at that point.
 -- https://github.com/keycloak/keycloak/blob/26.8.1/operator/src/main/java/org/keycloak/operator/controllers/KeycloakRealmImportController.java
 local progressingMessages = {
   "No existing Deployment found",
   "Deployment not yet ready",
   "Keycloak Deployment not found",
-  "Import Job failed",
 }
 
 local done
@@ -49,6 +46,12 @@ end
 if isTrue(hasErrors) then
   local message = hasErrors.message or ""
   hs.message = message
+  -- "Import Job failed" is set after the first failed pod while the Job may still retry, and stays the same once the
+  -- retries are used up. The Job is owned by the realm import, and its own health turns Degraded at that point.
+  -- It is matched exactly, because when the reconciliation throws, the message contains the exception's text.
+  if message == "Import Job failed" then
+    return hs
+  end
   for _, progressing in ipairs(progressingMessages) do
     if string.find(message, progressing, 1, true) ~= nil then
       return hs
