@@ -2858,6 +2858,13 @@ func populatePluginAppDetails(ctx context.Context, res *apiclient.RepoAppDetails
 	return nil
 }
 
+// GetRevisionMetadata returns author, date, tags, commit message and related metadata for a
+// single git revision. The revision must already be resolved to a (possibly truncated) commit
+// SHA. Results are served from cache when possible, and are recomputed when source integrity or
+// signature verification is requested. If the revision is not present in the repository - for
+// example after an Application's repoURL is changed to a repository that does not contain the
+// previously synced commit - an empty RevisionMetadata is returned rather than an error, because
+// there is no commit metadata to report for a revision the repository does not contain.
 func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServerRevisionMetadataRequest) (*v1alpha1.RevisionMetadata, error) {
 	if !git.IsCommitSHA(q.Revision) && !git.IsTruncatedCommitSHA(q.Revision) {
 		return nil, fmt.Errorf("revision %s must be resolved", q.Revision)
