@@ -70,6 +70,11 @@ export const accountQueries = {
     detail: (name: string) => queryOptions({queryKey: ['accounts', 'detail', name], queryFn: () => services.accounts.get(name)})
 };
 
+export const userQueries = {
+    // Not kept once unused: a login after a 401 doesn't reload the page, so a cached value could show the previous user.
+    info: () => queryOptions({queryKey: ['userinfo'], queryFn: () => services.users.get(), gcTime: 0})
+};
+
 export const settingsQueries = {
     get: () => queryOptions({queryKey: ['settings'], queryFn: () => services.authService.settings()})
 };
