@@ -3134,7 +3134,7 @@ func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, re
 	defer func() { traceutil.EndSpan(span, retErr) }()
 	closer := s.gitRepoInitializer(gitClient.Root())
 	err := checkoutRevision(ctx, gitClient, revision, submoduleEnabled, depth, clean)
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
 		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 	}
 	return closer, err
@@ -3144,7 +3144,7 @@ func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, re
 // We assumed that the caller has already initialized the git repo, i.e. gitClient.Init() has been called
 func (s *Service) fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, depth int64) error {
 	err := fetch(ctx, gitClient, targetRevisions, depth)
-	if err != nil {
+	if err != nil && ctx.Err() == nil {
 		for _, revision := range targetRevisions {
 			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
 		}
@@ -3153,9 +3153,16 @@ func (s *Service) fetch(ctx context.Context, gitClient git.Client, targetRevisio
 }
 
 func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, depth int64) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	// Git operations that write to the shared clone run with WithoutCancel so that
+	// request timeouts or cancellations do not terminate git mid-write and corrupt the repository.
+	writeCtx := context.WithoutCancel(ctx)
+
 	revisionPresent := true
 	for _, revision := range targetRevisions {
-		revisionPresent = gitClient.IsRevisionPresent(ctx, revision)
+		revisionPresent = gitClient.IsRevisionPresent(writeCtx, revision)
 		if !revisionPresent {
 			break
 		}
@@ -3166,41 +3173,111 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 	}
 	if depth > 0 {
 		for _, revision := range targetRevisions {
-			if !gitClient.IsRevisionPresent(ctx, revision) {
-				if err := gitClient.Fetch(ctx, revision, depth); err != nil {
+			if !gitClient.IsRevisionPresent(writeCtx, revision) {
+				if err := gitClient.Fetch(writeCtx, revision, depth); err != nil {
+					if isCorruptedGitRepoErr(err) {
+						log.Warnf("Detected corrupted git repo at %s during fetch: %v. Purging repo...", gitClient.Root(), err)
+						if remErr := os.RemoveAll(gitClient.Root()); remErr == nil {
+							_ = gitClient.Init()
+						}
+					}
 					return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 				}
 			}
 		}
-		return nil
+		return ctx.Err()
 	}
 	// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-	err := gitClient.Fetch(ctx, "", 0)
+	err := gitClient.Fetch(writeCtx, "", 0)
 	if err != nil {
+		if isCorruptedGitRepoErr(err) {
+			log.Warnf("Detected corrupted git repo at %s during initial fetch: %v. Purging repo...", gitClient.Root(), err)
+			if remErr := os.RemoveAll(gitClient.Root()); remErr == nil {
+				_ = gitClient.Init()
+			}
+		}
 		return err
 	}
 	for _, revision := range targetRevisions {
-		if !gitClient.IsRevisionPresent(ctx, revision) {
+		if !gitClient.IsRevisionPresent(writeCtx, revision) {
 			// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If fetch fails
 			// for the given revision, try explicitly fetching it.
 			log.Infof("Failed to fetch revision %s: %v", revision, err)
 			log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
 
-			if err := gitClient.Fetch(ctx, revision, 0); err != nil {
+			if err := gitClient.Fetch(writeCtx, revision, 0); err != nil {
+				if isCorruptedGitRepoErr(err) {
+					log.Warnf("Detected corrupted git repo at %s during fallback fetch: %v. Purging repo...", gitClient.Root(), err)
+					if remErr := os.RemoveAll(gitClient.Root()); remErr == nil {
+						_ = gitClient.Init()
+					}
+				}
 				return status.Errorf(codes.Internal, "Failed to fetch revision %s: %v", revision, err)
 			}
 		}
 	}
-	return nil
+	return ctx.Err()
+}
+
+func isCorruptedGitRepoErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "could not read") ||
+		strings.Contains(msg, "internal error in revision walk") ||
+		strings.Contains(msg, "bad object") ||
+		strings.Contains(msg, "bad tree") ||
+		strings.Contains(msg, "corrupt") ||
+		strings.Contains(msg, "inflate: data stream error") ||
+		strings.Contains(msg, "failed to read object") ||
+		strings.Contains(msg, "missing object") ||
+		strings.Contains(msg, "loose object") ||
+		strings.Contains(msg, "packed object")
+}
+
+func recoverCorruptedRepo(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, cleanState bool) error {
+	root := gitClient.Root()
+	log.Warnf("Removing corrupted git repository at %s to re-clone", root)
+	if err := os.RemoveAll(root); err != nil {
+		return fmt.Errorf("failed to remove corrupted repo directory %s: %w", root, err)
+	}
+	if err := gitClient.Init(); err != nil {
+		return fmt.Errorf("failed to re-initialize repo after corruption: %w", err)
+	}
+	if depth > 0 {
+		if err := gitClient.Fetch(ctx, revision, depth); err != nil {
+			return fmt.Errorf("failed to fetch after corruption recovery: %w", err)
+		}
+	} else {
+		if err := gitClient.Fetch(ctx, "", depth); err != nil {
+			if err2 := gitClient.Fetch(ctx, revision, depth); err2 != nil {
+				return fmt.Errorf("failed to fetch after corruption recovery: %w", err2)
+			}
+		}
+	}
+	_, err := gitClient.Checkout(ctx, revision, submoduleEnabled, cleanState)
+	if err != nil {
+		_, err = gitClient.Checkout(ctx, "FETCH_HEAD", submoduleEnabled, cleanState)
+	}
+	return err
 }
 
 func checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, cleanState bool) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 
-	revisionPresent := gitClient.IsRevisionPresent(ctx, revision)
+	// Git commands that modify the shared repository (fetch, checkout) run with WithoutCancel
+	// so client-side cancellations or timeouts do not terminate git mid-write and corrupt the clone.
+	writeCtx := context.WithoutCancel(ctx)
+
+	revisionPresent := gitClient.IsRevisionPresent(writeCtx, revision)
 
 	log.WithFields(map[string]any{
 		"skipFetch": revisionPresent,
@@ -3209,35 +3286,60 @@ func checkoutRevision(ctx context.Context, gitClient git.Client, revision string
 	// Fetching can be skipped if the revision is already present locally.
 	if !revisionPresent {
 		if depth > 0 {
-			err = gitClient.Fetch(ctx, revision, depth)
+			err = gitClient.Fetch(writeCtx, revision, depth)
 		} else {
 			// Fetching with no revision first. Fetching with an explicit version can cause repo bloat. https://github.com/argoproj/argo-cd/issues/8845
-			err = gitClient.Fetch(ctx, "", depth)
+			err = gitClient.Fetch(writeCtx, "", depth)
 		}
 
 		if err != nil {
+			if isCorruptedGitRepoErr(err) {
+				log.Warnf("Detected corrupted git repo at %s during initial fetch: %v. Re-cloning...", gitClient.Root(), err)
+				if recovErr := recoverCorruptedRepo(writeCtx, gitClient, revision, submoduleEnabled, depth, cleanState); recovErr == nil {
+					return ctx.Err()
+				}
+			}
 			return status.Errorf(codes.Internal, "Failed to fetch default: %v", err)
 		}
 	}
 
-	_, err = gitClient.Checkout(ctx, revision, submoduleEnabled, cleanState)
+	_, err = gitClient.Checkout(writeCtx, revision, submoduleEnabled, cleanState)
 	if err != nil {
+		if isCorruptedGitRepoErr(err) {
+			log.Warnf("Detected corrupted git repo at %s: %v. Re-cloning...", gitClient.Root(), err)
+			if recovErr := recoverCorruptedRepo(writeCtx, gitClient, revision, submoduleEnabled, depth, cleanState); recovErr == nil {
+				return ctx.Err()
+			}
+		}
+
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 		// for the given revision, try explicitly fetching it.
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-		err = gitClient.Fetch(ctx, revision, depth)
+		err = gitClient.Fetch(writeCtx, revision, depth)
 		if err != nil {
+			if isCorruptedGitRepoErr(err) {
+				log.Warnf("Detected corrupted git repo at %s during fallback fetch: %v. Re-cloning...", gitClient.Root(), err)
+				if recovErr := recoverCorruptedRepo(writeCtx, gitClient, revision, submoduleEnabled, depth, cleanState); recovErr == nil {
+					return ctx.Err()
+				}
+			}
 			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
 		}
 
-		_, err = gitClient.Checkout(ctx, "FETCH_HEAD", submoduleEnabled, cleanState)
+		_, err = gitClient.Checkout(writeCtx, "FETCH_HEAD", submoduleEnabled, cleanState)
 		if err != nil {
+			if isCorruptedGitRepoErr(err) {
+				log.Warnf("Detected corrupted git repo at %s after FETCH_HEAD checkout: %v. Re-cloning...", gitClient.Root(), err)
+				if recovErr := recoverCorruptedRepo(writeCtx, gitClient, revision, submoduleEnabled, depth, cleanState); recovErr == nil {
+					return ctx.Err()
+				}
+			}
 			return status.Errorf(codes.Internal, "Failed to checkout FETCH_HEAD: %v", err)
 		}
 	}
 
-	return err
+	return ctx.Err()
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {

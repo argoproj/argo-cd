@@ -23,6 +23,7 @@ import (
 	"time"
 
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/prometheus/client_golang/prometheus/testutil"
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -3731,6 +3732,55 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 
 	err := checkoutRevision(t.Context(), gitClient, revision, false, 0, true)
 	require.NoError(t, err)
+}
+
+func TestCancelledCtxDoesNotCountAsFetchFail(t *testing.T) {
+	remote := filepath.Join(t.TempDir(), "remote")
+	rev := initGitRepo(t, newGitRepoOptions{path: remote, createPath: true, addEmptyCommit: true})
+	ms := metrics.NewMetricsServer()
+	s := NewService(ms, nil, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, t.TempDir())
+	gc, err := git.NewClientExt("file://"+remote, t.TempDir(), git.NopCreds{}, true, false, "", "", git.WithEventHandlers(metrics.NewGitClientEventHandlers(ms)))
+	require.NoError(t, err)
+	closer, err := s.checkoutRevision(t.Context(), gc, rev, false, 0, false)
+	require.NoError(t, err)
+	utilio.Close(closer)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	closer, err = s.checkoutRevision(ctx, gc, rev, false, 0, false)
+	require.Error(t, err)
+	utilio.Close(closer)
+
+	count := testutil.CollectAndCount(ms.PrometheusRegistry, "argocd_git_fetch_fail_total")
+	assert.Equal(t, 0, count)
+}
+
+func TestCheckoutRevisionCorruptedRepoRecovery(t *testing.T) {
+	revision := "0123456789012345678901234567890123456789"
+	tempDir := t.TempDir()
+
+	gitClient := &gitmocks.Client{}
+	gitClient.EXPECT().Root().Return(tempDir)
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent(mock.Anything, revision).Return(false)
+	gitClient.EXPECT().Fetch(mock.Anything, "", mock.Anything).Return(nil)
+	// First checkout fails with corrupt repo error
+	gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", errors.New("error: Could not read object fatal: internal error in revision walk")).Once()
+	// Recovery re-initializes, re-fetches, and checks out successfully
+	gitClient.EXPECT().Fetch(mock.Anything, "", mock.Anything).Return(nil)
+	gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", nil).Once()
+
+	err := checkoutRevision(t.Context(), gitClient, revision, false, 0, true)
+	require.NoError(t, err)
+}
+
+func Test_isCorruptedGitRepoErr(t *testing.T) {
+	assert.True(t, isCorruptedGitRepoErr(errors.New("error: Could not read 8bdae1ee09")))
+	assert.True(t, isCorruptedGitRepoErr(errors.New("fatal: internal error in revision walk")))
+	assert.True(t, isCorruptedGitRepoErr(errors.New("fatal: bad object 12345")))
+	assert.True(t, isCorruptedGitRepoErr(errors.New("error: inflate: data stream error")))
+	assert.False(t, isCorruptedGitRepoErr(errors.New("some other git error")))
+	assert.False(t, isCorruptedGitRepoErr(nil))
 }
 
 func TestFetch(t *testing.T) {
