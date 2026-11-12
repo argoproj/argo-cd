@@ -1257,8 +1257,34 @@ func parseLsRemoteOutput(out string) ([]*plumbing.Reference, error) {
 
 func repoURLRedactor(repoURL string) func(string) string {
 	sanitizedRepoURL := SanitizeRepoURL(repoURL)
+
+	replacements := []struct{ old, new string }{
+		{repoURL, sanitizedRepoURL},
+	}
+
+	// In some cases, the path from the repo URL may get removed, so we need to also redact only the shorter part
+	// e.g. GIT_TERMINAL_PROMPT=false git clone https://user@github.com/aprgoproj/argo-cd.git </dev/null
+	//      Cloning into 'argo-cd'...
+	//      fatal: could not read Password for 'https://user@github.com': terminal prompts disabled
+	if u, err := url.Parse(repoURL); err == nil && u.User != nil {
+		withUserinfo := u.Scheme + "://" + u.User.String() + "@" + u.Host
+		withoutUserinfo := u.Scheme + "://" + u.Host
+		replacements = append(replacements, struct{ old, new string }{withUserinfo, withoutUserinfo})
+
+		if _, hasPassword := u.User.Password(); hasPassword {
+			// also redact just the username if the password is not present in the output
+			userOnly := u.Scheme + "://" + u.User.Username() + "@" + u.Host
+			replacements = append(replacements, struct{ old, new string }{userOnly, withoutUserinfo})
+		}
+	}
+
 	return func(text string) string {
-		return strings.ReplaceAll(text, repoURL, sanitizedRepoURL)
+		for _, r := range replacements {
+			if r.old != "" && r.old != r.new {
+				text = strings.ReplaceAll(text, r.old, r.new)
+			}
+		}
+		return text
 	}
 }
 

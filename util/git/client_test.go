@@ -4025,3 +4025,75 @@ func Test_LsRemote_htmlLoginPageReproducesInvalidPktLen(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid pkt-len found")
 	assert.Contains(t, err.Error(), "check repository authentication")
 }
+
+func Test_repoURLRedactor(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name     string
+		repoURL  string
+		input    string
+		expected string
+	}{
+		{
+			name:     "full url no userinfo",
+			repoURL:  "https://github.com/argoproj/argo-cd.git",
+			input:    "cannot clone from https://github.com/argoproj/argo-cd.git: reason",
+			expected: "cannot clone from https://github.com/argoproj/argo-cd.git: reason",
+		},
+		{
+			name:     "full url with userinfo user and pass",
+			repoURL:  "https://user:pass@github.com/argoproj/argo-cd.git",
+			input:    "cannot clone from https://user:pass@github.com/argoproj/argo-cd.git: reason",
+			expected: "cannot clone from https://github.com/argoproj/argo-cd.git: reason",
+		},
+		{
+			name:     "full url with userinfo token",
+			repoURL:  "https://token@github.com/argoproj/argo-cd.git",
+			input:    "cannot clone from https://token@github.com/argoproj/argo-cd.git: reason",
+			expected: "cannot clone from https://github.com/argoproj/argo-cd.git: reason",
+		},
+		{
+			name:     "full url with userinfo user and password but no password in input",
+			repoURL:  "https://user:pass@github.com/argoproj/argo-cd.git",
+			input:    "cannot clone from https://user@github.com/argoproj/argo-cd.git: reason",
+			expected: "cannot clone from https://github.com/argoproj/argo-cd.git: reason",
+		},
+		{
+			name:     "shortened url no userinfo",
+			repoURL:  "https://github.com/argoproj/argo-cd.git",
+			input:    "cannot clone from https://github.com: reason",
+			expected: "cannot clone from https://github.com: reason",
+		},
+		{
+			name:     "shortened url with userinfo user and pass",
+			repoURL:  "https://user:pass@github.com/argoproj/argo-cd.git",
+			input:    "cannot clone from https://user:pass@github.com/: reason",
+			expected: "cannot clone from https://github.com/: reason",
+		},
+		{
+			name:     "shortened url with userinfo token",
+			repoURL:  "https://token@github.com/argoproj/argo-cd.git",
+			input:    "cannot clone from https://token@github.com: reason",
+			expected: "cannot clone from https://github.com: reason",
+		},
+		{
+			name:     "shortened url with userinfo user and password but no password in input",
+			repoURL:  "https://user:pass@github.com/argoproj/argo-cd.git",
+			input:    "cannot clone from https://user@github.com: reason",
+			expected: "cannot clone from https://github.com: reason",
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			t.Parallel()
+
+			redactor := repoURLRedactor(testCase.repoURL)
+
+			redacted := redactor(testCase.input)
+
+			require.Equal(t, testCase.expected, redacted)
+		})
+	}
+}
