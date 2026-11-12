@@ -223,31 +223,50 @@ func TestDependencyBuild(t *testing.T) {
 		name        string
 		insecure    bool
 		plainHTTP   bool
+		skipRefresh bool
 		expectedOut string
 	}{
 		{
 			name:        "without flags",
 			insecure:    false,
 			plainHTTP:   false,
+			skipRefresh: false,
 			expectedOut: "helm dependency build",
+		},
+		{
+			name:        "with skip-refresh",
+			insecure:    false,
+			plainHTTP:   false,
+			skipRefresh: true,
+			expectedOut: "helm dependency build --skip-refresh",
 		},
 		{
 			name:        "with insecure",
 			insecure:    true,
 			plainHTTP:   false,
+			skipRefresh: false,
 			expectedOut: "helm dependency build --insecure-skip-tls-verify",
 		},
 		{
 			name:        "with plain-http",
 			insecure:    false,
 			plainHTTP:   true,
+			skipRefresh: false,
 			expectedOut: "helm dependency build --plain-http",
 		},
 		{
 			name:        "with insecure and plain-http both set",
 			insecure:    true,
 			plainHTTP:   true,
+			skipRefresh: false,
 			expectedOut: "helm dependency build --insecure-skip-tls-verify --plain-http",
+		},
+		{
+			name:        "with all flags",
+			insecure:    true,
+			plainHTTP:   true,
+			skipRefresh: true,
+			expectedOut: "helm dependency build --skip-refresh --insecure-skip-tls-verify --plain-http",
 		},
 	}
 	for _, tc := range tests {
@@ -256,7 +275,7 @@ func TestDependencyBuild(t *testing.T) {
 				return strings.Join(cmd.Args, " "), nil
 			})
 			require.NoError(t, err)
-			out, err := c.dependencyBuild(tc.insecure, tc.plainHTTP)
+			out, err := c.dependencyBuild(tc.insecure, tc.plainHTTP, tc.skipRefresh)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedOut, out)
 		})

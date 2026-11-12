@@ -58,6 +58,15 @@ type indexCache interface {
 	GetHelmIndex(repo string, indexData *[]byte) error
 }
 
+// indexCacheWithValidators extends indexCache with HTTP validator storage
+// for conditional GET support (ETag / Last-Modified). Implementations that
+// do not support validators can simply implement the base indexCache interface.
+type indexCacheWithValidators interface {
+	indexCache
+	SetHelmIndexValidators(repo string, etag string, lastModified string) error
+	GetHelmIndexValidators(repo string) (etag string, lastModified string, err error)
+}
+
 type Client interface {
 	CleanChartCache(chart string, version string) error
 	ExtractChart(ctx context.Context, chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
@@ -398,6 +407,27 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	// Set User-Agent header to comply with robot policies
 	req.Header.Set("User-Agent", c.getUserAgent())
 
+	// Add conditional GET headers if we have cached validators
+	var cachedBody []byte
+	if vc, ok := c.indexCache.(indexCacheWithValidators); ok {
+		etag, lastModified, vErr := vc.GetHelmIndexValidators(c.repoURL)
+		if vErr == nil {
+			// We have validators; also try to load the cached body for 304 reuse
+			if etag != "" {
+				req.Header.Set("If-None-Match", etag)
+			}
+			if lastModified != "" {
+				req.Header.Set("If-Modified-Since", lastModified)
+			}
+			// Pre-load cached body so we can return it on 304
+			if c.indexCache != nil {
+				if cacheErr := c.indexCache.GetHelmIndex(c.repoURL, &cachedBody); cacheErr != nil {
+					cachedBody = nil // cache miss is fine, we'll do a full GET
+				}
+			}
+		}
+	}
+
 	helmPassword, err := c.creds.GetPassword()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get password for helm registry: %w", err)
@@ -425,10 +455,33 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	// Handle 304 Not Modified — return cached body if available
+	if resp.StatusCode == http.StatusNotModified && len(cachedBody) > 0 {
+		log.WithFields(log.Fields{"repo": c.repoURL}).Info("helm index not modified (HTTP 304), using cached body")
+		return cachedBody, nil
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New("failed to get index: " + resp.Status)
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, maxIndexSize))
+
+	data, err := io.ReadAll(io.LimitReader(resp.Body, maxIndexSize))
+	if err != nil {
+		return nil, fmt.Errorf("error reading index response body: %w", err)
+	}
+
+	// Store HTTP validators for future conditional requests
+	if vc, ok := c.indexCache.(indexCacheWithValidators); ok {
+		etag := resp.Header.Get("ETag")
+		lastModified := resp.Header.Get("Last-Modified")
+		if etag != "" || lastModified != "" {
+			if vErr := vc.SetHelmIndexValidators(c.repoURL, etag, lastModified); vErr != nil {
+				log.Warnf("Failed to store index validators for repo %s: %v", c.repoURL, vErr)
+			}
+		}
+	}
+
+	return data, nil
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {

@@ -122,7 +122,7 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		}
 	}
 	h.repos = nil
-	_, err := h.cmd.dependencyBuild(h.insecure, plainHTTP)
+	_, err := h.cmd.dependencyBuild(h.insecure, plainHTTP, true)
 	if err != nil {
 		return fmt.Errorf("failed to build helm dependencies: %w", err)
 	}
