@@ -84,6 +84,10 @@ export const notificationQueries = {
     services: () => queryOptions({queryKey: ['notifications', 'services'], queryFn: () => services.notification.listServices()})
 };
 
+export const versionQueries = {
+    get: () => queryOptions({queryKey: ['version'], queryFn: () => services.version.version(), meta: {silent: true}})
+};
+
 export const helpQueries = {
     // Best-effort: the version only labels the download link, so a failure yields an empty Platform instead of an
     // error notification. Kept under 'help' so other version readers don't get the cached fallback.
