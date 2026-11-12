@@ -61,6 +61,7 @@ interface FilterInput {
     health: string[];
     sync: string[];
     namespace: string[];
+    kindNegate: boolean;
 }
 
 const ApplicationDetailsFilters = (props: FiltersProps) => {
@@ -1504,7 +1505,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
             const hook = root && root.hook;
             if (
                 (filterInput.name.length === 0 || nodeNameMatchesWildcardFilters(node.name, filterInput.name)) &&
-                (filterInput.kind.length === 0 || filterInput.kind.indexOf(node.kind) > -1) &&
+                (filterInput.kind.length === 0 || (filterInput.kindNegate ? filterInput.kind.indexOf(node.kind) === -1 : filterInput.kind.indexOf(node.kind) > -1)) &&
                 // include if node's root sync matches filter
                 (syncStatuses.length === 0 || hook || (root.status && syncStatuses.indexOf(root.status) > -1)) &&
                 // include if node or node's root health matches filter
@@ -1607,6 +1608,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
         const health = new Array<string>();
         const sync = new Array<string>();
         const namespace = new Array<string>();
+        let kindNegate = false;
         for (const item of filterInput || []) {
             const [type, val] = item.split(':');
             switch (type) {
@@ -1614,7 +1616,11 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     name.push(val);
                     break;
                 case 'kind':
-                    kind.push(val);
+                    if (val === '!') {
+                        kindNegate = true;
+                    } else {
+                        kind.push(val);
+                    }
                     break;
                 case 'health':
                     health.push(val);
@@ -1627,7 +1633,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                     break;
             }
         }
-        return {kind, health, sync, namespace, name};
+        return {kind, health, sync, namespace, name, kindNegate};
     }, []);
 
     // Return the render function

@@ -5,7 +5,7 @@ import {HealthStatusCode, HealthStatuses, Resource, SyncStatusCode, SyncStatuses
 import {ResourcesListPreferences, services} from '../../../shared/services';
 import {getResourceClusterLabel} from '../../../shared/utils';
 import {resourceHealthStatus} from '../utils';
-import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
+import {Filter, FiltersGroup, NEGATE_SENTINEL} from '../../../applications/components/filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../../../applications/components/utils';
 
 /** Sentinel namespace filter value for resources without a namespace (cluster-scoped). */
@@ -38,6 +38,8 @@ export interface FilteredResource extends Resource {
 }
 
 export function getFilterResults(resources: Resource[], pref: ResourcesListPreferences): FilteredResource[] {
+    const kindNegate = pref.kindFilter.includes(NEGATE_SENTINEL);
+    const kinds = pref.kindFilter.filter(kind => kind !== NEGATE_SENTINEL);
     return resources.map(app => ({
         ...app,
         filterResult: {
@@ -57,7 +59,7 @@ export function getFilterResults(resources: Resource[], pref: ResourcesListPrefe
                     }
                 }),
             apiGroup: pref.apiGroupFilter.length === 0 || pref.apiGroupFilter.includes(app.group),
-            kind: pref.kindFilter.length === 0 || pref.kindFilter.includes(app.kind)
+            kind: kinds.length === 0 || kinds.includes(app.kind) !== kindNegate
         }
     }));
 }
@@ -209,7 +211,16 @@ const ApiGroupFilter = (props: ResourcesFilterProps) => {
 
 const KindFilter = (props: ResourcesFilterProps) => {
     const kindOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.kind).filter(item => !!item))), props.pref.kindFilter);
-    return <Filter label='KINDS' selected={props.pref.kindFilter} setSelected={s => props.onChange({...props.pref, kindFilter: s})} field={true} options={kindOptions} />;
+    return (
+        <Filter
+            label='KINDS'
+            selected={props.pref.kindFilter}
+            setSelected={s => props.onChange({...props.pref, kindFilter: s})}
+            field={true}
+            negatable={true}
+            options={kindOptions}
+        />
+    );
 };
 
 export const ResourcesFilter = (props: ResourcesFilterProps) => {
