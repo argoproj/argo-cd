@@ -20,6 +20,7 @@ func NewCommand() *cobra.Command {
 	command.AddCommand(newGCPCommand())
 	command.AddCommand(newAzureCommand())
 	command.AddCommand(newOIDCCommand())
+	command.AddCommand(newOCICommand())
 
 	return command
 }
