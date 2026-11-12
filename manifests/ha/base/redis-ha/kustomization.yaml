@@ -249,6 +249,15 @@ patches:
     name: argocd-redis-ha-server
   path: overlays/statefulset-resources.yaml
 
+# ensure headless service publishes DNS records for not-ready pods so Sentinel
+# is reachable during cold restarts (fix-split-brain.sh bootstrap)
+- target:
+    version: v1
+    group: ""
+    kind: Service
+    name: argocd-redis-ha
+  path: overlays/headless-service-publish-not-ready.yaml
+
 # update service selectors to match
 - target:
     version: v1
