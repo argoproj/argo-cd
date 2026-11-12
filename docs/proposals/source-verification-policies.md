@@ -366,5 +366,5 @@ The non-trivial N:M mapping between repositories and Applications (or even Argo 
 Seal-signing marks the point(s) from where not to verify commits *inside* the repository itself, and thus is making sure that all Argo CD instances and their applications have a consistent view of what they are, regardless of application removal from Argo CD, Argo CD migration, etc.
 
 Both approaches, in fact, work as an optimization mechanism by limiting the number of commits to verify.
-For sealing, a committer needs to add a seal commit manually even if there are no unsigned changes to speed things up.
+With sealing, a committer adds seal commits manually. Adding one even when there are no unsigned changes still speeds up verification.
 Additionally, the implementation can cache the last `strict`-verified commit per repository & strategy, to optimize verification speed on a best effort basis.
