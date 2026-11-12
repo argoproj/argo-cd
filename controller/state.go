@@ -121,6 +121,11 @@ type comparisonResult struct {
 	revisionsMayHaveChanges bool
 }
 
+// hasTargetObjs returns true if the desired state contains at least one resource, not counting hooks
+func (res *comparisonResult) hasTargetObjs() bool {
+	return slices.ContainsFunc(res.reconciliationResult.Target, func(obj *unstructured.Unstructured) bool { return obj != nil })
+}
+
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
 	return res.syncStatus
 }
@@ -1007,6 +1012,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			Group:                        gvk.Group,
 			Hook:                         isHook(obj),
 			RequiresPruning:              targetObj == nil && liveObj != nil && isSelfReferencedObj,
+			PruneRequested:               targetObj == nil && isSelfReferencedObj && liveObj != nil && !hookutil.IsHook(liveObj) && resourceutil.HasAnnotationOption(liveObj, synccommon.AnnotationSyncOptions, synccommon.SyncOptionEnablePrune),
 			RequiresDeletionConfirmation: isObjRequiresDeletionConfirmation(targetObj, app) || isObjRequiresDeletionConfirmation(liveObj, app),
 		}
 		if targetObj != nil {
