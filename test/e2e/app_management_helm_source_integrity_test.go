@@ -65,6 +65,14 @@ func TestTraditionalHelmSourceIntegrityProvenancePassesWithAllowedKey(t *testing
 
 func TestTraditionalHelmSourceIntegrityProvenanceFailsWhenProvMissing(t *testing.T) {
 	fixture.SkipOnEnv(t, "HELM", "GPG")
+	source := func(app *Application) {
+		app.Spec.Source = &ApplicationSource{
+			RepoURL:        helmProvenanceLocalRepoURL(),
+			Chart:          helmProvChart,
+			TargetRevision: helmProvUnsignedChartV,
+			Helm:           &ApplicationSourceHelm{ReleaseName: helmProvMissingName},
+		}
+	}
 	Given(t).
 		CustomCACertAdded().
 		GPGPublicKeyAdded().
@@ -75,14 +83,12 @@ func TestTraditionalHelmSourceIntegrityProvenanceFailsWhenProvMissing(t *testing
 		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
 		When().
 		IgnoreErrors().
-		CreateFromFile(func(app *Application) {
-			app.Spec.Source = &ApplicationSource{
-				RepoURL:        helmProvenanceLocalRepoURL(),
-				Chart:          helmProvChart,
-				TargetRevision: helmProvUnsignedChartV,
-				Helm:           &ApplicationSourceHelm{ReleaseName: helmProvMissingName},
-			}
-		}).
+		// Validating the spec generates manifests, which fails without a .prov.
+		CreateFromFile(source).
+		Then().
+		Expect(Error("", "chart has no provenance file (.prov)")).
+		When().
+		CreateFromFile(source, "--validate=false").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
@@ -142,7 +148,7 @@ func TestHelmSourceIntegrityEmptyKeysFailsWhenProvenanceMissing(t *testing.T) {
 				TargetRevision: helmProvUnsignedChartV,
 				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-prov-empty-keys-unsigned-fail"},
 			}
-		}).
+		}, "--validate=false").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
@@ -260,7 +266,7 @@ func TestHelmOCISourceIntegrityProvenanceFailsWhenProvMissing(t *testing.T) {
 				TargetRevision: ociChartNoProvV,
 				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-oci-prov-miss"},
 			}
-		}).
+		}, "--validate=false").
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
@@ -496,7 +502,8 @@ func TestHelmSourceIntegrityRepoClash(t *testing.T) {
 
 	expectHelmRepoClashBrokenAppState(brokenApp.When().
 		IgnoreErrors().
-		CreateApp().
+		// Validating the spec would fail on the missing .prov.
+		CreateApp("--validate=false").
 		Sync().
 		Then())
 
