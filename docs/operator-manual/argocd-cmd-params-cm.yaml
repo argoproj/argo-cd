@@ -358,8 +358,8 @@ data:
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
   # Maximum gRPC message size in MB for the repo server's gRPC server. The application controller and API server read
-  # ARGOCD_GRPC_MAX_SIZE_MB from their own environment for their own gRPC client limits (repo server client, and the
-  # controller's commit server client), so set it there as well when raising this value. (default 100)
+  # ARGOCD_GRPC_MAX_SIZE_MB from their own environment for their repo server client limits, so set it there as well when
+  # raising this value. (default 100)
   reposerver.grpc.max.size: "100"
   # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
