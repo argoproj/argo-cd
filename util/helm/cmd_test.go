@@ -256,7 +256,7 @@ func TestDependencyBuild(t *testing.T) {
 				return strings.Join(cmd.Args, " "), nil
 			})
 			require.NoError(t, err)
-			out, err := c.dependencyBuild(tc.insecure, tc.plainHTTP)
+			out, err := c.dependencyBuild(t.Context(), tc.insecure, tc.plainHTTP, false)
 			require.NoError(t, err)
 			assert.Equal(t, tc.expectedOut, out)
 		})

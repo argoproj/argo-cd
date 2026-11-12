@@ -53,6 +53,7 @@ var (
 
 func NewCommand() *cobra.Command {
 	var (
+		helmIndexCacheDir                  string
 		parallelismLimit                   int64
 		listenPort                         int
 		listenHost                         string
@@ -169,6 +170,7 @@ func NewCommand() *cobra.Command {
 				GitLsRemoteOptimizedEnabled:                  gitLsRemoteOptimizedEnabled,
 				HelmUserAgent:                                helmUserAgent,
 				HelmChartCacheExpiration:                     repoCacheExpiration,
+				HelmIndexCacheDir:                            helmIndexCacheDir,
 			}, askPassServer, clientCAPath, disableTLS)
 			errors.CheckError(err)
 
@@ -284,6 +286,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().StringVar(&helmRegistryMaxIndexSize, "helm-registry-max-index-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE", "1G"), "Maximum size of registry index file")
+	command.Flags().StringVar(&helmIndexCacheDir, "helm-index-cache-dir", env.StringFromEnv(common.EnvHelmIndexCacheDir, ""), "Directory for the optional Helm dependency index cache (disabled when empty; freshness uses --revision-cache-expiration)")
 	command.Flags().StringVar(&ociManifestMaxExtractedSize, "oci-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_OCI_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of oci manifest archives when extracted")
 	command.Flags().BoolVar(&disableOCIManifestMaxExtractedSize, "disable-oci-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_OCI_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of oci manifest archives when extracted")
 	command.Flags().BoolVar(&disableManifestMaxExtractedSize, "disable-helm-manifest-max-extracted-size", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_HELM_MANIFEST_MAX_EXTRACTED_SIZE", false), "Disable maximum size of helm manifest archives when extracted")

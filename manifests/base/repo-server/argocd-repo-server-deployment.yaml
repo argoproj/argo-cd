@@ -41,6 +41,12 @@ spec:
                 name: argocd-cm
                 key: timeout.reconciliation
                 optional: true
+          - name: ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_DIR
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: reposerver.helm.index.cache.dir
+                optional: true
           - name: ARGOCD_REPO_SERVER_LOGFORMAT
             valueFrom:
               configMapKeyRef:

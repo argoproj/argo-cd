@@ -312,6 +312,10 @@ data:
   reposerver.tls.curvepreferences: ""
   # Path to the client CA certificate file for mTLS. if the file is not found or empty, mTLS is disabled.
   reposerver.client.ca.path: ""
+  # Optional writable directory for dependency index reuse. Empty disables it.
+  # Freshness uses --revision-cache-expiration; indexes retain validators for at least 24 hours.
+  reposerver.helm.index.cache.dir: ""
+
   # Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
   reposerver.repo.cache.expiration: "24h0m0s"
   # Cache expiration default (default 24h0m0s)
