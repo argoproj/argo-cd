@@ -336,11 +336,17 @@ func newCachedManagedResources(t *testing.T, server *Server, app *v1alpha1.Appli
 
 	managedResources := make([]*v1alpha1.ResourceDiff, len(objects))
 	for i, res := range objects {
+		manifest, err := json.Marshal(res)
+		if err != nil {
+			t.Fatal(err)
+		}
 		managedResources[i] = &v1alpha1.ResourceDiff{
-			Group:     res.GroupVersionKind().Group,
-			Kind:      res.GetObjectKind().GroupVersionKind().Kind,
-			Name:      res.GetName(),
-			Namespace: res.GetNamespace(),
+			Group:               res.GroupVersionKind().Group,
+			Kind:                res.GetObjectKind().GroupVersionKind().Kind,
+			Name:                res.GetName(),
+			Namespace:           res.GetNamespace(),
+			LiveState:           string(manifest),
+			NormalizedLiveState: string(manifest),
 		}
 	}
 	err := appStateCache.SetAppManagedResources(appInstanceName, managedResources)
@@ -4918,7 +4924,6 @@ func TestServerSideDiff(t *testing.T) {
 			AppName:         new(""), // Empty name instead of nil
 			AppNamespace:    new(testNamespace),
 			Project:         new("test-project"),
-			LiveResources:   []*v1alpha1.ResourceDiff{},
 			TargetManifests: []string{},
 		}
 
@@ -4931,7 +4936,6 @@ func TestServerSideDiff(t *testing.T) {
 			AppName:         nil,
 			AppNamespace:    new(testNamespace),
 			Project:         new("test-project"),
-			LiveResources:   []*v1alpha1.ResourceDiff{},
 			TargetManifests: []string{},
 		}
 
@@ -4946,7 +4950,6 @@ func TestServerSideDiff(t *testing.T) {
 			AppName:         new("test-app"),
 			AppNamespace:    new(testNamespace),
 			Project:         new("test-project"),
-			LiveResources:   []*v1alpha1.ResourceDiff{},
 			TargetManifests: []string{`invalid json`},
 		}
 
@@ -4957,40 +4960,12 @@ func TestServerSideDiff(t *testing.T) {
 		assert.Contains(t, err.Error(), "error unmarshaling target manifest")
 	})
 
-	t.Run("InvalidLiveState", func(t *testing.T) {
-		// Test error handling for malformed JSON in live state
-		liveResource := &v1alpha1.ResourceDiff{
-			Group:       "apps",
-			Kind:        "Deployment",
-			Namespace:   "default",
-			Name:        "test-deployment",
-			LiveState:   `invalid json`,
-			TargetState: "",
-			Modified:    true,
-		}
-
-		query := &application.ApplicationServerSideDiffQuery{
-			AppName:         new("test-app"),
-			AppNamespace:    new(testNamespace),
-			Project:         new("test-project"),
-			LiveResources:   []*v1alpha1.ResourceDiff{liveResource},
-			TargetManifests: []string{`{"apiVersion":"apps/v1","kind":"Deployment","metadata":{"name":"test"}}`},
-		}
-
-		_, err := appServer.ServerSideDiff(t.Context(), query)
-
-		// Should return error for invalid JSON in live state
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "error unmarshaling live state")
-	})
-
 	t.Run("EmptyRequest", func(t *testing.T) {
 		// Test with empty resources - should succeed without errors but no diffs
 		query := &application.ApplicationServerSideDiffQuery{
 			AppName:         new("test-app"),
 			AppNamespace:    new(testNamespace),
 			Project:         new("test-project"),
-			LiveResources:   []*v1alpha1.ResourceDiff{},
 			TargetManifests: []string{},
 		}
 
@@ -5009,7 +4984,6 @@ func TestServerSideDiff(t *testing.T) {
 			AppName:         new("nonexistent-app"),
 			AppNamespace:    new(testNamespace),
 			Project:         new("nonexistent-project"),
-			LiveResources:   []*v1alpha1.ResourceDiff{},
 			TargetManifests: []string{},
 		}
 
@@ -5018,67 +4992,6 @@ func TestServerSideDiff(t *testing.T) {
 		// Should fail with permission error since nonexistent-app doesn't exist
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "application")
-	})
-
-	t.Run("LiveObjectPermissions", func(t *testing.T) {
-		// Test that ServerSideDiff validates that live resources in the request
-		// are part of the application's managed resources
-		// Create an authorized ConfigMap that will be registered as managed
-		authorizedConfigMap := &corev1.ConfigMap{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-			Name:       "authorized-config",
-			Namespace:  "default",
-			Data: map[string]string{
-				"key": "value",
-			},
-		}
-
-		// Create app server with the authorized ConfigMap in managed resources
-		appServerWithManagedResources := newTestAppServer(t, testProj, testApp)
-		appServerWithManagedResources.cache = newCachedManagedResources(
-			t,
-			appServerWithManagedResources,
-			testApp,
-			kube.MustToUnstructured(authorizedConfigMap),
-		)
-
-		// Test 1: Attempt to diff with an unauthorized ConfigMap (different name)
-		unauthorizedConfigMap := &corev1.ConfigMap{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-			Name:       "unauthorized-config",
-			Namespace:  "default",
-			Data: map[string]string{
-				"key": "value",
-			},
-		}
-
-		unauthorizedJSON, err := json.Marshal(unauthorizedConfigMap)
-		require.NoError(t, err)
-
-		unauthorizedQuery := &application.ApplicationServerSideDiffQuery{
-			AppName:      new(testApp.Name),
-			AppNamespace: new(testApp.Namespace),
-			Project:      new(testApp.Spec.Project),
-			LiveResources: []*v1alpha1.ResourceDiff{
-				{
-					Group:     "",
-					Kind:      "ConfigMap",
-					Namespace: "default",
-					Name:      "unauthorized-config",
-					LiveState: string(unauthorizedJSON),
-				},
-			},
-			TargetManifests: []string{string(unauthorizedJSON)},
-		}
-
-		_, err = appServerWithManagedResources.ServerSideDiff(t.Context(), unauthorizedQuery)
-
-		// Should fail with PermissionDenied error
-		require.Error(t, err)
-		assert.Equal(t, codes.PermissionDenied.String(), status.Code(err).String())
-		assert.Equal(t, "/ConfigMap unauthorized-config not found as part of application test-app", status.Convert(err).Message())
 	})
 
 	t.Run("NewObjectsAreAllowed", func(t *testing.T) {
@@ -5117,18 +5030,9 @@ func TestServerSideDiff(t *testing.T) {
 
 		// Query with new object (no LiveState)
 		queryNewObjectEmpty := &application.ApplicationServerSideDiffQuery{
-			AppName:      new(testApp.Name),
-			AppNamespace: new(testApp.Namespace),
-			Project:      new(testApp.Spec.Project),
-			LiveResources: []*v1alpha1.ResourceDiff{
-				{
-					Group:     "",
-					Kind:      "ConfigMap",
-					Namespace: "default",
-					Name:      "new-config",
-					LiveState: "", // Empty LiveState indicates new object
-				},
-			},
+			AppName:         new(testApp.Name),
+			AppNamespace:    new(testApp.Namespace),
+			Project:         new(testApp.Spec.Project),
 			TargetManifests: []string{string(newConfigJSON)},
 		}
 
@@ -5142,18 +5046,9 @@ func TestServerSideDiff(t *testing.T) {
 
 		// Also test with "null" LiveState
 		queryNewObjectNull := &application.ApplicationServerSideDiffQuery{
-			AppName:      new(testApp.Name),
-			AppNamespace: new(testApp.Namespace),
-			Project:      new(testApp.Spec.Project),
-			LiveResources: []*v1alpha1.ResourceDiff{
-				{
-					Group:     "",
-					Kind:      "ConfigMap",
-					Namespace: "default",
-					Name:      "new-config",
-					LiveState: "null", // "null" also indicates new object
-				},
-			},
+			AppName:         new(testApp.Name),
+			AppNamespace:    new(testApp.Namespace),
+			Project:         new(testApp.Spec.Project),
 			TargetManifests: []string{string(newConfigJSON)},
 		}
 
@@ -5169,80 +5064,6 @@ func TestServerSideDiff(t *testing.T) {
 		assert.False(t, applierCalled, "applier should not be called for new objects with null LiveState")
 	})
 
-	t.Run("SecretMaskingNotBypassedBySpoofedLiveKind", func(t *testing.T) {
-		// A caller with get access to the app must not be able to bypass Secret
-		// data masking by pairing a spoofed non-Secret liveResources[i].Kind with a
-		// Secret target manifest. The masking decision must key off the server's own
-		// parsed target/live objects, not the caller-supplied kind/group envelope.
-
-		// Register a decoy ConfigMap as managed so the spoofed live entry passes the
-		// managed-resources membership check.
-		decoyConfigMap := &corev1.ConfigMap{
-			APIVersion: "v1", Kind: "ConfigMap",
-			Name: "decoy-config", Namespace: "default",
-			Data: map[string]string{"key": "value"},
-		}
-		decoyJSON, err := json.Marshal(decoyConfigMap)
-		require.NoError(t, err)
-
-		// The dry-run returns a real Secret (with sensitive data) as the predicted
-		// live state, simulating a server-side apply of the Secret target manifest.
-		const leakedSecret = "czNjcjN0LWxlYWtlZA==" // base64("s3cr3t-leaked")
-		predictedSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"real-secret","namespace":"default"},"type":"Opaque","data":{"password":"` + leakedSecret + `"}}`
-		mockApplier := &kubetest.MockKubeApplier{
-			ApplyResourceFunc: func(_ context.Context, _ *unstructured.Unstructured, _ cmdutil.DryRunStrategy, _, _, _ bool, _ string) (string, error) {
-				return predictedSecret, nil
-			},
-		}
-		mockKubectl := &kubetest.MockKubectlCmd{}
-		mockKubectl.WithManageServerSideDiffDryRunFunc(func(_ *rest.Config) (diff.KubeApplier, func(), error) {
-			return mockApplier, func() {}, nil
-		})
-
-		// Skip webhook-mutation removal (which would require managedFields on the
-		// mock dry-run result); this test is about masking, not webhook handling.
-		spoofApp := newTestApp(func(app *v1alpha1.Application) {
-			app.Name = "spoof-app"
-			app.Namespace = testNamespace
-			app.Spec.Project = "test-project"
-			app.Annotations = map[string]string{
-				"argocd.argoproj.io/compare-options": "IncludeMutationWebhook=true",
-			}
-		})
-
-		appServerSpoof := newTestAppServer(t, testProj, spoofApp)
-		appServerSpoof.kubectl = mockKubectl
-		appServerSpoof.cache = newCachedManagedResources(t, appServerSpoof, spoofApp, kube.MustToUnstructured(decoyConfigMap))
-
-		// Target manifest is a real Secret, but liveResources[0].Kind is spoofed as
-		// ConfigMap to try to skip Secret masking.
-		targetSecret := `{"apiVersion":"v1","kind":"Secret","metadata":{"name":"real-secret","namespace":"default"},"type":"Opaque","data":{"password":"` + leakedSecret + `"}}`
-		query := &application.ApplicationServerSideDiffQuery{
-			AppName:      new(spoofApp.Name),
-			AppNamespace: new(spoofApp.Namespace),
-			Project:      new(spoofApp.Spec.Project),
-			LiveResources: []*v1alpha1.ResourceDiff{
-				{
-					Group:     "",
-					Kind:      "ConfigMap", // spoofed - target is actually a Secret
-					Namespace: "default",
-					Name:      "decoy-config",
-					LiveState: string(decoyJSON),
-				},
-			},
-			TargetManifests: []string{targetSecret},
-		}
-
-		resp, err := appServerSpoof.ServerSideDiff(t.Context(), query)
-		require.NoError(t, err)
-		require.Len(t, resp.Items, 1)
-
-		assert.NotContains(t, resp.Items[0].TargetState, leakedSecret,
-			"raw secret data from the dry-run must not leak into TargetState even when liveResources[i].Kind is spoofed")
-		assert.NotContains(t, resp.Items[0].LiveState, leakedSecret,
-			"raw secret data from the dry-run must not leak into LiveState even when liveResources[i].Kind is spoofed")
-	})
-
 	t.Run("NonSecretIsNotMasked", func(t *testing.T) {
 		// Guard against over-masking: a genuine ConfigMap on both sides must have its
 		// data returned unmasked. The fix keys masking off the real parsed GVK, so
@@ -5252,8 +5073,6 @@ func TestServerSideDiff(t *testing.T) {
 			Name: "plain-config", Namespace: "default",
 			Data: map[string]string{"key": "not-a-secret"},
 		}
-		configJSON, err := json.Marshal(configMap)
-		require.NoError(t, err)
 
 		predictedConfig := `{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"plain-config","namespace":"default"},"data":{"key":"not-a-secret"}}`
 		mockApplier := &kubetest.MockKubeApplier{
@@ -5280,18 +5099,9 @@ func TestServerSideDiff(t *testing.T) {
 		appServerPlain.cache = newCachedManagedResources(t, appServerPlain, plainApp, kube.MustToUnstructured(configMap))
 
 		query := &application.ApplicationServerSideDiffQuery{
-			AppName:      new(plainApp.Name),
-			AppNamespace: new(plainApp.Namespace),
-			Project:      new(plainApp.Spec.Project),
-			LiveResources: []*v1alpha1.ResourceDiff{
-				{
-					Group:     "",
-					Kind:      "ConfigMap",
-					Namespace: "default",
-					Name:      "plain-config",
-					LiveState: string(configJSON),
-				},
-			},
+			AppName:         new(plainApp.Name),
+			AppNamespace:    new(plainApp.Namespace),
+			Project:         new(plainApp.Spec.Project),
 			TargetManifests: []string{predictedConfig},
 		}
 
@@ -5301,138 +5111,6 @@ func TestServerSideDiff(t *testing.T) {
 
 		assert.Contains(t, resp.Items[0].TargetState, "not-a-secret",
 			"ConfigMap data must not be masked")
-	})
-
-	t.Run("LiveObjectConsistency", func(t *testing.T) {
-		// Test that ServerSideDiff validates that the JSON object in LiveState
-		// matches the Group, Kind, Namespace, Name fields of the ResourceDiff
-
-		// Test 1: Name mismatch
-		configMapCorrect := &corev1.ConfigMap{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-			Name:       "correct-name",
-			Namespace:  "default",
-			Data: map[string]string{
-				"key": "value",
-			},
-		}
-		correctJSON, err := json.Marshal(configMapCorrect)
-		require.NoError(t, err)
-
-		queryNameMismatch := &application.ApplicationServerSideDiffQuery{
-			AppName:      new("test-app"),
-			AppNamespace: new(testNamespace),
-			Project:      new("test-project"),
-			LiveResources: []*v1alpha1.ResourceDiff{
-				{
-					Group:     "",
-					Kind:      "ConfigMap",
-					Namespace: "default",
-					Name:      "wrong-name", // Name doesn't match JSON
-					LiveState: string(correctJSON),
-				},
-			},
-			TargetManifests: []string{string(correctJSON)},
-		}
-
-		_, err = appServer.ServerSideDiff(t.Context(), queryNameMismatch)
-		require.Error(t, err)
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		assert.Equal(t, "name mismatch: expected wrong-name, got correct-name for live resource /ConfigMap/wrong-name", status.Convert(err).Message())
-
-		// Test 2: Namespace mismatch
-		queryNamespaceMismatch := &application.ApplicationServerSideDiffQuery{
-			AppName:      new("test-app"),
-			AppNamespace: new(testNamespace),
-			Project:      new("test-project"),
-			LiveResources: []*v1alpha1.ResourceDiff{
-				{
-					Group:     "",
-					Kind:      "ConfigMap",
-					Namespace: "kube-system", // Namespace doesn't match JSON
-					Name:      "correct-name",
-					LiveState: string(correctJSON),
-				},
-			},
-			TargetManifests: []string{string(correctJSON)},
-		}
-
-		_, err = appServer.ServerSideDiff(t.Context(), queryNamespaceMismatch)
-		require.Error(t, err)
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		assert.Equal(t, "namespace mismatch: expected kube-system, got default for live resource /ConfigMap/correct-name", status.Convert(err).Message())
-
-		// Test 3: Kind mismatch
-		queryKindMismatch := &application.ApplicationServerSideDiffQuery{
-			AppName:      new("test-app"),
-			AppNamespace: new(testNamespace),
-			Project:      new("test-project"),
-			LiveResources: []*v1alpha1.ResourceDiff{
-				{
-					Group:     "",
-					Kind:      "Secret", // Kind doesn't match JSON (ConfigMap)
-					Namespace: "default",
-					Name:      "correct-name",
-					LiveState: string(correctJSON),
-				},
-			},
-			TargetManifests: []string{string(correctJSON)},
-		}
-
-		_, err = appServer.ServerSideDiff(t.Context(), queryKindMismatch)
-		require.Error(t, err)
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		assert.Equal(t, "kind mismatch: expected Secret, got ConfigMap for live resource /Secret/correct-name", status.Convert(err).Message())
-
-		// Test 4: Group mismatch
-		deploymentCorrect := &appsv1.Deployment{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-			Name:       "test-deployment",
-			Namespace:  "default",
-			Spec: appsv1.DeploymentSpec{
-				Selector: &metav1.LabelSelector{
-					MatchLabels: map[string]string{"app": "test"},
-				},
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{
-						Labels: map[string]string{"app": "test"},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							{
-								Name:  "test",
-								Image: "nginx",
-							},
-						},
-					},
-				},
-			},
-		}
-		deploymentJSON, err := json.Marshal(deploymentCorrect)
-		require.NoError(t, err)
-
-		queryGroupMismatch := &application.ApplicationServerSideDiffQuery{
-			AppName:      new("test-app"),
-			AppNamespace: new(testNamespace),
-			Project:      new("test-project"),
-			LiveResources: []*v1alpha1.ResourceDiff{
-				{
-					Group:     "batch", // Group doesn't match JSON (apps)
-					Kind:      "Deployment",
-					Namespace: "default",
-					Name:      "test-deployment",
-					LiveState: string(deploymentJSON),
-				},
-			},
-			TargetManifests: []string{string(deploymentJSON)},
-		}
-
-		_, err = appServer.ServerSideDiff(t.Context(), queryGroupMismatch)
-		require.Error(t, err)
-		assert.Equal(t, codes.InvalidArgument, status.Code(err))
-		assert.Equal(t, "group mismatch: expected batch, got apps for live resource batch/Deployment/test-deployment", status.Convert(err).Message())
 	})
 }
 
