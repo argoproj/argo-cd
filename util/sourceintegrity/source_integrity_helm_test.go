@@ -225,7 +225,7 @@ func TestVerifyHelmReturnsGPGRunFailure(t *testing.T) {
 	orig := verifyClearsigned
 	t.Cleanup(func() { verifyClearsigned = orig })
 	verifyClearsigned = func(context.Context, []byte) (string, string, error) {
-		return "", "", fmt.Errorf("%w: %w", errNoSignatureStatus, context.DeadlineExceeded)
+		return "", "", fmt.Errorf("%w: %w", errNoVerdict, context.DeadlineExceeded)
 	}
 	prov := readProv(t)
 	result, err := VerifyHelm(t.Context(), helmSI(provenancePolicy("*", provSignerKeyID)), helmRepoURL, provChartName, "1.0.0", func() (string, string, error) {
@@ -308,7 +308,7 @@ func TestParseGPGVerifyStatus(t *testing.T) {
 	}, {
 		name:    "no status",
 		status:  "",
-		wantErr: "gpg reported no signature status",
+		wantErr: "gpg did not complete verification: no signature status",
 	}}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

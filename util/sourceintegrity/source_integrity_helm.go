@@ -22,9 +22,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/helm"
 )
 
-// errNoSignatureStatus means gpg did not get as far as checking a signature, for example because
+// errNoVerdict means gpg did not reach a verdict on the signature, for example because
 // it could not run. That is not a verdict on the chart, so it is returned as an error.
-var errNoSignatureStatus = errors.New("gpg reported no signature status")
+var errNoVerdict = errors.New("gpg did not complete verification")
 
 // VerifyHelm verifies a Helm chart against the provenance policy matching repoURL. It returns nil
 // when no policy applies. fetch is called only when one does; it returns the digest of the chart
@@ -144,7 +144,7 @@ func helmProvenanceProblem(ctx context.Context, keys []string, chartName, chartV
 		return "provenance file (.prov) is required but missing", nil
 	}
 	signingKeyID, primaryKeyID, err := verifyClearsigned(ctx, prov)
-	if errors.Is(err, errNoSignatureStatus) {
+	if errors.Is(err, errNoVerdict) {
 		return "", err
 	} else if err != nil {
 		return "provenance signature verification failed: " + err.Error(), nil
@@ -216,10 +216,11 @@ func gpgVerifyClearsigned(ctx context.Context, msg []byte) (signingKeyID, primar
 	out, runErr := executil.RunWithExecRunOpts(cmd, executil.ExecRunOpts{SkipErrorLogging: true})
 	signingKeyID, primaryKeyID, err = parseGPGVerifyStatus(out)
 	switch {
-	case errors.Is(err, errNoSignatureStatus) && runErr != nil:
+	case errors.Is(err, errNoVerdict) && runErr != nil:
 		err = fmt.Errorf("%w: %w", err, runErr)
 	case err == nil && runErr != nil:
-		err = fmt.Errorf("gpg reported a good signature but failed: %w", runErr)
+		// A good signature followed by a failure, such as a timeout, is no verdict either.
+		err = fmt.Errorf("%w: gpg reported a good signature but failed: %w", errNoVerdict, runErr)
 	}
 	return signingKeyID, primaryKeyID, err
 }
@@ -267,7 +268,7 @@ func parseGPGVerifyStatus(status string) (signingKeyID, primaryKeyID string, err
 		// gpg read the input and found no signature in it: a verdict on the file, not a gpg failure.
 		return "", "", errors.New("not a PGP signed message")
 	case code == "":
-		return "", "", fmt.Errorf("%w: %q", errNoSignatureStatus, status)
+		return "", "", fmt.Errorf("%w: no signature status in %q", errNoVerdict, status)
 	case code != "GOODSIG":
 		return "", "", fmt.Errorf("%s (key_id=%s)", failures[code], keyID)
 	case !trusted:
