@@ -81,7 +81,7 @@ func Test_GPGDisabledLogging(t *testing.T) {
 
 func TestGPGUnknownMode(t *testing.T) {
 	gitClient := &gitmocks.Client{}
-	gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("", nil)
+	gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("foo", nil)
 	gitClient.EXPECT().CommitSHA(mock.Anything).Return("DEADBEEF", nil)
 
 	s := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: "foobar", Keys: []string{}}

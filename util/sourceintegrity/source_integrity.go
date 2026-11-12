@@ -71,14 +71,16 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 
 	policy := policies[0]
 
-	if policy.GPG != nil && policy.GPG.Mode != v1alpha1.SourceIntegrityGitPolicyGPGModeNone {
-		if !_gpgDisabledLoggedAlready && !IsGPGEnabled() {
-			log.Warnf("SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED")
-			_gpgDisabledLoggedAlready = true
-		}
-		if IsGPGEnabled() {
-			verify = func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
-				return verifyGPG(ctx, policy.GPG, gitClient, verifiedRevision)
+	if policy.GPG != nil {
+		if policy.GPG.Mode != v1alpha1.SourceIntegrityGitPolicyGPGModeNone {
+			if !_gpgDisabledLoggedAlready && !IsGPGEnabled() {
+				log.Warnf("SourceIntegrity criteria for git+gpg declared, but it is turned off by ARGOCD_GPG_ENABLED")
+				_gpgDisabledLoggedAlready = true
+			}
+			if IsGPGEnabled() {
+				verify = func(ctx context.Context, gitClient git.Client, verifiedRevision string) (*v1alpha1.SourceIntegrityCheckResult, string, error) {
+					return verifyGPG(ctx, policy.GPG, gitClient, verifiedRevision)
+				}
 			}
 		}
 	}

@@ -167,7 +167,7 @@ func newServiceWithMocks(t *testing.T, root string) (*Service, *gitmocks.Client,
 		gitClient.EXPECT().CommitSHA(mock.Anything).Return(mock.Anything, nil)
 		gitClient.EXPECT().Root().Return(root)
 		gitClient.EXPECT().RepoURL().Return("https://fake.com/fake_group/fake_repo.git")
-		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("commit", nil)
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 
 		chart := "my-chart"
@@ -246,7 +246,7 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		if revisionErr != nil {
 			gitClient.EXPECT().GetRevisionType(mock.Anything, revision).Return("tag", nil)
 		} else {
-			gitClient.EXPECT().GetRevisionType(mock.Anything, revision).Return("", nil)
+			gitClient.EXPECT().GetRevisionType(mock.Anything, revision).Return("commit", nil)
 		}
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().CommitSHA(mock.Anything).Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
@@ -722,7 +722,7 @@ func TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored(t *testing.T
 		gitClient.EXPECT().CommitSHA(mock.Anything).Return(mock.Anything, nil)
 		gitClient.EXPECT().Root().Return(".")
 		gitClient.EXPECT().RepoURL().Return("https://git.example.com/test/repo")
-		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("commit", nil)
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 
 		helmClient.EXPECT().GetIndex(mock.Anything, mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
@@ -780,7 +780,7 @@ func TestHelmChartReferencingSameRepoAndRevision_ResolvesRevisionOnce(t *testing
 		gitClient.EXPECT().LsRemote(branch).Return(newSHA, nil).Once()
 		gitClient.EXPECT().LsRemote(newSHA).Return(newSHA, nil).Maybe()
 		gitClient.EXPECT().Root().Return(root)
-		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("commit", nil)
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 
 		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
@@ -2169,7 +2169,8 @@ func TestGetRevisionMetadataSignedRevisionOnly(t *testing.T) {
 		t.Run("commit sha "+revision+" passes the guard", func(t *testing.T) {
 			service, gitClient, _ := newServiceWithMocks(t, "../..")
 
-			gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("commit", nil)
+			// newServiceWithMocks already makes GetRevisionType report "commit"; testify serves the
+			// first matching expectation, so registering it again here would have no effect.
 			gitClient.EXPECT().GetSymbolicFullName(mock.Anything, mock.Anything).Return("", nil)
 			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockOk)
 			gitClient.EXPECT().RevisionMetadata(mock.Anything, mock.Anything).Return(&git.RevisionMetadata{

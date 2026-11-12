@@ -1670,7 +1670,7 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 	var signatures []RevisionSignatureInfo
 	revType, err := m.GetRevisionType(ctx, unresolvedRevision)
 	if err != nil {
-		return nil, "", err
+		log.Debugf("cannot determine the git object type of %q, err: %v", unresolvedRevision, err)
 	}
 
 	if revType == "tag" {

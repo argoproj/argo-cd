@@ -553,7 +553,7 @@ func (s *Service) runRepoOperation(
 		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 		revType, err := gitClient.GetRevisionType(ctx, revision)
 		if err != nil {
-			return nil, err
+			log.Debugf("cannot determine the git object type of %q, err: %v", revision, err)
 		}
 		if revType == "tag" {
 			rev = unresolvedRevision
