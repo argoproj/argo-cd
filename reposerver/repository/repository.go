@@ -3140,15 +3140,21 @@ func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, re
 	return closer, err
 }
 
-// gitCorruptionMarkers are substrings git prints when the local object database
-// is damaged (for example because a fetch was interrupted mid-write). A checkout
-// that fails with one of these cannot recover by refetching into the same clone,
-// so the repository is removed and re-cloned instead of failing every request
-// against that replica until the process restarts.
-var gitCorruptionMarkers = []string{
-	"could not read",
-	"internal error in revision walk",
-	"unable to read tree",
+// gitCorruptionPatterns match the diagnostics git prints when the local object
+// database is damaged (for example because a fetch was interrupted mid-write). A
+// checkout that fails with one of these cannot recover by refetching into the
+// same clone, so the repository is removed and re-cloned instead of failing
+// every request against that replica until the process restarts.
+//
+// The patterns are deliberately object-specific. In particular "could not read"
+// requires a following object id so it does not match git's "Could not read from
+// remote repository." message, which is a remote-contact failure, not local
+// corruption — misclassifying that would throw away a healthy clone (and its
+// locally cached revisions) during a remote outage.
+var gitCorruptionPatterns = []*regexp.Regexp{
+	regexp.MustCompile(`(?i)could not read [0-9a-f]{4,}`),
+	regexp.MustCompile(`(?i)internal error in revision walk`),
+	regexp.MustCompile(`(?i)unable to read tree`),
 }
 
 // isRepoCorrupt reports whether err indicates a damaged local git object
@@ -3157,9 +3163,9 @@ func isRepoCorrupt(err error) bool {
 	if err == nil {
 		return false
 	}
-	msg := strings.ToLower(err.Error())
-	for _, marker := range gitCorruptionMarkers {
-		if strings.Contains(msg, marker) {
+	msg := err.Error()
+	for _, pattern := range gitCorruptionPatterns {
+		if pattern.MatchString(msg) {
 			return true
 		}
 	}
@@ -3281,13 +3287,21 @@ func checkoutRevisionOnce(ctx context.Context, gitClient git.Client, revision st
 
 	_, err = gitClient.Checkout(ctx, revision, submoduleEnabled, cleanState)
 	if err != nil {
+		// Remember a corruption diagnosis from the direct checkout. The fallback
+		// fetch below is the legitimate recovery when the revision simply was not
+		// in the default refspec, so we still attempt it; but if that fetch then
+		// fails for an unrelated reason, keep the corruption signal rather than
+		// letting the fetch error replace it and skip the re-clone recovery.
+		checkoutCorrupt := isRepoCorrupt(err)
 		// When fetching with no revision, only refs/heads/* and refs/remotes/origin/* are fetched. If checkout fails
 		// for the given revision, try explicitly fetching it.
 		log.Infof("Failed to checkout revision %s: %v", revision, err)
 		log.Infof("Fallback to fetching specific revision %s. ref might not have been in the default refspec fetched.", revision)
-		err = gitClient.Fetch(ctx, revision, depth)
-		if err != nil {
-			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
+		if fetchErr := gitClient.Fetch(ctx, revision, depth); fetchErr != nil {
+			if checkoutCorrupt {
+				return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, err)
+			}
+			return status.Errorf(codes.Internal, "Failed to checkout revision %s: %v", revision, fetchErr)
 		}
 
 		_, err = gitClient.Checkout(ctx, "FETCH_HEAD", submoduleEnabled, cleanState)

@@ -22,7 +22,10 @@ func TestIsRepoCorrupt(t *testing.T) {
 	assert.False(t, isRepoCorrupt(nil))
 	assert.False(t, isRepoCorrupt(errors.New("fatal: unable to connect to remote")))
 	assert.False(t, isRepoCorrupt(context.Canceled))
-	// Markers git prints when the local object database is damaged.
+	// A remote-contact failure is NOT local corruption: it must not trip the
+	// re-clone, which would discard a healthy clone during a remote outage.
+	assert.False(t, isRepoCorrupt(errors.New("fatal: Could not read from remote repository.")))
+	// Diagnostics git prints when the local object database is damaged.
 	assert.True(t, isRepoCorrupt(errors.New("error: Could not read 8bdae1ee09")))
 	assert.True(t, isRepoCorrupt(fmt.Errorf("wrapped: %w", errors.New("fatal: internal error in revision walk"))))
 	assert.True(t, isRepoCorrupt(errors.New("error: unable to read tree 120ce...")))
@@ -35,16 +38,17 @@ func TestGitFetchFailReason(t *testing.T) {
 	// A cancelled caller context is classified as "cancelled" even when the
 	// error text looks corrupt, so a caller giving up never inflates the
 	// genuine-error or corrupt series.
-	assert.Equal(t, "cancelled", gitFetchFailReason(cancelled, errors.New("error: Could not read abc")))
-	assert.Equal(t, "corrupt", gitFetchFailReason(context.Background(), errors.New("error: Could not read abc")))
+	assert.Equal(t, "cancelled", gitFetchFailReason(cancelled, errors.New("error: Could not read deadbeef")))
+	assert.Equal(t, "corrupt", gitFetchFailReason(context.Background(), errors.New("error: Could not read deadbeef")))
 	assert.Equal(t, "error", gitFetchFailReason(context.Background(), errors.New("boom")))
 }
 
 // TestCheckoutRevisionReclonesCorruptRepo verifies that a checkout failing with
 // a corrupted-object-database error triggers a single remove-and-re-clone, and
-// that the retried checkout can then succeed. Driven through a mock so the
-// recovery control flow is exercised deterministically, independent of git's
-// own self-healing refetch.
+// that the retried checkout can then succeed. Here the fallback fetch succeeds
+// but the FETCH_HEAD checkout is still corrupt, so recovery must re-clone.
+// Driven through a mock so the recovery control flow is exercised
+// deterministically, independent of git's own self-healing refetch.
 func TestCheckoutRevisionReclonesCorruptRepo(t *testing.T) {
 	revision := "0123456789012345678901234567890123456789"
 	root := t.TempDir()
@@ -55,10 +59,36 @@ func TestCheckoutRevisionReclonesCorruptRepo(t *testing.T) {
 	gitClient.EXPECT().Init().Return(nil)
 	gitClient.EXPECT().IsRevisionPresent(mock.Anything, revision).Return(false)
 	gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	// First pass: both the direct checkout and the FETCH_HEAD fallback fail corrupt.
+	// First pass: direct checkout and the FETCH_HEAD fallback both fail corrupt.
 	gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", corruptErr).Once()
 	gitClient.EXPECT().Checkout(mock.Anything, "FETCH_HEAD", mock.Anything, mock.Anything).Return("", corruptErr).Once()
 	// Second pass (after re-clone): checkout succeeds.
+	gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", nil).Once()
+
+	err := checkoutRevision(t.Context(), gitClient, revision, false, 0, false)
+	require.NoError(t, err)
+}
+
+// TestCheckoutRevisionCorruptionSurvivesFallbackFetchError covers the masking
+// path CodeRabbit flagged: the direct checkout reports corruption, then the
+// fallback fetch fails for an unrelated (non-corruption) reason. The corruption
+// signal must be preserved so the clone is still re-cloned rather than the fetch
+// error masking it.
+func TestCheckoutRevisionCorruptionSurvivesFallbackFetchError(t *testing.T) {
+	revision := "0123456789012345678901234567890123456789"
+	root := t.TempDir()
+	corruptErr := errors.New("error: Could not read 8bdae1ee09")
+
+	gitClient := gitmocks.NewClient(t)
+	gitClient.EXPECT().Root().Return(root)
+	gitClient.EXPECT().Init().Return(nil)
+	gitClient.EXPECT().IsRevisionPresent(mock.Anything, revision).Return(false)
+	// Initial no-revision fetch succeeds; the explicit fallback fetch for the
+	// revision fails with an unrelated error.
+	gitClient.EXPECT().Fetch(mock.Anything, "", mock.Anything).Return(nil)
+	gitClient.EXPECT().Fetch(mock.Anything, revision, mock.Anything).Return(errors.New("fatal: unable to access remote: timeout")).Once()
+	gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", corruptErr).Once()
+	// After re-clone the second-pass checkout succeeds.
 	gitClient.EXPECT().Checkout(mock.Anything, revision, mock.Anything, mock.Anything).Return("", nil).Once()
 
 	err := checkoutRevision(t.Context(), gitClient, revision, false, 0, false)
