@@ -119,7 +119,7 @@ The proposed changes don't require any special upgrade/downgrade strategy. The n
 
 ## Drawbacks
 
-Slight increase of the application syncrhonization logic complexity.
+Slight increase of the application synchronization logic complexity.
 
 ## Alternatives
 
