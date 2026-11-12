@@ -29,6 +29,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/helm"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
@@ -51,8 +52,9 @@ var (
 const maxOCIManifestSize = 4 * 1024 * 1024 // 4 MiB
 
 const (
-	helmOCIConfigType = "application/vnd.cncf.helm.config.v1+json"
-	helmOCILayerType  = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+	helmOCIConfigType     = "application/vnd.cncf.helm.config.v1+json"
+	helmOCILayerType      = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+	helmOCIProvenanceType = "application/vnd.cncf.helm.chart.provenance.v1.prov"
 )
 
 var _ Client = &nativeOCIClient{}
@@ -334,11 +336,39 @@ func (c *nativeOCIClient) extract(ctx context.Context, digest string) (string, u
 	}
 	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize, isHelmChart)
 	if err != nil {
+		if manifestsDir != "" {
+			_ = os.Remove(manifestsDir + helm.ChartDigestSuffix)
+			_ = os.Remove(manifestsDir + helm.ProvenanceSuffix)
+		}
 		return manifestsDir, nil, fmt.Errorf("cannot extract contents of oci image with revision %s: %w", digest, err)
+	}
+	if isHelmChart {
+		// Push keeps whichever provenance layer oras.Copy pushed first. With several, that choice is
+		// arbitrary, so keep none and let a matching policy fail.
+		ociManifest, err := getOCIManifestFromCache(ctx, cachedPath, digest)
+		if err != nil {
+			_ = os.RemoveAll(manifestsDir)
+			_ = os.Remove(manifestsDir + helm.ChartDigestSuffix)
+			_ = os.Remove(manifestsDir + helm.ProvenanceSuffix)
+			return "", nil, fmt.Errorf("error getting oci manifest for extraction: %w", err)
+		}
+		provLayers := 0
+		for _, layer := range ociManifest.Layers {
+			if layer.MediaType == helmOCIProvenanceType {
+				provLayers++
+			}
+		}
+		if provLayers > 1 {
+			_ = os.Remove(manifestsDir + helm.ProvenanceSuffix)
+		}
 	}
 
 	return manifestsDir, utilio.NewCloser(func() error {
-		return os.RemoveAll(manifestsDir)
+		return errors.Join(
+			os.RemoveAll(manifestsDir),
+			os.RemoveAll(manifestsDir+helm.ChartDigestSuffix),
+			os.RemoveAll(manifestsDir+helm.ProvenanceSuffix),
+		)
 	}), nil
 }
 
@@ -624,6 +654,14 @@ func isHelmOCI(mediaType string) bool {
 // Push looks in all the layers of an OCI image. Once it finds a layer that is compressed, it extracts the layer to a tempDir
 // and then renames the temp dir to the directory where the repo-server expects to find k8s manifests.
 func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.Descriptor, content io.Reader) error {
+	if s.isHelmChart && desc.MediaType == helmOCIProvenanceType {
+		err := helm.SaveChartProvenance(s.dest, content)
+		if errors.Is(err, fs.ErrExist) {
+			// Another provenance layer was saved first; extract drops both.
+			return nil
+		}
+		return err
+	}
 	// For Helm charts, only extract the Helm chart content layer, skip all other layers
 	if s.isHelmChart && !isHelmOCI(desc.MediaType) {
 		return s.Store.Push(ctx, desc, content)
@@ -647,6 +685,10 @@ func (s *compressedLayerExtracterStore) Push(ctx context.Context, desc imagev1.D
 		}
 
 		if isHelmOCI(desc.MediaType) {
+			// The cached layer was verified against desc.Digest when it was downloaded.
+			if err := helm.SaveChartDigest(s.dest, desc.Digest.String()); err != nil {
+				return err
+			}
 			infos, err := os.ReadDir(srcDir)
 			if err != nil {
 				return err

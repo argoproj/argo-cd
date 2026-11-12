@@ -29,6 +29,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	textutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
@@ -456,7 +457,17 @@ func (s *Service) runRepoOperation(
 		}
 
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{appPath, "", nil}, nil
+			// helm push stores a chart at <repo>/<chart name>, tagged with its version ("+" as "_").
+			chartVersion := strings.ReplaceAll(unresolvedRevision, "_", "+")
+			if _, err := semver.StrictNewVersion(chartVersion); err != nil {
+				// A range or a digest: which version it picked is not known here.
+				chartVersion = ""
+			}
+			sourceIntegrityResult, err := verifyHelmProvenance(ctx, sourceIntegrity, source, ociPath, path.Base(source.RepoURL), chartVersion)
+			if err != nil {
+				return nil, err
+			}
+			return &operationContext{appPath, "", sourceIntegrityResult}, nil
 		})
 	} else if source.IsHelm() {
 		if settings.noCache {
@@ -583,8 +594,18 @@ func (s *Service) runRepoOperation(
 func verifyHelmProvenance(ctx context.Context, sourceIntegrity *v1alpha1.SourceIntegrity, source *v1alpha1.ApplicationSource, extractedPath, chartName, chartVersion string) (*v1alpha1.SourceIntegrityCheckResult, error) {
 	return sourceintegrity.VerifyHelm(ctx, sourceIntegrity, source.RepoURL, chartName, chartVersion, func() (string, string, error) {
 		chartDigest, provPath, err := helm.ChartProvenance(extractedPath)
-		if err == nil && chartDigest == "" {
+		if err != nil {
+			return "", "", err
+		}
+		if chartDigest == "" {
 			err = fmt.Errorf("%s is not a Helm chart", source.RepoURL)
+		} else if _, statErr := os.Lstat(provPath); source.IsOCI() && errors.Is(statErr, fs.ErrNotExist) {
+			err = fmt.Errorf("%s has no provenance layer", source.RepoURL)
+		}
+		// An oci:// source is pinned to a digest, so what it lacks now it will always lack: report a
+		// failed check. A Helm repository pull may instead just have failed to download the .prov.
+		if err != nil && source.IsOCI() {
+			err = fmt.Errorf("%w: %w", sourceintegrity.ErrProvenanceUnavailable, err)
 		}
 		return chartDigest, provPath, err
 	})

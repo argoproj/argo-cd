@@ -22,6 +22,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/helm"
 )
 
+// ErrProvenanceUnavailable marks a VerifyHelm fetch error that a retry cannot change, such as a
+// digest-pinned OCI artifact without a provenance layer. It is reported as a failed check, which
+// the repo-server may cache, rather than as an error.
+var ErrProvenanceUnavailable = errors.New("provenance unavailable")
+
 // errNoVerdict means gpg did not reach a verdict on the signature, for example because
 // it could not run. That is not a verdict on the chart, so it is returned as an error.
 var errNoVerdict = errors.New("gpg did not complete verification")
@@ -58,7 +63,9 @@ func VerifyHelm(ctx context.Context, si *v1alpha1.SourceIntegrity, repoURL, char
 	}
 
 	chartDigest, provPath, err := fetch()
-	if err != nil {
+	if errors.Is(err, ErrProvenanceUnavailable) {
+		return helmProvenanceResult("could not access chart for provenance verification: " + err.Error()), nil
+	} else if err != nil {
 		return nil, fmt.Errorf("could not access chart for provenance verification: %w", err)
 	}
 	prov, err := readProvenance(provPath)

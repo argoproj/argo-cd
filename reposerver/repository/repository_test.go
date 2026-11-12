@@ -7102,6 +7102,24 @@ func TestVerifyHelmProvenance(t *testing.T) {
 		_, err := verifyHelmProvenance(t.Context(), si, source, extracted(t, map[string]string{helm.ChartDigestSuffix: "sha256:2222"}), "my-chart", "1.1.0")
 		require.EqualError(t, err, "could not access chart for provenance verification: chart has no provenance file (.prov)")
 	})
+
+	ociSI := &v1alpha1.SourceIntegrity{Helm: &v1alpha1.SourceIntegrityHelm{Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+		Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "oci://registry.example.com/*"}},
+		Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"D56C4FCA57A46444"}},
+	}}}}
+	ociSource := &v1alpha1.ApplicationSource{RepoURL: "oci://registry.example.com/charts/my-chart", Path: "."}
+
+	t.Run("OCI artifact that is not a Helm chart fails the check", func(t *testing.T) {
+		result, err := verifyHelmProvenance(t.Context(), ociSI, ociSource, extracted(t, nil), "my-chart", "")
+		require.NoError(t, err, "a digest-pinned artifact cannot change, so this is a cacheable verdict")
+		require.EqualError(t, result.AsError(), "HELM/PROVENANCE: could not access chart for provenance verification: provenance unavailable: oci://registry.example.com/charts/my-chart is not a Helm chart")
+	})
+
+	t.Run("OCI chart without provenance layer fails the check", func(t *testing.T) {
+		result, err := verifyHelmProvenance(t.Context(), ociSI, ociSource, extracted(t, map[string]string{helm.ChartDigestSuffix: "sha256:2222"}), "my-chart", "")
+		require.NoError(t, err)
+		require.ErrorContains(t, result.AsError(), "oci://registry.example.com/charts/my-chart has no provenance layer")
+	})
 }
 
 func TestGenerateManifest_HelmProvenance(t *testing.T) {

@@ -26,9 +26,10 @@ func HasCriteria(si *v1alpha1.SourceIntegrity, sources ...v1alpha1.ApplicationSo
 
 	for _, source := range sources {
 		switch {
-		case source.IsZero() || source.IsOCI():
+		case source.IsZero():
 			continue
-		case source.IsHelm():
+		case source.IsHelm() || source.IsOCI():
+			// Helm provenance is the only check for OCI sources so far.
 			if hasHelmCriteria(si, source.RepoURL) {
 				return true
 			}

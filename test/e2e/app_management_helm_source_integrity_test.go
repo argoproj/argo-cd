@@ -337,6 +337,107 @@ func TestHelmOCISourceIntegrityFailsWhenKeyNotInKeyring(t *testing.T) {
 		Expect(Condition(ApplicationConditionComparisonError, "key_id="+fixture.GpgGoodKeyID))
 }
 
+func TestNativeOCIHelmSourceIntegrityProvenancePassesWithAllowedKey(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	pushHelmProvenanceChartToOCIRegistry(t)
+
+	Given(t).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		OCIRepoAdded("native-oci-prov", "myrepo/"+helmProvChart).
+		Name("native-oci-prov-pass").
+		Project("gpg").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nativeOCIHelmProvenanceSource(helmProvChart)
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
+func TestNativeOCIHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+	pushHelmProvenanceChartToOCIRegistry(t)
+
+	Given(t).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		OCIRepoAdded("native-oci-prov-wrong", "myrepo/"+helmProvChart).
+		Name("native-oci-prov-wrong").
+		Project("default").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(helmProvWrongKey)).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nativeOCIHelmProvenanceSource(helmProvChart)
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "signed with unallowed key")).
+		Expect(Condition(ApplicationConditionComparisonError, "key_id="+fixture.GpgGoodKeyID))
+}
+
+func TestNativeOCIHelmSourceIntegrityProvenanceFailsWhenProvMissing(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+
+	Given(t).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		PushChartToOCIRegistry("testdata/helm-values", ociChartNoProv, ociChartNoProvV).
+		OCIRepoAdded("native-oci-prov-miss", "myrepo/"+ociChartNoProv).
+		Name("native-oci-prov-miss").
+		Project("default").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = nativeOCIHelmProvenanceSource(ociChartNoProv)
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "HELM/PROVENANCE")).
+		Expect(Condition(ApplicationConditionComparisonError, "has no provenance layer"))
+}
+
+// TestNativeOCIHelmSourceIntegrityFailsForNonHelmArtifact checks that a Helm policy matching a
+// plain manifests artifact fails closed rather than skipping verification.
+func TestNativeOCIHelmSourceIntegrityFailsForNonHelmArtifact(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM")
+
+	Given(t).
+		PushImageToOCIRegistry("testdata/guestbook", "1.0.0").
+		OCIRepoAdded("native-oci-not-helm", "guestbook").
+		Name("native-oci-not-helm").
+		Project("default").
+		ProjectSpec(appProjectWithHelmSourceIntegrity(fixture.GpgGoodKeyID)).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = &ApplicationSource{RepoURL: fixture.OCIHostURL + "/guestbook", Path: ".", TargetRevision: "1.0.0"}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "HELM/PROVENANCE")).
+		Expect(Condition(ApplicationConditionComparisonError, "is not a Helm chart"))
+}
+
+// nativeOCIHelmProvenanceSource is a repoType oci source for a chart pushed by helm push.
+func nativeOCIHelmProvenanceSource(chart string) *ApplicationSource {
+	return &ApplicationSource{RepoURL: fixture.OCIHostURL + "/myrepo/" + chart, Path: ".", TargetRevision: "1.0.0"}
+}
+
 // pushHelmProvenanceChartToOCIRegistry pushes the signed chart; helm push uploads the sibling .prov as a layer.
 func pushHelmProvenanceChartToOCIRegistry(t *testing.T) {
 	t.Helper()
