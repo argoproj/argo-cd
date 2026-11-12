@@ -3135,9 +3135,50 @@ func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, re
 	closer := s.gitRepoInitializer(gitClient.Root())
 	err := checkoutRevision(ctx, gitClient, revision, submoduleEnabled, depth, clean)
 	if err != nil {
-		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
+		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision, gitFetchFailReason(ctx, err))
 	}
 	return closer, err
+}
+
+// gitCorruptionMarkers are substrings git prints when the local object database
+// is damaged (for example because a fetch was interrupted mid-write). A checkout
+// that fails with one of these cannot recover by refetching into the same clone,
+// so the repository is removed and re-cloned instead of failing every request
+// against that replica until the process restarts.
+var gitCorruptionMarkers = []string{
+	"could not read",
+	"internal error in revision walk",
+	"unable to read tree",
+}
+
+// isRepoCorrupt reports whether err indicates a damaged local git object
+// database, as opposed to a transient network/remote failure or a cancellation.
+func isRepoCorrupt(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	for _, marker := range gitCorruptionMarkers {
+		if strings.Contains(msg, marker) {
+			return true
+		}
+	}
+	return false
+}
+
+// gitFetchFailReason classifies a fetch/checkout failure for the
+// argocd_git_fetch_fail_total "reason" label: a cancelled caller context is a
+// latency signal rather than a git failure, a corrupt clone is its own failure
+// mode, and anything else is a generic error.
+func gitFetchFailReason(ctx context.Context, err error) string {
+	switch {
+	case ctx.Err() != nil:
+		return "cancelled"
+	case isRepoCorrupt(err):
+		return "corrupt"
+	default:
+		return "error"
+	}
 }
 
 // fetch is a convenience function to fetch revisions
@@ -3145,8 +3186,9 @@ func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, re
 func (s *Service) fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, depth int64) error {
 	err := fetch(ctx, gitClient, targetRevisions, depth)
 	if err != nil {
+		reason := gitFetchFailReason(ctx, err)
 		for _, revision := range targetRevisions {
-			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
+			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision, reason)
 		}
 	}
 	return err
@@ -3195,6 +3237,23 @@ func fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, 
 }
 
 func checkoutRevision(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, cleanState bool) error {
+	err := checkoutRevisionOnce(ctx, gitClient, revision, submoduleEnabled, depth, cleanState)
+	// A corrupted object database cannot be repaired by refetching into the same
+	// clone, so remove the repository and clone it from scratch. This is bounded
+	// to a single retry: if the fresh clone is still corrupt, return the error
+	// rather than looping.
+	if isRepoCorrupt(err) {
+		root := gitClient.Root()
+		log.Warnf("Local git repository at %s appears corrupted (%v); removing and re-cloning", root, err)
+		if rmErr := os.RemoveAll(root); rmErr != nil {
+			return status.Errorf(codes.Internal, "Failed to remove corrupted git repo at %s: %v", root, rmErr)
+		}
+		err = checkoutRevisionOnce(ctx, gitClient, revision, submoduleEnabled, depth, cleanState)
+	}
+	return err
+}
+
+func checkoutRevisionOnce(ctx context.Context, gitClient git.Client, revision string, submoduleEnabled bool, depth int64, cleanState bool) error {
 	err := gitClient.Init()
 	if err != nil {
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)

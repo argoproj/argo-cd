@@ -717,6 +717,18 @@ func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int64) error {
+	// Detach from the caller's cancellation. A fetch writes to the shared local
+	// object database; if the caller (for example a repo-server request that hit
+	// its deadline) cancels mid-fetch, git is SIGTERM'd while writing and can
+	// leave the clone permanently corrupted ("Could not read <sha>" / "internal
+	// error in revision walk"), breaking every later request against that clone
+	// until the process restarts. Letting the fetch run to completion under a
+	// non-cancellable context restores the pre-#28353 behaviour (git fetch ran
+	// under context.Background()) for this mutating path. Read-only git commands
+	// still honour cancellation, and checkout stays cancellable because it only
+	// risks a stale index.lock (cleaned up on cancel), not object-db corruption.
+	ctx = context.WithoutCancel(ctx)
+
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()

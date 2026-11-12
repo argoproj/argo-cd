@@ -48,7 +48,7 @@ func NewMetricsServer() *MetricsServer {
 			Name: "argocd_git_fetch_fail_total",
 			Help: "Number of git fetch requests failures by repo server",
 		},
-		[]string{"repo", "revision"},
+		[]string{"repo", "revision", "reason"},
 	)
 	registry.MustRegister(gitFetchFailCounter)
 
@@ -206,8 +206,13 @@ func (m *MetricsServer) GetHandler() http.Handler {
 	return m.handler
 }
 
-func (m *MetricsServer) IncGitFetchFail(repo string, revision string) {
-	m.gitFetchFailCounter.WithLabelValues(repo, revision).Inc()
+// IncGitFetchFail records a failed git fetch/checkout. reason distinguishes the
+// failure mode so dashboards can tell a latency/cancellation signal apart from a
+// genuine git or remote error or a corrupted clone: "cancelled" (the caller's
+// context was cancelled, e.g. a request deadline), "corrupt" (the local clone's
+// object database is damaged) or "error" (any other failure).
+func (m *MetricsServer) IncGitFetchFail(repo string, revision string, reason string) {
+	m.gitFetchFailCounter.WithLabelValues(repo, revision, reason).Inc()
 }
 
 func (m *MetricsServer) IncGitLsRemoteFail(repo string, revision string) {

@@ -585,6 +585,33 @@ func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 	require.NoFileExists(t, indexLock, "cancelled git left a stale index.lock behind")
 }
 
+// Test_nativeGitClient_Fetch_ignoresCallerCancellation verifies that a fetch is
+// not aborted when the caller's context is already cancelled. A fetch writes to
+// the shared object database, and killing it mid-write can corrupt the clone
+// permanently (argoproj/argo-cd#30953), so Fetch detaches from the caller's
+// cancellation and runs to completion. Read-only commands and checkout still
+// honour cancellation.
+func Test_nativeGitClient_Fetch_ignoresCallerCancellation(t *testing.T) {
+	remoteDir := t.TempDir()
+	require.NoError(t, runCmd(t.Context(), remoteDir, "git", "init", "-b", "main"))
+	require.NoError(t, runCmd(t.Context(), remoteDir, "git", "config", "user.email", "test@example.com"))
+	require.NoError(t, runCmd(t.Context(), remoteDir, "git", "config", "user.name", "test"))
+	require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "file.txt"), []byte("hello"), 0o644))
+	require.NoError(t, runCmd(t.Context(), remoteDir, "git", "add", "file.txt"))
+	require.NoError(t, runCmd(t.Context(), remoteDir, "git", "commit", "-m", "initial"))
+
+	client, err := NewClientExt("file://"+remoteDir, t.TempDir(), NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel() // the caller has already given up before the fetch starts
+
+	// With an already-cancelled context git's own command would fail at Start
+	// ("context canceled"); Fetch must detach from it and complete anyway.
+	require.NoError(t, client.Fetch(ctx, "", 0))
+}
+
 func Test_gitCancelGracePeriod(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "")
