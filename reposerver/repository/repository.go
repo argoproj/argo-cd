@@ -3283,10 +3283,10 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 				if repo.InsecureOCIForceHttp {
 					clientOpts = append(clientOpts, helm.WithPlainHTTP())
 				}
-				_, err := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, clientOpts...).TestHelmOCI(ctx)
+				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, clientOpts...).TestHelmOCI(ctx)
 				return err
 			}
-			_, err := s.newHelmClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache)).GetIndex(ctx, false, s.initConstants.HelmRegistryMaxIndexSize)
+			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache)).GetIndex(ctx, true, s.initConstants.HelmRegistryMaxIndexSize)
 			return err
 		},
 	}

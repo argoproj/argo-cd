@@ -407,22 +407,23 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	// Set User-Agent header to comply with robot policies
 	req.Header.Set("User-Agent", c.getUserAgent())
 
-	// Add conditional GET headers if we have cached validators
+	// Add conditional GET headers only if we have both the cached body and validators,
+	// avoiding a 304 response when the cached body is missing or expired.
 	var cachedBody []byte
-	if vc, ok := c.indexCache.(indexCacheWithValidators); ok {
-		etag, lastModified, vErr := vc.GetHelmIndexValidators(c.repoURL)
-		if vErr == nil {
-			// We have validators; also try to load the cached body for 304 reuse
-			if etag != "" {
-				req.Header.Set("If-None-Match", etag)
-			}
-			if lastModified != "" {
-				req.Header.Set("If-Modified-Since", lastModified)
-			}
-			// Pre-load cached body so we can return it on 304
-			if c.indexCache != nil {
-				if cacheErr := c.indexCache.GetHelmIndex(c.repoURL, &cachedBody); cacheErr != nil {
-					cachedBody = nil // cache miss is fine, we'll do a full GET
+	if c.indexCache != nil {
+		if cacheErr := c.indexCache.GetHelmIndex(c.repoURL, &cachedBody); cacheErr != nil {
+			cachedBody = nil
+		}
+	}
+	if len(cachedBody) > 0 {
+		if vc, ok := c.indexCache.(indexCacheWithValidators); ok {
+			etag, lastModified, vErr := vc.GetHelmIndexValidators(c.repoURL)
+			if vErr == nil {
+				if etag != "" {
+					req.Header.Set("If-None-Match", etag)
+				}
+				if lastModified != "" {
+					req.Header.Set("If-Modified-Since", lastModified)
 				}
 			}
 		}
