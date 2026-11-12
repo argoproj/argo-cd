@@ -103,6 +103,85 @@ the appropriate tool.
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - Is an environment variable that enables collecting RPC performance metrics.
   Enable it if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
+#### Helm dependency index cache
+
+Set `--helm-index-cache-dir` or `ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_DIR` to a writable
+Argo-managed directory to reuse HTTP(S) repository indexes across dependency builds.
+The default is empty, which disables dependency index reuse. With the standard installation,
+set `reposerver.helm.index.cache.dir` in `argocd-cmd-params-cm` and restart repo-server.
+For example, use this ConfigMap setting with the existing writable `/tmp` volume:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+data:
+  reposerver.helm.index.cache.dir: /tmp/helm-index-cache
+```
+
+Freshness uses `--revision-cache-expiration` (default `3m`), including its
+`ARGOCD_RECONCILIATION_TIMEOUT` default. It is independent of `--repo-cache-expiration`.
+Setting revision-cache expiration to zero makes ordinary builds revalidate every time.
+Expired indexes and validators remain available for another `max(24h, freshness)`;
+normal reads and snapshot copies never extend either deadline. Successful origin responses
+advance validation time. A retained index is never served after an origin validation error.
+
+Each Helm invocation still has private config, cache, data, credentials and certificate files.
+Argo copies the original validated index bytes into that home and uses `--skip-refresh` only
+after every required HTTP repository is ready. OS file locks coordinate builds and cleanup
+between processes sharing a local directory. Lock waits respect request cancellation;
+context-free maintenance waits are limited to 30 seconds. A crashed process releases its locks,
+and startup/publication cleanup removes orphaned record temporary files. Lock files remain
+on disk to prevent independent locks being created for the same identity.
+
+> [!NOTE]
+> Use a pod-local filesystem with working advisory locks and atomic rename, such as an
+> `emptyDir` volume. Each replica normally has its own directory. Shared network filesystems
+> are not supported by this optimization. Losing the directory only makes the next build cold.
+> Account for retained index bodies, metadata and per-identity lock files when sizing the volume.
+
+> [!WARNING]
+> Indexes can contain private chart metadata. Use a dedicated directory writable only by
+> repo-server; newly created cache directories have mode `0700` and records/locks `0600`.
+> Repository passwords and client keys stay in the temporary Helm home. Cache-directory initialization and locking failures
+> return an actionable error; disable the directory setting to use the original path. A publication
+> failure after successful HTTP validation does not discard the valid response.
+
+A warm dependency build makes no index request. An expired index is conditionally revalidated
+when validators are available. Hard refresh (`NoCache`) and forced revision resolution
+(`NoRevisionCache`) fetch unconditionally **when a dependency build actually executes**.
+Existing dependency markers, downloaded charts and `Chart.lock` still govern whether a build
+runs and which versions it uses. Enabling the cache does not force a rebuild or unlock versions.
+Unsupported getter schemes retain Helm's original registration and refresh path for the whole build.
+
+Shared records require a complete, size-bounded index with `apiVersion: v1`. Invalid or truncated
+responses are never published.
+
+Go-client chart listing, connectivity tests and revision resolution retain their always-fresh
+behavior independently of the directory setting. A `304` response avoids transferring the index
+body; it still counts as a GET. Chart extraction through `helm pull --repo` can make its own index
+request on archive misses. Archive downloads and checkout-triggered builds are unchanged.
+
+Go-client index requests send `Cache-Control: no-cache` so compliant intermediary caches validate
+with the origin before replying. Update detection still depends on accurate origin validators:
+an incorrect `304`, a reused ETag, or an unchanged modification timestamp can hide a change.
+OCI repositories use registry tags, manifests and blobs instead of `index.yaml`; this index cache
+does not cache OCI content or change OCI tag-cache freshness. Mixed HTTP/OCI builds retain
+registry authentication and pulls while reusing only the HTTP index.
+
+During a rolling upgrade, new versioned Redis records coexist with legacy raw-index keys;
+old readers never receive a record envelope in a raw key. Older replicas may continue making full
+index downloads. Rollback does not require deleting Redis records. To disable dependency reuse,
+clear the directory setting and restart repo-server; remove its volume contents only after every
+process using that directory has stopped.
+
+Measure index GETs, `200`/`304` statuses, transferred bytes, dependency-build duration and origin
+errors separately on a canary. Verify cold, warm, expired and executed hard-refresh builds against
+a comparable workload. Request reduction across replicas and the fleet's target reduction require
+measurement; per-process or per-directory single-flight does not coordinate separate pods.
+
 ### argocd-application-controller
 
 **settings:**

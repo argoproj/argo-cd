@@ -627,7 +627,9 @@ func TestSetHelmIndex(t *testing.T) {
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		err := fixtures.cache.SetHelmIndex("test-repo", []byte("test-data"))
 		require.NoError(t, err)
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1})
+		// Two sets: the versioned v2 record (body + validators atomically)
+		// and the legacy key mirrored for rolling-upgrade compatibility.
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2})
 	})
 	t.Run("SetHelmIndex with nil", func(t *testing.T) {
 		t.Parallel()
@@ -638,7 +640,8 @@ func TestSetHelmIndex(t *testing.T) {
 		var indexData []byte
 		err = fixtures.cache.GetHelmIndex("test-repo", &indexData)
 		require.Error(t, err)
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1})
+		// Two gets: the v2 record miss, then the legacy-key fallback.
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 2})
 	})
 }
 
@@ -977,4 +980,19 @@ func TestGetOciFiles(t *testing.T) {
 		assert.Equal(t, expectedItem, files)
 		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalGets: 1, ExternalSets: 1})
 	})
+}
+
+func TestHelmIndexValidators(t *testing.T) {
+	fixtures := newFixtures()
+	t.Cleanup(fixtures.mockCache.StopRedisCallback)
+	err := fixtures.cache.SetHelmIndexValidators("test-repo", `"etag-1"`, "Wed, 21 Oct 2026 07:28:00 GMT")
+	require.NoError(t, err)
+	etag, lastModified, err := fixtures.cache.GetHelmIndexValidators("test-repo")
+	require.NoError(t, err)
+	assert.Equal(t, `"etag-1"`, etag)
+	assert.Equal(t, "Wed, 21 Oct 2026 07:28:00 GMT", lastModified)
+
+	// Missing validators → cache miss error, empty strings.
+	_, _, err = fixtures.cache.GetHelmIndexValidators("missing-repo")
+	assert.Error(t, err)
 }
