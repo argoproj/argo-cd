@@ -156,8 +156,6 @@ type Client interface {
 	RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error)
 	// Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
 	VerifyCommitSignature(ctx context.Context, revision string) (string, error)
-	// IsAnnotatedTag determines if the revision is, or resolves to an annotated tag.
-	IsAnnotatedTag(ctx context.Context, revision string) bool
 	// LsSignatures gets a list of revisions including their GPG signature info.
 	// If revision is an annotated tag or a semantic constraint matching an annotated tag, its signature is reported as well
 	// If deep==true, list the commits backwards in history until a signed "seal commit" or repo init commit. The listing includes those seal commits.
@@ -1670,7 +1668,12 @@ func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision s
 	}
 
 	var signatures []RevisionSignatureInfo
-	if m.IsAnnotatedTag(ctx, unresolvedRevision) {
+	revType, err := m.GetRevisionType(ctx, unresolvedRevision)
+	if err != nil {
+		return nil, "", err
+	}
+
+	if revType == "tag" {
 		signature, err := m.tagSignature(ctx, unresolvedRevision)
 		if err != nil {
 			return nil, "", err
@@ -1869,17 +1872,6 @@ func (m *nativeGitClient) getSealRevListFilter(ctx context.Context, revision str
 
 	// Some seal commits in history - filter until those
 	return append([]string{"--boundary", revision, "--not"}, sealCommits...), nil
-}
-
-// IsAnnotatedTag returns true if the revision is an annotated tag existing in the repository, and false for everything else.
-func (m *nativeGitClient) IsAnnotatedTag(ctx context.Context, revision string) bool {
-	cmd := exec.CommandContext(ctx, "git", "cat-file", "-t", revision)
-	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
-	// a lightweight tag returns "commit" - makes sense in the git world
-	if err == nil && out == "tag" {
-		return true
-	}
-	return false
 }
 
 // GetRevisionType returns the type of the git object the revision resolves to: "commit", "tag", "blob" or "tree"

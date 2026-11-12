@@ -81,7 +81,7 @@ func Test_GPGDisabledLogging(t *testing.T) {
 
 func TestGPGUnknownMode(t *testing.T) {
 	gitClient := &gitmocks.Client{}
-	gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+	gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("", nil)
 	gitClient.EXPECT().CommitSHA(mock.Anything).Return("DEADBEEF", nil)
 
 	s := &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: "foobar", Keys: []string{}}
@@ -925,7 +925,7 @@ func TestSignedRevisionOnlyWithoutGPGCheck(t *testing.T) {
 				require.EqualError(t, err, "SignedRevisionOnly is enabled without verification for SourceIntegrity policy for [{URL:https://github.com/group/*}]", "revision %s", revision)
 				assert.Nil(t, result)
 				assert.Empty(t, legacy)
-				gitClient.AssertNotCalled(t, "IsAnnotatedTag", mock.Anything, mock.Anything)
+				gitClient.AssertNotCalled(t, "GetRevisionType", mock.Anything, mock.Anything)
 				gitClient.AssertNotCalled(t, "LsSignatures", mock.Anything, mock.Anything, mock.Anything)
 			}
 

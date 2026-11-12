@@ -167,7 +167,7 @@ func newServiceWithMocks(t *testing.T, root string) (*Service, *gitmocks.Client,
 		gitClient.EXPECT().CommitSHA(mock.Anything).Return(mock.Anything, nil)
 		gitClient.EXPECT().Root().Return(root)
 		gitClient.EXPECT().RepoURL().Return("https://fake.com/fake_group/fake_repo.git")
-		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 
 		chart := "my-chart"
@@ -242,7 +242,12 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().LsRemote(revision).Return(revision, revisionErr)
-		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, revision).Return(revisionErr != nil)
+
+		if revisionErr != nil {
+			gitClient.EXPECT().GetRevisionType(mock.Anything, revision).Return("tag", nil)
+		} else {
+			gitClient.EXPECT().GetRevisionType(mock.Anything, revision).Return("", nil)
+		}
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().CommitSHA(mock.Anything).Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.EXPECT().Root().Return(root)
@@ -717,7 +722,7 @@ func TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored(t *testing.T
 		gitClient.EXPECT().CommitSHA(mock.Anything).Return(mock.Anything, nil)
 		gitClient.EXPECT().Root().Return(".")
 		gitClient.EXPECT().RepoURL().Return("https://git.example.com/test/repo")
-		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 
 		helmClient.EXPECT().GetIndex(mock.Anything, mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
@@ -775,7 +780,7 @@ func TestHelmChartReferencingSameRepoAndRevision_ResolvesRevisionOnce(t *testing
 		gitClient.EXPECT().LsRemote(branch).Return(newSHA, nil).Once()
 		gitClient.EXPECT().LsRemote(newSHA).Return(newSHA, nil).Maybe()
 		gitClient.EXPECT().Root().Return(root)
-		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 
 		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)

@@ -488,56 +488,6 @@ func Test_nativeGitClient_Fetch_Prune(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func Test_IsAnnotatedTag(t *testing.T) {
-	tempDir := t.TempDir()
-	ctx := t.Context()
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
-	require.NoError(t, err)
-
-	err = client.Init()
-	require.NoError(t, err)
-
-	p := path.Join(client.Root(), "README")
-	f, err := os.Create(p)
-	require.NoError(t, err)
-	_, err = f.WriteString("Hello.")
-	require.NoError(t, err)
-	err = f.Close()
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "git", "add", "README")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Initial commit", "-a")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "git", "tag", "annot-tag", "-a", "-m", "Create annotated tag")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "git", "tag", "light-tag")
-	require.NoError(t, err)
-
-	atag := client.IsAnnotatedTag(t.Context(), "HEAD")
-	assert.False(t, atag)
-
-	atag = client.IsAnnotatedTag(t.Context(), "master")
-	assert.False(t, atag)
-
-	atag = client.IsAnnotatedTag(t.Context(), "blorp")
-	assert.False(t, atag)
-
-	sha, err := client.CommitSHA(t.Context())
-	require.NoError(t, err)
-	atag = client.IsAnnotatedTag(t.Context(), sha)
-	assert.False(t, atag)
-
-	atag = client.IsAnnotatedTag(t.Context(), "annot-tag")
-	assert.True(t, atag)
-
-	atag = client.IsAnnotatedTag(t.Context(), "light-tag")
-	assert.False(t, atag)
-}
-
 func setupRevisionRepo(t *testing.T) (Client, string) {
 	t.Helper()
 	ctx := t.Context()

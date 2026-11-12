@@ -551,11 +551,16 @@ func (s *Service) runRepoOperation(
 
 		// Computed and passed to preserve API backwards compatibility only. Decisions are made based on SourceIntegrityResult.
 		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
-		if gitClient.IsAnnotatedTag(ctx, revision) {
+		revType, err := gitClient.GetRevisionType(ctx, revision)
+		if err != nil {
+			return nil, err
+		}
+		if revType == "tag" {
 			rev = unresolvedRevision
 		} else {
 			rev = revision
 		}
+
 		verificationResult, err := gitClient.VerifyCommitSignature(ctx, rev) // nolint:staticcheck
 		if err != nil {
 			return nil, err

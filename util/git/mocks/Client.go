@@ -993,63 +993,6 @@ func (_c *Client_Init_Call) RunAndReturn(run func() error) *Client_Init_Call {
 	return _c
 }
 
-// IsAnnotatedTag provides a mock function for the type Client
-func (_mock *Client) IsAnnotatedTag(ctx context.Context, revision string) bool {
-	ret := _mock.Called(ctx, revision)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IsAnnotatedTag")
-	}
-
-	var r0 bool
-	if returnFunc, ok := ret.Get(0).(func(context.Context, string) bool); ok {
-		r0 = returnFunc(ctx, revision)
-	} else {
-		r0 = ret.Get(0).(bool)
-	}
-	return r0
-}
-
-// Client_IsAnnotatedTag_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IsAnnotatedTag'
-type Client_IsAnnotatedTag_Call struct {
-	*mock.Call
-}
-
-// IsAnnotatedTag is a helper method to define mock.On call
-//   - ctx context.Context
-//   - revision string
-func (_e *Client_Expecter) IsAnnotatedTag(ctx any, revision any) *Client_IsAnnotatedTag_Call {
-	return &Client_IsAnnotatedTag_Call{Call: _e.mock.On("IsAnnotatedTag", ctx, revision)}
-}
-
-func (_c *Client_IsAnnotatedTag_Call) Run(run func(ctx context.Context, revision string)) *Client_IsAnnotatedTag_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 string
-		if args[1] != nil {
-			arg1 = args[1].(string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *Client_IsAnnotatedTag_Call) Return(b bool) *Client_IsAnnotatedTag_Call {
-	_c.Call.Return(b)
-	return _c
-}
-
-func (_c *Client_IsAnnotatedTag_Call) RunAndReturn(run func(ctx context.Context, revision string) bool) *Client_IsAnnotatedTag_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // IsRevisionPresent provides a mock function for the type Client
 func (_mock *Client) IsRevisionPresent(ctx context.Context, revision string) bool {
 	ret := _mock.Called(ctx, revision)
