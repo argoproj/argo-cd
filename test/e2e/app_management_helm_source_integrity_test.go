@@ -36,7 +36,7 @@ func helmProvenanceLocalRepoURL() string {
 }
 
 func TestTraditionalHelmSourceIntegrityProvenancePassesWithAllowedKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	Given(t).
 		CustomCACertAdded().
 		GPGPublicKeyAdded().
@@ -64,7 +64,7 @@ func TestTraditionalHelmSourceIntegrityProvenancePassesWithAllowedKey(t *testing
 }
 
 func TestTraditionalHelmSourceIntegrityProvenanceFailsWhenProvMissing(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	Given(t).
 		CustomCACertAdded().
 		GPGPublicKeyAdded().
@@ -94,7 +94,7 @@ func TestTraditionalHelmSourceIntegrityProvenanceFailsWhenProvMissing(t *testing
 // TestTraditionalHelmSourceIntegrityProvenanceFailsForReplayedChart serves the validly signed 1.0.0
 // chart and .prov for version 1.0.2, as a compromised repository could to roll a chart back.
 func TestTraditionalHelmSourceIntegrityProvenanceFailsForReplayedChart(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	Given(t).
 		CustomCACertAdded().
 		GPGPublicKeyAdded().
@@ -124,7 +124,7 @@ func TestTraditionalHelmSourceIntegrityProvenanceFailsForReplayedChart(t *testin
 // TestHelmSourceIntegrityEmptyKeysFailsWhenChartSigned verifies that provenance is enforced when
 // keys is empty: a signed chart whose signer is in the keyring but not in the allowlist is rejected.
 func TestHelmSourceIntegrityEmptyKeysFailsWhenChartSigned(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	Given(t).
 		CustomCACertAdded().
 		GPGPublicKeyAdded().
@@ -153,7 +153,7 @@ func TestHelmSourceIntegrityEmptyKeysFailsWhenChartSigned(t *testing.T) {
 }
 
 func TestTraditionalHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	Given(t).
 		CustomCACertAdded().
 		GPGPublicKeyAdded().
@@ -182,7 +182,7 @@ func TestTraditionalHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T)
 }
 
 func TestHelmOCISourceIntegrityProvenancePassesWithAllowedKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	pushHelmProvenanceChartToOCIRegistry(t)
 
 	Given(t).
@@ -211,7 +211,7 @@ func TestHelmOCISourceIntegrityProvenancePassesWithAllowedKey(t *testing.T) {
 }
 
 func TestHelmOCISourceIntegrityProvenanceFailsWhenProvMissing(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 
 	Given(t).
 		GPGPublicKeyAdded().
@@ -240,7 +240,7 @@ func TestHelmOCISourceIntegrityProvenanceFailsWhenProvMissing(t *testing.T) {
 }
 
 func TestHelmOCISourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	pushHelmProvenanceChartToOCIRegistry(t)
 
 	Given(t).
@@ -272,7 +272,7 @@ func TestHelmOCISourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
 // TestHelmOCISourceIntegrityFailsWhenKeyNotInKeyring covers a misconfigured keyring:
 // policy lists the signing key, but the public key was never imported into Argo CD.
 func TestHelmOCISourceIntegrityFailsWhenKeyNotInKeyring(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	pushHelmProvenanceChartToOCIRegistry(t)
 
 	Given(t).
@@ -310,7 +310,7 @@ func pushHelmProvenanceChartToOCIRegistry(t *testing.T) {
 }
 
 func TestHelmSourceIntegrityMultiplePoliciesFails(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	repoURL := helmProvenanceLocalRepoURL()
 	Given(t).
 		CustomCACertAdded().
@@ -361,7 +361,7 @@ spec:
 }
 
 func TestMultiSourceGitHelmProvenanceAllPass(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	gitURL := fixture.RepoURL(fixture.RepoURLTypeFile)
 	helmURL := helmProvenanceLocalRepoURL()
 
@@ -400,7 +400,7 @@ func TestMultiSourceGitHelmProvenanceAllPass(t *testing.T) {
 }
 
 func TestHelmSourceIntegrityRepoClash(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	fixture.EnsureCleanState(t)
 
 	workingApp := Given(t).

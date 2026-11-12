@@ -45,6 +45,7 @@ spec:
     helm:
       policies:
         - repos:
+            - url: "https://charts.example.com"
             - url: "https://charts.example.com/*"
             - url: "!https://charts.example.com/internal/*"
           provenance:
@@ -52,7 +53,7 @@ spec:
               - "4AEE18F83AFDEB23"
 ```
 
-`repos` are globs matched against the application's Helm `repoURL`, with the same rules as Git policies: a leading `!` excludes. For Helm OCI repositories, match the host-style `repoURL` (for example `registry.example.com/charts*`), without an `oci://` prefix. At most one Helm policy may match a repository; if several match, verification fails. Sources no policy matches are not verified.
+`repos` are globs matched against the application's Helm `repoURL`, with the same rules as Git policies: a leading `!` excludes. A glob ending in `/*` does not match the bare URL, so list `https://charts.example.com` as well if applications use it as `repoURL`. For Helm OCI repositories, match the host-style `repoURL` (for example `registry.example.com/charts*`), without an `oci://` prefix. At most one Helm policy may match a repository; if several match, verification fails. Sources no policy matches are not verified.
 
 `provenance.keys` lists the allowed signer key IDs. A signature made by a subkey is accepted when its primary key is listed. An empty list rejects every chart.
 
@@ -72,6 +73,7 @@ spec:
     helm:
       policies:
         - repos:
+            - url: "https://charts.example.com"
             - url: "https://charts.example.com/*"
           provenance:
             keys:
@@ -92,4 +94,4 @@ As with Git source integrity, `argocd app sync --local` is rejected for applicat
 | `provenance signs chart "..."` or `provenance signs version "..." of the chart` | The signed `.prov` belongs to a different chart or version than the one requested, for example an older release served in its place. Contact the chart maintainer. |
 | `multiple (N) Helm source integrity policies found` | Narrow the `repos` globs so one policy matches. |
 
-To check a chart outside Argo CD, run `gpg --verify mychart-1.0.0.tgz.prov` and compare the reported key ID with `provenance.keys`.
+To check a chart outside Argo CD, run `helm verify --keyring <public-keyring> mychart-1.0.0.tgz`, which checks both the signature and the archive digest. `gpg --verify mychart-1.0.0.tgz.prov` only shows the signing key ID to compare with `provenance.keys`; it does not check the archive.
