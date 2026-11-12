@@ -120,6 +120,16 @@ p, example-user, logs, get, example-project/app-namespace/my-app, allow
 
 The `applications` resource is an [Application-Specific Policy](#application-specific-policy).
 
+#### `applications,get` permission
+
+> [!WARNING]
+> The [`gpg-inspect-repo` command](../user-guide/commands/argocd_proj_source-integrity_git_gpg-inspect-repo.md)
+> is authorized by `applications, get`. Unlike `argocd app get` (which only shows at most 10 problems,
+> and none when the project uses `none` mode), this command returns the full list of
+> problematic commits for each Git source even when the project uses `none` or `head`.
+>
+> See the [upgrade notes](upgrading/3.6-3.7.md#source-integrity-inspection-command).
+
 #### Fine-grained Permissions for `update`/`delete` action
 
 The `update` and `delete` actions, when granted on an application, will allow the user to perform the operation on the application itself,
