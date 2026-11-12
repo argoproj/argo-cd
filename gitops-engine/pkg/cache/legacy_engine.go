@@ -14,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
@@ -24,11 +25,24 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 )
 
+const (
+	// Watch backoff parameters for handling server/auth errors (401, 403, 429, 500, 503, 504)
+	defaultWatchBackoffFactor = 2.0
+	defaultWatchBackoffJitter = 0.1
+	defaultWatchBackoffSteps  = 5
+	defaultWatchBackoffCap    = 30 * time.Second
+	// Duration a watch must run stably before resetting backoff, aligned with client-go's defaultBackoffReset
+	defaultWatchHealthyDuration = 2 * time.Minute
+)
+
 // legacyEngine loads each (GroupKind, namespace) with a paged list, then keeps
 // it current from a retrying watch goroutine. It reaches shared state only
 // through its *store.
 type legacyEngine struct {
 	c *store
+
+	// retryDelayFunc is an optional hook used in unit tests to intercept and verify retry delays and errors without sleeping.
+	retryDelayFunc func(ctx context.Context, delay time.Duration, err error) error
 
 	// eventMetaCh carries watch events to processEvents when
 	// batchEventsProcessing is set, and is nil otherwise. Created in sync,
@@ -346,9 +360,90 @@ func (e *legacyEngine) loadInitialState(ctx context.Context, api kube.APIResourc
 	return resourceVersion, nil
 }
 
+// isWatchBackoffError checks whether an error is an authentication, rate limit, or server error
+// (such as 401 Unauthorized, 403 Forbidden, 429 Too Many Requests, 500 Internal, 503 Service Unavailable,
+// or 504 Server Timeout) that warrants exponential backoff.
+func isWatchBackoffError(err error) bool {
+	if err == nil {
+		return false
+	}
+	return apierrors.IsUnauthorized(err) ||
+		apierrors.IsForbidden(err) ||
+		apierrors.IsTooManyRequests(err) ||
+		apierrors.IsServiceUnavailable(err) ||
+		apierrors.IsInternalError(err) ||
+		apierrors.IsTimeout(err) ||
+		apierrors.IsServerTimeout(err) ||
+		apierrors.IsUnexpectedServerError(err)
+}
+
+func (e *legacyEngine) retryWatchUntilSucceed(ctx context.Context, desc string, action func(watchStarted func()) error) {
+	c := e.c
+	backoff := wait.Backoff{
+		Duration: watchResourcesRetryTimeout,
+		Factor:   defaultWatchBackoffFactor,
+		Jitter:   defaultWatchBackoffJitter,
+		Steps:    defaultWatchBackoffSteps,
+		Cap:      defaultWatchBackoffCap,
+	}
+	currentBackoff := backoff
+
+	for {
+		select {
+		case <-ctx.Done():
+			c.log.V(1).Info("Stop retrying " + desc)
+			return
+		default:
+		}
+
+		c.log.V(1).Info("Start " + desc)
+		var watchStartTime time.Time
+		watchStarted := func() {
+			watchStartTime = time.Now()
+		}
+		err := action(watchStarted)
+		if err == nil {
+			c.log.V(1).Info("Completed " + desc)
+			return
+		}
+
+		if !watchStartTime.IsZero() && time.Since(watchStartTime) >= defaultWatchHealthyDuration {
+			// If watch was established and healthy for at least defaultWatchHealthyDuration,
+			// reset the backoff so future transient failures start with base delay.
+			currentBackoff = backoff
+		}
+
+		var delay time.Duration
+		if c.watchRetryUseBackoff && isWatchBackoffError(err) {
+			delay = currentBackoff.Step()
+			c.log.V(1).Info(fmt.Sprintf("Failed to %s: %+v, backing off for %v", desc, err, delay))
+		} else {
+			// For non-backoff errors (e.g. 410 Gone, normal watch timeout/closure, etc.),
+			// or when watch backoff is not explicitly enabled, retry quickly with base timeout.
+			delay = watchResourcesRetryTimeout
+			c.log.V(1).Info(fmt.Sprintf("Failed to %s: %+v, retrying in %v", desc, err, delay))
+		}
+
+		// In unit tests, retryDelayFunc intercepts the delay and error to avoid real-time sleep.
+		if e.retryDelayFunc != nil {
+			if err := e.retryDelayFunc(ctx, delay, err); err != nil {
+				c.log.V(1).Info("Stop retrying " + desc)
+				return
+			}
+		} else {
+			select {
+			case <-time.After(delay):
+			case <-ctx.Done():
+				c.log.V(1).Info("Stop retrying " + desc)
+				return
+			}
+		}
+	}
+}
+
 func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string) {
 	c := e.c
-	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), c.log, func() (err error) {
+	e.retryWatchUntilSucceed(ctx, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), func(watchStarted func()) (err error) {
 		defer func() {
 			if r := recover(); r != nil {
 				err = fmt.Errorf("recovered from panic: %+v\n%s", r, debug.Stack())
@@ -363,12 +458,30 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			}
 		}
 
-		w, err := watchutil.NewRetryWatcherWithContext(ctx, resourceVersion, &cache.ListWatch{
+		// client-go's RetryWatcher retries non-auth errors (such as 429 and 5xx) internally using a fixed
+		// 1-second delay instead of terminating. To allow our outer exponential backoff to handle these errors,
+		// we pass a cancellable child context (watchCtx) and intercept qualifying errors in WatchFuncWithContext
+		// to stop the RetryWatcher and propagate the root-cause error upward.
+		watchCtx, watchCancel := context.WithCancel(ctx)
+		defer watchCancel()
+
+		var watchErrLock sync.Mutex
+		var lastWatchErr error
+
+		w, err := watchutil.NewRetryWatcherWithContext(watchCtx, resourceVersion, &cache.ListWatch{
 			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
 				options.LabelSelector = api.LabelSelector
 				res, err := resClient.Watch(ctx, options)
 				if apierrors.IsNotFound(err) {
 					e.stopWatching(api.GroupKind, ns)
+				}
+				if err != nil && c.watchRetryUseBackoff && isWatchBackoffError(err) {
+					watchErrLock.Lock()
+					lastWatchErr = err
+					watchErrLock.Unlock()
+					// Cancel the RetryWatcher child context to exit its internal retry loop.
+					watchCancel()
+					return nil, err
 				}
 				//nolint:wrapcheck // wrap outside the retry
 				return res, err
@@ -378,9 +491,24 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			return fmt.Errorf("failed to create resource watcher: %w", err)
 		}
 
+		// Mark the watch start time after initial state loading and watch connection are established.
+		watchStarted()
+
 		defer func() {
 			w.Stop()
-			resourceVersion = ""
+			// Trade-off note: client-go's RetryWatcher consumes watch.Bookmark events internally without
+			// forwarding them to ResultChan(). For rarely mutated resources, resourceVersion will not advance
+			// via bookmarks and may expire in etcd, resulting in 410 Gone upon reconnect.
+			// This trade-off is intentional:
+			// 1) High-frequency resources (Pods, Deployments, 95%+ of cluster volume) continuously advance RV
+			//    via regular events, avoiding devastating full LIST storms during 429/5xx overload.
+			// 2) Rarely mutated resources (e.g. StorageClasses, CRDs) have tiny dataset sizes; hitting a 410
+			//    carries negligible LIST cost and safely falls back to standard self-healing re-list.
+			// When watch backoff is disabled, or for non-backoff exits (e.g. 410 Gone, normal closure, resync),
+			// reset resourceVersion to "" to maintain existing self-healing re-list behavior.
+			if !(c.watchRetryUseBackoff && isWatchBackoffError(err)) {
+				resourceVersion = ""
+			}
 		}()
 
 		var watchResyncTimeoutCh <-chan time.Time
@@ -400,18 +528,29 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			case <-watchResyncTimeoutCh:
 				return fmt.Errorf("resyncing %s on %s due to timeout", api.GroupKind, c.config.Host)
 
-			// re-synchronize API state and restart watch if retry watcher failed to continue watching using provided resource version
-			case <-w.Done():
-				return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
-
 			case event, ok := <-w.ResultChan():
 				if !ok {
+					watchErrLock.Lock()
+					watchErr := lastWatchErr
+					watchErrLock.Unlock()
+					if watchErr != nil {
+						return watchErr
+					}
 					return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
+				}
+
+				if event.Type == watch.Error {
+					return apierrors.FromObject(event.Object)
 				}
 
 				obj, ok := event.Object.(*unstructured.Unstructured)
 				if !ok {
 					return fmt.Errorf("failed to convert to *unstructured.Unstructured: %v", event.Object)
+				}
+
+				// Track the latest resourceVersion observed from the event stream.
+				if newRV := obj.GetResourceVersion(); newRV != "" {
+					resourceVersion = newRV
 				}
 
 				e.recordEvent(event.Type, obj)
