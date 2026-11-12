@@ -208,3 +208,32 @@ func getTestDataDir(t *testing.T) string {
 	t.Helper()
 	return filepath.Join(test.GetTestDir(t), "testdata")
 }
+
+type sliceStreamReceiver struct {
+	messages []*pluginclient.AppStreamRequest
+}
+
+func (r *sliceStreamReceiver) Recv() (*pluginclient.AppStreamRequest, error) {
+	if len(r.messages) == 0 {
+		return nil, io.EOF
+	}
+	m := r.messages[0]
+	r.messages = r.messages[1:]
+	return m, nil
+}
+
+func TestReceiveRepoStreamCleansTemporaryFileOnChecksumMismatch(t *testing.T) {
+	t.Parallel()
+	workdir := t.TempDir()
+	receiver := &sliceStreamReceiver{messages: []*pluginclient.AppStreamRequest{
+		{Request: &pluginclient.AppStreamRequest_Metadata{Metadata: &pluginclient.ManifestRequestMetadata{Checksum: "wrong"}}},
+		{Request: &pluginclient.AppStreamRequest_File{File: &pluginclient.File{Chunk: []byte("data")}}},
+	}}
+
+	_, err := cmp.ReceiveRepoStream(t.Context(), receiver, workdir, false)
+	require.ErrorContains(t, err, "checksum validation error")
+
+	entries, err := os.ReadDir(workdir)
+	require.NoError(t, err)
+	assert.Empty(t, entries)
+}
