@@ -338,7 +338,7 @@ func TestHelmOCISourceIntegrityFailsWhenKeyNotInKeyring(t *testing.T) {
 }
 
 func TestNativeOCIHelmSourceIntegrityProvenancePassesWithAllowedKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	pushHelmProvenanceChartToOCIRegistry(t)
 
 	Given(t).
@@ -362,7 +362,7 @@ func TestNativeOCIHelmSourceIntegrityProvenancePassesWithAllowedKey(t *testing.T
 }
 
 func TestNativeOCIHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 	pushHelmProvenanceChartToOCIRegistry(t)
 
 	Given(t).
@@ -386,7 +386,7 @@ func TestNativeOCIHelmSourceIntegrityProvenanceFailsWithWrongKey(t *testing.T) {
 }
 
 func TestNativeOCIHelmSourceIntegrityProvenanceFailsWhenProvMissing(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 
 	Given(t).
 		GPGPublicKeyAdded().
@@ -412,7 +412,7 @@ func TestNativeOCIHelmSourceIntegrityProvenanceFailsWhenProvMissing(t *testing.T
 // TestNativeOCIHelmSourceIntegrityFailsForNonHelmArtifact checks that a Helm policy matching a
 // plain manifests artifact fails closed rather than skipping verification.
 func TestNativeOCIHelmSourceIntegrityFailsForNonHelmArtifact(t *testing.T) {
-	fixture.SkipOnEnv(t, "HELM")
+	fixture.SkipOnEnv(t, "HELM", "GPG")
 
 	Given(t).
 		PushImageToOCIRegistry("testdata/guestbook", "1.0.0").
