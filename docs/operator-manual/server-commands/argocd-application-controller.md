@@ -48,16 +48,31 @@ argocd-application-controller [flags]
       --metrics-cache-expiration duration                         Prometheus metrics cache expiration (disabled  by default. e.g. 24h0m0s)
       --metrics-cluster-labels strings                            List of Cluster labels that will be added to the argocd_cluster_labels metric
       --metrics-port int                                          Start metrics server on given port (default 8082)
+      --metrics-sync-windows                                      Enable the argocd_app_sync_window, argocd_app_sync_blocked and argocd_app_sync_window_error metrics
   -n, --namespace string                                          If present, the namespace scope for this CLI request
       --operation-processors int                                  Number of application operation processors (default 10)
       --otlp-address string                                       OpenTelemetry collector address to send traces to
       --otlp-attrs strings                                        List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)
       --otlp-headers stringToString                               List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2) (default [])
       --otlp-insecure                                             OpenTelemetry collector insecure mode (default true)
+      --otlp-metrics-enabled                                      Push the Prometheus metrics to the OpenTelemetry collector at --otlp-address
+      --otlp-metrics-interval duration                            Interval at which Prometheus metrics are pushed to the OpenTelemetry collector (default 30s)
       --otlp-sample-ratio float                                   Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision (default 1)
       --password string                                           Password for basic authentication to the API server
       --persist-resource-health                                   Enables storing the managed resources health in the Application CRD
       --proxy-url string                                          If provided, this URL will be used to connect via proxy
+      --reconciled-at-default-cache-expiration duration           Cache expiration default (default 24h0m0s)
+      --reconciled-at-heartbeat duration                          How stale the Application status.reconciledAt field may become while nothing else in status changes. Zero (the default) writes it on every reconciliation; a positive value (e.g. 10m) trades staleness of that one field for far fewer API server writes.
+      --reconciled-at-redis string                                Redis server hostname and port (e.g. argocd-redis:6379). 
+      --reconciled-at-redis-ca-certificate string                 Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
+      --reconciled-at-redis-client-certificate string             Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).
+      --reconciled-at-redis-client-key string                     Path to Redis client key (e.g. /etc/certs/redis/client.crt).
+      --reconciled-at-redis-compress string                       Enable compression for data sent to Redis with the required compression algorithm. (possible values: gzip, none) (default "gzip")
+      --reconciled-at-redis-insecure-skip-tls-verify              Skip Redis server certificate validation.
+      --reconciled-at-redis-use-tls                               Use TLS when connecting to Redis. 
+      --reconciled-at-redisdb int                                 Redis database.
+      --reconciled-at-sentinel stringArray                        Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). 
+      --reconciled-at-sentinelmaster string                       Redis sentinel master group name. (default "master")
       --redis string                                              Redis server hostname and port (e.g. argocd-redis:6379). 
       --redis-ca-certificate string                               Path to Redis server CA certificate (e.g. /etc/certs/redis/ca.crt). If not specified, system trusted CAs will be used for server certificate validation.
       --redis-client-certificate string                           Path to Redis client certificate (e.g. /etc/certs/redis/client.crt).

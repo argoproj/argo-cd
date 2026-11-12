@@ -171,6 +171,11 @@ const (
 	CallbackEndpoint = "/auth/callback"
 	// DexCallbackEndpoint is Argo CD's final callback endpoint when Dex is configured
 	DexCallbackEndpoint = "/api/dex/callback"
+	// DexDeviceCallbackEndpoint is the Dex-internal device authorization callback
+	// endpoint (RFC 8628). Dex uses this as the redirect_uri when forwarding the
+	// user to the upstream connector (e.g. GitHub) during a device flow, so it
+	// must be registered in the argo-cd-cli static client's redirectURIs.
+	DexDeviceCallbackEndpoint = "/api/dex/device/callback"
 	// ArgoCDClientAppName is name of the Oauth client app used when registering our web app to dex
 	ArgoCDClientAppName = "Argo CD"
 	// ArgoCDClientAppID is the Oauth client ID we will use when registering our app to dex
@@ -302,6 +307,9 @@ const (
 	EnvControllerShard = "ARGOCD_CONTROLLER_SHARD"
 	// EnvControllerShardingAlgorithm is the distribution sharding algorithm to be used: legacy or round-robin
 	EnvControllerShardingAlgorithm = "ARGOCD_CONTROLLER_SHARDING_ALGORITHM"
+	// EnvControllerReconciledAtHeartbeat bounds how stale the persisted Application
+	// status.reconciledAt field may become while nothing else in status changes
+	EnvControllerReconciledAtHeartbeat = "ARGOCD_APPLICATION_CONTROLLER_RECONCILED_AT_HEARTBEAT"
 	// EnvEnableDynamicClusterDistribution enables dynamic sharding (ALPHA)
 	EnvEnableDynamicClusterDistribution = "ARGOCD_ENABLE_DYNAMIC_CLUSTER_DISTRIBUTION"
 	// EnvEnableGRPCTimeHistogramEnv enables gRPC metrics collection

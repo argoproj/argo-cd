@@ -324,6 +324,19 @@ func TestDiffFromCache(t *testing.T) {
 	})
 }
 
+func TestStateDiffsNilConfig(t *testing.T) {
+	t.Parallel()
+	desired := testutil.YamlToUnstructured(testdata.DesiredDeploymentAnnotationYaml)
+	live := desired.DeepCopy()
+
+	var diffConfig argo.DiffConfig
+	require.NotPanics(t, func() {
+		result, err := argo.StateDiffs(t.Context(), []*unstructured.Unstructured{live}, []*unstructured.Unstructured{desired}, diffConfig)
+		require.ErrorContains(t, err, "diffConfig can not be nil")
+		assert.Nil(t, result)
+	})
+}
+
 // failingCacheClient embeds InMemoryCache and overrides Get to always return a custom error.
 type failingCacheClient struct {
 	*cacheutil.InMemoryCache

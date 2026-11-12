@@ -330,7 +330,8 @@ func TestParseStringToStringFromEnv(t *testing.T) {
 		{"success, two pairs with spaces", "key1 = value1, key2 = value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ","},
 		{"failure, one key", "key1", map[string]string{}, def, ","},
 		{"failure, duplicate keys", "key1=value1,key1=value2", map[string]string{}, def, ","},
-		{"failure, one key ending with two successive equals to", "key1==", map[string]string{}, def, ","},
+		{"success, value containing equals signs", "authorization=Basic dXNlcjpwYXNz==", map[string]string{"authorization": "Basic dXNlcjpwYXNz=="}, def, ","},
+		{"success, one key ending with two successive equals to", "key1==", map[string]string{"key1": "="}, def, ","},
 		{"failure, one valid pair and invalid one key", "key1=value1,key2", map[string]string{}, def, ","},
 		{"failure, two valid pairs and invalid two keys", "key1=value1,key2=value2,key3,key4", map[string]string{}, def, ","},
 	}

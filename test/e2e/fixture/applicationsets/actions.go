@@ -609,7 +609,8 @@ func (a *Actions) RemoveFinalizerFromApps(appNames []string, finalizer string) *
 			}
 			patch, _ := json.Marshal(map[string]any{
 				"metadata": map[string]any{
-					"finalizers": finalizers,
+					"finalizers":      finalizers,
+					"resourceVersion": app.ResourceVersion,
 				},
 			})
 			_, err = fixtureClient.AppClientset.ArgoprojV1alpha1().Applications(namespace).Patch(
