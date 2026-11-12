@@ -121,6 +121,36 @@ func TestTraditionalHelmSourceIntegrityProvenanceFailsForReplayedChart(t *testin
 		Expect(Condition(ApplicationConditionComparisonError, `provenance signs version "1.0.0" of the chart, not "1.0.2"`))
 }
 
+// TestHelmSourceIntegrityEmptyKeysFailsWhenProvenanceMissing verifies that provenance is enforced
+// when keys is empty: a chart with no fetchable .prov fails before signer allowlist checks.
+func TestHelmSourceIntegrityEmptyKeysFailsWhenProvenanceMissing(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM", "GPG")
+	Given(t).
+		CustomCACertAdded().
+		GPGPublicKeyAdded().
+		Sleep(2).
+		HelmProvenanceRepoAdded("helm-provenance-empty-keys-unsigned").
+		Name("helm-prov-empty-keys-unsigned-fail").
+		Project("default").
+		ProjectSpec(appProjectWithHelmSourceIntegrity()).
+		When().
+		IgnoreErrors().
+		CreateFromFile(func(app *Application) {
+			app.Spec.Source = &ApplicationSource{
+				RepoURL:        helmProvenanceLocalRepoURL(),
+				Chart:          helmProvChart,
+				TargetRevision: helmProvUnsignedChartV,
+				Helm:           &ApplicationSourceHelm{ReleaseName: "helm-prov-empty-keys-unsigned-fail"},
+			}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationError)).
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(Condition(ApplicationConditionComparisonError, "could not access chart for provenance verification")).
+		Expect(Condition(ApplicationConditionComparisonError, "chart has no provenance file (.prov)"))
+}
+
 // TestHelmSourceIntegrityEmptyKeysFailsWhenChartSigned verifies that provenance is enforced when
 // keys is empty: a signed chart whose signer is in the keyring but not in the allowlist is rejected.
 func TestHelmSourceIntegrityEmptyKeysFailsWhenChartSigned(t *testing.T) {
@@ -389,6 +419,44 @@ func TestMultiSourceGitHelmProvenanceAllPass(t *testing.T) {
 		ProjectSpec(appProjectWithGitAndHelmSourceIntegrity(fixture.GpgGoodKeyID)).
 		When().
 		AddSignedFile("multi-source-test.yaml", "test").
+		IgnoreErrors().
+		CreateMultiSourceAppFromFile(func(_ *Application) { /* no app modifications */ }).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(NoConditions())
+}
+
+func TestMultiSourceGitHelmOCIProvenanceAllPass(t *testing.T) {
+	fixture.SkipOnEnv(t, "HELM", "GPG")
+	pushHelmProvenanceChartToOCIRegistry(t)
+	gitURL := fixture.RepoURL(fixture.RepoURLTypeFile)
+
+	sources := []ApplicationSource{{
+		RepoURL:        gitURL,
+		Path:           guestbookPath,
+		Name:           "git",
+		TargetRevision: "HEAD",
+	}, {
+		RepoURL:        fixture.HelmOCIRegistryURL,
+		Chart:          helmProvChart,
+		TargetRevision: helmProvChartV,
+		Name:           "helm-oci",
+		Helm:           &ApplicationSourceHelm{ReleaseName: "multi-helm-oci"},
+	}}
+
+	Given(t).
+		GPGPublicKeyAdded().
+		Sleep(2).
+		HelmOCIRepoAdded("helm-oci-multi").
+		Sources(sources).
+		Name("multi-git-helm-oci-pass").
+		Project("gpg").
+		ProjectSpec(appProjectWithGitAndHelmSourceIntegrity(fixture.GpgGoodKeyID)).
+		When().
+		AddSignedFile("multi-source-oci-test.yaml", "test").
 		IgnoreErrors().
 		CreateMultiSourceAppFromFile(func(_ *Application) { /* no app modifications */ }).
 		Sync().
