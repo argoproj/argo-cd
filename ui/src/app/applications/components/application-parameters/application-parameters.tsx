@@ -291,7 +291,7 @@ export const ApplicationParameters = (props: {
 
     // Collapse button is separate
     function getEditablePanelForSources(index: number, appSource: models.ApplicationSource): React.ReactElement {
-        return (collapsible && props.collapsedSources[index] === undefined) || props.collapsedSources[index] ? (
+        return props.collapsedSources?.[index] === true ? (
             <div
                 key={'app_params_collapsed_' + index}
                 className='settings-overview__redirect-panel'
