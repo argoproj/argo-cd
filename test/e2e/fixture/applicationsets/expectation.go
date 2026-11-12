@@ -200,6 +200,27 @@ func CheckApplicationsNotReconciledAfter(appNames []string, changeTime *metav1.T
 	}
 }
 
+// ApplicationSyncedTimes expects the application's history to have exactly count successful syncs, with no operation in progress
+func ApplicationSyncedTimes(appName string, count int) Expectation {
+	return func(c *Consequences) (state, string) {
+		foundApp := c.app(appName)
+		if foundApp == nil {
+			return pending, fmt.Sprintf("application '%s' not found", appName)
+		}
+		if foundApp.Operation != nil || (foundApp.Status.OperationState != nil && !foundApp.Status.OperationState.Phase.Completed()) {
+			return pending, fmt.Sprintf("application '%s' has an operation in progress", appName)
+		}
+		synced := len(foundApp.Status.History)
+		if synced > count {
+			return failed, fmt.Sprintf("application '%s' was synced %d times, expected %d", appName, synced, count)
+		}
+		if synced < count {
+			return pending, fmt.Sprintf("application '%s' was synced %d times, waiting for %d", appName, synced, count)
+		}
+		return succeeded, fmt.Sprintf("application '%s' was synced %d times", appName, count)
+	}
+}
+
 // AppsTransitionedAfter expects all apps in appNames to have transitioned after changeTime
 // compares app's LastTransitionTime from appset's ApplicationSetApplicationStatus for provided appNames
 func AppsTransitionedAfter(appNames []string, changeTime *metav1.Time) Expectation {

@@ -333,6 +333,85 @@ func TestProgressiveSyncHealthGating(t *testing.T) {
 		ExpectWithDuration(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp, expectedStageApp, expectedProdApp}), TransitionTimeout)
 }
 
+func TestProgressiveSyncSyncsApplicationOnce(t *testing.T) {
+	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
+		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")
+	}
+	expectedDevApp := generateExpectedApp("once-", "progressive-sync/sync-once", "dev", "dev", "", true)
+
+	expectedHealthy := map[string]v1alpha1.ApplicationSetApplicationStatus{
+		"once-dev": {
+			Application: "once-dev",
+			Status:      v1alpha1.ProgressiveSyncHealthy,
+		},
+	}
+
+	Given(t).
+		When().
+		Create(v1alpha1.ApplicationSet{
+			Name: "progressive-sync-once",
+			Spec: v1alpha1.ApplicationSetSpec{
+				GoTemplate: true,
+				Template: v1alpha1.ApplicationSetTemplate{
+					ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+						Name:      "once-{{.environment}}",
+						Namespace: fixture.TestNamespace(),
+						Labels: map[string]string{
+							"environment": "{{.environment}}",
+						},
+					},
+					Spec: v1alpha1.ApplicationSpec{
+						Project: "default",
+						Source: &v1alpha1.ApplicationSource{
+							RepoURL:        fixture.RepoURL(fixture.RepoURLTypeFile),
+							Path:           "progressive-sync/sync-once",
+							TargetRevision: "HEAD",
+						},
+						Destination: v1alpha1.ApplicationDestination{
+							Server:    "https://kubernetes.default.svc",
+							Namespace: "once-{{.environment}}",
+						},
+						SyncPolicy: &v1alpha1.SyncPolicy{
+							SyncOptions: v1alpha1.SyncOptions{"CreateNamespace=true"},
+						},
+					},
+				},
+				Generators: []v1alpha1.ApplicationSetGenerator{
+					{
+						List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{
+								{Raw: []byte(`{"environment": "dev"}`)},
+							},
+						},
+					},
+				},
+				Strategy: &v1alpha1.ApplicationSetStrategy{
+					Type: "RollingSync",
+					RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+						Steps: generateStandardRolloutSyncSteps()[:1],
+					},
+				},
+			},
+		}).
+		Then().
+		Expect(ApplicationsExist([]v1alpha1.Application{expectedDevApp})).
+		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectedHealthy), TransitionTimeout).
+		Expect(ApplicationSyncedTimes("once-dev", 1)).
+		And(func() {
+			fixture.Patch(t, "progressive-sync/sync-once/configmap.yaml", `[{"op": "replace", "path": "/data/revision", "value": "2"}]`)
+			_, err := fixture.RunCli("app", "get", "once-dev", "--refresh")
+			require.NoError(t, err)
+		}).
+		ExpectWithDuration(ApplicationSyncedTimes("once-dev", 2), TransitionTimeout).
+		ExpectWithDuration(CheckProgressiveSyncStatusCodeOfApplications(expectedHealthy), TransitionTimeout).
+		Expect(ApplicationSyncedTimes("once-dev", 2)).
+		// Cleanup
+		When().
+		Delete(metav1.DeletePropagationForeground).
+		Then().
+		ExpectWithDuration(ApplicationsDoNotExist([]v1alpha1.Application{expectedDevApp}), TransitionTimeout)
+}
+
 func TestNoApplicationStatusWhenNoSteps(t *testing.T) {
 	if os.Getenv("ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS") != "true" {
 		t.Skip("Skipping progressive sync tests - ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_PROGRESSIVE_SYNCS not enabled")

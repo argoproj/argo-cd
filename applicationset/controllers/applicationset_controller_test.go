@@ -32,6 +32,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/event"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
 	"github.com/argoproj/argo-cd/v3/applicationset/generators/mocks"
@@ -4307,6 +4308,44 @@ func TestApplicationOwnsHandler(t *testing.T) {
 			},
 			enableProgressiveSyncs: true,
 		}, want: true},
+		{name: "ApplicationReconciledAfterOperationFinished", args: args{
+			e: event.UpdateEvent{
+				ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+					ReconciledAt:   &metav1.Time{Time: now.Add(-time.Minute)},
+					OperationState: &v1alpha1.OperationState{Phase: "Succeeded", FinishedAt: &now},
+				}},
+				ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+					ReconciledAt:   &now,
+					OperationState: &v1alpha1.OperationState{Phase: "Succeeded", FinishedAt: &now},
+				}},
+			},
+			enableProgressiveSyncs: true,
+		}, want: true},
+		{name: "ApplicationReconciledAgainAfterOperationFinished", args: args{
+			e: event.UpdateEvent{
+				ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+					ReconciledAt:   &now,
+					OperationState: &v1alpha1.OperationState{Phase: "Succeeded", FinishedAt: &now},
+				}},
+				ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+					ReconciledAt:   &metav1.Time{Time: now.Add(time.Minute * 3)},
+					OperationState: &v1alpha1.OperationState{Phase: "Succeeded", FinishedAt: &now},
+				}},
+			},
+			enableProgressiveSyncs: true,
+		}, want: false},
+		{name: "ApplicationReconciledAfterOperationFinishedWithoutProgressiveSyncs", args: args{
+			e: event.UpdateEvent{
+				ObjectOld: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+					ReconciledAt:   &metav1.Time{Time: now.Add(-time.Minute)},
+					OperationState: &v1alpha1.OperationState{Phase: "Succeeded", FinishedAt: &now},
+				}},
+				ObjectNew: &v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
+					ReconciledAt:   &now,
+					OperationState: &v1alpha1.OperationState{Phase: "Succeeded", FinishedAt: &now},
+				}},
+			},
+		}, want: false},
 		{name: "SameApplicationGeneration", args: args{e: event.UpdateEvent{
 			ObjectOld: &v1alpha1.Application{
 				Generation: 1,
@@ -5216,6 +5255,173 @@ func TestReconcileProgressiveSyncDisabled(t *testing.T) {
 
 			// Verify the applicationStatus field
 			assert.Equal(t, cc.expectedAppStatuses, updatedAppSet.Status.ApplicationStatus, "applicationStatus should match expected value")
+		})
+	}
+}
+
+// Once the sync triggered for a Pending application has run and the application controller has
+// cleared .operation, the next reconcile must not trigger another sync, but an older operation
+// from the same second as the Pending transition is not that sync. See #21502.
+func TestReconcileRollingSyncTriggersEachStepSyncOnce(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	// Times are stored with second precision.
+	pendingAt := metav1.NewTime(time.Now().Add(-2 * time.Minute).Truncate(time.Second))
+	finishedAt := metav1.NewTime(pendingAt.Add(30 * time.Second))
+
+	for _, cc := range []struct {
+		name           string
+		startedAt      metav1.Time
+		reconciledAt   metav1.Time
+		syncedRevision string
+		expectSync     bool
+	}{
+		{
+			name:           "operation started in the same second as the Pending transition",
+			startedAt:      pendingAt,
+			reconciledAt:   metav1.NewTime(finishedAt.Add(time.Second)),
+			syncedRevision: "next",
+		},
+		{
+			name:           "application not reconciled since the Pending transition",
+			startedAt:      metav1.NewTime(pendingAt.Add(time.Second)),
+			reconciledAt:   metav1.NewTime(pendingAt.Add(-time.Minute)),
+			syncedRevision: "next",
+		},
+		{
+			// The operation may have started before the transition, so it is not the sync for this step
+			name:           "operation from the same second as the Pending transition synced an older revision",
+			startedAt:      pendingAt,
+			reconciledAt:   metav1.NewTime(finishedAt.Add(time.Second)),
+			syncedRevision: "previous",
+			expectSync:     true,
+		},
+	} {
+		t.Run(cc.name, func(t *testing.T) {
+			defaultProject := v1alpha1.AppProject{
+				Name: "default", Namespace: "argocd",
+				Spec: v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
+			}
+			appSpec := v1alpha1.ApplicationSpec{
+				Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+				Project:     "default",
+				Destination: v1alpha1.ApplicationDestination{Server: "https://good-cluster"},
+			}
+			appSet := v1alpha1.ApplicationSet{
+				Name:      "name",
+				Namespace: "argocd",
+				Spec: v1alpha1.ApplicationSetSpec{
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						List: &v1alpha1.ListGenerator{
+							Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "good-cluster"}`)}},
+						},
+					}},
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{{
+								MatchExpressions: []v1alpha1.ApplicationMatchExpression{{Key: "env", Operator: "In", Values: []string{"dev"}}},
+							}},
+						},
+					},
+					Template: v1alpha1.ApplicationSetTemplate{
+						ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+							Name:      "{{cluster}}",
+							Namespace: "argocd",
+							Labels:    map[string]string{"env": "dev"},
+						},
+						Spec: appSpec,
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{{
+						Application:        "good-cluster",
+						Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+						Status:             v1alpha1.ProgressiveSyncPending,
+						Step:               "1",
+						TargetRevisions:    []string{"next"},
+						LastTransitionTime: &pendingAt,
+					}},
+				},
+			}
+			syncStatus := v1alpha1.SyncStatusCodeSynced
+			if cc.syncedRevision != "next" {
+				syncStatus = v1alpha1.SyncStatusCodeOutOfSync
+			}
+			app := v1alpha1.Application{
+				Name:      "good-cluster",
+				Namespace: "argocd",
+				Labels:    map[string]string{"env": "dev"},
+				Spec:      appSpec,
+				Status: v1alpha1.ApplicationStatus{
+					ReconciledAt: &cc.reconciledAt,
+					Health:       v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+					Sync:         v1alpha1.SyncStatus{Status: syncStatus, Revision: "next"},
+					OperationState: &v1alpha1.OperationState{
+						Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: cc.syncedRevision}},
+						Phase:      common.OperationSucceeded,
+						StartedAt:  cc.startedAt,
+						FinishedAt: &finishedAt,
+						SyncResult: &v1alpha1.SyncOperationResult{Revision: cc.syncedRevision, Source: *appSpec.Source},
+					},
+				},
+			}
+			require.NoError(t, controllerutil.SetControllerReference(&appSet, &app, scheme))
+
+			secret := &corev1.Secret{
+				Name:      "my-cluster",
+				Namespace: "argocd",
+				Labels: map[string]string{
+					argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+				},
+				Data: map[string][]byte{
+					"name":   []byte("good-cluster"),
+					"server": []byte("https://good-cluster"),
+					"config": []byte("{\"username\":\"foo\",\"password\":\"foo\"}"),
+				},
+			}
+
+			kubeclientset := getDefaultTestClientSet(secret)
+			client := fake.NewClientBuilder().
+				WithScheme(scheme).
+				WithObjects(&appSet, &app, &defaultProject, secret).
+				WithStatusSubresource(&appSet).
+				WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+				Build()
+			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+			clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
+			require.NoError(t, err)
+			defer startAndSyncInformer(t, clusterInformer)()
+
+			r := ApplicationSetReconciler{
+				Client:                 client,
+				Scheme:                 scheme,
+				Renderer:               &utils.Render{},
+				Recorder:               record.NewFakeRecorder(10),
+				Generators:             map[string]generators.Generator{"List": generators.NewListGenerator()},
+				ArgoDB:                 argodb,
+				ArgoCDNamespace:        "argocd",
+				KubeClientset:          kubeclientset,
+				Policy:                 v1alpha1.ApplicationsSyncPolicySync,
+				Metrics:                appsetmetrics.NewFakeAppsetMetrics(),
+				ClusterInformer:        clusterInformer,
+				EnableProgressiveSyncs: true,
+			}
+			r.ProgressiveSyncManager = progressivesync.NewManager(r.Client, r.Client, appfake.NewSimpleClientset(), &r)
+
+			_, err = r.Reconcile(t.Context(), ctrl.Request{Namespace: "argocd", Name: "name"})
+			require.NoError(t, err)
+
+			var retrievedApp v1alpha1.Application
+			require.NoError(t, r.Get(t.Context(), crtclient.ObjectKeyFromObject(&app), &retrievedApp))
+			if !cc.expectSync {
+				assert.Nil(t, retrievedApp.Operation, "a second sync was triggered after the first operation finished")
+				return
+			}
+			require.NotNil(t, retrievedApp.Operation, "the sync for this step was not triggered")
+			assert.Equal(t, "next", retrievedApp.Operation.Sync.Revision)
 		})
 	}
 }
