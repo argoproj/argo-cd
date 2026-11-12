@@ -508,3 +508,23 @@ func TestBitbucketListRepos(t *testing.T) {
 		})
 	}
 }
+
+func TestBitbucketGetBranchesMissingHash(t *testing.T) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+		res.WriteHeader(http.StatusOK)
+		_, _ = res.Write([]byte(`{"pagelen": 10, "values": [{"name": "main", "target": {}}]}`))
+	}))
+	defer testServer.Close()
+
+	t.Setenv("BITBUCKET_API_BASE_URL", testServer.URL)
+	provider, err := NewBitBucketCloudProvider("test-owner", "user", "password", true)
+	require.NoError(t, err)
+
+	repo := &Repository{Organization: "test-owner", Repository: "testmike", URL: testServer.URL}
+	_, err = provider.GetBranches(t.Context(), repo)
+	require.Error(t, err)
+	// the error must name the branch and the condition, without the corrupted %!w(<nil>) of an unused %w verb
+	assert.Contains(t, err.Error(), `error getting SHA for branch "main" of test-owner/testmike`)
+	assert.Contains(t, err.Error(), "the commit hash is missing or not a string")
+	assert.NotContains(t, err.Error(), "%!w")
+}
