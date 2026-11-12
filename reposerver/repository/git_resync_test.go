@@ -104,9 +104,9 @@ func TestCheckoutRevisionCancelledContextIsLabelledCancelled(t *testing.T) {
 	_, err = s.checkoutRevision(ctx, gc, rev, false, 0, false)
 	require.Error(t, err)
 
-	assert.Equal(t, float64(1), gitFetchFailCount(t, ms.PrometheusRegistry, "cancelled"),
+	assert.Equal(t, 1, gitFetchFailCount(t, ms.PrometheusRegistry, "cancelled"),
 		"a cancelled request should be recorded with reason=cancelled")
-	assert.Equal(t, float64(0), gitFetchFailCount(t, ms.PrometheusRegistry, "error"),
+	assert.Equal(t, 0, gitFetchFailCount(t, ms.PrometheusRegistry, "error"),
 		"a cancelled request must not be recorded as a generic git error")
 }
 
@@ -124,7 +124,7 @@ func TestServiceFetchRecordsFailReason(t *testing.T) {
 
 	err := s.fetch(t.Context(), gitClient, []string{revision}, 0)
 	require.Error(t, err)
-	assert.Equal(t, float64(1), gitFetchFailCount(t, ms.PrometheusRegistry, "error"))
+	assert.Equal(t, 1, gitFetchFailCount(t, ms.PrometheusRegistry, "error"))
 }
 
 // TestCheckoutRevisionReturnsErrorWhenRecloneCleanupFails verifies that when the
@@ -158,8 +158,9 @@ func TestCheckoutRevisionReturnsErrorWhenRecloneCleanupFails(t *testing.T) {
 }
 
 // gitFetchFailCount returns the summed argocd_git_fetch_fail_total value across
-// all repo/revision series carrying the given reason label.
-func gitFetchFailCount(t *testing.T, reg *prometheus.Registry, reason string) float64 {
+// all repo/revision series carrying the given reason label. The counter only
+// ever holds whole numbers, so it is returned as an int for exact comparison.
+func gitFetchFailCount(t *testing.T, reg *prometheus.Registry, reason string) int {
 	t.Helper()
 	mfs, err := reg.Gather()
 	require.NoError(t, err)
@@ -176,5 +177,5 @@ func gitFetchFailCount(t *testing.T, reg *prometheus.Registry, reason string) fl
 			}
 		}
 	}
-	return total
+	return int(total)
 }
