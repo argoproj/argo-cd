@@ -375,7 +375,7 @@ spec:
         # Temporary debugging step: keep a copy of the files and environment variables received by the plugin.
         DEBUG_DIR="/tmp/cmp-debug/$ARGOCD_APP_NAME"
         rm -rf "$DEBUG_DIR" && mkdir -p "$DEBUG_DIR" && cp -R . "$DEBUG_DIR"
-        export -p > "$DEBUG_DIR.env"
+        (for v in $(env | sed -n 's/^\([A-Za-z_][A-Za-z0-9_]*\)=.*/\1/p'); do case "$v" in ARGOCD_*|KUBE_*|PARAM_*) ;; *) unset "$v" ;; esac; done; export -p) > "$DEBUG_DIR.env"
         my-tool generate .
 ```
 
@@ -402,10 +402,10 @@ my-tool generate .
 
 The shell started with `kubectl exec` doesn't inherit the variables that Argo CD sets for each manifest generation
 request, such as the [build environment](../user-guide/build-environment.md) variables, `ARGOCD_ENV_` variables,
-and `PARAM_` variables. The copy step saves all exported variables, including those, to
-`/tmp/cmp-debug/<app-name>.env`. The shell quotes the values, so variables with multi-line values, such as
-certificates, are restored correctly. Load that file in the same shell that your `generate` command uses (`sh` in the
-example above).
+and `PARAM_` variables. The copy step saves only the `ARGOCD_`, `KUBE_` and `PARAM_` variables to
+`/tmp/cmp-debug/<app-name>.env`, quoted by the shell so that multi-line values, such as certificates, are restored
+correctly. Other environment variables of the sidecar, such as credentials, are not saved. Load that file in the same
+shell that your `generate` command uses (`sh` in the example above).
 
 Because the commands run in the Application source directory, only that directory is copied. Files elsewhere in the
 repository are not copied. Some files may also be missing because of
