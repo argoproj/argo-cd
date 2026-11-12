@@ -9,6 +9,7 @@ import (
 	"text/tabwriter"
 
 	"github.com/spf13/cobra"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/utils"
@@ -423,6 +424,37 @@ func printSyncWindows(proj *v1alpha1.AppProject) {
 			}
 			fmt.Fprintf(w, fmtStr, vals...)
 		}
+	}
+	_ = w.Flush()
+	printSyncWindowRefs(proj.Spec.SyncWindowRefs)
+}
+
+// printSyncWindowRefs lists SyncWindow refs; their schedules are only known server-side.
+func printSyncWindowRefs(refs []v1alpha1.SyncWindowProjectRef) {
+	if len(refs) == 0 {
+		return
+	}
+	fmt.Println()
+	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
+	headers := []any{"REF", "NAME", "SELECTOR", "APPLICATIONS", "NAMESPACES", "CLUSTERS"}
+	fmtStr := strings.Repeat("%s\t", len(headers)) + "\n"
+	fmt.Fprintf(w, fmtStr, headers...)
+	for i, ref := range refs {
+		name, selector := "-", "-"
+		if ref.Ref.Name != "" {
+			name = ref.Ref.Name
+		}
+		if ref.Ref.Selector != nil {
+			selector = metav1.FormatLabelSelector(ref.Ref.Selector)
+		}
+		fmt.Fprintf(w, fmtStr,
+			strconv.Itoa(i),
+			name,
+			selector,
+			formatListOutput(ref.Applications),
+			formatListOutput(ref.Namespaces),
+			formatListOutput(ref.Clusters),
+		)
 	}
 	_ = w.Flush()
 }
