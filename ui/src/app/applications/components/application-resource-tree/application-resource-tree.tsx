@@ -342,11 +342,13 @@ function renderGroupedNodes(props: ApplicationResourceTreeProps, node: {count: n
                     <div className='application-resource-tree__node-kind'>{ResourceLabel({kind: node.kind})}</div>
                 </div>
                 <div
-                    className='application-resource-tree__node-title application-resource-tree__direction-center-left'
+                    className='application-resource-tree__node-title application-resource-tree__direction-center-left application-resource-tree__grouped-node-title'
                     onClick={() => props.onGroupdNodeClick && props.onGroupdNodeClick(node.groupedNodeIds)}
                     title={`Click to see details of ${node.count} collapsed ${node.kind} and doesn't contains any active pods`}>
-                    {node.count} {node.kind.endsWith('s') ? node.kind : `${node.kind}s`}
-                    <span style={{paddingLeft: '.5em', fontSize: 'small'}}>
+                    <span className='application-resource-tree__grouped-node-title-text'>
+                        {node.count} {node.kind.endsWith('s') ? node.kind : `${node.kind}s`}
+                    </span>
+                    <span className='application-resource-tree__grouped-node-title-icon'>
                         {node.kind === 'ReplicaSet' ? (
                             <i
                                 className='fa-solid fa-cart-flatbed icon-background'
