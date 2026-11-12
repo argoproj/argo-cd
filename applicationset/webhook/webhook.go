@@ -16,12 +16,14 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
+	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
 	"github.com/argoproj/argo-cd/v3/util/webhook"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
+	"github.com/go-playground/webhooks/v6/bitbucket"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	log "github.com/sirupsen/logrus"
@@ -39,6 +41,7 @@ type WebhookHandler struct {
 	client                 client.Client
 	generators             map[string]generators.Generator
 	queue                  chan any
+	prHints                *pullrequest.PRHintStore
 }
 
 type gitGeneratorInfo struct {
@@ -51,6 +54,7 @@ type prGeneratorInfo struct {
 	Azuredevops *prGeneratorAzuredevopsInfo
 	Github      *prGeneratorGithubInfo
 	Gitlab      *prGeneratorGitlabInfo
+	Bitbucket   *prGeneratorBitbucketInfo
 }
 
 type prGeneratorAzuredevopsInfo struct {
@@ -86,8 +90,20 @@ func appSetParserOptions() webhook.ParserOptions {
 		},
 		GitHubEvents: []github.Event{github.PushEvent, github.PullRequestEvent, github.PingEvent},
 		GitLabEvents: []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents},
-		GHCR:         true,
+		BitbucketEvents: []bitbucket.Event{
+			bitbucket.RepoPushEvent,
+			bitbucket.PullRequestCreatedEvent,
+			bitbucket.PullRequestUpdatedEvent,
+			bitbucket.PullRequestMergedEvent,
+			bitbucket.PullRequestDeclinedEvent,
+		},
+		GHCR: true,
 	}
+}
+
+type prGeneratorBitbucketInfo struct {
+	Owner string
+	Repo  string
 }
 
 func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.SettingsManager, client client.Client, generators map[string]generators.Generator) (*WebhookHandler, error) {
@@ -96,12 +112,24 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 	if err != nil {
 		return nil, fmt.Errorf("failed to get argocd settings: %w", err)
 	}
+	// Extract the shared PRHintStore from the PullRequest generator so the webhook
+	// handler can inject PR data from the payload, bypassing the eventually-consistent
+	// Bitbucket Cloud list API on webhook-triggered reconciles.
+	var prHints *pullrequest.PRHintStore
+	type prHintProvider interface {
+		GetPRHints() *pullrequest.PRHintStore
+	}
+	if p, ok := generators["PullRequest"].(prHintProvider); ok {
+		prHints = p.GetPRHints()
+	}
+
 	webhookHandler := &WebhookHandler{
 		parsers:                webhook.NewParsers(argocdSettings, appSetParserOptions()),
 		maxWebhookPayloadSizeB: argocdSettingsMgr.GetMaxWebhookPayloadSize(),
 		client:                 client,
 		generators:             generators,
 		queue:                  make(chan any, payloadQueueSize),
+		prHints:                prHints,
 	}
 
 	webhook.StartWorkers(&webhookHandler.WaitGroup, webhookParallelism, webhookHandler.queue, webhookHandler.HandleEvent, "applicationset-webhook", panicMsgAppSet)
@@ -109,7 +137,56 @@ func NewWebhookHandler(webhookParallelism int, argocdSettingsMgr *argosettings.S
 	return webhookHandler, nil
 }
 
+// injectBitbucketPRHint seeds the PRHintStore with the PR from the webhook payload so that
+// List() can return it immediately without waiting for Bitbucket's eventually-consistent
+// list API (typically 2–6 min lag after PR creation). Only fires on created/updated events.
+func (h *WebhookHandler) injectBitbucketPRHint(payload any) {
+	if h.prHints == nil {
+		return
+	}
+	type prFields struct {
+		repo      bitbucket.Repository
+		id        int64
+		title     string
+		srcBranch string
+		dstBranch string
+		srcHash   string
+		author    string
+	}
+	var f prFields
+	switch p := payload.(type) {
+	case bitbucket.PullRequestCreatedPayload:
+		f = prFields{
+			p.Repository, p.PullRequest.ID, p.PullRequest.Title,
+			p.PullRequest.Source.Branch.Name, p.PullRequest.Destination.Branch.Name,
+			p.PullRequest.Source.Commit.Hash, p.PullRequest.Author.NickName,
+		}
+	case bitbucket.PullRequestUpdatedPayload:
+		f = prFields{
+			p.Repository, p.PullRequest.ID, p.PullRequest.Title,
+			p.PullRequest.Source.Branch.Name, p.PullRequest.Destination.Branch.Name,
+			p.PullRequest.Source.Commit.Hash, p.PullRequest.Author.NickName,
+		}
+	default:
+		return
+	}
+	info := bitbucketPRInfo(f.repo)
+	if info.Owner == "" || info.Repo == "" {
+		return
+	}
+	h.prHints.Set(info.Owner, info.Repo, []*pullrequest.PullRequest{{
+		Number:       f.id,
+		Title:        f.title,
+		Branch:       f.srcBranch,
+		TargetBranch: f.dstBranch,
+		HeadSHA:      f.srcHash,
+		Author:       f.author,
+	}})
+}
+
 func (h *WebhookHandler) HandleEvent(payload any) {
+	h.injectBitbucketPRHint(payload)
+
 	gitGenInfo := getGitGeneratorInfo(payload)
 	prGenInfo := getPRGeneratorInfo(payload)
 	ociGenInfo := getOciGeneratorInfo(payload)
@@ -225,6 +302,14 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			Repo:    repo,
 			Project: project,
 		}
+	case bitbucket.PullRequestCreatedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
+	case bitbucket.PullRequestUpdatedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
+	case bitbucket.PullRequestMergedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
+	case bitbucket.PullRequestDeclinedPayload:
+		info.Bitbucket = bitbucketPRInfo(payload.Repository)
 	default:
 		return nil
 	}
@@ -364,6 +449,16 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 			return false
 		}
 		if gen.AzureDevOps.Repo != info.Azuredevops.Repo {
+			return false
+		}
+		return true
+	}
+
+	if gen.Bitbucket != nil && info.Bitbucket != nil {
+		if !strings.EqualFold(gen.Bitbucket.Owner, info.Bitbucket.Owner) {
+			return false
+		}
+		if !strings.EqualFold(gen.Bitbucket.Repo, info.Bitbucket.Repo) {
 			return false
 		}
 		return true
@@ -571,6 +666,21 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 	}
 
 	return false
+}
+
+func bitbucketPRInfo(repo bitbucket.Repository) *prGeneratorBitbucketInfo {
+	// full_name is "workspace/repo-slug" and is always the stable API identifier.
+	// repo.Name can be a display name that differs from the slug, which would
+	// cause shouldRefreshPRGenerator to silently miss the matching ApplicationSet.
+	owner := repo.Owner.NickName
+	repoName := repo.Name
+	if repo.FullName != "" {
+		if parts := strings.SplitN(repo.FullName, "/", 2); len(parts) == 2 {
+			owner = parts[0]
+			repoName = parts[1]
+		}
+	}
+	return &prGeneratorBitbucketInfo{Owner: owner, Repo: repoName}
 }
 
 func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {

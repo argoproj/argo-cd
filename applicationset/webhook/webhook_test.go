@@ -55,6 +55,7 @@ func TestWebhookHandler(t *testing.T) {
 		desc               string
 		headerKey          string
 		headerValue        string
+		extraHeaders       map[string]string
 		effectedAppSets    []string
 		payloadFile        string
 		expectedStatusCode int
@@ -238,6 +239,89 @@ func TestWebhookHandler(t *testing.T) {
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
+		{
+			desc:               "WebHook from a Bitbucket Cloud repository via push event",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "repo:push"},
+			payloadFile:        "bitbucket-cloud-push.json",
+			effectedAppSets:    []string{"git-bitbucket-cloud", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a Bitbucket Cloud repository via pull request created event",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "pullrequest:created"},
+			payloadFile:        "bitbucket-cloud-pull-request-created.json",
+			effectedAppSets:    []string{"pull-request-bitbucket-cloud", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a Bitbucket Cloud repository via pull request updated event",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "pullrequest:updated"},
+			payloadFile:        "bitbucket-cloud-pull-request-created.json",
+			effectedAppSets:    []string{"pull-request-bitbucket-cloud", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a Bitbucket Cloud repository via pull request merged event",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "pullrequest:fulfilled"},
+			payloadFile:        "bitbucket-cloud-pull-request-created.json",
+			effectedAppSets:    []string{"pull-request-bitbucket-cloud", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a Bitbucket Cloud repository via pull request declined event",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "pullrequest:rejected"},
+			payloadFile:        "bitbucket-cloud-pull-request-created.json",
+			effectedAppSets:    []string{"pull-request-bitbucket-cloud", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			// repository.name is a display name ("My Repo Display Name") that differs from
+			// the slug; full_name ("my-org/myrepo") must be used for matching.
+			desc:               "WebHook from a Bitbucket Cloud repository where display name differs from slug",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "pullrequest:created"},
+			payloadFile:        "bitbucket-cloud-pull-request-displayname.json",
+			effectedAppSets:    []string{"pull-request-bitbucket-cloud", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			// A push with no changes (e.g. a deleted branch) names no revision to match.
+			desc:               "WebHook from a Bitbucket Cloud repository via push event without changes",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "repo:push"},
+			payloadFile:        "bitbucket-cloud-push-no-changes.json",
+			effectedAppSets:    []string{"plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from an unrelated Bitbucket Cloud repository does not refresh its pull request generator",
+			headerKey:          "X-Hook-UUID",
+			headerValue:        "{some-uuid}",
+			extraHeaders:       map[string]string{"X-Event-Key": "pullrequest:created"},
+			payloadFile:        "bitbucket-cloud-pull-request-other-repo.json",
+			effectedAppSets:    []string{"plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
 	}
 
 	namespace := "test"
@@ -245,8 +329,6 @@ func TestWebhookHandler(t *testing.T) {
 	fakeClient := newFakeClient(namespace)
 	scheme := runtime.NewScheme()
 	err := v1alpha1.AddToScheme(scheme)
-	require.NoError(t, err)
-	err = v1alpha1.AddToScheme(scheme)
 	require.NoError(t, err)
 
 	for _, test := range tt {
@@ -274,6 +356,8 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab-path-case", namespace, "Group/Name"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab-path-nomatch", namespace, "group/other"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
+				fakeAppWithBitbucketCloudPullRequestGenerator("pull-request-bitbucket-cloud", namespace, "my-org", "myrepo"),
+				fakeAppWithGitGeneratorWithRevision("git-bitbucket-cloud", namespace, "https://bitbucket.org/my-org/myrepo", "main"),
 				fakeAppWithPluginGenerator("plugin", namespace),
 				fakeAppWithOciGenerator("oci-ghcr", namespace, "oci://ghcr.io/org/image", "1.0.0"),
 				fakeAppWithMatrixAndGitGenerator("matrix-git-github", namespace, "https://github.com/org/repo"),
@@ -292,6 +376,9 @@ func TestWebhookHandler(t *testing.T) {
 
 			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 			req.Header.Set(test.headerKey, test.headerValue)
+			for k, v := range test.extraHeaders {
+				req.Header.Set(k, v)
+			}
 			eventJSON, err := os.ReadFile(filepath.Join("testdata", test.payloadFile))
 			require.NoError(t, err)
 			req.Body = io.NopCloser(bytes.NewReader(eventJSON))
@@ -450,6 +537,42 @@ func TestWebhookHandlerRejectsRequests(t *testing.T) {
 	}
 }
 
+// A Bitbucket Cloud webhook signed with a different UUID than the one configured in
+// argocd-secret must be rejected without refreshing anything.
+func TestWebhookHandlerRejectsBitbucketCloudUUIDMismatch(t *testing.T) {
+	t.Parallel()
+	namespace := "test"
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	kubeClient := newFakeClientWithSettings(namespace, nil,
+		map[string][]byte{"webhook.bitbucket.uuid": []byte("{expected-uuid}")},
+	)
+	fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(
+		fakeAppWithBitbucketCloudPullRequestGenerator("pull-request-bitbucket-cloud", namespace, "my-org", "myrepo"),
+	).Build()
+	set := argosettings.NewSettingsManager(t.Context(), kubeClient, namespace)
+	h, err := NewWebhookHandler(1, set, fc, mockGenerators())
+	require.NoError(t, err)
+
+	eventJSON, err := os.ReadFile(filepath.Join("testdata", "bitbucket-cloud-pull-request-created.json"))
+	require.NoError(t, err)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+	req.Header.Set("X-Hook-UUID", "{other-uuid}")
+	req.Header.Set("X-Event-Key", "pullrequest:created")
+	w := httptest.NewRecorder()
+
+	h.Handler(w, req)
+	close(h.queue)
+	h.Wait()
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	list := &v1alpha1.ApplicationSetList{}
+	require.NoError(t, fc.List(t.Context(), list))
+	require.Len(t, list.Items, 1)
+	assert.Empty(t, list.Items[0].Annotations[common.AnnotationApplicationSetRefresh])
+}
+
 // TestParserOptionsParity makes sure every webhook event the Argo CD API server
 // handles is also handled by the ApplicationSet webhook, so a provider added to one
 // handler is not silently missing from the other.
@@ -457,7 +580,6 @@ func TestParserOptionsParity(t *testing.T) {
 	// Providers the Argo CD webhook handles that the ApplicationSet webhook does not
 	// yet. Delete an entry when adding that provider to appSetParserOptions.
 	knownGaps := map[string]bool{
-		"bitbucket":       true,
 		"bitbucketserver": true,
 		"gogs":            true,
 		"harbor":          true,
@@ -662,6 +784,25 @@ func fakeAppWithAzureDevOpsPullRequestGenerator(name, namespace, project, repo s
 						AzureDevOps: &v1alpha1.PullRequestGeneratorAzureDevOps{
 							Project: project,
 							Repo:    repo,
+						},
+					},
+				},
+			},
+		},
+	}
+}
+
+func fakeAppWithBitbucketCloudPullRequestGenerator(name, namespace, owner, repo string) *v1alpha1.ApplicationSet {
+	return &v1alpha1.ApplicationSet{
+		Name:      name,
+		Namespace: namespace,
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{
+				{
+					PullRequest: &v1alpha1.PullRequestGenerator{
+						Bitbucket: &v1alpha1.PullRequestGeneratorBitbucket{
+							Owner: owner,
+							Repo:  repo,
 						},
 					},
 				},
