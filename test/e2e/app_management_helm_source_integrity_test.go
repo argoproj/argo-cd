@@ -92,7 +92,7 @@ func TestTraditionalHelmSourceIntegrityProvenanceFailsWhenProvMissing(t *testing
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "could not access chart for provenance verification")).
 		Expect(Condition(ApplicationConditionComparisonError, "chart has no provenance file (.prov)"))
 }
@@ -152,7 +152,7 @@ func TestHelmSourceIntegrityEmptyKeysFailsWhenProvenanceMissing(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "could not access chart for provenance verification")).
 		Expect(Condition(ApplicationConditionComparisonError, "chart has no provenance file (.prov)"))
 }
@@ -270,7 +270,7 @@ func TestHelmOCISourceIntegrityProvenanceFailsWhenProvMissing(t *testing.T) {
 		Sync().
 		Then().
 		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "could not access chart for provenance verification")).
 		Expect(Condition(ApplicationConditionComparisonError, "chart has no provenance file (.prov)"))
 }
@@ -529,7 +529,7 @@ func expectHelmRepoClashWorkingAppState(cons *Consequences) {
 func expectHelmRepoClashBrokenAppState(cons *Consequences) {
 	cons.
 		Expect(OperationPhaseIs(OperationError)).
-		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		Expect(SyncStatusIs(SyncStatusCodeUnknown)).
 		Expect(Condition(ApplicationConditionComparisonError, "could not access chart for provenance verification"))
 }
 
