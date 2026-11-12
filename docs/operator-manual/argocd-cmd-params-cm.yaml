@@ -233,7 +233,8 @@ data:
   server.trusted.proxies: ""
   # Header a trusted proxy sets to the client IP, e.g. CF-Connecting-IP, True-Client-IP or X-Real-IP (default: none)
   server.client.ip.header: ""
-  # Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
+  # Set X-Frame-Options header in HTTP responses to value. An empty value here falls back to the default, so to
+  # disable the header pass --x-frame-options="" on the argocd-server command line instead. (default "sameorigin")
   server.x.frame.options: "sameorigin"
   # Set Content-Security-Policy header in HTTP responses to value. An empty value here falls back to the default,
   # so to disable the header pass --content-security-policy="" on the argocd-server command line instead. (default "frame-ancestors 'self';")
@@ -357,9 +358,10 @@ data:
   reposerver.enable.builtin.git.config: "true"
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
-  # Maximum gRPC message size in MB for the repo server's gRPC server. The application controller and API server read
-  # ARGOCD_GRPC_MAX_SIZE_MB from their own environment for their repo server client limits, so set it there as well when
-  # raising this value. (default 100)
+  # Maximum gRPC message size in MB for the repo server process: its gRPC server and the config management plugin
+  # (CMP) client it uses share this limit. The application controller and API server read ARGOCD_GRPC_MAX_SIZE_MB from
+  # their own environment for their repo server client limits, so set it there as well when raising this value.
+  # (default 100)
   reposerver.grpc.max.size: "100"
   # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
