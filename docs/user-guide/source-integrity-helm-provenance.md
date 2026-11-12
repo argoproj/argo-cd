@@ -4,7 +4,7 @@ Argo CD can verify [Helm chart provenance](https://helm.sh/docs/topics/provenanc
 
 1. Pulls the chart with `helm pull --prov`, which also downloads its `.prov` file. In an HTTP/HTTPS repository the `.prov` is published next to the chart archive (`<chart-url>.prov`). In an OCI registry it is the provenance layer `helm push` uploads when a `.prov` file sits next to the pushed archive. For `oci://` sources, the provenance layer is read from the pulled artifact instead.
 2. Verifies the `.prov` PGP signature against the Argo CD GnuPG keyring, and checks that the signer is listed in the policy's `keys`.
-3. Checks that the SHA-256 digest of the chart archive matches the digest in the signed `.prov` body, and that the chart name and version signed in it are the ones requested. For `oci://` sources the digest is that of the chart layer in the image manifest, the name is the last segment of `repoURL`, and the version is checked only when `targetRevision` is an exact version.
+3. Checks that the SHA-256 digest of the chart archive matches the digest in the signed `.prov` body, and that the chart name and version signed in it are the ones requested. For `oci://` sources the digest is that of the chart layer in the image manifest, the name is the last segment of `repoURL`, and the version is checked when the requested revision is an exact version, or, for a digest such as the one auto-sync requests, when `targetRevision` is an exact version that resolves to that digest.
 
 Together, these steps are equivalent to:
 

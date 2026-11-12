@@ -7147,3 +7147,33 @@ func TestGenerateManifest_HelmProvenance(t *testing.T) {
 	})
 	require.ErrorContains(t, err, "chart has no provenance file (.prov)")
 }
+
+func TestOCIChartVersion(t *testing.T) {
+	const (
+		current  = "sha256:aaaa"
+		previous = "sha256:bbbb"
+	)
+	source := &v1alpha1.ApplicationSource{RepoURL: "oci://registry.example.com/charts/mychart", TargetRevision: "1.2.0"}
+	resolvesTo := func(digest string, err error) *ocimocks.Client {
+		c := &ocimocks.Client{}
+		c.EXPECT().ResolveRevision(mock.Anything, "1.2.0", false).Return(digest, err)
+		return c
+	}
+
+	t.Run("requested version is used as is", func(t *testing.T) {
+		assert.Equal(t, "1.1.0+build.1", ociChartVersion(t.Context(), &ocimocks.Client{}, source, "1.1.0_build.1", previous, false))
+	})
+	t.Run("digest that targetRevision resolves to is held to targetRevision", func(t *testing.T) {
+		assert.Equal(t, "1.2.0", ociChartVersion(t.Context(), resolvesTo(current, nil), source, current, current, false))
+	})
+	t.Run("another digest is not held to targetRevision", func(t *testing.T) {
+		assert.Empty(t, ociChartVersion(t.Context(), resolvesTo(current, nil), source, previous, previous, false))
+	})
+	t.Run("unresolvable targetRevision is not checked", func(t *testing.T) {
+		assert.Empty(t, ociChartVersion(t.Context(), resolvesTo("", errors.New("tag not found")), source, previous, previous, false))
+	})
+	t.Run("range is not checked", func(t *testing.T) {
+		ranged := &v1alpha1.ApplicationSource{RepoURL: source.RepoURL, TargetRevision: "1.*"}
+		assert.Empty(t, ociChartVersion(t.Context(), &ocimocks.Client{}, ranged, current, current, false))
+	})
+}

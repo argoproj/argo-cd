@@ -457,12 +457,11 @@ func (s *Service) runRepoOperation(
 		}
 
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {
-			// helm push stores a chart at <repo>/<chart name>, tagged with its version ("+" as "_").
-			chartVersion := strings.ReplaceAll(unresolvedRevision, "_", "+")
-			if _, err := semver.StrictNewVersion(chartVersion); err != nil {
-				// A range or a digest: which version it picked is not known here.
-				chartVersion = ""
+			var chartVersion string
+			if sourceintegrity.HasCriteria(sourceIntegrity, *source) {
+				chartVersion = ociChartVersion(ctx, ociClient, source, unresolvedRevision, revision, settings.noCache || settings.noRevisionCache)
 			}
+			// helm push stores a chart at <repo>/<chart name>.
 			sourceIntegrityResult, err := verifyHelmProvenance(ctx, sourceIntegrity, source, ociPath, path.Base(source.RepoURL), chartVersion)
 			if err != nil {
 				return nil, err
@@ -609,6 +608,32 @@ func verifyHelmProvenance(ctx context.Context, sourceIntegrity *v1alpha1.SourceI
 		}
 		return chartDigest, provPath, err
 	})
+}
+
+// ociChartVersion returns the version a signed oci:// Helm chart must carry, or "" when it is not
+// known. requested is the revision asked for, and digest what it resolved to.
+func ociChartVersion(ctx context.Context, ociClient oci.Client, source *v1alpha1.ApplicationSource, requested, digest string, noCache bool) string {
+	// helm push tags a chart with its version, writing "+" as "_".
+	if v := strings.ReplaceAll(requested, "_", "+"); isExactVersion(v) {
+		return v
+	}
+	// A range, or a digest: the controller passes the digest it resolved targetRevision to. Hold the
+	// chart to targetRevision only if that still resolves to the same digest, so that a sync or
+	// rollback to another digest is not checked against the spec's version.
+	v := strings.ReplaceAll(source.TargetRevision, "_", "+")
+	if !isExactVersion(v) {
+		return ""
+	}
+	resolved, err := ociClient.ResolveRevision(ctx, source.TargetRevision, noCache)
+	if err != nil || resolved != digest {
+		return ""
+	}
+	return v
+}
+
+func isExactVersion(v string) bool {
+	_, err := semver.StrictNewVersion(v)
+	return err == nil
 }
 
 func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
