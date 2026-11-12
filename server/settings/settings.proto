@@ -49,6 +49,7 @@ message Settings {
     bool syncWithReplaceAllowed = 29;
     string uiLoginButtonText = 30;
     bool resourceViewEnabled = 31;
+    bool ssoAutoLogin = 32;
 }
 
 message GoogleAnalyticsConfig {

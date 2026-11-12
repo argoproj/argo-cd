@@ -104,6 +104,24 @@ func TestSettingsServer(t *testing.T) {
 		assert.Equal(t, "Sign in with SSO", resp.UiLoginButtonText)
 	})
 
+	t.Run("TestGetSSOAutoLoginNotLoggedIn", func(t *testing.T) {
+		t.Parallel()
+		settingsServer := newServer(map[string]string{
+			"sso.autoLogin": "true",
+		})
+		resp, err := settingsServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		assert.True(t, resp.SsoAutoLogin)
+	})
+
+	t.Run("TestGetSSOAutoLoginDisabledByDefault", func(t *testing.T) {
+		t.Parallel()
+		settingsServer := newServer(map[string]string{})
+		resp, err := settingsServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		assert.False(t, resp.SsoAutoLogin)
+	})
+
 	t.Run("TestGetResourceOverridesNotLoggedIn", func(t *testing.T) {
 		t.Parallel()
 		settingsServer := newServer(map[string]string{
