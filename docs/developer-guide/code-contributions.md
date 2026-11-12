@@ -98,6 +98,30 @@ For some enhancement proposals (especially those that will change behavior of Ar
 
 Design documents are usually submitted as PR and use [this template](https://github.com/argoproj/argo-cd/blob/master/docs/proposals/001-proposal-template.md) as a guide what kind of information we're looking for. Discussion will take place in the review process. When a design document gets merged, we consider it as approved and code can be written and submitted to implement this specific design.
 
+## Adding a configuration option
+
+Most settings of an Argo CD component are CLI flags, and operators usually set them through the `argocd-cmd-params-cm` ConfigMap. If you add a new setting, please wire it up the same way, so operators can find it in the command reference and configure it like the settings next to it:
+
+1. Add a flag to the component's command and read its default from an `ARGOCD_*` environment variable with the helpers in `util/env`. Pass the value down to the code that uses it. Please don't read the environment variable in an `init()` function or keep it in a package-level variable.
+2. Add an `argocd-cmd-params-cm` key and map it to the environment variable with an `optional: true` `configMapKeyRef`. Do this in every manifest under `manifests/base` that runs the component, because some components have more than one (the application controller has both a StatefulSet and a Deployment).
+3. Document the key and its default in `docs/operator-manual/argocd-cmd-params-cm.yaml`.
+4. Run `make codegen` to regenerate the install manifests and the command reference docs.
+
+Here is how the application controller's `--status-processors` flag is set up:
+
+```go
+command.Flags().IntVar(&statusProcessors, "status-processors", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS", 20, 0, math.MaxInt32), "Number of application status processors")
+```
+
+```yaml
+- name: ARGOCD_APPLICATION_CONTROLLER_STATUS_PROCESSORS
+  valueFrom:
+    configMapKeyRef:
+      name: argocd-cmd-params-cm
+      key: controller.status.processors
+      optional: true
+```
+
 ## Regular contributor meeting
 
 Our community regularly meets virtually to discuss issues, ideas and enhancements around Argo CD. We do invite you to join this virtual meetings if you want to bring up certain things (including your enhancement proposals), participate in our triage, or just want to get to know other contributors.
