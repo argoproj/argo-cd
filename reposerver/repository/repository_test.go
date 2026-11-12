@@ -2169,8 +2169,6 @@ func TestGetRevisionMetadataSignedRevisionOnly(t *testing.T) {
 		t.Run("commit sha "+revision+" passes the guard", func(t *testing.T) {
 			service, gitClient, _ := newServiceWithMocks(t, "../..")
 
-			// newServiceWithMocks already makes GetRevisionType report "commit"; testify serves the
-			// first matching expectation, so registering it again here would have no effect.
 			gitClient.EXPECT().GetSymbolicFullName(mock.Anything, mock.Anything).Return("", nil)
 			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockOk)
 			gitClient.EXPECT().RevisionMetadata(mock.Anything, mock.Anything).Return(&git.RevisionMetadata{
