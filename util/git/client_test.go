@@ -585,6 +585,105 @@ func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 	require.NoFileExists(t, indexLock, "cancelled git left a stale index.lock behind")
 }
 
+// newSlowFetchRemote returns a file:// remote with one commit, whose upload-pack
+// touches a marker file and then waits delay before serving the fetch.
+func newSlowFetchRemote(t *testing.T, delay time.Duration) (client Client, revision string, marker string) {
+	t.Helper()
+	ctx := t.Context()
+	remote, err := _createEmptyGitRepo(ctx)
+	require.NoError(t, err)
+	out, err := outputCmd(ctx, remote, "git", "rev-parse", "HEAD")
+	require.NoError(t, err)
+	revision = strings.TrimSpace(string(out))
+
+	marker = filepath.Join(t.TempDir(), "fetch-started")
+	uploadPack := filepath.Join(t.TempDir(), "slow-upload-pack.sh")
+	script := fmt.Sprintf("#!/bin/sh\ntouch '%s'\nsleep %g\nexec git-upload-pack \"$@\"\n", marker, delay.Seconds())
+	require.NoError(t, os.WriteFile(uploadPack, []byte(script), 0o755))
+
+	client, err = NewClient("file://"+remote, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+	require.NoError(t, client.Init())
+	require.NoError(t, runCmd(ctx, client.Root(), "git", "config", "remote.origin.uploadpack", uploadPack))
+	return client, revision, marker
+}
+
+func Test_nativeGitClient_Fetch_completesAfterCancellation(t *testing.T) {
+	client, revision, marker := newSlowFetchRemote(t, time.Second)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	fetchErr := make(chan error, 1)
+	go func() {
+		fetchErr <- client.Fetch(ctx, "", 0)
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(marker)
+		return err == nil
+	}, 10*time.Second, 10*time.Millisecond, "fetch never reached the remote")
+
+	cancel()
+
+	select {
+	case err := <-fetchErr:
+		require.NoError(t, err, "a started fetch must not be cancelled with its caller")
+	case <-time.After(30 * time.Second):
+		t.Fatal("fetch did not finish")
+	}
+	assert.True(t, client.IsRevisionPresent(t.Context(), revision), "fetched revision should be in the local clone")
+}
+
+// ARGOCD_EXEC_TIMEOUT still stops a detached fetch. util/exec reads it at
+// startup, so the test re-runs itself in a child process.
+func Test_nativeGitClient_Fetch_cancelledFetchIsBoundedByExecTimeout(t *testing.T) {
+	if os.Getenv("ARGOCD_TEST_BOUNDED_FETCH_CHILD") != "1" {
+		cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^Test_nativeGitClient_Fetch_cancelledFetchIsBoundedByExecTimeout$", "-test.count=1")
+		cmd.Env = append(os.Environ(),
+			"ARGOCD_TEST_BOUNDED_FETCH_CHILD=1",
+			"ARGOCD_EXEC_TIMEOUT=500ms",
+			"ARGOCD_EXEC_FATAL_TIMEOUT=500ms",
+		)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+		return
+	}
+
+	client, _, marker := newSlowFetchRemote(t, 30*time.Second)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	fetchErr := make(chan error, 1)
+	go func() {
+		fetchErr <- client.Fetch(ctx, "", 0)
+	}()
+
+	require.Eventually(t, func() bool {
+		_, err := os.Stat(marker)
+		return err == nil
+	}, 10*time.Second, 10*time.Millisecond, "fetch never reached the remote")
+	cancel()
+
+	select {
+	case err := <-fetchErr:
+		require.ErrorContains(t, err, "timeout after")
+	case <-time.After(10 * time.Second):
+		t.Fatal("detached fetch was not stopped by the exec timeout")
+	}
+}
+
+func Test_nativeGitClient_Fetch_doesNotStartWhenCancelled(t *testing.T) {
+	client, revision, marker := newSlowFetchRemote(t, 0)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+
+	err := client.Fetch(ctx, "", 0)
+	require.ErrorIs(t, err, context.Canceled)
+	assert.NoFileExists(t, marker, "fetch must not contact the remote for a cancelled request")
+	assert.False(t, client.IsRevisionPresent(t.Context(), revision))
+}
+
 func Test_gitCancelGracePeriod(t *testing.T) {
 	t.Run("default", func(t *testing.T) {
 		t.Setenv("ARGOCD_EXEC_FATAL_TIMEOUT", "")
