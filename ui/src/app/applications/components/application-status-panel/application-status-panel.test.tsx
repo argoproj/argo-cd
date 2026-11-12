@@ -114,6 +114,50 @@ describe('ApplicationStatusPanel', () => {
         expect(showHydrateOperation).toHaveBeenCalled();
     });
 
+    it('shows the sync source is behind hydrateTo when the synced dry SHA differs from the last hydrated one', () => {
+        const sourceHydrator = {
+            drySource: {repoURL: 'https://github.com/org/repo.git', targetRevision: 'main', path: '.'},
+            syncSource: {targetBranch: 'environment/dev', path: '.'},
+            hydrateTo: {targetBranch: 'environment/dev-next'}
+        };
+        const pendingApp = {
+            ...application,
+            spec: {...application.spec, sourceHydrator},
+            status: {
+                ...application.status,
+                sourceHydrator: {
+                    syncedDrySHA: 'dry-old-1234567',
+                    lastSuccessfulOperation: {drySHA: 'dry-newest-1234567', hydratedDrySHA: 'dry-new-1234567'},
+                    currentOperation: {
+                        phase: 'Hydrated',
+                        startedAt: '2026-01-01T00:00:00Z',
+                        drySHA: 'dry-new-1234567',
+                        hydratedSHA: 'hydrated-1234567',
+                        sourceHydrator
+                    }
+                }
+            }
+        } as unknown as models.Application;
+
+        const {container, rerender} = render(<ApplicationStatusPanel application={pendingApp} />);
+        const behind = screen.getByText('environment/dev is behind environment/dev-next');
+        expect(behind.closest('.application-status-panel__item')).toHaveTextContent('SYNC STATUS');
+
+        const promotedApp = {
+            ...pendingApp,
+            status: {...pendingApp.status, sourceHydrator: {...pendingApp.status.sourceHydrator, syncedDrySHA: 'dry-new-1234567'}}
+        } as unknown as models.Application;
+        rerender(<ApplicationStatusPanel application={promotedApp} />);
+        expect(container).not.toHaveTextContent('is behind');
+
+        const preUpgradeApp = {
+            ...pendingApp,
+            status: {...pendingApp.status, sourceHydrator: {...pendingApp.status.sourceHydrator, lastSuccessfulOperation: {drySHA: 'dry-newest-1234567'}}}
+        } as unknown as models.Application;
+        rerender(<ApplicationStatusPanel application={preUpgradeApp} />);
+        expect(container).not.toHaveTextContent('is behind');
+    });
+
     it('does not show a source hydrator entry while collapsed when the app has none', () => {
         render(<ApplicationStatusPanel application={application} collapsed={true} />);
         expect(screen.queryByTitle('Source Hydrator')).toBeNull();

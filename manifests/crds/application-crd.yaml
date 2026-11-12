@@ -5848,6 +5848,11 @@ spec:
                         description: DrySHA holds the resolved revision (sha) of the
                           dry source as of the most recent reconciliation
                         type: string
+                      hydratedDrySHA:
+                        description: |-
+                          HydratedDrySHA holds the dry source revision recorded in the application directory's hydrator.metadata in the
+                          hydrated commit. It is older than DrySHA when the application's manifests did not change.
+                        type: string
                       hydratedSHA:
                         description: HydratedSHA holds the resolved revision (sha)
                           of the hydrated source as of the most recent reconciliation
@@ -6298,6 +6303,11 @@ spec:
                         - syncSource
                         type: object
                     type: object
+                  syncedDrySHA:
+                    description: SyncedDrySHA holds the dry source revision recorded
+                      in the application directory's hydrator.metadata at the synced
+                      revision.
+                    type: string
                 type: object
               sourceType:
                 description: SourceType specifies the type of this application

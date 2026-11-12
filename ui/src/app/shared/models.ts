@@ -561,6 +561,7 @@ export interface ApplicationStatus {
 export interface SourceHydratorStatus {
     lastSuccessfulOperation?: SuccessfulHydrateOperation;
     currentOperation?: HydrateOperation;
+    syncedDrySHA?: string;
 }
 
 export interface HydrateOperation {
@@ -579,6 +580,8 @@ export interface SuccessfulHydrateOperation {
     drySHA: string;
     hydratedSHA: string;
     sourceHydrator: SourceHydrator;
+    // hydratedDrySHA is the dry SHA recorded in the hydrated commit; older than drySHA when no new commit was made.
+    hydratedDrySHA?: string;
 }
 
 export type HydrateOperationPhase = 'Hydrating' | 'Failed' | 'Hydrated';

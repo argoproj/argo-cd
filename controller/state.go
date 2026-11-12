@@ -119,6 +119,7 @@ type comparisonResult struct {
 	hasPreDeleteHooks  bool
 	// revisionsMayHaveChanges indicates if there are any possibilities that the revisions contain changes
 	revisionsMayHaveChanges bool
+	syncedDrySHA            string
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -1152,6 +1153,9 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		hasPostDeleteHooks:      hasPostDeleteHooks,
 		hasPreDeleteHooks:       hasPreDeleteHooks,
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
+	}
+	if app.Spec.SourceHydrator != nil && len(manifestInfos) > 0 {
+		compRes.syncedDrySHA = manifestInfos[0].SyncedDrySHA
 	}
 
 	if hasMultipleSources {

@@ -1260,6 +1260,8 @@ type SourceHydratorStatus struct {
 	// LastComparedDryRevision holds the resolved revision from the most recent dry source comparison.
 	// This is updated on every evaluation, even when hydration is skipped due to no changes.
 	LastComparedDryRevision string `json:"lastComparedDryRevision,omitempty" protobuf:"bytes,3,opt,name=lastComparedDryRevision"`
+	// SyncedDrySHA holds the dry source revision recorded in the application directory's hydrator.metadata at the synced revision.
+	SyncedDrySHA string `json:"syncedDrySHA,omitempty" protobuf:"bytes,4,opt,name=syncedDrySHA"`
 }
 
 func (status *ApplicationStatus) FindResource(key kube.ResourceKey) (*ResourceStatus, bool) {
@@ -1298,6 +1300,9 @@ type SuccessfulHydrateOperation struct {
 	HydratedSHA string `json:"hydratedSHA,omitempty" protobuf:"bytes,6,opt,name=hydratedSHA"`
 	// SourceHydrator holds the hydrator config used for the hydrate operation
 	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,7,opt,name=sourceHydrator"`
+	// HydratedDrySHA holds the dry source revision recorded in the application directory's hydrator.metadata in the
+	// hydrated commit. It is older than DrySHA when the application's manifests did not change.
+	HydratedDrySHA string `json:"hydratedDrySHA,omitempty" protobuf:"bytes,8,opt,name=hydratedDrySHA"`
 }
 
 // HydrateOperationPhase indicates the status of a hydrate operation
