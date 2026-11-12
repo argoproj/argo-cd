@@ -2045,7 +2045,7 @@ func TestDeleteAppAlreadyDeleting(t *testing.T) {
 }
 
 func TestGetResourceWithComparisonError(t *testing.T) {
-	newServer := func(t *testing.T, tree *v1alpha1.ApplicationTree) (*Server, *v1alpha1.Application) {
+	newServer := func(t *testing.T, tree *v1alpha1.ApplicationTree, projects ...*v1alpha1.AppProject) (*Server, *v1alpha1.Application) {
 		t.Helper()
 
 		job := &k8sbatchv1.Job{
@@ -2073,12 +2073,17 @@ func TestGetResourceWithComparisonError(t *testing.T) {
 		otherJob := job.DeepCopy()
 		otherJob.Name = "someone-elses-job"
 
-		appServer := newTestAppServer(
-			t,
+		objects := []runtime.Object{
 			testApp,
 			kube.MustToUnstructured(job),
 			kube.MustToUnstructured(otherJob),
-		)
+		}
+		for _, project := range projects {
+			testApp.Spec.Project = project.Name
+			objects = append(objects, project)
+		}
+
+		appServer := newTestAppServer(t, objects...)
 
 		cacheClient := cache.NewCache(cache.NewInMemoryCache(time.Hour))
 		appStateCache := appstate.NewCache(cacheClient, time.Hour)
@@ -2167,6 +2172,35 @@ func TestGetResourceWithComparisonError(t *testing.T) {
 			}},
 		}
 		appServer, app := newServer(t, tree)
+
+		_, err := appServer.GetResource(
+			t.Context(),
+			resourceRequest(app, "resource-details-long-hook"),
+		)
+
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "not found as part of application")
+	})
+
+	t.Run("does not fall back to status resource forbidden by project", func(t *testing.T) {
+		restrictedProj := &v1alpha1.AppProject{
+			Name:      "restricted-proj",
+			Namespace: "default",
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{
+					Server:    "*",
+					Namespace: "allowed",
+				}},
+				NamespaceResourceWhitelist: []metav1.GroupKind{{
+					Group: "batch",
+					Kind:  "Job",
+				}},
+			},
+		}
+
+		appServer, app := newServer(t, nil, restrictedProj)
 
 		_, err := appServer.GetResource(
 			t.Context(),

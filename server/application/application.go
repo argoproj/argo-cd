@@ -1579,6 +1579,27 @@ func (s *Server) getAppLiveResource(ctx context.Context, action string, q *appli
 	if found == nil && canFallbackToStatus {
 		key := kube.NewResourceKey(q.GetGroup(), q.GetKind(), q.GetNamespace(), q.GetResourceName())
 		if res, ok := a.Status.FindResource(key); ok {
+			destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("error validating destination: %w", err)
+			}
+
+			permitted, err := p.IsResourcePermitted(
+				schema.GroupKind{Group: res.Group, Kind: res.Kind},
+				res.Name,
+				res.Namespace,
+				destCluster,
+				func(project string) ([]*v1alpha1.Cluster, error) {
+					return s.db.GetProjectClusters(ctx, project)
+				},
+			)
+			if err != nil {
+				return nil, nil, nil, fmt.Errorf("error checking resource permissions: %w", err)
+			}
+			if !permitted {
+				return nil, nil, nil, status.Errorf(codes.InvalidArgument, "%s %s %s not found as part of application %s", q.GetKind(), q.GetGroup(), q.GetResourceName(), q.GetName())
+			}
+
 			found = &v1alpha1.ResourceNode{
 				Group:     res.Group,
 				Version:   res.Version,
