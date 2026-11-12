@@ -220,4 +220,12 @@ test('single-source helm values editor handles invalid yaml gracefully and preve
 
     // The UI should remain rendered without crashing
     expect(textarea).toBeInTheDocument();
+})
+test('multi-source default (no collapse state) renders the expanded panel, not the raw-text summary', async () => {
+    // The details page initializes collapsedSources as an empty array, so every entry is undefined (see argoproj/argo-cd#30942).
+    renderWithContext(<ApplicationParameters application={multiSourceApp()} collapsedSources={[]} handleCollapse={() => undefined} />);
+
+    expect(await screen.findByDisplayValue('my-plugin')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('FOO')).toBeInTheDocument();
+    expect(screen.queryByText(/ENV=\[FOO=bar, ENVIRONMENT=prod\]/)).not.toBeInTheDocument();
 });
