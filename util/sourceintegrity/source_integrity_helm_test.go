@@ -170,6 +170,13 @@ func TestVerifyHelm(t *testing.T) {
 		fetch:   func() (string, string, error) { return provChartDigest, provFile(t, make([]byte, 1<<20+1)), nil },
 		wantErr: "could not access chart for provenance verification: provenance file (.prov) is more than the 1048576 bytes allowed",
 	}, {
+		name: "provenance that a retry cannot change fails the check",
+		si:   helmSI(provenancePolicy("*", provSignerKeyID)),
+		fetch: func() (string, string, error) {
+			return "", "", fmt.Errorf("%w: not a Helm chart", ErrProvenanceUnavailable)
+		},
+		wantProblem: "could not access chart for provenance verification: provenance unavailable: not a Helm chart",
+	}, {
 		name:    "fetch error is returned, not cached as a verdict",
 		si:      helmSI(provenancePolicy("*", provSignerKeyID)),
 		fetch:   func() (string, string, error) { return "", "", errors.New("502 Bad Gateway") },
@@ -255,6 +262,13 @@ func TestHasCriteriaHelm(t *testing.T) {
 	assert.True(t, HasCriteria(helmSI(provenancePolicy("*")), gitSource, helmSource))
 
 	assert.True(t, HasCriteria(helmSI(&v1alpha1.SourceIntegrityHelmPolicy{Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "*"}}}, &v1alpha1.SourceIntegrityHelmPolicy{Repos: []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "*"}}}), helmSource), "VerifyHelm fails when several policies match")
+
+	ociSource := v1alpha1.ApplicationSource{RepoURL: "oci://registry.example.com/charts/helm-provenance", Path: "."}
+	assert.True(t, HasCriteria(helmSI(provenancePolicy("oci://registry.example.com/*")), ociSource), "Helm policies apply to OCI sources")
+	assert.False(t, HasCriteria(&v1alpha1.SourceIntegrity{Git: &v1alpha1.SourceIntegrityGit{Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+		Repos: []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
+		GPG:   &v1alpha1.SourceIntegrityGitPolicyGPG{Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead},
+	}}}}, ociSource), "Git policies do not apply to OCI sources")
 
 	t.Setenv("ARGOCD_GPG_ENABLED", "false")
 	assert.False(t, HasCriteria(helmSI(provenancePolicy("*")), helmSource), "VerifyHelm skips when GnuPG is disabled")
