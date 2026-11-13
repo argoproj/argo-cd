@@ -90,6 +90,8 @@ Argo CD supports custom health checks written in [Lua](https://www.lua.org/). Th
 * Are affected by known issues where your `Ingress` or `StatefulSet` resources are stuck in `Progressing` state because of bug in your resource controller.
 * Have a custom resource for which Argo CD does not have a built-in health check.
 
+See [Lua scripting](lua.md) for available libraries, resource fields, execution limits, and local testing.
+
 Argo CD relies on the health and status fields provided by Kubernetes CRDs. These fields are defined and maintained by the creators of each CRD, not by Argo CD. Since CRDs do not follow a consistent or standardized status format, Argo CD can only determine their health reliably when custom health checks are explicitly contributed for each CRD.
 
 ### Guidelines for Writing Good Health Checks
@@ -185,16 +187,9 @@ The custom health check might return one of the following health statuses:
 By default, health typically returns a `Progressing` status.
 
 > [!NOTE]
-> As a security measure, access to the standard Lua libraries will be disabled by default.
-> Admins can control access by setting `resource.customizations.useOpenLibs.<group>_<kind>`.
-> In the following example, standard libraries are enabled for health check of `cert-manager.io/Certificate`.
->
-> ```yaml
-> data:
->   resource.customizations.useOpenLibs.cert-manager.io_Certificate: true
->   resource.customizations.health.cert-manager.io_Certificate: |
->     # Lua standard libraries are enabled for this script
-> ```
+> Custom health checks use a limited set of Lua libraries by default. Admins can enable the
+> standard libraries with `resource.customizations.useOpenLibs.<group>_<kind>`.
+> See [available libraries](lua.md#available-libraries) for the default set and a complete configuration example.
 
 ### Terminating resources
 
