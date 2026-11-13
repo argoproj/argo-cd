@@ -31,6 +31,24 @@ As build dependencies change over time, you have to synchronize your development
 
 These commands run `pnpm install --frozen-lockfile` command, which only brings package versions that are defined in the `pnpm-lock.yaml` file without trying to resolve and download new package versions.
 
+`make build-ui` builds the UI in a container and copies its output into `ui/dist/app` with your host user and group ownership, so subsequent builds can remove and replace the generated files. Podman uses `keep-id` to map those IDs into the container. Rootless Docker uses container root, which maps to the user running its daemon.
+
+> [!NOTE]
+> If an older build left root-owned files or directories in `ui/dist`, restore their ownership once before rebuilding:
+>
+> ```shell
+> sudo chown -R "$(id -u):$(id -g)" ui/dist
+> ```
+
+To test repeated builds and output ownership with a small fixture image, run these commands as a non-root Linux user with Docker and rootless Podman access:
+
+```shell
+DOCKER=docker ./hack/test-build-ui.sh
+DOCKER=podman ./hack/test-build-ui.sh
+```
+
+Run the Docker test against both a regular daemon and a rootless daemon, selecting the daemon with your Docker context or `DOCKER_HOST`.
+
 ### Updating UI build dependencies
 
 If you need to add new UI dependencies or update existing ones you need 

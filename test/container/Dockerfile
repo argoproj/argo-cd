@@ -16,6 +16,9 @@ FROM docker.io/bitnamilegacy/kubectl:1.33@sha256:cd354d5b25562b195b277125439c23e
 
 FROM docker.io/library/ubuntu:26.04@sha256:2260313b31c8c011cd2eebe728008efac1b3982be73eb71348ea2648d2c0e09b
 
+# Bootstrap HTTPS before APT installs ca-certificates and its default trust-store paths.
+COPY --from=node /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+
 ENV DEBIAN_FRONTEND=noninteractive
 
 # renovate: datasource=deb depName=git registryUrl=https://archive.ubuntu.com/ubuntu?suite=resolute&components=main,security&binaryArch=amd64
@@ -24,7 +27,9 @@ ARG GIT_APT_VERSION=1:2.53.0-1ubuntu1
 # NOTE: binutils-gold contains the gold linker, which was recently removed
 #       from binutils, but is still nesessary for building lint-tools on arm64 only
 #       until this Golang issue is fixed: https://github.com/golang/go/issues/22040
-RUN  apt-get update && apt-get install --fix-missing --no-install-recommends -y \
+RUN export SSL_CERT_FILE=/etc/ssl/certs/ca-certificates.crt && \
+    sed -i 's|http://|https://|g' /etc/apt/sources.list.d/ubuntu.sources && \
+    apt-get -o APT::Update::Error-Mode=any update && apt-get install --fix-missing --no-install-recommends -y \
     ca-certificates \
     curl \
     openssh-server \
