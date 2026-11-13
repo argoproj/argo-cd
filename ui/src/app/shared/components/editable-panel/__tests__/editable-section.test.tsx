@@ -111,4 +111,45 @@ describe('EditableSection – noReadonlyMode', () => {
         await waitFor(() => expect(screen.getByTestId('form-value')).toHaveTextContent('v1'));
         expect(save).not.toHaveBeenCalled();
     });
+
+    test('does not autosave invalid values in noReadonlyMode', async () => {
+        const save = jest.fn().mockResolvedValue(undefined);
+        let capturedFormApi: FormApi | null = null;
+        const items: EditablePanelItem[] = [
+            {
+                title: 'Path',
+                view: <span />,
+                edit: (api: FormApi) => {
+                    capturedFormApi = api;
+                    return <span data-testid='form-value'>{api.values.path}</span>;
+                }
+            }
+        ];
+
+        render(
+            <EditableSection
+                uniqueId='source'
+                values={{path: 'apps'}}
+                items={items}
+                save={save}
+                noReadonlyMode
+                ctx={ctx}
+                validate={values => ({path: values.path === 'invalid' ? 'Invalid path' : null})}
+            />
+        );
+
+        await waitFor(() => expect(capturedFormApi).not.toBeNull());
+        save.mockClear();
+
+        await act(async () => {
+            capturedFormApi?.setValue('path', 'invalid');
+        });
+        expect(save).not.toHaveBeenCalled();
+
+        await act(async () => {
+            capturedFormApi?.setValue('path', 'apps/valid');
+        });
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        expect(save).toHaveBeenLastCalledWith({path: 'apps/valid'}, {});
+    });
 });

@@ -72,7 +72,7 @@ function EditablePanel<T extends {} = {}>({
     const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsedProp);
     const [prevCollapsedProp, setPrevCollapsedProp] = useState<boolean>(collapsedProp);
     const ctx = useContext(Context);
-    const {formApiRef, onFormDidUpdate} = useAutoSaveForm(values, noReadonlyMode, save);
+    const {formApiRef, onFormDidUpdate} = useAutoSaveForm(values, noReadonlyMode, save, validate);
 
     // Sync the collapsed state when the controlling prop changes, adjusting
     // during render instead of in an effect to avoid a cascading re-render.

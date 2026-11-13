@@ -7,7 +7,7 @@ function serializeValues(values: unknown): string {
     return JSON.stringify(values);
 }
 
-export function useAutoSaveForm<T extends {}>(values: T, noReadonlyMode?: boolean, save?: Save<T>) {
+export function useAutoSaveForm<T extends {}>(values: T, noReadonlyMode?: boolean, save?: Save<T>, validate?: (values: T) => any) {
     const formApiRef = useRef<FormApi | null>(null);
     const lastInboundValuesRef = useRef(serializeValues(values));
     // Form.formDidUpdate also runs after programmatic value synchronization and
@@ -41,10 +41,18 @@ export function useAutoSaveForm<T extends {}>(values: T, noReadonlyMode?: boolea
                 return;
             }
 
+            if (validate) {
+                const errors = validate(form.values as T) || {};
+                const hasErrors = Object.values(errors).some(Boolean);
+                if (hasErrors) {
+                    return;
+                }
+            }
+
             lastHandledValuesRef.current = valuesString;
             await save(form.values as T, {});
         },
-        [noReadonlyMode, save]
+        [noReadonlyMode, save, validate]
     );
 
     return {formApiRef, onFormDidUpdate};
