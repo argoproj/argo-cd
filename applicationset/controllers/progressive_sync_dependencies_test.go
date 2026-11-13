@@ -55,6 +55,12 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 		}
 	}
 
+	newAppSetWithMaxUpdate := func(maxUpdate intstr.IntOrString, status []v1alpha1.ApplicationSetApplicationStatus) v1alpha1.ApplicationSet {
+		appSet := newDefaultAppSet(1, status)
+		appSet.Spec.Strategy.RollingSync.Steps[0].MaxUpdate = &maxUpdate
+		return appSet
+	}
+
 	newApp := func(name string, health health.HealthStatusCode, sync v1alpha1.SyncStatusCode, revision string, opState *v1alpha1.OperationState) v1alpha1.Application {
 		return v1alpha1.Application{
 			Name: name,
@@ -871,6 +877,155 @@ func TestUpdateApplicationSetApplicationStatus(t *testing.T) {
 					Status:          v1alpha1.ProgressiveSyncWaiting,
 					Step:            "1",
 					TargetRevisions: []string{"def456"},
+				},
+			},
+		},
+		{
+			name:   "keeps a second synced but unhealthy application waiting when maxUpdate is 1",
+			appSet: newAppSetWithMaxUpdate(intstr.FromInt(1), []v1alpha1.ApplicationSetApplicationStatus{}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+				newApp("app2", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource has synced, updating status to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+				{
+					Application:     "app2",
+					Message:         "Application resource has synced but is waiting for an available update slot in this step",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+			},
+		},
+		{
+			name:   "keeps a second synced but unhealthy application waiting when maxUpdate is 50 percent",
+			appSet: newAppSetWithMaxUpdate(intstr.FromString("50%"), []v1alpha1.ApplicationSetApplicationStatus{}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+				newApp("app2", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource has synced, updating status to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+				{
+					Application:     "app2",
+					Message:         "Application resource has synced but is waiting for an available update slot in this step",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+			},
+		},
+		{
+			name: "keeps a synced but unhealthy application waiting when the step already has a progressing application",
+			appSet: newAppSetWithMaxUpdate(intstr.FromInt(1), []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					Message:            "Application resource has synced, updating status to Progressing",
+					Status:             v1alpha1.ProgressiveSyncProgressing,
+					Step:               "1",
+					TargetRevisions:    []string{"current"},
+					LastTransitionTime: &nowMinus5,
+				},
+			}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+				newApp("app2", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource has synced, updating status to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+				{
+					Application:     "app2",
+					Message:         "Application resource has synced but is waiting for an available update slot in this step",
+					Status:          v1alpha1.ProgressiveSyncWaiting,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+			},
+		},
+		{
+			name:   "promotes both synced but unhealthy applications when maxUpdate is 2",
+			appSet: newAppSetWithMaxUpdate(intstr.FromInt(2), []v1alpha1.ApplicationSetApplicationStatus{}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+				newApp("app2", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource has synced, updating status to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+				{
+					Application:     "app2",
+					Message:         "Application resource has synced, updating status to Progressing",
+					Status:          v1alpha1.ProgressiveSyncProgressing,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+			},
+		},
+		{
+			name:   "moves synced and healthy applications to healthy without consuming a maxUpdate slot",
+			appSet: newAppSetWithMaxUpdate(intstr.FromInt(1), []v1alpha1.ApplicationSetApplicationStatus{}),
+			apps: []v1alpha1.Application{
+				newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+				newApp("app2", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced, "current", newOperationState(common.OperationSucceeded)),
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:     "app1",
+					Message:         "Application resource has synced, updating status to Healthy",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
+				},
+				{
+					Application:     "app2",
+					Message:         "Application resource has synced, updating status to Healthy",
+					Status:          v1alpha1.ProgressiveSyncHealthy,
+					Step:            "1",
+					TargetRevisions: []string{"current"},
 				},
 			},
 		},

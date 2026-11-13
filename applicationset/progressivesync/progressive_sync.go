@@ -418,6 +418,49 @@ func getAppStep(appName string, appStepMap map[string]int) int {
 	return step
 }
 
+// resolveMaxUpdate returns the effective maxUpdate for a step and whether
+// maxUpdate admission applies to it. An unset maxUpdate allows all updates.
+// An invalid value is reported once per step (log warning + validation issue)
+// and then treated the same way UpdateApplicationSetApplicationStatusProgress
+// treats it, so both admission sites enforce the same limit.
+func (m *Manager) resolveMaxUpdate(statusLogCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, step, totalCount int) (int, bool) {
+	if !RollingSyncStrategyEnabled(applicationSet) {
+		return 0, false
+	}
+	maxUpdate := applicationSet.Spec.Strategy.RollingSync.Steps[step].MaxUpdate
+	if maxUpdate == nil {
+		return 0, false
+	}
+	maxUpdateVal, err := intstr.GetScaledValueFromIntOrPercent(maxUpdate, totalCount, false)
+	if err != nil {
+		statusLogCtx.Warnf("AppSet has a invalid maxUpdate value '%+v', ignoring maxUpdate logic for this step: %v", maxUpdate, err)
+
+		// Collect validation issue (only add once per step)
+		if m.validationIssues != nil {
+			alreadyRecorded := false
+			for _, issue := range m.validationIssues.InvalidMaxUpdates {
+				if issue.StepIndex == step {
+					alreadyRecorded = true
+					break
+				}
+			}
+			if !alreadyRecorded {
+				m.validationIssues.InvalidMaxUpdates = append(m.validationIssues.InvalidMaxUpdates, InvalidMaxUpdate{
+					StepIndex: step,
+					MaxUpdate: maxUpdate,
+					Error:     err.Error(),
+				})
+			}
+		}
+	}
+
+	// ensure that percentage values greater than 0% always result in at least 1 Application being selected
+	if maxUpdate.Type == intstr.String && maxUpdate.StrVal != "0%" && maxUpdateVal < 1 {
+		maxUpdateVal = 1
+	}
+	return maxUpdateVal, true
+}
+
 // check the status of each Application's status and promote Applications to the next status if needed
 // update AppSet status in-memory, controller will persist it
 func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
@@ -435,6 +478,26 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 	diffConfig, err := utils.BuildIgnoreDiffConfig(applicationSet.Spec.IgnoreApplicationDifferences, normalizers.IgnoreNormalizerOpts{})
 	if err != nil {
 		return nil, fmt.Errorf("failed to build ignore diff config: %w", err)
+	}
+
+	// Per-step counts used to enforce maxUpdate admission on the Synced
+	// shortcut below. updateCountMap counts applications already Pending or
+	// Progressing (from the persisted statuses, plus promotions made in this
+	// call); totalCountMap counts the applications in each step. Both mirror
+	// the admission accounting in UpdateApplicationSetApplicationStatusProgress.
+	var updateCountMap, totalCountMap []int
+	if RollingSyncStrategyEnabled(applicationSet) {
+		stepCount := len(applicationSet.Spec.Strategy.RollingSync.Steps)
+		updateCountMap = make([]int, stepCount)
+		totalCountMap = make([]int, stepCount)
+		for _, app := range applications {
+			totalCountMap[appStepMap[app.Name]]++
+		}
+		for _, appStatus := range applicationSet.Status.ApplicationStatus {
+			if appStatus.Status == argov1alpha1.ProgressiveSyncPending || appStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
+				updateCountMap[appStepMap[appStatus.Application]]++
+			}
+		}
 	}
 
 	for _, app := range applications {
@@ -519,9 +582,27 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource has synced, updating status to Healthy"
 				} else {
-					newAppStatus.LastTransitionTime = &now
-					newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
-					newAppStatus.Message = "Application resource has synced, updating status to Progressing"
+					// A Synced but unhealthy application skips the sync queue, so
+					// promote it to Progressing only if the step still has a free
+					// maxUpdate slot. Otherwise it stays Waiting and the normal
+					// Waiting -> Pending admission re-checks it once a slot frees up.
+					step, inStep := appStepMap[app.Name]
+					admitted := true
+					if inStep && updateCountMap != nil {
+						if maxUpdateVal, ok := m.resolveMaxUpdate(statusLogCtx, applicationSet, step, totalCountMap[step]); ok && updateCountMap[step] >= maxUpdateVal {
+							admitted = false
+							statusLogCtx.Infof("Application is not allowed to progress yet, %v/%v Applications already updating in step %v", updateCountMap[step], maxUpdateVal, getAppStep(app.Name, appStepMap))
+							newAppStatus.Message = "Application resource has synced but is waiting for an available update slot in this step"
+						}
+					}
+					if admitted {
+						newAppStatus.LastTransitionTime = &now
+						newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
+						newAppStatus.Message = "Application resource has synced, updating status to Progressing"
+						if updateCountMap != nil {
+							updateCountMap[step]++
+						}
+					}
 				}
 			}
 		} else {
@@ -834,43 +915,9 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 				"status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
 			})
 
-			maxUpdateAllowed := true
-			maxUpdate := &intstr.IntOrString{}
-			if RollingSyncStrategyEnabled(applicationSet) {
-				maxUpdate = applicationSet.Spec.Strategy.RollingSync.Steps[appStepMap[appStatus.Application]].MaxUpdate
-			}
-
 			// by default allow all applications to update if maxUpdate is unset
-			if maxUpdate != nil {
-				maxUpdateVal, err := intstr.GetScaledValueFromIntOrPercent(maxUpdate, totalCountMap[appStepMap[appStatus.Application]], false)
-				if err != nil {
-					statusLogCtx.Warnf("AppSet has a invalid maxUpdate value '%+v', ignoring maxUpdate logic for this step: %v", maxUpdate, err)
-
-					// Collect validation issue (only add once per step)
-					if m.validationIssues != nil {
-						stepIdx := appStepMap[appStatus.Application]
-						alreadyRecorded := false
-						for _, issue := range m.validationIssues.InvalidMaxUpdates {
-							if issue.StepIndex == stepIdx {
-								alreadyRecorded = true
-								break
-							}
-						}
-						if !alreadyRecorded {
-							m.validationIssues.InvalidMaxUpdates = append(m.validationIssues.InvalidMaxUpdates, InvalidMaxUpdate{
-								StepIndex: stepIdx,
-								MaxUpdate: maxUpdate,
-								Error:     err.Error(),
-							})
-						}
-					}
-				}
-
-				// ensure that percentage values greater than 0% always result in at least 1 Application being selected
-				if maxUpdate.Type == intstr.String && maxUpdate.StrVal != "0%" && maxUpdateVal < 1 {
-					maxUpdateVal = 1
-				}
-
+			maxUpdateAllowed := true
+			if maxUpdateVal, ok := m.resolveMaxUpdate(statusLogCtx, applicationSet, appStepMap[appStatus.Application], totalCountMap[appStepMap[appStatus.Application]]); ok {
 				if updateCountMap[appStepMap[appStatus.Application]] >= maxUpdateVal {
 					maxUpdateAllowed = false
 					statusLogCtx.Infof("Application is not allowed to update yet, %v/%v Applications already updating in step %v", updateCountMap[appStepMap[appStatus.Application]], maxUpdateVal, getAppStep(appStatus.Application, appStepMap))
