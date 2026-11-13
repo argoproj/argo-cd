@@ -16,7 +16,6 @@ import (
 
 	"github.com/casbin/casbin/v2"
 	"github.com/casbin/casbin/v2/model"
-	"github.com/casbin/casbin/v2/util"
 	"github.com/casbin/govaluate"
 	"github.com/golang-jwt/jwt/v5"
 	gocache "github.com/patrickmn/go-cache"
@@ -181,7 +180,7 @@ func (e *Enforcer) tryGetCasbinEnforcer(project string, policy string) (CasbinEn
 	}
 	matchFunc := globMatchFunc
 	if e.matchMode == RegexMatchMode {
-		matchFunc = util.RegexMatchFunc
+		matchFunc = regexMatchFunc
 	}
 
 	var err error
