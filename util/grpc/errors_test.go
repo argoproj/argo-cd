@@ -32,12 +32,20 @@ func Test_gitErrToGRPC(t *testing.T) {
 	assert.Equal(t, codes.Unknown, se.GRPCStatus().Code())
 	assert.Equal(t, se.GRPCStatus().Message(), grpcErrorMsg)
 
-	notFoundMsg := "repository not found"
-	notFound := gitErrToGRPC(status.Error(codes.NotFound, notFoundMsg))
+	notFound := gitErrToGRPC(status.Error(codes.NotFound, "repository not found"))
 	se1, ok := notFound.(interface{ GRPCStatus() *status.Status })
 	assert.True(t, ok)
 	assert.Equal(t, codes.NotFound, se1.GRPCStatus().Code())
-	assert.Equal(t, se1.GRPCStatus().Message(), notFoundMsg)
+	assert.Equal(t, "repository not found. If the repository exists, verify that the provided credentials have access to it", se1.GRPCStatus().Message())
+
+	// Simulate the real RPC path: git errors reach the API server interceptor as
+	// gRPC status strings so the original error chain is lost. The message may
+	// contain wrapping text from the repo server (e.g. "failed to list refs: …").
+	rpcWrappedNotFound := gitErrToGRPC(status.Error(codes.Unknown, "failed to list refs: repository not found"))
+	se2, ok := rpcWrappedNotFound.(interface{ GRPCStatus() *status.Status })
+	assert.True(t, ok)
+	assert.Equal(t, codes.NotFound, se2.GRPCStatus().Code())
+	assert.Equal(t, "repository not found. If the repository exists, verify that the provided credentials have access to it", se2.GRPCStatus().Message())
 }
 
 func Test_kubeErrToGRPC(t *testing.T) {
