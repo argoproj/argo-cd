@@ -47,22 +47,18 @@ func getAppDetails(un *unstructured.Unstructured, argocdService service.Service)
 }
 
 func getCommitMetadata(commitSHA string, app *unstructured.Unstructured, argocdService service.Service) (*shared.CommitMetadata, error) {
-	repoURL, ok, err := unstructured.NestedString(app.Object, "spec", "source", "repoURL")
+	application, err := getApplication(app)
 	if err != nil {
 		return nil, err
 	}
-	if !ok {
-		panic(errors.New("failed to get application source repo URL"))
+	// GetSource resolves the repo for single-source, multi-source and source hydrator
+	// Applications. For the source hydrator it is the sync source's repo, which is the
+	// dry source's repo unless syncSource.repoURL is set.
+	repoURL := application.Spec.GetSource().RepoURL
+	if repoURL == "" {
+		return nil, errors.New("failed to get application source repo URL")
 	}
-	project, ok, err := unstructured.NestedString(app.Object, "spec", "project")
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		panic(errors.New("failed to get application project"))
-	}
-
-	meta, err := argocdService.GetCommitMetadata(context.Background(), repoURL, commitSHA, project)
+	meta, err := argocdService.GetCommitMetadata(context.Background(), repoURL, commitSHA, application.Spec.GetProject())
 	if err != nil {
 		return nil, err
 	}

@@ -129,7 +129,10 @@ Example:
 <hr>
 **`repo.GetCommitMetadata(sha string) CommitMetadata`**
 
-Returns commit metadata. The commit must belong to the application source repository. `CommitMetadata` fields:
+Returns commit metadata. The commit must belong to the application source repository. For an application that uses
+the source hydrator, this is the sync source repository (`spec.sourceHydrator.syncSource.repoURL`, or
+`spec.sourceHydrator.drySource.repoURL` if it is not set). For a multi-source application, it is the repository of the
+first source. `CommitMetadata` fields:
 
 * `Message string` commit message
 * `Author string` - commit author
