@@ -8,9 +8,9 @@ tests:
     message: Backend is not accepted due to invalid configuration
   inputPath: testdata/degraded.yaml
 - healthStatus:
-    status: Progressing
-    message: Waiting for Backend status
-  inputPath: testdata/progressing.yaml
+    status: Healthy
+    message: Backend is not referenced by any route
+  inputPath: testdata/unreferenced.yaml
 - healthStatus:
     status: Progressing
     message: Waiting for Backend status to be updated
