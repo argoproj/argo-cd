@@ -10,7 +10,7 @@ import {AppContext, Context, ContextApis} from '../../shared/context';
 import {isValidManagedByURL} from '../../shared/utils';
 import {ResourceTreeNode} from './application-resource-tree/application-resource-tree';
 
-import {CheckboxField, COLORS, ErrorNotification, Revision} from '../../shared/components';
+import {CheckboxField, COLORS, ErrorNotification, formatTimestamp, Revision} from '../../shared/components';
 import {
     appInstanceName,
     appQualifiedName,
@@ -1764,7 +1764,7 @@ export function toggleFavorite(favorites: string[], app: appModels.AbstractAppli
 }
 
 export function formatCreationTimestamp(creationTimestamp: string) {
-    const createdAt = moment.utc(creationTimestamp).local().format('MM/DD/YYYY HH:mm:ss');
+    const createdAt = formatTimestamp(creationTimestamp);
     const fromNow = moment.utc(creationTimestamp).local().fromNow();
     return (
         <span>
