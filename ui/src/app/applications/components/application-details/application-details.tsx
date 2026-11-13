@@ -7,7 +7,7 @@ import {RouteComponentProps} from 'react-router';
 import {BehaviorSubject, combineLatest, from, merge, Observable} from 'rxjs';
 import {filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 
-import {DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
+import {ClipboardText, DataLoader, EmptyState, ErrorNotification, ObservableQuery, Page, Paginate, Revision, Timestamp} from '../../../shared/components';
 import {AppContext, AuthSettingsCtx, Context, ContextApis} from '../../../shared/context';
 import * as appModels from '../../../shared/models';
 import {AppDetailsPreferences, AppsDetailsViewKey, AppsDetailsViewType, services} from '../../../shared/services';
@@ -926,7 +926,17 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                                                     title: isApplication ? 'Applications' : 'ApplicationSets',
                                                     path: isApplication ? '/applications' : '/applicationsets'
                                                 },
-                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />}
+                                                {
+                                                    title: (
+                                                        <span className='application-details__breadcrumb-app'>
+                                                            <ClipboardText
+                                                                text={props.match.params.name}
+                                                                label={isApplication ? 'Copy application name' : 'Copy ApplicationSet name'}>
+                                                                <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />
+                                                            </ClipboardText>
+                                                        </span>
+                                                    )
+                                                }
                                             ],
                                             actionMenu: {
                                                 items: isApplication
