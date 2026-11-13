@@ -393,6 +393,8 @@ By default, the generator returns an error when the SCM provider reports that th
 > [!WARNING]
 > SCM providers usually answer "404 Not Found" rather than "403 Forbidden" when a repository exists but the token has no access to it. With `continueOnRepoNotFoundError: true`, losing access to the repository therefore deletes the Applications generated from it.
 
+Azure DevOps is a special case: the generator lists the pull requests of the whole project and then filters them by repository name. A missing repository inside an existing project therefore produces an empty list rather than a repository-not-found error, so the Applications are removed regardless of this setting; only a missing project is reported as "not found".
+
 ```yaml
 spec:
   generators:
