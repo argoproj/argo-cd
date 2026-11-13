@@ -36,6 +36,18 @@ const TooltipWrapper = (props: {content: React.ReactNode | string; disabled?: bo
     );
 };
 
+// Closes a socket that the component is done with. Its handlers are detached first: the browser
+// still fires close/error events for a socket closed by us (asynchronously, and as an error when it
+// was still connecting), and those must neither show an error toast nor touch whichever socket the
+// component is using by then.
+function discardSocket(webSocket: WebSocket) {
+    webSocket.onopen = null;
+    webSocket.onmessage = null;
+    webSocket.onerror = null;
+    webSocket.onclose = null;
+    webSocket.close();
+}
+
 export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
     selectedNode,
     applicationName,
@@ -86,8 +98,10 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
         if (!msg?.Code) {
             connSubjectRef.current.next(msg);
         } else {
-            // Do reconnect due to refresh token event
-            onConnectionClose();
+            // Do reconnect due to refresh token event. The old socket is discarded with its handlers
+            // detached, so its deferred close event cannot close the replacement opened below.
+            discardSocket(webSocketRef.current);
+            connectedRef.current = false;
             setupConnection();
         }
     };
@@ -111,8 +125,10 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
 
     const disconnect = () => {
         if (webSocketRef.current) {
-            webSocketRef.current.close();
+            discardSocket(webSocketRef.current);
+            webSocketRef.current = null;
         }
+        connectedRef.current = false;
 
         if (connSubjectRef.current) {
             connSubjectRef.current.complete();
@@ -121,6 +137,7 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
 
         if (terminalRefObj.current) {
             terminalRefObj.current.dispose();
+            terminalRefObj.current = null;
         }
 
         incommingMessageRef.current.complete();
@@ -154,6 +171,9 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
         terminalRefObj.current.open(node);
         fitAddonRef.current.fit();
 
+        // One teardown subject per terminal: a completed Subject ignores next(), so the previous
+        // terminal's subject (completed by the effect cleanup below) cannot be reused.
+        unsubscribeRef.current = new Subject<void>();
         connSubjectRef.current.pipe(takeUntil(unsubscribeRef.current)).subscribe(frame => {
             handleConnectionMessage(frame);
         });
@@ -184,7 +204,10 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
 
     const setTerminalRef = useCallback(
         (node: HTMLElement) => {
-            if (terminalRefObj.current && connectedRef.current) {
+            // React detaches the previous callback ref (node === null) before it attaches this one,
+            // so the session torn down here is always the previous container's, whether or not its
+            // socket had finished connecting.
+            if (terminalRefObj.current) {
                 disconnect();
             }
 
@@ -200,6 +223,18 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
     );
 
     useEffect(() => {
+        // React attaches callback refs before it runs passive effects, so the refs now hold the
+        // terminal, socket and subjects that setTerminalRef created for this containerName. Capture
+        // them: when this effect's cleanup runs on a container switch, setTerminalRef has already been
+        // re-attached and the refs point at the NEXT container's objects, which must stay untouched.
+        // This effect and setTerminalRef must keep the same dependency list ([containerName]) so that
+        // the captured instances are the ones created for this containerName.
+        const terminal = terminalRefObj.current;
+        const webSocket = webSocketRef.current;
+        const connSubject = connSubjectRef.current;
+        const incommingMessage = incommingMessageRef.current;
+        const unsubscribe = unsubscribeRef.current;
+
         const resizeHandler = fromEvent(window, 'resize')
             .pipe(debounceTime(1000))
             .subscribe(() => {
@@ -209,23 +244,23 @@ export const PodTerminalViewer: React.FC<PodTerminalViewerProps> = ({
             });
         return () => {
             resizeHandler.unsubscribe(); // unsubscribe resize callback
-            unsubscribeRef.current.next();
-            unsubscribeRef.current.complete();
+            unsubscribe.next();
+            unsubscribe.complete();
 
-            // clear connection and close terminal
-            if (webSocketRef.current) {
-                webSocketRef.current.close();
+            // clear connection and close terminal (a no-op when setTerminalRef already did it)
+            if (webSocket) {
+                discardSocket(webSocket);
             }
 
-            if (connSubjectRef.current) {
-                connSubjectRef.current.complete();
+            if (connSubject) {
+                connSubject.complete();
             }
 
-            if (terminalRefObj.current) {
-                terminalRefObj.current.dispose();
+            if (terminal) {
+                terminal.dispose();
             }
 
-            incommingMessageRef.current.complete();
+            incommingMessage.complete();
         };
     }, [containerName]);
 

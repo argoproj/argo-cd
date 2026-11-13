@@ -1049,68 +1049,6 @@ func (_c *Client_LsFiles_Call) RunAndReturn(run func(ctx context.Context, path s
 	return _c
 }
 
-// LsLargeFiles provides a mock function for the type Client
-func (_mock *Client) LsLargeFiles(ctx context.Context) ([]string, error) {
-	ret := _mock.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for LsLargeFiles")
-	}
-
-	var r0 []string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) ([]string, error)); ok {
-		return returnFunc(ctx)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context) []string); ok {
-		r0 = returnFunc(ctx)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]string)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context) error); ok {
-		r1 = returnFunc(ctx)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// Client_LsLargeFiles_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LsLargeFiles'
-type Client_LsLargeFiles_Call struct {
-	*mock.Call
-}
-
-// LsLargeFiles is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *Client_Expecter) LsLargeFiles(ctx any) *Client_LsLargeFiles_Call {
-	return &Client_LsLargeFiles_Call{Call: _e.mock.On("LsLargeFiles", ctx)}
-}
-
-func (_c *Client_LsLargeFiles_Call) Run(run func(ctx context.Context)) *Client_LsLargeFiles_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *Client_LsLargeFiles_Call) Return(strings []string, err error) *Client_LsLargeFiles_Call {
-	_c.Call.Return(strings, err)
-	return _c
-}
-
-func (_c *Client_LsLargeFiles_Call) RunAndReturn(run func(ctx context.Context) ([]string, error)) *Client_LsLargeFiles_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // LsRefs provides a mock function for the type Client
 func (_mock *Client) LsRefs() (*git.Refs, error) {
 	ret := _mock.Called()
@@ -1366,72 +1304,6 @@ func (_c *Client_Push_Call) RunAndReturn(run func(branch string) (string, error)
 	return _c
 }
 
-// RemoveContents provides a mock function for the type Client
-func (_mock *Client) RemoveContents(ctx context.Context, paths []string) (string, error) {
-	ret := _mock.Called(ctx, paths)
-
-	if len(ret) == 0 {
-		panic("no return value specified for RemoveContents")
-	}
-
-	var r0 string
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) (string, error)); ok {
-		return returnFunc(ctx, paths)
-	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, []string) string); ok {
-		r0 = returnFunc(ctx, paths)
-	} else {
-		r0 = ret.Get(0).(string)
-	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, []string) error); ok {
-		r1 = returnFunc(ctx, paths)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// Client_RemoveContents_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'RemoveContents'
-type Client_RemoveContents_Call struct {
-	*mock.Call
-}
-
-// RemoveContents is a helper method to define mock.On call
-//   - ctx context.Context
-//   - paths []string
-func (_e *Client_Expecter) RemoveContents(ctx any, paths any) *Client_RemoveContents_Call {
-	return &Client_RemoveContents_Call{Call: _e.mock.On("RemoveContents", ctx, paths)}
-}
-
-func (_c *Client_RemoveContents_Call) Run(run func(ctx context.Context, paths []string)) *Client_RemoveContents_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		var arg1 []string
-		if args[1] != nil {
-			arg1 = args[1].([]string)
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *Client_RemoveContents_Call) Return(s string, err error) *Client_RemoveContents_Call {
-	_c.Call.Return(s, err)
-	return _c
-}
-
-func (_c *Client_RemoveContents_Call) RunAndReturn(run func(ctx context.Context, paths []string) (string, error)) *Client_RemoveContents_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
 // RepoURL provides a mock function for the type Client
 func (_mock *Client) RepoURL() string {
 	ret := _mock.Called()
@@ -1656,57 +1528,6 @@ func (_c *Client_SetAuthor_Call) Return(s string, err error) *Client_SetAuthor_C
 }
 
 func (_c *Client_SetAuthor_Call) RunAndReturn(run func(ctx context.Context, name string, email string) (string, error)) *Client_SetAuthor_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// Submodule provides a mock function for the type Client
-func (_mock *Client) Submodule(ctx context.Context) error {
-	ret := _mock.Called(ctx)
-
-	if len(ret) == 0 {
-		panic("no return value specified for Submodule")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context) error); ok {
-		r0 = returnFunc(ctx)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// Client_Submodule_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'Submodule'
-type Client_Submodule_Call struct {
-	*mock.Call
-}
-
-// Submodule is a helper method to define mock.On call
-//   - ctx context.Context
-func (_e *Client_Expecter) Submodule(ctx any) *Client_Submodule_Call {
-	return &Client_Submodule_Call{Call: _e.mock.On("Submodule", ctx)}
-}
-
-func (_c *Client_Submodule_Call) Run(run func(ctx context.Context)) *Client_Submodule_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 context.Context
-		if args[0] != nil {
-			arg0 = args[0].(context.Context)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *Client_Submodule_Call) Return(err error) *Client_Submodule_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *Client_Submodule_Call) RunAndReturn(run func(ctx context.Context) error) *Client_Submodule_Call {
 	_c.Call.Return(run)
 	return _c
 }

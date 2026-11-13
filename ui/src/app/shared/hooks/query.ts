@@ -4,7 +4,7 @@ import {map} from 'rxjs/operators';
 
 import {Context} from '../context';
 
-const useQuery = () => {
+const useSearchParams = () => {
     const context = React.useContext(Context);
 
     return new URLSearchParams(context?.history?.location.search);
@@ -33,4 +33,13 @@ function useObservableQuery() {
     return searchParams$;
 }
 
-export {useQuery, useObservableQuery};
+// The current URL query string, re-rendering when navigation changes it.
+function useLocationSearch(): string {
+    const history = React.useContext(Context).history;
+    return React.useSyncExternalStore(
+        React.useCallback(onChange => history.listen(onChange), [history]),
+        () => history.location.search
+    );
+}
+
+export {useSearchParams, useObservableQuery, useLocationSearch};

@@ -291,7 +291,7 @@ export const ApplicationParameters = (props: {
 
     // Collapse button is separate
     function getEditablePanelForSources(index: number, appSource: models.ApplicationSource): React.ReactElement {
-        return (collapsible && props.collapsedSources[index] === undefined) || props.collapsedSources[index] ? (
+        return props.collapsedSources?.[index] === true ? (
             <div
                 key={'app_params_collapsed_' + index}
                 className='settings-overview__redirect-panel'
@@ -627,7 +627,9 @@ function gatherCoreSourceDetails(i: number, attributes: EditablePanelItem[], sou
                     </span>
                 ),
                 edit: (formApi: FormApi) => (
-                    <DataLoader input={{repoURL: source.repoURL}} load={src => services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())}>
+                    <DataLoader
+                        input={{repoURL: source.repoURL, appProject: app.spec.project}}
+                        load={src => services.repos.charts(src.repoURL, src.appProject).catch(() => new Array<models.HelmChart>())}>
                         {(charts: models.HelmChart[]) => (
                             <div className='row'>
                                 <div className='columns small-8'>
