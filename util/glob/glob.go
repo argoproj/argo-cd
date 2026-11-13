@@ -4,7 +4,6 @@ import (
 	"sync"
 
 	"github.com/gobwas/glob"
-	"github.com/golang/groupcache/lru"
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/sync/singleflight"
 )
@@ -20,25 +19,70 @@ const (
 type compileFn func(pattern string, separators ...rune) (*glob.Pattern, error)
 
 var (
-	// globCache stores compiled glob patterns using an LRU cache with bounded size.
+	// globCache stores compiled glob patterns in a cache with bounded size.
 	// This prevents memory exhaustion from potentially untrusted RBAC patterns
 	// while still providing significant performance benefits.
-	globCache     *lru.Cache
-	globCacheLock sync.Mutex
-	compileGroup  singleflight.Group
-	compileGlob   compileFn = glob.Compile
+	globCache    = &patternCache{maxEntries: DefaultGlobCacheSize}
+	compileGroup singleflight.Group
+	compileGlob  compileFn = glob.Compile
 )
 
-func init() {
-	globCache = lru.New(DefaultGlobCacheSize)
+// patternCache is a bounded cache of compiled glob patterns.
+// Evaluating one RBAC request looks up several patterns per policy line, on every
+// API server goroutine at once, so hits must not contend with each other: a sync.Map
+// serves them without taking a lock, where an LRU needs an exclusive lock to record each hit.
+// Without an access order there is nothing to evict by, so adding to a full cache empties it
+// first. The patterns still in use are compiled again as they are looked up.
+type patternCache struct {
+	// entries maps a globCacheKey to its compiled pattern (*glob.Pattern).
+	entries sync.Map
+	// lock guards additions to entries, and with them size and maxEntries.
+	lock sync.Mutex
+	// size is the number of entries.
+	size int
+	// maxEntries is the size at which the cache is emptied before adding another entry.
+	// Zero means no limit and a negative value disables caching, as they did when the cache was an LRU.
+	maxEntries int
+}
+
+func (c *patternCache) get(key globCacheKey) (*glob.Pattern, bool) {
+	cached, ok := c.entries.Load(key)
+	if !ok {
+		return nil, false
+	}
+	return cached.(*glob.Pattern), true
+}
+
+func (c *patternCache) add(key globCacheKey, compiled *glob.Pattern) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if c.maxEntries < 0 {
+		return
+	}
+	if _, ok := c.entries.Load(key); ok {
+		return
+	}
+	if c.maxEntries > 0 && c.size >= c.maxEntries {
+		c.entries.Clear()
+		c.size = 0
+	}
+	c.entries.Store(key, compiled)
+	c.size++
+}
+
+// reset empties the cache and sets its maximum number of entries.
+func (c *patternCache) reset(maxEntries int) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	c.entries.Clear()
+	c.size = 0
+	c.maxEntries = maxEntries
 }
 
 // SetCacheSize reinitializes the glob cache with the given maximum number of entries.
 // This should be called early during process startup, before concurrent access begins.
 func SetCacheSize(maxEntries int) {
-	globCacheLock.Lock()
-	defer globCacheLock.Unlock()
-	globCache = lru.New(maxEntries)
+	globCache.reset(maxEntries)
 }
 
 // globCacheKey uniquely identifies a compiled glob pattern.
@@ -54,38 +98,29 @@ func cacheKey(pattern string, separators ...rune) globCacheKey {
 }
 
 // getOrCompile returns a cached compiled glob pattern, compiling and caching it if necessary.
-// Cache hits are a brief lock + map lookup. On cache miss, singleflight ensures each
+// Cache hits take no lock. On cache miss, singleflight ensures each
 // unique pattern is compiled exactly once even under concurrent access, while unrelated
 // patterns compile in parallel.
-// lru.Cache.Get() promotes entries (mutating), so a Mutex is used rather than RWMutex.
 func getOrCompile(pattern string, compiler compileFn, separators ...rune) (*glob.Pattern, error) {
 	key := cacheKey(pattern, separators...)
 
-	globCacheLock.Lock()
-	if cached, ok := globCache.Get(key); ok {
-		globCacheLock.Unlock()
-		return cached.(*glob.Pattern), nil
+	if cached, ok := globCache.get(key); ok {
+		return cached, nil
 	}
-	globCacheLock.Unlock()
 
 	sfKey := key.Pattern + "\x00" + key.Separators
 	v, err, _ := compileGroup.Do(sfKey, func() (any, error) {
 		// Double-check cache: another singleflight call may have populated it
 		// between our cache check and this singleflight registration.
-		globCacheLock.Lock()
-		if cached, ok := globCache.Get(key); ok {
-			globCacheLock.Unlock()
-			return cached.(*glob.Pattern), nil
+		if cached, ok := globCache.get(key); ok {
+			return cached, nil
 		}
-		globCacheLock.Unlock()
 
 		compiled, err := compiler(pattern, separators...)
 		if err != nil {
 			return nil, err
 		}
-		globCacheLock.Lock()
-		globCache.Add(key, compiled)
-		globCacheLock.Unlock()
+		globCache.add(key, compiled)
 		return compiled, nil
 	})
 	if err != nil {
