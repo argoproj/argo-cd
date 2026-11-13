@@ -185,7 +185,8 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		{
 			name: "source hydrator sync source without annotation",
 			app:  getSourceHydratorApp(nil, "dry/path", "sync/path"),
-			source: v1alpha1.ApplicationSource{Path: "sync/path",
+			source: v1alpha1.ApplicationSource{
+				Path: "sync/path",
 				Directory: &v1alpha1.ApplicationSourceDirectory{
 					Recurse: true,
 				},
@@ -201,7 +202,8 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 		{
 			name: "source hydrator sync source with annotation",
 			app:  getSourceHydratorApp(new("deploy"), "dry/path", "sync/path"),
-			source: v1alpha1.ApplicationSource{Path: "sync/path",
+			source: v1alpha1.ApplicationSource{
+				Path: "sync/path",
 				Directory: &v1alpha1.ApplicationSourceDirectory{
 					Recurse: true,
 				},

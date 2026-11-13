@@ -462,7 +462,7 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	gitShaEqual := false
 	formatEqual := false
 	if apps[0].Status.SourceHydrator.LastSuccessfulOperation != nil {
-		gitShaEqual = apps[0].Status.SourceHydrator.LastSuccessfulOperation.DrySHA == targetRevision 
+		gitShaEqual = apps[0].Status.SourceHydrator.LastSuccessfulOperation.DrySHA == targetRevision
 		formatEqual = apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydrationFormat == h.hydrationFormat
 	}
 	if gitShaEqual && formatEqual {
