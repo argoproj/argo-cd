@@ -1725,6 +1725,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		replace                   bool
 		serverSideApply           bool
 		applyOutOfSyncOnly        bool
+		respectIgnoreDifferences  bool
 		async                     bool
 		retryLimit                int64
 		retryRefresh              bool
@@ -1967,27 +1968,6 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					localObjsStrings = getLocalObjectsString(ctx, app, proj.Project, local, localRepoRoot, argoSettings, &cluster.Info)
 				}
 
-				syncOptionsFactory := func() *application.SyncOptions {
-					syncOptions := application.SyncOptions{}
-					items := make([]string, 0)
-					if replace {
-						items = append(items, common.SyncOptionReplace)
-					}
-					if serverSideApply {
-						items = append(items, common.SyncOptionServerSideApply)
-					}
-					if applyOutOfSyncOnly {
-						items = append(items, common.SyncOptionApplyOutOfSyncOnly)
-					}
-
-					if len(items) == 0 {
-						// for prevent send even empty array if not need
-						return nil
-					}
-					syncOptions.Items = items
-					return &syncOptions
-				}
-
 				syncReq := application.ApplicationSyncRequest{
 					Name:            &appName,
 					AppNamespace:    &appNs,
@@ -1995,7 +1975,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 					Resources:       filteredResources,
 					Manifests:       localObjsStrings,
 					Infos:           getInfos(infos),
-					SyncOptions:     syncOptionsFactory(),
+					SyncOptions:     syncOptionsFromFlags(replace, serverSideApply, applyOutOfSyncOnly, respectIgnoreDifferences),
 					Revisions:       revisions,
 					SourcePositions: sourcePositions,
 				}
@@ -2093,6 +2073,7 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().BoolVar(&replace, "replace", false, "Use a kubectl create/replace instead apply")
 	command.Flags().BoolVar(&serverSideApply, "server-side", false, "Use server-side apply while syncing the application")
 	command.Flags().BoolVar(&applyOutOfSyncOnly, "apply-out-of-sync-only", false, "Sync only out-of-sync resources")
+	command.Flags().BoolVar(&respectIgnoreDifferences, "respect-ignore-differences", false, "Keep the live values of fields ignored by ignoreDifferences when syncing existing resources (RespectIgnoreDifferences=true)")
 	command.Flags().BoolVar(&async, "async", false, "Do not wait for application to sync before continuing")
 	command.Flags().StringVar(&local, "local", "", "Path to a local directory. When this flag is present no git queries will be made")
 	command.Flags().StringVar(&localRepoRoot, "local-repo-root", "/", "Path to the repository root. Used together with --local allows setting the repository root")
@@ -2108,6 +2089,30 @@ func NewApplicationSyncCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
 	addServerSideDiffPerfFlags(command, &serverSideDiffConcurrency, &serverSideDiffMaxBatchKB)
 	return command
+}
+
+// syncOptionsFromFlags builds the sync options requested by the --replace, --server-side,
+// --apply-out-of-sync-only and --respect-ignore-differences flags. It returns nil when none of
+// them is set, so that the API server uses spec.syncPolicy.syncOptions instead.
+func syncOptionsFromFlags(replace, serverSideApply, applyOutOfSyncOnly, respectIgnoreDifferences bool) *application.SyncOptions {
+	items := make([]string, 0)
+	if replace {
+		items = append(items, common.SyncOptionReplace)
+	}
+	if serverSideApply {
+		items = append(items, common.SyncOptionServerSideApply)
+	}
+	if applyOutOfSyncOnly {
+		items = append(items, common.SyncOptionApplyOutOfSyncOnly)
+	}
+	if respectIgnoreDifferences {
+		items = append(items, "RespectIgnoreDifferences=true")
+	}
+
+	if len(items) == 0 {
+		return nil
+	}
+	return &application.SyncOptions{Items: items}
 }
 
 // resolveEffectiveDryRun returns the dry-run value the server will use for this sync:
