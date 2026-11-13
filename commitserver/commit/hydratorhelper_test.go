@@ -50,7 +50,66 @@ func tempRoot(t *testing.T) *os.Root {
 	return root
 }
 
-func TestWriteForPaths_WithHydrationFormatSplit(t *testing.T) {
+func TestWriteForPaths_WithInvalidHydrationFormat(t *testing.T) {
+	t.Parallel()
+	root := tempRoot(t)
+
+	repoURL := "https://github.com/example/repo"
+	drySha := "abc123"
+	paths := []*apiclient.PathDetails{
+		{
+			Path: "path1",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Pod","apiVersion":"v1","metadata":{"name":"test-pod","namespace":"test-ns"}}`},
+			},
+			Commands: []string{"command1", "command2"},
+		},
+		{
+			Path: "path2",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Service","apiVersion":"v1","metadata":{"name":"test-service","namespace":"test-ns"}}`},
+			},
+			Commands: []string{"command3"},
+		},
+		{
+			Path: "path3/nested",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Deployment","apiVersion":"apps/v1","metadata":{"name":"test-deployment"}}`},
+			},
+			Commands: []string{"command4"},
+		},
+	}
+
+	now := metav1.NewTime(time.Now())
+	metadata := &appsv1.RevisionMetadata{
+		Author: "test-author",
+		Date:   &now,
+		Message: `test-message
+
+Signed-off-by: Test User <test@example.com>
+Argocd-reference-commit-sha: abc123
+`,
+		References: []appsv1.RevisionReference{
+			{
+				Commit: &appsv1.CommitMetadata{
+					Author:  "test-code-author <test-email-author@example.com>",
+					Date:    now.Format(time.RFC3339),
+					Subject: "test-code-subject",
+					SHA:     "test-code-sha",
+					RepoURL: "https://example.com/test/repo.git",
+				},
+			},
+		},
+	}
+	mockGitClient := gitmocks.NewClient(t)
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Times(len(paths))
+
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, "invalid hydration format")
+	require.ErrorContains(t, err, "unknown hydrationFormat")
+	require.False(t, shouldCommit)
+}
+
+func TestWriteForPaths_WithSplitHydrationFormat(t *testing.T) {
 	t.Parallel()
 	root := tempRoot(t)
 
@@ -169,7 +228,7 @@ Argocd-reference-commit-sha: abc123
 	}
 }
 
-func TestWriteForPaths_WithHydrationFormatSimple(t *testing.T) {
+func TestWriteForPaths_WithSimpleHydrationFormat(t *testing.T) {
 	t.Parallel()
 	root := tempRoot(t)
 
