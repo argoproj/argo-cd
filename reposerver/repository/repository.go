@@ -3481,7 +3481,7 @@ func (s *Service) GetGitDirectories(ctx context.Context, request *apiclient.GitD
 	}, nil
 }
 
-func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, gitClientOpts git.ClientOpts) (string, string, bool, error) {
+func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Repository, revision, syncedRevision string, refreshPaths []string, gitClientOpts ...git.ClientOpts) (string, string, bool, error) {
 	if repo == nil {
 		return revision, syncedRevision, true, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
@@ -3491,7 +3491,7 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 		return revision, syncedRevision, true, nil
 	}
 
-	gitClient, revision, err := s.newClientResolveRevision(repo, revision, gitClientOpts)
+	gitClient, revision, err := s.newClientResolveRevision(repo, revision, gitClientOpts...)
 	if err != nil {
 		return revision, syncedRevision, true, status.Errorf(codes.Internal, "unable to resolve git revision %s: %v", revision, err)
 	}
@@ -3625,7 +3625,13 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 
 	if isGitSource {
 		if request.SyncedRevision != request.Revision {
-			resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(ctx, request.Repo, request.Revision, request.SyncedRevision, refreshPaths, gitClientOpts)
+			// The revision may be the source's unresolved targetRevision, so a semver constraint must
+			// be resolved against its tag prefix, as it is when generating manifests.
+			var tagPrefix string
+			if request.ApplicationSource != nil {
+				tagPrefix = request.ApplicationSource.TagPrefix
+			}
+			resolvedRevision, syncedRevision, sourceHasChanges, err := s.gitSourceHasChanges(ctx, request.Repo, request.Revision, request.SyncedRevision, refreshPaths, gitClientOpts, git.WithTagPrefix(tagPrefix))
 			if err != nil {
 				return nil, err
 			}
