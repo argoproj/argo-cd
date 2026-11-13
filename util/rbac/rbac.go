@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -39,6 +40,9 @@ const (
 	ConfigMapMatchModeKey     = "policy.matchMode"
 	GlobMatchMode             = "glob"
 	RegexMatchMode            = "regex"
+	// ConfigMapCaseInsensitiveSubjectsKey is the argocd-rbac-cm key that, when set to "true", makes the
+	// subject of policy rules, role bindings and requests compare case-insensitively.
+	ConfigMapCaseInsensitiveSubjectsKey = "policy.caseInsensitiveSubjects"
 
 	defaultRBACSyncPeriod = 10 * time.Minute
 )
@@ -139,6 +143,8 @@ type Enforcer struct {
 	model              model.Model
 	defaultRole        string
 	matchMode          string
+	// caseInsensitiveSubjects lowercases every subject (policy, grouping and request side) before matching
+	caseInsensitiveSubjects bool
 }
 
 // cachedEnforcer holds the Casbin enforcer instances and optional custom project policy
@@ -187,7 +193,7 @@ func (e *Enforcer) tryGetCasbinEnforcer(project string, policy string) (CasbinEn
 	var err error
 	var enforcer CasbinEnforcer
 	if policy != "" {
-		if enforcer, err = newEnforcerSafe(matchFunc, e.model, newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy)); err != nil {
+		if enforcer, err = newEnforcerSafe(matchFunc, e.model, newAdapter(e.adapter.builtinPolicy, e.adapter.userDefinedPolicy, policy, e.caseInsensitiveSubjects)); err != nil {
 			// fallback to default policy if project policy is invalid
 			log.Errorf("Failed to load project '%s' policy", project)
 			enforcer, err = newEnforcerSafe(matchFunc, e.model, e.adapter)
@@ -225,7 +231,7 @@ func newEnforcerSafe(matchFunction govaluate.ExpressionFunction, params ...any) 
 }
 
 func NewEnforcer(clientset kubernetes.Interface, namespace, configmap string, claimsEnforcer ClaimsEnforcerFunc) *Enforcer {
-	adapter := newAdapter("", "", "")
+	adapter := newAdapter("", "", "", false)
 	builtInModel := newBuiltInModel()
 	return &Enforcer{
 		enforcerCache:      gocache.New(time.Hour, time.Hour),
@@ -313,6 +319,32 @@ func (e *Enforcer) SetMatchMode(mode string) {
 	})
 }
 
+// SetCaseInsensitiveSubjects enables or disables case-insensitive subject matching. When enabled, the
+// subject of every policy rule and role binding is lowercased when the policy is loaded, and the
+// request subject (user identifier, group claim value or default role) is lowercased before enforcement.
+// Resources, actions and objects are not affected.
+func (e *Enforcer) SetCaseInsensitiveSubjects(enabled bool) {
+	e.invalidateCache(func() {
+		e.caseInsensitiveSubjects = enabled
+		e.adapter.caseInsensitiveSubjects = enabled
+	})
+}
+
+// NormalizeSubject returns the subject in the form that is used for matching: lowercased when
+// case-insensitive subject matching is enabled, unchanged otherwise.
+func (e *Enforcer) NormalizeSubject(subject string) string {
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	return normalizeSubject(subject, e.caseInsensitiveSubjects)
+}
+
+func normalizeSubject(subject string, caseInsensitive bool) string {
+	if caseInsensitive {
+		return strings.ToLower(subject)
+	}
+	return subject
+}
+
 // SetDefaultRole sets a default role to use during enforcement. Will fall back to this role if
 // normal enforcement fails
 func (e *Enforcer) SetDefaultRole(roleName string) {
@@ -330,21 +362,22 @@ func (e *Enforcer) SetClaimsEnforcerFunc(claimsEnforcer ClaimsEnforcerFunc) {
 	e.claimsEnforcerFunc = claimsEnforcer
 }
 
-// snapshotEnforceState returns the defaultRole and claimsEnforcerFunc fields under the
-// Enforcer's lock so enforcement is not racy with concurrent updates — defaultRole from
-// the informer's syncUpdate path, and claimsEnforcerFunc from SetClaimsEnforcerFunc.
-func (e *Enforcer) snapshotEnforceState() (string, ClaimsEnforcerFunc) {
+// snapshotEnforceState returns the defaultRole, claimsEnforcerFunc and caseInsensitiveSubjects
+// fields under the Enforcer's lock so enforcement is not racy with concurrent updates — defaultRole
+// and caseInsensitiveSubjects from the informer's syncUpdate path, and claimsEnforcerFunc from
+// SetClaimsEnforcerFunc.
+func (e *Enforcer) snapshotEnforceState() (string, ClaimsEnforcerFunc, bool) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
-	return e.defaultRole, e.claimsEnforcerFunc
+	return e.defaultRole, e.claimsEnforcerFunc, e.caseInsensitiveSubjects
 }
 
 // Enforce is a wrapper around casbin.Enforce to additionally enforce a default role and a custom
 // claims function
 func (e *Enforcer) Enforce(rvals ...any) bool {
 	enf := e.getCasbinEnforcer("", "")
-	defaultRole, claimsEnforcerFunc := e.snapshotEnforceState()
-	return enforce(enf, defaultRole, claimsEnforcerFunc, rvals...)
+	defaultRole, claimsEnforcerFunc, caseInsensitiveSubjects := e.snapshotEnforceState()
+	return enforce(enf, defaultRole, claimsEnforcerFunc, caseInsensitiveSubjects, rvals...)
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -394,15 +427,17 @@ func (e *Enforcer) CreateEnforcerWithRuntimePolicy(project string, policy string
 
 // EnforceWithCustomEnforcer wraps enforce with an custom enforcer
 func (e *Enforcer) EnforceWithCustomEnforcer(enf CasbinEnforcer, rvals ...any) bool {
-	defaultRole, claimsEnforcerFunc := e.snapshotEnforceState()
-	return enforce(enf, defaultRole, claimsEnforcerFunc, rvals...)
+	defaultRole, claimsEnforcerFunc, caseInsensitiveSubjects := e.snapshotEnforceState()
+	return enforce(enf, defaultRole, claimsEnforcerFunc, caseInsensitiveSubjects, rvals...)
 }
 
-// enforce is a helper to additionally check a default role and invoke a custom claims enforcement function
-func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, rvals ...any) bool {
+// enforce is a helper to additionally check a default role and invoke a custom claims enforcement function.
+// When caseInsensitiveSubjects is set, string subjects and the default role are lowercased so they match
+// the (already lowercased) policy subjects.
+func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, caseInsensitiveSubjects bool, rvals ...any) bool {
 	// check the default role
 	if defaultRole != "" && len(rvals) >= 2 {
-		if ok, err := enf.Enforce(append([]any{defaultRole}, rvals[1:]...)...); ok && err == nil {
+		if ok, err := enf.Enforce(append([]any{normalizeSubject(defaultRole, caseInsensitiveSubjects)}, rvals[1:]...)...); ok && err == nil {
 			return true
 		}
 	}
@@ -414,7 +449,7 @@ func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEn
 	sub := rvals[0]
 	switch s := sub.(type) {
 	case string:
-		// noop
+		rvals = append([]any{normalizeSubject(s, caseInsensitiveSubjects)}, rvals[1:]...)
 	case jwt.Claims:
 		if claimsEnforcerFunc != nil && claimsEnforcerFunc(s, rvals...) {
 			return true
@@ -553,6 +588,7 @@ func PolicyCSV(data map[string]string) string {
 func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
+	e.SetCaseInsensitiveSubjects(ParseCaseInsensitiveSubjects(cm.Data[ConfigMapCaseInsensitiveSubjectsKey]))
 	policyCSV := PolicyCSV(cm.Data)
 	if err := onUpdated(cm); err != nil {
 		return fmt.Errorf("error running policy update callback: %w", err)
@@ -560,9 +596,25 @@ func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.Co
 	return e.SetUserPolicy(policyCSV)
 }
 
+// ParseCaseInsensitiveSubjects parses the value of the policy.caseInsensitiveSubjects config map key.
+// An empty or unparsable value disables the option (the default), so existing configurations keep the
+// exact, case-sensitive subject matching.
+func ParseCaseInsensitiveSubjects(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	enabled, err := strconv.ParseBool(value)
+	if err != nil {
+		log.Warnf("Invalid value %q for %s, expected a boolean, falling back to case-sensitive subject matching", value, ConfigMapCaseInsensitiveSubjectsKey)
+		return false
+	}
+	return enabled
+}
+
 // ValidatePolicy verifies a policy string is acceptable to casbin
 func ValidatePolicy(policy string) error {
-	casbinEnforcer, err := newEnforcerSafe(globMatchFunc, newBuiltInModel(), newAdapter("", "", policy))
+	casbinEnforcer, err := newEnforcerSafe(globMatchFunc, newBuiltInModel(), newAdapter("", "", policy, false))
 	if err != nil {
 		return fmt.Errorf("policy syntax error: %s", policy)
 	}
@@ -590,20 +642,23 @@ type argocdAdapter struct {
 	builtinPolicy     string
 	userDefinedPolicy string
 	runtimePolicy     string
+	// caseInsensitiveSubjects lowercases the subject tokens of 'p' and 'g' lines while loading
+	caseInsensitiveSubjects bool
 }
 
-func newAdapter(builtinPolicy, userDefinedPolicy, runtimePolicy string) *argocdAdapter {
+func newAdapter(builtinPolicy, userDefinedPolicy, runtimePolicy string, caseInsensitiveSubjects bool) *argocdAdapter {
 	return &argocdAdapter{
-		builtinPolicy:     builtinPolicy,
-		userDefinedPolicy: userDefinedPolicy,
-		runtimePolicy:     runtimePolicy,
+		builtinPolicy:           builtinPolicy,
+		userDefinedPolicy:       userDefinedPolicy,
+		runtimePolicy:           runtimePolicy,
+		caseInsensitiveSubjects: caseInsensitiveSubjects,
 	}
 }
 
 func (a *argocdAdapter) LoadPolicy(model model.Model) error {
 	for _, policyStr := range []string{a.builtinPolicy, a.userDefinedPolicy, a.runtimePolicy} {
 		for line := range strings.SplitSeq(policyStr, "\n") {
-			if err := loadPolicyLine(strings.TrimSpace(line), model); err != nil {
+			if err := loadPolicyLine(strings.TrimSpace(line), model, a.caseInsensitiveSubjects); err != nil {
 				return fmt.Errorf("error loading policy line: %w", err)
 			}
 		}
@@ -612,8 +667,10 @@ func (a *argocdAdapter) LoadPolicy(model model.Model) error {
 }
 
 // The modified version of LoadPolicyLine function defined in "persist" package of github.com/casbin/casbin.
-// Uses CVS parser to correctly handle quotes in policy line.
-func loadPolicyLine(line string, model model.Model) error {
+// Uses CVS parser to correctly handle quotes in policy line. When caseInsensitiveSubjects is set, the
+// subject of a 'p' line and both sides of a 'g' line are lowercased, so that request subjects which are
+// lowercased in the same way match regardless of their letter case.
+func loadPolicyLine(line string, model model.Model, caseInsensitiveSubjects bool) error {
 	if line == "" || strings.HasPrefix(line, "#") {
 		return nil
 	}
@@ -635,6 +692,15 @@ func loadPolicyLine(line string, model model.Model) error {
 	}
 
 	key := tokens[0]
+	if caseInsensitiveSubjects {
+		switch key {
+		case "p":
+			tokens[1] = strings.ToLower(tokens[1])
+		case "g":
+			tokens[1] = strings.ToLower(tokens[1])
+			tokens[2] = strings.ToLower(tokens[2])
+		}
+	}
 	sec := key[:1]
 	if _, ok := model[sec]; !ok {
 		return fmt.Errorf("invalid RBAC policy: %s", line)
