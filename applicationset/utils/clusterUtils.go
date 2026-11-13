@@ -9,11 +9,11 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-// ClusterSpecifier contains only the name and server URL of a cluster. We use this struct to avoid partially-populating
-// the full Cluster struct, which would be misleading.
 type ClusterSpecifier struct {
-	Name   string
-	Server string
+	Name        string
+	Server      string
+	Labels      map[string]string
+	Annotations map[string]string
 }
 
 // SecretsContainInClusterCredentials checks if any of the provided secrets represent the in-cluster configuration.
@@ -38,8 +38,10 @@ func ListClusters(clusterInformer *settings.ClusterInformer) ([]ClusterSpecifier
 
 	for _, cluster := range clusters {
 		clusterList = append(clusterList, ClusterSpecifier{
-			Name:   cluster.Name,
-			Server: cluster.Server,
+			Name:        cluster.Name,
+			Server:      cluster.Server,
+			Labels:      cluster.Labels,
+			Annotations: cluster.Annotations,
 		})
 		if cluster.Server == appv1.KubernetesInternalAPIServerAddr {
 			hasInCluster = true
