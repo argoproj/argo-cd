@@ -14,6 +14,9 @@ spec:
   - pullRequest:
       # When using a Pull Request generator, the ApplicationSet controller polls every `requeueAfterSeconds` interval (defaulting to every 30 minutes) to detect changes.
       requeueAfterSeconds: 1800
+      # Generate an empty set of parameters instead of failing when the repository does not exist.
+      # See "Repository not found" below before enabling this.
+      continueOnRepoNotFoundError: false
       # See below for provider specific options.
       github:
         # ...
@@ -382,6 +385,23 @@ spec:
 * `titleMatch`: A regexp matched against Pull Request title. 
 
 [GitHub](#github), [GitLab](#gitlab), [Gitea](#gitea) and [Azure DevOps](#azure-devops) also support `labels` and `excludedLabels` filters.
+
+## Repository not found
+
+By default, the generator returns an error when the SCM provider reports that the configured repository does not exist, and the ApplicationSet keeps its current Applications. Set `continueOnRepoNotFoundError: true` to treat a missing repository as a repository with no pull requests instead, so the generator produces no parameters and the Applications generated from it are removed.
+
+> [!WARNING]
+> SCM providers usually answer "404 Not Found" rather than "403 Forbidden" when a repository exists but the token has no access to it. With `continueOnRepoNotFoundError: true`, losing access to the repository therefore deletes the Applications generated from it.
+
+```yaml
+spec:
+  generators:
+  - pullRequest:
+      continueOnRepoNotFoundError: true
+      github:
+        owner: myorg
+        repo: myrepository
+```
 
 ## Template
 
