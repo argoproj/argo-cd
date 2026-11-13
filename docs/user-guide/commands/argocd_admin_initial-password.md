@@ -67,4 +67,5 @@ argocd admin initial-password [flags]
 ### SEE ALSO
 
 * [argocd admin](argocd_admin.md)	 - Contains a set of commands useful for Argo CD administrators and requires direct Kubernetes access
+* [argocd admin initial-password reset](argocd_admin_initial-password_reset.md)	 - Reset the admin password and store the new password in the initial admin secret
 
