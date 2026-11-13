@@ -109,6 +109,65 @@ $slate: #191826;
             color: white;
             font-weight: 500;
         }
+
+        &--excluded {
+            .checkbox--selected {
+                border-color: $argo-failed-color;
+                background-color: $argo-failed-color;
+
+                .fa-check::before {
+                    content: '\f00d'; // fa-xmark
+                }
+            }
+
+            .filter__item__label {
+                text-decoration: line-through;
+                color: $argo-color-gray-5;
+            }
+        }
+    }
+
+    &__mode {
+        display: flex;
+        margin-bottom: 0.5em;
+        padding: 2px;
+        border-radius: 5px;
+        background-color: black;
+
+        &__option {
+            flex: 1;
+            height: 22px;
+            border: none;
+            border-radius: 4px;
+            background: none;
+            color: $argo-color-gray-6;
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+
+            i {
+                margin-right: 4px;
+            }
+
+            &:hover {
+                color: $argo-color-gray-4;
+            }
+
+            &:focus-visible {
+                outline: 2px solid $argo-color-teal-6;
+                outline-offset: -2px;
+            }
+
+            &--active,
+            &--active:hover {
+                background-color: $slate;
+                color: white;
+            }
+
+            &--exclude.filter__mode__option--active i {
+                color: $argo-failed-color;
+            }
+        }
     }
 
     &__tooltip {
@@ -126,7 +185,7 @@ $slate: #191826;
     display: flex;
     flex-wrap: wrap;
     margin-top: 2em;
-    
+
     &__toggle {
         display: none;
         cursor: pointer;

@@ -12,6 +12,10 @@ applications without opening each application individually.
     generated from a `Deployment`) are not shown, because Argo CD does not deploy them directly. To inspect those
     child resources, open the owning application and use its resource tree.
 
+## Excluding kinds
+
+The **KINDS** filter in the Resources view can exclude kinds as well as include them. Once at least one kind is selected, choose **Exclude** in the switch below the KINDS input to hide the selected kinds and keep every other kind visible. See [Resource Filters](application-details-filters.md#excluding-kinds) for details.
+
 ## Disabling the Resources view
 
 Operators can disable the Resources view for an entire Argo CD instance. This is useful when the aggregated view is
