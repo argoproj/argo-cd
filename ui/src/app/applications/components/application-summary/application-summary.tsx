@@ -17,6 +17,7 @@ import {
     RevisionHelpIcon
 } from '../../../shared/components';
 import {BadgePanel} from '../../../shared/components';
+import {CopyButton} from '../../../shared/components/copy-button';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -812,7 +813,12 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     'spec.destination.name': !input.spec.destination.name && input.spec.destination.hasOwnProperty('name') && 'Cluster name is required'
                 })}
                 values={app}
-                title={app.metadata.name.toLocaleUpperCase()}
+                title={
+                    <>
+                        {app.metadata.name.toLocaleUpperCase()}
+                        <CopyButton text={app.metadata.name} label='Copy application name' />
+                    </>
+                }
                 items={attributes}
                 onModeSwitch={() => notificationSubscriptions.onResetNotificationSubscriptions()}
             />
