@@ -1,6 +1,7 @@
 package password
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -24,6 +25,64 @@ func TestBcryptPasswordHasher(t *testing.T) {
 	// Use the default work factor
 	h := BcryptPasswordHasher{0}
 	testPasswordHasher(t, h)
+}
+
+func TestPBKDF2PasswordHasher(t *testing.T) {
+	t.Parallel()
+
+	h := PBKDF2PasswordHasher{}
+
+	testPasswordHasher(t, h)
+
+	hashedPassword1, err := h.HashPassword("Hello, world!")
+	require.NoError(t, err)
+
+	hashedPassword2, err := h.HashPassword("Hello, world!")
+	require.NoError(t, err)
+
+	assert.NotEqual(t, hashedPassword1, hashedPassword2, "Password hashes should use different salts")
+	assert.True(t, h.VerifyPassword("Hello, world!", hashedPassword1))
+	assert.False(t, h.VerifyPassword("wrong password", hashedPassword1))
+
+	assert.False(t, h.VerifyPassword("Hello, world!", "invalid"))
+	assert.False(t, h.VerifyPassword("Hello, world!", "pbkdf2-sha256$v1$1$invalid$invalid"))
+
+	validSalt := "AAAAAAAAAAAAAAAAAAAAAA"
+
+	assert.False(t, h.VerifyPassword(
+		"Hello, world!",
+		"pbkdf2-sha256$v1$599999$"+validSalt+"$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+	))
+
+	assert.False(t, h.VerifyPassword(
+		"Hello, world!",
+		"pbkdf2-sha256$v1$"+strconv.Itoa(pbkdf2Iterations)+"$"+validSalt+"$not-valid-base64!!!",
+	))
+
+	assert.False(t, h.VerifyPassword(
+		"Hello, world!",
+		"pbkdf2-sha256$v1$"+strconv.Itoa(pbkdf2Iterations)+"$"+validSalt+"$c2FsdA",
+	))
+}
+
+func TestPasswordHashingWithPBKDF2Preferred(t *testing.T) {
+	t.Parallel()
+
+	const pass = "Hello, world!"
+
+	pbkdf2Hash, err := HashPassword(pass)
+	require.NoError(t, err)
+
+	valid, stale := VerifyPassword(pass, pbkdf2Hash)
+	assert.True(t, valid)
+	assert.False(t, stale)
+
+	bcryptHash, err := (BcryptPasswordHasher{}).HashPassword(pass)
+	require.NoError(t, err)
+
+	valid, stale = VerifyPassword(pass, bcryptHash)
+	assert.True(t, valid)
+	assert.True(t, stale)
 }
 
 func TestDummyPasswordHasher(t *testing.T) {
