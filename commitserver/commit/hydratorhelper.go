@@ -29,6 +29,8 @@ var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
 const gitAttributesContents = `**/README.md linguist-generated=true
 **/hydrator.metadata linguist-generated=true`
 
+const inexistentDirName = "_unnamespaced"
+
 type manifestMetadata struct {
 	ApiVersion string `json:"ApiVersion"`
 	Kind       string `json:"kind"`
@@ -273,7 +275,7 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 		}
 
 		// prepare subdirectory
-		namespaceSubDirectory := "_unnamespaced"
+		namespaceSubDirectory := inexistentDirName
 		if metaObj.Metadata.Namespace != "" {
 			namespaceSubDirectory = metaObj.Metadata.Namespace
 		}
@@ -285,7 +287,7 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 		}
 
 		// prepare and write manifest
-		manifestName := fmt.Sprintf("%s-%s.yaml", strings.ToLower(metaObj.Kind), metaObj.Metadata.Name)
+		manifestName := getSplitManifestName(metaObj)
 		manifestPath := filepath.Join(currentManifestDirectoryPath, manifestName)
 		err = writeManifestToFile(root, m.ManifestJSON, manifestPath)
 		if err != nil {
@@ -294,6 +296,10 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 	}
 
 	return nil
+}
+
+func getSplitManifestName(metaObj *manifestMetadata) string {
+	return fmt.Sprintf("%s-%s.yaml", strings.ToLower(metaObj.Kind), metaObj.Metadata.Name)
 }
 
 func ensureDirectoryExists(root *os.Root, directoryPath string, recreate bool) error {

@@ -50,7 +50,126 @@ func tempRoot(t *testing.T) *os.Root {
 	return root
 }
 
-func TestWriteForPaths(t *testing.T) {
+func TestWriteForPaths_WithHydrationFormatSplit(t *testing.T) {
+	t.Parallel()
+	root := tempRoot(t)
+
+	repoURL := "https://github.com/example/repo"
+	drySha := "abc123"
+	paths := []*apiclient.PathDetails{
+		{
+			Path: "path1",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Pod","apiVersion":"v1","metadata":{"name":"test-pod","namespace":"test-ns"}}`},
+			},
+			Commands: []string{"command1", "command2"},
+		},
+		{
+			Path: "path2",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Service","apiVersion":"v1","metadata":{"name":"test-service","namespace":"test-ns"}}`},
+			},
+			Commands: []string{"command3"},
+		},
+		{
+			Path: "path3/nested",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Deployment","apiVersion":"apps/v1","metadata":{"name":"test-deployment"}}`},
+			},
+			Commands: []string{"command4"},
+		},
+	}
+
+	now := metav1.NewTime(time.Now())
+	metadata := &appsv1.RevisionMetadata{
+		Author: "test-author",
+		Date:   &now,
+		Message: `test-message
+
+Signed-off-by: Test User <test@example.com>
+Argocd-reference-commit-sha: abc123
+`,
+		References: []appsv1.RevisionReference{
+			{
+				Commit: &appsv1.CommitMetadata{
+					Author:  "test-code-author <test-email-author@example.com>",
+					Date:    now.Format(time.RFC3339),
+					Subject: "test-code-subject",
+					SHA:     "test-code-sha",
+					RepoURL: "https://example.com/test/repo.git",
+				},
+			},
+		},
+	}
+	mockGitClient := gitmocks.NewClient(t)
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Times(len(paths))
+
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSplit)
+	require.NoError(t, err)
+	require.True(t, shouldCommit)
+
+	// Check if the top-level hydrator.metadata exists and contains the repo URL and dry SHA
+	topMetadataPath := filepath.Join(root.Name(), "hydrator.metadata")
+	topMetadataBytes, err := os.ReadFile(topMetadataPath)
+	require.NoError(t, err)
+
+	var topMetadata hydrator.HydratorCommitMetadata
+	err = json.Unmarshal(topMetadataBytes, &topMetadata)
+	require.NoError(t, err)
+	assert.Equal(t, repoURL, topMetadata.RepoURL)
+	assert.Equal(t, drySha, topMetadata.DrySHA)
+	assert.Equal(t, metadata.Author, topMetadata.Author)
+	assert.Equal(t, "test-message", topMetadata.Subject)
+	// The body should exclude the Argocd- trailers.
+	assert.Equal(t, "Signed-off-by: Test User <test@example.com>\n", topMetadata.Body)
+	assert.Equal(t, metadata.Date.Format(time.RFC3339), topMetadata.Date)
+	assert.Equal(t, metadata.References, topMetadata.References)
+
+	for _, p := range paths {
+		fullHydratePath := filepath.Join(root.Name(), p.Path)
+
+		// Check if each path directory exists
+		assert.DirExists(t, fullHydratePath)
+
+		// Check if each path contains a hydrator.metadata file and contains the repo URL
+		metadataPath := path.Join(fullHydratePath, "hydrator.metadata")
+		metadataBytes, err := os.ReadFile(metadataPath)
+		require.NoError(t, err)
+
+		var readMetadata hydrator.HydratorCommitMetadata
+		err = json.Unmarshal(metadataBytes, &readMetadata)
+		require.NoError(t, err)
+		assert.Equal(t, repoURL, readMetadata.RepoURL)
+		// Check if each path contains a README.md file and contains the repo URL
+		readmePath := path.Join(fullHydratePath, "README.md")
+		readmeBytes, err := os.ReadFile(readmePath)
+		require.NoError(t, err)
+		assert.Contains(t, string(readmeBytes), repoURL)
+
+		// Check if each path contains a manifest.yaml file and contains the word kind
+		manifestsPath := path.Join(fullHydratePath, "manifests")
+		assert.DirExists(t, manifestsPath)
+
+		for _, m := range p.Manifests {
+			metaObj := manifestMetadata{}
+			err := json.Unmarshal([]byte(m.ManifestJSON), &metaObj)
+			require.NoError(t, err)
+			namespace := inexistentDirName
+			if metaObj.Metadata.Namespace != "" {
+				namespace = metaObj.Metadata.Namespace
+			}
+			currentManifestDirectoryPath := filepath.Join(manifestsPath, namespace, metaObj.ApiVersion)
+			assert.DirExists(t, currentManifestDirectoryPath)
+			currentManifestPath := filepath.Join(currentManifestDirectoryPath, getSplitManifestName(&metaObj))
+			assert.FileExists(t, currentManifestPath)
+			manifestBytes, err := os.ReadFile(currentManifestPath)
+			require.NoError(t, err)
+			assert.Contains(t, string(manifestBytes), "kind")
+		}
+	}
+}
+
+func TestWriteForPaths_WithHydrationFormatSimple(t *testing.T) {
 	t.Parallel()
 	root := tempRoot(t)
 
