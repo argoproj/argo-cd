@@ -183,9 +183,13 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 			expectedPaths: []string{"fullpath/deploy", "source/path/other/path"},
 		},
 		{
-			name:          "source hydrator sync source without annotation",
-			app:           getSourceHydratorApp(nil, "dry/path", "sync/path"),
-			source:        v1alpha1.ApplicationSource{Path: "sync/path"},
+			name: "source hydrator sync source without annotation",
+			app:  getSourceHydratorApp(nil, "dry/path", "sync/path"),
+			source: v1alpha1.ApplicationSource{Path: "sync/path",
+				Directory: &v1alpha1.ApplicationSourceDirectory{
+					Recurse: true,
+				},
+			},
 			expectedPaths: []string{"sync/path"},
 		},
 		{
@@ -195,9 +199,13 @@ func Test_GetAppRefreshPaths(t *testing.T) {
 			expectedPaths: []string{},
 		},
 		{
-			name:          "source hydrator sync source with annotation",
-			app:           getSourceHydratorApp(new("deploy"), "dry/path", "sync/path"),
-			source:        v1alpha1.ApplicationSource{Path: "sync/path"},
+			name: "source hydrator sync source with annotation",
+			app:  getSourceHydratorApp(new("deploy"), "dry/path", "sync/path"),
+			source: v1alpha1.ApplicationSource{Path: "sync/path",
+				Directory: &v1alpha1.ApplicationSourceDirectory{
+					Recurse: true,
+				},
+			},
 			expectedPaths: []string{"sync/path"},
 		},
 		{

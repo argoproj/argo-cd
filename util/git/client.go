@@ -2161,6 +2161,10 @@ func isRetryableNotePushError(errStr string) bool {
 
 // HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (bool, error) {
+	// TODO: ask maintainers whether they also find this refactoring sensible
+	// TODO: ask maintainers whether it would be sensible to change the method name to something similar to "PathHasChanges"
+	// Reasoning: in this method we only need an indictation for whether there is *any* change at the given path
+	// and thus using git status helps eliminating the need to think of all edge cases (untracked, modified files etc.)
 	var gitStatusOutput string
 	var gitStatusErr error
 	if filePath != "" {

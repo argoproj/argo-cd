@@ -103,7 +103,6 @@ type Hydrator struct {
 // repo clientset, and repo getter. The refresh timeout determines how often the hydrator checks if an application
 // needs to be hydrated.
 func NewHydrator(dependencies Dependencies, statusRefreshTimeout time.Duration, commitClientset commitclient.Clientset, repoClientset apiclient.Clientset, repoGetter RepoGetter, hydrationFormat string) *Hydrator {
-	log.Infof("creating new hydrator with format %s", hydrationFormat)
 	return &Hydrator{
 		dependencies:         dependencies,
 		statusRefreshTimeout: statusRefreshTimeout,
@@ -467,7 +466,6 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 		formatEqual = apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydrationFormat == h.hydrationFormat
 	}
 	if gitShaEqual && formatEqual {
-		log.Info("skipping hydration")
 		logCtx.Debug("Skipping hydration since the DRY commit was already hydrated")
 		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
 	}

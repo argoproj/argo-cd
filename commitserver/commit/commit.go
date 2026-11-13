@@ -169,7 +169,6 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	3c. Push the updated note
 	*/
 	isHydrated, err := IsHydrated(ctx, gitClient, r.DrySha, hydratedSha, r.HydrationFormat)
-	log.Infof("sha %s: %t", r.DrySha, isHydrated)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to get notes from git %w", err)
 	}
@@ -180,7 +179,6 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	}
 
 	logCtx.Debug("Writing manifests")
-	log.Infof("writing manifests with hydrationFormat %s", r.HydrationFormat)
 	shouldCommit, err := WriteForPaths(ctx, root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient, r.ReadmeMessage, r.HydrationFormat)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)

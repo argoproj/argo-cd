@@ -33,7 +33,7 @@ GOPATH?=$(shell if test -x `which go`; then go env GOPATH; else echo "$(HOME)/go
 GOCACHE?=$(HOME)/.cache/go-build
 
 # Docker command to use
-DOCKER?=podman
+DOCKER?=docker
 ifeq ($(DOCKER),podman)
 PODMAN_ARGS=--userns keep-id
 else
@@ -822,3 +822,4 @@ help:
 	@echo '  codegen(-local) -- if using -local, run the following targets first'
 	@echo '  install-codegen-tools-local -- run this to install the codegen tools'
 	@echo '  install-go-tools-local -- run this to install go libraries for codegen'
+

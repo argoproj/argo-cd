@@ -84,9 +84,9 @@ func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha string, d
 		var err error
 		switch hydrationFormat {
 		case common.HydrationFormatSimple:
-			err = writeSplitManifests(root, hydratePath, p.Manifests)
-		case common.HydrationFormatSplit:
 			err = writeManifests(root, hydratePath, p.Manifests)
+		case common.HydrationFormatSplit:
+			err = writeSplitManifests(root, hydratePath, p.Manifests)
 		default:
 			return false, fmt.Errorf("unknown hydrationFormat %s, valid values are 'simple' or 'split'", hydrationFormat)
 		}
@@ -265,8 +265,6 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 	}
 
 	for _, m := range manifests {
-		log.Infof("processing manifest: %s", m.ManifestJSON)
-
 		// collect required metadata
 		metaObj := &manifestMetadata{}
 		err = json.Unmarshal([]byte(m.ManifestJSON), metaObj)

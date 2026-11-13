@@ -447,6 +447,8 @@ func (s SourceHydrator) GetSyncSource() ApplicationSource {
 		RepoURL:        repoURL,
 		Path:           s.SyncSource.Path,
 		TargetRevision: s.SyncSource.TargetBranch,
+		// Directory is only added here and not part of the CRD so ArgoCD looks for 
+		// manifests recursively (needed when using 'split' hydration-format)
 		Directory: &ApplicationSourceDirectory{
 			Recurse: true,
 		},

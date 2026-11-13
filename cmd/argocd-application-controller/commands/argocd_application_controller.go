@@ -204,7 +204,6 @@ func NewCommand() *cobra.Command {
 					Cap:      time.Duration(selfHealBackoffCapSeconds) * time.Second,
 				}
 			}
-			log.Infof("creating application controller with format %s", hydrationFormat)
 			appController, err = controller.NewApplicationController(
 				namespace,
 				settingsMgr,
