@@ -20,8 +20,10 @@ data:
   redis.compression: gzip
   # Redis database
   redis.db:
-  # Prefix added to all Redis keys written by the application controller, API server and repo server. Set this when
-  # several Argo CD installations share one Redis instance. (default "")
+  # Prefix added to the cache keys that the application controller, API server and repo server write to Redis. Set
+  # this when several Argo CD installations share one Redis instance. The API server's session-revocation entries
+  # (revoked-token|<id> keys and the new-revoked-token pub/sub channel) are written without the prefix and stay
+  # shared. (default "")
   redis.key.prefix: ""
 
   # Enables the beta "manifest hydrator" feature. (default "false")
@@ -339,8 +341,9 @@ data:
   reposerver.helm.manifest.max.extracted.size: "1G"
   # Disable the maximum size check of helm manifest archives when extracted (default "false")
   reposerver.disable.helm.manifest.max.extracted.size: "false"
-  # User-Agent header sent with Helm repository and OCI registry requests. Empty uses the built-in
-  # default "argocd-repo-server/<version> (<platform>)". (default "")
+  # User-Agent header the repo server sends when it fetches a Helm repository index or lists OCI tags. Chart
+  # downloads go through the Helm CLI and do not use it. Empty uses the built-in default
+  # "argocd-repo-server/<version> (<platform>)". (default "")
   reposerver.helm.user.agent: ""
   # The allowlist of the OCI media types which the repo-server will make use of. If an OCI media type for a given artifact is not in the given list, the repo-server will return an error.
   reposerver.oci.layer.media.types: "application/vnd.oci.image.layer.v1.tar,application/vnd.oci.image.layer.v1.tar+gzip,application/vnd.cncf.helm.chart.content.v1.tar+gzip"
