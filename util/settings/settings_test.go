@@ -1730,6 +1730,91 @@ requestedIDTokenClaims: {"groups": {"essential": true}}`,
 	assert.Equal(t, "deadbeef", oidcConfig.ClientSecret)
 }
 
+func TestGitLabWebhookSigningSecret(t *testing.T) {
+	t.Run("resolves signing secret from webhook.gitlab.signing.secret", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			&corev1.Secret{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+				Data: map[string][]byte{
+					"server.secretkey":              nil,
+					"webhook.gitlab.signing.secret": []byte("whsec_12345"),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, "whsec_12345", settings.GetWebhookGitLabSigningSecret())
+	})
+
+	t.Run("falls back to webhook.gitlab.secret when starting with whsec_", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+			},
+			&corev1.Secret{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+				Data: map[string][]byte{
+					"server.secretkey":      nil,
+					"webhook.gitlab.secret": []byte("whsec_fallback"),
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, "whsec_fallback", settings.GetWebhookGitLabSigningSecret())
+	})
+
+	t.Run("custom timestamp tolerance from configmap", func(t *testing.T) {
+		kubeClient := fake.NewClientset(
+			&corev1.ConfigMap{
+				Name:      common.ArgoCDConfigMapName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+				Data: map[string]string{
+					"webhook.gitlab.timestamp.tolerance": "10m",
+				},
+			},
+			&corev1.Secret{
+				Name:      common.ArgoCDSecretName,
+				Namespace: "default",
+				Labels: map[string]string{
+					"app.kubernetes.io/part-of": "argocd",
+				},
+				Data: map[string][]byte{
+					"server.secretkey": nil,
+				},
+			},
+		)
+		settingsManager := NewSettingsManager(t.Context(), kubeClient, "default")
+		settings, err := settingsManager.GetSettings()
+		require.NoError(t, err)
+		assert.Equal(t, 10*time.Minute, settings.GetWebhookGitLabTimestampTolerance())
+	})
+}
+
 func TestValidateOIDCConfigWithSecrets(t *testing.T) {
 	tests := []struct {
 		name    string

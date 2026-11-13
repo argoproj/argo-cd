@@ -3,6 +3,9 @@ package webhook
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -10,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"strconv"
 	"strings"
 	"testing"
 	"text/template"
@@ -421,6 +425,43 @@ func TestGitLabSystemEvent(t *testing.T) {
 	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
 	require.NoError(t, err)
 	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	h.Shutdown()
+	assert.Equal(t, http.StatusOK, w.Code)
+	expectedLogResult := "Received push event repo: https://gitlab.com/group/name, revision: master, touchedHead: true"
+	assertLogContains(t, hook, expectedLogResult)
+	hook.Reset()
+}
+
+func TestGitLabSignedWebhookPushEvent(t *testing.T) {
+	hook := test.NewGlobal()
+	testKey := []byte("01234567890123456789012345678901")
+	signingSecret := "whsec_" + base64.StdEncoding.EncodeToString(testKey)
+
+	h := NewMockHandler(nil, []string{})
+	h.settings.WebhookGitLabSigningSecret = signingSecret
+	h.parsers = NewParsers(h.settings, ArgoCDParserOptions())
+
+	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
+	require.NoError(t, err)
+
+	now := strconv.FormatInt(time.Now().Unix(), 10)
+	key := parseSigningSecret(signingSecret)
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte("msg_test"))
+	mac.Write([]byte("."))
+	mac.Write([]byte(now))
+	mac.Write([]byte("."))
+	mac.Write(eventJSON)
+	sig := "v1," + base64.StdEncoding.EncodeToString(mac.Sum(nil))
+
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+	req.Header.Set("X-Gitlab-Event", "Push Hook")
+	req.Header.Set("Webhook-Id", "msg_test")
+	req.Header.Set("Webhook-Timestamp", now)
+	req.Header.Set("Webhook-Signature", sig)
+
 	w := httptest.NewRecorder()
 	h.Handler(w, req)
 	h.Shutdown()

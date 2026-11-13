@@ -1,12 +1,19 @@
 package webhook
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"encoding/base64"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
 	"github.com/go-playground/webhooks/v6/github"
@@ -217,4 +224,186 @@ func TestStartWorkers(t *testing.T) {
 	wg.Wait()
 
 	assert.Equal(t, []any{"first", "second"}, handled)
+}
+
+func TestGitLabWebhookAuthentication(t *testing.T) {
+	testKey := []byte("01234567890123456789012345678901")
+	signingSecret := "whsec_" + base64.StdEncoding.EncodeToString(testKey)
+	legacySecret := "my-legacy-gitlab-secret"
+
+	eventJSON, err := os.ReadFile("testdata/gitlab-event.json")
+	require.NoError(t, err)
+
+	signRequest := func(signingSecret, msgID, msgTimestamp string, body []byte) string {
+		key := parseSigningSecret(signingSecret)
+		mac := hmac.New(sha256.New, key)
+		mac.Write([]byte(msgID))
+		mac.Write([]byte("."))
+		mac.Write([]byte(msgTimestamp))
+		mac.Write([]byte("."))
+		mac.Write(body)
+		return "v1," + base64.StdEncoding.EncodeToString(mac.Sum(nil))
+	}
+
+	newGitLabParser := func(secret, signingSecret string, tolerance time.Duration) Extractor {
+		parsers := NewParsers(&settings.ArgoCDSettings{
+			WebhookGitLabSecret:             secret,
+			WebhookGitLabSigningSecret:      signingSecret,
+			WebhookGitLabTimestampTolerance: tolerance,
+		}, ParserOptions{
+			GitLabEvents: []gitlab.Event{gitlab.PushEvents},
+		})
+		require.Len(t, parsers, 1)
+		return parsers[0]
+	}
+
+	t.Run("valid signed webhook is accepted", func(t *testing.T) {
+		parser := newGitLabParser("", signingSecret, 5*time.Minute)
+		now := strconv.FormatInt(time.Now().Unix(), 10)
+		sig := signRequest(signingSecret, "msg_123", now, eventJSON)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+		req.Header.Set("Webhook-Id", "msg_123")
+		req.Header.Set("Webhook-Timestamp", now)
+		req.Header.Set("Webhook-Signature", sig)
+
+		payload, err := parser.Parse(req)
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+	})
+
+	t.Run("valid signed webhook with multiple signatures (key rotation) is accepted", func(t *testing.T) {
+		parser := newGitLabParser("", signingSecret, 5*time.Minute)
+		now := strconv.FormatInt(time.Now().Unix(), 10)
+		validSig := signRequest(signingSecret, "msg_123", now, eventJSON)
+		multiSig := "v1,invalidSig123 " + validSig + " v1,anotherInvalidSig"
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+		req.Header.Set("Webhook-Id", "msg_123")
+		req.Header.Set("Webhook-Timestamp", now)
+		req.Header.Set("Webhook-Signature", multiSig)
+
+		payload, err := parser.Parse(req)
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+	})
+
+	t.Run("invalid signature is rejected", func(t *testing.T) {
+		parser := newGitLabParser("", signingSecret, 5*time.Minute)
+		now := strconv.FormatInt(time.Now().Unix(), 10)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+		req.Header.Set("Webhook-Id", "msg_123")
+		req.Header.Set("Webhook-Timestamp", now)
+		req.Header.Set("Webhook-Signature", "v1,d3Jvbmc=")
+
+		_, err := parser.Parse(req)
+		require.ErrorIs(t, err, ErrSignedWebhookVerificationFailed)
+	})
+
+	t.Run("stale timestamp is rejected", func(t *testing.T) {
+		parser := newGitLabParser("", signingSecret, 5*time.Minute)
+		staleTime := strconv.FormatInt(time.Now().Add(-10*time.Minute).Unix(), 10)
+		sig := signRequest(signingSecret, "msg_123", staleTime, eventJSON)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+		req.Header.Set("Webhook-Id", "msg_123")
+		req.Header.Set("Webhook-Timestamp", staleTime)
+		req.Header.Set("Webhook-Signature", sig)
+
+		_, err := parser.Parse(req)
+		require.ErrorIs(t, err, ErrStaleWebhookTimestamp)
+	})
+
+	t.Run("missing signature header rejected when only signing secret set", func(t *testing.T) {
+		parser := newGitLabParser("", signingSecret, 5*time.Minute)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+
+		_, err := parser.Parse(req)
+		require.ErrorIs(t, err, ErrMissingSignatureHeader)
+	})
+
+	t.Run("legacy token accepted when legacy secret configured", func(t *testing.T) {
+		parser := newGitLabParser(legacySecret, "", 5*time.Minute)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+		req.Header.Set("X-Gitlab-Token", legacySecret)
+
+		payload, err := parser.Parse(req)
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+	})
+
+	t.Run("legacy token rejected when mismatch", func(t *testing.T) {
+		parser := newGitLabParser(legacySecret, "", 5*time.Minute)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+		req.Header.Set("X-Gitlab-Token", "wrong-secret")
+
+		_, err := parser.Parse(req)
+		require.ErrorIs(t, err, gitlab.ErrGitLabTokenVerificationFailed)
+	})
+
+	t.Run("dual auth accepts signed request without X-Gitlab-Token", func(t *testing.T) {
+		parser := newGitLabParser(legacySecret, signingSecret, 5*time.Minute)
+		now := strconv.FormatInt(time.Now().Unix(), 10)
+		sig := signRequest(signingSecret, "msg_123", now, eventJSON)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+		req.Header.Set("Webhook-Id", "msg_123")
+		req.Header.Set("Webhook-Timestamp", now)
+		req.Header.Set("Webhook-Signature", sig)
+
+		payload, err := parser.Parse(req)
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+	})
+
+	t.Run("dual auth falls back to valid legacy X-Gitlab-Token when unsigned", func(t *testing.T) {
+		parser := newGitLabParser(legacySecret, signingSecret, 5*time.Minute)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+		req.Header.Set("X-Gitlab-Token", legacySecret)
+
+		payload, err := parser.Parse(req)
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+	})
+
+	t.Run("dual auth rejects unsigned request with wrong legacy token", func(t *testing.T) {
+		parser := newGitLabParser(legacySecret, signingSecret, 5*time.Minute)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+		req.Header.Set("X-Gitlab-Token", "wrong-legacy-token")
+
+		_, err := parser.Parse(req)
+		require.ErrorIs(t, err, gitlab.ErrGitLabTokenVerificationFailed)
+	})
+
+	t.Run("alternative configuration via WebhookGitLabSecret with whsec_ prefix", func(t *testing.T) {
+		parser := newGitLabParser(signingSecret, "", 5*time.Minute)
+		now := strconv.FormatInt(time.Now().Unix(), 10)
+		sig := signRequest(signingSecret, "msg_123", now, eventJSON)
+
+		req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(eventJSON))
+		req.Header.Set("X-Gitlab-Event", "Push Hook")
+		req.Header.Set("Webhook-Id", "msg_123")
+		req.Header.Set("Webhook-Timestamp", now)
+		req.Header.Set("Webhook-Signature", sig)
+
+		payload, err := parser.Parse(req)
+		require.NoError(t, err)
+		require.NotNil(t, payload)
+	})
 }

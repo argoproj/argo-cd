@@ -114,6 +114,10 @@ type ArgoCDSettings struct {
 	WebhookDockerHubSecret string `json:"webhookDockerHubSecret,omitempty"`
 	// WebhookGitLabSecret holds the shared secret for authenticating GitLab webhook events
 	WebhookGitLabSecret string `json:"webhookGitLabSecret,omitempty"`
+	// WebhookGitLabSigningSecret holds the secret for authenticating GitLab signed webhook events
+	WebhookGitLabSigningSecret string `json:"webhookGitLabSigningSecret,omitempty"`
+	// WebhookGitLabTimestampTolerance specifies the maximum age or clock-skew tolerance of a webhook timestamp
+	WebhookGitLabTimestampTolerance time.Duration `json:"webhookGitLabTimestampTolerance,omitempty"`
 	// WebhookBitbucketUUID holds the UUID for authenticating Bitbucket webhook events
 	WebhookBitbucketUUID string `json:"webhookBitbucketUUID,omitempty"`
 	// WebhookBitbucketServerSecret holds the shared secret for authenticating BitbucketServer webhook events
@@ -469,6 +473,12 @@ const (
 	settingsWebhookDockerHubSecretKey = "webhook.dockerhub.secret"
 	// settingsWebhookGitLabSecret is the key for the GitLab shared webhook secret
 	settingsWebhookGitLabSecretKey = "webhook.gitlab.secret"
+	// settingsWebhookGitLabSigningSecretKey is the key for the GitLab signing secret in argocd-secret
+	settingsWebhookGitLabSigningSecretKey = "webhook.gitlab.signing.secret"
+	// settingsWebhookGitLabTimestampToleranceKey is the key for the GitLab webhook timestamp tolerance in argocd-cm
+	settingsWebhookGitLabTimestampToleranceKey = "webhook.gitlab.timestamp.tolerance"
+	// DefaultWebhookGitLabTimestampTolerance is the default tolerance for GitLab signed webhook timestamps (5 minutes)
+	DefaultWebhookGitLabTimestampTolerance = 5 * time.Minute
 	// settingsWebhookBitbucketUUID is the key for Bitbucket webhook UUID
 	settingsWebhookBitbucketUUIDKey = "webhook.bitbucket.uuid"
 	// settingsWebhookBitbucketServerSecret is the key for BitbucketServer webhook secret
@@ -1798,6 +1808,14 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 			settings.UserSessionDuration = *val
 		}
 	}
+	settings.WebhookGitLabTimestampTolerance = DefaultWebhookGitLabTimestampTolerance
+	if tolStr, ok := argoCDCM.Data[settingsWebhookGitLabTimestampToleranceKey]; ok && tolStr != "" {
+		if val, err := timeutil.ParseDuration(tolStr); err != nil {
+			log.Warnf("Failed to parse '%s' key: %v", settingsWebhookGitLabTimestampToleranceKey, err)
+		} else {
+			settings.WebhookGitLabTimestampTolerance = *val
+		}
+	}
 	settings.PasswordPattern = argoCDCM.Data[settingsPasswordPatternKey]
 	if settings.PasswordPattern == "" {
 		settings.PasswordPattern = common.PasswordPatten
@@ -1919,6 +1937,13 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	settings.WebhookGitHubSecret = string(argoCDSecret.Data[settingsWebhookGitHubSecretKey])
 	settings.WebhookDockerHubSecret = string(argoCDSecret.Data[settingsWebhookDockerHubSecretKey])
 	settings.WebhookGitLabSecret = string(argoCDSecret.Data[settingsWebhookGitLabSecretKey])
+	if val, ok := argoCDSecret.Data[settingsWebhookGitLabSigningSecretKey]; ok && len(val) > 0 {
+		settings.WebhookGitLabSigningSecret = string(val)
+	} else if val, ok := argoCDSecret.Data["webhook.gitlab.signing-token"]; ok && len(val) > 0 {
+		settings.WebhookGitLabSigningSecret = string(val)
+	} else if val, ok := argoCDSecret.Data["webhook.gitlab.signingtoken"]; ok && len(val) > 0 {
+		settings.WebhookGitLabSigningSecret = string(val)
+	}
 	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
 	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
 	settings.WebhookGogsSecret = string(argoCDSecret.Data[settingsWebhookGogsSecretKey])
@@ -2159,6 +2184,28 @@ func (a *ArgoCDSettings) GetWebhookDockerHubSecret() string {
 // GetWebhookGitLabSecret returns the resolved GitLab webhook secret
 func (a *ArgoCDSettings) GetWebhookGitLabSecret() string {
 	return ReplaceStringSecret(a.WebhookGitLabSecret, a.Secrets)
+}
+
+// GetWebhookGitLabSigningSecret returns the resolved GitLab webhook signing secret.
+// If not explicitly set, but WebhookGitLabSecret starts with "whsec_", WebhookGitLabSecret is returned.
+func (a *ArgoCDSettings) GetWebhookGitLabSigningSecret() string {
+	res := ReplaceStringSecret(a.WebhookGitLabSigningSecret, a.Secrets)
+	if res != "" {
+		return res
+	}
+	gitlabSecret := a.GetWebhookGitLabSecret()
+	if strings.HasPrefix(gitlabSecret, "whsec_") {
+		return gitlabSecret
+	}
+	return ""
+}
+
+// GetWebhookGitLabTimestampTolerance returns the timestamp tolerance for GitLab signed webhooks
+func (a *ArgoCDSettings) GetWebhookGitLabTimestampTolerance() time.Duration {
+	if a.WebhookGitLabTimestampTolerance <= 0 {
+		return DefaultWebhookGitLabTimestampTolerance
+	}
+	return a.WebhookGitLabTimestampTolerance
 }
 
 // GetWebhookBitbucketUUID returns the resolved Bitbucket webhook UUID
