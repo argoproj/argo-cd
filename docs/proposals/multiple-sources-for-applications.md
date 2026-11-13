@@ -195,7 +195,7 @@ To allow multiple sources to the Application, we would add a new field `sources`
 
 To avoid complexity on the deciding the list of sources, if both `source` and `sources` fields are specified, we would override the source under `source` field with all the sources under `sources` field.
 
-**Depracating `source` field:** - Once the `sources` field is implemented in UI and cli as well, we will mark the `source` field as deprecated. At the same time, we will log `WARNING` messages and add UI blurbs about the deprecation. When maintainers feel confident about the adoption of the `sources` field, we will remove the `source` field from later releases.
+**Deprecating `source` field:** - Once the `sources` field is implemented in UI and cli as well, we will mark the `source` field as deprecated. At the same time, we will log `WARNING` messages and add UI blurbs about the deprecation. When maintainers feel confident about the adoption of the `sources` field, we will remove the `source` field from later releases.
 
 #### Invalidating existing cache
 
