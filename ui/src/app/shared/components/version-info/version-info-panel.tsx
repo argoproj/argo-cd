@@ -1,19 +1,23 @@
-import {DataLoader, SlidingPanel, Tooltip} from 'argo-ui';
+import {useQuery} from '@tanstack/react-query';
+import {SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {useState} from 'react';
 import {VersionMessage} from '../../models';
-import {services} from '../../services';
+import {useViewPreferences} from '../../hooks/use-view-preferences';
+import {versionQueries} from '../../queries';
+import {loading, loadFailed} from '../../query-client';
 import {ThemeWrapper} from '../layout/layout';
 
 interface VersionPanelProps {
     isShown: boolean;
     onClose: () => void;
-    version: Promise<VersionMessage>;
 }
 
 type CopyState = 'success' | 'failed' | undefined;
 
-export function VersionPanel({isShown, onClose, version}: VersionPanelProps) {
+export function VersionPanel({isShown, onClose}: VersionPanelProps) {
+    const version = useQuery({...versionQueries.get(), enabled: isShown});
+    const theme = useViewPreferences(pref => pref.theme);
     const [copyState, setCopyState] = useState<CopyState>(undefined);
     const header = 'Argo CD Server Version';
 
@@ -88,21 +92,22 @@ export function VersionPanel({isShown, onClose, version}: VersionPanelProps) {
     };
 
     return (
-        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-            {pref => (
-                <DataLoader load={() => version}>
-                    {version => (
-                        <ThemeWrapper theme={pref.theme}>
-                            <SlidingPanel header={header} isShown={isShown} onClose={onClose} hasCloseButton={true} isNarrow={true}>
-                                <div className='argo-table-list'>{buildVersionTable(version)}</div>
-                                <div>
-                                    <Tooltip content='Copy all version info as JSON'>{getCopyButton(version)}</Tooltip>
-                                </div>
-                            </SlidingPanel>
-                        </ThemeWrapper>
-                    )}
-                </DataLoader>
-            )}
-        </DataLoader>
+        <ThemeWrapper theme={theme}>
+            <SlidingPanel header={header} isShown={isShown} onClose={onClose} hasCloseButton={true} isNarrow={true}>
+                {version.data ? (
+                    <>
+                        {version.isRefetchError && !version.isFetching && loadFailed(version.refetch)}
+                        <div className='argo-table-list'>{buildVersionTable(version.data)}</div>
+                        <div>
+                            <Tooltip content='Copy all version info as JSON'>{getCopyButton(version.data)}</Tooltip>
+                        </div>
+                    </>
+                ) : version.isFetching || !version.isError ? (
+                    loading
+                ) : (
+                    loadFailed(version.refetch)
+                )}
+            </SlidingPanel>
+        </ThemeWrapper>
     );
 }

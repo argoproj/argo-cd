@@ -359,11 +359,11 @@ export class App extends React.Component<
                                     </Router>
                                 </AuthSettingsCtx.Provider>
                             </AppContextReact.Provider>
+                            <VersionPanel isShown={this.state.showVersionPanel} onClose={() => this.setState({showVersionPanel: false})} />
                         </QueryClientProvider>
                     </Provider>
                 </PageContext.Provider>
                 <Notifications notifications={this.notificationsManager.notifications} />
-                <VersionPanel version={versionLoader} isShown={this.state.showVersionPanel} onClose={() => this.setState({showVersionPanel: false})} />
             </React.Fragment>
         );
     }
