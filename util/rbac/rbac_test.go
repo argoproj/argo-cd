@@ -700,6 +700,20 @@ g, Team.Lead@Example.org, role:Deployer
 		assert.Equal(t, "User.Name@example.org", enf.NormalizeSubject(caseSensitiveEnf, "User.Name@example.org"))
 	})
 
+	t.Run("an enforcer not created by this package falls back to the current setting", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{ConfigMapCaseInsensitiveSubjectsKey: "true"})
+		// a raw casbin enforcer with policies that were lowercased when they were loaded
+		raw, err := newEnforcerSafe(globMatchFunc, newBuiltInModel(), newAdapter("", "", "p, User.Name@example.org, applications, get, foo/bar, allow", true))
+		require.NoError(t, err)
+
+		assert.Equal(t, "user.name@example.org", enf.NormalizeSubject(raw, "User.Name@example.org"))
+		assert.True(t, enf.EnforceWithCustomEnforcer(raw, "USER.NAME@EXAMPLE.ORG", "applications", "get", "foo/bar"))
+
+		enf.SetCaseInsensitiveSubjects(false)
+		assert.Equal(t, "User.Name@example.org", enf.NormalizeSubject(raw, "User.Name@example.org"))
+		assert.False(t, enf.EnforceWithCustomEnforcer(raw, "USER.NAME@EXAMPLE.ORG", "applications", "get", "foo/bar"))
+	})
+
 	t.Run("an enforcer keeps the setting its policies were loaded with", func(t *testing.T) {
 		// A deny for the exact spelling must win no matter which setting is active. If the request
 		// subject were lowercased against policies that were loaded case-sensitively, only the
