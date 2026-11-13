@@ -715,8 +715,17 @@ func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
 	}
 }
 
-// Fetch fetches latest updates from origin
+// Fetch fetches latest updates from origin.
+//
+// Once started, a fetch outlives ctx cancellation: its objects land in the
+// shared clone and serve later requests, so killing it only wastes the
+// transfer. It is still stopped by ARGOCD_EXEC_TIMEOUT.
 func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int64) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	ctx = context.WithoutCancel(ctx)
+
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
