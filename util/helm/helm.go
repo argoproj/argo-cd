@@ -121,12 +121,53 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 			break
 		}
 	}
+	// Only skip refresh when not rendering locally, at least one repository was registered,
+	// and every dependency in Chart.yaml corresponds to a registered repository.
+	skipRefresh := !h.cmd.IsLocal && len(h.repos) > 0 && !hasUnmanagedDependencies(h.cmd.WorkDir, h.repos)
 	h.repos = nil
-	_, err := h.cmd.dependencyBuild(h.insecure, plainHTTP)
+	_, err := h.cmd.dependencyBuild(h.insecure, plainHTTP, skipRefresh)
 	if err != nil {
 		return fmt.Errorf("failed to build helm dependencies: %w", err)
 	}
 	return nil
+}
+
+// hasUnmanagedDependencies checks if Chart.yaml contains dependencies that are not present
+// in the registered repos list, requiring a full refresh during dependency build.
+func hasUnmanagedDependencies(workDir string, repos []HelmRepository) bool {
+	chartYamlPath := filepath.Join(workDir, "Chart.yaml")
+	data, err := os.ReadFile(chartYamlPath)
+	if err != nil {
+		return true
+	}
+	type chartDep struct {
+		Repository string `yaml:"repository"`
+	}
+	type chartYaml struct {
+		Dependencies []chartDep `yaml:"dependencies"`
+	}
+	var cy chartYaml
+	if err := yaml.Unmarshal(data, &cy); err != nil {
+		return true
+	}
+	for _, dep := range cy.Dependencies {
+		if dep.Repository == "" || strings.HasPrefix(dep.Repository, "file://") {
+			continue
+		}
+		found := false
+		depRepoTrimmed := strings.TrimPrefix(dep.Repository, "oci://")
+		depNameTrimmed := strings.TrimPrefix(strings.TrimPrefix(dep.Repository, "@"), "alias:")
+		for _, r := range repos {
+			if r.Repo == dep.Repository || r.Repo == depRepoTrimmed || r.Name == dep.Repository || r.Name == depNameTrimmed {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return true
+		}
+	}
+	return false
 }
 
 func (h *helm) Dispose() {

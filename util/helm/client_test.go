@@ -6,6 +6,7 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"net/http"
@@ -31,6 +32,25 @@ import (
 
 type fakeIndexCache struct {
 	data []byte
+}
+
+type fakeIndexCacheWithValidators struct {
+	fakeIndexCache
+	etag         string
+	lastModified string
+}
+
+func (f *fakeIndexCacheWithValidators) SetHelmIndexValidators(_ string, etag string, lastModified string) error {
+	f.etag = etag
+	f.lastModified = lastModified
+	return nil
+}
+
+func (f *fakeIndexCacheWithValidators) GetHelmIndexValidators(_ string) (string, string, error) {
+	if f.etag == "" && f.lastModified == "" {
+		return "", "", errors.New("validators not found")
+	}
+	return f.etag, f.lastModified, nil
 }
 
 type fakeTagsList struct {
@@ -87,6 +107,43 @@ func TestIndex(t *testing.T) {
 		_, err := client.GetIndex(t.Context(), false, 100)
 
 		assert.ErrorContains(t, err, "unexpected end of stream")
+	})
+
+	t.Run("ConditionalGET_304", func(t *testing.T) {
+		fakeIndex := Index{Entries: map[string]Entries{"fake": {}}}
+		data := bytes.Buffer{}
+		err := yaml.NewEncoder(&data).Encode(fakeIndex)
+		require.NoError(t, err)
+
+		etag := `"v1.0.0"`
+		reqCount := 0
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			reqCount++
+			if r.Header.Get("If-None-Match") == etag {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+			w.Header().Set("ETag", etag)
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write(data.Bytes())
+		}))
+		defer srv.Close()
+
+		cache := &fakeIndexCacheWithValidators{}
+		client := NewClient(srv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
+
+		// First fetch: server returns 200 and ETag
+		idx1, err := client.GetIndex(t.Context(), true, 10000)
+		require.NoError(t, err)
+		assert.Equal(t, fakeIndex, *idx1)
+		assert.Equal(t, 1, reqCount)
+		assert.Equal(t, etag, cache.etag)
+
+		// Second fetch with noCache=true: sends If-None-Match, server returns 304, returns cached body
+		idx2, err := client.GetIndex(t.Context(), true, 10000)
+		require.NoError(t, err)
+		assert.Equal(t, fakeIndex, *idx2)
+		assert.Equal(t, 2, reqCount)
 	})
 }
 

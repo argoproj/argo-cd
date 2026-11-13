@@ -3286,7 +3286,7 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, clientOpts...).TestHelmOCI(ctx)
 				return err
 			}
-			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(ctx, false, s.initConstants.HelmRegistryMaxIndexSize)
+			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, helm.WithIndexCache(s.cache)).GetIndex(ctx, true, s.initConstants.HelmRegistryMaxIndexSize)
 			return err
 		},
 	}

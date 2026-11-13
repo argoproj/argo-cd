@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"os"
 	"os/exec"
 	"path/filepath"
 	"slices"
@@ -351,4 +352,106 @@ func TestDependencyBuild_PlainHTTPFromDependencyRepo(t *testing.T) {
 			require.Equal(t, tc.expectPlainHTTP, slices.Contains(capturedArgs, "--plain-http"))
 		})
 	}
+}
+
+func TestDependencyBuild_SkipRefresh(t *testing.T) {
+	t.Run("skip-refresh when all dependencies are managed", func(t *testing.T) {
+		tempDir := t.TempDir()
+		chartYaml := `apiVersion: v2
+name: test
+version: 0.1.0
+dependencies:
+  - name: dep1
+    repository: https://charts.example.com
+`
+		require.NoError(t, os.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte(chartYaml), 0o644))
+
+		var capturedArgs []string
+		c, err := newCmdWithVersion(tempDir, false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+			capturedArgs = cmd.Args
+			return "", nil
+		})
+		require.NoError(t, err)
+
+		h := &helm{
+			cmd: *c,
+			repos: []HelmRepository{
+				{
+					Name: "example",
+					Repo: "https://charts.example.com",
+				},
+			},
+		}
+
+		err = h.DependencyBuild(t.Context())
+		require.NoError(t, err)
+		assert.Contains(t, capturedArgs, "--skip-refresh")
+	})
+
+	t.Run("do not skip-refresh when unmanaged dependency exists", func(t *testing.T) {
+		tempDir := t.TempDir()
+		chartYaml := `apiVersion: v2
+name: test
+version: 0.1.0
+dependencies:
+  - name: dep1
+    repository: http://insecure.example.com
+`
+		require.NoError(t, os.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte(chartYaml), 0o644))
+
+		var capturedArgs []string
+		c, err := newCmdWithVersion(tempDir, false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+			capturedArgs = cmd.Args
+			return "", nil
+		})
+		require.NoError(t, err)
+
+		h := &helm{
+			cmd: *c,
+			repos: []HelmRepository{
+				{
+					Name: "other",
+					Repo: "https://other.example.com",
+				},
+			},
+		}
+
+		err = h.DependencyBuild(t.Context())
+		require.NoError(t, err)
+		assert.NotContains(t, capturedArgs, "--skip-refresh")
+	})
+
+	t.Run("do not skip-refresh when local rendering", func(t *testing.T) {
+		tempDir := t.TempDir()
+		chartYaml := `apiVersion: v2
+name: test
+version: 0.1.0
+dependencies:
+  - name: dep1
+    repository: https://charts.example.com
+`
+		require.NoError(t, os.WriteFile(filepath.Join(tempDir, "Chart.yaml"), []byte(chartYaml), 0o644))
+
+		var capturedArgs []string
+		c, err := newCmdWithVersion(tempDir, false, "", "", func(cmd *exec.Cmd, _ func(string) string) (string, error) {
+			capturedArgs = cmd.Args
+			return "", nil
+		})
+		require.NoError(t, err)
+		c.IsLocal = true
+
+		h := &helm{
+			cmd: *c,
+			repos: []HelmRepository{
+				{
+					Name: "example",
+					Repo: "https://charts.example.com",
+				},
+			},
+		}
+
+		err = h.DependencyBuild(t.Context())
+		require.NoError(t, err)
+		assert.NotContains(t, capturedArgs, "--skip-refresh")
+	})
 }
