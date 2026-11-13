@@ -46,6 +46,12 @@ func WithDepth(depth int64) AddRepoOpts {
 	}
 }
 
+func WithUpsert() AddRepoOpts {
+	return func(args []string) []string {
+		return append(args, "--upsert")
+	}
+}
+
 func applyOpts(args []string, opts []AddRepoOpts) []string {
 	for _, opt := range opts {
 		args = opt(args)
