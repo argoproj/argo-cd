@@ -102,7 +102,6 @@ Argocd-reference-commit-sha: abc123
 		},
 	}
 	mockGitClient := gitmocks.NewClient(t)
-	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Times(len(paths))
 
 	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, "invalid hydration format")
 	require.ErrorContains(t, err, "unknown hydrationFormat")
