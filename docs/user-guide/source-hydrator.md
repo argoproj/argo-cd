@@ -552,8 +552,8 @@ On each run, the hydrator:
 This improves efficiency and reduces commit noise in your repository.
 
 If external tooling reads git notes for promotion or coordination (for example, to gate on which dry SHAs
-have been processed), be aware that `manifest-generate-paths` can prevent note advancement when hydration
-is skipped. See [Git note attestation and manifest-generate-paths](#git-note-attestation-and-manifest-generate-paths).
+have been processed), see [Git note attestation and manifest-generate-paths](#git-note-attestation-and-manifest-generate-paths)
+for how notes advance when `manifest-generate-paths` skips hydration.
 
 ## Hydration failures and retries
 
@@ -627,9 +627,8 @@ to avoid unnecessary hydration. When the annotation is set, a new dry-source com
 paths (resolved relative to the `drySource` path) does not trigger re-hydration.
 
 The annotation controls **whether hydration is triggered**, not merely whether hydrated manifests would change.
-When hydration is skipped, the hydrator does not run and the `hydrator.metadata` git note on the hydrated branch
-is not advanced. See [Git note attestation and manifest-generate-paths](#git-note-attestation-and-manifest-generate-paths)
-for implications when external tooling reads git notes.
+When hydration is skipped, the hydrator does not render manifests. The `hydrator.metadata` git note is advanced
+separately; see [Git note attestation and manifest-generate-paths](#git-note-attestation-and-manifest-generate-paths).
 
 This applies to both webhook-driven and periodically-reconciled refreshes:
 
@@ -659,17 +658,16 @@ hydrated branch. The note is written by commit-server when hydration runs — in
 are unchanged and no new hydrated commit is created.
 
 When `manifest-generate-paths` causes hydration to be skipped (because changed files fall outside the annotated
-paths), commit-server is never called and the git note is **not** advanced. Application status may still record
-that the dry revision was compared, but the note's `drySha` will lag behind. In other words, the note attests only
-the dry commits for which the hydrator actually ran; it does not advance for dry commits filtered out by
-`manifest-generate-paths`, even though those commits would produce no manifest change.
+paths), the application controller asks commit-server to advance the note on the existing hydrated commit to the
+new dry SHA, without rendering manifests or creating a commit. This happens on the Application's next hydration
+check, and only when:
 
-If you consume `hydrator.metadata` notes, account for this: only dry commits that match an Application's
-`manifest-generate-paths` (or all dry commits, when the annotation is unset) are attested on its hydrated branch.
+* the last hydrate operation succeeded;
+* no annotated path changed between the last successfully hydrated dry SHA and the new one; and
+* the Application is the only one hydrating to its `hydrateTo` branch.
 
-A planned enhancement ([#28556](https://github.com/argoproj/argo-cd/issues/28556)) will add a lightweight
-commit-server endpoint to advance the git note without a full hydration run (no repo-server render or manifest
-disk compare).
+Otherwise the note is left as is until the next full hydration. In particular, when several Applications share a
+hydrated branch, the note attests only dry commits for which the hydrator actually ran.
 
 ### Signature Verification
 

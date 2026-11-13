@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -571,10 +572,12 @@ func TestHydratorHydratesAutomatically_NewCommit_WithChanges(t *testing.T) {
 
 func TestHydratorHydratesAutomatically_NewCommit_WithoutChanges(t *testing.T) {
 	// Test that when a new commit is made to the dry source with manifest-generate-paths annotation,
-	// but the commit does NOT affect the watched path, hydration is NOT re-triggered.
+	// but the commit does NOT affect the watched path, hydration is NOT re-triggered. The git note on the
+	// existing hydrated commit advances to the new dry SHA instead (#28556).
 	var firstDrySHA string
 	var firstHydratedSHA string
 	var firstStartedAt time.Time
+	var unrelatedDrySHA string
 
 	ctx := Given(t)
 	ctx.Path("guestbook").
@@ -616,18 +619,29 @@ func TestHydratorHydratesAutomatically_NewCommit_WithoutChanges(t *testing.T) {
 		// Use fixture.AddFile directly to write outside the context path.
 		AndAction(func() {
 			fixture.AddFile(t, "unrelated-file.md", "# This change is outside the manifest-generate-paths")
+			sha, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "rev-parse", "HEAD")
+			require.NoError(t, err)
+			unrelatedDrySHA = strings.TrimSpace(sha)
 		}).
+		When().
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(HydrationDrySHAIs(unrelatedDrySHA)).
 		When().
 		Refresh(RefreshTypeNormal).
 		Then().
 		ExpectConsistently(HydrationPhaseIs(HydrateOperationPhaseHydrated), 1*time.Second, 5*time.Second).
 		And(func(app *Application) {
-			require.Equal(t, firstDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,
-				"Dry SHA should not change — no new hydration operation should have been triggered")
+			require.Equal(t, unrelatedDrySHA, app.Status.SourceHydrator.CurrentOperation.DrySHA,
+				"Dry SHA should advance to the commit outside the watched path")
+			require.Equal(t, unrelatedDrySHA, app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA)
 			require.Equal(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
 				"Hydrated SHA should not change when the commit is outside the watched path")
 			require.Equal(t, firstStartedAt, app.Status.SourceHydrator.CurrentOperation.StartedAt.Time,
 				"StartedAt should not change — no new hydration operation should have been triggered")
+			note, err := fixture.Run(fixture.TmpDir()+"/testdata.git", "git", "notes", "--ref=hydrator.metadata", "show", firstHydratedSHA)
+			require.NoError(t, err)
+			require.Contains(t, note, unrelatedDrySHA, "git note on the existing hydrated commit should advance")
 			t.Logf("After change outside watched path - drySHA: %s, hydratedSHA: %s",
 				app.Status.SourceHydrator.CurrentOperation.DrySHA,
 				app.Status.SourceHydrator.CurrentOperation.HydratedSHA)
