@@ -20,6 +20,7 @@ import {PodGroupType, PodView} from '../application-pod-view/pod-view';
 import {ApplicationResourceTree, type ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
 import {ApplicationStatusPanel} from '../application-status-panel/application-status-panel';
 import {StatusPanelToggle} from './status-panel-toggle';
+import {terminateOperationMenuItems} from './terminate-operation-action';
 import {ApplicationSetStatusPanel} from '../application-status-panel/appset-status-panel';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {isApp} from '../utils';
@@ -1445,6 +1446,7 @@ Are you sure you want to disable auto-sync and rollback application '${props.mat
                           }
                       ]
                     : []),
+                ...terminateOperationMenuItems(app, appContext, <ActionMenuItem actionLabel='Terminate' />),
                 {
                     iconClassName: 'fa fa-info-circle',
                     title: <ActionMenuItem actionLabel='Sync Status' />,
