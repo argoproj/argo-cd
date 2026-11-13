@@ -11,6 +11,9 @@ actionTests:
 - action: force-promote
   inputPath: testdata/monovertex.yaml
   expectedOutputPath: testdata/monovertex-force-promote.yaml
+- action: force-promote-chain
+  inputPath: testdata/monovertex-chain-failed.yaml
+  expectedOutputPath: testdata/monovertex-force-promote-chain.yaml
 
 discoveryTests:
   - inputPath: testdata/monovertex-ownerref.yaml
@@ -30,6 +33,10 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
   - inputPath: testdata/monovertex-wrong-ref.yaml
     result:
       - name: pause
@@ -47,6 +54,10 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
   - inputPath: testdata/monovertex.yaml
     result:
       - name: pause
@@ -64,6 +75,52 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+  - inputPath: testdata/monovertex-chain-failed.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-pause'
+      - name: unpause-gradual
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (gradual)'
+      - name: unpause-fast
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (fast)'
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+        displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+  - inputPath: testdata/monovertex-force-promote-chain.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-pause'
+      - name: unpause-gradual
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (gradual)'
+      - name: unpause-fast
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (fast)'
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+        displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
   - inputPath: testdata/monovertex-paused.yaml
     result:
       - name: pause
@@ -81,3 +138,7 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
