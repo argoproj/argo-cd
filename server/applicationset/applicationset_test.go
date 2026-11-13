@@ -209,6 +209,8 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		[]string{},
 		true,
 		true,
+		false,
+		100,
 		testEnableEventList,
 		clusterInformer,
 	)
