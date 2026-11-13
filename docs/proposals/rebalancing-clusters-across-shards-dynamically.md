@@ -103,7 +103,7 @@ How will this work?
 ### Cons
 
 * ~~Possibility of race conditions while flagging the shard as Unhealthy during the heartbeat process. Although this can be handled using the [distributed locks](https://redis.io/docs/latest/develop/clients/patterns/distributed-locks/) in Redis.~~
-As we are using ConfigMap, this Con get's removed. Kubernetes would give conflict errors in case multiple edits are tried on the ConfigMap at the same time. We can leverage this error messages to avoid race conditions.
+Using a ConfigMap instead of Redis removes this drawback: Kubernetes returns a conflict error when multiple controllers update the same ConfigMap at the same time, and the controllers can rely on that error to avoid race conditions.
 
 * ~~In scenarios when Redis becomes unavailable, the heartbeat mechanism will pause working till the redis comes back online again. This will also pause the dynamic redistribution of clusters till Redis comes back online. The redistribution of clusters will be triggered again when Redis comes back online.~~ We would not see this issue by using ConfigMap instead of Redis.
 
