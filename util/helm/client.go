@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/fs"
 	"net/http"
 	"net/url"
 	"os"
@@ -21,6 +22,7 @@ import (
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 
 	"github.com/argoproj/pkg/v2/sync"
+	godigest "github.com/opencontainers/go-digest"
 	log "github.com/sirupsen/logrus"
 	"gopkg.in/yaml.v2"
 	"oras.land/oras-go/v2/registry/remote"
@@ -40,6 +42,62 @@ var (
 
 	ErrOCINotEnabled = errors.New("could not perform the action when oci is not enabled")
 )
+
+const (
+	// ProvenanceSuffix is what Helm appends to a chart archive's name for its provenance file.
+	// ExtractChart (WithProvenance) and oci.Client.Extract also save a chart's .prov next to the
+	// extracted directory under that name, and its archive digest under ChartDigestSuffix.
+	ProvenanceSuffix  = ".prov"
+	ChartDigestSuffix = ".chart-digest"
+	// MaxProvenanceSize bounds a saved .prov; real ones are a few KiB.
+	MaxProvenanceSize = 1 << 20
+)
+
+// ChartProvenance returns the archive digest and the .prov path saved next to a chart extracted to
+// extractedPath. chartDigest is empty when none was saved, such as for an OCI artifact that is not
+// a Helm chart. The .prov may not exist: Helm only warns when it cannot download one.
+func ChartProvenance(extractedPath string) (chartDigest, provPath string, err error) {
+	// Read through an os.Root, as the directory also holds extracted archive content.
+	root, err := os.OpenRoot(filepath.Dir(extractedPath))
+	if err != nil {
+		return "", "", err
+	}
+	defer root.Close()
+	d, err := root.ReadFile(filepath.Base(extractedPath) + ChartDigestSuffix)
+	if errors.Is(err, fs.ErrNotExist) {
+		return "", "", nil
+	} else if err != nil {
+		return "", "", err
+	}
+	return string(d), extractedPath + ProvenanceSuffix, nil
+}
+
+// SaveChartDigest saves the archive digest of a chart extracted to extractedPath, for ChartProvenance.
+func SaveChartDigest(extractedPath, chartDigest string) error {
+	return saveNextTo(extractedPath, ChartDigestSuffix, strings.NewReader(chartDigest))
+}
+
+// SaveChartProvenance saves the .prov of a chart extracted to extractedPath, for ChartProvenance.
+// It writes at most one byte more than MaxProvenanceSize, enough for readers to reject it.
+func SaveChartProvenance(extractedPath string, prov io.Reader) error {
+	return saveNextTo(extractedPath, ProvenanceSuffix, io.LimitReader(prov, MaxProvenanceSize+1))
+}
+
+// saveNextTo writes extractedPath+suffix. The directory also holds extracted archive content, so the
+// file is created exclusively inside an os.Root: an existing file or symlink fails with fs.ErrExist.
+func saveNextTo(extractedPath, suffix string, r io.Reader) error {
+	root, err := os.OpenRoot(filepath.Dir(extractedPath))
+	if err != nil {
+		return err
+	}
+	defer root.Close()
+	f, err := root.OpenFile(filepath.Base(extractedPath)+suffix, os.O_WRONLY|os.O_CREATE|os.O_EXCL, 0o600)
+	if err != nil {
+		return err
+	}
+	_, err = io.Copy(f, r)
+	return errors.Join(err, f.Close())
+}
 
 // userAgentTransport wraps an http.RoundTripper to add User-Agent header to all requests
 type userAgentTransport struct {
@@ -115,6 +173,13 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, enabl
 	return c
 }
 
+// WithProvenance makes ExtractChart also download the chart's .prov file.
+func WithProvenance() ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.withProvenance = true
+	}
+}
+
 // WithHelmChartCacheExpiration sets the cache expiration duration for chart cache.
 func WithHelmChartCacheExpiration(helmChartCacheExpiration time.Duration) ClientOpts {
 	return func(c *nativeHelmChart) {
@@ -136,6 +201,7 @@ type nativeHelmChart struct {
 	noProxy                  string
 	customUserAgent          string        // Custom User-Agent string (optional)
 	helmChartCacheExpiration time.Duration // Cache expiration for chart cache
+	withProvenance           bool
 }
 
 // getUserAgent returns the User-Agent string to use for HTTP requests.
@@ -171,7 +237,7 @@ func (c *nativeHelmChart) CleanChartCache(chart string, version string) error {
 	c.repoLock.Lock(cachePath)
 	defer c.repoLock.Unlock(cachePath)
 
-	if err := os.RemoveAll(cachePath); err != nil {
+	if err := errors.Join(os.RemoveAll(cachePath), os.RemoveAll(cachePath+ProvenanceSuffix)); err != nil {
 		return fmt.Errorf("error removing chart cache at %s: %w", cachePath, err)
 	}
 	return nil
@@ -246,7 +312,18 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 		}
 	}
 
+	// A chart cached without its .prov is pulled again: it may have been cached before provenance
+	// was wanted, or Helm may have failed to download the .prov, which it only warns about.
+	if exists && c.withProvenance {
+		exists, err = fileExist(cachedChartPath + ProvenanceSuffix)
+		if err != nil {
+			_ = os.RemoveAll(tempDir)
+			return "", nil, err
+		}
+	}
+
 	if !exists {
+		_ = os.RemoveAll(cachedChartPath + ProvenanceSuffix)
 		// create empty temp directory to extract chart from the registry
 		tempDest, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
@@ -273,13 +350,13 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 			}
 
 			// 'helm pull' ensures that chart is downloaded into temp directory
-			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds, c.plainHTTP)
+			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds, c.plainHTTP, c.withProvenance)
 			if err != nil {
 				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf("error pulling OCI chart: %w", err)
 			}
 		} else {
-			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials)
+			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials, c.withProvenance)
 			if err != nil {
 				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf("error fetching chart: %w", err)
@@ -291,14 +368,30 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 		if err != nil {
 			return "", nil, fmt.Errorf("error reading directory %s: %w", tempDest, err)
 		}
-		if len(infos) != 1 {
-			return "", nil, fmt.Errorf("expected 1 file, found %v", len(infos))
+		var chartFiles []string
+		for _, info := range infos {
+			if c.withProvenance && strings.HasSuffix(info.Name(), ProvenanceSuffix) {
+				err = os.Rename(filepath.Join(tempDest, info.Name()), cachedChartPath+ProvenanceSuffix)
+				if err != nil {
+					_ = os.RemoveAll(tempDir)
+					return "", nil, fmt.Errorf("error moving provenance file: %w", err)
+				}
+				continue
+			}
+			chartFiles = append(chartFiles, info.Name())
+		}
+		if len(chartFiles) != 1 {
+			_ = os.RemoveAll(tempDir)
+			_ = os.RemoveAll(cachedChartPath + ProvenanceSuffix)
+			return "", nil, fmt.Errorf("expected 1 file, found %v", len(chartFiles))
 		}
 
-		chartFilePath := filepath.Join(tempDest, infos[0].Name())
+		chartFilePath := filepath.Join(tempDest, chartFiles[0])
 
 		err = os.Rename(chartFilePath, cachedChartPath)
 		if err != nil {
+			_ = os.RemoveAll(tempDir)
+			_ = os.RemoveAll(cachedChartPath + ProvenanceSuffix)
 			return "", nil, fmt.Errorf("error renaming file from %s to %s: %w", chartFilePath, cachedChartPath, err)
 		}
 	}
@@ -308,7 +401,44 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error untarring chart: %w", err)
 	}
-	return path.Join(tempDir, normalizeChartName(chart)), utilio.NewCloser(func() error {
+	extractedPath := path.Join(tempDir, normalizeChartName(chart))
+	if c.withProvenance {
+		// Saved while holding the cache lock, so they describe the archive that was just extracted
+		// even if the cache is replaced before they are verified. Anything the archive put under
+		// those names, such as a symlink, makes this fail.
+		chartFile, err := os.Open(cachedChartPath)
+		if err != nil {
+			_ = os.RemoveAll(tempDir)
+			return "", nil, fmt.Errorf("error opening cached chart: %w", err)
+		}
+		defer chartFile.Close()
+		chartDigest, err := godigest.SHA256.FromReader(chartFile)
+		if err == nil {
+			err = SaveChartDigest(extractedPath, chartDigest.String())
+		}
+		if err == nil {
+			var prov *os.File
+			if prov, err = os.Open(cachedChartPath + ProvenanceSuffix); err == nil {
+				defer prov.Close()
+				err = SaveChartProvenance(extractedPath, prov)
+			} else if errors.Is(err, fs.ErrNotExist) {
+				// Nothing to save, but the archive must not supply one either.
+				if _, err = os.Lstat(extractedPath + ProvenanceSuffix); errors.Is(err, fs.ErrNotExist) {
+					err = nil
+				} else if err == nil {
+					err = fs.ErrExist
+				}
+			}
+		}
+		if errors.Is(err, fs.ErrExist) {
+			err = errors.New("chart archive contains a file named like its provenance or digest")
+		}
+		if err != nil {
+			_ = os.RemoveAll(tempDir)
+			return "", nil, fmt.Errorf("error saving chart provenance: %w", err)
+		}
+	}
+	return extractedPath, utilio.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
 }

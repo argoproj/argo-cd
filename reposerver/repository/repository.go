@@ -29,6 +29,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/oci"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	textutils "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/argoproj/pkg/v2/sync"
@@ -381,7 +382,11 @@ func (s *Service) runRepoOperation(
 	case source.IsOCI():
 		ociClient, revision, err = s.newOCIClientResolveRevision(ctx, repo, revision, settings.noCache || settings.noRevisionCache)
 	case source.IsHelm():
-		helmClient, revision, err = s.newHelmClientResolveRevision(ctx, repo, revision, source.Chart, settings.noCache || settings.noRevisionCache)
+		var opts []helm.ClientOpts
+		if sourceintegrity.HasCriteria(sourceIntegrity, *source) {
+			opts = append(opts, helm.WithProvenance())
+		}
+		helmClient, revision, err = s.newHelmClientResolveRevision(ctx, repo, revision, source.Chart, settings.noCache || settings.noRevisionCache, opts...)
 	default:
 		gitRepoURL = source.RepoURL
 		gitClient, revision, err = s.newClientResolveRevision(repo, revision, gitClientOpts, git.WithTagPrefix(source.TagPrefix))
@@ -452,7 +457,16 @@ func (s *Service) runRepoOperation(
 		}
 
 		return operation(ociPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{appPath, "", nil}, nil
+			var chartVersion string
+			if sourceintegrity.HasCriteria(sourceIntegrity, *source) {
+				chartVersion = ociChartVersion(ctx, ociClient, source, unresolvedRevision, revision, settings.noCache || settings.noRevisionCache)
+			}
+			// helm push stores a chart at <repo>/<chart name>.
+			sourceIntegrityResult, err := verifyHelmProvenance(ctx, sourceIntegrity, source, ociPath, path.Base(source.RepoURL), chartVersion)
+			if err != nil {
+				return nil, err
+			}
+			return &operationContext{appPath, "", sourceIntegrityResult}, nil
 		})
 	} else if source.IsHelm() {
 		if settings.noCache {
@@ -487,7 +501,11 @@ func (s *Service) runRepoOperation(
 			}
 		}
 		return operation(chartPath, revision, revision, func() (*operationContext, error) {
-			return &operationContext{chartPath, "", nil}, nil
+			sourceIntegrityResult, err := verifyHelmProvenance(ctx, sourceIntegrity, source, chartPath, path.Base(source.Chart), revision)
+			if err != nil {
+				return nil, err
+			}
+			return &operationContext{chartPath, "", sourceIntegrityResult}, nil
 		})
 	}
 	closer, err := s.repoLock.Lock(gitClient.Root(), revision, settings.allowConcurrent, func(clean bool) (goio.Closer, error) {
@@ -568,6 +586,54 @@ func (s *Service) runRepoOperation(
 
 		return &operationContext{appPath, verificationResult, sourceIntegrityResult}, nil
 	})
+}
+
+// verifyHelmProvenance checks a chart extracted to extractedPath, with the digest and .prov saved
+// next to it (see helm.ChartProvenance), against the project's Helm provenance policy.
+func verifyHelmProvenance(ctx context.Context, sourceIntegrity *v1alpha1.SourceIntegrity, source *v1alpha1.ApplicationSource, extractedPath, chartName, chartVersion string) (*v1alpha1.SourceIntegrityCheckResult, error) {
+	return sourceintegrity.VerifyHelm(ctx, sourceIntegrity, source.RepoURL, chartName, chartVersion, func() (string, string, error) {
+		chartDigest, provPath, err := helm.ChartProvenance(extractedPath)
+		if err != nil {
+			return "", "", err
+		}
+		if chartDigest == "" {
+			err = fmt.Errorf("%s is not a Helm chart", source.RepoURL)
+		} else if _, statErr := os.Lstat(provPath); source.IsOCI() && errors.Is(statErr, fs.ErrNotExist) {
+			err = fmt.Errorf("%s has no provenance layer", source.RepoURL)
+		}
+		// An oci:// source is pinned to a digest, so what it lacks now it will always lack: report a
+		// failed check. A Helm repository pull may instead just have failed to download the .prov.
+		if err != nil && source.IsOCI() {
+			err = fmt.Errorf("%w: %w", sourceintegrity.ErrProvenanceUnavailable, err)
+		}
+		return chartDigest, provPath, err
+	})
+}
+
+// ociChartVersion returns the version a signed oci:// Helm chart must carry, or "" when it is not
+// known. requested is the revision asked for, and digest what it resolved to.
+func ociChartVersion(ctx context.Context, ociClient oci.Client, source *v1alpha1.ApplicationSource, requested, digest string, noCache bool) string {
+	// helm push tags a chart with its version, writing "+" as "_".
+	if v := strings.ReplaceAll(requested, "_", "+"); isExactVersion(v) {
+		return v
+	}
+	// A range, or a digest: the controller passes the digest it resolved targetRevision to. Hold the
+	// chart to targetRevision only if that still resolves to the same digest, so that a sync or
+	// rollback to another digest is not checked against the spec's version.
+	v := strings.ReplaceAll(source.TargetRevision, "_", "+")
+	if !isExactVersion(v) {
+		return ""
+	}
+	resolved, err := ociClient.ResolveRevision(ctx, source.TargetRevision, noCache)
+	if err != nil || resolved != digest {
+		return ""
+	}
+	return v
+}
+
+func isExactVersion(v string) bool {
+	_, err := semver.StrictNewVersion(v)
+	return err == nil
 }
 
 func getRepoSanitizerRegex(rootDir string) *regexp.Regexp {
@@ -2867,7 +2933,7 @@ func (s *Service) GetRevisionMetadata(ctx context.Context, q *apiclient.RepoServ
 	if err == nil {
 		// The SourceIntegrity criteria could have changed since this was cached - it could have been added, removed, or changed.
 		// If present in request or the cached version, treat this as a cache miss.
-		sourceIntegrity := q.SourceIntegrity != nil || metadata.SourceIntegrityResult != nil
+		sourceIntegrity := (q.SourceIntegrity != nil && q.SourceIntegrity.Git != nil) || metadata.SourceIntegrityResult != nil
 		// TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
 		signatureChecking := q.CheckSignature || metadata.SignatureInfo != "" // nolint:staticcheck
 		if !sourceIntegrity && !signatureChecking {
@@ -3065,9 +3131,9 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 	return ociClient, digest, nil
 }
 
-func (s *Service) newHelmClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
+func (s *Service) newHelmClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool, extraOpts ...helm.ClientOpts) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
-	opts := []helm.ClientOpts{helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths)}
+	opts := append([]helm.ClientOpts{helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths)}, extraOpts...)
 	if repo.InsecureOCIForceHttp {
 		opts = append(opts, helm.WithPlainHTTP())
 	}

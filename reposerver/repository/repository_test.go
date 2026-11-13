@@ -7069,3 +7069,111 @@ func TestGetOciFiles(t *testing.T) {
 		}
 	})
 }
+
+func TestVerifyHelmProvenance(t *testing.T) {
+	si := &v1alpha1.SourceIntegrity{Helm: &v1alpha1.SourceIntegrityHelm{Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+		Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "https://helm.example.com/*"}},
+		Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"D56C4FCA57A46444"}},
+	}}}}
+	source := &v1alpha1.ApplicationSource{RepoURL: "https://helm.example.com/charts", Chart: "my-chart"}
+	// extracted returns an extraction path with the given files saved next to it.
+	extracted := func(t *testing.T, siblings map[string]string) string {
+		t.Helper()
+		path := filepath.Join(t.TempDir(), "my-chart")
+		for suffix, content := range siblings {
+			require.NoError(t, os.WriteFile(path+suffix, []byte(content), 0o600))
+		}
+		return path
+	}
+
+	t.Run("no matching policy is not checked", func(t *testing.T) {
+		other := &v1alpha1.ApplicationSource{RepoURL: "https://other.example.com", Chart: "my-chart"}
+		result, err := verifyHelmProvenance(t.Context(), si, other, extracted(t, nil), "my-chart", "1.1.0")
+		require.NoError(t, err)
+		assert.Nil(t, result)
+	})
+
+	t.Run("no chart digest is an error", func(t *testing.T) {
+		_, err := verifyHelmProvenance(t.Context(), si, source, extracted(t, nil), "my-chart", "1.1.0")
+		require.EqualError(t, err, "could not access chart for provenance verification: https://helm.example.com/charts is not a Helm chart")
+	})
+
+	t.Run("chart without .prov is an error", func(t *testing.T) {
+		_, err := verifyHelmProvenance(t.Context(), si, source, extracted(t, map[string]string{helm.ChartDigestSuffix: "sha256:2222"}), "my-chart", "1.1.0")
+		require.EqualError(t, err, "could not access chart for provenance verification: chart has no provenance file (.prov)")
+	})
+
+	ociSI := &v1alpha1.SourceIntegrity{Helm: &v1alpha1.SourceIntegrityHelm{Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+		Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "oci://registry.example.com/*"}},
+		Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"D56C4FCA57A46444"}},
+	}}}}
+	ociSource := &v1alpha1.ApplicationSource{RepoURL: "oci://registry.example.com/charts/my-chart", Path: "."}
+
+	t.Run("OCI artifact that is not a Helm chart fails the check", func(t *testing.T) {
+		result, err := verifyHelmProvenance(t.Context(), ociSI, ociSource, extracted(t, nil), "my-chart", "")
+		require.NoError(t, err, "a digest-pinned artifact cannot change, so this is a cacheable verdict")
+		require.EqualError(t, result.AsError(), "HELM/PROVENANCE: could not access chart for provenance verification: provenance unavailable: oci://registry.example.com/charts/my-chart is not a Helm chart")
+	})
+
+	t.Run("OCI chart without provenance layer fails the check", func(t *testing.T) {
+		result, err := verifyHelmProvenance(t.Context(), ociSI, ociSource, extracted(t, map[string]string{helm.ChartDigestSuffix: "sha256:2222"}), "my-chart", "")
+		require.NoError(t, err)
+		require.ErrorContains(t, result.AsError(), "oci://registry.example.com/charts/my-chart has no provenance layer")
+	})
+}
+
+func TestGenerateManifest_HelmProvenance(t *testing.T) {
+	root := t.TempDir()
+	chartPath := filepath.Join(root, "my-chart")
+	require.NoError(t, os.Mkdir(chartPath, 0o700))
+	require.NoError(t, os.WriteFile(chartPath+helm.ChartDigestSuffix, []byte("sha256:2222"), 0o600))
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+		helmClient.EXPECT().GetIndex(mock.Anything, mock.Anything, mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{"my-chart": {{Version: "1.1.0"}}}}, nil)
+		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
+		helmClient.EXPECT().ExtractChart(mock.Anything, "my-chart", "1.1.0", false, int64(0), false).Return(chartPath, utilio.NopCloser, nil)
+	}, root)
+
+	_, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{Repo: "https://helm.example.com"},
+		ApplicationSource:  &v1alpha1.ApplicationSource{Chart: "my-chart", TargetRevision: ">= 1.0.0", RepoURL: "https://helm.example.com"},
+		NoCache:            true,
+		ProjectName:        "something",
+		ProjectSourceRepos: []string{"*"},
+		SourceIntegrity: &v1alpha1.SourceIntegrity{Helm: &v1alpha1.SourceIntegrityHelm{Policies: []*v1alpha1.SourceIntegrityHelmPolicy{{
+			Repos:      []v1alpha1.SourceIntegrityHelmPolicyRepo{{URL: "*"}},
+			Provenance: &v1alpha1.SourceIntegrityHelmPolicyProvenance{Keys: []string{"D56C4FCA57A46444"}},
+		}}}},
+	})
+	require.ErrorContains(t, err, "chart has no provenance file (.prov)")
+}
+
+func TestOCIChartVersion(t *testing.T) {
+	const (
+		current  = "sha256:aaaa"
+		previous = "sha256:bbbb"
+	)
+	source := &v1alpha1.ApplicationSource{RepoURL: "oci://registry.example.com/charts/mychart", TargetRevision: "1.2.0"}
+	resolvesTo := func(digest string, err error) *ocimocks.Client {
+		c := &ocimocks.Client{}
+		c.EXPECT().ResolveRevision(mock.Anything, "1.2.0", false).Return(digest, err)
+		return c
+	}
+
+	t.Run("requested version is used as is", func(t *testing.T) {
+		assert.Equal(t, "1.1.0+build.1", ociChartVersion(t.Context(), &ocimocks.Client{}, source, "1.1.0_build.1", previous, false))
+	})
+	t.Run("digest that targetRevision resolves to is held to targetRevision", func(t *testing.T) {
+		assert.Equal(t, "1.2.0", ociChartVersion(t.Context(), resolvesTo(current, nil), source, current, current, false))
+	})
+	t.Run("another digest is not held to targetRevision", func(t *testing.T) {
+		assert.Empty(t, ociChartVersion(t.Context(), resolvesTo(current, nil), source, previous, previous, false))
+	})
+	t.Run("unresolvable targetRevision is not checked", func(t *testing.T) {
+		assert.Empty(t, ociChartVersion(t.Context(), resolvesTo("", errors.New("tag not found")), source, previous, previous, false))
+	})
+	t.Run("range is not checked", func(t *testing.T) {
+		ranged := &v1alpha1.ApplicationSource{RepoURL: source.RepoURL, TargetRevision: "1.*"}
+		assert.Empty(t, ociChartVersion(t.Context(), &ocimocks.Client{}, ranged, current, current, false))
+	})
+}

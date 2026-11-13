@@ -6,7 +6,9 @@ import (
 	"compress/gzip"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io/fs"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +22,7 @@ import (
 	"time"
 
 	keysync "github.com/argoproj/pkg/v2/sync"
+	godigest "github.com/opencontainers/go-digest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
@@ -1017,4 +1020,132 @@ version: %s
 	require.NoError(t, tarWriter.Close())
 	require.NoError(t, gzipWriter.Close())
 	return archive.Bytes()
+}
+
+func Test_nativeHelmChart_ExtractChartWithProvenance(t *testing.T) {
+	const (
+		chartName    = "test-chart"
+		chartVersion = "1.0.0"
+	)
+	var (
+		mu           sync.Mutex
+		requests     = map[string]int{}
+		serveProv    bool
+		server       *httptest.Server
+		chartArchive = testHelmChartArchive(t, chartName, chartVersion, "foo: bar\n")
+	)
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		defer mu.Unlock()
+		requests[r.URL.Path]++
+		switch r.URL.Path {
+		case "/index.yaml":
+			_, _ = fmt.Fprintf(w, "apiVersion: v1\nentries:\n  %[1]s:\n  - apiVersion: v2\n    name: %[1]s\n    version: %[2]s\n    urls:\n    - %[3]s/%[1]s-%[2]s.tgz\n", chartName, chartVersion, server.URL)
+		case "/" + chartName + "-" + chartVersion + ".tgz":
+			_, _ = w.Write(chartArchive)
+		case "/" + chartName + "-" + chartVersion + ".tgz.prov":
+			if !serveProv {
+				http.NotFound(w, r)
+				return
+			}
+			_, _ = w.Write([]byte("signed provenance"))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(server.Close)
+
+	chartPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	// extract returns the chart digest and .prov saved next to the extracted chart, if any.
+	extract := func(opts ...ClientOpts) (chartDigest string, prov []byte) {
+		t.Helper()
+		client := NewClient(server.URL, HelmCreds{}, false, "", "", append(opts, WithChartPaths(chartPaths))...)
+		path, closer, err := client.ExtractChart(t.Context(), chartName, chartVersion, false, math.MaxInt64, false)
+		require.NoError(t, err)
+		defer utilio.Close(closer)
+		chartDigest, provPath, err := ChartProvenance(path)
+		require.NoError(t, err)
+		if chartDigest != "" {
+			prov, err = os.ReadFile(provPath)
+			if !errors.Is(err, os.ErrNotExist) {
+				require.NoError(t, err)
+			}
+		}
+		return chartDigest, prov
+	}
+	provRequests := func() int {
+		mu.Lock()
+		defer mu.Unlock()
+		return requests["/"+chartName+"-"+chartVersion+".tgz.prov"]
+	}
+	wantDigest := godigest.FromBytes(chartArchive).String()
+
+	chartDigest, _ := extract()
+	assert.Empty(t, chartDigest, "nothing is saved without WithProvenance")
+	assert.Zero(t, provRequests())
+
+	// A missing .prov is not an error for Helm.
+	chartDigest, prov := extract(WithProvenance())
+	assert.Equal(t, wantDigest, chartDigest)
+	assert.Nil(t, prov)
+	assert.Equal(t, 1, provRequests())
+
+	// The chart is pulled again until its .prov is cached.
+	mu.Lock()
+	serveProv = true
+	mu.Unlock()
+	chartDigest, prov = extract(WithProvenance())
+	assert.Equal(t, wantDigest, chartDigest)
+	assert.Equal(t, "signed provenance", string(prov))
+	assert.Equal(t, 2, provRequests())
+
+	_, prov = extract(WithProvenance())
+	assert.Equal(t, "signed provenance", string(prov))
+	assert.Equal(t, 2, provRequests(), "chart and .prov are served from the cache")
+
+	client := NewClient(server.URL, HelmCreds{}, false, "", "", WithChartPaths(chartPaths))
+	tgzPath, err := client.(*nativeHelmChart).getCachedChartPath(chartName, chartVersion)
+	require.NoError(t, err)
+	require.NoError(t, client.CleanChartCache(chartName, chartVersion))
+	assert.NoFileExists(t, tgzPath)
+	assert.NoFileExists(t, tgzPath+ProvenanceSuffix)
+}
+
+func Test_nativeHelmChart_ExtractChartRejectsArchiveProvenance(t *testing.T) {
+	var archive bytes.Buffer
+	gzipWriter := gzip.NewWriter(&archive)
+	tarWriter := tar.NewWriter(gzipWriter)
+	for name, contents := range map[string]string{
+		"mychart/Chart.yaml": "apiVersion: v2\nname: mychart\nversion: 1.0.0\n",
+		"mychart.prov":       "not from the repository",
+	} {
+		require.NoError(t, tarWriter.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: int64(len(contents))}))
+		_, err := tarWriter.Write([]byte(contents))
+		require.NoError(t, err)
+	}
+	require.NoError(t, tarWriter.Close())
+	require.NoError(t, gzipWriter.Close())
+
+	// Seed the cache so no repository is contacted.
+	client := NewClient("https://helm.example.com", HelmCreds{}, false, "", "", WithChartPaths(utilio.NewRandomizedTempPaths(t.TempDir())), WithProvenance())
+	tgzPath, err := client.(*nativeHelmChart).getCachedChartPath("mychart", "1.0.0")
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(tgzPath, archive.Bytes(), 0o600))
+	require.NoError(t, os.WriteFile(tgzPath+ProvenanceSuffix, []byte("signed provenance"), 0o600))
+
+	_, _, err = client.ExtractChart(t.Context(), "mychart", "1.0.0", false, math.MaxInt64, false)
+	require.EqualError(t, err, "error saving chart provenance: chart archive contains a file named like its provenance or digest")
+}
+
+func TestSaveChartProvenance(t *testing.T) {
+	extractedPath := filepath.Join(t.TempDir(), "mychart")
+	require.NoError(t, SaveChartProvenance(extractedPath, bytes.NewReader(make([]byte, 2*MaxProvenanceSize))))
+	info, err := os.Stat(extractedPath + ProvenanceSuffix)
+	require.NoError(t, err)
+	assert.Equal(t, int64(MaxProvenanceSize+1), info.Size(), "enough for a reader to reject it")
+
+	err = SaveChartProvenance(extractedPath, strings.NewReader("again"))
+	require.ErrorIs(t, err, fs.ErrExist)
+	require.NoError(t, os.Symlink(filepath.Join(t.TempDir(), "elsewhere"), extractedPath+ChartDigestSuffix))
+	require.ErrorIs(t, SaveChartDigest(extractedPath, "sha256:abc"), fs.ErrExist, "a symlink is not followed")
 }
