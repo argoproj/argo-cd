@@ -5667,6 +5667,9 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 				RepoURL:        "https://github.com/argoproj/dry.git",
 				Path:           "sync-path",
 				TargetRevision: "hydrated",
+				Directory: &ApplicationSourceDirectory{
+					Recurse: true,
+				},
 			},
 		},
 		{
@@ -5689,6 +5692,9 @@ func TestApplicationSpec_GetSourcePtrByIndex(t *testing.T) {
 				RepoURL:        "https://github.com/argoproj/dry.git",
 				Path:           "sync-path",
 				TargetRevision: "hydrated",
+				Directory: &ApplicationSourceDirectory{
+					Recurse: true,
+				},
 			},
 		},
 	}
