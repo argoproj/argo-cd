@@ -100,9 +100,12 @@ func (p *RBACPolicyEnforcer) EnforceClaims(claims jwt.Claims, rvals ...any) bool
 		return false
 	}
 	for gidx := range groups {
+		// Grouping policies are already normalized (lowercased when case-insensitive subject matching is
+		// enabled), so normalize the claim value the same way before comparing.
+		group := p.enf.NormalizeSubject(groups[gidx])
 		for gpidx := range groupingPolicies {
 			// Prefilter user groups by groups defined in the model
-			if groupingPolicies[gpidx][0] == groups[gidx] {
+			if groupingPolicies[gpidx][0] == group {
 				vals := append([]any{groups[gidx]}, rvals[1:]...)
 				if p.enf.EnforceWithCustomEnforcer(enforcer, vals...) {
 					return true
