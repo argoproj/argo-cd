@@ -26,11 +26,12 @@ type KubectlOutput struct {
 }
 
 type MockKubectlCmd struct {
-	APIResources  []kube.APIResourceInfo
-	Commands      map[string]KubectlOutput
-	Events        chan watch.Event
-	Version       string
-	DynamicClient dynamic.Interface
+	APIResources    []kube.APIResourceInfo
+	ServerResources []*metav1.APIResourceList
+	Commands        map[string]KubectlOutput
+	Events          chan watch.Event
+	Version         string
+	DynamicClient   dynamic.Interface
 
 	convertToVersionFunc           *func(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	getAPIResourcesFunc            *func(config *rest.Config, preferred bool, resourceFilter kube.ResourceFilter) ([]kube.APIResourceInfo, error)
@@ -78,6 +79,27 @@ func (k *MockKubectlCmd) GetAPIResources(config *rest.Config, preferred bool, re
 		return (*k.getAPIResourcesFunc)(config, preferred, resourceFilter)
 	}
 	return k.APIResources, nil
+}
+
+func (k *MockKubectlCmd) GetServerResources(_ *rest.Config, _ bool) ([]*metav1.APIResourceList, error) {
+	if k.ServerResources != nil {
+		return k.ServerResources, nil
+	}
+	lists := make(map[string]*metav1.APIResourceList)
+	for _, api := range k.APIResources {
+		gv := api.GroupVersionResource.GroupVersion().String()
+		list, ok := lists[gv]
+		if !ok {
+			list = &metav1.APIResourceList{GroupVersion: gv}
+			lists[gv] = list
+		}
+		list.APIResources = append(list.APIResources, api.Meta)
+	}
+	res := make([]*metav1.APIResourceList, 0, len(lists))
+	for _, l := range lists {
+		res = append(res, l)
+	}
+	return res, nil
 }
 
 func (k *MockKubectlCmd) GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
