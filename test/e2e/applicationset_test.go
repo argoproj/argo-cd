@@ -32,29 +32,10 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 )
 
-var ExpectedConditions = []v1alpha1.ApplicationSetCondition{
-	{
-		Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
-		Status:  v1alpha1.ApplicationSetConditionStatusFalse,
-		Message: "All applications have been generated successfully",
-		Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-	},
-	{
-		Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
-		Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-		Message: "All parameters have been generated successfully",
-		Reason:  v1alpha1.ApplicationSetReasonParametersGenerated,
-	},
-	{
-		Type:    v1alpha1.ApplicationSetConditionResourcesUpToDate,
-		Status:  v1alpha1.ApplicationSetConditionStatusTrue,
-		Message: "All applications have been generated successfully",
-		Reason:  v1alpha1.ApplicationSetReasonApplicationSetUpToDate,
-	},
-}
-
 func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
+
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
 
 	expectedApp := v1alpha1.Application{
 		Kind:       "Application",
@@ -139,7 +120,7 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -149,6 +130,8 @@ func TestSimpleListGeneratorExternalNamespace(t *testing.T) {
 func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 	externalNamespace := string(utils.ArgoCDExternalNamespace)
 	externalNamespace2 := string(utils.ArgoCDExternalNamespace2)
+
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
 
 	expectedApp := v1alpha1.Application{
 		Kind:       "Application",
@@ -299,7 +282,7 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 		When().
 		SwitchToExternalNamespace(utils.ArgoCDExternalNamespace2).
 		Then().
@@ -319,6 +302,8 @@ func TestSimpleListGeneratorExternalNamespaceNoConflict(t *testing.T) {
 }
 
 func TestSimpleListGenerator(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
+
 	expectedApp := v1alpha1.Application{
 		Kind:       application.ApplicationKind,
 		APIVersion: "argoproj.io/v1alpha1",
@@ -396,7 +381,7 @@ func TestSimpleListGenerator(t *testing.T) {
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -404,6 +389,8 @@ func TestSimpleListGenerator(t *testing.T) {
 }
 
 func TestSimpleListGeneratorGoTemplate(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
+
 	expectedApp := v1alpha1.Application{
 		Kind:       application.ApplicationKind,
 		APIVersion: "argoproj.io/v1alpha1",
@@ -481,7 +468,7 @@ func TestSimpleListGeneratorGoTemplate(t *testing.T) {
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -557,6 +544,8 @@ func TestRenderHelmValuesObject(t *testing.T) {
 }
 
 func TestTemplatePatch(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
+
 	expectedApp := v1alpha1.Application{
 		Kind:       application.ApplicationKind,
 		APIVersion: "argoproj.io/v1alpha1",
@@ -667,7 +656,7 @@ func TestTemplatePatch(t *testing.T) {
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -675,6 +664,8 @@ func TestTemplatePatch(t *testing.T) {
 }
 
 func TestUpdateHelmValuesObject(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 1})
+
 	expectedApp := v1alpha1.Application{
 		Kind:       application.ApplicationKind,
 		APIVersion: "argoproj.io/v1alpha1",
@@ -737,7 +728,7 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 			},
 		},
 	}).Then().
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 		When().
 		// Update the app spec with some knew ValuesObject to force a merge
 		Update(func(as *v1alpha1.ApplicationSet) {
@@ -753,6 +744,8 @@ func TestUpdateHelmValuesObject(t *testing.T) {
 }
 
 func TestSyncPolicyCreateUpdate(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 4})
+
 	expectedApp := v1alpha1.Application{
 		Kind:       "Application",
 		APIVersion: "argoproj.io/v1alpha1",
@@ -850,7 +843,7 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewMetadata})).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet, and verify it not deletes the Applications
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
@@ -860,6 +853,8 @@ func TestSyncPolicyCreateUpdate(t *testing.T) {
 }
 
 func TestSyncPolicyCreateDelete(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 4})
+
 	expectedApp := v1alpha1.Application{
 		Kind:       "Application",
 		APIVersion: "argoproj.io/v1alpha1",
@@ -943,7 +938,7 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 		}).Then().Expect(ApplicationsDoNotExist([]v1alpha1.Application{*expectedAppNewNamespace})).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet
 		When().
@@ -951,6 +946,8 @@ func TestSyncPolicyCreateDelete(t *testing.T) {
 }
 
 func TestSyncPolicyCreateOnly(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 4})
+
 	expectedApp := v1alpha1.Application{
 		Kind:       "Application",
 		APIVersion: "argoproj.io/v1alpha1",
@@ -1038,7 +1035,7 @@ func TestSyncPolicyCreateOnly(t *testing.T) {
 		}).Then().Expect(ApplicationsExist([]v1alpha1.Application{*expectedAppNewNamespace})).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet, and verify it not deletes the Applications
 		// As policy is create-update, AppSet controller will remove all generated applications's ownerReferences on delete AppSet
@@ -1944,6 +1941,8 @@ func TestSimplePullRequestGeneratorGoTemplate(t *testing.T) {
 }
 
 func TestPullRequestGeneratorExcludedLabels(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 1})
+
 	ts := testServerWithPort(t, 8343, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubPullMockHandler(t)(w, r)
 	}))
@@ -2012,7 +2011,7 @@ func TestPullRequestGeneratorExcludedLabels(t *testing.T) {
 			},
 		},
 	}).Then().
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 		Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp})).
 
 		// Remove the exclusion, and verify the Application is generated
@@ -2026,6 +2025,8 @@ func TestPullRequestGeneratorIncludeAndExcludeSameLabel(t *testing.T) {
 	ts := testServerWithPort(t, 8343, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		githubPullMockHandler(t)(w, r)
 	}))
+
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 1})
 
 	ts.Start()
 	defer ts.Close()
@@ -2094,7 +2095,7 @@ func TestPullRequestGeneratorIncludeAndExcludeSameLabel(t *testing.T) {
 			},
 		},
 	}).Then().
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 		Expect(ApplicationsDoNotExist([]v1alpha1.Application{expectedApp})).
 
 		// Remove the exclusion, and verify the Application is generated
@@ -2230,6 +2231,9 @@ func TestApplicationSetAPIListResourceEvents(t *testing.T) {
 
 // TestApplicationSetHealthStatusCLI tests that the CLI commands display the health status field for an ApplicationSet.
 func TestApplicationSetHealthStatusCLI(t *testing.T) {
+	// Create only, this test never updates the spec.
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 1})
+
 	Given(t).
 		When().Create(v1alpha1.ApplicationSet{
 		Spec: v1alpha1.ApplicationSetSpec{
@@ -2261,7 +2265,7 @@ func TestApplicationSetHealthStatusCLI(t *testing.T) {
 		},
 	}).Then().
 		// Wait for the ApplicationSet to be ready
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 		Expect(ApplicationSetHasHealthStatus(health.HealthStatusHealthy)).
 		// Test 'argocd appset get' shows Health Status field
 		When().AppSetGet().
