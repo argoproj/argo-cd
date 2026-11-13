@@ -6079,6 +6079,67 @@ func TestUpdateRevisionForPaths_UnfetchableSyncedRevision(t *testing.T) {
 	}
 }
 
+// The controller passes the unresolved targetRevision, so a semver constraint must be resolved
+// against the source's tagPrefix here exactly as it is during manifest generation.
+func TestUpdateRevisionForPaths_TagPrefix(t *testing.T) {
+	tests := []struct {
+		name          string
+		unprefixedTag bool
+	}{
+		{name: "only prefixed tags"},
+		// An unprefixed tag that satisfies the constraint must not be picked over the prefixed ones.
+		{name: "unprefixed tag also matches", unprefixedTag: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			remoteDir := t.TempDir()
+			runGit := func(args ...string) string {
+				t.Helper()
+				cmd := exec.CommandContext(t.Context(), "git", append([]string{"-c", "user.name=t", "-c", "user.email=t@t", "-c", "commit.gpgsign=false", "-c", "tag.gpgsign=false"}, args...)...)
+				cmd.Dir = remoteDir
+				out, err := cmd.CombinedOutput()
+				require.NoError(t, err, string(out))
+				return strings.TrimSpace(string(out))
+			}
+			commit := func(content string) string {
+				t.Helper()
+				require.NoError(t, os.MkdirAll(filepath.Join(remoteDir, "app1"), 0o755))
+				require.NoError(t, os.WriteFile(filepath.Join(remoteDir, "app1", "cm.yaml"), []byte(content), 0o644))
+				runGit("add", ".")
+				runGit("commit", "-m", content)
+				return runGit("rev-parse", "HEAD")
+			}
+			runGit("init", "-b", "main")
+			syncedRevision := commit("v1.0.0")
+			runGit("tag", "app1/v1.0.0")
+			wantRevision := commit("v1.1.0")
+			runGit("tag", "app1/v1.1.0")
+			if tt.unprefixedTag {
+				commit("v1.5.0")
+				runGit("tag", "v1.5.0")
+			}
+
+			repoURL := "file://" + remoteDir
+			cacheMocks := newCacheMocks()
+			t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
+			s := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, t.TempDir())
+			s.gitRepoInitializer = func(_ string) goio.Closer { return utilio.NopCloser }
+
+			res, err := s.UpdateRevisionForPaths(t.Context(), &apiclient.UpdateRevisionForPathsRequest{
+				Repo:              &v1alpha1.Repository{Repo: repoURL, Type: "git"},
+				Revision:          "v1.*",
+				SyncedRevision:    syncedRevision,
+				Paths:             []string{"app1"},
+				AppName:           "app1",
+				ApplicationSource: &v1alpha1.ApplicationSource{RepoURL: repoURL, Path: "app1", TargetRevision: "v1.*", TagPrefix: "app1/"},
+			})
+			require.NoError(t, err)
+			assert.True(t, res.Changes)
+			assert.Equal(t, wantRevision, res.Revision)
+		})
+	}
+}
+
 func TestUpdateRevisionForPaths_CallerMustPersistResolvedRevision(t *testing.T) {
 	// UpdateRevisionForPaths renames the manifest cache entry from the synced
 	// revision to the resolved revision. Callers are expected to persist the
