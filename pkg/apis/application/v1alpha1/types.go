@@ -2864,9 +2864,9 @@ var validActions = map[string]bool{
 }
 
 var validActionPatterns = []*regexp.Regexp{
-	regexp.MustCompile("action/.*"),
-	regexp.MustCompile("update/.*"),
-	regexp.MustCompile("delete/.*"),
+	regexp.MustCompile("^action/.*"),
+	regexp.MustCompile("^update/.*"),
+	regexp.MustCompile("^delete/.*"),
 }
 
 func isValidAction(action string) bool {
