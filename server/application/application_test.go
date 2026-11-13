@@ -2044,6 +2044,205 @@ func TestDeleteAppAlreadyDeleting(t *testing.T) {
 	assert.True(t, deleted, "delete call should still be issued so the RPC stays idempotent")
 }
 
+func TestGetResourceWithComparisonError(t *testing.T) {
+	newServer := func(t *testing.T, tree *v1alpha1.ApplicationTree, projects ...*v1alpha1.AppProject) (*Server, *v1alpha1.Application) {
+		t.Helper()
+
+		job := &k8sbatchv1.Job{
+			APIVersion: "batch/v1",
+			Kind:       "Job",
+			Name:       "resource-details-long-hook",
+			Namespace:  test.FakeDestNamespace,
+		}
+
+		testApp := newTestApp(func(app *v1alpha1.Application) {
+			app.Status.Resources = []v1alpha1.ResourceStatus{{
+				Group:     "batch",
+				Version:   "v1",
+				Kind:      "Job",
+				Namespace: test.FakeDestNamespace,
+				Name:      job.Name,
+				Hook:      true,
+			}}
+			app.Status.Conditions = []v1alpha1.ApplicationCondition{{
+				Type:    v1alpha1.ApplicationConditionComparisonError,
+				Message: "Failed to load target state: unable to resolve branch to a commit SHA",
+			}}
+		})
+
+		otherJob := job.DeepCopy()
+		otherJob.Name = "someone-elses-job"
+
+		objects := []runtime.Object{
+			testApp,
+			kube.MustToUnstructured(job),
+			kube.MustToUnstructured(otherJob),
+		}
+		for _, project := range projects {
+			testApp.Spec.Project = project.Name
+			objects = append(objects, project)
+		}
+
+		appServer := newTestAppServer(t, objects...)
+
+		cacheClient := cache.NewCache(cache.NewInMemoryCache(time.Hour))
+		appStateCache := appstate.NewCache(cacheClient, time.Hour)
+
+		if tree != nil {
+			appInstanceName := testApp.InstanceName(appServer.appNamespaceOrDefault(testApp.Namespace))
+			require.NoError(t, appStateCache.SetAppResourcesTree(appInstanceName, tree))
+		}
+
+		appServer.cache = servercache.NewCache(appStateCache, time.Hour, time.Hour)
+
+		return appServer, testApp
+	}
+
+	resourceRequest := func(app *v1alpha1.Application, name string) *application.ApplicationResourceRequest {
+		return &application.ApplicationResourceRequest{
+			Name:         &app.Name,
+			AppNamespace: &app.Namespace,
+			Group:        new("batch"),
+			Version:      new("v1"),
+			Kind:         new("Job"),
+			Namespace:    new(test.FakeDestNamespace),
+			ResourceName: &name,
+		}
+	}
+
+	t.Run("reads live resource when tree cache is missing", func(t *testing.T) {
+		appServer, app := newServer(t, nil)
+
+		resp, err := appServer.GetResource(
+			t.Context(),
+			resourceRequest(app, "resource-details-long-hook"),
+		)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Manifest)
+		assert.Contains(t, *resp.Manifest, "resource-details-long-hook")
+	})
+
+	t.Run("reads live resource when cached tree is empty", func(t *testing.T) {
+		appServer, app := newServer(t, &v1alpha1.ApplicationTree{})
+
+		resp, err := appServer.GetResource(
+			t.Context(),
+			resourceRequest(app, "resource-details-long-hook"),
+		)
+
+		require.NoError(t, err)
+		require.NotNil(t, resp)
+		require.NotNil(t, resp.Manifest)
+		assert.Contains(t, *resp.Manifest, "resource-details-long-hook")
+	})
+
+	t.Run("does not fall back when cached tree is non-empty", func(t *testing.T) {
+		tree := &v1alpha1.ApplicationTree{
+			Nodes: []v1alpha1.ResourceNode{{
+				Group:     "batch",
+				Version:   "v1",
+				Kind:      "Job",
+				Namespace: test.FakeDestNamespace,
+				Name:      "another-job",
+				UID:       "fake",
+			}},
+		}
+		appServer, app := newServer(t, tree)
+
+		_, err := appServer.GetResource(
+			t.Context(),
+			resourceRequest(app, "resource-details-long-hook"),
+		)
+
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "not found as part of application")
+	})
+
+	t.Run("does not bypass UID validation for cached tree nodes", func(t *testing.T) {
+		tree := &v1alpha1.ApplicationTree{
+			Nodes: []v1alpha1.ResourceNode{{
+				Group:     "batch",
+				Version:   "v1",
+				Kind:      "Job",
+				Namespace: test.FakeDestNamespace,
+				Name:      "resource-details-long-hook",
+			}},
+		}
+		appServer, app := newServer(t, tree)
+
+		_, err := appServer.GetResource(
+			t.Context(),
+			resourceRequest(app, "resource-details-long-hook"),
+		)
+
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "not found as part of application")
+	})
+
+	t.Run("does not fall back to status resource forbidden by project", func(t *testing.T) {
+		restrictedProj := &v1alpha1.AppProject{
+			Name:      "restricted-proj",
+			Namespace: "default",
+			Spec: v1alpha1.AppProjectSpec{
+				SourceRepos: []string{"*"},
+				Destinations: []v1alpha1.ApplicationDestination{{
+					Server:    "*",
+					Namespace: "allowed",
+				}},
+				NamespaceResourceWhitelist: []metav1.GroupKind{{
+					Group: "batch",
+					Kind:  "Job",
+				}},
+			},
+		}
+
+		appServer, app := newServer(t, nil, restrictedProj)
+
+		_, err := appServer.GetResource(
+			t.Context(),
+			resourceRequest(app, "resource-details-long-hook"),
+		)
+
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "not found as part of application")
+	})
+
+	t.Run("does not read resource outside application", func(t *testing.T) {
+		appServer, app := newServer(t, nil)
+
+		_, err := appServer.GetResource(
+			t.Context(),
+			resourceRequest(app, "someone-elses-job"),
+		)
+
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Contains(t, err.Error(), "not found as part of application")
+	})
+
+	t.Run("mutation still requires resource tree", func(t *testing.T) {
+		appServer, app := newServer(t, nil)
+
+		_, err := appServer.DeleteResource(t.Context(), &application.ApplicationResourceDeleteRequest{
+			Name:         &app.Name,
+			AppNamespace: &app.Namespace,
+			Group:        new("batch"),
+			Version:      new("v1"),
+			Kind:         new("Job"),
+			Namespace:    new(test.FakeDestNamespace),
+			ResourceName: new("resource-details-long-hook"),
+		})
+
+		require.Error(t, err)
+		assert.Contains(t, err.Error(), "error getting app resources")
+	})
+}
+
 func TestDeleteResourcesRBAC(t *testing.T) {
 	ctx := t.Context()
 	//nolint:staticcheck
