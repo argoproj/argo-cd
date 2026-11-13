@@ -18,6 +18,7 @@ import (
 
 	argoutils "github.com/argoproj/argo-cd/v3/util"
 	"github.com/argoproj/argo-cd/v3/util/env"
+	"github.com/argoproj/argo-cd/v3/util/proxy"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
@@ -192,12 +193,8 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(ctx context
 	refreshTokenURL := parsedURL.String()
 
 	client := &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: creds.GetInsecureSkipVerify(),
-			},
-		},
+		Timeout:   10 * time.Second,
+		Transport: creds.azureRegistryHTTPTransport(),
 	}
 
 	formValues := url.Values{}
@@ -240,16 +237,24 @@ func (creds AzureWorkloadIdentityCreds) getAccessTokenAfterChallenge(ctx context
 	return res.RefreshToken, nil
 }
 
+// azureRegistryHTTPTransport is used for ACR challenge and token exchange.
+// An empty proxy URL makes GetCallback honor HTTP_PROXY / HTTPS_PROXY / NO_PROXY
+// so workload-identity auth works when repo-server is behind an HTTP proxy.
+func (creds AzureWorkloadIdentityCreds) azureRegistryHTTPTransport() *http.Transport {
+	return &http.Transport{
+		Proxy: proxy.GetCallback("", ""),
+		TLSClientConfig: &tls.Config{
+			InsecureSkipVerify: creds.GetInsecureSkipVerify(),
+		},
+	}
+}
+
 func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(ctx context.Context, azureContainerRegistry string) (map[string]string, error) {
 	requestURL := fmt.Sprintf("https://%s/v2/", azureContainerRegistry)
 
 	client := &http.Client{
-		Timeout: 10 * time.Second,
-		Transport: &http.Transport{
-			TLSClientConfig: &tls.Config{
-				InsecureSkipVerify: creds.GetInsecureSkipVerify(),
-			},
-		},
+		Timeout:   10 * time.Second,
+		Transport: creds.azureRegistryHTTPTransport(),
 	}
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, requestURL, http.NoBody)
