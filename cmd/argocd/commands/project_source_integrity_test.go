@@ -597,3 +597,19 @@ func captureProjectUpdate(t *testing.T, projects *projectmocks.ProjectServiceCli
 	projects.AssertCalled(t, "Update", mock.Anything, capture)
 	return updatedProject
 }
+
+func TestCleanupSourceIntegrityIfEmpty(t *testing.T) {
+	helm := &appsv1.SourceIntegrityHelm{Policies: []*appsv1.SourceIntegrityHelmPolicy{{}}}
+	proj := &appsv1.AppProject{Spec: appsv1.AppProjectSpec{SourceIntegrity: &appsv1.SourceIntegrity{
+		Git:  &appsv1.SourceIntegrityGit{},
+		Helm: helm,
+	}}}
+	cleanupSourceIntegrityIfEmpty(proj)
+	require.NotNil(t, proj.Spec.SourceIntegrity, "Helm policies are kept")
+	assert.Nil(t, proj.Spec.SourceIntegrity.Git)
+	assert.Same(t, helm, proj.Spec.SourceIntegrity.Helm)
+
+	proj.Spec.SourceIntegrity = &appsv1.SourceIntegrity{Git: &appsv1.SourceIntegrityGit{}}
+	cleanupSourceIntegrityIfEmpty(proj)
+	assert.Nil(t, proj.Spec.SourceIntegrity)
+}

@@ -34170,9 +34170,49 @@ spec:
                     required:
                     - policies
                     type: object
-                required:
-                - git
+                  helm:
+                    description: Helm - policies for Helm chart provenance verification
+                    properties:
+                      policies:
+                        items:
+                          description: SourceIntegrityHelmPolicy applies Provenance
+                            to Helm repositories matching Repos.
+                          properties:
+                            provenance:
+                              description: |-
+                                SourceIntegrityHelmPolicyProvenance requires the chart's .prov file to be signed by one of Keys
+                                and to carry the chart's digest. An empty Keys list rejects every chart.
+                              properties:
+                                keys:
+                                  items:
+                                    type: string
+                                  type: array
+                              required:
+                              - keys
+                              type: object
+                            repos:
+                              items:
+                                description: SourceIntegrityHelmPolicyRepo is a glob
+                                  matched against the Helm repoURL; a leading ! excludes.
+                                properties:
+                                  url:
+                                    type: string
+                                required:
+                                - url
+                                type: object
+                              type: array
+                          required:
+                          - provenance
+                          - repos
+                          type: object
+                        type: array
+                    required:
+                    - policies
+                    type: object
                 type: object
+                x-kubernetes-validations:
+                - message: sourceIntegrity must specify at least one of git or helm
+                  rule: has(self.git) || has(self.helm)
               sourceNamespaces:
                 description: SourceNamespaces defines the namespaces application resources
                   are allowed to be created in

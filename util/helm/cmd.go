@@ -254,7 +254,8 @@ func writeToTmp(data []byte) (string, utilio.Closer, error) {
 	}), nil
 }
 
-func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool) (string, error) {
+// Fetch pulls a chart. With prov, Helm also downloads its .prov file if it can, warning otherwise.
+func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, passCredentials bool, prov bool) (string, error) {
 	args := []string{"pull", "--destination", destination}
 	if version != "" {
 		args = append(args, "--version", version)
@@ -298,6 +299,9 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	if passCredentials {
 		args = append(args, "--pass-credentials")
 	}
+	if prov {
+		args = append(args, "--prov")
+	}
 
 	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
@@ -306,7 +310,8 @@ func (c *Cmd) Fetch(repo, chartName, version, destination string, creds Creds, p
 	return out, nil
 }
 
-func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds, plainHTTP bool) (string, error) {
+// PullOCI pulls a chart from an OCI registry. prov works as for Fetch.
+func (c *Cmd) PullOCI(repo string, chart string, version string, destination string, creds Creds, plainHTTP bool, prov bool) (string, error) {
 	args := []string{
 		"pull", fmt.Sprintf("oci://%s/%s", repo, chart), "--version",
 		version,
@@ -340,6 +345,9 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	}
 	if plainHTTP {
 		args = append(args, "--plain-http")
+	}
+	if prov {
+		args = append(args, "--prov")
 	}
 	out, _, err := c.run(context.Background(), args...)
 	if err != nil {
