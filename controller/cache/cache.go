@@ -880,19 +880,40 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 			return
 		}
 
+		// serverChanged is true when this cluster secret's server URL itself was changed (e.g.
+		// an endpoint migration, or two cluster secrets had their server addresses swapped).
+		// c.clusters is indexed by server URL, so the entry found above at newCluster.Server may
+		// not have been built for newCluster at all: it can belong to a completely different,
+		// unrelated cluster whose secret previously used this exact server URL. In that case the
+		// DeepEqual comparisons below against oldCluster - which has no relationship whatsoever
+		// with whatever is currently cached under newCluster.Server - must not be trusted to
+		// decide whether a refresh is needed; every setting has to be treated as stale and
+		// unconditionally rebuilt from newCluster.
+		serverChanged := oldCluster.Server != newCluster.Server
+
 		var updateSettings []clustercache.UpdateSettingsFunc
-		if !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
+		if serverChanged || !reflect.DeepEqual(oldCluster.Config, newCluster.Config) {
 			newClusterRESTConfig, err := newCluster.RESTConfig()
 			if err == nil {
 				updateSettings = append(updateSettings, clustercache.SetConfig(newClusterRESTConfig))
 			} else {
 				log.Errorf("error getting cluster REST config: %v", err)
+				if serverChanged {
+					// The entry currently cached under newCluster.Server may belong to a
+					// completely unrelated cluster (see serverChanged above). Without a valid
+					// REST config for newCluster we cannot safely take ownership of it here:
+					// applying only the Namespaces/ClusterResources settings below would leave
+					// that unrelated entry resyncing against newCluster.Server while still using
+					// another cluster's stale credentials. Bail out entirely instead; this will
+					// be retried on the next Update event once a valid Config is available.
+					return
+				}
 			}
 		}
-		if !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
+		if serverChanged || !reflect.DeepEqual(oldCluster.Namespaces, newCluster.Namespaces) {
 			updateSettings = append(updateSettings, clustercache.SetNamespaces(newCluster.Namespaces))
 		}
-		if !reflect.DeepEqual(oldCluster.ClusterResources, newCluster.ClusterResources) {
+		if serverChanged || !reflect.DeepEqual(oldCluster.ClusterResources, newCluster.ClusterResources) {
 			updateSettings = append(updateSettings, clustercache.SetClusterResources(newCluster.ClusterResources))
 		}
 		forceInvalidate := false
