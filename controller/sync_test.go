@@ -4,6 +4,7 @@ import (
 	"os"
 	"strconv"
 	"testing"
+	"time"
 
 	openapi_v2 "github.com/google/gnostic-models/openapiv2"
 	"k8s.io/kubectl/pkg/util/openapi"
@@ -2421,4 +2422,86 @@ func TestValidateSyncPermissions(t *testing.T) {
 
 		assert.NoError(t, err)
 	})
+}
+
+// Regression for #30914: when a newly queued operation starts processing, the
+// in-memory app.Status.OperationState still holds the previous operation
+// (setOperationState only patches the API server). The window check must read
+// the initiator from the operation being processed: with these windows an
+// automated sync is denied, while a previous manual operation made the stale
+// check allow it through the deny window.
+func TestSyncWindowPreventsSyncUsesCurrentOperation(t *testing.T) {
+	project := &v1alpha1.AppProject{
+		Spec: v1alpha1.AppProjectSpec{
+			SyncWindows: v1alpha1.SyncWindows{{
+				Kind:         "deny",
+				Schedule:     "* * * * *",
+				Duration:     "1h",
+				Clusters:     []string{"*"},
+				Namespaces:   []string{"*"},
+				Applications: []string{"*"},
+				ManualSync:   true,
+				SyncOverrun:  true,
+			}},
+		},
+	}
+	app := newFakeApp()
+	app.Name = "app_a"
+	app.Status = v1alpha1.ApplicationStatus{
+		OperationState: &v1alpha1.OperationState{ // stale in-memory status: the PREVIOUS completed manual sync
+			Phase:     synccommon.OperationSucceeded,
+			StartedAt: metav1.NewTime(metav1.Now().Add(-2 * time.Hour)),
+			Operation: v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "admin"}},
+		},
+	}
+	currentState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync:        &v1alpha1.SyncOperation{},
+			InitiatedBy: v1alpha1.OperationInitiator{Username: "applicationset-controller", Automated: true},
+		},
+		Phase:     synccommon.OperationRunning,
+		StartedAt: metav1.Now(),
+	}
+
+	blocked, err := syncWindowPreventsSync(app, currentState, project)
+	require.NoError(t, err)
+	assert.True(t, blocked, "an automated sync must be blocked by an active deny window even when the stale status holds a previous manual operation")
+}
+
+func TestSyncWindowPreventsSyncAllowsCurrentManualOperation(t *testing.T) {
+	project := &v1alpha1.AppProject{
+		Spec: v1alpha1.AppProjectSpec{
+			SyncWindows: v1alpha1.SyncWindows{{
+				Kind:         "deny",
+				Schedule:     "* * * * *",
+				Duration:     "1h",
+				Clusters:     []string{"*"},
+				Namespaces:   []string{"*"},
+				Applications: []string{"*"},
+				ManualSync:   true,
+				SyncOverrun:  true,
+			}},
+		},
+	}
+	app := newFakeApp()
+	app.Name = "app_a"
+	app.Status = v1alpha1.ApplicationStatus{
+		OperationState: &v1alpha1.OperationState{
+			Phase:     synccommon.OperationSucceeded,
+			StartedAt: metav1.NewTime(metav1.Now().Add(-2 * time.Hour)),
+			Operation: v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Username: "applicationset-controller", Automated: true}},
+		},
+	}
+	currentState := &v1alpha1.OperationState{
+		Operation: v1alpha1.Operation{
+			Sync:        &v1alpha1.SyncOperation{},
+			InitiatedBy: v1alpha1.OperationInitiator{Username: "admin"},
+		},
+		Phase:     synccommon.OperationRunning,
+		StartedAt: metav1.Now(),
+	}
+
+	blocked, err := syncWindowPreventsSync(app, currentState, project)
+	require.NoError(t, err)
+	assert.False(t, blocked, "a manual sync is allowed through an active deny window with manualSync enabled")
 }
