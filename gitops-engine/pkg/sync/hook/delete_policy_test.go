@@ -19,3 +19,11 @@ func TestDeletePolicies(t *testing.T) {
 	// Helm test
 	assert.Equal(t, []common.HookDeletePolicy{common.HookDeletePolicyHookSucceeded}, DeletePolicies(testingutils.Annotate(testingutils.NewPod(), "helm.sh/hook-delete-policy", "hook-succeeded")))
 }
+
+func TestDeletePoliciesIgnoresHelmWhenArgoHookDefined(t *testing.T) {
+	t.Parallel()
+	obj := testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync")
+	obj = testingutils.Annotate(obj, "argocd.argoproj.io/hook-delete-policy", "HookSucceeded")
+	obj = testingutils.Annotate(obj, "helm.sh/hook-delete-policy", "hook-succeeded")
+	assert.Equal(t, []common.HookDeletePolicy{common.HookDeletePolicyHookSucceeded}, DeletePolicies(obj))
+}
