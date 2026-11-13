@@ -153,6 +153,23 @@ type cachedEnforcer struct {
 	policy   string
 }
 
+// boundEnforcer pairs a Casbin enforcer with the subject normalization setting its policies were
+// loaded with. Enforcement reads the setting from the enforcer it uses, so a concurrent change of the
+// setting can never combine normalized policies with a raw request subject or the other way round.
+type boundEnforcer struct {
+	CasbinEnforcer
+	caseInsensitiveSubjects bool
+}
+
+// caseInsensitiveSubjectsOf returns the subject normalization setting bound to the given enforcer, or
+// fallback for enforcers that were not created by this package.
+func caseInsensitiveSubjectsOf(enf CasbinEnforcer, fallback bool) bool {
+	if b, ok := enf.(*boundEnforcer); ok {
+		return b.caseInsensitiveSubjects
+	}
+	return fallback
+}
+
 func (e *Enforcer) invalidateCache(actions ...func()) {
 	e.lock.Lock()
 	defer e.lock.Unlock()
@@ -208,8 +225,9 @@ func (e *Enforcer) tryGetCasbinEnforcer(project string, policy string) (CasbinEn
 	enforcer.AddFunction("globOrRegexMatch", matchFunc)
 	enforcer.EnableLog(e.enableLog)
 	enforcer.EnableEnforce(e.enabled)
-	e.enforcerCache.SetDefault(project, &cachedEnforcer{enforcer: enforcer, policy: policy})
-	return enforcer, nil
+	bound := &boundEnforcer{CasbinEnforcer: enforcer, caseInsensitiveSubjects: e.caseInsensitiveSubjects}
+	e.enforcerCache.SetDefault(project, &cachedEnforcer{enforcer: bound, policy: policy})
+	return bound, nil
 }
 
 // ClaimsEnforcerFunc is func template to enforce a JWT claims. The subject is replaced
@@ -330,12 +348,15 @@ func (e *Enforcer) SetCaseInsensitiveSubjects(enabled bool) {
 	})
 }
 
-// NormalizeSubject returns the subject in the form that is used for matching: lowercased when
-// case-insensitive subject matching is enabled, unchanged otherwise.
-func (e *Enforcer) NormalizeSubject(subject string) string {
+// NormalizeSubject returns the subject in the form that is used for matching against the policies of
+// the given enforcer: lowercased when the enforcer was created with case-insensitive subject matching,
+// unchanged otherwise. Callers that compare a subject with the enforcer's grouping policies or call
+// its Enforce method directly must use this to stay consistent with Enforce.
+func (e *Enforcer) NormalizeSubject(enf CasbinEnforcer, subject string) string {
 	e.lock.Lock()
-	defer e.lock.Unlock()
-	return normalizeSubject(subject, e.caseInsensitiveSubjects)
+	current := e.caseInsensitiveSubjects
+	e.lock.Unlock()
+	return normalizeSubject(subject, caseInsensitiveSubjectsOf(enf, current))
 }
 
 func normalizeSubject(subject string, caseInsensitive bool) string {
@@ -377,7 +398,7 @@ func (e *Enforcer) snapshotEnforceState() (string, ClaimsEnforcerFunc, bool) {
 func (e *Enforcer) Enforce(rvals ...any) bool {
 	enf := e.getCasbinEnforcer("", "")
 	defaultRole, claimsEnforcerFunc, caseInsensitiveSubjects := e.snapshotEnforceState()
-	return enforce(enf, defaultRole, claimsEnforcerFunc, caseInsensitiveSubjects, rvals...)
+	return enforce(enf, defaultRole, claimsEnforcerFunc, caseInsensitiveSubjectsOf(enf, caseInsensitiveSubjects), rvals...)
 }
 
 // EnforceErr is a convenience helper to wrap a failed enforcement with a detailed error about the request
@@ -428,12 +449,13 @@ func (e *Enforcer) CreateEnforcerWithRuntimePolicy(project string, policy string
 // EnforceWithCustomEnforcer wraps enforce with an custom enforcer
 func (e *Enforcer) EnforceWithCustomEnforcer(enf CasbinEnforcer, rvals ...any) bool {
 	defaultRole, claimsEnforcerFunc, caseInsensitiveSubjects := e.snapshotEnforceState()
-	return enforce(enf, defaultRole, claimsEnforcerFunc, caseInsensitiveSubjects, rvals...)
+	return enforce(enf, defaultRole, claimsEnforcerFunc, caseInsensitiveSubjectsOf(enf, caseInsensitiveSubjects), rvals...)
 }
 
 // enforce is a helper to additionally check a default role and invoke a custom claims enforcement function.
 // When caseInsensitiveSubjects is set, string subjects and the default role are lowercased so they match
-// the (already lowercased) policy subjects.
+// the (already lowercased) policy subjects. The flag must be the one the enforcer's policies were loaded
+// with (see boundEnforcer).
 func enforce(enf CasbinEnforcer, defaultRole string, claimsEnforcerFunc ClaimsEnforcerFunc, caseInsensitiveSubjects bool, rvals ...any) bool {
 	// check the default role
 	if defaultRole != "" && len(rvals) >= 2 {

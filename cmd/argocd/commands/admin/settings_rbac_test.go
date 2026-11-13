@@ -418,6 +418,20 @@ func Test_warnIfUnenforcedGroupGrant(t *testing.T) {
 		check("local-user", "", "p, local-user, logs, get, some-proj/some-app, allow")
 		assert.Empty(t, lastWarning())
 	})
+
+	checkCaseInsensitive := func(subject, userPolicy string) {
+		hook.Reset()
+		require.True(t, checkPolicy(subject, "get", "logs", "some-proj/some-app", "", userPolicy, "", "", true, true))
+	}
+	t.Run("warns for mixed-case group with direct p, and no g, binding when subjects are case-insensitive", func(t *testing.T) {
+		checkCaseInsensitive("My-Org:Team", "p, my-org:team, logs, get, some-proj/some-app, allow")
+		assert.Contains(t, lastWarning(), "My-Org:Team")
+	})
+	t.Run("does not warn for mixed-case group bound to a role when subjects are case-insensitive", func(t *testing.T) {
+		checkCaseInsensitive("My-Org:Team", "p, my-org:team, logs, get, some-proj/some-app, allow\n"+
+			"p, role:foo, logs, get, some-proj/some-app, allow\ng, MY-ORG:TEAM, role:foo")
+		assert.Empty(t, lastWarning())
+	})
 	t.Run("honors binding from the builtin policy", func(t *testing.T) {
 		// Direct grant in the user policy would warn, but the g, binding in the
 		// builtin policy suppresses it.

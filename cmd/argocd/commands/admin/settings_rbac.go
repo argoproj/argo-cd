@@ -464,7 +464,8 @@ func isGroupSubject(subject string) bool {
 // policy, ignoring the default role (which is enforced independently of groups).
 func hasDirectGrant(enf *rbac.Enforcer, subject, resource, action, subResource string) bool {
 	casbinEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
-	ok, err := casbinEnf.Enforce(subject, resource, action, subResource)
+	// the raw casbin call bypasses Enforcer.Enforce, so normalize the subject the same way it would
+	ok, err := casbinEnf.Enforce(enf.NormalizeSubject(casbinEnf, subject), resource, action, subResource)
 	return err == nil && ok
 }
 
@@ -478,7 +479,7 @@ func hasGroupBinding(enf *rbac.Enforcer, subject string) bool {
 		return false
 	}
 	// grouping policies are stored normalized (lowercased when case-insensitive subjects are enabled)
-	subject = enf.NormalizeSubject(subject)
+	subject = enf.NormalizeSubject(casbinEnf, subject)
 	for _, gp := range groupingPolicies {
 		if len(gp) > 0 && gp[0] == subject {
 			return true
