@@ -342,6 +342,10 @@ func asResourceNode(r *clustercache.Resource, namespaceResources map[kube.Resour
 	}
 }
 
+func managedResourceAppName(r *clustercache.Resource) string {
+	return resInfo(r).AppName
+}
+
 func resInfo(r *clustercache.Resource) *ResourceInfo {
 	info, ok := r.Info.(*ResourceInfo)
 	if !ok || info == nil {
@@ -602,6 +606,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
 		clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
 		clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
+		clustercache.SetManagedResourceKey(managedResourceAppName),
 	}
 
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
@@ -690,6 +695,7 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 			clustercache.SetManifestCompressionEnabled(cacheSettings.manifestCompressionEnabled),
 			clustercache.SetManifestStorageType(cacheSettings.manifestStorageType),
 			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
+			clustercache.SetManagedResourceKey(managedResourceAppName),
 		)
 	}
 	log.Info("live state cache invalidated")
@@ -752,8 +758,17 @@ func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
+	appKey := a.InstanceName(c.settingsMgr.GetNamespace())
+	if indexed, ok := clusterInfo.(interface {
+		GetManagedLiveObjsForKey(appKey string, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
+	}); ok {
+		objs, err := indexed.GetManagedLiveObjsForKey(appKey, targetObjs)
+		if !errors.Is(err, clustercache.ErrManagedIndexNotConfigured) {
+			return objs, err
+		}
+	}
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
-		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
+		return resInfo(r).AppName == appKey
 	})
 }
 

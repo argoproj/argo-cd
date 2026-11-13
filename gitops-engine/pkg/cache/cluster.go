@@ -221,6 +221,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		manifestStorageType:     ManifestStorageJSON,
 		manifestCompressionType: ManifestCompressionGZipBestSpeed,
 		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
+		managedIndex:            make(map[string]map[kube.ResourceKey]*Resource),
 	}
 	cache := &clusterCache{
 		store:  s,
@@ -308,6 +309,11 @@ type store struct {
 	// Using a set eliminates O(k) duplicate checking on insertions
 	// Used for cross-namespace hierarchy traversal; namespaced traversal still builds a graph
 	parentUIDToChildren map[types.UID]map[kube.ResourceKey]struct{}
+
+	// managedIndexKey, when set, maintains managedIndex so a single application's
+	// live objects can be read without scanning c.resources.
+	managedIndexKey ManagedResourceKeyFunc
+	managedIndex    map[string]map[kube.ResourceKey]*Resource
 }
 
 // clusterCache implements ClusterCache: the shared store, plus the engine that
@@ -576,9 +582,11 @@ func (c *store) setNode(n *Resource) {
 
 	// Keep track of existing resource for index updates
 	existing := c.resources[key]
+	c.removeManagedIndex(existing)
 
 	c.resources[key] = n
 	c.updateIndexes(existing, n)
+	c.addManagedIndex(n)
 }
 
 // updateIndexes updates nsIndex, parentUIDToChildren and inferred owner refs
@@ -1308,35 +1316,91 @@ func (c *store) managesNamespace(namespace string) bool {
 // specified in targetObjs list.
 func (c *store) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	c.lock.RLock()
-
-	for _, o := range targetObjs {
-		if len(c.namespaces) > 0 {
-			if o.GetNamespace() == "" && !c.clusterResources {
-				c.lock.RUnlock()
-				return nil, fmt.Errorf("cluster level %s %q can not be managed when in namespaced mode", o.GetKind(), o.GetName())
-			} else if o.GetNamespace() != "" && !c.managesNamespace(o.GetNamespace()) {
-				c.lock.RUnlock()
-				return nil, fmt.Errorf("namespace %q for %s %q is not managed", o.GetNamespace(), o.GetKind(), o.GetName())
-			}
-		}
+	if err := c.validateManagedNamespaces(targetObjs); err != nil {
+		c.lock.RUnlock()
+		return nil, err
 	}
 
 	// Snapshot resource values while protecting mutable fields from concurrent updates.
 	resources := make(map[kube.ResourceKey]*Resource, len(c.resources))
 	for k, v := range c.resources {
-		resource := *v
-		resource.OwnerRefs = append([]metav1.OwnerReference(nil), v.OwnerRefs...)
-		resources[k] = &resource
+		resources[k] = snapshotResource(v)
 	}
+	watchedGKs := c.snapshotWatchedGroupKinds()
+	c.lock.RUnlock()
+
+	return c.resolveManagedObjects(targetObjs, resources, watchedGKs, isManaged)
+}
+
+// GetManagedLiveObjsForKey is GetManagedLiveObjs for one managed-index key.
+// It reads that key's bucket plus the target objects, instead of copying every cached resource.
+// SetManagedResourceKey must be configured; otherwise this returns an error.
+func (c *store) GetManagedLiveObjsForKey(appKey string, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
+	c.lock.RLock()
+	keyFn := c.managedIndexKey
+	if keyFn == nil {
+		c.lock.RUnlock()
+		return nil, ErrManagedIndexNotConfigured
+	}
+	if err := c.validateManagedNamespaces(targetObjs); err != nil {
+		c.lock.RUnlock()
+		return nil, err
+	}
+
+	resources := make(map[kube.ResourceKey]*Resource)
+	if bucket := c.managedIndex[appKey]; bucket != nil {
+		for k, v := range bucket {
+			resources[k] = snapshotResource(v)
+		}
+	}
+	for _, o := range targetObjs {
+		key := kube.GetResourceKey(o)
+		if _, ok := resources[key]; ok {
+			continue
+		}
+		if v, exists := c.resources[key]; exists {
+			resources[key] = snapshotResource(v)
+		}
+	}
+	watchedGKs := c.snapshotWatchedGroupKinds()
+	c.lock.RUnlock()
+
+	return c.resolveManagedObjects(targetObjs, resources, watchedGKs, func(r *Resource) bool {
+		return keyFn(r) == appKey
+	})
+}
+
+func (c *store) validateManagedNamespaces(targetObjs []*unstructured.Unstructured) error {
+	for _, o := range targetObjs {
+		if len(c.namespaces) == 0 {
+			continue
+		}
+		if o.GetNamespace() == "" && !c.clusterResources {
+			return fmt.Errorf("cluster level %s %q can not be managed when in namespaced mode", o.GetKind(), o.GetName())
+		} else if o.GetNamespace() != "" && !c.managesNamespace(o.GetNamespace()) {
+			return fmt.Errorf("namespace %q for %s %q is not managed", o.GetNamespace(), o.GetKind(), o.GetName())
+		}
+	}
+	return nil
+}
+
+func snapshotResource(v *Resource) *Resource {
+	resource := *v
+	resource.OwnerRefs = append([]metav1.OwnerReference(nil), v.OwnerRefs...)
+	return &resource
+}
+
+func (c *store) snapshotWatchedGroupKinds() map[schema.GroupKind]struct{} {
 	watchedGKs := make(map[schema.GroupKind]struct{}, len(c.apisMeta))
 	for gk := range c.apisMeta {
 		watchedGKs[gk] = struct{}{}
 	}
+	return watchedGKs
+}
 
-	c.lock.RUnlock()
-
+func (c *store) resolveManagedObjects(targetObjs []*unstructured.Unstructured, resources map[kube.ResourceKey]*Resource, watchedGKs map[schema.GroupKind]struct{}, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
 	managedObjs := make(map[kube.ResourceKey]*unstructured.Unstructured)
-	// iterate all objects in live state cache to find ones associated with app
+	// iterate the provided objects to find ones associated with the app
 	for key, o := range resources {
 		if isManaged(o) && o.HasManifest() && len(o.OwnerRefs) == 0 {
 			if manifest, err := o.GetManifest(); err != nil {
@@ -1467,9 +1531,47 @@ func (c *store) removeIndexes(key kube.ResourceKey, existing *Resource) map[kube
 func (c *store) onNodeRemoved(key kube.ResourceKey) {
 	existing, ok := c.resources[key]
 	if ok {
+		c.removeManagedIndex(existing)
 		delete(c.resources, key)
 		ns := c.removeIndexes(key, existing)
 		c.dispatchResourceUpdated(nil, existing, ns)
+	}
+}
+
+func (c *store) addManagedIndex(r *Resource) {
+	if c.managedIndexKey == nil || r == nil {
+		return
+	}
+	indexKey := c.managedIndexKey(r)
+	if indexKey == "" {
+		return
+	}
+	if c.managedIndex == nil {
+		c.managedIndex = make(map[string]map[kube.ResourceKey]*Resource)
+	}
+	bucket := c.managedIndex[indexKey]
+	if bucket == nil {
+		bucket = make(map[kube.ResourceKey]*Resource)
+		c.managedIndex[indexKey] = bucket
+	}
+	bucket[r.ResourceKey()] = r
+}
+
+func (c *store) removeManagedIndex(r *Resource) {
+	if c.managedIndexKey == nil || r == nil || c.managedIndex == nil {
+		return
+	}
+	indexKey := c.managedIndexKey(r)
+	if indexKey == "" {
+		return
+	}
+	bucket := c.managedIndex[indexKey]
+	if bucket == nil {
+		return
+	}
+	delete(bucket, r.ResourceKey())
+	if len(bucket) == 0 {
+		delete(c.managedIndex, indexKey)
 	}
 }
 

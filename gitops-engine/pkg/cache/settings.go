@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"time"
 
 	"github.com/go-logr/logr"
@@ -31,6 +32,10 @@ func (f *noopSettings) GetLabelSelector(_, _, _ string) string {
 	return ""
 }
 
+// ManagedResourceKeyFunc returns the index key for a cached resource.
+// An empty string leaves the resource out of the index.
+type ManagedResourceKeyFunc func(r *Resource) string
+
 // Settings caching customizations
 type Settings struct {
 	// ResourceHealthOverride contains health assessment overrides
@@ -52,6 +57,19 @@ func SetKubectl(kubectl kube.Kubectl) UpdateSettingsFunc {
 func SetPopulateResourceInfoHandler(handler OnPopulateResourceInfoHandler) UpdateSettingsFunc {
 	return func(cache *clusterCache) {
 		cache.populateResourceInfoHandler = handler
+	}
+}
+
+// ErrManagedIndexNotConfigured is returned by GetManagedLiveObjsForKey when
+// SetManagedResourceKey has not been applied.
+var ErrManagedIndexNotConfigured = errors.New("managed resource index is not configured")
+
+// SetManagedResourceKey installs the function that keys the managed-resource index.
+// GetManagedLiveObjsForKey uses that index instead of scanning every cached object.
+// The function is invoked under the cache lock and must not re-enter the cache.
+func SetManagedResourceKey(keyFn ManagedResourceKeyFunc) UpdateSettingsFunc {
+	return func(cache *clusterCache) {
+		cache.managedIndexKey = keyFn
 	}
 }
 

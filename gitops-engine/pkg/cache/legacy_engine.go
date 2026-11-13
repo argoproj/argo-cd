@@ -110,6 +110,7 @@ func (e *legacyEngine) sync() (err error) {
 	c.apisMeta = make(map[schema.GroupKind]*apiMeta)
 	c.resources = make(map[kube.ResourceKey]*Resource)
 	c.nsIndex = make(map[string]map[kube.ResourceKey]*Resource)
+	c.managedIndex = make(map[string]map[kube.ResourceKey]*Resource)
 	// Filled by the workers below and published once they finish.
 	namespacedResources := make(map[schema.GroupKind]bool)
 	defer c.namespacedResources.Store(&namespacedResources)
