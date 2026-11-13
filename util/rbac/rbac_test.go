@@ -688,10 +688,46 @@ g, Team.Lead@Example.org, role:Deployer
 		assert.True(t, enf.Enforce("user.name@example.org", "applications", "get", "foo/bar"))
 	})
 
-	t.Run("NormalizeSubject follows the setting", func(t *testing.T) {
+	t.Run("NormalizeSubject follows the setting the enforcer was created with", func(t *testing.T) {
 		enf := newEnforcerWithPolicy(t, nil)
-		assert.Equal(t, "User.Name@example.org", enf.NormalizeSubject("User.Name@example.org"))
+		caseSensitiveEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+		assert.Equal(t, "User.Name@example.org", enf.NormalizeSubject(caseSensitiveEnf, "User.Name@example.org"))
+
 		enf.SetCaseInsensitiveSubjects(true)
-		assert.Equal(t, "user.name@example.org", enf.NormalizeSubject("User.Name@example.org"))
+		caseInsensitiveEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+		assert.Equal(t, "user.name@example.org", enf.NormalizeSubject(caseInsensitiveEnf, "User.Name@example.org"))
+		// an enforcer obtained before the change keeps its own setting
+		assert.Equal(t, "User.Name@example.org", enf.NormalizeSubject(caseSensitiveEnf, "User.Name@example.org"))
+	})
+
+	t.Run("an enforcer keeps the setting its policies were loaded with", func(t *testing.T) {
+		// A deny for the exact spelling must win no matter which setting is active. If the request
+		// subject were lowercased against policies that were loaded case-sensitively, only the
+		// allow would match and the deny would be bypassed.
+		kubeclientset := fake.NewClientset()
+		enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+		cm := fakeConfigMap()
+		cm.Data[ConfigMapPolicyCSVKey] = "p, alice, applications, delete, foo/bar, allow\np, Alice, applications, delete, foo/bar, deny"
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+
+		caseSensitiveEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+		assert.False(t, enf.EnforceWithCustomEnforcer(caseSensitiveEnf, "Alice", "applications", "delete", "foo/bar"))
+		assert.True(t, enf.EnforceWithCustomEnforcer(caseSensitiveEnf, "alice", "applications", "delete", "foo/bar"))
+
+		// the setting flips while the old enforcer is still in use
+		enf.SetCaseInsensitiveSubjects(true)
+		assert.False(t, enf.EnforceWithCustomEnforcer(caseSensitiveEnf, "Alice", "applications", "delete", "foo/bar"))
+		assert.True(t, enf.EnforceWithCustomEnforcer(caseSensitiveEnf, "alice", "applications", "delete", "foo/bar"))
+
+		// a fresh enforcer folds both policies onto the same subject, so the deny applies to every spelling
+		caseInsensitiveEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+		assert.False(t, enf.EnforceWithCustomEnforcer(caseInsensitiveEnf, "Alice", "applications", "delete", "foo/bar"))
+		assert.False(t, enf.EnforceWithCustomEnforcer(caseInsensitiveEnf, "alice", "applications", "delete", "foo/bar"))
+		assert.False(t, enf.Enforce("ALICE", "applications", "delete", "foo/bar"))
+
+		// and the other way round: an enforcer created with the setting on keeps folding after it is switched off
+		enf.SetCaseInsensitiveSubjects(false)
+		assert.False(t, enf.EnforceWithCustomEnforcer(caseInsensitiveEnf, "alice", "applications", "delete", "foo/bar"))
+		assert.True(t, enf.Enforce("alice", "applications", "delete", "foo/bar"))
 	})
 }
