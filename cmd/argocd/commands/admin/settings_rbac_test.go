@@ -143,7 +143,7 @@ func Test_checkPolicyWriteRepositoriesWildcard(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.True(t, checkPolicy("role:writer", "get", "write-repositories", tt.subResource, "", policy, "", "", true))
+			assert.True(t, checkPolicy("role:writer", "get", "write-repositories", tt.subResource, "", policy, "", "", false, true))
 		})
 	}
 }
@@ -151,7 +151,7 @@ func Test_checkPolicyWriteRepositoriesWildcard(t *testing.T) {
 func Test_PolicyFromCSV(t *testing.T) {
 	ctx := t.Context()
 
-	uPol, dRole, matchMode := getPolicy(ctx, "testdata/rbac/policy.csv", nil, "")
+	uPol, dRole, matchMode, _ := getPolicy(ctx, "testdata/rbac/policy.csv", nil, "")
 	require.NotEmpty(t, uPol)
 	require.Empty(t, dRole)
 	require.Empty(t, matchMode)
@@ -160,12 +160,38 @@ func Test_PolicyFromCSV(t *testing.T) {
 func Test_PolicyFromYAML(t *testing.T) {
 	ctx := t.Context()
 
-	uPol, dRole, matchMode := getPolicy(ctx, "testdata/rbac/argocd-rbac-cm.yaml", nil, "")
+	uPol, dRole, matchMode, _ := getPolicy(ctx, "testdata/rbac/argocd-rbac-cm.yaml", nil, "")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Empty(t, matchMode)
 	require.True(t, checkPolicy("my-org:team-qa", "update", "project", "foo",
-		"", uPol, dRole, matchMode, true))
+		"", uPol, dRole, matchMode, false, true))
+}
+
+func Test_PolicyFromYAML_CaseInsensitiveSubjects(t *testing.T) {
+	ctx := t.Context()
+	policyFile := t.TempDir() + "/argocd-rbac-cm.yaml"
+	require.NoError(t, os.WriteFile(policyFile, []byte(`apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+data:
+  policy.csv: |
+    p, role:user, applications, get, */*, allow
+    g, user.name@example.org, role:user
+  policy.caseInsensitiveSubjects: "true"
+`), 0o600))
+
+	uPol, dRole, matchMode, caseInsensitiveSubjects := getPolicy(ctx, policyFile, nil, "")
+	require.NotEmpty(t, uPol)
+	require.Empty(t, dRole)
+	require.Empty(t, matchMode)
+	require.True(t, caseInsensitiveSubjects)
+
+	assert.True(t, checkPolicy("user.name@example.org", "get", "applications", "*/*", "", uPol, dRole, matchMode, caseInsensitiveSubjects, true))
+	assert.True(t, checkPolicy("User.Name@example.org", "get", "applications", "*/*", "", uPol, dRole, matchMode, caseInsensitiveSubjects, true))
+	assert.False(t, checkPolicy("User.Name@example.org", "get", "applications", "*/*", "", uPol, dRole, matchMode, false, true))
 }
 
 func Test_PolicyFromK8s(t *testing.T) {
@@ -181,69 +207,69 @@ func Test_PolicyFromK8s(t *testing.T) {
 			"policy.default": "role:unknown",
 		},
 	})
-	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, "argocd")
+	uPol, dRole, matchMode, _ := getPolicy(ctx, "", kubeclientset, "argocd")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Empty(t, matchMode)
 
 	t.Run("get applications", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "applications", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:user", "get", "applications", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.True(t, ok)
 	})
 	t.Run("get clusters", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "clusters", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:user", "get", "clusters", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.True(t, ok)
 	})
 	t.Run("get certificates", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.False(t, ok)
 	})
 	t.Run("get certificates by default role", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "glob", true)
+		ok := checkPolicy("role:user", "get", "certificates", "*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "glob", false, true)
 		require.True(t, ok)
 	})
 	t.Run("get certificates by default role without builtin policy", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", "*", "", uPol, "role:readonly", "glob", true)
+		ok := checkPolicy("role:user", "get", "certificates", "*", "", uPol, "role:readonly", "glob", false, true)
 		require.False(t, ok)
 	})
 	t.Run("use regex match mode instead of glob", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "regex", true)
+		ok := checkPolicy("role:user", "get", "certificates", ".*", assets.BuiltinPolicyCSV, uPol, "role:readonly", "regex", false, true)
 		require.False(t, ok)
 	})
 	t.Run("get logs", func(t *testing.T) {
-		ok := checkPolicy("role:test", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:test", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.True(t, ok)
 	})
 	t.Run("no-such-user get logs", func(t *testing.T) {
-		ok := checkPolicy("no-such-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("no-such-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.False(t, ok)
 	})
 	t.Run("log-deny-user get logs", func(t *testing.T) {
-		ok := checkPolicy("log-deny-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("log-deny-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.False(t, ok)
 	})
 	t.Run("log-allow-user get logs", func(t *testing.T) {
-		ok := checkPolicy("log-allow-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("log-allow-user", "get", "logs", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.True(t, ok)
 	})
 	t.Run("get logs", func(t *testing.T) {
-		ok := checkPolicy("role:test", "get", "logs", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:test", "get", "logs", "*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.True(t, ok)
 	})
 	t.Run("get logs", func(t *testing.T) {
-		ok := checkPolicy("role:test", "get", "logs", "", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:test", "get", "logs", "", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.True(t, ok)
 	})
 	t.Run("create exec", func(t *testing.T) {
-		ok := checkPolicy("role:test", "create", "exec", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:test", "create", "exec", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.True(t, ok)
 	})
 	t.Run("create applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:user", "create", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.True(t, ok)
 	})
 	t.Run("delete applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "delete", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", true)
+		ok := checkPolicy("role:user", "delete", "applicationsets", "*/*", assets.BuiltinPolicyCSV, uPol, dRole, "", false, true)
 		require.True(t, ok)
 	})
 }
@@ -271,7 +297,7 @@ p, role:user, exec, create, .*/.*, allow
 			"policy.matchMode": "regex",
 		},
 	})
-	uPol, dRole, matchMode := getPolicy(ctx, "", kubeclientset, "argocd")
+	uPol, dRole, matchMode, _ := getPolicy(ctx, "", kubeclientset, "argocd")
 	require.NotEmpty(t, uPol)
 	require.Equal(t, "role:unknown", dRole)
 	require.Equal(t, "regex", matchMode)
@@ -281,43 +307,43 @@ p, role:readonly, certificates, get, .*, allow
 p, role:, certificates, get, .*, allow`
 
 	t.Run("get applications", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "applications", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "get", "applications", ".*/.*", builtInPolicy, uPol, dRole, "regex", false, true)
 		require.True(t, ok)
 	})
 	t.Run("get clusters", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "clusters", ".*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "get", "clusters", ".*", builtInPolicy, uPol, dRole, "regex", false, true)
 		require.True(t, ok)
 	})
 	t.Run("get certificates", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "get", "certificates", ".*", builtInPolicy, uPol, dRole, "regex", false, true)
 		require.False(t, ok)
 	})
 	t.Run("get certificates by default role", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", builtInPolicy, uPol, "role:readonly", "regex", true)
+		ok := checkPolicy("role:user", "get", "certificates", ".*", builtInPolicy, uPol, "role:readonly", "regex", false, true)
 		require.True(t, ok)
 	})
 	t.Run("get certificates by default role without builtin policy", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".*", "", uPol, "role:readonly", "regex", true)
+		ok := checkPolicy("role:user", "get", "certificates", ".*", "", uPol, "role:readonly", "regex", false, true)
 		require.False(t, ok)
 	})
 	t.Run("use glob match mode instead of regex", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "certificates", ".+", builtInPolicy, uPol, dRole, "glob", true)
+		ok := checkPolicy("role:user", "get", "certificates", ".+", builtInPolicy, uPol, dRole, "glob", false, true)
 		require.False(t, ok)
 	})
 	t.Run("get logs via glob match mode", func(t *testing.T) {
-		ok := checkPolicy("role:user", "get", "logs", ".*/.*", builtInPolicy, uPol, dRole, "glob", true)
+		ok := checkPolicy("role:user", "get", "logs", ".*/.*", builtInPolicy, uPol, dRole, "glob", false, true)
 		require.True(t, ok)
 	})
 	t.Run("create exec", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "exec", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "create", "exec", ".*/.*", builtInPolicy, uPol, dRole, "regex", false, true)
 		require.True(t, ok)
 	})
 	t.Run("create applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "create", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "create", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", false, true)
 		require.True(t, ok)
 	})
 	t.Run("delete applicationsets", func(t *testing.T) {
-		ok := checkPolicy("role:user", "delete", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", true)
+		ok := checkPolicy("role:user", "delete", "applicationsets", ".*/.*", builtInPolicy, uPol, dRole, "regex", false, true)
 		require.True(t, ok)
 	})
 }
@@ -363,7 +389,7 @@ func Test_warnIfUnenforcedGroupGrant(t *testing.T) {
 	// checkPolicy calls warnIfUnenforcedGroupGrant when it returns Yes.
 	check := func(subject, defaultRole, userPolicy string) {
 		hook.Reset()
-		require.True(t, checkPolicy(subject, "get", "logs", "some-proj/some-app", "", userPolicy, defaultRole, "", true))
+		require.True(t, checkPolicy(subject, "get", "logs", "some-proj/some-app", "", userPolicy, defaultRole, "", false, true))
 	}
 
 	t.Run("warns for group with direct p, and no g, binding", func(t *testing.T) {
@@ -392,13 +418,27 @@ func Test_warnIfUnenforcedGroupGrant(t *testing.T) {
 		check("local-user", "", "p, local-user, logs, get, some-proj/some-app, allow")
 		assert.Empty(t, lastWarning())
 	})
+
+	checkCaseInsensitive := func(subject, userPolicy string) {
+		hook.Reset()
+		require.True(t, checkPolicy(subject, "get", "logs", "some-proj/some-app", "", userPolicy, "", "", true, true))
+	}
+	t.Run("warns for mixed-case group with direct p, and no g, binding when subjects are case-insensitive", func(t *testing.T) {
+		checkCaseInsensitive("My-Org:Team", "p, my-org:team, logs, get, some-proj/some-app, allow")
+		assert.Contains(t, lastWarning(), "My-Org:Team")
+	})
+	t.Run("does not warn for mixed-case group bound to a role when subjects are case-insensitive", func(t *testing.T) {
+		checkCaseInsensitive("My-Org:Team", "p, my-org:team, logs, get, some-proj/some-app, allow\n"+
+			"p, role:foo, logs, get, some-proj/some-app, allow\ng, MY-ORG:TEAM, role:foo")
+		assert.Empty(t, lastWarning())
+	})
 	t.Run("honors binding from the builtin policy", func(t *testing.T) {
 		// Direct grant in the user policy would warn, but the g, binding in the
 		// builtin policy suppresses it.
 		hook.Reset()
 		require.True(t, checkPolicy("my-org:team", "get", "logs", "some-proj/some-app",
 			"p, role:foo, logs, get, some-proj/some-app, allow\ng, my-org:team, role:foo",
-			"p, my-org:team, logs, get, some-proj/some-app, allow", "", "", true))
+			"p, my-org:team, logs, get, some-proj/some-app, allow", "", "", false, true))
 		assert.Empty(t, lastWarning())
 	})
 }

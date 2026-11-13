@@ -176,6 +176,48 @@ func TestInvalidatedCache(t *testing.T) {
 	assert.False(t, enf.Enforce(claims, "exec", "create", "my-proj/my-app"))
 }
 
+func TestEnforceClaimsCaseInsensitiveSubjects(t *testing.T) {
+	t.Parallel()
+	proj := newFakeProj()
+	proj.Spec.Roles[0].Groups = []string{"user.name@example.org", "My-Org:My-Team"}
+	kubeclientset := fake.NewClientset(test.NewFakeConfigMap())
+	projLister := test.NewFakeProjLister(proj)
+	enf := rbac.NewEnforcer(kubeclientset, test.FakeArgoCDNamespace, common.ArgoCDConfigMapName, nil)
+	enf.EnableLog(true)
+	_ = enf.SetBuiltinPolicy(`p, alice, applications, create, my-proj/*, allow`)
+	rbacEnf := NewRBACPolicyEnforcer(enf, projLister)
+	rbacEnf.SetScopes([]string{"email", "groups"})
+	enf.SetClaimsEnforcerFunc(rbacEnf.EnforceClaims)
+
+	mixedCaseEmail := jwt.MapClaims{"sub": "some-id", "email": "User.Name@example.org"}
+	lowerCaseEmail := jwt.MapClaims{"sub": "some-id", "email": "user.name@example.org"}
+	lowerCaseGroup := jwt.MapClaims{"sub": "some-id", "groups": []string{"my-org:my-team"}}
+	mixedCaseSub := jwt.MapClaims{"sub": "Alice"}
+
+	// default: exact match only
+	assert.True(t, enf.Enforce(lowerCaseEmail, "applications", "create", "my-proj/my-app"))
+	assert.False(t, enf.Enforce(mixedCaseEmail, "applications", "create", "my-proj/my-app"))
+	assert.False(t, enf.Enforce(lowerCaseGroup, "applications", "create", "my-proj/my-app"))
+	assert.False(t, enf.Enforce(mixedCaseSub, "applications", "create", "my-proj/my-app"))
+
+	enf.SetCaseInsensitiveSubjects(true)
+
+	// user identifier, group claims and project role groups all match regardless of case
+	assert.True(t, enf.Enforce(lowerCaseEmail, "applications", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(mixedCaseEmail, "applications", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(mixedCaseEmail, "projects", "get", "my-proj"))
+	assert.True(t, enf.Enforce(lowerCaseGroup, "applications", "create", "my-proj/my-app"))
+	assert.True(t, enf.Enforce(mixedCaseSub, "applications", "create", "my-proj/my-app"))
+
+	// still no access to things the role does not grant
+	assert.False(t, enf.Enforce(mixedCaseEmail, "applications", "delete", "my-proj/my-app"))
+	assert.False(t, enf.Enforce(mixedCaseEmail, "applications", "create", "other-proj/my-app"))
+	assert.False(t, enf.Enforce(jwt.MapClaims{"sub": "some-id", "email": "Other.User@example.org"}, "applications", "create", "my-proj/my-app"))
+
+	enf.SetCaseInsensitiveSubjects(false)
+	assert.False(t, enf.Enforce(mixedCaseEmail, "applications", "create", "my-proj/my-app"))
+}
+
 func TestGetScopes_DefaultScopes(t *testing.T) {
 	t.Parallel()
 	rbacEnforcer := NewRBACPolicyEnforcer(nil, nil)
