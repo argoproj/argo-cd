@@ -324,6 +324,18 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 		reconciliationResult.Target = patchedTargets
 	}
 
+	// Hooks do not run for the apply strategy or a selective sync, so they are not prepared either.
+	skipHooks := syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0
+	if !skipHooks {
+		reconciliationResult.Hooks, err = injectSyncInfoIntoHooks(reconciliationResult.Hooks,
+			state.SyncResult.Revision, state.SyncResult.Revisions, sources, isMultiSourceSync)
+		if err != nil {
+			state.Phase = common.OperationError
+			state.Message = fmt.Sprintf("Failed to prepare sync hooks: %v", err)
+			return
+		}
+	}
+
 	installationID, err := m.settingsMgr.GetInstallationID()
 	if err != nil {
 		log.Errorf("Could not get installation ID: %v", err)
@@ -386,7 +398,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 				return m.db.GetProjectClusters(ctx, proj)
 			}, un, res)
 		}),
-		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), syncOp.IsApplyStrategy() || len(syncOp.Resources) > 0),
+		sync.WithOperationSettings(syncOp.DryRun, syncOp.Prune, syncOp.SyncStrategy.Force(), skipHooks),
 		sync.WithInitialState(state.Phase, state.Message, initialResourcesRes, state.StartedAt),
 		sync.WithResourcesFilter(func(key kube.ResourceKey, target *unstructured.Unstructured, live *unstructured.Unstructured) bool {
 			return (len(syncOp.Resources) == 0 ||
