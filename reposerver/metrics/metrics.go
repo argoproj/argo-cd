@@ -48,7 +48,7 @@ func NewMetricsServer() *MetricsServer {
 			Name: "argocd_git_fetch_fail_total",
 			Help: "Number of git fetch requests failures by repo server",
 		},
-		[]string{"repo", "revision"},
+		[]string{"repo", "revision", "reason"},
 	)
 	registry.MustRegister(gitFetchFailCounter)
 
@@ -206,8 +206,17 @@ func (m *MetricsServer) GetHandler() http.Handler {
 	return m.handler
 }
 
-func (m *MetricsServer) IncGitFetchFail(repo string, revision string) {
-	m.gitFetchFailCounter.WithLabelValues(repo, revision).Inc()
+// Values of the reason label on argocd_git_fetch_fail_total.
+const (
+	// GitFetchFailReasonCancelled means the request was cancelled or its deadline
+	// expired, so the fetch was abandoned rather than failed by git or the remote.
+	GitFetchFailReasonCancelled = "cancelled"
+	// GitFetchFailReasonError covers every other failure.
+	GitFetchFailReasonError = "error"
+)
+
+func (m *MetricsServer) IncGitFetchFail(repo string, revision string, reason string) {
+	m.gitFetchFailCounter.WithLabelValues(repo, revision, reason).Inc()
 }
 
 func (m *MetricsServer) IncGitLsRemoteFail(repo string, revision string) {
