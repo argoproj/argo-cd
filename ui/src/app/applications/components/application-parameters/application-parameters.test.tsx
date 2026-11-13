@@ -247,7 +247,8 @@ test('expanded multi-source plugin panel renders NAME and ENV from the per-sourc
 
 test('multi-source default (no collapse state) renders the expanded panel, not the raw-text summary', async () => {
     // The details page initializes collapsedSources as an empty array, so every entry is undefined (see argoproj/argo-cd#30942).
-    renderWithContext(<ApplicationParameters application={multiSourceApp()} collapsedSources={[]} handleCollapse={() => undefined} />);
+    (services.repos.appDetails as jest.Mock).mockResolvedValue({type: 'Plugin', plugin: {}});
+    renderWithContext(<ApplicationParameters application={multiSourceApp()} pageNumber={0} setPageNumber={jest.fn()} collapsedSources={[]} handleCollapse={() => undefined} />);
 
     expect(await screen.findByDisplayValue('my-plugin')).toBeInTheDocument();
     expect(await screen.findByDisplayValue('FOO')).toBeInTheDocument();

@@ -1,3 +1,4 @@
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {FormApi} from 'argo-ui';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -35,6 +36,15 @@ jest.mock('lodash-es', () => ({
 jest.mock('../../../shared/components/yaml-editor/yaml-editor', () => ({YamlEditor: () => null}));
 jest.mock('../revision-form-field/revision-form-field', () => ({RevisionFormField: () => null}));
 
+function renderPanel(panel: React.ReactElement) {
+    const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    return render(
+        <QueryClientProvider client={client}>
+            <Context.Provider value={{notifications: {show: jest.fn()}} as any}>{panel}</Context.Provider>
+        </QueryClientProvider>
+    );
+}
+
 test.each([false, true])('keeps configured generator settings visible after changing repositories (multi-source: %s)', async multiSource => {
     const firstRepo = 'https://git.example.com/first.git';
     const secondRepo = 'https://git.example.com/second.git';
@@ -56,11 +66,7 @@ test.each([false, true])('keeps configured generator settings visible after chan
     const dropdown = multiSource ? 'application-create-dropdown-source-1' : 'application-create-dropdown-source';
     const repoField = multiSource ? 'application-create-source-1-field-repository-url' : 'application-create-field-repository-url';
 
-    render(
-        <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
-            <ApplicationCreatePanel app={app} onAppChanged={jest.fn()} createApp={createApp} getFormApi={api => (formApi = api)} />
-        </Context.Provider>
-    );
+    renderPanel(<ApplicationCreatePanel app={app} onAppChanged={jest.fn()} createApp={createApp} getFormApi={api => (formApi = api)} />);
 
     await screen.findByText('DIRECTORY');
     fireEvent.click(document.querySelector(`[qe-id="${dropdown}-Kustomize"]`) as HTMLElement);
@@ -114,11 +120,7 @@ test.each(generatorConfigurations)('preserves $type settings while replacing a G
     const createApp = jest.fn();
     const user = userEvent.setup();
     let formApi: FormApi;
-    render(
-        <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
-            <ApplicationCreatePanel app={app} onAppChanged={jest.fn()} createApp={createApp} getFormApi={api => (formApi = api)} />
-        </Context.Provider>
-    );
+    renderPanel(<ApplicationCreatePanel app={app} onAppChanged={jest.fn()} createApp={createApp} getFormApi={api => (formApi = api)} />);
 
     await screen.findByText(type.toUpperCase(), {selector: 'p'});
     const path = await screen.findByDisplayValue('old-path');
@@ -151,11 +153,7 @@ test.each(generatorConfigurations)('removes $type settings only from the submitt
     const createApp = jest.fn();
     const user = userEvent.setup();
     let formApi: FormApi;
-    render(
-        <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
-            <ApplicationCreatePanel app={app} onAppChanged={jest.fn()} createApp={createApp} getFormApi={api => (formApi = api)} />
-        </Context.Provider>
-    );
+    renderPanel(<ApplicationCreatePanel app={app} onAppChanged={jest.fn()} createApp={createApp} getFormApi={api => (formApi = api)} />);
 
     await screen.findAllByText(type.toUpperCase(), {selector: 'p'});
     await user.clear(await screen.findByDisplayValue('old-path'));
