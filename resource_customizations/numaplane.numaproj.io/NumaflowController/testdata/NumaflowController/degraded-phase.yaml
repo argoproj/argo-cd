@@ -1,0 +1,13 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: NumaflowController
+metadata:
+  creationTimestamp: "2026-11-01T00:00:00Z"
+  generation: 1
+  name: numaflow-controller
+  namespace: numaflow-system
+spec:
+  version: "1.5.2"
+status:
+  message: "unable to determine the target objects"
+  observedGeneration: 1
+  phase: Failed
