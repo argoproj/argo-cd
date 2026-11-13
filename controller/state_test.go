@@ -1962,6 +1962,36 @@ func TestUseDiffCache(t *testing.T) {
 			serverSideDiff:       true,
 		},
 		{
+			testName:      "will return false if the last sync status is Unknown",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: func() *v1alpha1.Application {
+				a := app("httpbin", "rev1", false, nil)
+				a.Status.Sync.Status = v1alpha1.SyncStatusCodeUnknown
+				return a
+			}(),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       false,
+		},
+		{
+			testName:      "will return false if the last sync status is Unknown and server-side diff",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: func() *v1alpha1.Application {
+				a := app("httpbin", "rev1", false, nil)
+				a.Status.Sync.Status = v1alpha1.SyncStatusCodeUnknown
+				return a
+			}(),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       true,
+		},
+		{
 			testName:             "will return false if there is a new revision",
 			noCache:              false,
 			manifestInfos:        manifestInfos("rev1"),
@@ -2967,4 +2997,44 @@ func TestShouldUseServerSideDiff(t *testing.T) {
 			assert.Equal(t, tc.expected, shouldUseServerSideDiff(tc.app, tc.controllerLevelSSD))
 		})
 	}
+}
+
+// TestCompareAppStateServerSideDiffStaleCacheAfterFailedCompare checks that a failed server-side diff leaves no cached result that reports Synced on the next compare.
+func TestCompareAppStateServerSideDiffStaleCacheAfterFailedCompare(t *testing.T) {
+	app := newFakeApp()
+	app.Annotations = map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true,IncludeMutationWebhook=true"}
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+	app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced, Revision: "rev1", ComparedTo: app.Spec.BuildComparedToStatus(sources)}
+	liveCM := Unstructured(fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cm","namespace":%q},"data":{"value":"a"}}`, test.FakeDestNamespace))
+	targetManifest := fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cm","namespace":%q},"data":{"value":"b"}}`, test.FakeDestNamespace)
+	manifestResp := &apiclient.ManifestResponse{Manifests: []string{targetManifest}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "rev2"}
+	cmKey := kube.NewResourceKey("", "ConfigMap", test.FakeDestNamespace, "test-cm")
+	data := fakeData{
+		apps:              []runtime.Object{app, &defaultProj},
+		manifestResponses: []*apiclient.ManifestResponse{manifestResp, manifestResp, manifestResp},
+		managedLiveObjs:   map[kube.ResourceKey]*unstructured.Unstructured{cmKey: liveCM},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	revisions := []string{""}
+
+	compRes1, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, compRes1.syncStatus.Status)
+	assert.NotEmpty(t, app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true}))
+
+	app.Status.Sync = *compRes1.syncStatus
+	_, err = ctrl.setAppManagedResources(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes1)
+	require.NoError(t, err)
+	data.managedLiveObjs[cmKey] = liveCM
+
+	compRes2, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, compRes2.syncStatus.Status)
+
+	t.Run("NegativeControlNoCache", func(t *testing.T) {
+		data.managedLiveObjs[cmKey] = liveCM
+		compResControl, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, true, false, nil, false)
+		require.NoError(t, err)
+		assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, compResControl.syncStatus.Status)
+	})
 }
