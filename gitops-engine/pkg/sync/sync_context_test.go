@@ -2215,6 +2215,88 @@ func TestSync_HookFinalizerRemovalNoopWhenHookIsGone(t *testing.T) {
 	assert.Equal(t, 0, deletedCount)
 }
 
+// newRecreatedHookSyncCtx returns a sync context for a hook that this operation re-created
+// (BeforeHookCreation): the hook is Running, the cluster holds the new hook with the hook
+// finalizer, and the reconciliation cache still holds its deleted, completed predecessor.
+func newRecreatedHookSyncCtx(t *testing.T, newHookPhase corev1.PodPhase) (*syncContext, *fake.FakeDynamicClient, *unstructured.Unstructured) {
+	t.Helper()
+	recreated := newHook("hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
+	recreated.SetUID("new-uid")
+	require.NoError(t, unstructured.SetNestedField(recreated.Object, string(corev1.RestartPolicyNever), "spec", "restartPolicy"))
+	require.NoError(t, unstructured.SetNestedField(recreated.Object, string(newHookPhase), "status", "phase"))
+
+	predecessor := recreated.DeepCopy()
+	predecessor.SetUID("old-uid")
+	predecessor.SetFinalizers(nil)
+	require.NoError(t, unstructured.SetNestedField(predecessor.Object, string(corev1.PodSucceeded), "status", "phase"))
+
+	syncCtx := newTestSyncCtx(nil,
+		WithInitialState(synccommon.OperationRunning, "", []synccommon.ResourceSyncResult{{
+			ResourceKey: kube.GetResourceKey(recreated),
+			HookPhase:   synccommon.OperationRunning,
+			Status:      synccommon.ResultCodeSynced,
+			SyncPhase:   synccommon.SyncPhasePreSync,
+			Order:       0,
+		}},
+			metav1.Now(),
+		))
+	fakeDynamicClient := fake.NewSimpleDynamicClient(runtime.NewScheme(), recreated)
+	syncCtx.dynamicIf = fakeDynamicClient
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{predecessor},
+		Target: []*unstructured.Unstructured{nil},
+	})
+	syncCtx.hooks = []*unstructured.Unstructured{newHook("hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)}
+	return syncCtx, fakeDynamicClient, recreated
+}
+
+func TestSync_RecreatedHookNotCompletedByStalePredecessorInCache(t *testing.T) {
+	// The reconciliation cache can lag behind the cluster and still hold the completed
+	// predecessor of a re-created hook. The hook must not be judged by it: the operation
+	// keeps waiting for the new hook, which keeps its finalizer until it completes.
+	syncCtx, fakeDynamicClient, recreated := newRecreatedHookSyncCtx(t, corev1.PodRunning)
+	updatedCount := 0
+	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		updatedCount++
+		return false, nil, nil
+	})
+
+	syncCtx.Sync(context.Background())
+	phase, message, resources := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationRunning, phase)
+	assert.Equal(t, "waiting for completion of hook /Pod/hook-1", message)
+	require.Len(t, resources, 1)
+	assert.Equal(t, synccommon.OperationRunning, resources[0].HookPhase)
+	assert.Equal(t, 0, updatedCount)
+
+	live, err := syncCtx.getResource(context.Background(), &syncTask{liveObj: recreated})
+	require.NoError(t, err)
+	assert.True(t, hook.HasHookFinalizer(live))
+}
+
+func TestSync_RecreatedHookCompletedFromClusterWhenCacheIsStale(t *testing.T) {
+	// Once the re-created hook completes in the cluster, it completes the operation and its
+	// finalizer is removed, even while the cache still holds the predecessor.
+	syncCtx, fakeDynamicClient, recreated := newRecreatedHookSyncCtx(t, corev1.PodSucceeded)
+	updatedCount := 0
+	fakeDynamicClient.PrependReactor("update", "*", func(_ testcore.Action) (handled bool, ret runtime.Object, err error) {
+		updatedCount++
+		return false, nil, nil
+	})
+
+	syncCtx.Sync(context.Background())
+	phase, message, _ := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	assert.Equal(t, "successfully synced (no more tasks)", message)
+	assert.Equal(t, 1, updatedCount, "expected the hook finalizer to be removed from the re-created hook")
+
+	live, err := syncCtx.getResource(context.Background(), &syncTask{liveObj: recreated})
+	require.NoError(t, err)
+	assert.False(t, hook.HasHookFinalizer(live))
+}
+
 func TestSync_HooksDeletedAfterSyncFailed(t *testing.T) {
 	hook1 := newHook("hook-1", synccommon.HookTypePreSync, synccommon.HookDeletePolicyBeforeHookCreation)
 	hook2 := newHook("hook-2", synccommon.HookTypePreSync, synccommon.HookDeletePolicyHookFailed)
