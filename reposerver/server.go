@@ -92,14 +92,24 @@ func NewServer(metricsServer *metrics.MetricsServer, cache *reposervercache.Cach
 	metricsServer.PrometheusRegistry.MustRegister(serverMetrics)
 
 	serverLog := log.NewEntry(log.StandardLogger())
+	// A single limiter backs both the unary and stream interceptors so the limit and the
+	// argocd_repo_server_active_requests gauge cover total gRPC concurrency. The limiter owns the
+	// in-flight counter and the gauge reads it on scrape, so the two never diverge.
+	concurrencyLimiter := grpc_util.NewConcurrencyLimiter(initConstants.MaxConcurrentGRPCRequests)
+	metricsServer.RegisterActiveGRPCRequestsGauge(concurrencyLimiter.ActiveRequests)
+	// The concurrency limiter is placed after the logging and metrics interceptors so that
+	// requests rejected with ResourceExhausted are still logged and counted, and before the
+	// recovery interceptor so the latter continues to wrap the actual handler.
 	streamInterceptors := []grpc.StreamServerInterceptor{
 		logging.StreamServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.StreamServerInterceptor(),
+		concurrencyLimiter.StreamServerInterceptor(),
 		recovery.StreamServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 	}
 	unaryInterceptors := []grpc.UnaryServerInterceptor{
 		logging.UnaryServerInterceptor(grpc_util.InterceptorLogger(serverLog)),
 		serverMetrics.UnaryServerInterceptor(),
+		concurrencyLimiter.UnaryServerInterceptor(),
 		recovery.UnaryServerInterceptor(recovery.WithRecoveryHandler(grpc_util.LoggerRecoveryHandler(serverLog))),
 		grpc_util.ErrorSanitizerUnaryServerInterceptor(),
 	}
