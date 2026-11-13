@@ -167,7 +167,7 @@ func newServiceWithMocks(t *testing.T, root string) (*Service, *gitmocks.Client,
 		gitClient.EXPECT().CommitSHA(mock.Anything).Return(mock.Anything, nil)
 		gitClient.EXPECT().Root().Return(root)
 		gitClient.EXPECT().RepoURL().Return("https://fake.com/fake_group/fake_repo.git")
-		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("commit", nil)
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 
 		chart := "my-chart"
@@ -242,7 +242,12 @@ func newServiceWithCommitSHA(t *testing.T, root, revision string) *Service {
 		gitClient.EXPECT().Fetch(mock.Anything, mock.Anything, mock.Anything).Return(nil)
 		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().LsRemote(revision).Return(revision, revisionErr)
-		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, revision).Return(revisionErr != nil)
+
+		if revisionErr != nil {
+			gitClient.EXPECT().GetRevisionType(mock.Anything, revision).Return("tag", nil)
+		} else {
+			gitClient.EXPECT().GetRevisionType(mock.Anything, revision).Return("commit", nil)
+		}
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 		gitClient.EXPECT().CommitSHA(mock.Anything).Return("632039659e542ed7de0c170a4fcc1c571b288fc0", nil)
 		gitClient.EXPECT().Root().Return(root)
@@ -717,7 +722,7 @@ func TestHelmChartReferencingExternalValues_RefSourceDepthIsHonored(t *testing.T
 		gitClient.EXPECT().CommitSHA(mock.Anything).Return(mock.Anything, nil)
 		gitClient.EXPECT().Root().Return(".")
 		gitClient.EXPECT().RepoURL().Return("https://git.example.com/test/repo")
-		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("commit", nil)
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 
 		helmClient.EXPECT().GetIndex(mock.Anything, mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
@@ -775,7 +780,7 @@ func TestHelmChartReferencingSameRepoAndRevision_ResolvesRevisionOnce(t *testing
 		gitClient.EXPECT().LsRemote(branch).Return(newSHA, nil).Once()
 		gitClient.EXPECT().LsRemote(newSHA).Return(newSHA, nil).Maybe()
 		gitClient.EXPECT().Root().Return(root)
-		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().GetRevisionType(mock.Anything, mock.Anything).Return("commit", nil)
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 
 		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
@@ -2144,6 +2149,60 @@ func TestGetRevisionMetadata(t *testing.T) {
 	require.NotNil(t, res.SourceIntegrityResult)
 	assert.True(t, res.SourceIntegrityResult.IsValid())
 	assert.NotEmpty(t, res.SignatureInfo) // nolint:staticcheck
+}
+
+func TestGetRevisionMetadataSignedRevisionOnly(t *testing.T) {
+	signedRevisionOnly := &v1alpha1.SourceIntegrity{
+		Git: &v1alpha1.SourceIntegrityGit{
+			Policies: []*v1alpha1.SourceIntegrityGitPolicy{{
+				Repos:              []v1alpha1.SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				SignedRevisionOnly: true,
+				GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+					Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeHead,
+					Keys: []string{"f24e21389b25a3c1"},
+				},
+			}},
+		},
+	}
+
+	for _, revision := range []string{"c0b400fc458875d925171398f9ba9eabd5529923", "c0b400f"} {
+		t.Run("commit sha "+revision+" passes the guard", func(t *testing.T) {
+			service, gitClient, _ := newServiceWithMocks(t, "../..")
+
+			gitClient.EXPECT().GetSymbolicFullName(mock.Anything, mock.Anything).Return("", nil)
+			gitClient.EXPECT().LsSignatures(mock.Anything, mock.Anything, mock.Anything).RunAndReturn(LsSignaturesMockOk)
+			gitClient.EXPECT().RevisionMetadata(mock.Anything, mock.Anything).Return(&git.RevisionMetadata{
+				Message: "test",
+				Author:  "author",
+				Date:    time.Now(),
+			}, nil)
+
+			res, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+				Repo:            &v1alpha1.Repository{},
+				Revision:        revision,
+				SourceIntegrity: signedRevisionOnly,
+			})
+			require.NoError(t, err)
+
+			gitClient.AssertCalled(t, "GetRevisionType", mock.Anything, revision)
+
+			require.NotNil(t, res.SourceIntegrityResult)
+			assert.True(t, res.SourceIntegrityResult.IsValid(), "revision %s should pass the guard, got %v", revision, res.SourceIntegrityResult.AsError())
+			assert.Equal(t, []string{"GIT/GPG"}, res.SourceIntegrityResult.PassedChecks())
+		})
+	}
+
+	t.Run("a revision that is not a commit sha never reaches the guard", func(t *testing.T) {
+		service, gitClient, _ := newServiceWithMocks(t, "../..")
+
+		_, err := service.GetRevisionMetadata(t.Context(), &apiclient.RepoServerRevisionMetadataRequest{
+			Repo:            &v1alpha1.Repository{},
+			Revision:        "v1.0",
+			SourceIntegrity: signedRevisionOnly,
+		})
+		require.EqualError(t, err, "revision v1.0 must be resolved")
+		gitClient.AssertNotCalled(t, "GetRevisionType", mock.Anything, mock.Anything)
+	})
 }
 
 func TestGetSignatureVerificationResult(t *testing.T) {
