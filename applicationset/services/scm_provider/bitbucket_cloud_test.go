@@ -510,7 +510,7 @@ func TestBitbucketListRepos(t *testing.T) {
 }
 
 func TestBitbucketGetBranchesMissingHash(t *testing.T) {
-	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, req *http.Request) {
+	testServer := httptest.NewServer(http.HandlerFunc(func(res http.ResponseWriter, _ *http.Request) {
 		res.WriteHeader(http.StatusOK)
 		_, _ = res.Write([]byte(`{"pagelen": 10, "values": [{"name": "main", "target": {}}]}`))
 	}))
