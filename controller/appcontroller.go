@@ -248,7 +248,7 @@ func NewApplicationController(
 		metricsClusterLabels:              metricsClusterLabels,
 	}
 	if hydratorEnabled {
-		log.Infof("hyrdator enabled with format %s", hydrationFormat);
+		log.Infof("hyrdator enabled with format %s", hydrationFormat)
 		ctrl.hydrator = hydrator.NewHydrator(&ctrl, appResyncPeriod, commitClientset, repoClientset, db, hydrationFormat)
 	}
 	if kubectlParallelismLimit > 0 {

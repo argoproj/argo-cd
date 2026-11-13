@@ -30,9 +30,9 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		Repo: &v1alpha1.Repository{
 			Repo: "https://github.com/argoproj/argocd-example-apps.git",
 		},
-		TargetBranch:  "main",
-		SyncBranch:    "env/test",
-		CommitMessage: "test commit message",
+		TargetBranch:    "main",
+		SyncBranch:      "env/test",
+		CommitMessage:   "test commit message",
 		HydrationFormat: common.HydrationFormatSimple,
 	}
 
@@ -115,14 +115,14 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithCustomAuthor := &apiclient.CommitHydratedManifestsRequest{
-			Repo:          validRequest.Repo,
-			SyncBranch:    validRequest.SyncBranch,
-			TargetBranch:  validRequest.TargetBranch,
-			DrySha:        validRequest.DrySha,
-			CommitMessage: validRequest.CommitMessage,
-			Paths:         validRequest.Paths,
-			AuthorName:    "Custom Author",
-			AuthorEmail:   "custom@example.com",
+			Repo:            validRequest.Repo,
+			SyncBranch:      validRequest.SyncBranch,
+			TargetBranch:    validRequest.TargetBranch,
+			DrySha:          validRequest.DrySha,
+			CommitMessage:   validRequest.CommitMessage,
+			Paths:           validRequest.Paths,
+			AuthorName:      "Custom Author",
+			AuthorEmail:     "custom@example.com",
 			HydrationFormat: common.HydrationFormatSimple,
 		}
 
@@ -150,14 +150,14 @@ func Test_CommitHydratedManifests(t *testing.T) {
 		mockRepoClientFactory.EXPECT().NewClient(mock.Anything, mock.Anything).Return(mockGitClient, nil).Once()
 
 		requestWithEmailOnly := &apiclient.CommitHydratedManifestsRequest{
-			Repo:          validRequest.Repo,
-			SyncBranch:    validRequest.SyncBranch,
-			TargetBranch:  validRequest.TargetBranch,
-			DrySha:        validRequest.DrySha,
-			CommitMessage: validRequest.CommitMessage,
-			Paths:         validRequest.Paths,
-			AuthorName:    "",
-			AuthorEmail:   "custom@example.com",
+			Repo:            validRequest.Repo,
+			SyncBranch:      validRequest.SyncBranch,
+			TargetBranch:    validRequest.TargetBranch,
+			DrySha:          validRequest.DrySha,
+			CommitMessage:   validRequest.CommitMessage,
+			Paths:           validRequest.Paths,
+			AuthorName:      "",
+			AuthorEmail:     "custom@example.com",
 			HydrationFormat: common.HydrationFormatSimple,
 		}
 
@@ -210,9 +210,9 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			Repo: &v1alpha1.Repository{
 				Repo: "https://github.com/argoproj/argocd-example-apps.git",
 			},
-			TargetBranch:  "main",
-			SyncBranch:    "env/test",
-			CommitMessage: "test commit message",
+			TargetBranch:    "main",
+			SyncBranch:      "env/test",
+			CommitMessage:   "test commit message",
 			HydrationFormat: common.HydrationFormatSimple,
 			Paths: []*apiclient.PathDetails{
 				{
@@ -264,7 +264,7 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			TargetBranch: "main",
 			SyncBranch:   "env/test",
 
-			CommitMessage: "test commit message",
+			CommitMessage:   "test commit message",
 			HydrationFormat: common.HydrationFormatSimple,
 			Paths: []*apiclient.PathDetails{
 				{
@@ -306,10 +306,10 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			Repo: &v1alpha1.Repository{
 				Repo: "https://github.com/argoproj/argocd-example-apps.git",
 			},
-			TargetBranch:  "main",
-			SyncBranch:    "env/test",
+			TargetBranch:    "main",
+			SyncBranch:      "env/test",
 			HydrationFormat: common.HydrationFormatSimple,
-			CommitMessage: "test commit message",
+			CommitMessage:   "test commit message",
 			Paths: []*apiclient.PathDetails{
 				{
 					Path: ".", // root path - should NOT trigger removal
@@ -363,10 +363,10 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			Repo: &v1alpha1.Repository{
 				Repo: "https://github.com/argoproj/argocd-example-apps.git",
 			},
-			TargetBranch:  "main",
-			SyncBranch:    "env/test",
-			CommitMessage: "test commit message",
-			DrySha:        "dry-sha-456",
+			TargetBranch:    "main",
+			SyncBranch:      "env/test",
+			CommitMessage:   "test commit message",
+			DrySha:          "dry-sha-456",
 			HydrationFormat: common.HydrationFormatSimple,
 		}
 
@@ -395,10 +395,10 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			Repo: &v1alpha1.Repository{
 				Repo: "https://github.com/argoproj/argocd-example-apps.git",
 			},
-			TargetBranch:  "main",
-			SyncBranch:    "env/test",
-			DrySha:        "abc123",
-			CommitMessage: "test commit message",
+			TargetBranch:    "main",
+			SyncBranch:      "env/test",
+			DrySha:          "abc123",
+			CommitMessage:   "test commit message",
 			HydrationFormat: common.HydrationFormatSimple,
 			Paths: []*apiclient.PathDetails{
 				{
@@ -438,10 +438,10 @@ func Test_CommitHydratedManifests(t *testing.T) {
 			Repo: &v1alpha1.Repository{
 				Repo: "https://github.com/argoproj/argocd-example-apps.git",
 			},
-			TargetBranch:  "main",
-			SyncBranch:    "env/test",
-			CommitMessage: "test commit message",
-			DrySha:        "dry-sha-123",
+			TargetBranch:    "main",
+			SyncBranch:      "env/test",
+			CommitMessage:   "test commit message",
+			DrySha:          "dry-sha-123",
 			HydrationFormat: common.HydrationFormatSimple,
 			Paths: []*apiclient.PathDetails{
 				{

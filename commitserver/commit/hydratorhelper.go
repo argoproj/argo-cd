@@ -91,6 +91,10 @@ func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha string, d
 			return false, fmt.Errorf("unknown hydrationFormat %s, valid values are 'simple' or 'split'", hydrationFormat)
 		}
 
+		if err != nil {
+			return false, fmt.Errorf("error while writing manifests: %w", err)
+		}
+
 		// check whether hydration has led to any changes in the hydratePath
 		changed, err := gitClient.HasFileChanged(ctx, hydratePath)
 		if err != nil {
@@ -278,12 +282,19 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 
 		currentManifestDirectoryPath := filepath.Join(manifestsDirectoryPath, namespaceSubDirectory, metaObj.ApiVersion)
 		err = ensureDirectoryExists(root, currentManifestDirectoryPath, false)
+		if err != nil {
+			return fmt.Errorf("error while ensuring that directory %s exists: %w", currentManifestDirectoryPath, err)
+		}
 
 		// prepare and write manifest
 		manifestName := fmt.Sprintf("%s-%s.yaml", strings.ToLower(metaObj.Kind), metaObj.Metadata.Name)
 		manifestPath := filepath.Join(currentManifestDirectoryPath, manifestName)
 		err = writeManifestToFile(root, m.ManifestJSON, manifestPath)
+		if err != nil {
+			return fmt.Errorf("error writing manifest %s to file %s: %w", manifestName, manifestPath, err)
+		}
 	}
+
 	return nil
 }
 
