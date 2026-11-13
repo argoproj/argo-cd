@@ -39,6 +39,11 @@ The windows work in the following way:
 - If there are any `deny` windows matching an application then all syncs will be denied when the `deny` windows are active.
 - If there is an active matching `allow` and an active matching `deny` then syncs will be denied as `deny` windows override `allow` windows.
 
+> [!NOTE]
+> Syncs that an ApplicationSet [RollingSync](../operator-manual/applicationset/Progressive-Syncs.md) triggers are
+> automated syncs. While the windows deny automated syncs, RollingSync waits and does not start the sync, so a
+> `deny` window with `manualSync: true` still lets users sync those Applications manually.
+
 ### Sync Overrun
 
 The `syncOverrun` option allows automatic syncs that are already running to continue even when they transition out of their allowed window. This is particularly useful when you want to prevent new syncs from starting during maintenance windows but don't want to interrupt syncs that are already in progress.
