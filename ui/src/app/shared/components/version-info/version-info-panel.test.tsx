@@ -90,7 +90,7 @@ describe('VersionPanel', () => {
             .mockRejectedValueOnce(new Error('unavailable'))
             .mockImplementationOnce(() => new Promise(resolve => (resolveRetry = resolve)));
         renderPanel();
-        fireEvent.click(await screen.findByText('try again'));
+        fireEvent.click(await screen.findByRole('button', {name: 'try again'}));
         expect(await screen.findByText('Loading...')).toBeInTheDocument();
         expect(screen.queryByRole('button', {name: 'Copy JSON'})).not.toBeInTheDocument();
 
@@ -107,7 +107,7 @@ describe('VersionPanel', () => {
             .mockResolvedValueOnce({...version, Version: 'v3.7.1'});
         renderPanel();
         expect(screen.getByText(version.Version)).toBeInTheDocument();
-        fireEvent.click(await screen.findByText('try again'));
+        fireEvent.click(await screen.findByRole('button', {name: 'try again'}));
 
         expect(screen.getByText(version.Version)).toBeInTheDocument();
         expect(await screen.findByText('v3.7.1')).toBeInTheDocument();

@@ -1,4 +1,26 @@
-import {newQueryClient} from './query-client';
+import {cleanup, render, screen} from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import * as React from 'react';
+
+import {loadFailed, newQueryClient} from './query-client';
+
+describe('loadFailed', () => {
+    afterEach(cleanup);
+
+    it.each(['{Enter}', ' '])('retries with %s from the keyboard without submitting a surrounding form', async key => {
+        const user = userEvent.setup();
+        const retry = jest.fn();
+        const submit = jest.fn(event => event.preventDefault());
+        render(<form onSubmit={submit}>{loadFailed(retry)}</form>);
+
+        await user.tab();
+        expect(screen.getByRole('button', {name: 'try again'})).toHaveFocus();
+        await user.keyboard(key);
+
+        expect(retry).toHaveBeenCalledTimes(1);
+        expect(submit).not.toHaveBeenCalled();
+    });
+});
 
 describe('newQueryClient', () => {
     let notifications: {show: jest.Mock};
