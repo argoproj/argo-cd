@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/cache"
+	cryptoutil "github.com/argoproj/argo-cd/v3/util/crypto"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
@@ -103,6 +105,57 @@ func WithIndexCache(indexCache tagsCache) ClientOpts {
 	return func(c *nativeOCIClient) {
 		c.tagsCache = indexCache
 	}
+}
+
+// WithIndexCacheScopedByCreds attaches the tags cache and automatically
+// scopes its keys to the client's credential view: a fetch made with private
+// credentials can never publish tag metadata that an anonymous (or
+// differently-credentialed) reader would consume. The scope is a memory-hard
+// fingerprint of the credential/TLS context; plaintext secrets never enter
+// keys. Without this option the bare repo URL is used (legacy behavior).
+func WithIndexCacheScopedByCreds(indexCache tagsCache, creds Creds) ClientOpts {
+	return func(c *nativeOCIClient) {
+		c.tagsCache = indexCache
+		c.tagsCacheScope = credsScope(creds)
+	}
+}
+
+type nativeOCIClient struct {
+	EventHandlers
+
+	repoURL                         string
+	repo                            oras.ReadOnlyTarget
+	tagsFunc                        func(context.Context, string) ([]string, error)
+	repoLock                        sync.KeyLock
+	tagsCache                       tagsCache
+	tagsCacheScope                  string // credential fingerprint scoping tags-cache keys (empty = legacy bare-URL keys)
+	repoCachePaths                  utilio.TempPaths
+	allowedMediaTypes               []string
+	manifestMaxExtractedSize        int64
+	disableManifestMaxExtractedSize bool
+	pingFunc                        func(ctx context.Context) error
+}
+
+// cacheRepoKey returns the tags-cache key for this client's credential view.
+func (c *nativeOCIClient) cacheRepoKey() string {
+	if c.tagsCacheScope == "" {
+		return c.repoURL
+	}
+	return c.repoURL + "\x00" + c.tagsCacheScope
+}
+
+// credsScope returns a versioned, memory-hard fingerprint of the effective
+// authentication and TLS context, without truncating its 256-bit output.
+func credsScope(creds Creds) string {
+	return cryptoutil.CredentialScope("oci-credentials",
+		creds.Username,
+		creds.Password,
+		creds.CAPath,
+		string(creds.CertData),
+		string(creds.KeyData),
+		strconv.FormatBool(creds.InsecureSkipVerify),
+		strconv.FormatBool(creds.InsecureHTTPOnly),
+	)
 }
 
 func WithImagePaths(repoCachePaths utilio.TempPaths) ClientOpts {
@@ -218,20 +271,6 @@ type EventHandlers struct {
 }
 
 // nativeOCIClient implements Client interface using oras-go
-type nativeOCIClient struct {
-	EventHandlers
-
-	repoURL                         string
-	repo                            oras.ReadOnlyTarget
-	tagsFunc                        func(context.Context, string) ([]string, error)
-	repoLock                        sync.KeyLock
-	tagsCache                       tagsCache
-	repoCachePaths                  utilio.TempPaths
-	allowedMediaTypes               []string
-	manifestMaxExtractedSize        int64
-	disableManifestMaxExtractedSize bool
-	pingFunc                        func(ctx context.Context) error
-}
 
 // TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
@@ -434,7 +473,7 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 
 	var data []byte
 	if !noCache && c.tagsCache != nil {
-		if err := c.tagsCache.GetOCITags(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
+		if err := c.tagsCache.GetOCITags(c.cacheRepoKey(), &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoURL, err)
 		}
 	}
@@ -462,7 +501,7 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 			if err != nil {
 				return nil, fmt.Errorf("failed to encode tags: %w", err)
 			}
-			if err := c.tagsCache.SetOCITags(c.repoURL, cacheData); err != nil {
+			if err := c.tagsCache.SetOCITags(c.cacheRepoKey(), cacheData); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %s", c.repoURL, err)
 			}
 		}

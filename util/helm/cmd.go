@@ -2,6 +2,8 @@ package helm
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"io"
@@ -12,8 +14,10 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
+	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
@@ -31,6 +35,11 @@ type Cmd struct {
 	proxy           string
 	noProxy         string
 	runWithRedactor func(cmd *exec.Cmd, redactor func(text string) string) (string, error)
+	// persistentIndexStore, when non-nil, holds a persistent, expiring copy of
+	// chart repository index files. It is copied into the ephemeral helm cache
+	// home before each invocation so that helm resolves chart versions locally
+	// instead of re-downloading index.yaml (see IndexStore).
+	persistentIndexStore *IndexStore
 }
 
 func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd, error) {
@@ -72,12 +81,24 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	cmd.Stdin = stdin
-	if !c.IsLocal {
+	if !c.IsLocal || c.persistentIndexStore != nil {
+		cacheHome := c.helmHome + "/cache"
+
 		cmd.Env = append(cmd.Env,
-			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
-			fmt.Sprintf("XDG_CONFIG_HOME=%s/config", c.helmHome),
-			fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
-			fmt.Sprintf("HELM_CONFIG_HOME=%s/config", c.helmHome))
+			"XDG_CACHE_HOME="+cacheHome,
+			"XDG_CONFIG_HOME="+c.helmHome+"/config",
+			"XDG_DATA_HOME="+c.helmHome+"/data")
+		if c.persistentIndexStore != nil {
+			// Explicit Helm variables take precedence over XDG. Override inherited
+			// values too, using the same paths into which we prewarm snapshots.
+			cmd.Env = append(cmd.Env,
+				"HELM_CONFIG_HOME="+c.helmHome+"/config/helm",
+				"HELM_CACHE_HOME="+c.helmHome+"/cache/helm",
+				"HELM_DATA_HOME="+c.helmHome+"/data/helm",
+				"HELM_REPOSITORY_CONFIG="+c.helmHome+"/config/helm/repositories.yaml",
+				"HELM_REPOSITORY_CACHE="+c.helmHome+"/cache/helm/repository",
+				"HELM_REGISTRY_CONFIG="+c.helmHome+"/config/helm/registry/config.json")
+		}
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy, c.noProxy)
@@ -88,6 +109,131 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 		return out, fullCommand, fmt.Errorf("failed running helm: %w", err)
 	}
 	return out, fullCommand, nil
+}
+
+// helmRepoEntry mirrors helm's repo.Entry JSON schema (pkg/repo/chartrepo.go):
+// it is what helm writes to repositories.yaml on `helm repo add` and what the
+// dependency downloader reads credentials from when pulling chart tarballs.
+type helmRepoEntry struct {
+	Name                  string `json:"name"`
+	URL                   string `json:"url"`
+	Username              string `json:"username,omitempty"`
+	Password              string `json:"password,omitempty"`
+	CertFile              string `json:"certFile,omitempty"`
+	KeyFile               string `json:"keyFile,omitempty"`
+	CAFile                string `json:"caFile,omitempty"`
+	InsecureSkipTLSverify bool   `json:"insecure_skip_tls_verify,omitempty"`
+	PassCredentialsAll    bool   `json:"pass_credentials_all,omitempty"`
+}
+
+// prewarmIndexes installs a repository's cached index into the ephemeral helm
+// cache home under BOTH names helm resolves indexes by: the registered
+// repository name (used when the URL matches a repositories.yaml entry) and
+// the dependency manager's generated name "helm-manager-<sha256(url)>" (used
+// when a Chart.yaml dependency references the URL directly). Callers must
+// register both names in repositories.yaml (see writeRepoEntries callers).
+func (c *Cmd) prewarmIndexes(repoURL string, indexData []byte, repoName string) error {
+	destDir := path.Join(c.helmHome, "cache", "helm", "repository")
+	if err := c.persistentIndexStore.CopyTo(repoURL, indexData, destDir, repoName); err != nil {
+		return err
+	}
+	managerName := managerKeyPrefix + managerKey(repoURL)
+	return c.persistentIndexStore.CopyTo(repoURL, indexData, destDir, managerName)
+}
+
+// Repository client certificates and keys live for the entire subprocess
+// lifetime and are removed with the private Helm home by Close.
+func (c *Cmd) writeRepoCredential(data []byte) (string, error) {
+	if len(data) == 0 {
+		return "", nil
+	}
+	dir := filepath.Join(c.helmHome, "config")
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return "", err
+	}
+	file, err := os.CreateTemp(dir, "repo-credential-*")
+	if err != nil {
+		return "", err
+	}
+	if _, err := file.Write(data); err != nil {
+		_ = file.Close()
+		return "", err
+	}
+	if err := file.Close(); err != nil {
+		return "", err
+	}
+	return file.Name(), nil
+}
+
+// managerKeyPrefix mirrors helm's downloader.managerKeyPrefix: the generated
+// repository cache name for unmanaged repositories.
+const managerKeyPrefix = "helm-manager-"
+
+// managerKey mirrors helm's downloader.key: a hex sha256 of the repository
+// URL, used in the generated "helm-manager-<key>" cache name.
+func managerKey(name string) string {
+	sum := sha256.Sum256([]byte(name))
+	return hex.EncodeToString(sum[:])
+}
+
+// repoFileEntries is the subset of helm's repositories.yaml schema needed to
+// enumerate configured repositories (name + URL).
+type repoFileEntries struct {
+	APIVersion   string          `json:"apiVersion,omitempty"`
+	Generated    string          `json:"generated,omitempty"`
+	Repositories []helmRepoEntry `json:"repositories"`
+}
+
+// writeRepoEntries writes the given repository entries into the ephemeral
+// helm config home's repositories.yaml, equivalent to a `helm repo add` per
+// entry that skips the index download. The file lives at
+// <XDG_CONFIG_HOME>/helm/repositories.yaml (helmpath.ConfigPath, no
+// "repository" subdirectory — that one belongs to the cache home).
+func (c *Cmd) writeRepoEntries(entries []helmRepoEntry) error {
+	configRepoDir := path.Join(c.helmHome, "config", "helm")
+	repoFile := path.Join(configRepoDir, "repositories.yaml")
+
+	rf := repoFileEntries{
+		APIVersion: "v1", // helm's repo.File default APIVersion
+		Generated:  time.Now().UTC().Format(time.RFC3339),
+	}
+	if data, err := os.ReadFile(repoFile); err == nil {
+		if err := yaml.Unmarshal(data, &rf); err != nil {
+			return fmt.Errorf("failed to parse helm repositories.yaml: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return fmt.Errorf("failed to read helm repositories.yaml: %w", err)
+	}
+
+	known := make(map[string]helmRepoEntry, len(rf.Repositories))
+	for _, entry := range rf.Repositories {
+		known[entry.Name] = entry
+	}
+	for _, entry := range entries {
+		if existing, ok := known[entry.Name]; ok {
+			if existing.URL != entry.URL {
+				return fmt.Errorf("repository name %s already registered with a different URL", entry.Name)
+			}
+			if existing != entry {
+				return fmt.Errorf("repository name %s has conflicting credentials or TLS settings", entry.Name)
+			}
+			continue // already registered
+		}
+		rf.Repositories = append(rf.Repositories, entry)
+		known[entry.Name] = entry
+	}
+
+	if err := os.MkdirAll(configRepoDir, 0o700); err != nil {
+		return fmt.Errorf("failed to create helm config dir: %w", err)
+	}
+	out, err := yaml.Marshal(rf)
+	if err != nil {
+		return fmt.Errorf("failed to serialize helm repositories.yaml: %w", err)
+	}
+	if err := os.WriteFile(repoFile, out, 0o600); err != nil {
+		return fmt.Errorf("failed to write helm repositories.yaml: %w", err)
+	}
+	return nil
 }
 
 func (c *Cmd) RegistryLogin(ctx context.Context, repo string, creds Creds, plainHTTP bool) (string, error) {
@@ -348,7 +494,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	return out, nil
 }
 
-func (c *Cmd) dependencyBuild(insecure bool, plainHTTP bool) (string, error) {
+func (c *Cmd) dependencyBuild(ctx context.Context, insecure bool, plainHTTP bool, skipRefresh bool) (string, error) {
 	args := []string{"dependency", "build"}
 	if insecure {
 		args = append(args, "--insecure-skip-tls-verify")
@@ -356,7 +502,15 @@ func (c *Cmd) dependencyBuild(insecure bool, plainHTTP bool) (string, error) {
 	if plainHTTP {
 		args = append(args, "--plain-http")
 	}
-	out, _, err := c.run(context.Background(), args...)
+	// skipRefresh is only set when the ephemeral helm cache home has been
+	// pre-populated with recently downloaded repository indexes for every
+	// dependency repository (see DependencyBuild). Skipping helm's repo
+	// refresh then makes the build resolve dependency versions from those
+	// local indexes instead of re-downloading every repository's index.yaml.
+	if skipRefresh {
+		args = append(args, "--skip-refresh")
+	}
+	out, _, err := c.run(ctx, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to build dependencies: %w", err)
 	}

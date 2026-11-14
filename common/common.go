@@ -289,6 +289,10 @@ const (
 	EnvGitSubmoduleEnabled = "ARGOCD_GIT_MODULES_ENABLED"
 	// EnvHelmUserAgent specifies the User-Agent header for Helm repository requests
 	EnvHelmUserAgent = "ARGOCD_HELM_USER_AGENT"
+	// EnvHelmIndexCacheEnabled enables dependency index reuse, false by default.
+	EnvHelmIndexCacheEnabled = "ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_ENABLED"
+	// EnvHelmIndexCacheDir overrides the Argo-managed dependency index cache directory.
+	EnvHelmIndexCacheDir = "ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_DIR"
 	// EnvGnuPGHome is the path to ArgoCD's GnuPG keyring for signature verification
 	EnvGnuPGHome = "ARGOCD_GNUPGHOME"
 	// EnvWatchAPIBufferSize is the buffer size used to transfer K8S watch events to watch API consumer
