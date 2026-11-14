@@ -1,0 +1,44 @@
+apiVersion: ceph.rook.io/v1
+kind: CephCluster
+metadata:
+  name: test-ceph-cluster
+  namespace: rook-ceph
+spec:
+  cephVersion:
+    image: quay.io/ceph/ceph:v19.2.0
+  mon:
+    count: 3
+  mgr:
+    count: 2
+  storage:
+    useAllNodes: true
+    useAllDevices: false
+status:
+  ceph:
+    health: HEALTH_OK
+    lastChecked: "2025-08-11T16:03:08Z"
+    fsid: c121226d-cac9-492f-8b0b-c05693243380
+    capacity:
+      bytesAvailable: 35183103942656
+      bytesTotal: 35184372088832
+      bytesUsed: 1268146176
+      lastUpdated: "2025-08-11T16:03:08Z"
+  conditions:
+  - lastHeartbeatTime: "2025-08-11T16:03:08Z"
+    lastTransitionTime: "2025-08-11T16:03:08Z"
+    message: Cluster created successfully
+    reason: ClusterCreated
+    status: "True"
+    type: Ready
+  - lastHeartbeatTime: "2025-08-11T16:03:08Z"
+    lastTransitionTime: "2025-08-11T16:03:08Z"
+    message: All OSDs are running
+    reason: OSDsRunning
+    status: "True"
+    type: Progressing
+  message: Cluster created successfully
+  phase: Ready
+  state: Created
+  version:
+    image: quay.io/ceph/ceph:v19.2.0
+    version: 19.2.0-0

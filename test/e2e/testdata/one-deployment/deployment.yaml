@@ -1,0 +1,21 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: main
+spec:
+  replicas: 1
+  progressDeadlineSeconds: 10
+  selector:
+    matchLabels:
+      my-label: whatever
+  template:
+    metadata:
+      labels:
+        my-label: whatever
+    spec:
+      containers:
+        - name: main
+          command: ["sleep", "999"]
+          image: quay.io/argoprojlabs/argocd-e2e-container:0.1
+          imagePullPolicy: IfNotPresent
+

@@ -1,0 +1,7 @@
+node_modules
+.vscode
+junit.xml
+coverage
+/pnpm-error.log
+.yalc
+yalc.lock

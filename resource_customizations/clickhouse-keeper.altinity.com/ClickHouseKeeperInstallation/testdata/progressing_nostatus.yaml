@@ -1,0 +1,20 @@
+apiVersion: clickhouse-keeper.altinity.com/v1
+kind: ClickHouseKeeperInstallation
+metadata:
+  name: test-clickhouse-keeper
+  namespace: default
+spec:
+  configuration:
+    clusters:
+    - name: cluster
+      layout:
+        shards:
+        - name: shard
+          replicas:
+          - name: replica
+            port: 9181
+            template:
+              spec:
+                containers:
+                - name: clickhouse-keeper
+                  image: clickhouse/clickhouse-keeper:latest

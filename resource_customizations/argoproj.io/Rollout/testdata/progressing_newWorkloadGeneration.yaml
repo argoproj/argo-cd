@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  annotations:
+    rollout.argoproj.io/revision: "1"
+    rollout.argoproj.io/workload-generation: "2"
+  creationTimestamp: "2021-07-27T12:14:11Z"
+  generation: 3
+  name: rollout-ref-deployment
+  namespace: default
+  resourceVersion: "4220"
+  uid: a3d1d224-ac4f-4f84-9274-e01e1d43b036
+spec:
+  replicas: 5
+  strategy:
+    canary:
+      steps:
+      - setWeight: 20
+      - pause:
+          duration: 10s
+  workloadRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: rollout-ref-deployment
+status:
+  HPAReplicas: 5
+  availableReplicas: 5
+  blueGreen: {}
+  canary: {}
+  collisionCount: 1
+  conditions:
+  - lastTransitionTime: "2021-07-27T12:14:21Z"
+    lastUpdateTime: "2021-07-27T12:14:21Z"
+    message: RolloutCompleted
+    reason: RolloutCompleted
+    status: "True"
+    type: Completed
+  - lastTransitionTime: "2021-07-27T12:14:11Z"
+    lastUpdateTime: "2021-07-27T12:14:21Z"
+    message: ReplicaSet "rollout-ref-deployment-75bbd56864" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2021-07-27T12:14:21Z"
+    lastUpdateTime: "2021-07-27T12:14:21Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  currentPodHash: 75bbd56864
+  currentStepHash: 55f5d87bd9
+  currentStepIndex: 2
+  observedGeneration: "3"
+  phase: Healthy
+  readyReplicas: 5
+  replicas: 5
+  selector: app=rollout-ref-deployment
+  stableRS: 75bbd56864
+  updatedReplicas: 5
+  workloadObservedGeneration: "1"

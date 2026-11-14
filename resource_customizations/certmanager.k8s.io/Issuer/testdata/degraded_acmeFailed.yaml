@@ -1,0 +1,28 @@
+apiVersion: certmanager.k8s.io/v1alpha1
+kind: Issuer
+metadata:
+  creationTimestamp: "2019-02-15T19:23:48Z"
+  generation: 1
+  name: test-issuer
+  namespace: argocd
+  resourceVersion: "68352438"
+  selfLink: /apis/certmanager.k8s.io/v1alpha1/namespaces/argocd/issuers/test-issuer
+  uid: 37f408e3-3157-11e9-be3f-42010a800011
+spec:
+  acme:
+    email: myemail@example.com
+    http01: {}
+    privateKeySecretRef:
+      key: ""
+      name: letsencrypt
+    server: https://acme-v02.api.letsencrypt.org/directory124
+status:
+  acme:
+    uri: ""
+  conditions:
+  - lastTransitionTime: "2019-02-15T19:23:53Z"
+    message: |
+      Failed to verify ACME account: acme: : 404 page not found
+    reason: ErrRegisterACMEAccount
+    status: "False"
+    type: Ready

@@ -1,0 +1,19 @@
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: podinfo-update
+  namespace: default
+spec:
+  interval: 30m
+  sourceRef:
+    kind: GitRepository
+    name: podinfo
+  git:
+    commit:
+      author:
+        email: fluxcdbot@users.noreply.github.com
+        name: fluxcdbot
+    push:
+      branch: main
+  update:
+    path: ./

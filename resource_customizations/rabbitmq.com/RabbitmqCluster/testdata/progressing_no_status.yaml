@@ -1,0 +1,23 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  labels:
+    app: example-rabbitmq
+  name: example-rabbitmq
+  namespace: example
+spec:
+  image: docker.io/bitnami/rabbitmq:3.10.7-debian-11-r8
+  persistence:
+    storage: 32Gi
+    storageClassName: default
+  rabbitmq:
+  replicas: 3
+  resources:
+    limits:
+      cpu: 250m
+      memory: 1792Mi
+    requests:
+      cpu: 250m
+      memory: 1792Mi
+  service:
+    type: ClusterIP

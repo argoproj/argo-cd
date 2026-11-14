@@ -1,0 +1,24 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  creationTimestamp: "2025-04-25T20:44:24Z"
+  generation: 1
+  name: cluster-example
+  namespace: default
+  resourceVersion: "20230"
+  uid: 987fe1ba-bba7-4021-9d25-f06ca9a8c0d2
+spec:
+  imageName: ghcr.io/cloudnative-pg/postgresql:13
+  instances: 3
+status:
+  currentPrimary: cluster-example-1
+  currentPrimaryTimestamp: "2025-04-25T20:44:38.190232Z"
+  instancesStatus:
+    healthy:
+    - cluster-example-1
+    - cluster-example-2
+    - cluster-example-3
+  phase: Switchover in progress
+  phaseReason: Switching over to cluster-example-2
+  targetPrimary: cluster-example-2
+  targetPrimaryTimestamp: "0001-01-01T00:00:00Z"

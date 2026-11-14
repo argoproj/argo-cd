@@ -1,0 +1,40 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: cluster-git
+  namespace: argocd
+spec:
+  generators:
+    - merge:
+        generators: []
+        mergeKeys:
+          - server
+  template:
+    metadata:
+      name: '{{name}}'
+    spec:
+      destination:
+        namespace: default
+        server: '{{server}}'
+      project: default
+      source:
+        path: helm-guestbook
+        repoURL: https://github.com/argoproj/argocd-example-apps/
+        targetRevision: HEAD
+status:
+  conditions:
+    - lastTransitionTime: "2021-11-12T14:28:01Z"
+      message: found less than two generators, Merge requires two or more
+      reason: ApplicationGenerationFromParamsError
+      status: "True"
+      type: ErrorOccurred
+    - lastTransitionTime: "2021-11-12T14:28:01Z"
+      message: found less than two generators, Merge requires two or more
+      reason: ErrorOccurred
+      status: "False"
+      type: ParametersGenerated
+    - lastTransitionTime: "2021-11-12T14:28:01Z"
+      message: found less than two generators, Merge requires two or more
+      reason: ApplicationGenerationFromParamsError
+      status: "False"
+      type: ResourcesUpToDate

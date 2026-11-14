@@ -1,0 +1,10 @@
+apiVersion: psmdb.percona.com/v1
+kind: PerconaServerMongoDB
+metadata:
+  name: cluster
+spec: {}
+status:
+  observedGeneration: 1
+  ready: 0
+  size: 0
+  state: ""

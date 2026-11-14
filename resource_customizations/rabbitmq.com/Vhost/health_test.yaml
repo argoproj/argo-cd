@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: RabbitMQ vhost failed to be created or updated
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Unknown
+    message: RabbitMQ vhost status is unknown
+  inputPath: testdata/unknown.yaml
+- healthStatus:
+    status: Healthy
+    message: RabbitMQ vhost ready
+  inputPath: testdata/healthy.yaml

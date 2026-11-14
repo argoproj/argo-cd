@@ -1,0 +1,14 @@
+apiVersion: snapshot.storage.k8s.io/v1
+kind: VolumeSnapshot
+metadata:
+  name: data-04-06-2023
+spec:
+  source:
+    volumeSnapshotContentName: data-04-06-2023
+status:
+  error:
+    message: >-
+      VolumeSnapshotContent is dynamically provisioned while expecting a
+      pre-provisioned one
+    time: '2023-06-05T14:51:25Z'
+  readyToUse: false

@@ -1,0 +1,121 @@
+name: Init ArgoCD Release
+on:
+  workflow_dispatch:
+    inputs:
+      TARGET_BRANCH:
+        description: 'TARGET_BRANCH to checkout (e.g. release-2.5)'
+        required: true
+        type: string
+
+      TARGET_VERSION:
+        description: 'TARGET_VERSION to build manifests (e.g. 2.5.0-rc1) Note: the `v` prefix is not used'
+        required: true
+        type: string
+
+permissions: {}
+
+env:
+  # a workaround to disable harden runner
+  STEP_SECURITY_HARDEN_RUNNER: ${{ vars.disable_harden_runner }}
+
+jobs:
+  prepare-release:
+    permissions:
+      contents: write # to push branch
+      pull-requests: write # to create PR
+    name: Automatically generate version and manifests on ${{ inputs.TARGET_BRANCH }}
+    runs-on: ubuntu-24.04
+    env:
+      # Calculate image names with defaults, this will be used in the make manifests-local command
+      # to generate the correct image name in the manifests
+      IMAGE_REGISTRY: ${{ vars.IMAGE_REGISTRY || 'quay.io' }}
+      IMAGE_NAMESPACE: ${{ vars.IMAGE_NAMESPACE || 'argoproj' }}
+      IMAGE_REPOSITORY: ${{ vars.IMAGE_REPOSITORY || 'argocd' }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        if: ${{ vars.disable_harden_runner != 'true' }}
+        uses: step-security/harden-runner@ccd8616d44fd3846e67624a50d5aad6d37bf2d25 # v2.22.1
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ inputs.TARGET_BRANCH }}
+          persist-credentials: false
+
+      - name: Check if TARGET_VERSION is well formed.
+        run: |
+          set -xue
+          # Target version must not contain 'v' prefix
+          if echo "${INPUTS_TARGET_VERSION}" | grep -e '^v'; then
+            echo "::error::Target version '${INPUTS_TARGET_VERSION}' should not begin with a 'v' prefix, refusing to continue." >&2
+            exit 1
+          fi
+        env:
+          INPUTS_TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
+
+      - name: Create VERSION information
+        run: |
+          set -ue
+          echo "Bumping version from $(cat VERSION) to ${INPUTS_TARGET_VERSION}"
+          echo "${INPUTS_TARGET_VERSION}" > VERSION
+        env:
+          INPUTS_TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
+
+      - name: Update go.mod gitops-engine version to release tag
+        run: |
+          set -xue
+          # Update the require line to reference the gitops-engine tag that will be created at release time.
+          # Derive the major version from TARGET_VERSION so this works across future major bumps.
+          GE_VERSION="v${{ inputs.TARGET_VERSION }}"
+          MAJOR=$(echo "${{ inputs.TARGET_VERSION }}" | cut -d. -f1)
+          GE_MODULE="github.com/argoproj/argo-cd/gitops-engine/v${MAJOR}"
+          sed -i "s|${GE_MODULE} v[^ ]*|${GE_MODULE} ${GE_VERSION}|" go.mod
+
+        # We install kustomize in the dist directory
+      - name: Add dist to PATH
+        run: |
+          echo "/home/runner/work/argo-cd/argo-cd/dist" >> $GITHUB_PATH
+
+      - name: Generate new set of manifests
+        run: |
+          set -ue
+          make install-codegen-tools-local
+          make manifests-local VERSION=${INPUTS_TARGET_VERSION}
+          git diff
+        env:
+          INPUTS_TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
+
+      - name: Generate version compatibility table
+        run: |
+          git stash
+          bash hack/update-supported-versions.sh
+          git add -u .
+          git stash pop
+
+      - name: Create pull request
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          BRANCH="update-version-$(date +%s)"
+          git checkout -b "$BRANCH"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            exit 0
+          fi
+          git commit --signoff -m "Bump version to ${TARGET_VERSION}"
+          git push "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" "$BRANCH"
+          gh pr create \
+            --title "chore: bump version to ${TARGET_VERSION} on ${TARGET_BRANCH} branch" \
+            --body "Updating VERSION and manifests to ${TARGET_VERSION}" \
+            --head "$BRANCH" \
+            --base "${TARGET_BRANCH}" \
+            --label release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TARGET_VERSION: ${{ inputs.TARGET_VERSION }}
+          TARGET_BRANCH: ${{ inputs.TARGET_BRANCH }}

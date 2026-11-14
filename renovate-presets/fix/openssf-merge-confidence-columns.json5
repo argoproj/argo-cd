@@ -1,0 +1,22 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "description": "Merge the output of mergeConfidence:all-badges and security:openssf-scorecard.  See https://github.com/renovatebot/renovate/discussions/25125 for rationale.",
+  "packageRules": [
+    {
+      "matchPackagePatterns": [
+        ".*"
+      ],
+      "prBodyColumns": [
+        "Package",
+        "Type",
+        "Update",
+        "Change",
+        "Age",
+        "Adoption",
+        "Passing",
+        "Confidence",
+        "OpenSSF"
+      ]
+    }
+  ]
+}

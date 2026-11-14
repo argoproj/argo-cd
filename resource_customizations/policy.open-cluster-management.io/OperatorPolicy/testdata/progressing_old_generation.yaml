@@ -1,0 +1,63 @@
+apiVersion: policy.open-cluster-management.io/v1beta1
+kind: OperatorPolicy
+metadata:
+  name: install-argocd
+  generation: 2
+  namespace: local-cluster
+spec:
+  complianceConfig:
+    catalogSourceUnhealthy: Compliant
+    deploymentsUnavailable: NonCompliant
+    upgradesAvailable: Compliant
+  complianceType: musthave
+  remediationAction: enforce
+  removalBehavior:
+    clusterServiceVersions: Delete
+    customResourceDefinitions: Keep
+    operatorGroups: DeleteIfUnused
+    subscriptions: Delete
+  severity: high
+  subscription:
+    channel: alpha
+    name: argocd-operator
+    source: community-operators
+    sourceNamespace: openshift-marketplace
+  upgradeApproval: Automatic
+  versions: []
+status:
+  compliant: NonCompliant
+  conditions:
+    - lastTransitionTime: '2024-07-29T15:20:48Z'
+      message: CatalogSource was found
+      reason: CatalogSourcesFound
+      status: 'False'
+      type: CatalogSourcesUnhealthy
+    - lastTransitionTime: '2024-07-29T15:20:48Z'
+      message: 'NonCompliant; the policy spec is valid, the policy does not specify an OperatorGroup but one already exists in the namespace - assuming that OperatorGroup is correct, the Subscription required by the policy was not found, there are no relevant InstallPlans in the namespace, the ClusterServiceVersion required by the policy was not found, no CRDs were found for the operator, there are no relevant deployments because the ClusterServiceVersion is missing, CatalogSource was found'
+      reason: NonCompliant
+      status: 'False'
+      type: Compliant
+    - lastTransitionTime: '2024-07-29T15:20:48Z'
+      message: the Subscription required by the policy was not found
+      reason: SubscriptionMissing
+      status: 'False'
+      type: SubscriptionCompliant
+  observedGeneration: 1
+  relatedObjects:
+    - compliant: Compliant
+      object:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: CatalogSource
+        metadata:
+          name: community-operators
+          namespace: openshift-marketplace
+      reason: Resource found as expected
+    - compliant: NonCompliant
+      object:
+        apiVersion: operators.coreos.com/v1alpha1
+        kind: Subscription
+        metadata:
+          name: argocd-operator
+          namespace: openshift-operators
+      reason: Resource not found but should exist
+  resolvedSubscriptionLabel: argocd-operator.openshift-operators

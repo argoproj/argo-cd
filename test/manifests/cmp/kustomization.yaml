@@ -1,0 +1,15 @@
+resources:
+  - ../../../manifests/namespace-install
+  - ../../../manifests/crds
+  - ../../../manifests/cluster-rbac
+  - plugin.yaml
+  - app.yaml
+
+patches:
+  - path: repo-patch.yaml
+  - path: secret-patch.yaml
+
+images:
+  - name: quay.io/argoproj/argocd
+    newName: argocd
+    newTag: param

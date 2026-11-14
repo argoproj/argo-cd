@@ -1,0 +1,22 @@
+# This is an example of a typical ApplicationSet which uses the cluster generator.
+# An ApplicationSet is comprised with two stanzas:
+#  - spec.generator - producer of a list of values supplied as arguments to an app template
+#  - spec.template - an application template, which has been parameterized
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: guestbook
+spec:
+  generators:
+  - clusters: {}
+  template:
+    metadata:
+      name: '{{name}}-guestbook'
+    spec:
+      source:
+        repoURL: https://github.com/infra-team/cluster-deployments.git
+        targetRevision: HEAD
+        chart: guestbook
+      destination:
+        server: '{{server}}'
+        namespace: guestbook

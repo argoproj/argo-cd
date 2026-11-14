@@ -1,0 +1,25 @@
+apiVersion: cluster.x-k8s.io/v1beta1
+kind: MachinePool
+metadata:
+  labels:
+    argocd.argoproj.io/instance: foo
+    cluster.x-k8s.io/cluster-name: foo
+  name: foo-pool
+  namespace: default
+spec:
+  clusterName: foo
+  replicas: 3
+  template:
+    metadata: {}
+    spec:
+      bootstrap:
+        dataSecretName: ""
+      clusterName: foo
+      infrastructureRef:
+        apiVersion: infrastructure.cluster.x-k8s.io/v1beta2
+        kind: AWSManagedMachinePool
+        name: foo-pool
+        namespace: default
+      version: v1.30.0
+status:
+  phase: Failed

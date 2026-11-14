@@ -1,0 +1,34 @@
+apiVersion: policy.open-cluster-management.io/v1
+kind: CertificatePolicy
+metadata:
+  name: policy-certificate
+  namespace: local-cluster
+spec:
+  minimumDuration: 3000h
+  namespaceSelector:
+    exclude:
+      - kube-*
+    include:
+      - default
+      - cert-manager-operator
+  remediationAction: inform
+  severity: low
+status:
+  compliancyDetails:
+    cert-manager-operator:
+      message: |
+        Found 1 non compliant certificates in the namespace cert-manager-operator.
+        List of non compliant certificates:
+        ca-root-secret expires in 2159h53m40.509362797s
+      nonCompliantCertificates: 1
+      nonCompliantCertificatesList:
+        ca-root-secret:
+          ca: true
+          duration: 7776000000000000
+          expiration: 2159h53m40.509362797s
+          expiry: 7775620509362797
+          secretName: ca-root-secret
+    default:
+      message: |
+        Found 0 non compliant certificates in the namespace default.
+  compliant: NonCompliant

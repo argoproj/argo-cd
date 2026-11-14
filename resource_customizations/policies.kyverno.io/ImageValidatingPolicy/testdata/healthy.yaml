@@ -1,0 +1,13 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: ImageValidatingPolicy
+metadata:
+  name: sample-image-validating-policy
+spec: {}
+status:
+  conditionStatus:
+    ready: true
+    conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      message: webhook configured
+      status: "True"
+      type: WebhookConfigured

@@ -1,0 +1,54 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: podinfo
+  namespace: default
+spec:
+  interval: 10m
+  timeout: 5m
+  chart:
+    spec:
+      chart: podinfo
+      version: '6.5.*'
+      sourceRef:
+        kind: HelmRepository
+        name: podinfo
+      interval: 5m
+  releaseName: podinfo
+  install:
+    remediation:
+      retries: 3
+  upgrade:
+    remediation:
+      retries: 3
+  test:
+    enable: true
+  driftDetection:
+    mode: enabled
+    ignore:
+    - paths: ["/spec/replicas"]
+      target:
+        kind: Deployment
+  values:
+    replicaCount: 2
+status:
+  conditions:
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Running 'upgrade' action with timeout of 5m0s
+    observedGeneration: 3
+    reason: Progressing
+    status: "True"
+    type: Reconciling
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Running 'upgrade' action with timeout of 5m0s
+    observedGeneration: 3
+    reason: Progressing
+    status: Unknown
+    type: Ready
+  - lastTransitionTime: "2024-07-16T12:00:00Z"
+    message: Helm install succeeded for release default/podinfo.v1 with
+      chart podinfo@6.5.4
+    observedGeneration: 1
+    reason: InstallSucceeded
+    status: "True"
+    type: Released

@@ -1,0 +1,33 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "Elasticsearch Cluster status is Green"
+  inputPath: testdata/ready_green.yaml
+- healthStatus:
+    status: Progressing
+    message: "Elasticsearch Cluster status is Yellow. Check the status of indices, replicas and shards"
+  inputPath: testdata/ready_yellow.yaml
+- healthStatus:
+    status: Degraded
+    message: "Elasticsearch Cluster status is Red. Check the status of indices, replicas and shards"
+  inputPath: testdata/ready_red.yaml
+- healthStatus:
+    status: Progressing
+    message: "Elasticsearch phase is ApplyingChanges"
+  inputPath: testdata/applyingchanges.yaml
+- healthStatus:
+    status: Progressing
+    message: "Elasticsearch phase is MigratingData"
+  inputPath: testdata/migratingdata.yaml
+- healthStatus:
+    status: Degraded
+    message: "Elasticsearch phase is Invalid"
+  inputPath: testdata/invalid.yaml
+- healthStatus:
+    status: Progressing
+    message: "The desired amount of availableNodes is 5 but the current amount is 3"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Unknown
+    message: "Elasticsearch Cluster status is unknown. Ensure your ArgoCD is current and then check for/file a bug report: https://github.com/argoproj/argo-cd/issues"
+  inputPath: testdata/unknown.yaml

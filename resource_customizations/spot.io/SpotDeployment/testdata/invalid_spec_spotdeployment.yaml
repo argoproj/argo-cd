@@ -1,0 +1,54 @@
+apiVersion: spot.io/v1beta1
+kind: SpotDeployment
+metadata:
+  creationTimestamp: "2020-11-13T00:22:49Z"
+  generation: 3
+  name: basic
+  namespace: argocd-e2e
+  resourceVersion: "181746"
+  uid: 5b0926f3-30b7-4727-a76e-46c0d2617906
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: basic
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: basic
+    spec:
+      containers:
+      - image: nginx:1.19-alpine
+        name: basic
+        resources:
+          requests:
+            cpu: 1m
+            memory: 16Mi
+status:
+  availableReplicas: 1
+  conditions:
+  - lastTransitionTime: "2020-11-13T00:22:48Z"
+    lastUpdateTime: "2020-11-13T00:22:50Z"
+    message: ReplicaSet "basic-754cb84d5" has successfully progressed.
+    reason: NewReplicaSetAvailable
+    status: "True"
+    type: Progressing
+  - lastTransitionTime: "2020-11-13T00:22:50Z"
+    lastUpdateTime: "2020-11-13T00:22:50Z"
+    message: Rollout has minimum availability
+    reason: AvailableReason
+    status: "True"
+    type: Available
+  - lastTransitionTime: "2020-11-13T00:40:30Z"
+    lastUpdateTime: "2020-11-13T00:40:30Z"
+    message: 'The Rollout "basic" is invalid: spec.strategy.strategy: Required value:
+      Rollout has missing field ''.spec.strategy.canary or .spec.strategy.blueGreen'''
+    reason: InvalidSpec
+    status: "True"
+    type: InvalidSpec
+  observedGeneration: "3"
+  readyReplicas: 1
+  replicas: 1
+  selector: app=basic
+  phase: Degraded

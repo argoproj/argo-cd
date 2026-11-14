@@ -1,0 +1,28 @@
+apiVersion: autoscaling/v1
+kind: HorizontalPodAutoscaler
+metadata:
+  annotations:
+    autoscaling.alpha.kubernetes.io/conditions: '[{"type":"AbleToScale","status":"True","lastTransitionTime":"2021-03-08T17:42:11Z","reason":"ReadyForNewScale","message":"recommended
+      size matches current size"},{"type":"ScalingActive","status":"True","lastTransitionTime":"2021-03-09T23:59:49Z","reason":"ValidMetricFound","message":"the
+      HPA was able to successfully calculate a replica count from memory resource
+      utilization (percentage of request)"},{"type":"ScalingLimited","status":"True","lastTransitionTime":"2021-03-10T10:02:12Z","reason":"TooFewReplicas","message":"the
+      desired replica count is less than the minimum replica count"}]'
+    autoscaling.alpha.kubernetes.io/current-metrics: '[{"type":"Resource","resource":{"name":"memory","currentAverageUtilization":2,"currentAverageValue":"3452928"}},{"type":"Resource","resource":{"name":"cpu","currentAverageUtilization":1,"currentAverageValue":"1m"}}]'
+  name: sample
+  namespace: default
+  resourceVersion: "41720063"
+  selfLink: /apis/autoscaling/v1/namespaces/default/horizontalpodautoscalers/sample
+  uid: cbe887e2-93d6-40de-8f03-7eb7e2d7f978
+spec:
+  maxReplicas: 10
+  minReplicas: 2
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sample
+  targetCPUUtilizationPercentage: 80
+status:
+  currentCPUUtilizationPercentage: 1
+  currentReplicas: 2
+  desiredReplicas: 2
+  lastScaleTime: "2021-03-08T17:42:11Z"

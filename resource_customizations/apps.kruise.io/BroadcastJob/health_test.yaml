@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "BroadcastJob is completed successfully"
+    inputPath: testdata/succeeded.yaml
+  - healthStatus:
+      status: Degraded
+      message: "BroadcastJob failed"
+    inputPath: testdata/failed.yaml
+  - healthStatus:
+      status: Progressing
+      message: "BroadcastJob is still running"
+    inputPath: testdata/running.yaml
+  - healthStatus:
+      status: Suspended
+      message: "BroadcastJob is Paused"
+    inputPath: testdata/suspended.yaml

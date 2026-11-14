@@ -1,0 +1,372 @@
+package files
+
+import (
+	"archive/tar"
+	"compress/gzip"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"os"
+	"path/filepath"
+	"strings"
+
+	"github.com/bmatcuk/doublestar/v4"
+	log "github.com/sirupsen/logrus"
+)
+
+type tgz struct {
+	srcPath      string
+	inclusions   []string
+	exclusions   []string
+	tarWriter    *tar.Writer
+	filesWritten int
+}
+
+// Tgz will iterate over all files found in srcPath compressing them with gzip
+// and archiving with Tar. Will invoke every given writer while generating the tgz.
+// This is useful to generate checksums. Will exclude files matching the exclusions
+// list blob if exclusions is not nil. Will include only the files matching the
+// inclusions list if inclusions is not nil.
+func Tgz(srcPath string, inclusions []string, exclusions []string, writers ...io.Writer) (int, error) {
+	if _, err := os.Stat(srcPath); err != nil {
+		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
+	}
+
+	gzw := gzip.NewWriter(io.MultiWriter(writers...))
+	defer gzw.Close()
+
+	return writeFile(srcPath, inclusions, exclusions, gzw)
+}
+
+// Tar will iterate over all files found in srcPath archiving with Tar. Will invoke every given writer while generating the tar.
+// This is useful to generate checksums. Will exclude files matching the exclusions
+// list blob if exclusions is not nil. Will include only the files matching the
+// inclusions list if inclusions is not nil.
+func Tar(srcPath string, inclusions []string, exclusions []string, writers ...io.Writer) (int, error) {
+	if _, err := os.Stat(srcPath); err != nil {
+		return 0, fmt.Errorf("error inspecting srcPath %q: %w", srcPath, err)
+	}
+
+	return writeFile(srcPath, inclusions, exclusions, io.MultiWriter(writers...))
+}
+
+func writeFile(srcPath string, inclusions []string, exclusions []string, writer io.Writer) (int, error) {
+	tw := tar.NewWriter(writer)
+	defer tw.Close()
+
+	t := &tgz{
+		srcPath:    srcPath,
+		inclusions: inclusions,
+		exclusions: exclusions,
+		tarWriter:  tw,
+	}
+	err := filepath.Walk(srcPath, t.tgzFile)
+	if err != nil {
+		return 0, err
+	}
+
+	return t.filesWritten, nil
+}
+
+// Untgz will loop over the tar reader creating the file structure at dstPath.
+// Callers must make sure dstPath is:
+//   - a full path
+//   - points to an empty directory or
+//   - points to a non-existing directory
+func Untgz(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
+	gzr, err := gzip.NewReader(r)
+	if err != nil {
+		return fmt.Errorf("error reading file: %w", err)
+	}
+	defer gzr.Close()
+	return untar(dstPath, io.LimitReader(gzr, maxSize), preserveFileMode)
+}
+
+// Untar will loop over the tar reader creating the file structure at dstPath.
+// Callers must make sure dstPath is:
+//   - a full path
+//   - points to an empty directory or
+//   - points to a non-existing directory
+func Untar(dstPath string, r io.Reader, maxSize int64, preserveFileMode bool) error {
+	return untar(dstPath, io.LimitReader(r, maxSize), preserveFileMode)
+}
+
+// untar will loop over the tar reader creating the file structure at dstPath.
+// Callers must make sure dstPath is:
+//   - a full path
+//   - points to an empty directory or
+//   - points to a non existing directory
+func untar(dstPath string, r io.Reader, preserveFileMode bool) error {
+	if !filepath.IsAbs(dstPath) {
+		return fmt.Errorf("dstPath points to a relative path: %s", dstPath)
+	}
+	tr := tar.NewReader(r)
+
+	// os.OpenRoot fails if the directory does not exist, make sure it exists
+	if err := os.MkdirAll(dstPath, 0o755); err != nil {
+		return fmt.Errorf("error creating destination path %s: %w", dstPath, err)
+	}
+
+	// os.Root operations handle inbound checks for files, symlink targets still need a separate check
+	dstRoot, err := os.OpenRoot(dstPath)
+	if err != nil {
+		return fmt.Errorf("error opening root directory %s: %w", dstPath, err)
+	}
+	defer dstRoot.Close()
+
+	for {
+		header, err := tr.Next()
+		if err != nil {
+			if err == io.EOF {
+				break
+			}
+			return fmt.Errorf("error while iterating on tar reader: %w", err)
+		}
+		if header == nil {
+			continue
+		}
+
+		// Cleaning beforehand should have performance benefits for the os.Root API operations https://go.dev/blog/osroot#performance
+		header.Name = strings.TrimPrefix(filepath.Clean(header.Name), string(filepath.Separator))
+		if header.Name == "" || header.Name == "." || header.Name == "./" {
+			continue
+		}
+
+		switch header.Typeflag {
+		case tar.TypeDir:
+			var mode os.FileMode = 0o755
+			if preserveFileMode {
+				mode = os.FileMode(header.Mode)
+			}
+			err := dstRoot.MkdirAll(header.Name, mode)
+			if err != nil {
+				return fmt.Errorf("error creating nested folders: %w", err)
+			}
+		case tar.TypeSymlink:
+			header.Linkname = filepath.Clean(header.Linkname)
+
+			// Reject symlink parents. The Join/Stat check below only sees a cleaned
+			// path, so dir/up -> .. plus dir/up/escape -> ../secret looks like
+			// dir/secret (in bounds), but the kernel resolves through dir/up and
+			// escapes to dstRoot/../secret.
+			err := rejectSymlinkAncestors(dstRoot, header.Name)
+			if err != nil {
+				return err
+			}
+
+			baseDir := filepath.Dir(header.Name)
+
+			err = dstRoot.MkdirAll(baseDir, 0o755)
+			if err != nil {
+				return fmt.Errorf("error creating nested folders: %w", err)
+			}
+
+			// os.Root.Symlink does not validate oldname (the link target); only newname.
+			// Treat targets as relative to baseDir (absolute names are joined into a
+			// root-relative path). With non-symlink parents, Join+Clean matches how
+			// the kernel will resolve the link, so Root.Stat catches escapes.
+			relativeLinkTargetFromDstPath := filepath.Join(baseDir, header.Linkname)
+
+			// Path for stat must be relative to dstPath for correct escape check
+			_, err = dstRoot.Stat(relativeLinkTargetFromDstPath)
+			if err != nil && !errors.Is(err, fs.ErrNotExist) {
+				return fmt.Errorf("error checking symlink %q target: %w", relativeLinkTargetFromDstPath, err) // root escape or unexpected errors
+			}
+			// fs.ErrNotExist is allowed as the target file might not be created yet
+			// the os.Root API checks the paths before other operations so getting fs.ErrNotExist means that the path is inside dstRoot
+
+			// Relativizing target path to baseDir as the link points from that directory
+			relativeLinkTargetFromSymlinkBaseDir, err := filepath.Rel(baseDir, relativeLinkTargetFromDstPath)
+			if err != nil {
+				return fmt.Errorf("error relativizing link target: %w", err)
+			}
+
+			err = dstRoot.Symlink(relativeLinkTargetFromSymlinkBaseDir, header.Name) // validates that header.Name is inside dstRoot
+			if err != nil {
+				return fmt.Errorf("error creating symlink: %w", err)
+			}
+		case tar.TypeReg:
+			var mode os.FileMode = 0o644
+			if preserveFileMode {
+				mode = os.FileMode(header.Mode)
+			}
+
+			err := dstRoot.MkdirAll(filepath.Dir(header.Name), 0o755)
+			if err != nil {
+				return fmt.Errorf("error creating nested folders: %w", err)
+			}
+
+			f, err := dstRoot.OpenFile(header.Name, os.O_RDWR|os.O_CREATE|os.O_TRUNC, mode)
+			if err != nil {
+				return fmt.Errorf("error creating file %q: %w", header.Name, err)
+			}
+			if _, err := io.Copy(f, tr); err != nil {
+				f.Close()
+				return fmt.Errorf("error writing tgz file: %w", err)
+			}
+			f.Close()
+		}
+	}
+	return nil
+}
+
+func matchPath(pattern, relativePath string) (bool, error) {
+	normPattern := filepath.ToSlash(pattern)
+	normPath := filepath.ToSlash(relativePath)
+	return doublestar.Match(normPattern, normPath)
+}
+
+func matchesPattern(pattern, base, relativePath string) (bool, error) {
+	if strings.Contains(filepath.ToSlash(pattern), "/") {
+		return matchPath(pattern, relativePath)
+	}
+	return filepath.Match(pattern, base)
+}
+
+// tgzFile is used as a filepath.WalkFunc implementing the logic to write
+// the given file in the tgz.tarWriter applying the exclusion pattern defined
+// in tgz.exclusions, or the inclusion pattern defined in tgz.inclusions.
+// Only regular files will be added in the tarball.
+//
+// Inclusion pattern matching rules:
+//   - Patterns containing a path separator ('/') are matched against the
+//     file's relative path. The special segment "**" matches zero or more
+//     path segments, so "charts/**" includes every file under charts/.
+//   - Patterns without a path separator are matched against the filename only
+//     via filepath.Match (original behaviour, e.g. "*.yaml").
+func (t *tgz) tgzFile(path string, fi os.FileInfo, err error) error {
+	if err != nil {
+		return fmt.Errorf("error walking in %q: %w", t.srcPath, err)
+	}
+
+	base := filepath.Base(path)
+
+	relativePath, err := RelativePath(path, t.srcPath)
+	if err != nil {
+		return fmt.Errorf("relative path error: %w", err)
+	}
+	relativePath = filepath.ToSlash(relativePath)
+
+	if t.inclusions != nil && base != "." && !fi.IsDir() {
+		included := false
+		for _, inclusionPattern := range t.inclusions {
+			found, matchErr := matchesPattern(inclusionPattern, base, relativePath)
+			if matchErr != nil {
+				return fmt.Errorf("error verifying inclusion pattern %q: %w", inclusionPattern, matchErr)
+			}
+			if found {
+				included = true
+				break
+			}
+		}
+		if !included {
+			return nil
+		}
+	}
+	if t.exclusions != nil {
+		for _, exclusionPattern := range t.exclusions {
+			found, matchErr := matchesExclusionPattern(exclusionPattern, relativePath)
+			if matchErr != nil {
+				return fmt.Errorf("error verifying exclusion pattern %q: %w", exclusionPattern, matchErr)
+			}
+			if found {
+				if fi.IsDir() {
+					return filepath.SkipDir
+				}
+				return nil
+			}
+		}
+	}
+
+	if !supportedFileMode(fi) {
+		return nil
+	}
+
+	link := ""
+	if IsSymlink(fi) {
+		link, err = os.Readlink(path)
+		if err != nil {
+			return fmt.Errorf("error getting link target: %w", err)
+		}
+	}
+
+	header, err := tar.FileInfoHeader(fi, link)
+	if err != nil {
+		return fmt.Errorf("error creating a tar file header: %w", err)
+	}
+
+	// update the name to correctly reflect the desired destination when untaring
+	header.Name = relativePath
+
+	if err := t.tarWriter.WriteHeader(header); err != nil {
+		return fmt.Errorf("error writing header: %w", err)
+	}
+
+	// Only regular files needs to have their content copied.
+	// Directories and symlinks are header only.
+	if fi.Mode().IsRegular() {
+		f, err := os.Open(path)
+		if err != nil {
+			return fmt.Errorf("error opening file %q: %w", fi.Name(), err)
+		}
+		defer func() {
+			err := f.Close()
+			if err != nil {
+				log.Errorf("error closing file %q: %v", fi.Name(), err)
+			}
+		}()
+
+		if _, err := io.Copy(t.tarWriter, f); err != nil {
+			return fmt.Errorf("error copying tgz file to writers: %w", err)
+		}
+		t.filesWritten++
+	}
+
+	return nil
+}
+
+// supportedFileMode will return true if the file mode is supported.
+// Supported files means that it will be added to the tarball.
+func supportedFileMode(fi os.FileInfo) bool {
+	mode := fi.Mode()
+	if mode.IsRegular() || mode.IsDir() || IsSymlink(fi) {
+		return true
+	}
+	return false
+}
+
+// rejectSymlinkAncestors returns an error if any component of name is a symlink
+func rejectSymlinkAncestors(root *os.Root, name string) error {
+	dir := filepath.Dir(name)
+	if dir == "." || dir == string(filepath.Separator) {
+		return nil
+	}
+	var current string
+	for part := range strings.SplitSeq(dir, string(filepath.Separator)) {
+		if part == "" {
+			continue
+		}
+		current = filepath.Join(current, part)
+		info, err := root.Lstat(current)
+		if err != nil {
+			if errors.Is(err, fs.ErrNotExist) {
+				// Nothing deeper can exist either, so no ancestor is a symlink.
+				return nil
+			}
+			return fmt.Errorf("error checking symlink parent %q: %w", current, err)
+		}
+		if info.Mode()&os.ModeSymlink != 0 {
+			return fmt.Errorf("illegal symlink parent directory %q for %q", current, name)
+		}
+	}
+	return nil
+}
+
+func matchesExclusionPattern(pattern, relativePath string) (bool, error) {
+	normPattern := filepath.ToSlash(pattern)
+	if strings.Contains(normPattern, "/") {
+		return matchPath(normPattern, relativePath)
+	}
+	return filepath.Match(normPattern, relativePath)
+}

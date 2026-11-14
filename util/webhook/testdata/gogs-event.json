@@ -1,0 +1,76 @@
+{
+  "ref": "refs/heads/master",
+  "before": "0000000000000000000000000000000000000000",
+  "after": "0a05129851238652bf806a400af89fa974ade739",
+  "compare_url": "",
+  "commits": [
+    {
+      "id": "0a05129851238652bf806a400af89fa974ade739",
+      "message": "New commit message\n",
+      "url": "http://gogs-server/john/repo-test/commit/0a05129851238652bf806a400af89fa974ade739",
+      "author": {
+        "name": "john",
+        "email": "john@example.com",
+        "username": "john"
+      },
+      "committer": {
+        "name": "john",
+        "email": "john@example.com",
+        "username": "john"
+      },
+      "added": [],
+      "removed": [],
+      "modified": [
+        "cm.yaml"
+      ],
+      "timestamp": "2019-06-21T14:23:39Z"
+    }
+  ],
+  "repository": {
+    "id": 1,
+    "owner": {
+      "id": 1,
+      "username": "john",
+      "login": "john",
+      "full_name": "",
+      "email": "john@example.com",
+      "avatar_url": ""
+    },
+    "name": "repo-test",
+    "full_name": "john/repo-test",
+    "description": "",
+    "private": false,
+    "fork": false,
+    "parent": null,
+    "empty": false,
+    "mirror": false,
+    "size": 122880,
+    "html_url": "http://gogs-server/john/repo-test",
+    "ssh_url": "git@gogs-server/repo-test.git",
+    "clone_url": "http://gogs-server/john/repo-test.git",
+    "website": "",
+    "stars_count": 0,
+    "forks_count": 0,
+    "watchers_count": 1,
+    "open_issues_count": 0,
+    "default_branch": "master",
+    "created_at": "2019-06-21T08:27:56Z",
+    "updated_at": "2019-06-21T14:22:52Z"
+  },
+  "pusher": {
+    "id": 1,
+    "username": "john",
+    "login": "john",
+    "full_name": "",
+    "email": "john@example.com",
+    "avatar_url": ""
+  },
+  "sender": {
+    "id": 1,
+    "username": "john",
+    "login": "john",
+    "full_name": "",
+    "email": "john@example.com",
+    "avatar_url": ""
+  }
+}

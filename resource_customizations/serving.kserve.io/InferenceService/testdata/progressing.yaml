@@ -1,0 +1,28 @@
+apiVersion: serving.kserve.io/v1beta1
+kind: InferenceService
+metadata:
+  name: helloworld
+  namespace: default
+spec: {}
+status:
+  conditions:
+  - lastTransitionTime: "2023-06-21T22:25:58Z"
+    severity: Info
+    status: Unknown
+    type: PredictorConfigurationReady
+  - lastTransitionTime: "2023-06-21T22:25:58Z"
+    message: 'Configuration "hello-world-predictor-default" is waiting for a Revision to become ready.'
+    reason: RevisionMissing
+    status: Unknown
+    type: PredictorReady
+  - lastTransitionTime: "2023-06-21T22:25:58Z"
+    message: 'Configuration "hello-world-predictor-default" is waiting for a Revision to become ready.'
+    reason: RevisionMissing
+    severity: Info
+    status: Unknown
+    type: PredictorRouteReady
+  - lastTransitionTime: "2023-06-21T22:25:58Z"
+    message: 'Configuration "hello-world-predictor-default" is waiting for a Revision to become ready.'
+    reason: RevisionMissing
+    status: Unknown
+    type: Ready

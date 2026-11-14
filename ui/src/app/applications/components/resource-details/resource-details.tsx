@@ -1,0 +1,559 @@
+import {DataLoader, DropDown, MockupList, Tab, Tabs} from 'argo-ui';
+import * as React from 'react';
+import {useState} from 'react';
+import {BehaviorSubject} from 'rxjs';
+import {EventsList} from '../../../shared/components';
+import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
+import * as models from '../../../shared/models';
+import {ErrorBoundary} from '../../../shared/components/error-boundary/error-boundary';
+import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
+import {AppContext, Context} from '../../../shared/context';
+import {Application, ApplicationTree, Event, ResourceNode, State, SyncStatuses} from '../../../shared/models';
+import {services} from '../../../shared/services';
+import {ResourceTabExtension} from '../../../shared/services/extensions-service';
+import {NodeInfo, SelectNode} from '../application-details/application-details';
+import {ApplicationNodeInfo} from '../application-node-info/application-node-info';
+import {ApplicationParameters} from '../application-parameters/application-parameters';
+import type {ResourceTreeNode} from '../application-resource-tree/application-resource-tree';
+import {ApplicationSummary} from '../application-summary/application-summary';
+import {AppSetResourceNodePreview} from './appset-resource-node-preview';
+import {ResourceIcon} from '../resource-icon';
+import {ResourceLabel} from '../resource-label';
+import * as AppUtils from '../utils';
+import {usePolledEvents} from './use-polled-events';
+import './resource-details.scss';
+
+const ApplicationResourcesDiff = lazyWithBoundary(
+    React.lazy(() =>
+        import(/* webpackChunkName: "app-resources-diff" */ '../application-resources-diff/application-resources-diff').then(m => ({default: m.ApplicationResourcesDiff}))
+    ),
+    'Failed to load diff. Please reload and try again.'
+);
+const PodsLogsViewer = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "pod-logs" */ '../pod-logs-viewer/pod-logs-viewer').then(m => ({default: m.PodsLogsViewer}))),
+    'Failed to load logs viewer. Please reload and try again.'
+);
+const PodTerminalViewer = lazyWithBoundary(
+    React.lazy(() => import(/* webpackChunkName: "pod-terminal" */ '../pod-terminal-viewer/pod-terminal-viewer').then(m => ({default: m.PodTerminalViewer}))),
+    'Failed to load terminal. Please reload and try again.'
+);
+
+const jsonMergePatch = require('json-merge-patch');
+
+interface ResourceDetailsProps {
+    selectedNode: ResourceNode;
+    updateApp: (app: Application, query: {validate?: boolean}) => Promise<any>;
+    application: Application;
+    isAppSelected: boolean;
+    tree: ApplicationTree;
+    appCxt: AppContext;
+    appChanged?: BehaviorSubject<models.AbstractApplication>;
+    // generatedAppNode renders a read-only view of a generated Application node (e.g. under an ApplicationSet):
+    // its live manifest is loaded from the Application itself, no diff/desired manifest is shown, there are
+    // no sync/resource actions, and only "Open Application" and "Delete" buttons are available.
+    generatedAppNode?: boolean;
+}
+
+export const ResourceDetails = (props: ResourceDetailsProps) => {
+    const {selectedNode, updateApp, application, isAppSelected, tree} = {...props};
+    const [activeContainer, setActiveContainer] = useState<number | null>(null);
+    const appContext = React.useContext(Context);
+    const searchParams = new URLSearchParams(appContext.history.location.search);
+    const tab = searchParams.get('tab');
+    const showApplicationReference = !!searchParams.get('detailsApp');
+    const selectedNodeInfo = NodeInfo(searchParams.get('node'));
+    const selectedNodeKey = selectedNodeInfo.key;
+
+    // Reset the active container when the selected node changes, by comparing the
+    // previous node key during render instead of using a cascading effect.
+    const [prevSelectedNodeKey, setPrevSelectedNodeKey] = useState(selectedNodeKey);
+    if (prevSelectedNodeKey !== selectedNodeKey) {
+        setPrevSelectedNodeKey(selectedNodeKey);
+        setActiveContainer(null);
+    }
+
+    const [pageNumber, setPageNumber] = React.useState(0);
+    const [collapsedSources, setCollapsedSources] = React.useState(new Array<boolean>()); // For Sources tab to save collapse states
+
+    // Load application events once so both the EVENTS tab list and its badge (number of warning/error events) share a single fetch.
+    const appEvents = usePolledEvents(() => services.applications.events(application.metadata.name, application.metadata.namespace), isAppSelected, [
+        application.metadata.name,
+        application.metadata.namespace
+    ]);
+
+    const handleCollapse = (i: number, isCollapsed: boolean) => {
+        const v = collapsedSources.slice();
+        v[i] = isCollapsed;
+        setCollapsedSources(v);
+    };
+
+    const getResourceTabs = (
+        node: ResourceNode,
+        state: State,
+        podState: State,
+        events: Event[],
+        extensionTabs: ResourceTabExtension[],
+        tabs: Tab[],
+        execEnabled: boolean,
+        execAllowed: boolean,
+        logsAllowed: boolean,
+        controlledState: {summary: models.ResourceStatus; state: models.ResourceDiff} | null
+    ) => {
+        if (!node || node === undefined) {
+            return [];
+        }
+        if (state) {
+            const numErrors = events.filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
+            tabs.push({
+                title: 'EVENTS',
+                icon: 'fa fa-calendar-alt',
+                badge: (numErrors > 0 && numErrors) || null,
+                key: 'events',
+                content: (
+                    <div className='application-resource-events'>
+                        <EventsList events={events} />
+                    </div>
+                )
+            });
+        }
+        if (podState && podState.metadata && podState.spec) {
+            const containerGroups = [
+                {
+                    offset: 0,
+                    title: 'CONTAINERS',
+                    containers: podState.spec.containers || []
+                }
+            ];
+            if (podState.spec.initContainers?.length > 0) {
+                containerGroups.push({
+                    offset: (podState.spec.containers || []).length,
+                    title: 'INIT CONTAINERS',
+                    containers: podState.spec.initContainers || []
+                });
+            }
+
+            const onClickContainer = (group: any, i: number, activeTab: string) => {
+                const newIndex = group.offset + i;
+                setActiveContainer(newIndex);
+                SelectNode(selectedNodeKey, newIndex, activeTab, appContext);
+            };
+
+            if (logsAllowed) {
+                tabs = tabs.concat([
+                    {
+                        key: 'logs',
+                        icon: 'fa fa-align-left',
+                        title: 'LOGS',
+                        content: (
+                            <div className='application-details__tab-content-full-height'>
+                                <PodsLogsViewer
+                                    podName={(state.kind === 'Pod' && state.metadata.name) || ''}
+                                    group={node.group}
+                                    kind={node.kind}
+                                    name={node.name}
+                                    namespace={podState.metadata.namespace}
+                                    applicationName={application.metadata.name}
+                                    applicationNamespace={application.metadata.namespace}
+                                    containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                    containerGroups={containerGroups}
+                                    onClickContainer={onClickContainer}
+                                />
+                            </div>
+                        )
+                    }
+                ]);
+            }
+            if (selectedNode?.kind === 'Pod' && execEnabled && execAllowed) {
+                tabs = tabs.concat([
+                    {
+                        key: 'exec',
+                        icon: 'fa fa-terminal',
+                        title: 'Terminal',
+                        content: (
+                            <PodTerminalViewer
+                                applicationName={application.metadata.name}
+                                applicationNamespace={application.metadata.namespace}
+                                projectName={application.spec.project}
+                                podState={podState}
+                                selectedNode={selectedNode}
+                                containerName={AppUtils.getContainerName(podState, activeContainer)}
+                                onClickContainer={onClickContainer}
+                            />
+                        )
+                    }
+                ]);
+            }
+        }
+        if (node?.kind === 'ApplicationSet' && node?.group === 'argoproj.io') {
+            const appSetSyncStatus = controlledState?.summary?.status || SyncStatuses.Unknown;
+            tabs.push({
+                title: 'PREVIEW',
+                key: 'preview',
+                badge: appSetSyncStatus === SyncStatuses.OutOfSync ? '!' : null,
+                content: <AppSetResourceNodePreview liveAppSet={state} targetAppSet={controlledState?.state?.targetState} syncStatus={appSetSyncStatus} />
+            });
+        }
+        if (state) {
+            extensionTabs.forEach((tabExtensions, i) => {
+                tabs.push({
+                    title: tabExtensions.title,
+                    key: `extension-${i}`,
+                    content: (
+                        <ErrorBoundary message={`Something went wrong with Extension for ${state?.kind || 'resource of unknown kind'}`}>
+                            <tabExtensions.component tree={tree} resource={state} application={application} />
+                        </ErrorBoundary>
+                    ),
+                    icon: tabExtensions.icon
+                });
+            });
+        }
+        return tabs;
+    };
+
+    const getApplicationTabs = () => {
+        const tabs: Tab[] = [
+            {
+                title: 'SUMMARY',
+                icon: 'fa fa-align-justify',
+                key: 'summary',
+                content: <ApplicationSummary app={application} updateApp={(app, query: {validate?: boolean}) => updateApp(app, query)} />
+            },
+            {
+                title: application.spec.sources === undefined ? 'PARAMETERS' : 'SOURCES',
+                icon: application.spec.sources === undefined ? 'fa fa-sliders-h' : 'fa fa-code-branch',
+                key: 'parameters',
+                content: (
+                    <ApplicationParameters
+                        save={(app: models.Application, query: {validate?: boolean}) => updateApp(app, query)}
+                        application={application}
+                        pageNumber={pageNumber}
+                        setPageNumber={setPageNumber}
+                        collapsedSources={collapsedSources}
+                        handleCollapse={handleCollapse}
+                        appContext={props.appCxt}
+                    />
+                )
+            }
+        ];
+
+        if (application.status.sync.status !== SyncStatuses.Synced) {
+            tabs.push({
+                icon: 'fa fa-file-medical',
+                title: 'DIFF',
+                key: 'diff',
+                content: (
+                    <DataLoader
+                        key='diff'
+                        load={async () =>
+                            await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
+                                fields: ['items.normalizedLiveState', 'items.predictedLiveState', 'items.group', 'items.kind', 'items.namespace', 'items.name']
+                            })
+                        }>
+                        {managedResources => <ApplicationResourcesDiff states={managedResources} />}
+                    </DataLoader>
+                )
+            });
+        }
+
+        tabs.push({
+            title: 'MANIFEST',
+            icon: 'fa fa-file-alt',
+            key: 'manifest',
+            content: (
+                <YamlEditor
+                    minHeight={800}
+                    input={application.spec}
+                    onSave={async patch => {
+                        const spec = JSON.parse(JSON.stringify(application.spec));
+                        return services.applications.updateSpec(application.metadata.name, application.metadata.namespace, jsonMergePatch.apply(spec, JSON.parse(patch)));
+                    }}
+                />
+            )
+        });
+
+        tabs.push({
+            title: 'STATUS',
+            icon: 'fa fa-file-circle-check',
+            key: 'status',
+            content: <YamlEditor minHeight={800} input={application.status} hideModeButtons={true} />
+        });
+
+        const numEventErrors = (appEvents || []).filter(event => event.type !== 'Normal').reduce((total, event) => total + event.count, 0);
+        tabs.push({
+            title: 'EVENTS',
+            icon: 'fa fa-calendar-alt',
+            badge: (numEventErrors > 0 && numEventErrors) || null,
+            key: 'event',
+            content: <div className='application-resource-events'>{appEvents === null ? <MockupList height={50} marginTop={10} /> : <EventsList events={appEvents} />}</div>
+        });
+
+        const extensionTabs = services.extensions.getResourceTabs('argoproj.io', 'Application').map((ext, i) => ({
+            title: ext.title,
+            key: `extension-${i}`,
+            content: <ext.component resource={application} tree={tree} application={application} />,
+            icon: ext.icon
+        }));
+
+        return tabs.concat(extensionTabs);
+    };
+
+    const extensions = selectedNode?.kind ? services.extensions.getResourceTabs(selectedNode?.group || '', selectedNode?.kind) : [];
+
+    return (
+        <div style={{width: '100%', height: '100%'}}>
+            {selectedNode && (
+                <DataLoader
+                    noLoaderOnInputChange={true}
+                    // Include the node's stable identity so switching between nodes (notably generated
+                    // ApplicationSet nodes, which all share an empty resourceVersion) triggers a reload,
+                    // while still refreshing normal managed resources when their resourceVersion changes.
+                    input={`${AppUtils.nodeKey(selectedNode)}|${selectedNode.resourceVersion || ''}`}
+                    load={async () => {
+                        if (props.generatedAppNode) {
+                            // Read-only view of a generated Application node: load the live manifest from the
+                            // Application itself (the parent object is an ApplicationSet, not an Application).
+                            const loaded = await services.applications
+                                .get(selectedNode.name, selectedNode.namespace, 'application')
+                                .then(app => ({liveState: app as unknown as State, denied: false}))
+                                .catch((err): {liveState: State; denied: boolean} => {
+                                    // Treat 403/404 as a lack of permission (the API hides existence on RBAC denial).
+                                    if (err?.status === 403 || err?.status === 404) {
+                                        return {liveState: null, denied: true};
+                                    }
+                                    // Re-throw other errors (e.g. 504) so the DataLoader shows the error UI,
+                                    // matching the behavior of the managed-resource path.
+                                    throw err;
+                                });
+                            const events = loaded.liveState ? await services.applications.events(selectedNode.name, selectedNode.namespace).catch((): Event[] => []) : [];
+                            return {
+                                controlledState: null as {summary: models.ResourceStatus; state: models.ResourceDiff} | null,
+                                liveState: loaded.liveState,
+                                events,
+                                podState: undefined as State,
+                                execEnabled: false,
+                                execAllowed: false,
+                                logsAllowed: false,
+                                links: null as models.LinksResponse,
+                                childResources: [] as models.ResourceNode[],
+                                resourceActionsMenuItems: [],
+                                denied: loaded.denied
+                            };
+                        }
+                        const managedResources = await services.applications.managedResources(application.metadata.name, application.metadata.namespace, {
+                            id: {
+                                name: selectedNode.name,
+                                namespace: selectedNode.namespace,
+                                kind: selectedNode.kind,
+                                group: selectedNode.group
+                            }
+                        });
+                        const controlled = managedResources.find(item => AppUtils.isSameNode(selectedNode, item));
+                        const summary = application.status.resources.find(item => AppUtils.isSameNode(selectedNode, item));
+                        const controlledState = (controlled && summary && {summary, state: controlled}) || null;
+                        const resQuery = {...selectedNode};
+                        if (controlled && controlled.targetState) {
+                            resQuery.version = AppUtils.parseApiVersion(controlled.targetState.apiVersion).version;
+                        }
+                        const liveState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, resQuery).catch((): null => null);
+                        const events =
+                            (liveState &&
+                                (await services.applications.resourceEvents(application.metadata.name, application.metadata.namespace, {
+                                    name: liveState.metadata.name,
+                                    namespace: liveState.metadata.namespace,
+                                    uid: liveState.metadata.uid
+                                }))) ||
+                            [];
+                        let podState: State;
+                        let childResources: models.ResourceNode[] = [];
+                        if (selectedNode.kind === 'Pod') {
+                            podState = liveState;
+                        } else {
+                            const childPod = AppUtils.findChildPod(selectedNode, tree);
+                            if (childPod) {
+                                podState = await services.applications.getResource(application.metadata.name, application.metadata.namespace, childPod).catch((): null => null);
+                            }
+                            childResources = AppUtils.findChildResources(selectedNode, tree);
+                        }
+
+                        const settings = await services.authService.settings();
+                        const execEnabled = settings.execEnabled;
+                        const logsAllowed = await services.accounts.canI('logs', 'get', AppUtils.appRBACName(application));
+                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
+                        const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
+                        const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);
+                        return {
+                            controlledState,
+                            liveState,
+                            events,
+                            podState,
+                            execEnabled,
+                            execAllowed,
+                            logsAllowed,
+                            links,
+                            childResources,
+                            resourceActionsMenuItems,
+                            denied: false
+                        };
+                    }}>
+                    {data => (
+                        <React.Fragment>
+                            <div className='resource-details__header'>
+                                <div style={{display: 'flex', flexDirection: 'column', marginRight: '15px', alignItems: 'center', fontSize: '12px'}}>
+                                    <ResourceIcon group={selectedNode.group} kind={selectedNode.kind} />
+                                    {ResourceLabel({kind: selectedNode.kind})}
+                                </div>
+                                <div className='resource-details__header-name'>
+                                    <h1 className='resource-details__header-title'>{selectedNode.name}</h1>
+                                    <span className='resource-details__header-status'>
+                                        {props.generatedAppNode ? (
+                                            (() => {
+                                                const generatedApp = data.liveState as unknown as Application;
+                                                return (
+                                                    <>
+                                                        {generatedApp?.status?.health && <AppUtils.HealthStatusIcon state={generatedApp.status.health} />}
+                                                        {generatedApp?.status?.sync?.status && (
+                                                            <span style={{marginLeft: '5px'}}>
+                                                                <AppUtils.ComparisonStatusIcon status={generatedApp.status.sync.status} />
+                                                            </span>
+                                                        )}
+                                                    </>
+                                                );
+                                            })()
+                                        ) : (
+                                            <>
+                                                {(selectedNode as ResourceTreeNode).health && <AppUtils.HealthStatusIcon state={(selectedNode as ResourceTreeNode).health} />}
+                                                {data.controlledState && (
+                                                    <span style={{marginLeft: '5px'}}>
+                                                        <AppUtils.ComparisonStatusIcon status={data.controlledState.summary.status} resource={data.controlledState.summary} />
+                                                    </span>
+                                                )}
+                                            </>
+                                        )}
+                                    </span>
+                                </div>
+                                <div className='resource-details__header-actions'>
+                                    {props.generatedAppNode &&
+                                        (() => {
+                                            const linkInfo = AppUtils.getApplicationLinkURLFromNode(selectedNode, appContext.baseHref);
+                                            return (
+                                                <>
+                                                    <a
+                                                        href={linkInfo.url}
+                                                        target={linkInfo.isExternal ? '_blank' : '_self'}
+                                                        rel={linkInfo.isExternal ? 'noopener noreferrer' : undefined}
+                                                        style={{marginLeft: 'auto', marginRight: '5px'}}
+                                                        className='argo-button argo-button--base'>
+                                                        <i className='fa fa-external-link-alt' /> <span className='show-for-large'>OPEN APPLICATION</span>
+                                                    </a>
+                                                    <button
+                                                        onClick={() => AppUtils.deleteApplication(selectedNode.name, selectedNode.namespace, appContext)}
+                                                        style={{marginRight: '5px'}}
+                                                        className='argo-button argo-button--base'>
+                                                        <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                                    </button>
+                                                </>
+                                            );
+                                        })()}
+                                    {showApplicationReference && (
+                                        <button
+                                            onClick={() =>
+                                                appContext.navigation.goto(`/${AppUtils.getAppUrl(application)}`, {
+                                                    node: `${AppUtils.nodeKey(selectedNode)}/0`,
+                                                    tab: tab || null
+                                                })
+                                            }
+                                            style={{marginLeft: data.controlledState ? undefined : 'auto', marginRight: '5px'}}
+                                            className='argo-button argo-button--base'>
+                                            <i className='fa fa-fw fa-info-circle' /> <span className='show-for-large'>DETAILS</span>
+                                        </button>
+                                    )}
+                                    {!showApplicationReference && !props.generatedAppNode && (
+                                        <>
+                                            {/* Sync button is only shown if the node is managed directly by an Application */}
+                                            {data.controlledState && (
+                                                <button
+                                                    onClick={() => appContext.navigation.goto('.', {deploy: AppUtils.nodeKey(selectedNode)}, {replace: true})}
+                                                    style={{marginLeft: 'auto', marginRight: '5px'}}
+                                                    className='argo-button argo-button--base'>
+                                                    <i className='fa fa-sync-alt' /> <span className='show-for-large'>SYNC</span>
+                                                </button>
+                                            )}
+                                            <button
+                                                onClick={() =>
+                                                    AppUtils.deletePopup(appContext, selectedNode, application, !!data.controlledState, data.childResources, props.appChanged)
+                                                }
+                                                style={{marginLeft: data.controlledState ? undefined : 'auto', marginRight: '5px'}}
+                                                className='argo-button argo-button--base'>
+                                                <i className='fa fa-trash' /> <span className='show-for-large'>DELETE</span>
+                                            </button>
+                                        </>
+                                    )}
+                                    {data.resourceActionsMenuItems?.length > 0 && !showApplicationReference && !props.generatedAppNode && (
+                                        <DropDown
+                                            isMenu={true}
+                                            anchor={() => (
+                                                <button className='argo-button argo-button--light argo-button--lg argo-button--short'>
+                                                    <i className='fa fa-ellipsis-v' />
+                                                </button>
+                                            )}>
+                                            {() => AppUtils.renderResourceActionMenu(data.resourceActionsMenuItems)}
+                                        </DropDown>
+                                    )}
+                                </div>
+                            </div>
+                            {props.generatedAppNode && data.denied ? (
+                                <div className='white-box'>
+                                    <div className='white-box__details'>You do not have permission to view this Application.</div>
+                                </div>
+                            ) : (
+                                <Tabs
+                                    navTransparent={true}
+                                    tabs={getResourceTabs(
+                                        selectedNode,
+                                        data.liveState,
+                                        data.podState,
+                                        data.events,
+                                        extensions,
+                                        [
+                                            {
+                                                title: 'SUMMARY',
+                                                icon: 'fa fa-align-justify',
+                                                key: 'summary',
+                                                content: (
+                                                    <ApplicationNodeInfo
+                                                        application={application}
+                                                        live={data.liveState}
+                                                        controlled={data.controlledState}
+                                                        node={selectedNode}
+                                                        links={data.links}
+                                                        showApplicationReference={showApplicationReference}
+                                                        readonly={props.generatedAppNode || showApplicationReference}
+                                                        generatedAppNode={props.generatedAppNode}
+                                                    />
+                                                )
+                                            }
+                                        ],
+                                        data.execEnabled,
+                                        data.execAllowed,
+                                        data.logsAllowed,
+                                        data.controlledState
+                                    )}
+                                    selectedTabKey={tab}
+                                    onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+                                />
+                            )}
+                        </React.Fragment>
+                    )}
+                </DataLoader>
+            )}
+            {isAppSelected && (
+                <Tabs
+                    navTransparent={true}
+                    tabs={getApplicationTabs()}
+                    selectedTabKey={tab}
+                    onTabSelected={selected => appContext.navigation.goto('.', {tab: selected}, {replace: true})}
+                />
+            )}
+        </div>
+    );
+};

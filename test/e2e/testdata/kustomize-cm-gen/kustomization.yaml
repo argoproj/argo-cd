@@ -1,0 +1,9 @@
+configMapGenerator:
+  - name: my-map
+    literals:
+      - foo=bar
+generatorOptions:
+  annotations:
+    argocd.argoproj.io/compare-options: IgnoreExtraneous
+    argocd.argoproj.io/sync-options: Prune=false
+kind: Kustomization

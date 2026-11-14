@@ -1,0 +1,43 @@
+apiVersion: cluster.x-k8s.io/v1alpha3
+kind: Machine
+metadata:
+  labels:
+    cluster.x-k8s.io/cluster-name: test
+  name: test-md-0-6cb7d48f56-frtdw
+  namespace: test
+spec:
+  bootstrap:
+    configRef:
+      apiVersion: bootstrap.cluster.x-k8s.io/v1alpha3
+      kind: KubeadmConfig
+  clusterName: test-cl2
+  infrastructureRef:
+    apiVersion: infrastructure.cluster.x-k8s.io/v1alpha3
+    kind: VSphereMachine
+  version: v1.18.10
+status:
+  addresses:
+    - address: 10.10.10.10
+      type: ExternalIP
+  bootstrapReady: true
+  conditions:
+    - lastTransitionTime: '2020-12-21T07:41:10Z'
+      status: 'True'
+      type: Ready
+    - lastTransitionTime: '2020-12-21T07:37:54Z'
+      status: 'True'
+      type: BootstrapReady
+    - lastTransitionTime: '2020-12-21T07:41:10Z'
+      status: 'True'
+      type: InfrastructureReady
+    - lastTransitionTime: '2020-12-21T07:42:11Z'
+      status: 'True'
+      type: NodeHealthy
+  infrastructureReady: true
+  lastUpdated: '2020-12-21T07:41:32Z'
+  nodeRef:
+    apiVersion: v1
+    kind: Node
+    name: test-md-0-6cb7d48f56-frtdw
+  observedGeneration: 3
+  phase: Running

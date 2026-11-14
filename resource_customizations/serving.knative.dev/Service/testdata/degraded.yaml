@@ -1,0 +1,21 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: helloworld
+  namespace: default
+spec: {}
+status:
+  conditions:                                                                                                                                                                                                                               
+  - lastTransitionTime: "2022-06-14T03:45:38Z"
+    message: 'Revision "helloworld-00002" failed with message: Container failed with: container exited with no error.'
+    reason: RevisionFailed
+    status: "False"
+    type: ConfigurationsReady
+  - lastTransitionTime: "2022-06-14T03:45:38Z"
+    message: 'Revision "helloworld-00002" failed with message: Container failed with: container exited with no error.'
+    reason: RevisionFailed
+    status: "False"
+    type: Ready
+  - lastTransitionTime: "2022-06-16T09:35:11Z"
+    status: "True"
+    type: RoutesReady

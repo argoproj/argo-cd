@@ -1,0 +1,17 @@
+#!/bin/bash
+
+if [[ "$1" == "version" ]]
+then
+    echo "1.0.0"
+    exit 0
+fi
+
+if [[ "$1" == "config" ]]
+then
+    echo "$KUBECONFIG"
+    exit 0
+fi
+
+# Default behavior: simulate an error
+echo "Error: I am a plugin named argocd-error, and I encountered an error." >&2
+exit 1

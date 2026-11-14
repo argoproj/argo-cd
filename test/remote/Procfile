@@ -1,0 +1,3 @@
+sshd: sudo sh -c "/usr/sbin/sshd -p 2222 -D -e"
+fcgiwrap: sudo sh -c "(rm -f /var/run/fcgiwrap.socket && fcgiwrap -s unix:/var/run/fcgiwrap.socket & sleep 1 && chmod 777 /var/run/fcgiwrap.socket && wait)"
+nginx: sudo sh -c "nginx -g 'daemon off;' -c /etc/nginx/nginx.conf"

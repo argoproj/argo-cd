@@ -1,0 +1,180 @@
+@import 'node_modules/argo-ui/v2/styles/colors.scss';
+@import '../shared/config.scss';
+
+$deselected-text: #818d94;
+
+.sidebar {
+    min-width: $sidebar-width;
+    width: $sidebar-width;
+    padding: 0 20px;
+    top: 0;
+    left: 0;
+    position: fixed;
+    height: 100vh;
+    max-height: 100vh;
+    color: white;
+    background-color: #0f2733;
+    overflow: auto;
+    z-index: 2;
+
+    &__container {
+        padding: 0 5px;
+    }
+
+    &__logo-container {
+        margin-top: 10px;
+        font-size: 12px;
+        color: $deselected-text;
+        margin-left: 12px;
+    }
+
+    &__logo {
+        width: 100%;
+        display: flex;
+        flex-direction: row-reverse;
+        align-items: center;
+        justify-content: flex-end;
+        font-size: 24px;
+        font-weight: 500;
+        margin: 1em 0;
+        margin-left: -7px;
+
+        &__character {
+            cursor: pointer;
+            width: 42px;
+        }
+
+        &__text-logo {
+            cursor: pointer;
+            height: 2em;
+            filter: invert(100%);
+        }
+    }
+
+    &__version {
+        cursor: pointer;
+        width: 110px;
+        text-align: left;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    &__tooltip {
+        max-width: 300px;
+        @media screen and (max-width: 590px) {
+            max-width: 250px;
+        }
+    }
+
+    &__nav {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+    }
+
+    &__nav-item {
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        font-size: 16px;
+        font-weight: 500;
+        $height: 2.5em;
+        height: $height;
+        line-height: $height;
+        color: $deselected-text;
+        // Reset native <a>/<button> chrome so anchors and the filter button match the original divs.
+        width: 100%;
+        text-align: left;
+        text-decoration: none;
+        background: none;
+        border: none;
+        padding: 0;
+        appearance: none;
+        -webkit-appearance: none; // older Safari still needs the prefix
+        font-family: inherit;
+
+        // Visible keyboard focus on the dark sidebar background (default ring is low-contrast here).
+        &:focus-visible {
+            outline: 2px solid #fe733f;
+            outline-offset: -2px;
+        }
+
+        i {
+            font-size: 26px;
+            color: white;
+            width: 40px;
+            padding-right: 45px;
+        }
+
+        i.fa {
+            font-size: 22px;
+            margin-left: 2px;
+            margin-right: -2px;
+            width: 32px;           
+        }
+
+        &--active {
+            color: white;
+            // Out-specify argo-ui's global `a:hover { color: teal }` so the active item stays white.
+            &:hover,
+            &:focus {
+                color: white;
+            }
+            i {
+                color: #fe733f;
+            }
+        }
+    }
+
+    &__collapse-button {
+        text-align: center;
+        cursor: pointer;
+        margin-left: auto;
+        margin-bottom: 1em;
+        font-size: 20px;
+        color: $deselected-text;
+    }
+
+    &--collapsed {
+        min-width: $collapsed-sidebar-width;
+        width: $collapsed-sidebar-width;
+        padding: 15px 5px;
+        overflow: hidden !important;
+
+        .sidebar__logo {
+            margin-left: 0;
+            flex-direction: column;
+            margin-bottom: 18px;
+            margin-top: -7px;
+            justify-content: center;
+        }
+
+        .sidebar__collapse-button {
+            margin-left: 0;
+            margin-top: 1em;
+        }
+
+        .sidebar__logo img {
+            margin-right: 0;
+        }
+
+        .sidebar__nav-item i {
+            margin-right: 0;
+            margin-left: 7px;
+        }
+
+        .sidebar__nav-item i.fa {
+            margin-left: 9px;
+        }
+
+        .sidebar__filter-button {
+            i {
+                font-size: 14px;
+                margin-top: 2em;
+                margin-left: 13px;
+                color: $deselected-text;
+            }
+        }
+    }
+}

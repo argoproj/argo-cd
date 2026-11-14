@@ -1,0 +1,37 @@
+apiVersion: cert-manager.io/v1alpha2
+kind: Certificate
+metadata:
+  creationTimestamp: '2018-11-07T00:06:12Z'
+  generation: 1
+  name: test-cert
+  namespace: argocd
+  resourceVersion: '64763033'
+  selfLink: /apis/cert-manager.io/v1alpha2/namespaces/argocd/certificates/test-cert
+  uid: e6cfba50-314d-11e9-be3f-42010a800011
+spec:
+  acme:
+    config:
+      - domains:
+          - cd.apps.argoproj.io
+        http01:
+          ingress: http01
+  commonName: cd.apps.argoproj.io
+  dnsNames:
+    - cd.apps.argoproj.io
+  issuerRef:
+    kind: Issuer
+    name: argo-cd-issuer
+  secretName: test-secret
+status:
+  conditions:
+    - lastTransitionTime: '2021-09-15T02:10:00Z'
+      message: Issuing certificate as Secret does not exist
+      reason: DoesNotExist
+      status: 'True'
+      type: Issuing
+    - lastTransitionTime: '2021-09-15T02:10:00Z'
+      message: Issuing certificate as Secret does not exist
+      reason: DoesNotExist
+      status: 'False'
+      type: Ready
+

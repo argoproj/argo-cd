@@ -1,0 +1,9 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: Connect provisioning
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Healthy
+      message: Connect running
+    inputPath: testdata/healthy.yaml

@@ -1,0 +1,35 @@
+apiVersion: proclaim.dogmatiq.io/v1
+kind: DNSSDServiceInstance
+metadata:
+  creationTimestamp: "2023-03-20T01:47:37Z"
+  finalizers:
+    - proclaim.dogmatiq.io/unadvertise
+  generation: 2
+  name: test-instance
+  namespace: proclaim
+  resourceVersion: "308914"
+  uid: 991a66a3-9b7e-4515-9a41-f7513e9b7b33
+spec:
+  instance:
+    attributes:
+      - baz: qux
+        flag: ""
+        foo: bar
+      - more: attrs
+    domain: example.org
+    name: test-instance
+    serviceType: _proclaim._tcp
+    targets:
+      - host: test.example.org
+        port: 8080
+        priority: 0
+        weight: 0
+    ttl: 1m0s
+status:
+  conditions:
+    - lastTransitionTime: "2023-03-20T01:47:40Z"
+      message: "<provider-specific error message>"
+      observedGeneration: 2
+      reason: AdvertiseError
+      status: "False"
+      type: Advertised

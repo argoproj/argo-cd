@@ -1,0 +1,19 @@
+apiVersion: datadoghq.com/v1alpha1
+kind: DatadogMetric
+metadata:
+  name: foo-bar-metric-invalid
+  namespace: foo-namespace
+status:
+  autoscalerReferences:
+    - hpa:foo-namespace/foo-bar-hpa
+  conditions:
+    - lastTransitionTime: "2025-02-05T00:03:00Z"
+      lastUpdateTime: "2025-06-17T17:49:45Z"
+      status: "True"
+      type: Active
+    - lastTransitionTime: "2025-02-05T00:03:00Z"
+      lastUpdateTime: "2025-06-17T17:49:45Z"
+      status: "False"
+      type: Valid
+      message: "The metric query is invalid"
+  currentValue: 0 

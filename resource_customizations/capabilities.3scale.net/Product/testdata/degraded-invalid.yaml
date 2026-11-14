@@ -1,0 +1,7 @@
+apiVersion: capabilities.3scale.net/v1beta1
+kind: Product
+status:
+  conditions:
+    - type: Invalid
+      status: "True"
+      message: Product configuration is invalid - missing required hits metric

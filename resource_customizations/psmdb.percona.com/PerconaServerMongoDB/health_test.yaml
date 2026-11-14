@@ -1,0 +1,25 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "0/9 node(s) are ready"
+  inputPath: testdata/initializing.yaml
+- healthStatus:
+    status: Healthy
+    message: "9/9 node(s) are ready"
+  inputPath: testdata/ready.yaml
+- healthStatus:
+    status: Suspended
+    message: "0/9 node(s) are ready"
+  inputPath: testdata/paused.yaml
+- healthStatus:
+    status: Progressing
+    message: "6/9 node(s) are ready"
+  inputPath: testdata/stopping.yaml
+- healthStatus:
+    status: Degraded
+    message: "0/9 node(s) are ready"
+  inputPath: testdata/error.yaml
+- healthStatus:
+    status: Unknown
+    message: "0/0 node(s) are ready"
+  inputPath: testdata/unknown.yaml

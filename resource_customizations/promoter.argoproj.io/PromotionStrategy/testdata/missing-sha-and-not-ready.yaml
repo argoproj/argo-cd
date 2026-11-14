@@ -1,0 +1,38 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PromotionStrategy
+metadata:
+  name: strategy
+  namespace: test
+spec:
+  activeCommitStatuses:
+    - key: argocd-health
+  environments:
+    - autoMerge: true
+      branch: environments/qal-usw2
+    - autoMerge: true
+      branch: environments/e2e-usw2
+  gitRepositoryRef:
+    name: repo
+status:
+  conditions:
+    - lastTransitionTime: '2025-10-15T16:31:47Z'
+      message: 'ChangeTransferPolicy "strategy-environments-qal-usw2-27894e05" is not Ready because "ReconciliationError": Reconciliation failed: failed to calculate ChangeTransferPolicy status: failed to get SHAs for proposed branch "environments/qal-usw2-next": exit status 128: fatal: ''origin/environments/qal-usw2-next'' is not a commit and a branch ''environments/qal-usw2-next'' cannot be created from it'
+      observedGeneration: 1
+      reason: ChangeTransferPolicyNotReady
+      status: 'False'
+      type: Ready
+  environments:
+    - active:
+        dry: {}
+        hydrated: {}
+      branch: environments/qal-usw2
+      proposed:
+        dry: {}
+        hydrated: {}
+    - active:
+        dry: {}
+        hydrated: {}
+      branch: environments/e2e-usw2
+      proposed:
+        dry: {}
+        hydrated: {}

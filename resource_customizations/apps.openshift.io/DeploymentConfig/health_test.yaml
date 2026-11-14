@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "replication controller is waiting for pods to run"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "replication controller is waiting for pods to run"
+  inputPath: testdata/progressing_rc_updated.yaml
+- healthStatus:
+    status: Degraded
+    message: "Deployment config is degraded"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Healthy
+    message: "replication controller successfully rolled out"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Healthy
+    message: "replication controller successfully rolled out"
+  inputPath: testdata/healthy_zero_replicas.yaml

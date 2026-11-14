@@ -1,0 +1,17 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ClusterSecretStore
+metadata:
+  name: secretmanager
+spec:
+  provider:
+    aws:
+      region: us-east-1
+      service: SecretsManager
+status:
+  capabilities: ReadWrite
+  conditions:
+  - lastTransitionTime: "2023-03-22T04:51:03Z"
+    message: store validated
+    reason: Valid
+    status: "True"
+    type: Ready

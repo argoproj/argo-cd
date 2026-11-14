@@ -1,0 +1,31 @@
+apiVersion: authorization.openshift.io/v1
+kind: Role
+metadata:
+  name: test-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+
+---
+apiVersion: authorization.openshift.io/v1
+kind: RoleBinding
+metadata:
+  name: test-role-binding
+roleRef:
+  name: test-role
+subjects:
+  - kind: ServiceAccount
+    name: test
+
+---
+apiVersion: project.openshift.io/v1
+kind: Project
+metadata:
+  name: test

@@ -1,0 +1,13 @@
+apiVersion: argoproj.io/v1alpha1
+kind: ConfigManagementPlugin
+metadata:
+  name: cmp-symlink
+spec:
+  version: v1.0
+  init:
+    command: [kustomize, version]
+  generate:
+    command: [sh, -c, 'kustomize edit set image test=quay.io/argoprojlabs/argocd-e2e-container:0.2 && kustomize build --load-restrictor LoadRestrictionsNone']
+  discover:
+    find:
+      glob: "**/kustomization.yaml"

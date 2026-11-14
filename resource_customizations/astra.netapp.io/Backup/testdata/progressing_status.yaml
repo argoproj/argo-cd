@@ -1,0 +1,76 @@
+apiVersion: astra.netapp.io/v1
+kind: Backup
+metadata:
+  annotations:
+    astra.netapp.io/correlationid: cd272631-d0a8-4a61-9cde-6a7202074051
+  creationTimestamp: "2024-04-24T19:39:34Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 1
+  name: backup-20240424193745
+  namespace: astra-connector
+  ownerReferences:
+    - apiVersion: astra.netapp.io/v1
+      kind: Application
+      name: ghost
+      uid: 0af10ee8-772b-4367-8334-44f9e4ad2849
+  resourceVersion: "10599529"
+  uid: fea5520e-553c-400d-8539-e9d2bbe5b762
+spec:
+  appVaultRef: astra-gcp-backup-743cfd150129
+  applicationRef: ghost
+status:
+  conditions:
+    - lastTransitionTime: "2024-04-24T19:39:34Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: AppOwnerReferenceCreated
+    - lastTransitionTime: "2024-04-24T19:39:34Z"
+      message: Successfully reconciled
+      reason: Done
+      status: "True"
+      type: SourceSnapshotExists
+    - lastTransitionTime: "2024-04-24T19:39:34Z"
+      message: Waiting for source Snapshot to complete
+      reason: Waiting
+      status: "False"
+      type: SourceSnapshotCompleted
+    - lastTransitionTime: "2024-04-24T19:39:34Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: SnapshotAppArchiveCopied
+    - lastTransitionTime: "2024-04-24T19:39:34Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: PreBackupExecHooksRunCompleted
+    - lastTransitionTime: "2024-04-24T19:39:34Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: VolumeBackupsCompleted
+    - lastTransitionTime: "2024-04-24T19:39:34Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: PostBackupExecHooksRunCompleted
+    - lastTransitionTime: "2024-04-24T19:39:34Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: TemporarySnapshotCleanedUp
+    - lastTransitionTime: "2024-04-24T19:39:34Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: Completed
+    - lastTransitionTime: "2024-04-24T19:39:34Z"
+      message: Not yet reconciled
+      reason: Pending
+      status: Unknown
+      type: OnFailurePostBackupExecHooksRunCompleted
+  progress: {}
+  sourceSnapshotName: backup-fea5520e-553c-400d-8539-e9d2bbe5b762
+  state: Running

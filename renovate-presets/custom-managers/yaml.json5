@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "customManagers": [
+    {
+      "description": "A generic custom manager for updating any yaml fields ending by 'version:' (case insensitive)",
+      "customType": "regex",
+      "fileMatch": [
+        ".github\\/workflows.+\\.(?:yml|yaml)$"
+      ],
+      "matchStrings": [
+        "# renovate: datasource=(?<datasource>.*?)(?: depName=(?<depName>.+?))? packageName=(?<packageName>.+?)(?: versioning=(?<versioning>.*?))?(?: extractVersion=(?<extractVersion>.*?))?\\s.+?((?i)VERSION)\\s*:\\s*(?:'|\")(?<currentValue>[^(?:'|\")]+)(?:'|\")",
+        "# renovate: datasource=(?<datasource>.*?)(?: depName=(?<depName>.+?))? packageName=(?<packageName>.+?)(?: versioning=(?<versioning>.*?))?(?: extractVersion=(?<extractVersion>.*?))?\\s.+?((?i)VERSION)\\s*:\\s*(?<currentValue>[^'\"\\s]+)"
+      ]
+    }
+  ]
+}

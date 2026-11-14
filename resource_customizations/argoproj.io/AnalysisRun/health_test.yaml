@@ -1,0 +1,45 @@
+tests:
+- healthStatus:
+    status: Progressing
+    message: "Analysis run is running"
+  inputPath: testdata/pendingAnalysisRun.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for analysis run to finish: status has not been reconciled."
+  inputPath: testdata/noStatusAnalysisRun.yaml
+- healthStatus:
+    status: Progressing
+    message: "Analysis run is running"
+  inputPath: testdata/runningAnalysisRun.yaml
+- healthStatus:
+    status: Healthy
+    message: "Analysis run completed successfully"
+  inputPath: testdata/successfulAnalysisRun.yaml
+- healthStatus:
+    status: Degraded
+    message: "Analysis run failed"
+  inputPath: testdata/failedAnalysisRun.yaml
+- healthStatus:
+    status: Degraded
+    message: "Status Message: Assessed as Failed"
+  inputPath: testdata/failedAnalysisRunWithStatusMessage.yaml
+- healthStatus:
+    status: Degraded
+    message: "Analysis run had an error"
+  inputPath: testdata/errorAnalysisRun.yaml
+- healthStatus:
+    status: Degraded
+    message: "Status Message: Assessed as Error"
+  inputPath: testdata/errorAnalysisRunWithStatusMessage.yaml
+- healthStatus:
+    status: Unknown
+    message: "Analysis run was inconclusive"
+  inputPath: testdata/inconclusiveAnalysisRun.yaml
+- healthStatus:
+    status: Unknown
+    message: "Status Message: Assessed as Inconclusive"
+  inputPath: testdata/inconclusiveAnalysisRunWithStatusMessage.yaml
+- healthStatus:
+    status: Healthy
+    message: "run terminated"
+  inputPath: testdata/terminatedAnalysisRun.yaml

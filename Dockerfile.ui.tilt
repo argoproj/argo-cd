@@ -1,0 +1,10 @@
+FROM docker.io/library/node:26.13.1@sha256:e18c3ccdf7d71619990b0e85639f506e2028a95410999cab24cc373cbd10e0ac
+
+WORKDIR /app/ui
+
+COPY ui /app/ui
+
+RUN npm install -g corepack@0.34.6 && corepack enable && pnpm install --frozen-lockfile
+
+ENTRYPOINT ["pnpm", "start"]
+

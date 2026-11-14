@@ -1,0 +1,19 @@
+apiVersion: route53.aws.crossplane.io/v1alpha1
+kind: ResourceRecordSet
+metadata:
+  creationTimestamp: "2023-11-16T04:44:19Z"
+  generation: 4
+  name: www-domain
+  resourceVersion: "140397563"
+  selfLink: /apis/route53.aws.crossplane.io/v1alpha1/resourcerecordsets/www-domain
+  uid: 11f0d48d-134f-471b-9340-b6d45d953fcb
+spec:
+  providerConfigRef:
+    name: crossplane
+  forProvider:
+    zoneId: A1B2C3D4
+    type: A
+    aliasTarget:
+      dnsName: abcdefg.cloudfront.net.
+      evaluateTargetHealth: false
+      hostedZoneId: AZBZCZDEFG

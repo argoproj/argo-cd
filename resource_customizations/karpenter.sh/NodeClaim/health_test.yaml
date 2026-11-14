@@ -1,0 +1,33 @@
+tests:
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for NodeClaim to be launched"
+    inputPath: testdata/progressing_noStatus.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Node launched, waiting for registration"
+    inputPath: testdata/progressing_launched.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Node registered, waiting for initialization"
+    inputPath: testdata/progressing_registered.yaml
+  - healthStatus:
+      status: Healthy
+      message: ""
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Instance i-0abc123def456789 terminated unexpectedly"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Suspended
+      message: "TTL expired"
+    inputPath: testdata/suspended_disrupting.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Node initialized, waiting for Ready"
+    inputPath: testdata/progressing_initialized.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for NodeClaim to be launched"
+    inputPath: testdata/progressing_readyUnknown.yaml

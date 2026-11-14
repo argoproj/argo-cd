@@ -1,0 +1,1 @@
+This is another file that should get excluded because the entire directory is excluded.

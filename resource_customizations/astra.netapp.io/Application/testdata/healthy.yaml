@@ -1,0 +1,24 @@
+apiVersion: astra.netapp.io/v1
+kind: Application
+metadata:
+  creationTimestamp: "2024-04-15T20:46:16Z"
+  finalizers:
+    - astra.netapp.io/finalizer
+  generation: 3
+  labels:
+    argocd.argoproj.io/instance: ghost-demo
+  name: ghost
+  namespace: astra-connector
+  resourceVersion: "3235325"
+  uid: 0af10ee8-772b-4367-8334-44f9e4ad2849
+spec:
+  includedNamespaces:
+    - namespace: ghost
+status:
+  conditions:
+    - lastTransitionTime: "2024-04-15T20:46:16Z"
+      message: ""
+      reason: Ready
+      status: "True"
+      type: Ready
+  protectionState: protected

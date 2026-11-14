@@ -1,0 +1,26 @@
+apiVersion: source.toolkit.fluxcd.io/v1beta2
+kind: Bucket
+metadata:
+  name: minio-bucket
+  namespace: default
+spec:
+  interval: 5m0s
+  endpoint: minio.example.com
+  insecure: true
+  secretRef:
+    name: minio-bucket-secret
+  bucketName: example
+status:
+  conditions:
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'stored artifact: revision ''sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'''
+      observedGeneration: 3
+      reason: Succeeded
+      status: "True"
+      type: Ready
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'stored artifact: revision ''sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'''
+      observedGeneration: 3
+      reason: Succeeded
+      status: "True"
+      type: ArtifactInStorage

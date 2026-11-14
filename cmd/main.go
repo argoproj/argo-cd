@@ -1,0 +1,119 @@
+package main
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+
+	"github.com/spf13/cobra"
+	"k8s.io/klog/v2"
+
+	appcontroller "github.com/argoproj/argo-cd/v3/cmd/argocd-application-controller/commands"
+	applicationset "github.com/argoproj/argo-cd/v3/cmd/argocd-applicationset-controller/commands"
+	cmpserver "github.com/argoproj/argo-cd/v3/cmd/argocd-cmp-server/commands"
+	commitserver "github.com/argoproj/argo-cd/v3/cmd/argocd-commit-server/commands"
+	dex "github.com/argoproj/argo-cd/v3/cmd/argocd-dex/commands"
+	gitaskpass "github.com/argoproj/argo-cd/v3/cmd/argocd-git-ask-pass/commands"
+	k8sauth "github.com/argoproj/argo-cd/v3/cmd/argocd-k8s-auth/commands"
+	notification "github.com/argoproj/argo-cd/v3/cmd/argocd-notification/commands"
+	reposerver "github.com/argoproj/argo-cd/v3/cmd/argocd-repo-server/commands"
+	apiserver "github.com/argoproj/argo-cd/v3/cmd/argocd-server/commands"
+	cli "github.com/argoproj/argo-cd/v3/cmd/argocd/commands"
+	"github.com/argoproj/argo-cd/v3/cmd/util"
+	"github.com/argoproj/argo-cd/v3/common"
+	argoerrors "github.com/argoproj/argo-cd/v3/util/errors"
+	"github.com/argoproj/argo-cd/v3/util/grpc"
+	"github.com/argoproj/argo-cd/v3/util/log"
+)
+
+const (
+	binaryNameEnv = "ARGOCD_BINARY_NAME"
+)
+
+func init() {
+	// Make sure klog uses the configured log level and format.
+	klog.SetLogger(log.NewLogrusLogger(log.NewWithCurrentConfig()))
+}
+
+// selectCommand selects the appropriate command based on the binary name.
+// It is a variable so cmd/main_test.go can mock the command selection for testing the exit error handling.
+var selectCommand = func(binaryName string) (command *cobra.Command, isArgocdCLI bool) {
+	switch binaryName {
+	case common.CommandCLI:
+		return cli.NewCommand(), true
+	case common.CommandServer:
+		return apiserver.NewCommand(), false
+	case common.CommandApplicationController:
+		return appcontroller.NewCommand(), false
+	case common.CommandRepoServer:
+		return reposerver.NewCommand(), false
+	case common.CommandCMPServer:
+		return cmpserver.NewCommand(), true
+	case common.CommandCommitServer:
+		return commitserver.NewCommand(), false
+	case common.CommandDex:
+		return dex.NewCommand(), false
+	case common.CommandNotifications:
+		return notification.NewCommand(), false
+	case common.CommandGitAskPass:
+		return gitaskpass.NewCommand(), true
+	case common.CommandApplicationSetController:
+		return applicationset.NewCommand(), false
+	case common.CommandK8sAuth:
+		return k8sauth.NewCommand(), true
+	default:
+		// "argocd-linux-amd64", "argocd-darwin-amd64", "argocd-windows-amd64.exe" are also valid binary names
+		return cli.NewCommand(), true
+	}
+}
+
+func main() {
+	// Enable the workaround for the SRV GRPC bug
+	grpc.DisableSRVLookups()
+
+	binaryName := filepath.Base(os.Args[0])
+	if val := os.Getenv(binaryNameEnv); val != "" {
+		binaryName = val
+	}
+
+	command, isArgocdCLI := selectCommand(binaryName)
+
+	if isArgocdCLI {
+		// silence errors and usages since we'll be printing them manually.
+		// This is because if we execute a plugin, the initial
+		// errors and usage are always going to get printed that we don't want.
+		command.SilenceErrors = true
+		command.SilenceUsage = true
+	}
+
+	err := command.Execute()
+	// if an error is present, try to look for various scenarios
+	// such as if the error is from the execution of a normal argocd command,
+	// unknown command error or any other.
+	if err != nil {
+		if e, ok := errors.AsType[*util.ExitError](err); ok {
+			if msg := e.Message(); msg != "" {
+				if e.IsPlainText() {
+					fmt.Println(msg)
+				} else {
+					argoerrors.Fatal(e.ExitCode(), msg)
+				}
+			}
+
+			os.Exit(e.ExitCode())
+		}
+
+		errMsg, pluginErr := cli.NewDefaultPluginHandler().HandleCommandExecutionError(err, isArgocdCLI, os.Args)
+		if pluginErr != nil {
+			os.Stdout.WriteString(errMsg)
+			if exitErr, ok := errors.AsType[*exec.ExitError](pluginErr); ok {
+				// Return the actual plugin exit code
+				os.Exit(exitErr.ExitCode())
+			}
+			// Fallback to exit code 1 if the error isn't an exec.ExitError
+			os.Exit(1)
+		}
+	}
+}

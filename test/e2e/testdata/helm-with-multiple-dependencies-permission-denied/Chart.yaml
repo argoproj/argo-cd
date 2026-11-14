@@ -1,0 +1,11 @@
+apiVersion: v2
+name: helm-with-multiple-dependencies-permission-denied
+version: v1.0.0
+dependencies:
+  - name: helm
+    repository: "https://localhost:9443/argo-e2e/testdata.git/helm-repo/local"
+    version: v1.0.0
+  - name: helm
+    repository: "https://localhost:9443/argo-e2e/testdata.git/helm-repo/local2"
+    version: v1.0.0
+    alias: helm2

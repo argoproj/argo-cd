@@ -1,0 +1,107 @@
+{
+  "subscriptionId": "8fd412f1-9873-4b45-8854-655b1b8a2eff",
+  "notificationId": 2,
+  "id": "09b0b950-47fa-4f45-8b65-5a22686314f8",
+  "eventType": "git.push",
+  "publisherId": "tfs",
+  "message": {
+    "text": "Alexander Matyushentsev pushed updates to alex-test:master\r\n(https://dev.azure.com/alexander0053/alex-test/_git/alex-test/#version=GBmaster)",
+    "html": "Alexander Matyushentsev pushed updates to <a href=\"https://dev.azure.com/alexander0053/alex-test/_git/alex-test/\">alex-test</a>:<a href=\"https://dev.azure.com/alexander0053/alex-test/_git/alex-test/#version=GBmaster\">master</a>",
+    "markdown": "Alexander Matyushentsev pushed updates to [alex-test](https://dev.azure.com/alexander0053/alex-test/_git/alex-test/):[master](https://dev.azure.com/alexander0053/alex-test/_git/alex-test/#version=GBmaster)"
+  },
+  "detailedMessage": {
+    "text": "Alexander Matyushentsev pushed a commit to alex-test:master\r\n - draft 298a79aa (https://dev.azure.com/alexander0053/alex-test/_git/alex-test/commit/298a79aa1552799a70718a0ee914d153d5a1a76b)",
+    "html": "Alexander Matyushentsev pushed a commit to <a href=\"https://dev.azure.com/alexander0053/alex-test/_git/alex-test/\">alex-test</a>:<a href=\"https://dev.azure.com/alexander0053/alex-test/_git/alex-test/#version=GBmaster\">master</a>\r\n<ul>\r\n<li>draft <a href=\"https://dev.azure.com/alexander0053/alex-test/_git/alex-test/commit/298a79aa1552799a70718a0ee914d153d5a1a76b\">298a79aa</a></li>\r\n</ul>",
+    "markdown": "Alexander Matyushentsev pushed a commit to [alex-test](https://dev.azure.com/alexander0053/alex-test/_git/alex-test/):[master](https://dev.azure.com/alexander0053/alex-test/_git/alex-test/#version=GBmaster)\r\n* draft [298a79aa](https://dev.azure.com/alexander0053/alex-test/_git/alex-test/commit/298a79aa1552799a70718a0ee914d153d5a1a76b)"
+  },
+  "resource": {
+    "commits": [
+      {
+        "commitId": "298a79aa1552799a70718a0ee914d153d5a1a76b",
+        "author": {
+          "name": "Alexander Matyushentsev",
+          "email": "AMatyushentsev@gmail.com",
+          "date": "2023-08-09T00:45:39Z"
+        },
+        "committer": {
+          "name": "Alexander Matyushentsev",
+          "email": "AMatyushentsev@gmail.com",
+          "date": "2023-08-09T00:45:39Z"
+        },
+        "comment": "draft\n\nSigned-off-by: Alexander Matyushentsev <AMatyushentsev@gmail.com>",
+        "url": "https://dev.azure.com/alexander0053/_apis/git/repositories/ba2967cc-02c2-414c-8d10-1b99197cbaa6/commits/298a79aa1552799a70718a0ee914d153d5a1a76b"
+      }
+    ],
+    "refUpdates": [
+      {
+        "name": "refs/heads/master",
+        "oldObjectId": "fa51eeb1e50b98293ce281e6d5492b9decae613b",
+        "newObjectId": "298a79aa1552799a70718a0ee914d153d5a1a76b"
+      }
+    ],
+    "repository": {
+      "id": "ba2967cc-02c2-414c-8d10-1b99197cbaa6",
+      "name": "alex-test",
+      "url": "https://dev.azure.com/alexander0053/_apis/git/repositories/ba2967cc-02c2-414c-8d10-1b99197cbaa6",
+      "project": {
+        "id": "ab1c194f-94fa-4d1a-87ff-e9458637d060",
+        "name": "alex-test",
+        "url": "https://dev.azure.com/alexander0053/_apis/projects/ab1c194f-94fa-4d1a-87ff-e9458637d060",
+        "state": "wellFormed",
+        "visibility": "unchanged",
+        "lastUpdateTime": "0001-01-01T00:00:00"
+      },
+      "defaultBranch": "refs/heads/master",
+      "remoteUrl": "https://dev.azure.com/alexander0053/alex-test/_git/alex-test"
+    },
+    "pushedBy": {
+      "displayName": "Alexander Matyushentsev",
+      "url": "https://spsprodcus4.vssps.visualstudio.com/A7a73fd0c-d080-434d-a8b4-0b4c0217e290/_apis/Identities/07220d5e-521c-683d-982c-726e80086d08",
+      "_links": {
+        "avatar": {
+          "href": "https://dev.azure.com/alexander0053/_apis/GraphProfile/MemberAvatars/aad.MDcyMjBkNWUtNTIxYy03ODNkLTk4MmMtNzI2ZTgwMDg2ZDA4"
+        }
+      },
+      "id": "07220d5e-521c-683d-982c-726e80086d08",
+      "uniqueName": "alexander@akuity.onmicrosoft.com",
+      "imageUrl": "https://dev.azure.com/alexander0053/_api/_common/identityImage?id=07220d5e-521c-683d-982c-726e80086d08",
+      "descriptor": "aad.MDcyMjBkNWUtNTIxYy03ODNkLTk4MmMtNzI2ZTgwMDg2ZDA4"
+    },
+    "pushId": 4,
+    "date": "2023-08-09T00:45:42.8315767Z",
+    "url": "https://dev.azure.com/alexander0053/_apis/git/repositories/ba2967cc-02c2-414c-8d10-1b99197cbaa6/pushes/4",
+    "_links": {
+      "self": {
+        "href": "https://dev.azure.com/alexander0053/_apis/git/repositories/ba2967cc-02c2-414c-8d10-1b99197cbaa6/pushes/4"
+      },
+      "repository": {
+        "href": "https://dev.azure.com/alexander0053/ab1c194f-94fa-4d1a-87ff-e9458637d060/_apis/git/repositories/ba2967cc-02c2-414c-8d10-1b99197cbaa6"
+      },
+      "commits": {
+        "href": "https://dev.azure.com/alexander0053/_apis/git/repositories/ba2967cc-02c2-414c-8d10-1b99197cbaa6/pushes/4/commits"
+      },
+      "pusher": {
+        "href": "https://spsprodcus4.vssps.visualstudio.com/A7a73fd0c-d080-434d-a8b4-0b4c0217e290/_apis/Identities/07220d5e-521c-683d-982c-726e80086d08"
+      },
+      "refs": {
+        "href": "https://dev.azure.com/alexander0053/ab1c194f-94fa-4d1a-87ff-e9458637d060/_apis/git/repositories/ba2967cc-02c2-414c-8d10-1b99197cbaa6/refs/heads/master"
+      }
+    }
+  },
+  "resourceVersion": "1.0",
+  "resourceContainers": {
+    "collection": {
+      "id": "d54a3f95-82a0-47c4-8444-00da7391d976",
+      "baseUrl": "https://dev.azure.com/alexander0053/"
+    },
+    "account": {
+      "id": "7a73fd0c-d080-434d-a8b4-0b4c0217e290",
+      "baseUrl": "https://dev.azure.com/alexander0053/"
+    },
+    "project": {
+      "id": "ab1c194f-94fa-4d1a-87ff-e9458637d060",
+      "baseUrl": "https://dev.azure.com/alexander0053/"
+    }
+  },
+  "createdDate": "2023-08-09T00:45:49.3448928Z"
+}

@@ -1,0 +1,62 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: canary-demo
+  namespace: default
+spec:
+  replicas: 5
+  revisionHistoryLimit: 3
+  selector:
+    matchLabels:
+      app: canary-demo
+  strategy:
+    canary:
+      analysis:
+        name: analysis
+        templateName: analysis-template
+      canaryService: canary-demo-preview
+      steps:
+      - setWeight: 40
+      - pause: {}
+      - setWeight: 60
+      - pause: {}
+      - setWeight: 80
+      - pause:
+          duration: 10
+  template:
+    metadata:
+      labels:
+        app: canary-demo
+    spec:
+      containers:
+      - image: argoproj/rollouts-demo:yellow
+        imagePullPolicy: Always
+        name: canary-demo
+        ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+        resources:
+          requests:
+            cpu: 5m
+            memory: 32Mi
+status:
+  abort: true
+  HPAReplicas: 5
+  availableReplicas: 5
+  blueGreen: {}
+  canary:
+    currentBackgroundAnalysisRun: canary-demo-6758949f55-6-analysis
+    stableRS: 645d5dbc4c
+  controllerPause: true
+  currentPodHash: 6758949f55
+  currentStepHash: 59f8666948
+  currentStepIndex: 1
+  observedGeneration: 58b949649c
+  pauseConditions:
+  - reason: CanaryPauseStep
+    startTime: "2019-11-05T18:10:29Z"
+  readyReplicas: 5
+  replicas: 5
+  selector: app=canary-demo
+  updatedReplicas: 2

@@ -1,0 +1,89 @@
+apiVersion: numaflow.numaproj.io/v1alpha1
+kind: Vertex
+metadata:
+  annotations:
+    numaflow.numaproj.io/hash: 49d114791b2e7f2018af5127923f782a5060ff99f50954728ec39acb55fb3962
+  creationTimestamp: "2024-10-08T18:22:18Z"
+  generation: 2
+  labels:
+    app.kubernetes.io/component: vertex
+    app.kubernetes.io/managed-by: pipeline-controller
+    app.kubernetes.io/part-of: numaflow
+    numaflow.numaproj.io/pipeline-name: simple-pipeline
+    numaflow.numaproj.io/vertex-name: in
+  name: simple-pipeline-in
+  namespace: numaflow-system
+  ownerReferences:
+  - apiVersion: numaflow.numaproj.io/v1alpha1
+    blockOwnerDeletion: true
+    controller: true
+    kind: Pipeline
+    name: simple-pipeline
+    uid: bb6cc91c-eb05-4fe7-9380-63b9532a85db
+  resourceVersion: "358079"
+  uid: 24ddb7cc-6e59-4ae1-8faa-e58039615108
+spec:
+  interStepBufferServiceName: ""
+  limits:
+    bufferMaxLength: 30000
+    bufferUsageLimit: 80
+    readBatchSize: 500
+    readTimeout: 1s
+  name: in
+  pipelineName: simple-pipeline
+  replicas: 1
+  scale:
+    min: 1
+  source:
+    generator:
+      duration: 1s
+      jitter: 0s
+      msgSize: 8
+      rpu: 5
+  toEdges:
+  - from: in
+    fromVertexLimits:
+      bufferMaxLength: 30000
+      bufferUsageLimit: 80
+      readBatchSize: 500
+      readTimeout: 1s
+    fromVertexPartitionCount: 1
+    fromVertexType: Source
+    to: cat
+    toVertexLimits:
+      bufferMaxLength: 30000
+      bufferUsageLimit: 80
+      readBatchSize: 500
+      readTimeout: 1s
+    toVertexPartitionCount: 1
+    toVertexType: MapUDF
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 25%
+    type: RollingUpdate
+  watermark:
+    disabled: false
+    maxDelay: 0s
+status:
+  conditions:
+  - lastTransitionTime: "2024-10-08T18:22:49Z"
+    message: Successful
+    reason: Successful
+    status: "True"
+    type: Deployed
+  - lastTransitionTime: "2024-10-08T18:22:49Z"
+    message: All pods are healthy
+    reason: Running
+    status: "True"
+    type: PodsHealthy
+  currentHash: 283acf2c91c43645fc504622b5d360c7de5dd08e6ff0b100c25e3f0580c92e67
+  desiredReplicas: 1
+  lastScaledAt: "2024-10-08T18:22:18Z"
+  observedGeneration: 1
+  phase: Running
+  readyReplicas: 1
+  replicas: 1
+  selector: numaflow.numaproj.io/pipeline-name=simple-pipeline,numaflow.numaproj.io/vertex-name=in
+  updateHash: 283acf2c91c43645fc504622b5d360c7de5dd08e6ff0b100c25e3f0580c92e67
+  updatedReadyReplicas: 1
+  updatedReplicas: 1

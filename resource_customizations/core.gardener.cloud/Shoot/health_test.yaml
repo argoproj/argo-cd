@@ -1,0 +1,17 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "Component state: Healthy"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Component state: Unhealthy"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Component state: Update in progress"
+    inputPath: testdata/progressing.yaml
+  - healthStatus:
+      status: Unknown
+      message: "Component state: Unknown"
+    inputPath: testdata/unknown.yaml

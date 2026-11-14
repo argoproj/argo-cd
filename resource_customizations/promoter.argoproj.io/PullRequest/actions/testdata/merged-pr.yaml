@@ -1,0 +1,37 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PullRequest
+metadata:
+  finalizers:
+    - pullrequest.promoter.argoporoj.io/finalizer
+  labels:
+    promoter.argoproj.io/change-transfer-policy: promotion-strategy-wave-0-west-24b5855
+    promoter.argoproj.io/environment: wave-0-west
+    promoter.argoproj.io/promotion-strategy: promotion-strategy
+  name: test-org-test-repo-wave-0-west-next-wave-0-west-ac5b3e8c
+  namespace: gitops-promoter
+spec:
+  commit:
+    message: >
+      Promote 89752 to `wave/0/west`
+  description: >-
+    This PR is promoting the environment branch `wave/0/west` which is currently
+    on dry sha bc0df509c35ec9ee4268f3fb0b514bafe26f0ee5 to dry sha
+    897529bb51f3b8ac7482071d26d2947c1f25dc16.
+  gitRepositoryRef:
+    name: test-repo
+  sourceBranch: wave/0/west-next
+  state: merged
+  targetBranch: wave/0/west
+  title: Promote 89752 to `wave/0/west`
+status:
+  conditions:
+    - lastTransitionTime: '2025-10-01T18:18:26Z'
+      message: Reconciliation succeeded
+      observedGeneration: 5
+      reason: ReconciliationSuccess
+      status: 'True'
+      type: Ready
+  id: '2986'
+  prCreationTime: '2025-10-01T18:18:25Z'
+  state: open
+  url: https://git.example.com/test-org/test-repo/pull/2986

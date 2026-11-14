@@ -1,0 +1,44 @@
+apiVersion: platform.confluent.io/v1beta1
+kind: Zookeeper
+metadata:
+  finalizers:
+    - zookeeper.finalizers.platform.confluent.io
+  generation: 1
+  name: zookeeper
+  namespace: confluent
+spec:
+  dataVolumeCapacity: 10Gi
+  logVolumeCapacity: 10Gi
+  podTemplate:
+    annotations:
+      traffic.sidecar.istio.io/excludeInboundPorts: 2888,3888
+      traffic.sidecar.istio.io/excludeOutboundPorts: 2888,3888
+  replicas: 3
+status:
+  clusterName: zookeeper
+  clusterNamespace: confluent
+  conditions:
+    - lastProbeTime: "2021-08-11T10:04:53Z"
+      lastTransitionTime: "2021-08-11T10:06:48Z"
+      message: Deployment has minimum availability.
+      reason: MinimumReplicasAvailable
+      status: "True"
+      type: platform.confluent.io/statefulset-available
+    - lastProbeTime: "2021-08-11T10:04:53Z"
+      lastTransitionTime: "2021-08-11T10:06:48Z"
+      message: Kubernetes resources ready.
+      reason: KubernetesResourcesReady
+      status: "True"
+      type: platform.confluent.io/resources-ready
+    - lastProbeTime: "2021-08-11T10:04:53Z"
+      lastTransitionTime: "2021-08-11T10:04:53Z"
+      message: Cluster is not being garbage collected
+      reason: ClusterNotShrunk
+      status: "False"
+      type: platform.confluent.io/garbage-collecting
+  currentReplicas: 3
+  endpoint: zookeeper.confluent.svc.cluster.local:2181
+  operatorVersion: v0.174.13
+  phase: PROVISIONING
+  readyReplicas: 3
+  replicas: 3

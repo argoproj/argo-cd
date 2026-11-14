@@ -1,0 +1,5 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: PullRequest
+metadata:
+  name: test
+

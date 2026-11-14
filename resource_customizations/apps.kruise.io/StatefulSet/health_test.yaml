@@ -1,0 +1,21 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "All Statefulset workloads are ready and updated"
+    inputPath: testdata/healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: "Some replicas are not ready or available"
+    inputPath: testdata/degraded.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for initialization"
+    inputPath: testdata/unknown.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Statefulset is paused"
+    inputPath: testdata/suspended.yaml
+  - healthStatus:
+      status: Suspended
+      message: "Statefulset needs manual intervention"
+    inputPath: testdata/partition_suspended.yaml

@@ -1,0 +1,25 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: rollout-sample
+spec:
+  replicas: 2
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20
+  selector:
+    matchLabels:
+      app: rollout-sample
+  template:
+    metadata:
+      labels:
+        app: rollout-sample
+    spec:
+      containers:
+        - name: init
+          image: init-container:v1
+          livenessProbe:
+            initialDelaySeconds: 10
+        - name: main
+          image: main-container:v1

@@ -1,0 +1,7 @@
+apiVersion: kyverno.io/v1
+kind: Policy
+metadata:
+  name: sample-policy
+  namespace: test-namespace
+spec: {}
+  

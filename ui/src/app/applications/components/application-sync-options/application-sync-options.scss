@@ -1,0 +1,32 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.application-sync-options {
+    &__select {
+        position: relative;
+        padding-left: 12.5em;
+
+        .select__focus-receiver {
+            position: absolute;
+        }
+
+        label {
+            position: absolute;
+            left: 0;
+            top: 0.75em;
+        }
+    }
+    .fa-exclamation-triangle {
+        color: $argo-status-warning-color;
+    }
+
+    &__warning {
+        border-left: 5px solid $argo-failed-color-light;
+        border-top-left-radius: 4px;
+        border-bottom-left-radius: 4px;
+        margin-top: 1em;
+        padding-left: 1em;
+        background: white;
+        box-shadow: 1px 2px 3px $argo-color-gray-5;
+        color: $argo-color-gray-6;
+    }
+}

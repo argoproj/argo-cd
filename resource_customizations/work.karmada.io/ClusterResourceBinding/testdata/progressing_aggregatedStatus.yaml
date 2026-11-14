@@ -1,0 +1,46 @@
+apiVersion: work.karmada.io/v1alpha2
+kind: ClusterResourceBinding
+metadata:
+  finalizers:
+    - karmada.io/binding-controller
+  generation: 5
+  labels:
+    clusterpropagationpolicy.karmada.io/name: service-testk4j5t
+  name: test-service
+  namespace: default
+  ownerReferences:
+    - apiVersion: v1
+      blockOwnerDeletion: true
+      controller: true
+      kind: Service
+      name: test
+      uid: 039b0d1a-05cb-40b4-b43a-438b0de386af
+  resourceVersion: "4106772"
+  uid: 3932ee50-4c2b-4e77-9bfb-45eeb4ec220f
+spec:
+  clusters:
+    - name: member1
+    - name: member2
+    - name: member3
+status:
+  aggregatedStatus:
+    - applied: true
+      clusterName: member1
+      health: Healthy
+      status:
+        availableReplicas: 1
+        readyReplicas: 1
+        replicas: 1
+        updatedReplicas: 1
+  conditions:
+  - ansibleResult:
+      changed: 1
+      completion: 2020-06-08T13:41:20.133525
+      failures: 0
+      ok: 56
+      skipped: 82
+    lastTransitionTime: "2020-06-04T17:47:31Z"
+    message: Reconciling
+    reason: Running
+    status: "True"
+    type: Running

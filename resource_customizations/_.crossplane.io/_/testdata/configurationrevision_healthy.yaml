@@ -1,0 +1,22 @@
+apiVersion: pkg.crossplane.io/v1
+kind: ConfigurationRevision
+metadata:
+  annotations:
+    meta.crossplane.io/license: Apache-2.0
+    meta.crossplane.io/maintainer: Upbound <support@upbound.io>
+    meta.crossplane.io/source: github.com/upbound/configuration-getting-started
+  name: upbound-configuration-getting-started-869bca254eb1
+spec:
+  desiredState: Active
+  ignoreCrossplaneConstraints: false
+  image: xpkg.upbound.io/upbound/configuration-getting-started:v0.3.0
+  packagePullPolicy: IfNotPresent
+  revision: 1
+  skipDependencyResolution: false
+status:
+  conditions:
+  - lastTransitionTime: "2025-09-29T18:06:40Z"
+    observedGeneration: 1
+    reason: HealthyPackageRevision
+    status: "True"
+    type: RevisionHealthy

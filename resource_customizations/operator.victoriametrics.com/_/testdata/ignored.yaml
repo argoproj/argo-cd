@@ -1,0 +1,17 @@
+apiVersion: operator.victoriametrics.com/v1beta1
+kind: VMRule
+metadata:
+  finalizers:
+    - apps.victoriametrics.com/finalizer
+  generation: 1
+  name: example
+  namespace: demo
+spec:
+  groups:
+    - name: example
+      rules:
+        - alert: ExampleAlert
+          expr: vector(1)
+status:
+  observedGeneration: 1
+  updateStatus: ignored

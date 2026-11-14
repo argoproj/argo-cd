@@ -1,0 +1,13 @@
+tests:
+- healthStatus:
+    status: Degraded
+    message: RabbitMQ policy failed to be created or updated
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Unknown
+    message: RabbitMQ policy status is unknown
+  inputPath: testdata/unknown.yaml
+- healthStatus:
+    status: Healthy
+    message: RabbitMQ policy ready
+  inputPath: testdata/healthy.yaml

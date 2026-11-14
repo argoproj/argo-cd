@@ -1,0 +1,49 @@
+apiVersion: keda.sh/v1alpha1
+kind: ScaledJob
+metadata:
+  annotations:
+  finalizers:
+    - finalizer.keda.sh
+  name: keda
+  namespace: keda
+  resourceVersion: '159237'
+  uid: 9a6b7c4f-c35b-46ca-a801-ee5cb515ce0a
+spec:
+  jobTargetRef:
+    backoffLimit: 1
+    template:
+      metadata:
+        creationTimestamp: null
+      spec:
+        containers:
+          - command:
+              - sleep
+              - '10'
+            envFrom:
+              - secretRef:
+                  name: scaledjob-conditions-test-secret
+            image: docker.io/library/busybox
+            imagePullPolicy: IfNotPresent
+            name: sleeper
+            resources: {}
+        restartPolicy: Never
+  maxReplicaCount: 5
+  pollingInterval: 5
+  rollout: {}
+  scalingStrategy: {}
+  triggers:
+    - metadata:
+        hostFromEnv: RabbitApiHost
+        mode: QueueLength
+        queueName: hello
+        value: '1'
+      type: rabbitmq
+status:
+  authenticationsTypes: ''
+  conditions:
+    - message: Waiting for ScaledJob
+      reason: Running
+      status: 'True'
+      type: Running
+  triggersTypes: rabbitmq
+

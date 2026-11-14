@@ -1,0 +1,93 @@
+apiVersion: numaplane.numaproj.io/v1alpha1
+kind: PipelineRollout
+metadata:
+  creationTimestamp: "2025-02-21T19:43:43Z"
+  finalizers:
+  - numaplane.numaproj.io/numaplane-controller
+  generation: 3
+  name: another-pipeline-rollout
+  namespace: numaplane-system
+  resourceVersion: "6904"
+  uid: 8365e0f1-18fe-47ed-a26e-cfa2963cced6
+spec:
+  strategy:
+    progressive:
+      assessmentSchedule: 60,60,10
+      forcePromote: false
+  pipeline:
+    metadata: {}
+    spec:
+      edges:
+      - conditions: null
+        from: in
+        to: out
+      interStepBufferServiceName: test-isbservice-rollout
+      lifecycle:
+        desiredPhase: Running
+      vertices:
+      - name: in
+        scale:
+          max: 3
+          min: 3
+          zeroReplicaSleepSeconds: 15
+        source:
+          generator:
+            duration: 1s
+            rpu: 5
+        updateStrategy: {}
+      - name: out
+        scale:
+          max: 3
+          min: 3
+          zeroReplicaSleepSeconds: 15
+        sink:
+          log: {}
+          retryStrategy: {}
+        updateStrategy: {}
+      watermark: {}
+status:
+  conditions:
+  - lastTransitionTime: "2025-02-21T19:43:43Z"
+    message: Successful
+    observedGeneration: 3
+    reason: Successful
+    status: "True"
+    type: ChildResourceDeployed
+  - lastTransitionTime: "2025-02-21T19:55:22Z"
+    message: Successful
+    observedGeneration: 3
+    reason: Successful
+    status: "True"
+    type: ChildResourcesHealthy
+  - lastTransitionTime: "2025-02-21T19:48:13Z"
+    message: Pipeline unpaused
+    observedGeneration: 3
+    reason: Unpaused
+    status: "False"
+    type: PipelinePausingOrPaused
+  - lastTransitionTime: "2025-02-21T19:57:20Z"
+    message: New Child Object numaplane-system/another-pipeline-rollout-2 Failed
+    observedGeneration: 3
+    reason: Failed
+    status: "False"
+    type: ProgressiveUpgradeSucceeded
+  lastFailureTime: null
+  message: Progressing
+  nameCount: 3
+  observedGeneration: 3
+  pauseStatus:
+    lastPauseBeginTime: "2025-02-21T19:47:53Z"
+    lastPauseEndTime: "2025-02-21T19:48:13Z"
+    lastPausePhaseChangeTime: "2025-02-21T19:47:54Z"
+  phase: Pending
+  progressiveStatus:
+    promotedPipelineStatus:
+      name: another-pipeline-rollout-1
+      scaleValuesRestoredToOriginal: true
+    upgradingPipelineStatus:
+      assessmentEndTime: "2025-02-21T19:58:20Z"
+      assessmentResult: Failure
+      assessmentStartTime: "2025-02-21T19:57:19Z"
+      interStepBufferServiceName: test-isbservice-rollout-2
+      name: another-pipeline-rollout-2
+  upgradeInProgress: Progressive

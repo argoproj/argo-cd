@@ -1,0 +1,25 @@
+apiVersion: gateway.envoyproxy.io/v1alpha1
+kind: EnvoyPatchPolicy
+metadata:
+  name: example-policy
+  namespace: default
+  generation: 1
+spec:
+  targetRef:
+    group: gateway.networking.k8s.io
+    kind: GatewayClass
+    name: example-gatewayclass
+status:
+  ancestors:
+  - ancestorRef:
+      group: gateway.networking.k8s.io
+      kind: GatewayClass
+      name: example-gatewayclass
+    conditions:
+    - lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: Policy has not been accepted due to invalid configuration
+      observedGeneration: 1
+      reason: Invalid
+      status: "False"
+      type: Accepted
+    controllerName: gateway.envoyproxy.io/gatewayclass-controller

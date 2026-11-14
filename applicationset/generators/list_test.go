@@ -1,0 +1,113 @@
+package generators
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
+
+	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+)
+
+func TestGenerateListParams(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		elements []apiextensionsv1.JSON
+		expected []map[string]any
+	}{
+		{
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
+		}, {
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values.foo": "bar"}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		listGenerator := NewListGenerator()
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			Name: "set",
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{},
+		}
+
+		got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			List: &argoprojiov1alpha1.ListGenerator{
+				Elements: testCase.elements,
+			},
+		}, &applicationSetInfo, nil)
+
+		require.NoError(t, err)
+		assert.ElementsMatch(t, testCase.expected, got)
+	}
+}
+
+func TestGenerateListParamsNonStringValueError(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		element  string
+		expected string
+	}{
+		{name: "non-string scalar", element: `{"a": 1}`, expected: `error parsing value "a" as string`},
+		{name: "non-string bool", element: `{"a": true}`, expected: `error parsing value "a" as string`},
+		{name: "non-string value in values map", element: `{"values": {"x": 2}}`, expected: `error parsing value "x" as string`},
+	}
+
+	for _, testCase := range testCases {
+		listGenerator := NewListGenerator()
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			Name: "set",
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{},
+		}
+
+		_, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			List: &argoprojiov1alpha1.ListGenerator{
+				Elements: []apiextensionsv1.JSON{{Raw: []byte(testCase.element)}},
+			},
+		}, &applicationSetInfo, nil)
+
+		require.Error(t, err, testCase.name)
+		require.EqualError(t, err, testCase.expected, testCase.name)
+		assert.NotContains(t, err.Error(), "%!", testCase.name)
+	}
+}
+
+func TestGenerateListParamsGoTemplate(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		elements []apiextensionsv1.JSON
+		expected []map[string]any
+	}{
+		{
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url"}`)}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url"}},
+		}, {
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","url": "url","values":{"foo":"bar"}}`)}},
+			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": map[string]any{"foo": "bar"}}},
+		},
+	}
+
+	for _, testCase := range testCases {
+		listGenerator := NewListGenerator()
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			Name: "set",
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				GoTemplate: true,
+			},
+		}
+
+		got, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			List: &argoprojiov1alpha1.ListGenerator{
+				Elements: testCase.elements,
+			},
+		}, &applicationSetInfo, nil)
+
+		require.NoError(t, err)
+		assert.ElementsMatch(t, testCase.expected, got)
+	}
+}

@@ -1,0 +1,33 @@
+@import 'node_modules/argo-ui/src/styles/config';
+
+.events-list {
+    &__event {
+        border-left: 5px solid $argo-color-gray-4;
+
+        &--Warning {
+            border-left-color: $argo-failed-color;
+        }
+
+        &--Normal {
+            border-left-color: $argo-success-color;
+        }
+
+        &__ago {
+            font-size: 14px;
+        }
+
+        &__time {
+            font-size: 12px;
+        }
+
+        .row {
+            line-height: 2;
+            padding-top: 15px;
+            padding-bottom: 15px;
+        }
+
+        .columns {
+            white-space: normal;
+        }
+    }
+}

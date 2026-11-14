@@ -1,0 +1,153 @@
+package diff_test
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
+	"github.com/argoproj/argo-cd/v3/util/argo/diff"
+	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
+	"github.com/argoproj/argo-cd/v3/util/argo/testdata"
+)
+
+func TestNormalize(t *testing.T) {
+	t.Parallel()
+	type fixture struct {
+		diffConfig diff.DiffConfig
+		lives      []*unstructured.Unstructured
+		targets    []*unstructured.Unstructured
+	}
+	setup := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+		t.Helper()
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+		target := test.YamlToUnstructured(testdata.DesiredDeploymentYaml)
+		return &fixture{
+			diffConfig: dc,
+			lives:      []*unstructured.Unstructured{live},
+			targets:    []*unstructured.Unstructured{target},
+		}
+	}
+	t.Run("will normalize resources removing the fields owned by managers", func(t *testing.T) {
+		// given
+		t.Parallel()
+		ignore := v1alpha1.ResourceIgnoreDifferences{
+			Group:                 "*",
+			Kind:                  "*",
+			ManagedFieldsManagers: []string{"revision-history-manager"},
+		}
+		ignores := []v1alpha1.ResourceIgnoreDifferences{ignore}
+		f := setup(t, ignores)
+
+		// when
+		result, err := diff.Normalize(f.lives, f.targets, f.diffConfig)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, result.Targets, 1)
+		_, ok, err := unstructured.NestedFloat64(result.Targets[0].Object, "spec", "revisionHistoryLimit")
+		require.NoError(t, err)
+		require.False(t, ok)
+		_, ok, err = unstructured.NestedFloat64(result.Lives[0].Object, "spec", "revisionHistoryLimit")
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+	t.Run("will correctly normalize with multiple ignore configurations", func(t *testing.T) {
+		// given
+		t.Parallel()
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			},
+			{
+				Group:                 "*",
+				Kind:                  "*",
+				ManagedFieldsManagers: []string{"revision-history-manager"},
+			},
+		}
+		f := setup(t, ignores)
+
+		// when
+		normalized, err := diff.Normalize(f.lives, f.targets, f.diffConfig)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, normalized.Targets, 1)
+		_, ok, err := unstructured.NestedFloat64(normalized.Targets[0].Object, "spec", "revisionHistoryLimit")
+		require.NoError(t, err)
+		require.False(t, ok)
+		_, ok, err = unstructured.NestedFloat64(normalized.Lives[0].Object, "spec", "revisionHistoryLimit")
+		require.NoError(t, err)
+		require.False(t, ok)
+		_, ok, err = unstructured.NestedInt64(normalized.Targets[0].Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.False(t, ok)
+		_, ok, err = unstructured.NestedInt64(normalized.Lives[0].Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+	t.Run("will not modify resources if ignore difference is not configured", func(t *testing.T) {
+		// given
+		t.Parallel()
+		ignores := []v1alpha1.ResourceIgnoreDifferences{}
+		f := setup(t, ignores)
+
+		// when
+		result, err := diff.Normalize(f.lives, f.targets, f.diffConfig)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, result.Targets, 1)
+		assert.Equal(t, f.lives[0], result.Lives[0])
+		assert.Equal(t, f.targets[0], result.Targets[0])
+	})
+	t.Run("will correctly normalize with ignore configurations and resource ignore difference annotations", func(t *testing.T) {
+		// given
+		t.Parallel()
+		// Only managed fields manager ignore at app level; /spec/replicas is handled by the annotation on the target resource; should have the same outcome as multiple ignore configurations
+		ignores := []v1alpha1.ResourceIgnoreDifferences{
+			{
+				Group:                 "*",
+				Kind:                  "*",
+				ManagedFieldsManagers: []string{"revision-history-manager"},
+			},
+		}
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		live := test.YamlToUnstructured(testdata.LiveDeploymentWithManagedReplicaYaml)
+		target := test.YamlToUnstructured(testdata.DesiredDeploymentAnnotationYaml)
+
+		// when
+		normalized, err := diff.Normalize([]*unstructured.Unstructured{live}, []*unstructured.Unstructured{target}, dc)
+
+		// then
+		require.NoError(t, err)
+		require.Len(t, normalized.Targets, 1)
+		// revisionHistoryLimit removed from both by managed fields manager ignore
+		_, ok, err := unstructured.NestedFloat64(normalized.Targets[0].Object, "spec", "revisionHistoryLimit")
+		require.NoError(t, err)
+		require.False(t, ok)
+		_, ok, err = unstructured.NestedFloat64(normalized.Lives[0].Object, "spec", "revisionHistoryLimit")
+		require.NoError(t, err)
+		require.False(t, ok)
+		_, ok, err = unstructured.NestedInt64(normalized.Targets[0].Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.False(t, ok)
+		_, ok, err = unstructured.NestedInt64(normalized.Lives[0].Object, "spec", "replicas")
+		require.NoError(t, err)
+		require.False(t, ok)
+	})
+}

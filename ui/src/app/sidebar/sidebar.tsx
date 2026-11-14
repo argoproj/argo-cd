@@ -1,0 +1,127 @@
+import {useQuery} from '@tanstack/react-query';
+import {Tooltip} from 'argo-ui';
+import {Boundary, Placement} from 'popper.js';
+import * as React from 'react';
+import {Context} from '../shared/context';
+import {versionQueries} from '../shared/queries';
+import {services, ViewPreferences} from '../shared/services';
+
+require('./sidebar.scss');
+
+interface SidebarProps {
+    onVersionClick: () => void;
+    navItems: {path: string; iconClassName: string; title: string; tooltip?: string}[];
+    pref: ViewPreferences;
+}
+
+export const SIDEBAR_TOOLS_ID = 'sidebar-tools';
+
+export const useSidebarTarget = () => {
+    const sidebarTarget = React.useRef(document.createElement('div'));
+
+    React.useEffect(() => {
+        const target = sidebarTarget.current;
+        const sidebar = document.getElementById(SIDEBAR_TOOLS_ID);
+        sidebar?.appendChild(target);
+        return () => {
+            target?.remove();
+        };
+    }, []);
+
+    return sidebarTarget;
+};
+
+export const Sidebar = (props: SidebarProps) => {
+    const context = React.useContext(Context);
+    const {data: version, isPending, isFetching} = useQuery(versionQueries.get());
+    const locationPath = context.history.location.pathname;
+
+    const tooltipProps = {
+        placement: 'right' as Placement,
+        popperOptions: {
+            modifiers: {
+                preventOverflow: {
+                    boundariesElement: 'window' as Boundary
+                }
+            }
+        }
+    };
+
+    return (
+        <div className={`sidebar ${props.pref.hideSidebar ? 'sidebar--collapsed' : ''}`}>
+            <div className='sidebar__container'>
+                <div className='sidebar__logo'>
+                    <div onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})} className='sidebar__collapse-button'>
+                        <i className={`fas fa-arrow-${props.pref.hideSidebar ? 'right' : 'left'}`} />
+                    </div>
+                    {!props.pref.hideSidebar && (
+                        <div className='sidebar__logo-container'>
+                            <img
+                                onClick={() => context.history.push('/')}
+                                title={'Go to start page'}
+                                src='assets/images/argologo.svg'
+                                alt='Argo'
+                                className='sidebar__logo__text-logo'
+                            />
+                            <div className='sidebar__version' onClick={props.onVersionClick}>
+                                {version ? version.Version || 'Unknown' : isPending || isFetching ? 'Loading...' : 'Unknown'}
+                            </div>
+                        </div>
+                    )}
+                    <img onClick={() => context.history.push('/')} title={'Go to start page'} src='assets/images/logo.png' alt='Argo' className='sidebar__logo__character' />{' '}
+                </div>
+
+                <nav aria-label='Main'>
+                    <ul className='sidebar__nav'>
+                        {(props.navItems || []).map(item => {
+                            // Full base-href-prefixed href so native middle-click / right-click / status-bar URL preview
+                            // work; navItem paths are absolute (e.g. /applications) while baseHref carries a trailing slash.
+                            const href = `${context.baseHref}${item.path.replace(/^\//, '')}`;
+                            const active = locationPath === item.path || locationPath.startsWith(`${item.path}/`);
+                            return (
+                                <li key={item.path} className='sidebar__nav-li'>
+                                    <Tooltip content={<div className='sidebar__tooltip'>{item?.tooltip || item.title}</div>} {...tooltipProps}>
+                                        <a
+                                            href={href}
+                                            // The title text is hidden when collapsed, so name the link explicitly for screen readers.
+                                            aria-label={item.title}
+                                            aria-current={active ? 'page' : undefined}
+                                            className={`sidebar__nav-item ${active ? 'sidebar__nav-item--active' : ''}`}
+                                            onClick={e => {
+                                                // Let modifier- and non-left-clicks fall through to the browser (open in new tab/window).
+                                                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+                                                    return;
+                                                }
+                                                e.preventDefault();
+                                                context.history.push(item.path);
+                                            }}>
+                                            <i className={item?.iconClassName || ''} />
+                                            {!props.pref.hideSidebar && item.title}
+                                        </a>
+                                    </Tooltip>
+                                </li>
+                            );
+                        })}
+
+                        {props.pref.hideSidebar && (
+                            <li className='sidebar__nav-li'>
+                                <Tooltip content='Show Filters' {...tooltipProps}>
+                                    <button
+                                        type='button'
+                                        aria-label='Show Filters'
+                                        onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})}
+                                        className='sidebar__nav-item sidebar__filter-button'>
+                                        <div>
+                                            <i className={`fas fa-filter`} />
+                                        </div>
+                                    </button>
+                                </Tooltip>
+                            </li>
+                        )}
+                    </ul>
+                </nav>
+            </div>
+            <div id={SIDEBAR_TOOLS_ID} />
+        </div>
+    );
+};

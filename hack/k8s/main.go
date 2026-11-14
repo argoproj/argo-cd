@@ -1,0 +1,52 @@
+package main
+
+import (
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"time"
+
+	"k8s.io/client-go/kubernetes"
+
+	"github.com/argoproj/argo-cd/v3/util/errors"
+
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"sigs.k8s.io/controller-runtime/pkg/envtest"
+)
+
+func main() {
+	testEnv := envtest.Environment{
+		CRDDirectoryPaths: []string{filepath.Join("manifests", "crds")},
+	}
+	fmt.Fprintln(os.Stderr, "Starting K8S...")
+	cfg, err := testEnv.Start()
+
+	errors.CheckError(err)
+	kubeConfigPath := "/tmp/kubeconfig"
+	if len(os.Args) > 1 {
+		kubeConfigPath = os.Args[1]
+	}
+
+	fmt.Fprintln(os.Stderr, "Kubeconfig is available at "+kubeConfigPath)
+	errors.CheckError(kube.WriteKubeConfig(cfg, "default", kubeConfigPath))
+	client, err := kubernetes.NewForConfig(cfg)
+	errors.CheckError(err)
+
+	attempts := 5
+	interval := time.Second
+	for range attempts {
+		_, err = client.ServerVersion()
+		if err == nil {
+			break
+		}
+		time.Sleep(interval)
+	}
+	errors.CheckError(err)
+
+	cmd := exec.CommandContext(context.Background(), "kubectl", "apply", "-k", "manifests/base/config")
+	cmd.Env = []string{"KUBECONFIG=" + kubeConfigPath}
+	errors.CheckError(cmd.Run())
+	<-context.Background().Done()
+}

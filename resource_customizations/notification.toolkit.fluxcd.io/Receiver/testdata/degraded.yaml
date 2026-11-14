@@ -1,0 +1,31 @@
+apiVersion: notification.toolkit.fluxcd.io/v1
+kind: Receiver
+metadata:
+  name: github-receiver
+  namespace: flux-system
+spec:
+  type: github
+  events:
+    - "ping"
+    - "push"
+  secretRef:
+    name: receiver-token
+  resources:
+    - apiVersion: source.toolkit.fluxcd.io/v1
+      kind: GitRepository
+      name: flux-system
+status:
+  conditions:
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: Reconciliation in progress
+      observedGeneration: 1
+      reason: ProgressingWithRetry
+      status: "True"
+      type: Reconciling
+    - lastTransitionTime: "2024-07-16T12:00:00Z"
+      message: 'unable to read token from secret ''flux-system/receiver-token'' error:
+        secrets "receiver-token" not found'
+      observedGeneration: 1
+      reason: TokenNotFound
+      status: "False"
+      type: Ready
