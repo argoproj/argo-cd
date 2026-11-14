@@ -49,6 +49,12 @@ type IndexStore struct {
 // beyond freshness so it can be revalidated with conditional GET.
 const retentionFloor = 24 * time.Hour
 
+// DefaultIndexCacheDir returns the pod-local cache directory, respecting the
+// platform's temporary-directory environment variables, including TMPDIR.
+func DefaultIndexCacheDir() string {
+	return filepath.Join(os.TempDir(), "helm-index-cache")
+}
+
 func NewIndexStore(dir string, expiration time.Duration, indexCacheMaxSize int64, caches ...IndexRecordCache) *IndexStore {
 	if dir != "" {
 		if absolute, err := filepath.Abs(dir); err == nil {

@@ -137,7 +137,9 @@ type RepoServerInitConstants struct {
 	GitLsRemoteOptimizedEnabled                  bool
 	HelmUserAgent                                string
 	HelmChartCacheExpiration                     time.Duration // Cache expiration for repo
-	// HelmIndexCacheDir enables dependency index reuse; freshness comes from the revision cache.
+	// HelmIndexCacheEnabled enables dependency reuse; freshness comes from the revision cache.
+	HelmIndexCacheEnabled bool
+	// HelmIndexCacheDir overrides the default cache directory when dependency reuse is enabled.
 	HelmIndexCacheDir string
 }
 
@@ -157,7 +159,10 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 	helmRandomizedPaths := utilio.NewRandomizedTempPaths(rootDir)
 	ociRandomizedPaths := utilio.NewRandomizedTempPaths(rootDir)
 	var helmIndexStore *helm.IndexStore
-	if initConstants.HelmIndexCacheDir != "" {
+	if initConstants.HelmIndexCacheEnabled {
+		if initConstants.HelmIndexCacheDir == "" {
+			initConstants.HelmIndexCacheDir = helm.DefaultIndexCacheDir()
+		}
 		var freshness time.Duration
 		var recordCache helm.IndexRecordCache
 		if cache != nil {
