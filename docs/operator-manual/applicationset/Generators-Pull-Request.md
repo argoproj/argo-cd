@@ -351,43 +351,50 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
 * `excludedLabels`: Exclude PRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
-* `useAzureWorkloadIdentity`: Authenticate with a Microsoft Entra ID token obtained through the Azure Workload Identity of the ApplicationSet controller, instead of a Personal Access Token. Cannot be combined with `tokenRef`. (Optional)
+* `useAzureWorkloadIdentity`: Authenticate with a Microsoft Entra ID token obtained through the Azure Workload Identity of the ApplicationSet controller, instead of a Personal Access Token. Cannot be combined with `tokenRef`. See [Azure DevOps using Azure Workload Identity](#azure-devops-using-azure-workload-identity). (Optional)
 
 ### Azure DevOps using Azure Workload Identity
 
 *Current Status: Alpha (Since v3.7)*
 
-Instead of storing a Personal Access Token (PAT) in a `Secret`, the generator can authenticate with the [Azure Workload Identity](https://azure.github.io/azure-workload-identity/docs/) of the ApplicationSet controller. The controller requests a Microsoft Entra ID token for the Azure DevOps resource and caches it until shortly before it expires. This is the same mechanism the repo-server uses for Azure Repos with `useAzureWorkloadIdentity: "true"`.
+Instead of storing a Personal Access Token (PAT) in a `Secret`, the generator can authenticate with the [Azure Workload Identity](https://azure.github.io/azure-workload-identity/docs/) of the ApplicationSet controller. The controller exchanges the service account token that the Azure Workload Identity webhook projects into its pod for a Microsoft Entra ID token for the Azure DevOps resource. It caches the token and sends it to Azure DevOps as a bearer token.
+
+The controller only uses Azure Workload Identity for this. It does not fall back to other Azure credentials, such as the managed identity of the node, so no token can be obtained unless workload identity is configured for the ApplicationSet controller.
 
 > [!IMPORTANT]
 > The pull request generator runs in the **ApplicationSet controller**, not in the repo-server. Workload identity tokens are issued per Kubernetes service account, so configuring workload identity on the repo-server alone is not enough. You can reuse the repo-server's managed identity by adding a second federated identity credential for the ApplicationSet controller's service account.
 
 Before using this option:
 
-- **Label the Pods:** Add the `azure.workload.identity/use: "true"` label to the `argocd-applicationset-controller` pods.
-- **Create Federated Identity Credential:** Create a federated identity credential for the subject `system:serviceaccount:<argocd-namespace>:argocd-applicationset-controller` on the managed identity (or app registration). You can reuse the identity already configured for the repo-server.
+- **Create Federated Identity Credential:** Create a federated identity credential for the subject `system:serviceaccount:<argocd-namespace>:argocd-applicationset-controller` on the managed identity (or app registration).
 - **Add Annotation to Service Account:** Add the `azure.workload.identity/client-id: "$CLIENT_ID"` annotation to the `argocd-applicationset-controller` service account.
-- **Grant Azure DevOps access:** Add the identity as a user of the Azure DevOps organization, with at least read access to the repositories (for example as a member of the project's `Readers` group).
+- **Label the Pods:** Add the `azure.workload.identity/use: "true"` label to the `argocd-applicationset-controller` pods.
+- **Grant Azure DevOps access:** Add the identity as a user of the Azure DevOps organization, with read access to the repositories that the generator scans (for example as a member of the project's `Readers` group).
 
 For example, with Kustomize:
 
 ```yaml
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: argocd-applicationset-controller
-  annotations:
-    azure.workload.identity/client-id: 00000000-0000-0000-0000-000000000000
----
-apiVersion: apps/v1
-kind: Deployment
-metadata:
-  name: argocd-applicationset-controller
-spec:
-  template:
-    metadata:
-      labels:
-        azure.workload.identity/use: "true"
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: argocd
+resources:
+  - https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+patches:
+  - target:
+      kind: ServiceAccount
+      name: argocd-applicationset-controller
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          azure.workload.identity/client-id: 00000000-0000-0000-0000-000000000000
+  - target:
+      kind: Deployment
+      name: argocd-applicationset-controller
+    patch: |-
+      - op: add
+        path: /spec/template/metadata/labels/azure.workload.identity~1use
+        value: "true"
 ```
 
 Then set `useAzureWorkloadIdentity` on the generator and omit `tokenRef`:
@@ -397,6 +404,7 @@ apiVersion: argoproj.io/v1alpha1
 kind: ApplicationSet
 metadata:
   name: myapps
+  namespace: argocd
 spec:
   goTemplate: true
   goTemplateOptions: ["missingkey=error"]
@@ -409,8 +417,34 @@ spec:
         useAzureWorkloadIdentity: true
       requeueAfterSeconds: 1800
   template:
-  # ...
+    metadata:
+      name: 'myapp-{{.branch_slug}}-{{.number}}'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://dev.azure.com/myorg/myproject/_git/myrepository'
+        targetRevision: '{{.head_sha}}'
+        path: kubernetes/
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: 'myapp-{{.branch_slug}}-{{.number}}'
+      syncPolicy:
+        syncOptions:
+        - CreateNamespace=true
 ```
+
+The generator only lists pull requests. To let Argo CD fetch the manifests from the Azure Repos repository with the same identity, configure the repository with `useAzureWorkloadIdentity: "true"` as described in [Private Repositories](../../user-guide/private-repositories.md#azure-container-registryazure-repos-using-azure-workload-identity). The repo-server needs its own federated identity credential for that.
+
+#### Restrictions on the `api` URL
+
+The token is a credential of the ApplicationSet controller, not of the ApplicationSet author, so the controller restricts where it is sent:
+
+- If `api` is empty or `https://dev.azure.com`, the token is sent to the public Azure DevOps service.
+- Any other `api` URL is rejected unless an administrator has listed it in the allowed SCM providers (`applicationsetcontroller.allowed.scm.providers` in `argocd-cmd-params-cm`). See [SCM Providers secrets consideration](Appset-Any-Namespace.md#scm-providers-secrets-consideration).
+- The `api` URL must use `https://`. URLs with any other scheme are rejected, even when they are allowed.
+
+> [!WARNING]
+> Every ApplicationSet that sets `useAzureWorkloadIdentity: true` uses the same identity: the one of the ApplicationSet controller. If you allow [ApplicationSets in any namespace](Appset-Any-Namespace.md), users who can create an ApplicationSet in one of those namespaces can list the pull requests of every Azure DevOps project that this identity can read. Grant the identity access only to the projects that all of those users may see.
 
 ## Filters
 

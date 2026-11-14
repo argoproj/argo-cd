@@ -2,7 +2,9 @@ package pull_request
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"net/url"
 	"slices"
 	"strings"
 
@@ -10,13 +12,15 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
 
-	argogit "github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
 const (
 	AZURE_DEVOPS_DEFAULT_URL             = "https://dev.azure.com"
 	AZURE_DEVOPS_PROJECT_NOT_FOUND_ERROR = "The following project does not exist"
+
+	// azureDevOpsTokenScope is the scope for the well-known Microsoft Entra ID resource of Azure DevOps.
+	azureDevOpsTokenScope = "499b84ac-1321-427f-aa17-267ca6975798/.default"
 )
 
 type AzureDevOpsClientFactory interface {
@@ -36,15 +40,15 @@ func (factory *devopsFactoryImpl) GetClient(ctx context.Context) (git.Client, er
 	return gitClient, nil
 }
 
-// workloadIdentityFactoryImpl creates Azure DevOps clients authenticated with a Microsoft Entra ID
+// workloadIdentityClientFactory creates Azure DevOps clients authenticated with a Microsoft Entra ID
 // bearer token obtained through Azure Workload Identity.
-type workloadIdentityFactoryImpl struct {
+type workloadIdentityClientFactory struct {
 	organizationURL string
 	// getToken returns a valid Entra ID access token for the Azure DevOps resource.
 	getToken func() (string, error)
 }
 
-func (factory *workloadIdentityFactoryImpl) GetClient(ctx context.Context) (git.Client, error) {
+func (factory *workloadIdentityClientFactory) GetClient(ctx context.Context) (git.Client, error) {
 	token, err := factory.getToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Azure DevOps access token using Azure Workload Identity: %w", err)
@@ -76,7 +80,7 @@ type AzureDevOpsService struct {
 var (
 	_ PullRequestService       = (*AzureDevOpsService)(nil)
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
-	_ AzureDevOpsClientFactory = &workloadIdentityFactoryImpl{}
+	_ AzureDevOpsClientFactory = &workloadIdentityClientFactory{}
 )
 
 func NewAzureDevOpsService(token, url, organization, project, repo string, labels []string, excludedLabels []string) (PullRequestService, error) {
@@ -99,14 +103,38 @@ func NewAzureDevOpsService(token, url, organization, project, repo string, label
 }
 
 // NewAzureDevOpsServiceWithWorkloadIdentity creates a PullRequestService that authenticates to Azure DevOps
-// with the Azure Workload Identity of the running pod. Tokens are requested for the Azure DevOps resource and
-// cached until shortly before they expire, the same way the repo-server does for Azure Repos.
-func NewAzureDevOpsServiceWithWorkloadIdentity(tokenProvider workloadidentity.TokenProvider, url, organization, project, repo string, labels []string, excludedLabels []string) (PullRequestService, error) {
-	creds := argogit.NewAzureWorkloadIdentityCreds(argogit.NoopCredsStore{}, tokenProvider)
+// with a Microsoft Entra ID token obtained from tokenProvider, which is expected to use the Azure Workload
+// Identity of the running pod. Token caching is left to tokenProvider, so callers should reuse one provider
+// instead of creating a new one per service.
+//
+// Because the token is a credential of the controller rather than of the ApplicationSet author, it is only ever
+// sent over HTTPS: an api URL with any other scheme is rejected before a token is requested.
+func NewAzureDevOpsServiceWithWorkloadIdentity(tokenProvider workloadidentity.TokenProvider, apiURL, organization, project, repo string, labels []string, excludedLabels []string) (PullRequestService, error) {
+	if tokenProvider == nil {
+		return nil, errors.New("azure workload identity token provider must not be nil")
+	}
+	// Validate the api URL itself, before the organization is appended, so that the organization can never
+	// end up being interpreted as the host.
+	if apiURL != "" {
+		parsedURL, err := url.Parse(apiURL)
+		if err != nil {
+			return nil, fmt.Errorf("invalid Azure DevOps api URL %q: %w", apiURL, err)
+		}
+		if !strings.EqualFold(parsedURL.Scheme, "https") || parsedURL.Host == "" {
+			return nil, fmt.Errorf("useAzureWorkloadIdentity requires an https:// Azure DevOps api URL, got %q", apiURL)
+		}
+	}
+	organizationURL := buildURL(apiURL, organization)
 	return &AzureDevOpsService{
-		clientFactory: &workloadIdentityFactoryImpl{
-			organizationURL: buildURL(url, organization),
-			getToken:        creds.GetAzureDevOpsAccessToken,
+		clientFactory: &workloadIdentityClientFactory{
+			organizationURL: organizationURL,
+			getToken: func() (string, error) {
+				token, err := tokenProvider.GetToken(azureDevOpsTokenScope)
+				if err != nil {
+					return "", err
+				}
+				return token.AccessToken, nil
+			},
 		},
 		project:        project,
 		repo:           repo,

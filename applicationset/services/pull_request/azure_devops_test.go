@@ -310,10 +310,9 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 
 func TestNewAzureDevOpsServiceWithWorkloadIdentity(t *testing.T) {
 	t.Parallel()
-	tokenProvider := &workloadidentitymocks.TokenProvider{}
-	// The token is cached process-wide by scope, so the provider may not be called if another run already cached it.
-	tokenProvider.EXPECT().GetToken("499b84ac-1321-427f-aa17-267ca6975798/.default").
-		Return(&workloadidentity.Token{AccessToken: "entra-token", ExpiresOn: time.Now().Add(time.Hour)}, nil).Maybe()
+	tokenProvider := workloadidentitymocks.NewTokenProvider(t)
+	tokenProvider.EXPECT().GetToken(azureDevOpsTokenScope).
+		Return(&workloadidentity.Token{AccessToken: "entra-token", ExpiresOn: time.Now().Add(time.Hour)}, nil).Once()
 
 	svc, err := NewAzureDevOpsServiceWithWorkloadIdentity(tokenProvider, "", "myorg", "myproject", "myrepo", []string{"preview"}, []string{"stale"})
 	require.NoError(t, err)
@@ -324,13 +323,69 @@ func TestNewAzureDevOpsServiceWithWorkloadIdentity(t *testing.T) {
 	assert.Equal(t, []string{"preview"}, azureSvc.labels)
 	assert.Equal(t, []string{"stale"}, azureSvc.excludedLabels)
 
-	factory, ok := azureSvc.clientFactory.(*workloadIdentityFactoryImpl)
+	factory, ok := azureSvc.clientFactory.(*workloadIdentityClientFactory)
 	require.True(t, ok, "workload identity must use the workload identity client factory")
 	assert.Equal(t, "https://dev.azure.com/myorg", factory.organizationURL)
 
+	// The token must come from the injected provider, for the Azure DevOps resource scope.
 	token, err := factory.getToken()
 	require.NoError(t, err)
 	assert.Equal(t, "entra-token", token)
+}
+
+func TestNewAzureDevOpsServiceWithWorkloadIdentityTokenProviderError(t *testing.T) {
+	t.Parallel()
+	tokenProvider := workloadidentitymocks.NewTokenProvider(t)
+	tokenProvider.EXPECT().GetToken(azureDevOpsTokenScope).Return(nil, errors.New("no federated token file")).Once()
+
+	svc, err := NewAzureDevOpsServiceWithWorkloadIdentity(tokenProvider, "", "myorg", "myproject", "myrepo", nil, nil)
+	require.NoError(t, err)
+
+	_, err = svc.(*AzureDevOpsService).clientFactory.(*workloadIdentityClientFactory).getToken()
+	require.ErrorContains(t, err, "no federated token file")
+}
+
+func TestNewAzureDevOpsServiceWithWorkloadIdentityAPIValidation(t *testing.T) {
+	t.Parallel()
+	cases := []struct {
+		name        string
+		api         string
+		expectedURL string
+		expectedErr string
+	}{
+		{name: "default api", api: "", expectedURL: "https://dev.azure.com/myorg"},
+		{name: "explicit default api", api: "https://dev.azure.com/", expectedURL: "https://dev.azure.com/myorg"},
+		{name: "custom https api", api: "https://devops.example.com/tfs", expectedURL: "https://devops.example.com/tfs/myorg"},
+		{name: "uppercase https scheme", api: "HTTPS://dev.azure.com", expectedURL: "HTTPS://dev.azure.com/myorg"},
+		{name: "plain http api", api: "http://dev.azure.com", expectedErr: "requires an https:// Azure DevOps api URL"},
+		{name: "in-cluster http api", api: "http://my-service.my-namespace.svc.cluster.local", expectedErr: "requires an https:// Azure DevOps api URL"},
+		{name: "api without scheme", api: "dev.azure.com", expectedErr: "requires an https:// Azure DevOps api URL"},
+		{name: "api without host", api: "https://", expectedErr: "requires an https:// Azure DevOps api URL"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// No token may be requested while the service is created, whether or not the api URL is valid.
+			tokenProvider := workloadidentitymocks.NewTokenProvider(t)
+
+			svc, err := NewAzureDevOpsServiceWithWorkloadIdentity(tokenProvider, tc.api, "myorg", "myproject", "myrepo", nil, nil)
+			if tc.expectedErr != "" {
+				require.ErrorContains(t, err, tc.expectedErr)
+				assert.Nil(t, svc)
+				return
+			}
+			require.NoError(t, err)
+			factory := svc.(*AzureDevOpsService).clientFactory.(*workloadIdentityClientFactory)
+			assert.Equal(t, tc.expectedURL, factory.organizationURL)
+		})
+	}
+}
+
+func TestNewAzureDevOpsServiceWithWorkloadIdentityNilProvider(t *testing.T) {
+	t.Parallel()
+	svc, err := NewAzureDevOpsServiceWithWorkloadIdentity(nil, "", "myorg", "myproject", "myrepo", nil, nil)
+	require.Error(t, err)
+	assert.Nil(t, svc)
 }
 
 func TestNewBearerConnection(t *testing.T) {
@@ -342,7 +397,7 @@ func TestNewBearerConnection(t *testing.T) {
 
 func TestWorkloadIdentityFactoryGetClientTokenError(t *testing.T) {
 	t.Parallel()
-	factory := &workloadIdentityFactoryImpl{
+	factory := &workloadIdentityClientFactory{
 		organizationURL: "https://dev.azure.com/myorg",
 		getToken: func() (string, error) {
 			return "", errors.New("no federated token file")
@@ -369,7 +424,7 @@ func TestWorkloadIdentityFactoryGetClientSendsFreshBearerToken(t *testing.T) {
 
 	tokens := []string{"token-1", "token-2"}
 	calls := 0
-	factory := &workloadIdentityFactoryImpl{
+	factory := &workloadIdentityClientFactory{
 		organizationURL: server.URL + "/myorg",
 		getToken: func() (string, error) {
 			token := tokens[calls]

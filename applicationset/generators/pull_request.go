@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -27,8 +29,12 @@ type PullRequestGenerator struct {
 	client                    client.Client
 	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
 	// newAzureTokenProvider creates the token provider used when an Azure DevOps generator sets
-	// useAzureWorkloadIdentity. It is only invoked when the option is set, and can be replaced in tests.
+	// useAzureWorkloadIdentity. It can be replaced in tests.
 	newAzureTokenProvider func() workloadidentity.TokenProvider
+	// azureTokenProvider is created on first use and then shared by all reconciliations, so that tokens are
+	// cached by the provider between reconciliations.
+	azureTokenProvider     workloadidentity.TokenProvider
+	azureTokenProviderOnce sync.Once
 	SCMConfig
 }
 
@@ -36,7 +42,7 @@ func NewPullRequestGenerator(client client.Client, scmConfig SCMConfig) Generato
 	g := &PullRequestGenerator{
 		client:                client,
 		SCMConfig:             scmConfig,
-		newAzureTokenProvider: workloadidentity.NewWorkloadIdentityTokenProvider,
+		newAzureTokenProvider: workloadidentity.NewStrictWorkloadIdentityTokenProvider,
 	}
 	g.selectServiceProviderFunc = g.selectServiceProvider
 	return g
@@ -216,7 +222,13 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 			if providerConfig.TokenRef != nil {
 				return nil, errors.New("azureDevOps pull request generator: tokenRef and useAzureWorkloadIdentity are mutually exclusive")
 			}
-			return pullrequest.NewAzureDevOpsServiceWithWorkloadIdentity(g.newAzureTokenProvider(), providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels, providerConfig.ExcludedLabels)
+			// The workload identity token is a credential of the controller, not of the ApplicationSet author, so it
+			// must not be sent to an arbitrary host. A custom api URL is only accepted when the administrator has
+			// explicitly allowed it; ScmProviderAllowed above already enforces the list when it is not empty.
+			if !isDefaultAzureDevOpsAPI(providerConfig.API) && len(g.allowedSCMProviders) == 0 {
+				return nil, fmt.Errorf("azureDevOps pull request generator: useAzureWorkloadIdentity with a custom api URL (%q) requires the URL to be listed in the allowed SCM providers", providerConfig.API)
+			}
+			return pullrequest.NewAzureDevOpsServiceWithWorkloadIdentity(g.getAzureTokenProvider(), providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels, providerConfig.ExcludedLabels)
 		}
 		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
@@ -225,6 +237,19 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		return pullrequest.NewAzureDevOpsService(token, providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels, providerConfig.ExcludedLabels)
 	}
 	return nil, errors.New("no Pull Request provider implementation configured")
+}
+
+// getAzureTokenProvider returns the Azure Workload Identity token provider, creating it on first use.
+func (g *PullRequestGenerator) getAzureTokenProvider() workloadidentity.TokenProvider {
+	g.azureTokenProviderOnce.Do(func() {
+		g.azureTokenProvider = g.newAzureTokenProvider()
+	})
+	return g.azureTokenProvider
+}
+
+// isDefaultAzureDevOpsAPI reports whether api is empty or the public Azure DevOps service URL.
+func isDefaultAzureDevOpsAPI(api string) bool {
+	return api == "" || strings.EqualFold(strings.TrimSuffix(api, "/"), pullrequest.AZURE_DEVOPS_DEFAULT_URL)
 }
 
 func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alpha1.PullRequestGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
