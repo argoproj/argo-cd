@@ -220,6 +220,12 @@ func hasShardingUpdates(old, newCluster *v1alpha1.Cluster) bool {
 		return true
 	}
 
+	// returns true if the cluster name has changed because the app distribution of the
+	// consistent-hashing algorithm counts apps that target a cluster by destination.name.
+	if old.Name != newCluster.Name {
+		return true
+	}
+
 	// return false if the shard field has not been modified
 	if old.Shard == nil && newCluster.Shard == nil {
 		return false
