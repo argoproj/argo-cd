@@ -23,13 +23,17 @@ export function newQueryClient(notifications: NotificationsApi): QueryClient {
     });
 }
 
-// Same markup DataLoader rendered while loading and on failure.
+// Match DataLoader's loading and failure messages.
 export const loading = <p style={{padding: '0.5em', textAlign: 'center'}}>Loading...</p>;
 
 export function loadFailed(retry: () => void) {
     return (
         <p style={{padding: '0.5em', textAlign: 'center'}}>
-            Failed to load data, please <a onClick={() => retry()}>try again</a>.
+            Failed to load data, please{' '}
+            <button type='button' className='argo-button argo-button--link argo-button--short' onClick={() => retry()}>
+                try again
+            </button>
+            .
         </p>
     );
 }
