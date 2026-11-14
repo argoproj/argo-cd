@@ -2104,7 +2104,6 @@ func TestAPIResponsesAreNotCacheable(t *testing.T) {
 	}
 }
 
-// The REST gateway reaches the gRPC server over TCP, so it has to dial the address the server listens on.
 func TestGatewayReachesNonDefaultListenHost(t *testing.T) {
 	const listenHost = "127.0.0.2"
 	lc := net.ListenConfig{}
