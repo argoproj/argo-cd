@@ -20,6 +20,11 @@ data:
   redis.compression: gzip
   # Redis database
   redis.db:
+  # Prefix added to the cache keys that the application controller, API server and repo server write to Redis. Set
+  # this when several Argo CD installations share one Redis instance. The API server's session-revocation entries
+  # (revoked-token|<id> keys and the new-revoked-token pub/sub channel) are written without the prefix and stay
+  # shared. (default "")
+  redis.key.prefix: ""
 
   # Enables the beta "manifest hydrator" feature. (default "false")
   hydrator.enabled: "false"
@@ -97,6 +102,9 @@ data:
   controller.self.heal.backoff.timeout.seconds: "2"
   controller.self.heal.backoff.factor: "3"
   controller.self.heal.backoff.cap.seconds: "300"
+  # Deprecated and has no effect: the controller no longer uses a cooldown when configuring self heal backoff.
+  # The key is still wired into the controller environment and accepted for compatibility. (default 330)
+  controller.self.heal.backoff.cooldown.seconds: "330"
   # Specifies a sync timeout for applications. "0" means no timeout (default "0")
   controller.sync.timeout.seconds: "0"
   # Specifies the delay in seconds between each sync wave to give other controllers a chance to react to spec changes. (default "2")
@@ -124,6 +132,8 @@ data:
   # Diff calculation will be done by running a server side apply dryrun (when
   # diff cache is unavailable).
   controller.diff.server.side: "false"
+  # Execution timeout for JQ path expressions in ignoreDifferences. "0" (the default) uses the built-in 1s timeout.
+  controller.ignore.normalizer.jq.timeout: "0s"
   # Enables profile endpoint on the internal metrics port
   controller.profile.enabled: "false"
   # Enables batch-processing mode in the controller's cluster cache. This can help improve performance for clusters that
@@ -225,14 +235,22 @@ data:
   server.trusted.proxies: ""
   # Header a trusted proxy sets to the client IP, e.g. CF-Connecting-IP, True-Client-IP or X-Real-IP (default: none)
   server.client.ip.header: ""
-  # Set X-Frame-Options header in HTTP responses to value. To disable, set to "". (default "sameorigin")
+  # Set X-Frame-Options header in HTTP responses to value. An empty value here falls back to the default, so to
+  # disable the header pass --x-frame-options="" on the argocd-server command line instead. (default "sameorigin")
   server.x.frame.options: "sameorigin"
+  # Set Content-Security-Policy header in HTTP responses to value. An empty value here falls back to the default,
+  # so to disable the header pass --content-security-policy="" on the argocd-server command line instead. (default "frame-ancestors 'self';")
+  server.content.security.policy: "frame-ancestors 'self';"
+  # Maximum number of chunks a large cookie (such as the auth token) can be split into (default 20)
+  server.http.cookie.maxnumber: "20"
   # The minimum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.2")
   server.tls.minversion: "1.2"
   # The maximum SSL/TLS version that is acceptable (one of: 1.0|1.1|1.2|1.3) (default "1.3")
   server.tls.maxversion: "1.3"
   # The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
   server.tls.ciphers: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+  # Colon-separated list of TLS curve preferences used when establishing TLS connections (e.g. "X25519:P256"). Empty uses the Go defaults. (default "")
+  server.tls.curvepreferences: ""
   # Cache expiration for cluster/repo connection status (default 1h0m0s)
   server.connection.status.cache.expiration: "1h0m0s"
   # Cache expiration for OIDC state (default 3m0s)
@@ -290,6 +308,8 @@ data:
   reposerver.tls.maxversion: "1.3"
   # The list of acceptable ciphers to be used when establishing TLS connections. Use 'list' to list available ciphers. (default "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384")
   reposerver.tls.ciphers: "TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384"
+  # Colon-separated list of TLS curve preferences used when establishing TLS connections (e.g. "X25519:P256"). Empty uses the Go defaults. (default "")
+  reposerver.tls.curvepreferences: ""
   # Path to the client CA certificate file for mTLS. if the file is not found or empty, mTLS is disabled.
   reposerver.client.ca.path: ""
   # Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
@@ -317,6 +337,14 @@ data:
   reposerver.oci.manifest.max.extracted.size: "1G"
   # Whether to disable manifest size check for OCI artifacts
   reposerver.disable.oci.manifest.max.extracted.size: "false"
+  # Maximum size of helm manifest archives when extracted (default "1G")
+  reposerver.helm.manifest.max.extracted.size: "1G"
+  # Disable the maximum size check of helm manifest archives when extracted (default "false")
+  reposerver.disable.helm.manifest.max.extracted.size: "false"
+  # User-Agent header the repo server sends when it fetches a Helm repository index or lists OCI tags. Chart
+  # downloads go through the Helm CLI and do not use it. Empty uses the built-in default
+  # "argocd-repo-server/<version> (<platform>)". (default "")
+  reposerver.helm.user.agent: ""
   # The allowlist of the OCI media types which the repo-server will make use of. If an OCI media type for a given artifact is not in the given list, the repo-server will return an error.
   reposerver.oci.layer.media.types: "application/vnd.oci.image.layer.v1.tar,application/vnd.oci.image.layer.v1.tar+gzip,application/vnd.cncf.helm.chart.content.v1.tar+gzip"
   # Enable git submodule support
@@ -327,10 +355,17 @@ data:
   reposerver.git.lsremote.optimized.enabled: "false"
   # Git requests timeout.
   reposerver.git.request.timeout: "15s"
+  # Cache TTL for locks that prevent duplicate requests on the same revision. Set to "0" to disable. (default "10s")
+  reposerver.revision.cache.lock.timeout: "10s"
   # Enable builtin git configuration options that are required for correct argocd-repo-server operation (default "true")
   reposerver.enable.builtin.git.config: "true"
   # Include hidden directories from Git
   reposerver.include.hidden.directories: "false"
+  # Maximum gRPC message size in MB for the repo server process: its gRPC server and the config management plugin
+  # (CMP) client it uses share this limit. The application controller and API server read ARGOCD_GRPC_MAX_SIZE_MB from
+  # their own environment for their repo server client limits, so set it there as well when raising this value.
+  # (default 100)
+  reposerver.grpc.max.size: "100"
   # Enable gRPC service config lookups via DNS TXT records (default "false"). By default, gRPC DNS TXT lookups for
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
@@ -463,6 +498,12 @@ data:
   # _grpc_config.<hostname> are disabled to prevent excessive DNS queries that can cause timeouts in dual-stack environments.
   # See https://github.com/argoproj/argo-cd/issues/24991
   applicationsetcontroller.grpc.enable.txt.service.config: "false"
+  # Repo server RPC call timeout seconds. (default 60)
+  applicationsetcontroller.repo.server.timeout.seconds: "60"
+  # Disable TLS on connections to repo server
+  applicationsetcontroller.repo.server.plaintext: "false"
+  # Whether to use strict validation of the TLS cert presented by the repo server
+  applicationsetcontroller.repo.server.strict.tls: "false"
   # Path to the CA certificate file for verifying the repo server's TLS certificate (enables mTLS CA verification)
   applicationsetcontroller.repo.server.ca.cert.path: ""
   # Path to the client certificate file for mTLS connections to repo server
