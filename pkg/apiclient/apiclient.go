@@ -159,12 +159,15 @@ type ClientOptions struct {
 	RedisCompression     string
 	RepoServerName       string
 	PromptsEnabled       bool
+	// NoProxy dials ServerAddr without the ALL_PROXY proxy. Set it when this process listens on ServerAddr.
+	NoProxy bool
 }
 
 type client struct {
 	ServerAddr      string
 	PlainText       bool
 	Insecure        bool
+	NoProxy         bool
 	CertPEMData     []byte
 	ClientCert      *tls.Certificate
 	AuthToken       string
@@ -272,6 +275,7 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 		}
 		opts.ServerAddr = serverAddr
 		opts.Insecure = true
+		opts.NoProxy = true
 	}
 	if opts.ServerAddr != "" {
 		c.ServerAddr = opts.ServerAddr
@@ -326,6 +330,7 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
+	c.NoProxy = opts.NoProxy
 	if _, err := parseHeaders(opts.Headers); err != nil {
 		return nil, err
 	}
@@ -669,7 +674,11 @@ func (c *client) newConn(ctx context.Context) (*grpc.ClientConn, io.Closer, erro
 	if c.UserAgent != "" {
 		dialOpts = append(dialOpts, grpc.WithUserAgent(c.UserAgent))
 	}
-	conn, e := grpc_util.BlockingNewClient(ctx, network, serverAddr, creds, dialOpts...)
+	newClient := grpc_util.BlockingNewClient
+	if c.NoProxy {
+		newClient = grpc_util.BlockingNewClientNoProxy
+	}
+	conn, e := newClient(ctx, network, serverAddr, creds, dialOpts...)
 	closers = append(closers, conn)
 	return conn, utilio.NewCloser(func() error {
 		var firstErr error

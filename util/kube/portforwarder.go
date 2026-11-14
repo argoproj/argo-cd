@@ -38,8 +38,7 @@ func selectPodForPortForward(clientSet kubernetes.Interface, namespace string, p
 	return nil, fmt.Errorf("cannot find ready pod with selector: %v - use the --{component}-name flag in this command or set the environmental variable (Refer to https://argo-cd.readthedocs.io/en/stable/user-guide/environment-variables), to change the Argo CD component name in the CLI", podSelectors)
 }
 
-// PortForward forwards a free local port to targetPort of a ready pod matching one of podSelectors and returns the
-// local address to dial.
+// PortForward forwards a free local port to targetPort of a ready pod and returns the local address to dial.
 func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOverrides, podSelectors ...string) (string, error) {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
@@ -95,8 +94,7 @@ func PortForward(targetPort int, namespace string, overrides *clientcmd.ConfigOv
 	out := new(bytes.Buffer)
 	errOut := new(bytes.Buffer)
 
-	// A single literal address with local port 0 makes the forwarder pick the port and listen on that address alone.
-	// "localhost" would have it bind 127.0.0.1 and ::1 and silently skip whichever one fails.
+	// A literal address, not "localhost": that binds 127.0.0.1 and ::1 and silently skips whichever fails.
 	forwarder, err := portforward.NewOnAddresses(dialer, []string{"127.0.0.1"}, []string{fmt.Sprintf("0:%d", targetPort)}, context.Background().Done(), readyChan, out, errOut)
 	if err != nil {
 		return "", err

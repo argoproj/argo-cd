@@ -297,6 +297,7 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	go srv.Run(ctx, lns)
 	clientOpts.ServerAddr = lns.Main.Addr().String()
 	clientOpts.PlainText = true
+	clientOpts.NoProxy = true
 	if !cache2.WaitForCacheSync(ctx.Done(), srv.Initialized) {
 		log.Fatal("Timed out waiting for project cache to sync")
 	}
