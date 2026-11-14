@@ -4,8 +4,8 @@ import {useQueryClient} from '@tanstack/react-query';
 import * as ReactDOM from 'react-dom';
 import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
-import {combineLatest, from} from 'rxjs';
-import {map, mergeMap} from 'rxjs/operators';
+import {from} from 'rxjs';
+import {mergeMap} from 'rxjs/operators';
 import {ClusterCtx, DataLoader, EmptyState, Page, SearchBar, Spinner} from '../../../shared/components';
 import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
 import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
@@ -14,7 +14,7 @@ import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarP
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
-import {ApplicationsFilter} from './applications-filter';
+import {AppFilterProps, ApplicationsFilter} from './applications-filter';
 import {AppsListPaginate, useApplicationsList} from './applications-list-client';
 import {AppsListSourceQuery, AppsListSourceResult} from './applications-list-source';
 import {AppsStatusBar} from './applications-status-bar';
@@ -24,7 +24,8 @@ import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applicatio
 import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
 import {useSidebarTarget} from '../../../sidebar/sidebar';
-import {useSearchParams, useObservableQuery} from '../../../shared/hooks/query';
+import {useLocationSearch, useSearchParams, useObservableQuery} from '../../../shared/hooks/query';
+import {useViewPreferences} from '../../../shared/hooks/use-view-preferences';
 import {isInvalidRegex} from '../../../shared/utils';
 import {loadFailed} from '../../../shared/query-client';
 import {clusterQueries} from '../../../shared/queries';
@@ -40,109 +41,104 @@ const ApplicationsSummary = lazyWithBoundary(
     'Failed to load applications summary. Please reload and try again.'
 );
 
-const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
-    const observableQuery$ = useObservableQuery();
+// Reads the sidebar flag itself, so toggling the sidebar re-renders only the filter.
+const SidebarFilter = (props: AppFilterProps) => <ApplicationsFilter {...props} collapsed={useViewPreferences(pref => pref.hideSidebar)} />;
 
-    return (
-        <DataLoader
-            load={() =>
-                combineLatest([services.viewPreferences.getPreferences().pipe(map(item => item.appList)), observableQuery$]).pipe(
-                    map(items => {
-                        const params = items[1];
-                        const viewPref: AppsListPreferences = {...items[0]};
-                        if (params.get('proj') != null) {
-                            viewPref.projectsFilter = params
-                                .get('proj')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('sync') != null) {
-                            viewPref.syncFilter = params
-                                .get('sync')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('autoSync') != null) {
-                            viewPref.autoSyncFilter = params
-                                .get('autoSync')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('operation') != null) {
-                            viewPref.operationFilter = params
-                                .get('operation')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('cluster') != null) {
-                            viewPref.clustersFilter = params
-                                .get('cluster')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('showFavorites') != null) {
-                            viewPref.showFavorites = params.get('showFavorites') === 'true';
-                        }
-                        if (params.get('view') != null) {
-                            viewPref.view = params.get('view') as AppsListViewType;
-                        }
-                        if (params.get('labels') != null) {
-                            viewPref.labelsFilter = params
-                                .get('labels')
-                                .split(',')
-                                .map(decodeURIComponent)
-                                .filter(item => !!item);
-                        }
-                        if (params.get('health') != null) {
-                            viewPref.healthFilter = params
-                                .get('health')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('hydration') != null) {
-                            viewPref.hydrationFilter = params
-                                .get('hydration')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('namespace') != null) {
-                            viewPref.namespacesFilter = params
-                                .get('namespace')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('targetRevision') != null) {
-                            viewPref.targetRevisionFilter = params
-                                .get('targetRevision')
-                                .split(',')
-                                .map(decodeURIComponent)
-                                .filter(item => !!item);
-                        }
-                        if (params.get('annotations') != null) {
-                            viewPref.annotationsFilter = params
-                                .get('annotations')
-                                .split(',')
-                                .map(decodeURIComponent)
-                                .filter(item => !!item);
-                        }
-                        if (params.get('repo') != null) {
-                            viewPref.reposFilter = params
-                                .get('repo')
-                                .split(',')
-                                .map(decodeURIComponent)
-                                .filter(item => !!item);
-                        }
-                        return {
-                            ...viewPref,
-                            page: parseInt(params.get('page') || '0', 10),
-                            search: params.get('search') || ''
-                        };
-                    })
-                )
-            }>
-            {pref => children(pref)}
-        </DataLoader>
-    );
+const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
+    const appList = useViewPreferences(pref => pref.appList);
+    const search = useLocationSearch();
+    const pref = React.useMemo(() => {
+        const params = new URLSearchParams(search);
+        const viewPref: AppsListPreferences = {...appList};
+        if (params.get('proj') != null) {
+            viewPref.projectsFilter = params
+                .get('proj')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('sync') != null) {
+            viewPref.syncFilter = params
+                .get('sync')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('autoSync') != null) {
+            viewPref.autoSyncFilter = params
+                .get('autoSync')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('operation') != null) {
+            viewPref.operationFilter = params
+                .get('operation')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('cluster') != null) {
+            viewPref.clustersFilter = params
+                .get('cluster')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('showFavorites') != null) {
+            viewPref.showFavorites = params.get('showFavorites') === 'true';
+        }
+        if (params.get('view') != null) {
+            viewPref.view = params.get('view') as AppsListViewType;
+        }
+        if (params.get('labels') != null) {
+            viewPref.labelsFilter = params
+                .get('labels')
+                .split(',')
+                .map(decodeURIComponent)
+                .filter(item => !!item);
+        }
+        if (params.get('health') != null) {
+            viewPref.healthFilter = params
+                .get('health')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('hydration') != null) {
+            viewPref.hydrationFilter = params
+                .get('hydration')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('namespace') != null) {
+            viewPref.namespacesFilter = params
+                .get('namespace')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('targetRevision') != null) {
+            viewPref.targetRevisionFilter = params
+                .get('targetRevision')
+                .split(',')
+                .map(decodeURIComponent)
+                .filter(item => !!item);
+        }
+        if (params.get('annotations') != null) {
+            viewPref.annotationsFilter = params
+                .get('annotations')
+                .split(',')
+                .map(decodeURIComponent)
+                .filter(item => !!item);
+        }
+        if (params.get('repo') != null) {
+            viewPref.reposFilter = params
+                .get('repo')
+                .split(',')
+                .map(decodeURIComponent)
+                .filter(item => !!item);
+        }
+        return {
+            ...viewPref,
+            page: parseInt(params.get('page') || '0', 10),
+            search: params.get('search') || ''
+        };
+    }, [appList, search]);
+    return <>{children(pref)}</>;
 };
 
 // Render-prop wrapper so the list body, which still sits inside render callbacks, can use the hook.
@@ -402,17 +398,12 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                         ) : (
                                                             <>
                                                                 {ReactDOM.createPortal(
-                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                        {allpref => (
-                                                                            <ApplicationsFilter
-                                                                                facets={facets}
-                                                                                onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
-                                                                                pref={pref}
-                                                                                collapsed={allpref.hideSidebar}
-                                                                                hydratorEnabled={authSettings?.hydratorEnabled}
-                                                                            />
-                                                                        )}
-                                                                    </DataLoader>,
+                                                                    <SidebarFilter
+                                                                        facets={facets}
+                                                                        onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
+                                                                        pref={pref}
+                                                                        hydratorEnabled={authSettings?.hydratorEnabled}
+                                                                    />,
                                                                     sidebarTarget?.current
                                                                 )}
 
@@ -430,8 +421,10 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                     Change filter criteria or&nbsp;
                                                                                     <a
                                                                                         onClick={() => {
-                                                                                            AppsListPreferences.clearFilters(pref);
-                                                                                            onAppFilterPrefChanged(ctx, pref);
+                                                                                            // On a copy: pref is memoized and shared with this render's children.
+                                                                                            const cleared = {...pref};
+                                                                                            AppsListPreferences.clearFilters(cleared);
+                                                                                            onAppFilterPrefChanged(ctx, cleared);
                                                                                         }}>
                                                                                         clear filters
                                                                                     </a>

@@ -96,3 +96,12 @@ test('expanded multi-source plugin panel renders NAME and ENV from the per-sourc
     expect(await screen.findByDisplayValue('ENVIRONMENT')).toBeInTheDocument();
     expect(await screen.findByDisplayValue('prod')).toBeInTheDocument();
 });
+
+test('multi-source default (no collapse state) renders the expanded panel, not the raw-text summary', async () => {
+    // The details page initializes collapsedSources as an empty array, so every entry is undefined (see argoproj/argo-cd#30942).
+    renderWithContext(<ApplicationParameters application={multiSourceApp()} collapsedSources={[]} handleCollapse={() => undefined} />);
+
+    expect(await screen.findByDisplayValue('my-plugin')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('FOO')).toBeInTheDocument();
+    expect(screen.queryByText(/ENV=\[FOO=bar, ENVIRONMENT=prod\]/)).not.toBeInTheDocument();
+});
