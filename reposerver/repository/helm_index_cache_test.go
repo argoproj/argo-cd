@@ -24,6 +24,41 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/helm"
 )
 
+func TestHelmIndexCacheEnablement(t *testing.T) {
+	temporary := t.TempDir()
+	for _, name := range []string{"TMPDIR", "TMP", "TEMP"} {
+		t.Setenv(name, temporary)
+	}
+	for _, test := range []struct {
+		name, directory string
+		enabled         bool
+	}{
+		{name: "disabled by default"},
+		{name: "directory alone does not enable reuse", directory: filepath.Join(temporary, "disabled-override")},
+		{name: "enabled with default directory", enabled: true},
+		{name: "enabled with custom directory", enabled: true, directory: filepath.Join(temporary, "custom")},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			service := NewService(metrics.NewMetricsServer(), nil, RepoServerInitConstants{
+				HelmIndexCacheEnabled: test.enabled, HelmIndexCacheDir: test.directory, HelmRegistryMaxIndexSize: 1 << 20,
+			}, &git.NoopCredsStore{}, t.TempDir())
+			if !test.enabled {
+				require.Nil(t, service.helmIndexStore)
+				return
+			}
+			require.NotNil(t, service.helmIndexStore)
+			directory := test.directory
+			if directory == "" {
+				directory = filepath.Join(temporary, "helm-index-cache")
+			}
+			require.NoError(t, service.helmIndexStore.Set("fixture", []byte("apiVersion: v1\nentries: {}\n")))
+			records, err := filepath.Glob(filepath.Join(directory, "*.json"))
+			require.NoError(t, err)
+			require.Len(t, records, 1, "the configured directory must receive the index record")
+		})
+	}
+}
+
 func packageIndexTestChart(t *testing.T, version string) []byte {
 	t.Helper()
 	var result bytes.Buffer
@@ -142,7 +177,7 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	storeDir := t.TempDir()
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{
-		HelmIndexCacheDir: storeDir, HelmRegistryMaxIndexSize: 1 << 20, HelmManifestMaxExtractedSize: 1 << 20,
+		HelmIndexCacheEnabled: true, HelmIndexCacheDir: storeDir, HelmRegistryMaxIndexSize: 1 << 20, HelmManifestMaxExtractedSize: 1 << 20,
 	}, &git.NoopCredsStore{}, t.TempDir())
 	require.NoError(t, service.Init())
 	t.Cleanup(func() {
@@ -226,7 +261,7 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 	require.Zero(t, got[1].bytes)
 	require.Empty(t, got[2].conditional, "hard refresh must be unconditional")
 	require.Empty(t, got[3].conditional, "forced revision resolution must be unconditional")
-	disabled := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{HelmRegistryMaxIndexSize: 1 << 20, HelmManifestMaxExtractedSize: 1 << 20}, &git.NoopCredsStore{}, t.TempDir())
+	disabled := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{HelmIndexCacheDir: storeDir, HelmRegistryMaxIndexSize: 1 << 20, HelmManifestMaxExtractedSize: 1 << 20}, &git.NoopCredsStore{}, t.TempDir())
 	require.Nil(t, disabled.helmIndexStore, "the default must retain the legacy path")
 	require.NoError(t, disabled.Init())
 	t.Cleanup(func() {

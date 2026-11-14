@@ -105,11 +105,10 @@ the appropriate tool.
 
 #### Helm dependency index cache
 
-Set `--helm-index-cache-dir` or `ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_DIR` to a writable
-Argo-managed directory to reuse HTTP(S) repository indexes across dependency builds.
-The default is empty, which disables dependency index reuse. With the standard installation,
-set `reposerver.helm.index.cache.dir` in `argocd-cmd-params-cm` and restart repo-server.
-For example, use this ConfigMap setting with the existing writable `/tmp` volume:
+Enable HTTP(S) repository index reuse across dependency builds with
+`--helm-index-cache-enabled` or `ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_ENABLED=true`.
+Dependency reuse is disabled by default. With the standard installation, set
+`reposerver.helm.index.cache.enabled` in `argocd-cmd-params-cm` and restart repo-server:
 
 ```yaml
 apiVersion: v1
@@ -118,8 +117,15 @@ metadata:
   name: argocd-cmd-params-cm
   namespace: argocd
 data:
-  reposerver.helm.index.cache.dir: /tmp/helm-index-cache
+  reposerver.helm.index.cache.enabled: "true"
 ```
+
+The directory defaults to `helm-index-cache` under the system temporary directory, normally
+`/tmp/helm-index-cache`, using the existing writable `/tmp` volume. On Unix, a custom `TMPDIR`
+changes that default. No directory override is needed to enable reuse. To select another
+writable Argo-managed directory, use `--helm-index-cache-dir`,
+`ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_DIR`, or `reposerver.helm.index.cache.dir` in the ConfigMap.
+An unset or empty directory selects the default; setting a directory alone does not enable reuse.
 
 Freshness uses `--revision-cache-expiration` (default `3m`), including its
 `ARGOCD_RECONCILIATION_TIMEOUT` default. It is independent of `--repo-cache-expiration`.
@@ -146,7 +152,7 @@ on disk to prevent independent locks being created for the same identity.
 > Indexes can contain private chart metadata. Use a dedicated directory writable only by
 > repo-server; newly created cache directories have mode `0700` and records/locks `0600`.
 > Repository passwords and client keys stay in the temporary Helm home. Cache-directory initialization and locking failures
-> return an actionable error; disable the directory setting to use the original path. A publication
+> return an actionable error; set `reposerver.helm.index.cache.enabled: "false"` to use the original path. A publication
 > failure after successful HTTP validation does not discard the valid response.
 
 A warm dependency build makes no index request. An expired index is conditionally revalidated
@@ -160,7 +166,7 @@ Shared records require a complete, size-bounded index with `apiVersion: v1`. Inv
 responses are never published.
 
 Go-client chart listing, connectivity tests and revision resolution retain their always-fresh
-behavior independently of the directory setting. A `304` response avoids transferring the index
+behavior independently of dependency-cache enablement. A `304` response avoids transferring the index
 body; it still counts as a GET. Chart extraction through `helm pull --repo` can make its own index
 request on archive misses. Archive downloads and checkout-triggered builds are unchanged.
 
@@ -174,7 +180,7 @@ registry authentication and pulls while reusing only the HTTP index.
 During a rolling upgrade, new versioned Redis records coexist with legacy raw-index keys;
 old readers never receive a record envelope in a raw key. Older replicas may continue making full
 index downloads. Rollback does not require deleting Redis records. To disable dependency reuse,
-clear the directory setting and restart repo-server; remove its volume contents only after every
+set `reposerver.helm.index.cache.enabled: "false"` and restart repo-server; remove its volume contents only after every
 process using that directory has stopped.
 
 Measure index GETs, `200`/`304` statuses, transferred bytes, dependency-build duration and origin
