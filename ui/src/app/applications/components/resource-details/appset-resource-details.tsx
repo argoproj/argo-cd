@@ -1,6 +1,6 @@
 import {MockupList, Tab, Tabs} from 'argo-ui';
 import * as React from 'react';
-import {EventsList, Expandable} from '../../../shared/components';
+import {ClipboardText, EventsList, Expandable} from '../../../shared/components';
 import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import {Timestamp} from '../../../shared/components/timestamp';
 import * as models from '../../../shared/models';
@@ -44,7 +44,11 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                     <div className='applicationset-summary'>
                         <div className='white-box'>
                             <div className='white-box__details'>
-                                <p>{appSet.metadata.name.toLocaleUpperCase()}</p>
+                                <p>
+                                    <ClipboardText text={appSet.metadata.name} label='Copy ApplicationSet name'>
+                                        {appSet.metadata.name.toLocaleUpperCase()}
+                                    </ClipboardText>
+                                </p>
                                 <SummaryItem title='NAMESPACE'>{appSet.metadata.namespace}</SummaryItem>
                                 <SummaryItem title='CREATED AT'>{appSet.metadata.creationTimestamp && <Timestamp date={appSet.metadata.creationTimestamp} />}</SummaryItem>
                                 <SummaryItem title='HEALTH'>
@@ -148,7 +152,9 @@ export const AppSetResourceDetails = (props: AppSetResourceDetailsProps) => {
                     {ResourceLabel({kind: 'ApplicationSet'})}
                 </div>
                 <div className='resource-details__header-name'>
-                    <h1 className='resource-details__header-title'>{appSet.metadata.name}</h1>
+                    <h1 className='resource-details__header-title'>
+                        <ClipboardText text={appSet.metadata.name} label='Copy ApplicationSet name' />
+                    </h1>
                     <span className='resource-details__header-status'>
                         <HealthStatusIcon state={{status: healthStatus, message: ''}} />
                     </span>

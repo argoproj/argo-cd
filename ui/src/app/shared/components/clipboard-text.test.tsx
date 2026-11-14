@@ -58,4 +58,34 @@ describe('ClipboardText', () => {
 
         expect(jest.getTimerCount()).toBe(0);
     });
+
+    test('renders custom children and label while copying original text casing', () => {
+        render(
+            <ClipboardText text='Guestbook-App' label='Copy application name'>
+                GUESTBOOK-APP
+            </ClipboardText>
+        );
+
+        expect(screen.getByText('GUESTBOOK-APP')).toBeTruthy();
+        expect(screen.getByTestId('tooltip')).toHaveTextContent('Copy application name');
+        fireEvent.click(screen.getByLabelText('Copy application name'));
+        expect(navigator.clipboard.writeText).toHaveBeenCalledWith('Guestbook-App');
+        expect(screen.getByTestId('tooltip')).toHaveTextContent('Copied!');
+    });
+
+    test('stops click propagation and falls back to execCommand when clipboard API is unavailable', () => {
+        const onParentClick = jest.fn();
+        Object.assign(navigator, {clipboard: undefined});
+        document.execCommand = jest.fn().mockReturnValue(true);
+
+        const {container} = render(
+            <div onClick={onParentClick}>
+                <ClipboardText text='guestbook' />
+            </div>
+        );
+
+        clickCopy(container);
+        expect(onParentClick).not.toHaveBeenCalled();
+        expect(document.execCommand).toHaveBeenCalledWith('copy');
+    });
 });
