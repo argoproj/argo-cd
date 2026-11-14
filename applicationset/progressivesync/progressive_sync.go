@@ -485,17 +485,23 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 	// Progressing (from the persisted statuses, plus promotions made in this
 	// call); totalCountMap counts the applications in each step. Both mirror
 	// the admission accounting in UpdateApplicationSetApplicationStatusProgress.
+	// Applications no step selects are excluded from both counts: they have
+	// no step whose limit they could consume.
 	var updateCountMap, totalCountMap []int
 	if RollingSyncStrategyEnabled(applicationSet) {
 		stepCount := len(applicationSet.Spec.Strategy.RollingSync.Steps)
 		updateCountMap = make([]int, stepCount)
 		totalCountMap = make([]int, stepCount)
 		for _, app := range applications {
-			totalCountMap[appStepMap[app.Name]]++
+			if step, ok := appStepMap[app.Name]; ok {
+				totalCountMap[step]++
+			}
 		}
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
 			if appStatus.Status == argov1alpha1.ProgressiveSyncPending || appStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
-				updateCountMap[appStepMap[appStatus.Application]]++
+				if step, ok := appStepMap[appStatus.Application]; ok {
+					updateCountMap[step]++
+				}
 			}
 		}
 	}
@@ -599,7 +605,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 						newAppStatus.LastTransitionTime = &now
 						newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
 						newAppStatus.Message = "Application resource has synced, updating status to Progressing"
-						if updateCountMap != nil {
+						if updateCountMap != nil && inStep {
 							updateCountMap[step]++
 						}
 					}
