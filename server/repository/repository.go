@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -344,10 +345,14 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	}
 	appName, appNs := argo.ParseFromQualifiedName(q.AppName, s.settings.GetNamespace())
 	app, err := s.appLister.Applications(appNs).Get(appName)
-	appRBACObj := createRBACObject(q.AppProject, q.AppName)
+	// Normalize the RBAC object so that it matches the format used by the application API.
+	appRBACObj := security.RBACName(s.settings.GetNamespace(), q.AppProject, appNs, appName)
 	// ensure caller has read privileges to app
 	if err := s.enf.EnforceErr(claims, rbac.ResourceApplications, rbac.ActionGet, appRBACObj); err != nil {
 		return nil, err
+	}
+	if err != nil && !apierrors.IsNotFound(err) {
+		return nil, fmt.Errorf("error getting application: %w", err)
 	}
 	if apierrors.IsNotFound(err) {
 		// app doesn't exist since it still is being formulated. verify they can create the app

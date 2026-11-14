@@ -28,7 +28,7 @@ import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
 import {concatMaps} from '../../../shared/utils';
-import {deleteSourceAction, getAppDefaultSource, getAppDrySource, helpTip} from '../utils';
+import {appQualifiedName, deleteSourceAction, getAppDefaultSource, getAppDrySource, helpTip} from '../utils';
 import * as jsYaml from 'js-yaml';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import classNames from 'classnames';
@@ -333,7 +333,7 @@ export const ApplicationParameters = (props: {
                     <DataLoader
                         key={'app_params_source_' + index}
                         input={app.spec.sources[index]}
-                        load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
+                        load={src => getSourceFromAppSources(src, appQualifiedName(app, !!app.metadata.namespace), app.spec.project, index, 0)}>
                         {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
                     </DataLoader>
                 </div>
@@ -1109,7 +1109,7 @@ async function getSourceFromAppSources(aSource: models.ApplicationSource, name: 
 // Delete when source field is removed
 async function getSingleSource(app: models.Application) {
     if (app.spec.source || app.spec.sourceHydrator) {
-        const repoDetail = await services.repos.appDetails(getAppDrySource(app), app.metadata.name, app.spec.project, 0, 0).catch(() => ({
+        const repoDetail = await services.repos.appDetails(getAppDrySource(app), appQualifiedName(app, !!app.metadata.namespace), app.spec.project, 0, 0).catch(() => ({
             type: 'Directory' as models.AppSourceType,
             path: getAppDrySource(app).path
         }));

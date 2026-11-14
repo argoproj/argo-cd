@@ -34,10 +34,11 @@ jest.mock('argo-ui', () => {
 
 // The expanded panel loads per-source repo details via services.repos.appDetails; return a
 // Plugin-type detail so gatherDetails takes the Plugin branch.
+const mockAppDetails = jest.fn((..._args: any[]) => Promise.resolve({type: 'Plugin', plugin: {}}));
 jest.mock('../../../shared/services', () => ({
     services: {
         repos: {
-            appDetails: () => Promise.resolve({type: 'Plugin', plugin: {}})
+            appDetails: (...args: any[]) => mockAppDetails(...args)
         }
     }
 }));
@@ -95,4 +96,14 @@ test('expanded multi-source plugin panel renders NAME and ENV from the per-sourc
     expect(await screen.findByDisplayValue('bar')).toBeInTheDocument();
     expect(await screen.findByDisplayValue('ENVIRONMENT')).toBeInTheDocument();
     expect(await screen.findByDisplayValue('prod')).toBeInTheDocument();
+});
+
+test('expanded multi-source panel requests repo details with the namespace-qualified app name', async () => {
+    mockAppDetails.mockClear();
+    const app = multiSourceApp();
+    app.metadata.namespace = 'apps';
+    renderWithContext(<ApplicationParameters application={app} collapsedSources={[false]} handleCollapse={() => undefined} />);
+
+    expect(await screen.findByDisplayValue('my-plugin')).toBeInTheDocument();
+    expect(mockAppDetails).toHaveBeenCalledWith(expect.objectContaining({repoURL: 'https://github.com/example/repo'}), 'apps/test-app', 'default', 0, 0);
 });

@@ -8,6 +8,7 @@ import {RevisionHelpIcon} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
+import {appQualifiedName} from '../utils';
 import './source-panel.scss';
 
 // This is similar to the same function in application-create-panel.tsx. If the create panel
@@ -320,7 +321,7 @@ export const SourcePanel = (props: {
                                             path: appInEdit.spec?.source?.path,
                                             chart: appInEdit.spec?.source?.chart,
                                             targetRevision: appInEdit.spec?.source?.targetRevision,
-                                            appName: appInEdit.metadata.name
+                                            appName: appQualifiedName(appInEdit, !!appInEdit.metadata.namespace)
                                         }}
                                         load={async src => {
                                             if (src?.repoURL && src?.targetRevision && (src?.path || src?.chart)) {
