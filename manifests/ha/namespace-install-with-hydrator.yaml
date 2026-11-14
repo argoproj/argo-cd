@@ -2938,6 +2938,12 @@ spec:
               key: reposerver.plugin.use.manifest.generate.paths
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_PLUGIN_TAR_MANIFEST_GENERATE_PATHS_ONLY
+          valueFrom:
+            configMapKeyRef:
+              key: reposerver.plugin.tar.manifest.generate.paths.only
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_REPO_SERVER_ALLOW_OUT_OF_BOUNDS_SYMLINKS
           valueFrom:
             configMapKeyRef:
