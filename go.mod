@@ -48,7 +48,7 @@ require (
 	github.com/go-jose/go-jose/v4 v4.1.9
 	github.com/go-logr/logr v1.4.4
 	github.com/go-openapi/loads v0.25.3
-	github.com/go-openapi/runtime/server-middleware v0.33.3
+	github.com/go-openapi/runtime/server-middleware v0.33.4
 	github.com/go-playground/webhooks/v6 v6.4.0
 	github.com/go-redis/cache/v9 v9.0.0
 	github.com/gobwas/glob v1.1.0
@@ -96,7 +96,7 @@ require (
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966
 	github.com/soheilhy/cmux v0.1.5
 	github.com/spf13/cobra v1.10.2
-	github.com/spf13/pflag v1.0.10
+	github.com/spf13/pflag v1.1.0
 	github.com/stretchr/testify v1.12.1
 	github.com/valyala/fasttemplate v1.2.2
 	github.com/yuin/gopher-lua v1.1.2
