@@ -4,11 +4,12 @@ import {useQueryClient} from '@tanstack/react-query';
 import * as ReactDOM from 'react-dom';
 import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
-import {combineLatest, from, merge, Observable} from 'rxjs';
+import {from, merge, Observable} from 'rxjs';
 import {bufferTime, filter, map, mergeMap, repeat, retry} from 'rxjs/operators';
 import {ClusterCtx, DataLoader, EmptyState, FlexTopBar, Page, Paginate, Query, SearchBar} from '../../../shared/components';
 import {Consumer, ContextApis} from '../../../shared/context';
-import {useObservableQuery} from '../../../shared/hooks/query';
+import {useLocationSearch} from '../../../shared/hooks/query';
+import {useViewPreferences} from '../../../shared/hooks/use-view-preferences';
 import {clusterQueries} from '../../../shared/queries';
 import * as models from '../../../shared/models';
 import {services, ResourcesListPreferences, HealthStatusBarPreferences, ResourcesListViewKey} from '../../../shared/services';
@@ -79,76 +80,72 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
     );
 }
 
+// Reads the sidebar flag itself, so toggling the sidebar re-renders only the filter.
+const SidebarFilter = (props: React.ComponentProps<typeof ResourcesFilter>) => <ResourcesFilter {...props} collapsed={useViewPreferences(pref => pref.hideSidebar)} />;
+
 const ViewPref = ({
     children
 }: {
     children: (pref: ResourcesListPreferences & {page: number; search: string; sortTitle: string; sortDirection: 'asc' | 'desc'}) => React.ReactNode;
 }) => {
-    const observableQuery$ = useObservableQuery();
-
-    return (
-        <DataLoader
-            load={() =>
-                combineLatest([services.viewPreferences.getPreferences(), observableQuery$]).pipe(
-                    map(items => {
-                        const preferences = items[0];
-                        const params = items[1];
-                        const viewPref: ResourcesListPreferences = {...preferences.resourcesList};
-                        if (params.get('proj') != null) {
-                            viewPref.projectsFilter = params
-                                .get('proj')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('sync') != null) {
-                            viewPref.syncFilter = params
-                                .get('sync')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('health') != null) {
-                            viewPref.healthFilter = params
-                                .get('health')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('namespace') != null) {
-                            viewPref.namespacesFilter = params
-                                .get('namespace')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('cluster') != null) {
-                            viewPref.clustersFilter = params
-                                .get('cluster')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('apiGroup') != null) {
-                            viewPref.apiGroupFilter = params
-                                .get('apiGroup')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        if (params.get('kind') != null) {
-                            viewPref.kindFilter = params
-                                .get('kind')
-                                .split(',')
-                                .filter(item => !!item);
-                        }
-                        const viewParam = params.get('view');
-                        if (viewParam === ResourcesListViewKey.List || viewParam === ResourcesListViewKey.Summary) {
-                            viewPref.view = viewParam;
-                        }
-                        const sortTitle = preferences.sortOptions?.[RESOURCES_LIST_SORT_KEY] || RESOURCE_SORT_OPTIONS[0].title;
-                        const sortDirection: 'asc' | 'desc' = preferences.sortDirections?.[RESOURCES_LIST_SORT_KEY] === 'desc' ? 'desc' : 'asc';
-                        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || '', sortTitle, sortDirection};
-                    })
-                )
-            }>
-            {pref => children(pref)}
-        </DataLoader>
-    );
+    const resourcesList = useViewPreferences(pref => pref.resourcesList);
+    const sortOption = useViewPreferences(pref => pref.sortOptions?.[RESOURCES_LIST_SORT_KEY]);
+    const sortDirectionPref = useViewPreferences(pref => pref.sortDirections?.[RESOURCES_LIST_SORT_KEY]);
+    const search = useLocationSearch();
+    const pref = React.useMemo(() => {
+        const params = new URLSearchParams(search);
+        const viewPref: ResourcesListPreferences = {...resourcesList};
+        if (params.get('proj') != null) {
+            viewPref.projectsFilter = params
+                .get('proj')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('sync') != null) {
+            viewPref.syncFilter = params
+                .get('sync')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('health') != null) {
+            viewPref.healthFilter = params
+                .get('health')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('namespace') != null) {
+            viewPref.namespacesFilter = params
+                .get('namespace')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('cluster') != null) {
+            viewPref.clustersFilter = params
+                .get('cluster')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('apiGroup') != null) {
+            viewPref.apiGroupFilter = params
+                .get('apiGroup')
+                .split(',')
+                .filter(item => !!item);
+        }
+        if (params.get('kind') != null) {
+            viewPref.kindFilter = params
+                .get('kind')
+                .split(',')
+                .filter(item => !!item);
+        }
+        const viewParam = params.get('view');
+        if (viewParam === ResourcesListViewKey.List || viewParam === ResourcesListViewKey.Summary) {
+            viewPref.view = viewParam;
+        }
+        const sortTitle = sortOption || RESOURCE_SORT_OPTIONS[0].title;
+        const sortDirection: 'asc' | 'desc' = sortDirectionPref === 'desc' ? 'desc' : 'asc';
+        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || '', sortTitle, sortDirection};
+    }, [resourcesList, sortOption, sortDirectionPref, search]);
+    return <>{children(pref)}</>;
 };
 
 function filterResources(resources: models.Resource[], pref: ResourcesListPreferences, search: string): {filteredResources: models.Resource[]; filterResults: FilteredResource[]} {
@@ -339,16 +336,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                         ) : (
                                                             <>
                                                                 {ReactDOM.createPortal(
-                                                                    <DataLoader load={() => services.viewPreferences.getPreferences()}>
-                                                                        {allpref => (
-                                                                            <ResourcesFilter
-                                                                                apps={filterResults}
-                                                                                onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)}
-                                                                                pref={pref}
-                                                                                collapsed={allpref.hideSidebar}
-                                                                            />
-                                                                        )}
-                                                                    </DataLoader>,
+                                                                    <SidebarFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} />,
                                                                     sidebarTarget?.current
                                                                 )}
                                                                 {(pref.view === ResourcesListViewKey.Summary && <ResourcesSummary resources={filteredResources} />) || (
@@ -372,8 +360,10 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                                             Change filter criteria or&nbsp;
                                                                                             <a
                                                                                                 onClick={() => {
-                                                                                                    ResourcesListPreferences.clearFilters(pref);
-                                                                                                    onFilterPrefChanged(ctx, pref);
+                                                                                                    // On a copy: pref is memoized and shared with this render's children.
+                                                                                                    const cleared = {...pref};
+                                                                                                    ResourcesListPreferences.clearFilters(cleared);
+                                                                                                    onFilterPrefChanged(ctx, cleared);
                                                                                                 }}>
                                                                                                 clear filters
                                                                                             </a>
