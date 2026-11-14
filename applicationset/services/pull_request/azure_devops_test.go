@@ -2,7 +2,11 @@ package pull_request
 
 import (
 	"errors"
+	"net/http"
+	"net/http/httptest"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
@@ -13,6 +17,8 @@ import (
 
 	azureMock "github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/azure_devops/git/mocks"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider/mocks"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
+	workloadidentitymocks "github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
 func TestListPullRequest(t *testing.T) {
@@ -300,4 +306,92 @@ func TestAzureDevOpsListReturnsRepositoryNotFoundError(t *testing.T) {
 	// Should return RepositoryNotFoundError
 	require.Error(t, err)
 	assert.True(t, IsRepositoryNotFoundError(err), "Expected RepositoryNotFoundError but got: %v", err)
+}
+
+func TestNewAzureDevOpsServiceWithWorkloadIdentity(t *testing.T) {
+	t.Parallel()
+	tokenProvider := &workloadidentitymocks.TokenProvider{}
+	// The token is cached process-wide by scope, so the provider may not be called if another run already cached it.
+	tokenProvider.EXPECT().GetToken("499b84ac-1321-427f-aa17-267ca6975798/.default").
+		Return(&workloadidentity.Token{AccessToken: "entra-token", ExpiresOn: time.Now().Add(time.Hour)}, nil).Maybe()
+
+	svc, err := NewAzureDevOpsServiceWithWorkloadIdentity(tokenProvider, "", "myorg", "myproject", "myrepo", []string{"preview"}, []string{"stale"})
+	require.NoError(t, err)
+	azureSvc, ok := svc.(*AzureDevOpsService)
+	require.True(t, ok)
+	assert.Equal(t, "myproject", azureSvc.project)
+	assert.Equal(t, "myrepo", azureSvc.repo)
+	assert.Equal(t, []string{"preview"}, azureSvc.labels)
+	assert.Equal(t, []string{"stale"}, azureSvc.excludedLabels)
+
+	factory, ok := azureSvc.clientFactory.(*workloadIdentityFactoryImpl)
+	require.True(t, ok, "workload identity must use the workload identity client factory")
+	assert.Equal(t, "https://dev.azure.com/myorg", factory.organizationURL)
+
+	token, err := factory.getToken()
+	require.NoError(t, err)
+	assert.Equal(t, "entra-token", token)
+}
+
+func TestNewBearerConnection(t *testing.T) {
+	t.Parallel()
+	connection := newBearerConnection("https://dev.azure.com/myorg/", "entra-token")
+	assert.Equal(t, "Bearer entra-token", connection.AuthorizationString)
+	assert.Equal(t, "https://dev.azure.com/myorg", connection.BaseUrl)
+}
+
+func TestWorkloadIdentityFactoryGetClientTokenError(t *testing.T) {
+	t.Parallel()
+	factory := &workloadIdentityFactoryImpl{
+		organizationURL: "https://dev.azure.com/myorg",
+		getToken: func() (string, error) {
+			return "", errors.New("no federated token file")
+		},
+	}
+
+	client, err := factory.GetClient(t.Context())
+	require.ErrorContains(t, err, "failed to get Azure DevOps access token using Azure Workload Identity")
+	require.ErrorContains(t, err, "no federated token file")
+	assert.Nil(t, client)
+}
+
+func TestWorkloadIdentityFactoryGetClientSendsFreshBearerToken(t *testing.T) {
+	t.Parallel()
+	var mu sync.Mutex
+	var authHeaders []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		authHeaders = append(authHeaders, r.Header.Get("Authorization"))
+		mu.Unlock()
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	defer server.Close()
+
+	tokens := []string{"token-1", "token-2"}
+	calls := 0
+	factory := &workloadIdentityFactoryImpl{
+		organizationURL: server.URL + "/myorg",
+		getToken: func() (string, error) {
+			token := tokens[calls]
+			calls++
+			return token, nil
+		},
+	}
+
+	// The fake server does not implement the Azure DevOps API, so client creation fails after the first request,
+	// which is enough to check which credentials were sent.
+	_, err := factory.GetClient(t.Context())
+	require.Error(t, err)
+	_, err = factory.GetClient(t.Context())
+	require.Error(t, err)
+
+	assert.Equal(t, 2, calls, "a token must be requested for every client")
+	mu.Lock()
+	defer mu.Unlock()
+	require.NotEmpty(t, authHeaders)
+	assert.Contains(t, authHeaders, "Bearer token-1")
+	assert.Contains(t, authHeaders, "Bearer token-2")
+	for _, h := range authHeaders {
+		assert.NotContains(t, h, "Basic", "workload identity must not fall back to PAT basic auth")
+	}
 }

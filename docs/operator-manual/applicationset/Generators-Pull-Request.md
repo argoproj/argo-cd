@@ -351,6 +351,66 @@ spec:
 * `tokenRef`: A `Secret` name and key containing the Azure DevOps access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories. (Optional)
 * `labels`: Filter the PRs to those containing **all** of the labels listed. (Optional)
 * `excludedLabels`: Exclude PRs that have **any** of the labels listed. This takes precedence over `labels`. (Optional)
+* `useAzureWorkloadIdentity`: Authenticate with a Microsoft Entra ID token obtained through the Azure Workload Identity of the ApplicationSet controller, instead of a Personal Access Token. Cannot be combined with `tokenRef`. (Optional)
+
+### Azure DevOps using Azure Workload Identity
+
+*Current Status: Alpha (Since v3.7)*
+
+Instead of storing a Personal Access Token (PAT) in a `Secret`, the generator can authenticate with the [Azure Workload Identity](https://azure.github.io/azure-workload-identity/docs/) of the ApplicationSet controller. The controller requests a Microsoft Entra ID token for the Azure DevOps resource and caches it until shortly before it expires. This is the same mechanism the repo-server uses for Azure Repos with `useAzureWorkloadIdentity: "true"`.
+
+> [!IMPORTANT]
+> The pull request generator runs in the **ApplicationSet controller**, not in the repo-server. Workload identity tokens are issued per Kubernetes service account, so configuring workload identity on the repo-server alone is not enough. You can reuse the repo-server's managed identity by adding a second federated identity credential for the ApplicationSet controller's service account.
+
+Before using this option:
+
+- **Label the Pods:** Add the `azure.workload.identity/use: "true"` label to the `argocd-applicationset-controller` pods.
+- **Create Federated Identity Credential:** Create a federated identity credential for the subject `system:serviceaccount:<argocd-namespace>:argocd-applicationset-controller` on the managed identity (or app registration). You can reuse the identity already configured for the repo-server.
+- **Add Annotation to Service Account:** Add the `azure.workload.identity/client-id: "$CLIENT_ID"` annotation to the `argocd-applicationset-controller` service account.
+- **Grant Azure DevOps access:** Add the identity as a user of the Azure DevOps organization, with at least read access to the repositories (for example as a member of the project's `Readers` group).
+
+For example, with Kustomize:
+
+```yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: argocd-applicationset-controller
+  annotations:
+    azure.workload.identity/client-id: 00000000-0000-0000-0000-000000000000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-applicationset-controller
+spec:
+  template:
+    metadata:
+      labels:
+        azure.workload.identity/use: "true"
+```
+
+Then set `useAzureWorkloadIdentity` on the generator and omit `tokenRef`:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: ApplicationSet
+metadata:
+  name: myapps
+spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
+  generators:
+  - pullRequest:
+      azuredevops:
+        organization: myorg
+        project: myproject
+        repo: myrepository
+        useAzureWorkloadIdentity: true
+      requeueAfterSeconds: 1800
+  template:
+  # ...
+```
 
 ## Filters
 

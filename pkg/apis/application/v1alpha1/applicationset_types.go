@@ -719,6 +719,10 @@ type PullRequestGeneratorAzureDevOps struct {
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 	// ExcludedLabels is used to exclude PRs with these labels
 	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,7,rep,name=excludedLabels"`
+	// UseAzureWorkloadIdentity specifies whether to authenticate to Azure DevOps with a Microsoft Entra ID token
+	// obtained through the Azure Workload Identity of the ApplicationSet controller, instead of a Personal Access Token.
+	// Cannot be used together with TokenRef.
+	UseAzureWorkloadIdentity bool `json:"useAzureWorkloadIdentity,omitempty" protobuf:"varint,8,opt,name=useAzureWorkloadIdentity"`
 }
 
 // PullRequestGeneratorGithub defines connection info specific to GitHub.

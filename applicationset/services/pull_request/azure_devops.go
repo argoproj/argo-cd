@@ -9,6 +9,9 @@ import (
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/core"
 	"github.com/microsoft/azure-devops-go-api/azuredevops/v7/git"
+
+	argogit "github.com/argoproj/argo-cd/v3/util/git"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
 const (
@@ -33,6 +36,35 @@ func (factory *devopsFactoryImpl) GetClient(ctx context.Context) (git.Client, er
 	return gitClient, nil
 }
 
+// workloadIdentityFactoryImpl creates Azure DevOps clients authenticated with a Microsoft Entra ID
+// bearer token obtained through Azure Workload Identity.
+type workloadIdentityFactoryImpl struct {
+	organizationURL string
+	// getToken returns a valid Entra ID access token for the Azure DevOps resource.
+	getToken func() (string, error)
+}
+
+func (factory *workloadIdentityFactoryImpl) GetClient(ctx context.Context) (git.Client, error) {
+	token, err := factory.getToken()
+	if err != nil {
+		return nil, fmt.Errorf("failed to get Azure DevOps access token using Azure Workload Identity: %w", err)
+	}
+	// A new connection is created on every call: the SDK copies the authorization header into the
+	// clients it caches per connection, so reusing a connection would keep using an expired token.
+	gitClient, err := git.NewClient(ctx, newBearerConnection(factory.organizationURL, token))
+	if err != nil {
+		return nil, fmt.Errorf("failed to get new Azure DevOps git client for pull request generator: %w", err)
+	}
+	return gitClient, nil
+}
+
+// newBearerConnection returns an Azure DevOps connection that authenticates with an OAuth bearer token.
+func newBearerConnection(organizationURL, token string) *azuredevops.Connection {
+	connection := azuredevops.NewAnonymousConnection(organizationURL)
+	connection.AuthorizationString = "Bearer " + token
+	return connection
+}
+
 type AzureDevOpsService struct {
 	clientFactory  AzureDevOpsClientFactory
 	project        string
@@ -44,6 +76,7 @@ type AzureDevOpsService struct {
 var (
 	_ PullRequestService       = (*AzureDevOpsService)(nil)
 	_ AzureDevOpsClientFactory = &devopsFactoryImpl{}
+	_ AzureDevOpsClientFactory = &workloadIdentityFactoryImpl{}
 )
 
 func NewAzureDevOpsService(token, url, organization, project, repo string, labels []string, excludedLabels []string) (PullRequestService, error) {
@@ -58,6 +91,23 @@ func NewAzureDevOpsService(token, url, organization, project, repo string, label
 
 	return &AzureDevOpsService{
 		clientFactory:  &devopsFactoryImpl{connection: connection},
+		project:        project,
+		repo:           repo,
+		labels:         labels,
+		excludedLabels: excludedLabels,
+	}, nil
+}
+
+// NewAzureDevOpsServiceWithWorkloadIdentity creates a PullRequestService that authenticates to Azure DevOps
+// with the Azure Workload Identity of the running pod. Tokens are requested for the Azure DevOps resource and
+// cached until shortly before they expire, the same way the repo-server does for Azure Repos.
+func NewAzureDevOpsServiceWithWorkloadIdentity(tokenProvider workloadidentity.TokenProvider, url, organization, project, repo string, labels []string, excludedLabels []string) (PullRequestService, error) {
+	creds := argogit.NewAzureWorkloadIdentityCreds(argogit.NoopCredsStore{}, tokenProvider)
+	return &AzureDevOpsService{
+		clientFactory: &workloadIdentityFactoryImpl{
+			organizationURL: buildURL(url, organization),
+			getToken:        creds.GetAzureDevOpsAccessToken,
+		},
 		project:        project,
 		repo:           repo,
 		labels:         labels,

@@ -9631,6 +9631,10 @@
         },
         "tokenRef": {
           "$ref": "#/definitions/v1alpha1SecretRef"
+        },
+        "useAzureWorkloadIdentity": {
+          "description": "UseAzureWorkloadIdentity specifies whether to authenticate to Azure DevOps with a Microsoft Entra ID token\nobtained through the Azure Workload Identity of the ApplicationSet controller, instead of a Personal Access Token.\nCannot be used together with TokenRef.",
+          "type": "boolean"
         }
       }
     },

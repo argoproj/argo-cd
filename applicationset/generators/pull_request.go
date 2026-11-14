@@ -16,6 +16,7 @@ import (
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
 const (
@@ -25,13 +26,17 @@ const (
 type PullRequestGenerator struct {
 	client                    client.Client
 	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
+	// newAzureTokenProvider creates the token provider used when an Azure DevOps generator sets
+	// useAzureWorkloadIdentity. It is only invoked when the option is set, and can be replaced in tests.
+	newAzureTokenProvider func() workloadidentity.TokenProvider
 	SCMConfig
 }
 
 func NewPullRequestGenerator(client client.Client, scmConfig SCMConfig) Generator {
 	g := &PullRequestGenerator{
-		client:    client,
-		SCMConfig: scmConfig,
+		client:                client,
+		SCMConfig:             scmConfig,
+		newAzureTokenProvider: workloadidentity.NewWorkloadIdentityTokenProvider,
 	}
 	g.selectServiceProviderFunc = g.selectServiceProvider
 	return g
@@ -207,6 +212,12 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.AzureDevOps != nil {
 		providerConfig := generatorConfig.AzureDevOps
+		if providerConfig.UseAzureWorkloadIdentity {
+			if providerConfig.TokenRef != nil {
+				return nil, errors.New("azureDevOps pull request generator: tokenRef and useAzureWorkloadIdentity are mutually exclusive")
+			}
+			return pullrequest.NewAzureDevOpsServiceWithWorkloadIdentity(g.newAzureTokenProvider(), providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels, providerConfig.ExcludedLabels)
+		}
 		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)

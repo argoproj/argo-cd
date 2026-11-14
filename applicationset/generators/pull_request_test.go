@@ -6,10 +6,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
+	workloadidentitymocks "github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
 
 func TestPullRequestGithubGenerateParams(t *testing.T) {
@@ -435,4 +438,79 @@ func TestSCMProviderDisabled_PRGenerator(t *testing.T) {
 
 	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
+}
+
+func TestPullRequestAzureDevOpsWorkloadIdentity(t *testing.T) {
+	t.Parallel()
+
+	newAppSet := func(cfg *argoprojiov1alpha1.PullRequestGeneratorAzureDevOps) *argoprojiov1alpha1.ApplicationSet {
+		return &argoprojiov1alpha1.ApplicationSet{
+			Name: "set",
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{
+				Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
+					PullRequest: &argoprojiov1alpha1.PullRequestGenerator{AzureDevOps: cfg},
+				}},
+			},
+		}
+	}
+
+	t.Run("uses workload identity token provider", func(t *testing.T) {
+		t.Parallel()
+		tokenProvider := &workloadidentitymocks.TokenProvider{}
+		tokenProvider.EXPECT().GetToken(mock.Anything).Return(&workloadidentity.Token{AccessToken: "t"}, nil).Maybe()
+		providerCalls := 0
+		g := NewPullRequestGenerator(nil, NewSCMConfig("", nil, true, false, nil, true)).(*PullRequestGenerator)
+		g.newAzureTokenProvider = func() workloadidentity.TokenProvider {
+			providerCalls++
+			return tokenProvider
+		}
+
+		appSet := newAppSet(&argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+			Organization:             "myorg",
+			Project:                  "myproject",
+			Repo:                     "myrepo",
+			UseAzureWorkloadIdentity: true,
+		})
+		svc, err := g.selectServiceProvider(t.Context(), appSet.Spec.Generators[0].PullRequest, appSet)
+		require.NoError(t, err)
+		assert.IsType(t, &pullrequest.AzureDevOpsService{}, svc)
+		assert.Equal(t, 1, providerCalls)
+	})
+
+	t.Run("does not create a token provider without the option", func(t *testing.T) {
+		t.Parallel()
+		g := NewPullRequestGenerator(nil, NewSCMConfig("", nil, true, false, nil, true)).(*PullRequestGenerator)
+		g.newAzureTokenProvider = func() workloadidentity.TokenProvider {
+			t.Fatal("token provider must not be created when useAzureWorkloadIdentity is false")
+			return nil
+		}
+
+		appSet := newAppSet(&argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+			Organization: "myorg",
+			Project:      "myproject",
+			Repo:         "myrepo",
+		})
+		svc, err := g.selectServiceProvider(t.Context(), appSet.Spec.Generators[0].PullRequest, appSet)
+		require.NoError(t, err)
+		assert.IsType(t, &pullrequest.AzureDevOpsService{}, svc)
+	})
+
+	t.Run("rejects tokenRef combined with workload identity", func(t *testing.T) {
+		t.Parallel()
+		g := NewPullRequestGenerator(nil, NewSCMConfig("", nil, true, false, nil, true)).(*PullRequestGenerator)
+		g.newAzureTokenProvider = func() workloadidentity.TokenProvider {
+			t.Fatal("token provider must not be created for an invalid configuration")
+			return nil
+		}
+
+		appSet := newAppSet(&argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+			Organization:             "myorg",
+			Project:                  "myproject",
+			Repo:                     "myrepo",
+			TokenRef:                 &argoprojiov1alpha1.SecretRef{SecretName: "pat", Key: "token"},
+			UseAzureWorkloadIdentity: true,
+		})
+		_, err := g.selectServiceProvider(t.Context(), appSet.Spec.Generators[0].PullRequest, appSet)
+		require.ErrorContains(t, err, "tokenRef and useAzureWorkloadIdentity are mutually exclusive")
+	})
 }
