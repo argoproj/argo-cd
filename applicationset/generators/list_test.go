@@ -44,6 +44,38 @@ func TestGenerateListParams(t *testing.T) {
 	}
 }
 
+func TestGenerateListParamsNonStringValueError(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		element  string
+		expected string
+	}{
+		{name: "non-string scalar", element: `{"a": 1}`, expected: `error parsing value "a" as string`},
+		{name: "non-string bool", element: `{"a": true}`, expected: `error parsing value "a" as string`},
+		{name: "non-string value in values map", element: `{"values": {"x": 2}}`, expected: `error parsing value "x" as string`},
+	}
+
+	for _, testCase := range testCases {
+		listGenerator := NewListGenerator()
+
+		applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
+			Name: "set",
+			Spec: argoprojiov1alpha1.ApplicationSetSpec{},
+		}
+
+		_, err := listGenerator.GenerateParams(&argoprojiov1alpha1.ApplicationSetGenerator{
+			List: &argoprojiov1alpha1.ListGenerator{
+				Elements: []apiextensionsv1.JSON{{Raw: []byte(testCase.element)}},
+			},
+		}, &applicationSetInfo, nil)
+
+		require.Error(t, err, testCase.name)
+		require.EqualError(t, err, testCase.expected, testCase.name)
+		assert.NotContains(t, err.Error(), "%!", testCase.name)
+	}
+}
+
 func TestGenerateListParamsGoTemplate(t *testing.T) {
 	t.Parallel()
 	testCases := []struct {

@@ -200,8 +200,14 @@ endif
 ifneq (${GIT_TAG},)
 IMAGE_TAG=${GIT_TAG}
 override LDFLAGS += -X ${PACKAGE}.gitTag=${GIT_TAG}
+BUILDVCS_FLAG=
 else
 IMAGE_TAG?=latest
+# Untagged builds (e.g. master/latest images) have no v3.x.y tag in their git history, so Go stamps the main module
+# with a v3.0.0-<timestamp>-<hash> pseudo-version. That sorts below v3.0.0, so vulnerability scanners match every
+# published Argo CD advisory against it. Disable VCS stamping so the main module version is reported as (devel).
+# Tagged release builds keep VCS stamping so scanners see the real release version.
+BUILDVCS_FLAG=-buildvcs=false
 endif
 
 # defaults for building images and manifests
@@ -211,7 +217,7 @@ $(error IMAGE_NAMESPACE must be set to push images (e.g. IMAGE_NAMESPACE=argopro
 endif
 endif
 
-# Consruct prefix for docker image
+# Construct prefix for docker image
 # Note: keeping same logic as in hacks/update_manifests.sh
 ifdef IMAGE_REGISTRY
 ifdef IMAGE_NAMESPACE
@@ -239,7 +245,7 @@ endif
 all: cli image
 
 .PHONY: mockgen
-mockgen:
+mockgen: codegen-go-tools-local
 	./hack/generate-mock.sh
 
 .PHONY: gogen
@@ -248,15 +254,15 @@ gogen:
 	go generate ./...
 
 .PHONY: protogen
-protogen: mod-vendor-local protogen-fast
+protogen: mod-download-local protogen-fast
 
 .PHONY: protogen-fast
-protogen-fast:
+protogen-fast: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/generate-proto.sh
 
 .PHONY: openapigen
-openapigen:
+openapigen: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/update-openapi.sh
 
@@ -275,7 +281,7 @@ notification-docs:
 
 
 .PHONY: clientgen
-clientgen:
+clientgen: codegen-go-tools-local
 	export GO111MODULE=off
 	./hack/update-codegen.sh
 
@@ -292,8 +298,7 @@ resourceiconsgen:
 	hack/generate-icons-typescript.sh
 
 .PHONY: codegen-local
-codegen-local: mod-vendor-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
-	rm -rf vendor/
+codegen-local: mod-download-local gogen protogen clientgen openapigen clidocsgen mockgen actionsdocsgen resourceiconsgen manifests-local notification-docs notification-catalog
 
 .PHONY: codegen-local-fast
 codegen-local-fast: gogen protogen-fast clientgen openapigen clidocsgen mockgen manifests-local notification-docs notification-catalog
@@ -341,7 +346,7 @@ manifests: test-tools-image
 
 .PHONY: argocd-all
 argocd-all: clean-debug
-	CGO_ENABLED=${CGO_FLAG} GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
+	CGO_ENABLED=${CGO_FLAG} GOOS=${GOOS} GOARCH=${GOARCH} GODEBUG="tarinsecurepath=0,zipinsecurepath=0" go build -v ${BUILDVCS_FLAG} -ldflags '${LDFLAGS}' -o ${DIST_DIR}/${BIN_NAME} ./cmd
 
 .PHONY: server
 server: clean-debug
@@ -397,7 +402,9 @@ mod-download: test-tools-image
 	$(call run-in-test-client,go mod download)
 
 .PHONY: mod-download-local
+# No build step uses vendor/ any more, and a stale one would silently put go commands in vendor mode.
 mod-download-local:
+	rm -rf vendor/
 	go mod download && go mod tidy # go mod download changes go.sum https://github.com/golang/go/issues/42970
 
 .PHONY: mod-vendor
@@ -543,8 +550,15 @@ start-e2e: test-tools-image
 	$(call run-in-test-server,make ARGOCD_PROCFILE=test/container/Procfile start-e2e-local)
 
 # Starts e2e server locally (or within a container)
+# In CI the Procfiles skip the UI dev server (no e2e test uses it), so installing its
+# dependencies there is wasted time and a needless dependency on the npm registry.
+ifeq ($(ARGOCD_IN_CI),true)
+E2E_UI_DEPS=
+else
+E2E_UI_DEPS=dep-ui-local
+endif
 .PHONY: start-e2e-local
-start-e2e-local: mod-vendor-local dep-ui-local cli-local
+start-e2e-local: mod-download-local $(E2E_UI_DEPS) cli-local
 	kubectl create ns argocd-e2e || true
 	kubectl create ns argocd-e2e-external || true
 	kubectl create ns argocd-e2e-external-2 || true
@@ -595,6 +609,7 @@ start-e2e-local: mod-vendor-local dep-ui-local cli-local
 	ARGOCD_SERVER_OTLP_SAMPLE_RATIO=0 \
 	ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO=0 \
 	ARGOCD_APPLICATION_CONTROLLER_OTLP_SAMPLE_RATIO=0 \
+	ARGOCD_CMP_SERVER_OTLP_SAMPLE_RATIO=0 \
 		goreman -f $(ARGOCD_PROCFILE) start ${ARGOCD_START}
 	ls -lrt /tmp/coverage
 
@@ -614,7 +629,7 @@ start: test-tools-image
 
 # Starts a local instance of ArgoCD
 .PHONY: start-local
-start-local: mod-vendor-local dep-ui-local cli-local
+start-local: mod-download-local dep-ui-local cli-local
 	# check we can connect to Docker to start Redis
 	killall goreman || true
 	kubectl create ns argocd || true
@@ -697,14 +712,19 @@ install-test-tools-local:
 
 # Installs all tools required for running codegen (Linux packages)
 .PHONY: install-codegen-tools-local
-install-codegen-tools-local:
+install-codegen-tools-local: codegen-go-tools-local
 	./hack/install.sh codegen-tools
+
+# Rebuilds the Go codegen CLIs in dist/ from go.mod and hack/tools/go.mod. Every target that runs a
+# generator depends on this, so the binaries can never be older than the versions they are pinned
+# by. It is a no-op beyond a cache lookup once they are current.
+.PHONY: codegen-go-tools-local
+codegen-go-tools-local:
 	./hack/install.sh codegen-go-tools
 
 # Installs all tools required for running codegen (Go packages)
 .PHONY: install-go-tools-local
-install-go-tools-local:
-	./hack/install.sh codegen-go-tools
+install-go-tools-local: codegen-go-tools-local
 	./hack/install.sh lint-tools
 	./hack/install.sh actionlint
 	./hack/install.sh kubeconform

@@ -3,7 +3,7 @@ import {AutocompleteField, Checkbox, DataLoader, DropDownMenu, FormField, HelpIc
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
 import {FieldApi, Form, FormApi, FormFieldHOC as ReactFormField, Text} from 'argo-ui';
-import {cloneDeep, debounce} from 'lodash-es';
+import {cloneDeep, debounce, DebouncedFunc} from 'lodash-es';
 import {YamlEditor} from '../../../shared/components/yaml-editor/yaml-editor';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
@@ -83,6 +83,42 @@ const AutoSyncFormField = ReactFormField((props: {fieldApi: FieldApi; className:
     );
 });
 
+const ManualSyncDefaultsFormField = ReactFormField((props: {fieldApi: FieldApi}) => {
+    const {
+        fieldApi: {getValue, setValue}
+    } = props;
+    const configured = getValue() as models.ManualDefaults | undefined;
+    const manualDefaults = (configured || {}) as models.ManualDefaults;
+    // Creating manualDefaults for a non-prune field must not opt into the API's
+    // true-when-nil prune default; keep legacy prune=false until prune is set.
+    const update = (patch: Partial<models.ManualDefaults>) => setValue({...(configured ? manualDefaults : {prune: false}), ...patch});
+
+    return (
+        <div className='application-create-panel__sync-params'>
+            <div className='checkbox-container'>
+                <Checkbox onChange={val => update({prune: val})} checked={configured ? (manualDefaults.prune ?? true) : false} id='policyManualPrune' />
+                <label htmlFor='policyManualPrune'>Prune on Manual Sync</label>
+                <HelpIcon title='Set default prune for manual syncs (only applies once configured; default when set: true)' />
+            </div>
+            <div className='checkbox-container'>
+                <Checkbox onChange={val => update({dryRun: val})} checked={!!manualDefaults.dryRun} id='policyManualDryRun' />
+                <label htmlFor='policyManualDryRun'>Dry Run on Manual Sync</label>
+                <HelpIcon title='Set default dry-run for manual syncs (only applies once configured; default when set: false)' />
+            </div>
+            <div className='checkbox-container'>
+                <Checkbox onChange={val => update({applyOnly: val})} checked={!!manualDefaults.applyOnly} id='policyManualApplyOnly' />
+                <label htmlFor='policyManualApplyOnly'>Apply Only on Manual Sync</label>
+                <HelpIcon title='Set default apply-only strategy for manual syncs (only applies once configured; default when set: false)' />
+            </div>
+            <div className='checkbox-container'>
+                <Checkbox onChange={val => update({force: val})} checked={!!manualDefaults.force} id='policyManualForce' />
+                <label htmlFor='policyManualForce'>Force on Manual Sync</label>
+                <HelpIcon title='Set default force for manual syncs (only applies once configured; default when set: false)' />
+            </div>
+        </div>
+    );
+});
+
 function normalizeAppSource(app: models.Application, type: string): boolean {
     const source = getAppDefaultSource(app);
     const repoType = source.repoURL.startsWith('oci://') ? 'oci' : (source.hasOwnProperty('chart') && 'helm') || 'git';
@@ -111,7 +147,8 @@ export const ApplicationCreatePanel = (props: {
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
     const [retry, setRetry] = React.useState(false);
     const app = deepMerge(DEFAULT_APP, props.app || {});
-    const debouncedOnAppChanged = debounce(props.onAppChanged, 800);
+    const onAppChangedRef = React.useRef(props.onAppChanged);
+    const debouncedOnAppChangedRef = React.useRef<DebouncedFunc<(value: models.Application) => void> | null>(null);
     const [destinationFieldChanges, setDestinationFieldChanges] = React.useState({destFormat: 'URL', destFormatChanged: null});
     const [comboSwitchedFromPanel, setComboSwitchedFromPanel] = React.useState(false);
     const currentRepoType = React.useRef(undefined);
@@ -125,10 +162,18 @@ export const ApplicationCreatePanel = (props: {
     const [multiSourceMode, setMultiSourceMode] = React.useState(() => (app.spec?.sources?.length ?? 0) >= 2);
 
     React.useEffect(() => {
+        onAppChangedRef.current = props.onAppChanged;
+    });
+
+    // The parent passes a new onAppChanged on every render. Keep a single debounced function for the
+    // lifetime of the panel so that a parent re-render does not cancel the pending update.
+    React.useEffect(() => {
+        const debouncedOnAppChanged = debounce((value: models.Application) => onAppChangedRef.current(value), 800);
+        debouncedOnAppChangedRef.current = debouncedOnAppChanged;
         return () => {
             debouncedOnAppChanged.cancel();
         };
-    }, [debouncedOnAppChanged]);
+    }, []);
 
     const currentName = app.spec.destination.name;
     const currentServer = app.spec.destination.server;
@@ -297,7 +342,7 @@ export const ApplicationCreatePanel = (props: {
                                     };
                                 }}
                                 defaultValues={app}
-                                formDidUpdate={state => debouncedOnAppChanged(state.values as any)}
+                                formDidUpdate={state => debouncedOnAppChangedRef.current?.(state.values as any)}
                                 onSubmit={onCreateApp}
                                 getApi={props.getFormApi}>
                                 {api => {
@@ -318,7 +363,11 @@ export const ApplicationCreatePanel = (props: {
                                                 <button
                                                     type='button'
                                                     className='argo-button argo-button--base application-create-panel__yaml-button'
-                                                    onClick={() => setYamlMode(true)}>
+                                                    onClick={() => {
+                                                        // The YAML editor snapshots the app when it opens, so apply the pending form change first.
+                                                        debouncedOnAppChangedRef.current?.flush();
+                                                        setYamlMode(true);
+                                                    }}>
                                                     Edit as YAML
                                                 </button>
                                             )}
@@ -345,6 +394,7 @@ export const ApplicationCreatePanel = (props: {
                                                     qeId='application-create-field-sync-policy'
                                                     component={AutoSyncFormField}
                                                 />
+                                                <FormField formApi={api} field='spec.syncPolicy.manualDefaults' component={ManualSyncDefaultsFormField} />
                                             </div>
                                             <div className='argo-form-row'>
                                                 <FormField formApi={api} field='metadata.finalizers' component={SetFinalizerOnApplication} />

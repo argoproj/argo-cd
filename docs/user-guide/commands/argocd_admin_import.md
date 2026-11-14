@@ -11,37 +11,37 @@ argocd admin import SOURCE [flags]
 ### Options
 
 ```
-      --application-namespaces strings      Comma separated list of namespace globs to which import of applications is allowed. If not provided, value from 'application.namespaces' in argocd-cmd-params-cm will be used. If it's not defined, only applications without an explicit namespace will be imported to the Argo CD namespace
-      --applicationset-namespaces strings   Comma separated list of namespace globs which import of applicationsets is allowed. If not provided, value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm will be used. If it's not defined, only applicationsets without an explicit namespace will be imported to the Argo CD namespace
-      --as string                           Username to impersonate for the operation
-      --as-group stringArray                Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
-      --as-uid string                       UID to impersonate for the operation
-      --certificate-authority string        Path to a cert file for the certificate authority
-      --client-certificate string           Path to a client certificate file for TLS
-      --client-key string                   Path to a client key file for TLS
-      --cluster string                      The name of the kubeconfig cluster to use
-      --context string                      The name of the kubeconfig context to use
-      --disable-compression                 If true, opt-out of response compression for all requests to the server
-      --dry-run                             Print what will be performed
-  -h, --help                                help for import
-      --ignore-tracking                     Do not update the tracking annotation if the resource is already tracked
-      --insecure-skip-tls-verify            If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
-      --kubeconfig string                   Path to a kube config. Only required if out-of-cluster
-  -n, --namespace string                    If present, the namespace scope for this CLI request
-      --override-on-conflict                Override the resource on conflict when updating resources
-      --password string                     Password for basic authentication to the API server
-      --prompts-enabled                     Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
-      --proxy-url string                    If provided, this URL will be used to connect via proxy
-      --prune                               Prune secrets, applications and projects which do not appear in the backup
-      --request-timeout string              The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
-      --server string                       The address and port of the Kubernetes API server
-      --skip-resources-with-label string    Skip importing resources based on the label e.g. '--skip-resources-with-label my-label/example.io=true'
-      --stop-operation                      Stop any existing operations
-      --tls-server-name string              If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
-      --token string                        Bearer token for authentication to the API server
-      --user string                         The name of the kubeconfig user to use
-      --username string                     Username for basic authentication to the API server
-      --verbose                             Verbose output (versus only changed output)
+      --application-namespaces strings          Comma separated list of namespace globs to which import of applications is allowed. If not provided, value from 'application.namespaces' in argocd-cmd-params-cm will be used. If it's not defined, only applications without an explicit namespace will be imported to the Argo CD namespace
+      --applicationset-namespaces strings       Comma separated list of namespace globs which import of applicationsets is allowed. If not provided, value from 'applicationsetcontroller.namespaces' in argocd-cmd-params-cm will be used. If it's not defined, only applicationsets without an explicit namespace will be imported to the Argo CD namespace
+      --as string                               Username to impersonate for the operation
+      --as-group stringArray                    Group to impersonate for the operation, this flag can be repeated to specify multiple groups.
+      --as-uid string                           UID to impersonate for the operation
+      --certificate-authority string            Path to a cert file for the certificate authority
+      --client-certificate string               Path to a client certificate file for TLS
+      --client-key string                       Path to a client key file for TLS
+      --cluster string                          The name of the kubeconfig cluster to use
+      --context string                          The name of the kubeconfig context to use
+      --disable-compression[=true|false]        If true, opt-out of response compression for all requests to the server
+      --dry-run[=true|false]                    Print what will be performed
+  -h, --help[=true|false]                       help for import
+      --ignore-tracking[=true|false]            Do not update the tracking annotation if the resource is already tracked
+      --insecure-skip-tls-verify[=true|false]   If true, the server's certificate will not be checked for validity. This will make your HTTPS connections insecure
+      --kubeconfig string                       Path to a kube config. Only required if out-of-cluster
+  -n, --namespace string                        If present, the namespace scope for this CLI request
+      --override-on-conflict[=true|false]       Override the resource on conflict when updating resources
+      --password string                         Password for basic authentication to the API server
+      --prompts-enabled[=true|false]            Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
+      --proxy-url string                        If provided, this URL will be used to connect via proxy
+      --prune[=true|false]                      Prune secrets, applications and projects which do not appear in the backup
+      --request-timeout string                  The length of time to wait before giving up on a single server request. Non-zero values should contain a corresponding time unit (e.g. 1s, 2m, 3h). A value of zero means don't timeout requests. (default "0")
+      --server string                           The address and port of the Kubernetes API server
+      --skip-resources-with-label string        Skip importing resources based on the label e.g. '--skip-resources-with-label my-label/example.io=true'
+      --stop-operation[=true|false]             Stop any existing operations
+      --tls-server-name string                  If provided, this name will be used to validate server certificate. If this is not provided, hostname used to contact the server is used.
+      --token string                            Bearer token for authentication to the API server
+      --user string                             The name of the kubeconfig user to use
+      --username string                         Username for basic authentication to the API server
+      --verbose[=true|false]                    Verbose output (versus only changed output)
 ```
 
 ### Options inherited from parent commands
@@ -53,17 +53,17 @@ argocd admin import SOURCE [flags]
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
-      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
-      --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
+      --core[=true|false]               If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
+      --grpc-web[=true|false]           Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
-      --insecure                        Skip server certificate and domain verification
+      --insecure[=true|false]           Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
       --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
-      --plaintext                       Disable TLS
-      --port-forward                    Connect to a random argocd-server port using port forwarding
+      --plaintext[=true|false]          Disable TLS
+      --port-forward[=true|false]       Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
       --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")

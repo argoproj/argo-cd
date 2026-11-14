@@ -92,7 +92,8 @@ export const RepoDetails = (props: {item: UnifiedRepo; save?: (params: NewHTTPSR
             });
         }
 
-        if (repoType === 'git' && !template) {
+        // Depth only affects clones for manifest generation; the hydrator always fetches write repositories in full.
+        if (repoType === 'git' && !template && !write) {
             items.push({
                 title: 'Depth (optional)',
                 view: (repository?.depth || 0).toString(),

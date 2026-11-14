@@ -178,6 +178,12 @@ spec:
               name: argocd-cmd-params-cm
               key: controller.metrics.cluster.labels
               optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_RECONCILED_AT_HEARTBEAT
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: controller.reconciled.at.heartbeat
+              optional: true
         - name: ARGOCD_APPLICATION_CONTROLLER_SELF_HEAL_TIMEOUT_SECONDS
           valueFrom:
             configMapKeyRef:
@@ -335,6 +341,18 @@ spec:
             configMapKeyRef:
               name: argocd-cmd-params-cm
               key: otlp.sample.ratio
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.metrics.enabled
+              optional: true
+        - name: ARGOCD_APPLICATION_CONTROLLER_OTLP_METRICS_INTERVAL
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: otlp.metrics.interval
               optional: true
         - name: ARGOCD_APPLICATION_NAMESPACES
           valueFrom:

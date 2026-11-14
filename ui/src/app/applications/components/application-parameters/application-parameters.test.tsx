@@ -106,4 +106,11 @@ test('expanded multi-source panel requests repo details with the namespace-quali
 
     expect(await screen.findByDisplayValue('my-plugin')).toBeInTheDocument();
     expect(mockAppDetails).toHaveBeenCalledWith(expect.objectContaining({repoURL: 'https://github.com/example/repo'}), 'apps/test-app', 'default', 0, 0);
+test('multi-source default (no collapse state) renders the expanded panel, not the raw-text summary', async () => {
+    // The details page initializes collapsedSources as an empty array, so every entry is undefined (see argoproj/argo-cd#30942).
+    renderWithContext(<ApplicationParameters application={multiSourceApp()} collapsedSources={[]} handleCollapse={() => undefined} />);
+
+    expect(await screen.findByDisplayValue('my-plugin')).toBeInTheDocument();
+    expect(await screen.findByDisplayValue('FOO')).toBeInTheDocument();
+    expect(screen.queryByText(/ENV=\[FOO=bar, ENVIRONMENT=prod\]/)).not.toBeInTheDocument();
 });

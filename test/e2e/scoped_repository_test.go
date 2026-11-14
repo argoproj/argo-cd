@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
@@ -22,7 +23,7 @@ func TestCreateRepositoryWithProject(t *testing.T) {
 		Create().
 		Then()
 
-	path := "https://github.com/argoproj/argo-cd.git"
+	path := fixture.RepoURL(fixture.RepoURLTypeFile)
 	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
@@ -47,7 +48,7 @@ func TestCreateRepositoryNonAdminUserPermissionDenied(t *testing.T) {
 		Create().
 		Login()
 
-	path := "https://github.com/argoproj/argo-cd.git"
+	path := fixture.RepoURL(fixture.RepoURLTypeFile)
 	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
@@ -74,7 +75,7 @@ func TestCreateRepositoryNonAdminUserWithWrongProject(t *testing.T) {
 			},
 		}, "org-admin")
 
-	path := "https://github.com/argoproj/argo-cd.git"
+	path := fixture.RepoURL(fixture.RepoURLTypeFile)
 	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
@@ -111,7 +112,7 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 			},
 		}, "org-admin")
 
-	path := "https://github.com/argoproj/argo-cd.git"
+	path := fixture.RepoURL(fixture.RepoURLTypeFile)
 	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
@@ -126,7 +127,7 @@ func TestDeleteRepositoryRbacAllowed(t *testing.T) {
 		Delete().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Contains(t, output, "Repository 'https://github.com/argoproj/argo-cd.git' removed")
+			assert.Contains(t, output, fmt.Sprintf("Repository '%s' removed", path))
 		})
 }
 
@@ -154,7 +155,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 			},
 		}, "org-admin")
 
-	path := "https://github.com/argoproj/argo-cd.git"
+	path := fixture.RepoURL(fixture.RepoURLTypeFile)
 	repoFixture.GivenWithSameState(ctx).
 		When().
 		Path(path).
@@ -175,7 +176,7 @@ func TestDeleteRepositoryRbacDenied(t *testing.T) {
 }
 
 func TestDeleteRepository(t *testing.T) {
-	path := "https://github.com/argoproj/argo-cd.git"
+	path := fixture.RepoURL(fixture.RepoURLTypeFile)
 	repoFixture.Given(t).
 		When().
 		Path(path).
@@ -194,7 +195,7 @@ func TestDeleteRepository(t *testing.T) {
 }
 
 func TestListRepoCLIOutput(t *testing.T) {
-	path := "https://github.com/argoproj/argo-cd.git"
+	path := fixture.RepoURL(fixture.RepoURLTypeFile)
 	repoFixture.Given(t).
 		When().
 		Path(path).
@@ -202,19 +203,19 @@ func TestListRepoCLIOutput(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Equal(t, `Repository 'https://github.com/argoproj/argo-cd.git' added`, output)
+			assert.Equal(t, fmt.Sprintf("Repository '%s' added", path), output)
 		}).
 		When().
 		List().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Equal(t, `TYPE  NAME  REPO                                     INSECURE  OCI    LFS    CREDS  STATUS      MESSAGE  PROJECT
-git         https://github.com/argoproj/argo-cd.git  false     false  false  false  Successful           argo-project`, output)
+			// Column widths depend on the repo URL's length, so compare with whitespace collapsed.
+			assert.Equal(t, fmt.Sprintf("TYPE NAME REPO INSECURE OCI LFS CREDS STATUS MESSAGE PROJECT\ngit %s false false false false Successful argo-project", path), fixture.NormalizeOutput(output))
 		})
 }
 
 func TestGetRepoCLIOutput(t *testing.T) {
-	path := "https://github.com/argoproj/argo-cd.git"
+	path := fixture.RepoURL(fixture.RepoURLTypeFile)
 	repoFixture.Given(t).
 		When().
 		Path(path).
@@ -222,14 +223,14 @@ func TestGetRepoCLIOutput(t *testing.T) {
 		Create().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Equal(t, `Repository 'https://github.com/argoproj/argo-cd.git' added`, output)
+			assert.Equal(t, fmt.Sprintf("Repository '%s' added", path), output)
 		}).
 		When().
 		Get().
 		Then().
 		AndCLIOutput(func(output string, _ error) {
-			assert.Equal(t, `TYPE  NAME  REPO                                     INSECURE  OCI    LFS    CREDS  STATUS      MESSAGE  PROJECT
-git         https://github.com/argoproj/argo-cd.git  false     false  false  false  Successful           argo-project`, output)
+			// Column widths depend on the repo URL's length, so compare with whitespace collapsed.
+			assert.Equal(t, fmt.Sprintf("TYPE NAME REPO INSECURE OCI LFS CREDS STATUS MESSAGE PROJECT\ngit %s false false false false Successful argo-project", path), fixture.NormalizeOutput(output))
 		})
 }
 
@@ -246,7 +247,7 @@ func TestCreateRepoWithSameURLInTwoProjects(t *testing.T) {
 		Create().
 		Then()
 
-	path := "https://github.com/argoproj/argo-cd.git"
+	path := fixture.RepoURL(fixture.RepoURLTypeFile)
 
 	// Create repository in first project
 	repoFixture.GivenWithSameState(ctx).
