@@ -521,7 +521,7 @@ func (a *ArgoCDWebhookHandler) storePreviouslyCachedManifests(logCtx *log.Entry,
 	if err := a.repoCache.SetNewRevisionManifests(oldManifestKey, newManifestKey); err != nil {
 		webhookStoreCacheAttemptsTotal.WithLabelValues(git.NormalizeGitURL(source.RepoURL), "false").Inc()
 		if errors.Is(err, cache.ErrCacheMiss) {
-			logEntry.Info("manifest cache miss while moving manifests cache to the new revision")
+			logEntry.Debug("manifest cache miss while moving manifests cache to the new revision")
 			return nil
 		}
 		return fmt.Errorf("error setting new revision manifests: %w", err)

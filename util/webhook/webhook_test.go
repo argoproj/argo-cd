@@ -37,6 +37,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/db/mocks"
 
+	log "github.com/sirupsen/logrus"
 	"github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -1311,6 +1312,45 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			errExpected:  false,
 		},
 		{
+			name: "multi source without refSources rename cache miss is not an error",
+			app: &v1alpha1.Application{
+				Name:      "test-app",
+				Namespace: "argocd",
+				Annotations: map[string]string{
+					"argocd.argoproj.io/manifest-generate-paths": "deploy",
+				},
+				Spec: v1alpha1.ApplicationSpec{
+					Project: "default",
+					Sources: v1alpha1.ApplicationSources{
+						{
+							RepoURL:        "https://github.com/test/repo",
+							TargetRevision: "main",
+						},
+						{
+							RepoURL:        "https://github.com/test/repo2",
+							TargetRevision: "main",
+						},
+					},
+				},
+			},
+			project: &v1alpha1.AppProject{
+				Name:      "default",
+				Namespace: "argocd",
+				Spec: v1alpha1.AppProjectSpec{
+					SourceRepos: []string{"*"},
+					Destinations: []v1alpha1.ApplicationDestination{
+						{
+							Server:    "*",
+							Namespace: "*",
+						},
+					},
+				},
+			},
+			seedCache:    false,
+			cacheUpdated: false,
+			errExpected:  false,
+		},
+		{
 			name: "error not support refSourceCommitSHAs",
 			app: &v1alpha1.Application{
 				Name:      "test-app",
@@ -1407,7 +1447,8 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 			if tt.seedCache {
 				setupTestCache(t, repoCache, tt.app.InstanceName("argocd"), source, tt.project.EffectiveSourceIntegrity(), []string{"test-manifest"})
 			}
-			logger, _ := test.NewNullLogger()
+			logger, hook := test.NewNullLogger()
+			logger.SetLevel(log.DebugLevel)
 			logCtx := logger.WithField("application", tt.app.Name)
 			err = h.storePreviouslyCachedManifests(logCtx, tt.app, changeInfo{shaBefore: testBeforeSHA, shaAfter: testAfterSHA}, "", testAppLabelKey, "", *source)
 
@@ -1415,6 +1456,12 @@ func Test_storePreviouslyCachedManifests(t *testing.T) {
 				require.Error(t, err)
 			} else {
 				require.NoError(t, err)
+			}
+
+			if !tt.seedCache && !tt.errExpected {
+				require.NotEmpty(t, hook.Entries)
+				assert.Equal(t, log.DebugLevel, hook.LastEntry().Level)
+				assert.Contains(t, hook.LastEntry().Message, "manifest cache miss while moving manifests cache")
 			}
 
 			if tt.cacheUpdated {
