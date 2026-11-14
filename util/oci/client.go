@@ -11,7 +11,6 @@ import (
 	"io/fs"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -53,7 +52,21 @@ const maxOCIManifestSize = 4 * 1024 * 1024 // 4 MiB
 const (
 	helmOCIConfigType = "application/vnd.cncf.helm.config.v1+json"
 	helmOCILayerType  = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
+	ociURLPrefix      = "oci://"
 )
+
+// trimOCIScheme removes the oci:// scheme from a repository URL. The scheme is matched
+// case-insensitively and surrounding whitespace is trimmed, mirroring how
+// v1alpha1.IsOCIURL/NormalizeOCIURL classify OCI URLs; otherwise non-canonical but accepted
+// forms such as "OCI://…" or " oci://… " would reach ORAS with the scheme/whitespace intact
+// and fail repository initialization.
+func trimOCIScheme(repoURL string) string {
+	trimmed := strings.TrimSpace(repoURL)
+	if len(trimmed) >= len(ociURLPrefix) && strings.EqualFold(trimmed[:len(ociURLPrefix)], ociURLPrefix) {
+		return trimmed[len(ociURLPrefix):]
+	}
+	return trimmed
+}
 
 var _ Client = &nativeOCIClient{}
 
@@ -128,7 +141,7 @@ func NewClient(repoURL string, creds Creds, proxy, noProxy string, layerMediaTyp
 }
 
 func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
-	ociRepo := strings.TrimPrefix(repoURL, "oci://")
+	ociRepo := trimOCIScheme(repoURL)
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize repository: %w", err)
@@ -166,12 +179,10 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		}),
 	}
 
-	parsed, err := url.Parse(repoURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse oci repo url: %w", err)
-	}
-
-	reg, err := remote.NewRegistry(parsed.Host)
+	// Use the registry host ORAS already parsed from the scheme-trimmed reference instead of
+	// re-parsing the raw URL: surrounding whitespace, which trimOCIScheme and IsOCIURL accept,
+	// makes url.Parse fail, and two parsers could otherwise disagree about the host.
+	reg, err := remote.NewRegistry(repo.Reference.Registry)
 	if err != nil {
 		return nil, fmt.Errorf("failed to setup registry config: %w", err)
 	}
