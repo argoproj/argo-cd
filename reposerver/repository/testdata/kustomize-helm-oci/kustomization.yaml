@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+helmCharts:
+  - name: my-chart
+    repo: oci://example.com/myrepo/my-chart
+    version: 1.0.0
+    releaseName: my-release
+    namespace: default
