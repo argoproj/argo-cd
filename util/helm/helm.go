@@ -2,8 +2,6 @@ package helm
 
 import (
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/url"
@@ -17,6 +15,7 @@ import (
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/config"
+	cryptoutil "github.com/argoproj/argo-cd/v3/util/crypto"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 )
@@ -295,8 +294,8 @@ func buildRepoEntries(h *helm, repo HelmRepository) ([]helmRepoEntry, error) {
 // repoIdentity returns the persistent-store cache identity for a repository:
 // the URL scoped by a fingerprint of the effective authentication and TLS
 // transport context. Two views of the same URL with different credentials
-// therefore never share a cached index. The fingerprint is a SHA-256 over
-// the credential/CA inputs; plaintext secrets never enter keys or paths.
+// therefore never share a cached index. Credential fingerprints use a
+// memory-hard derivation; plaintext secrets never enter keys or paths.
 func repoIdentity(repo HelmRepository) string {
 	return scopedIndexIdentity(repo.Repo, credsScope(repo.Creds), "", "")
 }
@@ -307,18 +306,15 @@ func repoIdentity(repo HelmRepository) string {
 func scopedIndexIdentity(repoURL, scope, proxy, noProxy string) string {
 	u, err := url.Parse(repoURL)
 	if err != nil {
-		sum := sha256.Sum256([]byte(repoURL + "\x00" + scope + "\x00" + proxy + "\x00" + noProxy))
-		return "invalid:" + hex.EncodeToString(sum[:])
+		return "invalid:" + cryptoutil.CredentialScope("helm-invalid-repository", repoURL, scope, proxy, noProxy)
 	}
-	context := proxy + "\x00" + noProxy
+	userinfo := ""
 	if u.User != nil {
-		context += "\x00" + u.User.String()
+		userinfo = u.User.String()
 		u.User = nil
 	}
-	if u.RawQuery != "" {
-		context += "\x00" + u.RawQuery
-		u.RawQuery = ""
-	}
+	query := u.RawQuery
+	u.RawQuery = ""
 	u.Fragment = ""
 	if u.Scheme == "http" || u.Scheme == "https" {
 		u.Host = strings.ToLower(u.Host)
@@ -326,9 +322,8 @@ func scopedIndexIdentity(repoURL, scope, proxy, noProxy string) string {
 			u.Path = strings.TrimRight(u.Path, "/")
 		}
 	}
-	if context != "\x00" {
-		sum := sha256.Sum256([]byte(scope + "\x00" + context))
-		scope = hex.EncodeToString(sum[:])
+	if proxy != "" || noProxy != "" || userinfo != "" || query != "" {
+		scope = cryptoutil.CredentialScope("helm-repository-transport", scope, proxy, noProxy, userinfo, query)
 	}
 	return u.String() + "\x00" + scope
 }
@@ -340,7 +335,7 @@ func CredsScope(creds Creds) string {
 	return credsScope(creds)
 }
 
-// credsScope returns a SHA-256 fingerprint of the effective authentication and
+// credsScope returns a memory-hard fingerprint of the effective authentication and
 // TLS transport context of a credential view. It scopes index-cache keys so
 // that a fetch made with private credentials cannot publish cache entries
 // that an anonymous (or differently-credentialed) reader would consume.
@@ -357,18 +352,15 @@ func credsScope(creds Creds) string {
 		creds = snap
 	}
 	password, _ := creds.GetPassword()
-	// Quote fields to keep distinct credentials unambiguous, including embedded
-	// separators. Include inherited proxy policy because shared Redis and disk
+	// Include inherited proxy policy because shared Redis and disk
 	// records can outlive a process or be read by differently configured pods.
-	fingerprintInput := fmt.Sprintf("%q", []string{
+	return cryptoutil.CredentialScope("helm-credentials",
 		creds.GetUsername(), password, creds.GetCAPath(), string(creds.GetCertData()), string(creds.GetKeyData()),
 		strconv.FormatBool(creds.GetInsecureSkipVerify()),
 		os.Getenv("HTTP_PROXY"), os.Getenv("http_proxy"),
 		os.Getenv("HTTPS_PROXY"), os.Getenv("https_proxy"),
 		os.Getenv("NO_PROXY"), os.Getenv("no_proxy"), os.Getenv("REQUEST_METHOD"),
-	})
-	fpSum := sha256.Sum256([]byte(fingerprintInput))
-	return hex.EncodeToString(fpSum[:])
+	)
 }
 
 func (h *helm) Dispose() {

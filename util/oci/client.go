@@ -2,10 +2,8 @@ package oci
 
 import (
 	"context"
-	"crypto/sha256"
 	"crypto/tls"
 	"crypto/x509"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,6 +30,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/cache"
+	cryptoutil "github.com/argoproj/argo-cd/v3/util/crypto"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
@@ -111,7 +110,7 @@ func WithIndexCache(indexCache tagsCache) ClientOpts {
 // WithIndexCacheScopedByCreds attaches the tags cache and automatically
 // scopes its keys to the client's credential view: a fetch made with private
 // credentials can never publish tag metadata that an anonymous (or
-// differently-credentialed) reader would consume. The scope is a short
+// differently-credentialed) reader would consume. The scope is a memory-hard
 // fingerprint of the credential/TLS context; plaintext secrets never enter
 // keys. Without this option the bare repo URL is used (legacy behavior).
 func WithIndexCacheScopedByCreds(indexCache tagsCache, creds Creds) ClientOpts {
@@ -145,19 +144,18 @@ func (c *nativeOCIClient) cacheRepoKey() string {
 	return c.repoURL + "\x00" + c.tagsCacheScope
 }
 
-// credsScope returns a short fingerprint of the effective authentication and
-// TLS transport context. See util/helm.credsScope for the rationale; kept
-// package-local to avoid a new cross-package dependency.
+// credsScope returns a versioned, memory-hard fingerprint of the effective
+// authentication and TLS context, without truncating its 256-bit output.
 func credsScope(creds Creds) string {
-	fpSum := sha256.Sum256([]byte(strings.Join([]string{
+	return cryptoutil.CredentialScope("oci-credentials",
 		creds.Username,
 		creds.Password,
 		creds.CAPath,
 		string(creds.CertData),
 		string(creds.KeyData),
 		strconv.FormatBool(creds.InsecureSkipVerify),
-	}, "\x00")))
-	return hex.EncodeToString(fpSum[:8])
+		strconv.FormatBool(creds.InsecureHTTPOnly),
+	)
 }
 
 func WithImagePaths(repoCachePaths utilio.TempPaths) ClientOpts {
