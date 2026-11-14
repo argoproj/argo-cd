@@ -183,6 +183,14 @@ index downloads. Rollback does not require deleting Redis records. To disable de
 set `reposerver.helm.index.cache.enabled: "false"` and restart repo-server; remove its volume contents only after every
 process using that directory has stopped.
 
+Credential-scoped keys use a versioned Argon2id fingerprint with 19 MiB of memory and two passes.
+The derivation is deterministic across processes so they can reuse the same records. Its salt
+separates cache-identity domains; it is not a random salt for authentication password storage.
+A bounded process-local cache avoids repeating the derivation for warm credential views and
+retains only keyed lookup tags and derived fingerprints, not plaintext credentials. Cold
+derivations are serialized to bound additional derivation memory. Fingerprint-version changes
+make previous entries cold; those records expire through their normal retention policies.
+
 Measure index GETs, `200`/`304` statuses, transferred bytes, dependency-build duration and origin
 errors separately on a canary. Verify cold, warm, expired and executed hard-refresh builds against
 a comparable workload. Request reduction across replicas and the fleet's target reduction require

@@ -59,7 +59,7 @@ type indexCache interface {
 
 // WithIndexCacheScope restricts the index-cache keys used by the client to
 // one credential view: the cache key becomes "<repoURL>\x00<scope>" instead
-// of the bare repository URL. The scope is a short fingerprint of the
+// of the bare repository URL. The scope is a versioned fingerprint of the
 // effective authentication/TLS context, so a fetch made with private
 // credentials can never publish index metadata that an anonymous (or
 // differently-credentialed) reader would consume — the two views see
