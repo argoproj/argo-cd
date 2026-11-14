@@ -563,6 +563,21 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 					newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
 				}
 			}
+
+			// An application that RollingSync already synced can drift back to OutOfSync
+			// after a live resource is changed outside of Argo CD. With RollingSync driving
+			// syncs (and automated sync typically disabled) nothing re-syncs it: a Progressing
+			// app never reaches Healthy and blocks subsequent waves, and a Healthy app is left
+			// silently out of sync. Re-queue it through Waiting so the normal
+			// Waiting -> Pending -> sync machinery (honoring maxUpdate and the pinned target
+			// revisions) brings it back in line.
+			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing || currentAppStatus.Status == argov1alpha1.ProgressiveSyncHealthy {
+				if isApplicationDrifted(app) {
+					newAppStatus.LastTransitionTime = &now
+					newAppStatus.Status = argov1alpha1.ProgressiveSyncWaiting
+					newAppStatus.Message = "Application has drifted and is OutOfSync after its last sync, re-queuing for progressive sync"
+				}
+			}
 		}
 
 		if newAppStatus.LastTransitionTime == &now {
@@ -660,6 +675,46 @@ func isApplicationWithError(app argov1alpha1.Application) bool {
 		}
 	}
 	return false
+}
+
+// isApplicationDrifted reports whether an application that RollingSync already
+// synced has settled back into an OutOfSync state that no sync is addressing.
+//
+// This happens when a live resource is changed outside of Argo CD (for example a
+// manual `kubectl scale`). With RollingSync driving syncs and automated sync
+// typically disabled, nothing re-syncs the app on its own: an app still in the
+// Progressing state never reaches Healthy and blocks subsequent waves, while an
+// app that already reached Healthy is silently left out of sync.
+//
+// To avoid reacting to the transient OutOfSync window during or just after a
+// sync, the drift must have been observed by a reconciliation that ran after the
+// last sync finished. The last sync must also have succeeded: if it did not, the
+// app is not merely drifting and retrying is the Application's own retry policy's
+// job, not the appset's (see the Pending -> Progressing handling above).
+func isApplicationDrifted(app argov1alpha1.Application) bool {
+	if app.Status.Sync.Status != argov1alpha1.SyncStatusCodeOutOfSync {
+		return false
+	}
+
+	opState := app.Status.OperationState
+	if opState == nil {
+		// No sync operation is recorded, so the OutOfSync state is not the
+		// result of an in-flight or just-completed sync; treat it as drift.
+		return true
+	}
+	if !opState.Phase.Successful() {
+		// A sync is still running, or the last one did not succeed. Either way
+		// we should not re-queue: an in-flight sync may still converge, and a
+		// failed sync is retried by the Application, not the appset.
+		return false
+	}
+
+	// The last sync succeeded; only treat the app as drifted if it has since
+	// been reconciled and is still OutOfSync, so we do not race the status
+	// recompute that normally follows a successful sync.
+	return opState.FinishedAt != nil &&
+		app.Status.ReconciledAt != nil &&
+		app.Status.ReconciledAt.After(opState.FinishedAt.Time)
 }
 
 // GetLatestWaitingTransitionTimeOfAppset extracts the latest (most recent) LastTransitionTime from
