@@ -237,9 +237,10 @@ func getResolvedOCIRefValueFile(
 	// Remove the first segment (the ref variable name); pathutil re-inserts the OCI root.
 	pathStrings := strings.Split(rawValueFile, "/")
 	pathStrings[0] = ""
-	// Trim the leading slash (OCI paths are relative to the archive root). What remains must
-	// be a real file path - reject inputs like "$oci" or "$oci/" that have no path segment.
-	substitutedPath := strings.TrimPrefix(strings.Join(pathStrings, "/"), "/")
+	// Keep the leading slash: pathutil joins an absolute path onto the OCI root, and a bare
+	// "https://..." remainder would otherwise be treated as a remote URL instead of a file
+	// inside the artifact. Reject inputs like "$oci" or "$oci/" that have no path segment.
+	substitutedPath := strings.Join(pathStrings, "/")
 	if strings.Trim(substitutedPath, "/") == "" {
 		return "", fmt.Errorf("invalid OCI value file path %q: no file path after the ref name", rawValueFile)
 	}

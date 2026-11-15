@@ -242,26 +242,26 @@ func TestValueFileResolver_ResolveValueFiles_OCIGlob(t *testing.T) {
 	}, result)
 }
 
-func TestGetResolvedOCIRefValueFile_NormalizedLookup(t *testing.T) {
+func TestGetResolvedOCIRefValueFile_ResolvesInsideArtifact(t *testing.T) {
 	// Extracted OCI paths are registered under the normalized repo URL
 	// (Repository.NormalizeRepoURL), so a ref source whose URL differs only in
-	// scheme/host case must still resolve to the registered path.
+	// scheme/host case must still resolve to the registered path. A path that looks
+	// like a URL must also stay inside the artifact rather than become a remote
+	// download, matching how Git $ref paths behave.
 	extractedDir := t.TempDir()
-	valuesPath := filepath.Join(extractedDir, "values.yaml")
-	require.NoError(t, os.WriteFile(valuesPath, []byte("foo: bar"), 0o644))
-
 	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://Registry.Example.com/chart"), extractedDir)
 
-	resolved, err := getResolvedOCIRefValueFile(
-		"$oci/values.yaml",
-		&v1alpha1.Env{},
-		[]string{"https"},
-		"oci://REGISTRY.EXAMPLE.COM/chart",
-		ociPaths,
-	)
-	require.NoError(t, err)
-	assert.Equal(t, pathutil.ResolvedFilePath(valuesPath), resolved)
+	for raw, want := range map[string]string{
+		"$oci/values.yaml":                "values.yaml",
+		"$oci/https://example.com/v.yaml": "https:/example.com/v.yaml",
+	} {
+		t.Run(raw, func(t *testing.T) {
+			resolved, err := getResolvedOCIRefValueFile(raw, &v1alpha1.Env{}, []string{"https"}, "oci://REGISTRY.EXAMPLE.COM/chart", ociPaths)
+			require.NoError(t, err)
+			assert.Equal(t, pathutil.ResolvedFilePath(filepath.Join(extractedDir, want)), resolved)
+		})
+	}
 }
 
 // TestGetResolvedOCIRefValueFile_RejectsPathWithoutFile is a regression test: a $ref entry with
