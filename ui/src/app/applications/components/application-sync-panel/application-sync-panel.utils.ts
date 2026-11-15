@@ -6,6 +6,14 @@ export function getAvailableKinds(resources: models.ResourceStatus[]): string[] 
         .sort((a, b) => a.localeCompare(b));
 }
 
-export function setSelectionForKind(resources: models.ResourceStatus[], selections: boolean[], kind: string, value: boolean): boolean[] {
-    return resources.map((resource, i) => (resource.kind === kind ? value : selections[i]));
+export function setSelectionForKind(resources: models.ResourceStatus[], selections: boolean[], kind: string, value: boolean, onlyOutOfSync = false): boolean[] {
+    return resources.map((resource, i) => {
+        if (resource.kind !== kind) {
+            return selections[i];
+        }
+        if (value && onlyOutOfSync) {
+            return resource.status === models.SyncStatuses.OutOfSync;
+        }
+        return value;
+    });
 }

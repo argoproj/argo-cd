@@ -338,9 +338,18 @@ export const ApplicationSyncPanelBody = ({
                                                     type='button'
                                                     className='application-sync-panel__kind-filter-action-btn'
                                                     onClick={() =>
-                                                        formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, activeKindFilter, true))
+                                                        formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, activeKindFilter, true, true))
                                                     }>
-                                                    select visible
+                                                    select out of sync
+                                                </button>{' '}
+                                                /{' '}
+                                                <button
+                                                    type='button'
+                                                    className='application-sync-panel__kind-filter-action-btn'
+                                                    onClick={() =>
+                                                        formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, activeKindFilter, true, false))
+                                                    }>
+                                                    select all
                                                 </button>{' '}
                                                 /{' '}
                                                 <button
@@ -349,7 +358,7 @@ export const ApplicationSyncPanelBody = ({
                                                     onClick={() =>
                                                         formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, activeKindFilter, false))
                                                     }>
-                                                    clear visible
+                                                    clear
                                                 </button>
                                             </span>
                                         )}

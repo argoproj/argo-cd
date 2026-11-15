@@ -1,7 +1,8 @@
 import * as models from '../../../shared/models';
 import {getAvailableKinds, setSelectionForKind} from './application-sync-panel.utils';
 
-const r = (kind: string, name = 'res'): models.ResourceStatus => ({kind, name, namespace: 'ns', status: 'OutOfSync', version: 'v1'}) as unknown as models.ResourceStatus;
+const r = (kind: string, name = 'res', status: models.SyncStatus = models.SyncStatuses.OutOfSync): models.ResourceStatus =>
+    ({kind, name, namespace: 'ns', status, version: 'v1'} as unknown as models.ResourceStatus);
 
 describe('application-sync-panel.utils', () => {
     describe('getAvailableKinds', () => {
@@ -27,11 +28,22 @@ describe('application-sync-panel.utils', () => {
     });
 
     describe('setSelectionForKind', () => {
-        const resources = [r('Service', 's1'), r('Deployment', 'd1'), r('Service', 's2'), r('ConfigMap', 'c1')];
+        const resources = [
+            r('Service', 's1', models.SyncStatuses.OutOfSync),
+            r('Deployment', 'd1', models.SyncStatuses.Synced),
+            r('Service', 's2', models.SyncStatuses.Synced),
+            r('ConfigMap', 'c1', models.SyncStatuses.OutOfSync)
+        ];
 
-        it('sets matching kind to true and preserves others', () => {
+        it('sets matching kind to true for all resources when onlyOutOfSync is false and preserves others', () => {
             const selections = [false, true, false, true];
-            expect(setSelectionForKind(resources, selections, 'Service', true)).toEqual([true, true, true, true]);
+            expect(setSelectionForKind(resources, selections, 'Service', true, false)).toEqual([true, true, true, true]);
+        });
+
+        it('sets matching kind to true only for out of sync resources when onlyOutOfSync is true', () => {
+            const selections = [false, true, true, false];
+            // s1 is OutOfSync -> true, s2 is Synced -> false. Deployment d1 and ConfigMap c1 stay preserved.
+            expect(setSelectionForKind(resources, selections, 'Service', true, true)).toEqual([true, true, false, false]);
         });
 
         it('sets matching kind to false and preserves others', () => {
@@ -41,9 +53,9 @@ describe('application-sync-panel.utils', () => {
 
         it('preserves selections for non-matching kinds across calls (no clobber)', () => {
             let selections = [false, false, false, false];
-            selections = setSelectionForKind(resources, selections, 'Service', true);
+            selections = setSelectionForKind(resources, selections, 'Service', true, false);
             expect(selections).toEqual([true, false, true, false]);
-            selections = setSelectionForKind(resources, selections, 'Deployment', true);
+            selections = setSelectionForKind(resources, selections, 'Deployment', true, false);
             expect(selections).toEqual([true, true, true, false]);
             selections = setSelectionForKind(resources, selections, 'Service', false);
             expect(selections).toEqual([false, true, false, false]);

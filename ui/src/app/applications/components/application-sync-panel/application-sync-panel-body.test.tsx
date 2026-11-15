@@ -122,17 +122,27 @@ describe('ApplicationSyncPanelBody kind filter', () => {
         expect(checkbox('apps/Deployment/ns/api')).toBeInTheDocument();
     });
 
-    it('supports select visible and clear visible while preserving other kinds selections', async () => {
+    it('supports select out of sync, select all, and clear while preserving other kinds selections', async () => {
         const {container, submit} = await renderPanel();
 
         // Clear all first
         fireEvent.click(screen.getByText('none', {selector: 'a'}));
 
-        // Filter to Deployment and click 'select visible'
+        // Filter to Deployment and click 'select out of sync'
         selectKindInComboBox(container, 'Deployment');
-        fireEvent.click(screen.getByRole('button', {name: /select visible/i}));
+        fireEvent.click(screen.getByRole('button', {name: /select out of sync/i}));
+        expect(checkbox('apps/Deployment/ns/web').checked).toBe(true);
+        expect(checkbox('apps/Deployment/ns/api').checked).toBe(false);
+
+        // Click 'select all' to select both out-of-sync and synced deployments
+        fireEvent.click(screen.getByRole('button', {name: /select all/i}));
         expect(checkbox('apps/Deployment/ns/web').checked).toBe(true);
         expect(checkbox('apps/Deployment/ns/api').checked).toBe(true);
+
+        // Click 'clear' to deselect visible deployments
+        fireEvent.click(screen.getByRole('button', {name: /clear/i}));
+        expect(checkbox('apps/Deployment/ns/web').checked).toBe(false);
+        expect(checkbox('apps/Deployment/ns/api').checked).toBe(false);
 
         // Switch to Service and select only /Service/ns/api manually
         selectKindInComboBox(container, 'Service');
@@ -141,12 +151,11 @@ describe('ApplicationSyncPanelBody kind filter', () => {
         fireEvent.click(checkbox('/Service/ns/api'));
         expect(checkbox('/Service/ns/api').checked).toBe(true);
 
-        // Switch back to Deployment and clear visible, then re-check web only
+        // Switch back to Deployment and select out of sync (web only)
         selectKindInComboBox(container, 'Deployment');
-        fireEvent.click(screen.getByRole('button', {name: /clear visible/i}));
-        expect(checkbox('apps/Deployment/ns/web').checked).toBe(false);
+        fireEvent.click(screen.getByRole('button', {name: /select out of sync/i}));
+        expect(checkbox('apps/Deployment/ns/web').checked).toBe(true);
         expect(checkbox('apps/Deployment/ns/api').checked).toBe(false);
-        fireEvent.click(checkbox('apps/Deployment/ns/web'));
 
         await submit();
         expect(syncedResources().map((r: models.ResourceStatus) => `${r.kind}/${r.name}`)).toEqual(['Service/api', 'Deployment/web']);
