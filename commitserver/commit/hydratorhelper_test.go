@@ -218,7 +218,9 @@ Argocd-reference-commit-sha: abc123
 			}
 			currentManifestDirectoryPath := filepath.Join(manifestsPath, namespace, metaObj.ApiVersion)
 			assert.DirExists(t, currentManifestDirectoryPath)
-			currentManifestPath := filepath.Join(currentManifestDirectoryPath, getSplitManifestName(&metaObj))
+			manifestName, err := getSplitManifestName(&metaObj)
+			require.NoError(t, err)
+			currentManifestPath := filepath.Join(currentManifestDirectoryPath, manifestName)
 			assert.FileExists(t, currentManifestPath)
 			manifestBytes, err := os.ReadFile(currentManifestPath)
 			require.NoError(t, err)

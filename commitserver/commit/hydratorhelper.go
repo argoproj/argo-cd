@@ -35,8 +35,9 @@ type manifestMetadata struct {
 	ApiVersion string `json:"ApiVersion"`
 	Kind       string `json:"kind"`
 	Metadata   struct {
-		Namespace string `json:"namespace,omitempty"`
-		Name      string `json:"name"`
+		GenerateName string `json:"generateName,omitempty"`
+		Namespace    string `json:"namespace,omitempty"`
+		Name         string `json:"name,omitempty"`
 	} `json:"metadata"`
 }
 
@@ -289,7 +290,11 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 		}
 
 		// prepare and write manifest
-		manifestName := getSplitManifestName(metaObj)
+		manifestName, err := getSplitManifestName(metaObj)
+		if err != nil {
+				return fmt.Errorf("error resolving filename for using properties %v:%w", metaObj, err)
+		}
+
 		manifestPath := filepath.Join(currentManifestDirectoryPath, manifestName)
 		err = writeManifestToFile(root, m.ManifestJSON, manifestPath)
 		if err != nil {
@@ -300,8 +305,15 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 	return nil
 }
 
-func getSplitManifestName(metaObj *manifestMetadata) string {
-	return fmt.Sprintf("%s-%s.yaml", strings.ToLower(metaObj.Kind), metaObj.Metadata.Name)
+func getSplitManifestName(metaObj *manifestMetadata) (string, error) {
+	name := metaObj.Metadata.Name
+	if name == "" {
+		name = metaObj.Metadata.GenerateName
+	}
+	if name == "" {
+		return "", errors.New("cannot derive manifest file name: metadata.name and metadata.generateName are both empty")
+	}
+	return fmt.Sprintf("%s_%s.yaml", strings.ToLower(metaObj.Kind), name), nil
 }
 
 func ensureDirectoryExists(root *os.Root, directoryPath string, recreate bool) error {

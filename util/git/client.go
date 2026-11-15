@@ -2168,7 +2168,7 @@ func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (
 	var gitStatusOutput string
 	var gitStatusErr error
 	if filePath != "" {
-		gitStatusOutput, gitStatusErr = m.runCmd(ctx, "status", "--porcelain", filePath)
+		gitStatusOutput, gitStatusErr = m.runCmd(ctx, "status", "--porcelain", "--", filePath)
 	} else {
 		gitStatusOutput, gitStatusErr = m.runCmd(ctx, "status", "--porcelain")
 	}
