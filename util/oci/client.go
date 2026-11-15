@@ -345,6 +345,8 @@ func (c *nativeOCIClient) extract(ctx context.Context, digest string) (string, u
 	}
 	manifestsDir, err := extractContentToManifestsDir(ctx, cachedPath, digest, maxSize, isHelmChart)
 	if err != nil {
+		// Nothing owns the directory on failure, so drop whatever was already extracted into it.
+		_ = os.RemoveAll(manifestsDir)
 		return manifestsDir, nil, fmt.Errorf("cannot extract contents of oci image with revision %s: %w", digest, err)
 	}
 

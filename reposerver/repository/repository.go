@@ -1109,7 +1109,7 @@ func (s *Service) resolveGitRefSource(ctx context.Context, req refSourceResolveR
 
 	// Symlink check must happen after acquiring lock.
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
-		if err := s.checkOutOfBoundsSymlinks(gitClient.Root(), req.commitSHA, req.noCache, ".git"); err != nil {
+		if err := s.checkOutOfBoundsSymlinks(gitClient.Root(), referencedCommitSHA, req.noCache, ".git"); err != nil {
 			closeAndLog(closer, "repo lock")
 			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {

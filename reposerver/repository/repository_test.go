@@ -4243,6 +4243,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 				client.EXPECT().Init().Return(nil)
 				client.EXPECT().IsRevisionPresent(mock.Anything, refSha2).Return(true)
 				client.EXPECT().Checkout(mock.Anything, refSha2, false, true).Return("", nil)
+				t.Cleanup(func() { client.AssertExpectations(t) })
 				return &client, nil
 			},
 			testResults: func(t *testing.T) {
@@ -7784,13 +7785,17 @@ func Test_valueFileResolver_ResolveValueFiles_DoesNotLogResolvedPaths(t *testing
 		},
 		gitRepoPaths:            utilio.NewRandomizedTempPaths(t.TempDir()),
 		ociPaths:                ociPaths,
-		ignoreMissingValueFiles: false,
+		ignoreMissingValueFiles: true,
 	}
 
 	hook := logtest.NewGlobal()
 	t.Cleanup(hook.Reset)
+	// Debug level so the "values file does not exist" message for the missing file is emitted.
+	prevLevel := log.GetLevel()
+	log.SetLevel(log.DebugLevel)
+	t.Cleanup(func() { log.SetLevel(prevLevel) })
 
-	result, err := resolver.ResolveValueFiles([]string{"$oci/a.yaml"})
+	result, err := resolver.ResolveValueFiles([]string{"$oci/a.yaml", "$oci/missing.yaml"})
 	require.NoError(t, err)
 	require.Len(t, result, 1)
 

@@ -92,7 +92,7 @@ func (r *valueFileResolver) ResolveValueFiles(rawValueFiles []string) ([]pathuti
 			continue
 		}
 
-		if !resolved.IsRemote && r.checkFileExists(resolved.Path) {
+		if !resolved.IsRemote && r.checkFileExists(rawValueFile, resolved.Path) {
 			continue
 		}
 
@@ -166,12 +166,13 @@ func (r *valueFileResolver) resolveRawPath(rawValueFile string) (*resolveRawPath
 	}, nil
 }
 
-// checkFileExists checks if a file exists and determines if it should be skipped
-func (r *valueFileResolver) checkFileExists(resolvedPath pathutil.ResolvedFilePath) bool {
+// checkFileExists checks if a file exists and determines if it should be skipped. Only the raw
+// entry is logged: the resolved path may sit inside a randomized OCI extraction directory.
+func (r *valueFileResolver) checkFileExists(rawValueFile string, resolvedPath pathutil.ResolvedFilePath) bool {
 	_, err := os.Stat(string(resolvedPath))
 	if os.IsNotExist(err) {
 		if r.ignoreMissingValueFiles {
-			log.Debugf(" %s values file does not exist", resolvedPath)
+			log.Debugf(" %s values file does not exist", rawValueFile)
 			return true
 		}
 	}
