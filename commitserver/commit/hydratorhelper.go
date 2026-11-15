@@ -257,7 +257,7 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 	err := root.Remove(manifestFilePath)
 	// return errors other than file not found
 	if err != nil && !os.IsNotExist(err) {
-		return fmt.Errorf("failed to clean up dir 'manifests/': %w", err)
+		return fmt.Errorf("failed to clean up file 'manifest.yaml': %w", err)
 	}
 
 	// If the file exists, truncate it.
