@@ -4763,6 +4763,9 @@ func TestGetAppHostsIndex(t *testing.T) {
 			}
 			add(pod("app-pod", l.appPodNode, l.appPodRequest))
 			add(pod("neighbor-a", "node-a", "2"))
+			done, doneInfo := pod("completed-a", "node-a", "8")
+			doneInfo.PodInfo.Phase = corev1.PodSucceeded // finished pods don't count
+			add(done, doneInfo)
 			add(pod("neighbor-b", "node-b", "4")) // not on an app node
 			return resources
 		}, func() error { return l.scanErr })
@@ -4808,6 +4811,8 @@ func TestGetAppHostsIndex(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int32(1), scans.Load())
 		assert.Equal(t, int64(3000), hosts[0].ResourcesInfo[0].RequestedByApp)
+		// The index still holds the old request; neighbors must not absorb the change.
+		assert.Equal(t, int64(2000), hosts[0].ResourcesInfo[0].RequestedByNeighbors)
 	})
 
 	t.Run("rebuilds for a node the index hasn't seen", func(t *testing.T) {

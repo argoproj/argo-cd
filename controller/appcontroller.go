@@ -749,6 +749,23 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 	}
 	allNodesInfo := index.nodes
 
+	// Neighbors are the index's per-node totals minus the index's own copy of
+	// the app's pods, so this costs O(app pods), not O(pods on the app's nodes).
+	appIndexedRequests := map[string]map[corev1.ResourceName]int64{}
+	for key := range appPods {
+		pod, ok := index.pods[key]
+		if !ok || pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
+			continue
+		}
+		if appIndexedRequests[pod.NodeName] == nil {
+			appIndexedRequests[pod.NodeName] = map[corev1.ResourceName]int64{}
+		}
+		for name, quantity := range pod.ResourceRequests {
+			appIndexedRequests[pod.NodeName][name] += quantity.MilliValue()
+		}
+	}
+	allowedNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
+
 	var hosts []appv1.HostInfo
 	for nodeName, podsOnNode := range appPodsByNode {
 		node, ok := allNodesInfo[nodeName]
@@ -776,18 +793,13 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			}
 		}
 
-		for key, pod := range index.podsByNode[nodeName] {
-			if appPods[key] {
+		for name, total := range index.requestsByNode[nodeName] {
+			if !supportedResourceNames[name] {
 				continue
 			}
-			for name, resource := range pod.ResourceRequests {
-				if !supportedResourceNames[name] || pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
-					continue
-				}
-				info := resources[name]
-				info.RequestedByNeighbors += resource.MilliValue()
-				resources[name] = info
-			}
+			info := resources[name]
+			info.RequestedByNeighbors += total - appIndexedRequests[nodeName][name]
+			resources[name] = info
 		}
 
 		var resourcesInfo []appv1.HostResourceInfo
@@ -800,7 +812,6 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
 		})
 
-		allowedNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
 		nodeLabels := make(map[string]string)
 		for _, label := range allowedNodeLabels {
 			if val, ok := node.Labels[label]; ok {
@@ -817,9 +828,12 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 // clusterHosts is a cluster's Nodes and Pods as of builtAt. It is never
 // modified after it is published.
 type clusterHosts struct {
-	builtAt    time.Time
-	nodes      map[string]statecache.NodeInfo
-	podsByNode map[string]map[kube.ResourceKey]statecache.PodInfo
+	builtAt time.Time
+	nodes   map[string]statecache.NodeInfo
+	pods    map[kube.ResourceKey]statecache.PodInfo
+	// requestsByNode sums, in milli-units, the requests of each node's pods
+	// that haven't succeeded or failed.
+	requestsByNode map[string]map[corev1.ResourceName]int64
 }
 
 type clusterHostsEntry struct {
@@ -879,9 +893,10 @@ func (ctrl *ApplicationController) getClusterHosts(destCluster *appv1.Cluster, n
 	}
 
 	next := &clusterHosts{
-		builtAt:    time.Now(),
-		nodes:      map[string]statecache.NodeInfo{},
-		podsByNode: map[string]map[kube.ResourceKey]statecache.PodInfo{},
+		builtAt:        time.Now(),
+		nodes:          map[string]statecache.NodeInfo{},
+		pods:           map[kube.ResourceKey]statecache.PodInfo{},
+		requestsByNode: map[string]map[corev1.ResourceName]int64{},
 	}
 	err := ctrl.stateCache.IterateResources(destCluster, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
 		key := res.ResourceKey()
@@ -889,12 +904,17 @@ func (ctrl *ApplicationController) getClusterHosts(destCluster *appv1.Cluster, n
 		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
 			next.nodes[key.Name] = *info.NodeInfo
 		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
-			pods := next.podsByNode[info.PodInfo.NodeName]
-			if pods == nil {
-				pods = map[kube.ResourceKey]statecache.PodInfo{}
-				next.podsByNode[info.PodInfo.NodeName] = pods
+			pod := *info.PodInfo
+			next.pods[key] = pod
+			if pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
+				return
 			}
-			pods[key] = *info.PodInfo
+			if next.requestsByNode[pod.NodeName] == nil {
+				next.requestsByNode[pod.NodeName] = map[corev1.ResourceName]int64{}
+			}
+			for name, quantity := range pod.ResourceRequests {
+				next.requestsByNode[pod.NodeName][name] += quantity.MilliValue()
+			}
 		}
 	})
 	if err != nil {
