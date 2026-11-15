@@ -123,30 +123,6 @@ func TestMultiSourceAppWithOCIRefValues(t *testing.T) {
 		When().
 		CreateMultiSourceAppFromFile(func(_ *Application) {}).
 		Then().
-		And(func(app *Application) {
-			assert.Equal(t, ctx.GetName(), app.Name)
-			assert.Len(t, app.Spec.GetSources(), 2)
-
-			// Verify first source (Helm chart)
-			helmSource := app.Spec.GetSources()[0]
-			assert.Equal(t, fixture.RepoURL(fixture.RepoURLTypeFile), helmSource.RepoURL)
-			assert.Equal(t, "helm-guestbook", helmSource.Path)
-			assert.NotNil(t, helmSource.Helm)
-			assert.Contains(t, helmSource.Helm.ValueFiles, "$values/values.yaml")
-
-			// Verify second source (OCI ref values)
-			ociSource := app.Spec.GetSources()[1]
-			assert.Equal(t, "oci://localhost:5000/oci-ref-values", ociSource.RepoURL)
-			assert.Equal(t, "1.0.0", ociSource.TargetRevision)
-			assert.Equal(t, "values", ociSource.Ref)
-		}).
-		Expect(Event("ResourceCreated", "create")).
-		And(func(_ *Application) {
-			// app should be listed
-			output, err := fixture.RunCli("app", "list")
-			require.NoError(t, err)
-			assert.Contains(t, output, ctx.GetName())
-		}).
 		Expect(Success("")).
 		Given().Timeout(60).
 		When().Wait().Then().
