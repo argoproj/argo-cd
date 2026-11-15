@@ -40,6 +40,15 @@ export const KindFilterSelect: React.FC<KindFilterSelectProps> = ({id = 'applica
 
     const activeIndex = highlightedIndex >= 0 && highlightedIndex < filteredOptions.length ? highlightedIndex : 0;
 
+    // The option list scrolls (`.select__options` caps its height), so keep the option Enter would select in view.
+    React.useEffect(() => {
+        if (!isOpen || filteredOptions.length === 0) {
+            return;
+        }
+        const activeOption = filteredOptions[activeIndex];
+        document.getElementById(`${id}-opt-${activeOption.value || 'all'}`)?.scrollIntoView?.({block: 'nearest'});
+    }, [activeIndex, isOpen, filteredOptions, id]);
+
     React.useEffect(() => {
         if (!isOpen) {
             return;
@@ -118,12 +127,10 @@ export const KindFilterSelect: React.FC<KindFilterSelectProps> = ({id = 'applica
                 className='select__value kind-filter-select__trigger'
                 onClick={() => (isOpen ? setIsOpen(false) : openDropdown())}
                 onKeyDown={handleTriggerKeyDown}
-                role='combobox'
                 aria-expanded={isOpen}
                 aria-haspopup='listbox'
                 aria-controls={`${id}-listbox`}
-                aria-label='Filter by Kind'
-                aria-activedescendant={isOpen && filteredOptions[activeIndex] ? `${id}-opt-${filteredOptions[activeIndex].value || 'all'}` : undefined}>
+                aria-label='Filter by Kind'>
                 <span className='kind-filter-select__title'>{displayText}</span>
                 <span className='select__value-arrow'>
                     <i className='argo-icon-expand-arrow' />
@@ -148,6 +155,10 @@ export const KindFilterSelect: React.FC<KindFilterSelectProps> = ({id = 'applica
                         }
                     }}
                     onKeyDown={handleSearchKeyDown}
+                    role='combobox'
+                    aria-label='Filter by Kind'
+                    aria-expanded={isOpen}
+                    aria-activedescendant={isOpen && filteredOptions[activeIndex] ? `${id}-opt-${filteredOptions[activeIndex].value || 'all'}` : undefined}
                     aria-autocomplete='list'
                     aria-controls={`${id}-listbox`}
                 />

@@ -174,16 +174,21 @@ describe('ApplicationSyncPanelBody kind filter', () => {
 
     it('supports selecting a kind using keyboard navigation and selection', async () => {
         const {container} = await renderPanel();
-        const trigger = screen.getByRole('combobox', {name: /filter by kind/i});
+        // The trigger is a button; the focused search input carries the combobox semantics.
+        const trigger = screen.getByRole('button', {name: /filter by kind/i});
+        expect(trigger).toHaveAttribute('aria-expanded', 'false');
 
         // Open dropdown via keyboard
         fireEvent.keyDown(trigger, {key: 'ArrowDown'});
+        expect(trigger).toHaveAttribute('aria-expanded', 'true');
 
-        const searchInput = within(getKindFilterContainer(container)).getByPlaceholderText('Search');
+        const searchInput = within(getKindFilterContainer(container)).getByRole('combobox', {name: /filter by kind/i});
         // Available options: [0: "All kinds", 1: "ConfigMap", 2: "Deployment", 3: "Service"]
-        // Press ArrowDown to navigate to ConfigMap, then Deployment
+        // The option Enter would select is exposed on the focused input.
         fireEvent.keyDown(searchInput, {key: 'ArrowDown'});
+        expect(searchInput).toHaveAttribute('aria-activedescendant', 'application-sync-panel-kind-filter-select-opt-ConfigMap');
         fireEvent.keyDown(searchInput, {key: 'ArrowDown'});
+        expect(searchInput).toHaveAttribute('aria-activedescendant', 'application-sync-panel-kind-filter-select-opt-Deployment');
         // Press Enter to select
         fireEvent.keyDown(searchInput, {key: 'Enter'});
 
@@ -192,5 +197,21 @@ describe('ApplicationSyncPanelBody kind filter', () => {
         expect(screen.queryByLabelText('/ConfigMap/ns/cm')).not.toBeInTheDocument();
         expect(checkbox('apps/Deployment/ns/web')).toBeInTheDocument();
         expect(checkbox('apps/Deployment/ns/api')).toBeInTheDocument();
+    });
+
+    it('keeps a resource selected under one kind when filtering to another kind and syncs it', async () => {
+        const {container, submit} = await renderPanel();
+
+        // Only Deployment/web stays selected.
+        fireEvent.click(screen.getByText('none', {selector: 'a'}));
+        selectKindInComboBox(container, 'Deployment');
+        fireEvent.click(checkbox('apps/Deployment/ns/web'));
+
+        // Switching to Service hides the Deployment row, but its selection must survive.
+        selectKindInComboBox(container, 'Service');
+        expect(screen.queryByLabelText('apps/Deployment/ns/web')).not.toBeInTheDocument();
+
+        await submit();
+        expect(syncedResources().map((r: models.ResourceStatus) => `${r.kind}/${r.name}`)).toEqual(['Deployment/web']);
     });
 });
