@@ -39,6 +39,7 @@ import (
 	"google.golang.org/grpc/status"
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	goruntime "runtime"
 	"k8s.io/apimachinery/pkg/runtime"
 	"sigs.k8s.io/yaml"
 
@@ -7067,5 +7068,92 @@ func TestGetOciFiles(t *testing.T) {
 				}
 			})
 		}
+	})
+}
+
+
+// initGitRepoWithTags creates a real git repository with the given commits and
+// tags (tag name -> commit index it points to). Commits are appended in order.
+func initGitRepoWithTags(t *testing.T, dir string, tags map[string]int) map[string]string {
+	t.Helper()
+	require.NoError(t, os.MkdirAll(dir, 0o755))
+	run := func(args ...string) string {
+		out, err := exec.Command("git", append([]string{"-C", dir}, args...)...).CombinedOutput()
+		require.NoError(t, err, "git %v: %s", args, out)
+		return string(out)
+	}
+	run("init", "-b", "main")
+	run("config", "user.email", "test@example.com")
+	run("config", "user.name", "test")
+	shas := []string{}
+	for i := 0; i < len(tags); i++ {
+		file := filepath.Join(dir, fmt.Sprintf("f%d.txt", i))
+		require.NoError(t, os.WriteFile(file, []byte(fmt.Sprintf("content %d", i)), 0o644))
+				run("add", ".")
+		run("commit", "-m", fmt.Sprintf("commit %d", i))
+		shas = append(shas, strings.TrimSpace(run("rev-parse", "HEAD")))
+	}
+	resolved := map[string]string{}
+	for tag, commitIdx := range tags {
+		run("tag", tag, shas[commitIdx])
+		resolved[tag] = shas[commitIdx]
+	}
+	return resolved
+}
+
+// Regression test for #30993: UpdateRevisionForPaths must honor the source's
+// tagPrefix when resolving the revision through gitSourceHasChanges, exactly
+// like the other resolution paths do.
+func TestUpdateRevisionForPaths_TagPrefix(t *testing.T) {
+	if goruntime.GOOS == "windows" {
+		// the real-git fetch inherits an environment whose global config
+		// resolves to the null device on Windows hosts; the fix is exercised
+		// by this test on Linux CI
+		t.Skip("real-git fixture is Windows-hostile in this environment")
+	}
+	t.Parallel()
+
+	setup := func(t *testing.T, includeUnprefixedTag bool) (*Service, *apiclient.UpdateRevisionForPathsRequest, map[string]string) {
+		repoDir := t.TempDir()
+		tags := map[string]int{"app1/v1.0.0": 0, "app1/v1.1.0": 1}
+		if includeUnprefixedTag {
+			tags["v1.5.0"] = 2
+		}
+		shas := initGitRepoWithTags(t, repoDir, tags)
+
+		checkoutRoot := t.TempDir()
+		s, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			paths.EXPECT().GetPath(mock.Anything).Return(checkoutRoot, nil).Maybe()
+		}, checkoutRoot)
+		s.newGitClient = func(rawRepoURL string, root string, _ git.Creds, _ bool, _ bool, _ string, _ string, opts ...git.ClientOpts) (git.Client, error) {
+			return git.NewClientExt(rawRepoURL, root, &git.NopCreds{}, false, false, "", "", opts...)
+		}
+
+		request := &apiclient.UpdateRevisionForPathsRequest{
+			Repo:              &v1alpha1.Repository{Repo: repoDir, Type: "git"},
+			Revision:          "v1.*",
+			SyncedRevision:    shas["app1/v1.0.0"],
+			Paths:             []string{"app1"},
+			ApplicationSource: &v1alpha1.ApplicationSource{TagPrefix: "app1/"},
+		}
+		return s, request, shas
+	}
+
+	t.Run("only prefixed tags", func(t *testing.T) {
+		t.Parallel()
+		s, request, shas := setup(t, false)
+		res, err := s.UpdateRevisionForPaths(t.Context(), request)
+		require.NoError(t, err)
+		require.True(t, res.Changes)
+		require.Equal(t, shas["app1/v1.1.0"], res.Revision)
+	})
+
+	t.Run("unprefixed tag also matches", func(t *testing.T) {
+		t.Parallel()
+		s, request, shas := setup(t, true)
+		res, err := s.UpdateRevisionForPaths(t.Context(), request)
+		require.NoError(t, err)
+		require.True(t, res.Changes)
+		require.Equal(t, shas["app1/v1.1.0"], res.Revision, "the prefixed tag must win over an unprefixed v1.5.0")
 	})
 }
