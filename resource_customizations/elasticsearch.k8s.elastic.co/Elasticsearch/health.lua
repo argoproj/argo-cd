@@ -42,6 +42,10 @@ if obj.status ~= nil then
       end
     end
   end
+else
+  hs.status = "Progressing"
+  hs.message = "Waiting for Elasticsearch status"
+  return hs
 end
 
 hs.status = "Unknown"
