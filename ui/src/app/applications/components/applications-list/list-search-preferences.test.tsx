@@ -156,6 +156,19 @@ test.each(pages)('%s uses URL search, including an explicit empty value, without
     expect(await screen.findByDisplayValue('saved')).toBeInTheDocument();
 });
 
+test.each(pages)('%s observes saved search updates without replacing a URL override', async page => {
+    services.viewPreferences.updatePreferences({[searchKeys[page]]: 'saved'});
+    const view = renderList(page);
+    expect(await screen.findByDisplayValue('saved')).toBeInTheDocument();
+    act(() => services.viewPreferences.updatePreferences({[searchKeys[page]]: 'updated'}));
+    expect(await screen.findByDisplayValue('updated')).toBeInTheDocument();
+    act(() => view.history.push('/' + page + '?search='));
+    act(() => services.viewPreferences.updatePreferences({[searchKeys[page]]: 'latest'}));
+    expect(await screen.findByPlaceholderText(/^Search /)).toHaveValue('');
+    act(() => view.history.push('/' + page));
+    expect(await screen.findByDisplayValue('latest')).toBeInTheDocument();
+});
+
 test.each(pages)('%s keeps an explicitly cleared search empty on the next visit', async page => {
     services.viewPreferences.updatePreferences({[searchKeys[page]]: 'saved'});
     const view = renderList(page, '?search=shared');

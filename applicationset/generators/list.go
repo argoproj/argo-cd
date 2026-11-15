@@ -60,14 +60,14 @@ func (g *ListGenerator) GenerateParams(appSetGenerator *argoprojiov1alpha1.Appli
 					for k, v := range values {
 						value, ok := v.(string)
 						if !ok {
-							return nil, fmt.Errorf("error parsing value as string %w", err)
+							return nil, fmt.Errorf("error parsing value %q as string", k)
 						}
 						params["values."+k] = value
 					}
 				} else {
 					v, ok := value.(string)
 					if !ok {
-						return nil, fmt.Errorf("error parsing value as string %w", err)
+						return nil, fmt.Errorf("error parsing value %q as string", key)
 					}
 					params[key] = v
 				}

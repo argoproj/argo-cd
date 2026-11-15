@@ -228,6 +228,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Lucid Motors](https://www.lucidmotors.com/)
 1. [Lytt](https://www.lytt.co/)
 1. [LY Corporation](https://www.lycorp.co.jp/en/)
+1. [MAB](https://www.mortgageadvicebureau.com/)
 1. [Magic Leap](https://www.magicleap.com/)
 1. [Majid Al Futtaim](https://www.majidalfuttaim.com/)
 1. [Major League Baseball](https://mlb.com)

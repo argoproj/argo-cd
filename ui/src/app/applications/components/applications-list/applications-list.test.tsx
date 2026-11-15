@@ -17,7 +17,7 @@ import {AppsListSourceResult} from './applications-list-source';
 
 jest.mock('../../../shared/services', () => ({
     services: {
-        viewPreferences: {getPreferences: jest.fn(), updatePreferences: jest.fn()},
+        viewPreferences: {getPreferences: jest.fn(), getCurrentPreferences: jest.fn(), updatePreferences: jest.fn()},
         clusters: {list: jest.fn(() => Promise.resolve([]))},
         applications: {get: jest.fn()}
     },
@@ -105,7 +105,10 @@ const listedNamespace = () => jest.mocked(useApplicationsList).mock.lastCall[0].
 
 beforeEach(() => {
     jest.clearAllMocks();
-    jest.mocked(services.viewPreferences.getPreferences).mockReturnValue(new BehaviorSubject({appList: {view: 'list'}} as any));
+    // One stable object: useViewPreferences re-renders whenever the snapshot changes identity.
+    const prefs = new BehaviorSubject({appList: {view: 'list'}} as any);
+    jest.mocked(services.viewPreferences.getPreferences).mockReturnValue(prefs);
+    jest.mocked(services.viewPreferences.getCurrentPreferences).mockImplementation(() => prefs.getValue());
     jest.mocked(useApplicationsList).mockReturnValue(list([app('guestbook', 'team-a')]));
     jest.mocked(services.applications.get).mockImplementation((name, namespace) => Promise.resolve(app(name, namespace)));
 });
