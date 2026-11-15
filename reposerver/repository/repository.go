@@ -405,6 +405,7 @@ func (s *Service) runRepoOperation(
 		// sources only reuse the resolved revision when that comparison is meaningful.
 		sourceRepoURL:   gitRepoURL,
 		sourceRevision:  unresolvedRevision,
+		sourceTagPrefix: source.TagPrefix,
 		sourceCommitSHA: revision,
 	})
 	if err != nil {
@@ -619,6 +620,7 @@ type refSourceResolver struct {
 	// sourceCommitSHA instead of resolving the revision a second time.
 	sourceRepoURL   string
 	sourceRevision  string
+	sourceTagPrefix string
 	sourceCommitSHA string
 }
 
@@ -697,7 +699,7 @@ func resolveReferencedSources(ctx context.Context, resolver refSourceResolver) (
 				log.Errorf("Failed to get OCI client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 				return nil, fmt.Errorf("failed to get OCI client for repo %s", refSourceMapping.Repo.Repo)
 			}
-		case isSameRepoAndRevision(resolver.sourceRepoURL, resolver.sourceRevision, refSourceMapping):
+		case isSameRepoAndRevision(resolver.sourceRepoURL, resolver.sourceRevision, resolver.sourceTagPrefix, refSourceMapping):
 			// The primary source already resolved this repository at this revision, so reuse its
 			// commit SHA instead of paying for another ls-remote.
 			referencedCommitSHA = resolver.sourceCommitSHA
@@ -716,9 +718,10 @@ func resolveReferencedSources(ctx context.Context, resolver refSourceResolver) (
 }
 
 // isSameRepoAndRevision returns true if the referenced source points to the same git repository and revision as the
-// source referencing it.
-func isSameRepoAndRevision(sourceRepoURL, sourceRevision string, refTarget *v1alpha1.RefTarget) bool {
-	return sourceRepoURL != "" && sourceRevision != "" &&
+// source referencing it. A primary source with a TagPrefix resolves its revision against prefixed tags, which a ref
+// source (that has no TagPrefix) does not, so its commit cannot be reused in that case.
+func isSameRepoAndRevision(sourceRepoURL, sourceRevision, sourceTagPrefix string, refTarget *v1alpha1.RefTarget) bool {
+	return sourceRepoURL != "" && sourceRevision != "" && sourceTagPrefix == "" &&
 		refTarget.TargetRevision == sourceRevision &&
 		git.NormalizeGitURL(refTarget.Repo.Repo) == git.NormalizeGitURL(sourceRepoURL)
 }
@@ -1234,7 +1237,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							appRepoURL:               q.ApplicationSource.RepoURL,
 							appRevision:              q.Revision,
 							commitSHA:                commitSHA,
-							sameRepoAndRevisionAsApp: isSameRepoAndRevision(sourceRepoURL, sourceRevision, refSourceMapping),
+							sameRepoAndRevisionAsApp: isSameRepoAndRevision(sourceRepoURL, sourceRevision, q.ApplicationSource.TagPrefix, refSourceMapping),
 							ociRefPaths:              ociRefPaths,
 						}
 						var ref repoRef
@@ -2875,7 +2878,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 			// resolving the branch again, so a branch moved between the two lookups cannot store its
 			// parameters under the old commit.
 			refSHA := refSourceCommitSHAs[refNormalizedURL]
-			if isSameRepoAndRevision(mainRepoURL, sourceRevision, refSource) {
+			if isSameRepoAndRevision(mainRepoURL, sourceRevision, q.Source.TagPrefix, refSource) {
 				refSHA = commitSHA
 			}
 			var gitClient git.Client
@@ -2942,7 +2945,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	}
 	params, err := h.GetParameters(resolvedSelectedValueFiles, appPath, repoRoot)
 	if err != nil {
-		return err
+		return redactPathsInError(err, "", gitRepoPaths, ociRefPaths)
 	}
 	for k, v := range params {
 		res.Helm.Parameters = append(res.Helm.Parameters, &v1alpha1.HelmParameter{

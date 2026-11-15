@@ -79,7 +79,14 @@ spec:
 ```yaml
 apiVersion: argoproj.io/v1alpha1
 kind: Application
+metadata:
+  name: prometheus
+  namespace: argocd
 spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
   sources:
   - repoURL: 'https://prometheus-community.github.io/helm-charts'
     chart: prometheus

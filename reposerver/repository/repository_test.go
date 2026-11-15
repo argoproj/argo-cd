@@ -1136,6 +1136,13 @@ func TestRedactPathsInError_RedactsOCIPath(t *testing.T) {
 	assert.ErrorIs(t, wrapped, context.Canceled)
 }
 
+func TestIsSameRepoAndRevision_TagPrefix(t *testing.T) {
+	ref := &v1alpha1.RefTarget{Repo: v1alpha1.Repository{Repo: "https://github.com/foo/bar"}, TargetRevision: "v1.0.0"}
+	assert.True(t, isSameRepoAndRevision("https://github.com/foo/bar.git", "v1.0.0", "", ref))
+	// With a tag prefix the app resolved "<prefix>v1.0.0", not the ref's "v1.0.0": different commits.
+	assert.False(t, isSameRepoAndRevision("https://github.com/foo/bar.git", "v1.0.0", "app/", ref))
+}
+
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	service, gitClient, _ := newServiceWithMocks(t, ".")
 
@@ -4680,6 +4687,22 @@ func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
 		require.ErrorContains(t, err, "failed to extract OCI image")
 		// The underlying cause must not leak to the client.
 		assert.NotContains(t, err.Error(), "layer digest mismatch")
+	})
+
+	t.Run("value file read errors do not leak the extracted artifact path", func(t *testing.T) {
+		ociDir := t.TempDir()
+		// A directory in place of the value file makes GetParameters fail with the full path in the message.
+		require.NoError(t, os.Mkdir(filepath.Join(ociDir, "values.yaml"), 0o755))
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digest, nil)
+			ociClient.EXPECT().Extract(mock.Anything, digest).Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		q := newQuery(map[string]*v1alpha1.RefTarget{"$values": ociRef("v1.0.0")}, "$values/values.yaml")
+		res := apiclient.RepoAppDetailsResponse{}
+		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths, nil)
+		require.ErrorContains(t, err, "failed to read value file")
+		assert.NotContains(t, err.Error(), ociDir)
 	})
 
 	t.Run("an OCI ref that is not referenced by any value file is not extracted", func(t *testing.T) {
