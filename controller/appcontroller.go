@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
@@ -159,6 +160,9 @@ type ApplicationController struct {
 	reconciledAtCache             *appstatecache.Cache
 	reconciledAtHeartbeat         time.Duration
 	startedAt                     time.Time
+	// hosts holds each cluster's Node/Pod index for getAppHosts, keyed by server.
+	hosts   map[string]*clusterHostsEntry
+	hostsMu sync.Mutex
 
 	// dynamicClusterDistributionEnabled if disabled deploymentInformer is never initialized
 	dynamicClusterDistributionEnabled bool
@@ -705,42 +709,52 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 		corev1.ResourceMemory:  true,
 	}
 	appPods := map[kube.ResourceKey]bool{}
+	appNamespaces := map[string]bool{}
 	for _, node := range appNodes {
 		if node.Group == "" && node.Kind == kube.PodKind {
 			appPods[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = true
+			appNamespaces[node.Namespace] = true
 		}
 	}
 
-	allNodesInfo := map[string]statecache.NodeInfo{}
-	allPodsByNode := map[string][]statecache.PodInfo{}
-	appPodsByNode := map[string][]statecache.PodInfo{}
-	err := ctrl.stateCache.IterateResources(destCluster, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
-		key := res.ResourceKey()
-
-		switch {
-		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
-			allNodesInfo[key.Name] = *info.NodeInfo
-		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
-			if appPods[key] {
-				appPodsByNode[info.PodInfo.NodeName] = append(appPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
-			} else {
-				allPodsByNode[info.PodInfo.NodeName] = append(allPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
-			}
-		}
-	})
-	ts.AddCheckpoint("iterate_resources_ms")
+	// The app's own pods are read live, since their changes are what refresh
+	// the app; only neighbors come from the shared index.
+	clusterCache, err := ctrl.stateCache.GetClusterCache(destCluster)
 	if err != nil {
 		return nil, err
 	}
+	appPodsByNode := map[string][]statecache.PodInfo{}
+	for ns := range appNamespaces {
+		for _, res := range clusterCache.FindResources(ns, func(r *clustercache.Resource) bool { return appPods[r.ResourceKey()] }) {
+			if info, ok := res.Info.(*statecache.ResourceInfo); ok && info.PodInfo != nil {
+				appPodsByNode[info.PodInfo.NodeName] = append(appPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
+			}
+		}
+	}
+	ts.AddCheckpoint("find_app_pods_ms")
+	if len(appPodsByNode) == 0 {
+		return nil, nil
+	}
+
+	appNodeNames := make([]string, 0, len(appPodsByNode))
+	for nodeName := range appPodsByNode {
+		if nodeName != "" {
+			appNodeNames = append(appNodeNames, nodeName)
+		}
+	}
+	index, err := ctrl.getClusterHosts(destCluster, appNodeNames)
+	ts.AddCheckpoint("get_cluster_hosts_ms")
+	if err != nil {
+		return nil, err
+	}
+	allNodesInfo := index.nodes
 
 	var hosts []appv1.HostInfo
-	for nodeName, appPods := range appPodsByNode {
+	for nodeName, podsOnNode := range appPodsByNode {
 		node, ok := allNodesInfo[nodeName]
 		if !ok {
 			continue
 		}
-
-		neighbors := allPodsByNode[nodeName]
 
 		resources := map[corev1.ResourceName]appv1.HostResourceInfo{}
 		for name, resource := range node.Capacity {
@@ -750,7 +764,7 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			resources[name] = info
 		}
 
-		for _, pod := range appPods {
+		for _, pod := range podsOnNode {
 			for name, resource := range pod.ResourceRequests {
 				if !supportedResourceNames[name] {
 					continue
@@ -762,7 +776,10 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			}
 		}
 
-		for _, pod := range neighbors {
+		for key, pod := range index.podsByNode[nodeName] {
+			if appPods[key] {
+				continue
+			}
 			for name, resource := range pod.ResourceRequests {
 				if !supportedResourceNames[name] || pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
 					continue
@@ -795,6 +812,111 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 	}
 	ts.AddCheckpoint("process_app_pods_by_node_ms")
 	return hosts, nil
+}
+
+// clusterHosts is a cluster's Nodes and Pods as of builtAt. It is never
+// modified after it is published.
+type clusterHosts struct {
+	builtAt    time.Time
+	nodes      map[string]statecache.NodeInfo
+	podsByNode map[string]map[kube.ResourceKey]statecache.PodInfo
+}
+
+type clusterHostsEntry struct {
+	current atomic.Pointer[clusterHosts]
+	// rebuild serializes rebuilds, so concurrent reconciles scan the cluster once.
+	rebuild sync.Mutex
+}
+
+// appHostsIndexTTL is how long getClusterHosts reuses a cluster's index.
+var appHostsIndexTTL = 10 * time.Second
+
+// getClusterHosts returns destCluster's Node/Pod index, at most
+// appHostsIndexTTL old, so reconciles don't each walk the whole cluster cache
+// (#28539). Neighbor pods don't refresh the app, so hosts were never fresher
+// than the app's last refresh anyway. An index missing one of nodeNames (the
+// app's pods' nodes) is rebuilt, so newly added nodes show up.
+func (ctrl *ApplicationController) getClusterHosts(destCluster *appv1.Cluster, nodeNames []string) (*clusterHosts, error) {
+	ctrl.hostsMu.Lock()
+	if ctrl.hosts == nil {
+		ctrl.hosts = map[string]*clusterHostsEntry{}
+	}
+	entry := ctrl.hosts[destCluster.Server]
+	if entry == nil {
+		entry = &clusterHostsEntry{}
+		ctrl.hosts[destCluster.Server] = entry
+	}
+	ctrl.hostsMu.Unlock()
+
+	hasNodes := func(h *clusterHosts) bool {
+		for _, name := range nodeNames {
+			if _, ok := h.nodes[name]; !ok {
+				return false
+			}
+		}
+		return true
+	}
+	current := entry.current.Load()
+	switch {
+	case current != nil && hasNodes(current):
+		if time.Since(current.builtAt) < appHostsIndexTTL {
+			return current, nil
+		}
+		// Serve the expired index while another reconcile rebuilds it.
+		if !entry.rebuild.TryLock() {
+			return current, nil
+		}
+	case current != nil && time.Since(current.builtAt) < time.Second:
+		// Just built and still missing a node: the node is gone, not new.
+		return current, nil
+	default:
+		entry.rebuild.Lock()
+	}
+	defer entry.rebuild.Unlock()
+	// Another reconcile may have rebuilt it while this one waited.
+	if latest := entry.current.Load(); latest != current && latest != nil && (hasNodes(latest) || time.Since(latest.builtAt) < time.Second) {
+		return latest, nil
+	}
+
+	next := &clusterHosts{
+		builtAt:    time.Now(),
+		nodes:      map[string]statecache.NodeInfo{},
+		podsByNode: map[string]map[kube.ResourceKey]statecache.PodInfo{},
+	}
+	err := ctrl.stateCache.IterateResources(destCluster, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
+		key := res.ResourceKey()
+		switch {
+		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
+			next.nodes[key.Name] = *info.NodeInfo
+		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
+			pods := next.podsByNode[info.PodInfo.NodeName]
+			if pods == nil {
+				pods = map[kube.ResourceKey]statecache.PodInfo{}
+				next.podsByNode[info.PodInfo.NodeName] = pods
+			}
+			pods[key] = *info.PodInfo
+		}
+	})
+	if err != nil {
+		if current != nil && time.Since(current.builtAt) < time.Minute {
+			log.WithError(err).Warnf("Failed to rebuild hosts index for cluster %s, using the previous one", destCluster.Server)
+			return current, nil
+		}
+		return nil, err
+	}
+	entry.current.Store(next)
+
+	// Drop indexes not rebuilt for an hour, which means no reconcile has read
+	// them since (cluster removed, or moved to another shard). Entries still
+	// building their first index are left alone.
+	ctrl.hostsMu.Lock()
+	for server, e := range ctrl.hosts {
+		if h := e.current.Load(); h != nil && time.Since(h.builtAt) > time.Hour {
+			delete(ctrl.hosts, server)
+		}
+	}
+	ctrl.hostsMu.Unlock()
+	return next, nil
 }
 
 func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destCluster *appv1.Cluster, app *appv1.Application, comparisonResult *comparisonResult) ([]*appv1.ResourceDiff, error) {
