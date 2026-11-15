@@ -4165,7 +4165,7 @@ func Test_populateHelmAppDetails(t *testing.T) {
 	}
 	appPath, err := filepath.Abs("./testdata/values-files/")
 	require.NoError(t, err)
-	err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths)
+	err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &q, emptyTempPaths, nil)
 	require.NoError(t, err)
 	assert.Len(t, res.Helm.Parameters, 3)
 	assert.Len(t, res.Helm.ValueFiles, 5)
@@ -4541,7 +4541,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			appPath, err = filepath.Abs(repoRoot)
 			require.NoError(t, err)
 			res = apiclient.RepoAppDetailsResponse{}
-			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths)
+			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths, nil)
 			tc.testResults(t)
 		})
 	}
@@ -4588,7 +4588,7 @@ func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
 
 		q := newQuery(map[string]*v1alpha1.RefTarget{"$values": ociRef("v1.0.0")}, "$values/values.yaml")
 		res := apiclient.RepoAppDetailsResponse{}
-		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths))
+		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths, nil))
 		assert.Equal(t, []*v1alpha1.HelmParameter{{Name: "from", Value: "oci"}}, res.Helm.Parameters)
 	})
 
@@ -4605,7 +4605,7 @@ func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
 
 		q := newQuery(map[string]*v1alpha1.RefTarget{"$values": ociRef("v1.0.0")}, "$values/values.yaml")
 		res := apiclient.RepoAppDetailsResponse{}
-		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths))
+		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths, nil))
 		assert.True(t, closed, "the OCI closer must run before populateHelmAppDetails returns")
 	})
 
@@ -4620,7 +4620,7 @@ func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
 
 		q := newQuery(map[string]*v1alpha1.RefTarget{"$a": ociRef("v1.0.0"), "$b": ociRef("v1.0.0")}, "$a/values.yaml", "$b/values.yaml")
 		res := apiclient.RepoAppDetailsResponse{}
-		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths))
+		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths, nil))
 		ociClient.AssertNumberOfCalls(t, "Extract", 1)
 	})
 
@@ -4633,7 +4633,7 @@ func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
 
 		q := newQuery(map[string]*v1alpha1.RefTarget{"$a": ociRef("v1.0.0"), "$b": ociRef("v2.0.0")}, "$a/values.yaml", "$b/values.yaml")
 		res := apiclient.RepoAppDetailsResponse{}
-		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths, nil)
 		require.ErrorContains(t, err, "cannot reference multiple revisions for the same repository")
 	})
 
@@ -4645,7 +4645,7 @@ func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
 
 		q := newQuery(map[string]*v1alpha1.RefTarget{"$values": ociRef("v1.0.0")}, "$values/values.yaml")
 		res := apiclient.RepoAppDetailsResponse{}
-		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths, nil)
 		require.ErrorContains(t, err, "failed to extract OCI image")
 		// The underlying cause must not leak to the client.
 		assert.NotContains(t, err.Error(), "layer digest mismatch")
@@ -4658,7 +4658,7 @@ func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
 
 		q := newQuery(map[string]*v1alpha1.RefTarget{"$values": ociRef("v1.0.0")}, "my-chart-values.yaml")
 		res := apiclient.RepoAppDetailsResponse{}
-		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths))
+		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths, nil))
 	})
 }
 
@@ -4737,10 +4737,10 @@ func TestGetAppDetails_OCIRefMovedTagInvalidatesCache(t *testing.T) {
 		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
 		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
 
-		// Each GetAppDetails call resolves the ref twice (once for the cache key, once when
-		// extracting). The tag points at digestV1 for the first call and digestV2 for the second.
-		ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digestV1, nil).Times(2)
-		ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digestV2, nil).Times(2)
+		// Each GetAppDetails call resolves the ref exactly once, for the cache key; extraction reuses
+		// that digest. The tag points at digestV1 for the first call and digestV2 for the second.
+		ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digestV1, nil).Once()
+		ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digestV2, nil).Once()
 		ociClient.EXPECT().Extract(mock.Anything, digestV1).Return(ociDirV1, utilio.NopCloser, nil).Once()
 		ociClient.EXPECT().Extract(mock.Anything, digestV2).Return(ociDirV2, utilio.NopCloser, nil).Once()
 
@@ -4777,7 +4777,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("inbound", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", "main", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/in-bounds-values-file-link/", "./testdata/in-bounds-values-file-link/", "dummy_sha", "main", &q, emptyTempPaths, nil)
 		require.NoError(t, err)
 		assert.NotEmpty(t, res.Helm.Values)
 		assert.NotEmpty(t, res.Helm.Parameters)
@@ -4786,7 +4786,7 @@ func Test_populateHelmAppDetails_values_symlinks(t *testing.T) {
 	t.Run("out of bounds", func(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		q := apiclient.RepoServerAppDetailsQuery{Repo: &v1alpha1.Repository{}, Source: &v1alpha1.ApplicationSource{}}
-		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, "main", &q, emptyTempPaths)
+		err := service.populateHelmAppDetails(t.Context(), &res, "./testdata/out-of-bounds-values-file-link/", "./testdata/out-of-bounds-values-file-link/", sha, "main", &q, emptyTempPaths, nil)
 		require.NoError(t, err)
 		assert.Empty(t, res.Helm.Values)
 		assert.Empty(t, res.Helm.Parameters)

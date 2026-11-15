@@ -127,6 +127,21 @@ func TestResolveOCIRefSource(t *testing.T) {
 		assert.Equal(t, "$ref", ref.key)
 		assert.Equal(t, ociDir, req.ociRefPaths.GetPathIfExists(req.normalizedRepoURL))
 	})
+
+	t.Run("recorded digest is extracted without resolving the tag again", func(t *testing.T) {
+		ociDir := t.TempDir()
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			// No ResolveRevision expectation: a second resolution could see a moved tag and store
+			// its content under the digest already recorded in the cache key.
+			ociClient.EXPECT().Extract(mock.Anything, "sha256:recorded").Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		req := ociRefRequest(t, repo)
+		req.ociDigest = "sha256:recorded"
+		ref, _, err := service.resolveOCIRefSource(t.Context(), req)
+		require.NoError(t, err)
+		assert.Equal(t, "sha256:recorded", ref.commitSHA)
+	})
 }
 
 func TestResolveGitRefSource(t *testing.T) {
