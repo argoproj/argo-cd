@@ -1598,7 +1598,17 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 			templateOpts.Namespace = appHelm.Namespace
 		}
 
-		resolvedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, env, q.GetValuesFileSchemes(), appHelm.ValueFiles, q.RefSources, gitRepoPaths, ociPaths, appHelm.IgnoreMissingValueFiles)
+		resolver := &valueFileResolver{
+			appPath:                  appPath,
+			repoRoot:                 repoRoot,
+			env:                      env,
+			allowedValueFilesSchemas: q.GetValuesFileSchemes(),
+			refSources:               q.RefSources,
+			gitRepoPaths:             gitRepoPaths,
+			ociPaths:                 ociPaths,
+			ignoreMissingValueFiles:  appHelm.IgnoreMissingValueFiles,
+		}
+		resolvedValueFiles, err := resolver.ResolveValueFiles(appHelm.ValueFiles)
 		if err != nil {
 			return nil, "", fmt.Errorf("error resolving helm value files: %w", err)
 		}
@@ -1767,33 +1777,6 @@ func redactPathsInError(err error, extraValuesPath pathutil.ResolvedFilePath, pa
 		msg: redactPaths(err.Error(), extraValuesPath, pathSets...),
 		err: err,
 	}
-}
-
-// getResolvedValueFiles resolves a list of raw value file paths (handling local
-// files, $ref Git/OCI sources, and glob expansion) via the valueFileResolver.
-func getResolvedValueFiles(
-	appPath string,
-	repoRoot string,
-	env *v1alpha1.Env,
-	allowedValueFilesSchemas []string,
-	rawValueFiles []string,
-	refSources map[string]*v1alpha1.RefTarget,
-	gitRepoPaths utilio.TempPaths,
-	ociRepoPaths utilio.TempPaths,
-	ignoreMissingValueFiles bool,
-) ([]pathutil.ResolvedFilePath, error) {
-	resolver := newValueFileResolver(
-		appPath,
-		repoRoot,
-		env,
-		allowedValueFilesSchemas,
-		refSources,
-		gitRepoPaths,
-		ociRepoPaths,
-		ignoreMissingValueFiles,
-	)
-
-	return resolver.ResolveValueFiles(rawValueFiles)
 }
 
 func getReferencedSources(rawValueFiles []string, refSources map[string]*v1alpha1.RefTarget) map[string]*v1alpha1.RefTarget {
@@ -2918,7 +2901,17 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	if q.Source.Helm != nil {
 		ignoreMissingValueFiles = q.Source.Helm.IgnoreMissingValueFiles
 	}
-	resolvedSelectedValueFiles, err := getResolvedValueFiles(appPath, repoRoot, &v1alpha1.Env{}, q.GetValuesFileSchemes(), selectedValueFiles, q.RefSources, gitRepoPaths, ociRefPaths, ignoreMissingValueFiles)
+	resolver := &valueFileResolver{
+		appPath:                  appPath,
+		repoRoot:                 repoRoot,
+		env:                      &v1alpha1.Env{},
+		allowedValueFilesSchemas: q.GetValuesFileSchemes(),
+		refSources:               q.RefSources,
+		gitRepoPaths:             gitRepoPaths,
+		ociPaths:                 ociRefPaths,
+		ignoreMissingValueFiles:  ignoreMissingValueFiles,
+	}
+	resolvedSelectedValueFiles, err := resolver.ResolveValueFiles(selectedValueFiles)
 	if err != nil {
 		return fmt.Errorf("failed to resolve value files: %w", err)
 	}

@@ -4879,7 +4879,7 @@ func TestGetHelmRepo_NamedReposAlias(t *testing.T) {
 	assert.Equal(t, "https://example.com", helmRepos[0].Repo)
 }
 
-func Test_getResolvedValueFiles(t *testing.T) {
+func Test_valueFileResolver_ResolveValueFiles(t *testing.T) {
 	t.Parallel()
 
 	tempDir := t.TempDir()
@@ -5025,7 +5025,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 		tcc := tc
 		t.Run(tcc.name, func(t *testing.T) {
 			t.Parallel()
-			resolvedPaths, err := getResolvedValueFiles(path.Join(tempDir, "main-repo"), path.Join(tempDir, "main-repo"), tcc.env, []string{}, []string{tcc.rawPath}, tcc.refSources, paths, paths, false)
+			resolvedPaths, err := (&valueFileResolver{appPath: path.Join(tempDir, "main-repo"), repoRoot: path.Join(tempDir, "main-repo"), env: tcc.env, allowedValueFilesSchemas: []string{}, refSources: tcc.refSources, gitRepoPaths: paths, ociPaths: paths, ignoreMissingValueFiles: false}).ResolveValueFiles([]string{tcc.rawPath})
 			if !tcc.expectedErr {
 				require.NoError(t, err)
 				require.Len(t, resolvedPaths, 1)
@@ -5038,7 +5038,7 @@ func Test_getResolvedValueFiles(t *testing.T) {
 	}
 }
 
-func Test_getResolvedValueFiles_glob(t *testing.T) {
+func Test_valueFileResolver_ResolveValueFiles_glob(t *testing.T) {
 	t.Parallel()
 
 	tempDir := t.TempDir()
@@ -5248,7 +5248,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 			repoPath := path.Join(tempDir, "main-repo")
-			resolvedPaths, err := getResolvedValueFiles(repoPath, repoPath, tt.env, []string{}, []string{tt.rawPath}, tt.refSources, paths, paths, tt.ignoreMissingValueFiles)
+			resolvedPaths, err := (&valueFileResolver{appPath: repoPath, repoRoot: repoPath, env: tt.env, allowedValueFilesSchemas: []string{}, refSources: tt.refSources, gitRepoPaths: paths, ociPaths: paths, ignoreMissingValueFiles: tt.ignoreMissingValueFiles}).ResolveValueFiles([]string{tt.rawPath})
 			if tt.expectedErr {
 				require.Error(t, err)
 				return
@@ -5268,14 +5268,11 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 	t.Run("glob then explicit: explicit entry placed at end, giving it highest Helm precedence", func(t *testing.T) {
 		t.Parallel()
 		repoPath := path.Join(tempDir, "main-repo")
-		resolvedPaths, err := getResolvedValueFiles(
-			repoPath, repoPath,
-			&v1alpha1.Env{}, []string{},
+		resolvedPaths, err := (&valueFileResolver{appPath: repoPath, repoRoot: repoPath, env: &v1alpha1.Env{}, allowedValueFilesSchemas: []string{}, refSources: map[string]*v1alpha1.RefTarget{}, gitRepoPaths: paths, ociPaths: paths, ignoreMissingValueFiles: false}).ResolveValueFiles(
 			[]string{
 				"envs/*.yaml", // glob - z.yaml is explicit so skipped; only a.yaml added
 				"envs/z.yaml", // explicit - placed last, highest precedence
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -5286,14 +5283,11 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 	t.Run("explicit path before glob: explicit position is kept, glob re-match is dropped", func(t *testing.T) {
 		t.Parallel()
 		repoPath := path.Join(tempDir, "main-repo")
-		resolvedPaths, err := getResolvedValueFiles(
-			repoPath, repoPath,
-			&v1alpha1.Env{}, []string{},
+		resolvedPaths, err := (&valueFileResolver{appPath: repoPath, repoRoot: repoPath, env: &v1alpha1.Env{}, allowedValueFilesSchemas: []string{}, refSources: map[string]*v1alpha1.RefTarget{}, gitRepoPaths: paths, ociPaths: paths, ignoreMissingValueFiles: false}).ResolveValueFiles(
 			[]string{
 				"prod/a.yaml", // explicit locks in position 0
 				"prod/*.yaml", // glob - a.yaml already seen, only b.yaml is new
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -5304,14 +5298,11 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 	t.Run("glob before explicit path: explicit position wins, glob skips the explicitly listed file", func(t *testing.T) {
 		t.Parallel()
 		repoPath := path.Join(tempDir, "main-repo")
-		resolvedPaths, err := getResolvedValueFiles(
-			repoPath, repoPath,
-			&v1alpha1.Env{}, []string{},
+		resolvedPaths, err := (&valueFileResolver{appPath: repoPath, repoRoot: repoPath, env: &v1alpha1.Env{}, allowedValueFilesSchemas: []string{}, refSources: map[string]*v1alpha1.RefTarget{}, gitRepoPaths: paths, ociPaths: paths, ignoreMissingValueFiles: false}).ResolveValueFiles(
 			[]string{
 				"prod/*.yaml", // glob - a.yaml is explicit so skipped; only b.yaml added (pos 0)
 				"prod/a.yaml", // explicit - placed here at pos 1 (highest precedence)
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 2)
@@ -5322,14 +5313,11 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 	t.Run("two overlapping globs: second glob only adds files not matched by first", func(t *testing.T) {
 		t.Parallel()
 		repoPath := path.Join(tempDir, "main-repo")
-		resolvedPaths, err := getResolvedValueFiles(
-			repoPath, repoPath,
-			&v1alpha1.Env{}, []string{},
+		resolvedPaths, err := (&valueFileResolver{appPath: repoPath, repoRoot: repoPath, env: &v1alpha1.Env{}, allowedValueFilesSchemas: []string{}, refSources: map[string]*v1alpha1.RefTarget{}, gitRepoPaths: paths, ociPaths: paths, ignoreMissingValueFiles: false}).ResolveValueFiles(
 			[]string{
 				"prod/*.yaml",    // adds a.yaml, b.yaml
 				"prod/**/*.yaml", // a.yaml, b.yaml already seen; adds nested/c.yaml, nested/d.yaml
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 4)
@@ -5342,9 +5330,7 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 	t.Run("explicit paths take priority: globs skip explicitly listed files, which are placed at their explicit positions", func(t *testing.T) {
 		t.Parallel()
 		repoPath := path.Join(tempDir, "main-repo")
-		resolvedPaths, err := getResolvedValueFiles(
-			repoPath, repoPath,
-			&v1alpha1.Env{}, []string{},
+		resolvedPaths, err := (&valueFileResolver{appPath: repoPath, repoRoot: repoPath, env: &v1alpha1.Env{}, allowedValueFilesSchemas: []string{}, refSources: map[string]*v1alpha1.RefTarget{}, gitRepoPaths: paths, ociPaths: paths, ignoreMissingValueFiles: false}).ResolveValueFiles(
 			[]string{
 				"prod/a.yaml",        // explicit - pos 0
 				"prod/*.yaml",        // a.yaml and b.yaml are both explicit, skipped entirely
@@ -5352,7 +5338,6 @@ func Test_getResolvedValueFiles_glob(t *testing.T) {
 				"prod/**/*.yaml",     // a.yaml, b.yaml, nested/c.yaml all explicit and skipped; nested/d.yaml added - pos 2
 				"prod/nested/c.yaml", // explicit - pos 3
 			},
-			map[string]*v1alpha1.RefTarget{}, paths, paths, false,
 		)
 		require.NoError(t, err)
 		require.Len(t, resolvedPaths, 4)
@@ -5455,11 +5440,11 @@ func Test_verifyGlobMatchesWithinRoot(t *testing.T) {
 	}
 }
 
-// Test_getResolvedValueFiles_glob_symlink_escape is an integration-level check
+// Test_valueFileResolver_ResolveValueFiles_glob_symlink_escape is an integration-level check
 // that verifyGlobMatchesWithinRoot is wired into glob expansion correctly: a
-// symlink inside the repo pointing outside must cause getResolvedValueFiles to
+// symlink inside the repo pointing outside must cause ResolveValueFiles to
 // return an error rather than silently including the external file.
-func Test_getResolvedValueFiles_glob_symlink_escape(t *testing.T) {
+func Test_valueFileResolver_ResolveValueFiles_glob_symlink_escape(t *testing.T) {
 	t.Parallel()
 
 	tempDir := t.TempDir()
@@ -5475,7 +5460,7 @@ func Test_getResolvedValueFiles_glob_symlink_escape(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(outsideDir, "secret.yaml"), []byte("password: hunter2"), 0o644))
 	require.NoError(t, os.Symlink(filepath.Join(outsideDir, "secret.yaml"), filepath.Join(repoDir, "values", "escape.yaml")))
 
-	_, err := getResolvedValueFiles(repoDir, repoDir, &v1alpha1.Env{}, []string{}, []string{"values/*.yaml"}, map[string]*v1alpha1.RefTarget{}, paths, paths, false)
+	_, err := (&valueFileResolver{appPath: repoDir, repoRoot: repoDir, env: &v1alpha1.Env{}, allowedValueFilesSchemas: []string{}, refSources: map[string]*v1alpha1.RefTarget{}, gitRepoPaths: paths, ociPaths: paths, ignoreMissingValueFiles: false}).ResolveValueFiles([]string{"values/*.yaml"})
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "resolved to outside repository root")
 }

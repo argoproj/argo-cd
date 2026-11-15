@@ -52,16 +52,17 @@ func TestValueFileResolver_ResolveValueFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			resolver := newValueFileResolver(
-				appPath,
-				repoRoot,
-				&v1alpha1.Env{},
-				[]string{"https", "http"},
-				nil, // no ref sources for this test
+			resolver := &valueFileResolver{
+				appPath:                  appPath,
+				repoRoot:                 repoRoot,
+				env:                      &v1alpha1.Env{},
+				allowedValueFilesSchemas: []string{"https", "http"},
+				refSources:               nil,
+				gitRepoPaths:// no ref sources for this test
 				utilio.NewRandomizedTempPaths(t.TempDir()),
-				utilio.NewRandomizedTempPaths(t.TempDir()),
-				tt.ignoreMissingValueFiles,
-			)
+				ociPaths:                utilio.NewRandomizedTempPaths(t.TempDir()),
+				ignoreMissingValueFiles: tt.ignoreMissingValueFiles,
+			}
 
 			result, err := resolver.ResolveValueFiles(tt.rawValueFiles)
 			if tt.expectError {
@@ -83,16 +84,16 @@ func TestValueFileResolver_resolveRawPath_local(t *testing.T) {
 	testFile := filepath.Join(appPath, "test.yaml")
 	require.NoError(t, os.WriteFile(testFile, []byte("test"), 0o644))
 
-	resolver := newValueFileResolver(
-		appPath,
-		repoRoot,
-		&v1alpha1.Env{},
-		[]string{"https", "http"},
-		nil,
-		utilio.NewRandomizedTempPaths(t.TempDir()),
-		utilio.NewRandomizedTempPaths(t.TempDir()),
-		false,
-	)
+	resolver := &valueFileResolver{
+		appPath:                  appPath,
+		repoRoot:                 repoRoot,
+		env:                      &v1alpha1.Env{},
+		allowedValueFilesSchemas: []string{"https", "http"},
+		refSources:               nil,
+		gitRepoPaths:             utilio.NewRandomizedTempPaths(t.TempDir()),
+		ociPaths:                 utilio.NewRandomizedTempPaths(t.TempDir()),
+		ignoreMissingValueFiles:  false,
+	}
 
 	// Test existing local file
 	resolved, err := resolver.resolveRawPath("test.yaml")
@@ -154,19 +155,19 @@ func TestValueFileResolver_resolveRawPath_referenced(t *testing.T) {
 	// Test verifies resolution of referenced value files from both Git and OCI repositories.
 	// Neither ref source is present in the temp paths, so resolution returns an error rather
 	// than panicking - the point is that the ref branch is exercised for both URL schemes.
-	resolver := newValueFileResolver(
-		"/app",
-		"/repo",
-		&v1alpha1.Env{},
-		[]string{"https"},
-		map[string]*v1alpha1.RefTarget{
+	resolver := &valueFileResolver{
+		appPath:                  "/app",
+		repoRoot:                 "/repo",
+		env:                      &v1alpha1.Env{},
+		allowedValueFilesSchemas: []string{"https"},
+		refSources: map[string]*v1alpha1.RefTarget{
 			"$git": {Repo: v1alpha1.Repository{Repo: "https://github.com/test/repo.git"}},
 			"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/chart"}},
 		},
-		utilio.NewRandomizedTempPaths(t.TempDir()),
-		utilio.NewRandomizedTempPaths(t.TempDir()),
-		false,
-	)
+		gitRepoPaths:            utilio.NewRandomizedTempPaths(t.TempDir()),
+		ociPaths:                utilio.NewRandomizedTempPaths(t.TempDir()),
+		ignoreMissingValueFiles: false,
+	}
 
 	// Git ref source - repo not registered in temp paths, so it errors out.
 	_, err := resolver.resolveRawPath("$git/values.yaml")
@@ -187,18 +188,18 @@ func TestValueFileResolver_resolveRawPath_OCIEffectiveRoot(t *testing.T) {
 	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), ociDir)
 
-	resolver := newValueFileResolver(
-		"/app",
-		"/repo",
-		&v1alpha1.Env{},
-		[]string{"https"},
-		map[string]*v1alpha1.RefTarget{
+	resolver := &valueFileResolver{
+		appPath:                  "/app",
+		repoRoot:                 "/repo",
+		env:                      &v1alpha1.Env{},
+		allowedValueFilesSchemas: []string{"https"},
+		refSources: map[string]*v1alpha1.RefTarget{
 			"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/chart"}},
 		},
-		utilio.NewRandomizedTempPaths(t.TempDir()),
-		ociPaths,
-		false,
-	)
+		gitRepoPaths:            utilio.NewRandomizedTempPaths(t.TempDir()),
+		ociPaths:                ociPaths,
+		ignoreMissingValueFiles: false,
+	}
 
 	resolved, err := resolver.resolveRawPath("$oci/values.yaml")
 	require.NoError(t, err)
@@ -220,18 +221,18 @@ func TestValueFileResolver_ResolveValueFiles_OCIGlob(t *testing.T) {
 	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), ociDir)
 
-	resolver := newValueFileResolver(
-		appPath,
-		repoRoot,
-		&v1alpha1.Env{},
-		[]string{"https"},
-		map[string]*v1alpha1.RefTarget{
+	resolver := &valueFileResolver{
+		appPath:                  appPath,
+		repoRoot:                 repoRoot,
+		env:                      &v1alpha1.Env{},
+		allowedValueFilesSchemas: []string{"https"},
+		refSources: map[string]*v1alpha1.RefTarget{
 			"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/chart"}},
 		},
-		utilio.NewRandomizedTempPaths(t.TempDir()),
-		ociPaths,
-		false,
-	)
+		gitRepoPaths:            utilio.NewRandomizedTempPaths(t.TempDir()),
+		ociPaths:                ociPaths,
+		ignoreMissingValueFiles: false,
+	}
 
 	result, err := resolver.ResolveValueFiles([]string{"$oci/*.yaml"})
 	require.NoError(t, err)
@@ -294,18 +295,18 @@ func TestValueFileResolver_ResolveValueFiles_DoesNotLogResolvedPaths(t *testing.
 	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
 	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), ociDir)
 
-	resolver := newValueFileResolver(
-		appPath,
-		repoRoot,
-		&v1alpha1.Env{},
-		[]string{"https"},
-		map[string]*v1alpha1.RefTarget{
+	resolver := &valueFileResolver{
+		appPath:                  appPath,
+		repoRoot:                 repoRoot,
+		env:                      &v1alpha1.Env{},
+		allowedValueFilesSchemas: []string{"https"},
+		refSources: map[string]*v1alpha1.RefTarget{
 			"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/chart"}},
 		},
-		utilio.NewRandomizedTempPaths(t.TempDir()),
-		ociPaths,
-		false,
-	)
+		gitRepoPaths:            utilio.NewRandomizedTempPaths(t.TempDir()),
+		ociPaths:                ociPaths,
+		ignoreMissingValueFiles: false,
+	}
 
 	hook := logtest.NewGlobal()
 	t.Cleanup(hook.Reset)

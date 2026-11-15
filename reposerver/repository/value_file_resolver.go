@@ -27,29 +27,6 @@ type valueFileResolver struct {
 	ignoreMissingValueFiles  bool
 }
 
-// newValueFileResolver creates a new instance of valueFileResolver
-func newValueFileResolver(
-	appPath string,
-	repoRoot string,
-	env *v1alpha1.Env,
-	allowedValueFilesSchemas []string,
-	refSources map[string]*v1alpha1.RefTarget,
-	gitRepoPaths utilio.TempPaths,
-	ociPaths utilio.TempPaths,
-	ignoreMissingValueFiles bool,
-) *valueFileResolver {
-	return &valueFileResolver{
-		appPath:                  appPath,
-		repoRoot:                 repoRoot,
-		env:                      env,
-		allowedValueFilesSchemas: allowedValueFilesSchemas,
-		refSources:               refSources,
-		gitRepoPaths:             gitRepoPaths,
-		ociPaths:                 ociPaths,
-		ignoreMissingValueFiles:  ignoreMissingValueFiles,
-	}
-}
-
 // ResolveValueFiles resolves a list of raw value file paths to their resolved paths,
 // handling local files, $ref Git/OCI sources, and glob expansion.
 func (r *valueFileResolver) ResolveValueFiles(rawValueFiles []string) ([]pathutil.ResolvedFilePath, error) {
