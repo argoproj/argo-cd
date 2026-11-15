@@ -5,6 +5,7 @@ import {ExternalLink} from '../applications/components/application-urls';
 
 import {useViewPreferences} from '../shared/hooks/use-view-preferences';
 import {settingsQueries} from '../shared/queries';
+import {loadFailed} from '../shared/query-client';
 import {services} from '../shared/services';
 import './ui-banner.scss';
 
@@ -48,7 +49,7 @@ const CustomBanner = (props: {
 
 export const Banner = (props: React.PropsWithChildren<{}>) => {
     const [visible, setVisible] = React.useState(true);
-    const {data: settings} = useQuery(settingsQueries.get());
+    const {data: settings, isError, refetch} = useQuery(settingsQueries.get());
     const prefs = useViewPreferences();
     const content = settings?.uiBannerContent;
     // Forget an old "Don't show again" once the banner is removed, so a future banner shows again.
@@ -58,7 +59,7 @@ export const Banner = (props: React.PropsWithChildren<{}>) => {
         }
     }, [settings, content, prefs]);
     if (!settings) {
-        return null;
+        return isError ? loadFailed(refetch) : null;
     }
     const url = settings.uiBannerURL;
     const permanent = settings.uiBannerPermanent;

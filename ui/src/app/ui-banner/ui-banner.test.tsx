@@ -1,6 +1,6 @@
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import {services} from '../shared/services';
@@ -88,5 +88,28 @@ describe('Banner', () => {
         renderBanner();
 
         expect(await screen.findByRole('link', {name: /Chat now/})).toHaveAttribute('href', 'https://chat.example.com');
+    });
+
+    it('hides the banner when it is hidden elsewhere, such as in another tab', async () => {
+        mockSettings({uiBannerContent: content});
+        renderBanner();
+        await screen.findByText(content);
+        expect(bannerVisibility()).toBe('visible');
+
+        act(() => services.viewPreferences.updatePreferences({hideBannerContent: content}));
+
+        expect(bannerVisibility()).toBe('hidden');
+    });
+
+    it('offers to try again when settings fail to load, then shows the app', async () => {
+        jest.mocked(services.authService.settings).mockRejectedValueOnce(new Error('boom'));
+        mockSettings({uiBannerContent: content});
+        renderBanner();
+
+        fireEvent.click(await screen.findByText('try again'));
+
+        expect(await screen.findByText('app content')).toBeInTheDocument();
+        expect(screen.getByText(content)).toBeInTheDocument();
+        expect(services.authService.settings).toHaveBeenCalledTimes(2);
     });
 });
