@@ -292,7 +292,7 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 		// prepare and write manifest
 		manifestName, err := getSplitManifestName(metaObj)
 		if err != nil {
-				return fmt.Errorf("error resolving filename for using properties %v:%w", metaObj, err)
+			return fmt.Errorf("error resolving filename for using properties %v:%w", metaObj, err)
 		}
 
 		manifestPath := filepath.Join(currentManifestDirectoryPath, manifestName)
