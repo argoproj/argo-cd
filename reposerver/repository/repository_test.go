@@ -1136,13 +1136,6 @@ func TestRedactPathsInError_RedactsOCIPath(t *testing.T) {
 	assert.ErrorIs(t, wrapped, context.Canceled)
 }
 
-func TestIsSameRepoAndRevision_TagPrefix(t *testing.T) {
-	ref := &v1alpha1.RefTarget{Repo: v1alpha1.Repository{Repo: "https://github.com/foo/bar"}, TargetRevision: "v1.0.0"}
-	assert.True(t, isSameRepoAndRevision("https://github.com/foo/bar.git", "v1.0.0", "", ref))
-	// With a tag prefix the app resolved "<prefix>v1.0.0", not the ref's "v1.0.0": different commits.
-	assert.False(t, isSameRepoAndRevision("https://github.com/foo/bar.git", "v1.0.0", "app/", ref))
-}
-
 func TestGenerateManifestsUseExactRevision(t *testing.T) {
 	service, gitClient, _ := newServiceWithMocks(t, ".")
 
@@ -8050,9 +8043,91 @@ func TestResolveGitRefSource(t *testing.T) {
 		ref, closer, err := service.resolveGitRefSource(t.Context(), req)
 		require.NoError(t, err)
 		require.NotNil(t, closer)
-		defer closeAndLog(closer, "test lock")
+		defer utilio.Close(closer)
 		assert.Equal(t, "main", ref.revision)
 		assert.Equal(t, "primary-sha", ref.commitSHA)
 		assert.Equal(t, "$ref", ref.key)
 	})
+}
+
+// A primary source with a tagPrefix that references its own repository at the same targetRevision must
+// reuse the already-resolved commit: resolving the ref again without the prefix would yield a different
+// commit and trip the same-repository guard.
+func TestHelmChartReferencingSameRepoAndRevision_TagPrefix(t *testing.T) {
+	const (
+		repoURL   = "https://git.example.com/test/repo"
+		sha       = "1111111111111111111111111111111111111111"
+		revision  = "^1.0.0"
+		chartPath = "testdata/my-chart"
+	)
+	root, err := filepath.Abs(".")
+	require.NoError(t, err)
+	service, gitClient, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+		gitClient.EXPECT().Init().Return(nil)
+		gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(true)
+		gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		gitClient.EXPECT().LsRemote(revision).Return(sha, nil).Once()
+		gitClient.EXPECT().Root().Return(root)
+		gitClient.EXPECT().IsAnnotatedTag(mock.Anything, mock.Anything).Return(false)
+		gitClient.EXPECT().VerifyCommitSignature(mock.Anything, mock.Anything).Return("", nil)
+		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+		paths.EXPECT().GetPathIfExists(mock.Anything).Return(root)
+		paths.EXPECT().GetPaths().Return(map[string]string{"fake-nonce": root})
+	}, root)
+
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: repoURL, Path: chartPath, TargetRevision: revision, TagPrefix: "myapp/", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/my-chart/my-chart-values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: repoURL, TargetRevision: revision},
+		},
+	}
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{Repo: repoURL}, nil
+	}, []string{})
+	require.NoError(t, err)
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{Repo: repoURL}, ApplicationSource: &spec.Sources[0], Revision: revision, NoCache: true, RefSources: refSources, HasMultipleSources: true,
+		ProjectName: "something", ProjectSourceRepos: []string{"*"},
+	}
+	response, err := service.GenerateManifest(t.Context(), request)
+	require.NoError(t, err)
+	assert.Equal(t, sha, response.Revision)
+	gitClient.AssertExpectations(t)
+}
+
+// The OCI ref tag is resolved once by runRepoOperation; manifest generation must reuse that digest
+// instead of asking the registry again.
+func TestHelmChartReferencingOCIValues_ResolvesRevisionOnce(t *testing.T) {
+	const digest = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, helmClient *helmmocks.Client, ociClient *ocimocks.Client, paths *iomocks.TempPaths) {
+		paths.EXPECT().GetPaths().Return(nil)
+		helmClient.EXPECT().GetIndex(mock.Anything, mock.AnythingOfType("bool"), mock.Anything).Return(&helm.Index{Entries: map[string]helm.Entries{
+			"my-chart": {{Version: "1.1.0"}},
+		}}, nil)
+		helmClient.EXPECT().ExtractChart(mock.Anything, "my-chart", "1.1.0", false, int64(0), false).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		helmClient.EXPECT().CleanChartCache("my-chart", "1.1.0").Return(nil)
+		ociClient.EXPECT().ResolveRevision(mock.Anything, "1.0.0", mock.Anything).Return(digest, nil).Once()
+		ociClient.EXPECT().CleanCache(digest).Return(nil)
+		ociClient.EXPECT().Extract(mock.Anything, digest).Return("./testdata/my-chart", utilio.NopCloser, nil)
+	}, ".")
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/testdata/oci-ref-values/values.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "oci://registry.example.com/config/app-values", TargetRevision: "1.0.0"},
+		},
+	}
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{Repo: "oci://registry.example.com/config/app-values"}, nil
+	}, []string{})
+	require.NoError(t, err)
+	request := &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	}
+	_, err = service.GenerateManifest(t.Context(), request)
+	require.NoError(t, err)
 }

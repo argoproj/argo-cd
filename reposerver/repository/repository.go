@@ -405,7 +405,6 @@ func (s *Service) runRepoOperation(
 		// sources only reuse the resolved revision when that comparison is meaningful.
 		sourceRepoURL:   gitRepoURL,
 		sourceRevision:  unresolvedRevision,
-		sourceTagPrefix: source.TagPrefix,
 		sourceCommitSHA: revision,
 	})
 	if err != nil {
@@ -620,7 +619,6 @@ type refSourceResolver struct {
 	// sourceCommitSHA instead of resolving the revision a second time.
 	sourceRepoURL   string
 	sourceRevision  string
-	sourceTagPrefix string
 	sourceCommitSHA string
 }
 
@@ -699,7 +697,7 @@ func resolveReferencedSources(ctx context.Context, resolver refSourceResolver) (
 				log.Errorf("Failed to get OCI client for repo %s: %v", refSourceMapping.Repo.Repo, err)
 				return nil, fmt.Errorf("failed to get OCI client for repo %s", refSourceMapping.Repo.Repo)
 			}
-		case isSameRepoAndRevision(resolver.sourceRepoURL, resolver.sourceRevision, resolver.sourceTagPrefix, refSourceMapping):
+		case isSameRepoAndRevision(resolver.sourceRepoURL, resolver.sourceRevision, refSourceMapping):
 			// The primary source already resolved this repository at this revision, so reuse its
 			// commit SHA instead of paying for another ls-remote.
 			referencedCommitSHA = resolver.sourceCommitSHA
@@ -718,10 +716,9 @@ func resolveReferencedSources(ctx context.Context, resolver refSourceResolver) (
 }
 
 // isSameRepoAndRevision returns true if the referenced source points to the same git repository and revision as the
-// source referencing it. A primary source with a TagPrefix resolves its revision against prefixed tags, which a ref
-// source (that has no TagPrefix) does not, so its commit cannot be reused in that case.
-func isSameRepoAndRevision(sourceRepoURL, sourceRevision, sourceTagPrefix string, refTarget *v1alpha1.RefTarget) bool {
-	return sourceRepoURL != "" && sourceRevision != "" && sourceTagPrefix == "" &&
+// source referencing it.
+func isSameRepoAndRevision(sourceRepoURL, sourceRevision string, refTarget *v1alpha1.RefTarget) bool {
+	return sourceRepoURL != "" && sourceRevision != "" &&
 		refTarget.TargetRevision == sourceRevision &&
 		git.NormalizeGitURL(refTarget.Repo.Repo) == git.NormalizeGitURL(sourceRepoURL)
 }
@@ -791,7 +788,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	tarConcluded := false
 	var promise *ManifestResponsePromise
 
-	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc, _ cache.ResolvedRevisions) error {
+	operation := func(repoRoot, commitSHA, revision string, ctxSrc operationContextSrc, refSourceCommitSHAs cache.ResolvedRevisions) error {
 		// do not generate manifests if Path and Chart fields are not set for a source in Multiple Sources
 		if q.HasMultipleSources && q.ApplicationSource.Path == "" && q.ApplicationSource.Chart == "" {
 			log.WithFields(map[string]any{
@@ -803,7 +800,7 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 			return nil
 		}
 
-		promise = s.runManifestGen(ctx, repoRoot, commitSHA, revision, ctxSrc, q)
+		promise = s.runManifestGen(ctx, repoRoot, commitSHA, revision, ctxSrc, q, refSourceCommitSHAs)
 		// The fist channel to send the message will resume this operation.
 		// The main purpose for using channels here is to be able to unlock
 		// the repository as soon as the lock in not required anymore. In
@@ -883,7 +880,7 @@ func (s *Service) GenerateManifestWithFiles(stream apiclient.RepoServerService_G
 			return nil, fmt.Errorf("failed to get app path: %w", err)
 		}
 		return &operationContext{appPath, "", nil}, nil
-	}, req)
+	}, req, nil)
 
 	var res *apiclient.ManifestResponse
 	tarConcluded := false
@@ -935,7 +932,7 @@ type generateManifestCh struct {
 // - or, the cache does contain a value for this key, but it is an expired manifest generation entry
 // - or, NoCache is true
 // Returns a ManifestResponse, or an error, but not both
-func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, revision string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest) *ManifestResponsePromise {
+func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, revision string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, refSourceCommitSHAs cache.ResolvedRevisions) *ManifestResponsePromise {
 	responseCh := make(chan *apiclient.ManifestResponse)
 	tarDoneCh := make(chan bool)
 	errCh := make(chan error)
@@ -946,7 +943,7 @@ func (s *Service) runManifestGen(ctx context.Context, repoRoot, commitSHA, revis
 		tarDoneCh:  tarDoneCh,
 		errCh:      errCh,
 	}
-	go s.runManifestGenAsync(ctx, repoRoot, commitSHA, revision, opContextSrc, q, channels)
+	go s.runManifestGenAsync(ctx, repoRoot, commitSHA, revision, opContextSrc, q, refSourceCommitSHAs, channels)
 	return responsePromise
 }
 
@@ -957,15 +954,6 @@ type repoRef struct {
 	commitSHA string
 	// key is the name of the key which was used to reference this repo.
 	key string
-}
-
-// closeAndLog closes a resource closer and logs a warning if closing fails. It is used to release
-// the resources acquired while resolving referenced sources: the repo lock for a Git ref, and the
-// extracted directory for an OCI ref.
-func closeAndLog(closer goio.Closer, what string) {
-	if err := closer.Close(); err != nil {
-		log.Errorf("Failed to release %s: %v", what, err)
-	}
 }
 
 // refSourceResolveRequest bundles the inputs shared by resolveOCIRefSource and resolveGitRefSource
@@ -1050,7 +1038,7 @@ func (s *Service) resolveOCIRefSource(ctx context.Context, req refSourceResolveR
 	// Check for out-of-bounds symlinks
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
 		if err := apppathutil.CheckOutOfBoundsSymlinks(ociPath); err != nil {
-			closeAndLog(closer, "extracted OCI directory")
+			utilio.Close(closer)
 			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
 				log.WithFields(log.Fields{
@@ -1113,7 +1101,7 @@ func (s *Service) resolveGitRefSource(ctx context.Context, req refSourceResolveR
 	// Symlink check must happen after acquiring lock.
 	if !s.initConstants.AllowOutOfBoundsSymlinks {
 		if err := s.checkOutOfBoundsSymlinks(gitClient.Root(), referencedCommitSHA, req.noCache, ".git"); err != nil {
-			closeAndLog(closer, "repo lock")
+			utilio.Close(closer)
 			oobError := &apppathutil.OutOfBoundsSymlinkError{}
 			if errors.As(err, &oobError) {
 				log.WithFields(log.Fields{
@@ -1160,7 +1148,7 @@ func (s *Service) extractOCIRefSource(ctx context.Context, q *apiclient.RepoServ
 	return closer, nil
 }
 
-func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, revision string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, ch *generateManifestCh) {
+func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, revision string, opContextSrc operationContextSrc, q *apiclient.ManifestRequest, resolvedRefRevisions cache.ResolvedRevisions, ch *generateManifestCh) {
 	defer func() {
 		close(ch.errCh)
 		close(ch.responseCh)
@@ -1237,8 +1225,9 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							appRepoURL:               q.ApplicationSource.RepoURL,
 							appRevision:              q.Revision,
 							commitSHA:                commitSHA,
-							sameRepoAndRevisionAsApp: isSameRepoAndRevision(sourceRepoURL, sourceRevision, q.ApplicationSource.TagPrefix, refSourceMapping),
+							sameRepoAndRevisionAsApp: isSameRepoAndRevision(sourceRepoURL, sourceRevision, refSourceMapping),
 							ociRefPaths:              ociRefPaths,
+							ociDigest:                resolvedRefRevisions[normalizedRepoURL],
 						}
 						var ref repoRef
 						var closer goio.Closer
@@ -1252,7 +1241,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 							ch.errCh <- err
 							return
 						}
-						defer closeAndLog(closer, "referenced source")
+						defer utilio.Close(closer)
 						repoRefs[normalizedRepoURL] = ref
 					}
 				}
@@ -2878,7 +2867,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 			// resolving the branch again, so a branch moved between the two lookups cannot store its
 			// parameters under the old commit.
 			refSHA := refSourceCommitSHAs[refNormalizedURL]
-			if isSameRepoAndRevision(mainRepoURL, sourceRevision, q.Source.TagPrefix, refSource) {
+			if isSameRepoAndRevision(mainRepoURL, sourceRevision, refSource) {
 				refSHA = commitSHA
 			}
 			var gitClient git.Client
