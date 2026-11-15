@@ -951,7 +951,7 @@ func TestResolveReferencedSources_RejectsChartOnRefSource(t *testing.T) {
 				"$ref": {Repo: tt.refRepo, Chart: "my-chart", TargetRevision: "1.0.0"},
 			}
 			// The guard rejects before any client getter is invoked, so an empty resolver is safe.
-			_, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, refSourceResolver{})
+			_, err := resolveReferencedSources(t.Context(), refSourceResolver{hasMultipleSources: true, helmSource: helmSource, refSources: refSources})
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), "'chart' field defined")
 		})
@@ -969,7 +969,7 @@ func TestResolveReferencedSources_AllowsOCIRefWithoutChart(t *testing.T) {
 		return nil, "sha256:deadbeef", nil
 	}
 
-	repoRefs, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, refSourceResolver{newOCIClientResolveRevision: ociGetter})
+	repoRefs, err := resolveReferencedSources(t.Context(), refSourceResolver{hasMultipleSources: true, helmSource: helmSource, refSources: refSources, newOCIClientResolveRevision: ociGetter})
 	require.NoError(t, err)
 	assert.Equal(t, "sha256:deadbeef", repoRefs[v1alpha1.NormalizeOCIURL("oci://registry.example.com/charts")])
 }
@@ -994,6 +994,8 @@ func TestResolveReferencedSources_RejectsConflictingRevisionsForSameRepo(t *test
 		t.Run(tt.name, func(t *testing.T) {
 			resolveCalls := 0
 			resolver := refSourceResolver{
+				hasMultipleSources: true,
+				helmSource:         helmSource,
 				newClientResolveRevision: func(_ *v1alpha1.Repository, revision string, _ ...git.ClientOpts) (git.Client, string, error) {
 					resolveCalls++
 					return nil, "sha-for-" + revision, nil
@@ -1010,7 +1012,8 @@ func TestResolveReferencedSources_RejectsConflictingRevisionsForSameRepo(t *test
 					"$a": {Repo: tt.repo, TargetRevision: "v1.0.0"},
 					"$b": {Repo: v1alpha1.Repository{Repo: strings.ToLower(tt.repo.Repo)}, TargetRevision: "v2.0.0"},
 				}
-				_, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, resolver)
+				resolver.refSources = refSources
+				_, err := resolveReferencedSources(t.Context(), resolver)
 				require.ErrorContains(t, err, "cannot reference multiple revisions for the same repository")
 				assert.Contains(t, err.Error(), `$b references "v2.0.0" while $a references "v1.0.0"`)
 				assert.Equal(t, 1, resolveCalls, "the conflict must be detected before resolving the second ref")
@@ -1022,7 +1025,8 @@ func TestResolveReferencedSources_RejectsConflictingRevisionsForSameRepo(t *test
 					"$a": {Repo: tt.repo, TargetRevision: "v1.0.0"},
 					"$b": {Repo: v1alpha1.Repository{Repo: strings.ToLower(tt.repo.Repo)}, TargetRevision: "v1.0.0"},
 				}
-				repoRefs, err := resolveReferencedSources(t.Context(), true, helmSource, refSources, resolver)
+				resolver.refSources = refSources
+				repoRefs, err := resolveReferencedSources(t.Context(), resolver)
 				require.NoError(t, err)
 				assert.Len(t, repoRefs, 1)
 				assert.Equal(t, 1, resolveCalls)

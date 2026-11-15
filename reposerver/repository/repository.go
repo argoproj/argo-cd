@@ -391,7 +391,10 @@ func (s *Service) runRepoOperation(
 		return err
 	}
 
-	repoRefs, err := resolveReferencedSources(ctx, hasMultipleSources, source.Helm, refSources, refSourceResolver{
+	repoRefs, err := resolveReferencedSources(ctx, refSourceResolver{
+		hasMultipleSources:          hasMultipleSources,
+		helmSource:                  source.Helm,
+		refSources:                  refSources,
 		newClientResolveRevision:    s.newClientResolveRevision,
 		newOCIClientResolveRevision: s.newOCIClientResolveRevision,
 		gitClientOpts:               gitClientOpts,
@@ -601,6 +604,11 @@ type ociClientGetter func(ctx context.Context, repo *v1alpha1.Repository, revisi
 // settings: gitClientOpts already encodes the caller's no-cache request for Git, and
 // ociNoRevisionCache carries the equivalent flag for OCI.
 type refSourceResolver struct {
+	// hasMultipleSources, helmSource and refSources are the inputs being resolved: the Helm
+	// source whose value files may reference other sources, and the ref sources it may name.
+	hasMultipleSources          bool
+	helmSource                  *v1alpha1.ApplicationSourceHelm
+	refSources                  map[string]*v1alpha1.RefTarget
 	newClientResolveRevision    gitClientGetter
 	newOCIClientResolveRevision ociClientGetter
 	gitClientOpts               git.ClientOpts
@@ -619,9 +627,10 @@ type refSourceResolver struct {
 //
 // Much of this logic is duplicated in runManifestGenAsync. If making changes here, check whether runManifestGenAsync
 // should be updated.
-func resolveReferencedSources(ctx context.Context, hasMultipleSources bool, source *v1alpha1.ApplicationSourceHelm, refSources map[string]*v1alpha1.RefTarget, resolver refSourceResolver) (map[string]string, error) {
+func resolveReferencedSources(ctx context.Context, resolver refSourceResolver) (map[string]string, error) {
 	repoRefs := make(map[string]string)
-	if !hasMultipleSources || source == nil {
+	source, refSources := resolver.helmSource, resolver.refSources
+	if !resolver.hasMultipleSources || source == nil {
 		return repoRefs, nil
 	}
 
