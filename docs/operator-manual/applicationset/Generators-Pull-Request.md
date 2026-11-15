@@ -510,6 +510,23 @@ The Pull Request Generator will requeue when the next action occurs.
 
 For more information about each event, please refer to the [official documentation](https://docs.gitlab.com/ee/user/project/integrations/webhook_events.html#merge-request-events).
 
+### Gitea webhook configuration
+
+Gitea webhooks are handled as Gogs webhooks, so the webhook secret goes in the `webhook.gogs.secret` key of `argocd-secret`.
+
+Add a webhook of type "Gitea" with "POST Content Type" set to "application/json". Under "Trigger On", select "Custom Events…" and enable "Pull Request", "Pull Request Labeled" and "Pull Request Synchronized".
+
+The Pull Request Generator will requeue when the next action occurs.
+
+- `opened`
+- `closed`
+- `reopened`
+- `synchronized`
+- `label_updated`
+- `label_cleared`
+
+The webhook refreshes ApplicationSets whose Gitea Pull Request generator has the same `owner` and `repo` as the repository of the event, and whose `api` URL has the same host name as the repository URL.
+
 ## Lifecycle
 
 An Application will be generated when a Pull Request is discovered when the configured criteria is met - i.e. for GitHub when a Pull Request matches the specified `labels` and/or `pullRequestState`. Application will be removed when a Pull Request no longer meets the specified criteria.

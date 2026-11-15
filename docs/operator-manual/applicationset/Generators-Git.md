@@ -467,8 +467,9 @@ annotation from the UI with the built-in **Refresh ApplicationSet** resource act
 
 To eliminate the polling delay, the ApplicationSet webhook
 server can be configured to receive webhook events. ApplicationSet
-supports Git webhook notifications from GitHub and GitLab. The
-following explains how to configure a Git webhook for GitHub, but the
+supports Git webhook notifications from GitHub, GitLab, Azure DevOps and Gogs.
+Gitea webhooks are handled as Gogs webhooks, see the [API server webhook](../webhook.md#gitea).
+The following explains how to configure a Git webhook for GitHub, but the
 same process should be applicable to other providers.
 
 ```yaml
@@ -558,7 +559,7 @@ kubectl edit secret argocd-secret -n argocd
 TIP: for ease of entering secrets, Kubernetes supports inputting secrets in the `stringData` field,
 which saves you the trouble of base64 encoding the values and copying it to the `data` field.
 Simply copy the shared webhook secret created in step 1, to the corresponding
-GitHub/GitLab/BitBucket key under the `stringData` field:
+GitHub/GitLab/Gogs key under the `stringData` field:
 
 ```yaml
 apiVersion: v1
@@ -576,6 +577,9 @@ stringData:
 
   # gitlab webhook secret
   webhook.gitlab.secret: shhhh! it's a gitlab secret
+
+  # gogs and gitea webhook secret
+  webhook.gogs.secret: shhhh! it's a gogs secret
 ```
 
 After saving, please restart the ApplicationSet pod for the changes to take effect.
