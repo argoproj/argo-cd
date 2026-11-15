@@ -181,6 +181,32 @@ If an application’s path changes, the old directory is not removed automatical
 If there are multiple repository-write Secrets available for a repo, the source hydrator will non-deterministically
 select one of the matching Secrets and log a warning saying "Found multiple credentials for repoURL".
 
+### Hydration Format
+
+### Hydration Format
+
+The source hydrator has two different formats which can be used for the manifests it generates.
+
+* **`simple`** (default)
+
+    The generated manifests are written to a single file called `manifest.yaml`. The file is created at the path specified in the `syncSource`.
+
+* **`split`**
+
+    The generated manifests are ordered into a file-structure. Each kubernetes manifest is written as an individual file can be found at the following location relative to the path specified in the `syncSource`: 
+
+    `manifests/<namespace>/<apiVersion>/<lowercaseKind>_<metadataName>.yaml`
+
+    where
+
+    * `namespace` is either the namespace specified in the generated manifest, or the string `_unnamespaced` in case no namespace is specified
+    * `apiVersion` is the apiVersion as specified in the manifest (for example "v1" for Pods and "apps/v1" for Deployments)
+    * `lowercaseKind` is the lowercase string representation for the kind (for example "pod" for Pods and "deployment" for Deployments)
+    * `metadataName` is the name as specified at '.metadata.name' inside the manifest  
+
+#### Setting the hydration format
+The hydration format can be set using the flag `--hydration-format=<hydrationFormat>` on the **argocd-application-controller**.
+
 ## Source Configuration Options
 
 The source hydrator supports various source types through inline configuration options in the `drySource` field. This allows you to use Helm charts, Kustomize applications, directories, and plugins with environment-specific configurations.
