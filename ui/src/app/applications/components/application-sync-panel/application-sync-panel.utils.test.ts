@@ -1,5 +1,5 @@
 import * as models from '../../../shared/models';
-import {getAvailableKinds, setSelectionForKind} from './application-sync-panel.utils';
+import {computeSelection, filterResources, getAvailableKinds} from './application-sync-panel.utils';
 
 const r = (kind: string, name = 'res', status: models.SyncStatus = models.SyncStatuses.OutOfSync): models.ResourceStatus =>
     ({kind, name, namespace: 'ns', status, version: 'v1'} as unknown as models.ResourceStatus);
@@ -27,47 +27,51 @@ describe('application-sync-panel.utils', () => {
         });
     });
 
-    describe('setSelectionForKind', () => {
+    describe('computeSelection and filterResources', () => {
         const resources = [
-            r('Service', 's1', models.SyncStatuses.OutOfSync),
-            r('Deployment', 'd1', models.SyncStatuses.Synced),
-            r('Service', 's2', models.SyncStatuses.Synced),
-            r('ConfigMap', 'c1', models.SyncStatuses.OutOfSync)
+            r('Deployment', 'd-out', models.SyncStatuses.OutOfSync),
+            r('Deployment', 'd-sync', models.SyncStatuses.Synced),
+            r('ConfigMap', 'cm-out', models.SyncStatuses.OutOfSync),
+            r('ConfigMap', 'cm-sync', models.SyncStatuses.Synced),
+            r('Service', 'svc-sync', models.SyncStatuses.Synced)
         ];
+        const indexed = resources.map((item, i) => ({item, i}));
 
-        it('sets matching kind to true for all resources when onlyOutOfSync is false and preserves others', () => {
-            const selections = [false, true, false, true];
-            expect(setSelectionForKind(resources, selections, 'Service', true, false)).toEqual([true, true, true, true]);
+        it('selects and filters only out-of-sync resources of a specific kind, deselecting other kinds', () => {
+            const selection = computeSelection(resources, 'Deployment', 'outOfSync');
+            expect(selection).toEqual([true, false, false, false, false]);
+
+            const visible = filterResources(indexed, 'Deployment', 'outOfSync');
+            expect(visible.map(v => v.item.name)).toEqual(['d-out']);
         });
 
-        it('sets matching kind to true only for out of sync resources when onlyOutOfSync is true', () => {
-            const selections = [false, true, true, false];
-            // s1 is OutOfSync -> true, s2 is Synced -> false. Deployment d1 and ConfigMap c1 stay preserved.
-            expect(setSelectionForKind(resources, selections, 'Service', true, true)).toEqual([true, true, false, false]);
+        it('selects and filters all resources of a specific kind when statusFilter is all', () => {
+            const selection = computeSelection(resources, 'Deployment', 'all');
+            expect(selection).toEqual([true, true, false, false, false]);
+
+            const visible = filterResources(indexed, 'Deployment', 'all');
+            expect(visible.map(v => v.item.name)).toEqual(['d-out', 'd-sync']);
         });
 
-        it('sets matching kind to false and preserves others', () => {
-            const selections = [true, true, true, true];
-            expect(setSelectionForKind(resources, selections, 'Service', false)).toEqual([false, true, false, true]);
+        it('deselects all when statusFilter is none', () => {
+            const selection = computeSelection(resources, 'Deployment', 'none');
+            expect(selection).toEqual([false, false, false, false, false]);
         });
 
-        it('preserves selections for non-matching kinds across calls (no clobber)', () => {
-            let selections = [false, false, false, false];
-            selections = setSelectionForKind(resources, selections, 'Service', true, false);
-            expect(selections).toEqual([true, false, true, false]);
-            selections = setSelectionForKind(resources, selections, 'Deployment', true, false);
-            expect(selections).toEqual([true, true, true, false]);
-            selections = setSelectionForKind(resources, selections, 'Service', false);
-            expect(selections).toEqual([false, true, false, false]);
+        it('selects and filters all out-of-sync resources across all kinds when kindFilter is empty', () => {
+            const selection = computeSelection(resources, '', 'outOfSync');
+            expect(selection).toEqual([true, false, true, false, false]);
+
+            const visible = filterResources(indexed, '', 'outOfSync');
+            expect(visible.map(v => v.item.name)).toEqual(['d-out', 'cm-out']);
         });
 
-        it('returns identity when kind matches nothing', () => {
-            const selections = [true, false, true, false];
-            expect(setSelectionForKind(resources, selections, 'Pod', true)).toEqual(selections);
-        });
+        it('selects and filters all resources across all kinds when both filters are all', () => {
+            const selection = computeSelection(resources, '', 'all');
+            expect(selection).toEqual([true, true, true, true, true]);
 
-        it('returns empty when resources empty', () => {
-            expect(setSelectionForKind([], [], 'Service', true)).toEqual([]);
+            const visible = filterResources(indexed, '', 'all');
+            expect(visible.length).toBe(5);
         });
     });
 });

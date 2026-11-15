@@ -17,7 +17,7 @@ import {
     PRUNE_SOME_WARNING
 } from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
-import {getAvailableKinds, setSelectionForKind} from './application-sync-panel.utils';
+import {computeSelection, filterResources, getAvailableKinds, SyncStatusFilter} from './application-sync-panel.utils';
 import {KindFilterSelect} from './kind-filter-select';
 
 export const ApplicationSyncPanelBody = ({
@@ -38,6 +38,7 @@ export const ApplicationSyncPanelBody = ({
         .filter(item => !item.hook);
     const syncResIndex = appResources.findIndex(item => nodeKey(item) === selectedResource);
     const syncStrategy = {} as models.SyncStrategy;
+    const [statusFilter, setStatusFilter] = React.useState<SyncStatusFilter>('all');
     const [kindFilter, setKindFilter] = React.useState<string>('');
     const source = getAppDefaultSource(application);
     const availableKinds = getAvailableKinds(appResources);
@@ -290,34 +291,28 @@ export const ApplicationSyncPanelBody = ({
                                 <label>Synchronize resources:</label>
                                 <div style={{float: 'right'}}>
                                     <a
+                                        style={statusFilter === 'all' ? {fontWeight: 'bold'} : {}}
                                         onClick={() => {
-                                            setKindFilter('');
-                                            formApi.setValue(
-                                                'resources',
-                                                formApi.values.resources.map(() => true)
-                                            );
+                                            setStatusFilter('all');
+                                            formApi.setValue('resources', computeSelection(appResources, activeKindFilter, 'all'));
                                         }}>
                                         all
                                     </a>{' '}
                                     /{' '}
                                     <a
+                                        style={statusFilter === 'outOfSync' ? {fontWeight: 'bold'} : {}}
                                         onClick={() => {
-                                            setKindFilter('');
-                                            formApi.setValue(
-                                                'resources',
-                                                appResources.map((resource: models.ResourceStatus) => resource.status === models.SyncStatuses.OutOfSync)
-                                            );
+                                            setStatusFilter('outOfSync');
+                                            formApi.setValue('resources', computeSelection(appResources, activeKindFilter, 'outOfSync'));
                                         }}>
                                         out of sync
                                     </a>{' '}
                                     /{' '}
                                     <a
+                                        style={statusFilter === 'none' ? {fontWeight: 'bold'} : {}}
                                         onClick={() => {
-                                            setKindFilter('');
-                                            formApi.setValue(
-                                                'resources',
-                                                formApi.values.resources.map(() => false)
-                                            );
+                                            setStatusFilter('none');
+                                            formApi.setValue('resources', computeSelection(appResources, activeKindFilter, 'none'));
                                         }}>
                                         none
                                     </a>
@@ -330,74 +325,49 @@ export const ApplicationSyncPanelBody = ({
                                             placeholder='All kinds'
                                             value={activeKindFilter}
                                             options={[{value: '', title: 'All kinds'}, ...availableKinds]}
-                                            onChange={opt => setKindFilter(opt.value)}
+                                            onChange={opt => {
+                                                const newKind = opt.value;
+                                                setKindFilter(newKind);
+                                                formApi.setValue('resources', computeSelection(appResources, newKind, statusFilter));
+                                            }}
                                         />
-                                        {activeKindFilter !== '' && (
-                                            <span className='application-sync-panel__kind-filter-actions'>
-                                                <button
-                                                    type='button'
-                                                    className='application-sync-panel__kind-filter-action-btn'
-                                                    onClick={() =>
-                                                        formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, activeKindFilter, true, true))
-                                                    }>
-                                                    select out of sync
-                                                </button>{' '}
-                                                /{' '}
-                                                <button
-                                                    type='button'
-                                                    className='application-sync-panel__kind-filter-action-btn'
-                                                    onClick={() =>
-                                                        formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, activeKindFilter, true, false))
-                                                    }>
-                                                    select all
-                                                </button>{' '}
-                                                /{' '}
-                                                <button
-                                                    type='button'
-                                                    className='application-sync-panel__kind-filter-action-btn'
-                                                    onClick={() =>
-                                                        formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, activeKindFilter, false))
-                                                    }>
-                                                    clear
-                                                </button>
-                                            </span>
-                                        )}
                                     </div>
                                 )}
                                 <div className='application-details__warning'>
                                     {!formApi.values.resources.every((item: boolean) => item) && <div>WARNING: partial synchronization is not recorded in history</div>}
                                 </div>
                                 <div>
-                                    {appResources
-                                        .map((item, i) => ({item, i}))
-                                        .filter(({item}) => activeKindFilter === '' || item.kind === activeKindFilter)
-                                        .map(({item, i}) => {
-                                            const resKey = nodeKey(item);
-                                            const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
-                                            let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
-                                            // We want the ellipsis to be in the middle of our text, so we use RTL layout to put it there.
-                                            // Unfortunately, strong LTR characters get jumbled around, so make sure that the last character isn't strong.
-                                            const firstLetter = /[a-z]/i.exec(contentEnd);
-                                            if (firstLetter) {
-                                                contentEnd = contentEnd.slice(firstLetter.index);
-                                            }
-                                            const isLongLabel = resKey.length > 68;
-                                            return (
-                                                <div key={resKey} className='application-sync-panel__resource'>
-                                                    <CheckboxField id={resKey} field={`resources[${i}]`} />
-                                                    <Tooltip content={<div style={{wordBreak: 'break-all'}}>{resKey}</div>}>
-                                                        <div className='container'>
-                                                            {isLongLabel ? (
-                                                                <label htmlFor={resKey} content-start={contentStart} content-end={contentEnd} />
-                                                            ) : (
-                                                                <label htmlFor={resKey}>{resKey}</label>
-                                                            )}
-                                                        </div>
-                                                    </Tooltip>
-                                                    <ComparisonStatusIcon status={item.status} resource={item} />
-                                                </div>
-                                            );
-                                        })}
+                                    {filterResources(
+                                        appResources.map((item, i) => ({item, i})),
+                                        activeKindFilter,
+                                        statusFilter
+                                    ).map(({item, i}) => {
+                                        const resKey = nodeKey(item);
+                                        const contentStart = resKey.substr(0, Math.floor(resKey.length / 2));
+                                        let contentEnd = resKey.substr(-Math.floor(resKey.length / 2));
+                                        // We want the ellipsis to be in the middle of our text, so we use RTL layout to put it there.
+                                        // Unfortunately, strong LTR characters get jumbled around, so make sure that the last character isn't strong.
+                                        const firstLetter = /[a-z]/i.exec(contentEnd);
+                                        if (firstLetter) {
+                                            contentEnd = contentEnd.slice(firstLetter.index);
+                                        }
+                                        const isLongLabel = resKey.length > 68;
+                                        return (
+                                            <div key={resKey} className='application-sync-panel__resource'>
+                                                <CheckboxField id={resKey} field={`resources[${i}]`} />
+                                                <Tooltip content={<div style={{wordBreak: 'break-all'}}>{resKey}</div>}>
+                                                    <div className='container'>
+                                                        {isLongLabel ? (
+                                                            <label htmlFor={resKey} content-start={contentStart} content-end={contentEnd} />
+                                                        ) : (
+                                                            <label htmlFor={resKey}>{resKey}</label>
+                                                        )}
+                                                    </div>
+                                                </Tooltip>
+                                                <ComparisonStatusIcon status={item.status} resource={item} />
+                                            </div>
+                                        );
+                                    })}
                                     {formApi.errors.resources && <div className='argo-form-row__error-msg'>{formApi.errors.resources}</div>}
                                 </div>
                             </div>

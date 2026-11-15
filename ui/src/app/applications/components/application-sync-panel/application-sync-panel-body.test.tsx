@@ -122,54 +122,53 @@ describe('ApplicationSyncPanelBody kind filter', () => {
         expect(checkbox('apps/Deployment/ns/api')).toBeInTheDocument();
     });
 
-    it('supports select out of sync, select all, and clear while preserving other kinds selections', async () => {
+    it('respects out-of-sync status filter when filtering by kind, showing only out-of-sync resources and deselecting other kinds', async () => {
         const {container, submit} = await renderPanel();
 
-        // Clear all first
-        fireEvent.click(screen.getByText('none', {selector: 'a'}));
+        // Layer 1: select 'out of sync'
+        fireEvent.click(screen.getByText('out of sync', {selector: 'a'}));
 
-        // Filter to Deployment and click 'select out of sync'
+        // Layer 2: filter by Deployment
         selectKindInComboBox(container, 'Deployment');
-        fireEvent.click(screen.getByRole('button', {name: /select out of sync/i}));
-        expect(checkbox('apps/Deployment/ns/web').checked).toBe(true);
-        expect(checkbox('apps/Deployment/ns/api').checked).toBe(false);
 
-        // Click 'select all' to select both out-of-sync and synced deployments
-        fireEvent.click(screen.getByRole('button', {name: /select all/i}));
+        // Only the 1 out-of-sync deployment is visible, synced deployment is filtered out
+        expect(checkbox('apps/Deployment/ns/web')).toBeInTheDocument();
+        expect(checkbox('apps/Deployment/ns/web').checked).toBe(true);
+        expect(screen.queryByLabelText('apps/Deployment/ns/api')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('/ConfigMap/ns/cm')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('/Service/ns/api')).not.toBeInTheDocument();
+
+        // Submit to verify only Deployment/web is synced (no ConfigMap or Service)
+        await submit();
+        expect(syncedResources().map((r: models.ResourceStatus) => `${r.kind}/${r.name}`)).toEqual(['Deployment/web']);
+    });
+
+    it('switches between all, out of sync, and none while a kind is filtered', async () => {
+        const {container, submit} = await renderPanel();
+
+        // Filter to Deployment first
+        selectKindInComboBox(container, 'Deployment');
+
+        // By default 'all' is active: both deployments visible and checked
+        expect(checkbox('apps/Deployment/ns/web')).toBeInTheDocument();
+        expect(checkbox('apps/Deployment/ns/api')).toBeInTheDocument();
         expect(checkbox('apps/Deployment/ns/web').checked).toBe(true);
         expect(checkbox('apps/Deployment/ns/api').checked).toBe(true);
 
-        // Click 'clear' to deselect visible deployments
-        fireEvent.click(screen.getByRole('button', {name: /clear/i}));
-        expect(checkbox('apps/Deployment/ns/web').checked).toBe(false);
-        expect(checkbox('apps/Deployment/ns/api').checked).toBe(false);
-
-        // Switch to Service and select only /Service/ns/api manually
-        selectKindInComboBox(container, 'Service');
-        expect(checkbox('/Service/ns/api').checked).toBe(false);
-        expect(checkbox('/Service/ns/web').checked).toBe(false);
-        fireEvent.click(checkbox('/Service/ns/api'));
-        expect(checkbox('/Service/ns/api').checked).toBe(true);
-
-        // Switch back to Deployment and select out of sync (web only)
-        selectKindInComboBox(container, 'Deployment');
-        fireEvent.click(screen.getByRole('button', {name: /select out of sync/i}));
-        expect(checkbox('apps/Deployment/ns/web').checked).toBe(true);
-        expect(checkbox('apps/Deployment/ns/api').checked).toBe(false);
-
-        await submit();
-        expect(syncedResources().map((r: models.ResourceStatus) => `${r.kind}/${r.name}`)).toEqual(['Service/api', 'Deployment/web']);
-    });
-
-    it('clears the active Kind filter when quick-action links (all / out of sync / none) are clicked', async () => {
-        const {container} = await renderPanel();
-        selectKindInComboBox(container, 'Deployment');
-        expect(screen.queryByLabelText('/Service/ns/web')).not.toBeInTheDocument();
-
+        // Switch to 'out of sync': only out-of-sync deployment visible
         fireEvent.click(screen.getByText('out of sync', {selector: 'a'}));
-        expect(checkbox('/Service/ns/web').checked).toBe(false);
-        expect(checkbox('/Service/ns/api').checked).toBe(true);
-        expect(checkbox('/ConfigMap/ns/cm').checked).toBe(true);
+        expect(checkbox('apps/Deployment/ns/web')).toBeInTheDocument();
+        expect(checkbox('apps/Deployment/ns/web').checked).toBe(true);
+        expect(screen.queryByLabelText('apps/Deployment/ns/api')).not.toBeInTheDocument();
+
+        // Switch to 'none': uncheck
+        fireEvent.click(screen.getByText('none', {selector: 'a'}));
+        expect(checkbox('apps/Deployment/ns/web').checked).toBe(false);
+
+        // Manually check web
+        fireEvent.click(checkbox('apps/Deployment/ns/web'));
+        await submit();
+        expect(syncedResources().map((r: models.ResourceStatus) => `${r.kind}/${r.name}`)).toEqual(['Deployment/web']);
     });
 
     it('resets filter when selected kind disappears from application resources', async () => {
@@ -208,19 +207,22 @@ describe('ApplicationSyncPanelBody kind filter', () => {
         expect(checkbox('apps/Deployment/ns/api')).toBeInTheDocument();
     });
 
-    it('keeps a resource selected under one kind when filtering to another kind and syncs it', async () => {
+    it('deselects other kinds when filtering to a specific kind and syncs only that kind', async () => {
         const {container, submit} = await renderPanel();
 
-        // Only Deployment/web stays selected.
-        fireEvent.click(screen.getByText('none', {selector: 'a'}));
-        selectKindInComboBox(container, 'Deployment');
-        fireEvent.click(checkbox('apps/Deployment/ns/web'));
-
-        // Switching to Service hides the Deployment row, but its selection must survive.
+        // Start with default panel state, then filter to Service
         selectKindInComboBox(container, 'Service');
+
+        // Only Service rows are visible and selected; Deployment and ConfigMap are excluded
+        expect(checkbox('/Service/ns/api')).toBeInTheDocument();
+        expect(checkbox('/Service/ns/web')).toBeInTheDocument();
         expect(screen.queryByLabelText('apps/Deployment/ns/web')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('/ConfigMap/ns/cm')).not.toBeInTheDocument();
 
         await submit();
-        expect(syncedResources().map((r: models.ResourceStatus) => `${r.kind}/${r.name}`)).toEqual(['Deployment/web']);
+        expect(syncedResources().map((r: models.ResourceStatus) => `${r.kind}/${r.name}`).sort()).toEqual([
+            'Service/api',
+            'Service/web'
+        ]);
     });
 });
