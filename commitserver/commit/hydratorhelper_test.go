@@ -21,6 +21,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
+	"github.com/argoproj/argo-cd/v3/common"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	gitmocks "github.com/argoproj/argo-cd/v3/util/git/mocks"
@@ -49,7 +50,184 @@ func tempRoot(t *testing.T) *os.Root {
 	return root
 }
 
-func TestWriteForPaths(t *testing.T) {
+func TestWriteForPaths_WithInvalidHydrationFormat(t *testing.T) {
+	t.Parallel()
+	root := tempRoot(t)
+
+	repoURL := "https://github.com/example/repo"
+	drySha := "abc123"
+	paths := []*apiclient.PathDetails{
+		{
+			Path: "path1",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Pod","apiVersion":"v1","metadata":{"name":"test-pod","namespace":"test-ns"}}`},
+			},
+			Commands: []string{"command1", "command2"},
+		},
+		{
+			Path: "path2",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Service","apiVersion":"v1","metadata":{"name":"test-service","namespace":"test-ns"}}`},
+			},
+			Commands: []string{"command3"},
+		},
+		{
+			Path: "path3/nested",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Deployment","apiVersion":"apps/v1","metadata":{"name":"test-deployment"}}`},
+			},
+			Commands: []string{"command4"},
+		},
+	}
+
+	now := metav1.NewTime(time.Now())
+	metadata := &appsv1.RevisionMetadata{
+		Author: "test-author",
+		Date:   &now,
+		Message: `test-message
+
+Signed-off-by: Test User <test@example.com>
+Argocd-reference-commit-sha: abc123
+`,
+		References: []appsv1.RevisionReference{
+			{
+				Commit: &appsv1.CommitMetadata{
+					Author:  "test-code-author <test-email-author@example.com>",
+					Date:    now.Format(time.RFC3339),
+					Subject: "test-code-subject",
+					SHA:     "test-code-sha",
+					RepoURL: "https://example.com/test/repo.git",
+				},
+			},
+		},
+	}
+	mockGitClient := gitmocks.NewClient(t)
+
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, "invalid hydration format")
+	require.ErrorContains(t, err, "unknown hydrationFormat")
+	require.False(t, shouldCommit)
+}
+
+func TestWriteForPaths_WithSplitHydrationFormat(t *testing.T) {
+	t.Parallel()
+	root := tempRoot(t)
+
+	repoURL := "https://github.com/example/repo"
+	drySha := "abc123"
+	paths := []*apiclient.PathDetails{
+		{
+			Path: "path1",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Pod","apiVersion":"v1","metadata":{"name":"test-pod","namespace":"test-ns"}}`},
+			},
+			Commands: []string{"command1", "command2"},
+		},
+		{
+			Path: "path2",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Service","apiVersion":"v1","metadata":{"name":"test-service","namespace":"test-ns"}}`},
+			},
+			Commands: []string{"command3"},
+		},
+		{
+			Path: "path3/nested",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Deployment","apiVersion":"apps/v1","metadata":{"name":"test-deployment"}}`},
+			},
+			Commands: []string{"command4"},
+		},
+	}
+
+	now := metav1.NewTime(time.Now())
+	metadata := &appsv1.RevisionMetadata{
+		Author: "test-author",
+		Date:   &now,
+		Message: `test-message
+
+Signed-off-by: Test User <test@example.com>
+Argocd-reference-commit-sha: abc123
+`,
+		References: []appsv1.RevisionReference{
+			{
+				Commit: &appsv1.CommitMetadata{
+					Author:  "test-code-author <test-email-author@example.com>",
+					Date:    now.Format(time.RFC3339),
+					Subject: "test-code-subject",
+					SHA:     "test-code-sha",
+					RepoURL: "https://example.com/test/repo.git",
+				},
+			},
+		},
+	}
+	mockGitClient := gitmocks.NewClient(t)
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Times(len(paths))
+
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSplit)
+	require.NoError(t, err)
+	require.True(t, shouldCommit)
+
+	// Check if the top-level hydrator.metadata exists and contains the repo URL and dry SHA
+	topMetadataPath := filepath.Join(root.Name(), "hydrator.metadata")
+	topMetadataBytes, err := os.ReadFile(topMetadataPath)
+	require.NoError(t, err)
+
+	var topMetadata hydrator.HydratorCommitMetadata
+	err = json.Unmarshal(topMetadataBytes, &topMetadata)
+	require.NoError(t, err)
+	assert.Equal(t, repoURL, topMetadata.RepoURL)
+	assert.Equal(t, drySha, topMetadata.DrySHA)
+	assert.Equal(t, metadata.Author, topMetadata.Author)
+	assert.Equal(t, "test-message", topMetadata.Subject)
+	// The body should exclude the Argocd- trailers.
+	assert.Equal(t, "Signed-off-by: Test User <test@example.com>\n", topMetadata.Body)
+	assert.Equal(t, metadata.Date.Format(time.RFC3339), topMetadata.Date)
+	assert.Equal(t, metadata.References, topMetadata.References)
+
+	for _, p := range paths {
+		fullHydratePath := filepath.Join(root.Name(), p.Path)
+
+		// Check if each path directory exists
+		assert.DirExists(t, fullHydratePath)
+
+		// Check if each path contains a hydrator.metadata file and contains the repo URL
+		metadataPath := path.Join(fullHydratePath, "hydrator.metadata")
+		metadataBytes, err := os.ReadFile(metadataPath)
+		require.NoError(t, err)
+
+		var readMetadata hydrator.HydratorCommitMetadata
+		err = json.Unmarshal(metadataBytes, &readMetadata)
+		require.NoError(t, err)
+		assert.Equal(t, repoURL, readMetadata.RepoURL)
+		// Check if each path contains a README.md file and contains the repo URL
+		readmePath := path.Join(fullHydratePath, "README.md")
+		readmeBytes, err := os.ReadFile(readmePath)
+		require.NoError(t, err)
+		assert.Contains(t, string(readmeBytes), repoURL)
+
+		// Check if each path contains a manifest.yaml file and contains the word kind
+		manifestsPath := path.Join(fullHydratePath, "manifests")
+		assert.DirExists(t, manifestsPath)
+
+		for _, m := range p.Manifests {
+			metaObj := manifestMetadata{}
+			err := json.Unmarshal([]byte(m.ManifestJSON), &metaObj)
+			require.NoError(t, err)
+			namespace := inexistentDirName
+			if metaObj.Metadata.Namespace != "" {
+				namespace = metaObj.Metadata.Namespace
+			}
+			currentManifestDirectoryPath := filepath.Join(manifestsPath, namespace, metaObj.ApiVersion)
+			assert.DirExists(t, currentManifestDirectoryPath)
+			currentManifestPath := filepath.Join(currentManifestDirectoryPath, getSplitManifestName(&metaObj))
+			assert.FileExists(t, currentManifestPath)
+			manifestBytes, err := os.ReadFile(currentManifestPath)
+			require.NoError(t, err)
+			assert.Contains(t, string(manifestBytes), "kind")
+		}
+	}
+}
+
+func TestWriteForPaths_WithSimpleHydrationFormat(t *testing.T) {
 	t.Parallel()
 	root := tempRoot(t)
 
@@ -103,7 +281,7 @@ Argocd-reference-commit-sha: abc123
 	mockGitClient := gitmocks.NewClient(t)
 	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Times(len(paths))
 
-	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSimple)
 	require.NoError(t, err)
 	require.True(t, shouldCommit)
 
@@ -205,11 +383,11 @@ Argocd-reference-commit-sha: abc123
 		},
 	}
 	mockGitClient := gitmocks.NewClient(t)
-	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path1/manifest.yaml").Return(true, nil).Once()
-	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path2/manifest.yaml").Return(true, nil).Once()
-	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path3/nested/manifest.yaml").Return(false, nil).Once()
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path1").Return(true, nil).Once()
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path2").Return(true, nil).Once()
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path3/nested").Return(false, nil).Once()
 
-	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSimple)
 	require.NoError(t, err)
 	require.True(t, shouldCommit)
 
@@ -439,19 +617,20 @@ func TestIsHydrated(t *testing.T) {
 	t.Parallel()
 	mockGitClient := gitmocks.NewClient(t)
 	drySha := "abc123"
+	hydrationFormat := common.HydrationFormatSimple
 	commitSha := "fff456"
 	commitShaNoNoteFoundErr := "abc456"
 	commitShaErr := "abc999"
-	strnote := "{\"drySha\":\"abc123\"}"
+	strnote := "{\"drySha\":\"abc123\",\"hydrationFormat\":\"simple\"}"
 	mockGitClient.EXPECT().GetCommitNote(mock.Anything, commitSha, mock.Anything).Return(strnote, nil).Once()
 	mockGitClient.EXPECT().GetCommitNote(mock.Anything, commitShaNoNoteFoundErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", git.ErrNoNoteFound)).Once()
 	// an existing note
-	isHydrated, err := IsHydrated(t.Context(), mockGitClient, drySha, commitSha)
+	isHydrated, err := IsHydrated(t.Context(), mockGitClient, drySha, commitSha, hydrationFormat)
 	require.NoError(t, err)
 	assert.True(t, isHydrated)
 
 	// no note found treated as success.. no error returned
-	isHydrated, err = IsHydrated(t.Context(), mockGitClient, drySha, commitShaNoNoteFoundErr)
+	isHydrated, err = IsHydrated(t.Context(), mockGitClient, drySha, commitShaNoNoteFoundErr, hydrationFormat)
 	require.NoError(t, err)
 	assert.False(t, isHydrated)
 
@@ -459,7 +638,7 @@ func TestIsHydrated(t *testing.T) {
 	// an error other than "no note found", IsHydrated should return that error to the caller
 	err = errors.New("some other error")
 	mockGitClient.EXPECT().GetCommitNote(mock.Anything, commitShaErr, mock.Anything).Return("", fmt.Errorf("wrapped error %w", err)).Once()
-	isHydrated, err = IsHydrated(t.Context(), mockGitClient, drySha, commitShaErr)
+	isHydrated, err = IsHydrated(t.Context(), mockGitClient, drySha, commitShaErr, hydrationFormat)
 	require.Error(t, err)
 	assert.False(t, isHydrated)
 }
@@ -475,11 +654,11 @@ func TestAddNote(t *testing.T) {
 	mockGitClient.EXPECT().AddAndPushNote(mock.Anything, commitShaErr, mock.Anything, mock.Anything).Return(err).Once()
 
 	// success
-	err = AddNote(t.Context(), mockGitClient, drySha, commitSha)
+	err = AddNote(t.Context(), mockGitClient, drySha, commitSha, common.HydrationFormatSimple)
 	require.NoError(t, err)
 
 	// failure
-	err = AddNote(t.Context(), mockGitClient, drySha, commitShaErr)
+	err = AddNote(t.Context(), mockGitClient, drySha, commitShaErr, common.HydrationFormatSimple)
 	require.Error(t, err)
 }
 
@@ -513,9 +692,9 @@ func TestWriteForPaths_NoOpScenario(t *testing.T) {
 
 	// First hydration - manifests are new, so HasFileChanged should return true
 	mockGitClient1 := gitmocks.NewClient(t)
-	mockGitClient1.EXPECT().HasFileChanged(mock.Anything, "guestbook/manifest.yaml").Return(true, nil).Once()
+	mockGitClient1.EXPECT().HasFileChanged(mock.Anything, "guestbook").Return(true, nil).Once()
 
-	shouldCommit1, err := WriteForPaths(t.Context(), root, repoURL, drySha1, metadata1, paths, mockGitClient1, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit1, err := WriteForPaths(t.Context(), root, repoURL, drySha1, metadata1, paths, mockGitClient1, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSimple)
 	require.NoError(t, err)
 	require.True(t, shouldCommit1, "First hydration should commit because manifests are new")
 
@@ -530,9 +709,9 @@ func TestWriteForPaths_NoOpScenario(t *testing.T) {
 
 	// The manifests are identical, so HasFileChanged should return false
 	mockGitClient2 := gitmocks.NewClient(t)
-	mockGitClient2.EXPECT().HasFileChanged(mock.Anything, "guestbook/manifest.yaml").Return(false, nil).Once()
+	mockGitClient2.EXPECT().HasFileChanged(mock.Anything, "guestbook").Return(false, nil).Once()
 
-	shouldCommit2, err := WriteForPaths(t.Context(), root, repoURL, drySha2, metadata2, paths, mockGitClient2, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit2, err := WriteForPaths(t.Context(), root, repoURL, drySha2, metadata2, paths, mockGitClient2, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSimple)
 	require.NoError(t, err)
 	require.False(t, shouldCommit2, "Second hydration should NOT commit because manifests didn't change")
 

@@ -2161,23 +2161,55 @@ func isRetryableNotePushError(errStr string) bool {
 
 // HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (bool, error) {
-	// Step 1: Is it UNTRACKED? (file is new to git)
-	_, err := m.runCmd(ctx, "ls-files", "--error-unmatch", filePath)
-	if err != nil {
-		// File is NOT tracked by git → means it's new/unadded
-		return true, nil
+	// TODO: ask maintainers whether they also find this refactoring sensible
+	// TODO: ask maintainers whether it would be sensible to change the method name to something similar to "PathHasChanges"
+	// Reasoning: in this method we only need an indictation for whether there is *any* change at the given path
+	// and thus using git status helps eliminating the need to think of all edge cases (untracked, modified files etc.)
+	var gitStatusOutput string
+	var gitStatusErr error
+	if filePath != "" {
+		gitStatusOutput, gitStatusErr = m.runCmd(ctx, "status", "--porcelain", filePath)
+	} else {
+		gitStatusOutput, gitStatusErr = m.runCmd(ctx, "status", "--porcelain")
 	}
-	// use git diff --quiet and check exit code .. --cached is to consider files staged for deletion
-	_, err = m.runCmd(ctx, "diff", "--quiet", "--", filePath)
-	if err == nil {
-		return false, nil // No changes
+
+	if gitStatusErr != nil {
+		return true, fmt.Errorf("git status failed: %w", gitStatusErr)
 	}
-	// Exit code 1 indicates: changes found
-	if strings.Contains(err.Error(), "exit status 1") {
-		return true, nil
+
+	log.Info(gitStatusOutput)
+
+	if gitStatusOutput == "" {
+		return false, nil
 	}
-	// always return the actual wrapped error
-	return false, fmt.Errorf("git diff failed: %w", err)
+
+	return true, nil
+
+	// // Step 1: Is it UNTRACKED? (file is new to git)
+	// _, err := m.runCmd(ctx, "ls-files", "--error-unmatch", "--others", filePath)
+	// if err == nil {
+	// 	// File is NOT tracked by git → means it's new/unadded
+	// 	return true, nil
+	// }
+	// if !strings.Contains(err.Error(), "exit status 1") {
+	// 	// handle errors other than exit code 1
+	// 	// exit code 1 is expected in case there are no new files
+	// 	return false, fmt.Errorf("git ls-files failed: %w", err)
+	// }
+	// // if the exit code is 1, we still need to check for modified files
+	//
+	// // use git diff --quiet and check exit code .. --cached is to consider files staged for deletion
+	// // _, err = m.runCmd(ctx, "diff", "--quiet", "--", filePath)
+	// _, err = m.runCmd(ctx, "diff", "--quiet", filePath)
+	// if err == nil {
+	// 	return false, nil // No changes
+	// }
+	// // Exit code 1 indicates: changes found
+	// if strings.Contains(err.Error(), "exit status 1") {
+	// 	return true, nil
+	// }
+	// // always return the actual wrapped error
+	// return false, fmt.Errorf("git diff failed: %w", err)
 }
 
 // cmdWithGPG creates git Cmd with a GPG-enabled environment

@@ -123,6 +123,9 @@ func GetSourceRefreshPaths(app *v1alpha1.Application, source v1alpha1.Applicatio
 		syncSource := app.Spec.SourceHydrator.GetSyncSource()
 
 		// if source is syncSource use the source path
+		// TODO: ask maintainers what they think is better
+		// 1) update equals method here to just compare a few fields (otherwise it could break at places where the syncSource is not given using the GetSyncSource() method?
+		// 2) assume that the source for this method will always be generated using the GetSyncSource (or similar methods for other sources)?
 		if source.Equals(&syncSource) {
 			return []string{source.Path}
 		}
