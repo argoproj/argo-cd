@@ -2868,19 +2868,25 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 				continue
 			}
 			log.Debugf("Checking out repos for ref source %s  -> %s [%s]", refName, refSource.Repo.Repo, refSource.TargetRevision)
-			var gitClient git.Client
-			var refSHA string
 			gitClientOpts := git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache)
+			refNormalizedURL := git.NormalizeGitURL(refSource.Repo.Repo)
+			// The commit is already known when it was recorded in the app details cache key, or when
+			// the ref points at the application's own repository and revision. Reuse it instead of
+			// resolving the branch again, so a branch moved between the two lookups cannot store its
+			// parameters under the old commit.
+			refSHA := refSourceCommitSHAs[refNormalizedURL]
 			if isSameRepoAndRevision(mainRepoURL, sourceRevision, refSource) {
-				gitClient, err = s.newClient(&refSource.Repo, gitClientOpts)
 				refSHA = commitSHA
-			} else {
+			}
+			var gitClient git.Client
+			if refSHA == "" {
 				gitClient, refSHA, err = s.newClientResolveRevision(&refSource.Repo, refSource.TargetRevision, gitClientOpts)
+			} else {
+				gitClient, err = s.newClient(&refSource.Repo, gitClientOpts)
 			}
 			if err != nil {
 				return fmt.Errorf("error setting up git client for %s and resolving revision %s: %w", refSource.Repo.Repo, refSource.TargetRevision, err)
 			}
-			refNormalizedURL := git.NormalizeGitURL(refSource.Repo.Repo)
 			if mainRepoURL == refNormalizedURL && refSHA != commitSHA {
 				return fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refName, refSource.TargetRevision, refSHA, revision, commitSHA)
 			}

@@ -4221,7 +4221,36 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 		mockOpts    clientFunc
 		// make new client for accessing the referenced repository
 		newGitClient func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (client git.Client, e error)
+		// commits already recorded in the app details cache key for the referenced repositories
+		refSourceCommitSHAs cache.ResolvedRevisions
 	}{
+		{
+			// The commit recorded in the cache key must be the one checked out, so a branch moved
+			// between the two lookups cannot store its parameters under the old commit.
+			name: "recorded commit is checked out without resolving the branch again",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				return queryTemplate
+			},
+			refSourceCommitSHAs: map[string]string{git.NormalizeGitURL(refRepoURL): refSha2},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				// No LsRemote expectation: the branch must not be resolved a second time.
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(mock.Anything, refSha2).Return(true)
+				client.EXPECT().Checkout(mock.Anything, refSha2, false, true).Return("", nil)
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
+			},
+		},
 		{
 			name: "success",
 			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
@@ -4542,7 +4571,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			appPath, err = filepath.Abs(repoRoot)
 			require.NoError(t, err)
 			res = apiclient.RepoAppDetailsResponse{}
-			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths, nil)
+			err = service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, sha, "main", &query, service.gitRepoPaths, tc.refSourceCommitSHAs)
 			tc.testResults(t)
 		})
 	}
@@ -4887,6 +4916,12 @@ func Test_valueFileResolver_ResolveValueFiles(t *testing.T) {
 	paths := utilio.NewRandomizedTempPaths(tempDir)
 
 	paths.Add(git.NormalizeGitURL("https://github.com/org/repo1"), path.Join(tempDir, "repo1"))
+	// Extracted OCI content is registered under the normalized URL, so a ref whose URL differs
+	// only in case must still resolve to it.
+	paths.Add(v1alpha1.NormalizeOCIURL("oci://Registry.Example.com/chart"), path.Join(tempDir, "oci-chart"))
+	ociRef := map[string]*v1alpha1.RefTarget{
+		"$oci": {Repo: v1alpha1.Repository{Repo: "oci://REGISTRY.EXAMPLE.COM/chart"}},
+	}
 
 	testCases := []struct {
 		name         string
@@ -5020,6 +5055,54 @@ func Test_valueFileResolver_ResolveValueFiles(t *testing.T) {
 			refSources:   map[string]*v1alpha1.RefTarget{},
 			expectedPath: path.Join(tempDir, "main-repo", "values.yaml"),
 		},
+		{
+			name:         "oci ref",
+			rawPath:      "$oci/values.yaml",
+			env:          &v1alpha1.Env{},
+			refSources:   ociRef,
+			expectedPath: path.Join(tempDir, "oci-chart", "values.yaml"),
+		},
+		{
+			// A URL-looking path stays inside the artifact instead of becoming a remote download,
+			// matching how Git $ref paths behave.
+			name:         "oci ref url path stays inside artifact",
+			rawPath:      "$oci/https://example.com/values.yaml",
+			env:          &v1alpha1.Env{},
+			refSources:   ociRef,
+			expectedPath: path.Join(tempDir, "oci-chart", "https:/example.com/values.yaml"),
+		},
+		{
+			// Regression: a ref with no file path after its name used to resolve to the OCI
+			// extraction root.
+			name:        "oci only ref",
+			rawPath:     "$oci",
+			env:         &v1alpha1.Env{},
+			refSources:  ociRef,
+			expectedErr: true,
+		},
+		{
+			name:        "oci only ref with trailing slash",
+			rawPath:     "$oci/",
+			env:         &v1alpha1.Env{},
+			refSources:  ociRef,
+			expectedErr: true,
+		},
+		{
+			name:        "oci attempted traversal",
+			rawPath:     "$oci/../values.yaml",
+			env:         &v1alpha1.Env{},
+			refSources:  ociRef,
+			expectedErr: true,
+		},
+		{
+			name:    "oci repo doesn't exist",
+			rawPath: "$oci/values.yaml",
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/other"}},
+			},
+			expectedErr: true,
+		},
 	}
 
 	for _, tc := range testCases {
@@ -5067,6 +5150,12 @@ func Test_valueFileResolver_ResolveValueFiles_glob(t *testing.T) {
 	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "prod", "x.yaml"), []byte{}, 0o644))
 	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "prod", "y.yaml"), []byte{}, 0o644))
 	require.NoError(t, os.WriteFile(path.Join(tempDir, "repo1", "prod", "nested", "z.yaml"), []byte{}, 0o644))
+
+	// oci-chart files
+	paths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), path.Join(tempDir, "oci-chart"))
+	require.NoError(t, os.MkdirAll(path.Join(tempDir, "oci-chart"), 0o755))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "oci-chart", "a.yaml"), []byte{}, 0o644))
+	require.NoError(t, os.WriteFile(path.Join(tempDir, "oci-chart", "b.yaml"), []byte{}, 0o644))
 
 	tests := []struct {
 		name                    string
@@ -5242,6 +5331,20 @@ func Test_valueFileResolver_ResolveValueFiles_glob(t *testing.T) {
 				path.Join(tempDir, "repo1", "prod", "x.yaml"),
 				path.Join(tempDir, "repo1", "prod", "y.yaml"),
 				path.Join(tempDir, "repo1", "prod", "nested", "z.yaml"),
+			},
+		},
+		{
+			// Regression: matches under the extracted OCI directory were rejected as outside the
+			// repository root because the glob was checked against the main repo root.
+			name:    "glob in oci ref source",
+			rawPath: "$oci/*.yaml",
+			env:     &v1alpha1.Env{},
+			refSources: map[string]*v1alpha1.RefTarget{
+				"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/chart"}},
+			},
+			expectedPaths: []string{
+				path.Join(tempDir, "oci-chart", "a.yaml"),
+				path.Join(tempDir, "oci-chart", "b.yaml"),
 			},
 		},
 	}
@@ -7655,5 +7758,273 @@ func TestGetOciFiles(t *testing.T) {
 				}
 			})
 		}
+	})
+}
+
+func Test_valueFileResolver_ResolveValueFiles_DoesNotLogResolvedPaths(t *testing.T) {
+	// Regression: resolved OCI value files live under the randomized extraction directory.
+	// Logging them leaked the reposerver filesystem layout, so only the count is logged.
+	repoRoot := t.TempDir()
+	appPath := filepath.Join(repoRoot, "app")
+	require.NoError(t, os.MkdirAll(appPath, 0o755))
+
+	ociDir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(ociDir, "a.yaml"), []byte("a: 1"), 0o644))
+
+	ociPaths := utilio.NewRandomizedTempPaths(t.TempDir())
+	ociPaths.Add(v1alpha1.NormalizeOCIURL("oci://registry.example.com/chart"), ociDir)
+
+	resolver := &valueFileResolver{
+		appPath:                  appPath,
+		repoRoot:                 repoRoot,
+		env:                      &v1alpha1.Env{},
+		allowedValueFilesSchemas: []string{"https"},
+		refSources: map[string]*v1alpha1.RefTarget{
+			"$oci": {Repo: v1alpha1.Repository{Repo: "oci://registry.example.com/chart"}},
+		},
+		gitRepoPaths:            utilio.NewRandomizedTempPaths(t.TempDir()),
+		ociPaths:                ociPaths,
+		ignoreMissingValueFiles: false,
+	}
+
+	hook := logtest.NewGlobal()
+	t.Cleanup(hook.Reset)
+
+	result, err := resolver.ResolveValueFiles([]string{"$oci/a.yaml"})
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+
+	for _, entry := range hook.AllEntries() {
+		msg, err := entry.String()
+		require.NoError(t, err)
+		assert.NotContains(t, msg, ociDir, "log entry leaked the OCI extraction directory")
+	}
+}
+
+// assertNoCredentialsLogged installs a global log hook and, on cleanup, asserts that none of the given
+// secrets were written to any log entry. The out-of-bounds symlink warnings log the referenced
+// repository, which must be the URL only and never the full Repository (credentials included).
+func assertNoCredentialsLogged(t *testing.T, secrets ...string) {
+	t.Helper()
+	hook := logtest.NewGlobal()
+	t.Cleanup(func() {
+		defer hook.Reset()
+		for _, entry := range hook.AllEntries() {
+			msg, err := entry.String()
+			require.NoError(t, err)
+			for _, secret := range secrets {
+				assert.NotContains(t, msg, secret, "log entry leaked a repository credential")
+			}
+		}
+	})
+}
+
+func ociRefRequest(t *testing.T, repo string) refSourceResolveRequest {
+	t.Helper()
+	refSource := &v1alpha1.RefTarget{
+		Repo:           v1alpha1.Repository{Repo: repo},
+		TargetRevision: "v1.0.0",
+	}
+	return refSourceResolveRequest{
+		refSourceMapping:  refSource,
+		normalizedRepoURL: refSource.Repo.NormalizeRepoURL(),
+		refVar:            "$ref",
+		ociRefPaths:       utilio.NewRandomizedTempPaths(t.TempDir()),
+	}
+}
+
+func TestResolveOCIRefSource(t *testing.T) {
+	const repo = "oci://registry.example.com/chart"
+
+	t.Run("OCI client creation fails", func(t *testing.T) {
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, _ *iomocks.TempPaths) {}, ".")
+		service.newOCIClient = func(_ string, _ oci.Creds, _ string, _ string, _ []string, _ ...oci.ClientOpts) (oci.Client, error) {
+			return nil, errors.New("internal client failure")
+		}
+
+		_, closer, err := service.resolveOCIRefSource(t.Context(), ociRefRequest(t, repo))
+		assert.Nil(t, closer)
+		require.ErrorContains(t, err, "failed to create OCI client for repo")
+		// The underlying cause must not leak into the client-facing error.
+		assert.NotContains(t, err.Error(), "internal client failure")
+	})
+
+	t.Run("revision resolution fails", func(t *testing.T) {
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return("", errors.New("registry unreachable"))
+		}, ".")
+
+		_, closer, err := service.resolveOCIRefSource(t.Context(), ociRefRequest(t, repo))
+		assert.Nil(t, closer)
+		require.ErrorContains(t, err, "failed to resolve OCI revision v1.0.0")
+		assert.NotContains(t, err.Error(), "registry unreachable")
+	})
+
+	t.Run("extraction fails", func(t *testing.T) {
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return("sha256:abc", nil)
+			ociClient.EXPECT().Extract(mock.Anything, "sha256:abc").Return("", nil, errors.New("layer digest mismatch"))
+		}, ".")
+
+		_, closer, err := service.resolveOCIRefSource(t.Context(), ociRefRequest(t, repo))
+		assert.Nil(t, closer)
+		require.ErrorContains(t, err, "failed to extract OCI image")
+		assert.NotContains(t, err.Error(), "layer digest mismatch")
+	})
+
+	t.Run("out-of-bounds symlink is rejected", func(t *testing.T) {
+		ociDir := t.TempDir()
+		require.NoError(t, os.Symlink("/etc/passwd", filepath.Join(ociDir, "link.yaml")))
+
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return("sha256:abc", nil)
+			ociClient.EXPECT().Extract(mock.Anything, "sha256:abc").Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		req := ociRefRequest(t, repo)
+		req.refSourceMapping.Repo.Password = "oci-s3cret-password"
+		assertNoCredentialsLogged(t, "oci-s3cret-password")
+		_, _, err := service.resolveOCIRefSource(t.Context(), req)
+		require.ErrorContains(t, err, "oci image contains out-of-bounds symlinks")
+		// The extracted path must not be registered when the symlink check fails.
+		assert.Empty(t, req.ociRefPaths.GetPathIfExists(req.normalizedRepoURL))
+	})
+
+	t.Run("success registers the extracted path", func(t *testing.T) {
+		ociDir := t.TempDir()
+		require.NoError(t, os.WriteFile(filepath.Join(ociDir, "values.yaml"), []byte("foo: bar"), 0o644))
+
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return("sha256:abc", nil)
+			ociClient.EXPECT().Extract(mock.Anything, "sha256:abc").Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		req := ociRefRequest(t, repo)
+		ref, closer, err := service.resolveOCIRefSource(t.Context(), req)
+		require.NoError(t, err)
+		require.NotNil(t, closer)
+		assert.Equal(t, "v1.0.0", ref.revision)
+		assert.Equal(t, "sha256:abc", ref.commitSHA)
+		assert.Equal(t, "$ref", ref.key)
+		assert.Equal(t, ociDir, req.ociRefPaths.GetPathIfExists(req.normalizedRepoURL))
+	})
+
+	t.Run("recorded digest is extracted without resolving the tag again", func(t *testing.T) {
+		ociDir := t.TempDir()
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			// No ResolveRevision expectation: a second resolution could see a moved tag and store
+			// its content under the digest already recorded in the cache key.
+			ociClient.EXPECT().Extract(mock.Anything, "sha256:recorded").Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		req := ociRefRequest(t, repo)
+		req.ociDigest = "sha256:recorded"
+		ref, _, err := service.resolveOCIRefSource(t.Context(), req)
+		require.NoError(t, err)
+		assert.Equal(t, "sha256:recorded", ref.commitSHA)
+	})
+
+	t.Run("hard refresh clears the cached archive before extracting", func(t *testing.T) {
+		ociDir := t.TempDir()
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", true).Return("sha256:abc", nil)
+			ociClient.EXPECT().CleanCache("sha256:abc").Return(nil).Once()
+			ociClient.EXPECT().Extract(mock.Anything, "sha256:abc").Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		req := ociRefRequest(t, repo)
+		req.noCache = true
+		_, _, err := service.resolveOCIRefSource(t.Context(), req)
+		require.NoError(t, err)
+	})
+}
+
+func TestResolveGitRefSource(t *testing.T) {
+	const repo = "https://github.com/test/repo.git"
+
+	gitRefRequest := func() refSourceResolveRequest {
+		refSource := &v1alpha1.RefTarget{
+			Repo:           v1alpha1.Repository{Repo: repo},
+			TargetRevision: "main",
+		}
+		return refSourceResolveRequest{
+			appRepoURL:        repo,
+			appRevision:       "primary-revision",
+			refSourceMapping:  refSource,
+			normalizedRepoURL: refSource.Repo.NormalizeRepoURL(),
+			refVar:            "$ref",
+			commitSHA:         "primary-sha",
+		}
+	}
+
+	t.Run("git client resolution fails", func(t *testing.T) {
+		service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			paths.EXPECT().GetPath(mock.Anything).Return(t.TempDir(), nil)
+			gitClient.EXPECT().Root().Return("/tmp/repo")
+			gitClient.EXPECT().LsRemote(mock.Anything).Return("", errors.New("auth required"))
+		}, ".")
+
+		_, closer, err := service.resolveGitRefSource(t.Context(), gitRefRequest())
+		assert.Nil(t, closer)
+		require.ErrorContains(t, err, "failed to get git client for repo")
+		assert.NotContains(t, err.Error(), "auth required")
+	})
+
+	t.Run("referencing a different revision of the same repository is rejected", func(t *testing.T) {
+		service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			paths.EXPECT().GetPath(mock.Anything).Return(t.TempDir(), nil)
+			gitClient.EXPECT().Root().Return("/tmp/repo")
+			// Resolves to a commit that differs from the primary source's commitSHA.
+			gitClient.EXPECT().LsRemote(mock.Anything).Return("referenced-sha", nil)
+		}, ".")
+
+		_, closer, err := service.resolveGitRefSource(t.Context(), gitRefRequest())
+		assert.Nil(t, closer)
+		require.ErrorContains(t, err, "cannot reference a different revision of the same repository")
+	})
+
+	t.Run("out-of-bounds symlink is rejected after checkout", func(t *testing.T) {
+		root := t.TempDir()
+		require.NoError(t, os.Symlink("/etc/passwd", filepath.Join(root, "link.yaml")))
+
+		service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+			gitClient.EXPECT().Root().Return(root)
+			gitClient.EXPECT().LsRemote(mock.Anything).Return("primary-sha", nil)
+			gitClient.EXPECT().Init().Return(nil)
+			gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(true)
+			gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		}, ".")
+
+		req := gitRefRequest()
+		req.noCache = true // bypass the symlink-check cache so this test is self-contained
+		req.refSourceMapping.Repo.Password = "git-s3cret-password"
+		req.refSourceMapping.Repo.SSHPrivateKey = "git-s3cret-private-key"
+		assertNoCredentialsLogged(t, "git-s3cret-password", "git-s3cret-private-key")
+		_, _, err := service.resolveGitRefSource(t.Context(), req)
+		require.ErrorContains(t, err, "repository contains out-of-bounds symlinks")
+	})
+
+	t.Run("success returns a repoRef and a closer", func(t *testing.T) {
+		root := t.TempDir()
+
+		service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+			gitClient.EXPECT().Root().Return(root)
+			gitClient.EXPECT().LsRemote(mock.Anything).Return("primary-sha", nil)
+			gitClient.EXPECT().Init().Return(nil)
+			gitClient.EXPECT().IsRevisionPresent(mock.Anything, mock.Anything).Return(true)
+			gitClient.EXPECT().Checkout(mock.Anything, mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+		}, ".")
+
+		req := gitRefRequest()
+		req.noCache = true
+		ref, closer, err := service.resolveGitRefSource(t.Context(), req)
+		require.NoError(t, err)
+		require.NotNil(t, closer)
+		defer closeAndLog(closer, "test lock")
+		assert.Equal(t, "main", ref.revision)
+		assert.Equal(t, "primary-sha", ref.commitSHA)
+		assert.Equal(t, "$ref", ref.key)
 	})
 }
