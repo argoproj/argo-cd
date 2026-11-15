@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"slices"
 	"strings"
@@ -48,18 +49,30 @@ type workloadIdentityClientFactory struct {
 	getToken func() (string, error)
 }
 
-func (factory *workloadIdentityClientFactory) GetClient(ctx context.Context) (git.Client, error) {
+func (factory *workloadIdentityClientFactory) GetClient(_ context.Context) (git.Client, error) {
 	token, err := factory.getToken()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get Azure DevOps access token using Azure Workload Identity: %w", err)
 	}
-	// A new connection is created on every call: the SDK copies the authorization header into the
-	// clients it caches per connection, so reusing a connection would keep using an expired token.
-	gitClient, err := git.NewClient(ctx, newBearerConnection(factory.organizationURL, token))
-	if err != nil {
-		return nil, fmt.Errorf("failed to get new Azure DevOps git client for pull request generator: %w", err)
+	return newPinnedGitClient(newBearerConnection(factory.organizationURL, token)), nil
+}
+
+// newPinnedGitClient returns an Azure DevOps git client that sends every request to the connection's base URL.
+//
+// git.NewClient first asks the server for the Git resource area and then sends all further requests, including
+// the authorization header, to the LocationUrl the server returns, without checking its scheme or host. The
+// workload identity token is a credential of the controller, so this client skips that discovery and builds the
+// client on the already validated organization URL. Its HTTP client also refuses redirects, so that the token is
+// never forwarded to another URL. A new connection and client are created on every call, because the SDK copies
+// the authorization header into the client and would otherwise keep using an expired token.
+func newPinnedGitClient(connection *azuredevops.Connection) git.Client {
+	httpClient := &http.Client{
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
 	}
-	return gitClient, nil
+	client := azuredevops.NewClientWithOptions(connection, connection.BaseUrl, azuredevops.WithHTTPClient(httpClient))
+	return &git.ClientImpl{Client: *client}
 }
 
 // newBearerConnection returns an Azure DevOps connection that authenticates with an OAuth bearer token.

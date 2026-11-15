@@ -442,6 +442,7 @@ The token is a credential of the ApplicationSet controller, not of the Applicati
 - If `api` is empty or `https://dev.azure.com`, the token is sent to the public Azure DevOps service.
 - Any other `api` URL is rejected unless an administrator has listed it in the allowed SCM providers (`applicationsetcontroller.allowed.scm.providers` in `argocd-cmd-params-cm`). See [SCM Providers secrets consideration](Appset-Any-Namespace.md#scm-providers-secrets-consideration).
 - The `api` URL must use `https://`. URLs with any other scheme are rejected, even when they are allowed.
+- All requests go to the `api` URL. The controller does not use the API locations that the server advertises, and it does not follow HTTP redirects.
 
 > [!WARNING]
 > Every ApplicationSet that sets `useAzureWorkloadIdentity: true` uses the same identity: the one of the ApplicationSet controller. If you allow [ApplicationSets in any namespace](Appset-Any-Namespace.md), users who can create an ApplicationSet in one of those namespaces can list the pull requests of every Azure DevOps project that this identity can read. Grant the identity access only to the projects that all of those users may see.

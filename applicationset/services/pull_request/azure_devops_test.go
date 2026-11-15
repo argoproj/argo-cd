@@ -2,8 +2,10 @@ package pull_request
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -410,43 +412,133 @@ func TestWorkloadIdentityFactoryGetClientTokenError(t *testing.T) {
 	assert.Nil(t, client)
 }
 
-func TestWorkloadIdentityFactoryGetClientSendsFreshBearerToken(t *testing.T) {
-	t.Parallel()
-	var mu sync.Mutex
-	var authHeaders []string
+// recordedRequest is a request received by a fake Azure DevOps server.
+type recordedRequest struct {
+	method string
+	path   string
+	auth   string
+}
+
+// requestRecorder is an httptest handler wrapper that records every request it receives.
+type requestRecorder struct {
+	mu       sync.Mutex
+	requests []recordedRequest
+}
+
+func (r *requestRecorder) record(req *http.Request) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.requests = append(r.requests, recordedRequest{method: req.Method, path: req.URL.Path, auth: req.Header.Get("Authorization")})
+}
+
+func (r *requestRecorder) all() []recordedRequest {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	return append([]recordedRequest(nil), r.requests...)
+}
+
+// newFakeAzureDevOpsServer serves the minimum of the Azure DevOps REST API needed to list pull requests for
+// organization "myorg" and project "myproject". Its resource area discovery endpoint advertises
+// discoveredLocationURL as the location of the Git API.
+func newFakeAzureDevOpsServer(t *testing.T, discoveredLocationURL string) (*httptest.Server, *requestRecorder) {
+	t.Helper()
+	recorder := &requestRecorder{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		mu.Lock()
-		authHeaders = append(authHeaders, r.Header.Get("Authorization"))
-		mu.Unlock()
+		recorder.record(r)
+		w.Header().Set("Content-Type", "application/json")
+		switch {
+		case r.URL.Path == "/myorg/_apis/ResourceAreas":
+			_, _ = fmt.Fprintf(w, `{"count":1,"value":[{"id":%q,"name":"git","locationUrl":%q}]}`, git.ResourceAreaId.String(), discoveredLocationURL)
+		case r.Method == http.MethodOptions && r.URL.Path == "/myorg/_apis":
+			_, _ = w.Write([]byte(`{"count":1,"value":[{"id":"a5d28130-9cd2-40fa-9f08-902e7daa9efb","area":"git","resourceName":"pullrequests",` +
+				`"routeTemplate":"{project}/_apis/{area}/{resource}","resourceVersion":1,"minVersion":"1.0","maxVersion":"7.1","releasedVersion":"7.1"}]}`))
+		case r.Method == http.MethodGet && r.URL.Path == "/myorg/myproject/_apis/git/pullrequests":
+			_, _ = w.Write([]byte(`{"count":1,"value":[{"pullRequestId":42,"title":"feat: x","sourceRefName":"refs/heads/feature",` +
+				`"targetRefName":"refs/heads/main","lastMergeSourceCommit":{"commitId":"cd4973d9d14a08ffe6b641a89a68891d6aac8056"},` +
+				`"repository":{"name":"myrepo"},"createdBy":{"uniqueName":"jane@example.com"},"labels":[]}]}`))
+		default:
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	t.Cleanup(server.Close)
+	return server, recorder
+}
+
+// newUntrustedServer returns a server that must never receive any request.
+func newUntrustedServer(t *testing.T) (*httptest.Server, *requestRecorder) {
+	t.Helper()
+	recorder := &requestRecorder{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		recorder.record(r)
 		w.WriteHeader(http.StatusNotFound)
 	}))
-	defer server.Close()
+	t.Cleanup(server.Close)
+	return server, recorder
+}
+
+func TestWorkloadIdentityListSendsRequestsOnlyToOrganizationURL(t *testing.T) {
+	t.Parallel()
+	untrusted, untrustedRequests := newUntrustedServer(t)
+	// The fake server advertises a plain-HTTP Git endpoint on another server. The workload identity client
+	// must not use it.
+	server, requests := newFakeAzureDevOpsServer(t, untrusted.URL+"/myorg/")
 
 	tokens := []string{"token-1", "token-2"}
 	calls := 0
-	factory := &workloadIdentityClientFactory{
-		organizationURL: server.URL + "/myorg",
-		getToken: func() (string, error) {
-			token := tokens[calls]
-			calls++
-			return token, nil
+	svc := &AzureDevOpsService{
+		clientFactory: &workloadIdentityClientFactory{
+			organizationURL: server.URL + "/myorg",
+			getToken: func() (string, error) {
+				token := tokens[calls]
+				calls++
+				return token, nil
+			},
 		},
+		project: "myproject",
+		repo:    "myrepo",
 	}
 
-	// The fake server does not implement the Azure DevOps API, so client creation fails after the first request,
-	// which is enough to check which credentials were sent.
-	_, err := factory.GetClient(t.Context())
-	require.Error(t, err)
-	_, err = factory.GetClient(t.Context())
-	require.Error(t, err)
+	for range 2 {
+		pulls, err := svc.List(t.Context())
+		require.NoError(t, err)
+		require.Len(t, pulls, 1)
+		assert.Equal(t, int64(42), pulls[0].Number)
+		assert.Equal(t, "feature", pulls[0].Branch)
+	}
 
 	assert.Equal(t, 2, calls, "a token must be requested for every client")
-	mu.Lock()
-	defer mu.Unlock()
-	require.NotEmpty(t, authHeaders)
-	assert.Contains(t, authHeaders, "Bearer token-1")
-	assert.Contains(t, authHeaders, "Bearer token-2")
-	for _, h := range authHeaders {
-		assert.NotContains(t, h, "Basic", "workload identity must not fall back to PAT basic auth")
+	assert.Empty(t, untrustedRequests.all(), "no request may be sent to the discovered endpoint")
+	recorded := requests.all()
+	require.NotEmpty(t, recorded)
+	auths := map[string]bool{}
+	for _, r := range recorded {
+		assert.NotEqual(t, "/myorg/_apis/ResourceAreas", r.path, "resource area discovery must be skipped")
+		assert.True(t, strings.HasPrefix(r.auth, "Bearer "), "request %s %s must use bearer authentication, got %q", r.method, r.path, r.auth)
+		auths[r.auth] = true
 	}
+	assert.True(t, auths["Bearer token-1"] && auths["Bearer token-2"], "each client must use its own fresh token, got %v", auths)
+}
+
+func TestWorkloadIdentityClientDoesNotFollowRedirects(t *testing.T) {
+	t.Parallel()
+	untrusted, untrustedRequests := newUntrustedServer(t)
+	redirecting := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, untrusted.URL+r.URL.Path, http.StatusFound)
+	}))
+	t.Cleanup(redirecting.Close)
+
+	svc := &AzureDevOpsService{
+		clientFactory: &workloadIdentityClientFactory{
+			organizationURL: redirecting.URL + "/myorg",
+			getToken: func() (string, error) {
+				return "token", nil
+			},
+		},
+		project: "myproject",
+		repo:    "myrepo",
+	}
+
+	_, err := svc.List(t.Context())
+	require.Error(t, err)
+	assert.Empty(t, untrustedRequests.all(), "the token must not be forwarded to a redirect target")
 }
