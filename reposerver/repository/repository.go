@@ -1029,6 +1029,15 @@ func (s *Service) resolveOCIRefSource(ctx context.Context, req refSourceResolveR
 		}
 	}
 
+	// Mirror the primary OCI source: a hard refresh must also discard a cached (possibly corrupt)
+	// archive of the referenced image, not just its revision lookup.
+	if req.noCache {
+		if err := ociClient.CleanCache(referencedDigest); err != nil {
+			log.Errorf("Failed to clean OCI cache for repo %s: %v", refSourceMapping.Repo.Repo, err)
+			return repoRef{}, nil, fmt.Errorf("failed to clean OCI cache for repo %s", refSourceMapping.Repo.Repo)
+		}
+	}
+
 	ociPath, closer, err := ociClient.Extract(ctx, referencedDigest)
 	if err != nil {
 		log.Errorf("Failed to extract OCI image %s: %v", refSourceMapping.Repo.Repo, err)

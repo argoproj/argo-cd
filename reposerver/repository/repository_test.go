@@ -186,6 +186,7 @@ func newServiceWithMocks(t *testing.T, root string) (*Service, *gitmocks.Client,
 		ociClient.EXPECT().GetTags(mock.Anything, mock.Anything).Return(nil, nil)
 		ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
 		ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return("./testdata/my-chart", utilio.NopCloser, nil)
+		ociClient.EXPECT().CleanCache(mock.Anything).Return(nil)
 
 		paths.EXPECT().Add(mock.Anything, mock.Anything).Return()
 		paths.EXPECT().GetPath(mock.Anything).Return(root, nil)

@@ -142,6 +142,20 @@ func TestResolveOCIRefSource(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, "sha256:recorded", ref.commitSHA)
 	})
+
+	t.Run("hard refresh clears the cached archive before extracting", func(t *testing.T) {
+		ociDir := t.TempDir()
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", true).Return("sha256:abc", nil)
+			ociClient.EXPECT().CleanCache("sha256:abc").Return(nil).Once()
+			ociClient.EXPECT().Extract(mock.Anything, "sha256:abc").Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		req := ociRefRequest(t, repo)
+		req.noCache = true
+		_, _, err := service.resolveOCIRefSource(t.Context(), req)
+		require.NoError(t, err)
+	})
 }
 
 func TestResolveGitRefSource(t *testing.T) {
