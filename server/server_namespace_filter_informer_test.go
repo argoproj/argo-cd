@@ -7,7 +7,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/wait"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -22,9 +21,10 @@ import (
 // regressions where the transform stops dropping (or starts polluting the
 // cache with nil entries).
 func TestInformerFilterDoesNotCacheDisallowedNamespaces(t *testing.T) {
-	kept := &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Name: "kept", Namespace: "team-a"}}
-	control := &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Name: "ctrl", Namespace: "argocd"}}
-	dropped := &v1alpha1.Application{ObjectMeta: metav1.ObjectMeta{Name: "dropped", Namespace: "team-b"}}
+	t.Parallel()
+	kept := &v1alpha1.Application{Name: "kept", Namespace: "team-a"}
+	control := &v1alpha1.Application{Name: "ctrl", Namespace: "argocd"}
+	dropped := &v1alpha1.Application{Name: "dropped", Namespace: "team-b"}
 
 	client := apps.NewSimpleClientset(kept, control, dropped)
 	factory := appinformer.NewSharedInformerFactoryWithOptions(client, 0)

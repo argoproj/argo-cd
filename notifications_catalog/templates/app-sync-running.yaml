@@ -30,7 +30,7 @@ slack:
           {{end}}
           ]
         }]
-teams:
+teams-workflows:
     title: "Start syncing application {{.app.metadata.name}}."
     facts: |
         [{

@@ -1,7 +1,7 @@
 import {AutocompleteField, DataLoader, DropDownMenu, FormField} from 'argo-ui';
 import * as deepMerge from 'deepmerge';
 import * as React from 'react';
-import {Form, FormApi, FormErrors, Text} from 'react-form';
+import {Form, FormApi, FormErrors, Text} from 'argo-ui';
 import {ApplicationParameters} from '../../../applications/components/application-parameters/application-parameters';
 import {RevisionFormField} from '../../../applications/components/revision-form-field/revision-form-field';
 import {RevisionHelpIcon} from '../../../shared/components';
@@ -65,7 +65,8 @@ export const SourcePanel = (props: {
     getFormApi: (api: FormApi) => any;
 }) => {
     const [explicitPathType, setExplicitPathType] = React.useState<{path: string; type: models.AppSourceType}>(null);
-    const appInEdit = deepMerge(DEFAULT_APP, {});
+    // The new source belongs to the existing app, so its project scopes the repository lookups (revisions, tags, charts).
+    const appInEdit = deepMerge(DEFAULT_APP, {spec: {project: props.appCurrent.spec.project}});
 
     return (
         <DataLoader key='add-new-source' load={() => Promise.all([services.repos.list()]).then(([reposInfo]) => ({reposInfo}))}>
@@ -273,9 +274,9 @@ export const SourcePanel = (props: {
                                                 </React.Fragment>
                                             )) || (
                                                 <DataLoader
-                                                    input={{repoURL: api.getFormState().values.spec.source.repoURL}}
+                                                    input={{repoURL: api.getFormState().values.spec.source.repoURL, appProject: props.appCurrent.spec.project}}
                                                     load={async src =>
-                                                        (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) ||
+                                                        (src.repoURL && services.repos.charts(src.repoURL, src.appProject).catch(() => new Array<models.HelmChart>())) ||
                                                         new Array<models.HelmChart>()
                                                     }>
                                                     {(charts: models.HelmChart[]) => {

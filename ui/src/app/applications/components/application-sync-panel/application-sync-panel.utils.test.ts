@@ -1,8 +1,7 @@
 import * as models from '../../../shared/models';
 import {getAvailableKinds, setSelectionForKind} from './application-sync-panel.utils';
 
-const r = (kind: string, name = 'res'): models.ResourceStatus =>
-    ({kind, name, namespace: 'ns', status: 'OutOfSync', version: 'v1'} as unknown as models.ResourceStatus);
+const r = (kind: string, name = 'res'): models.ResourceStatus => ({kind, name, namespace: 'ns', status: 'OutOfSync', version: 'v1'}) as unknown as models.ResourceStatus;
 
 describe('application-sync-panel.utils', () => {
     describe('getAvailableKinds', () => {

@@ -11,6 +11,7 @@ import (
 )
 
 func TestSetupBitbucketClient(t *testing.T) {
+	t.Parallel()
 	ctx := t.Context()
 	cfg := &bitbucketv1.Configuration{}
 

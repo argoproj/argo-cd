@@ -11,6 +11,7 @@ import (
 )
 
 func TestRender(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		metadata HydratorCommitMetadata
@@ -88,6 +89,7 @@ Co-authored-by: test <test@test.com>
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			got, err := Render(settings.CommitMessageTemplate, tt.metadata)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Render() error = %v, wantErr %v", err, tt.wantErr)

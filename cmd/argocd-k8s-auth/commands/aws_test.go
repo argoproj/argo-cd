@@ -17,7 +17,7 @@ func TestGetSignedRequest(t *testing.T) {
 
 	t.Run("returns error when context is cancelled", func(t *testing.T) {
 		t.Parallel()
-		ctx, cancel := context.WithCancel(context.Background())
+		ctx, cancel := context.WithCancel(t.Context())
 		cancel()
 
 		url, err := getSignedRequest(ctx, "my-cluster", "", "")
@@ -28,7 +28,7 @@ func TestGetSignedRequest(t *testing.T) {
 
 	t.Run("returns error for non-existent profile", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 		profile := "argocd-k8s-auth-test-nonexistent-profile-12345"
 
 		url, err := getSignedRequest(ctx, "my-cluster", "", profile)
@@ -40,7 +40,7 @@ func TestGetSignedRequest(t *testing.T) {
 
 	t.Run("returns error when roleARN is provided and assume role fails", func(t *testing.T) {
 		t.Parallel()
-		ctx := context.Background()
+		ctx := t.Context()
 		cfg, err := config.LoadDefaultConfig(ctx,
 			config.WithCredentialsProvider(credentials.NewStaticCredentialsProvider("test", "test", "")),
 			config.WithRegion("us-east-1"),

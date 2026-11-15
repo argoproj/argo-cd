@@ -2,8 +2,10 @@
 
 | Workflow           | Description                                                    |
 |--------------------|----------------------------------------------------------------|
+| auto-assign-pr-author.yaml | Assign the PR author to their pull request            |
 | ci-build.yaml      | Build, lint, test, codegen, build-ui, analyze, e2e-test        |
 | codeql.yaml        | CodeQL analysis                                                |
+| e2e-shard-weights.yaml | Scheduled PR refreshing the e2e shard weights              |
 | image-reuse.yaml   | Build, push, and Sign container images                         |
 | image.yaml         | Build container image for PR's & publish for push events       |
 | init-release.yaml  | Build manifests and version then create a PR for release branch|

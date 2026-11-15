@@ -1,9 +1,13 @@
-import React, {useCallback, useContext, useRef, useState} from 'react';
+import * as React from 'react';
+import {useCallback, useContext, useRef, useState} from 'react';
+import {useQuery} from '@tanstack/react-query';
 
-import {FormField, NotificationType, SlidingPanel} from 'argo-ui/src/index';
-import {Form, FormApi, FormValue, Nested, Text} from 'react-form';
-import {DataLoader, ErrorNotification, Page, Spinner} from '../../../shared/components';
+import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {Form, FormApi, FormValue, Nested, Text} from 'argo-ui';
+import {AuthOption, ErrorNotification, Page, Spinner} from '../../../shared/components';
 import {Context} from '../../../shared/context';
+import {userQueries} from '../../../shared/queries';
+import {loading, loadFailed} from '../../../shared/query-client';
 import {services} from '../../../shared/services';
 
 import './user-info-overview.scss';
@@ -84,6 +88,7 @@ export const UserInfoComponent = ({userInfo}: {userInfo: UserInfo}) => {
             title='User Info'
             toolbar={{
                 breadcrumbs: [{title: 'User Info'}],
+                tools: <AuthOption />,
                 actionMenu: isPasswordChangeAvailable
                     ? {
                           items: [
@@ -193,5 +198,9 @@ export const UserInfoComponent = ({userInfo}: {userInfo: UserInfo}) => {
 };
 
 export function UserInfoOverview() {
-    return <DataLoader load={() => services.users.get()}>{userInfo => <UserInfoComponent userInfo={userInfo} />}</DataLoader>;
+    const userInfo = useQuery(userQueries.info());
+    if (!userInfo.data) {
+        return userInfo.isFetching || !userInfo.isError ? loading : loadFailed(userInfo.refetch);
+    }
+    return <UserInfoComponent userInfo={userInfo.data} />;
 }

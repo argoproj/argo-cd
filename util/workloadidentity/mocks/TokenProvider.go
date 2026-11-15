@@ -15,10 +15,19 @@ func NewTokenProvider(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *TokenProvider {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &TokenProvider{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -71,7 +80,7 @@ type TokenProvider_GetToken_Call struct {
 
 // GetToken is a helper method to define mock.On call
 //   - scope string
-func (_e *TokenProvider_Expecter) GetToken(scope interface{}) *TokenProvider_GetToken_Call {
+func (_e *TokenProvider_Expecter) GetToken(scope any) *TokenProvider_GetToken_Call {
 	return &TokenProvider_GetToken_Call{Call: _e.mock.On("GetToken", scope)}
 }
 

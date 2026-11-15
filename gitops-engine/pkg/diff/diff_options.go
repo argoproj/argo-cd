@@ -19,7 +19,6 @@ type options struct {
 	normalizer            Normalizer
 	skipFullNormalize     bool
 	log                   logr.Logger
-	structuredMergeDiff   bool
 	gvkParser             *managedfields.GvkParser
 	manager               string
 	serverSideDiff        bool
@@ -93,12 +92,6 @@ func WithSkipFullNormalize(skip bool) Option {
 func WithLogr(log logr.Logger) Option {
 	return func(o *options) {
 		o.log = log
-	}
-}
-
-func WithStructuredMergeDiff(smd bool) Option {
-	return func(o *options) {
-		o.structuredMergeDiff = smd
 	}
 }
 

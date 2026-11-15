@@ -6,7 +6,7 @@ You can click on the "Details" link next to the failed step to get more informat
 
 ![Failed GitHub Action](ci-pipeline-failed.png)
 
-To read more about The GitHub actions are configured in [`ci-build.yaml`](https://github.com/argoproj/argo-cd/blob/master/.github/workflows/ci-build.yaml).
+The GitHub actions are configured in [`ci-build.yaml`](https://github.com/argoproj/argo-cd/blob/master/.github/workflows/ci-build.yaml).
 
 ### Can I retrigger the checks without pushing a new commit?
 
@@ -44,6 +44,10 @@ Your code failed to lint correctly, or modifications were performed by the `gola
 * You should run `make lint`, or `golangci-lint run` on your local branch and fix all the issues.
 
 * If you receive an error like, ```File is not `goimports`-ed (goimports)```, the file is not formatted correctly. Run `gofmt -w $file.go` to resolve this linter error.
+
+* `make lint` and `make lint-local` also run `actionlint` on `.github/workflows`, which checks workflow syntax, expressions and `run:` scripts. To run only that check, use `make actionlint` or `make actionlint-local`.
+
+* `make kubeconform` or `make kubeconform-local` validates the generated install manifests in `manifests/` and `manifests/ha/` against the Kubernetes schemas for the `k8s.io/api` version in `go.mod` and the three minor versions before it. It needs network access to download the schemas. If it reports an error, fix the source manifests and regenerate with `make manifests-local`.
 
 ### Why does the test or e2e steps fail?
 

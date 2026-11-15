@@ -1,0 +1,7 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: CapsuleConfiguration
+metadata:
+  name: default
+spec:
+  userGroups:
+    - capsule.clastix.io

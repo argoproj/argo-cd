@@ -1,11 +1,22 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
 .application-sync-panel__kind-filter {
+    display: flex;
+    align-items: center;
+    clear: both;
     margin-top: 0.5em;
     margin-bottom: 0.5em;
 
     label {
         margin-right: 0.5em;
+    }
+
+    .select {
+        min-width: 14em;
+    }
+
+    .select__focus-receiver {
+        position: absolute;
     }
 }
 
@@ -35,7 +46,6 @@
         white-space: nowrap;
         display: inline-block;
         margin-right: 0.3em;
-
 
         label {
             cursor: pointer;

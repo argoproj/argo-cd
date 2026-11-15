@@ -1,5 +1,6 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/argo-ui/src/styles/theme';
+@import '../../../settings/components/settings-overview/settings-overview';
 
 .editable-panel {
     position: relative;
@@ -12,6 +13,7 @@
         position: absolute;
         top: 30px;
         right: 3em;
+        z-index: 12; // above the sticky title
     }
 
     &__divider {
@@ -33,6 +35,7 @@
         position: absolute;
         top: 30px;
         right: 30px;
+        z-index: 12; // above the sticky title
         &__override {
             @include themify($themes) {
                 color: themed('light-argo-teal-7');
@@ -41,8 +44,13 @@
     }
 
     &__sticky-title {
-        z-index: 10;
-        opacity: 75%;
+        z-index: 11; // above form inputs (z-index: 10)
+        @include themify($themes) {
+            background-color: themed('background-2');
+            border-bottom: 1px solid themed('border');
+            // covers the scroll container's top padding when stuck
+            box-shadow: 0 -30px 0 0 themed('background-2');
+        }
         position: sticky;
         padding-left: 15px;
         padding-right: 15px;
@@ -51,7 +59,14 @@
         top: 0px;
         text-overflow: ellipsis;
         white-space: nowrap;
-        overflow: hidden;        
+        overflow: hidden;
+
+        &.white-box--additional-top-space {
+            // opaque padding instead of argo-ui's margin; hidden above the viewport when stuck
+            margin-top: 0;
+            padding-top: 40px;
+            top: -40px;
+        }
     }
 
     .form-field__select {

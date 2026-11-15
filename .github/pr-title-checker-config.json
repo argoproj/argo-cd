@@ -4,12 +4,15 @@
     "color": "EEEEEE"
   },
   "CHECKS": {
-    "prefixes": ["[Bot] docs: "],
+    "prefixes": [
+      "[Bot] docs: ",
+      "Bump version to "
+    ],
     "regexp": "^(refactor|feat|fix|docs|test|ci|chore|revert)!?(\\(.*\\))?!?:.*"
   },
   "MESSAGES": {
     "success": "PR title is valid",
     "failure": "PR title is invalid",
-    "notice": "PR Title needs to pass regex '^(refactor|feat|fix|docs|test|ci|chore|revert)!?(\\(.*\\))?!?:.*"
+    "notice": "PR Title needs to pass regex '^(refactor|feat|fix|docs|test|ci|chore|revert)!?(\\(.*\\))?!?:.*' or start with an allowed prefix (e.g. 'Bump version to ')"
   }
 }
