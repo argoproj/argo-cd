@@ -1,4 +1,4 @@
-import {ErrorNotification, FormField, NotificationType, Select, Tooltip} from 'argo-ui';
+import {ErrorNotification, FormField, NotificationType, Tooltip} from 'argo-ui';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'argo-ui';
 
@@ -18,6 +18,7 @@ import {
 } from '../application-sync-options/application-sync-options';
 import {ComparisonStatusIcon, getAppDefaultSource, nodeKey} from '../utils';
 import {getAvailableKinds, setSelectionForKind} from './application-sync-panel.utils';
+import {KindFilterSelect} from './kind-filter-select';
 
 export const ApplicationSyncPanelBody = ({
     application,
@@ -324,7 +325,7 @@ export const ApplicationSyncPanelBody = ({
                                 {availableKinds.length > 1 && (
                                     <div className='application-sync-panel__kind-filter'>
                                         <label htmlFor='application-sync-panel-kind-filter-select'>Filter by Kind:</label>
-                                        <Select
+                                        <KindFilterSelect
                                             id='application-sync-panel-kind-filter-select'
                                             placeholder='All kinds'
                                             value={activeKindFilter}
@@ -333,19 +334,23 @@ export const ApplicationSyncPanelBody = ({
                                         />
                                         {activeKindFilter !== '' && (
                                             <span className='application-sync-panel__kind-filter-actions'>
-                                                <a
+                                                <button
+                                                    type='button'
+                                                    className='application-sync-panel__kind-filter-action-btn'
                                                     onClick={() =>
                                                         formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, activeKindFilter, true))
                                                     }>
                                                     select visible
-                                                </a>{' '}
+                                                </button>{' '}
                                                 /{' '}
-                                                <a
+                                                <button
+                                                    type='button'
+                                                    className='application-sync-panel__kind-filter-action-btn'
                                                     onClick={() =>
                                                         formApi.setValue('resources', setSelectionForKind(appResources, formApi.values.resources, activeKindFilter, false))
                                                     }>
                                                     clear visible
-                                                </a>
+                                                </button>
                                             </span>
                                         )}
                                     </div>

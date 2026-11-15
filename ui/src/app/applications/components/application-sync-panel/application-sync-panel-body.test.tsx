@@ -130,7 +130,7 @@ describe('ApplicationSyncPanelBody kind filter', () => {
 
         // Filter to Deployment and click 'select visible'
         selectKindInComboBox(container, 'Deployment');
-        fireEvent.click(screen.getByText('select visible', {selector: 'a'}));
+        fireEvent.click(screen.getByRole('button', {name: /select visible/i}));
         expect(checkbox('apps/Deployment/ns/web').checked).toBe(true);
         expect(checkbox('apps/Deployment/ns/api').checked).toBe(true);
 
@@ -143,7 +143,7 @@ describe('ApplicationSyncPanelBody kind filter', () => {
 
         // Switch back to Deployment and clear visible, then re-check web only
         selectKindInComboBox(container, 'Deployment');
-        fireEvent.click(screen.getByText('clear visible', {selector: 'a'}));
+        fireEvent.click(screen.getByRole('button', {name: /clear visible/i}));
         expect(checkbox('apps/Deployment/ns/web').checked).toBe(false);
         expect(checkbox('apps/Deployment/ns/api').checked).toBe(false);
         fireEvent.click(checkbox('apps/Deployment/ns/web'));
@@ -170,5 +170,27 @@ describe('ApplicationSyncPanelBody kind filter', () => {
 
         await update(appWith(res('', 'Service', 'web', 'Synced'), res('', 'ConfigMap', 'cm', 'OutOfSync')));
         expect(screen.getByLabelText('/Service/ns/web')).toBeInTheDocument();
+    });
+
+    it('supports selecting a kind using keyboard navigation and selection', async () => {
+        const {container} = await renderPanel();
+        const trigger = screen.getByRole('combobox', {name: /filter by kind/i});
+
+        // Open dropdown via keyboard
+        fireEvent.keyDown(trigger, {key: 'ArrowDown'});
+
+        const searchInput = within(getKindFilterContainer(container)).getByPlaceholderText('Search');
+        // Available options: [0: "All kinds", 1: "ConfigMap", 2: "Deployment", 3: "Service"]
+        // Press ArrowDown to navigate to ConfigMap, then Deployment
+        fireEvent.keyDown(searchInput, {key: 'ArrowDown'});
+        fireEvent.keyDown(searchInput, {key: 'ArrowDown'});
+        // Press Enter to select
+        fireEvent.keyDown(searchInput, {key: 'Enter'});
+
+        // Filter is now Deployment: Service and ConfigMap should not be in the document
+        expect(screen.queryByLabelText('/Service/ns/web')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('/ConfigMap/ns/cm')).not.toBeInTheDocument();
+        expect(checkbox('apps/Deployment/ns/web')).toBeInTheDocument();
+        expect(checkbox('apps/Deployment/ns/api')).toBeInTheDocument();
     });
 });
