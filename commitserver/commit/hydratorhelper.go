@@ -248,6 +248,8 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 	return nil
 }
 
+// writeSplitManifests writes the manifests to the 'manifests' folder by using
+// the manifest metadata to generate the file name and file path
 func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.HydratedManifestDetails) error {
 	// clean up the manifest.yaml if it exists -> relevant for people switching from one format to another
 	manifestFilePath := filepath.Join(dirPath, ManifestYaml)
