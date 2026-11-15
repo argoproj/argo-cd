@@ -552,6 +552,26 @@ func TestKustomizeBuildComponentsIgnoreMissing(t *testing.T) {
 	assert.Equal(t, int64(3), replicas)
 }
 
+// Every existing component must be added, not only the first one found.
+func TestKustomizeBuildComponentsIgnoreMissingMultipleFound(t *testing.T) {
+	appPath, err := testDataDir(t, kustomization6)
+	require.NoError(t, err)
+	kustomize := NewKustomizeApp(appPath, appPath, git.NopCreds{}, "", "", "", "")
+
+	kustomizeSource := v1alpha1.ApplicationSourceKustomize{
+		Components:              []string{"./missing-components", "./components", "./components_no_kustomization", "./components_extra"},
+		IgnoreMissingComponents: true,
+	}
+	objs, _, _, err := kustomize.Build(&kustomizeSource, nil, nil, nil)
+	require.NoError(t, err)
+
+	names := make([]string, 0, len(objs))
+	for _, o := range objs {
+		names = append(names, o.GetName())
+	}
+	assert.ElementsMatch(t, []string{"nginx-deployment", "extra"}, names)
+}
+
 func TestKustomizeBuildComponentsMonoRepo(t *testing.T) {
 	rootPath, err := testDataDir(t, kustomization9)
 	require.NoError(t, err)

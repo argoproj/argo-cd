@@ -13,7 +13,7 @@ Argo CD supports Git webhook notifications from GitHub, GitLab, Bitbucket, Bitbu
 
 Argo CD also supports webhooks from OCI-compliant container registries to trigger application refreshes when new OCI artifacts are pushed. See [Webhook Configuration for OCI-Compliant Registries](#3-webhook-configuration-for-oci-compliant-registries) for details.
 
-Application Sets use a separate webhook configuration for generating applications. [Webhook support for the Git Generator can be found here](applicationset/Generators-Git.md#webhook-configuration).
+Application Sets use a separate webhook configuration for generating applications. See [Webhook support for the Git Generator](applicationset/Generators-Git.md#webhook-configuration), and [webhook support for the OCI Generator](applicationset/Generators-OCI.md#webhook-configuration).
 
 > [!NOTE]
 > The webhook handler does not differentiate between branch events and tag events where the branch and tag names are

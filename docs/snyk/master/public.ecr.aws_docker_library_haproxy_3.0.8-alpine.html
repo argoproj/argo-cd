@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="56 known vulnerabilities found in 492 vulnerable dependency paths.">
+  <meta name="description" content="57 known vulnerabilities found in 494 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">October 25th 2026, 12:31:59 am (UTC+00:00)</p>
+                <p class="timestamp">November 15th 2026, 12:21:32 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following path:</span>
@@ -502,8 +502,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>56</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>492 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>57</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>494 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>19</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -780,7 +780,7 @@
               <h2 id="nvd-description">NVD Description</h2>
         <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>zlib</code> package and not the <code>zlib</code> package as distributed by <code>Alpine</code>.</em>
         <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
-        <p>zlib versions 1.3.1.2 through 1.3.2 contain a heap buffer overflow vulnerability in the gz_vacate() function when processing non-blocking gzwrite() operations with stale external buffer pointers. Attackers can trigger the overflow by calling gzprintf() or gzvprintf() after a write stall, causing an unchecked memmove() to write beyond the internal input buffer boundary.</p>
+        <p>zlib 1.2.11 through 1.3.2 contains a heap buffer overflow: after an underlying write() fails, gz_write() returns without resetting strm.next_in, leaving it pointed at the caller&#39;s buffer. A later gz* write call then derives a position from the stale pointer and writes past a heap allocation; any write() failure reaches it, including EPIPE on a blocking descriptor, and in versions before 1.3.1.2 the failed write must be followed by a gzclearerr() call.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Alpine:3.21</code> <code>zlib</code> to version 1.3.2-r1 or higher.</p>
         <h2 id="references">References</h2>
@@ -789,6 +789,7 @@
         <li><a href="https://github.com/madler/zlib">https://github.com/madler/zlib</a></li>
         <li><a href="https://github.com/madler/zlib/blob/v1.3.2/gzwrite.c#L393">https://github.com/madler/zlib/blob/v1.3.2/gzwrite.c#L393</a></li>
         <li><a href="https://www.vulncheck.com/advisories/zlib-1.3.1.2-through-1.3.2-heap-buffer-overflow-via-gz-vacate">https://www.vulncheck.com/advisories/zlib-1.3.1.2-through-1.3.2-heap-buffer-overflow-via-gz-vacate</a></li>
+        <li><a href="https://github.com/madler/zlib/commit/df84af25dc1942490e1d1c899a07619152a46148">https://github.com/madler/zlib/commit/df84af25dc1942490e1d1c899a07619152a46148</a></li>
         </ul>
         
               <hr/>
@@ -2257,6 +2258,89 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-4738</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.21
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            zlib/zlib
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine and zlib/zlib@1.3.1-r2
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib@1.3.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|public.ecr.aws/docker/library/haproxy@3.0.8-alpine
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@2.14.6-r3
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        zlib/zlib@1.3.1-r2
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>zlib</code> package and not the <code>zlib</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>Improper Restriction of Operations within the Bounds of a Memory Buffer vulnerability in OSGeo gdal (frmts/zlib/contrib/infback9 modules). This vulnerability is associated with program files inftree9.C‎.</p>
+        <p>This issue affects gdal: before 3.11.0.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.21</code> <code>zlib</code> to version 1.4-r0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/OSGeo/gdal/pull/12244">https://github.com/OSGeo/gdal/pull/12244</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE321-ZLIB-22265606">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
             <h2 class="card__title">Improper Protection of Alternate Path</h2>
             <div class="card__section">
         
@@ -2604,14 +2688,14 @@
         <li><a href="https://github.openssl.org/openssl/extended-releases/commit/c2b96348bfa662f25f4fabf81958ae822063dae3">https://github.openssl.org/openssl/extended-releases/commit/c2b96348bfa662f25f4fabf81958ae822063dae3</a></li>
         <li><a href="https://github.openssl.org/openssl/extended-releases/commit/dfbaf161d8dafc1132dd88cd48ad990ed9b4c8ba">https://github.openssl.org/openssl/extended-releases/commit/dfbaf161d8dafc1132dd88cd48ad990ed9b4c8ba</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20250930.txt">https://openssl-library.org/news/secadv/20250930.txt</a></li>
-        <li><a href="https://lists.debian.org/debian-lts-announce/2025/10/msg00001.html">https://lists.debian.org/debian-lts-announce/2025/10/msg00001.html</a></li>
         <li><a href="http://www.openwall.com/lists/oss-security/2025/09/30/5">http://www.openwall.com/lists/oss-security/2025/09/30/5</a></li>
+        <li><a href="https://lists.debian.org/debian-lts-announce/2025/10/msg00001.html">https://lists.debian.org/debian-lts-announce/2025/10/msg00001.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-032379.html">https://cert-portal.siemens.com/productcert/html/ssa-032379.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-082556.html">https://cert-portal.siemens.com/productcert/html/ssa-082556.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-089022.html">https://cert-portal.siemens.com/productcert/html/ssa-089022.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-265688.html">https://cert-portal.siemens.com/productcert/html/ssa-265688.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-485750.html">https://cert-portal.siemens.com/productcert/html/ssa-485750.html</a></li>
-        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-585531.html">https://cert-portal.siemens.com/productcert/html/ssa-585531.html</a></li>
         </ul>
         
@@ -2806,6 +2890,7 @@
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-032379.html">https://cert-portal.siemens.com/productcert/html/ssa-032379.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-089022.html">https://cert-portal.siemens.com/productcert/html/ssa-089022.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-585531.html">https://cert-portal.siemens.com/productcert/html/ssa-585531.html</a></li>
         </ul>
         
               <hr/>
@@ -3003,8 +3088,9 @@
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-032379.html">https://cert-portal.siemens.com/productcert/html/ssa-032379.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-082556.html">https://cert-portal.siemens.com/productcert/html/ssa-082556.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-089022.html">https://cert-portal.siemens.com/productcert/html/ssa-089022.html</a></li>
-        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-485750.html">https://cert-portal.siemens.com/productcert/html/ssa-485750.html</a></li>
         <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-253495.html">https://cert-portal.siemens.com/productcert/html/ssa-253495.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-485750.html">https://cert-portal.siemens.com/productcert/html/ssa-485750.html</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-585531.html">https://cert-portal.siemens.com/productcert/html/ssa-585531.html</a></li>
         </ul>
         
               <hr/>
@@ -8232,6 +8318,7 @@
         <li><a href="https://github.com/openssl/openssl/commit/8e0efc7549b7ff8246d40e585e3fd604f728473f">https://github.com/openssl/openssl/commit/8e0efc7549b7ff8246d40e585e3fd604f728473f</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/c72ae182cac17a82e4246c6ecd4e9c4ec3586ec9">https://github.com/openssl/openssl/commit/c72ae182cac17a82e4246c6ecd4e9c4ec3586ec9</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-457936.html">https://cert-portal.siemens.com/productcert/html/ssa-457936.html</a></li>
         </ul>
         
               <hr/>
@@ -8429,6 +8516,7 @@
         <li><a href="https://github.com/openssl/openssl/commit/7d83bc7764999dfd91b83b4f0815b45390422afd">https://github.com/openssl/openssl/commit/7d83bc7764999dfd91b83b4f0815b45390422afd</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/8166827a78aad164a07aa86dea2b425403ced471">https://github.com/openssl/openssl/commit/8166827a78aad164a07aa86dea2b425403ced471</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-457936.html">https://cert-portal.siemens.com/productcert/html/ssa-457936.html</a></li>
         </ul>
         
               <hr/>
@@ -8617,6 +8705,7 @@
         <li><a href="https://github.com/openssl/openssl/commit/419f5cb519721dceed393dbc524d79e487c72e64">https://github.com/openssl/openssl/commit/419f5cb519721dceed393dbc524d79e487c72e64</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/6b90445a56b99a328ac1feba058abf976504f440">https://github.com/openssl/openssl/commit/6b90445a56b99a328ac1feba058abf976504f440</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-457936.html">https://cert-portal.siemens.com/productcert/html/ssa-457936.html</a></li>
         </ul>
         
               <hr/>
@@ -8817,6 +8906,7 @@
         <li><a href="https://github.com/openssl/openssl/commit/9eb2a8a9b86136cdb39d6d7d50644dd66941cdc3">https://github.com/openssl/openssl/commit/9eb2a8a9b86136cdb39d6d7d50644dd66941cdc3</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/abf02872a4b71767ecc72293424420f5b009190f">https://github.com/openssl/openssl/commit/abf02872a4b71767ecc72293424420f5b009190f</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-457936.html">https://cert-portal.siemens.com/productcert/html/ssa-457936.html</a></li>
         </ul>
         
               <hr/>
@@ -9218,6 +9308,7 @@
         <li><a href="https://github.com/openssl/openssl/commit/3a4589d015a9049d47b66f186cf50a8711343a1d">https://github.com/openssl/openssl/commit/3a4589d015a9049d47b66f186cf50a8711343a1d</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/5af82fefbaf2b5fec2fc0e1d87f112844902f01d">https://github.com/openssl/openssl/commit/5af82fefbaf2b5fec2fc0e1d87f112844902f01d</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-457936.html">https://cert-portal.siemens.com/productcert/html/ssa-457936.html</a></li>
         </ul>
         
               <hr/>
@@ -9429,6 +9520,7 @@
         <li><a href="https://github.com/openssl/openssl/commit/a383dafdd754eb5b22bf45e37e1bff9d07277a58">https://github.com/openssl/openssl/commit/a383dafdd754eb5b22bf45e37e1bff9d07277a58</a></li>
         <li><a href="https://github.com/openssl/openssl/commit/d951e02ede8f6a6ff8150546db44b34f0518192c">https://github.com/openssl/openssl/commit/d951e02ede8f6a6ff8150546db44b34f0518192c</a></li>
         <li><a href="https://openssl-library.org/news/secadv/20260929.txt">https://openssl-library.org/news/secadv/20260929.txt</a></li>
+        <li><a href="https://cert-portal.siemens.com/productcert/html/ssa-457936.html">https://cert-portal.siemens.com/productcert/html/ssa-457936.html</a></li>
         </ul>
         
               <hr/>
@@ -10118,7 +10210,7 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
-            <h2 class="card__title">CVE-2026-107891</h2>
+            <h2 class="card__title">Integer Overflow or Wraparound</h2>
             <div class="card__section">
         
                 <div class="card__labels">
@@ -10328,9 +10420,18 @@
               <hr/>
               <!-- Overview -->
               <h2 id="nvd-description">NVD Description</h2>
-        <p><em>This vulnerability has not been analyzed by NVD yet.</em></p>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>musl</code> package and not the <code>musl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.21</code> relevant fixed versions and status.</em></p>
+        <p>musl libc before 1.2.7, when an untrusted regular expression is used with regcomp, has multiple integer overflows, possibly leading to incorrect allocation sizes and out-of-bounds heap writes.</p>
         <h2 id="remediation">Remediation</h2>
         <p>Upgrade <code>Alpine:3.21</code> <code>musl</code> to version 1.2.5-r12 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://git.musl-libc.org/cgit/musl/commit/?id=7813e9119eb5fe681b6750b8a033a0490bca0941">https://git.musl-libc.org/cgit/musl/commit/?id=7813e9119eb5fe681b6750b8a033a0490bca0941</a></li>
+        <li><a href="https://musl.libc.org">https://musl.libc.org</a></li>
+        <li><a href="https://www.openwall.com/lists/musl/2026/10/21/1">https://www.openwall.com/lists/musl/2026/10/21/1</a></li>
+        <li><a href="http://www.openwall.com/lists/oss-security/2026/10/21/18">http://www.openwall.com/lists/oss-security/2026/10/21/18</a></li>
+        </ul>
         
               <hr/>
         

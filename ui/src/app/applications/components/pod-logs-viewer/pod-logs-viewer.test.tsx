@@ -1,7 +1,7 @@
 import * as React from 'react';
 import {act} from 'react';
 import {createRoot, Root} from 'react-dom/client';
-import {EMPTY, of} from 'rxjs';
+import {EMPTY, of, Subject} from 'rxjs';
 import {LogEntry} from '../../../shared/models';
 import {PodsLogsViewer} from './pod-logs-viewer';
 
@@ -160,5 +160,110 @@ describe('PodsLogsViewer clear logs button', () => {
         const disabledClearButton = getClearButton();
         expect(disabledClearButton).toHaveClass('disabled');
         expect(mockCopyLogsButton).toHaveBeenLastCalledWith(logsFixture);
+    });
+});
+
+describe('PodsLogsViewer reconnect handling', () => {
+    let container: HTMLDivElement;
+    let root: Root;
+    let stream: Subject<LogEntry>;
+
+    const entry = (content: string, first?: boolean): LogEntry => ({
+        content,
+        podName: 'demo-app-68b8fcf645-pkc5s',
+        timeStamp: null,
+        timeStampStr: '',
+        last: false,
+        ...(first ? {first: true} : {})
+    });
+
+    const occurrences = (text: string) => container.textContent.split(text).length - 1;
+
+    beforeEach(() => {
+        jest.clearAllMocks();
+        jest.useFakeTimers();
+        stream = new Subject<LogEntry>();
+        mockGetContainerLogs.mockReturnValue(stream);
+        container = document.createElement('div');
+        document.body.appendChild(container);
+        root = createRoot(container);
+        act(() => {
+            root.render(makeComponent());
+        });
+    });
+
+    afterEach(() => {
+        act(() => {
+            root.unmount();
+        });
+        container.remove();
+        jest.useRealTimers();
+    });
+
+    // bufferTime(100) batches entries, so emissions must be flushed before asserting.
+    const emit = (entries: LogEntry[]) => {
+        act(() => {
+            entries.forEach(e => stream.next(e));
+            jest.advanceTimersByTime(150);
+        });
+    };
+
+    it('appends entries while the connection stays up', () => {
+        emit([entry('line 1', true), entry('line 2'), entry('line 3')]);
+
+        expect(occurrences('line 1')).toBe(1);
+        expect(occurrences('line 3')).toBe(1);
+    });
+
+    it('drops the buffer when a reconnect replays the log', () => {
+        emit([entry('line 1', true), entry('line 2'), entry('line 3')]);
+
+        // reconnect: the backend replays from the start, first entry marked `first`
+        emit([entry('line 1', true), entry('line 2'), entry('line 3'), entry('line 4')]);
+
+        // each line must appear exactly once, not twice
+        expect(occurrences('line 1')).toBe(1);
+        expect(occurrences('line 2')).toBe(1);
+        expect(occurrences('line 4')).toBe(1);
+    });
+
+    it('truncates correctly when the restart marker lands mid-batch', () => {
+        emit([entry('line 1', true), entry('line 2')]);
+
+        // bufferTime batched a trailing entry of the old connection with the reconnect
+        emit([entry('trailing'), entry('line 1', true), entry('line 2')]);
+
+        expect(occurrences('trailing')).toBe(0);
+        expect(occurrences('line 1')).toBe(1);
+        expect(occurrences('line 2')).toBe(1);
+    });
+
+    it('resets the logs available for copying on a reconnect', () => {
+        emit([entry('line 1', true), entry('line 2')]);
+        emit([entry('line 1', true), entry('line 2'), entry('line 3')]);
+
+        expect(mockCopyLogsButton).toHaveBeenLastCalledWith([entry('line 1', true), entry('line 2'), entry('line 3')]);
+    });
+
+    it('keeps streaming after a non-JSON stream error', () => {
+        // loadEventSource reports a dropped connection as a plain string, so the error
+        // handler must not assume a JSON body nor surface the max-pods message.
+        emit([entry('line 1', true)]);
+
+        act(() => {
+            stream.error('connection got closed unexpectedly');
+            jest.advanceTimersByTime(600);
+        });
+
+        expect(container.textContent).not.toContain('Max pods to view logs are reached');
+        expect(occurrences('line 1')).toBe(1);
+    });
+
+    it('surfaces the max pods message instead of a blank view', () => {
+        act(() => {
+            stream.error({body: JSON.stringify({error: {message: 'max pods to view logs are reached. Please provide more granular query'}})});
+        });
+
+        expect(container.textContent).toContain('Max pods to view logs are reached. Please provide more granular query.');
     });
 });

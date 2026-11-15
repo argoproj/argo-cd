@@ -20,20 +20,20 @@ argocd app diff APPNAME [flags]
 ```
   -N, --app-namespace string                              Only render the difference in namespace
       --diff-exit-code int                                Return specified exit code when there is a diff. Typical error code is 20 but use another exit code if you want to differentiate from the generic exit code (20) returned by all CLI commands. (default 1)
-      --exit-code                                         Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error. (default true)
-      --hard-refresh                                      Refresh application data as well as target manifests cache
-  -h, --help                                              help for diff
+      --exit-code[=true|false]                            Return non-zero exit code when there is a diff. May also return non-zero exit code if there is an error. (default true)
+      --hard-refresh[=true|false]                         Refresh application data as well as target manifests cache
+  -h, --help[=true|false]                                 help for diff
       --ignore-normalizer-jq-execution-timeout duration   Set ignore normalizer JQ execution timeout (default 1s)
       --local string                                      Compare live app to a local manifests
       --local-include stringArray                         Used with --server-side-generate, specify patterns of filenames to send. Patterns without a path separator match on the filename only (at any depth); patterns containing '/' match on the relative path and support '**' to span multiple directories (e.g. "charts/**" includes all files under charts/). NOTE: Kustomize apps that use configMapGenerator or secretGenerator with non-YAML source files (e.g. *.env, *.properties) must add those patterns explicitly via --local-include. (default [*.yaml,*.yml,*.json,*.tpl,Chart.lock])
       --local-repo-root string                            Path to the repository root. Used together with --local allows setting the repository root (default "/")
-      --refresh                                           Refresh application data when retrieving
+      --refresh[=true|false]                              Refresh application data when retrieving
       --revision string                                   Compare live app to a particular revision
       --revisions stringArray                             Show manifests at specific revisions for source position in source-positions
-      --server-side-diff                                  Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.
+      --server-side-diff[=true|false]                     Use server-side diff to calculate the diff. This will default to true if the ServerSideDiff annotation is set on the application.
       --server-side-diff-concurrency int                  Max concurrent batches for server-side diff. -1 = unlimited, 1 = sequential, 2+ = concurrent (0 = invalid) (default -1)
       --server-side-diff-max-batch-kb int                 Max batch size in KB for server-side diff. Smaller values are safer for proxies (default 250)
-      --server-side-generate                              Used with --local, this will send your manifests to the server for diffing
+      --server-side-generate[=true|false]                 Used with --local, this will send your manifests to the server for diffing
       --source-names stringArray                          List of source names. Default is an empty array.
       --source-positions int64Slice                       List of source positions. Default is empty array. Counting start at 1. (default [])
 ```
@@ -47,20 +47,20 @@ argocd app diff APPNAME [flags]
       --client-crt-key string           Client certificate key file
       --config string                   Path to Argo CD config (default "/home/user/.config/argocd/config")
       --controller-name string          Name of the Argo CD Application controller; set this or the ARGOCD_APPLICATION_CONTROLLER_NAME environment variable when the controller's name label differs from the default, for example when installing via the Helm chart (default "argocd-application-controller")
-      --core                            If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
-      --grpc-web                        Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
+      --core[=true|false]               If set to true then CLI talks directly to Kubernetes instead of talking to Argo CD API server
+      --grpc-web[=true|false]           Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2.
       --grpc-web-root-path string       Enables gRPC-web protocol. Useful if Argo CD server is behind proxy which does not support HTTP2. Set web root.
   -H, --header strings                  Sets additional header to all requests made by Argo CD CLI. (Can be repeated multiple times to add multiple headers, also supports comma separated headers)
       --http-retry-max int              Maximum number of retries to establish http connection to Argo CD server
-      --insecure                        Skip server certificate and domain verification
+      --insecure[=true|false]           Skip server certificate and domain verification
       --kube-context string             Directs the command to the given kube-context
       --kubeconfig string               Path to a kube config. Only required if out-of-cluster
       --logformat string                Set the logging format. One of: json|text (default "json")
       --loglevel string                 Set the logging level. One of: debug|info|warn|error (default "info")
-      --plaintext                       Disable TLS
-      --port-forward                    Connect to a random argocd-server port using port forwarding
+      --plaintext[=true|false]          Disable TLS
+      --port-forward[=true|false]       Connect to a random argocd-server port using port forwarding
       --port-forward-namespace string   Namespace name which should be used for port forwarding
-      --prompts-enabled                 Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
+      --prompts-enabled[=true|false]    Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.
       --redis-compress string           Enable this if the application controller is configured with redis compression enabled. (possible values: gzip, none) (default "gzip")
       --redis-haproxy-name string       Name of the Redis HA Proxy; set this or the ARGOCD_REDIS_HAPROXY_NAME environment variable when the HA Proxy's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis-ha-haproxy")
       --redis-name string               Name of the Redis deployment; set this or the ARGOCD_REDIS_NAME environment variable when the Redis's name label differs from the default, for example when installing via the Helm chart (default "argocd-redis")
