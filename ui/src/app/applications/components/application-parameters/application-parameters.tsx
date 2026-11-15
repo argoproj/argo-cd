@@ -33,6 +33,7 @@ import * as jsYaml from 'js-yaml';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
 import classNames from 'classnames';
 import {ApplicationParametersSource} from './application-parameters-source';
+import {helmValuesError} from './helm-values';
 
 import './application-parameters.scss';
 import {AppContext} from '../../../shared/context';
@@ -414,8 +415,7 @@ export const ApplicationParameters = (props: {
 
                         const helmSrc = isMulti ? updatedApp.spec.sources[ind] : updatedApp.spec.source;
                         if (helmSrc?.helm?.values) {
-                            const parsedValues = jsYaml.load(helmSrc.helm.values);
-                            errors[helmValuesPath] = typeof parsedValues === 'object' ? null : 'Values must be a map';
+                            errors[helmValuesPath] = helmValuesError(helmSrc.helm.values);
                         }
 
                         return errors;
@@ -568,8 +568,7 @@ export const ApplicationParameters = (props: {
                     }
 
                     if (updatedApp.spec.sources[ind].helm?.values) {
-                        const parsedValues = jsYaml.load(updatedApp.spec.sources[ind].helm.values);
-                        errors['spec.sources[' + ind + '].helm.values'] = typeof parsedValues === 'object' ? null : 'Values must be a map';
+                        errors['spec.sources[' + ind + '].helm.values'] = helmValuesError(updatedApp.spec.sources[ind].helm.values);
                     }
 
                     return errors;
