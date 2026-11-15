@@ -20,6 +20,21 @@ const normalizeOptions = (options: KindOptionInput[]): KindFilterSelectOption[] 
     return options.map(item => (typeof item === 'string' ? {value: item, title: item} : item));
 };
 
+const K8S_SHORT_NAMES: Record<string, string[]> = {
+    configmap: ['cm'],
+    deployment: ['deploy'],
+    service: ['svc'],
+    ingress: ['ing'],
+    statefulset: ['sts'],
+    daemonset: ['ds'],
+    cronjob: ['cj'],
+    persistentvolumeclaim: ['pvc'],
+    persistentvolume: ['pv'],
+    serviceaccount: ['sa'],
+    namespace: ['ns'],
+    secret: ['sec']
+};
+
 export const KindFilterSelect: React.FC<KindFilterSelectProps> = ({id = 'application-sync-panel-kind-filter-select', value, options, onChange, placeholder = 'All kinds'}) => {
     const [isOpen, setIsOpen] = React.useState(false);
     const [search, setSearch] = React.useState('');
@@ -31,11 +46,18 @@ export const KindFilterSelect: React.FC<KindFilterSelectProps> = ({id = 'applica
     const normalized = React.useMemo(() => normalizeOptions(options), [options]);
 
     const filteredOptions = React.useMemo(() => {
-        if (!search) {
+        const trimmed = search.trim().toLowerCase();
+        if (!trimmed) {
             return normalized;
         }
-        const lowerSearch = search.toLowerCase();
-        return normalized.filter(opt => opt.title.toLowerCase().includes(lowerSearch));
+        return normalized.filter(opt => {
+            const titleLower = opt.title.toLowerCase();
+            if (titleLower.includes(trimmed)) {
+                return true;
+            }
+            const aliases = K8S_SHORT_NAMES[titleLower];
+            return aliases?.some(alias => alias.includes(trimmed) || trimmed.includes(alias));
+        });
     }, [normalized, search]);
 
     const activeIndex = highlightedIndex >= 0 && highlightedIndex < filteredOptions.length ? highlightedIndex : 0;

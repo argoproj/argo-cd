@@ -207,6 +207,21 @@ describe('ApplicationSyncPanelBody kind filter', () => {
         expect(checkbox('apps/Deployment/ns/api')).toBeInTheDocument();
     });
 
+    it('supports searching kind by Kubernetes abbreviations like cm or svc', async () => {
+        const {container} = await renderPanel();
+        const trigger = screen.getByRole('button', {name: /filter by kind/i});
+        fireEvent.click(trigger);
+
+        const searchInput = within(getKindFilterContainer(container)).getByRole('combobox', {name: /filter by kind/i});
+        fireEvent.change(searchInput, {target: {value: 'cm'}});
+        fireEvent.keyDown(searchInput, {key: 'Enter'});
+
+        // Filter is now ConfigMap
+        expect(checkbox('/ConfigMap/ns/cm')).toBeInTheDocument();
+        expect(screen.queryByLabelText('apps/Deployment/ns/web')).not.toBeInTheDocument();
+        expect(screen.queryByLabelText('/Service/ns/web')).not.toBeInTheDocument();
+    });
+
     it('deselects other kinds when filtering to a specific kind and syncs only that kind', async () => {
         const {container, submit} = await renderPanel();
 
