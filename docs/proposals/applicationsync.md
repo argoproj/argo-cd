@@ -173,7 +173,9 @@ Semantics:
 
 - **Ordering.** A group starts once every group in its `dependsOn` has succeeded, and syncs its apps in parallel.
 - **Done.** An app is done when its sync succeeded and it is Synced and Healthy, as in RollingSync. `doneWhen:
-  Healthy` drops the Synced requirement.
+  Healthy` drops the Synced requirement. So does a change after the sync: once the app's sources or `targetRevision`
+  differ from what was synced, as auto-sync compares them, OutOfSync no longer blocks and the change is left to the
+  next run.
 - **Failure.** An app fails when its sync fails, or when it is Degraded once its sync has finished. A failed app fails
   its group, groups that depend on it are Skipped, and independent groups carry on. With `onFailure: Wait`, a failed
   or Degraded app holds its dependents until it recovers instead.
