@@ -44,6 +44,10 @@ This proposal asks for the controller to ship with Argo CD. The prototype, which
 3. **Selectors in groups.** Should a group accept label selectors, as RollingSync steps do, or only app names?
 4. **Self-heal in the application controller.** Should self-heal move to the application controller, which would need
    a way to enable self-heal without `automated`, so that policies only roll out changes?
+5. **Failing on drift.** Should a run be able to fail an app that drifted, instead of syncing over the drift? With
+   `failOnDrift`, an app that is OutOfSync while its sources and compared revisions still match its last
+   `status.history` entry fails before its sync starts. This only catches drift when nothing changed in Git or the
+   spec since that sync; telling drift apart from a new revision would need a diff at the last synced revision.
 
 ## Motivation
 
@@ -170,8 +174,9 @@ Semantics:
 - **Ordering.** A group starts once every group in its `dependsOn` has succeeded, and syncs its apps in parallel.
 - **Done.** An app is done when its sync succeeded and it is Synced and Healthy, as in RollingSync. `doneWhen:
   Healthy` drops the Synced requirement.
-- **Failure.** A failed app fails its group, groups that depend on it are Skipped, and independent groups carry on.
-  With `onFailure: Wait`, a failed or Degraded app holds its dependents until it recovers instead.
+- **Failure.** An app fails when its sync fails, or when it is Degraded once its sync has finished. A failed app fails
+  its group, groups that depend on it are Skipped, and independent groups carry on. With `onFailure: Wait`, a failed
+  or Degraded app holds its dependents until it recovers instead.
 - **Waiting.** An app that doesn't exist yet waits, so the Applications and the ApplicationSync can be applied
   together. The app's status and an event say why it waits.
 - **Busy apps.** As the Sync API rejects a sync today, an app that already has an operation running fails, unless
@@ -224,7 +229,11 @@ Ordered rollouts need a few controls on top of ordering. Each matches something 
 The controls rely on three behaviors:
 
 - **Fresh status.** An app is only skipped or counted as done once its status reflects its current spec and pins;
-  otherwise the controller requests a refresh. Today, RollingSync can act on stale status
+  otherwise the controller requests a refresh. Status is fresh when `status.reconciledAt` is after the app's sync
+  started, and it was computed against the current spec: `status.sync.comparedTo` matches the spec, or, once
+  Applications have a status subresource ([#26032](https://github.com/argoproj/argo-cd/pull/26032)),
+  `status.observedGeneration` equals `metadata.generation`. The time check stays either way: #26032 moves `operation`
+  under `status`, so starting a sync doesn't change the generation. Today, RollingSync can act on stale status
   ([#29410](https://github.com/argoproj/argo-cd/issues/29410),
   [#27949](https://github.com/argoproj/argo-cd/issues/27949)).
 - **Sync windows.** Policy runs count as automatic and other runs as manual, and windows apply as they do today: the
