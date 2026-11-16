@@ -386,8 +386,9 @@ None of this is part of the proposal; each item depends on `ApplicationSync` mov
   policy waits behind it. Mitigation: the reason shows in status and events; `doneWhen: Healthy`,
   `activeDeadlineSeconds`, and suspending the policy.
 - **Apps in two runs.** Runs don't lock apps. A run that finds an app busy fails it, or with `onFailure: Wait` waits
-  for it, so runs can interleave across apps. Mitigation: document that a policy's apps shouldn't be listed in other
-  runs.
+  for it, so runs can interleave across apps. A run doesn't start a sync while the app's finished operation belongs
+  to another unfinished run that hasn't read its result, which would otherwise fail that app in the other run.
+  Mitigation: document that a policy's apps shouldn't be listed in other runs.
 - **Apps that still auto-sync.** Apps moved into ApplicationSyncs may keep auto-sync on. Mitigation: the app fails,
   or waits, with a message naming the setting.
 
