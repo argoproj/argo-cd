@@ -142,8 +142,8 @@ type LiveStateCache interface {
 	IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
-	// IterateResources iterates all resource stored in cache
-	IterateResources(server *appv1.Cluster, callback func(res *clustercache.Resource, info *ResourceInfo)) error
+	// Returns the live PodInfo of pods and, if any is scheduled, the cluster's Node/Pod index
+	GetClusterHosts(server *appv1.Cluster, pods []kube.ResourceKey) (map[kube.ResourceKey]PodInfo, *ClusterHosts, error)
 	// Returns all top level resources (resources without owner references) of a specified namespace
 	GetNamespaceTopLevelResources(server *appv1.Cluster, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error)
 	// Starts watching resources of each controlled cluster.
@@ -236,6 +236,11 @@ type liveStateCache struct {
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
 	lock          sync.RWMutex
+
+	// hosts holds each cluster's index for GetClusterHosts. It is dropped
+	// wherever the cluster cache is invalidated.
+	hosts     map[string]*clusterHostsEntry
+	hostsLock sync.Mutex
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
@@ -692,6 +697,9 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
 		)
 	}
+	c.hostsLock.Lock()
+	c.hosts = nil
+	c.hostsLock.Unlock()
 	log.Info("live state cache invalidated")
 }
 
@@ -710,20 +718,6 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 	}
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource, namespaceResources), getApp(resource, namespaceResources))
-	})
-	return nil
-}
-
-func (c *liveStateCache) IterateResources(server *appv1.Cluster, callback func(res *clustercache.Resource, info *ResourceInfo)) error {
-	clusterInfo, err := c.getSyncedCluster(server)
-	if err != nil {
-		return err
-	}
-	_ = clusterInfo.FindResources("", func(r *clustercache.Resource) bool {
-		if info, ok := r.Info.(*ResourceInfo); ok {
-			callback(r, info)
-		}
-		return false
 	})
 	return nil
 }
@@ -877,6 +871,9 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 			c.lock.Lock()
 			delete(c.clusters, newCluster.Server)
 			c.lock.Unlock()
+			c.hostsLock.Lock()
+			delete(c.hosts, newCluster.Server)
+			c.hostsLock.Unlock()
 			return
 		}
 
@@ -904,6 +901,9 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		if len(updateSettings) > 0 || forceInvalidate {
 			cluster.Invalidate(updateSettings...)
+			c.hostsLock.Lock()
+			delete(c.hosts, newCluster.Server)
+			c.hostsLock.Unlock()
 			go func() {
 				// warm up cluster cache
 				_ = cluster.EnsureSynced()
@@ -922,6 +922,9 @@ func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 		c.lock.Lock()
 		delete(c.clusters, clusterServer)
 		c.lock.Unlock()
+		c.hostsLock.Lock()
+		delete(c.hosts, clusterServer)
+		c.hostsLock.Unlock()
 	}
 }
 
