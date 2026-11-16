@@ -959,6 +959,32 @@ func TestGenerateManifest_RejectsChartOnRefSource(t *testing.T) {
 	assert.Nil(t, response)
 }
 
+// TestRunManifestGenAsync_NoRefSourcesSendsOneError: with no ref sources at all, the goroutine must
+// send a single error and return. The error channel is unbuffered and read once, so a second send
+// would block forever and leak the goroutine.
+func TestRunManifestGenAsync_NoRefSourcesSendsOneError(t *testing.T) {
+	service := newService(t, ".")
+	q := &apiclient.ManifestRequest{
+		Repo:               &v1alpha1.Repository{},
+		HasMultipleSources: true,
+		ApplicationSource:  &v1alpha1.ApplicationSource{Helm: &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$values/values.yaml"}}},
+	}
+	errCh := make(chan error)
+	ch := &generateManifestCh{responseCh: make(chan *apiclient.ManifestResponse), tarDoneCh: make(chan bool), errCh: errCh}
+	opContextSrc := func() (*operationContext, error) { return &operationContext{appPath: "."}, nil }
+
+	go service.runManifestGenAsync(t.Context(), ".", "sha", "HEAD", opContextSrc, q, nil, ch)
+
+	err := <-errCh
+	require.ErrorContains(t, err, "but no source has a 'ref' field defined")
+	select {
+	case _, open := <-errCh:
+		assert.False(t, open, "expected the error channel to be closed, not a second error")
+	case <-time.After(5 * time.Second):
+		t.Fatal("runManifestGenAsync did not return after sending the error")
+	}
+}
+
 // TestGenerateManifest_OCIRefOnlySourceIsSkipped verifies that a ref-only OCI source (empty
 // path, 'ref' set, no chart) is treated like a Git ref-only source: manifest generation is
 // skipped and the revision is resolved via the OCI client (the digest), not the git resolver.
