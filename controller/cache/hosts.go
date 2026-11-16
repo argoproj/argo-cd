@@ -82,10 +82,10 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 	c.hostsLock.Unlock()
 
 	// An index covers the live pods if it has each one's node, or already saw
-	// the pod on that node, so the node is known to be deleted. A pod on a node
-	// the index has never heard of forces a rebuild, so newly added nodes show
-	// up. An index without Nodes covers everything: this cluster doesn't cache
-	// them (namespaced, or excluded), and changing that invalidates the index.
+	// the pod on that node without it. A pod on a node the index has never
+	// heard of forces a rebuild. An index without Nodes covers everything, as
+	// namespaced clusters never cache them. Either way a Node joining drops the
+	// index (dropHostsOnNodeAdded), so it shows up on the next call.
 	covers := func(h *ClusterHosts) bool {
 		if len(h.Nodes) == 0 {
 			return true
@@ -158,4 +158,18 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 		entry.current.Store(next)
 	}
 	return live, next, nil
+}
+
+// dropHostsOnNodeAdded drops server's index when a Node is added, since an
+// index may treat a node it hasn't seen yet as absent.
+func (c *liveStateCache) dropHostsOnNodeAdded(server string, newRes, oldRes *clustercache.Resource) {
+	if oldRes != nil || newRes == nil {
+		return
+	}
+	if key := newRes.ResourceKey(); key.Group != "" || key.Kind != "Node" {
+		return
+	}
+	c.hostsLock.Lock()
+	delete(c.hosts, server)
+	c.hostsLock.Unlock()
 }

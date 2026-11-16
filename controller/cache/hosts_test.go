@@ -37,7 +37,9 @@ func TestGetClusterHosts(t *testing.T) {
 		appPodNode string
 		noNodes    bool // namespaced cluster without cluster resources
 		newPod     bool // a pod created after the index was built
-		syncErr    error
+		// nodeCLate holds node-c back while app-pod is on it; nodeC adds it.
+		nodeCLate, nodeC bool
+		syncErr          error
 		// onLiveRead runs when the app's pods are read live, onScan when the
 		// index is rebuilt.
 		onLiveRead, onScan func()
@@ -61,7 +63,7 @@ func TestGetClusterHosts(t *testing.T) {
 			if !l.noNodes {
 				node("node-a")
 				node("node-b")
-				if l.appPodNode == "node-c" {
+				if l.appPodNode == "node-c" && !l.nodeCLate || l.nodeC {
 					node("node-c")
 				}
 			}
@@ -283,6 +285,43 @@ func TestGetClusterHosts(t *testing.T) {
 		_, _, err = c.GetClusterHosts(cluster, appPods)
 		require.NoError(t, err)
 		assert.NotNil(t, c.hosts[cluster.Server].current.Load())
+	})
+
+	t.Run("rebuilds once a node the index saw a pod on joins", func(t *testing.T) {
+		// The Pod event reached the cache before its Node's.
+		l := &live{appPodNode: "node-c", nodeCLate: true}
+		c, scans := setup(t, l)
+		_, index, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		assert.NotContains(t, index.Nodes, "node-c")
+
+		nodeC := &cache.Resource{Ref: corev1.ObjectReference{Name: "node-c", Kind: "Node", APIVersion: "v1"}}
+		c.dropHostsOnNodeAdded(cluster.Server, nodeC, nodeC) // an update, not an add
+		_, _, err = c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		assert.Equal(t, int32(1), scans.Load())
+
+		l.nodeC = true
+		c.dropHostsOnNodeAdded(cluster.Server, nodeC, nil)
+		_, index, err = c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		assert.Equal(t, int32(2), scans.Load())
+		assert.Contains(t, index.Nodes, "node-c")
+	})
+
+	t.Run("rebuilds once a cluster's first node joins", func(t *testing.T) {
+		l := &live{appPodNode: "node-a", noNodes: true}
+		c, scans := setup(t, l)
+		_, index, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		assert.Empty(t, index.Nodes)
+
+		l.noNodes = false
+		c.dropHostsOnNodeAdded(cluster.Server, &cache.Resource{Ref: corev1.ObjectReference{Name: "node-a", Kind: "Node", APIVersion: "v1"}}, nil)
+		_, index, err = c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		assert.Equal(t, int32(2), scans.Load())
+		assert.Contains(t, index.Nodes, "node-a")
 	})
 
 	t.Run("drops the index when the cluster cache is invalidated", func(t *testing.T) {

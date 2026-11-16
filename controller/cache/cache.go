@@ -612,6 +612,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
+		c.dropHostsOnNodeAdded(cluster.Server, newRes, oldRes)
 		toNotify := make(map[string]bool)
 		var ref corev1.ObjectReference
 		if newRes != nil {
