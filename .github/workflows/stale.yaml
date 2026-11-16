@@ -1,7 +1,7 @@
 name: "Label stale issues and PRs"
 on:
   schedule:
-    - cron: "0 0 * * *" #Runs midnight 12AM UTC
+    - cron: "17,47 * * * *" # every 30 minutes, so the state cache survives between runs
 
 permissions: {}
 
