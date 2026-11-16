@@ -198,7 +198,7 @@ export const PodDebugViewer: React.FC<PodDebugViewerProps> = ({selectedNode, app
             if (terminalRefObj.current) terminalRefObj.current.dispose();
             incommingMessageRef.current.complete();
         };
-    }, [selectedImage, selectedTargetContainer, sessionStarted]);
+    }, []);
 
     return (
         <div className='pod-debug-viewer__container'>
@@ -218,7 +218,7 @@ export const PodDebugViewer: React.FC<PodDebugViewerProps> = ({selectedNode, app
                     <div style={{marginBottom: '1rem'}}>
                         <label>Target Container (optional):</label>
                         <select value={selectedTargetContainer} onChange={e => setSelectedTargetContainer(e.target.value)} style={{marginLeft: '0.5rem', minWidth: '200px'}}>
-                            <option value=''>-- None (share PID namespace) --</option>
+                            <option value=''>-- None (no process namespace sharing) --</option>
                             {containers.map((name: string) => (
                                 <option key={name} value={name}>
                                     {name}

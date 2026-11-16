@@ -158,10 +158,15 @@ export const ApplicationNodeInfo = (props: {
                 attributes.push({title: 'STATE DETAILS', value: message});
             }
             if (netContainerStatuses.length > 0) {
-                // target container -> Argo debug containers sharing its namespace (targetContainerName).
+                // target container -> running Argo debug containers sharing its namespace (targetContainerName).
+                const runningEphemeral = new Set(
+                    ((props.live.status?.ephemeralContainerStatuses || []) as Array<{name?: string; state?: {running?: unknown}}>)
+                        .filter(cs => cs.state?.running)
+                        .map(cs => cs.name)
+                );
                 const debugByTarget: {[target: string]: string[]} = {};
                 ((props.live.spec?.ephemeralContainers || []) as Array<{name?: string; targetContainerName?: string}>).forEach(ec => {
-                    if (ec.targetContainerName && ec.name?.startsWith(debugContainerNamePrefix)) {
+                    if (ec.targetContainerName && ec.name?.startsWith(debugContainerNamePrefix) && runningEphemeral.has(ec.name)) {
                         debugByTarget[ec.targetContainerName] = (debugByTarget[ec.targetContainerName] || []).concat(ec.name);
                     }
                 });

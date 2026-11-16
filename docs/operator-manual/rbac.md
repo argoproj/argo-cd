@@ -311,21 +311,19 @@ Pods of an application via the Argo CD UI. The functionality is similar to `kube
 is more powerful than `exec` because it injects new containers — use with care. It is part of the
 [Application-Specific Policy](#application-specific-policy) governed by the `exec` resource.
 
-A bare `debug` action allows any image permitted by the `exec.debug.images` allowlist:
+The action always carries a glob image pattern, `debug/<image-glob>`. The pattern is matched
+against the image reference and intersected with the `exec.debug.images` allowlist (you cannot
+attach images that are not in the allowlist). Use `debug/*` to allow any allowlisted image:
 
 ```csv
-p, role:debugger, exec, debug, */*, allow
-```
-
-The action can be extended with a glob image pattern to scope a subject to specific images. The
-pattern is matched against the image reference and intersected with the `exec.debug.images`
-allowlist (you cannot attach images that are not in the allowlist). A bare `debug` is equivalent
-to `debug/*`:
-
-```csv
+p, role:debugger,  exec, debug/*, */*, allow
 p, role:net-debug, exec, debug/docker.io/library/busybox:*, */*, allow
 p, role:go-debug,  exec, debug/gcr.io/example/dlv:1.22, prod/*, allow
 ```
+
+A bare `debug` action grants nothing and is rejected by `argocd admin settings rbac validate`.
+Each request is evaluated against a single `debug/<image>` action, so an image-scoped `deny`
+overrides a broader `allow`. A wildcard `exec, *` grant also matches `debug/<image>`.
 
 See [Web-based Debug](web_based_debug.md) for more info.
 

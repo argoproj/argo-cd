@@ -3,6 +3,7 @@ package application
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"slices"
@@ -23,6 +24,7 @@ import (
 	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/db"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/rand"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
@@ -136,6 +138,21 @@ func (s *debugHandler) ListDebugImages(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	a, err := s.appLister.Applications(ns).Get(app)
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			http.Error(w, "App not found", http.StatusNotFound)
+			return
+		}
+		log.Errorf("error getting app %q when listing debug images: %s", app, err)
+		http.Error(w, "Cannot get app", http.StatusInternalServerError)
+		return
+	}
+	if a.Spec.Project != project {
+		http.Error(w, "The wrong project was specified for the app", http.StatusBadRequest)
+		return
+	}
+
 	argocdSettings, err := s.getSettings()
 	if err != nil {
 		http.Error(w, "Failed to get settings", http.StatusInternalServerError)
@@ -217,8 +234,12 @@ func (s *debugHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validate image is in the cluster-wide allowlist before checking RBAC, since the
-	// requested image is part of the RBAC action (debug/<image>).
+	// RBAC before the allowlist, so a caller without debug access cannot probe which images are allowlisted.
+	if !enforceDebugAccess(s.terminalOptions.Enf, ctx.Value("claims"), appRBACName, image) {
+		http.Error(w, "permission denied", http.StatusUnauthorized)
+		return
+	}
+
 	argocdSettings, err := s.getSettings()
 	if err != nil {
 		http.Error(w, "Failed to get settings", http.StatusInternalServerError)
@@ -229,16 +250,14 @@ func (s *debugHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if !enforceDebugAccess(s.terminalOptions.Enf, ctx.Value("claims"), appRBACName, image) {
-		http.Error(w, "permission denied", http.StatusUnauthorized)
-		return
-	}
-
 	fieldLog := log.WithFields(log.Fields{
 		"application": app, "userName": util_session.Username(ctx),
 		"podName": podName, "namespace": namespace, "project": project,
 		"appNamespace": appNamespace, "image": image,
 	})
+	if s.terminalOptions.EnableSourceIPLogging {
+		fieldLog = fieldLog.WithFields(grpc_util.HTTPSourceIPFields(r, s.terminalOptions.TrustedProxies, s.terminalOptions.ClientIPHeader))
+	}
 
 	a, err := s.appLister.Applications(ns).Get(app)
 	if err != nil {
@@ -292,29 +311,15 @@ func (s *debugHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	debugContainerName, err := startDebugProcess(ctx, kubeClientset, namespace, podName, image, targetContainer)
-	if err != nil {
-		fieldLog.Errorf("error starting ephemeral container: %s", err)
-		http.Error(w, "Failed to start debug container", http.StatusInternalServerError)
-		return
-	}
-
-	// Wait for ephemeral container to be running
-	if err := waitForEphemeralContainer(ctx, kubeClientset, namespace, podName, debugContainerName); err != nil {
-		fieldLog.Errorf("error waiting for ephemeral container: %s", err)
-		http.Error(w, "Debug container failed to start", http.StatusInternalServerError)
-		return
-	}
-
-	fieldLog.Infof("debug session starting with ephemeral container %q", debugContainerName)
-
+	// Upgrade to a websocket before adding the container: ephemeral containers cannot be removed, so a
+	// plain GET or a dropped handshake must not leave one behind. Errors after this point go over the session.
 	session, err := newTerminalSession(ctx, w, r, nil, s.sessionManager, appRBACName, s.terminalOptions)
 	if err != nil {
 		http.Error(w, "Failed to start debug session", http.StatusBadRequest)
 		return
 	}
 	// The session's per-read RBAC check must validate debug access (not the default exec/create),
-	// so a subject with only `exec, debug[/image]` isn't denied mid-stream.
+	// so a subject with only `exec, debug/<image>` isn't denied mid-stream.
 	session.permissionValidator = func() error {
 		if !enforceDebugAccess(s.terminalOptions.Enf, ctx.Value("claims"), appRBACName, image) {
 			return common.PermissionDeniedAPIError
@@ -325,24 +330,42 @@ func (s *debugHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	go session.StartKeepalives(time.Second * 5)
 
-	if err = attachToContainer(kubeClientset, config, namespace, podName, debugContainerName, session); err != nil {
-		http.Error(w, "Failed to attach to debug container", http.StatusBadRequest)
+	debugContainerName, err := startDebugProcess(ctx, kubeClientset, namespace, podName, image, targetContainer)
+	if err != nil {
+		fieldLog.Errorf("error starting ephemeral container: %s", err)
+		_, _ = session.Write([]byte("Failed to start debug container\r\n"))
 		session.Close()
 		return
+	}
+
+	if err := waitForEphemeralContainer(ctx, kubeClientset, namespace, podName, debugContainerName); err != nil {
+		fieldLog.Errorf("error waiting for ephemeral container %q: %s", debugContainerName, err)
+		msg := "Debug container failed to start"
+		if stateErr, ok := errors.AsType[*containerStateError](err); ok {
+			msg += ": " + stateErr.Reason
+		}
+		_, _ = session.Write([]byte(msg + "\r\n"))
+		session.Close()
+		return
+	}
+
+	fieldLog.Infof("debug session starting with ephemeral container %q", debugContainerName)
+
+	if err = attachToContainer(kubeClientset, config, namespace, podName, debugContainerName, session); err != nil {
+		fieldLog.Errorf("error attaching to ephemeral container %q: %s", debugContainerName, err)
+		_, _ = session.Write([]byte("Failed to attach to debug container\r\n"))
 	}
 
 	session.Close()
 }
 
 // enforceDebugAccess reports whether the subject is allowed to attach a debug container
-// running the given image. RBAC reuses the `exec` resource with a `debug` action: a bare
-// `debug` grant allows any (allowlisted) image, while an image-scoped grant of the form
-// `debug/<image-glob>` only matches the requested image. Access is granted if either form
-// is satisfied. The requested image must also be in the cluster-wide allowlist; that check
-// is performed separately by the caller.
+// running the given image. RBAC reuses the `exec` resource with an image-scoped
+// `debug/<image-glob>` action (`debug/*` allows any allowlisted image). A single check keeps an
+// image-scoped deny effective against a broader allow. The requested image must also be in the
+// cluster-wide allowlist; that check is performed separately by the caller.
 func enforceDebugAccess(enf *rbac.Enforcer, claims any, appRBACName, image string) bool {
-	return enf.Enforce(claims, rbac.ResourceExec, rbac.ActionDebug, appRBACName) ||
-		enf.Enforce(claims, rbac.ResourceExec, rbac.ActionDebug+"/"+image, appRBACName)
+	return enf.Enforce(claims, rbac.ResourceExec, rbac.ActionDebug+"/"+image, appRBACName)
 }
 
 // startDebugProcess creates an ephemeral container on the target pod and returns the container name.
@@ -358,6 +381,7 @@ func startDebugProcess(ctx context.Context, k8sClient kubernetes.Interface, name
 		Name:                     debugContainerName,
 		Image:                    image,
 		Stdin:                    true,
+		StdinOnce:                true,
 		TTY:                      true,
 		TerminationMessagePolicy: corev1.TerminationMessageFallbackToLogsOnError,
 	}
@@ -385,6 +409,20 @@ func startDebugProcess(ctx context.Context, k8sClient kubernetes.Interface, name
 	return debugContainerName, nil
 }
 
+// nonTransientWaitingReasons are container waiting reasons that will not resolve on their own.
+// ErrImagePull is omitted: it is often transient and becomes ImagePullBackOff if not.
+var nonTransientWaitingReasons = []string{"ImagePullBackOff", "InvalidImageName", "ErrImageNeverPull", "CreateContainerConfigError", "CreateContainerError", "RunContainerError"}
+
+// containerStateError reports an ephemeral container that terminated or cannot start.
+type containerStateError struct {
+	Reason  string
+	Message string
+}
+
+func (e *containerStateError) Error() string {
+	return fmt.Sprintf("ephemeral container cannot start: %s: %s", e.Reason, e.Message)
+}
+
 // waitForEphemeralContainer polls until the named ephemeral container is running or the context is done.
 func waitForEphemeralContainer(ctx context.Context, k8sClient kubernetes.Interface, namespace, podName, containerName string) error {
 	timeout := time.After(2 * time.Minute)
@@ -407,8 +445,11 @@ func waitForEphemeralContainer(ctx context.Context, k8sClient kubernetes.Interfa
 					if cs.State.Running != nil {
 						return nil
 					}
-					if cs.State.Terminated != nil {
-						return fmt.Errorf("ephemeral container terminated: %s", cs.State.Terminated.Reason)
+					if t := cs.State.Terminated; t != nil {
+						return &containerStateError{Reason: t.Reason, Message: t.Message}
+					}
+					if w := cs.State.Waiting; w != nil && slices.Contains(nonTransientWaitingReasons, w.Reason) {
+						return &containerStateError{Reason: w.Reason, Message: w.Message}
 					}
 				}
 			}

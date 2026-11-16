@@ -121,7 +121,6 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		InstallationID:            installationID,
 		ExecEnabled:               argoCDSettings.ExecEnabled,
 		DebugEnabled:              argoCDSettings.DebugEnabled,
-		DebugImages:               argoCDSettings.DebugImages,
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
 		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
 		HydratorEnabled:           s.hydratorEnabled,

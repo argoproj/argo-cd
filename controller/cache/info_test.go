@@ -616,11 +616,46 @@ func TestGetPodInfo(t *testing.T) {
     ephemeralContainers:
     - name: argocd-debug-abc123
       image: busybox:latest
+  status:
+    ephemeralContainerStatuses:
+    - name: argocd-debug-abc123
+      state:
+        running:
+          startedAt: "2026-01-01T00:00:00Z"
 `)
 		info := &ResourceInfo{}
 		populateNodeInfo(pod, info, []string{})
-		// Argo CD-attached debug container (argocd-debug- prefix) surfaces the indicator.
+		// A running Argo CD-attached debug container (argocd-debug- prefix) surfaces the indicator.
 		assert.Contains(t, info.Info, v1alpha1.InfoItem{Name: "Debug", Value: "Attached"})
+	})
+
+	t.Run("TestGetPodInfoWithTerminatedArgoDebugContainer", func(t *testing.T) {
+		t.Parallel()
+		pod := strToUnstructured(`
+  apiVersion: v1
+  kind: Pod
+  metadata:
+    name: debug-pod
+    namespace: default
+  spec:
+    nodeName: minikube
+    containers:
+    - image: bar
+    ephemeralContainers:
+    - name: argocd-debug-abc123
+      image: busybox:latest
+  status:
+    ephemeralContainerStatuses:
+    - name: argocd-debug-abc123
+      state:
+        terminated:
+          exitCode: 0
+          reason: Completed
+`)
+		info := &ResourceInfo{}
+		populateNodeInfo(pod, info, []string{})
+		// A finished debug session must not keep the indicator on.
+		assert.NotContains(t, info.Info, v1alpha1.InfoItem{Name: "Debug", Value: "Attached"})
 	})
 
 	t.Run("TestGetPodInfoWithExternalEphemeralContainer", func(t *testing.T) {

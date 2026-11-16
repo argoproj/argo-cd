@@ -181,7 +181,7 @@ func (t *terminalSession) validatePermissions(p []byte) (int, error) {
 }
 
 // validateAction enforces the session-specific permission. A debug session sets
-// permissionValidator to check debug access (exec/debug[/image]); otherwise this defaults to the
+// permissionValidator to check debug access (exec/debug/<image>); otherwise this defaults to the
 // terminal permission, exec/create.
 func (t *terminalSession) validateAction() error {
 	if t.permissionValidator != nil {

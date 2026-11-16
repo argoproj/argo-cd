@@ -407,13 +407,15 @@ export const ResourceDetails = (props: ResourceDetailsProps) => {
                         const settings = await services.authService.settings();
                         const execEnabled = settings.execEnabled;
                         const debugEnabled = settings.debugEnabled;
-                        const logsAllowed = await services.accounts.canI('logs', 'get', AppUtils.appRBACName(application));
-                        const execAllowed = execEnabled && (await services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)));
                         // Dropdown = allowlist ∩ RBAC, computed server-side. Per-image canI can't work
                         // here: the CanI REST path splits the '/' in a debug/<image> action.
-                        const debugImages: string[] = debugEnabled
-                            ? await services.applications.getDebugImages(application.spec.project, application.metadata.name, application.metadata.namespace)
-                            : [];
+                        const [logsAllowed, execAllowed, debugImages] = await Promise.all([
+                            services.accounts.canI('logs', 'get', AppUtils.appRBACName(application)),
+                            execEnabled ? services.accounts.canI('exec', 'create', AppUtils.appRBACName(application)) : Promise.resolve(false),
+                            debugEnabled && selectedNode.kind === 'Pod'
+                                ? services.applications.getDebugImages(application.spec.project, application.metadata.name, application.metadata.namespace)
+                                : Promise.resolve([] as string[])
+                        ]);
                         const debugAllowed = debugEnabled && debugImages.length > 0;
                         const links = await services.applications.getResourceLinks(application.metadata.name, application.metadata.namespace, selectedNode).catch((): null => null);
                         const resourceActionsMenuItems = await AppUtils.getResourceActionsMenuItems(selectedNode, application.metadata, appContext);

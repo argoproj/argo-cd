@@ -87,10 +87,18 @@ func Test_validateRBACResourceAction(t *testing.T) {
 			valid: false,
 		},
 		{
-			name: "Test valid exec debug action",
+			name: "Test bare exec debug action is rejected",
 			args: args{
 				resource: rbac.ResourceExec,
 				action:   rbac.ActionDebug,
+			},
+			valid: false,
+		},
+		{
+			name: "Test valid exec debug action with any-image path",
+			args: args{
+				resource: rbac.ResourceExec,
+				action:   rbac.ActionDebug + "/*",
 			},
 			valid: true,
 		},

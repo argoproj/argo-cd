@@ -746,11 +746,10 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if restarts > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: strconv.Itoa(restarts)})
 	}
-	// Flag Argo-attached debug containers (by name prefix) so the UI can show the indicator.
-	// Out-of-band ephemeral containers (e.g. `kubectl debug`) don't count. Stays until the pod
-	// is replaced, since ephemeral containers can't be removed.
-	for _, ec := range pod.Spec.EphemeralContainers {
-		if strings.HasPrefix(ec.Name, common.DebugContainerNamePrefix) {
+	// Flag running Argo-attached debug containers (by name prefix) so the UI can show the indicator.
+	// Out-of-band ephemeral containers (e.g. `kubectl debug`) don't count, nor do finished sessions.
+	for _, ec := range pod.Status.EphemeralContainerStatuses {
+		if strings.HasPrefix(ec.Name, common.DebugContainerNamePrefix) && ec.State.Running != nil {
 			res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Debug", Value: "Attached"})
 			break
 		}
