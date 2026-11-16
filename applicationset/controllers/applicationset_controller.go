@@ -186,8 +186,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// ensure finalizer exists if deletionOrder is set as Reverse
 	if r.EnableProgressiveSyncs && progressivesync.IsDeletionOrderReversed(&applicationSetInfo) {
 		if !controllerutil.ContainsFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName) {
+			// Patch rather than Update to avoid rewriting the spec (see the refresh annotation below). A merge
+			// patch replaces the whole finalizers list, so the optimistic lock guards concurrent writers.
+			original := applicationSetInfo.DeepCopy()
 			controllerutil.AddFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
-			if err := r.Update(ctx, &applicationSetInfo); err != nil {
+			if err := r.Patch(ctx, &applicationSetInfo, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -376,8 +379,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if applicationSetInfo.RefreshRequired() {
+		// Patch only the annotation: a full Update re-serializes the spec through the Go types, which
+		// drops explicit zero values on omitempty fields and adds empty generator templates, so tools
+		// that manage the ApplicationSet see drift. The optimistic lock is needed because when the
+		// refresh key is the only annotation, the computed patch sets annotations to null.
+		original := applicationSetInfo.DeepCopy()
 		delete(applicationSetInfo.Annotations, common.AnnotationApplicationSetRefresh)
-		err := r.Update(ctx, &applicationSetInfo)
+		err := r.Patch(ctx, &applicationSetInfo, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{}))
 		if err != nil {
 			logCtx.Warnf("error occurred while updating ApplicationSet: %v", err)
 			_ = r.setApplicationSetStatusCondition(ctx,
