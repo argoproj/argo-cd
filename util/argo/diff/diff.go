@@ -75,6 +75,13 @@ func (b *DiffConfigBuilder) WithCache(s *appstatecache.Cache, appName string) *D
 	return b
 }
 
+// WithCachedDiff sets a cached diff that the caller already loaded, so DiffFromCache
+// does not decode it from the cache again.
+func (b *DiffConfigBuilder) WithCachedDiff(cachedDiff []*v1alpha1.ResourceDiff) *DiffConfigBuilder {
+	b.diffConfig.cachedDiff = cachedDiff
+	return b
+}
+
 // WithLogger sets the logger in the diff config.
 func (b *DiffConfigBuilder) WithLogger(l logr.Logger) *DiffConfigBuilder {
 	b.diffConfig.logger = &l
@@ -167,6 +174,7 @@ type diffConfig struct {
 	appName               string
 	noCache               bool
 	stateCache            *appstatecache.Cache
+	cachedDiff            []*v1alpha1.ResourceDiff
 	ignoreAggregatedRoles bool
 	logger                *logr.Logger
 	gvkParser             *k8smanagedfields.GvkParser
@@ -386,6 +394,9 @@ func diffArrayCached(ctx context.Context, configArray []*unstructured.Unstructur
 func (c *diffConfig) DiffFromCache(appName string) (bool, []*v1alpha1.ResourceDiff) {
 	if c.noCache || c.stateCache == nil || appName == "" {
 		return false, nil
+	}
+	if c.cachedDiff != nil {
+		return true, c.cachedDiff
 	}
 	cachedDiff := make([]*v1alpha1.ResourceDiff, 0)
 	err := c.stateCache.GetAppManagedResources(appName, &cachedDiff)
