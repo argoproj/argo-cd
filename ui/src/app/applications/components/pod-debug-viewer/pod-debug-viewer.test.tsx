@@ -11,6 +11,7 @@ jest.mock('xterm', () => ({
         rows = 24;
         cols = 80;
         disposed = false;
+        written: string[] = [];
         constructor() {
             mockTerminals.push(this);
         }
@@ -18,7 +19,9 @@ jest.mock('xterm', () => ({
         loadAddon() {}
         onResize() {}
         onData() {}
-        write() {}
+        write(data: string) {
+            this.written.push(data);
+        }
         focus() {}
         dispose() {
             this.disposed = true;
@@ -84,7 +87,7 @@ describe('PodDebugViewer', () => {
         (globalThis as any).WebSocket = realWebSocket;
     });
 
-    it('keeps the session socket and terminal alive after Start', () => {
+    it('keeps the session socket open after Start and renders its output', () => {
         render(<Viewer />);
         fireEvent.click(screen.getByText('Start Debug Session', {selector: 'button'}));
 
@@ -93,6 +96,11 @@ describe('PodDebugViewer', () => {
         expect(new URL(FakeWebSocket.instances[0].url).searchParams.get('image')).toBe('busybox:1.36');
         expect(mockTerminals).toHaveLength(1);
         expect(mockTerminals[0].disposed).toBe(false);
+
+        act(() => FakeWebSocket.instances[0].onopen?.());
+        act(() => FakeWebSocket.instances[0].onmessage?.({data: JSON.stringify({operation: 'stdout', data: '/ # '})}));
+        expect(FakeWebSocket.instances[0].closed).toBe(false);
+        expect(mockTerminals[0].written).toEqual(['/ # ']);
     });
 
     it('closes the socket on End Session', () => {
