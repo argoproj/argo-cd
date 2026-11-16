@@ -638,11 +638,11 @@ func (s *Service) GenerateManifest(ctx context.Context, q *apiclient.ManifestReq
 	if q.HasMultipleSources && q.ApplicationSource.Path == "" && !q.ApplicationSource.IsHelm() && q.ApplicationSource.IsRef() {
 		log.Debugf("Skipping manifest generation for ref only source for application: %s and ref %s", q.AppName, q.ApplicationSource.Ref)
 		var revision string
-		var err error
+		targetRevision := textutils.FirstNonEmpty(q.Revision, q.ApplicationSource.TargetRevision)
 		if q.ApplicationSource.IsOCI() {
-			_, revision, err = s.newOCIClientResolveRevision(ctx, q.Repo, q.Revision, q.NoCache || q.NoRevisionCache)
+			_, revision, err = s.newOCIClientResolveRevision(ctx, q.Repo, targetRevision, q.NoCache || q.NoRevisionCache)
 		} else {
-			_, revision, err = s.newClientResolveRevision(q.Repo, q.Revision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
+			_, revision, err = s.newClientResolveRevision(q.Repo, targetRevision, git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache))
 		}
 		res = &apiclient.ManifestResponse{
 			Revision: revision,
@@ -879,41 +879,24 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 					}
 
 					normalizedRepoURL := refSourceMapping.Repo.NormalizeRepoURL()
-					closer, ok := repoRefs[normalizedRepoURL]
-					if ok {
-						if closer.revision != refSourceMapping.TargetRevision {
-							ch.errCh <- fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refVar, refSourceMapping.TargetRevision, closer.key, closer.revision)
-							return
-						}
-					} else {
-						req := refSourceResolveRequest{
-							refSourceMapping:         refSourceMapping,
-							normalizedRepoURL:        normalizedRepoURL,
-							refVar:                   refVar,
-							noCache:                  q.NoCache,
-							noRevisionCache:          q.NoRevisionCache,
-							appRepoURL:               q.ApplicationSource.RepoURL,
-							appRevision:              q.Revision,
-							commitSHA:                commitSHA,
-							sameRepoAndRevisionAsApp: isSameRepoAndRevision(sourceRepoURL, sourceRevision, refSourceMapping),
-							ociRefPaths:              ociRefPaths,
-							ociDigest:                resolvedRefRevisions[normalizedRepoURL],
-						}
-						var ref repoRef
-						var closer goio.Closer
-						var err error
-						if refSourceMapping.Repo.IsOCI() {
-							ref, closer, err = s.resolveOCIRefSource(ctx, req)
-						} else {
-							ref, closer, err = s.resolveGitRefSource(ctx, req)
-						}
-						if err != nil {
-							ch.errCh <- err
-							return
-						}
-						defer utilio.Close(closer)
-						repoRefs[normalizedRepoURL] = ref
+					closer, err := s.resolveRefSource(ctx, refSourceResolveRequest{
+						refSourceMapping:         refSourceMapping,
+						normalizedRepoURL:        normalizedRepoURL,
+						refVar:                   refVar,
+						noCache:                  q.NoCache,
+						noRevisionCache:          q.NoRevisionCache,
+						appRepoURL:               q.ApplicationSource.RepoURL,
+						appRevision:              q.Revision,
+						commitSHA:                commitSHA,
+						sameRepoAndRevisionAsApp: isSameRepoAndRevision(sourceRepoURL, sourceRevision, refSourceMapping),
+						ociRefPaths:              ociRefPaths,
+						resolvedRevision:         resolvedRefRevisions[normalizedRepoURL],
+					}, repoRefs)
+					if err != nil {
+						ch.errCh <- err
+						return
 					}
+					defer utilio.Close(closer)
 				}
 			}
 		}
@@ -2366,10 +2349,10 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	ociRefPaths := utilio.NewRandomizedTempPaths(os.TempDir())
 
 	if len(q.RefSources) > 0 {
-		refSources := map[string]repoRef{}
+		repoRefs := map[string]repoRef{}
 		var mainRepoURL string
 		if q.Repo.Type == "git" {
-			mainRepoURL = git.NormalizeGitURL(q.Repo.Repo)
+			mainRepoURL = q.Repo.Repo
 		}
 		sourceRevision := textutils.FirstNonEmpty(q.Source.TargetRevision, revision)
 		refNames := []string{}
@@ -2379,63 +2362,27 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 		sort.Strings(refNames)
 		for _, refName := range refNames {
 			refSource := q.RefSources[refName]
-			if refSource.Repo.IsOCI() {
-				closer, err := s.extractOCIRefSource(ctx, q, refName, refSource, refSources, ociRefPaths, refSourceCommitSHAs)
-				if err != nil {
-					return err
-				}
-				defer utilio.Close(closer)
+			if !refSource.Repo.IsOCI() && refSource.Repo.Type != "git" {
 				continue
 			}
-			if refSource.Repo.Type != "git" {
-				continue
-			}
-			log.Debugf("Checking out repos for ref source %s  -> %s [%s]", refName, refSource.Repo.Repo, refSource.TargetRevision)
-			gitClientOpts := git.WithCache(s.cache, !q.NoRevisionCache && !q.NoCache)
-			refNormalizedURL := git.NormalizeGitURL(refSource.Repo.Repo)
-			// The commit is already known when it was recorded in the app details cache key, or when
-			// the ref points at the application's own repository and revision. Reuse it instead of
-			// resolving the branch again, so a branch moved between the two lookups cannot store its
-			// parameters under the old commit.
-			refSHA := refSourceCommitSHAs[refNormalizedURL]
-			if isSameRepoAndRevision(mainRepoURL, sourceRevision, refSource) {
-				refSHA = commitSHA
-			}
-			var gitClient git.Client
-			if refSHA == "" {
-				gitClient, refSHA, err = s.newClientResolveRevision(&refSource.Repo, refSource.TargetRevision, gitClientOpts)
-			} else {
-				gitClient, err = s.newClient(&refSource.Repo, gitClientOpts)
-			}
+			normalizedRepoURL := refSource.Repo.NormalizeRepoURL()
+			closer, err := s.resolveRefSource(ctx, refSourceResolveRequest{
+				refSourceMapping:         refSource,
+				normalizedRepoURL:        normalizedRepoURL,
+				refVar:                   refName,
+				noCache:                  q.NoCache,
+				noRevisionCache:          q.NoRevisionCache,
+				appRepoURL:               mainRepoURL,
+				appRevision:              revision,
+				commitSHA:                commitSHA,
+				sameRepoAndRevisionAsApp: isSameRepoAndRevision(mainRepoURL, sourceRevision, refSource),
+				ociRefPaths:              ociRefPaths,
+				resolvedRevision:         refSourceCommitSHAs[normalizedRepoURL],
+			}, repoRefs)
 			if err != nil {
-				return fmt.Errorf("error setting up git client for %s and resolving revision %s: %w", refSource.Repo.Repo, refSource.TargetRevision, err)
-			}
-			if mainRepoURL == refNormalizedURL && refSHA != commitSHA {
-				return fmt.Errorf("cannot reference a different revision of the same repository (%s references %q which resolves to %q while the application references %q which resolves to %q)", refName, refSource.TargetRevision, refSHA, revision, commitSHA)
-			}
-			prevRef, ok := refSources[refNormalizedURL]
-			if ok {
-				if prevRef.commitSHA != refSHA {
-					return fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q which resolves to %q while %s references %q which resolves to %q)", refName, refSource.TargetRevision, refSHA, prevRef.key, prevRef.revision, prevRef.commitSHA)
-				}
-			} else {
-				refSources[refNormalizedURL] = repoRef{
-					revision:  refSource.TargetRevision,
-					commitSHA: refSHA,
-					key:       refName,
-				}
-			}
-			closer, err := s.repoLock.Lock(gitClient.Root(), refSHA, true, func(clean bool) (goio.Closer, error) {
-				return s.checkoutRevision(ctx, gitClient, refSHA, s.initConstants.SubmoduleEnabled, refSource.Repo.Depth, clean)
-			})
-			if err != nil {
-				return fmt.Errorf("failed to acquire lock for referenced repo %q: %w", refSource.Repo.Repo, err)
+				return err
 			}
 			defer utilio.Close(closer)
-			// no need to call the CheckOutOfBoundsSymlinks scan here because
-			// all referenced values files are retrieved via the ResolveValueFilePathOrUrl()
-			// which ensures that the file is inside the repo directory
-			log.Debugf("Checked out referenced repo %s", refSource.Repo.Repo)
 		}
 	}
 	if resolvedValuesPath, _, err := pathutil.ResolveValueFilePathOrUrl(appPath, repoRoot, "values.yaml", []string{}); err == nil {
@@ -3295,20 +3242,6 @@ func (s *Service) gitSourceHasChanges(ctx context.Context, repo *v1alpha1.Reposi
 	return revision, syncedRevision, changed, nil
 }
 
-// resolveOCIRevision resolves the requested OCI revision (typically a tag) to its digest.
-func (s *Service) resolveOCIRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (string, error) {
-	if repo == nil {
-		return "", status.Error(codes.InvalidArgument, "must pass a valid repo")
-	}
-
-	_, digest, err := s.newOCIClientResolveRevision(ctx, repo, revision, noRevisionCache)
-	if err != nil {
-		return "", status.Errorf(codes.Internal, "unable to resolve oci revision %s: %v", revision, err)
-	}
-
-	return digest, nil
-}
-
 // UpdateRevisionForPaths compares git revisions for single and multi-source applications
 // and determines whether files in the specified paths have changed.
 //
@@ -3432,8 +3365,11 @@ func (s *Service) UpdateRevisionForPaths(ctx context.Context, request *apiclient
 				// Unlike git, there is no cheap changed-files diff for an OCI artifact, so any
 				// digest difference is conservatively reported as a change to force manifest
 				// regeneration.
-				resolvedRevision, err = s.resolveOCIRevision(ctx, &sRefSource.Repo, requestedRevision, request.NoRevisionCache)
-				sourceHasChanges = err == nil && resolvedRevision != syncedRevision
+				_, resolvedRevision, err = s.newOCIClientResolveRevision(ctx, &sRefSource.Repo, requestedRevision, request.NoRevisionCache)
+				if err != nil {
+					return nil, status.Errorf(codes.Internal, "unable to resolve oci revision %s: %v", requestedRevision, err)
+				}
+				sourceHasChanges = resolvedRevision != syncedRevision
 			} else {
 				resolvedRevision, syncedRevision, sourceHasChanges, err = s.gitSourceHasChanges(ctx, &sRefSource.Repo, requestedRevision, sRefSource.TargetRevision, refreshPaths, gitClientOpts)
 			}

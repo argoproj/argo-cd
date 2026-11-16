@@ -963,6 +963,27 @@ func TestGenerateManifest_RejectsChartOnRefSource(t *testing.T) {
 // path, 'ref' set, no chart) is treated like a Git ref-only source: manifest generation is
 // skipped and the revision is resolved via the OCI client (the digest), not the git resolver.
 // Otherwise the OCI values artifact would be parsed as Kubernetes manifests and fail.
+// TestGenerateManifest_RefOnlySourceFallsBackToTargetRevision: an empty request revision must fall
+// back to the source's targetRevision, as runRepoOperation does for every other source.
+func TestGenerateManifest_RefOnlySourceFallsBackToTargetRevision(t *testing.T) {
+	const digest = "sha256:2222222222222222222222222222222222222222222222222222222222222222"
+	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+		ociClient.EXPECT().ResolveRevision(mock.Anything, "1.0.0", mock.Anything).Return(digest, nil)
+	}, ".")
+
+	response, err := service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{Repo: "oci://registry.example.com/oci-ref-values"},
+		ApplicationSource: &v1alpha1.ApplicationSource{
+			RepoURL:        "oci://registry.example.com/oci-ref-values",
+			TargetRevision: "1.0.0",
+			Ref:            "values",
+		},
+		HasMultipleSources: true,
+	})
+	require.NoError(t, err)
+	assert.Equal(t, digest, response.Revision)
+}
+
 func TestGenerateManifest_OCIRefOnlySourceIsSkipped(t *testing.T) {
 	const digest = "sha256:1111111111111111111111111111111111111111111111111111111111111111"
 	service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
@@ -4157,7 +4178,6 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			testResults: func(t *testing.T) {
 				t.Helper()
 				require.Error(t, err)
-				require.ErrorContains(t, err, fmt.Sprintf("failed to acquire lock for referenced repo %q:", refRepoURL))
 				assert.ErrorContains(t, err, dummyErrMsg)
 			},
 		},
@@ -4304,7 +4324,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 
 			testResults: func(t *testing.T) {
 				t.Helper()
-				expMsg := fmt.Sprintf("cannot reference multiple revisions for the same repository (%s references %q which resolves to %q while %s references %q which resolves to %q", refNameB, refTargetRevision2, refSha2, refNameA, refTargetRevision, refSha)
+				expMsg := fmt.Sprintf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refNameB, refTargetRevision2, refNameA, refTargetRevision)
 				require.Error(t, err)
 				require.ErrorContains(t, err, expMsg)
 			},
@@ -4326,9 +4346,9 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			},
 			testResults: func(t *testing.T) {
 				t.Helper()
-				expMsg := fmt.Sprintf("error setting up git client for %s and resolving revision %s: %s", refRepoURL, "main", dummyErrMsg)
 				require.Error(t, err)
-				require.ErrorContains(t, err, expMsg)
+				require.ErrorContains(t, err, "failed to get git client for repo "+refRepoURL)
+				assert.NotContains(t, err.Error(), dummyErrMsg, "the detailed cause is logged, not surfaced")
 			},
 		},
 		{

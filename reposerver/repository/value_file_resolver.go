@@ -15,8 +15,6 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
-	"github.com/argoproj/argo-cd/v3/reposerver/cache"
 	apppathutil "github.com/argoproj/argo-cd/v3/util/app/path"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
@@ -124,36 +122,17 @@ type resolveRawPathResult struct {
 // effective repository root used for the glob symlink-boundary check (the external repo's
 // checkout directory for $ref Git sources, otherwise the main repo root).
 func (r *valueFileResolver) resolveRawPath(rawValueFile string) (*resolveRawPathResult, error) {
-	referencedSource := getReferencedSource(rawValueFile, r.refSources)
-	effectiveRoot := r.repoRoot
-
-	if referencedSource != nil {
+	if referencedSource := getReferencedSource(rawValueFile, r.refSources); referencedSource != nil {
 		// If the $-prefixed path appears to reference another source, do env substitution _after_ resolving that source.
-		resolvedPath, err := getResolvedRefValueFile(
-			rawValueFile,
-			r.env,
-			r.allowedValueFilesSchemas,
-			referencedSource.Repo.Repo,
-			r.gitRepoPaths,
-			r.ociPaths,
-		)
+		// The referenced source's root becomes the boundary for the glob symlink check.
+		resolvedPath, root, err := resolveRefValueFile(rawValueFile, r.env, r.allowedValueFilesSchemas, referencedSource.Repo.Repo, r.gitRepoPaths, r.ociPaths)
 		if err != nil {
 			return nil, err
-		}
-		// Set the effective root to the referenced source's extracted directory so the
-		// glob symlink-boundary check resolves matches against the correct root. OCI refs
-		// live under ociPaths (keyed by the normalized OCI URL); Git refs under gitRepoPaths.
-		if referencedSource.Repo.IsOCI() {
-			if ociPath := r.ociPaths.GetPathIfExists(v1alpha1.NormalizeOCIURL(referencedSource.Repo.Repo)); ociPath != "" {
-				effectiveRoot = ociPath
-			}
-		} else if refRepoPath := r.gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(referencedSource.Repo.Repo)); refRepoPath != "" {
-			effectiveRoot = refRepoPath
 		}
 		return &resolveRawPathResult{
 			Path:          resolvedPath,
 			IsRemote:      false,
-			EffectiveRoot: effectiveRoot,
+			EffectiveRoot: root,
 		}, nil
 	}
 
@@ -171,7 +150,7 @@ func (r *valueFileResolver) resolveRawPath(rawValueFile string) (*resolveRawPath
 	return &resolveRawPathResult{
 		Path:          resolvedPath,
 		IsRemote:      isRemote,
-		EffectiveRoot: effectiveRoot,
+		EffectiveRoot: r.repoRoot,
 	}, nil
 }
 
@@ -192,7 +171,7 @@ func (r *valueFileResolver) checkFileExists(rawValueFile string, resolvedPath pa
 // against the referenced Git/OCI source, anything else against the application path.
 func (r *valueFileResolver) ResolveFileParameter(rawPath string) (pathutil.ResolvedFilePath, error) {
 	if referencedSource := getReferencedSource(rawPath, r.refSources); referencedSource != nil {
-		resolvedPath, err := getResolvedRefValueFile(rawPath, r.env, r.allowedValueFilesSchemas, referencedSource.Repo.Repo, r.gitRepoPaths, r.ociPaths)
+		resolvedPath, _, err := resolveRefValueFile(rawPath, r.env, r.allowedValueFilesSchemas, referencedSource.Repo.Repo, r.gitRepoPaths, r.ociPaths)
 		if err != nil {
 			return "", fmt.Errorf("error resolving set-file path: %w", err)
 		}
@@ -205,80 +184,59 @@ func (r *valueFileResolver) ResolveFileParameter(rawPath string) (pathutil.Resol
 	return resolvedPath, nil
 }
 
-func getResolvedRefValueFile(
+// resolveRefValueFile resolves a $ref value file against the referenced source's extracted
+// directory (OCI) or checkout (Git) and returns the resolved path together with that root, which
+// callers use as the boundary for the glob symlink check.
+func resolveRefValueFile(
 	rawValueFile string,
 	env *v1alpha1.Env,
 	allowedValueFilesSchemas []string,
 	refSourceRepo string,
 	gitRepoPaths utilio.TempPaths,
 	ociPaths utilio.TempPaths,
-) (pathutil.ResolvedFilePath, error) {
-	pathStrings := strings.Split(rawValueFile, "/")
-
-	// Check if the reference source is an OCI repository
-	if v1alpha1.IsOCIURL(refSourceRepo) {
-		return getResolvedOCIRefValueFile(rawValueFile, env, allowedValueFilesSchemas, refSourceRepo, ociPaths)
-	}
-
-	// Original Git repository handling
-	repoPath := gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
-	if repoPath == "" {
-		return "", fmt.Errorf("failed to find repo %q", refSourceRepo)
-	}
-	pathStrings[0] = "" // Remove first segment. It will be inserted by pathutil.ResolveValueFilePathOrUrl.
-	substitutedPath := strings.Join(pathStrings, "/")
-
-	// Resolve the path relative to the referenced repo and block any attempt at traversal.
-	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(repoPath, repoPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
-	if err != nil {
-		return "", fmt.Errorf("error resolving value file path: %w", err)
-	}
-	return resolvedPath, nil
-}
-
-// getResolvedOCIRefValueFile handles OCI ref values by using the already extracted OCI content
-func getResolvedOCIRefValueFile(
-	rawValueFile string,
-	env *v1alpha1.Env,
-	allowedValueFilesSchemas []string,
-	refSourceRepo string,
-	ociPaths utilio.TempPaths,
-) (pathutil.ResolvedFilePath, error) {
-	// Get the OCI path from the ociPaths. Paths are keyed by the normalized repo URL,
-	// matching the key used when the extracted content was registered.
-	normalizedKey := v1alpha1.NormalizeOCIURL(refSourceRepo)
-	ociPath := ociPaths.GetPathIfExists(normalizedKey)
-	if ociPath == "" {
-		// Log only the registered keys (repo URLs), not GetPaths(), which would leak the
-		// randomized temp extraction directories into logs. The keys are enough to spot a
-		// URL mismatch when debugging.
-		registered := make([]string, 0, len(ociPaths.GetPaths()))
-		for key := range ociPaths.GetPaths() {
-			registered = append(registered, key)
-		}
-		sort.Strings(registered)
-		log.Debugf("OCI ref source %q (lookup key %q) not found among registered OCI sources %v", refSourceRepo, normalizedKey, registered)
-		return "", fmt.Errorf("OCI ref source %q was not successfully extracted. Ensure the repository is accessible and properly configured", refSourceRepo)
-	}
-
-	// Remove the first segment (the ref variable name); pathutil re-inserts the OCI root.
+) (pathutil.ResolvedFilePath, string, error) {
+	// Remove the first segment (the ref variable name); pathutil re-inserts the root. Keep the
+	// leading slash: pathutil joins an absolute path onto the root, and a bare "https://..."
+	// remainder would otherwise be treated as a remote URL instead of a file inside the source.
 	pathStrings := strings.Split(rawValueFile, "/")
 	pathStrings[0] = ""
-	// Keep the leading slash: pathutil joins an absolute path onto the OCI root, and a bare
-	// "https://..." remainder would otherwise be treated as a remote URL instead of a file
-	// inside the artifact. Reject inputs like "$oci" or "$oci/" that have no path segment.
 	substitutedPath := strings.Join(pathStrings, "/")
-	if strings.Trim(substitutedPath, "/") == "" {
-		return "", fmt.Errorf("invalid OCI value file path %q: no file path after the ref name", rawValueFile)
+
+	var root string
+	if v1alpha1.IsOCIURL(refSourceRepo) {
+		// Paths are keyed by the normalized repo URL, matching the key used when the extracted
+		// content was registered.
+		normalizedKey := v1alpha1.NormalizeOCIURL(refSourceRepo)
+		root = ociPaths.GetPathIfExists(normalizedKey)
+		if root == "" {
+			// Log only the registered keys (repo URLs), not GetPaths(), which would leak the
+			// randomized temp extraction directories into logs. The keys are enough to spot a
+			// URL mismatch when debugging.
+			registered := make([]string, 0, len(ociPaths.GetPaths()))
+			for key := range ociPaths.GetPaths() {
+				registered = append(registered, key)
+			}
+			sort.Strings(registered)
+			log.Debugf("OCI ref source %q (lookup key %q) not found among registered OCI sources %v", refSourceRepo, normalizedKey, registered)
+			return "", "", fmt.Errorf("OCI ref source %q was not successfully extracted. Ensure the repository is accessible and properly configured", refSourceRepo)
+		}
+		// Reject inputs like "$oci" or "$oci/" that have no path segment.
+		if strings.Trim(substitutedPath, "/") == "" {
+			return "", "", fmt.Errorf("invalid OCI value file path %q: no file path after the ref name", rawValueFile)
+		}
+	} else {
+		root = gitRepoPaths.GetPathIfExists(git.NormalizeGitURL(refSourceRepo))
+		if root == "" {
+			return "", "", fmt.Errorf("failed to find repo %q", refSourceRepo)
+		}
 	}
 
-	// Resolve the path relative to the extracted OCI content
-	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(ociPath, ociPath, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
+	// Resolve the path relative to the referenced source and block any attempt at traversal.
+	resolvedPath, _, err := pathutil.ResolveValueFilePathOrUrl(root, root, env.Envsubst(substitutedPath), allowedValueFilesSchemas)
 	if err != nil {
-		return "", fmt.Errorf("error resolving OCI value file path: %w", err)
+		return "", "", fmt.Errorf("error resolving value file path: %w", err)
 	}
-
-	return resolvedPath, nil
+	return resolvedPath, root, nil
 }
 
 type gitClientGetter func(repo *v1alpha1.Repository, revision string, opts ...git.ClientOpts) (git.Client, string, error)
@@ -446,10 +404,11 @@ type refSourceResolveRequest struct {
 	// ociRefPaths receives the extracted OCI directory (keyed by normalizedRepoURL) for later value
 	// file resolution. Only used by the OCI resolver.
 	ociRefPaths utilio.TempPaths
-	// ociDigest, when set, is the digest the caller already resolved TargetRevision to and recorded
-	// in the cache key. The OCI resolver extracts it as-is instead of resolving the tag again, so a
-	// tag moved between the two resolutions cannot store the new content under the old digest.
-	ociDigest string
+	// resolvedRevision, when set, is the commit SHA (Git) or digest (OCI) the caller already
+	// resolved TargetRevision to and recorded in the cache key. The resolvers use it as-is instead
+	// of resolving the revision again, so a branch or tag moved between the two resolutions cannot
+	// store the new content under the revision recorded in the key.
+	resolvedRevision string
 }
 
 // resolveOCIRefSource resolves and extracts an OCI $ref source for the current request (manifest
@@ -474,7 +433,7 @@ func (s *Service) resolveOCIRefSource(ctx context.Context, req refSourceResolveR
 		return repoRef{}, nil, fmt.Errorf("failed to create OCI client for repo %s", refSourceMapping.Repo.Repo)
 	}
 
-	referencedDigest := req.ociDigest
+	referencedDigest := req.resolvedRevision
 	if referencedDigest == "" {
 		referencedDigest, err = ociClient.ResolveRevision(ctx, refSourceMapping.TargetRevision, req.noCache || req.noRevisionCache)
 		if err != nil {
@@ -532,12 +491,16 @@ func (s *Service) resolveGitRefSource(ctx context.Context, req refSourceResolveR
 	var referencedCommitSHA string
 	var err error
 	gitClientOpts := git.WithCache(s.cache, !req.noRevisionCache && !req.noCache)
-	if req.sameRepoAndRevisionAsApp {
+	switch {
+	case req.sameRepoAndRevisionAsApp:
 		// The primary source already resolved this repository at this revision, so reuse its commit
 		// SHA instead of paying for another ls-remote.
 		gitClient, err = s.newClient(&refSourceMapping.Repo, gitClientOpts)
 		referencedCommitSHA = req.commitSHA
-	} else {
+	case req.resolvedRevision != "":
+		gitClient, err = s.newClient(&refSourceMapping.Repo, gitClientOpts)
+		referencedCommitSHA = req.resolvedRevision
+	default:
 		gitClient, referencedCommitSHA, err = s.newClientResolveRevision(&refSourceMapping.Repo, refSourceMapping.TargetRevision, gitClientOpts)
 	}
 	if err != nil {
@@ -582,32 +545,30 @@ func (s *Service) resolveGitRefSource(ctx context.Context, req refSourceResolveR
 	return repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedCommitSHA, key: req.refVar}, closer, nil
 }
 
-// extractOCIRefSource extracts an OCI $ref source into ociRefPaths, keyed by normalized repo URL,
-// which is how value file resolution looks it up. A repository already extracted for an earlier
-// $ref is reused, and referencing it at a second revision is rejected. refSourceCommitSHAs holds
-// the digests already recorded for the app details cache key; the matching one is extracted so the
-// cached parameters always come from the digest they are keyed by.
-func (s *Service) extractOCIRefSource(ctx context.Context, q *apiclient.RepoServerAppDetailsQuery, refName string, refSource *v1alpha1.RefTarget, refSources map[string]repoRef, ociRefPaths utilio.TempPaths, refSourceCommitSHAs cache.ResolvedRevisions) (goio.Closer, error) {
-	normalizedRepoURL := refSource.Repo.NormalizeRepoURL()
-	if prevRef, ok := refSources[normalizedRepoURL]; ok {
-		if prevRef.revision != refSource.TargetRevision {
-			return nil, fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refName, refSource.TargetRevision, prevRef.key, prevRef.revision)
+// resolveRefSource resolves one $ref source for the current request (manifest generation or app
+// details) and records it in repoRefs, keyed by req.normalizedRepoURL. A repository already
+// resolved for an earlier $ref is reused, and referencing it at a second revision is rejected. The
+// returned closer releases the Git checkout or the extracted OCI artifact and must be held until
+// the referenced value files have been read.
+func (s *Service) resolveRefSource(ctx context.Context, req refSourceResolveRequest, repoRefs map[string]repoRef) (goio.Closer, error) {
+	if prev, ok := repoRefs[req.normalizedRepoURL]; ok {
+		if prev.revision != req.refSourceMapping.TargetRevision {
+			return nil, fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", req.refVar, req.refSourceMapping.TargetRevision, prev.key, prev.revision)
 		}
 		return utilio.NopCloser, nil
 	}
-	ref, closer, err := s.resolveOCIRefSource(ctx, refSourceResolveRequest{
-		refSourceMapping:  refSource,
-		normalizedRepoURL: normalizedRepoURL,
-		refVar:            refName,
-		noCache:           q.NoCache,
-		noRevisionCache:   q.NoRevisionCache,
-		ociRefPaths:       ociRefPaths,
-		ociDigest:         refSourceCommitSHAs[normalizedRepoURL],
-	})
+	var ref repoRef
+	var closer goio.Closer
+	var err error
+	if req.refSourceMapping.Repo.IsOCI() {
+		ref, closer, err = s.resolveOCIRefSource(ctx, req)
+	} else {
+		ref, closer, err = s.resolveGitRefSource(ctx, req)
+	}
 	if err != nil {
 		return nil, err
 	}
-	refSources[normalizedRepoURL] = ref
+	repoRefs[req.normalizedRepoURL] = ref
 	return closer, nil
 }
 

@@ -352,11 +352,10 @@ func IsOCIURL(url string) bool {
 // names are case-sensitive. The oci:// prefix is kept to avoid collisions with Git
 // repository URLs. Non-OCI URLs are returned unchanged.
 func NormalizeOCIURL(repoURL string) string {
-	trimmed := strings.TrimSpace(repoURL)
-	if len(trimmed) < len(ociPrefix) || !strings.EqualFold(trimmed[:len(ociPrefix)], ociPrefix) {
+	if !IsOCIURL(repoURL) {
 		return repoURL
 	}
-	host, repoPath, hasPath := strings.Cut(trimmed[len(ociPrefix):], "/")
+	host, repoPath, hasPath := strings.Cut(strings.TrimSpace(repoURL)[len(ociPrefix):], "/")
 	normalized := ociPrefix + strings.ToLower(host)
 	if hasPath {
 		normalized += "/" + repoPath

@@ -1114,7 +1114,7 @@ func TestResolveOCIRefSource(t *testing.T) {
 		}, ".")
 
 		req := ociRefRequest(t, repo)
-		req.ociDigest = "sha256:recorded"
+		req.resolvedRevision = "sha256:recorded"
 		ref, _, err := service.resolveOCIRefSource(t.Context(), req)
 		require.NoError(t, err)
 		assert.Equal(t, "sha256:recorded", ref.commitSHA)
@@ -1177,6 +1177,27 @@ func TestResolveGitRefSource(t *testing.T) {
 		_, closer, err := service.resolveGitRefSource(t.Context(), gitRefRequest())
 		assert.Nil(t, closer)
 		require.ErrorContains(t, err, "cannot reference a different revision of the same repository")
+	})
+
+	t.Run("recorded commit is checked out without resolving the branch again", func(t *testing.T) {
+		root := t.TempDir()
+		service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+			paths.EXPECT().GetPath(mock.Anything).Return(root, nil)
+			gitClient.EXPECT().Root().Return(root)
+			// No LsRemote expectation: a second resolution could see a moved branch and store its
+			// content under the commit already recorded in the cache key.
+			gitClient.EXPECT().Init().Return(nil)
+			gitClient.EXPECT().IsRevisionPresent(mock.Anything, "recorded-sha").Return(true)
+			gitClient.EXPECT().Checkout(mock.Anything, "recorded-sha", mock.Anything, mock.Anything).Return("", nil)
+		}, ".")
+
+		req := gitRefRequest()
+		req.appRepoURL = "https://github.com/test/other.git" // not the application's repository, so no same-repo guard
+		req.resolvedRevision = "recorded-sha"
+		ref, closer, err := service.resolveGitRefSource(t.Context(), req)
+		require.NoError(t, err)
+		require.NotNil(t, closer)
+		assert.Equal(t, "recorded-sha", ref.commitSHA)
 	})
 
 	t.Run("out-of-bounds symlink is rejected after checkout", func(t *testing.T) {

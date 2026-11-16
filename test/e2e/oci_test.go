@@ -108,7 +108,7 @@ func TestMultiSourceAppWithOCIRefValues(t *testing.T) {
 			},
 		},
 	}, {
-		RepoURL:        "oci://localhost:5000/oci-ref-values",
+		RepoURL:        fixture.OCIHostURL + "/oci-ref-values",
 		TargetRevision: "1.0.0",
 		Ref:            "values",
 	}}
