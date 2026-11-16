@@ -1274,7 +1274,8 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 		}
 		resolvedValueFiles, err := resolver.ResolveValueFiles(appHelm.ValueFiles)
 		if err != nil {
-			return nil, "", fmt.Errorf("error resolving helm value files: %w", err)
+			// Glob and symlink errors embed the matched path, which for an OCI $ref lives outside rootDir.
+			return nil, "", redactPathsInError(fmt.Errorf("error resolving helm value files: %w", err), "", gitRepoPaths, ociPaths)
 		}
 
 		templateOpts.Values = resolvedValueFiles
@@ -1308,7 +1309,7 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 		for _, p := range appHelm.FileParameters {
 			resolvedPath, err := resolver.ResolveFileParameter(p.Path)
 			if err != nil {
-				return nil, "", err
+				return nil, "", redactPathsInError(err, "", gitRepoPaths, ociPaths)
 			}
 			templateOpts.SetFile[p.Name] = resolvedPath
 		}
@@ -2408,7 +2409,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	}
 	resolvedSelectedValueFiles, err := resolver.ResolveValueFiles(selectedValueFiles)
 	if err != nil {
-		return fmt.Errorf("failed to resolve value files: %w", err)
+		return redactPathsInError(fmt.Errorf("failed to resolve value files: %w", err), "", gitRepoPaths, ociRefPaths)
 	}
 	params, err := h.GetParameters(resolvedSelectedValueFiles, appPath, repoRoot)
 	if err != nil {

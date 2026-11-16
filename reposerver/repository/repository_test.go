@@ -985,6 +985,40 @@ func TestRunManifestGenAsync_NoRefSourcesSendsOneError(t *testing.T) {
 	}
 }
 
+// TestHelmChartReferencingOCIValues_GlobErrorRedactsExtractionDir: a glob over an OCI $ref that
+// hits a dangling symlink fails with the matched path in the message. The extracted artifact lives
+// outside rootDir, so the gRPC sanitizer does not cover it and helmTemplate must redact it itself.
+func TestHelmChartReferencingOCIValues_GlobErrorRedactsExtractionDir(t *testing.T) {
+	ociDir := t.TempDir()
+	require.NoError(t, os.Symlink("missing.yaml", filepath.Join(ociDir, "broken.yaml")))
+	service := newService(t, ".")
+	ociClient := &ocimocks.Client{}
+	ociClient.EXPECT().ResolveRevision(mock.Anything, mock.Anything, mock.Anything).Return("", nil)
+	ociClient.EXPECT().Extract(mock.Anything, mock.Anything).Return(ociDir, utilio.NopCloser, nil)
+	ociClient.EXPECT().CleanCache(mock.Anything).Return(nil)
+	service.newOCIClient = func(_ string, _ oci.Creds, _ string, _ string, _ []string, _ ...oci.ClientOpts) (oci.Client, error) {
+		return ociClient, nil
+	}
+	spec := v1alpha1.ApplicationSpec{
+		Sources: []v1alpha1.ApplicationSource{
+			{RepoURL: "https://helm.example.com", Chart: "my-chart", TargetRevision: ">= 1.0.0", Helm: &v1alpha1.ApplicationSourceHelm{
+				ValueFiles: []string{"$ref/*.yaml"},
+			}},
+			{Ref: "ref", RepoURL: "oci://registry.example.com/config/app-values"},
+		},
+	}
+	refSources, err := argo.GetRefSources(t.Context(), spec.Sources, spec.Project, func(_ context.Context, _ string, _ string) (*v1alpha1.Repository, error) {
+		return &v1alpha1.Repository{Repo: "oci://registry.example.com/config/app-values"}, nil
+	}, []string{})
+	require.NoError(t, err)
+	_, err = service.GenerateManifest(t.Context(), &apiclient.ManifestRequest{
+		Repo: &v1alpha1.Repository{}, ApplicationSource: &spec.Sources[0], NoCache: true, RefSources: refSources, HasMultipleSources: true, ProjectName: "something",
+		ProjectSourceRepos: []string{"*"},
+	})
+	require.ErrorContains(t, err, "error resolving symlink for glob match")
+	assert.NotContains(t, err.Error(), ociDir)
+}
+
 // TestGenerateManifest_OCIRefOnlySourceIsSkipped verifies that a ref-only OCI source (empty
 // path, 'ref' set, no chart) is treated like a Git ref-only source: manifest generation is
 // skipped and the revision is resolved via the OCI client (the digest), not the git resolver.
@@ -4204,6 +4238,7 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 			testResults: func(t *testing.T) {
 				t.Helper()
 				require.Error(t, err)
+				require.ErrorContains(t, err, fmt.Sprintf("failed to acquire lock for referenced repo %q:", refRepoURL))
 				assert.ErrorContains(t, err, dummyErrMsg)
 			},
 		},
@@ -4647,6 +4682,21 @@ func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
 		res := apiclient.RepoAppDetailsResponse{}
 		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths, nil)
 		require.ErrorContains(t, err, "failed to read value file")
+		assert.NotContains(t, err.Error(), ociDir)
+	})
+
+	t.Run("a glob hitting a dangling symlink does not leak the extraction dir", func(t *testing.T) {
+		ociDir := extractedDir(t)
+		require.NoError(t, os.Symlink("missing.yaml", filepath.Join(ociDir, "broken.yaml")))
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digest, nil)
+			ociClient.EXPECT().Extract(mock.Anything, digest).Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		q := newQuery(map[string]*v1alpha1.RefTarget{"$values": ociRef("v1.0.0")}, "$values/*.yaml")
+		res := apiclient.RepoAppDetailsResponse{}
+		err := service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths, nil)
+		require.ErrorContains(t, err, "error resolving symlink for glob match")
 		assert.NotContains(t, err.Error(), ociDir)
 	})
 

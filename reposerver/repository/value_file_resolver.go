@@ -527,7 +527,7 @@ func (s *Service) resolveGitRefSource(ctx context.Context, req refSourceResolveR
 	})
 	if err != nil {
 		log.Errorf("failed to acquire lock for referenced source %s", req.normalizedRepoURL)
-		return repoRef{}, nil, err
+		return repoRef{}, nil, fmt.Errorf("failed to acquire lock for referenced repo %q: %w", refSourceMapping.Repo.Repo, err)
 	}
 
 	// Symlink check must happen after acquiring lock.
