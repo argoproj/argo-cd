@@ -44,17 +44,19 @@ export const repoQueries = {
                     hydratorEnabled ? services.repocreds.listWrite() : Promise.resolve([])
                 ])
         }),
-    // Best-effort, for revision suggestions: a failure yields no refs instead of an error notification, and the
-    // revision field still accepts any value. Keyed without the branches/tags filter, so switching it reuses the result.
+    // Best-effort, for revision suggestions: a failure shows no error notification, and the revision field still
+    // accepts any value. Keyed without the branches/tags filter, so switching it reuses the result.
     refs: (repoURL: string, appProject?: string) =>
         queryOptions({
             queryKey: ['repos', 'refs', repoURL, appProject ?? ''],
-            queryFn: () => services.repos.revisions(repoURL, appProject).catch((): models.RefsInfo => ({branches: [], tags: []}))
+            queryFn: () => services.repos.revisions(repoURL, appProject),
+            meta: {silent: true}
         }),
     ociTags: (repoURL: string, appProject?: string) =>
         queryOptions({
             queryKey: ['repos', 'oci-tags', repoURL, appProject ?? ''],
-            queryFn: () => services.repos.ociTags(repoURL, appProject).catch((): models.RefsInfo => ({branches: [], tags: []}))
+            queryFn: () => services.repos.ociTags(repoURL, appProject),
+            meta: {silent: true}
         })
 };
 

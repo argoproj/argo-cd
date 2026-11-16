@@ -1,8 +1,9 @@
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {fireEvent, render, screen} from '@testing-library/react';
+import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
+import {repoQueries} from '../../../shared/queries';
 import {newQueryClient} from '../../../shared/query-client';
 import {services} from '../../../shared/services';
 import {RevisionFormField} from './revision-form-field';
@@ -74,10 +75,11 @@ describe('RevisionFormField', () => {
     it('suggests only HEAD without an error notification when the refs fail to load', async () => {
         jest.mocked(services.repos.revisions).mockRejectedValue(new Error('forbidden'));
         const show = jest.fn();
-        renderField({}, newQueryClient({show} as any));
+        const client = newQueryClient({show} as any);
+        renderField({}, client);
 
-        await screen.findByText('HEAD');
-        await new Promise(resolve => setTimeout(resolve, 0));
+        const {queryKey} = repoQueries.refs('https://github.com/org/app', 'my-project');
+        await waitFor(() => expect(client.getQueryState(queryKey)?.status).toBe('error'));
         expect(screen.getByTestId('suggestions')).toHaveTextContent(/^HEAD$/);
         expect(show).not.toHaveBeenCalled();
     });
