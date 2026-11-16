@@ -537,6 +537,10 @@ data:
   # We highly recommend that this be set to `true`. The next major release will set the default to be `true`.
   application.sync.requireOverridePrivilegeForRevisionSync: "true"
 
+  # application.sync.retry.limit is the number of times a failed automated sync is retried, for Applications that don't
+  # set `spec.syncPolicy.retry`. 0 disables retries and -1 retries without limit. Defaults to 5.
+  application.sync.retry.limit: "5"
+
   ### SourceHydrator commit author name (optional).
   # Configures the author name for commits created by the Source Hydrator.
   # If not specified, defaults to "Argo CD".

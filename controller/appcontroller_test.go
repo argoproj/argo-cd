@@ -840,6 +840,42 @@ func TestAutoSync(t *testing.T) {
 	assert.False(t, app.Operation.Sync.Prune)
 }
 
+func TestAutoSyncRetryLimit(t *testing.T) {
+	tests := []struct {
+		name          string
+		configMapData map[string]string
+		appRetry      *v1alpha1.RetryStrategy
+		limit         int64
+	}{
+		{name: "Default", limit: 5},
+		{name: "Configured in argocd-cm", configMapData: map[string]string{"application.sync.retry.limit": "10"}, limit: 10},
+		{name: "No retries configured in argocd-cm", configMapData: map[string]string{"application.sync.retry.limit": "0"}, limit: 0},
+		{
+			name:          "Application retry strategy takes precedence",
+			configMapData: map[string]string{"application.sync.retry.limit": "10"},
+			appRetry:      &v1alpha1.RetryStrategy{Limit: 2},
+			limit:         2,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.SyncPolicy.Retry = tt.appRetry
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}, configMapData: tt.configMapData}, nil)
+			syncStatus := v1alpha1.SyncStatus{
+				Status:   v1alpha1.SyncStatusCodeOutOfSync,
+				Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+			}
+			cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+			assert.Nil(t, cond)
+			app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, app.Operation)
+			assert.Equal(t, tt.limit, app.Operation.Retry.Limit)
+		})
+	}
+}
+
 func TestAutoSyncEnabledSetToTrue(t *testing.T) {
 	app := newFakeApp()
 	app.Spec.SyncPolicy.Automated = &v1alpha1.SyncPolicyAutomated{Enabled: new(true)}
