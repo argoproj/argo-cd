@@ -25,10 +25,11 @@ const clusterHTML = (cluster: models.Cluster, showUrl: boolean) => {
 // True on list pages, which load all clusters once; elsewhere each cluster is looked up on its own.
 export const ClusterCtx = React.createContext(false);
 
-// Refreshes the cluster list once per view of a list page.
+// Refreshes the cluster list once per view of a list page. A layout effect starts the request before a page
+// opened by a click is painted, so its rows don't briefly show a failure cached by a previous visit.
 export const useRefreshClusterList = () => {
     const queryClient = useQueryClient();
-    React.useEffect(() => {
+    React.useLayoutEffect(() => {
         // A failure is shown by the components reading the list, so it is not handled here.
         queryClient.query(clusterQueries.list()).catch(noop);
     }, [queryClient]);
