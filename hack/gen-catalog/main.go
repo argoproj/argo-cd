@@ -19,7 +19,6 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/cobra/doc"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/admin"
@@ -46,14 +45,10 @@ func newCatalogCommand() *cobra.Command {
 		Use: "catalog",
 		Run: func(_ *cobra.Command, _ []string) {
 			cm := corev1.ConfigMap{
-				TypeMeta: metav1.TypeMeta{
-					Kind:       "ConfigMap",
-					APIVersion: "v1",
-				},
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "argocd-notifications-cm",
-				},
-				Data: make(map[string]string),
+				Kind:       "ConfigMap",
+				APIVersion: "v1",
+				Name:       "argocd-notifications-cm",
+				Data:       make(map[string]string),
 			}
 			wd, err := os.Getwd()
 			dieOnError(err, "Failed to get current working directory")
@@ -212,7 +207,7 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 		if err != nil {
 			return fmt.Errorf("error reading the template file: %s : %w", p, err)
 		}
-		name := strings.Split(path.Base(p), ".")[0]
+		name, _, _ := strings.Cut(path.Base(p), ".")
 		var template services.Notification
 		if err := yaml.Unmarshal(data, &template); err != nil {
 			return fmt.Errorf("error unmarshaling the data from file: %s : %w", p, err)
@@ -236,7 +231,7 @@ func buildConfigFromFS(templatesDir string, triggersDir string) (map[string]serv
 		if err != nil {
 			return fmt.Errorf("error reading the trigger file: %s : %w", p, err)
 		}
-		name := strings.Split(path.Base(p), ".")[0]
+		name, _, _ := strings.Cut(path.Base(p), ".")
 		var trigger []triggers.Condition
 		if err := yaml.Unmarshal(data, &trigger); err != nil {
 			return fmt.Errorf("error unmarshaling the data from file: %s : %w", p, err)

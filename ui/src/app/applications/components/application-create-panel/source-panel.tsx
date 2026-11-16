@@ -97,12 +97,16 @@ export const SourcePanel = (props: SourcePanelProps) => {
                                             if (!source) {
                                                 return;
                                             }
+                                            // These refs are written from a DropDownMenu click handler, which runs on
+                                            // user interaction rather than during render, so ref access here is safe.
+                                            /* eslint-disable react-hooks/refs */
                                             if (repoType === 'git' || repoType === 'helm') {
                                                 lastGitOrHelmUrl.current = source.repoURL;
                                             } else {
                                                 lastOciUrl.current = source.repoURL;
                                             }
                                             currentRepoType.current = type;
+                                            /* eslint-enable react-hooks/refs */
                                             switch (type) {
                                                 case 'git':
                                                 case 'oci':
@@ -204,8 +208,10 @@ export const SourcePanel = (props: SourcePanelProps) => {
                     </React.Fragment>
                 )) || (
                     <DataLoader
-                        input={{repoURL: specSourceForRevision?.repoURL}}
-                        load={async src => (src.repoURL && services.repos.charts(src.repoURL).catch(() => new Array<models.HelmChart>())) || new Array<models.HelmChart>()}>
+                        input={{repoURL: specSourceForRevision?.repoURL, appProject: currentApp?.spec?.project}}
+                        load={async src =>
+                            (src.repoURL && services.repos.charts(src.repoURL, src.appProject).catch(() => new Array<models.HelmChart>())) || new Array<models.HelmChart>()
+                        }>
                         {(charts: models.HelmChart[]) => {
                             const spec = props.formApi.getFormState().values.spec;
                             const chartName = isMulti ? spec.sources?.[props.sourceIndex as number]?.chart : spec.source?.chart;

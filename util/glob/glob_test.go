@@ -45,7 +45,7 @@ func matchWithCompiler(pattern, text string, compiler compileFn, separators ...r
 
 func countingCompiler() (compileFn, *int32) {
 	var compileCount int32
-	compiler := func(pattern string, separators ...rune) (extglob.Glob, error) {
+	compiler := func(pattern string, separators ...rune) (*extglob.Pattern, error) {
 		atomic.AddInt32(&compileCount, 1)
 		return extglob.Compile(pattern, separators...)
 	}
@@ -92,6 +92,8 @@ func Test_MatchList(t *testing.T) {
 		{"Glob name in list with simple wildcard", "test", []string{"*"}, GLOB, true},
 		{"Glob name in list without wildcard", "test", []string{"test"}, GLOB, true},
 		{"Glob name in list, multiple elements", "test", []string{"other*", "te*"}, GLOB, true},
+		{"Single slash regexp entry does not panic or match", "test", []string{"/"}, REGEXP, false},
+		{"Empty regexp entry does not match everything", "test", []string{"//"}, REGEXP, false},
 		{"match everything but specified word: fail", "disallowed", []string{"/^((?!disallowed).)*$/"}, REGEXP, false},
 		{"match everything but specified word: pass", "allowed", []string{"/^((?!disallowed).)*$/"}, REGEXP, true},
 	}

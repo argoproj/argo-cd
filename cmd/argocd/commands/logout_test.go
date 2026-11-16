@@ -43,7 +43,8 @@ func TestLogout(t *testing.T) {
 	assert.Contains(t, localConfig.Contexts, localconfig.ContextRef{Name: "localhost:8080", Server: "localhost:8080", User: "localhost:8080"})
 
 	command := NewLogoutCommand(&argocdclient.ClientOptions{ConfigPath: testConfigFilePath})
-	command.Run(nil, []string{"localhost:8080"})
+	command.SetContext(t.Context())
+	command.Run(command, []string{"localhost:8080"})
 
 	localConfig, err = localconfig.ReadLocalConfig(testConfigFilePath)
 	require.NoError(t, err)
@@ -55,7 +56,7 @@ func TestLogout(t *testing.T) {
 }
 
 func TestRevokeServerToken_EmptyToken(t *testing.T) {
-	res, err := revokeServerToken("http", "localhost:8080", "", false)
+	res, err := revokeServerToken(t.Context(), "http", "localhost:8080", "", false)
 	require.EqualError(t, err, "error getting token from local context file")
 	assert.Nil(t, res)
 }
@@ -76,7 +77,7 @@ func TestRevokeServerToken_SuccessfulRequest(t *testing.T) {
 	// Strip the "http://" prefix to get the hostName
 	hostName := server.Listener.Addr().String()
 
-	res, err := revokeServerToken("http", hostName, "test-token", false)
+	res, err := revokeServerToken(t.Context(), "http", hostName, "test-token", false)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 	assert.Equal(t, http.MethodPost, receivedMethod)
@@ -91,7 +92,7 @@ func TestRevokeServerToken_ServerReturnsBadRequest(t *testing.T) {
 
 	hostName := server.Listener.Addr().String()
 
-	res, err := revokeServerToken("http", hostName, "test-token", false)
+	res, err := revokeServerToken(t.Context(), "http", hostName, "test-token", false)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusBadRequest, res.StatusCode)
 }
@@ -99,7 +100,7 @@ func TestRevokeServerToken_ServerReturnsBadRequest(t *testing.T) {
 func TestRevokeServerToken_InvalidURL(t *testing.T) {
 	// A hostname containing a control character produces an invalid URL,
 	// causing http.NewRequestWithContext to fail.
-	res, err := revokeServerToken("http", "invalid\x00host", "test-token", false)
+	res, err := revokeServerToken(t.Context(), "http", "invalid\x00host", "test-token", false)
 	require.Error(t, err)
 	assert.Nil(t, res)
 	assert.Contains(t, err.Error(), "invalid control character in URL")
@@ -114,12 +115,12 @@ func TestRevokeServerToken_InsecureTLS(t *testing.T) {
 	hostName := server.Listener.Addr().String()
 
 	// Without insecure, the self-signed cert should cause a failure
-	res, err := revokeServerToken("https", hostName, "test-token", false)
+	res, err := revokeServerToken(t.Context(), "https", hostName, "test-token", false)
 	require.Error(t, err)
 	assert.Nil(t, res)
 
 	// With insecure=true, should succeed despite self-signed cert
-	res, err = revokeServerToken("https", hostName, "test-token", true)
+	res, err = revokeServerToken(t.Context(), "https", hostName, "test-token", true)
 	require.NoError(t, err)
 	assert.Equal(t, http.StatusOK, res.StatusCode)
 }
@@ -182,7 +183,8 @@ func TestLogout_TLSCheckFails_AutoSetsPlainText(t *testing.T) {
 	assert.Equal(t, "test-token", localCfg.GetToken(addr))
 
 	command := NewLogoutCommand(&argocdclient.ClientOptions{ConfigPath: configFile})
-	command.Run(nil, []string{addr})
+	command.SetContext(t.Context())
+	command.Run(command, []string{addr})
 
 	// Verify token was removed despite TLS check failure
 	localCfg, err = localconfig.ReadLocalConfig(configFile)
@@ -233,7 +235,8 @@ func TestLogout_InsecureTLS_SetsInsecureFlag(t *testing.T) {
 	assert.Equal(t, "test-token", localCfg.GetToken(addr))
 
 	command := NewLogoutCommand(&argocdclient.ClientOptions{ConfigPath: configFile})
-	command.Run(nil, []string{addr})
+	command.SetContext(t.Context())
+	command.Run(command, []string{addr})
 
 	// Verify token was removed after accepting the insecure cert warning
 	localCfg, err = localconfig.ReadLocalConfig(configFile)
@@ -263,7 +266,8 @@ func TestLogout_ConfigFileNotFound(t *testing.T) {
 
 	assert.Panics(t, func() {
 		command := NewLogoutCommand(&argocdclient.ClientOptions{ConfigPath: configFile})
-		command.Run(nil, []string{"some-context"})
+		command.SetContext(t.Context())
+		command.Run(command, []string{"some-context"})
 	})
 
 	assert.Contains(t, buf.String(), "Nothing to logout from")

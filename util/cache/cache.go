@@ -226,9 +226,27 @@ func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...Options) func() (*Cache, err
 	redisAddressSrc := getFlagVal(cmd, opt, "redis", cmd.Flags().GetString)
 	cmd.Flags().IntVar(&redisDB, opt.FlagPrefix+"redisdb", env.ParseNumFromEnv(opt.getEnvPrefix()+"REDISDB", 0, 0, math.MaxInt32), "Redis database.")
 	redisDBSrc := getFlagVal(cmd, opt, "redisdb", cmd.Flags().GetInt)
-	cmd.Flags().StringArrayVar(&sentinelAddresses, opt.FlagPrefix+"sentinel", []string{}, "Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ")
+	cmd.Flags().StringArrayVar(
+		&sentinelAddresses,
+		opt.FlagPrefix+"sentinel",
+		env.StringsFromEnv(
+			opt.getEnvPrefix()+"REDIS_SENTINEL_HOSTS",
+			[]string{},
+			",",
+		),
+		"Redis sentinel hostname and port (e.g. argocd-redis-ha-announce-0:6379). ",
+	)
 	sentinelAddressesSrc := getFlagVal(cmd, opt, "sentinel", cmd.Flags().GetStringArray)
-	cmd.Flags().StringVar(&sentinelMaster, opt.FlagPrefix+"sentinelmaster", "master", "Redis sentinel master group name.")
+
+	cmd.Flags().StringVar(
+		&sentinelMaster,
+		opt.FlagPrefix+"sentinelmaster",
+		env.StringFromEnv(
+			opt.getEnvPrefix()+"REDIS_SENTINEL_MASTER",
+			"master",
+		),
+		"Redis sentinel master group name.",
+	)
 	sentinelMasterSrc := getFlagVal(cmd, opt, "sentinelmaster", cmd.Flags().GetString)
 	cmd.Flags().DurationVar(&defaultCacheExpiration, opt.FlagPrefix+"default-cache-expiration", env.ParseDurationFromEnv("ARGOCD_DEFAULT_CACHE_EXPIRATION", 24*time.Hour, 0, math.MaxInt64), "Cache expiration default")
 	defaultCacheExpirationSrc := getFlagVal(cmd, opt, "default-cache-expiration", cmd.Flags().GetDuration)
@@ -362,6 +380,29 @@ func (c *Cache) GetItem(key string, item any) error {
 	}
 	client := c.GetClient()
 	return client.Get(key, item)
+}
+
+// localCacheClient is implemented by clients that keep a local copy of external cache entries.
+type localCacheClient interface {
+	GetLocal(key string, obj any) error
+	InvalidateLocal(key string)
+}
+
+// GetLocalItem reads the item from the client's local copy only. It returns ErrCacheMiss if the
+// client keeps no local copy or the key is not in it.
+func (c *Cache) GetLocalItem(key string, item any) error {
+	if client, ok := c.GetClient().(localCacheClient); ok {
+		return client.GetLocal(c.generateFullKey(key), item)
+	}
+	return ErrCacheMiss
+}
+
+// InvalidateLocalItem drops the local copy of the item, if the client keeps one,
+// so the next SetItem for that key is always written to the external cache.
+func (c *Cache) InvalidateLocalItem(key string) {
+	if client, ok := c.GetClient().(localCacheClient); ok {
+		client.InvalidateLocal(c.generateFullKey(key))
+	}
 }
 
 func (c *Cache) OnUpdated(ctx context.Context, key string, callback func() error) error {

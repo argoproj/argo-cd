@@ -30,6 +30,7 @@ func TestRun_Recovers(_ *testing.T) {
 }
 
 func TestRun_AllowsNextCall(t *testing.T) {
+	t.Parallel()
 	ran := false
 	RecoverAndLog(func() { panic("boom") }, nop{}, "msg")
 	RecoverAndLog(func() { ran = true }, nop{}, "msg")
@@ -39,6 +40,7 @@ func TestRun_AllowsNextCall(t *testing.T) {
 }
 
 func TestRun_LogsMessageAndStack(t *testing.T) {
+	t.Parallel()
 	r := &recorder{}
 	RecoverAndLog(func() { panic("boom") }, r, "msg")
 	if r.calls != 1 {
@@ -63,6 +65,7 @@ func TestRun_NilLoggerDoesNotPanic(_ *testing.T) {
 }
 
 func TestRun_NoPanicDoesNotLog(t *testing.T) {
+	t.Parallel()
 	r := &recorder{}
 	ran := false
 	RecoverAndLog(func() { ran = true }, r, "msg")
@@ -75,6 +78,7 @@ func TestRun_NoPanicDoesNotLog(t *testing.T) {
 }
 
 func TestRun_ConcurrentPanicsLogged(t *testing.T) {
+	t.Parallel()
 	r := &recorder{}
 	const n = 10
 	var wg sync.WaitGroup

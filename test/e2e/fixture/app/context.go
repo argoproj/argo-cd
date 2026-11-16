@@ -47,6 +47,7 @@ type Context struct {
 	localPath                string
 	project                  string
 	revision                 string
+	tagPrefix                string
 	force                    bool
 	applyOutOfSyncOnly       bool
 	directoryRecurse         bool
@@ -332,6 +333,11 @@ func (c *Context) OCIRegistryPath(ociPath string) *Context {
 
 func (c *Context) Revision(revision string) *Context {
 	c.revision = revision
+	return c
+}
+
+func (c *Context) TagPrefix(tagPrefix string) *Context {
+	c.tagPrefix = tagPrefix
 	return c
 }
 

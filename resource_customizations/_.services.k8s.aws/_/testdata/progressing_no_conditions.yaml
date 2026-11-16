@@ -1,0 +1,12 @@
+apiVersion: s3.services.k8s.aws/v1alpha1
+kind: Bucket
+metadata:
+  name: test-s3-bucket
+  namespace: default
+spec:
+  name: test-s3-bucket
+status:
+  ackResourceMetadata:
+    arn: arn:aws:s3:::test-s3-bucket
+    ownerAccountID: "111111111111"
+    region: us-west-2

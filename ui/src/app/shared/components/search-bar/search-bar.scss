@@ -1,0 +1,101 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/foundation-sites/scss/util/util';
+@import 'node_modules/argo-ui/src/styles/theme';
+
+.search-bar {
+    &__wrapper {
+        margin-left: 15px;
+        @include breakpoint(medium down) {
+            flex-basis: 100%;
+            margin-left: 0;
+        }
+        line-height: normal;
+        position: relative; // Required for autocomplete dropdown positioning
+
+        // argo-ui's Autocomplete positions the menu with inline styles (position: fixed + JS-measured
+        // top/left/width from the input's bounding rect). We re-anchor it to this wrapper instead so it
+        // spans the full search bar and tracks the focus-expand width animation for free. !important is
+        // required because inline styles can only be overridden with !important.
+        .autocomplete__menu {
+            position: absolute !important;
+            top: 100% !important;
+            left: 0 !important;
+            width: 100% !important;
+        }
+
+        // Suggestion rows rendered by Autocomplete (icon + label).
+        .select__option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 5px 10px;
+            font-size: 14px;
+            color: $argo-color-gray-6;
+            line-height: normal;
+
+            // Font-icon glyphs (e.g. `icon argo-icon-application`) inherit the global
+            // `.icon { font-size: 2em }` rule, which renders them at 28px. Constrain them
+            // to match the row text size.
+            i.icon {
+                font-size: 14px;
+            }
+        }
+    }
+
+    &__input {
+        @include themify($themes) {
+            background-color: themed('light-argo-gray-2');
+            border: 1px solid themed('border');
+        }
+        border-radius: 7px;
+        position: relative;
+        padding: 0 10px;
+        height: 33px;
+        display: flex;
+        align-items: center;
+        transition: width 200ms;
+        @include breakpoint(large up) {
+            flex-shrink: 1;
+            width: 300px;
+        }
+        i {
+            font-size: 12px;
+            color: $argo-color-gray-6;
+        }
+        .keyboard-hint {
+            border: 1px solid $argo-color-gray-5;
+            color: $argo-color-gray-7;
+            border-radius: 3px;
+            padding: 0 7px;
+            font-size: 12px;
+            font-weight: 600;
+            flex-shrink: 0;
+            text-align: center;
+        }
+        &:focus-within {
+            border: 1px solid $argo-color-teal-5;
+            @include breakpoint(large up) {
+                width: 500px;
+            }
+            i {
+                color: $argo-color-gray-7;
+            }
+            .keyboard-hint {
+                display: none;
+            }
+        }
+        .argo-field {
+            border: none;
+            font-weight: 500;
+            &::placeholder {
+                color: $argo-color-gray-6;
+            }
+        }
+        &--regex {
+            border-color: $argo-color-teal-5 !important;
+        }
+        &--regex-invalid {
+            border-color: $argo-failed-color !important;
+        }
+    }
+}

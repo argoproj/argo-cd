@@ -251,6 +251,8 @@ export interface ApplicationSource {
     ref?: string;
 
     name?: string;
+
+    tagPrefix?: string;
 }
 
 export interface SourceHydrator {
@@ -336,8 +338,17 @@ export interface Automated {
     enabled: boolean;
 }
 
+export interface ManualDefaults {
+    // Defaults for manual sync requests when the sync request omits the value.
+    prune?: boolean; // default: true
+    dryRun?: boolean; // default: false
+    applyOnly?: boolean; // default: false
+    force?: boolean; // default: false
+}
+
 export interface SyncPolicy {
     automated?: Automated;
+    manualDefaults?: ManualDefaults;
     syncOptions?: string[];
     retry?: RetryStrategy;
 }
@@ -443,6 +454,14 @@ export interface ResourceStatus {
     orphaned?: boolean;
 }
 
+export interface Resource extends ResourceStatus {
+    appProject?: string;
+    appName?: string;
+    appNamespace?: string;
+    clusterName?: string;
+    clusterServer?: string;
+}
+
 export interface ResourceRef {
     uid: string;
     kind: string;
@@ -524,6 +543,7 @@ export interface ApplicationCondition {
 export interface ApplicationSummary {
     externalURLs?: string[];
     images?: string[];
+    isAppOfApps?: boolean;
 }
 
 export interface ApplicationStatus {
@@ -601,9 +621,11 @@ export interface AuthSettings {
     };
     dexConfig: {
         connectors: {
+            id?: string;
             name: string;
             type: string;
         }[];
+        dexAuthConnectorID?: string;
     };
     oidcConfig: {
         name: string;
@@ -620,10 +642,18 @@ export interface AuthSettings {
     uiBannerURL: string;
     uiBannerPermanent: boolean;
     uiBannerPosition: string;
+    uiLoginButtonText: string;
     execEnabled: boolean;
     appsInAnyNamespaceEnabled: boolean;
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
+    resourceViewEnabled: boolean;
+    appLabelKey: string;
+    trackingMethod: string;
+    additionalUrls: string[];
+    impersonationEnabled: boolean;
+    controllerNamespace: string;
+    installationID: string;
 }
 
 export interface UserInfo {
@@ -690,6 +720,8 @@ export interface RepoCreds {
     url: string;
     username?: string;
     bearerToken?: string;
+    type?: string;
+    enableOCI?: boolean;
 }
 
 export interface RepoCredsList extends ItemsList<RepoCreds> {}
@@ -832,6 +864,7 @@ export interface Event {
     action: string;
     related: ObjectReference;
     reportingController: string;
+    reportingComponent: string;
     reportingInstance: string;
 }
 

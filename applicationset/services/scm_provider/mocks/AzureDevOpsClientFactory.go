@@ -17,10 +17,19 @@ func NewAzureDevOpsClientFactory(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *AzureDevOpsClientFactory {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &AzureDevOpsClientFactory{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -73,7 +82,7 @@ type AzureDevOpsClientFactory_GetClient_Call struct {
 
 // GetClient is a helper method to define mock.On call
 //   - ctx context.Context
-func (_e *AzureDevOpsClientFactory_Expecter) GetClient(ctx interface{}) *AzureDevOpsClientFactory_GetClient_Call {
+func (_e *AzureDevOpsClientFactory_Expecter) GetClient(ctx any) *AzureDevOpsClientFactory_GetClient_Call {
 	return &AzureDevOpsClientFactory_GetClient_Call{Call: _e.mock.On("GetClient", ctx)}
 }
 

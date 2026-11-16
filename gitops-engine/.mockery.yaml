@@ -6,6 +6,6 @@ structname: '{{.InterfaceName}}'
 template-data:
   unroll-variadic: true
 packages:
-  github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube:
+  github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube:
     interfaces:
       KubectlOptionsRunner: {}

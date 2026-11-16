@@ -4,6 +4,10 @@ tests:
     message: Unknown 'foo' parameter
   inputPath: testdata/degraded_badconfig.yaml
 - healthStatus:
+    status: Suspended
+    message: RabbitmqCluster is scaled to 0 replicas
+  inputPath: testdata/scaled_to_zero.yaml
+- healthStatus:
     status: Progressing
     message: Waiting for RabbitMQ cluster readiness (conditions unknown)
   inputPath: testdata/degraded_cluster_unknown.yaml

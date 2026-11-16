@@ -73,7 +73,7 @@ func Normalize(live, config *unstructured.Unstructured, trustedManagers []string
 // the live and config objects so it is ignored in diffs.
 func normalize(mf metav1.ManagedFieldsEntry, tr *typedResults) error {
 	mfs := &fieldpath.Set{}
-	err := mfs.FromJSON(bytes.NewReader(mf.FieldsV1.Raw))
+	err := mfs.FromJSON(bytes.NewReader(mf.FieldsV1.GetRawBytes()))
 	if err != nil {
 		return err
 	}

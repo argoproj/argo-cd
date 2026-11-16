@@ -65,7 +65,7 @@ func userAgentEnforcer(ctx context.Context, clientName string, semVerConstraint 
 			continue
 		}
 		// remove pre-release part
-		versionStr := strings.Split(uaSplit[1], "-")[0]
+		versionStr, _, _ := strings.Cut(uaSplit[1], "-")
 		// We have matched the client name to the one we care about
 		uaVers, err := semver.NewVersion(versionStr)
 		if err != nil {

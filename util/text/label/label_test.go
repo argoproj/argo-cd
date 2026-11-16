@@ -8,6 +8,7 @@ import (
 )
 
 func TestParseLabels(t *testing.T) {
+	t.Parallel()
 	validLabels := []string{"key=value", "foo=bar", "intuit=inc"}
 
 	result, err := Parse(validLabels)

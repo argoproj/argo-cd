@@ -40,7 +40,7 @@ When you submit a PR against Argo CD's GitHub repository, a couple of CI checks 
 > [!NOTE]
 > Please make sure that you always create PRs from a branch that is up-to-date with the latest changes from Argo CD's master branch. Depending on how long it takes for the maintainers to review and merge your PR, it might be necessary to pull in latest changes into your branch again.
 
-Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to Argo CD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer than expected.
+Please understand that we, as an Open Source project, have limited capacities for reviewing and merging PRs to Argo CD. We will do our best to review your PR and give you feedback as soon as possible, but please bear with us if it takes a little longer than expected. [Reviewing PRs](reviewing-prs.md) explains how reviewers mark what blocks your PR and how they let you know what happens next.
 
 The following guide will help you to submit a PR that meets the standards of our CI tests:
 
@@ -65,7 +65,7 @@ Please prefix the title of your PR with one of the valid categories. For example
 
 Upon opening a PR, the details will contain a checklist from a template. Please read the checklist, and tick those marks that apply to you.
 
-## Automated builds & tests
+## Automated builds and tests
 
 After you have submitted your PR, and whenever you push new commits to that branch, GitHub will run a number of Continuous Integration checks against your code. It will execute the following actions, and each of them has to pass:
 

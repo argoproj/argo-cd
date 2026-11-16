@@ -18,10 +18,10 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/cache/mocks"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/health"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache/mocks"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
 
@@ -42,22 +42,18 @@ func (n netError) Temporary() bool { return false }
 
 func fixtures(ctx context.Context, data map[string]string, opts ...func(secret *corev1.Secret)) (*fake.Clientset, *argosettings.SettingsManager) {
 	cm := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDConfigMapName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDConfigMapName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: data,
 	}
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDSecretName,
-			Namespace: "default",
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      common.ArgoCDSecretName,
+		Namespace: "default",
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: map[string][]byte{},
 	}
@@ -94,6 +90,7 @@ func TestHandleModEvent_HasChanges(_ *testing.T) {
 }
 
 func TestHandleModEvent_ClusterExcluded(t *testing.T) {
+	t.Parallel()
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.EXPECT().Invalidate(mock.Anything, mock.Anything).Return().Once()
 	clusterCache.EXPECT().EnsureSynced().Return(nil).Once()
@@ -149,6 +146,7 @@ func TestHandleModEvent_NoChanges(_ *testing.T) {
 }
 
 func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
+	t.Parallel()
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 	clustersCache := liveStateCache{
@@ -164,6 +162,7 @@ func TestHandleAddEvent_ClusterExcluded(t *testing.T) {
 }
 
 func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
+	t.Parallel()
 	testCluster := &appv1.Cluster{
 		Server: "https://mycluster",
 		Config: appv1.ClusterConfig{Username: "bar"},
@@ -255,6 +254,7 @@ func TestHandleDeleteEvent_CacheDeadlock(t *testing.T) {
 }
 
 func TestIsRetryableError(t *testing.T) {
+	t.Parallel()
 	var (
 		tlsHandshakeTimeoutErr net.Error = netError("net/http: TLS handshake timeout")
 		ioTimeoutErr           net.Error = netError("i/o timeout")
@@ -262,42 +262,54 @@ func TestIsRetryableError(t *testing.T) {
 		connectionReset        net.Error = netError("connection reset by peer")
 	)
 	t.Run("Nil", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isRetryableError(nil))
 	})
 	t.Run("ResourceQuotaConflictErr", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{}, "", nil)))
 		assert.True(t, isRetryableError(apierrors.NewConflict(schema.GroupResource{Group: "v1", Resource: "resourcequotas"}, "", nil)))
 	})
 	t.Run("ExceededQuotaErr", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{}, "", nil)))
 		assert.True(t, isRetryableError(apierrors.NewForbidden(schema.GroupResource{Group: "v1", Resource: "pods"}, "", errors.New("exceeded quota"))))
 	})
 	t.Run("TooManyRequestsDNS", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(apierrors.NewTooManyRequests("", 0)))
 	})
 	t.Run("DNSError", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(&net.DNSError{}))
 	})
 	t.Run("OpError", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(&net.OpError{}))
 	})
 	t.Run("UnknownNetworkError", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(net.UnknownNetworkError("")))
 	})
 	t.Run("ConnectionClosedErr", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, isRetryableError(&url.Error{Err: errors.New("")}))
 		assert.True(t, isRetryableError(&url.Error{Err: errors.New("Connection closed by foreign host")}))
 	})
 	t.Run("TLSHandshakeTimeout", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(tlsHandshakeTimeoutErr))
 	})
 	t.Run("IOHandshakeTimeout", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(ioTimeoutErr))
 	})
 	t.Run("ConnectionTimeout", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(connectionTimedout))
 	})
 	t.Run("ConnectionReset", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, isRetryableError(connectionReset))
 	})
 }
@@ -325,9 +337,7 @@ func Test_asResourceNode_owner_refs(t *testing.T) {
 		Resource:          nil,
 	}, nil)
 	expected := appv1.ResourceNode{
-		ResourceRef: appv1.ResourceRef{
-			Version: "v1",
-		},
+		Version: "v1",
 		ParentRefs: []appv1.ResourceRef{
 			{
 				Group:   "",
@@ -563,6 +573,7 @@ func Test_getAppRecursive(t *testing.T) {
 }
 
 func TestSkipResourceUpdate(t *testing.T) {
+	t.Parallel()
 	var (
 		hash1X = "x"
 		hash2Y = "y"
@@ -576,18 +587,23 @@ func TestSkipResourceUpdate(t *testing.T) {
 		},
 	}
 	t.Run("Nil", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(nil, nil))
 	})
 	t.Run("From Nil", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(nil, info))
 	})
 	t.Run("To Nil", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(info, nil))
 	})
 	t.Run("No hash", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(&ResourceInfo{}, &ResourceInfo{}))
 	})
 	t.Run("Same hash", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 		}, &ResourceInfo{
@@ -595,6 +611,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash value", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 		}, &ResourceInfo{
@@ -602,6 +619,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Different hash value", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 		}, &ResourceInfo{
@@ -609,6 +627,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, empty health", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health:       &health.HealthStatus{},
@@ -618,6 +637,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, old health", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health: &health.HealthStatus{
@@ -629,6 +649,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, new health", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health:       &health.HealthStatus{},
@@ -640,6 +661,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, same health", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health: &health.HealthStatus{
@@ -655,6 +677,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, different health status", func(t *testing.T) {
+		t.Parallel()
 		assert.False(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health: &health.HealthStatus{
@@ -670,6 +693,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 		}))
 	})
 	t.Run("Same hash, different health message", func(t *testing.T) {
+		t.Parallel()
 		assert.True(t, skipResourceUpdate(&ResourceInfo{
 			manifestHash: hash1X,
 			Health: &health.HealthStatus{
@@ -687,6 +711,7 @@ func TestSkipResourceUpdate(t *testing.T) {
 }
 
 func TestShouldHashManifest(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name        string
 		appName     string
@@ -751,6 +776,7 @@ func TestShouldHashManifest(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
 			if test.annotations != nil {
 				test.un.SetAnnotations(test.annotations)
 			}
@@ -775,6 +801,7 @@ func Test_GetVersionsInfo_error_redacted(t *testing.T) {
 }
 
 func TestLoadCacheSettings(t *testing.T) {
+	t.Parallel()
 	_, settingsManager := fixtures(t.Context(), map[string]string{
 		"application.instanceLabelKey":       "testLabel",
 		"application.resourceTrackingMethod": string(appv1.TrackingMethodLabel),
@@ -801,6 +828,7 @@ func TestLoadCacheSettings(t *testing.T) {
 }
 
 func Test_ownerRefGV(t *testing.T) {
+	t.Parallel()
 	tests := []struct {
 		name     string
 		input    metav1.OwnerReference
@@ -837,6 +865,7 @@ func Test_ownerRefGV(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
 			res := ownerRefGV(tt.input)
 			assert.Equal(t, tt.expected, res)
 		})

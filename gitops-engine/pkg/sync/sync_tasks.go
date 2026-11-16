@@ -2,13 +2,14 @@ package sync
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/sync/common"
-	"github.com/argoproj/argo-cd/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 )
 
 // kindOrder represents the correct order of Kubernetes resources within a manifest
@@ -218,12 +219,7 @@ func (s syncTasks) All(predicate func(task *syncTask) bool) bool {
 }
 
 func (s syncTasks) Any(predicate func(task *syncTask) bool) bool {
-	for _, task := range s {
-		if predicate(task) {
-			return true
-		}
-	}
-	return false
+	return slices.ContainsFunc(s, predicate)
 }
 
 func (s syncTasks) Find(predicate func(task *syncTask) bool) *syncTask {

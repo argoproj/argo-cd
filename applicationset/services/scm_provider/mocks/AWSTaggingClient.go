@@ -17,10 +17,19 @@ func NewAWSTaggingClient(t interface {
 	mock.TestingT
 	Cleanup(func())
 }) *AWSTaggingClient {
+	if helper, ok := t.(interface{ Helper() }); ok {
+		helper.Helper()
+	}
+
 	mock := &AWSTaggingClient{}
 	mock.Mock.Test(t)
 
-	t.Cleanup(func() { mock.AssertExpectations(t) })
+	t.Cleanup(func() {
+		if helper, ok := t.(interface{ Helper() }); ok {
+			helper.Helper()
+		}
+		mock.AssertExpectations(t)
+	})
 
 	return mock
 }
@@ -41,11 +50,11 @@ func (_m *AWSTaggingClient) EXPECT() *AWSTaggingClient_Expecter {
 // GetResources provides a mock function for the type AWSTaggingClient
 func (_mock *AWSTaggingClient) GetResources(context1 context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options)) (*resourcegroupstaggingapi.GetResourcesOutput, error) {
 	// func(*resourcegroupstaggingapi.Options)
-	_va := make([]interface{}, len(fns))
+	_va := make([]any, len(fns))
 	for _i := range fns {
 		_va[_i] = fns[_i]
 	}
-	var _ca []interface{}
+	var _ca []any
 	_ca = append(_ca, context1, getResourcesInput)
 	_ca = append(_ca, _va...)
 	ret := _mock.Called(_ca...)
@@ -83,9 +92,9 @@ type AWSTaggingClient_GetResources_Call struct {
 //   - context1 context.Context
 //   - getResourcesInput *resourcegroupstaggingapi.GetResourcesInput
 //   - fns ...func(*resourcegroupstaggingapi.Options)
-func (_e *AWSTaggingClient_Expecter) GetResources(context1 interface{}, getResourcesInput interface{}, fns ...interface{}) *AWSTaggingClient_GetResources_Call {
+func (_e *AWSTaggingClient_Expecter) GetResources(context1 any, getResourcesInput any, fns ...any) *AWSTaggingClient_GetResources_Call {
 	return &AWSTaggingClient_GetResources_Call{Call: _e.mock.On("GetResources",
-		append([]interface{}{context1, getResourcesInput}, fns...)...)}
+		append([]any{context1, getResourcesInput}, fns...)...)}
 }
 
 func (_c *AWSTaggingClient_GetResources_Call) Run(run func(context1 context.Context, getResourcesInput *resourcegroupstaggingapi.GetResourcesInput, fns ...func(*resourcegroupstaggingapi.Options))) *AWSTaggingClient_GetResources_Call {

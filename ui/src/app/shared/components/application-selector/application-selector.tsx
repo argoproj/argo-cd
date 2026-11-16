@@ -2,7 +2,7 @@ import * as React from 'react';
 import {FormFunctionProps} from 'argo-ui';
 import {CheckboxField} from '..';
 import * as models from '../../models';
-import {appInstanceName, appQualifiedName, ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../../../applications/components/utils';
+import {appInstanceName, appQualifiedName, ComparisonStatusIcon, HealthStatusIcon, OperationPhaseIcon} from '../app-utils';
 import {AuthSettingsCtx} from '../../context';
 
 export const ApplicationSelector = ({apps, formApi}: {apps: models.Application[]; formApi: FormFunctionProps}) => {

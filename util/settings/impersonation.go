@@ -45,6 +45,6 @@ func DeriveServiceAccountToImpersonate(project *v1alpha1.AppProject, application
 			return fmt.Sprintf("system:serviceaccount:%s:%s", serviceAccountNamespace, item.DefaultServiceAccount), nil
 		}
 	}
-	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, use the default service account of the destination namespace.
-	return "", fmt.Errorf("no matching service account found for destination server %s and namespace %s", application.Spec.Destination.Server, serviceAccountNamespace)
+	// if there is no match found in the AppProject.Spec.DestinationServiceAccounts, return empty string
+	return "", nil
 }
