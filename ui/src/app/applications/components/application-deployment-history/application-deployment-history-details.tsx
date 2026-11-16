@@ -8,7 +8,7 @@ import {DataLoader} from 'argo-ui';
 import {Repo, Revision} from '../../../shared/components';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
-import {appQualifiedName} from '../utils';
+import {appQualifiedName} from '../../../shared/components/app-utils';
 import {RevisionMetadataRows} from './revision-metadata-rows';
 
 type props = {

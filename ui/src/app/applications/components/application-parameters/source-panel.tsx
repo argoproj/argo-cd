@@ -8,7 +8,7 @@ import {RevisionHelpIcon} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {APP_SOURCE_TYPES, normalizeTypeFieldsForSource} from '../shared/app-source-edit';
-import {appQualifiedName} from '../utils';
+import {appQualifiedName} from '../../../shared/components/app-utils';
 import './source-panel.scss';
 
 // This is similar to the same function in application-create-panel.tsx. If the create panel
