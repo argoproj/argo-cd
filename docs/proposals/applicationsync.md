@@ -48,6 +48,12 @@ This proposal asks for the controller to ship with Argo CD. The prototype, which
    `failOnDrift`, an app that is OutOfSync while its sources and compared revisions still match its last
    `status.history` entry fails before its sync starts. This only catches drift when nothing changed in Git or the
    spec since that sync; telling drift apart from a new revision would need a diff at the last synced revision.
+6. **One app in several groups.** Should a run be able to list an app in more than one group, each syncing some of
+   its `resources`? Sync waves already order resources within one app, but not around another app: app A's CRDs,
+   then app B's operator, then A's custom resources, needs A split into two apps today. Supporting it means tagging
+   each operation with its group as well as its run, and judging a partial entry done from the listed resources'
+   sync status and health in `status.resources`. The app as a whole stays OutOfSync after a partial sync, and is
+   Missing until every resource exists.
 
 ## Motivation
 
