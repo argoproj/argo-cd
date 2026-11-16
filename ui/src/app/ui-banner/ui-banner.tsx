@@ -5,7 +5,7 @@ import {ExternalLink} from '../applications/components/application-urls';
 
 import {useViewPreferences} from '../shared/hooks/use-view-preferences';
 import {settingsQueries} from '../shared/queries';
-import {loadFailed} from '../shared/query-client';
+import {loadFailed, loading} from '../shared/query-client';
 import {services} from '../shared/services';
 import './ui-banner.scss';
 
@@ -51,15 +51,16 @@ export const Banner = (props: React.PropsWithChildren<{}>) => {
     const [visible, setVisible] = React.useState(true);
     const {data: settings, isError, refetch} = useQuery(settingsQueries.get());
     const prefs = useViewPreferences();
+    const hideBannerContent = prefs.hideBannerContent;
     const content = settings?.uiBannerContent;
     // Forget an old "Don't show again" once the banner is removed, so a future banner shows again.
     React.useEffect(() => {
-        if (settings && !content && prefs.hideBannerContent) {
-            services.viewPreferences.updatePreferences({...prefs, hideBannerContent: null});
+        if (settings && !content && hideBannerContent) {
+            services.viewPreferences.updatePreferences({hideBannerContent: null});
         }
-    }, [settings, content, prefs]);
+    }, [settings, content, hideBannerContent]);
     if (!settings) {
-        return isError ? loadFailed(refetch) : null;
+        return isError ? loadFailed(refetch) : loading;
     }
     const url = settings.uiBannerURL;
     const permanent = settings.uiBannerPermanent;

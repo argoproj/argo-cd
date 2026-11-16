@@ -44,6 +44,20 @@ describe('Banner', () => {
         expect(screen.getByText('app content')).toBeInTheDocument();
     });
 
+    it('shows a loading message until settings load', async () => {
+        let resolveSettings: (settings: any) => void;
+        jest.mocked(services.authService.settings).mockReturnValueOnce(new Promise(resolve => (resolveSettings = resolve)));
+        renderBanner();
+
+        expect(screen.getByText('Loading...')).toBeInTheDocument();
+        expect(screen.queryByText('app content')).not.toBeInTheDocument();
+
+        await act(async () => resolveSettings({help: {}, uiBannerContent: content}));
+
+        expect(await screen.findByText('app content')).toBeInTheDocument();
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    });
+
     it('hides the banner and remembers it after "Don\'t show again"', async () => {
         mockSettings({uiBannerContent: content});
         renderBanner();
@@ -103,12 +117,19 @@ describe('Banner', () => {
 
     it('offers to try again when settings fail to load, then shows the app', async () => {
         jest.mocked(services.authService.settings).mockRejectedValueOnce(new Error('boom'));
-        mockSettings({uiBannerContent: content});
+        let resolveSettings: (settings: any) => void;
+        jest.mocked(services.authService.settings).mockReturnValueOnce(new Promise(resolve => (resolveSettings = resolve)));
         renderBanner();
 
         fireEvent.click(await screen.findByText('try again'));
 
+        expect(await screen.findByText('Loading...')).toBeInTheDocument();
+        expect(screen.queryByText('app content')).not.toBeInTheDocument();
+
+        await act(async () => resolveSettings({help: {}, uiBannerContent: content}));
+
         expect(await screen.findByText('app content')).toBeInTheDocument();
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
         expect(screen.getByText(content)).toBeInTheDocument();
         expect(services.authService.settings).toHaveBeenCalledTimes(2);
     });
