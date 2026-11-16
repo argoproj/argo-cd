@@ -51,6 +51,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/helm"
 	utilhttp "github.com/argoproj/argo-cd/v3/util/http"
+	"github.com/argoproj/argo-cd/v3/util/oci"
 	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
@@ -336,14 +337,9 @@ func (source *ApplicationSource) AllowsConcurrentProcessing() bool {
 	return true
 }
 
-const ociPrefix = "oci://"
-
-// IsOCIURL returns true if the URL is an OCI registry URL. The scheme prefix is matched
-// case-insensitively and surrounding whitespace is ignored, consistent with NormalizeOCIURL,
-// so that classification and normalization always agree.
+// IsOCIURL returns true if the URL is an OCI registry URL.
 func IsOCIURL(url string) bool {
-	trimmed := strings.TrimSpace(url)
-	return len(trimmed) >= len(ociPrefix) && strings.EqualFold(trimmed[:len(ociPrefix)], ociPrefix)
+	return strings.HasPrefix(url, oci.URLPrefix)
 }
 
 // NormalizeOCIURL returns a canonical representation of an OCI repository URL, suitable
@@ -355,8 +351,8 @@ func NormalizeOCIURL(repoURL string) string {
 	if !IsOCIURL(repoURL) {
 		return repoURL
 	}
-	host, repoPath, hasPath := strings.Cut(strings.TrimSpace(repoURL)[len(ociPrefix):], "/")
-	normalized := ociPrefix + strings.ToLower(host)
+	host, repoPath, hasPath := strings.Cut(repoURL[len(oci.URLPrefix):], "/")
+	normalized := oci.URLPrefix + strings.ToLower(host)
 	if hasPath {
 		normalized += "/" + repoPath
 	}

@@ -13,6 +13,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/util/oci"
 )
 
 const (
@@ -140,7 +141,7 @@ func (p *harborParser) Parse(r *http.Request) (any, error) {
 func parseHarborRegistryURL(resourceURL string) (string, error) {
 	rawURL := resourceURL
 	if !strings.Contains(resourceURL, "://") {
-		rawURL = "oci://" + resourceURL
+		rawURL = oci.URLPrefix + resourceURL
 	}
 
 	parsed, err := url.Parse(rawURL)

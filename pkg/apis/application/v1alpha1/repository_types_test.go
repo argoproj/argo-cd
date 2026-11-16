@@ -245,10 +245,9 @@ func TestNormalizeOCIURL(t *testing.T) {
 	}{
 		{name: "already normalized", url: "oci://registry-1.docker.io/envoyproxy/gateway", expected: "oci://registry-1.docker.io/envoyproxy/gateway"},
 		{name: "uppercase host is lowercased", url: "oci://REGISTRY-1.DOCKER.IO/envoyproxy/gateway", expected: "oci://registry-1.docker.io/envoyproxy/gateway"},
-		{name: "uppercase scheme is lowercased", url: "OCI://registry-1.docker.io/envoyproxy/gateway", expected: "oci://registry-1.docker.io/envoyproxy/gateway"},
+		{name: "uppercase scheme is not OCI and is unchanged", url: "OCI://registry-1.docker.io/envoyproxy/gateway", expected: "OCI://registry-1.docker.io/envoyproxy/gateway"},
 		{name: "path case is preserved", url: "oci://registry.example.com/EnvoyProxy/Gateway", expected: "oci://registry.example.com/EnvoyProxy/Gateway"},
 		{name: "host with port", url: "oci://Registry.Example.com:5000/chart", expected: "oci://registry.example.com:5000/chart"},
-		{name: "surrounding whitespace is trimmed", url: " oci://registry.example.com/chart ", expected: "oci://registry.example.com/chart"},
 		{name: "host only", url: "oci://Registry.Example.com", expected: "oci://registry.example.com"},
 		{name: "non-OCI URL is unchanged", url: "https://github.com/argoproj/argo-cd.git", expected: "https://github.com/argoproj/argo-cd.git"},
 	}
@@ -260,17 +259,16 @@ func TestNormalizeOCIURL(t *testing.T) {
 }
 
 func TestIsOCIURL(t *testing.T) {
-	// IsOCIURL must classify the same inputs that NormalizeOCIURL treats as OCI, otherwise a
-	// repository can be routed down the Git path while being keyed as OCI (or vice versa).
+	// Only the exact "oci://" prefix is OCI: the webhook handlers and Helm dependency credential
+	// matching compare the prefix verbatim, so accepting variants here would silently miss them.
 	tests := []struct {
 		name     string
 		url      string
 		expected bool
 	}{
 		{name: "canonical oci url", url: "oci://registry.example.com/chart", expected: true},
-		{name: "uppercase scheme", url: "OCI://registry.example.com/chart", expected: true},
-		{name: "mixed case scheme", url: "Oci://registry.example.com/chart", expected: true},
-		{name: "leading and trailing whitespace", url: "  oci://registry.example.com/chart  ", expected: true},
+		{name: "uppercase scheme", url: "OCI://registry.example.com/chart", expected: false},
+		{name: "leading whitespace", url: " oci://registry.example.com/chart", expected: false},
 		{name: "scheme only", url: "oci://", expected: true},
 		{name: "git https url", url: "https://github.com/argoproj/argo-cd.git", expected: false},
 		{name: "empty string", url: "", expected: false},
@@ -340,9 +338,9 @@ func TestRepository_Normalize(t *testing.T) {
 			wantType: "oci",
 		},
 		{
-			name:     "Non-canonical OCI scheme with empty type defaults to oci",
-			repo:     Repository{Repo: "  OCI://example.com/foo  "},
-			wantType: "oci",
+			name:     "Non-canonical OCI scheme with empty type defaults to git",
+			repo:     Repository{Repo: "OCI://example.com/foo"},
+			wantType: "git",
 		},
 	}
 	for _, tt := range tests {

@@ -437,8 +437,6 @@ func (repo *Repository) Sanitized() *Repository {
 
 func (repo *Repository) Normalize() *Repository {
 	if repo.Type == "" {
-		// Use IsOCIURL so the type inferred here stays consistent with IsOCI/NormalizeOCIURL,
-		// which trim whitespace and treat the oci:// scheme case-insensitively.
 		if IsOCIURL(repo.Repo) {
 			repo.Type = "oci"
 		} else {
