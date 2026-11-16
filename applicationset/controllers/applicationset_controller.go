@@ -414,8 +414,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if applicationSetInfo.RefreshRequired() {
+		// Patch only the annotation: a full Update re-serializes the spec through the Go types, which
+		// drops explicit zero values on omitempty fields and adds empty generator templates, so tools
+		// that manage the ApplicationSet see drift. The optimistic lock is needed because when the
+		// refresh key is the only annotation, the computed patch sets annotations to null.
+		original := applicationSetInfo.DeepCopy()
 		delete(applicationSetInfo.Annotations, common.AnnotationApplicationSetRefresh)
-		err := r.Update(ctx, &applicationSetInfo)
+		err := r.Patch(ctx, &applicationSetInfo, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{}))
 		if err != nil {
 			logCtx.Warnf("error occurred while updating ApplicationSet: %v", err)
 			_ = r.setApplicationSetStatusCondition(
