@@ -4350,9 +4350,46 @@ func Test_populateHelmAppDetailsWithRef(t *testing.T) {
 
 			testResults: func(t *testing.T) {
 				t.Helper()
-				expMsg := fmt.Sprintf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refNameB, refTargetRevision2, refNameA, refTargetRevision)
+				expMsg := fmt.Sprintf("cannot reference multiple revisions for the same repository (%s references %q which resolves to %q while %s references %q which resolves to %q)", refNameB, refTargetRevision2, refSha2, refNameA, refTargetRevision, refSha)
 				require.Error(t, err)
 				require.ErrorContains(t, err, expMsg)
+			},
+		},
+		{
+			// `main` and the commit `main` points to spell one revision two ways. The recorded commit
+			// settles the comparison, so neither spelling triggers another ls-remote.
+			name: "same_ref_repo_diff_spelling_same_commit",
+			makeQuery: func() apiclient.RepoServerAppDetailsQuery {
+				query := queryTemplate
+				delete(query.RefSources, "$values")
+				query.RefSources["$valuesA"] = &v1alpha1.RefTarget{
+					Repo:           v1alpha1.Repository{Type: "git", Repo: refRepoURL},
+					TargetRevision: refTargetRevision,
+				}
+				query.RefSources["$valuesB"] = &v1alpha1.RefTarget{
+					Repo:           v1alpha1.Repository{Type: "git", Repo: refRepoURL},
+					TargetRevision: refSha,
+				}
+				query.Source.Helm.ValueFiles = []string{"$valuesA/dir/values.yaml", "$valuesB/dir/values.yaml"}
+				return query
+			},
+			refSourceCommitSHAs: map[string]string{git.NormalizeGitURL(refRepoURL): refSha},
+			mockOpts: func(_ *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
+				paths.EXPECT().GetPath(refRepoURL).Return(refRoot, nil)
+				paths.EXPECT().GetPathIfExists(refRepoURL).Return(refRoot)
+			},
+			newGitClient: func(_ string, _ string, _ git.Creds, _ bool, _ bool, _ string, _ string, _ ...git.ClientOpts) (gitClient git.Client, e error) {
+				client := gitmocks.Client{}
+				client.EXPECT().Root().Return(refRoot)
+				client.EXPECT().Init().Return(nil)
+				client.EXPECT().IsRevisionPresent(mock.Anything, refSha).Return(true)
+				client.EXPECT().Checkout(mock.Anything, refSha, false, true).Return("", nil)
+				return &client, nil
+			},
+			testResults: func(t *testing.T) {
+				t.Helper()
+				require.NoError(t, err)
+				assert.Len(t, res.Helm.Parameters, 1)
 			},
 		},
 		{
@@ -4553,10 +4590,27 @@ func Test_populateHelmAppDetailsWithOCIRef(t *testing.T) {
 		ociClient.AssertNumberOfCalls(t, "Extract", 1)
 	})
 
+	t.Run("a repository referenced by tag and by its digest is extracted once", func(t *testing.T) {
+		ociDir := extractedDir(t)
+		var ociClient *ocimocks.Client
+		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, c *ocimocks.Client, _ *iomocks.TempPaths) {
+			ociClient = c
+			c.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digest, nil)
+			c.EXPECT().ResolveRevision(mock.Anything, digest, mock.Anything).Return(digest, nil)
+			c.EXPECT().Extract(mock.Anything, digest).Return(ociDir, utilio.NopCloser, nil)
+		}, ".")
+
+		q := newQuery(map[string]*v1alpha1.RefTarget{"$a": ociRef("v1.0.0"), "$b": ociRef(digest)}, "$a/values.yaml", "$b/values.yaml")
+		res := apiclient.RepoAppDetailsResponse{}
+		require.NoError(t, service.populateHelmAppDetails(t.Context(), &res, appPath, appPath, "sha", "main", &q, emptyTempPaths, nil))
+		ociClient.AssertNumberOfCalls(t, "Extract", 1)
+	})
+
 	t.Run("conflicting revisions for the same repository are rejected", func(t *testing.T) {
 		ociDir := extractedDir(t)
 		service, _, _ := newServiceWithOpt(t, func(_ *gitmocks.Client, _ *helmmocks.Client, ociClient *ocimocks.Client, _ *iomocks.TempPaths) {
 			ociClient.EXPECT().ResolveRevision(mock.Anything, "v1.0.0", mock.Anything).Return(digest, nil)
+			ociClient.EXPECT().ResolveRevision(mock.Anything, "v2.0.0", mock.Anything).Return("sha256:0000000000000000000000000000000000000000000000000000000000000000", nil)
 			ociClient.EXPECT().Extract(mock.Anything, digest).Return(ociDir, utilio.NopCloser, nil)
 		}, ".")
 

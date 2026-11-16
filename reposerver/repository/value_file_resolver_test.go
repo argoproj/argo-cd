@@ -71,10 +71,11 @@ func TestResolveReferencedSources_AllowsOCIRefWithoutChart(t *testing.T) {
 }
 
 // TestResolveReferencedSources_RejectsConflictingRevisionsForSameRepo is a regression test: two
-// $refs pointing at one repository at different revisions must be rejected before the cache lookup.
-// repoRefs is keyed by repository URL only, so the second ref used to be silently deduplicated onto
-// the first ref's resolved revision, hiding the conflict from the cache key and from the later check
-// in runManifestGenAsync.
+// $refs pointing at one repository at revisions that resolve to different commits must be rejected
+// before the cache lookup. repoRefs is keyed by repository URL only, so the second ref used to be
+// silently deduplicated onto the first ref's resolved revision, hiding the conflict from the cache
+// key and from the later check in runManifestGenAsync. Revisions spelled differently but resolving
+// to the same commit (a branch and its current SHA) are accepted.
 func TestResolveReferencedSources_RejectsConflictingRevisionsForSameRepo(t *testing.T) {
 	helmSource := &v1alpha1.ApplicationSourceHelm{ValueFiles: []string{"$a/values.yaml", "$b/values.yaml"}}
 
@@ -111,8 +112,30 @@ func TestResolveReferencedSources_RejectsConflictingRevisionsForSameRepo(t *test
 				resolver.refSources = refSources
 				_, err := resolveReferencedSources(t.Context(), resolver)
 				require.ErrorContains(t, err, "cannot reference multiple revisions for the same repository")
-				assert.Contains(t, err.Error(), `$b references "v2.0.0" while $a references "v1.0.0"`)
-				assert.Equal(t, 1, resolveCalls, "the conflict must be detected before resolving the second ref")
+				assert.Contains(t, err.Error(), `$b references "v2.0.0" which resolves to`)
+				assert.Contains(t, err.Error(), `while $a references "v1.0.0" which resolves to`)
+				assert.Equal(t, 2, resolveCalls)
+			})
+
+			t.Run("different spellings of the same commit are accepted", func(t *testing.T) {
+				resolveCalls = 0
+				resolver.newClientResolveRevision = func(_ *v1alpha1.Repository, _ string, _ ...git.ClientOpts) (git.Client, string, error) {
+					resolveCalls++
+					return nil, "sha-for-main", nil
+				}
+				resolver.newOCIClientResolveRevision = func(_ context.Context, _ *v1alpha1.Repository, _ string, _ bool) (oci.Client, string, error) {
+					resolveCalls++
+					return nil, "sha256:main", nil
+				}
+				refSources := map[string]*v1alpha1.RefTarget{
+					"$a": {Repo: tt.repo, TargetRevision: "main"},
+					"$b": {Repo: v1alpha1.Repository{Repo: strings.ToLower(tt.repo.Repo)}, TargetRevision: "sha-of-main"},
+				}
+				resolver.refSources = refSources
+				repoRefs, err := resolveReferencedSources(t.Context(), resolver)
+				require.NoError(t, err)
+				assert.Len(t, repoRefs, 1)
+				assert.Equal(t, 2, resolveCalls)
 			})
 
 			t.Run("same revision is resolved once", func(t *testing.T) {

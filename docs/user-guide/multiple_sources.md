@@ -112,7 +112,7 @@ at that URL. If the `path` field is not set, Argo CD will use the repository sol
 > Both Git and OCI repositories are supported as `ref` sources for value files. Sources with the `ref` field set cannot include the `chart` field: ref resolution keys off the repository URL and does not incorporate `chart`. For an OCI artifact, point `repoURL` directly at the full path of the artifact holding the value files.
 
 > [!NOTE]
-> A repository can only be referenced at one revision per Application. Two `ref` sources pointing at the same repository must use the same `targetRevision` as written: `main` and the commit SHA that `main` currently points to count as different revisions. This applies both to manifest generation and to reading the Application's parameters (for example in the UI or with `argocd app get`).
+> A repository can only be referenced at one revision per Application. Two `ref` sources pointing at the same repository must resolve to the same commit (or OCI digest): `main` and the SHA `main` points to are fine, `main` and `dev` are rejected unless they point to the same commit. This applies both to manifest generation and to reading the Application's parameters (for example in the UI or with `argocd app get`).
 
 > [!NOTE]
 > Even when the `ref` field is configured with the `path` field, `$values` still represents the root of sources with the `ref` field. Consequently, `valueFiles` must be specified as relative paths from the root of sources.

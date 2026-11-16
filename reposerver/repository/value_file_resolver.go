@@ -280,10 +280,12 @@ func resolveReferencedSources(ctx context.Context, resolver refSourceResolver) (
 	}
 
 	// referencedRevisions remembers which target revision (and which $ref) first claimed a
-	// repository, so that a second $ref to the same repository at a different revision is
-	// rejected here, before the cache lookup. repoRefs is keyed by repository URL only, so
-	// without this guard both refs would share the first ref's resolved revision in the cache
-	// key and the later conflict check in runManifestGenAsync could be bypassed by a cache hit.
+	// repository. A second $ref to the same repository written with the same revision is skipped;
+	// one written differently is resolved and rejected only if it resolves to another commit or
+	// digest, so `main` and the SHA `main` points to may be used together. repoRefs is keyed by
+	// repository URL only, so without this guard both refs would share the first ref's resolved
+	// revision in the cache key and the later conflict check in runManifestGenAsync could be
+	// bypassed by a cache hit.
 	type referencedRevision struct {
 		revision string
 		refVar   string
@@ -325,10 +327,8 @@ func resolveReferencedSources(ctx context.Context, resolver refSourceResolver) (
 		// both feed the manifest cache key.
 		normalizedRepoURL := refSourceMapping.Repo.NormalizeRepoURL()
 
-		if prev, ok := referencedRevisions[normalizedRepoURL]; ok {
-			if prev.revision != refSourceMapping.TargetRevision {
-				return nil, fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", refVar, refSourceMapping.TargetRevision, prev.refVar, prev.revision)
-			}
+		prev, seen := referencedRevisions[normalizedRepoURL]
+		if seen && prev.revision == refSourceMapping.TargetRevision {
 			continue
 		}
 
@@ -354,6 +354,12 @@ func resolveReferencedSources(ctx context.Context, resolver refSourceResolver) (
 			}
 		}
 
+		if seen {
+			if repoRefs[normalizedRepoURL] != referencedCommitSHA {
+				return nil, fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q which resolves to %q while %s references %q which resolves to %q)", refVar, refSourceMapping.TargetRevision, referencedCommitSHA, prev.refVar, prev.revision, repoRefs[normalizedRepoURL])
+			}
+			continue
+		}
 		repoRefs[normalizedRepoURL] = referencedCommitSHA
 		referencedRevisions[normalizedRepoURL] = referencedRevision{revision: refSourceMapping.TargetRevision, refVar: refVar}
 	}
@@ -545,15 +551,41 @@ func (s *Service) resolveGitRefSource(ctx context.Context, req refSourceResolveR
 	return repoRef{revision: refSourceMapping.TargetRevision, commitSHA: referencedCommitSHA, key: req.refVar}, closer, nil
 }
 
+// resolveRefRevision resolves req's TargetRevision to a commit SHA (Git) or digest (OCI), preferring
+// a revision the caller already resolved for the cache key so a branch moving mid-request cannot
+// change the answer.
+func (s *Service) resolveRefRevision(ctx context.Context, req refSourceResolveRequest) (string, error) {
+	switch {
+	case req.resolvedRevision != "":
+		return req.resolvedRevision, nil
+	case req.sameRepoAndRevisionAsApp:
+		return req.commitSHA, nil
+	case req.refSourceMapping.Repo.IsOCI():
+		_, digest, err := s.newOCIClientResolveRevision(ctx, &req.refSourceMapping.Repo, req.refSourceMapping.TargetRevision, req.noCache || req.noRevisionCache)
+		return digest, err
+	default:
+		_, sha, err := s.newClientResolveRevision(&req.refSourceMapping.Repo, req.refSourceMapping.TargetRevision, git.WithCache(s.cache, !req.noRevisionCache && !req.noCache))
+		return sha, err
+	}
+}
+
 // resolveRefSource resolves one $ref source for the current request (manifest generation or app
 // details) and records it in repoRefs, keyed by req.normalizedRepoURL. A repository already
-// resolved for an earlier $ref is reused, and referencing it at a second revision is rejected. The
-// returned closer releases the Git checkout or the extracted OCI artifact and must be held until
-// the referenced value files have been read.
+// resolved for an earlier $ref is reused; referencing it with a revision that resolves to a
+// different commit or digest is rejected. The returned closer releases the Git checkout or the
+// extracted OCI artifact and must be held until the referenced value files have been read.
 func (s *Service) resolveRefSource(ctx context.Context, req refSourceResolveRequest, repoRefs map[string]repoRef) (goio.Closer, error) {
 	if prev, ok := repoRefs[req.normalizedRepoURL]; ok {
-		if prev.revision != req.refSourceMapping.TargetRevision {
-			return nil, fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q while %s references %q)", req.refVar, req.refSourceMapping.TargetRevision, prev.key, prev.revision)
+		if prev.revision == req.refSourceMapping.TargetRevision {
+			return utilio.NopCloser, nil
+		}
+		resolved, err := s.resolveRefRevision(ctx, req)
+		if err != nil {
+			log.Errorf("Failed to resolve revision %s for repo %s: %v", req.refSourceMapping.TargetRevision, req.refSourceMapping.Repo.Repo, err)
+			return nil, fmt.Errorf("failed to resolve revision %s for repo %s", req.refSourceMapping.TargetRevision, req.refSourceMapping.Repo.Repo)
+		}
+		if prev.commitSHA != resolved {
+			return nil, fmt.Errorf("cannot reference multiple revisions for the same repository (%s references %q which resolves to %q while %s references %q which resolves to %q)", req.refVar, req.refSourceMapping.TargetRevision, resolved, prev.key, prev.revision, prev.commitSHA)
 		}
 		return utilio.NopCloser, nil
 	}
