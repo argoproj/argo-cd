@@ -78,6 +78,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 	command.AddCommand(NewClusterListCommand(clientOpts))
 	command.AddCommand(NewClusterRemoveCommand(clientOpts, pathOpts))
 	command.AddCommand(NewClusterRotateAuthCommand(clientOpts))
+	command.AddCommand(NewClusterInvalidateCacheCommand(clientOpts))
 	command.AddCommand(NewClusterSetCommand(clientOpts))
 	return command
 }
@@ -602,4 +603,37 @@ argocd cluster rotate-auth cluster-name`,
 		}),
 	}
 	return command
+}
+
+// NewClusterInvalidateCacheCommand returns a new instance of an `argocd cluster invalidate-cache` command
+func NewClusterInvalidateCacheCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "invalidate-cache SERVER/NAME",
+		Short: "Invalidate the cache of a cluster",
+		Long:  "Invalidate the cache of a cluster. The application controller discards the cached state of the cluster and rebuilds it from the cluster's Kubernetes API.",
+		Example: `argocd cluster invalidate-cache https://12.34.567.89
+argocd cluster invalidate-cache cluster-name`,
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
+			ctx := c.Context()
+
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDieWithContext(ctx)
+			defer utilio.Close(conn)
+
+			cluster := args[0]
+			errors.CheckError(invalidateClusterCache(ctx, clusterIf, cluster))
+
+			fmt.Printf("Cluster '%s' cache invalidated\n", cluster)
+		}),
+	}
+	return command
+}
+
+// invalidateClusterCache requests invalidation of the cache of the cluster matching the given selector
+func invalidateClusterCache(ctx context.Context, clusterIf clusterpkg.ClusterServiceClient, clusterSelector string) error {
+	_, err := clusterIf.InvalidateCache(ctx, getQueryBySelector(clusterSelector))
+	return err
 }

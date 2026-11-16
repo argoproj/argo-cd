@@ -81,6 +81,7 @@ argocd cluster [flags]
 * [argocd](argocd.md)	 - argocd controls an Argo CD server
 * [argocd cluster add](argocd_cluster_add.md)	 - argocd cluster add CONTEXT
 * [argocd cluster get](argocd_cluster_get.md)	 - Get cluster information
+* [argocd cluster invalidate-cache](argocd_cluster_invalidate-cache.md)	 - Invalidate the cache of a cluster
 * [argocd cluster list](argocd_cluster_list.md)	 - List configured clusters
 * [argocd cluster rm](argocd_cluster_rm.md)	 - Remove cluster credentials
 * [argocd cluster rotate-auth](argocd_cluster_rotate-auth.md)	 - argocd cluster rotate-auth SERVER/NAME
