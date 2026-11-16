@@ -1224,13 +1224,43 @@ func (c *store) processNamespaceHierarchy(
 
 func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map[types.UID]*Resource {
 	// Prepare to construct a graph
-	nodesByUID := make(map[types.UID][]*Resource, len(nsNodes))
+	// UIDs are almost always unique, so keep one node per UID and put the rest
+	// (same object served by two groups, or empty UIDs) aside, rather than
+	// allocating a slice per node.
+	nodesByUID := make(map[types.UID]*Resource, len(nsNodes))
+	var moreByUID map[types.UID][]*Resource
 	for _, node := range nsNodes {
-		nodesByUID[node.Ref.UID] = append(nodesByUID[node.Ref.UID], node)
+		if _, ok := nodesByUID[node.Ref.UID]; ok {
+			if moreByUID == nil {
+				moreByUID = map[types.UID][]*Resource{}
+			}
+			moreByUID[node.Ref.UID] = append(moreByUID[node.Ref.UID], node)
+			continue
+		}
+		nodesByUID[node.Ref.UID] = node
 	}
 
 	// In graph, the key is the parent and the value is a list of children.
 	graph := make(map[kube.ResourceKey]map[types.UID]*Resource)
+	link := func(uidNode, childNode *Resource) {
+		uidNodeKey := uidNode.ResourceKey()
+		// Update the graph for this owner to include the child.
+		if _, ok := graph[uidNodeKey]; !ok {
+			graph[uidNodeKey] = make(map[types.UID]*Resource)
+		}
+		r, ok := graph[uidNodeKey][childNode.Ref.UID]
+		if !ok {
+			graph[uidNodeKey][childNode.Ref.UID] = childNode
+		} else if r != nil {
+			// The object might have multiple children with the same UID (e.g. replicaset from apps and extensions group).
+			// It is ok to pick any object, but we need to make sure we pick the same child after every refresh.
+			key1 := r.ResourceKey()
+			key2 := childNode.ResourceKey()
+			if key1.String() > key2.String() {
+				graph[uidNodeKey][childNode.Ref.UID] = childNode
+			}
+		}
+	}
 
 	// Loop through all nodes, calling each one "childNode," because we're only bothering with it if it has a parent.
 	for _, childNode := range nsNodes {
@@ -1254,27 +1284,10 @@ func buildGraph(nsNodes map[kube.ResourceKey]*Resource) map[kube.ResourceKey]map
 			}
 
 			// Now that we have the UID of the parent, update the graph.
-			uidNodes, ok := nodesByUID[ownerUID]
-			if ok {
-				for _, uidNode := range uidNodes {
-					// Cache ResourceKey() to avoid repeated expensive calls
-					uidNodeKey := uidNode.ResourceKey()
-					// Update the graph for this owner to include the child.
-					if _, ok := graph[uidNodeKey]; !ok {
-						graph[uidNodeKey] = make(map[types.UID]*Resource)
-					}
-					r, ok := graph[uidNodeKey][childNode.Ref.UID]
-					if !ok {
-						graph[uidNodeKey][childNode.Ref.UID] = childNode
-					} else if r != nil {
-						// The object might have multiple children with the same UID (e.g. replicaset from apps and extensions group).
-						// It is ok to pick any object, but we need to make sure we pick the same child after every refresh.
-						key1 := r.ResourceKey()
-						key2 := childNode.ResourceKey()
-						if key1.String() > key2.String() {
-							graph[uidNodeKey][childNode.Ref.UID] = childNode
-						}
-					}
+			if uidNode, ok := nodesByUID[ownerUID]; ok {
+				link(uidNode, childNode)
+				for _, uidNode := range moreByUID[ownerUID] {
+					link(uidNode, childNode)
 				}
 			}
 		}
