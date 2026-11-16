@@ -186,8 +186,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// ensure finalizer exists if deletionOrder is set as Reverse
 	if r.EnableProgressiveSyncs && progressivesync.IsDeletionOrderReversed(&applicationSetInfo) {
 		if !controllerutil.ContainsFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName) {
+			// Patch rather than Update to avoid rewriting the spec (see the refresh annotation below). A merge
+			// patch replaces the whole finalizers list, so the optimistic lock guards concurrent writers.
+			original := applicationSetInfo.DeepCopy()
 			controllerutil.AddFinalizer(&applicationSetInfo, argov1alpha1.ResourcesFinalizerName)
-			if err := r.Update(ctx, &applicationSetInfo); err != nil {
+			if err := r.Patch(ctx, &applicationSetInfo, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
 				return ctrl.Result{}, err
 			}
 		}

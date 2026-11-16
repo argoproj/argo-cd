@@ -5207,11 +5207,31 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			appSetUpdates := 0
+			var appSetPatches []map[string]any
 			client := fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(&cc.appSet).
 				WithStatusSubresource(&cc.appSet).
 				WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Update: func(ctx context.Context, c crtclient.WithWatch, obj crtclient.Object, opts ...crtclient.UpdateOption) error {
+						if _, ok := obj.(*v1alpha1.ApplicationSet); ok {
+							appSetUpdates++
+						}
+						return c.Update(ctx, obj, opts...)
+					},
+					Patch: func(ctx context.Context, c crtclient.WithWatch, obj crtclient.Object, patch crtclient.Patch, opts ...crtclient.PatchOption) error {
+						if _, ok := obj.(*v1alpha1.ApplicationSet); ok {
+							data, err := patch.Data(obj)
+							require.NoError(t, err)
+							var body map[string]any
+							require.NoError(t, json.Unmarshal(data, &body))
+							appSetPatches = append(appSetPatches, body)
+						}
+						return c.Patch(ctx, obj, patch, opts...)
+					},
+				}).
 				Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
@@ -5249,6 +5269,12 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 			// Verify the finalizers
 			assert.Equal(t, cc.expectedFinalizers, updatedAppSet.Finalizers,
 				"finalizers should match expected value")
+
+			// Adding the finalizer must not rewrite the spec.
+			assert.Zero(t, appSetUpdates, "the ApplicationSet must not be written with a full Update")
+			for _, p := range appSetPatches {
+				assert.NotContains(t, p, "spec")
+			}
 		})
 	}
 }
