@@ -926,7 +926,22 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	serverSideDiff := shouldUseServerSideDiff(app, m.serverSideDiff)
 
-	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, m.statusRefreshTimeout, serverSideDiff, logCtx)
+	// With manifest-generate-paths, a new revision whose watched paths have no changes reuses the
+	// previous manifests, so the cached diff is still valid for it. Only server-side diff needs this:
+	// re-diffing there dry-runs every resource against the API server.
+	manifestPathsUnchanged := serverSideDiff && len(localManifests) == 0 && !failedToLoadObjs && !revisionsMayHaveChanges && gitPathsCheckedForAllSources(sources)
+	// The repo-server regenerates manifests when its cache entry is gone, and they can then differ
+	// (e.g. ARGOCD_APP_REVISION), so the targets must also match the cached diff. useDiffCache only
+	// calls this after its cheaper checks pass, and the loaded diff is handed to the diff config.
+	var cachedDiff []*v1alpha1.ResourceDiff
+	targetsMatchCache := func() bool {
+		if m.cache == nil || m.cache.GetAppManagedResources(app.InstanceName(m.namespace), &cachedDiff) != nil {
+			cachedDiff = nil
+			return false
+		}
+		return targetsMatchCachedDiff(cachedDiff, reconciliation.Target, reconciliation.Live)
+	}
+	useDiffCache := useDiffCache(noCache, manifestInfos, sources, app, manifestRevisions, manifestPathsUnchanged, targetsMatchCache, m.statusRefreshTimeout, serverSideDiff, logCtx)
 
 	diffConfigBuilder := argodiff.NewDiffConfigBuilder().
 		WithDiffSettings(app.Spec.IgnoreDifferences, resourceOverrides, compareOptions.IgnoreAggregatedRoles, m.ignoreNormalizerOpts).
@@ -934,6 +949,9 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	if useDiffCache {
 		diffConfigBuilder.WithCache(m.cache, app.InstanceName(m.namespace))
+		if cachedDiff != nil {
+			diffConfigBuilder.WithCachedDiff(cachedDiff)
+		}
 	} else {
 		diffConfigBuilder.WithNoCache()
 	}
@@ -1190,9 +1208,63 @@ func shouldUseServerSideDiff(app *v1alpha1.Application, controllerLevelSSD bool)
 		(app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.SyncOptions.HasOption("ServerSideApply=true"))
 }
 
+// gitPathsCheckedForAllSources reports whether evaluateRevisionChanges checked the paths of every
+// source that generates manifests. It does not check ref sources, and the repo-server reports no
+// changes for Helm and OCI sources without checking whether the chart version moved.
+func gitPathsCheckedForAllSources(sources []v1alpha1.ApplicationSource) bool {
+	for _, source := range sources {
+		if source.IsHelm() || source.IsOCI() || (source.IsRef() && source.Path != "") {
+			return false
+		}
+	}
+	return true
+}
+
+// targetsMatchCachedDiff reports whether every target is identical to the target stored with its
+// cached diff. Secrets are stored masked, so an app with a target Secret never matches.
+func targetsMatchCachedDiff(cachedDiff []*v1alpha1.ResourceDiff, targets, lives []*unstructured.Unstructured) bool {
+	if len(targets) != len(lives) {
+		return false
+	}
+	cachedTargets := make(map[kubeutil.ResourceKey]string, len(cachedDiff))
+	for _, res := range cachedDiff {
+		cachedTargets[kubeutil.NewResourceKey(res.Group, res.Kind, res.Namespace, res.Name)] = res.TargetState
+	}
+	for i, target := range targets {
+		obj := target
+		if obj == nil {
+			obj = lives[i]
+		}
+		if obj == nil {
+			continue
+		}
+		key := kubeutil.GetResourceKey(obj)
+		if key.Group == "" && key.Kind == kubeutil.SecretKind && target != nil {
+			return false
+		}
+		cachedTarget, ok := cachedTargets[key]
+		if !ok {
+			return false
+		}
+		targetState := "null"
+		if target != nil {
+			data, err := json.Marshal(target)
+			if err != nil {
+				return false
+			}
+			targetState = string(data)
+		}
+		if targetState != cachedTarget {
+			return false
+		}
+	}
+	return true
+}
+
 // useDiffCache will determine if the diff should be calculated based
-// on the existing live state cache or not.
-func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, statusRefreshTimeout time.Duration, serverSideDiff bool, log *log.Entry) bool {
+// on the existing live state cache or not. When only the revision changed and the
+// manifest-generate-paths did not, it calls targetsMatchCache last, after the cheaper checks.
+func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sources []v1alpha1.ApplicationSource, app *v1alpha1.Application, manifestRevisions []string, manifestPathsUnchanged bool, targetsMatchCache func() bool, statusRefreshTimeout time.Duration, serverSideDiff bool, log *log.Entry) bool {
 	if noCache {
 		log.WithField("useDiffCache", "false").Debug("noCache is true")
 		return false
@@ -1223,7 +1295,7 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 	}
 
 	revisionChanged := !reflect.DeepEqual(app.Status.GetRevisions(), manifestRevisions)
-	if revisionChanged {
+	if revisionChanged && (!manifestPathsUnchanged || !serverSideDiff) {
 		log.WithField("useDiffCache", "false").Debug("revisionChanged")
 		return false
 	}
@@ -1231,6 +1303,14 @@ func useDiffCache(noCache bool, manifestInfos []*apiclient.ManifestResponse, sou
 	if !specEqualsCompareTo(app.Spec, sources, app.Status.Sync.ComparedTo) {
 		log.WithField("useDiffCache", "false").Debug("specChanged")
 		return false
+	}
+
+	if revisionChanged {
+		if !targetsMatchCache() {
+			log.WithField("useDiffCache", "false").Debug("revisionChanged: manifest-generate-paths unchanged but targets differ from the cached diff")
+			return false
+		}
+		log.Debug("revision changed without changes in the manifest-generate-paths")
 	}
 
 	log.WithField("useDiffCache", "true").Debug("using diff cache")
