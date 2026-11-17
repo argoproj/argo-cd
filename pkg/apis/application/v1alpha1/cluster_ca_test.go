@@ -246,15 +246,60 @@ func TestCluster_DependsOnDefaultCABundle(t *testing.T) {
 }
 
 func TestLoadSystemRootCAsPEM(t *testing.T) {
+	writeFile := func(t *testing.T, path string, data []byte) {
+		t.Helper()
+		require.NoError(t, os.WriteFile(path, data, 0o600))
+	}
+
 	t.Run("SSL_CERT_FILE takes precedence over the default files", func(t *testing.T) {
 		roots := generateSelfSignedCertPEM(t, "system-root-ca")
 		file := filepath.Join(t.TempDir(), "ca.pem")
-		require.NoError(t, os.WriteFile(file, roots, 0o600))
+		writeFile(t, file, roots)
 		t.Setenv("SSL_CERT_FILE", file)
+		t.Setenv("SSL_CERT_DIR", t.TempDir())
 		assert.Equal(t, roots, loadSystemRootCAsPEM())
 	})
-	t.Run("no roots when the file does not exist", func(t *testing.T) {
+	t.Run("certificates in the SSL_CERT_DIR directories are added to the file", func(t *testing.T) {
+		fileRoot := generateSelfSignedCertPEM(t, "file-root-ca")
+		firstDirRoot := generateSelfSignedCertPEM(t, "first-dir-root-ca")
+		secondDirRoot := generateSelfSignedCertPEM(t, "second-dir-root-ca")
+		file := filepath.Join(t.TempDir(), "ca.pem")
+		writeFile(t, file, fileRoot)
+		firstDir, secondDir := t.TempDir(), t.TempDir()
+		writeFile(t, filepath.Join(firstDir, "root.pem"), firstDirRoot)
+		require.NoError(t, os.Mkdir(filepath.Join(firstDir, "subdir"), 0o700))
+		writeFile(t, filepath.Join(secondDir, "root.pem"), secondDirRoot)
+		t.Setenv("SSL_CERT_FILE", file)
+		t.Setenv("SSL_CERT_DIR", firstDir+string(os.PathListSeparator)+secondDir)
+
+		assert.Equal(t, slices.Concat(fileRoot, firstDirRoot, secondDirRoot), loadSystemRootCAsPEM())
+	})
+	t.Run("a certificate found in the file and in a directory is added once", func(t *testing.T) {
+		root := generateSelfSignedCertPEM(t, "system-root-ca")
+		dir := t.TempDir()
+		file := filepath.Join(dir, "ca-certificates.crt")
+		writeFile(t, file, root)
+		writeFile(t, filepath.Join(dir, "root.pem"), root)
+		t.Setenv("SSL_CERT_FILE", file)
+		t.Setenv("SSL_CERT_DIR", dir)
+
+		assert.Equal(t, root, loadSystemRootCAsPEM())
+	})
+	t.Run("only valid certificates are kept", func(t *testing.T) {
+		root := generateSelfSignedCertPEM(t, "system-root-ca")
+		dir := t.TempDir()
+		writeFile(t, filepath.Join(dir, "README"), []byte("not a certificate"))
+		writeFile(t, filepath.Join(dir, "key.pem"), pem.EncodeToMemory(&pem.Block{Type: "PRIVATE KEY", Bytes: []byte("key")}))
+		writeFile(t, filepath.Join(dir, "invalid.pem"), pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: []byte("invalid")}))
+		writeFile(t, filepath.Join(dir, "root.pem"), root)
 		t.Setenv("SSL_CERT_FILE", filepath.Join(t.TempDir(), "missing.pem"))
+		t.Setenv("SSL_CERT_DIR", dir)
+
+		assert.Equal(t, root, loadSystemRootCAsPEM())
+	})
+	t.Run("no roots when neither the file nor a directory has any", func(t *testing.T) {
+		t.Setenv("SSL_CERT_FILE", filepath.Join(t.TempDir(), "missing.pem"))
+		t.Setenv("SSL_CERT_DIR", filepath.Join(t.TempDir(), "missing"))
 		assert.Nil(t, loadSystemRootCAsPEM())
 	})
 }

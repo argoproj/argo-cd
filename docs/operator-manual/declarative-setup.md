@@ -766,13 +766,12 @@ stringData:
 > clusters) lose their connection unless they set `caTrust: system` or `caTrust: bundle-and-system` before the
 > ConfigMap is filled in.
 
-A cluster with `caTrust: bundle-and-system` and a non-empty bundle trusts the bundle together with the system roots
-read once per process from the file named by the `SSL_CERT_FILE` environment variable or, if it is not set, from the
-CA bundle of the operating system of the Argo CD image (`/etc/ssl/certs/ca-certificates.crt` in the official image).
-Certificates that are only present in the directories named by `SSL_CERT_DIR` are not included for such a cluster.
-Every other cluster that trusts the system roots uses the default system trust store of Go, which also reads
-`SSL_CERT_DIR`. The kubeconfig that `argocd admin cluster kubeconfig` writes for a cluster relying on the bundle
-contains the CAs that cluster trusts.
+A cluster with `caTrust: bundle-and-system` and a non-empty bundle trusts the bundle together with the system roots,
+which are read once per process the same way Go reads them on Linux. That is the file named by the `SSL_CERT_FILE`
+environment variable or, if it is not set, the CA bundle of the operating system of the Argo CD image
+(`/etc/ssl/certs/ca-certificates.crt` in the official image), plus the certificates in the directories named by
+`SSL_CERT_DIR` or, if it is not set, in `/etc/ssl/certs` and `/etc/pki/tls/certs`. The kubeconfig that
+`argocd admin cluster kubeconfig` writes for a cluster relying on the bundle contains the CAs that cluster trusts.
 
 `caTrust: bundle-and-system` cannot be combined with an `execProviderConfig` that sets `provideClusterInfo: true`
 while the bundle is not empty. With `provideClusterInfo`, the CAs the cluster trusts are passed to the exec plugin in
