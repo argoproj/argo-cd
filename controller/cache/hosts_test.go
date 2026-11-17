@@ -2,7 +2,9 @@ package cache
 
 import (
 	"errors"
+	"maps"
 	"runtime"
+	"slices"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -313,6 +315,47 @@ func TestGetClusterHosts(t *testing.T) {
 		assert.Contains(t, index.Nodes, "node-c")
 	})
 
+	t.Run("rebuilds an index without Nodes after a full sync", func(t *testing.T) {
+		l := &live{appPodNode: "node-a", noNodes: true}
+		c, scans := setup(t, l)
+		setTTL(t, 0)
+		_, _, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+
+		// A full sync fires no events, so a Node it brings would go unseen.
+		resynced := l.syncedAt.Add(time.Minute)
+		l.syncedAt = &resynced
+		_, _, err = c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		assert.Equal(t, int32(2), scans.Load())
+	})
+
+	t.Run("a Node add during a rebuild discards its scan", func(t *testing.T) {
+		l := &live{appPodNode: "node-a", noNodes: true}
+		c, scans := setup(t, l)
+		_, _, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		setTTL(t, 0)
+
+		// The scan predates node-a, whose add event lands before it publishes.
+		l.onScan = func() {
+			l.onScan = nil
+			c.dropHostsOnNodeAdded(cluster.Server, &cache.Resource{Ref: corev1.ObjectReference{Name: "node-a", Kind: "Node", APIVersion: "v1"}}, nil)
+		}
+		resynced := l.syncedAt.Add(time.Minute) // expire the index without Nodes
+		l.syncedAt = &resynced
+		_, _, err = c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		assert.Nil(t, c.hosts[cluster.Server].current.Load())
+
+		l.noNodes = false
+
+		_, index, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		assert.Contains(t, index.Nodes, "node-a")
+		assert.Equal(t, int32(3), scans.Load())
+	})
+
 	t.Run("keeps the index when an unrelated node joins", func(t *testing.T) {
 		c, scans := setup(t, healthy())
 		_, first, err := c.GetClusterHosts(cluster, appPods)
@@ -524,7 +567,7 @@ func BenchmarkGetClusterHosts(b *testing.B) {
 			for node := range appPodsByNode {
 				neighbors[node] = map[corev1.ResourceName]int64{}
 				for _, pod := range allPodsByNode[node] {
-					if requestsCount(pod) {
+					if pod.Phase != corev1.PodSucceeded && pod.Phase != corev1.PodFailed {
 						for name, quantity := range pod.ResourceRequests {
 							neighbors[node][name] += quantity.MilliValue()
 						}
@@ -541,11 +584,11 @@ func BenchmarkGetClusterHosts(b *testing.B) {
 		b.ReportAllocs()
 		for b.Loop() {
 			livePods, index, _ := c.GetClusterHosts(cluster, appPods)
-			nodes := make([]string, 0, len(livePods))
+			appPodsByNode := map[string][]PodInfo{}
 			for _, pod := range livePods {
-				nodes = append(nodes, pod.NodeName)
+				appPodsByNode[pod.NodeName] = append(appPodsByNode[pod.NodeName], pod)
 			}
-			_ = index.NeighborRequests(nodes, appPods)
+			_ = index.NeighborRequests(slices.Collect(maps.Keys(appPodsByNode)), appPods)
 		}
 	})
 	// The rebuild, at most once per appHostsIndexTTL per cluster. retained-B is

@@ -22,6 +22,8 @@ type ClusterHosts struct {
 	// RequestsByNode sums, in milli-units, the requests of each node's pods
 	// that haven't succeeded or failed. Every node a pod is on has an entry.
 	RequestsByNode map[string]map[corev1.ResourceName]int64
+
+	syncedAt time.Time // the cluster cache's LastCacheSyncTime at build
 }
 
 // NeighborRequests returns RequestsByNode for each of nodes, less the requests
@@ -31,21 +33,19 @@ func (h *ClusterHosts) NeighborRequests(nodes []string, pods []kube.ResourceKey)
 	for _, node := range nodes {
 		out[node] = maps.Clone(h.RequestsByNode[node])
 	}
+	seen := make(map[kube.ResourceKey]bool, len(pods))
 	for _, key := range pods {
 		pod, ok := h.Pods[key]
-		if !ok || !requestsCount(pod) || out[pod.NodeName] == nil {
+		// Succeeded and failed pods aren't in RequestsByNode.
+		if !ok || seen[key] || pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed || out[pod.NodeName] == nil {
 			continue
 		}
+		seen[key] = true
 		for name, quantity := range pod.ResourceRequests {
 			out[pod.NodeName][name] -= quantity.MilliValue()
 		}
 	}
 	return out
-}
-
-// requestsCount reports whether pod's requests are in RequestsByNode.
-func requestsCount(pod PodInfo) bool {
-	return pod.Phase != corev1.PodSucceeded && pod.Phase != corev1.PodFailed
 }
 
 type clusterHostsEntry struct {
@@ -117,8 +117,14 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 	}
 	current := entry.current.Load()
 	if current != nil && covers(current) {
-		// Without Nodes there are no hosts to refresh.
-		if len(current.Nodes) == 0 || time.Since(current.BuiltAt) < appHostsIndexTTL {
+		fresh := time.Since(current.BuiltAt) < appHostsIndexTTL
+		if !fresh && len(current.Nodes) == 0 {
+			// Without Nodes there are no hosts to refresh until a Node add resets
+			// the index, or a full sync, which fires no events, adds one.
+			synced := clusterCache.GetClusterInfo().LastCacheSyncTime
+			fresh = synced != nil && synced.Equal(current.syncedAt)
+		}
+		if fresh {
 			return live, current, nil
 		}
 		// Serve the expired index while another reconcile rebuilds it.
@@ -156,7 +162,7 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 			if next.RequestsByNode[pod.NodeName] == nil {
 				next.RequestsByNode[pod.NodeName] = map[corev1.ResourceName]int64{}
 			}
-			if !requestsCount(pod) {
+			if pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
 				return false
 			}
 			for name, quantity := range pod.ResourceRequests {
@@ -168,6 +174,7 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 	// Invalidate clears the sync time, and the index is reset only after
 	// Invalidate; don't publish a scan that raced it (old settings).
 	if after := clusterCache.GetClusterInfo().LastCacheSyncTime; syncedAt != nil && after != nil && syncedAt.Equal(*after) {
+		next.syncedAt = *syncedAt
 		entry.current.Store(next)
 	}
 	return live, next, nil
@@ -184,14 +191,15 @@ func (c *liveStateCache) dropHostsOnNodeAdded(server string, newRes, oldRes *clu
 	if key.Group != "" || key.Kind != "Node" {
 		return
 	}
-	c.lock.RLock()
+	c.lock.Lock()
+	defer c.lock.Unlock()
 	entry := c.hosts[server]
-	c.lock.RUnlock()
 	if entry == nil {
 		return
 	}
 	if h := entry.current.Load(); h != nil && len(h.Nodes) > 0 && h.RequestsByNode[key.Name] == nil {
 		return
 	}
-	entry.current.Store(nil)
+	// A fresh entry, so a rebuild already scanning publishes to the old one.
+	c.hosts[server] = &clusterHostsEntry{}
 }

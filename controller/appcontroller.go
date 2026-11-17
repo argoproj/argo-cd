@@ -706,12 +706,9 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 		corev1.ResourceMemory:  true,
 	}
 	var appPods []kube.ResourceKey
-	seen := map[kube.ResourceKey]bool{}
 	for _, node := range appNodes {
-		key := kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)
-		if node.Group == "" && node.Kind == kube.PodKind && !seen[key] {
-			seen[key] = true
-			appPods = append(appPods, key)
+		if node.Group == "" && node.Kind == kube.PodKind {
+			appPods = append(appPods, kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name))
 		}
 	}
 	if len(appPods) == 0 {

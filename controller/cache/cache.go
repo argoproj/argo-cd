@@ -698,11 +698,11 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
 		)
 	}
-	c.lock.RLock()
-	for _, entry := range c.hosts {
-		entry.current.Store(nil)
+	c.lock.Lock()
+	for server := range c.hosts {
+		c.hosts[server] = &clusterHostsEntry{}
 	}
-	c.lock.RUnlock()
+	c.lock.Unlock()
 	log.Info("live state cache invalidated")
 }
 
@@ -902,11 +902,11 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		if len(updateSettings) > 0 || forceInvalidate {
 			cluster.Invalidate(updateSettings...)
-			c.lock.RLock()
-			if entry := c.hosts[newCluster.Server]; entry != nil {
-				entry.current.Store(nil)
+			c.lock.Lock()
+			if _, ok := c.hosts[newCluster.Server]; ok {
+				c.hosts[newCluster.Server] = &clusterHostsEntry{}
 			}
-			c.lock.RUnlock()
+			c.lock.Unlock()
 			go func() {
 				// warm up cluster cache
 				_ = cluster.EnsureSynced()
