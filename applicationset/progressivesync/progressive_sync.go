@@ -903,12 +903,16 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 		updateCountMap := make([]int, length)
 		totalCountMap := make([]int, length)
 
-		// populate updateCountMap with counts of existing Pending and Progressing Applications
+		// populate updateCountMap with counts of existing Pending and Progressing Applications.
+		// Applications no step selects are excluded from both counts: they have
+		// no step whose limit they could consume.
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
-			totalCountMap[appStepMap[appStatus.Application]]++
+			if step, ok := appStepMap[appStatus.Application]; ok {
+				totalCountMap[step]++
 
-			if appStatus.Status == argov1alpha1.ProgressiveSyncPending || appStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
-				updateCountMap[appStepMap[appStatus.Application]]++
+				if appStatus.Status == argov1alpha1.ProgressiveSyncPending || appStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
+					updateCountMap[step]++
+				}
 			}
 		}
 
@@ -921,12 +925,16 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 				"status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
 			})
 
-			// by default allow all applications to update if maxUpdate is unset
+			// by default allow all applications to update if maxUpdate is unset.
+			// Applications no step selects have no step limit to enforce.
+			step, inStep := appStepMap[appStatus.Application]
 			maxUpdateAllowed := true
-			if maxUpdateVal, ok := m.resolveMaxUpdate(statusLogCtx, applicationSet, appStepMap[appStatus.Application], totalCountMap[appStepMap[appStatus.Application]]); ok {
-				if updateCountMap[appStepMap[appStatus.Application]] >= maxUpdateVal {
-					maxUpdateAllowed = false
-					statusLogCtx.Infof("Application is not allowed to update yet, %v/%v Applications already updating in step %v", updateCountMap[appStepMap[appStatus.Application]], maxUpdateVal, getAppStep(appStatus.Application, appStepMap))
+			if inStep {
+				if maxUpdateVal, ok := m.resolveMaxUpdate(statusLogCtx, applicationSet, step, totalCountMap[step]); ok {
+					if updateCountMap[step] >= maxUpdateVal {
+						maxUpdateAllowed = false
+						statusLogCtx.Infof("Application is not allowed to update yet, %v/%v Applications already updating in step %v", updateCountMap[step], maxUpdateVal, getAppStep(appStatus.Application, appStepMap))
+					}
 				}
 			}
 
@@ -942,7 +950,9 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 					"new_status.targetRevisions": strings.Join(appStatus.TargetRevisions, ","),
 				}).Info("Progressive sync application changed status")
 
-				updateCountMap[appStepMap[appStatus.Application]]++
+				if inStep {
+					updateCountMap[step]++
+				}
 			}
 
 			appStatuses = append(appStatuses, appStatus)

@@ -1854,6 +1854,166 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "does not count unselected applications in a percentage maxUpdate total",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+									MaxUpdate: &intstr.IntOrString{
+										Type:   intstr.String,
+										StrVal: "50%",
+									},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
+							Step:        "1",
+						},
+						{
+							Application: "app2",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
+							Step:        "1",
+						},
+						{
+							Application: "app3",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
+							Step:        "-1",
+						},
+						{
+							Application: "app4",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
+							Step:        "-1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+				"app2": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+				"app2": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+				},
+				{
+					Application:        "app2",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "1",
+				},
+				{
+					Application:        "app3",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "-1",
+				},
+				{
+					Application:        "app4",
+					LastTransitionTime: nil,
+					Message:            "Application is out of date with the current AppSet generation, setting status to Waiting",
+					Status:             v1alpha1.ProgressiveSyncWaiting,
+					Step:               "-1",
+				},
+			},
+		},
+		{
+			name: "does not count an unselected application's progressing status against a step",
+			appSet: v1alpha1.ApplicationSet{
+				ObjectMeta: metav1.ObjectMeta{
+					Name:      "name",
+					Namespace: "argocd",
+				},
+				Spec: v1alpha1.ApplicationSetSpec{
+					Strategy: &v1alpha1.ApplicationSetStrategy{
+						Type: "RollingSync",
+						RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+							Steps: []v1alpha1.ApplicationSetRolloutStep{
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+									MaxUpdate: &intstr.IntOrString{
+										Type:   intstr.Int,
+										IntVal: 1,
+									},
+								},
+								{
+									MatchExpressions: []v1alpha1.ApplicationMatchExpression{},
+								},
+							},
+						},
+					},
+				},
+				Status: v1alpha1.ApplicationSetStatus{
+					ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+						{
+							Application: "app1",
+							Message:     "Application is out of date with the current AppSet generation, setting status to Waiting",
+							Status:      v1alpha1.ProgressiveSyncWaiting,
+							Step:        "1",
+						},
+						{
+							Application: "app2",
+							Message:     "Application resource became Progressing, updating status from Pending to Progressing",
+							Status:      v1alpha1.ProgressiveSyncProgressing,
+							Step:        "-1",
+						},
+					},
+				},
+			},
+			appSyncMap: map[string]bool{
+				"app1": true,
+			},
+			appStepMap: map[string]int{
+				"app1": 0,
+			},
+			expectedAppStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{
+					Application:        "app1",
+					LastTransitionTime: nil,
+					Message:            "Application moved to Pending status, watching for the Application resource to start Progressing",
+					Status:             v1alpha1.ProgressiveSyncPending,
+					Step:               "1",
+				},
+				{
+					Application:        "app2",
+					LastTransitionTime: nil,
+					Message:            "Application resource became Progressing, updating status from Pending to Progressing",
+					Status:             v1alpha1.ProgressiveSyncProgressing,
+					Step:               "-1",
+				},
+			},
+		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
 			t.Parallel()
