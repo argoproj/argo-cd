@@ -338,9 +338,9 @@ func (e *Enforcer) SetMatchMode(mode string) {
 }
 
 // SetCaseInsensitiveSubjects enables or disables case-insensitive subject matching. When enabled, the
-// subject of every policy rule and role binding is lowercased when the policy is loaded, and the
-// request subject (user identifier, group claim value or default role) is lowercased before enforcement.
-// Resources, actions and objects are not affected.
+// ASCII letters of the subject of every policy rule and role binding are lowercased when the policy is
+// loaded, and the request subject (user identifier, group claim value or default role) is folded the same
+// way before enforcement (see foldSubject). Resources, actions and objects are not affected.
 func (e *Enforcer) SetCaseInsensitiveSubjects(enabled bool) {
 	e.invalidateCache(func() {
 		e.caseInsensitiveSubjects = enabled
@@ -361,7 +361,26 @@ func (e *Enforcer) NormalizeSubject(enf CasbinEnforcer, subject string) string {
 
 func normalizeSubject(subject string, caseInsensitive bool) string {
 	if caseInsensitive {
-		return strings.ToLower(subject)
+		return foldSubject(subject)
+	}
+	return subject
+}
+
+// foldSubject lowercases the ASCII letters A-Z of a subject and leaves every other byte untouched. Unicode
+// case mapping is deliberately not used: it maps some non-ASCII code points onto ASCII letters (the Kelvin
+// sign U+212A becomes 'k', for example), which would let a subject containing such characters match a
+// different user's subject.
+func foldSubject(subject string) string {
+	for i := range len(subject) {
+		if c := subject[i]; c >= 'A' && c <= 'Z' {
+			b := []byte(subject)
+			for j := i; j < len(b); j++ {
+				if b[j] >= 'A' && b[j] <= 'Z' {
+					b[j] += 'a' - 'A'
+				}
+			}
+			return string(b)
+		}
 	}
 	return subject
 }
@@ -690,8 +709,8 @@ func (a *argocdAdapter) LoadPolicy(model model.Model) error {
 
 // The modified version of LoadPolicyLine function defined in "persist" package of github.com/casbin/casbin.
 // Uses CVS parser to correctly handle quotes in policy line. When caseInsensitiveSubjects is set, the
-// subject of a 'p' line and both sides of a 'g' line are lowercased, so that request subjects which are
-// lowercased in the same way match regardless of their letter case.
+// subject of a 'p' line and both sides of a 'g' line are folded with foldSubject, so that request subjects
+// which are folded the same way match regardless of their ASCII letter case.
 func loadPolicyLine(line string, model model.Model, caseInsensitiveSubjects bool) error {
 	if line == "" || strings.HasPrefix(line, "#") {
 		return nil
@@ -717,10 +736,10 @@ func loadPolicyLine(line string, model model.Model, caseInsensitiveSubjects bool
 	if caseInsensitiveSubjects {
 		switch key {
 		case "p":
-			tokens[1] = strings.ToLower(tokens[1])
+			tokens[1] = foldSubject(tokens[1])
 		case "g":
-			tokens[1] = strings.ToLower(tokens[1])
-			tokens[2] = strings.ToLower(tokens[2])
+			tokens[1] = foldSubject(tokens[1])
+			tokens[2] = foldSubject(tokens[2])
 		}
 	}
 	sec := key[:1]

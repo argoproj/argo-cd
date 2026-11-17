@@ -434,9 +434,18 @@ data:
 ```
 
 When enabled, the subject of every `p` rule, both sides of every `g` binding (including those generated from
-AppProject roles), the default role and the subject of each request are lowercased before matching. This also
-means role names are folded, so `role:Admin` and `role:admin` refer to the same role. Resources, actions and
-objects are not affected and keep their case-sensitive glob or regex matching.
+AppProject roles), the default role and the subject of each request have their ASCII letters `A-Z` lowercased
+before matching. Only ASCII letters are folded: non-ASCII characters are compared exactly as written, so a
+subject containing look-alike characters (for example the Kelvin sign `U+212A`) can never match a subject
+written with a plain `k`. Folding also applies to role names, so `role:Admin` and `role:admin` refer to the
+same role. Resources, actions and objects are not affected and keep their case-sensitive glob or regex
+matching.
+
+> [!WARNING]
+> With this option enabled, subjects that differ only in letter case are treated as the same subject. Only
+> enable it when your identity provider guarantees that the claims you use as RBAC subjects (`sub`, `email`,
+> group names, ...) are unique regardless of case. If two different users or groups can have claim values that
+> differ only in case, one of them would receive the permissions of the other.
 
 The option is off by default, so existing policies keep their exact matching. Invalid values are treated as
 `"false"` and logged as a warning. `argocd admin settings rbac can` honours the setting when it reads a

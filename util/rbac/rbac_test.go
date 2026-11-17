@@ -583,6 +583,30 @@ func TestLoadPolicyLine(t *testing.T) {
 	})
 }
 
+func TestFoldSubject(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: "", want: ""},
+		{in: "user.name@example.org", want: "user.name@example.org"},
+		{in: "User.Name@Example.ORG", want: "user.name@example.org"},
+		{in: "role:Admin", want: "role:admin"},
+		{in: "My-Org:Team_1", want: "my-org:team_1"},
+		// non-ASCII letters are left alone, even where Unicode case mapping would change them
+		{in: "J\u00fcrgen.M\u00dcller@example.org", want: "j\u00fcrgen.m\u00dcller@example.org"},
+		// the Kelvin sign (U+212A) must not become an ASCII 'k'
+		{in: "\u212Aevin@example.org", want: "\u212Aevin@example.org"},
+		// U+0130 (capital I with dot) must not become an ASCII 'i'
+		{in: "\u0130smail@example.org", want: "\u0130smail@example.org"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			assert.Equal(t, tt.want, foldSubject(tt.in))
+		})
+	}
+}
+
 func TestParseCaseInsensitiveSubjects(t *testing.T) {
 	tests := []struct {
 		value string
@@ -649,6 +673,17 @@ g, Team.Lead@Example.org, role:Deployer
 		assert.True(t, enf.Enforce("team.lead@example.org", "applications", "sync", "Default/app"))
 		assert.True(t, enf.Enforce("Team.Lead@Example.org", "applications", "sync", "Default/app"))
 		assert.True(t, enf.Enforce("role:deployer", "applications", "sync", "Default/app"))
+	})
+
+	t.Run("non-ASCII look-alike characters never match ASCII subjects", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{ConfigMapCaseInsensitiveSubjectsKey: "true"})
+		require.NoError(t, enf.SetUserPolicy("g, kevin@example.org, role:admin\ng, M\u00fcller@example.org, role:admin"))
+		assert.True(t, enf.Enforce("Kevin@example.org", "applications", "get", "foo/bar"))
+		// Kelvin sign instead of 'k': strings.ToLower would map it to 'k' and grant admin
+		assert.False(t, enf.Enforce("\u212Aevin@example.org", "applications", "get", "foo/bar"))
+		// non-ASCII letters are compared exactly, only the ASCII letters are folded
+		assert.True(t, enf.Enforce("m\u00fcller@example.org", "applications", "get", "foo/bar"))
+		assert.False(t, enf.Enforce("M\u00dcLLER@example.org", "applications", "get", "foo/bar"))
 	})
 
 	t.Run("resources, actions and objects stay case-sensitive", func(t *testing.T) {

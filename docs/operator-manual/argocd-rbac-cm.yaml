@@ -42,9 +42,11 @@ data:
   # will be set to 'glob' as default.
   policy.matchMode: 'glob'
 
-  # policy.caseInsensitiveSubjects compares subjects (users, group claim values and roles) case-insensitively,
-  # so that e.g. an OIDC email claim 'User.Name@example.org' matches 'user.name@example.org' in policy.csv or
-  # in the groups of an AppProject role. Resources, actions and objects are not affected. Defaults to 'false'.
+  # policy.caseInsensitiveSubjects compares subjects (users, group claim values and roles) case-insensitively
+  # (ASCII letters A-Z only), so that e.g. an OIDC email claim 'User.Name@example.org' matches
+  # 'user.name@example.org' in policy.csv or in the groups of an AppProject role. Resources, actions and
+  # objects are not affected. Only enable it if your identity provider guarantees that these claims are unique
+  # regardless of case. Defaults to 'false'.
   policy.caseInsensitiveSubjects: 'false'
 
 
