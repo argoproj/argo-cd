@@ -4552,6 +4552,11 @@ func (c *Cluster) RawRestConfig() (*rest.Config, error) {
 	if err != nil {
 		return nil, err
 	}
+	if config.ExecProvider != nil && config.ExecProvider.ProvideClusterInfo &&
+		c.Config.CATrust == ClusterCATrustBundleAndSystem && c.DependsOnDefaultCABundle() && len(c.DefaultCABundle) > 0 {
+		return nil, fmt.Errorf("caTrust %q cannot be used with an exec provider that sets provideClusterInfo: the system root CAs would be passed to the plugin in its environment, which exceeds the size the operating system allows; use caTrust %q or set caData on the cluster",
+			string(ClusterCATrustBundleAndSystem), string(ClusterCATrustBundle))
+	}
 	if K8sServerSideTimeout > 0 {
 		appendTransportWrapper(config, utilhttp.WithServerSideTimeout(K8sServerSideTimeout))
 	}
