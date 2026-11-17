@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"maps"
@@ -18,9 +19,11 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
@@ -589,6 +592,38 @@ func TestGenRevisionHasChanged(t *testing.T) {
 			assert.Equalf(t, tt.want, webhook.RevisionHasChanged(tt.args.gen.Revision, tt.args.revision, tt.args.touchedHead), "RevisionHasChanged(%v, %v, %v)", tt.args.gen.Revision, tt.args.revision, tt.args.touchedHead)
 		})
 	}
+}
+
+// The refresh request must not write the spec back: a whole-object patch adds empty generator
+// templates, which tools managing the ApplicationSet report as drift.
+func TestRefreshApplicationSetPatchesOnlyTheAnnotation(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	appSet := fakeAppWithGitGenerator("git-github", "argocd", "https://github.com/org/repo")
+	appSet.Annotations = map[string]string{"unrelated": "kept"}
+
+	var patches []string
+	fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+				data, err := patch.Data(obj)
+				require.NoError(t, err)
+				assert.Equal(t, types.MergePatchType, patch.Type())
+				patches = append(patches, string(data))
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).Build()
+
+	require.NoError(t, refreshApplicationSet(fc, appSet.DeepCopy()))
+
+	require.Len(t, patches, 1)
+	assert.JSONEq(t, `{"metadata":{"annotations":{"argocd.argoproj.io/application-set-refresh":"true"}}}`, patches[0])
+
+	var got v1alpha1.ApplicationSet
+	require.NoError(t, fc.Get(t.Context(), client.ObjectKeyFromObject(appSet), &got))
+	assert.Equal(t, map[string]string{"unrelated": "kept", common.AnnotationApplicationSetRefresh: "true"}, got.Annotations)
 }
 
 func fakeAppWithGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
