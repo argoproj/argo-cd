@@ -258,3 +258,48 @@ func TestLoadSystemRootCAsPEM(t *testing.T) {
 		assert.Nil(t, loadSystemRootCAsPEM())
 	})
 }
+
+func TestCluster_RawRestConfig_ExecProviderClusterInfoWithSystemRoots(t *testing.T) {
+	withSystemRootCAs(t, generateSelfSignedCertPEM(t, "system-root-ca"))
+	bundle := generateSelfSignedCertPEM(t, "default-ca")
+
+	tests := []struct {
+		name               string
+		caTrust            ClusterCATrust
+		caData             []byte
+		bundle             []byte
+		provideClusterInfo bool
+		expectErr          bool
+	}{
+		{name: "bundle-and-system with cluster info", caTrust: ClusterCATrustBundleAndSystem, bundle: bundle, provideClusterInfo: true, expectErr: true},
+		{name: "bundle-and-system without cluster info", caTrust: ClusterCATrustBundleAndSystem, bundle: bundle},
+		{name: "bundle-and-system with cluster info and no bundle", caTrust: ClusterCATrustBundleAndSystem, provideClusterInfo: true},
+		{name: "bundle-and-system with cluster info and own caData", caTrust: ClusterCATrustBundleAndSystem, caData: bundle, bundle: bundle, provideClusterInfo: true},
+		{name: "unset with cluster info", bundle: bundle, provideClusterInfo: true},
+		{name: "bundle with cluster info", caTrust: ClusterCATrustBundle, bundle: bundle, provideClusterInfo: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cluster := &Cluster{
+				Server:          "https://1.2.3.4",
+				DefaultCABundle: tt.bundle,
+				Config: ClusterConfig{
+					TLSClientConfig: TLSClientConfig{CATrust: tt.caTrust, CAData: tt.caData},
+					ExecProviderConfig: &ExecProviderConfig{
+						APIVersion:         "client.authentication.k8s.io/v1beta1",
+						Command:            "auth-plugin",
+						ProvideClusterInfo: tt.provideClusterInfo,
+					},
+				},
+			}
+			_, err := cluster.RawRestConfig()
+			if tt.expectErr {
+				require.ErrorContains(t, err, "provideClusterInfo")
+			} else {
+				require.NoError(t, err)
+			}
+			_, err = cluster.RESTConfig()
+			require.NoError(t, err)
+		})
+	}
+}

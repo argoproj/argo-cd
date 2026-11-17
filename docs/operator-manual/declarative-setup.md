@@ -803,6 +803,12 @@ Every other cluster that trusts the system roots uses the default system trust s
 `SSL_CERT_DIR`. The kubeconfig that `argocd admin cluster kubeconfig` writes for a cluster relying on the bundle
 contains the CAs that cluster trusts.
 
+`caTrust: bundle-and-system` cannot be combined with an `execProviderConfig` that sets `provideClusterInfo: true`
+while the bundle is not empty. With `provideClusterInfo`, the CAs the cluster trusts are passed to the exec plugin in
+an environment variable, and the system roots alone exceed the size Linux allows for one. For such a cluster, syncs,
+server-side diff, the web terminal and `argocd admin cluster kubeconfig` fail with an error naming this combination.
+Use `caTrust: bundle`, or set `caData` on the cluster.
+
 The bundle only applies to connections to the Kubernetes API server of managed clusters. It does not affect
 repository connections (Git, Helm, OCI), which are configured through
 [`argocd-tls-certs-cm`](#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca), and it does not
