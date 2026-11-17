@@ -341,7 +341,7 @@ kubectl rollout restart statefulset argocd-application-controller
 Argo CD default installation is now configured to automatically enable Valkey authentication.
 If for some reason authenticated Valkey does not work for you and you want to use non-authenticated Valkey, here are the steps:
 
-1. You need to have your own Redis or Valkey installation.
+1. You need to have your own Valkey or Redis installation.
 2. Configure Argo CD to use your own Valkey instance, as shown in the [example configuration](operator-manual/argocd-cmd-params-cm-yaml.md).
 3. If you already installed Valkey shipped with Argo CD, you also need to clean up the existing components:
 
@@ -359,7 +359,7 @@ If for some reason authenticated Valkey does not work for you and you want to us
     * Deployment: argocd-server
     * StatefulSet: argocd-application-controller
 
-5. If you have configured file-based Redis credentials using the `REDIS_CREDS_DIR_PATH` environment variable, remove this environment variable and delete the corresponding volume and volumeMount entries that mount the credentials directory from the following manifests:
+5. If you have configured file-based credentials using the `REDIS_CREDS_DIR_PATH` environment variable, remove this environment variable and delete the corresponding volume and volumeMount entries that mount the credentials directory from the following manifests:
     * Deployment: argocd-repo-server
     * Deployment: argocd-server
     * StatefulSet: argocd-application-controller
@@ -370,7 +370,7 @@ You can config your secret provider to generate Kubernetes secret accordingly.
 
 ### Using file-based Valkey credentials via `REDIS_CREDS_DIR_PATH`
 
-Argo CD components support reading Valkey (or Redis) credentials from files mounted at a specified path inside the container.
+Argo CD components support reading Valkey or Redis credentials from files mounted at a specified path inside the container.
 
 When the environment variable `REDIS_CREDS_DIR_PATH` is specified, it takes precedence and Argo CD components that require Valkey connectivity (application-controller, repo-server and server) load the credentials from the files located in the specified directory path and ignore any values set in the environment variables.
 
@@ -381,7 +381,7 @@ Expected files when using `REDIS_CREDS_DIR_PATH`:
 - `sentinel_auth`: Sentinel password (for HA mode)
 - `sentinel_username`: Sentinel username (for HA mode)
 
-You can store these keys in a Kubernetes Secret and mount it into each Argo CD component that needs Redis access. Then point `REDIS_CREDS_DIR_PATH` to the mount directory.
+You can store these keys in a Kubernetes Secret and mount it into each Argo CD component that needs access to Valkey or Redis. Then point `REDIS_CREDS_DIR_PATH` to the mount directory.
 
 Example Secret:
 
@@ -420,7 +420,7 @@ spec:
 ```
 
 > [!NOTE]
-> This mechanism configures authentication for Argo CD components that connect to Redis. The Redis server itself should be configured independently (e.g., via `redis.conf`).
+> This mechanism configures authentication for Argo CD components that connect to Valkey or Redis. The Valkey or Redis server itself should be configured independently (e.g., via `redis.conf`).
 
 ## How do I fix `Manifest generation error (cached)`?
 
@@ -495,7 +495,7 @@ Kubernetes environment variables must be valid UTF-8 strings. In affected cluste
 ASCII-only values.
 
 #### How do I fix the issue?
-Inspect the decoded Redis password
+Inspect the decoded password inside the `argocd-redis` secret
 ```bash
 kubectl get -n argocd secret argocd-redis -o json \
     | jq -r '.data.auth' | base64 --decode | xxd
