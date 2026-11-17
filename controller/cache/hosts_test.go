@@ -390,11 +390,23 @@ func TestNeighborRequests(t *testing.T) {
 	assert.Equal(t, int64(3000), h.RequestsByNode["node-a"][corev1.ResourceCPU], "published index is unchanged")
 }
 
-// benchClusterCache serves FindResources from a namespace index, as the real cache does.
+// benchClusterCache serves FindResources from maps laid out like the real store's.
 type benchClusterCache struct {
 	cache.ClusterCache
-	byNamespace map[string][]*cache.Resource
-	syncedAt    time.Time
+	resources map[kube.ResourceKey]*cache.Resource
+	nsIndex   map[string]map[kube.ResourceKey]*cache.Resource
+	syncedAt  time.Time
+}
+
+func (b *benchClusterCache) add(res *cache.Resource) {
+	key := res.ResourceKey()
+	b.resources[key] = res
+	if key.Namespace != "" {
+		if b.nsIndex[key.Namespace] == nil {
+			b.nsIndex[key.Namespace] = map[kube.ResourceKey]*cache.Resource{}
+		}
+		b.nsIndex[key.Namespace][key] = res
+	}
 }
 
 func (b *benchClusterCache) EnsureSynced() error { return nil }
@@ -404,28 +416,32 @@ func (b *benchClusterCache) GetClusterInfo() cache.ClusterInfo {
 }
 
 func (b *benchClusterCache) FindResources(namespace string, predicates ...func(*cache.Resource) bool) map[kube.ResourceKey]*cache.Resource {
+	resources := b.resources
+	if namespace != "" {
+		resources = b.nsIndex[namespace]
+	}
 	found := map[kube.ResourceKey]*cache.Resource{}
-	for ns, resources := range b.byNamespace {
-		if namespace != "" && ns != namespace {
-			continue
-		}
-		for _, res := range resources {
-			if predicates[0](res) {
-				found[res.ResourceKey()] = res
-			}
+	for key, res := range resources {
+		if predicates[0](res) {
+			found[key] = res
 		}
 	}
 	return found
 }
 
-// BenchmarkGetClusterHosts: 500 nodes, 80k pods in 200 namespaces, a 20-pod app.
+// BenchmarkGetClusterHosts: 500 nodes, 80k pods in 200 namespaces, each pod
+// with a ReplicaSet, EndpointSlice and ConfigMap beside it; a 20-pod app.
 func BenchmarkGetClusterHosts(b *testing.B) {
 	const nodes, namespaces, podsPerNamespace, appPodCount = 500, 200, 400, 20
 	requests := corev1.ResourceList{corev1.ResourceCPU: resource.MustParse("100m"), corev1.ResourceMemory: resource.MustParse("128Mi")}
-	clusterCache := &benchClusterCache{byNamespace: map[string][]*cache.Resource{}, syncedAt: time.Now()}
+	clusterCache := &benchClusterCache{
+		resources: map[kube.ResourceKey]*cache.Resource{},
+		nsIndex:   map[string]map[kube.ResourceKey]*cache.Resource{},
+		syncedAt:  time.Now(),
+	}
 	for i := range nodes {
 		name := "node-" + strconv.Itoa(i)
-		clusterCache.byNamespace[""] = append(clusterCache.byNamespace[""], &cache.Resource{
+		clusterCache.add(&cache.Resource{
 			Ref:  corev1.ObjectReference{Name: name, Kind: "Node", APIVersion: "v1"},
 			Info: &ResourceInfo{NodeInfo: &NodeInfo{Name: name, Capacity: requests}},
 		})
@@ -438,7 +454,15 @@ func BenchmarkGetClusterHosts(b *testing.B) {
 				Ref:  corev1.ObjectReference{Name: "pod-" + strconv.Itoa(p), Kind: kube.PodKind, APIVersion: "v1", Namespace: ns},
 				Info: &ResourceInfo{PodInfo: &PodInfo{NodeName: "node-" + strconv.Itoa((n*podsPerNamespace+p)%nodes), ResourceRequests: requests}},
 			}
-			clusterCache.byNamespace[ns] = append(clusterCache.byNamespace[ns], res)
+			clusterCache.add(res)
+			for _, kind := range []struct{ apiVersion, kind string }{
+				{"apps/v1", "ReplicaSet"}, {"discovery.k8s.io/v1", "EndpointSlice"}, {"v1", "ConfigMap"},
+			} {
+				clusterCache.add(&cache.Resource{
+					Ref:  corev1.ObjectReference{Name: "pod-" + strconv.Itoa(p), Kind: kind.kind, APIVersion: kind.apiVersion, Namespace: ns},
+					Info: &ResourceInfo{},
+				})
+			}
 			if n == 0 && p < appPodCount {
 				appPods = append(appPods, res.ResourceKey())
 			}
