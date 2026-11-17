@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"slices"
 	"sort"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -2265,15 +2267,34 @@ func TestCRDVersionsToAPIResources(t *testing.T) {
 	}
 	cluster := newCluster(t)
 
-	resources, err := cluster.crdVersionsToAPIResources(crd(nil))
+	resources, err := cluster.crdVersionsToAPIResources(crd(nil), false)
 	require.NoError(t, err)
 	require.Len(t, resources, 1)
 	assert.Equal(t, "Dummy.example.com", resources[0].GroupKind.String())
 
 	// spec.versions decodes before the bad field, so a partial result is possible.
-	resources, err = cluster.crdVersionsToAPIResources(crd(map[string]any{"preserveUnknownFields": "not-a-bool"}))
+	resources, err = cluster.crdVersionsToAPIResources(crd(map[string]any{"preserveUnknownFields": "not-a-bool"}), false)
 	require.Error(t, err)
 	assert.Nil(t, resources)
+
+	// servedOnly skips the versions the cluster doesn't serve.
+	mixed := crd(map[string]any{"versions": []any{
+		map[string]any{"name": "v1alpha1", "served": false, "storage": false},
+		map[string]any{"name": "v1", "served": true, "storage": true},
+	}})
+	versions := func(resources []kube.APIResourceInfo) []string {
+		var vs []string
+		for _, r := range resources {
+			vs = append(vs, r.GroupVersionResource.Version)
+		}
+		return vs
+	}
+	resources, err = cluster.crdVersionsToAPIResources(mixed, true)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"v1"}, versions(resources))
+	resources, err = cluster.crdVersionsToAPIResources(mixed, false)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"v1alpha1", "v1"}, versions(resources))
 }
 
 // lockProbe arms kubectl hooks on cluster that record whether c.lock is held
@@ -2398,6 +2419,322 @@ func TestReconcileAPIServiceWatches_LockContract(t *testing.T) {
 		t.Fatal("reconcileAPIServiceWatches did not return; store.lock is likely acquired twice")
 	}
 	probe.assertHeld(t, 2)
+}
+
+// TestHandleCRDRelist_LockContract checks that handleCRDRelist, called without
+// c.lock, holds the lock during mergeDiscoveredAPIResources,
+// startMissingWatches and reloadOpenAPISchema without taking it twice.
+func TestHandleCRDRelist_LockContract(t *testing.T) {
+	t.Parallel()
+	// Not newCluster, for the same reason as TestHandleCRDEvent_LockContract.
+	cluster := newClusterWithOptions(t, nil)
+	deadlocked := false
+	t.Cleanup(func() {
+		if !deadlocked {
+			cluster.Invalidate()
+		}
+	})
+	require.NoError(t, cluster.EnsureSynced())
+	probe := armLockProbe(cluster)
+
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		cluster.handleCRDRelist(legacyEngineOf(cluster))
+	}()
+	select {
+	case <-done:
+	case <-time.After(10 * time.Second):
+		deadlocked = true
+		t.Fatal("handleCRDRelist did not return; store.lock is likely acquired twice")
+	}
+	// GetAPIResources for mergeDiscoveredAPIResources and startMissingWatches,
+	// LoadOpenAPISchema for reloadOpenAPISchema.
+	probe.assertHeld(t, 3)
+}
+
+func TestMergeDiscoveredAPIResources(t *testing.T) {
+	t.Parallel()
+	apiResource := func(group, kind, version string) kube.APIResourceInfo {
+		return kube.APIResourceInfo{
+			GroupKind:            schema.GroupKind{Group: group, Kind: kind},
+			GroupVersionResource: schema.GroupVersionResource{Group: group, Version: version, Resource: strings.ToLower(kind) + "s"},
+		}
+	}
+	cluster := newCluster(t)
+	// Known from an Added CRD event, not served by discovery yet.
+	fromEvent := apiResource("example.com", "Dummy", "v1")
+	existing := []kube.APIResourceInfo{apiResource("", "Pod", "v1"), fromEvent}
+	cluster.apiResources.Store(&existing)
+	cluster.kubectl.(*kubetest.MockKubectlCmd).APIResources = []kube.APIResourceInfo{
+		apiResource("", "Pod", "v1"),
+		apiResource("stable.example.com", "CronTab", "v1"),
+		apiResource("stable.example.com", "CronTab", "v2"),
+	}
+
+	require.NoError(t, runSynced(&cluster.lock, cluster.mergeDiscoveredAPIResources))
+
+	assert.ElementsMatch(t, []kube.APIResourceInfo{
+		apiResource("", "Pod", "v1"),
+		fromEvent,
+		apiResource("stable.example.com", "CronTab", "v1"),
+		apiResource("stable.example.com", "CronTab", "v2"),
+	}, cluster.GetAPIResources())
+	assert.Len(t, existing, 2, "the previously published slice must not be modified")
+}
+
+// TestHandleCRDRelist_DiscoveryError checks that when discovery and the OpenAPI
+// schema load fail after a re-list, handleCRDRelist logs and returns, and
+// keeps the apiResources already published.
+func TestHandleCRDRelist_DiscoveryError(t *testing.T) {
+	t.Parallel()
+	cluster := newClusterWithOptions(t, nil)
+	t.Cleanup(func() {
+		cluster.Invalidate()
+	})
+	require.NoError(t, cluster.EnsureSynced())
+	before := cluster.GetAPIResources()
+	require.NotEmpty(t, before)
+
+	mock := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	mock.WithGetAPIResourcesFunc(func(*rest.Config, bool, kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+		return nil, errors.New("discovery unavailable")
+	})
+	mock.WithLoadOpenAPISchemaFunc(func(*rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+		return nil, nil, errors.New("openapi unavailable")
+	})
+
+	require.Error(t, runSynced(&cluster.lock, cluster.mergeDiscoveredAPIResources))
+	cluster.handleCRDRelist(legacyEngineOf(cluster))
+
+	assert.Equal(t, before, cluster.GetAPIResources())
+}
+
+// TestHandleCRDRelist_PublishesEveryWatchedKind covers a CRD that becomes
+// served between the two discovery calls of handleCRDRelist: every kind that
+// gets a watch must also be in apiResources.
+func TestHandleCRDRelist_PublishesEveryWatchedKind(t *testing.T) {
+	t.Parallel()
+	cronTabGroup := testCRD().Spec.Group
+	cronTabAPI := kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: cronTabGroup, Kind: "CronTab"},
+		GroupVersionResource: schema.GroupVersionResource{Group: cronTabGroup, Version: "v1", Resource: "crontabs"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}
+	// testCronTab registers CronTab in the fake dynamic client, so its watch can start.
+	cluster := newClusterWithOptions(t, nil, testCronTab())
+	t.Cleanup(func() { cluster.Invalidate() })
+	require.NoError(t, cluster.EnsureSynced())
+
+	mock := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	baseAPIs := slices.Clone(mock.APIResources)
+	var calls atomic.Int32
+	// CronTab is served from the second discovery call on.
+	mock.WithGetAPIResourcesFunc(func(*rest.Config, bool, kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+		if calls.Add(1) >= 2 {
+			return append(slices.Clone(baseAPIs), cronTabAPI), nil
+		}
+		return slices.Clone(baseAPIs), nil
+	})
+
+	cluster.handleCRDRelist(legacyEngineOf(cluster))
+
+	require.GreaterOrEqual(t, calls.Load(), int32(2), "sanity: handleCRDRelist runs discovery twice")
+	published := map[schema.GroupKind]bool{}
+	for _, api := range cluster.GetAPIResources() {
+		published[api.GroupKind] = true
+	}
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
+	for gk := range cluster.apisMeta {
+		assert.True(t, published[gk], "%s is watched but missing from apiResources", gk)
+	}
+}
+
+// TestHandleCRDEvent_ModifiedAddsMissingAPIResource covers a CRD re-listed
+// before discovery served it: the re-list merge skips it, and the next watch
+// only delivers Modified events for it. Its kind must still reach apiResources,
+// once.
+func TestHandleCRDEvent_ModifiedAddsMissingAPIResource(t *testing.T) {
+	t.Parallel()
+	cluster := newClusterWithOptions(t, nil)
+	t.Cleanup(func() {
+		cluster.Invalidate()
+	})
+	require.NoError(t, cluster.EnsureSynced())
+
+	crd := strToUnstructured(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: dummies.example.com
+spec:
+  group: example.com
+  scope: Namespaced
+  names:
+    kind: Dummy
+    plural: dummies
+    singular: dummy
+  versions:
+  - name: v1
+    served: true
+    storage: true`)
+	countDummy := func() int {
+		n := 0
+		for _, api := range cluster.GetAPIResources() {
+			if api.GroupKind == (schema.GroupKind{Group: "example.com", Kind: "Dummy"}) && api.GroupVersionResource.Version == "v1" {
+				n++
+			}
+		}
+		return n
+	}
+	require.Zero(t, countDummy())
+
+	cluster.handleCRDEvent(legacyEngineOf(cluster), watch.Modified, crd)
+	assert.Equal(t, 1, countDummy())
+
+	cluster.handleCRDEvent(legacyEngineOf(cluster), watch.Modified, crd)
+	assert.Equal(t, 1, countDummy(), "a repeated Modified event must not duplicate the API resource")
+}
+
+// TestHandleCRDEvent_SkipsUnservedVersions checks that Added and Modified
+// events only publish the CRD versions the cluster serves, and that Deleted
+// removes every version, including one published before it stopped being
+// served.
+func TestHandleCRDEvent_SkipsUnservedVersions(t *testing.T) {
+	t.Parallel()
+	crd := strToUnstructured(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: dummies.example.com
+spec:
+  group: example.com
+  scope: Namespaced
+  names:
+    kind: Dummy
+    plural: dummies
+    singular: dummy
+  versions:
+  - name: v1alpha1
+    served: false
+    storage: false
+  - name: v1
+    served: true
+    storage: true`)
+	dummyVersions := func(cluster *clusterCache) []string {
+		var vs []string
+		for _, api := range cluster.GetAPIResources() {
+			if api.GroupKind == (schema.GroupKind{Group: "example.com", Kind: "Dummy"}) {
+				vs = append(vs, api.GroupVersionResource.Version)
+			}
+		}
+		return vs
+	}
+
+	for _, event := range []watch.EventType{watch.Added, watch.Modified} {
+		t.Run(string(event), func(t *testing.T) {
+			t.Parallel()
+			cluster := newClusterWithOptions(t, nil)
+			t.Cleanup(func() {
+				cluster.Invalidate()
+			})
+			require.NoError(t, cluster.EnsureSynced())
+
+			cluster.handleCRDEvent(legacyEngineOf(cluster), event, crd)
+			assert.Equal(t, []string{"v1"}, dummyVersions(cluster))
+		})
+	}
+
+	t.Run(string(watch.Deleted), func(t *testing.T) {
+		t.Parallel()
+		cluster := newClusterWithOptions(t, nil)
+		t.Cleanup(func() {
+			cluster.Invalidate()
+		})
+		require.NoError(t, cluster.EnsureSynced())
+		all, err := cluster.crdVersionsToAPIResources(crd, false)
+		require.NoError(t, err)
+		require.NoError(t, runSynced(&cluster.lock, func() error {
+			for i := range all {
+				cluster.appendAPIResource(all[i])
+			}
+			return nil
+		}))
+		require.ElementsMatch(t, []string{"v1alpha1", "v1"}, dummyVersions(cluster))
+
+		cluster.handleCRDEvent(legacyEngineOf(cluster), watch.Deleted, crd)
+		assert.Empty(t, dummyVersions(cluster))
+	})
+}
+
+// TestWatchEvents_CRDRelistAddsMissedAPIResources reproduces a CRD whose Added
+// event is never processed: the CRD watch delivers nothing, so the CRD only
+// shows up when the watch resync re-lists CRDs. Its kind must still reach
+// apiResources (and so Helm's --api-versions) without a full sync.
+func TestWatchEvents_CRDRelistAddsMissedAPIResources(t *testing.T) {
+	t.Parallel()
+	crdAPI := kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: "apiextensions.k8s.io", Kind: kube.CustomResourceDefinitionKind},
+		GroupVersionResource: schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"},
+		Meta:                 metav1.APIResource{Namespaced: false},
+	}
+	cronTabGroup := testCRD().Spec.Group
+	cronTabAPI := kube.APIResourceInfo{
+		GroupKind:            schema.GroupKind{Group: cronTabGroup, Kind: "CronTab"},
+		GroupVersionResource: schema.GroupVersionResource{Group: cronTabGroup, Version: "v1", Resource: "crontabs"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}
+	// Unstructured, so the fake dynamic client can list apiextensions.k8s.io/v1
+	// (testCRD() only registers the internal version).
+	cronTabCRD := strToUnstructured(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: crontabs.stable.example.com
+  resourceVersion: "1"
+spec:
+  group: stable.example.com
+  scope: Namespaced
+  names:
+    kind: CronTab
+    plural: crontabs
+    singular: crontab
+  versions:
+  - name: v1
+    served: true
+    storage: true`)
+	cluster := newClusterWithOptions(t, []UpdateSettingsFunc{SetWatchResyncTimeout(100 * time.Millisecond)}, cronTabCRD, testCronTab())
+	t.Cleanup(func() { cluster.Invalidate() })
+
+	mock := cluster.kubectl.(*kubetest.MockKubectlCmd)
+	baseAPIs := append(slices.Clone(mock.APIResources), crdAPI)
+	var cronTabServed atomic.Bool
+	mock.WithGetAPIResourcesFunc(func(*rest.Config, bool, kube.ResourceFilter) ([]kube.APIResourceInfo, error) {
+		if cronTabServed.Load() {
+			return append(slices.Clone(baseAPIs), cronTabAPI), nil
+		}
+		return slices.Clone(baseAPIs), nil
+	})
+	// The CRD watch never delivers an event, as if the CronTab CRD's Added
+	// event had been dropped when the previous watch stopped.
+	mock.DynamicClient.(*fake.FakeDynamicClient).PrependWatchReactor("customresourcedefinitions", func(testcore.Action) (bool, watch.Interface, error) {
+		return true, watch.NewFake(), nil
+	})
+
+	require.NoError(t, cluster.EnsureSynced())
+	hasCronTab := func() bool {
+		return slices.ContainsFunc(cluster.GetAPIResources(), func(r kube.APIResourceInfo) bool {
+			return r.GroupKind == cronTabAPI.GroupKind
+		})
+	}
+	require.False(t, hasCronTab(), "sanity: CronTab must not be served before the CRD is established")
+
+	// The CronTab CRD is now served, but no CRD event reports it.
+	cronTabServed.Store(true)
+
+	assert.Eventually(t, hasCronTab, 5*time.Second, 50*time.Millisecond,
+		"CronTab must reach apiResources once the CRD watch re-lists CRDs")
 }
 
 func buildTestResourceMap() map[kube.ResourceKey]*Resource {

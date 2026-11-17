@@ -472,15 +472,18 @@ func (c *store) deleteAPIResource(info kube.APIResourceInfo) {
 }
 
 // crdVersionsToAPIResources returns one APIResourceInfo per version of the
-// CRD in obj, or an error if obj doesn't decode. It never returns a partial
-// result.
-func (c *store) crdVersionsToAPIResources(obj *unstructured.Unstructured) ([]kube.APIResourceInfo, error) {
+// CRD in obj, only the served ones if servedOnly is set, or an error if obj
+// doesn't decode. It never returns a partial result.
+func (c *store) crdVersionsToAPIResources(obj *unstructured.Unstructured, servedOnly bool) ([]kube.APIResourceInfo, error) {
 	crd := apiextensionsv1.CustomResourceDefinition{}
 	if err := runtime.DefaultUnstructuredConverter.FromUnstructured(obj.Object, &crd); err != nil {
 		return nil, fmt.Errorf("failed to extract CRD from unstructured: %w", err)
 	}
 	resources := make([]kube.APIResourceInfo, 0, len(crd.Spec.Versions))
 	for _, v := range crd.Spec.Versions {
+		if servedOnly && !v.Served {
+			continue
+		}
 		resources = append(resources, kube.APIResourceInfo{
 			GroupKind: schema.GroupKind{
 				Group: crd.Spec.Group, Kind: crd.Spec.Names.Kind,
@@ -795,7 +798,9 @@ func (c *store) listResources(ctx context.Context, resClient dynamic.ResourceInt
 // reloads the OpenAPI schema. Call it without c.lock; it takes the lock around
 // each API resource update, startMissingWatches and reloadOpenAPISchema.
 func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *unstructured.Unstructured) {
-	resources, err := c.crdVersionsToAPIResources(obj)
+	// Only served versions are added, like a full sync does from discovery.
+	// Deletion removes every version, so none published earlier is left.
+	resources, err := c.crdVersionsToAPIResources(obj, event != watch.Deleted)
 	if err != nil {
 		c.log.Error(err, "Failed to extract CRD resources")
 	}
@@ -815,8 +820,10 @@ func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *un
 		})
 	} else {
 		c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas due to CRD event", "eventType", event, "groupKind", innerGroupKind)
-		// add new CRD's groupkind to c.apigroups
-		if event == watch.Added {
+		// add new CRD's groupkind to c.apigroups. Also on Modified: a CRD
+		// re-listed before discovery served it reaches the next watch only as
+		// Modified events, and appendAPIResource ignores known versions.
+		if event == watch.Added || event == watch.Modified {
 			_ = runSynced(&c.lock, func() error {
 				for i := range resources {
 					c.appendAPIResource(resources[i])
@@ -831,6 +838,62 @@ func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *un
 	if err := runSynced(&c.lock, c.reloadOpenAPISchema); err != nil {
 		c.log.Error(err, "Failed to reload open api schema")
 	}
+}
+
+// handleCRDRelist reconciles the API resources, watches and OpenAPI schema
+// after the CRD watch has re-listed CRDs instead of resuming (watch resync
+// timeout, or the watcher stopped). CRD events still pending when the previous
+// watch stopped are dropped, and the new watch starts from the list's resource
+// version, so handleCRDEvent never sees the Added events of CRDs created around
+// that time. Without this, their kinds would be watched but missing from
+// apiResources (and from Helm's --api-versions) until the next full sync.
+// Call it without c.lock; it takes the lock around each step.
+func (c *store) handleCRDRelist(engine syncEngine) {
+	c.log.Info("Updating Kubernetes APIs, watches, and Open API schemas after re-listing CRDs")
+	// Start the watches first: the merge then runs a later and unfiltered
+	// discovery, so every kind that just got a watch is also published, even
+	// one that became served between the two discovery calls.
+	if err := runSynced(&c.lock, engine.startMissingWatches); err != nil {
+		c.log.Error(err, "Failed to start missing watch after re-listing CRDs")
+	}
+	if err := runSynced(&c.lock, c.mergeDiscoveredAPIResources); err != nil {
+		c.log.Error(err, "Failed to update api resources after re-listing CRDs")
+	}
+	if err := runSynced(&c.lock, c.reloadOpenAPISchema); err != nil {
+		c.log.Error(err, "Failed to reload open api schema after re-listing CRDs")
+	}
+}
+
+// mergeDiscoveredAPIResources adds to apiResources every API resource the
+// cluster currently serves that it doesn't contain yet. Like Added CRD events,
+// it never removes entries, so a kind added from a CRD event that discovery
+// doesn't serve yet is kept. Caller must hold c.lock (use runSynced).
+func (c *store) mergeDiscoveredAPIResources() error {
+	discovered, err := c.kubectl.GetAPIResources(c.config, false, NewNoopSettings())
+	if err != nil {
+		return fmt.Errorf("failed to get api resources: %w", err)
+	}
+	type gkv struct {
+		gk      schema.GroupKind
+		version string
+	}
+	current := c.GetAPIResources()
+	known := make(map[gkv]bool, len(current))
+	for i := range current {
+		known[gkv{current[i].GroupKind, current[i].GroupVersionResource.Version}] = true
+	}
+	updated := slices.Clip(current) // Clip forces a copy on the first append
+	for i := range discovered {
+		key := gkv{discovered[i].GroupKind, discovered[i].GroupVersionResource.Version}
+		if !known[key] {
+			known[key] = true
+			updated = append(updated, discovered[i])
+		}
+	}
+	if len(updated) != len(current) {
+		c.apiResources.Store(&updated)
+	}
+	return nil
 }
 
 // handleAPIServiceEvent re-runs discovery when an aggregated API becomes
