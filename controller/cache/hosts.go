@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"maps"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -21,6 +22,30 @@ type ClusterHosts struct {
 	// RequestsByNode sums, in milli-units, the requests of each node's pods
 	// that haven't succeeded or failed. Every node a pod is on has an entry.
 	RequestsByNode map[string]map[corev1.ResourceName]int64
+}
+
+// NeighborRequests returns RequestsByNode for each of nodes, less the requests
+// of pods.
+func (h *ClusterHosts) NeighborRequests(nodes []string, pods []kube.ResourceKey) map[string]map[corev1.ResourceName]int64 {
+	out := make(map[string]map[corev1.ResourceName]int64, len(nodes))
+	for _, node := range nodes {
+		out[node] = maps.Clone(h.RequestsByNode[node])
+	}
+	for _, key := range pods {
+		pod, ok := h.Pods[key]
+		if !ok || !requestsCount(pod) || out[pod.NodeName] == nil {
+			continue
+		}
+		for name, quantity := range pod.ResourceRequests {
+			out[pod.NodeName][name] -= quantity.MilliValue()
+		}
+	}
+	return out
+}
+
+// requestsCount reports whether pod's requests are in RequestsByNode.
+func requestsCount(pod PodInfo) bool {
+	return pod.Phase != corev1.PodSucceeded && pod.Phase != corev1.PodFailed
 }
 
 type clusterHostsEntry struct {
@@ -131,7 +156,7 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 			if next.RequestsByNode[pod.NodeName] == nil {
 				next.RequestsByNode[pod.NodeName] = map[corev1.ResourceName]int64{}
 			}
-			if pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
+			if !requestsCount(pod) {
 				return false
 			}
 			for name, quantity := range pod.ResourceRequests {

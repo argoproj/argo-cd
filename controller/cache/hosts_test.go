@@ -360,3 +360,30 @@ func TestGetClusterHosts(t *testing.T) {
 		assert.NotContains(t, c.hosts, cluster.Server)
 	})
 }
+
+func TestNeighborRequests(t *testing.T) {
+	cpu := func(q string) corev1.ResourceList {
+		return corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(q)}
+	}
+	running := kube.NewResourceKey("", kube.PodKind, "default", "running")
+	done := kube.NewResourceKey("", kube.PodKind, "default", "done")
+	other := kube.NewResourceKey("", kube.PodKind, "default", "other")
+	h := &ClusterHosts{
+		Pods: map[kube.ResourceKey]PodInfo{
+			running: {NodeName: "node-a", ResourceRequests: cpu("1")},
+			done:    {NodeName: "node-a", ResourceRequests: cpu("8"), Phase: corev1.PodFailed},
+			other:   {NodeName: "node-b", ResourceRequests: cpu("4")},
+		},
+		RequestsByNode: map[string]map[corev1.ResourceName]int64{
+			"node-a": {corev1.ResourceCPU: 3000},
+			"node-b": {corev1.ResourceCPU: 4000},
+		},
+	}
+	got := h.NeighborRequests([]string{"node-a", "node-c"}, []kube.ResourceKey{running, done, other})
+	// done never counted toward node-a; node-b wasn't asked for.
+	assert.Equal(t, map[string]map[corev1.ResourceName]int64{
+		"node-a": {corev1.ResourceCPU: 2000},
+		"node-c": nil,
+	}, got)
+	assert.Equal(t, int64(3000), h.RequestsByNode["node-a"][corev1.ResourceCPU], "published index is unchanged")
+}

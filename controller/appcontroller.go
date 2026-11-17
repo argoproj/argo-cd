@@ -5,11 +5,13 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -704,9 +706,12 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 		corev1.ResourceMemory:  true,
 	}
 	var appPods []kube.ResourceKey
+	seen := map[kube.ResourceKey]bool{}
 	for _, node := range appNodes {
-		if node.Group == "" && node.Kind == kube.PodKind {
-			appPods = append(appPods, kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name))
+		key := kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)
+		if node.Group == "" && node.Kind == kube.PodKind && !seen[key] {
+			seen[key] = true
+			appPods = append(appPods, key)
 		}
 	}
 	if len(appPods) == 0 {
@@ -725,22 +730,7 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 		appPodsByNode[pod.NodeName] = append(appPodsByNode[pod.NodeName], pod)
 	}
 	allNodesInfo := index.Nodes
-
-	// Neighbors are the index's per-node totals minus the index's own copy of
-	// the app's pods, so this costs O(app pods), not O(pods on the app's nodes).
-	appIndexedRequests := map[string]map[corev1.ResourceName]int64{}
-	for _, key := range appPods {
-		pod, ok := index.Pods[key]
-		if !ok || pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
-			continue
-		}
-		if appIndexedRequests[pod.NodeName] == nil {
-			appIndexedRequests[pod.NodeName] = map[corev1.ResourceName]int64{}
-		}
-		for name, quantity := range pod.ResourceRequests {
-			appIndexedRequests[pod.NodeName][name] += quantity.MilliValue()
-		}
-	}
+	neighborRequests := index.NeighborRequests(slices.Collect(maps.Keys(appPodsByNode)), appPods)
 	allowedNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
 
 	var hosts []appv1.HostInfo
@@ -770,12 +760,12 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			}
 		}
 
-		for name, total := range index.RequestsByNode[nodeName] {
+		for name, total := range neighborRequests[nodeName] {
 			if !supportedResourceNames[name] {
 				continue
 			}
 			info := resources[name]
-			info.RequestedByNeighbors += total - appIndexedRequests[nodeName][name]
+			info.RequestedByNeighbors += total
 			resources[name] = info
 		}
 

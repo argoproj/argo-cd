@@ -4708,6 +4708,15 @@ func TestGetAppHosts(t *testing.T) {
 		assert.Equal(t, int64(2000), hosts[0].ResourcesInfo[0].RequestedByNeighbors)
 	})
 
+	t.Run("subtracts a pod listed twice once", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		ctrl.stateCache, _ = mockHostsCache(map[kube.ResourceKey]statecache.PodInfo{pod1: index.Pods[pod1]}, index)
+		hosts, err := ctrl.getAppHosts(cluster, app, append(appNodes, appNodes...))
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, int64(2000), hosts[0].ResourcesInfo[0].RequestedByNeighbors)
+	})
+
 	t.Run("skips the cache for apps without pods", func(t *testing.T) {
 		ctrl := newCtrl(t)
 		var calls *atomic.Int32
