@@ -812,25 +812,33 @@ func TestUpdateLive(t *testing.T) {
 
 func TestPruneResource(t *testing.T) {
 	tests := []struct {
-		kind     string
+		name     string
+		key      kube.ResourceKey
 		resource schema.GroupVersionResource
 	}{
-		{kind: "Secret", resource: secretResource},
-		{kind: "ConfigMap", resource: configMapResource},
-		{kind: application.AppProjectKind, resource: appprojectsResource},
-		{kind: application.ApplicationKind, resource: applicationsResource},
-		{kind: application.ApplicationSetKind, resource: appplicationSetResource},
+		{name: "Secret", key: kube.ResourceKey{Kind: "Secret", Name: "my-cluster"}, resource: secretResource},
+		{name: "cluster CA ConfigMap", key: kube.ResourceKey{Kind: "ConfigMap", Name: common.ArgoCDClusterCAConfigMapName}, resource: configMapResource},
+		{name: application.AppProjectKind, key: kube.ResourceKey{Group: application.Group, Kind: application.AppProjectKind, Name: "default"}, resource: appprojectsResource},
+		{name: application.ApplicationKind, key: kube.ResourceKey{Group: application.Group, Kind: application.ApplicationKind, Name: "guestbook"}, resource: applicationsResource},
+		{name: application.ApplicationSetKind, key: kube.ResourceKey{Group: application.Group, Kind: application.ApplicationSetKind, Name: "guestbook"}, resource: appplicationSetResource},
 	}
 	for _, tt := range tests {
-		t.Run(tt.kind, func(t *testing.T) {
-			resource, ok := pruneResource(tt.kind)
+		t.Run(tt.name, func(t *testing.T) {
+			resource, ok := pruneResource(tt.key)
 			require.True(t, ok)
 			assert.Equal(t, tt.resource, resource)
 		})
 	}
 
+	for _, name := range []string{common.ArgoCDConfigMapName, common.ArgoCDRBACConfigMapName, common.ArgoCDKnownHostsConfigMapName, common.ArgoCDTLSCertsConfigMapName} {
+		t.Run("other ConfigMap "+name, func(t *testing.T) {
+			_, ok := pruneResource(kube.ResourceKey{Kind: "ConfigMap", Name: name})
+			assert.False(t, ok)
+		})
+	}
+
 	t.Run("unknown kind", func(t *testing.T) {
-		_, ok := pruneResource("Deployment")
+		_, ok := pruneResource(kube.ResourceKey{Group: "apps", Kind: "Deployment", Name: "argocd-server"})
 		assert.False(t, ok)
 	})
 }

@@ -384,7 +384,7 @@ func NewImportCommand() *cobra.Command {
 				}
 
 				if prune {
-					resource, ok := pruneResource(key.Kind)
+					resource, ok := pruneResource(key)
 					if !ok {
 						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
 					}
@@ -441,12 +441,12 @@ func NewImportCommand() *cobra.Command {
 	return &command
 }
 
-func pruneResource(kind string) (schema.GroupVersionResource, bool) {
-	switch kind {
+func pruneResource(key kube.ResourceKey) (schema.GroupVersionResource, bool) {
+	switch key.Kind {
 	case "Secret":
 		return secretResource, true
 	case "ConfigMap":
-		return configMapResource, true
+		return configMapResource, key.Name == common.ArgoCDClusterCAConfigMapName
 	case application.AppProjectKind:
 		return appprojectsResource, true
 	case application.ApplicationKind:
