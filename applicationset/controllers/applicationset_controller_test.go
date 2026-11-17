@@ -3511,15 +3511,17 @@ func TestReconcileClearsRefreshAnnotationWithoutWritingSpec(t *testing.T) {
 	require.NoError(t, corev1.AddToScheme(scheme))
 
 	defaultProject := v1alpha1.AppProject{
-		Name: "default", Namespace: "argocd",
-		Spec: v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
+		ObjectMeta: metav1.ObjectMeta{Name: "default", Namespace: "argocd"},
+		Spec:       v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
 	}
 	appSet := v1alpha1.ApplicationSet{
-		Name:      "name",
-		Namespace: "argocd",
-		Annotations: map[string]string{
-			argocommon.AnnotationApplicationSetRefresh: "true",
-			"unrelated": "kept",
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "name",
+			Namespace: "argocd",
+			Annotations: map[string]string{
+				argocommon.AnnotationApplicationSetRefresh: "true",
+				"unrelated": "kept",
+			},
 		},
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -3539,9 +3541,11 @@ func TestReconcileClearsRefreshAnnotationWithoutWritingSpec(t *testing.T) {
 	}
 
 	secret := &corev1.Secret{
-		Name:      "my-cluster",
-		Namespace: "argocd",
-		Labels:    map[string]string{argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster},
+		ObjectMeta: metav1.ObjectMeta{
+			Name:      "my-cluster",
+			Namespace: "argocd",
+			Labels:    map[string]string{argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster},
+		},
 		Data: map[string][]byte{
 			"name":   []byte("good-cluster"),
 			"server": []byte("https://good-cluster"),
@@ -3596,7 +3600,7 @@ func TestReconcileClearsRefreshAnnotationWithoutWritingSpec(t *testing.T) {
 		ClusterInformer: clusterInformer,
 	}
 
-	_, err = r.Reconcile(t.Context(), ctrl.Request{Namespace: "argocd", Name: "name"})
+	_, err = r.Reconcile(t.Context(), ctrl.Request{NamespacedName: types.NamespacedName{Namespace: "argocd", Name: "name"}})
 	require.NoError(t, err)
 
 	assert.Zero(t, appSetUpdates, "the ApplicationSet must not be written with a full Update")
