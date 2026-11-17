@@ -553,6 +553,13 @@ func newAuth(repoURL string, creds Creds) (transport.AuthMethod, error) {
 		}
 		auth := githttp.TokenAuth{Token: token}
 		return &auth, nil
+	case AWSCodeCommitCreds:
+		username, password, err := creds.getCredentials()
+		if err != nil {
+			return nil, fmt.Errorf("failed to get AWS CodeCommit credentials: %w", err)
+		}
+		auth := githttp.BasicAuth{Username: username, Password: password}
+		return &auth, nil
 	}
 
 	// Without explicit credentials, go-git's DefaultAuthBuilder would fall

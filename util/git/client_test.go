@@ -26,6 +26,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"golang.org/x/crypto/ssh"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/go-git/go-git/v5/plumbing"
 	"github.com/go-git/go-git/v5/plumbing/format/pktline"
 	"github.com/go-git/go-git/v5/plumbing/transport"
@@ -2525,6 +2526,41 @@ func Test_newAuth_AzureWorkloadIdentity(t *testing.T) {
 	require.NoError(t, err)
 	_, ok := auth.(*githttp.TokenAuth)
 	require.Truef(t, ok, "expected TokenAuth but got %T", auth)
+}
+
+func Test_newAuth_AWSCodeCommit(t *testing.T) {
+	provider := staticCredProvider{
+		creds: aws.Credentials{
+			AccessKeyID:     "mock-access-key-id",
+			SecretAccessKey: "mock-secret-access-key",
+		},
+	}
+	creds := AWSCodeCommitCreds{
+		store:        &memoryCredsStore{},
+		repoURL:      "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+		credProvider: provider,
+	}
+
+	auth, err := newAuth(creds.repoURL, creds)
+	require.NoError(t, err)
+
+	basicAuth, ok := auth.(*githttp.BasicAuth)
+	require.Truef(t, ok, "expected BasicAuth but got %T", auth)
+	assert.Equal(t, "mock-access-key-id", basicAuth.Username)
+	assert.Regexp(t, `^[0-9]{8}T[0-9]{6}Z[0-9a-f]{64}$`, basicAuth.Password)
+	assert.Len(t, basicAuth.Password, 80)
+}
+
+func Test_newAuth_AWSCodeCommit_Error(t *testing.T) {
+	creds := AWSCodeCommitCreds{
+		store:   &memoryCredsStore{},
+		repoURL: "://invalid-url",
+	}
+
+	auth, err := newAuth(creds.repoURL, creds)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "failed to get AWS CodeCommit credentials")
+	assert.Nil(t, auth)
 }
 
 // Test_newAuth_SSH_HostKeyAlgorithms verifies that for SSH creds with a known

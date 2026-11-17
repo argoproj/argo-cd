@@ -1330,6 +1330,42 @@ func TestRepository_AWSCodeCommit_SecretConversion(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, convertedRepoFallback.EnableAWSCodeCommitSigV4)
 	assert.Equal(t, "arn:aws:iam::123456789012:role/my-role-fallback", convertedRepoFallback.AWSCodeCommitRoleARN)
+
+	// 4. Updating repository with legacy key removes legacy and sets canonical
+	secExistingLegacy := &corev1.Secret{
+		Data: map[string][]byte{
+			"awsCodeCommitRoleArn": []byte("arn:aws:iam::123456789012:role/old-role"),
+		},
+	}
+	repoUpdate := &appsv1.Repository{
+		AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/new-role",
+	}
+	secUpdated := backend.repositoryToSecret(repoUpdate, secExistingLegacy)
+	assert.Equal(t, []byte("arn:aws:iam::123456789012:role/new-role"), secUpdated.Data["awsCodeCommitRoleARN"])
+	assert.NotContains(t, secUpdated.Data, "awsCodeCommitRoleArn")
+
+	// 5. Clearing repository role ARN removes both canonical and legacy keys
+	secExistingBoth := &corev1.Secret{
+		Data: map[string][]byte{
+			"awsCodeCommitRoleARN": []byte("arn:aws:iam::123456789012:role/canonical"),
+			"awsCodeCommitRoleArn": []byte("arn:aws:iam::123456789012:role/legacy"),
+		},
+	}
+	repoCleared := &appsv1.Repository{
+		AWSCodeCommitRoleARN: "",
+	}
+	secCleared := backend.repositoryToSecret(repoCleared, secExistingBoth)
+	assert.NotContains(t, secCleared.Data, "awsCodeCommitRoleARN")
+	assert.NotContains(t, secCleared.Data, "awsCodeCommitRoleArn")
+
+	// 6. Invalid boolean handling in secretToRepository
+	secInvalidBool := &corev1.Secret{
+		Data: map[string][]byte{
+			"enableAWSCodeCommitSigV4": []byte("invalid-boolean"),
+		},
+	}
+	_, err = secretToRepository(secInvalidBool)
+	require.Error(t, err)
 }
 
 func TestRepoCreds_AWSCodeCommit_SecretConversion(t *testing.T) {
@@ -1363,4 +1399,40 @@ func TestRepoCreds_AWSCodeCommit_SecretConversion(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, convertedCredsFallback.EnableAWSCodeCommitSigV4)
 	assert.Equal(t, "arn:aws:iam::123456789012:role/my-role-fallback", convertedCredsFallback.AWSCodeCommitRoleARN)
+
+	// 4. Updating repoCreds with legacy key removes legacy and sets canonical
+	secExistingLegacy := &corev1.Secret{
+		Data: map[string][]byte{
+			"awsCodeCommitRoleArn": []byte("arn:aws:iam::123456789012:role/old-role"),
+		},
+	}
+	credsUpdate := &appsv1.RepoCreds{
+		AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/new-role",
+	}
+	secUpdated := backend.repoCredsToSecret(credsUpdate, secExistingLegacy)
+	assert.Equal(t, []byte("arn:aws:iam::123456789012:role/new-role"), secUpdated.Data["awsCodeCommitRoleARN"])
+	assert.NotContains(t, secUpdated.Data, "awsCodeCommitRoleArn")
+
+	// 5. Clearing repoCreds role ARN removes both canonical and legacy keys
+	secExistingBoth := &corev1.Secret{
+		Data: map[string][]byte{
+			"awsCodeCommitRoleARN": []byte("arn:aws:iam::123456789012:role/canonical"),
+			"awsCodeCommitRoleArn": []byte("arn:aws:iam::123456789012:role/legacy"),
+		},
+	}
+	credsCleared := &appsv1.RepoCreds{
+		AWSCodeCommitRoleARN: "",
+	}
+	secCleared := backend.repoCredsToSecret(credsCleared, secExistingBoth)
+	assert.NotContains(t, secCleared.Data, "awsCodeCommitRoleARN")
+	assert.NotContains(t, secCleared.Data, "awsCodeCommitRoleArn")
+
+	// 6. Invalid boolean handling in secretToRepoCred
+	secInvalidBool := &corev1.Secret{
+		Data: map[string][]byte{
+			"enableAWSCodeCommitSigV4": []byte("invalid-boolean"),
+		},
+	}
+	_, err = backend.secretToRepoCred(secInvalidBool)
+	require.Error(t, err)
 }

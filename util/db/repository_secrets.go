@@ -468,7 +468,13 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secretCopy, "azureServicePrincipalTenantId", repository.AzureServicePrincipalTenantId)
 	updateSecretString(secretCopy, "azureActiveDirectoryEndpoint", repository.AzureActiveDirectoryEndpoint)
 	updateSecretBool(secretCopy, "enableAWSCodeCommitSigV4", repository.EnableAWSCodeCommitSigV4)
-	updateSecretString(secretCopy, "awsCodeCommitRoleARN", repository.AWSCodeCommitRoleARN)
+	if repository.AWSCodeCommitRoleARN != "" {
+		updateSecretString(secretCopy, "awsCodeCommitRoleARN", repository.AWSCodeCommitRoleARN)
+		delete(secretCopy.Data, "awsCodeCommitRoleArn")
+	} else {
+		delete(secretCopy.Data, "awsCodeCommitRoleARN")
+		delete(secretCopy.Data, "awsCodeCommitRoleArn")
+	}
 	addSecretMetadata(secretCopy, s.getSecretType())
 
 	return secretCopy
@@ -587,7 +593,13 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	updateSecretString(secretCopy, "azureServicePrincipalTenantID", repoCreds.AzureServicePrincipalTenantId)
 	updateSecretString(secretCopy, "azureActiveDirectoryEndpoint", repoCreds.AzureActiveDirectoryEndpoint)
 	updateSecretBool(secretCopy, "enableAWSCodeCommitSigV4", repoCreds.EnableAWSCodeCommitSigV4)
-	updateSecretString(secretCopy, "awsCodeCommitRoleARN", repoCreds.AWSCodeCommitRoleARN)
+	if repoCreds.AWSCodeCommitRoleARN != "" {
+		updateSecretString(secretCopy, "awsCodeCommitRoleARN", repoCreds.AWSCodeCommitRoleARN)
+		delete(secretCopy.Data, "awsCodeCommitRoleArn")
+	} else {
+		delete(secretCopy.Data, "awsCodeCommitRoleARN")
+		delete(secretCopy.Data, "awsCodeCommitRoleArn")
+	}
 	addSecretMetadata(secretCopy, s.getRepoCredSecretType())
 
 	return secretCopy

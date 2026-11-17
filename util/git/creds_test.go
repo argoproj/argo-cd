@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -20,6 +21,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/google/uuid"
 	"github.com/kballard/go-shellquote"
 	gocache "github.com/patrickmn/go-cache"
@@ -34,7 +36,6 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
-	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 type cred struct {
@@ -1417,8 +1418,8 @@ func Test_parseRegionFromCodeCommitHostname(t *testing.T) {
 
 func TestGenerateCodeCommitCredentials_Permanent(t *testing.T) {
 	creds := aws.Credentials{
-		AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
-		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		AccessKeyID:     "mock-codecommit-access-key",
+		SecretAccessKey: "mock-codecommit-secret-key",
 	}
 	fixedTime := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
 	repoURL := "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo"
@@ -1428,7 +1429,7 @@ func TestGenerateCodeCommitCredentials_Permanent(t *testing.T) {
 	require.NoError(t, err)
 
 	// Permanent credentials should output the AccessKeyID directly
-	assert.Equal(t, "AKIAIOSFODNN7EXAMPLE", username)
+	assert.Equal(t, "mock-codecommit-access-key", username)
 
 	// Password format must be <timestamp>Z<signature_hex>
 	assert.True(t, strings.HasPrefix(password, "20261116T120000Z"), "password should start with timestampZ")
@@ -1448,10 +1449,10 @@ func TestGenerateCodeCommitCredentials_Permanent(t *testing.T) {
 }
 
 func TestGenerateCodeCommitCredentials_Temporary(t *testing.T) {
-	sessionToken := "AQoDYXdzEJr1k678+test/token=sample"
+	sessionToken := "mock-session-token+with/special=chars"
 	creds := aws.Credentials{
-		AccessKeyID:     "ASIAIOSFODNN7EXAMPLE",
-		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		AccessKeyID:     "mock-codecommit-temp-key",
+		SecretAccessKey: "mock-codecommit-temp-secret",
 		SessionToken:    sessionToken,
 	}
 	fixedTime := time.Date(2026, 11, 16, 14, 30, 0, 0, time.UTC)
@@ -1461,11 +1462,11 @@ func TestGenerateCodeCommitCredentials_Temporary(t *testing.T) {
 	username, password, err := GenerateCodeCommitCredentials(repoURL, region, creds, fixedTime)
 	require.NoError(t, err)
 
-	// Temporary credentials username must encode AccessKeyID + '%' + SessionToken, with '%' encoded as '%25'
-	assert.True(t, strings.HasPrefix(username, "ASIAIOSFODNN7EXAMPLE%25"), "username should contain percent-encoded % separator")
-	assert.Contains(t, username, "%2B", "plus should be URL encoded")
-	assert.Contains(t, username, "%2F", "slash should be URL encoded")
-	assert.Contains(t, username, "%3D", "equals should be URL encoded")
+	// Temporary credentials username must encode AccessKeyID + '%' + SessionToken directly without URL escaping
+	assert.Equal(t, "mock-codecommit-temp-key%"+sessionToken, username)
+	assert.Contains(t, username, "+", "plus should be preserved literally")
+	assert.Contains(t, username, "/", "slash should be preserved literally")
+	assert.Contains(t, username, "=", "equals should be preserved literally")
 
 	assert.True(t, strings.HasPrefix(password, "20261116T143000Z"))
 	assert.Len(t, password, 80)
@@ -1473,8 +1474,8 @@ func TestGenerateCodeCommitCredentials_Temporary(t *testing.T) {
 
 func TestGenerateCodeCommitCredentials_URLPaths(t *testing.T) {
 	creds := aws.Credentials{
-		AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
-		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		AccessKeyID:     "mock-codecommit-access-key",
+		SecretAccessKey: "mock-codecommit-secret-key",
 	}
 	fixedTime := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
 
@@ -1496,8 +1497,8 @@ func TestGenerateCodeCommitCredentials_URLPaths(t *testing.T) {
 
 func TestGenerateCodeCommitCredentials_Errors(t *testing.T) {
 	creds := aws.Credentials{
-		AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
-		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		AccessKeyID:     "mock-codecommit-access-key",
+		SecretAccessKey: "mock-codecommit-secret-key",
 	}
 	now := time.Now().UTC()
 
@@ -1530,8 +1531,8 @@ func TestAWSCodeCommitCreds_Environ_SuccessAndCleanup(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
 	provider := staticCredProvider{
 		creds: aws.Credentials{
-			AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
-			SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			AccessKeyID:     "mock-codecommit-access-key",
+			SecretAccessKey: "mock-codecommit-secret-key",
 		},
 	}
 	creds := AWSCodeCommitCreds{
@@ -1546,8 +1547,8 @@ func TestAWSCodeCommitCreds_Environ_SuccessAndCleanup(t *testing.T) {
 
 	// Verify the credential stored in memory
 	for _, c := range store.creds {
-		assert.Equal(t, "AKIAIOSFODNN7EXAMPLE", c.username)
-		assert.True(t, strings.Contains(c.password, "Z"))
+		assert.Equal(t, "mock-codecommit-access-key", c.username)
+		assert.Contains(t, c.password, "Z")
 	}
 
 	// Verify cleanup
@@ -1559,8 +1560,8 @@ func TestAWSCodeCommitCreds_Environ_RegionFallback(t *testing.T) {
 	store := &memoryCredsStore{creds: make(map[string]cred)}
 	provider := staticCredProvider{
 		creds: aws.Credentials{
-			AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
-			SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+			AccessKeyID:     "mock-codecommit-access-key",
+			SecretAccessKey: "mock-codecommit-secret-key",
 		},
 	}
 
@@ -1610,4 +1611,82 @@ func TestAWSCodeCommitCreds_GetUserInfo(t *testing.T) {
 	require.NoError(t, err)
 	assert.Empty(t, username)
 	assert.Empty(t, email)
+}
+
+func TestAWSCodeCommitCreds_Environ_AmbientCredentials(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "mock-env-access-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "mock-env-secret-key")
+
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	creds := AWSCodeCommitCreds{
+		store:   store,
+		repoURL: "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+	}
+
+	closer, _, err := creds.Environ()
+	require.NoError(t, err)
+	utilio.Close(closer)
+}
+
+type roundTripFunc func(req *http.Request) *http.Response
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req), nil
+}
+
+func TestAWSCodeCommitCreds_Environ_AssumeRole(t *testing.T) {
+	t.Setenv("AWS_ACCESS_KEY_ID", "mock-env-access-key")
+	t.Setenv("AWS_SECRET_ACCESS_KEY", "mock-env-secret-key")
+
+	mockHTTP := &http.Client{
+		Transport: roundTripFunc(func(_ *http.Request) *http.Response {
+			xmlBody := `<AssumeRoleResponse xmlns="https://sts.amazonaws.com/doc/2011-06-15/">
+  <AssumeRoleResult>
+    <Credentials>
+      <AccessKeyId>mock-assumed-key-id</AccessKeyId>
+      <SecretAccessKey>mock-assumed-secret-key</SecretAccessKey>
+      <SessionToken>mock-assumed-token</SessionToken>
+      <Expiration>2026-11-18T12:00:00Z</Expiration>
+    </Credentials>
+  </AssumeRoleResult>
+</AssumeRoleResponse>`
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Header:     http.Header{"Content-Type": []string{"text/xml"}},
+				Body:       io.NopCloser(strings.NewReader(xmlBody)),
+			}
+		}),
+	}
+
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	creds := AWSCodeCommitCreds{
+		store:      store,
+		repoURL:    "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+		roleARN:    "arn:aws:iam::123456789012:role/mock-role",
+		httpClient: mockHTTP,
+	}
+
+	closer, _, err := creds.Environ()
+	require.NoError(t, err)
+	require.Len(t, store.creds, 1)
+
+	for _, c := range store.creds {
+		assert.Equal(t, "mock-assumed-key-id%mock-assumed-token", c.username)
+		assert.Contains(t, c.password, "Z")
+	}
+
+	utilio.Close(closer)
+	assert.Empty(t, store.creds)
+}
+
+func TestAWSCodeCommitCreds_Environ_InvalidURL(t *testing.T) {
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	creds := AWSCodeCommitCreds{
+		store:   store,
+		repoURL: "://invalid-url",
+	}
+
+	_, _, err := creds.Environ()
+	require.Error(t, err)
+	require.ErrorContains(t, err, "unable to determine AWS region")
 }

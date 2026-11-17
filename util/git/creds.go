@@ -1304,6 +1304,7 @@ type AWSCodeCommitCreds struct {
 	repoURL      string
 	roleARN      string
 	credProvider aws.CredentialsProvider
+	httpClient   aws.HTTPClient
 }
 
 // NewAWSCodeCommitCreds creates a new AWSCodeCommitCreds instance.
@@ -1322,46 +1323,7 @@ func (c AWSCodeCommitCreds) GetUserInfo(_ context.Context) (string, string, erro
 
 // Environ configures AskPass credentials for AWS CodeCommit using SigV4 authentication.
 func (c AWSCodeCommitCreds) Environ() (io.Closer, []string, error) {
-	ctx := context.TODO()
-
-	parsed, err := giturls.Parse(c.repoURL)
-	if err != nil {
-		return NopCloser{}, nil, fmt.Errorf("failed to parse repository URL %q: %w", SanitizeRepoURL(c.repoURL), err)
-	}
-
-	region, err := parseRegionFromCodeCommitHostname(parsed.Hostname())
-	if err != nil {
-		region = text.FirstNonEmpty(os.Getenv("AWS_REGION"), os.Getenv("AWS_DEFAULT_REGION"))
-		if region == "" {
-			return NopCloser{}, nil, fmt.Errorf("unable to determine AWS region for CodeCommit repository %q: %w", SanitizeRepoURL(c.repoURL), err)
-		}
-	}
-
-	var awsCreds aws.Credentials
-	if c.credProvider != nil {
-		awsCreds, err = c.credProvider.Retrieve(ctx)
-		if err != nil {
-			return NopCloser{}, nil, fmt.Errorf("failed to retrieve AWS credentials: %w", err)
-		}
-	} else {
-		cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
-		if err != nil {
-			return NopCloser{}, nil, fmt.Errorf("failed to load AWS configuration: %w", err)
-		}
-
-		if c.roleARN != "" {
-			stsClient := sts.NewFromConfig(cfg)
-			assumeRoleProvider := stscreds.NewAssumeRoleProvider(stsClient, c.roleARN)
-			cfg.Credentials = aws.NewCredentialsCache(assumeRoleProvider)
-		}
-
-		awsCreds, err = cfg.Credentials.Retrieve(ctx)
-		if err != nil {
-			return NopCloser{}, nil, fmt.Errorf("failed to retrieve AWS credentials: %w", err)
-		}
-	}
-
-	username, password, err := GenerateCodeCommitCredentials(c.repoURL, region, awsCreds, time.Now().UTC())
+	username, password, err := c.getCredentials()
 	if err != nil {
 		return NopCloser{}, nil, fmt.Errorf("failed to generate CodeCommit credentials: %w", err)
 	}
@@ -1373,6 +1335,53 @@ func (c AWSCodeCommitCreds) Environ() (io.Closer, []string, error) {
 		c.store.Remove(nonce)
 		return nil
 	}), env, nil
+}
+
+func (c AWSCodeCommitCreds) getCredentials() (string, string, error) {
+	ctx := context.TODO()
+
+	parsed, err := giturls.Parse(c.repoURL)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse repository URL %q: %w", SanitizeRepoURL(c.repoURL), err)
+	}
+
+	region, err := parseRegionFromCodeCommitHostname(parsed.Hostname())
+	if err != nil {
+		region = text.FirstNonEmpty(os.Getenv("AWS_REGION"), os.Getenv("AWS_DEFAULT_REGION"))
+		if region == "" {
+			return "", "", fmt.Errorf("unable to determine AWS region for CodeCommit repository %q: %w", SanitizeRepoURL(c.repoURL), err)
+		}
+	}
+
+	var awsCreds aws.Credentials
+	if c.credProvider != nil {
+		awsCreds, err = c.credProvider.Retrieve(ctx)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to retrieve AWS credentials: %w", err)
+		}
+	} else {
+		loadOpts := []func(*config.LoadOptions) error{config.WithRegion(region)}
+		if c.httpClient != nil {
+			loadOpts = append(loadOpts, config.WithHTTPClient(c.httpClient))
+		}
+		cfg, err := config.LoadDefaultConfig(ctx, loadOpts...)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to load AWS configuration: %w", err)
+		}
+
+		if c.roleARN != "" {
+			stsClient := sts.NewFromConfig(cfg)
+			assumeRoleProvider := stscreds.NewAssumeRoleProvider(stsClient, c.roleARN)
+			cfg.Credentials = aws.NewCredentialsCache(assumeRoleProvider)
+		}
+
+		awsCreds, err = cfg.Credentials.Retrieve(ctx)
+		if err != nil {
+			return "", "", fmt.Errorf("failed to retrieve AWS credentials: %w", err)
+		}
+	}
+
+	return GenerateCodeCommitCredentials(c.repoURL, region, awsCreds, time.Now().UTC())
 }
 
 // parseRegionFromCodeCommitHostname extracts the AWS region from a CodeCommit hostname.
@@ -1419,8 +1428,8 @@ func GenerateCodeCommitCredentials(repoURL, region string, creds aws.Credentials
 	// 1. Generate Username
 	var username string
 	if creds.SessionToken != "" {
-		// Temporary credentials: concatenate AccessKeyID with % and SessionToken, then percent-encode.
-		username = url.QueryEscape(creds.AccessKeyID + "%" + creds.SessionToken)
+		// Temporary credentials: concatenate AccessKeyID with % and SessionToken.
+		username = creds.AccessKeyID + "%" + creds.SessionToken
 	} else {
 		username = creds.AccessKeyID
 	}
