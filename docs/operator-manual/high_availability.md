@@ -156,8 +156,10 @@ on disk to prevent independent locks being created for the same identity.
 > failure after successful HTTP validation does not discard the valid response.
 
 A warm dependency build makes no index request. An expired index is conditionally revalidated
-when validators are available. Hard refresh (`NoCache`) and forced revision resolution
-(`NoRevisionCache`) fetch unconditionally **when a dependency build actually executes**.
+when validators are available. Normal and webhook refreshes (`NoRevisionCache`) resolve the
+latest Git revision while preserving index freshness: fresh records make no index request and
+expired records are conditionally revalidated. Hard refresh (`NoCache`) fetches unconditionally
+**when a dependency build actually executes**.
 Existing dependency markers, downloaded charts and `Chart.lock` still govern whether a build
 runs and which versions it uses. Enabling the cache does not force a rebuild or unlock versions.
 Unsupported getter schemes retain Helm's original registration and refresh path for the whole build.

@@ -15,6 +15,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -98,6 +99,7 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 	var mu sync.Mutex
 	currentVersion := "1.0.0"
 	requiredPassword := ""
+	archiveRequests := 0
 	type indexRequest struct {
 		conditional   string
 		status, bytes int
@@ -109,6 +111,7 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 		if r.URL.Path != "/index.yaml" {
 			for version, body := range archives {
 				if r.URL.Path == "/child-"+version+".tgz" {
+					archiveRequests++
 					_, _ = w.Write(body)
 					return
 				}
@@ -126,6 +129,7 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 		}
 		etag := `"` + currentVersion + `"`
 		w.Header().Set("ETag", etag)
+		w.Header().Set("Last-Modified", time.Unix(1_700_000_000, 0).UTC().Format(http.TimeFormat))
 		request := indexRequest{conditional: r.Header.Get("If-None-Match"), status: http.StatusOK}
 		if request.conditional == etag {
 			request.status = http.StatusNotModified
@@ -144,10 +148,20 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 	t.Cleanup(server.Close)
 	remote := t.TempDir()
 	initGitRepo(t, newGitRepoOptions{path: remote})
-	for _, name := range []string{"cold", "warm", "expired", "hard", "revision", "locked"} {
+	chartNames := []string{"cold", "warm", "expired", "hard", "revision", "locked"}
+	for i := range 25 {
+		chartNames = append(chartNames, fmt.Sprintf("normal-%02d", i))
+	}
+	for _, state := range []string{"cold", "warm", "expired"} {
+		for _, refresh := range []string{"ordinary", "normal", "hard"} {
+			chartNames = append(chartNames, "details-"+state+"-"+refresh)
+		}
+	}
+	for _, name := range chartNames {
 		dir := filepath.Join(remote, name)
 		require.NoError(t, os.MkdirAll(dir, 0o755))
 		require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte("apiVersion: v2\nname: parent\nversion: 0.1.0\ndependencies:\n  - name: child\n    version: '>=1.0.0'\n    repository: '@charts'\n"), 0o644))
+		require.NoError(t, os.WriteFile(filepath.Join(dir, "values.yaml"), []byte("fixture: details\n"), 0o644))
 	}
 	legacyDir := filepath.Join(remote, "legacy")
 	require.NoError(t, os.MkdirAll(legacyDir, 0o755))
@@ -204,6 +218,38 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 		t.Helper()
 		return generateUsing(service, name, hard, revision)
 	}
+	details := func(state string) {
+		t.Helper()
+		for _, refresh := range []struct {
+			name           string
+			hard, revision bool
+		}{
+			{name: "ordinary"},
+			{name: "normal", revision: true},
+			{name: "hard", hard: true, revision: true},
+		} {
+			t.Run("details-"+state+"-"+refresh.name, func(t *testing.T) {
+				mu.Lock()
+				before := len(requests)
+				mu.Unlock()
+				url := "file://" + remote
+				response, err := service.GetAppDetails(t.Context(), &apiclient.RepoServerAppDetailsQuery{
+					Repo:    &v1alpha1.Repository{Repo: url},
+					Source:  &v1alpha1.ApplicationSource{RepoURL: url, Path: "details-" + state + "-" + refresh.name, TargetRevision: "HEAD", Helm: &v1alpha1.ApplicationSourceHelm{}},
+					Repos:   []*v1alpha1.Repository{{Name: "charts", Type: "helm", Repo: server.URL}},
+					NoCache: refresh.hard, NoRevisionCache: refresh.revision,
+				})
+				require.NoError(t, err)
+				require.NotNil(t, response.Helm)
+				require.Equal(t, "fixture: details\n", response.Helm.Values)
+				mu.Lock()
+				count := len(requests) - before
+				mu.Unlock()
+				require.Zero(t, count, "app details inspect local values without building dependencies")
+			})
+		}
+	}
+	details("cold")
 	cold := generate("cold", false, false)
 	files, err := filepath.Glob(filepath.Join(storeDir, "*.json"))
 	require.NoError(t, err)
@@ -226,16 +272,73 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 	info, err := os.Stat(files[0])
 	require.NoError(t, err)
 	require.WithinDuration(t, validatedAt, info.ModTime(), time.Millisecond, "Redis-to-disk copies must preserve validation time")
+	details("warm")
+	t.Run("normal-refresh-warm-after-commit", func(t *testing.T) {
+		// A webhook resolves the branch again after a commit. Each app has a
+		// clean chart directory, so manifest/build-marker hits cannot hide GETs.
+		command := exec.CommandContext(t.Context(), "git", "-c", "user.name=Cache Test", "-c", "user.email=cache-test@example.invalid", "commit", "--allow-empty", "-m", "normal refresh")
+		command.Dir = remote
+		output, err := command.CombinedOutput()
+		require.NoError(t, err, "%s", output)
+		command = exec.CommandContext(t.Context(), "git", "rev-parse", "HEAD")
+		command.Dir = remote
+		revision, err := command.Output()
+		require.NoError(t, err)
+		body, err := os.ReadFile(files[0])
+		require.NoError(t, err)
+		mu.Lock()
+		before := archiveRequests
+		mu.Unlock()
+		for i := range 25 {
+			response := generate(fmt.Sprintf("normal-%02d", i), false, true)
+			require.Equal(t, strings.TrimSpace(string(revision)), response.Revision, "normal refresh must still resolve the latest Git commit")
+			require.Contains(t, response.Manifests[0], "1.0.0")
+		}
+		mu.Lock()
+		count := len(requests)
+		downloads := archiveRequests - before
+		mu.Unlock()
+		assert.Equal(t, 1, count, "25 normal-refresh builds must reuse the fresh index without any GETs")
+		assert.Equal(t, 25, downloads, "each app must really build and download its dependency")
+		after, err := os.ReadFile(files[0])
+		require.NoError(t, err)
+		assert.Equal(t, body, after, "fresh index reuse must not rewrite the retained record")
+	})
 	old := time.Now().Add(-2 * time.Hour)
 	require.NoError(t, os.Chtimes(files[0], old, old))
 	record.StoredAt = old.UTC().Format(time.RFC3339Nano)
 	require.NoError(t, cacheMocks.cache.SetHelmIndexRetainedRecord(identity, record))
-	generate("expired", false, false)
+	details("expired")
+	t.Run("normal-refresh-expired", func(t *testing.T) {
+		mu.Lock()
+		before := len(requests)
+		mu.Unlock()
+		response := generate("expired", false, true)
+		require.Contains(t, response.Manifests[0], "1.0.0")
+		mu.Lock()
+		got := append([]indexRequest(nil), requests[before:]...)
+		mu.Unlock()
+		require.Len(t, got, 1, "expired normal refresh must revalidate once")
+		assert.Equal(t, `"1.0.0"`, got[0].conditional)
+		assert.Equal(t, http.StatusNotModified, got[0].status)
+		assert.Zero(t, got[0].bytes)
+	})
 	mu.Lock()
 	currentVersion = "2.0.0"
 	mu.Unlock()
-	hard := generate("hard", true, false)
-	require.Contains(t, hard.Manifests[0], "2.0.0")
+	t.Run("hard-refresh", func(t *testing.T) {
+		mu.Lock()
+		before := len(requests)
+		mu.Unlock()
+		response := generate("hard", true, false)
+		require.Contains(t, response.Manifests[0], "2.0.0")
+		mu.Lock()
+		got := append([]indexRequest(nil), requests[before:]...)
+		mu.Unlock()
+		require.Len(t, got, 1, "hard refresh must fetch the index exactly once")
+		require.Equal(t, http.StatusOK, got[0].status)
+		require.Empty(t, got[0].conditional, "hard refresh must remain unconditional")
+	})
 	generate("revision", false, true)
 	legacy := generate("legacy", false, false)
 	require.Contains(t, legacy.Manifests[0], "2.0.0")
@@ -249,18 +352,17 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 	require.NoError(t, closer.Close())
 	// A hard refresh does not invent a dependency-build trigger when charts
 	// and the existing marker already make templating succeed.
-	unchanged := generate("cold", true, false)
+	unchanged := generate("normal-00", true, false)
 	require.Equal(t, cold.Manifests, unchanged.Manifests)
 	mu.Lock()
 	got := append([]indexRequest(nil), requests...)
 	mu.Unlock()
-	require.Len(t, got, 4)
-	require.Equal(t, []int{200, 304, 200, 200}, []int{got[0].status, got[1].status, got[2].status, got[3].status})
+	require.Len(t, got, 3)
+	require.Equal(t, []int{200, 304, 200}, []int{got[0].status, got[1].status, got[2].status})
 	require.Empty(t, got[0].conditional)
 	require.Equal(t, `"1.0.0"`, got[1].conditional)
 	require.Zero(t, got[1].bytes)
 	require.Empty(t, got[2].conditional, "hard refresh must be unconditional")
-	require.Empty(t, got[3].conditional, "forced revision resolution must be unconditional")
 	disabled := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{HelmIndexCacheDir: storeDir, HelmRegistryMaxIndexSize: 1 << 20, HelmManifestMaxExtractedSize: 1 << 20}, &git.NoopCredsStore{}, t.TempDir())
 	require.Nil(t, disabled.helmIndexStore, "the default must retain the legacy path")
 	require.NoError(t, disabled.Init())
@@ -306,5 +408,5 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 	_, err = service.TestRepository(t.Context(), &apiclient.TestRepositoryRequest{Repo: &v1alpha1.Repository{Repo: server.URL, Type: "helm", Username: "reader", Password: "wrong"}})
 	require.ErrorContains(t, err, "401", "warm data must never hide invalid current credentials")
 	t.Log("always-fresh RPCs: listing=304 connectivity=304 revision=304 chart-details=304 extraction=200 changed-listing=200 wrong-credentials=401")
-	t.Logf("index requests: disabled=%d cold=1 Redis-warm=0 expired=1/304 hard=1/200 revision=1/200 locked=0 legacy=0 existing-build=0", disabledGets)
+	t.Logf("index requests: disabled=%d cold=1 Redis-warm=0 normal-refresh-apps=25/0 expired-normal=1/304 hard=1/200 revision=0 locked=0 legacy=0 existing-build=0", disabledGets)
 }

@@ -1464,10 +1464,10 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 		return nil, "", fmt.Errorf("error getting helm repos: %w", err)
 	}
 
-	// Hard refresh (NoCache) and forced revision resolution (NoRevisionCache)
-	// must contact the origin unconditionally: the dependency build then
-	// ignores the persistent index store instead of serving a warm index.
-	forceHelmRefresh := q.NoCache || q.NoRevisionCache
+	// Only hard refresh bypasses Helm index freshness. Normal/webhook refreshes
+	// set NoRevisionCache to resolve the latest Git commit, while dependency
+	// indexes still reuse fresh records and conditionally revalidate expired ones.
+	forceHelmRefresh := q.NoCache
 	h, err := helm.NewHelmAppWithIndexStore(appPath, helmRepos, isLocal, version, proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure, helmIndexStore, forceHelmRefresh)
 	if err != nil {
 		return nil, "", fmt.Errorf("error initializing helm app object: %w", err)
@@ -2705,7 +2705,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	if err != nil {
 		return err
 	}
-	h, err := helm.NewHelmAppWithIndexStore(appPath, helmRepos, false, version, q.Repo.Proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure, s.helmIndexStore, q.NoCache || q.NoRevisionCache)
+	h, err := helm.NewHelmAppWithIndexStore(appPath, helmRepos, false, version, q.Repo.Proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure, s.helmIndexStore, q.NoCache)
 	if err != nil {
 		return err
 	}
