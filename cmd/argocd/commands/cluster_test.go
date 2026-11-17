@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,6 +12,8 @@ import (
 
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	clusterpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster"
+	clustermocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster/mocks"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -265,4 +268,39 @@ func TestApplyServerProxyOverride_InvalidURL(t *testing.T) {
 	err := applyServerProxyOverride(true, "http//missing-colon", clst)
 	require.Error(t, err, "expected error for invalid proxy URL")
 	assert.Equal(t, "old", clst.Config.ProxyUrl, "ProxyUrl should not change on error")
+}
+
+func TestNewClusterCommand_InvalidateCacheRegistered(t *testing.T) {
+	command := NewClusterCommand(&argocdclient.ClientOptions{}, clientcmd.NewDefaultPathOptions())
+
+	sub, _, err := command.Find([]string{"invalidate-cache"})
+	require.NoError(t, err)
+	assert.Equal(t, "invalidate-cache", sub.Name())
+}
+
+func Test_invalidateClusterCache(t *testing.T) {
+	t.Run("selects the cluster by name", func(t *testing.T) {
+		clusterIf := clustermocks.NewClusterServiceClient(t)
+		clusterIf.EXPECT().InvalidateCache(t.Context(), &clusterpkg.ClusterQuery{Name: "my-cluster"}).
+			Return(&v1alpha1.Cluster{Name: "my-cluster"}, nil).Once()
+
+		require.NoError(t, invalidateClusterCache(t.Context(), clusterIf, "my-cluster"))
+	})
+
+	t.Run("selects the cluster by server URL", func(t *testing.T) {
+		clusterIf := clustermocks.NewClusterServiceClient(t)
+		clusterIf.EXPECT().InvalidateCache(t.Context(), &clusterpkg.ClusterQuery{Server: "https://my-server"}).
+			Return(&v1alpha1.Cluster{Server: "https://my-server"}, nil).Once()
+
+		require.NoError(t, invalidateClusterCache(t.Context(), clusterIf, "https://my-server"))
+	})
+
+	t.Run("returns the API error", func(t *testing.T) {
+		expectedErr := errors.New("permission denied")
+		clusterIf := clustermocks.NewClusterServiceClient(t)
+		clusterIf.EXPECT().InvalidateCache(t.Context(), &clusterpkg.ClusterQuery{Name: "my-cluster"}).
+			Return(nil, expectedErr).Once()
+
+		require.ErrorIs(t, invalidateClusterCache(t.Context(), clusterIf, "my-cluster"), expectedErr)
+	})
 }
