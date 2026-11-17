@@ -57,7 +57,7 @@ When the action is completed a pull request will be generated that contains the 
 
 6. Merge the pull request and proceed to step 2.
 
-### Release Notes Blog Post
+#### Release Notes Blog Post
 
 The GitHub release notes always contain a `Release Notes Blog Post` section. If the release branch contains a
 `RELEASE_BLOG_POST_URL` file (a single line with the URL), the section links to that blog post. Otherwise it contains
