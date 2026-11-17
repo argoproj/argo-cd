@@ -335,7 +335,7 @@ func NewCommand() *cobra.Command {
 	// argocd k8s event logging flag
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
-	command.Flags().StringVar(&hydrationFormat, "hydration-format", env.StringFromEnv("ARGOCD_HYDRATION_FORMAT", common.DefaultHydrationFormat), "Set the hydration format. Valid values: 'simple' or 'split'.")
+	command.Flags().StringVar(&hydrationFormat, "hydration-format", env.StringFromEnv("ARGOCD_HYDRATION_FORMAT", common.DefaultHydrationFormat), fmt.Sprintf("Set the hydration format. Valid values: 'simple' or 'split'. (Default '%s')", common.DefaultHydrationFormat))
 	repoServerClientTLSConfigSrc = tls.AddClientTLSFlagsToCmdWithPrefix(&command, "APPLICATION_CONTROLLER")
 	cacheSource = appstatecache.AddCacheFlagsToCmd(&command, cacheutil.Options{
 		OnClientCreated: func(client *redis.Client) {

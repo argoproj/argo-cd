@@ -183,8 +183,6 @@ select one of the matching Secrets and log a warning saying "Found multiple cred
 
 ### Hydration Format
 
-### Hydration Format
-
 The source hydrator has two different formats which can be used for the manifests it generates.
 
 * **`simple`** (default)
@@ -205,7 +203,7 @@ The source hydrator has two different formats which can be used for the manifest
     * `metadataName` is the name as specified at '.metadata.name' inside the manifest  
 
 #### Setting the hydration format
-The hydration format can be set using the flag `--hydration-format=<hydrationFormat>` on the **argocd-application-controller**.
+The hydration format can be set using the flag `--hydration-format=<hydrationFormat>` on the **argocd-application-controller**. Instead of using the flag, users can also set the environment variable `ARGOCD_HYDRATION_FORMAT` for the **argocd-application-controller**.
 
 ## Source Configuration Options
 

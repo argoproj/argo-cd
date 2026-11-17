@@ -32,7 +32,7 @@ const gitAttributesContents = `**/README.md linguist-generated=true
 const inexistentDirName = "_unnamespaced"
 
 type manifestMetadata struct {
-	ApiVersion string `json:"ApiVersion"`
+	ApiVersion string `json:"apiVersion"`
 	Kind       string `json:"kind"`
 	Metadata   struct {
 		GenerateName string `json:"generateName,omitempty"`
@@ -215,7 +215,7 @@ func writeManifests(root *os.Root, dirPath string, manifests []*apiclient.Hydrat
 	// No need to use SecureJoin here, as the path is already sanitized.
 	manifestPath := filepath.Join(dirPath, ManifestYaml)
 
-	file, err := root.OpenFile(manifestPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+	file, err := root.OpenFile(manifestPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to open manifest file: %w", err)
 	}
@@ -333,7 +333,7 @@ func ensureDirectoryExists(root *os.Root, directoryPath string, recreate bool) e
 		}
 	}
 
-	err = root.MkdirAll(directoryPath, os.ModePerm)
+	err = root.MkdirAll(directoryPath, 0o755)
 	// return an error if mkdir crashed despite the directory being non-existent
 	if err != nil && os.IsNotExist(err) {
 		return fmt.Errorf("failed to create directory: %w", err)
@@ -354,7 +354,7 @@ func writeManifestToFile(root *os.Root, manifest string, filePath string) error 
 		return fmt.Errorf("failed to stat directory: %w", err)
 	}
 
-	file, err := root.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, os.ModePerm)
+	file, err := root.OpenFile(filePath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
 	if err != nil {
 		return fmt.Errorf("failed to open manifest file %s: %w", filePath, err)
 	}
@@ -373,6 +373,13 @@ func writeManifestToFile(root *os.Root, manifest string, filePath string) error 
 	}
 
 	enc := yaml.NewEncoder(file)
+	defer func() {
+		err := enc.Close()
+		if err != nil {
+			log.WithError(err).Error("failed to close yaml encoder")
+		}
+	}()
+	enc.SetIndent(2)
 
 	err = enc.Encode(&obj.Object)
 	if err != nil {
