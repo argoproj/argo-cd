@@ -199,6 +199,7 @@ func NewLiveStateCache(
 		appInformer:      appInformer,
 		db:               db,
 		clusters:         make(map[string]clustercache.ClusterCache),
+		hosts:            make(map[string]*clusterHostsEntry),
 		onObjectUpdated:  onObjectUpdated,
 		settingsMgr:      settingsMgr,
 		metricsServer:    metricsServer,
@@ -237,10 +238,8 @@ type liveStateCache struct {
 	cacheSettings cacheSettings
 	lock          sync.RWMutex
 
-	// hosts holds each cluster's index for GetClusterHosts. It is dropped
-	// wherever the cluster cache is invalidated.
-	hosts     map[string]*clusterHostsEntry
-	hostsLock sync.Mutex
+	// hosts holds each cluster's index for GetClusterHosts, alongside clusters.
+	hosts map[string]*clusterHostsEntry
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
@@ -667,6 +666,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	})
 
 	c.clusters[cluster.Server] = clusterCache
+	c.hosts[cluster.Server] = &clusterHostsEntry{}
 
 	return clusterCache, nil
 }
@@ -698,9 +698,11 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
 		)
 	}
-	c.hostsLock.Lock()
-	c.hosts = nil
-	c.hostsLock.Unlock()
+	c.lock.RLock()
+	for _, entry := range c.hosts {
+		entry.current.Store(nil)
+	}
+	c.lock.RUnlock()
 	log.Info("live state cache invalidated")
 }
 
@@ -871,10 +873,8 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 			cluster.Invalidate()
 			c.lock.Lock()
 			delete(c.clusters, newCluster.Server)
-			c.lock.Unlock()
-			c.hostsLock.Lock()
 			delete(c.hosts, newCluster.Server)
-			c.hostsLock.Unlock()
+			c.lock.Unlock()
 			return
 		}
 
@@ -902,9 +902,11 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		if len(updateSettings) > 0 || forceInvalidate {
 			cluster.Invalidate(updateSettings...)
-			c.hostsLock.Lock()
-			delete(c.hosts, newCluster.Server)
-			c.hostsLock.Unlock()
+			c.lock.RLock()
+			if entry := c.hosts[newCluster.Server]; entry != nil {
+				entry.current.Store(nil)
+			}
+			c.lock.RUnlock()
 			go func() {
 				// warm up cluster cache
 				_ = cluster.EnsureSynced()
@@ -922,10 +924,8 @@ func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 		cluster.Invalidate()
 		c.lock.Lock()
 		delete(c.clusters, clusterServer)
-		c.lock.Unlock()
-		c.hostsLock.Lock()
 		delete(c.hosts, clusterServer)
-		c.hostsLock.Unlock()
+		c.lock.Unlock()
 	}
 }
 

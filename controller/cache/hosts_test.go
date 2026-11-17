@@ -112,6 +112,7 @@ func TestGetClusterHosts(t *testing.T) {
 		db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 		return &liveStateCache{
 			clusters:        map[string]cache.ClusterCache{cluster.Server: clusterCache},
+			hosts:           map[string]*clusterHostsEntry{cluster.Server: {}},
 			clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 		}, scans
 	}
@@ -329,17 +330,17 @@ func TestGetClusterHosts(t *testing.T) {
 			t.Helper()
 			_, _, err := c.GetClusterHosts(cluster, appPods)
 			require.NoError(t, err)
-			require.Contains(t, c.hosts, cluster.Server)
+			require.NotNil(t, c.hosts[cluster.Server].current.Load())
 		}
 		c, _ := setup(t, healthy())
 
 		build(t, c)
 		c.handleModEvent(cluster, &appv1.Cluster{Server: cluster.Server, Namespaces: []string{"default"}})
-		assert.NotContains(t, c.hosts, cluster.Server)
+		assert.Nil(t, c.hosts[cluster.Server].current.Load())
 
 		build(t, c)
 		c.invalidate(cacheSettings{})
-		assert.NotContains(t, c.hosts, cluster.Server)
+		assert.Nil(t, c.hosts[cluster.Server].current.Load())
 
 		build(t, c)
 		c.handleDeleteEvent(cluster.Server)

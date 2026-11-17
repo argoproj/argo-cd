@@ -61,25 +61,12 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 		return live, nil, nil
 	}
 
-	c.hostsLock.Lock()
-	if c.hosts == nil {
-		c.hosts = map[string]*clusterHostsEntry{}
-	}
+	c.lock.RLock()
 	entry := c.hosts[server.Server]
-	if entry == nil {
-		// Checked under hostsLock: removals delete the cluster before its
-		// entry, so an entry created for a removed cluster would never be dropped.
-		c.lock.RLock()
-		_, managed := c.clusters[server.Server]
-		c.lock.RUnlock()
-		if !managed {
-			c.hostsLock.Unlock()
-			return live, nil, nil
-		}
-		entry = &clusterHostsEntry{}
-		c.hosts[server.Server] = entry
+	c.lock.RUnlock()
+	if entry == nil { // removed since getSyncedCluster
+		return live, nil, nil
 	}
-	c.hostsLock.Unlock()
 
 	// An index covers the live pods if it has each one's node, or already saw
 	// the pod on that node without it. A pod on a node the index has never
@@ -152,8 +139,8 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 		}
 		return false
 	})
-	// Invalidate clears the sync time, and handleModEvent drops the entry only
-	// after Invalidate; don't publish a scan that raced it (old settings).
+	// Invalidate clears the sync time, and the index is reset only after
+	// Invalidate; don't publish a scan that raced it (old settings).
 	if after := clusterCache.GetClusterInfo().LastCacheSyncTime; syncedAt != nil && after != nil && syncedAt.Equal(*after) {
 		entry.current.Store(next)
 	}
@@ -169,7 +156,9 @@ func (c *liveStateCache) dropHostsOnNodeAdded(server string, newRes, oldRes *clu
 	if key := newRes.ResourceKey(); key.Group != "" || key.Kind != "Node" {
 		return
 	}
-	c.hostsLock.Lock()
-	delete(c.hosts, server)
-	c.hostsLock.Unlock()
+	c.lock.RLock()
+	if entry := c.hosts[server]; entry != nil {
+		entry.current.Store(nil)
+	}
+	c.lock.RUnlock()
 }
