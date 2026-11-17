@@ -404,6 +404,12 @@ func TestGetARMTokenResource(t *testing.T) {
 			want:           "https://custom.example.com",
 		},
 		{
+			name:           "explicit override wins over china authority host",
+			armResourceEnv: "https://custom.example.com",
+			authorityHost:  "https://login.chinacloudapi.cn/",
+			want:           "https://custom.example.com",
+		},
+		{
 			name:          "us government authority host",
 			authorityHost: "https://login.microsoftonline.us",
 			want:          "https://management.core.usgovcloudapi.net",
@@ -416,6 +422,16 @@ func TestGetARMTokenResource(t *testing.T) {
 		{
 			name:          "china authority host",
 			authorityHost: "https://login.partner.microsoftonline.cn",
+			want:          "https://management.core.chinacloudapi.cn",
+		},
+		{
+			name:          "china authority host alias",
+			authorityHost: "https://login.chinacloudapi.cn",
+			want:          "https://management.core.chinacloudapi.cn",
+		},
+		{
+			name:          "china authority host alias with trailing slash",
+			authorityHost: "https://login.chinacloudapi.cn/",
 			want:          "https://management.core.chinacloudapi.cn",
 		},
 		{

@@ -324,7 +324,7 @@ func getARMTokenResource() string {
 	case "https://login.microsoftonline.us":
 		return "https://management.core.usgovcloudapi.net"
 	// Azure China (Mooncake)
-	case "https://login.partner.microsoftonline.cn":
+	case "https://login.partner.microsoftonline.cn", "https://login.chinacloudapi.cn":
 		return "https://management.core.chinacloudapi.cn"
 	// Azure Public (Commercial) or unrecognized
 	default:
