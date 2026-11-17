@@ -35,6 +35,7 @@ type Cache struct {
 	repoCacheExpiration      time.Duration
 	revisionCacheExpiration  time.Duration
 	revisionCacheLockTimeout time.Duration
+	helmIndexCacheExpiration time.Duration
 }
 
 // GetRepoCacheExpiration returns the repository cache expiration duration.
@@ -42,9 +43,14 @@ func (c *Cache) GetRepoCacheExpiration() time.Duration {
 	return c.repoCacheExpiration
 }
 
-// GetRevisionCacheExpiration returns the freshness window used for repository indexes.
-func (c *Cache) GetRevisionCacheExpiration() time.Duration {
-	return c.revisionCacheExpiration
+// GetHelmIndexCacheExpiration returns HTTP Helm index freshness, independently of Git revisions.
+func (c *Cache) GetHelmIndexCacheExpiration() time.Duration {
+	return c.helmIndexCacheExpiration
+}
+
+// SetHelmIndexCacheExpiration configures HTTP Helm index freshness before the cache is used.
+func (c *Cache) SetHelmIndexCacheExpiration(expiration time.Duration) {
+	c.helmIndexCacheExpiration = expiration
 }
 
 // ClusterRuntimeInfo holds cluster runtime information
@@ -69,7 +75,10 @@ type CachedManifestResponse struct {
 }
 
 func NewCache(cache *cacheutil.Cache, repoCacheExpiration time.Duration, revisionCacheExpiration time.Duration, revisionCacheLockTimeout time.Duration) *Cache {
-	return &Cache{cache, repoCacheExpiration, revisionCacheExpiration, revisionCacheLockTimeout}
+	return &Cache{
+		cache: cache, repoCacheExpiration: repoCacheExpiration, revisionCacheExpiration: revisionCacheExpiration,
+		revisionCacheLockTimeout: revisionCacheLockTimeout, helmIndexCacheExpiration: helm.DefaultIndexCacheExpiration,
+	}
 }
 
 func AddCacheFlagsToCmd(cmd *cobra.Command, opts ...cacheutil.Options) func() (*Cache, error) {
@@ -218,7 +227,7 @@ func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 		return errors.New("helm index data is nil, skipping cache")
 	}
 	// The v2 record is retained for the LONG repo-cache window, not the short
-	// revision window: after the body's freshness expires, its validators
+	// index freshness window: after the body's freshness expires, its validators
 	// must still be available so the next read can revalidate with a 304
 	// instead of re-downloading (freshness itself is enforced by conditional
 	// GET against the origin, not by redis TTL).
@@ -231,7 +240,7 @@ func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 	return c.cache.SetItem(
 		helmIndexRefsKey(repo),
 		indexData,
-		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+		&cacheutil.CacheActionOpts{Expiration: c.helmIndexCacheExpiration})
 }
 
 // GetHelmIndex retrieves helm repository index.yaml content from cache,
@@ -243,7 +252,7 @@ func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 		// Freshness is enforced HERE, not by the redis TTL: the record is
 		// retained longer (for 304 revalidation) but stale bodies are not
 		// served to ordinary readers.
-		if record.Fresh(c.revisionCacheExpiration) {
+		if record.Fresh(c.helmIndexCacheExpiration) {
 			*indexData = record.Body
 			return nil
 		}
@@ -270,7 +279,7 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 	if err != nil {
 		return fmt.Errorf("invalid helm index validation time: %w", err)
 	}
-	remaining := time.Until(validatedAt.Add(c.revisionCacheExpiration + max(24*time.Hour, c.revisionCacheExpiration)))
+	remaining := time.Until(validatedAt.Add(c.helmIndexCacheExpiration + max(24*time.Hour, c.helmIndexCacheExpiration)))
 	if remaining <= 0 {
 		return nil
 	}
@@ -314,7 +323,7 @@ func (c *Cache) SetHelmIndexValidators(repo string, etag string, lastModified st
 	return c.cache.SetItem(
 		helmIndexValidatorsKey(repo),
 		&HelmIndexValidators{ETag: etag, LastModified: lastModified},
-		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+		&cacheutil.CacheActionOpts{Expiration: c.helmIndexCacheExpiration})
 }
 
 // GetHelmIndexValidators retrieves the HTTP validators for a repository's

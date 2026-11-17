@@ -137,7 +137,7 @@ type RepoServerInitConstants struct {
 	GitLsRemoteOptimizedEnabled                  bool
 	HelmUserAgent                                string
 	HelmChartCacheExpiration                     time.Duration // Cache expiration for repo
-	// HelmIndexCacheEnabled enables dependency reuse; freshness comes from the revision cache.
+	// HelmIndexCacheEnabled enables dependency reuse with independent Helm index freshness.
 	HelmIndexCacheEnabled bool
 	// HelmIndexCacheFilterEnabled enables dependency-only private Helm indexes.
 	HelmIndexCacheFilterEnabled bool
@@ -165,10 +165,10 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		if initConstants.HelmIndexCacheDir == "" {
 			initConstants.HelmIndexCacheDir = helm.DefaultIndexCacheDir()
 		}
-		var freshness time.Duration
+		freshness := helm.DefaultIndexCacheExpiration
 		var recordCache helm.IndexRecordCache
 		if cache != nil {
-			freshness = cache.GetRevisionCacheExpiration()
+			freshness = cache.GetHelmIndexCacheExpiration()
 			recordCache = cache
 		}
 		helmIndexStore = helm.NewIndexStore(initConstants.HelmIndexCacheDir, freshness, initConstants.HelmRegistryMaxIndexSize, recordCache)

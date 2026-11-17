@@ -127,9 +127,27 @@ writable Argo-managed directory, use `--helm-index-cache-dir`,
 `ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_DIR`, or `reposerver.helm.index.cache.dir` in the ConfigMap.
 An unset or empty directory selects the default; setting a directory alone does not enable reuse.
 
-Freshness uses `--revision-cache-expiration` (default `3m`), including its
-`ARGOCD_RECONCILIATION_TIMEOUT` default. It is independent of `--repo-cache-expiration`.
-Setting revision-cache expiration to zero makes ordinary builds revalidate every time.
+HTTP Helm index freshness uses `--helm-index-cache-expiration` (default `60s`),
+`ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_EXPIRATION`, or
+`reposerver.helm.index.cache.expiration` in `argocd-cmd-params-cm`. It is independent of
+`--revision-cache-expiration`, `ARGOCD_RECONCILIATION_TIMEOUT`, OCI tag-cache freshness and
+`--repo-cache-expiration`. Setting Helm index expiration to zero revalidates on every use.
+
+Choose the freshness window for your repository:
+
+| Expiration | Suggested use |
+| --- | --- |
+| `60s` (default) | General starting point balancing freshness and revalidation work. |
+| `30s` | Repositories with reliable ETags that remain stable while content is unchanged, when faster pickup of new chart versions is needed. Unchanged indexes can return `304`. |
+| `3m` or longer | Busy virtual repositories whose ETag changes frequently. Each changed index requires a full `200` response, so a longer window avoids repeated large transfers and processing. |
+
+Expiry is demand-driven: the next eligible dependency build revalidates an expired index.
+This setting does not poll repositories, trigger manifest generation, override `Chart.lock`
+or pinned versions, or wait before applying changed Git/Application values. Always-fresh
+Go-client operations continue contacting the origin regardless of this freshness window.
+A `304` still republishes the complete disk/Redis record, so frequent revalidation also
+increases local/shared storage work even when no index body is transferred from the origin.
+
 Expired indexes and validators remain available for another `max(24h, freshness)`;
 normal reads and snapshot copies never extend either deadline. Successful origin responses
 advance validation time. A retained index is never served after an origin validation error.

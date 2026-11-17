@@ -57,6 +57,7 @@ func NewCommand() *cobra.Command {
 		helmIndexCacheEnabled              bool
 		helmIndexCacheFilterEnabled        bool
 		helmIndexCacheDir                  string
+		helmIndexCacheExpiration           time.Duration
 		parallelismLimit                   int64
 		listenPort                         int
 		listenHost                         string
@@ -125,6 +126,7 @@ func NewCommand() *cobra.Command {
 
 			cache, err := cacheSrc()
 			errors.CheckError(err)
+			cache.SetHelmIndexCacheExpiration(helmIndexCacheExpiration)
 			repoCacheExpiration := cache.GetRepoCacheExpiration()
 			maxCombinedDirectoryManifestsQuantity, err := resource.ParseQuantity(maxCombinedDirectoryManifestsSize)
 			errors.CheckError(err)
@@ -291,7 +293,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().StringVar(&helmRegistryMaxIndexSize, "helm-registry-max-index-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE", "1G"), "Maximum size of registry index file")
-	command.Flags().BoolVar(&helmIndexCacheEnabled, "helm-index-cache-enabled", env.ParseBoolFromEnv(common.EnvHelmIndexCacheEnabled, false), "Enable Helm dependency index reuse (freshness uses --revision-cache-expiration)")
+	command.Flags().BoolVar(&helmIndexCacheEnabled, "helm-index-cache-enabled", env.ParseBoolFromEnv(common.EnvHelmIndexCacheEnabled, false), "Enable Helm dependency index reuse (freshness uses --helm-index-cache-expiration)")
+	command.Flags().DurationVar(&helmIndexCacheExpiration, "helm-index-cache-expiration", env.ParseDurationFromEnv(common.EnvHelmIndexCacheExpiration, helm.DefaultIndexCacheExpiration, 0, math.MaxInt64), "Freshness window for HTTP Helm indexes, independent of Git revision caching; 0 revalidates on every use")
 	command.Flags().BoolVar(&helmIndexCacheFilterEnabled, "helm-index-cache-filter-enabled", env.ParseBoolFromEnv(common.EnvHelmIndexCacheFilterEnabled, false), "Use dependency-only private Helm indexes with complete-index fallback (requires --helm-index-cache-enabled)")
 	command.Flags().StringVar(&helmIndexCacheDir, "helm-index-cache-dir", env.StringFromEnv(common.EnvHelmIndexCacheDir, helm.DefaultIndexCacheDir()), "Directory for the Helm dependency index cache (requires --helm-index-cache-enabled)")
 	command.Flags().StringVar(&ociManifestMaxExtractedSize, "oci-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_OCI_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of oci manifest archives when extracted")

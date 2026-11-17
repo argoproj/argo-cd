@@ -3,6 +3,7 @@ package commands
 import (
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -57,4 +58,30 @@ func TestHelmIndexCacheDirectoryFlag(t *testing.T) {
 	filtered, err = command.Flags().GetBool("helm-index-cache-filter-enabled")
 	require.NoError(t, err)
 	require.False(t, filtered, "the explicit flag must force complete indexes despite environment enablement")
+}
+
+func TestHelmIndexCacheExpirationFlag(t *testing.T) {
+	t.Setenv(common.EnvHelmIndexCacheExpiration, "")
+	t.Setenv("ARGOCD_RECONCILIATION_TIMEOUT", "15m")
+	command := NewCommand()
+	expiration, err := command.Flags().GetDuration("helm-index-cache-expiration")
+	require.NoError(t, err)
+	require.Equal(t, time.Minute, expiration, "Helm freshness must not inherit the Git revision interval")
+	require.NoError(t, command.Flags().Set("revision-cache-expiration", "30m"))
+	expiration, err = command.Flags().GetDuration("helm-index-cache-expiration")
+	require.NoError(t, err)
+	require.Equal(t, time.Minute, expiration)
+	t.Setenv(common.EnvHelmIndexCacheExpiration, "30s")
+	command = NewCommand()
+	expiration, err = command.Flags().GetDuration("helm-index-cache-expiration")
+	require.NoError(t, err)
+	require.Equal(t, 30*time.Second, expiration)
+	require.NoError(t, command.Flags().Set("helm-index-cache-expiration", "3m"))
+	expiration, err = command.Flags().GetDuration("helm-index-cache-expiration")
+	require.NoError(t, err)
+	require.Equal(t, 3*time.Minute, expiration, "the explicit flag must override environment freshness")
+	require.NoError(t, command.Flags().Set("helm-index-cache-expiration", "0s"))
+	expiration, err = command.Flags().GetDuration("helm-index-cache-expiration")
+	require.NoError(t, err)
+	require.Zero(t, expiration, "zero requests revalidation on every use")
 }

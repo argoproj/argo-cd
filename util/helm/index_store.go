@@ -29,7 +29,7 @@ type IndexRecordCache interface {
 // builds. Body, validators and validation time live in one atomic JSON record.
 // OS locks coordinate readers, publication, cleanup and ordinary single-flight
 // across goroutines and processes. Helm receives an independent private copy.
-// Freshness uses revision-cache expiration; expired bodies remain available for
+// Freshness uses helm-index-cache-expiration; expired bodies remain available for
 // conditional revalidation for another max(24h, freshness). Reads and copies
 // never restart either deadline.
 type IndexStore struct {
@@ -51,6 +51,9 @@ type IndexStore struct {
 // retentionFloor is the minimum time a stale-but-valid entry is retained
 // beyond freshness so it can be revalidated with conditional GET.
 const retentionFloor = 24 * time.Hour
+
+// DefaultIndexCacheExpiration is the freshness window for HTTP Helm indexes.
+const DefaultIndexCacheExpiration = time.Minute
 
 // DefaultIndexCacheDir returns the pod-local cache directory, respecting the
 // platform's temporary-directory environment variables, including TMPDIR.

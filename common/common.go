@@ -291,6 +291,8 @@ const (
 	EnvHelmUserAgent = "ARGOCD_HELM_USER_AGENT"
 	// EnvHelmIndexCacheEnabled enables dependency index reuse, false by default.
 	EnvHelmIndexCacheEnabled = "ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_ENABLED"
+	// EnvHelmIndexCacheExpiration configures HTTP Helm index freshness, 60 seconds by default.
+	EnvHelmIndexCacheExpiration = "ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_EXPIRATION"
 	// EnvHelmIndexCacheFilterEnabled enables dependency-only private snapshots.
 	EnvHelmIndexCacheFilterEnabled = "ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_FILTER_ENABLED"
 	// EnvHelmIndexCacheDir overrides the Argo-managed dependency index cache directory.

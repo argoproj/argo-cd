@@ -191,6 +191,7 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 		require.NoError(t, err, "%s", output)
 	}
 	cacheMocks := newCacheMocksWithOpts(24*time.Hour, time.Hour, time.Second)
+	cacheMocks.cache.SetHelmIndexCacheExpiration(15 * time.Minute)
 	t.Cleanup(cacheMocks.mockCache.StopRedisCallback)
 	storeDir := t.TempDir()
 	service := NewService(metrics.NewMetricsServer(), cacheMocks.cache, RepoServerInitConstants{
@@ -307,7 +308,8 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, body, after, "fresh index reuse must not rewrite the retained record")
 	})
-	old := time.Now().Add(-2 * time.Hour)
+	// Expire Helm while the one-hour Git revision window is still fresh.
+	old := time.Now().Add(-20 * time.Minute)
 	require.NoError(t, os.Chtimes(files[0], old, old))
 	record.StoredAt = old.UTC().Format(time.RFC3339Nano)
 	require.NoError(t, cacheMocks.cache.SetHelmIndexRetainedRecord(identity, record))
