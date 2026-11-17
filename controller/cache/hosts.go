@@ -31,7 +31,9 @@ type ClusterHosts struct {
 func (h *ClusterHosts) NeighborRequests(nodes []string, pods []kube.ResourceKey) map[string]map[corev1.ResourceName]int64 {
 	out := make(map[string]map[corev1.ResourceName]int64, len(nodes))
 	for _, node := range nodes {
-		out[node] = maps.Clone(h.RequestsByNode[node])
+		if _, ok := h.Nodes[node]; ok {
+			out[node] = maps.Clone(h.RequestsByNode[node])
+		}
 	}
 	seen := make(map[kube.ResourceKey]bool, len(pods))
 	for _, key := range pods {
@@ -171,6 +173,10 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 		}
 		return false
 	})
+	if len(next.Nodes) == 0 {
+		// No hosts without Nodes; covers and dropHostsOnNodeAdded need no Pods.
+		next.Pods, next.RequestsByNode = nil, nil
+	}
 	// Invalidate clears the sync time, and the index is reset only after
 	// Invalidate; don't publish a scan that raced it (old settings).
 	if after := clusterCache.GetClusterInfo().LastCacheSyncTime; syncedAt != nil && after != nil && syncedAt.Equal(*after) {
@@ -181,8 +187,9 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 }
 
 // dropHostsOnNodeAdded resets server's index when a Node is added that the
-// index treats as absent: it has no Nodes, or saw a pod on that node. covers
-// already rebuilds for pods on other new nodes, so autoscaling doesn't reset it.
+// index may hold wrongly: it has no Nodes, saw a pod on that node, holds a
+// same-named Node since deleted, or is being rebuilt. covers already rebuilds
+// for pods on other new nodes, so autoscaling doesn't reset it.
 func (c *liveStateCache) dropHostsOnNodeAdded(server string, newRes, oldRes *clustercache.Resource) {
 	if oldRes != nil || newRes == nil {
 		return
@@ -191,15 +198,26 @@ func (c *liveStateCache) dropHostsOnNodeAdded(server string, newRes, oldRes *clu
 	if key.Group != "" || key.Kind != "Node" {
 		return
 	}
-	c.lock.Lock()
-	defer c.lock.Unlock()
+	c.lock.RLock()
 	entry := c.hosts[server]
+	c.lock.RUnlock()
 	if entry == nil {
 		return
 	}
-	if h := entry.current.Load(); h != nil && len(h.Nodes) > 0 && h.RequestsByNode[key.Name] == nil {
-		return
+	// A rebuild in progress may have scanned before this Node was cached.
+	if entry.rebuild.TryLock() {
+		h := entry.current.Load()
+		entry.rebuild.Unlock()
+		if h != nil && len(h.Nodes) > 0 && h.RequestsByNode[key.Name] == nil {
+			if _, known := h.Nodes[key.Name]; !known {
+				return
+			}
+		}
 	}
+	c.lock.Lock()
 	// A fresh entry, so a rebuild already scanning publishes to the old one.
-	c.hosts[server] = &clusterHostsEntry{}
+	if c.hosts[server] == entry {
+		c.hosts[server] = &clusterHostsEntry{}
+	}
+	c.lock.Unlock()
 }

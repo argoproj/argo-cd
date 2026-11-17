@@ -356,6 +356,36 @@ func TestGetClusterHosts(t *testing.T) {
 		assert.Equal(t, int32(3), scans.Load())
 	})
 
+	t.Run("a Node add resets an index being rebuilt", func(t *testing.T) {
+		c, _ := setup(t, healthy())
+		_, _, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		entry := c.hosts[cluster.Server]
+		entry.rebuild.Lock()
+		defer entry.rebuild.Unlock()
+		c.dropHostsOnNodeAdded(cluster.Server, &cache.Resource{Ref: corev1.ObjectReference{Name: "node-d", Kind: "Node", APIVersion: "v1"}}, nil)
+		assert.NotSame(t, entry, c.hosts[cluster.Server])
+	})
+
+	t.Run("a re-added Node resets the index", func(t *testing.T) {
+		l := healthy()
+		l.nodeC = true // a node without pods
+		c, _ := setup(t, l)
+		_, _, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		// An add for a node the index has means it was deleted and recreated.
+		c.dropHostsOnNodeAdded(cluster.Server, &cache.Resource{Ref: corev1.ObjectReference{Name: "node-c", Kind: "Node", APIVersion: "v1"}}, nil)
+		assert.Nil(t, c.hosts[cluster.Server].current.Load())
+	})
+
+	t.Run("an index without Nodes keeps no pods", func(t *testing.T) {
+		c, _ := setup(t, &live{appPodNode: "node-a", noNodes: true})
+		_, index, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		assert.Nil(t, index.Pods)
+		assert.Nil(t, index.RequestsByNode)
+	})
+
 	t.Run("keeps the index when an unrelated node joins", func(t *testing.T) {
 		c, scans := setup(t, healthy())
 		_, first, err := c.GetClusterHosts(cluster, appPods)
@@ -414,6 +444,7 @@ func TestNeighborRequests(t *testing.T) {
 	done := kube.NewResourceKey("", kube.PodKind, "default", "done")
 	other := kube.NewResourceKey("", kube.PodKind, "default", "other")
 	h := &ClusterHosts{
+		Nodes: map[string]NodeInfo{"node-a": {}, "node-b": {}},
 		Pods: map[kube.ResourceKey]PodInfo{
 			running: {NodeName: "node-a", ResourceRequests: cpu("1")},
 			done:    {NodeName: "node-a", ResourceRequests: cpu("8"), Phase: corev1.PodFailed},
@@ -425,10 +456,9 @@ func TestNeighborRequests(t *testing.T) {
 		},
 	}
 	got := h.NeighborRequests([]string{"node-a", "node-c"}, []kube.ResourceKey{running, done, other})
-	// done never counted toward node-a; node-b wasn't asked for.
+	// done never counted toward node-a; node-b wasn't asked for; node-c isn't a known node.
 	assert.Equal(t, map[string]map[corev1.ResourceName]int64{
 		"node-a": {corev1.ResourceCPU: 2000},
-		"node-c": nil,
 	}, got)
 	assert.Equal(t, int64(3000), h.RequestsByNode["node-a"][corev1.ResourceCPU], "published index is unchanged")
 }
@@ -465,7 +495,11 @@ func (b *benchClusterCache) FindResources(namespace string, predicates ...func(*
 	}
 	found := map[kube.ResourceKey]*cache.Resource{}
 	for key, res := range resources {
-		if predicates[0](res) {
+		matches := true
+		for _, predicate := range predicates {
+			matches = matches && predicate(res)
+		}
+		if matches {
 			found[key] = res
 		}
 	}
