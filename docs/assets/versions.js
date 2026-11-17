@@ -154,21 +154,43 @@ function sortVersionLinks(container) {
 
 // VERSION WARNINGS
 window.addEventListener("DOMContentLoaded", function() {
-  var margin = 30;
-  var headerHeight = document.getElementsByClassName("md-header")[0].offsetHeight;
+  const banner = document.querySelector("div[data-md-component=announce]");
+  const header = document.querySelector("header.md-header");
+  if (!banner || !header) {
+    return;
+  }
+
   const currentVersion = getCurrentVersion();
-  if (currentVersion && currentVersion !== "stable") {
+  const showBanner = currentVersion && currentVersion !== "stable";
+  if (showBanner) {
     const stablePageUrl = escapeHtmlAttr(getStableDocsUrlForCurrentPage());
     if (currentVersion === "latest") {
-      document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href=\"" + stablePageUrl + "\">view the latest stable version.</a></div>";
+      banner.innerHTML = "<div id='announce-msg'>You are viewing the docs for an unreleased version of Argo CD, <a href=\"" + stablePageUrl + "\">view the latest stable version.</a></div>";
     } else {
-      document.querySelector("div[data-md-component=announce]").innerHTML = "<div id='announce-msg'>You are viewing the docs for a previous version of Argo CD, <a href=\"" + stablePageUrl + "\">view the latest stable version.</a></div>";
+      banner.innerHTML = "<div id='announce-msg'>You are viewing the docs for a previous version of Argo CD, <a href=\"" + stablePageUrl + "\">view the latest stable version.</a></div>";
     }
-    var bannerHeight = document.getElementById('announce-msg').offsetHeight + margin;
-    document.querySelector("header.md-header").style.top = bannerHeight + "px";
-    document.querySelector('style').textContent +=
-        "@media screen and (min-width: 76.25em){ .md-sidebar { height: 0;  top:" + (bannerHeight + headerHeight) + "px !important; }}";
-    document.querySelector('style').textContent +=
-        "@media screen and (min-width: 60em){ .md-sidebar--secondary { height: 0;  top:" + (bannerHeight + headerHeight) + "px !important; }}";
   }
+  const sidebarStyle = document.createElement("style");
+  document.head.appendChild(sidebarStyle);
+
+  // Tell versions.css how much of the viewport is covered by sticky elements
+  // so linked anchors are not hidden behind them (#30885), and pin the header
+  // and sidebars below the banner when it is shown. Both the banner (it wraps
+  // on narrow screens) and the header (the version selector is added to it
+  // later) can change height, so re-run this whenever either one resizes.
+  function layoutStickyElements() {
+    const bannerHeight = banner.offsetHeight;
+    const stickyHeight = bannerHeight + header.offsetHeight;
+    document.documentElement.style.setProperty("--argocd-sticky-height", stickyHeight + "px");
+    if (showBanner) {
+      header.style.top = bannerHeight + "px";
+      sidebarStyle.textContent =
+          "@media screen and (min-width: 76.25em){ .md-sidebar { height: 0;  top:" + stickyHeight + "px !important; }}" +
+          "@media screen and (min-width: 60em){ .md-sidebar--secondary { height: 0;  top:" + stickyHeight + "px !important; }}";
+    }
+  }
+  layoutStickyElements();
+  const observer = new ResizeObserver(layoutStickyElements);
+  observer.observe(banner);
+  observer.observe(header);
 });
