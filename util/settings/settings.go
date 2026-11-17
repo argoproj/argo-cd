@@ -1606,8 +1606,10 @@ func (mgr *SettingsManager) clusterSecretEventHandler() cache.ResourceEventHandl
 // for secrets/configmaps that participate in ArgoCD settings) trigger a full
 // GetSettings() reload. AddFunc only notifies for objects created after now, and
 // UpdateFunc only when the resource version actually changed; this prevents spurious
-// reloads caused by the informer resync period delivering synthetic events. Objects that
-// do not implement the expected metadata interfaces are ignored.
+// reloads caused by the informer resync period delivering synthetic events. DeleteFunc
+// only notifies for the cluster CA ConfigMap, so deleting other settings objects keeps
+// taking effect on the next change or restart. Objects that do not implement the
+// expected metadata interfaces are ignored.
 func settingsNotificationEventHandler(now time.Time, tryNotify func()) cache.ResourceEventHandlerFuncs {
 	return cache.ResourceEventHandlerFuncs{
 		AddFunc: func(obj any) {
@@ -1632,11 +1634,16 @@ func settingsNotificationEventHandler(now time.Time, tryNotify func()) cache.Res
 			if tombstone, ok := obj.(cache.DeletedFinalStateUnknown); ok {
 				obj = tombstone.Obj
 			}
-			if isSettingsObject(obj) {
+			if isClusterCAConfigMap(obj) {
 				tryNotify()
 			}
 		},
 	}
+}
+
+func isClusterCAConfigMap(obj any) bool {
+	cm, ok := obj.(*corev1.ConfigMap)
+	return ok && cm.Name == common.ArgoCDClusterCAConfigMapName
 }
 
 func (mgr *SettingsManager) initialize(ctx context.Context) error {
