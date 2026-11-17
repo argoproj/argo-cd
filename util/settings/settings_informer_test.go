@@ -253,33 +253,45 @@ func TestSettingsNotificationEventHandler(t *testing.T) {
 		assert.Zero(t, count)
 	})
 
-	t.Run("delete of a settings object notifies", func(t *testing.T) {
+	clusterCAConfigMap := func(labels map[string]string) *corev1.ConfigMap {
+		return &corev1.ConfigMap{
+			Name:      common.ArgoCDClusterCAConfigMapName,
+			Namespace: "argocd",
+			Labels:    labels,
+		}
+	}
+
+	t.Run("delete of the cluster CA configmap notifies", func(t *testing.T) {
 		now := time.Now()
 		count := 0
 		h := settingsNotificationEventHandler(now, func() { count++ })
 
-		h.OnDelete(settingsObject(now.Add(-time.Hour), "1"))
-		assert.Equal(t, 1, count, "deleting a settings object, or removing its part-of label, must notify")
+		h.OnDelete(clusterCAConfigMap(map[string]string{partOfLabel: "argocd"}))
+		h.OnDelete(clusterCAConfigMap(nil))
+		assert.Equal(t, 2, count, "deleting the cluster CA configmap, or removing its part-of label, must notify")
 	})
 
-	t.Run("delete tombstone of a settings object notifies", func(t *testing.T) {
+	t.Run("delete tombstone of the cluster CA configmap notifies", func(t *testing.T) {
 		now := time.Now()
 		count := 0
 		h := settingsNotificationEventHandler(now, func() { count++ })
 
-		h.OnDelete(cache.DeletedFinalStateUnknown{Key: "argocd/argocd-secret", Obj: settingsObject(now, "1")})
+		h.OnDelete(cache.DeletedFinalStateUnknown{Key: "argocd/" + common.ArgoCDClusterCAConfigMapName, Obj: clusterCAConfigMap(nil)})
 		assert.Equal(t, 1, count)
 	})
 
-	t.Run("delete of a non-settings object or unexpected type does not notify", func(t *testing.T) {
+	t.Run("delete of any other object does not notify", func(t *testing.T) {
 		now := time.Now()
 		count := 0
 		h := settingsNotificationEventHandler(now, func() { count++ })
 
-		nonSettings := &corev1.Secret{Name: "plain"}
+		sameNameSecret := &corev1.Secret{Name: common.ArgoCDClusterCAConfigMapName, Labels: map[string]string{partOfLabel: "argocd"}}
 		assert.NotPanics(t, func() {
-			h.OnDelete(nonSettings)
-			h.OnDelete(cache.DeletedFinalStateUnknown{Key: "argocd/plain", Obj: nonSettings})
+			h.OnDelete(settingsObject(now.Add(-time.Hour), "1"))
+			h.OnDelete(cache.DeletedFinalStateUnknown{Key: "argocd/argocd-secret", Obj: settingsObject(now, "1")})
+			h.OnDelete(&corev1.ConfigMap{Name: common.ArgoCDConfigMapName, Labels: map[string]string{partOfLabel: "argocd"}})
+			h.OnDelete(sameNameSecret)
+			h.OnDelete(cache.DeletedFinalStateUnknown{Key: "argocd/plain", Obj: &corev1.Secret{Name: "plain"}})
 			h.OnDelete("not-an-object")
 		})
 		assert.Zero(t, count)
