@@ -11,7 +11,7 @@ PROJECT_ROOT=$(
     pwd
 )
 PATH="${PROJECT_ROOT}/dist:${PATH}"
-# codegen-local runs this while vendor/ exists. In vendor mode the locally replaced gitops-engine resolves
+# A leftover vendor/ would switch to vendor mode, where the locally replaced gitops-engine resolves
 # under vendor/, so mockery would write its mocks there and leave the real ones stale.
 export GOFLAGS=-mod=mod
 
