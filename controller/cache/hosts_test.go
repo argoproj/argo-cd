@@ -2,6 +2,7 @@ package cache
 
 import (
 	"errors"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -464,13 +465,23 @@ func BenchmarkGetClusterHosts(b *testing.B) {
 			_, _, _ = c.GetClusterHosts(cluster, appPods)
 		}
 	})
-	// The rebuild, at most once per appHostsIndexTTL per cluster.
+	// The rebuild, at most once per appHostsIndexTTL per cluster. retained-B is
+	// the heap the published index holds between rebuilds.
 	b.Run("rebuild", func(b *testing.B) {
 		c := newCache()
+		var before, after runtime.MemStats
+		runtime.GC()
+		runtime.ReadMemStats(&before)
+		_, _, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(b, err)
+		runtime.GC()
+		runtime.ReadMemStats(&after)
 		b.ReportAllocs()
 		for b.Loop() {
 			c.hosts[cluster.Server].current.Store(nil)
 			_, _, _ = c.GetClusterHosts(cluster, appPods)
 		}
+		// After the loop: b.Loop drops metrics reported before it.
+		b.ReportMetric(float64(int64(after.HeapAlloc)-int64(before.HeapAlloc)), "retained-B")
 	})
 }
