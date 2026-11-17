@@ -15,6 +15,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/tools/clientcmd"
 
@@ -383,28 +384,20 @@ func NewImportCommand() *cobra.Command {
 				}
 
 				if prune {
-					var dynClient dynamic.ResourceInterface
-					switch key.Kind {
-					case "Secret":
-						dynClient = client.Resource(secretResource).Namespace(liveObj.GetNamespace())
-					case application.AppProjectKind:
-						dynClient = client.Resource(appprojectsResource).Namespace(liveObj.GetNamespace())
-					case application.ApplicationKind:
-						dynClient = client.Resource(applicationsResource).Namespace(liveObj.GetNamespace())
-						if !dryRun {
-							if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
-								newLive := liveObj.DeepCopy()
-								newLive.SetFinalizers(nil)
-								_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
-								if err != nil && !apierrors.IsNotFound(err) {
-									errors.CheckError(err)
-								}
+					resource, ok := pruneResource(key.Kind)
+					if !ok {
+						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
+					}
+					dynClient := client.Resource(resource).Namespace(liveObj.GetNamespace())
+					if key.Kind == application.ApplicationKind && !dryRun {
+						if finalizers := liveObj.GetFinalizers(); len(finalizers) > 0 {
+							newLive := liveObj.DeepCopy()
+							newLive.SetFinalizers(nil)
+							_, err = dynClient.Update(ctx, newLive, metav1.UpdateOptions{})
+							if err != nil && !apierrors.IsNotFound(err) {
+								errors.CheckError(err)
 							}
 						}
-					case application.ApplicationSetKind:
-						dynClient = client.Resource(appplicationSetResource).Namespace(liveObj.GetNamespace())
-					default:
-						log.Fatalf("Unexpected kind '%s' in prune list", key.Kind)
 					}
 					isForbidden := false
 
@@ -446,6 +439,22 @@ func NewImportCommand() *cobra.Command {
 	command.Flags().StringSliceVarP(&applicationsetNamespaces, "applicationset-namespaces", "", []string{}, fmt.Sprintf("Comma separated list of namespace globs which import of applicationsets is allowed. If not provided, value from '%s' in %s will be used. If it's not defined, only applicationsets without an explicit namespace will be imported to the Argo CD namespace", applicationsetNamespacesCmdParamsKey, common.ArgoCDCmdParamsConfigMapName))
 	command.PersistentFlags().BoolVar(&promptsEnabled, "prompts-enabled", localconfig.GetPromptsEnabled(true), "Force optional interactive prompts to be enabled or disabled, overriding local configuration. If not specified, the local configuration value will be used, which is false by default.")
 	return &command
+}
+
+func pruneResource(kind string) (schema.GroupVersionResource, bool) {
+	switch kind {
+	case "Secret":
+		return secretResource, true
+	case "ConfigMap":
+		return configMapResource, true
+	case application.AppProjectKind:
+		return appprojectsResource, true
+	case application.ApplicationKind:
+		return applicationsResource, true
+	case application.ApplicationSetKind:
+		return appplicationSetResource, true
+	}
+	return schema.GroupVersionResource{}, false
 }
 
 // check app has no need to stop operation.

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/security"
 
@@ -807,4 +808,29 @@ func TestUpdateLive(t *testing.T) {
 			assert.NotNil(t, result)
 		})
 	}
+}
+
+func TestPruneResource(t *testing.T) {
+	tests := []struct {
+		kind     string
+		resource schema.GroupVersionResource
+	}{
+		{kind: "Secret", resource: secretResource},
+		{kind: "ConfigMap", resource: configMapResource},
+		{kind: application.AppProjectKind, resource: appprojectsResource},
+		{kind: application.ApplicationKind, resource: applicationsResource},
+		{kind: application.ApplicationSetKind, resource: appplicationSetResource},
+	}
+	for _, tt := range tests {
+		t.Run(tt.kind, func(t *testing.T) {
+			resource, ok := pruneResource(tt.kind)
+			require.True(t, ok)
+			assert.Equal(t, tt.resource, resource)
+		})
+	}
+
+	t.Run("unknown kind", func(t *testing.T) {
+		_, ok := pruneResource("Deployment")
+		assert.False(t, ok)
+	})
 }
