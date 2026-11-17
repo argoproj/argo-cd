@@ -6520,8 +6520,8 @@ func TestFinalizeApplicationDeletion_EvictsApplicationGoneFromAPIServer(t *testi
 
 func TestNewApplicationController_InvalidClusterCacheConfig(t *testing.T) {
 	ctrl, err := NewApplicationController(
-		test.FakeArgoCDNamespace, nil, nil, nil, nil, nil, nil, nil,
-		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
+		test.FakeArgoCDNamespace, nil, nil, nil, nil, nil, nil, nil, nil,
+		time.Minute, time.Hour, time.Second, 0, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
