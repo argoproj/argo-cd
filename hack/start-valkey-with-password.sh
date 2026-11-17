@@ -25,6 +25,6 @@ else
         docker run --rm --name argocd-redis -i -p "$REDIS_PORT:$REDIS_PORT" docker.io/valkey/valkey:"$REDIS_IMAGE_TAG" --save '' --appendonly no --port "$REDIS_PORT"
     else
         echo "Starting Docker container with password."
-        docker run --rm --name argocd-redis -i -p "$REDIS_PORT:$REDIS_PORT" -e REDIS_PASSWORD="$REDIS_PASSWORD" docker.io/valkey/valkey:"$REDIS_IMAGE_TAG" redis-server --save '' --requirepass "$REDIS_PASSWORD" --appendonly no --port "$REDIS_PORT"
+        docker run --rm --name argocd-redis -i -p "$REDIS_PORT:$REDIS_PORT" -e REDIS_PASSWORD="$REDIS_PASSWORD" docker.io/valkey/valkey:"$REDIS_IMAGE_TAG" valkey-server --save '' --requirepass "$REDIS_PASSWORD" --appendonly no --port "$REDIS_PORT"
     fi
 fi
