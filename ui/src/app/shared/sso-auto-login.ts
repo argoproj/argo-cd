@@ -1,6 +1,8 @@
 import {AuthSettings, UserInfo} from './models';
 
-const pausedStorageKey = 'argocd.sso.autoLoginPaused';
+function pausedStorageKey(): string {
+    return `argocd.sso.autoLoginPaused:${document.querySelector('head > base')?.getAttribute('href') || '/'}`;
+}
 
 /** Query parameter that keeps the login page from redirecting to SSO when set to "false". */
 export const ssoAutoLoginParam = 'sso_auto_login';
@@ -16,24 +18,32 @@ export function isExternalIssuer(userInfo: UserInfo | null | undefined): boolean
 }
 
 /**
- * Stops the login page from redirecting to SSO in this browser, after a logout or a local account login,
- * so the user is neither signed straight back in nor moved off their local account when the session expires.
+ * Stops the login page of this Argo CD instance from redirecting to SSO in this browser, after a logout or a local
+ * account login, so the user is neither signed straight back in nor moved off their local account when the session expires.
  */
 export function pauseAutoLogin() {
     try {
-        window.localStorage.setItem(pausedStorageKey, 'true');
+        window.localStorage.setItem(pausedStorageKey(), String(Date.now()));
     } catch {
         return;
     }
 }
 
-/** Resumes automatic SSO login once the browser holds an SSO session again, however the user reached it. */
-export function resumeAutoLoginForSession(userInfo: UserInfo | null) {
+/**
+ * Resumes automatic SSO login once the browser holds an SSO session again, however the user reached it.
+ * sessionCheckStartedAt is when the user info request started: a pause written at or after that time is newer than
+ * the session the user info describes, so it is kept.
+ */
+export function resumeAutoLoginForSession(userInfo: UserInfo | null, sessionCheckStartedAt: number) {
     if (!userInfo?.loggedIn || !isExternalIssuer(userInfo)) {
         return;
     }
     try {
-        window.localStorage.removeItem(pausedStorageKey);
+        const key = pausedStorageKey();
+        const pausedAt = window.localStorage.getItem(key);
+        if (pausedAt !== null && Number(pausedAt) < sessionCheckStartedAt) {
+            window.localStorage.removeItem(key);
+        }
     } catch {
         return;
     }
@@ -41,7 +51,7 @@ export function resumeAutoLoginForSession(userInfo: UserInfo | null) {
 
 function autoLoginPaused(): boolean {
     try {
-        return window.localStorage.getItem(pausedStorageKey) === 'true';
+        return window.localStorage.getItem(pausedStorageKey()) !== null;
     } catch {
         return true;
     }

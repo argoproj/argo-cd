@@ -84,22 +84,58 @@ describe('shouldAutoLogin', () => {
 });
 
 describe('resumeAutoLoginForSession', () => {
-    test('resumes once the browser holds an SSO session', () => {
+    const pauseAt = (time: number) => {
+        jest.spyOn(Date, 'now').mockReturnValueOnce(time);
         pauseAutoLogin();
-        resumeAutoLoginForSession(session());
+    };
+
+    const setBaseHref = (href: string) => {
+        document.head.querySelector('base')?.remove();
+        const base = document.createElement('base');
+        base.setAttribute('href', href);
+        document.head.appendChild(base);
+    };
+
+    afterEach(() => {
+        document.head.querySelector('base')?.remove();
+        jest.restoreAllMocks();
+    });
+
+    test('resumes once the browser holds an SSO session', () => {
+        pauseAt(1000);
+        resumeAutoLoginForSession(session(), 2000);
         expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(true);
     });
 
     test('stays paused for a local account session', () => {
-        pauseAutoLogin();
-        resumeAutoLoginForSession(session({iss: 'argocd', username: 'admin'}));
+        pauseAt(1000);
+        resumeAutoLoginForSession(session({iss: 'argocd', username: 'admin'}), 2000);
         expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
     });
 
     test('stays paused without a session', () => {
-        pauseAutoLogin();
-        resumeAutoLoginForSession(session({loggedIn: false}));
-        resumeAutoLoginForSession(null);
+        pauseAt(1000);
+        resumeAutoLoginForSession(session({loggedIn: false}), 2000);
+        resumeAutoLoginForSession(null, 2000);
+        expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
+    });
+
+    test('keeps a pause written after the session check started', () => {
+        pauseAt(2000);
+        resumeAutoLoginForSession(session(), 2000);
+        expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
+    });
+
+    test('keeps the pause of another Argo CD instance on the same origin', () => {
+        setBaseHref('/prod/');
+        pauseAt(1000);
+
+        setBaseHref('/staging/');
+        pauseAt(1000);
+        resumeAutoLoginForSession(session(), 2000);
+        expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(true);
+
+        setBaseHref('/prod/');
         expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
     });
 });

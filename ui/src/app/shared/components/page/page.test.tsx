@@ -24,6 +24,6 @@ describe('AuthOption', () => {
             consoleError.mockRestore();
         }
 
-        expect(window.localStorage.getItem('argocd.sso.autoLoginPaused')).toBe('true');
+        expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/')).not.toBeNull();
     });
 });

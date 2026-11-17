@@ -24,7 +24,7 @@ jest.mock('./shared/services/requests', () => ({
     }
 }));
 
-const pausedKey = 'argocd.sso.autoLoginPaused';
+const pausedKey = 'argocd.sso.autoLoginPaused:/';
 
 const renderApp = async () => {
     await act(async () => {
@@ -35,7 +35,7 @@ const renderApp = async () => {
 
 beforeEach(() => {
     window.localStorage.clear();
-    window.localStorage.setItem(pausedKey, 'true');
+    window.localStorage.setItem(pausedKey, '0');
     jest.mocked(services.authService.settings).mockResolvedValue({oidcConfig: {name: 'Keycloak'}, ssoAutoLogin: true} as any);
     jest.spyOn(console, 'error');
 });
@@ -45,6 +45,16 @@ afterEach(() => {
 });
 
 describe('App bootstrap', () => {
+    it('keeps a pause written after the session check started', async () => {
+        const pausedAt = String(Number.MAX_SAFE_INTEGER);
+        window.localStorage.setItem(pausedKey, pausedAt);
+        jest.mocked(services.users.get).mockResolvedValue({loggedIn: true, username: 'alice', iss: 'https://idp.example.com', groups: []});
+
+        await renderApp();
+
+        expect(window.localStorage.getItem(pausedKey)).toBe(pausedAt);
+    });
+
     it('resumes SSO auto-login when the browser holds an SSO session', async () => {
         jest.mocked(services.users.get).mockResolvedValue({loggedIn: true, username: 'alice', iss: 'https://idp.example.com', groups: []});
 
@@ -58,6 +68,6 @@ describe('App bootstrap', () => {
 
         await renderApp();
 
-        expect(window.localStorage.getItem(pausedKey)).toBe('true');
+        expect(window.localStorage.getItem(pausedKey)).toBe('0');
     });
 });

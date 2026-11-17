@@ -135,7 +135,7 @@ describe('Login SSO auto-login', () => {
         await submitLogin();
 
         await waitFor(() => expect(services.users.login).toHaveBeenCalledWith('new-user', 'password'));
-        expect(window.localStorage.getItem('argocd.sso.autoLoginPaused')).toBe('true');
+        expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/')).not.toBeNull();
     });
 
     it('keeps auto-login on after a failed local account login', async () => {
@@ -146,6 +146,6 @@ describe('Login SSO auto-login', () => {
         await submitLogin();
 
         expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
-        expect(window.localStorage.getItem('argocd.sso.autoLoginPaused')).toBeNull();
+        expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/')).toBeNull();
     });
 });
