@@ -609,8 +609,8 @@ argocd cluster rotate-auth cluster-name`,
 func NewClusterInvalidateCacheCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	command := &cobra.Command{
 		Use:   "invalidate-cache SERVER/NAME",
-		Short: "Invalidate the cache of a cluster",
-		Long:  "Invalidate the cache of a cluster. The application controller discards the cached state of the cluster and rebuilds it from the cluster's Kubernetes API.",
+		Short: "Request invalidation of the cache of a cluster",
+		Long:  "Request invalidation of the cache of a cluster. The API server records the request and returns immediately; the application controller invalidates and rebuilds the cache asynchronously. Clusters whose cache has never been synced are skipped.",
 		Example: `argocd cluster invalidate-cache https://12.34.567.89
 argocd cluster invalidate-cache cluster-name`,
 		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
@@ -626,7 +626,7 @@ argocd cluster invalidate-cache cluster-name`,
 			cluster := args[0]
 			errors.CheckError(invalidateClusterCache(ctx, clusterIf, cluster))
 
-			fmt.Printf("Cluster '%s' cache invalidated\n", cluster)
+			fmt.Printf("Cluster '%s' cache invalidation requested\n", cluster)
 		}),
 	}
 	return command

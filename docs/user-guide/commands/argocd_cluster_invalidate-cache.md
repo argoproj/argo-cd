@@ -2,11 +2,11 @@
 
 ## argocd cluster invalidate-cache
 
-Invalidate the cache of a cluster
+Request invalidation of the cache of a cluster
 
 ### Synopsis
 
-Invalidate the cache of a cluster. The application controller discards the cached state of the cluster and rebuilds it from the cluster's Kubernetes API.
+Request invalidation of the cache of a cluster. The API server records the request and returns immediately; the application controller invalidates and rebuilds the cache asynchronously. Clusters whose cache has never been synced are skipped.
 
 ```
 argocd cluster invalidate-cache SERVER/NAME [flags]
