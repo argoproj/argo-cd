@@ -2020,6 +2020,12 @@ message RepoCreds {
 
   // AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
   optional string azureActiveDirectoryEndpoint = 32;
+
+  // EnableAWSCodeCommitSigV4 specifies whether to use AWS SigV4 (IAM) authentication for CodeCommit Git repositories
+  optional bool enableAWSCodeCommitSigV4 = 33;
+
+  // AWSCodeCommitRoleARN specifies the optional AWS IAM Role ARN to assume for CodeCommit Git authentication
+  optional string awsCodeCommitRoleARN = 34;
 }
 
 // RepositoryList is a collection of Repositories.
@@ -2129,6 +2135,12 @@ message Repository {
 
   // AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
   optional string azureActiveDirectoryEndpoint = 32;
+
+  // EnableAWSCodeCommitSigV4 specifies whether to use AWS SigV4 (IAM) authentication for CodeCommit Git repositories
+  optional bool enableAWSCodeCommitSigV4 = 33;
+
+  // AWSCodeCommitRoleARN specifies the optional AWS IAM Role ARN to assume for CodeCommit Git authentication
+  optional string awsCodeCommitRoleARN = 34;
 }
 
 // A RepositoryCertificate is either SSH known hosts entry or TLS certificate

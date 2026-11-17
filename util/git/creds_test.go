@@ -4,7 +4,9 @@ import (
 	"context"
 	_ "embed"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net"
 	"net/http"
@@ -32,6 +34,7 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
+	"github.com/aws/aws-sdk-go-v2/aws"
 )
 
 type cred struct {
@@ -1343,4 +1346,268 @@ func Test_SSHCreds_Environ_ClosesProxyScriptOnWriteError(t *testing.T) {
 	_, _, err := NewSSHCreds("sshPrivateKey", "", false, "socks5://127.0.0.1:1080").Environ()
 	require.ErrorContains(t, err, "failed to write proxy command script")
 	require.ErrorIs(t, f.Close(), os.ErrClosed)
+}
+
+func Test_parseRegionFromCodeCommitHostname(t *testing.T) {
+	tests := []struct {
+		name     string
+		hostname string
+		expected string
+		wantErr  bool
+	}{
+		{
+			name:     "standard commercial region",
+			hostname: "git-codecommit.us-east-1.amazonaws.com",
+			expected: "us-east-1",
+		},
+		{
+			name:     "standard commercial with port",
+			hostname: "git-codecommit.eu-west-1.amazonaws.com:443",
+			expected: "eu-west-1",
+		},
+		{
+			name:     "fips endpoint",
+			hostname: "git-codecommit-fips.us-east-2.amazonaws.com",
+			expected: "us-east-2",
+		},
+		{
+			name:     "govcloud region",
+			hostname: "git-codecommit.us-gov-west-1.amazonaws.com",
+			expected: "us-gov-west-1",
+		},
+		{
+			name:     "govcloud fips endpoint",
+			hostname: "git-codecommit-fips.us-gov-east-1.amazonaws.com",
+			expected: "us-gov-east-1",
+		},
+		{
+			name:     "china region",
+			hostname: "git-codecommit.cn-north-1.amazonaws.com.cn",
+			expected: "cn-north-1",
+		},
+		{
+			name:     "china fips region",
+			hostname: "git-codecommit-fips.cn-northwest-1.amazonaws.com.cn",
+			expected: "cn-northwest-1",
+		},
+		{
+			name:     "unrecognized non-codecommit host",
+			hostname: "github.com",
+			wantErr:  true,
+		},
+		{
+			name:     "empty host",
+			hostname: "",
+			wantErr:  true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			region, err := parseRegionFromCodeCommitHostname(tt.hostname)
+			if tt.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, tt.expected, region)
+			}
+		})
+	}
+}
+
+func TestGenerateCodeCommitCredentials_Permanent(t *testing.T) {
+	creds := aws.Credentials{
+		AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}
+	fixedTime := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+	repoURL := "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo"
+	region := "us-east-1"
+
+	username, password, err := GenerateCodeCommitCredentials(repoURL, region, creds, fixedTime)
+	require.NoError(t, err)
+
+	// Permanent credentials should output the AccessKeyID directly
+	assert.Equal(t, "AKIAIOSFODNN7EXAMPLE", username)
+
+	// Password format must be <timestamp>Z<signature_hex>
+	assert.True(t, strings.HasPrefix(password, "20261116T120000Z"), "password should start with timestampZ")
+	assert.Len(t, password, 16+64, "password should be 80 characters long (16 timestamp chars + 64 hex signature chars)")
+
+	// Verify exact signature calculation against deterministic known test vector
+	expectedTimestamp := "20261116T120000"
+	expectedDatestamp := "20261116"
+	expectedCanonicalRequest := "GIT\n/v1/repos/my-repo\n\nhost:git-codecommit.us-east-1.amazonaws.com\n\nhost\n"
+	expectedCanonicalHash := sha256Hex([]byte(expectedCanonicalRequest))
+	expectedStringToSign := fmt.Sprintf("AWS4-HMAC-SHA256\n%s\n%s/%s/codecommit/aws4_request\n%s", expectedTimestamp, expectedDatestamp, region, expectedCanonicalHash)
+	expectedSigningKey := getSignatureKey(creds.SecretAccessKey, expectedDatestamp, region, "codecommit")
+	expectedSignature := hex.EncodeToString(hmacSHA256(expectedSigningKey, []byte(expectedStringToSign)))
+	expectedPassword := fmt.Sprintf("%sZ%s", expectedTimestamp, expectedSignature)
+
+	assert.Equal(t, expectedPassword, password)
+}
+
+func TestGenerateCodeCommitCredentials_Temporary(t *testing.T) {
+	sessionToken := "AQoDYXdzEJr1k678+test/token=sample"
+	creds := aws.Credentials{
+		AccessKeyID:     "ASIAIOSFODNN7EXAMPLE",
+		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		SessionToken:    sessionToken,
+	}
+	fixedTime := time.Date(2026, 11, 16, 14, 30, 0, 0, time.UTC)
+	repoURL := "https://git-codecommit.us-west-2.amazonaws.com/v1/repos/org/repo"
+	region := "us-west-2"
+
+	username, password, err := GenerateCodeCommitCredentials(repoURL, region, creds, fixedTime)
+	require.NoError(t, err)
+
+	// Temporary credentials username must encode AccessKeyID + '%' + SessionToken, with '%' encoded as '%25'
+	assert.True(t, strings.HasPrefix(username, "ASIAIOSFODNN7EXAMPLE%25"), "username should contain percent-encoded % separator")
+	assert.Contains(t, username, "%2B", "plus should be URL encoded")
+	assert.Contains(t, username, "%2F", "slash should be URL encoded")
+	assert.Contains(t, username, "%3D", "equals should be URL encoded")
+
+	assert.True(t, strings.HasPrefix(password, "20261116T143000Z"))
+	assert.Len(t, password, 80)
+}
+
+func TestGenerateCodeCommitCredentials_URLPaths(t *testing.T) {
+	creds := aws.Credentials{
+		AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}
+	fixedTime := time.Date(2026, 11, 16, 12, 0, 0, 0, time.UTC)
+
+	t.Run("path with trailing slash is trimmed", func(t *testing.T) {
+		_, p1, err := GenerateCodeCommitCredentials("https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo/", "us-east-1", creds, fixedTime)
+		require.NoError(t, err)
+		_, p2, err := GenerateCodeCommitCredentials("https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo", "us-east-1", creds, fixedTime)
+		require.NoError(t, err)
+		assert.Equal(t, p1, p2, "trailing slash should produce identical signature")
+	})
+
+	t.Run("path with .git suffix", func(t *testing.T) {
+		_, p, err := GenerateCodeCommitCredentials("https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo.git", "us-east-1", creds, fixedTime)
+		require.NoError(t, err)
+		assert.True(t, strings.HasPrefix(p, "20261116T120000Z"))
+		assert.Len(t, p, 80)
+	})
+}
+
+func TestGenerateCodeCommitCredentials_Errors(t *testing.T) {
+	creds := aws.Credentials{
+		AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+		SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+	}
+	now := time.Now().UTC()
+
+	t.Run("empty access key", func(t *testing.T) {
+		_, _, err := GenerateCodeCommitCredentials("https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo", "us-east-1", aws.Credentials{SecretAccessKey: "secret"}, now)
+		require.ErrorContains(t, err, "AWS credentials cannot be empty")
+	})
+
+	t.Run("empty secret key", func(t *testing.T) {
+		_, _, err := GenerateCodeCommitCredentials("https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo", "us-east-1", aws.Credentials{AccessKeyID: "key"}, now)
+		require.ErrorContains(t, err, "AWS credentials cannot be empty")
+	})
+
+	t.Run("invalid repository URL", func(t *testing.T) {
+		_, _, err := GenerateCodeCommitCredentials("://invalid-url", "us-east-1", creds, now)
+		require.Error(t, err)
+	})
+}
+
+type staticCredProvider struct {
+	creds aws.Credentials
+	err   error
+}
+
+func (s staticCredProvider) Retrieve(_ context.Context) (aws.Credentials, error) {
+	return s.creds, s.err
+}
+
+func TestAWSCodeCommitCreds_Environ_SuccessAndCleanup(t *testing.T) {
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	provider := staticCredProvider{
+		creds: aws.Credentials{
+			AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+			SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		},
+	}
+	creds := AWSCodeCommitCreds{
+		store:        store,
+		repoURL:      "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+		credProvider: provider,
+	}
+
+	closer, _, err := creds.Environ()
+	require.NoError(t, err)
+	require.Len(t, store.creds, 1)
+
+	// Verify the credential stored in memory
+	for _, c := range store.creds {
+		assert.Equal(t, "AKIAIOSFODNN7EXAMPLE", c.username)
+		assert.True(t, strings.Contains(c.password, "Z"))
+	}
+
+	// Verify cleanup
+	utilio.Close(closer)
+	assert.Empty(t, store.creds, "credentials must be purged on closer.Close()")
+}
+
+func TestAWSCodeCommitCreds_Environ_RegionFallback(t *testing.T) {
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	provider := staticCredProvider{
+		creds: aws.Credentials{
+			AccessKeyID:     "AKIAIOSFODNN7EXAMPLE",
+			SecretAccessKey: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY",
+		},
+	}
+
+	t.Run("fails when region cannot be determined", func(t *testing.T) {
+		t.Setenv("AWS_REGION", "")
+		t.Setenv("AWS_DEFAULT_REGION", "")
+		creds := AWSCodeCommitCreds{
+			store:        store,
+			repoURL:      "https://custom-proxy.internal.net/v1/repos/my-repo",
+			credProvider: provider,
+		}
+		_, _, err := creds.Environ()
+		require.ErrorContains(t, err, "unable to determine AWS region")
+	})
+
+	t.Run("succeeds with AWS_REGION environment fallback", func(t *testing.T) {
+		t.Setenv("AWS_REGION", "ap-southeast-1")
+		creds := AWSCodeCommitCreds{
+			store:        store,
+			repoURL:      "https://custom-proxy.internal.net/v1/repos/my-repo",
+			credProvider: provider,
+		}
+		closer, _, err := creds.Environ()
+		require.NoError(t, err)
+		utilio.Close(closer)
+	})
+}
+
+func TestAWSCodeCommitCreds_Environ_CredError(t *testing.T) {
+	store := &memoryCredsStore{creds: make(map[string]cred)}
+	provider := staticCredProvider{
+		err: errors.New("simulated STS error"),
+	}
+	creds := AWSCodeCommitCreds{
+		store:        store,
+		repoURL:      "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+		credProvider: provider,
+	}
+
+	_, _, err := creds.Environ()
+	require.ErrorContains(t, err, "simulated STS error")
+}
+
+func TestAWSCodeCommitCreds_GetUserInfo(t *testing.T) {
+	creds := NewAWSCodeCommitCreds(&memoryCredsStore{}, "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo", "")
+	username, email, err := creds.GetUserInfo(t.Context())
+	require.NoError(t, err)
+	assert.Empty(t, username)
+	assert.Empty(t, email)
 }

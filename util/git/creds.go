@@ -2,6 +2,7 @@ package git
 
 import (
 	"context"
+	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
 	"encoding/hex"
@@ -24,6 +25,10 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/cloud"
 	"github.com/Azure/azure-sdk-for-go/sdk/azcore/policy"
 	"github.com/Azure/azure-sdk-for-go/sdk/azidentity"
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials/stscreds"
+	"github.com/aws/aws-sdk-go-v2/service/sts"
 	giturls "github.com/chainguard-dev/git-urls"
 	"github.com/google/go-github/v69/github"
 	"github.com/kballard/go-shellquote"
@@ -1289,4 +1294,173 @@ func credentialTypeFromJSON(jsonData []byte) google.CredentialsType {
 	default:
 		return google.ServiceAccount
 	}
+}
+
+var _ Creds = AWSCodeCommitCreds{}
+
+// AWSCodeCommitCreds provides authentication to AWS CodeCommit Git repositories using IAM and SigV4.
+type AWSCodeCommitCreds struct {
+	store        CredsStore
+	repoURL      string
+	roleARN      string
+	credProvider aws.CredentialsProvider
+}
+
+// NewAWSCodeCommitCreds creates a new AWSCodeCommitCreds instance.
+func NewAWSCodeCommitCreds(store CredsStore, repoURL, roleARN string) AWSCodeCommitCreds {
+	return AWSCodeCommitCreds{
+		store:   store,
+		repoURL: repoURL,
+		roleARN: roleARN,
+	}
+}
+
+// GetUserInfo returns empty strings for AWS CodeCommit credentials.
+func (c AWSCodeCommitCreds) GetUserInfo(_ context.Context) (string, string, error) {
+	return "", "", nil
+}
+
+// Environ configures AskPass credentials for AWS CodeCommit using SigV4 authentication.
+func (c AWSCodeCommitCreds) Environ() (io.Closer, []string, error) {
+	ctx := context.TODO()
+
+	parsed, err := giturls.Parse(c.repoURL)
+	if err != nil {
+		return NopCloser{}, nil, fmt.Errorf("failed to parse repository URL %q: %w", SanitizeRepoURL(c.repoURL), err)
+	}
+
+	region, err := parseRegionFromCodeCommitHostname(parsed.Hostname())
+	if err != nil {
+		region = text.FirstNonEmpty(os.Getenv("AWS_REGION"), os.Getenv("AWS_DEFAULT_REGION"))
+		if region == "" {
+			return NopCloser{}, nil, fmt.Errorf("unable to determine AWS region for CodeCommit repository %q: %w", SanitizeRepoURL(c.repoURL), err)
+		}
+	}
+
+	var awsCreds aws.Credentials
+	if c.credProvider != nil {
+		awsCreds, err = c.credProvider.Retrieve(ctx)
+		if err != nil {
+			return NopCloser{}, nil, fmt.Errorf("failed to retrieve AWS credentials: %w", err)
+		}
+	} else {
+		cfg, err := config.LoadDefaultConfig(ctx, config.WithRegion(region))
+		if err != nil {
+			return NopCloser{}, nil, fmt.Errorf("failed to load AWS configuration: %w", err)
+		}
+
+		if c.roleARN != "" {
+			stsClient := sts.NewFromConfig(cfg)
+			assumeRoleProvider := stscreds.NewAssumeRoleProvider(stsClient, c.roleARN)
+			cfg.Credentials = aws.NewCredentialsCache(assumeRoleProvider)
+		}
+
+		awsCreds, err = cfg.Credentials.Retrieve(ctx)
+		if err != nil {
+			return NopCloser{}, nil, fmt.Errorf("failed to retrieve AWS credentials: %w", err)
+		}
+	}
+
+	username, password, err := GenerateCodeCommitCredentials(c.repoURL, region, awsCreds, time.Now().UTC())
+	if err != nil {
+		return NopCloser{}, nil, fmt.Errorf("failed to generate CodeCommit credentials: %w", err)
+	}
+
+	nonce := c.store.Add(username, password)
+	env := c.store.Environ(nonce)
+
+	return utilio.NewCloser(func() error {
+		c.store.Remove(nonce)
+		return nil
+	}), env, nil
+}
+
+// parseRegionFromCodeCommitHostname extracts the AWS region from a CodeCommit hostname.
+// Supported hostname formats:
+//   - git-codecommit.<region>.amazonaws.com
+//   - git-codecommit-fips.<region>.amazonaws.com
+//   - git-codecommit.<region>.amazonaws.com.cn
+//   - git-codecommit-fips.<region>.amazonaws.com.cn
+func parseRegionFromCodeCommitHostname(hostname string) (string, error) {
+	if h, _, err := net.SplitHostPort(hostname); err == nil {
+		hostname = h
+	}
+	parts := strings.Split(hostname, ".")
+	if len(parts) >= 4 && (parts[0] == "git-codecommit" || parts[0] == "git-codecommit-fips") && parts[1] != "" {
+		return parts[1], nil
+	}
+	return "", fmt.Errorf("hostname %q is not a recognized AWS CodeCommit endpoint", hostname)
+}
+
+// GenerateCodeCommitCredentials produces the Git username and SigV4-signed password for CodeCommit HTTPS authentication.
+func GenerateCodeCommitCredentials(repoURL, region string, creds aws.Credentials, now time.Time) (string, string, error) {
+	if creds.AccessKeyID == "" || creds.SecretAccessKey == "" {
+		return "", "", errors.New("AWS credentials cannot be empty")
+	}
+
+	parsed, err := giturls.Parse(repoURL)
+	if err != nil {
+		return "", "", fmt.Errorf("failed to parse repository URL: %w", err)
+	}
+
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return "", "", fmt.Errorf("repository URL %q does not contain a valid hostname", SanitizeRepoURL(repoURL))
+	}
+
+	canonicalPath := parsed.EscapedPath()
+	if !strings.HasPrefix(canonicalPath, "/") {
+		canonicalPath = "/" + canonicalPath
+	}
+	if len(canonicalPath) > 1 {
+		canonicalPath = strings.TrimSuffix(canonicalPath, "/")
+	}
+
+	// 1. Generate Username
+	var username string
+	if creds.SessionToken != "" {
+		// Temporary credentials: concatenate AccessKeyID with % and SessionToken, then percent-encode.
+		username = url.QueryEscape(creds.AccessKeyID + "%" + creds.SessionToken)
+	} else {
+		username = creds.AccessKeyID
+	}
+
+	// 2. Build SigV4 Canonical Request
+	// Matches AWS git-remote-codecommit: 'GIT\n{}\n\nhost:{}\n\nhost\n'.format(path, hostname)
+	canonicalRequest := fmt.Sprintf("GIT\n%s\n\nhost:%s\n\nhost\n", canonicalPath, hostname)
+	canonicalRequestHash := sha256Hex([]byte(canonicalRequest))
+
+	// 3. Build String to Sign
+	timestamp := now.UTC().Format("20060102T150405")
+	datestamp := now.UTC().Format("20060102")
+	credentialScope := fmt.Sprintf("%s/%s/codecommit/aws4_request", datestamp, region)
+	stringToSign := fmt.Sprintf("AWS4-HMAC-SHA256\n%s\n%s\n%s", timestamp, credentialScope, canonicalRequestHash)
+
+	// 4. Derive Signing Key
+	kSigning := getSignatureKey(creds.SecretAccessKey, datestamp, region, "codecommit")
+
+	// 5. Calculate Signature and Password
+	signature := hex.EncodeToString(hmacSHA256(kSigning, []byte(stringToSign)))
+	password := fmt.Sprintf("%sZ%s", timestamp, signature)
+
+	return username, password, nil
+}
+
+func sha256Hex(data []byte) string {
+	h := sha256.Sum256(data)
+	return hex.EncodeToString(h[:])
+}
+
+func hmacSHA256(key, data []byte) []byte {
+	h := hmac.New(sha256.New, key)
+	h.Write(data)
+	return h.Sum(nil)
+}
+
+func getSignatureKey(secret, date, region, service string) []byte {
+	kDate := hmacSHA256([]byte("AWS4"+secret), []byte(date))
+	kRegion := hmacSHA256(kDate, []byte(region))
+	kService := hmacSHA256(kRegion, []byte(service))
+	kSigning := hmacSHA256(kService, []byte("aws4_request"))
+	return kSigning
 }

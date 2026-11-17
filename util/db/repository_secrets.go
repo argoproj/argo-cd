@@ -413,6 +413,18 @@ func secretToRepository(secret *corev1.Secret) (*appsv1.Repository, error) {
 	}
 	repository.WebhookManifestCacheWarmDisabled = webhookManifestCacheWarmDisabled
 
+	enableAWSCodeCommitSigV4, err := boolOrFalse(secret, "enableAWSCodeCommitSigV4")
+	if err != nil {
+		return repository, err
+	}
+	repository.EnableAWSCodeCommitSigV4 = enableAWSCodeCommitSigV4
+
+	awsCodeCommitRoleARN := string(secretCopy.Data["awsCodeCommitRoleARN"])
+	if awsCodeCommitRoleARN == "" {
+		awsCodeCommitRoleARN = string(secretCopy.Data["awsCodeCommitRoleArn"])
+	}
+	repository.AWSCodeCommitRoleARN = awsCodeCommitRoleARN
+
 	return repository, nil
 }
 
@@ -455,6 +467,8 @@ func (s *secretsRepositoryBackend) repositoryToSecret(repository *appsv1.Reposit
 	updateSecretString(secretCopy, "azureServicePrincipalClientSecret", repository.AzureServicePrincipalClientSecret)
 	updateSecretString(secretCopy, "azureServicePrincipalTenantId", repository.AzureServicePrincipalTenantId)
 	updateSecretString(secretCopy, "azureActiveDirectoryEndpoint", repository.AzureActiveDirectoryEndpoint)
+	updateSecretBool(secretCopy, "enableAWSCodeCommitSigV4", repository.EnableAWSCodeCommitSigV4)
+	updateSecretString(secretCopy, "awsCodeCommitRoleARN", repository.AWSCodeCommitRoleARN)
 	addSecretMetadata(secretCopy, s.getSecretType())
 
 	return secretCopy
@@ -527,6 +541,18 @@ func (s *secretsRepositoryBackend) secretToRepoCred(secret *corev1.Secret) (*app
 	}
 	repository.UseAzureWorkloadIdentity = useAzureWorkloadIdentity
 
+	enableAWSCodeCommitSigV4, err := boolOrFalse(secret, "enableAWSCodeCommitSigV4")
+	if err != nil {
+		return repository, err
+	}
+	repository.EnableAWSCodeCommitSigV4 = enableAWSCodeCommitSigV4
+
+	awsCodeCommitRoleARN := string(secretCopy.Data["awsCodeCommitRoleARN"])
+	if awsCodeCommitRoleARN == "" {
+		awsCodeCommitRoleARN = string(secretCopy.Data["awsCodeCommitRoleArn"])
+	}
+	repository.AWSCodeCommitRoleARN = awsCodeCommitRoleARN
+
 	return repository, nil
 }
 
@@ -560,6 +586,8 @@ func (s *secretsRepositoryBackend) repoCredsToSecret(repoCreds *appsv1.RepoCreds
 	updateSecretString(secretCopy, "azureServicePrincipalClientSecret", repoCreds.AzureServicePrincipalClientSecret)
 	updateSecretString(secretCopy, "azureServicePrincipalTenantID", repoCreds.AzureServicePrincipalTenantId)
 	updateSecretString(secretCopy, "azureActiveDirectoryEndpoint", repoCreds.AzureActiveDirectoryEndpoint)
+	updateSecretBool(secretCopy, "enableAWSCodeCommitSigV4", repoCreds.EnableAWSCodeCommitSigV4)
+	updateSecretString(secretCopy, "awsCodeCommitRoleARN", repoCreds.AWSCodeCommitRoleARN)
 	addSecretMetadata(secretCopy, s.getRepoCredSecretType())
 
 	return secretCopy
