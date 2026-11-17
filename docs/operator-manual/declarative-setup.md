@@ -810,9 +810,11 @@ affect the [in-cluster](#clusters) endpoint, which always uses the service accou
 
 Changes to the ConfigMap are picked up at runtime: the application controller and API server reload the bundle and
 rebuild the connections of the clusters that rely on it, so the CA can be rotated by updating the single ConfigMap.
-If `ca.crt` is blank or does not contain a valid PEM certificate, the bundle is treated as absent and a warning is
-logged. This also applies during a rotation: updating the ConfigMap with a malformed value removes the bundle for
-the clusters relying on it until the value is corrected, so check the application controller logs after rotating.
+If `ca.crt` is missing or blank, there is no bundle. If it is not blank but does not contain a valid PEM certificate,
+the bundle is treated as absent and a warning is logged. This also applies during a rotation: updating the ConfigMap
+with a malformed value removes the bundle for the clusters relying on it until the value is corrected, so check the
+application controller logs after rotating. Removing `ca.crt`, leaving it blank or deleting the ConfigMap also
+removes the bundle, but without a warning.
 
 This check only confirms that `ca.crt` contains at least one certificate that can be parsed. It does not check expiry
 dates, or whether the bundle contains the CA that issued the API server certificate of a cluster. Other blocks in the
