@@ -1,7 +1,8 @@
-import {DataLoader, DropDownMenu} from 'argo-ui';
+import {DropDownMenu} from 'argo-ui';
 
 import * as React from 'react';
-import {services, ViewPreferences} from '../../services';
+import {useViewPreferences} from '../../hooks/use-view-preferences';
+import {services} from '../../services';
 
 require('./paginate.scss');
 
@@ -147,44 +148,11 @@ export interface PaginateProps<T> {
 }
 
 export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions, focusItemKey, getItemKey}: PaginateProps<T>) {
-    return (
-        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-            {pref => (
-                <PaginateContent
-                    page={page}
-                    onPageChange={onPageChange}
-                    data={data}
-                    emptyState={emptyState}
-                    preferencesKey={preferencesKey || 'default'}
-                    header={header}
-                    showHeader={showHeader}
-                    sortOptions={sortOptions}
-                    focusItemKey={focusItemKey}
-                    getItemKey={getItemKey}
-                    pref={pref}>
-                    {children}
-                </PaginateContent>
-            )}
-        </DataLoader>
-    );
-}
-
-function PaginateContent<T>({
-    page,
-    onPageChange,
-    children,
-    data,
-    emptyState,
-    preferencesKey,
-    header,
-    showHeader,
-    sortOptions,
-    focusItemKey,
-    getItemKey,
-    pref
-}: PaginateProps<T> & {pref: ViewPreferences}) {
-    const pageSize = pref.pageSizes[preferencesKey] || 10;
-    const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
+    const key = preferencesKey || 'default';
+    const pageSize = useViewPreferences(pref => pref.pageSizes[key] || 10);
+    const savedSortOption = useViewPreferences(pref => pref.sortOptions?.[key]);
+    const sortDirection = useViewPreferences(pref => pref.sortDirections?.[key]);
+    const sortOption = sortOptions ? savedSortOption || sortOptions[0].title : '';
     const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
     const currentPage = pageCount <= page ? pageCount - 1 : page;
 
@@ -193,7 +161,7 @@ function PaginateContent<T>({
         if (sortOption && sortOptions) {
             const selectedSort = sortOptions.find(o => o.title === sortOption);
             if (selectedSort) {
-                const direction = pref.sortDirections?.[preferencesKey] ?? selectedSort.defaultDirection ?? 'asc';
+                const direction = sortDirection ?? selectedSort.defaultDirection ?? 'asc';
                 next.sort((a, b) => {
                     const result = selectedSort.compare(a, b);
                     return direction === 'asc' ? result : -result;
@@ -201,7 +169,7 @@ function PaginateContent<T>({
             }
         }
         return next;
-    }, [data, sortOption, sortOptions, pref.sortDirections, preferencesKey]);
+    }, [data, sortOption, sortOptions, sortDirection]);
 
     // Deep-link highlight: when `focusItemKey` is set (e.g. opening an Application from the
     // Resources page with `?highlight=group/kind/namespace/name`), keep the displayed page in
@@ -268,7 +236,7 @@ function PaginateContent<T>({
                     <div className='paginate__size-menu'>
                         {sortOptions && (
                             <DropDownMenu
-                                qeId={`paginate-sort-${preferencesKey}`}
+                                qeId={`paginate-sort-${key}`}
                                 anchor={() => (
                                     <a onMouseDown={() => document.body.click()}>
                                         Sort: {sortOption.toLowerCase()} <i className='fa fa-caret-down' />
@@ -277,22 +245,18 @@ function PaginateContent<T>({
                                 items={sortOptions.map(so => ({
                                     title: so.title,
                                     action: () => {
-                                        if (!pref.sortOptions) {
-                                            pref.sortOptions = {};
-                                        }
-                                        pref.sortOptions[preferencesKey] = so.title;
-                                        if (!pref.sortDirections) {
-                                            pref.sortDirections = {};
-                                        }
-                                        pref.sortDirections[preferencesKey] = 'asc';
-                                        services.viewPreferences.updatePreferences(pref);
+                                        const pref = services.viewPreferences.getCurrentPreferences();
+                                        services.viewPreferences.updatePreferences({
+                                            sortOptions: {...pref.sortOptions, [key]: so.title},
+                                            sortDirections: {...pref.sortDirections, [key]: 'asc'}
+                                        });
                                         onPageChange(0);
                                     }
                                 }))}
                             />
                         )}
                         <DropDownMenu
-                            qeId={`paginate-items-per-page-${preferencesKey}`}
+                            qeId={`paginate-items-per-page-${key}`}
                             anchor={() => (
                                 <a onMouseDown={() => document.body.click()}>
                                     Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
@@ -301,8 +265,8 @@ function PaginateContent<T>({
                             items={[5, 10, 15, 20, -1].map(count => ({
                                 title: count === -1 ? 'all' : count.toString(),
                                 action: () => {
-                                    pref.pageSizes[preferencesKey] = count;
-                                    services.viewPreferences.updatePreferences(pref);
+                                    const pref = services.viewPreferences.getCurrentPreferences();
+                                    services.viewPreferences.updatePreferences({pageSizes: {...pref.pageSizes, [key]: count}});
                                 }
                             }))}
                         />
