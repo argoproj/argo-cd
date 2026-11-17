@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import * as React from 'react';
-import {useRef, useState} from 'react';
+import {useEffect, useRef, useState} from 'react';
 
 import {Autocomplete, AutocompleteApi, AutocompleteOption} from 'argo-ui';
 
@@ -9,6 +9,8 @@ export interface TagsInputProps {
     autocomplete?: (AutocompleteOption | string)[];
     onChange?: (tags: string[]) => any;
     placeholder?: string;
+    description?: string;
+    ariaLabel?: string;
 }
 
 interface TagsInputState {
@@ -22,8 +24,10 @@ require('./tags-input.scss');
 export function TagsInput(props: TagsInputProps) {
     const [state, setState] = useState<TagsInputState>({tags: props.tags || [], input: '', focused: false});
 
+    const descriptionId = React.useId();
     const inputEl = useRef<HTMLInputElement | null>(null);
     const autocompleteApi = useRef<AutocompleteApi | null>(null);
+    const pendingBlurInput = useRef<string | null>(null);
 
     const onTagsChange = (tags: string[]) => {
         if (props.onChange) {
@@ -33,6 +37,26 @@ export function TagsInput(props: TagsInputProps) {
             }
         }
     };
+
+    const addTag = (tag: string, focused = state.focused) => {
+        if (state.tags.includes(tag)) {
+            setState({...state, input: '', focused});
+            return;
+        }
+        const newTags = state.tags.concat(tag);
+        setState({...state, input: '', focused, tags: newTags});
+        onTagsChange(newTags);
+    };
+
+    useEffect(() => {
+        // Autocomplete selects a highlighted suggestion in its effect after blur.
+        // Commit free text only if that selection did not consume the input.
+        const input = pendingBlurInput.current;
+        pendingBlurInput.current = null;
+        if (input) {
+            addTag(input, false);
+        }
+    });
 
     return (
         <div className={classNames('tags-input argo-field', {'tags-input--focused': state.focused || !!state.input})} onClick={() => inputEl.current && inputEl.current.focus()}>
@@ -57,31 +81,32 @@ export function TagsInput(props: TagsInputProps) {
                 items={props.autocomplete}
                 onChange={e => setState({...state, input: e.target.value})}
                 onSelect={value => {
-                    if (state.tags.indexOf(value) === -1) {
-                        const newTags = state.tags.concat(value);
-                        setState(prevState => ({...prevState, input: '', tags: newTags}));
-                        onTagsChange(newTags);
-                    }
+                    pendingBlurInput.current = null;
+                    addTag(value);
                 }}
-                renderInput={props => (
+                renderInput={inputProps => (
                     <input
-                        {...props}
+                        {...inputProps}
                         placeholder={props.placeholder}
+                        aria-label={props.ariaLabel}
+                        aria-describedby={props.description ? descriptionId : undefined}
                         ref={el => {
                             inputEl.current = el;
-                            if (props.ref) {
-                                (props.ref as any)(el);
+                            if (inputProps.ref) {
+                                (inputProps.ref as any)(el);
                             }
                         }}
                         onFocus={e => {
-                            if (props.onFocus) {
-                                props.onFocus(e);
+                            pendingBlurInput.current = null;
+                            if (inputProps.onFocus) {
+                                inputProps.onFocus(e);
                             }
                             setState({...state, focused: true});
                         }}
                         onBlur={e => {
-                            if (props.onBlur) {
-                                props.onBlur(e);
+                            pendingBlurInput.current = state.input;
+                            if (inputProps.onBlur) {
+                                inputProps.onBlur(e);
                             }
                             setState({...state, focused: false});
                         }}
@@ -91,23 +116,26 @@ export function TagsInput(props: TagsInputProps) {
                                 setState(prevState => ({...prevState, tags: newTags}));
                                 onTagsChange(newTags);
                             }
-                            if (props.onKeyDown) {
-                                props.onKeyDown(e);
+                            if (inputProps.onKeyDown) {
+                                inputProps.onKeyDown(e);
                             }
                         }}
                         onKeyUp={e => {
-                            if (e.keyCode === 13 && state.input && state.tags.indexOf(state.input) === -1) {
-                                const newTags = state.tags.concat(state.input);
-                                setState(prevState => ({...prevState, input: '', tags: newTags}));
-                                onTagsChange(newTags);
+                            if (e.keyCode === 13 && state.input) {
+                                addTag(state.input);
                             }
-                            if (props.onKeyUp) {
-                                props.onKeyUp(e);
+                            if (inputProps.onKeyUp) {
+                                inputProps.onKeyUp(e);
                             }
                         }}
                     />
                 )}
             />
+            {props.description && (
+                <span id={descriptionId} hidden>
+                    {props.description}
+                </span>
+            )}
         </div>
     );
 }

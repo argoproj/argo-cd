@@ -9,9 +9,11 @@ import (
 	"html"
 	"net/http"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"syscall"
 	"time"
 
 	jwtutil "github.com/argoproj/argo-cd/v3/util/jwt"
@@ -48,6 +50,7 @@ func NewLoginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		ssoPort          int
 		skipTestTLS      bool
 		ssoLaunchBrowser bool
+		noBrowser        bool
 	)
 	command := &cobra.Command{
 		Use:   "login SERVER",
@@ -63,6 +66,9 @@ argocd login cd.argoproj.io
 
 # Login to Argo CD using SSO
 argocd login cd.argoproj.io --sso
+
+# Login to Argo CD using SSO without a browser (device code flow)
+argocd login cd.argoproj.io --sso --no-browser
 
 # Login to an Argo CD instance behind a proxy requiring a client certificate
 argocd login cd.argoproj.io --client-crt ~/certs/argocd.crt --client-crt-key ~/certs/argocd.key
@@ -154,6 +160,9 @@ argocd login cd.argoproj.io --core`,
 			var tokenString string
 			var refreshToken string
 			if !clientOpts.Core {
+				if noBrowser && !sso {
+					log.Fatal("--no-browser requires --sso")
+				}
 				acdClient := headless.NewClientOrDie(&loginOpts, c)
 				setConn, setIf := acdClient.NewSettingsClientOrDieWithContext(ctx)
 				defer utilio.Close(setConn)
@@ -167,7 +176,17 @@ argocd login cd.argoproj.io --core`,
 					errors.CheckError(err)
 					oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 					errors.CheckError(err)
-					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
+					if !noBrowser {
+						tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
+					} else {
+						if c.Flags().Changed("sso-port") {
+							log.Warn("--sso-port is ignored when --no-browser is used")
+						}
+						if c.Flags().Changed("callback") {
+							log.Warn("--callback is ignored when --no-browser is used")
+						}
+						tokenString, refreshToken = oauth2LoginNoBrowser(ctx, acdSet.GetOIDCConfig(), oauth2conf, httpClient)
+					}
 				}
 				parser := jwt.NewParser(jwt.WithoutClaimsValidation())
 				claims := jwt.MapClaims{}
@@ -201,6 +220,7 @@ argocd login cd.argoproj.io --core`,
 	command.Flags().StringVar(&username, "username", "", "The username of an account to authenticate")
 	command.Flags().StringVar(&password, "password", "", "The password of an account to authenticate")
 	command.Flags().BoolVar(&sso, "sso", false, "Perform SSO login")
+	command.Flags().BoolVar(&noBrowser, "no-browser", false, "Perform SSO login without a browser using the device code flow (requires --sso)")
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().StringVar(&callback, "callback", "", "Scheme, Host and Port for the callback URL")
 	command.Flags().BoolVar(&skipTestTLS, "skip-test-tls", false, "Skip testing whether the server is configured with TLS (this can help when the command hangs for no apparent reason)")
@@ -250,6 +270,23 @@ func userDisplayName(claims jwt.MapClaims) string {
 	return jwtutil.GetUserIdentifier(claims)
 }
 
+// generatePKCECodeVerifierAndChallenge generates a PKCE code verifier and its
+// corresponding S256 code challenge as defined in RFC 7636.
+// The verifier is sent in the token request; the challenge is sent in the
+// authorization / device-authorization request.
+func generatePKCECodeVerifierAndChallenge() (verifier, challenge string, err error) {
+	verifier, err = rand.StringFromCharset(
+		43,
+		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~",
+	)
+	if err != nil {
+		return "", "", err
+	}
+	h := sha256.Sum256([]byte(verifier))
+	challenge = base64.RawURLEncoding.EncodeToString(h[:])
+	return verifier, challenge, nil
+}
+
 // oauth2Login opens a browser, runs a temporary HTTP server to delegate OAuth2 login flow and
 // returns the JWT token and a refresh token (if supported)
 func oauth2Login(
@@ -292,13 +329,8 @@ func oauth2Login(
 	}
 
 	// PKCE implementation of https://tools.ietf.org/html/rfc7636
-	codeVerifier, err := rand.StringFromCharset(
-		43,
-		"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~",
-	)
+	codeVerifier, codeChallenge, err := generatePKCECodeVerifierAndChallenge()
 	errors.CheckError(err)
-	codeChallengeHash := sha256.Sum256([]byte(codeVerifier))
-	codeChallenge := base64.RawURLEncoding.EncodeToString(codeChallengeHash[:])
 
 	// Authorization redirect callback from OAuth2 auth flow.
 	// Handles both implicit and authorization code flow
@@ -413,6 +445,101 @@ func oauth2Login(
 	log.Debugf("Token: %s", tokenString)
 	log.Debugf("Refresh Token: %s", refreshToken)
 	return tokenString, refreshToken
+}
+
+// buildVerificationPrompt returns the lines to print between the
+// "authenticate" header and the "Waiting" footer.
+//
+// Priority:
+//  1. verification_uri_complete — print as-is; the user just opens one URL.
+//  2. Fallback per RFC 8628 §3.3 — show verification_uri and user_code
+//     separately.
+func buildVerificationPrompt(uriComplete, uri, userCode string) string {
+	if uriComplete != "" {
+		return "  " + uriComplete
+	}
+	return fmt.Sprintf("  %s\n\n  Enter the code: %s", uri, userCode)
+}
+
+// oauth2LoginNoBrowser implements the OAuth 2.0 Device Authorization Grant
+// (RFC 8628) using golang.org/x/oauth2's built-in DeviceAuth / DeviceAccessToken
+// methods. It prints a verification URL for the user to open in a browser and
+// polls the token endpoint until authentication completes or is cancelled.
+func oauth2LoginNoBrowser(
+	ctx context.Context,
+	oidcSettings *settingspkg.OIDCConfig,
+	oauth2conf *oauth2.Config,
+	httpClient *http.Client,
+) (string, string) {
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	// Inject the custom Argo CD HTTP client (TLS settings, proxy, etc.) so
+	// that golang.org/x/oauth2 uses it for all token endpoint requests.
+	ctx = context.WithValue(ctx, oauth2.HTTPClient, httpClient)
+
+	// Prefer the device authorization endpoint auto-discovered from the OIDC
+	// discovery document (device_authorization_endpoint). Fall back to the
+	// operator-configured DeviceURL for providers that do not advertise it.
+	if oauth2conf.Endpoint.DeviceAuthURL == "" {
+		oauth2conf.Endpoint.DeviceAuthURL = oidcSettings.GetDeviceURL()
+	}
+	if oauth2conf.Endpoint.TokenURL == "" {
+		oauth2conf.Endpoint.TokenURL = oidcSettings.GetTokenURL()
+	}
+	if oauth2conf.Endpoint.DeviceAuthURL == "" || oauth2conf.Endpoint.TokenURL == "" {
+		log.Fatal("OIDC provider does not advertise a device authorization or token endpoint; configure deviceURL/tokenURL in oidc.config")
+	}
+
+	// PKCE (RFC 7636): always include code_challenge in the device authorization
+	// request. Providers that enforce PKCE globally (e.g. Keycloak with
+	// "Require PKCE = S256") reject the device auth request without it.
+	// Sending PKCE unconditionally is safe: compliant providers that do not
+	// require it simply ignore the extra parameters.
+	codeVerifier, codeChallenge, err := generatePKCECodeVerifierAndChallenge()
+	errors.CheckError(err)
+
+	// golang.org/x/oauth2's retrieveDeviceAuth creates its HTTP request via
+	// http.NewRequest (not http.NewRequestWithContext), so context cancellation
+	// (e.g. Ctrl+C) cannot abort the in-flight HTTP call. Work around this by
+	// shallow-copying the HTTP client and setting a bounded Timeout; http.Client
+	// always honours Timeout in Do() regardless of the request's own context.
+	// 30 s is generous: a device-authorization endpoint must respond quickly.
+	deviceAuthHTTPClient := *httpClient
+	deviceAuthHTTPClient.Timeout = 30 * time.Second
+	deviceAuthCtx := context.WithValue(ctx, oauth2.HTTPClient, &deviceAuthHTTPClient)
+
+	da, err := oauth2conf.DeviceAuth(deviceAuthCtx,
+		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+	)
+	if err != nil {
+		log.Fatalf("Failed to request device code: %s", err)
+		return "", ""
+	}
+
+	// RFC 8628: prefer verification_uri_complete when present. Otherwise print
+	// verification_uri and user_code separately so the user can enter the code
+	// manually — which is the correct fallback per the spec.
+	fmt.Printf("Open the following URL in your browser to authenticate:\n\n%s\n\nWaiting for authentication...\n",
+		buildVerificationPrompt(da.VerificationURIComplete, da.VerificationURI, da.UserCode))
+
+	tok, err := oauth2conf.DeviceAccessToken(ctx, da,
+		oauth2.SetAuthURLParam("code_verifier", codeVerifier),
+	)
+	if err != nil {
+		log.Fatalf("%s", err)
+		return "", ""
+	}
+
+	idToken, _ := tok.Extra("id_token").(string)
+	if idToken == "" {
+		log.Fatal("OIDC provider did not return an id_token in the device flow token response")
+		return "", ""
+	}
+
+	fmt.Print("Authentication successful\n")
+	return idToken, tok.RefreshToken
 }
 
 func passwordLogin(ctx context.Context, acdClient argocdclient.Client, username, password string) string {

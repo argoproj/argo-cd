@@ -43,3 +43,19 @@ tests:
       status: Healthy
       message: "Resource is up-to-date."
     inputPath: testdata/providerconfig_emptyconditions_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/managedresourcedefinition_healthy.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Resource is up-to-date."
+    inputPath: testdata/managedresourcedefinition_inactive_healthy.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Provisioning ..."
+    inputPath: testdata/managedresourcedefinition_pending_progressing.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Provisioning ..."
+    inputPath: testdata/managedresourcedefinition_activating_progressing.yaml

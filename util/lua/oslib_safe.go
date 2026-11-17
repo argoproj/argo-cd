@@ -41,12 +41,8 @@ func osTime(l *lua.LState) int {
 		day := getIntField(tbl, "day", -1)
 		month := getIntField(tbl, "month", -1)
 		year := getIntField(tbl, "year", -1)
-		isdst := getBoolField(tbl, "isdst", false)
+		// TODO dst: the "isdst" field is ignored
 		t := time.Date(year, time.Month(month), day, hour, minutes, sec, 0, time.Local)
-		// TODO dst
-		if false {
-			print(isdst)
-		}
 		l.Push(lua.LNumber(t.Unix()))
 	}
 	return 1
@@ -56,14 +52,6 @@ func getIntField(tb *lua.LTable, key string, v int) int {
 	ret := tb.RawGetString(key)
 	if ln, ok := ret.(lua.LNumber); ok {
 		return int(ln)
-	}
-	return v
-}
-
-func getBoolField(tb *lua.LTable, key string, v bool) bool {
-	ret := tb.RawGetString(key)
-	if lb, ok := ret.(lua.LBool); ok {
-		return bool(lb)
 	}
 	return v
 }
