@@ -1326,3 +1326,21 @@ func TestCredentialTypeFromJSON(t *testing.T) {
 		})
 	}
 }
+
+func Test_SSHCreds_Environ_ClosesProxyScriptOnWriteError(t *testing.T) {
+	var f *os.File
+	orig := createTemp
+	t.Cleanup(func() { createTemp = orig })
+	// A read-only file makes the proxy script write fail.
+	createTemp = func(_, _ string) (*os.File, error) {
+		p := path.Join(t.TempDir(), "ro")
+		require.NoError(t, os.WriteFile(p, nil, 0o600))
+		var err error
+		f, err = os.Open(p)
+		return f, err
+	}
+
+	_, _, err := NewSSHCreds("sshPrivateKey", "", false, "socks5://127.0.0.1:1080").Environ()
+	require.ErrorContains(t, err, "failed to write proxy command script")
+	require.ErrorIs(t, f.Close(), os.ErrClosed)
+}
