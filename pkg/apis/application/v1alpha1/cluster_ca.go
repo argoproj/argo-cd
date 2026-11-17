@@ -3,8 +3,10 @@ package v1alpha1
 import (
 	"bytes"
 	"crypto/x509"
+	"encoding/pem"
 	"fmt"
 	"os"
+	"path/filepath"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -22,25 +24,75 @@ var systemRootCAFiles = []string{
 	"/etc/ssl/cert.pem",                                 // Alpine Linux, macOS
 }
 
+var systemRootCADirs = []string{
+	"/etc/ssl/certs",
+	"/etc/pki/tls/certs",
+}
+
 // systemRootCAsPEM returns the PEM encoded system root CAs. Like Go's own system pool, they are read once per process.
 var systemRootCAsPEM = sync.OnceValue(loadSystemRootCAsPEM)
 
 func loadSystemRootCAsPEM() []byte {
-	files := systemRootCAFiles
+	files, dirs := systemRootCAFiles, systemRootCADirs
 	if file := os.Getenv("SSL_CERT_FILE"); file != "" {
 		files = []string{file}
 	}
+	if dir := os.Getenv("SSL_CERT_DIR"); dir != "" {
+		dirs = filepath.SplitList(dir)
+	}
+	roots := &pemCertSet{seen: map[string]bool{}}
 	for _, file := range files {
 		data, err := os.ReadFile(file)
 		if err == nil {
-			return data
+			roots.add(data)
+			break
 		}
 		if !os.IsNotExist(err) {
 			log.Warnf("Failed to read system root CAs from %s: %v", file, err)
 		}
 	}
-	log.Warnf("No system root CA file found in %v: clusters trusting both the system roots and the default cluster CA bundle will trust only that bundle", files)
-	return nil
+	for _, dir := range dirs {
+		entries, err := os.ReadDir(dir)
+		if err != nil {
+			if !os.IsNotExist(err) {
+				log.Warnf("Failed to read system root CAs from %s: %v", dir, err)
+			}
+			continue
+		}
+		for _, entry := range entries {
+			if data, err := os.ReadFile(filepath.Join(dir, entry.Name())); err == nil {
+				roots.add(data)
+			}
+		}
+	}
+	if len(roots.pem) == 0 {
+		log.Warnf("No system root CAs found in %v or %v: clusters trusting both the system roots and the default cluster CA bundle will trust only that bundle", files, dirs)
+		return nil
+	}
+	return roots.pem
+}
+
+type pemCertSet struct {
+	seen map[string]bool
+	pem  []byte
+}
+
+func (s *pemCertSet) add(data []byte) {
+	for {
+		var block *pem.Block
+		block, data = pem.Decode(data)
+		if block == nil {
+			return
+		}
+		if block.Type != "CERTIFICATE" || len(block.Headers) != 0 || s.seen[string(block.Bytes)] {
+			continue
+		}
+		if _, err := x509.ParseCertificate(block.Bytes); err != nil {
+			continue
+		}
+		s.seen[string(block.Bytes)] = true
+		s.pem = append(s.pem, pem.EncodeToMemory(block)...)
+	}
 }
 
 type defaultCABundleTrust struct {
