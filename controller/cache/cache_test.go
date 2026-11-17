@@ -5,9 +5,11 @@ import (
 	"errors"
 	"net"
 	"net/url"
+	"reflect"
 	"sync"
 	"testing"
 	"time"
+	"unsafe"
 
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -1141,4 +1143,60 @@ func TestNewLiveStateCache_UsesClusterCacheConfig(t *testing.T) {
 	c := NewLiveStateCache(nil, nil, nil, nil, nil, nil, nil, cfg)
 
 	assert.Equal(t, cfg, c.(*liveStateCache).clusterCacheConfig)
+}
+
+func engineField(t *testing.T, clusterCache any, path ...string) reflect.Value {
+	t.Helper()
+	v := reflect.ValueOf(clusterCache).Elem()
+	for _, name := range path {
+		v = v.FieldByName(name)
+		require.Truef(t, v.IsValid(), "gitops-engine cluster cache has no field %q", name)
+	}
+	return reflect.NewAt(v.Type(), unsafe.Pointer(v.UnsafeAddr())).Elem()
+}
+
+func TestGetCluster_AppliesClusterCacheConfig(t *testing.T) {
+	cfg := ClusterCacheConfig{
+		ResyncDuration:           7 * time.Hour,
+		WatchResyncDuration:      11 * time.Minute,
+		SyncRetryTimeout:         13 * time.Second,
+		ListPageSize:             42,
+		ListPageBufferSize:       5,
+		ListSemaphoreSize:        6,
+		AttemptLimit:             3,
+		RetryUseBackoff:          true,
+		BatchEventsProcessing:    true,
+		EventsProcessingInterval: 17 * time.Millisecond,
+	}
+	cluster := &appv1.Cluster{Server: "https://mycluster"}
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+	clusterSharding := sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm)
+	clusterSharding.Add(cluster)
+	_, settingsMgr := fixtures(t.Context(), map[string]string{})
+	c := &liveStateCache{
+		clusters:           map[string]cache.ClusterCache{},
+		clusterSharding:    clusterSharding,
+		settingsMgr:        settingsMgr,
+		clusterCacheConfig: cfg,
+	}
+
+	clusterCache, err := c.getCluster(cluster)
+	require.NoError(t, err)
+
+	assert.Equal(t, cfg.ResyncDuration, engineField(t, clusterCache, "syncStatus", "resyncTimeout").Interface())
+	assert.Equal(t, cfg.WatchResyncDuration, engineField(t, clusterCache, "watchResyncTimeout").Interface())
+	assert.Equal(t, cfg.SyncRetryTimeout, engineField(t, clusterCache, "clusterSyncRetryTimeout").Interface())
+	assert.Equal(t, cfg.ListPageSize, engineField(t, clusterCache, "listPageSize").Interface())
+	assert.Equal(t, cfg.ListPageBufferSize, engineField(t, clusterCache, "listPageBufferSize").Interface())
+	assert.Equal(t, cfg.AttemptLimit, engineField(t, clusterCache, "listRetryLimit").Interface())
+	assert.Equal(t, cfg.RetryUseBackoff, engineField(t, clusterCache, "listRetryUseBackoff").Interface())
+	assert.Equal(t, cfg.BatchEventsProcessing, engineField(t, clusterCache, "batchEventsProcessing").Interface())
+	assert.Equal(t, cfg.EventsProcessingInterval, engineField(t, clusterCache, "eventProcessingInterval").Interface())
+
+	sem := engineField(t, clusterCache, "listSemaphore").Interface().(cache.WeightedSemaphore)
+	require.True(t, sem.TryAcquire(cfg.ListSemaphoreSize), "semaphore must allow its full size")
+	assert.False(t, sem.TryAcquire(1), "semaphore must be exhausted at its size")
+	sem.Release(cfg.ListSemaphoreSize)
+	assert.False(t, sem.TryAcquire(cfg.ListSemaphoreSize+1), "semaphore must not exceed its size")
 }
