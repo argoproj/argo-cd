@@ -31,23 +31,26 @@ func TestHelmIndexCacheEnablement(t *testing.T) {
 		t.Setenv(name, temporary)
 	}
 	for _, test := range []struct {
-		name, directory string
-		enabled         bool
+		name, directory   string
+		enabled, filtered bool
 	}{
 		{name: "disabled by default"},
 		{name: "directory alone does not enable reuse", directory: filepath.Join(temporary, "disabled-override")},
 		{name: "enabled with default directory", enabled: true},
 		{name: "enabled with custom directory", enabled: true, directory: filepath.Join(temporary, "custom")},
+		{name: "filtering alone does not enable reuse", filtered: true},
+		{name: "enabled with filtered snapshots", enabled: true, filtered: true},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			service := NewService(metrics.NewMetricsServer(), nil, RepoServerInitConstants{
-				HelmIndexCacheEnabled: test.enabled, HelmIndexCacheDir: test.directory, HelmRegistryMaxIndexSize: 1 << 20,
+				HelmIndexCacheEnabled: test.enabled, HelmIndexCacheFilterEnabled: test.filtered, HelmIndexCacheDir: test.directory, HelmRegistryMaxIndexSize: 1 << 20,
 			}, &git.NoopCredsStore{}, t.TempDir())
 			if !test.enabled {
 				require.Nil(t, service.helmIndexStore)
 				return
 			}
 			require.NotNil(t, service.helmIndexStore)
+			require.Equal(t, test.filtered, service.helmIndexStore.FilterEnabled)
 			directory := test.directory
 			if directory == "" {
 				directory = filepath.Join(temporary, "helm-index-cache")

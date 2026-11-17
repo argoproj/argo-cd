@@ -33,7 +33,10 @@ type IndexRecordCache interface {
 // conditional revalidation for another max(24h, freshness). Reads and copies
 // never restart either deadline.
 type IndexStore struct {
-	cache IndexRecordCache
+	// FilterEnabled reduces only private build snapshots. Configure before use;
+	// false retains complete original indexes and disables snapshot retries.
+	FilterEnabled bool
+	cache         IndexRecordCache
 	// dir is the persistent cache directory (empty disables the store).
 	dir string
 	// expiration is how long a cached index file may be served as fresh.
@@ -353,6 +356,10 @@ func (s *IndexStore) updateValidators(repoURL string, etag string, lastModified 
 // cache home. The copy is written atomically under the store lock, so
 // concurrent invocations copying the same repo never race on dest.
 func (s *IndexStore) CopyTo(repoURL string, data []byte, destDir string, name string) error {
+	return s.copyTo(repoURL, data, destDir, name, false)
+}
+
+func (s *IndexStore) copyTo(repoURL string, data []byte, destDir string, name string, replace bool) error {
 	if s == nil || s.dir == "" {
 		return errors.New("index cache is disabled")
 	}
@@ -366,6 +373,12 @@ func (s *IndexStore) CopyTo(repoURL string, data []byte, destDir string, name st
 	}
 
 	dest := filepath.Join(destDir, cacheIndexFileName(name))
+	if !replace {
+		if _, err := os.Stat(dest); err == nil {
+			log.WithFields(log.Fields{"repo": repoURL, "file": dest}).Debug("Helm index snapshot already installed")
+			return nil
+		}
+	}
 
 	tmp, err := os.CreateTemp(destDir, ".tmp-helm-index-copy-*")
 	if err != nil {
@@ -385,9 +398,10 @@ func (s *IndexStore) CopyTo(repoURL string, data []byte, destDir string, name st
 	}
 	// If another invocation already installed an index file for this name,
 	// keep theirs — both came from the same persistent store.
-	if _, err := os.Stat(dest); err == nil {
-		log.WithFields(log.Fields{"repo": repoURL, "file": dest}).Debug("helm cache index file already exists, keeping existing copy")
-		return nil
+	if !replace {
+		if _, err := os.Stat(dest); err == nil {
+			return nil
+		}
 	}
 	if err := os.Rename(tmpName, dest); err != nil {
 		return fmt.Errorf("failed to install helm cache index file: %w", err)

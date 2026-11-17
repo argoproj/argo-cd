@@ -202,6 +202,39 @@ errors separately on a canary. Verify cold, warm, expired and executed hard-refr
 a comparable workload. Request reduction across replicas and the fleet's target reduction require
 measurement; per-process or per-directory single-flight does not coordinate separate pods.
 
+##### Dependency-only Helm indexes
+
+Index filtering is a separate opt-in, disabled by default. With dependency reuse enabled,
+set `reposerver.helm.index.cache.filter.enabled: "true"` in `argocd-cmd-params-cm`, use
+`--helm-index-cache-filter-enabled`, or set
+`ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_FILTER_ENABLED=true`, then restart repo-server.
+The persistent disk and Redis records still contain the complete original index. Only each
+build's private Helm snapshot is reduced to the original names in `dependencies[].name`,
+including every direct dependency sharing that repository and all its indexed versions.
+Chart aliases do not replace chart names when selecting entries. Legacy `requirements.yaml`
+dependencies are also supported.
+
+Reduced snapshots use Helm's JSON index format, preserving chart metadata and archive URLs.
+Index generations are projected once into a process-local cache bounded to 64 MiB of retained
+fragments and 128 generations. Large indexes or unsupported conversions use complete indexes.
+An index lookup/load failure retries the build once with complete original indexes, without
+fetching the index again. Origin validation and archive authentication/network failures retain
+their normal error behavior. OCI, file and vendored dependencies are not filtered.
+
+To force the complete-index backup while keeping dependency reuse enabled, set
+`reposerver.helm.index.cache.filter.enabled: "false"` and restart repo-server. For example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+data:
+  reposerver.helm.index.cache.enabled: "true"
+  reposerver.helm.index.cache.filter.enabled: "false"
+```
+
 ### argocd-application-controller
 
 **settings:**

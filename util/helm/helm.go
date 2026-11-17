@@ -109,6 +109,20 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 	}
 	indexes := make(map[string][]byte)
 	configurations := make(map[string]helmRepoEntry)
+	var dependencyNames map[string]map[string]struct{}
+	if useStore && h.cmd.persistentIndexStore.FilterEnabled {
+		var err error
+		dependencyNames, err = dependencyNamesByRepository(h.cmd.WorkDir, h.repos)
+		if err != nil {
+			log.WithError(err).Warn("using complete Helm indexes: unable to select dependency names")
+		}
+	}
+	type preparedIndex struct {
+		url, name string
+		body      []byte
+	}
+	var prepared []preparedIndex
+	filtered := false
 	var entries []helmRepoEntry
 	for i := range h.repos {
 		repo := h.repos[i]
@@ -159,8 +173,24 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 			}
 			indexes[identity] = data
 		}
-		if err := h.cmd.prewarmIndexes(repo.Repo, data, repo.Name); err != nil {
+		snapshot := data
+		reducedSnapshot := false
+		if dependencyNames != nil {
+			names := dependencyNames[scopedIndexIdentity(repo.Repo, "", "", "")]
+			selected, reduced, err := dependencyIndexes.snapshot(data, names)
+			if err != nil {
+				log.WithError(err).Warn("using complete Helm index: dependency snapshot unavailable")
+			} else {
+				snapshot = selected
+				reducedSnapshot = reduced
+			}
+		}
+		if err := h.cmd.prewarmIndexes(repo.Repo, snapshot, repo.Name); err != nil {
 			return fmt.Errorf("prepare isolated helm index for %s: %w", repo.Repo, err)
+		}
+		if reducedSnapshot {
+			filtered = true
+			prepared = append(prepared, preparedIndex{url: repo.Repo, name: repo.Name, body: data})
 		}
 		configuration, exists := configurations[identity]
 		var repoEntries []helmRepoEntry
@@ -205,6 +235,20 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		}
 	}
 	_, err := h.cmd.dependencyBuild(ctx, h.insecure, plainHTTP, useStore)
+	if err != nil && filtered && isIndexSnapshotError(err) {
+		// Retry only index lookup/load failures. Origin validation and archive
+		// authentication/network failures must keep their normal failure path.
+		log.WithError(err).Warn("retrying Helm dependency build with complete indexes")
+		for _, index := range prepared {
+			if restoreErr := h.cmd.installIndexes(index.url, index.body, index.name, true); restoreErr != nil {
+				return fmt.Errorf("restore complete Helm index after snapshot failure (%w): %w", err, restoreErr)
+			}
+		}
+		if _, fallbackErr := h.cmd.dependencyBuild(ctx, h.insecure, plainHTTP, useStore); fallbackErr != nil {
+			return fmt.Errorf("selective Helm index failed (%w); complete-index fallback failed: %w", err, fallbackErr)
+		}
+		return nil
+	}
 	if err != nil {
 		return fmt.Errorf("failed to build helm dependencies: %w", err)
 	}

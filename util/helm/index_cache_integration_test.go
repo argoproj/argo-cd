@@ -31,59 +31,65 @@ type regressionIndexRequest struct {
 // accounting. Tests use fresh parent charts so existing charts/ and Chart.lock
 // cannot make a broken cache appear to work.
 type regressionChartRepo struct {
-	server   *httptest.Server
-	mu       sync.Mutex
-	version  string
-	password string
-	requests []regressionIndexRequest
-	archives int
-	packages map[string][]byte
+	server       *httptest.Server
+	mu           sync.Mutex
+	version      string
+	password     string
+	requests     []regressionIndexRequest
+	archives     int
+	packages     map[string][]byte
+	extraEntries string
 }
 
-func regressionRequirePinnedHelm(t *testing.T) {
-	t.Helper()
+func regressionRequirePinnedHelm(tb testing.TB) {
+	tb.Helper()
 	if _, err := exec.LookPath("helm"); err != nil {
-		t.Skip("integration test requires repository-pinned Helm in PATH")
+		tb.Skip("integration test requires repository-pinned Helm in PATH")
 	}
 	versions, err := os.ReadFile(filepath.Join("..", "..", "hack", "tool-versions.sh"))
-	require.NoError(t, err)
+	require.NoError(tb, err)
 	var pinned string
 	for line := range strings.SplitSeq(string(versions), "\n") {
 		if value, ok := strings.CutPrefix(line, "HELM_VERSION="); ok {
 			pinned = strings.Trim(value, "\"'")
 		}
 	}
-	require.NotEmpty(t, pinned)
-	version, err := exec.CommandContext(t.Context(), "helm", "version", "--short").Output()
-	require.NoError(t, err)
+	require.NotEmpty(tb, pinned)
+	version, err := exec.CommandContext(tb.Context(), "helm", "version", "--short").Output()
+	require.NoError(tb, err)
 	short, _, _ := strings.Cut(strings.TrimSpace(string(version)), "+")
 	actual := short
-	require.Equal(t, "v"+pinned, actual, "put the pinned binary first in PATH; do not silently validate a different Helm")
+	require.Equal(tb, "v"+pinned, actual, "put the pinned binary first in PATH; do not silently validate a different Helm")
 	// Remove overrides rather than setting them empty: Helm can interpret an
 	// explicitly empty repository-cache variable as a relative directory.
-	// t.Setenv registers restoration of the original value before Unsetenv.
+	// tb.Setenv registers restoration of the original value before Unsetenv.
 	for _, name := range []string{"HELM_CONFIG_HOME", "HELM_CACHE_HOME", "HELM_DATA_HOME", "HELM_REPOSITORY_CONFIG", "HELM_REPOSITORY_CACHE", "HELM_REGISTRY_CONFIG"} {
-		t.Setenv(name, "")
-		require.NoError(t, os.Unsetenv(name))
+		tb.Setenv(name, "")
+		require.NoError(tb, os.Unsetenv(name))
 	}
 }
 
-func regressionPackage(t *testing.T, version string) []byte {
-	t.Helper()
+func regressionPackage(tb testing.TB, version string) []byte {
+	tb.Helper()
+	return regressionNamedPackage(tb, "child", version)
+}
+
+func regressionNamedPackage(tb testing.TB, name, version string) []byte {
+	tb.Helper()
 	var buffer bytes.Buffer
 	gzipWriter := gzip.NewWriter(&buffer)
 	archive := tar.NewWriter(gzipWriter)
 	files := []struct{ name, body string }{
-		{"child/Chart.yaml", "apiVersion: v2\nname: child\nversion: " + version + "\n"},
-		{"child/templates/configmap.yaml", "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cache-regression\ndata:\n  version: {{ .Chart.Version | quote }}\n"},
+		{name + "/Chart.yaml", "apiVersion: v2\nname: " + name + "\nversion: " + version + "\n"},
+		{name + "/templates/configmap.yaml", "apiVersion: v1\nkind: ConfigMap\nmetadata:\n  name: cache-regression\ndata:\n  version: {{ .Chart.Version | quote }}\n"},
 	}
 	for _, file := range files {
-		require.NoError(t, archive.WriteHeader(&tar.Header{Name: file.name, Mode: 0o600, Size: int64(len(file.body))}))
+		require.NoError(tb, archive.WriteHeader(&tar.Header{Name: file.name, Mode: 0o600, Size: int64(len(file.body))}))
 		_, err := archive.Write([]byte(file.body))
-		require.NoError(t, err)
+		require.NoError(tb, err)
 	}
-	require.NoError(t, archive.Close())
-	require.NoError(t, gzipWriter.Close())
+	require.NoError(tb, archive.Close())
+	require.NoError(tb, gzipWriter.Close())
 	return buffer.Bytes()
 }
 
@@ -115,6 +121,7 @@ func (f *regressionChartRepo) index() []byte {
 	for _, version := range versions {
 		fmt.Fprintf(&builder, "    - apiVersion: v2\n      name: child\n      version: %s\n      urls: [child-%s.tgz]\n", version, version)
 	}
+	builder.WriteString(f.extraEntries)
 	return []byte(builder.String())
 }
 

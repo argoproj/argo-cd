@@ -133,12 +133,19 @@ type helmRepoEntry struct {
 // when a Chart.yaml dependency references the URL directly). Callers must
 // register both names in repositories.yaml (see writeRepoEntries callers).
 func (c *Cmd) prewarmIndexes(repoURL string, indexData []byte, repoName string) error {
+	return c.installIndexes(repoURL, indexData, repoName, false)
+}
+
+func (c *Cmd) installIndexes(repoURL string, indexData []byte, repoName string, replace bool) error {
 	destDir := path.Join(c.helmHome, "cache", "helm", "repository")
-	if err := c.persistentIndexStore.CopyTo(repoURL, indexData, destDir, repoName); err != nil {
+	if err := c.persistentIndexStore.copyTo(repoURL, indexData, destDir, repoName, replace); err != nil {
 		return err
 	}
 	managerName := managerKeyPrefix + managerKey(repoURL)
-	return c.persistentIndexStore.CopyTo(repoURL, indexData, destDir, managerName)
+	if repoName == managerName {
+		return nil
+	}
+	return c.persistentIndexStore.copyTo(repoURL, indexData, destDir, managerName, replace)
 }
 
 // Repository client certificates and keys live for the entire subprocess

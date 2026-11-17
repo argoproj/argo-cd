@@ -314,6 +314,9 @@ data:
   reposerver.client.ca.path: ""
   # Enable dependency index reuse. Disabled by default, independently of the directory setting.
   reposerver.helm.index.cache.enabled: "false"
+  # Opt in to dependency-only private indexes; false keeps complete original indexes.
+  # Requires index reuse above. Index lookup/load failures retry once with complete indexes.
+  reposerver.helm.index.cache.filter.enabled: "false"
   # Writable cache directory. Defaults to the system temporary directory plus /helm-index-cache.
   # The usual default is shown below; omit or leave empty to respect a custom TMPDIR.
   # Freshness uses --revision-cache-expiration; indexes retain validators for at least 24 hours.

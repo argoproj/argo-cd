@@ -64,7 +64,11 @@ func TestIndexCacheIntegrationHTTPAndOCI(t *testing.T) {
 			t.Cleanup(registry.Close)
 			registryURL := strings.TrimPrefix(registry.URL, "http://")
 			fixture := newRegressionChartRepo(t, false, "")
+			fixture.mu.Lock()
+			fixture.extraEntries = "  unrelated:\n    - apiVersion: v2\n      name: unrelated\n      version: 1.0.0\n      urls: [unused.tgz]\n"
+			fixture.mu.Unlock()
 			store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+			store.FilterEnabled = true
 			for range 2 {
 				dir := t.TempDir()
 				chart := fmt.Sprintf("apiVersion: v2\nname: mixed\nversion: 1.0.0\ndependencies:\n  - name: oci-child\n    alias: registry\n    version: 1.0.0\n    repository: 'oci://%s'\n", registryURL)
