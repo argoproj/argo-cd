@@ -19,7 +19,7 @@ type ClusterHosts struct {
 	Nodes   map[string]NodeInfo
 	Pods    map[kube.ResourceKey]PodInfo
 	// RequestsByNode sums, in milli-units, the requests of each node's pods
-	// that haven't succeeded or failed.
+	// that haven't succeeded or failed. Every node a pod is on has an entry.
 	RequestsByNode map[string]map[corev1.ResourceName]int64
 }
 
@@ -71,8 +71,8 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 	// An index covers the live pods if it has each one's node, or already saw
 	// the pod on that node without it. A pod on a node the index has never
 	// heard of forces a rebuild. An index without Nodes covers everything, as
-	// namespaced clusters never cache them. Either way a Node joining drops the
-	// index (dropHostsOnNodeAdded), so it shows up on the next call.
+	// namespaced clusters never cache them. dropHostsOnNodeAdded resets the
+	// index in both cases, so the Node shows up on the next call.
 	covers := func(h *ClusterHosts) bool {
 		if len(h.Nodes) == 0 {
 			return true
@@ -92,7 +92,8 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 	}
 	current := entry.current.Load()
 	if current != nil && covers(current) {
-		if time.Since(current.BuiltAt) < appHostsIndexTTL {
+		// Without Nodes there are no hosts to refresh.
+		if len(current.Nodes) == 0 || time.Since(current.BuiltAt) < appHostsIndexTTL {
 			return live, current, nil
 		}
 		// Serve the expired index while another reconcile rebuilds it.
@@ -127,11 +128,11 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
 			pod := *info.PodInfo
 			next.Pods[key] = pod
-			if pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
-				return false
-			}
 			if next.RequestsByNode[pod.NodeName] == nil {
 				next.RequestsByNode[pod.NodeName] = map[corev1.ResourceName]int64{}
+			}
+			if pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
+				return false
 			}
 			for name, quantity := range pod.ResourceRequests {
 				next.RequestsByNode[pod.NodeName][name] += quantity.MilliValue()
@@ -147,18 +148,25 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 	return live, next, nil
 }
 
-// dropHostsOnNodeAdded drops server's index when a Node is added, since an
-// index may treat a node it hasn't seen yet as absent.
+// dropHostsOnNodeAdded resets server's index when a Node is added that the
+// index treats as absent: it has no Nodes, or saw a pod on that node. covers
+// already rebuilds for pods on other new nodes, so autoscaling doesn't reset it.
 func (c *liveStateCache) dropHostsOnNodeAdded(server string, newRes, oldRes *clustercache.Resource) {
 	if oldRes != nil || newRes == nil {
 		return
 	}
-	if key := newRes.ResourceKey(); key.Group != "" || key.Kind != "Node" {
+	key := newRes.ResourceKey()
+	if key.Group != "" || key.Kind != "Node" {
 		return
 	}
 	c.lock.RLock()
-	if entry := c.hosts[server]; entry != nil {
-		entry.current.Store(nil)
-	}
+	entry := c.hosts[server]
 	c.lock.RUnlock()
+	if entry == nil {
+		return
+	}
+	if h := entry.current.Load(); h != nil && len(h.Nodes) > 0 && h.RequestsByNode[key.Name] == nil {
+		return
+	}
+	entry.current.Store(nil)
 }

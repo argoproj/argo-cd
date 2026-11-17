@@ -163,6 +163,7 @@ func TestGetClusterHosts(t *testing.T) {
 	t.Run("does not rebuild for nodes known to be absent", func(t *testing.T) {
 		l := &live{appPodNode: "node-a", noNodes: true}
 		c, scans := setup(t, l)
+		setTTL(t, 0) // an index without Nodes doesn't expire
 		for range 3 {
 			_, index, err := c.GetClusterHosts(cluster, appPods)
 			require.NoError(t, err)
@@ -308,6 +309,18 @@ func TestGetClusterHosts(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int32(2), scans.Load())
 		assert.Contains(t, index.Nodes, "node-c")
+	})
+
+	t.Run("keeps the index when an unrelated node joins", func(t *testing.T) {
+		c, scans := setup(t, healthy())
+		_, first, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+
+		c.dropHostsOnNodeAdded(cluster.Server, &cache.Resource{Ref: corev1.ObjectReference{Name: "node-d", Kind: "Node", APIVersion: "v1"}}, nil)
+		_, index, err := c.GetClusterHosts(cluster, appPods)
+		require.NoError(t, err)
+		assert.Same(t, first, index)
+		assert.Equal(t, int32(1), scans.Load())
 	})
 
 	t.Run("rebuilds once a cluster's first node joins", func(t *testing.T) {
