@@ -398,6 +398,105 @@ func TestFormatSyncPolicy(t *testing.T) {
 	})
 }
 
+func TestResolveEffectiveDryRun(t *testing.T) {
+	t.Parallel()
+
+	t.Run("flag wins when set", func(t *testing.T) {
+		t.Parallel()
+		sp := &v1alpha1.SyncPolicy{ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{DryRun: new(true)}}
+		assert.False(t, resolveEffectiveDryRun(sp, false, true))
+		assert.True(t, resolveEffectiveDryRun(sp, true, true))
+	})
+
+	t.Run("falls back to manualDefaults when flag omitted", func(t *testing.T) {
+		t.Parallel()
+		sp := &v1alpha1.SyncPolicy{ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{DryRun: new(true)}}
+		assert.True(t, resolveEffectiveDryRun(sp, false, false))
+	})
+
+	t.Run("legacy false when no manualDefaults and flag omitted", func(t *testing.T) {
+		t.Parallel()
+		assert.False(t, resolveEffectiveDryRun(nil, false, false))
+		assert.False(t, resolveEffectiveDryRun(&v1alpha1.SyncPolicy{}, false, false))
+	})
+}
+
+func TestResolveSyncStrategyFromFlags(t *testing.T) {
+	t.Parallel()
+
+	applyOnlyForce := &v1alpha1.SyncPolicy{
+		ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{
+			ApplyOnly: new(true),
+			Force:     new(true),
+		},
+	}
+
+	t.Run("neither flag changed leaves strategy nil for server defaults", func(t *testing.T) {
+		t.Parallel()
+		syncStrategy, err := resolveSyncStrategyFromFlags(applyOnlyForce, "", false, false, false)
+		require.NoError(t, err)
+		assert.Nil(t, syncStrategy)
+	})
+
+	t.Run("force alone keeps applyOnly from manualDefaults", func(t *testing.T) {
+		t.Parallel()
+		syncStrategy, err := resolveSyncStrategyFromFlags(applyOnlyForce, "", true, false, true)
+		require.NoError(t, err)
+		require.NotNil(t, syncStrategy)
+		require.NotNil(t, syncStrategy.Apply)
+		assert.Nil(t, syncStrategy.Hook)
+		assert.True(t, syncStrategy.Force())
+	})
+
+	t.Run("strategy apply alone keeps force from manualDefaults", func(t *testing.T) {
+		t.Parallel()
+		sp := &v1alpha1.SyncPolicy{
+			ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{
+				Force: new(true),
+			},
+		}
+		syncStrategy, err := resolveSyncStrategyFromFlags(sp, "apply", false, true, false)
+		require.NoError(t, err)
+		require.NotNil(t, syncStrategy)
+		require.NotNil(t, syncStrategy.Apply)
+		assert.True(t, syncStrategy.Force())
+	})
+
+	t.Run("strategy hook alone keeps force from manualDefaults", func(t *testing.T) {
+		t.Parallel()
+		syncStrategy, err := resolveSyncStrategyFromFlags(applyOnlyForce, "hook", false, true, false)
+		require.NoError(t, err)
+		require.NotNil(t, syncStrategy)
+		require.NotNil(t, syncStrategy.Hook)
+		assert.Nil(t, syncStrategy.Apply)
+		assert.True(t, syncStrategy.Force())
+	})
+
+	t.Run("both flags override manualDefaults", func(t *testing.T) {
+		t.Parallel()
+		syncStrategy, err := resolveSyncStrategyFromFlags(applyOnlyForce, "hook", false, true, true)
+		require.NoError(t, err)
+		require.NotNil(t, syncStrategy)
+		require.NotNil(t, syncStrategy.Hook)
+		assert.False(t, syncStrategy.Force())
+	})
+
+	t.Run("force alone without manualDefaults uses hook", func(t *testing.T) {
+		t.Parallel()
+		syncStrategy, err := resolveSyncStrategyFromFlags(nil, "", true, false, true)
+		require.NoError(t, err)
+		require.NotNil(t, syncStrategy)
+		require.NotNil(t, syncStrategy.Hook)
+		assert.True(t, syncStrategy.Force())
+	})
+
+	t.Run("unknown strategy returns error", func(t *testing.T) {
+		t.Parallel()
+		_, err := resolveSyncStrategyFromFlags(nil, "banana", false, true, false)
+		require.Error(t, err)
+	})
+}
+
 func TestFormatConditionSummary(t *testing.T) {
 	t.Run("No conditions are defined", func(t *testing.T) {
 		app := v1alpha1.Application{
@@ -2231,6 +2330,36 @@ func TestWaitOnApplicationStatus_DeleteWatchSkipsEarlyReturn(t *testing.T) {
 	require.NoError(t, err)
 	assert.Nil(t, app)
 	assert.Nil(t, opState)
+}
+
+// TestWaitOnApplicationStatus_DeleteOutput verifies that `argocd app wait --delete`
+// only prints the human-readable deletion message for text output formats, so that
+// json/yaml output stays machine-parseable.
+func TestWaitOnApplicationStatus_DeleteOutput(t *testing.T) {
+	ctx := t.Context()
+	watch := watchOpts{delete: true}
+
+	for _, format := range []string{"json", "yaml"} {
+		t.Run(format, func(t *testing.T) {
+			acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
+			output, err := captureOutput(func() error {
+				_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, format)
+				return err
+			})
+			require.NoError(t, err)
+			assert.Empty(t, output)
+		})
+	}
+
+	t.Run("wide", func(t *testing.T) {
+		acdClient := &deleteAcdClient{fakeAcdClient: &fakeAcdClient{}}
+		output, err := captureOutput(func() error {
+			_, _, err := waitOnApplicationStatus(ctx, acdClient, "app-name", 0, watch, nil, "wide")
+			return err
+		})
+		require.NoError(t, err)
+		assert.Contains(t, output, "Application 'argocd/test' deleted")
+	})
 }
 
 // TestWaitOnApplicationStatus_ReturnsFromWatchLoopWhenEventSatisfiesConditions

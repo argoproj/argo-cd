@@ -1,6 +1,6 @@
 import * as React from 'react';
-import {DataLoader} from '../../../shared/components';
-import {services, ViewPreferences} from '../../../shared/services';
+import {useViewPreferences} from '../../../shared/hooks/use-view-preferences';
+import {services} from '../../../shared/services';
 import {addDismissal, dismissalKey, ParsedNotice, parseNotice, shouldShowBanner} from './notice';
 import './notice.scss';
 
@@ -15,14 +15,11 @@ export const NoticeBanner = ({annotations, appName, appNamespace}: NoticeBannerP
     if (!notice || !shouldShowBanner(notice)) {
         return null;
     }
-    return (
-        <DataLoader load={() => services.viewPreferences.getPreferences()}>
-            {(prefs: ViewPreferences) => <NoticeBannerContent notice={notice} prefs={prefs} appName={appName} appNamespace={appNamespace} />}
-        </DataLoader>
-    );
+    return <NoticeBannerContent notice={notice} appName={appName} appNamespace={appNamespace} />;
 };
 
-const NoticeBannerContent = ({notice, prefs, appName, appNamespace}: {notice: ParsedNotice; prefs: ViewPreferences; appName: string; appNamespace: string}) => {
+const NoticeBannerContent = ({notice, appName, appNamespace}: {notice: ParsedNotice; appName: string; appNamespace: string}) => {
+    const prefs = useViewPreferences();
     const dismissed = prefs.dismissedNotices || {};
     const key = dismissalKey(appNamespace, appName, notice.content);
     if (!notice.permanent && dismissed[key]) {

@@ -468,6 +468,7 @@ func (e *legacyEngine) processEvents() {
 		case <-ticker.C:
 			if len(eventMetas) > 0 {
 				e.processEventsBatch(eventMetas)
+				clear(eventMetas)
 				eventMetas = eventMetas[:0]
 			}
 		}

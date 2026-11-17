@@ -14,6 +14,9 @@ type ServiceRequest struct {
 	// ApplicationSetName is the appSetName of the ApplicationSet for which we're requesting parameters. Useful for logging in
 	// the plugin service.
 	ApplicationSetName string `json:"applicationSetName"`
+	// ApplicationSetNamespace is the namespace of the ApplicationSet for which we're requesting parameters. Useful for logging in
+	// the plugin service when `ApplicationSet in any namespace` is enabled.
+	ApplicationSetNamespace string `json:"applicationSetNamespace"`
 	// Input is the map of parameters set in the ApplicationSet spec for this generator.
 	Input v1alpha1.PluginInput `json:"input"`
 }
@@ -30,11 +33,12 @@ type ServiceResponse struct {
 }
 
 type Service struct {
-	client     *internalhttp.Client
-	appSetName string
+	client          *internalhttp.Client
+	appSetName      string
+	appSetNamespace string
 }
 
-func NewPluginService(appSetName string, baseURL string, token string, requestTimeout int) (*Service, error) {
+func NewPluginService(appSetName string, appSetNamespace string, baseURL string, token string, requestTimeout int) (*Service, error) {
 	var clientOptionFns []internalhttp.ClientOptionFunc
 
 	clientOptionFns = append(clientOptionFns, internalhttp.WithToken(token))
@@ -49,13 +53,14 @@ func NewPluginService(appSetName string, baseURL string, token string, requestTi
 	}
 
 	return &Service{
-		client:     client,
-		appSetName: appSetName,
+		client:          client,
+		appSetName:      appSetName,
+		appSetNamespace: appSetNamespace,
 	}, nil
 }
 
 func (p *Service) List(ctx context.Context, parameters v1alpha1.PluginParameters) (*ServiceResponse, error) {
-	req, err := p.client.NewRequestWithContext(ctx, http.MethodPost, "api/v1/getparams.execute", ServiceRequest{ApplicationSetName: p.appSetName, Input: v1alpha1.PluginInput{Parameters: parameters}})
+	req, err := p.client.NewRequestWithContext(ctx, http.MethodPost, "api/v1/getparams.execute", ServiceRequest{ApplicationSetName: p.appSetName, ApplicationSetNamespace: p.appSetNamespace, Input: v1alpha1.PluginInput{Parameters: parameters}})
 	if err != nil {
 		return nil, fmt.Errorf("NewRequest returned unexpected error: %w", err)
 	}

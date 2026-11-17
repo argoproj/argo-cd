@@ -56,6 +56,7 @@ func NewCommand() *cobra.Command {
 		appResyncPeriod                  int64
 		appHardResyncPeriod              int64
 		appResyncJitter                  int64
+		reconciledAtHeartbeat            time.Duration
 		repoErrorGracePeriod             int64
 		repoServerAddress                string
 		repoServerTimeoutSeconds         int
@@ -78,6 +79,7 @@ func NewCommand() *cobra.Command {
 		metricsClusterLabels             []string
 		kubectlParallelismLimit          int64
 		cacheSource                      func() (*appstatecache.Cache, error)
+		reconciledAtCacheSource          func() (*cacheutil.Cache, error)
 		redisClient                      *redis.Client
 		repoServerPlaintext              bool
 		repoServerStrictTLS              bool
@@ -174,6 +176,16 @@ func NewCommand() *cobra.Command {
 			cache, err := cacheSource()
 			errors.CheckError(err)
 			cache.Cache.SetClient(cacheutil.NewTwoLevelClient(cache.Cache.GetClient(), 10*time.Minute))
+			// A separate Redis only when pointed at one; otherwise the main cache is shared.
+			var reconciledAtCache *appstatecache.Cache
+			if c.Flags().Changed("reconciled-at-redis") || c.Flags().Changed("reconciled-at-sentinel") {
+				rc, err := reconciledAtCacheSource()
+				errors.CheckError(err)
+				rc.SetClient(cacheutil.NewTwoLevelClient(rc.GetClient(), 10*time.Minute))
+				expiration, err := c.Flags().GetDuration("app-state-cache-expiration")
+				errors.CheckError(err)
+				reconciledAtCache = appstatecache.NewCache(rc, expiration)
+			}
 
 			var appController *controller.ApplicationController
 
@@ -199,10 +211,12 @@ func NewCommand() *cobra.Command {
 				repoClientset,
 				commitClientset,
 				cache,
+				reconciledAtCache,
 				kubectl,
 				resyncDuration,
 				hardResyncDuration,
 				time.Duration(appResyncJitter)*time.Second,
+				reconciledAtHeartbeat,
 				time.Duration(selfHealTimeoutSeconds)*time.Second,
 				selfHealBackoff,
 				time.Duration(syncTimeout)*time.Second,
@@ -266,6 +280,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().Int64Var(&appResyncPeriod, "app-resync", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_TIMEOUT", defaultAppResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Time period in seconds for application resync.")
 	command.Flags().Int64Var(&appHardResyncPeriod, "app-hard-resync", int64(env.ParseDurationFromEnv("ARGOCD_HARD_RECONCILIATION_TIMEOUT", defaultAppHardResyncPeriod*time.Second, 0, math.MaxInt64).Seconds()), "Time period in seconds for application hard resync.")
 	command.Flags().Int64Var(&appResyncJitter, "app-resync-jitter", int64(env.ParseDurationFromEnv("ARGOCD_RECONCILIATION_JITTER", defaultAppResyncPeriodJitter*time.Second, 0, math.MaxInt64).Seconds()), "Maximum time period in seconds to add as a delay jitter for application resync.")
+	command.Flags().DurationVar(&reconciledAtHeartbeat, "reconciled-at-heartbeat", env.ParseDurationFromEnv(common.EnvControllerReconciledAtHeartbeat, 0, 0, math.MaxInt64), "How stale the Application status.reconciledAt field may become while nothing else in status changes. Zero (the default) writes it on every reconciliation; a positive value (e.g. 10m) trades staleness of that one field for far fewer API server writes.")
 	command.Flags().Int64Var(&repoErrorGracePeriod, "repo-error-grace-period-seconds", int64(env.ParseDurationFromEnv("ARGOCD_REPO_ERROR_GRACE_PERIOD_SECONDS", defaultRepoErrorGracePeriod*time.Second, 0, math.MaxInt64).Seconds()), "Grace period in seconds for ignoring consecutive errors while communicating with repo server.")
 	command.Flags().StringVar(&repoServerAddress, "repo-server", env.StringFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER", common.DefaultRepoServerAddr), "Repo server address.")
 	command.Flags().IntVar(&repoServerTimeoutSeconds, "repo-server-timeout-seconds", env.ParseNumFromEnv("ARGOCD_APPLICATION_CONTROLLER_REPO_SERVER_TIMEOUT_SECONDS", 60, 0, math.MaxInt64), "Repo server RPC call timeout seconds.")
@@ -324,5 +339,6 @@ func NewCommand() *cobra.Command {
 			redisClient = client
 		},
 	})
+	reconciledAtCacheSource = cacheutil.AddCacheFlagsToCmd(&command, cacheutil.Options{FlagPrefix: "reconciled-at-"})
 	return &command
 }

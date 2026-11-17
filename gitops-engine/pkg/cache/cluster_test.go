@@ -553,6 +553,57 @@ func TestStatefulSetPVC_WatchEvent_IndexUpdated(t *testing.T) {
 	require.Contains(t, children, pvcKey, "PVC should be in StatefulSet's children (inferred relationship)")
 }
 
+func TestReplaceResourceCacheTreatsUIDChangeAsDeleteAndAdd(t *testing.T) {
+	t.Parallel()
+	sts := func(uid types.UID, resourceVersion string) *appsv1.StatefulSet {
+		return &appsv1.StatefulSet{
+			TypeMeta:   metav1.TypeMeta{APIVersion: "apps/v1", Kind: kube.StatefulSetKind},
+			ObjectMeta: metav1.ObjectMeta{UID: uid, ResourceVersion: resourceVersion, Name: "web", Namespace: "default"},
+			Spec: appsv1.StatefulSetSpec{
+				VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{
+					ObjectMeta: metav1.ObjectMeta{Name: "data"},
+				}},
+			},
+		}
+	}
+	pvc := &corev1.PersistentVolumeClaim{
+		TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.PersistentVolumeClaimKind},
+		ObjectMeta: metav1.ObjectMeta{UID: "pvc-uid", Name: "data-web-0", Namespace: "default"},
+	}
+	cluster := newCluster(t, sts("old-uid", "1"), pvc).WithAPIResources([]kube.APIResourceInfo{{
+		GroupKind:            schema.GroupKind{Group: "", Kind: kube.PersistentVolumeClaimKind},
+		GroupVersionResource: schema.GroupVersionResource{Group: "", Version: "v1", Resource: "persistentvolumeclaims"},
+		Meta:                 metav1.APIResource{Namespaced: true},
+	}})
+	require.NoError(t, cluster.EnsureSynced())
+
+	var dispatched []string
+	cluster.OnResourceUpdated(func(newRes, oldRes *Resource, _ map[kube.ResourceKey]*Resource) {
+		switch {
+		case newRes == nil:
+			dispatched = append(dispatched, "delete "+string(oldRes.Ref.UID))
+		case oldRes == nil:
+			dispatched = append(dispatched, "add "+string(newRes.Ref.UID))
+		default:
+			dispatched = append(dispatched, "update "+string(oldRes.Ref.UID)+" to "+string(newRes.Ref.UID))
+		}
+	})
+
+	cluster.lock.Lock()
+	defer cluster.lock.Unlock()
+	replacement := cluster.newResource(mustToUnstructured(sts("new-uid", "2")))
+	cluster.replaceResourceCache(schema.GroupKind{Group: "apps", Kind: kube.StatefulSetKind}, []*Resource{replacement}, "")
+
+	pvcKey := kube.NewResourceKey("", kube.PersistentVolumeClaimKind, "default", "data-web-0")
+	pvcResource := cluster.resources[pvcKey]
+	require.NotNil(t, pvcResource)
+	require.Len(t, pvcResource.OwnerRefs, 1, "PVC must not keep an inferred owner ref to the replaced StatefulSet")
+	require.Equal(t, types.UID("new-uid"), pvcResource.OwnerRefs[0].UID)
+	require.NotContains(t, cluster.parentUIDToChildren, types.UID("old-uid"))
+	require.Contains(t, cluster.parentUIDToChildren[types.UID("new-uid")], pvcKey)
+	require.Equal(t, []string{"delete old-uid", "add new-uid"}, dispatched, "handlers must see the replaced StatefulSet as a delete followed by an add")
+}
+
 func TestEnsureSyncedSingleNamespace(t *testing.T) {
 	t.Parallel()
 	obj1 := &appsv1.Deployment{

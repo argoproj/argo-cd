@@ -72,7 +72,7 @@ func (generator *ApplicationGenerator) Generate(opts *util.GenerateOpts) error {
 		return err
 	}
 	applications := generator.argoClientSet.ArgoprojV1alpha1().Applications(opts.Namespace)
-	for i := 0; i < opts.ApplicationOpts.Samples; i++ {
+	for i := range opts.ApplicationOpts.Samples {
 		log.Printf("Generate application #%v", i)
 		source, err := generator.buildSource(opts, repositories)
 		if err != nil {
