@@ -222,8 +222,8 @@ type cacheSettings struct {
 	manifestCompressionEnabled bool
 	manifestStorageType        clustercache.ManifestStorageType
 	manifestCompressionType    clustercache.ManifestCompressionType
-	// clusterCABundle is the default CA bundle from argocd-cluster-ca-cm. Tracking it here makes a change to the bundle
-	// invalidate the cache and refresh the REST config of clusters that rely on it.
+	// clusterCABundle is the default CA bundle from argocd-default-cluster-ca-cm. Tracking it here makes a change to the
+	// bundle invalidate the cache and refresh the REST config of clusters that rely on it.
 	clusterCABundle []byte
 }
 

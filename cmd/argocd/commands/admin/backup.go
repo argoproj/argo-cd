@@ -468,7 +468,8 @@ func checkAppHasNoNeedToStopOperation(liveObj unstructured.Unstructured, stopOpe
 	return true
 }
 
-// getClusterCAConfigMap returns the optional argocd-cluster-ca-cm ConfigMap, or nil without an error if it does not exist.
+// getClusterCAConfigMap returns the optional argocd-default-cluster-ca-cm ConfigMap, or nil without an error if it does
+// not exist.
 func getClusterCAConfigMap(ctx context.Context, configMaps dynamic.ResourceInterface) (*unstructured.Unstructured, error) {
 	un, err := configMaps.Get(ctx, common.ArgoCDClusterCAConfigMapName, metav1.GetOptions{})
 	if err != nil {

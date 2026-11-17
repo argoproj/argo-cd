@@ -238,7 +238,7 @@ func TestSettingsManager_NotifiesWhenClusterCAConfigMapIsDeleted(t *testing.T) {
 	select {
 	case <-updates:
 	case <-time.After(10 * time.Second):
-		t.Fatal("deleting argocd-cluster-ca-cm did not notify settings subscribers")
+		t.Fatal("deleting argocd-default-cluster-ca-cm did not notify settings subscribers")
 	}
 	after, err := settingsManager.GetClusterCABundle()
 	require.NoError(t, err)

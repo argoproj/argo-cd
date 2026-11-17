@@ -182,7 +182,7 @@ kind: ""
 metadata:
   labels:
     app.kubernetes.io/part-of: argocd
-  name: argocd-cluster-ca-cm
+  name: argocd-default-cluster-ca-cm
 ---
 `,
 		},
