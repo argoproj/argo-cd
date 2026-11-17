@@ -455,6 +455,60 @@ func BenchmarkGetClusterHosts(b *testing.B) {
 		}
 	}
 
+	// master's getAppHosts (#28539): IterateResources over the whole cluster,
+	// then the neighbors on the app's nodes.
+	b.Run("iterate-resources", func(b *testing.B) {
+		c := newCache()
+		// master's liveStateCache.IterateResources.
+		iterateResources := func(server *appv1.Cluster, callback func(res *cache.Resource, info *ResourceInfo)) error {
+			clusterInfo, err := c.getSyncedCluster(server)
+			if err != nil {
+				return err
+			}
+			_ = clusterInfo.FindResources("", func(r *cache.Resource) bool {
+				if info, ok := r.Info.(*ResourceInfo); ok {
+					callback(r, info)
+				}
+				return false
+			})
+			return nil
+		}
+		b.ReportAllocs()
+		for b.Loop() {
+			wanted := map[kube.ResourceKey]bool{}
+			for _, key := range appPods {
+				wanted[key] = true
+			}
+			allNodesInfo := map[string]NodeInfo{}
+			allPodsByNode := map[string][]PodInfo{}
+			appPodsByNode := map[string][]PodInfo{}
+			err := iterateResources(cluster, func(res *cache.Resource, info *ResourceInfo) {
+				key := res.ResourceKey()
+				switch {
+				case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
+					allNodesInfo[key.Name] = *info.NodeInfo
+				case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
+					if wanted[key] {
+						appPodsByNode[info.PodInfo.NodeName] = append(appPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
+					} else {
+						allPodsByNode[info.PodInfo.NodeName] = append(allPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
+					}
+				}
+			})
+			require.NoError(b, err)
+			neighbors := map[string]map[corev1.ResourceName]int64{}
+			for node := range appPodsByNode {
+				neighbors[node] = map[corev1.ResourceName]int64{}
+				for _, pod := range allPodsByNode[node] {
+					if requestsCount(pod) {
+						for name, quantity := range pod.ResourceRequests {
+							neighbors[node][name] += quantity.MilliValue()
+						}
+					}
+				}
+			}
+		}
+	})
 	// A reconcile within appHostsIndexTTL: reads the app's pods, reuses the index.
 	b.Run("cached", func(b *testing.B) {
 		c := newCache()
@@ -462,7 +516,12 @@ func BenchmarkGetClusterHosts(b *testing.B) {
 		require.NoError(b, err)
 		b.ReportAllocs()
 		for b.Loop() {
-			_, _, _ = c.GetClusterHosts(cluster, appPods)
+			livePods, index, _ := c.GetClusterHosts(cluster, appPods)
+			nodes := make([]string, 0, len(livePods))
+			for _, pod := range livePods {
+				nodes = append(nodes, pod.NodeName)
+			}
+			_ = index.NeighborRequests(nodes, appPods)
 		}
 	})
 	// The rebuild, at most once per appHostsIndexTTL per cluster. retained-B is
