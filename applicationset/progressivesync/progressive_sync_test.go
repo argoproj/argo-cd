@@ -1373,7 +1373,7 @@ func TestSyncApplication(t *testing.T) {
 	tests := []struct {
 		name      string
 		input     v1alpha1.Application
-		prune     bool
+		opts      progressiveSyncOptions
 		revisions []string
 		expected  v1alpha1.Application
 	}{
@@ -1382,7 +1382,7 @@ func TestSyncApplication(t *testing.T) {
 			input: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{},
 			},
-			prune: false,
+			opts: progressiveSyncOptions{},
 			expected: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{},
 				Operation: &v1alpha1.Operation{
@@ -1417,7 +1417,7 @@ func TestSyncApplication(t *testing.T) {
 					},
 				},
 			},
-			prune: true,
+			opts: progressiveSyncOptions{prune: true},
 			expected: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
 					SyncPolicy: &v1alpha1.SyncPolicy{
@@ -1449,13 +1449,55 @@ func TestSyncApplication(t *testing.T) {
 			},
 		},
 		{
+			name: "manualDefaults force is applied to the operation",
+			input: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SyncPolicy: &v1alpha1.SyncPolicy{
+						ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{
+							Force: new(true),
+						},
+					},
+				},
+			},
+			opts: progressiveSyncOptions{
+				strategy: &v1alpha1.SyncStrategy{Hook: &v1alpha1.SyncStrategyHook{Force: true}},
+			},
+			expected: v1alpha1.Application{
+				Spec: v1alpha1.ApplicationSpec{
+					SyncPolicy: &v1alpha1.SyncPolicy{
+						ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{
+							Force: new(true),
+						},
+					},
+				},
+				Operation: &v1alpha1.Operation{
+					InitiatedBy: v1alpha1.OperationInitiator{
+						Username:  "applicationset-controller",
+						Automated: true,
+					},
+					Info: []*v1alpha1.Info{
+						{
+							Name:  "Reason",
+							Value: "ApplicationSet RollingSync triggered a sync of this Application resource",
+						},
+					},
+					Sync: &v1alpha1.SyncOperation{
+						SyncStrategy: &v1alpha1.SyncStrategy{Hook: &v1alpha1.SyncStrategyHook{Force: true}},
+					},
+					Retry: v1alpha1.RetryStrategy{
+						Limit: 5,
+					},
+				},
+			},
+		},
+		{
 			name: "single-source application pins Sync.Revision from the recorded target revision",
 			input: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
 					Source: &v1alpha1.ApplicationSource{RepoURL: "https://example.com/repo.git"},
 				},
 			},
-			prune:     false,
+			opts:      progressiveSyncOptions{},
 			revisions: []string{"abc123"},
 			expected: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
@@ -1492,7 +1534,7 @@ func TestSyncApplication(t *testing.T) {
 					},
 				},
 			},
-			prune:     false,
+			opts:      progressiveSyncOptions{},
 			revisions: []string{"abc123", "def456"},
 			expected: v1alpha1.Application{
 				Spec: v1alpha1.ApplicationSpec{
@@ -1527,10 +1569,150 @@ func TestSyncApplication(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			result := syncApplication(tt.input, tt.prune, tt.revisions)
+			result := syncApplication(tt.input, tt.opts, tt.revisions)
 			assert.Equal(t, tt.expected, result)
 		})
 	}
+}
+
+func TestSyncDesiredApplications_PrunePrefersAutomatedThenManualDefaults(t *testing.T) {
+	t.Parallel()
+	m := &Manager{dependencies: testDeps{}}
+	logCtx := log.NewEntry(log.New())
+
+	appSet := &v1alpha1.ApplicationSet{
+		Status: v1alpha1.ApplicationSetStatus{
+			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{Application: "app-manual-prune", Status: v1alpha1.ProgressiveSyncPending},
+				{Application: "app-auto-prune-only", Status: v1alpha1.ProgressiveSyncPending},
+				{Application: "app-auto-wins", Status: v1alpha1.ProgressiveSyncPending},
+			},
+		},
+	}
+	appsToSync := map[string]bool{
+		"app-manual-prune":    true,
+		"app-auto-prune-only": true,
+		"app-auto-wins":       true,
+	}
+	desired := []v1alpha1.Application{
+		{
+			Name: "app-manual-prune",
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					// Automated disabled so progressive sync falls back to ManualDefaults.
+					Automated:      &v1alpha1.SyncPolicyAutomated{Enabled: new(false), Prune: new(false)},
+					ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{Prune: new(true)},
+				},
+			},
+		},
+		{
+			Name: "app-auto-prune-only",
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{Prune: new(true)},
+				},
+			},
+		},
+		{
+			Name: "app-auto-wins",
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated:      &v1alpha1.SyncPolicyAutomated{Prune: new(false)},
+					ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{Prune: new(true)},
+				},
+			},
+		},
+	}
+
+	result := m.SyncDesiredApplications(logCtx, appSet, appsToSync, desired)
+	require.Len(t, result, 3)
+	require.NotNil(t, result[0].Operation)
+	require.NotNil(t, result[0].Operation.Sync)
+	assert.True(t, result[0].Operation.Sync.Prune, "when automated sync is disabled, progressive sync should fall back to manualDefaults.prune")
+	require.NotNil(t, result[1].Operation)
+	require.NotNil(t, result[1].Operation.Sync)
+	assert.True(t, result[1].Operation.Sync.Prune, "when automated sync is enabled, progressive sync keeps legacy automated.prune")
+	require.NotNil(t, result[2].Operation)
+	require.NotNil(t, result[2].Operation.Sync)
+	assert.False(t, result[2].Operation.Sync.Prune, "when automated sync is enabled, automated.prune takes precedence over manualDefaults.prune")
+}
+
+func TestSyncDesiredApplications_AppliesManualDefaultsStrategyButIgnoresDryRun(t *testing.T) {
+	t.Parallel()
+	m := &Manager{dependencies: testDeps{}}
+	logCtx := log.NewEntry(log.New())
+
+	appSet := &v1alpha1.ApplicationSet{
+		Status: v1alpha1.ApplicationSetStatus{
+			ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+				{Application: "app-manual-defaults", Status: v1alpha1.ProgressiveSyncPending},
+			},
+		},
+	}
+	desired := []v1alpha1.Application{
+		{
+			Name: "app-manual-defaults",
+			Spec: v1alpha1.ApplicationSpec{
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{Enabled: new(false)},
+					ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{
+						Prune:     new(false),
+						DryRun:    new(true),
+						ApplyOnly: new(true),
+						Force:     new(true),
+					},
+				},
+			},
+		},
+	}
+
+	result := m.SyncDesiredApplications(logCtx, appSet, map[string]bool{"app-manual-defaults": true}, desired)
+	require.Len(t, result, 1)
+	require.NotNil(t, result[0].Operation)
+	require.NotNil(t, result[0].Operation.Sync)
+	assert.False(t, result[0].Operation.Sync.Prune)
+	assert.False(t, result[0].Operation.Sync.DryRun, "RollingSync ignores manualDefaults.dryRun so the rollout can progress")
+	require.NotNil(t, result[0].Operation.Sync.SyncStrategy)
+	require.NotNil(t, result[0].Operation.Sync.SyncStrategy.Apply)
+	assert.True(t, result[0].Operation.Sync.SyncStrategy.Force())
+}
+
+func TestResolveProgressiveSyncOptions(t *testing.T) {
+	t.Parallel()
+
+	t.Run("nil syncPolicy", func(t *testing.T) {
+		t.Parallel()
+		opts := resolveProgressiveSyncOptions(nil)
+		assert.False(t, opts.prune)
+		assert.Nil(t, opts.strategy)
+	})
+
+	t.Run("manualDefaults supplies force applyOnly and prune but not dryRun", func(t *testing.T) {
+		t.Parallel()
+		opts := resolveProgressiveSyncOptions(&v1alpha1.SyncPolicy{
+			ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{
+				Prune:     new(true),
+				DryRun:    new(true),
+				ApplyOnly: new(true),
+				Force:     new(true),
+			},
+		})
+		assert.True(t, opts.prune)
+		require.NotNil(t, opts.strategy)
+		require.NotNil(t, opts.strategy.Apply)
+		assert.True(t, opts.strategy.Force())
+	})
+
+	t.Run("automated prune wins over manualDefaults prune", func(t *testing.T) {
+		t.Parallel()
+		opts := resolveProgressiveSyncOptions(&v1alpha1.SyncPolicy{
+			Automated:      &v1alpha1.SyncPolicyAutomated{Prune: new(false)},
+			ManualDefaults: &v1alpha1.SyncPolicyManualDefaults{Prune: new(true), DryRun: new(true), Force: new(true)},
+		})
+		assert.False(t, opts.prune)
+		require.NotNil(t, opts.strategy)
+		assert.True(t, opts.strategy.Force(), "force still comes from manualDefaults even when automated is enabled")
+	})
 }
 
 func TestIsRollingSyncDeletionReversed(t *testing.T) {

@@ -58,6 +58,10 @@ type AppOptions struct {
 	syncPolicy                      string
 	syncOptions                     []string
 	autoPrune                       bool
+	syncPrune                       bool
+	syncDryRun                      bool
+	syncApplyOnly                   bool
+	syncForce                       bool
 	selfHeal                        bool
 	rollbackAware                   bool
 	allowEmpty                      bool
@@ -140,6 +144,10 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning for automated sync policy")
+	command.Flags().BoolVar(&opts.syncPrune, "sync-prune", true, "Prune resources by default on manual sync (sets syncPolicy.manualDefaults.prune)")
+	command.Flags().BoolVar(&opts.syncDryRun, "sync-dry-run", false, "Dry-run by default on manual sync (sets syncPolicy.manualDefaults.dryRun)")
+	command.Flags().BoolVar(&opts.syncApplyOnly, "sync-apply-only", false, "Apply-only by default on manual sync (sets syncPolicy.manualDefaults.applyOnly)")
+	command.Flags().BoolVar(&opts.syncForce, "sync-force", false, "Force by default on manual sync (sets syncPolicy.manualDefaults.force)")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing for automated sync policy")
 	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources for automated sync policy")
 	command.Flags().BoolVar(&opts.rollbackAware, "rollback-aware", false, "Allow rollbacks while automated sync is enabled; automated sync skips the rolled-back revision until a new revision is available")
@@ -310,6 +318,29 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 		if flags.Changed("rollback-aware") {
 			spec.SyncPolicy.Automated.RollbackAware = &appOpts.rollbackAware
+		}
+	}
+	if flags.Changed("sync-prune") || flags.Changed("sync-dry-run") || flags.Changed("sync-apply-only") || flags.Changed("sync-force") {
+		if spec.SyncPolicy == nil {
+			spec.SyncPolicy = &argoappv1.SyncPolicy{}
+		}
+		if spec.SyncPolicy.ManualDefaults == nil {
+			// Creating manualDefaults for a non-prune field must not opt into
+			// GetPrune()'s true-when-nil default; keep legacy prune=false until
+			// --sync-prune is set explicitly.
+			spec.SyncPolicy.ManualDefaults = argoappv1.NewSyncPolicyManualDefaults()
+		}
+		if flags.Changed("sync-prune") {
+			spec.SyncPolicy.ManualDefaults.Prune = &appOpts.syncPrune
+		}
+		if flags.Changed("sync-dry-run") {
+			spec.SyncPolicy.ManualDefaults.DryRun = &appOpts.syncDryRun
+		}
+		if flags.Changed("sync-apply-only") {
+			spec.SyncPolicy.ManualDefaults.ApplyOnly = &appOpts.syncApplyOnly
+		}
+		if flags.Changed("sync-force") {
+			spec.SyncPolicy.ManualDefaults.Force = &appOpts.syncForce
 		}
 	}
 	return visited

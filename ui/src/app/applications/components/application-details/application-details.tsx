@@ -922,7 +922,15 @@ export const ApplicationDetails: FC<RouteComponentProps<{appnamespace: string; n
                                                     title: isApplication ? 'Applications' : 'ApplicationSets',
                                                     path: isApplication ? '/applications' : '/applicationsets'
                                                 },
-                                                {title: <ApplicationsDetailsAppDropdown appName={props.match.params.name} objectListKind={objectListKind} />}
+                                                {
+                                                    title: (
+                                                        <ApplicationsDetailsAppDropdown
+                                                            appName={props.match.params.name}
+                                                            objectListKind={objectListKind}
+                                                            application={isApplication ? (application as appModels.Application) : undefined}
+                                                        />
+                                                    )
+                                                }
                                             ],
                                             actionMenu: {
                                                 items: isApplication

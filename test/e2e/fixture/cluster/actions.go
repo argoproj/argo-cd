@@ -3,7 +3,6 @@ package cluster
 import (
 	"context"
 	"errors"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -60,7 +59,7 @@ func (a *Actions) Create() *Actions {
 	})
 	if err != nil {
 		if !a.ignoreErrors {
-			log.Fatalf("Failed to upsert cluster %v", err.Error())
+			a.context.T().Fatalf("Failed to upsert cluster %v", err.Error())
 		}
 		a.lastError = errors.New(err.Error())
 	}
