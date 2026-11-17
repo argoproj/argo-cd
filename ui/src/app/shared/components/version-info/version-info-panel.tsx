@@ -16,7 +16,7 @@ interface VersionPanelProps {
 type CopyState = 'success' | 'failed' | undefined;
 
 export function VersionPanel({isShown, onClose}: VersionPanelProps) {
-    const version = useQuery({...versionQueries.get(), enabled: isShown});
+    const version = useQuery({...versionQueries.get(), enabled: isShown, staleTime: Infinity});
     const theme = useViewPreferences(pref => pref.theme);
     const [copyState, setCopyState] = useState<CopyState>(undefined);
     const header = 'Argo CD Server Version';

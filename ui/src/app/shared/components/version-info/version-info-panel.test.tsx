@@ -84,6 +84,19 @@ describe('VersionPanel', () => {
         expect(onClose).toHaveBeenCalledTimes(1);
     });
 
+    it('reuses the loaded version when the panel is closed and reopened', async () => {
+        jest.mocked(services.version.version).mockResolvedValue(version);
+        const {setShown} = renderPanel();
+        await screen.findByText(version.Version);
+
+        setShown(false);
+        setShown(true);
+
+        expect(screen.getByText(version.Version)).toBeInTheDocument();
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+        expect(services.version.version).toHaveBeenCalledTimes(1);
+    });
+
     it('offers retry after an initial failure and shows loading while retrying', async () => {
         let resolveRetry: (value: VersionMessage) => void;
         jest.mocked(services.version.version)
@@ -107,6 +120,7 @@ describe('VersionPanel', () => {
             .mockResolvedValueOnce({...version, Version: 'v3.7.1'});
         renderPanel();
         expect(screen.getByText(version.Version)).toBeInTheDocument();
+        await act(() => client.invalidateQueries({queryKey: versionQueries.get().queryKey}));
         fireEvent.click(await screen.findByRole('button', {name: 'try again'}));
 
         expect(screen.getByText(version.Version)).toBeInTheDocument();

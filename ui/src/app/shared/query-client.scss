@@ -1,0 +1,5 @@
+.query-retry:focus-visible {
+    // argo-ui removes button outlines globally with !important.
+    outline: 2px solid currentColor !important;
+    outline-offset: 2px;
+}
