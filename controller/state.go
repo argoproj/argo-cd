@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"slices"
+	"strconv"
 	"strings"
 	goSync "sync"
 	"time"
@@ -127,6 +128,13 @@ func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
 
 func (res *comparisonResult) GetHealthStatus() health.HealthStatusCode {
 	return res.healthStatus
+}
+
+// diffCacheKey scopes the app-managed-resources diff cache by the diff
+// strategy that produced the results (#30969): the strategies can disagree,
+// so a strategy change must miss the cache and force a re-diff.
+func diffCacheKey(app *v1alpha1.Application, namespace string, serverSideDiff bool) string {
+	return app.InstanceName(namespace) + ";ssd=" + strconv.FormatBool(serverSideDiff)
 }
 
 // appStateManager allows to compare applications to git
@@ -933,9 +941,13 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	// The repo-server regenerates manifests when its cache entry is gone, and they can then differ
 	// (e.g. ARGOCD_APP_REVISION), so the targets must also match the cached diff. useDiffCache only
 	// calls this after its cheaper checks pass, and the loaded diff is handed to the diff config.
+	// The diff cache is scoped by the diff strategy: enabling or disabling
+	// Server-Side Diff must not reuse results produced by the other strategy
+	// (#30969) — they can disagree, and the live resourceVersion alone cannot
+	// tell them apart.
 	var cachedDiff []*v1alpha1.ResourceDiff
 	targetsMatchCache := func() bool {
-		if m.cache == nil || m.cache.GetAppManagedResources(app.InstanceName(m.namespace), &cachedDiff) != nil {
+		if m.cache == nil || m.cache.GetAppManagedResources(diffCacheKey(app, m.namespace, serverSideDiff), &cachedDiff) != nil {
 			cachedDiff = nil
 			return false
 		}
@@ -948,7 +960,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		WithTracking(appLabelKey, trackingMethod)
 
 	if useDiffCache {
-		diffConfigBuilder.WithCache(m.cache, app.InstanceName(m.namespace))
+		diffConfigBuilder.WithCache(m.cache, diffCacheKey(app, m.namespace, serverSideDiff))
 		if cachedDiff != nil {
 			diffConfigBuilder.WithCachedDiff(cachedDiff)
 		}
