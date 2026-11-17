@@ -2,6 +2,7 @@ package rbac
 
 import (
 	"context"
+	"errors"
 	"maps"
 	"strings"
 	"sync"
@@ -721,6 +722,26 @@ g, Team.Lead@Example.org, role:Deployer
 		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
 		assert.False(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
 		assert.True(t, enf.Enforce("user.name@example.org", "applications", "get", "foo/bar"))
+	})
+
+	t.Run("a rejected config map update does not change the setting", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, nil)
+		assert.False(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
+
+		cm := fakeConfigMap()
+		cm.Data[ConfigMapPolicyCSVKey] = userPolicy
+		cm.Data[ConfigMapCaseInsensitiveSubjectsKey] = "true"
+		failingUpdate := func(_ *corev1.ConfigMap) error { return errors.New("invalid scopes") }
+		require.Error(t, enf.syncUpdate(cm, failingUpdate))
+
+		// the old policy is still loaded, so it must still be matched case-sensitively
+		assert.False(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
+		assert.True(t, enf.Enforce("user.name@example.org", "applications", "get", "foo/bar"))
+		assert.Equal(t, "User.Name@example.org", enf.NormalizeSubject(enf.CreateEnforcerWithRuntimePolicy("", ""), "User.Name@example.org"))
+
+		// the same update applied successfully switches the setting on
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+		assert.True(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
 	})
 
 	t.Run("NormalizeSubject follows the setting the enforcer was created with", func(t *testing.T) {

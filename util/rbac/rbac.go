@@ -629,11 +629,13 @@ func PolicyCSV(data map[string]string) string {
 func (e *Enforcer) syncUpdate(cm *corev1.ConfigMap, onUpdated func(cm *corev1.ConfigMap) error) error {
 	e.SetDefaultRole(cm.Data[ConfigMapPolicyDefaultKey])
 	e.SetMatchMode(cm.Data[ConfigMapMatchModeKey])
-	e.SetCaseInsensitiveSubjects(ParseCaseInsensitiveSubjects(cm.Data[ConfigMapCaseInsensitiveSubjectsKey]))
 	policyCSV := PolicyCSV(cm.Data)
 	if err := onUpdated(cm); err != nil {
 		return fmt.Errorf("error running policy update callback: %w", err)
 	}
+	// The folding setting changes how the policy is loaded, so it is applied together with the policy
+	// it belongs to and never ahead of a callback that may still reject the update.
+	e.SetCaseInsensitiveSubjects(ParseCaseInsensitiveSubjects(cm.Data[ConfigMapCaseInsensitiveSubjectsKey]))
 	return e.SetUserPolicy(policyCSV)
 }
 
