@@ -137,4 +137,15 @@ describe('Login SSO auto-login', () => {
         await waitFor(() => expect(services.users.login).toHaveBeenCalledWith('new-user', 'password'));
         expect(window.localStorage.getItem('argocd.sso.autoLoginPaused')).toBe('true');
     });
+
+    it('keeps auto-login on after a failed local account login', async () => {
+        jest.mocked(services.authService.settings).mockResolvedValue(settings());
+        jest.mocked(services.users.login).mockRejectedValue(new Error('Invalid credentials'));
+
+        renderLogin('?sso_auto_login=false');
+        await submitLogin();
+
+        expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+        expect(window.localStorage.getItem('argocd.sso.autoLoginPaused')).toBeNull();
+    });
 });
