@@ -20,7 +20,8 @@ type ClusterHosts struct {
 	Nodes   map[string]NodeInfo
 	Pods    map[kube.ResourceKey]PodInfo
 	// RequestsByNode sums, in milli-units, the requests of each node's pods
-	// that haven't succeeded or failed. Every node a pod is on has an entry.
+	// that haven't succeeded or failed. Every node a pod is on has an entry;
+	// nil, like Pods, when there are no Nodes.
 	RequestsByNode map[string]map[corev1.ResourceName]int64
 
 	syncedAt time.Time // the cluster cache's LastCacheSyncTime at build
@@ -98,8 +99,8 @@ func (c *liveStateCache) GetClusterHosts(server *appv1.Cluster, pods []kube.Reso
 	// An index covers the live pods if it has each one's node, or already saw
 	// the pod on that node without it. A pod on a node the index has never
 	// heard of forces a rebuild. An index without Nodes covers everything, as
-	// namespaced clusters never cache them. dropHostsOnNodeAdded resets the
-	// index in both cases, so the Node shows up on the next call.
+	// namespaced clusters never cache them. In those two cases a Node add
+	// resets the index (dropHostsOnNodeAdded), so the Node shows up next call.
 	covers := func(h *ClusterHosts) bool {
 		if len(h.Nodes) == 0 {
 			return true
