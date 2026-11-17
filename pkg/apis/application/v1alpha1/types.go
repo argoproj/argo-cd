@@ -2449,9 +2449,9 @@ type ConnectionState struct {
 type Cluster struct {
 	// ID is an internal field cluster identifier. Not exposed via API.
 	ID string `json:"-"`
-	// DefaultCABundle is the default CA bundle (from the argocd-cluster-ca-cm ConfigMap) used to verify the cluster API
-	// server only when Config.CAData is empty and Config.Insecure is false. It is populated at runtime by the DB layer
-	// and is neither persisted in the cluster secret nor exposed via API.
+	// DefaultCABundle is the default CA bundle (from the argocd-default-cluster-ca-cm ConfigMap) used to verify the
+	// cluster API server only when Config.CAData is empty and Config.Insecure is false. It is populated at runtime by the
+	// DB layer and is neither persisted in the cluster secret nor exposed via API.
 	DefaultCABundle []byte `json:"-"`
 	// Server is the API server URL of the Kubernetes cluster
 	Server string `json:"server" protobuf:"bytes,1,opt,name=server"`
@@ -2717,8 +2717,8 @@ type TLSClientConfig struct {
 	// CAData takes precedence over CAFile
 	CAData []byte `json:"caData,omitempty" protobuf:"bytes,5,opt,name=caData"`
 	// CATrust selects the certificate authorities trusted when CAData is empty. "bundle" trusts only the CAs in the
-	// argocd-cluster-ca-cm ConfigMap, "system" trusts only the system roots, and "bundle-and-system" trusts both.
-	// When empty, the CAs in argocd-cluster-ca-cm are trusted if it has any, and the system roots otherwise.
+	// argocd-default-cluster-ca-cm ConfigMap, "system" trusts only the system roots, and "bundle-and-system" trusts both.
+	// When empty, the CAs in argocd-default-cluster-ca-cm are trusted if it has any, and the system roots otherwise.
 	CATrust ClusterCATrust `json:"caTrust,omitempty" protobuf:"bytes,6,opt,name=caTrust"`
 }
 
@@ -2726,11 +2726,11 @@ type TLSClientConfig struct {
 type ClusterCATrust string
 
 const (
-	// ClusterCATrustBundle trusts only the CAs in argocd-cluster-ca-cm, and fails when it has none
+	// ClusterCATrustBundle trusts only the CAs in argocd-default-cluster-ca-cm, and fails when it has none
 	ClusterCATrustBundle ClusterCATrust = "bundle"
-	// ClusterCATrustSystem trusts only the system roots and ignores argocd-cluster-ca-cm
+	// ClusterCATrustSystem trusts only the system roots and ignores argocd-default-cluster-ca-cm
 	ClusterCATrustSystem ClusterCATrust = "system"
-	// ClusterCATrustBundleAndSystem trusts both the CAs in argocd-cluster-ca-cm and the system roots
+	// ClusterCATrustBundleAndSystem trusts both the CAs in argocd-default-cluster-ca-cm and the system roots
 	ClusterCATrustBundleAndSystem ClusterCATrust = "bundle-and-system"
 )
 

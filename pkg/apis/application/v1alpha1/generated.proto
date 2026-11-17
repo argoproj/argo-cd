@@ -3025,8 +3025,8 @@ message TLSClientConfig {
   optional bytes caData = 5;
 
   // CATrust selects the certificate authorities trusted when CAData is empty. "bundle" trusts only the CAs in the
-  // argocd-cluster-ca-cm ConfigMap, "system" trusts only the system roots, and "bundle-and-system" trusts both.
-  // When empty, the CAs in argocd-cluster-ca-cm are trusted if it has any, and the system roots otherwise.
+  // argocd-default-cluster-ca-cm ConfigMap, "system" trusts only the system roots, and "bundle-and-system" trusts both.
+  // When empty, the CAs in argocd-default-cluster-ca-cm are trusted if it has any, and the system roots otherwise.
   optional string caTrust = 6;
 }
 

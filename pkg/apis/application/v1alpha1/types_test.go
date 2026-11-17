@@ -7671,7 +7671,7 @@ func TestCluster_RESTConfig_DefaultCABundle(t *testing.T) {
 		{
 			name:        "bundle fails without a default bundle",
 			caTrust:     ClusterCATrustBundle,
-			expectedErr: `caTrust is "bundle" but there is no CA bundle in the ca.crt key of the argocd-cluster-ca-cm ConfigMap`,
+			expectedErr: `caTrust is "bundle" but there is no CA bundle in the ca.crt key of the argocd-default-cluster-ca-cm ConfigMap`,
 		},
 		{
 			name:            "system ignores the default bundle",
