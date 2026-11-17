@@ -24,16 +24,18 @@ type LocalConfig struct {
 
 // ContextRef is a reference to a Server and User for an API client
 type ContextRef struct {
-	Name   string `json:"name"`
-	Server string `json:"server"`
-	User   string `json:"user"`
+	Name           string `json:"name"`
+	Server         string `json:"server"`
+	User           string `json:"user"`
+	KubeConfigPath string `json:"kubeconfig,omitempty"`
 }
 
 // Context is the resolved Server and User objects resolved
 type Context struct {
-	Name   string
-	Server Server
-	User   User
+	Name           string
+	Server         Server
+	User           User
+	KubeConfigPath string
 }
 
 // Server contains Argo CD server information
@@ -189,9 +191,10 @@ func (l *LocalConfig) ResolveContext(name string) (*Context, error) {
 			return nil, err
 		}
 		return &Context{
-			Name:   ctx.Name,
-			Server: *server,
-			User:   *user,
+			Name:           ctx.Name,
+			Server:         *server,
+			User:           *user,
+			KubeConfigPath: ctx.KubeConfigPath,
 		}, nil
 	}
 	return nil, fmt.Errorf("Context '%s' undefined", name)

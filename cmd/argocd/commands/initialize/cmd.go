@@ -9,6 +9,21 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 )
 
+const coreKubeConfigAnnotation = "argocd.argoproj.io/core-kubeconfig"
+
+// MarkCoreKubeConfigFlag distinguishes core API access from command-specific Kubernetes configuration.
+func MarkCoreKubeConfigFlag(flag *pflag.Flag) {
+	if flag.Annotations == nil {
+		flag.Annotations = map[string][]string{}
+	}
+	flag.Annotations[coreKubeConfigAnnotation] = []string{"true"}
+}
+
+// IsCoreKubeConfigFlag reports whether a kubeconfig flag selects the core-mode management cluster.
+func IsCoreKubeConfigFlag(flag *pflag.Flag) bool {
+	return flag != nil && len(flag.Annotations[coreKubeConfigAnnotation]) > 0 && flag.Annotations[coreKubeConfigAnnotation][0] == "true"
+}
+
 func RetrieveContextIfChanged(contextFlag *pflag.Flag) string {
 	if contextFlag != nil && contextFlag.Changed {
 		return contextFlag.Value.String()
@@ -42,6 +57,12 @@ func InitCommand(cmd *cobra.Command) *cobra.Command {
 		}
 		// skip unsupported kubectl REST flags
 		if slices.Contains(unsupportedFlags, flag.Name) {
+			return
+		}
+		// Core-mode subcommands must be able to override a saved kubeconfig path.
+		if flag.Name == "kubeconfig" {
+			MarkCoreKubeConfigFlag(flag)
+			cmd.PersistentFlags().AddFlag(flag)
 			return
 		}
 		cmd.Flags().AddFlag(flag)

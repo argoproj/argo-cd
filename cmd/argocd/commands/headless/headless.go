@@ -178,9 +178,6 @@ func testAPI(ctx context.Context, clientOpts *apiclient.ClientOptions) error {
 // If the clientOpts enables core mode, but the local config does not have core mode enabled, this function will
 // not start the local server.
 func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOptions, ctxStr string, port *int, address *string, clientConfig clientcmd.ClientConfig) (func(), error) {
-	if clientConfig == nil {
-		clientConfig = newClientConfig(clientOpts.KubeOverrides)
-	}
 	startInProcessAPI := clientOpts.Core
 	if !startInProcessAPI {
 		// Core mode is enabled on client options. Check the local config to see if we should start the API server.
@@ -200,6 +197,15 @@ func MaybeStartLocalServer(ctx context.Context, clientOpts *apiclient.ClientOpti
 	// If we're in core mode, start the API server on the fly.
 	if !startInProcessAPI {
 		return nil, nil
+	}
+	if clientOpts.KubeConfigPath != "" {
+		// The in-process server and its port-forwarding clients must use the same file.
+		if err := os.Setenv("KUBECONFIG", clientOpts.KubeConfigPath); err != nil {
+			return nil, fmt.Errorf("error setting kubeconfig path: %w", err)
+		}
+	}
+	if clientConfig == nil {
+		clientConfig = newClientConfig(clientOpts.KubeOverrides, clientOpts.KubeConfigPath)
 	}
 
 	// get rid of logging error handler
@@ -320,6 +326,9 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	ctx := c.Context()
 
 	ctxStr := resolveAndApplyKubeContext(opts, c)
+	if err := ConfigureKubeConfig(opts, c); err != nil {
+		log.Fatal(err)
+	}
 	// If we're in core mode, start the API server on the fly and configure the client `opts` to use it.
 	// If we're not in core mode, this function call will do nothing.
 	_, err := MaybeStartLocalServer(ctx, opts, ctxStr, nil, nil, nil)
@@ -333,10 +342,12 @@ func NewClientOrDie(opts *apiclient.ClientOptions, c *cobra.Command) apiclient.C
 	return client
 }
 
-// newClientConfig creates a new clientcmd.ClientConfig based on the provided overrides.
-func newClientConfig(overrides *clientcmd.ConfigOverrides) clientcmd.ClientConfig {
+// newClientConfig creates a deferred Kubernetes client configuration using the
+// supplied overrides and explicit kubeconfig path, or the normal loading rules when the path is empty.
+func newClientConfig(overrides *clientcmd.ConfigOverrides, kubeConfigPath string) clientcmd.ClientConfig {
 	loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
 	loadingRules.DefaultClientConfig = &clientcmd.DefaultClientConfig
+	loadingRules.ExplicitPath = kubeConfigPath
 
 	configOverrides := clientcmd.ConfigOverrides{}
 	if overrides != nil {
@@ -348,6 +359,49 @@ func newClientConfig(overrides *clientcmd.ConfigOverrides) clientcmd.ClientConfi
 		&configOverrides,
 		os.Stdin,
 	)
+}
+
+// ConfigureKubeConfig selects the kubeconfig for a core-mode command. An explicit
+// flag takes precedence over the path saved in the selected Argo CD context.
+func ConfigureKubeConfig(opts *apiclient.ClientOptions, cmd *cobra.Command) error {
+	flag := cmd.Flag("kubeconfig")
+	if flag == nil {
+		return nil
+	}
+	coreFlag := initialize.IsCoreKubeConfigFlag(flag)
+	explicitCorePath := coreFlag && flag.Changed
+
+	var configCtx *localconfig.Context
+	if !opts.Core || !explicitCorePath {
+		localCfg, err := localconfig.ReadLocalConfig(opts.ConfigPath)
+		if err != nil {
+			return fmt.Errorf("error reading local config: %w", err)
+		}
+		if localCfg != nil && (opts.Context != "" || localCfg.CurrentContext != "") {
+			configCtx, err = localCfg.ResolveContext(opts.Context)
+			if err != nil {
+				return fmt.Errorf("error resolving context: %w", err)
+			}
+		}
+	}
+	if !opts.Core && (configCtx == nil || !configCtx.Server.Core) {
+		return nil
+	}
+
+	path := opts.KubeConfigPath
+	if explicitCorePath {
+		path = flag.Value.String()
+	} else if path == "" && configCtx != nil && configCtx.Server.Core {
+		path = configCtx.KubeConfigPath
+	}
+	if coreFlag {
+		if err := flag.Value.Set(path); err != nil {
+			return fmt.Errorf("error configuring kubeconfig path: %w", err)
+		}
+	}
+	opts.KubeConfigPath = path
+	opts.Core = true
+	return nil
 }
 
 // resolveAndApplyKubeContext resolves the kube context name to use.

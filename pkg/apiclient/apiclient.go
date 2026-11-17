@@ -152,6 +152,7 @@ type ClientOptions struct {
 	Headers              []string
 	HttpRetryMax         int //nolint:revive //FIXME(var-naming)
 	KubeOverrides        *clientcmd.ConfigOverrides
+	KubeConfigPath       string
 	AppControllerName    string
 	ServerName           string
 	RedisHaProxyName     string

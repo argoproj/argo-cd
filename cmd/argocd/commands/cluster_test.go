@@ -1,19 +1,94 @@
 package commands
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
+	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
+	clientcmdapi "k8s.io/client-go/tools/clientcmd/api"
 
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/headless"
+	"github.com/argoproj/argo-cd/v3/cmd/argocd/commands/initialize"
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
+
+// TestClusterAddKubeConfigIsolation keeps registration and core management cluster configuration separate.
+func TestClusterAddKubeConfigIsolation(t *testing.T) {
+	for _, saved := range []bool{false, true} {
+		name := "default core configuration"
+		if saved {
+			name = "saved core configuration"
+		}
+		t.Run(name, func(t *testing.T) {
+			dir := t.TempDir()
+			writeConfig := func(name string) string {
+				path := filepath.Join(dir, name+".yaml")
+				require.NoError(t, clientcmd.WriteToFile(clientcmdapi.Config{
+					Clusters:       map[string]*clientcmdapi.Cluster{"cluster": {Server: "https://" + name + ".example.com"}},
+					Contexts:       map[string]*clientcmdapi.Context{name: {Cluster: "cluster", AuthInfo: "user", Namespace: "argocd"}},
+					AuthInfos:      map[string]*clientcmdapi.AuthInfo{"user": {}},
+					CurrentContext: name,
+				}, path))
+				return path
+			}
+			t.Setenv("KUBECONFIG", writeConfig("environment"))
+			registrationPath := writeConfig("target")
+			configPath := filepath.Join(dir, "argocd-config")
+			wantCorePath, wantCoreHost := "", "https://environment.example.com"
+			if saved {
+				wantCorePath = writeConfig("core")
+				wantCoreHost = "https://core.example.com"
+				require.NoError(t, localconfig.WriteLocalConfig(localconfig.LocalConfig{
+					CurrentContext: "core",
+					Servers:        []localconfig.Server{{Server: "kubernetes", Core: true}},
+					Users:          []localconfig.User{{Name: "core"}},
+					Contexts:       []localconfig.ContextRef{{Name: "core", Server: "kubernetes", User: "core", KubeConfigPath: wantCorePath}},
+				}, configPath))
+			}
+			opts := &argocdclient.ClientOptions{ConfigPath: configPath}
+			paths := clientcmd.NewDefaultPathOptions()
+			cmd := initialize.InitCommand(NewClusterCommand(opts, paths))
+			cmd.PersistentFlags().BoolVar(&opts.Core, "core", false, "")
+			add, _, err := cmd.Find([]string{"add"})
+			require.NoError(t, err)
+			called := false
+			add.Run = nil
+			add.RunE = func(c *cobra.Command, args []string) error {
+				called = true
+				assert.Equal(t, []string{"target"}, args)
+				assert.True(t, opts.Core)
+				assert.False(t, initialize.IsCoreKubeConfigFlag(c.Flag("kubeconfig")))
+				require.NoError(t, headless.ConfigureKubeConfig(opts, c))
+				assert.Equal(t, wantCorePath, opts.KubeConfigPath)
+				assert.Equal(t, registrationPath, paths.LoadingRules.ExplicitPath)
+				target, err := getRestConfig(paths, "target")
+				require.NoError(t, err)
+				assert.Equal(t, "https://target.example.com", target.Host)
+				loading := clientcmd.NewDefaultClientConfigLoadingRules()
+				loading.ExplicitPath = opts.KubeConfigPath
+				management, err := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loading, &clientcmd.ConfigOverrides{}).ClientConfig()
+				require.NoError(t, err)
+				assert.Equal(t, wantCoreHost, management.Host)
+				assert.NotEqual(t, target.Host, management.Host)
+				return nil
+			}
+			cmd.SetArgs([]string{"add", "target", "--core", "--kubeconfig", registrationPath})
+			require.NoError(t, cmd.ExecuteContext(t.Context()))
+			assert.True(t, called)
+			assert.Equal(t, filepath.Join(dir, "environment.yaml"), os.Getenv("KUBECONFIG"))
+		})
+	}
+}
 
 func Test_getQueryBySelector(t *testing.T) {
 	query := getQueryBySelector("my-cluster")
