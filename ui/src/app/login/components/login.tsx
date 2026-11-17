@@ -1,4 +1,5 @@
 import {FormField} from 'argo-ui';
+import {useQueryClient} from '@tanstack/react-query';
 import * as React from 'react';
 import {useContext, useEffect, useState} from 'react';
 import {Form, Text} from 'argo-ui';
@@ -17,6 +18,7 @@ export interface LoginForm {
 
 export function Login(props: RouteComponentProps<{}>) {
     const appContext = useContext(Context);
+    const queryClient = useQueryClient();
 
     const search = new URLSearchParams(props.history.location.search);
     const returnUrl = search.get('return_url') || '';
@@ -50,6 +52,7 @@ export function Login(props: RouteComponentProps<{}>) {
 
             await services.users.login(username, password);
             pauseAutoLogin();
+            queryClient.clear();
 
             let redirectPath = '/applications';
 

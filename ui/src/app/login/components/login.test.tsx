@@ -1,7 +1,8 @@
 import * as React from 'react';
-import {fireEvent, render, screen, waitFor} from '@testing-library/react';
-import '@testing-library/jest-dom';
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
+import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import {createMemoryHistory} from 'history';
+import {RouteComponentProps} from 'react-router';
 
 import {Context} from '../../shared/context';
 import {AuthSettings} from '../../shared/models';
@@ -9,12 +10,7 @@ import {services} from '../../shared/services';
 import {pauseAutoLogin, redirectToSSO} from '../../shared/sso-auto-login';
 import {Login} from './login';
 
-jest.mock('../../shared/services', () => ({
-    services: {
-        authService: {settings: jest.fn()},
-        users: {login: jest.fn()}
-    }
-}));
+jest.mock('../../shared/services', () => ({services: {authService: {settings: jest.fn()}, users: {login: jest.fn()}}}));
 
 jest.mock('../../shared/sso-auto-login', () => ({
     ...jest.requireActual('../../shared/sso-auto-login'),
@@ -23,27 +19,83 @@ jest.mock('../../shared/sso-auto-login', () => ({
 
 const settings = (overrides: Partial<AuthSettings> = {}) => ({ssoAutoLogin: true, oidcConfig: {name: 'Keycloak'}, ...overrides}) as AuthSettings;
 
-const renderLogin = (path: string) => {
-    const history = createMemoryHistory({initialEntries: [path]});
-    const appContext = {navigation: {goto: jest.fn()}, baseHref: '/'} as any;
-    return render(
-        <Context.Provider value={appContext}>
-            <Login history={history} location={history.location} match={{} as any} />
-        </Context.Provider>
+const renderLogin = (search = '', baseHref = '/') => {
+    const client = new QueryClient();
+    client.setQueryData(['applications', 'list'], ['previous-user-app']);
+    client.setQueryData(['projects', 'list'], ['previous-user-project']);
+    const goto = jest.fn(() => client.getQueryCache().getAll().length);
+    const history = createMemoryHistory({initialEntries: [`/login${search}`]});
+    render(
+        <QueryClientProvider client={client}>
+            <Context.Provider value={{navigation: {goto}, baseHref} as React.ContextType<typeof Context>}>
+                <Login {...({history} as RouteComponentProps<{}>)} />
+            </Context.Provider>
+        </QueryClientProvider>
     );
+    return {client, goto};
+};
+
+const submitLogin = async () => {
+    await screen.findByRole('button', {name: 'Sign In'});
+    fireEvent.change(screen.getByLabelText('Username'), {target: {value: 'new-user'}});
+    fireEvent.change(screen.getByLabelText('Password'), {target: {value: 'password'}});
+    await act(async () => {
+        fireEvent.submit(screen.getByRole('form'));
+    });
 };
 
 beforeEach(() => {
+    jest.resetAllMocks();
     window.localStorage.clear();
-    jest.mocked(redirectToSSO).mockClear();
-    jest.mocked(services.users.login).mockResolvedValue({token: 'token'});
 });
 
-describe('Login', () => {
+describe('Login query cache', () => {
+    beforeEach(() => {
+        jest.mocked(services.authService.settings).mockResolvedValue({} as any);
+    });
+
+    it.each([
+        ['', '/', '/applications'],
+        ['?return_url=%2Fargo%2Fapplications%2Fmy-app%3Fview%3Dtree', '/argo', '/applications/my-app?view=tree']
+    ])('clears previous session data before redirecting after successful login (%s)', async (search, baseHref, redirectPath) => {
+        let completeLogin: (result: {token: string}) => void;
+        jest.mocked(services.users.login).mockReturnValue(new Promise(resolve => (completeLogin = resolve)));
+        const {client, goto} = renderLogin(search, baseHref);
+
+        await submitLogin();
+        expect(services.users.login).toHaveBeenCalledWith('new-user', 'password');
+        expect(client.getQueryCache().getAll()).toHaveLength(2);
+        expect(screen.getByRole('button', {name: 'Sign In'})).toBeDisabled();
+
+        await act(async () => completeLogin({token: 'new-session'}));
+        await waitFor(() => expect(goto).toHaveBeenCalledWith(redirectPath, undefined, {replace: true}));
+        expect(goto.mock.results[1].value).toBe(0);
+        expect(client.getQueryCache().getAll()).toHaveLength(0);
+    });
+
+    it('preserves the cache and stays on the login page when authentication fails', async () => {
+        jest.mocked(services.users.login).mockRejectedValue(new Error('Invalid credentials'));
+        const {client, goto} = renderLogin();
+
+        await submitLogin();
+        expect(await screen.findByText('Invalid credentials')).toBeInTheDocument();
+        expect(client.getQueryData(['applications', 'list'])).toEqual(['previous-user-app']);
+        expect(client.getQueryData(['projects', 'list'])).toEqual(['previous-user-project']);
+        expect(goto).toHaveBeenCalledTimes(1);
+        expect(goto).toHaveBeenCalledWith('.', {sso_error: null});
+        expect(screen.getByRole('button', {name: 'Sign In'})).toBeEnabled();
+    });
+});
+
+describe('Login SSO auto-login', () => {
+    beforeEach(() => {
+        jest.mocked(services.users.login).mockResolvedValue({token: 'token'});
+    });
+
     it('redirects to SSO when auto-login is enabled', async () => {
         jest.mocked(services.authService.settings).mockResolvedValue(settings());
 
-        renderLogin('/login?return_url=%2Fapplications');
+        renderLogin('?return_url=%2Fapplications');
 
         await waitFor(() => expect(redirectToSSO).toHaveBeenCalledWith('auth/login?return_url=%2Fapplications'));
     });
@@ -51,7 +103,7 @@ describe('Login', () => {
     it('waits for a click when auto-login is disabled', async () => {
         jest.mocked(services.authService.settings).mockResolvedValue(settings({ssoAutoLogin: false}));
 
-        renderLogin('/login');
+        renderLogin();
 
         expect(await screen.findByText('Log in via Keycloak')).toBeInTheDocument();
         expect(redirectToSSO).not.toHaveBeenCalled();
@@ -61,7 +113,7 @@ describe('Login', () => {
         jest.mocked(services.authService.settings).mockResolvedValue(settings());
         pauseAutoLogin();
 
-        renderLogin('/login');
+        renderLogin();
 
         expect(await screen.findByText('Log in via Keycloak')).toBeInTheDocument();
         expect(redirectToSSO).not.toHaveBeenCalled();
@@ -70,7 +122,7 @@ describe('Login', () => {
     it('shows the local login form when opted out', async () => {
         jest.mocked(services.authService.settings).mockResolvedValue(settings());
 
-        renderLogin('/login?sso_auto_login=false');
+        renderLogin('?sso_auto_login=false');
 
         expect(await screen.findByLabelText('Username')).toBeInTheDocument();
         expect(redirectToSSO).not.toHaveBeenCalled();
@@ -79,12 +131,10 @@ describe('Login', () => {
     it('pauses auto-login after a local account login', async () => {
         jest.mocked(services.authService.settings).mockResolvedValue(settings());
 
-        const {container} = renderLogin('/login?sso_auto_login=false');
-        fireEvent.change(await screen.findByLabelText('Username'), {target: {value: 'admin'}});
-        fireEvent.change(screen.getByLabelText('Password'), {target: {value: 'password'}});
-        fireEvent.submit(container.querySelector('form'));
+        renderLogin('?sso_auto_login=false');
+        await submitLogin();
 
-        await waitFor(() => expect(services.users.login).toHaveBeenCalledWith('admin', 'password'));
-        await waitFor(() => expect(window.localStorage.getItem('argocd.sso.autoLoginPaused')).toBe('true'));
+        await waitFor(() => expect(services.users.login).toHaveBeenCalledWith('new-user', 'password'));
+        expect(window.localStorage.getItem('argocd.sso.autoLoginPaused')).toBe('true');
     });
 });

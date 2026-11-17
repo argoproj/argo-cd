@@ -401,6 +401,9 @@ func (f authFilePaths) Close() error {
 	return retErr
 }
 
+// createTemp is swapped in tests to exercise write failures.
+var createTemp = os.CreateTemp
+
 func (c SSHCreds) Environ() (io.Closer, []string, error) {
 	// use the SHM temp dir from util, more secure
 	file, err := os.CreateTemp(argoio.TempDir, "")
@@ -464,7 +467,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 			parsedProxyURL.Port(),
 		)
 
-		proxyScript, err := os.CreateTemp(argoio.TempDir, "argocd-proxy-cmd-*")
+		proxyScript, err := createTemp(argoio.TempDir, "argocd-proxy-cmd-*")
 		if err != nil {
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to create proxy command script: %w", err)
@@ -472,6 +475,7 @@ func (c SSHCreds) Environ() (io.Closer, []string, error) {
 		proxyScriptPath = proxyScript.Name()
 
 		if _, err := proxyScript.WriteString(proxyScriptContent); err != nil {
+			_ = proxyScript.Close()
 			_ = os.Remove(proxyScriptPath)
 			sshCloser.Close()
 			return nil, nil, fmt.Errorf("failed to write proxy command script: %w", err)
@@ -693,7 +697,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", SanitizeRepoURL(g.repoURL))
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
 		defer cancel()
 
 		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)

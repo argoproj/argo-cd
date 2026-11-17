@@ -2,40 +2,19 @@ import * as React from 'react';
 import {COLORS, StatusBar, StatusBarReading} from '../../../shared/components';
 import * as models from '../../../shared/models';
 import {getAppSetHealthStatus} from '../utils';
+import {AppsListStats} from './applications-list-stats';
 
-function getAppReadings(applications: models.Application[]): StatusBarReading[] {
-    return [
-        {
-            name: 'Healthy',
-            value: applications.filter(app => app.status.health.status === 'Healthy').length,
-            color: COLORS.health.healthy
-        },
-        {
-            name: 'Progressing',
-            value: applications.filter(app => app.status.health.status === 'Progressing').length,
-            color: COLORS.health.progressing
-        },
-        {
-            name: 'Degraded',
-            value: applications.filter(app => app.status.health.status === 'Degraded').length,
-            color: COLORS.health.degraded
-        },
-        {
-            name: 'Suspended',
-            value: applications.filter(app => app.status.health.status === 'Suspended').length,
-            color: COLORS.health.suspended
-        },
-        {
-            name: 'Missing',
-            value: applications.filter(app => app.status.health.status === 'Missing').length,
-            color: COLORS.health.missing
-        },
-        {
-            name: 'Unknown',
-            value: applications.filter(app => app.status.health.status === 'Unknown').length,
-            color: COLORS.health.unknown
-        }
-    ];
+const APP_HEALTH_READINGS: {name: models.HealthStatusCode; color: string}[] = [
+    {name: 'Healthy', color: COLORS.health.healthy},
+    {name: 'Progressing', color: COLORS.health.progressing},
+    {name: 'Degraded', color: COLORS.health.degraded},
+    {name: 'Suspended', color: COLORS.health.suspended},
+    {name: 'Missing', color: COLORS.health.missing},
+    {name: 'Unknown', color: COLORS.health.unknown}
+];
+
+function getAppReadings(stats: AppsListStats): StatusBarReading[] {
+    return APP_HEALTH_READINGS.map(({name, color}) => ({name, value: stats.totalByHealthStatus[name] || 0, color}));
 }
 
 function getAppSetReadings(appSets: models.ApplicationSet[]): StatusBarReading[] {
@@ -64,14 +43,14 @@ function getAppSetReadings(appSets: models.ApplicationSet[]): StatusBarReading[]
 }
 
 export interface AppsStatusBarProps {
-    applications: models.Application[];
+    stats: AppsListStats;
 }
 
-export const AppsStatusBar = ({applications}: AppsStatusBarProps) => {
-    if (!applications || applications.length === 0) {
+export const AppsStatusBar = ({stats}: AppsStatusBarProps) => {
+    if (!stats || stats.total === 0) {
         return null;
     }
-    return <StatusBar readings={getAppReadings(applications)} />;
+    return <StatusBar readings={getAppReadings(stats)} />;
 };
 
 export interface AppSetsStatusBarProps {
@@ -83,13 +62,4 @@ export const AppSetsStatusBar = ({appSets}: AppSetsStatusBarProps) => {
         return null;
     }
     return <StatusBar readings={getAppSetReadings(appSets)} />;
-};
-
-// Legacy wrapper for backwards compatibility (callers should migrate to AppsStatusBar or AppSetsStatusBar)
-export interface ApplicationsStatusBarProps {
-    applications: models.Application[];
-}
-
-export const ApplicationsStatusBar = ({applications}: ApplicationsStatusBarProps) => {
-    return <AppsStatusBar applications={applications} />;
 };
