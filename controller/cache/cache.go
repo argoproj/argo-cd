@@ -603,7 +603,6 @@ func isTransientNetworkErr(err error) bool {
 func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.ClusterCache, error) {
 	c.lock.RLock()
 	clusterCache, ok := c.clusters[cluster.Server]
-	cacheSettings := c.cacheSettings
 	c.lock.RUnlock()
 
 	if ok {
@@ -617,6 +616,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	if ok {
 		return clusterCache, nil
 	}
+	cacheSettings := c.cacheSettings
 
 	if c.clusterSharding == nil {
 		return nil, fmt.Errorf("unable to handle cluster %s: cluster sharding is not configured", cluster.Server)
@@ -636,7 +636,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 		return nil, fmt.Errorf("error getting value for %v: %w", settings.RespectRBAC, err)
 	}
 
-	clusterCacheConfig, err := clusterCacheRESTConfig(cluster)
+	clusterCacheConfig, err := clusterCacheRESTConfig(clusterWithCABundle(cluster, cacheSettings.clusterCABundle))
 	if err != nil {
 		return nil, fmt.Errorf("error getting cluster RESTConfig: %w", err)
 	}
@@ -824,6 +824,15 @@ func (c *liveStateCache) dropClusterCache(server string, cluster clustercache.Cl
 		delete(c.clusters, server)
 	}
 	c.lock.Unlock()
+}
+
+func clusterWithCABundle(cluster *appv1.Cluster, caBundle []byte) *appv1.Cluster {
+	if !cluster.DependsOnDefaultCABundle() || bytes.Equal(cluster.DefaultCABundle, caBundle) {
+		return cluster
+	}
+	cluster = cluster.DeepCopy()
+	cluster.DefaultCABundle = caBundle
+	return cluster
 }
 
 func clusterCacheRESTConfig(cluster *appv1.Cluster) (*rest.Config, error) {
