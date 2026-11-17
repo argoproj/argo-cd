@@ -2,13 +2,17 @@ package cache
 
 import (
 	"context"
+	"crypto/tls"
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
 	"net"
+	"net/http"
+	"net/http/httptest"
 	"net/url"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1365,6 +1369,52 @@ func TestInvalidate_ClustersChangeConcurrently(t *testing.T) {
 			}
 			close(stop)
 			<-done
+		})
+	}
+}
+
+func TestGetCluster_TrustsTheCABundleOfTheCacheSettings(t *testing.T) {
+	t.Parallel()
+	caBundle := []byte(strings.TrimSpace(testutil.MustLoadFileToString("../../test/fixture/certs/argocd-test-ca.crt")))
+	serverCert, err := tls.LoadX509KeyPair("../../test/fixture/certs/argocd-test-server.crt", "../../test/fixture/certs/argocd-test-server.key")
+	require.NoError(t, err)
+
+	tests := []struct {
+		name          string
+		clusterBundle []byte
+		currentBundle []byte
+		wantReached   bool
+	}{
+		{name: "a bundle added after the cluster was read is trusted", currentBundle: caBundle, wantReached: true},
+		{name: "a bundle removed after the cluster was read is no longer trusted", clusterBundle: caBundle},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			var reached atomic.Bool
+			server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				reached.Store(true)
+				w.WriteHeader(http.StatusNotFound)
+			}))
+			server.TLS = &tls.Config{Certificates: []tls.Certificate{serverCert}}
+			server.StartTLS()
+			t.Cleanup(server.Close)
+
+			_, settingsMgr := fixtures(t.Context(), nil)
+			db := &dbmocks.ArgoDB{}
+			db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+			clustersCache := liveStateCache{
+				clusters:        map[string]cache.ClusterCache{},
+				clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
+				settingsMgr:     settingsMgr,
+				cacheSettings:   cacheSettings{clusterCABundle: tt.currentBundle},
+			}
+
+			clusterCache, err := clustersCache.getCluster(&appv1.Cluster{Server: server.URL, DefaultCABundle: tt.clusterBundle})
+			require.NoError(t, err)
+			_ = clusterCache.EnsureSynced()
+
+			assert.Equal(t, tt.wantReached, reached.Load())
 		})
 	}
 }
