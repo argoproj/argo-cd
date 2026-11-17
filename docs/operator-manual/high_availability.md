@@ -166,6 +166,10 @@ Unsupported getter schemes retain Helm's original registration and refresh path 
 
 Shared records require a complete, size-bounded index with `apiVersion: v1`. Invalid or truncated
 responses are never published.
+Successful body validation is remembered in a bounded process-local cache of 256 SHA-256
+digests. Each candidate body is hashed on read; unchanged bodies avoid repeated YAML parsing,
+and changed bodies are validated normally. This cache retains no index bodies and does not
+extend freshness or retention. Newer shared records still take precedence after validation.
 
 Go-client chart listing, connectivity tests and revision resolution retain their always-fresh
 behavior independently of dependency-cache enablement. A `304` response avoids transferring the index

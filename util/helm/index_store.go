@@ -90,10 +90,10 @@ type indexRecord struct {
 	Body         string `json:"body"` // base64-encoded index.yaml bytes
 }
 
-// validateIndexBody rejects bodies that are not plausibly valid Helm repo
+// parseIndexBody rejects bodies that are not plausibly valid Helm repo
 // indexes, per the plan's "validate complete bounded responses and
 // apiVersion: v1 before publication".
-func validateIndexBody(data []byte) error {
+func parseIndexBody(data []byte) error {
 	var env struct {
 		APIVersion string             `json:"apiVersion"`
 		Entries    map[string]Entries `json:"entries"`
@@ -438,12 +438,14 @@ func (s *IndexStore) retainedRecord(identity string) (*HelmIndexRecord, bool) {
 	if s.cache != nil {
 		if record, err := s.cache.GetHelmIndexRetainedRecord(identity); err == nil && record != nil {
 			validatedAt, err := time.Parse(time.RFC3339Nano, record.StoredAt)
-			if err == nil && time.Since(validatedAt) <= s.expiration+s.retention() && int64(len(record.Body)) <= s.indexCacheMaxSize && validateIndexBody(record.Body) == nil {
+			if err == nil && time.Since(validatedAt) <= s.expiration+s.retention() && int64(len(record.Body)) <= s.indexCacheMaxSize {
 				previous := time.Time{}
 				if newest != nil {
 					previous, _ = time.Parse(time.RFC3339Nano, newest.StoredAt)
 				}
-				if newest == nil || validatedAt.After(previous) {
+				// An older/equal shared generation cannot supersede the local
+				// record. Only validate a body that could actually be selected.
+				if (newest == nil || validatedAt.After(previous)) && validateIndexBody(record.Body) == nil {
 					newest = record
 					fromShared = true
 				}
