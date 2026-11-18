@@ -9,7 +9,8 @@ import (
 	"sync"
 	"time"
 
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	log "github.com/sirupsen/logrus"
+
 	cryptoutil "github.com/argoproj/argo-cd/v3/util/crypto"
 )
 
@@ -134,40 +135,78 @@ type indexCacheRecorder interface {
 	SetHelmIndexRecord(repo string, indexData []byte, etag string, lastModified string) error
 }
 
-// Every response is published against the shared generation observed before
-// its fetch. Insertion requires observing absence; a vanished generation must
-// not be revived because eviction can hide an intervening publication.
-type indexCacheRecordRevalidator interface {
-	CompareAndSwapHelmIndexRecord(context.Context, string, *HelmIndexRecord, *HelmIndexRecord) (bool, error)
+// Ownership is acquired before the origin request. Losing the token, even to
+// eviction, removes publication permission; a cache miss is never permission.
+type indexCachePublisher interface {
+	BeginHelmIndexFetch(context.Context, string) (string, error)
+	PublishHelmIndexRecord(context.Context, string, string, *HelmIndexRecord) (bool, error)
+}
+
+func indexCacheContext(ctx context.Context, maximum time.Duration) (context.Context, context.CancelFunc) {
+	budget := maximum
+	if deadline, ok := ctx.Deadline(); ok {
+		budget = min(budget, time.Until(deadline)/4)
+	}
+	return context.WithTimeout(ctx, budget)
+}
+
+func beginIndexFetch(ctx context.Context, cache any, repo string) string {
+	publisher, ok := cache.(indexCachePublisher)
+	if !ok {
+		return ""
+	}
+	operation, cancel := indexCacheContext(ctx, time.Second)
+	defer cancel()
+	owner, err := publisher.BeginHelmIndexFetch(operation, repo)
+	if err != nil {
+		log.WithError(err).Debug("helm index fetch ownership unavailable")
+		return ""
+	}
+	return owner
+}
+
+func publishIndexFetch(ctx context.Context, cache any, repo, owner string, record *HelmIndexRecord) bool {
+	publisher, ok := cache.(indexCachePublisher)
+	if !ok || owner == "" {
+		return false
+	}
+	operation, cancel := indexCacheContext(ctx, 5*time.Second)
+	defer cancel()
+	record.Generation = owner
+	published, err := publisher.PublishHelmIndexRecord(operation, repo, owner, record)
+	if err != nil {
+		log.WithError(err).Debug("helm index publication unconfirmed")
+		return false
+	}
+	return published
 }
 
 type indexRecordObservation struct {
 	record *HelmIndexRecord
-	known  bool
 }
 
-// Shared observation gets at most one second and one quarter of the remaining
-// request budget, leaving time to validate at the origin after a cache outage.
+// Whole-body reads may take longer than metadata. One bounded read budget
+// still leaves most of the parent deadline for origin validation and rendering.
 func observeIndexRecord(ctx context.Context, reader indexCacheRecordReader, repo string) indexRecordObservation {
+	operation, cancel := indexCacheContext(ctx, 5*time.Second)
+	defer cancel()
+	return observeIndexRecordWithBudget(operation, reader, repo)
+}
+
+func observeIndexRecordWithBudget(ctx context.Context, reader indexCacheRecordReader, repo string) indexRecordObservation {
 	var record *HelmIndexRecord
 	var err error
 	if bounded, ok := reader.(interface {
 		GetHelmIndexRetainedRecordContext(context.Context, string) (*HelmIndexRecord, error)
 	}); ok {
-		budget := time.Second
-		if deadline, ok := ctx.Deadline(); ok {
-			budget = min(budget, time.Until(deadline)/4)
-		}
-		observation, cancel := context.WithTimeout(ctx, budget)
-		defer cancel()
-		record, err = bounded.GetHelmIndexRetainedRecordContext(observation, repo)
+		record, err = bounded.GetHelmIndexRetainedRecordContext(ctx, repo)
 	} else {
 		record, err = reader.GetHelmIndexRetainedRecord(repo)
 	}
 	if err != nil {
-		return indexRecordObservation{known: errors.Is(err, cacheutil.ErrCacheMiss)}
+		return indexRecordObservation{}
 	}
-	return indexRecordObservation{record: record, known: true}
+	return indexRecordObservation{record: record}
 }
 
 // IndexURLIdentity binds validators to the effective response URL without
@@ -189,6 +228,8 @@ func responseValidatorHeaders(h http.Header) (string, string) {
 // the body and the validators the origin returned with it, published and read
 // as one atomic unit so they can never describe different index generations.
 type HelmIndexRecord struct {
+	BodyDigest   string `json:"bodyDigest,omitempty"`
+	Generation   string `json:"generation,omitempty"`
 	Body         []byte `json:"body"`
 	ETag         string `json:"etag,omitempty"`
 	LastModified string `json:"lastModified,omitempty"`

@@ -26,14 +26,31 @@ func (c *MockCacheClient) GetContext(ctx context.Context, key string, obj any) e
 	return errors.New("wrapped cache does not support context-aware reads")
 }
 
-// Preserve optional atomic publication when wrapping a real Redis client.
-func (c *MockCacheClient) CompareAndSwap(ctx context.Context, key string, expected, replacement any, expiration time.Duration) (bool, error) {
+func (c *MockCacheClient) BeginUpdate(ctx context.Context, key, token string, expiration time.Duration) (bool, error) {
 	if client, ok := c.BaseCache.(interface {
-		CompareAndSwap(context.Context, string, any, any, time.Duration) (bool, error)
+		BeginUpdate(context.Context, string, string, time.Duration) (bool, error)
 	}); ok {
-		return client.CompareAndSwap(ctx, key, expected, replacement, expiration)
+		return client.BeginUpdate(ctx, key, token, expiration)
 	}
-	return false, nil
+	return false, cache.ErrAtomicPublicationUnsupported
+}
+
+func (c *MockCacheClient) StoreVersioned(ctx context.Context, item cache.VersionedItem) (bool, error) {
+	if client, ok := c.BaseCache.(interface {
+		StoreVersioned(context.Context, cache.VersionedItem) (bool, error)
+	}); ok {
+		return client.StoreVersioned(ctx, item)
+	}
+	return false, cache.ErrAtomicPublicationUnsupported
+}
+
+func (c *MockCacheClient) StoreVersionedBody(ctx context.Context, referenceKey, bodyKey, referenceValue string, body any, expiration time.Duration) (bool, error) {
+	if client, ok := c.BaseCache.(interface {
+		StoreVersionedBody(context.Context, string, string, string, any, time.Duration) (bool, error)
+	}); ok {
+		return client.StoreVersionedBody(ctx, referenceKey, bodyKey, referenceValue, body, expiration)
+	}
+	return false, cache.ErrAtomicPublicationUnsupported
 }
 
 func (c *MockCacheClient) Rename(oldKey string, newKey string, expiration time.Duration) error {

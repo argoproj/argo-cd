@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -641,9 +642,12 @@ func TestSetHelmIndex(t *testing.T) {
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		err := fixtures.cache.SetHelmIndex("test-repo", []byte("test-data"))
 		require.NoError(t, err)
-		// Two sets: the versioned v2 record (body + validators atomically)
-		// and the legacy key mirrored for rolling-upgrade compatibility.
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2})
+		// The legacy mirror uses Set; body and generation use one atomic publication.
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 1})
+		record, err := fixtures.cache.GetHelmIndexRecord("test-repo")
+		require.NoError(t, err)
+		require.Equal(t, []byte("test-data"), record.Body)
+		require.NotEmpty(t, record.Generation)
 	})
 	t.Run("SetHelmIndex with nil", func(t *testing.T) {
 		t.Parallel()
@@ -1207,14 +1211,21 @@ func TestHelmIndexCacheExpirationIndependentFromRevisions(t *testing.T) {
 			}
 			retained, err := cache.GetHelmIndexRetainedRecord("record")
 			require.NoError(t, err)
-			require.Equal(t, record, retained, "validators and body must survive freshness expiry together")
+			require.NotEmpty(t, retained.Generation)
+			expected := *record
+			expected.Generation = retained.Generation
+			expected.BodyDigest = retained.BodyDigest
+			require.Equal(t, &expected, retained, "validators and body survive together without changing validation time")
+			generation, err := cache.GetHelmIndexGenerationContext(t.Context(), "record")
+			require.NoError(t, err)
+			require.Equal(t, retained.Generation, generation)
 			require.NoError(t, cache.SetGitReferences("git", nil))
 			require.NoError(t, cache.SetOCITags("oci", []byte("tags")))
 			require.NoError(t, cache.SetHelmIndex("legacy", record.Body))
 			checked := 0
 			for _, key := range redisServer.Keys() {
 				switch {
-				case strings.Contains(key, "helm-index-v2|record"):
+				case strings.Contains(key, helmIndexRecordKey("record")), strings.Contains(key, helmIndexBodyReferenceKey("record")):
 					want := time.Until(validatedAt.Add(expiration + max(24*time.Hour, expiration)))
 					require.InDelta(t, float64(want), float64(redisServer.TTL(key)), float64(time.Second))
 					checked++
@@ -1226,7 +1237,7 @@ func TestHelmIndexCacheExpirationIndependentFromRevisions(t *testing.T) {
 					checked++
 				}
 			}
-			wantKeys := 4
+			wantKeys := 5
 			if expiration == 0 {
 				wantKeys-- // Zero uses the Redis backend's default legacy-key TTL.
 			}
@@ -1406,7 +1417,7 @@ func TestIndexCacheRegressionRedisStaleBodyNotServedAfterFreshness(t *testing.T)
 	require.NotEmpty(t, rec.Body, "the test must exercise the populated key")
 	// Backdate the validation timestamp in place (package-internal SetItem).
 	rec.StoredAt = time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339Nano)
-	require.NoError(t, cache.cache.SetItem(helmIndexV2Key(scopedKey), rec,
+	require.NoError(t, cache.cache.SetItem(helmIndexRecordKey(scopedKey), rec,
 		&cacheutil.CacheActionOpts{Expiration: cache.repoCacheExpiration}))
 
 	// Past freshness: ordinary readers must NOT get the stale body...
@@ -1826,6 +1837,7 @@ func TestIndexLegacyRecordWithoutURLFetchesBody(t *testing.T) {
 }
 
 func TestHelmIndexObservationBudgetLeavesTimeForOrigin(t *testing.T) {
+	requirePinnedHelmForCacheTest(t)
 	for _, force := range []bool{false, true} {
 		t.Run(strconv.FormatBool(force), func(t *testing.T) {
 			listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
@@ -1889,4 +1901,24 @@ func TestHelmIndexObservationBudgetLeavesTimeForOrigin(t *testing.T) {
 			require.Error(t, err, "unconfirmed observation must not publish a fresh disk record")
 		})
 	}
+}
+
+func requirePinnedHelmForCacheTest(t *testing.T) {
+	t.Helper()
+	if _, err := exec.LookPath("helm"); err != nil {
+		t.Skip("requires repository-pinned Helm")
+	}
+	versions, err := os.ReadFile(filepath.Join("..", "..", "hack", "tool-versions.sh"))
+	require.NoError(t, err)
+	var pinned string
+	for line := range strings.SplitSeq(string(versions), "\n") {
+		if value, ok := strings.CutPrefix(line, "HELM_VERSION="); ok {
+			pinned = strings.Trim(value, "\"'")
+		}
+	}
+	require.NotEmpty(t, pinned)
+	output, err := exec.CommandContext(t.Context(), "helm", "version", "--short").Output()
+	require.NoError(t, err)
+	actual, _, _ := strings.Cut(strings.TrimSpace(string(output)), "+")
+	require.Equal(t, "v"+pinned, actual)
 }

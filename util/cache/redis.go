@@ -177,39 +177,6 @@ func (r *redisCache) GetContext(ctx context.Context, key string, obj any) error 
 	return ctx.Err()
 }
 
-var compareAndSwapScript = redis.NewScript(`
-local current = redis.call('GET', KEYS[1])
-if (not current and ARGV[4] == '0') or (ARGV[4] == '1' and current == ARGV[1]) then
-    redis.call('SET', KEYS[1], ARGV[2], 'PX', ARGV[3])
-    return 1
-end
-return 0
-`)
-
-// CompareAndSwap compares the encoded record inside Redis, across processes.
-// Encoding matches Set, including configured compression and key prefixes.
-func (r *redisCache) CompareAndSwap(ctx context.Context, key string, expected, replacement any, expiration time.Duration) (bool, error) {
-	var previous []byte
-	expectPresent := "0"
-	if expected != nil {
-		var err error
-		previous, err = r.marshal(expected)
-		if err != nil {
-			return false, err
-		}
-		expectPresent = "1"
-	}
-	next, err := r.marshal(replacement)
-	if err != nil {
-		return false, err
-	}
-	if expiration == 0 {
-		expiration = r.expiration
-	}
-	updated, err := compareAndSwapScript.Run(ctx, r.client, []string{r.getKey(key)}, previous, next, max(int64(1), expiration.Milliseconds()), expectPresent).Int64()
-	return updated == 1, err
-}
-
 func (r *redisCache) Delete(key string) error {
 	return r.cache.Delete(context.TODO(), r.getKey(key))
 }

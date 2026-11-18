@@ -10,8 +10,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
-	"reflect"
 	"runtime"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -496,19 +496,33 @@ func TestIndexProvider304WithoutSharedComparisonPreservesNewerRecord(t *testing.
 type atomicProviderRecordCache struct {
 	*providerRecordCache
 	compareErr   error
-	compareCalls int
+	publishCalls int
+	owner        string
+	nextOwner    int
 }
 
-func (c *atomicProviderRecordCache) CompareAndSwapHelmIndexRecord(_ context.Context, _ string, expected, replacement *HelmIndexRecord) (bool, error) {
+func (c *atomicProviderRecordCache) BeginHelmIndexFetch(_ context.Context, _ string) (string, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
-	c.compareCalls++
+	if c.err != nil {
+		return "", c.err
+	}
+	c.nextOwner++
+	c.owner = strconv.Itoa(c.nextOwner)
+	return c.owner, nil
+}
+
+func (c *atomicProviderRecordCache) PublishHelmIndexRecord(_ context.Context, _ string, owner string, replacement *HelmIndexRecord) (bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.publishCalls++
 	if c.compareErr != nil {
 		return false, c.compareErr
 	}
-	if !reflect.DeepEqual(c.record, expected) {
+	if owner == "" || owner != c.owner {
 		return false, nil
 	}
+	c.owner = ""
 	cloned := *replacement
 	cloned.Body = bytes.Clone(replacement.Body)
 	c.record = &cloned
@@ -517,7 +531,7 @@ func (c *atomicProviderRecordCache) CompareAndSwapHelmIndexRecord(_ context.Cont
 
 func TestIndexProviderPublicationConfirmation(t *testing.T) {
 	for _, status := range []int{http.StatusOK, http.StatusNotModified} {
-		for _, mode := range []string{"matching", "mismatch", "error", "unsupported", "evicted", "absent", "read-error"} {
+		for _, mode := range []string{"matching", "mismatch", "error", "unsupported", "evicted", "evicted-after-update", "absent", "read-error"} {
 			t.Run(fmt.Sprintf("%d/%s", status, mode), func(t *testing.T) {
 				old := &HelmIndexRecord{Body: upstreamIndex(0), ETag: `"one"`, StoredAt: time.Now().Add(-2 * time.Hour).UTC().Format(time.RFC3339Nano)}
 				newer := &HelmIndexRecord{Body: upstreamIndex(2), ETag: `"two"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
@@ -541,7 +555,7 @@ func TestIndexProviderPublicationConfirmation(t *testing.T) {
 						w.WriteHeader(http.StatusBadRequest)
 						return
 					}
-					if request == 2 && mode == "evicted" {
+					if request == 2 && mode == "evicted-after-update" {
 						w.Header().Set("ETag", newer.ETag)
 						_, _ = w.Write(newer.Body)
 						return
@@ -550,7 +564,11 @@ func TestIndexProviderPublicationConfirmation(t *testing.T) {
 					switch mode {
 					case "evicted":
 						base.record = nil
+					case "evicted-after-update":
+						atomicCache.owner = ""
+						base.record = nil
 					case "mismatch", "error", "unsupported", "read-error":
+						atomicCache.owner = ""
 						base.record = newer
 					}
 					base.err = nil
@@ -576,7 +594,7 @@ func TestIndexProviderPublicationConfirmation(t *testing.T) {
 				require.Equal(t, responseBody, body, "a 200 must return its downloaded body")
 				if mode == "read-error" {
 					base.mu.Lock()
-					calls := atomicCache.compareCalls
+					calls := atomicCache.publishCalls
 					base.mu.Unlock()
 					require.Zero(t, calls, "an unknown observation cannot attempt publication")
 				}
@@ -585,7 +603,7 @@ func TestIndexProviderPublicationConfirmation(t *testing.T) {
 				wantNext := newer.Body
 				wantRequests := int32(1)
 				switch mode {
-				case "matching", "absent":
+				case "matching", "absent", "evicted":
 					require.NoError(t, localErr)
 					require.Equal(t, responseBody, local)
 					require.NoError(t, sharedErr)
@@ -593,7 +611,7 @@ func TestIndexProviderPublicationConfirmation(t *testing.T) {
 					require.Equal(t, responseETag, retained.ETag)
 					require.True(t, retained.Fresh(time.Hour))
 					wantNext = responseBody
-				case "evicted":
+				case "evicted-after-update":
 					require.Error(t, localErr)
 					require.ErrorIs(t, sharedErr, cacheutil.ErrCacheMiss, "a vanished observed generation must not be revived")
 					wantRequests = 2
@@ -606,7 +624,7 @@ func TestIndexProviderPublicationConfirmation(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, wantNext, next)
 				require.Equal(t, wantRequests, requests.Load())
-				if mode == "evicted" {
+				if mode == "evicted-after-update" {
 					retained, err = shared.GetHelmIndexRetainedRecord("view")
 					require.NoError(t, err)
 					require.Equal(t, newer.Body, retained.Body)
@@ -629,7 +647,9 @@ func TestLatestSharedPublicationWinsWithClockSkew(t *testing.T) {
 	timestamp, err := time.Parse(time.RFC3339Nano, first.StoredAt)
 	require.NoError(t, err)
 	next := &HelmIndexRecord{Body: upstreamIndex(2), StoredAt: timestamp.Add(-100 * time.Millisecond).Format(time.RFC3339Nano)}
-	updated, err := shared.CompareAndSwapHelmIndexRecord(t.Context(), "view", first, next)
+	owner, err := shared.BeginHelmIndexFetch(t.Context(), "view")
+	require.NoError(t, err)
+	updated, err := shared.PublishHelmIndexRecord(t.Context(), "view", owner, next)
 	require.NoError(t, err)
 	require.True(t, updated)
 	body, err = store.Revalidate(t.Context(), "view", regressionClient("https://unused.invalid"))
@@ -658,7 +678,8 @@ func TestIndexProviderIdenticalSharedHitDoesNotRewriteDisk(t *testing.T) {
 	}
 	after, err := os.Stat(file)
 	require.NoError(t, err)
-	require.Equal(t, before.ModTime(), after.ModTime(), "an identical shared hit must not rewrite the index file")
+	require.True(t, os.SameFile(before, after), "an identical shared hit must keep the original file")
+	require.Equal(t, before.ModTime(), after.ModTime())
 }
 
 func TestIndexProviderCoarseMtimeDoesNotRewriteDisk(t *testing.T) {
@@ -681,7 +702,8 @@ func TestIndexProviderCoarseMtimeDoesNotRewriteDisk(t *testing.T) {
 	}
 	after, err := os.Stat(file)
 	require.NoError(t, err)
-	require.Equal(t, before.ModTime(), after.ModTime(), "timestamp precision must not force a full-record rewrite")
+	require.True(t, os.SameFile(before, after), "coarse timestamp precision must not hide a replaced cache file")
+	require.Equal(t, before.ModTime(), after.ModTime())
 	local, err := store.readRecord("view", false)
 	require.NoError(t, err)
 	require.Equal(t, coarse.Format(time.RFC3339Nano), local.StoredAt, "local age must still respect the earlier filesystem timestamp")

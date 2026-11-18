@@ -86,11 +86,16 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 		cacheHome := c.helmHome + "/cache"
 
 		cmd.Env = append(cmd.Env,
+			"HELM_CONFIG_HOME="+c.helmHome+"/config",
 			"XDG_CACHE_HOME="+cacheHome,
 			"XDG_CONFIG_HOME="+c.helmHome+"/config",
 			"XDG_DATA_HOME="+c.helmHome+"/data")
 		if c.persistentIndexStore != nil {
-			cmd.Env = append(cmd.Env, "HELM_PLUGINS="+helmPluginsDirectory())
+			plugins, err := c.trustedPluginsDirectory()
+			if err != nil {
+				return "", "", err
+			}
+			cmd.Env = append(cmd.Env, "HELM_PLUGINS="+plugins)
 			// Explicit Helm variables take precedence over XDG. Override inherited
 			// values too, using the same paths into which we prewarm snapshots.
 			cmd.Env = append(cmd.Env,
@@ -712,4 +717,20 @@ func helmPluginsDirectory() string {
 		}
 	}
 	return filepath.Join(data, "helm", "plugins")
+}
+
+// Helm scans the working directory for getters when its plugin path is empty
+// or relative. Only an operator-selected absolute path may escape our home.
+func (c Cmd) trustedPluginsDirectory() (string, error) {
+	if plugins := helmPluginsDirectory(); filepath.IsAbs(plugins) {
+		return plugins, nil
+	}
+	plugins, err := filepath.Abs(filepath.Join(c.helmHome, "plugins"))
+	if err != nil {
+		return "", fmt.Errorf("resolve private helm plugin directory: %w", err)
+	}
+	if err := os.MkdirAll(plugins, 0o700); err != nil {
+		return "", fmt.Errorf("create private helm plugin directory: %w", err)
+	}
+	return plugins, nil
 }

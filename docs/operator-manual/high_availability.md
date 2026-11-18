@@ -145,36 +145,50 @@ Expiry is demand-driven: the next eligible dependency build revalidates an expir
 This setting does not poll repositories, trigger manifest generation, override `Chart.lock`
 or pinned versions, or wait before applying changed Git/Application values. Always-fresh
 Go-client operations continue contacting the origin regardless of this freshness window.
-A `200` or `304` publishes against the shared generation observed before the fetch.
-Publication atomically replaces that generation or inserts a key observed as absent.
-If an observed generation disappears, its in-flight response cannot restore it: eviction may
-have hidden an intervening publication. A subsequent fetch can observe absence and repopulate
-the shared record. Delayed responses cannot overwrite concurrent updates.
-The comparison transfers both encoded records to Redis; frequent revalidation increases
-local/shared storage work even when the origin transfers no index body.
+A `200` or `304` publishes only with the ownership token acquired before its origin request.
+Another fetch or maintenance publication invalidates that token. Missing, expired or evicted
+tokens cannot authorize publication, even if every index key was evicted in the meantime.
+A subsequent fetch acquires a new token before contacting the origin.
+Publication atomically commits small metadata containing validators, validation time,
+generation and a SHA-256 reference to the body. Each identity uses one separate body key;
+readers verify that bytes match the published digest, and body writes require that digest
+to remain current. Delayed transfers cannot overwrite a different current body. Losing the
+small metadata keys does not accumulate large orphan bodies across subsequent generations.
+Warm local builds compare the small shared generation rather than downloading the complete
+body from Redis. Local records still contain the complete original index and are rewritten
+after successful revalidation, including `304` responses.
 
 Expired indexes and validators remain available for another `max(24h, freshness)`;
 normal reads and snapshot copies never extend either deadline. Successful origin responses
 advance validation time. A retained index is never served after an origin validation error.
 Copying a fresh Redis hit to disk preserves its timestamp and never writes it back to Redis.
-If shared publication loses a comparison, errors, or cannot be confirmed, that response does
+If shared metadata publication loses ownership, errors, or cannot be confirmed, that response does
 not renew the disk record either. Its in-flight build may finish using its validated snapshot;
 the next store lookup selects the valid shared publication, even when its publishing pod's clock
 is behind the local pod. Timestamps govern freshness and retention, rather than publication order.
 This also applies to cold fetches and executed hard refreshes. During a Redis outage or with
 a shared adapter without atomic publication, expired disk records stay expired and builds may
-revalidate more often. A store without a shared cache continues renewing its disk records normally.
+revalidate more often. After confirmed metadata publication, a failed body transfer does not
+prevent the validated response from warming the local store. Cold readers treat the missing
+body as a miss and validate at the origin; they never substitute an older shared body.
+A store without a shared cache continues renewing its disk records normally.
 
-Redis observations before origin requests receive at most one second and one quarter of the
-remaining request deadline. Managed Redis clients enforce that deadline for socket I/O; an
-observation timeout leaves the result unconfirmed and the build proceeds to the origin.
+Redis record reads receive at most five seconds and one quarter of the remaining request
+deadline. All versioned and legacy lookups share this single budget. Acquiring ownership
+receives at most one second and one quarter of the remaining deadline; publishing metadata
+and sharing its body together receive at most five seconds and one quarter of the remaining
+deadline. Managed Redis clients enforce these deadlines for socket I/O, leaving time for
+origin requests and Helm. A read timeout does not prevent an origin response from publishing
+if ownership can still be acquired and metadata publication confirmed.
 Custom cache adapters without context support retain their own read-timeout policy; Redis
 clients supplied by integrations must enable `ContextTimeoutEnabled` to participate in bounded reads.
 
 Each Helm invocation still has private config, cache, data, credentials and certificate files.
 The effective installed plugin directory remains available through `HELM_PLUGINS`, preserving
 getters used by chart archive URLs even when their repository index uses HTTP.
-An explicitly empty `HELM_PLUGINS` continues to disable plugin discovery.
+An explicitly empty or relative plugin path, including a relative default when `HOME` is
+missing, selects a private absolute empty directory. Helm therefore cannot discover getters
+in the chart checkout. Configure an absolute plugin directory to use installed getters.
 Argo copies the original validated index bytes into that home and uses `--skip-refresh` only
 after every required HTTP repository is ready. OS file locks coordinate builds and cleanup
 between processes sharing a local directory. Lock waits respect request cancellation;
@@ -227,7 +241,8 @@ does not cache OCI content or change OCI tag-cache freshness. Mixed HTTP/OCI bui
 registry authentication and pulls while reusing only the HTTP index.
 Helm OCI tag lists use the revision-cache expiration, independently of HTTP index expiration.
 
-During a rolling upgrade, new versioned Redis records coexist with legacy raw-index keys;
+During a rolling upgrade, ownership-aware versioned Redis records use a separate namespace
+from older versioned writers and coexist with legacy raw-index keys;
 old readers never receive a record envelope in a raw key. Older replicas may continue making full
 index downloads. Rollback does not require deleting Redis records. To disable dependency reuse,
 set `reposerver.helm.index.cache.enabled: "false"` and restart repo-server; remove its volume contents only after every
@@ -255,10 +270,10 @@ Atomic shared records keep index bytes and validators together. Cache implementa
 support separate body and validator reads use process-local validators bound to the body's
 SHA-256 digest. Their first revalidation after restart may download the complete index;
 subsequent requests can use conditional GETs without pairing validators with different bytes.
-Adapters exposing record or validator metadata require atomic generation comparison to publish;
+Adapters exposing record or validator metadata require ownership-aware atomic publication;
 they never fall back to unguarded body or validator writes. Legacy adapters exposing only raw
 body reads and writes retain their original contract. A cache without atomic
-generation comparison cannot confirm a new shared or disk deadline, which can cause extra origin
+publication support cannot confirm a new shared or disk deadline, which can cause extra origin
 requests. A `304` without a sent validator is unusable and retries once unconditionally;
 another `304` fails instead of renewing unvalidated cached bytes.
 A `304` with an ETag that cannot identify the retained body also requires that retry,

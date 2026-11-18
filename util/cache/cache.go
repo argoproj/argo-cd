@@ -401,21 +401,6 @@ func (c *Cache) GetItemContext(ctx context.Context, key string, item any) error 
 	return errors.New("cache client does not support context-aware reads")
 }
 
-// CompareAndSwapItem replaces exactly the observed value. A nil expected value
-// permits insertion only while the key remains absent. Clients without an atomic comparison
-// leave the item unchanged rather than emulate it with reads.
-func (c *Cache) CompareAndSwapItem(ctx context.Context, key string, expected, replacement any, expiration time.Duration) (bool, error) {
-	if replacement == nil {
-		return false, errors.New("cannot replace a nil cache item")
-	}
-	if client, ok := c.client.(interface {
-		CompareAndSwap(context.Context, string, any, any, time.Duration) (bool, error)
-	}); ok {
-		return client.CompareAndSwap(ctx, c.generateFullKey(key), expected, replacement, expiration)
-	}
-	return false, nil
-}
-
 // localCacheClient is implemented by clients that keep a local copy of external cache entries.
 type localCacheClient interface {
 	GetLocal(key string, obj any) error

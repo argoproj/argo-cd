@@ -697,6 +697,7 @@ func TestIndexCachePreservesArchiveGetter(t *testing.T) {
 }
 
 func TestIndexCacheRejectsEmptyConfiguredCA(t *testing.T) {
+	regressionRequirePinnedHelm(t)
 	fixture := newRegressionChartRepo(t, false, "")
 	ca := filepath.Join(t.TempDir(), "empty-ca.pem")
 	require.NoError(t, os.WriteFile(ca, nil, 0o600))

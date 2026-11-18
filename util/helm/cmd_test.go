@@ -551,3 +551,63 @@ func TestHelmPluginsDirectoryMatchesPinnedHelm(t *testing.T) {
 		})
 	}
 }
+
+func commandEnvironmentValue(values []string, key string) string {
+	var result string
+	for _, value := range values {
+		if after, ok := strings.CutPrefix(value, key+"="); ok {
+			result = after
+		}
+	}
+	return result
+}
+
+func TestHelmCommandWithoutIndexCacheKeepsPrivateConfig(t *testing.T) {
+	t.Setenv("HELM_CONFIG_HOME", t.TempDir())
+	cmd := newTestCmd(t)
+	var got string
+	cmd.runWithRedactor = func(child *exec.Cmd, _ func(string) string) (string, error) {
+		got = commandEnvironmentValue(child.Env, "HELM_CONFIG_HOME")
+		return "", nil
+	}
+	_, _, err := cmd.run(t.Context(), "env")
+	require.NoError(t, err)
+	require.Equal(t, filepath.Join(cmd.helmHome, "config"), got, "cache-disabled non-local commands must retain base config isolation")
+}
+
+func TestHelmCommandUsesTrustedPluginPaths(t *testing.T) {
+	for _, mode := range []string{"empty", "missing home", "relative explicit", "trusted absolute"} {
+		t.Run(mode, func(t *testing.T) {
+			for _, name := range []string{"HELM_PLUGINS", "HELM_DATA_HOME", "XDG_DATA_HOME"} {
+				t.Setenv(name, "")
+				require.NoError(t, os.Unsetenv(name))
+			}
+			trusted := t.TempDir()
+			switch mode {
+			case "empty":
+				t.Setenv("HELM_PLUGINS", "")
+			case "missing home":
+				t.Setenv("HOME", "")
+			case "relative explicit":
+				t.Setenv("HELM_PLUGINS", "relative/plugins")
+			case "trusted absolute":
+				t.Setenv("HELM_PLUGINS", trusted)
+			}
+			cmd := newTestCmd(t)
+			cmd.persistentIndexStore = NewIndexStore(t.TempDir(), time.Minute, 1<<20)
+			var got string
+			cmd.runWithRedactor = func(child *exec.Cmd, _ func(string) string) (string, error) {
+				got = commandEnvironmentValue(child.Env, "HELM_PLUGINS")
+				return "", nil
+			}
+			_, _, err := cmd.run(t.Context(), "env")
+			require.NoError(t, err)
+			if mode == "trusted absolute" {
+				require.Equal(t, trusted, got)
+				return
+			}
+			require.True(t, filepath.IsAbs(got), "empty/missing configuration must not expose plugin paths relative to the checkout: %q", got)
+			require.True(t, strings.HasPrefix(got, cmd.helmHome+string(filepath.Separator)), "disabled discovery must use a private directory")
+		})
+	}
+}

@@ -95,6 +95,7 @@ var _ Client = &nativeHelmChart{}
 type nativeHelmChart struct {
 	indexNotModified         bool
 	cacheObservation         indexRecordObservation
+	cacheReadAttempted       bool
 	responseURLIdentity      string
 	lastValidators           http.Header // response validators consumed by the publication owner
 	chartCachePaths          utilio.TempPaths
@@ -125,6 +126,8 @@ func (c *nativeHelmChart) withResolvedCredentials() (*nativeHelmChart, error) {
 	operation := *c
 	operation.creds = snap
 	operation.lastValidators = nil
+	operation.cacheReadAttempted = false
+	operation.cacheObservation = indexRecordObservation{}
 	if operation.scopedByCreds {
 		operation.indexCacheScope = credsScope(snap)
 	}
@@ -409,8 +412,19 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 
 	var data []byte
 	if !noCache && c.indexCache != nil {
-		if err := c.indexCache.GetHelmIndex(c.cacheRepoKey(), &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
-			log.Warnf("Failed to load index cache for repo: %s: %v", c.repoURL, err)
+		if reader, ok := c.indexCache.(interface {
+			GetHelmIndexSnapshotContext(context.Context, string) (*HelmIndexRecord, bool, error)
+		}); ok {
+			operation, cancel := indexCacheContext(ctx, 5*time.Second)
+			record, fresh, err := reader.GetHelmIndexSnapshotContext(operation, c.cacheRepoKey())
+			cancel()
+			c.cacheReadAttempted = true
+			c.cacheObservation = indexRecordObservation{record: record}
+			if err == nil && fresh && record != nil {
+				data = record.Body
+			}
+		} else if err := c.indexCache.GetHelmIndex(c.cacheRepoKey(), &data); err != nil {
+			data = nil
 		}
 	}
 
@@ -421,6 +435,7 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 	if len(data) == 0 {
 		start := time.Now()
 		var err error
+		owner := beginIndexFetch(ctx, c.indexCache, c.cacheRepoKey())
 		data, err = c.loadRepoIndex(ctx, maxIndexSize)
 		if err != nil {
 			return nil, fmt.Errorf("error loading repo index: %w", err)
@@ -428,12 +443,8 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
 
 		if c.indexCache != nil {
-			if publisher, ok := c.indexCache.(indexCacheRecordRevalidator); ok {
-				if c.cacheObservation.known {
-					if _, err := publisher.CompareAndSwapHelmIndexRecord(ctx, c.cacheRepoKey(), c.cacheObservation.record, c.fetchedIndexRecord(data)); err != nil {
-						log.WithError(err).Debug("failed to publish shared helm index record")
-					}
-				}
+			if _, ok := c.indexCache.(indexCachePublisher); ok {
+				publishIndexFetch(ctx, c.indexCache, c.cacheRepoKey(), owner, c.fetchedIndexRecord(data))
 			} else if !c.indexNotModified {
 				_, reader := c.indexCache.(indexCacheRecordReader)
 				_, writer := c.indexCache.(indexCacheRecorder)
@@ -508,7 +519,9 @@ func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
 
 func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64) ([]byte, error) {
 	c.indexNotModified = false
-	c.cacheObservation = indexRecordObservation{}
+	if !c.cacheReadAttempted {
+		c.cacheObservation = indexRecordObservation{}
+	}
 	c.responseURLIdentity = ""
 	c.lastValidators = nil
 	indexURL, err := getIndexURL(c.repoURL)
@@ -562,7 +575,9 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 		// the new validator with the previous body.
 		if reader, ok := c.indexCache.(indexCacheRecordReader); ok {
 			atomicReader = true
-			c.cacheObservation = observeIndexRecord(ctx, reader, repoKey)
+			if !c.cacheReadAttempted {
+				c.cacheObservation = observeIndexRecord(ctx, reader, repoKey)
+			}
 			if rec := c.cacheObservation.record; rec != nil && len(rec.Body) > 0 {
 				cachedBody = rec.Body
 				cachedRecordETag, cachedRecordLastModified, cachedURLIdentity = rec.ETag, rec.LastModified, rec.URLIdentity
@@ -649,7 +664,7 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 			}
 		}
 
-		// The owner publishes once, using a generation comparison for shared data.
+		// The fetch owner publishes the validated snapshot once.
 		return cachedBody, nil
 	}
 	if resp.StatusCode == http.StatusNotModified {
