@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"sync"
 
+	"github.com/felixge/httpsnoop"
 	//nolint:staticcheck // grpc-gateway v1 forwarders take messages of the old proto package
 	"github.com/golang/protobuf/proto"
 	gwruntime "github.com/grpc-ecosystem/grpc-gateway/runtime"
@@ -55,8 +56,8 @@ func StartEventStream(forward StreamForwarder) StreamForwarder {
 			forward(ctx, mux, marshaler, w, req, recv, opts...)
 			return
 		}
-		stream := &eventStream{ResponseWriter: w}
-		forward(ctx, mux, marshaler, stream, req, func() (proto.Message, error) {
+		stream := newEventStream(w)
+		forward(ctx, mux, marshaler, stream.response, req, func() (proto.Message, error) {
 			// The forwarder has set every response header by the time it asks for the first message.
 			stream.start()
 			return recv()
@@ -66,11 +67,37 @@ func StartEventStream(forward StreamForwarder) StreamForwarder {
 
 // eventStream is the response of an event stream that starts before its first message.
 type eventStream struct {
-	http.ResponseWriter
-	started bool
+	// response is what the forwarder writes the stream to.
+	response http.ResponseWriter
+	started  bool
 	// writing serializes the write that starts the response with the keepalives, which the forwarder writes
 	// from another goroutine.
 	writing sync.Mutex
+}
+
+// newEventStream returns the event stream that is written to w. Its response has the optional interfaces of w,
+// among them http.Flusher, which stream forwarders require of the response.
+func newEventStream(w http.ResponseWriter) *eventStream {
+	s := &eventStream{}
+	s.response = httpsnoop.Wrap(w, httpsnoop.Hooks{
+		Write: func(next httpsnoop.WriteFunc) httpsnoop.WriteFunc {
+			return func(p []byte) (int, error) {
+				s.writing.Lock()
+				defer s.writing.Unlock()
+				return next(p)
+			}
+		},
+		// Drop the status of an error that ends the stream after it started. The response has its status by
+		// then, and the forwarder writes the error to the stream as well.
+		WriteHeader: func(next httpsnoop.WriteHeaderFunc) httpsnoop.WriteHeaderFunc {
+			return func(statusCode int) {
+				if !s.started {
+					next(statusCode)
+				}
+			}
+		},
+	})
+	return s
 }
 
 // start sends the response headers followed by a comment, which is what event stream clients take a line
@@ -80,33 +107,10 @@ func (s *eventStream) start() {
 		return
 	}
 	s.started = true
-	if _, err := s.Write([]byte(":\n")); err == nil {
-		s.Flush()
+	if _, err := s.response.Write([]byte(":\n")); err != nil {
+		return
 	}
-}
-
-func (s *eventStream) Write(p []byte) (int, error) {
-	s.writing.Lock()
-	defer s.writing.Unlock()
-	return s.ResponseWriter.Write(p)
-}
-
-// WriteHeader drops the status of an error that ends the stream after it started. The response has its status by
-// then, and the forwarder writes the error to the stream as well.
-func (s *eventStream) WriteHeader(statusCode int) {
-	if !s.started {
-		s.ResponseWriter.WriteHeader(statusCode)
-	}
-}
-
-// Flush implements http.Flusher, which stream forwarders require of the response.
-func (s *eventStream) Flush() {
-	if flusher, ok := s.ResponseWriter.(http.Flusher); ok {
+	if flusher, ok := s.response.(http.Flusher); ok {
 		flusher.Flush()
 	}
-}
-
-// Unwrap gives http.ResponseController access to the wrapped response.
-func (s *eventStream) Unwrap() http.ResponseWriter {
-	return s.ResponseWriter
 }
