@@ -2384,8 +2384,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	canSync, _ := project.Spec.SyncWindows.Matches(app).CanSync(false, nil)
 	if canSync {
-		syncErrCond, opDuration := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
+		syncErrCond, opDuration, initiationErr := ctrl.autoSync(ctx, app, compareResult.syncStatus, compareResult.resources, compareResult.revisionsMayHaveChanges)
 		setOpDuration = opDuration
+		if initiationErr != nil {
+			reconciliationFailed = true
+		}
 		if syncErrCond != nil {
 			app.Status.SetConditions(
 				[]appv1.ApplicationCondition{*syncErrCond},
@@ -3057,11 +3060,13 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	return patchDuration
 }
 
-// autoSync will initiate a sync operation for an application configured with automated sync
-func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (*appv1.ApplicationCondition, time.Duration) {
+// autoSync initiates a sync operation for an application configured with automated sync.
+// The error reports a failure to initiate this sync, separately from conditions for
+// a previous failure or a policy that intentionally prevents a new sync.
+func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Application, syncStatus *appv1.SyncStatus, resources []appv1.ResourceStatus, shouldCompareRevisions bool) (_ *appv1.ApplicationCondition, _ time.Duration, retErr error) {
 	_, span := tracer.Start(ctx, "controller.autoSync")
 	setAppTraceAttrs(span, app)
-	defer span.End()
+	defer func() { traceutil.EndSpan(span, retErr) }()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	ts := stats.NewTimingStats()
 	defer func() {
@@ -3072,23 +3077,23 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		logCtx.Debug("Finished auto sync")
 	}()
 	if app.Spec.SyncPolicy == nil || !app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
-		return nil, 0
+		return nil, 0, nil
 	}
 
 	if app.Operation != nil {
 		logCtx.Infof("Skipping auto-sync: another operation is in progress")
-		return nil, 0
+		return nil, 0, nil
 	}
 	if app.DeletionTimestamp != nil && !app.DeletionTimestamp.IsZero() {
 		logCtx.Infof("Skipping auto-sync: deletion in progress")
-		return nil, 0
+		return nil, 0, nil
 	}
 
 	// Only perform auto-sync if we detect OutOfSync status. This is to prevent us from attempting
 	// a sync when application is already in a Synced or Unknown state
 	if syncStatus.Status != appv1.SyncStatusCodeOutOfSync {
 		logCtx.Infof("Skipping auto-sync: application status is %s", syncStatus.Status)
-		return nil, 0
+		return nil, 0, nil
 	}
 
 	if !app.Spec.SyncPolicy.Automated.GetPrune() {
@@ -3101,7 +3106,7 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		}
 		if requirePruneOnly {
 			logCtx.Infof("Skipping auto-sync: need to prune extra resources only but automated prune is disabled")
-			return nil, 0
+			return nil, 0, nil
 		}
 	}
 
@@ -3138,11 +3143,11 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		if !lastAttemptedPhase.Successful() {
 			logCtx.Warnf("Skipping auto-sync: failed previous sync attempt to %s and will not retry for %s", lastAttemptedRevisions, desiredRevisions)
 			message := fmt.Sprintf("Failed last sync attempt to %s: %s", lastAttemptedRevisions, app.Status.OperationState.Message)
-			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0, nil
 		}
 		if !app.Spec.SyncPolicy.Automated.GetSelfHeal() {
 			logCtx.Infof("Skipping auto-sync: most recent sync already to %s", desiredRevisions)
-			return nil, 0
+			return nil, 0, nil
 		}
 		// Self heal will trigger a new sync operation when the desired state changes and cause the application to
 		// be OutOfSync when it was previously synced Successfully. This means SelfHeal should only ever be attempted
@@ -3154,7 +3159,7 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		if remainingTime := ctrl.selfHealRemainingBackoff(app, int(op.Sync.SelfHealAttemptsCount)); remainingTime > 0 {
 			logCtx.Infof("Skipping auto-sync: already attempted sync to %s with timeout %v (retrying in %v)", lastAttemptedRevisions, ctrl.selfHealTimeout, remainingTime)
 			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithLatest.Pointer(), &remainingTime)
-			return nil, 0
+			return nil, 0, nil
 		}
 
 		op.Sync.SelfHealAttemptsCount++
@@ -3180,7 +3185,7 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 		if bAllNeedPrune {
 			message := fmt.Sprintf("Skipping sync attempt to %s: auto-sync will wipe out all resources", desiredRevisions)
 			logCtx.Warn(message)
-			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0
+			return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: message}, 0, nil
 		}
 	}
 
@@ -3195,11 +3200,11 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 			// skipping auto-sync because another operation is in progress and was not noticed due to stale data in informer
 			// it is safe to skip auto-sync because it is already running
 			logCtx.WithError(err).Warnf("Failed to initiate auto-sync to %s", desiredRevisions)
-			return nil, 0
+			return nil, 0, nil
 		}
 
 		logCtx.WithError(err).Errorf("Failed to initiate auto-sync to %s", desiredRevisions)
-		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, setOpTime
+		return &appv1.ApplicationCondition{Type: appv1.ApplicationConditionSyncError, Message: err.Error()}, setOpTime, err
 	}
 	ctrl.writeBackToInformer(updatedApp)
 	ts.AddCheckpoint("write_back_to_informer_ms")
@@ -3207,7 +3212,7 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 	message := fmt.Sprintf("Initiated automated sync to '%s'", strings.Join(desiredRevisions, ", "))
 	ctrl.logAppEvent(context.TODO(), app, argo.EventInfo{Reason: argo.EventReasonOperationStarted, Type: corev1.EventTypeNormal}, message)
 	logCtx.Info(message)
-	return nil, setOpTime
+	return nil, setOpTime, nil
 }
 
 // alreadyAttemptedSync returns whether the most recently synced revision(s) exactly match the given desiredRevisions

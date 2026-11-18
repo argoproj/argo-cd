@@ -18,14 +18,17 @@ import (
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
 	"go.opentelemetry.io/otel/sdk/trace/tracetest"
 	oteltrace "go.opentelemetry.io/otel/trace"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
 	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	mockrepoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	argotest "github.com/argoproj/argo-cd/v3/test"
@@ -621,6 +624,142 @@ func TestProcessAppRefreshQueueItemTraceRecordsComparisonConditionFailure(t *tes
 	assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
 	assert.Equal(t, codes.Error, span.Status().Code)
 	assert.NotContains(t, attrs, "argocd.resolved_revision")
+}
+
+func TestProcessAppRefreshQueueItemTraceDistinguishesAutoSyncFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name              string
+		previousFailure   bool
+		wantUpdates       int
+		wantOutcome       string
+		wantStatus        codes.Code
+		wantSyncCondition string
+	}{
+		{
+			name: "current operation update fails", wantUpdates: 1,
+			wantOutcome: "error", wantStatus: codes.Error,
+			wantSyncCondition: "auto-sync update denied",
+		},
+		{
+			name: "previous sync failed at the same revision", previousFailure: true,
+			wantOutcome: "state_changed", wantStatus: codes.Unset,
+			wantSyncCondition: "Failed last sync attempt",
+		},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := installRecordingTracer(t)
+			app := newFakeApp()
+			app.Operation = nil
+			app.Status.OperationState = nil
+			const revision = "resolved-revision"
+			if tc.previousFailure {
+				app.Status.OperationState = &v1alpha1.OperationState{
+					Phase: synccommon.OperationFailed,
+					SyncResult: &v1alpha1.SyncOperationResult{
+						Revision: revision,
+						Source:   app.Spec.GetSource(),
+					},
+				}
+			}
+			ctrl := newFakeController(t.Context(), &fakeData{
+				apps: []runtime.Object{app, &defaultProj},
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"auto-sync-config"},"data":{"key":"value"}}`},
+					Namespace: argotest.FakeDestNamespace,
+					Server:    argotest.FakeClusterURL,
+					Revision:  revision,
+				},
+				managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			}, nil)
+			updates := 0
+			ctrl.applicationClientset.(*appclientset.Clientset).PrependReactor("update", "applications", func(kubetesting.Action) (bool, runtime.Object, error) {
+				updates++
+				return true, nil, apierrors.NewForbidden(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, app.Name, errors.New("auto-sync update denied"))
+			})
+			enqueueRefresh(t, ctrl, app, CompareWithLatestForceResolve)
+
+			ctrl.processAppRefreshQueueItem()
+
+			assert.Equal(t, tc.wantUpdates, updates)
+			stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Nil(t, stored.Operation)
+			conditions := stored.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
+				v1alpha1.ApplicationConditionSyncError: true,
+			})
+			require.Len(t, conditions, 1)
+			assert.Contains(t, conditions[0].Message, tc.wantSyncCondition)
+			comparison := findRecordedSpan(t, recorder.Ended(), "controller.CompareAppState")
+			assert.Equal(t, codes.Unset, comparison.Status().Code)
+			autoSync := findRecordedSpan(t, recorder.Ended(), "controller.autoSync")
+			assert.Equal(t, tc.wantStatus, autoSync.Status().Code)
+			span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
+			attrs := traceAttrs(span)
+			assert.Equal(t, tc.wantOutcome, attrs["argocd.reconciliation.outcome"].AsString())
+			assert.Equal(t, tc.previousFailure, attrs["argocd.reconciliation.status_changed"].AsBool())
+			assert.Equal(t, tc.wantStatus, span.Status().Code)
+			assert.Equal(t, span.SpanContext().SpanID(), comparison.Parent().SpanID())
+			assert.Equal(t, span.SpanContext().SpanID(), autoSync.Parent().SpanID())
+		})
+	}
+}
+
+func TestAutoSyncTraceDoesNotReportBenignSkipsAsErrors(t *testing.T) {
+	for _, tc := range []struct {
+		name               string
+		operationInCache   bool
+		operationOnServer  bool
+		pruneAll           bool
+		wantCondition      bool
+		wantApplicationGet int
+	}{
+		{name: "operation already in progress", operationInCache: true, operationOnServer: true},
+		{name: "pruning would delete every resource", pruneAll: true, wantCondition: true},
+		{name: "operation started after informer read", operationOnServer: true, wantApplicationGet: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := installRecordingTracer(t)
+			app := newFakeApp()
+			app.Operation = nil
+			app.Status.OperationState = nil
+			app.Spec.SyncPolicy.Automated.Prune = new(tc.pruneAll)
+			operation := &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "other-revision"}}
+			if tc.operationInCache {
+				app.Operation = operation
+			}
+			storedApp := app.DeepCopy()
+			if tc.operationOnServer {
+				storedApp.Operation = operation.DeepCopy()
+			}
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{storedApp}}, nil)
+			gets, updates := 0, 0
+			client := ctrl.applicationClientset.(*appclientset.Clientset)
+			client.PrependReactor("get", "applications", func(kubetesting.Action) (bool, runtime.Object, error) {
+				gets++
+				return false, nil, nil
+			})
+			client.PrependReactor("update", "applications", func(kubetesting.Action) (bool, runtime.Object, error) {
+				updates++
+				return false, nil, nil
+			})
+			syncStatus := &v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync, Revision: "resolved-revision"}
+			resources := []v1alpha1.ResourceStatus{{Name: "config", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: tc.pruneAll}}
+
+			condition, _, err := ctrl.autoSync(t.Context(), app, syncStatus, resources, true)
+
+			require.NoError(t, err)
+			if tc.wantCondition {
+				require.NotNil(t, condition)
+				assert.Equal(t, v1alpha1.ApplicationConditionSyncError, condition.Type)
+			} else {
+				assert.Nil(t, condition)
+			}
+			assert.Equal(t, tc.wantApplicationGet, gets)
+			assert.Zero(t, updates)
+			span := findRecordedSpan(t, recorder.Ended(), "controller.autoSync")
+			assert.Equal(t, codes.Unset, span.Status().Code)
+		})
+	}
 }
 
 func TestProcessRequestedAppOperationTraceRetryBackoffAndDisabledTracing(t *testing.T) {

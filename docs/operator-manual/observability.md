@@ -126,6 +126,10 @@ An observed `OutOfSync` or `Degraded` Application is not by itself a controller 
 Comparison, cache, and operation-state persistence failures set the relevant span's OpenTelemetry
 status to `Error`. Failed sync attempts also set error status, including attempts scheduled for retry.
 
+Failure to initiate auto-sync marks both `controller.autoSync` and its `controller.Refresh` parent as
+errors. Historical failed-sync conditions and intentional policy skips are observations of controller
+state and do not, by themselves, mark the current attempt as an error.
+
 Refresh and sync panics are recorded before the span ends, preserving the controller's existing
 recovery behavior. `SyncAppState` re-panics after finalizing its span.
 

@@ -831,7 +831,7 @@ func TestAutoSync(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -848,7 +848,7 @@ func TestAutoSyncEnabledSetToTrue(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 	assert.Nil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -869,7 +869,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"z", "x", "v"},
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -884,7 +884,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"a", "b", "c"},
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -899,7 +899,7 @@ func TestAutoSyncMultiSourceWithoutSelfHeal(t *testing.T) {
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"a", "b", "c"},
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, false)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook-1", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, false)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -915,7 +915,7 @@ func TestAutoSyncNotAllowEmpty(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+	cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 	assert.NotNil(t, cond)
 }
 
@@ -928,7 +928,7 @@ func TestAutoSyncAllowEmpty(t *testing.T) {
 		Status:   v1alpha1.SyncStatusCodeOutOfSync,
 		Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 	}
-	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+	cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 	assert.Nil(t, cond)
 }
 
@@ -942,7 +942,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -957,7 +957,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeSynced,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -973,7 +973,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -989,7 +989,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -1006,7 +1006,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -1032,7 +1032,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.NotNil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -1056,7 +1056,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.NotNil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -1070,7 +1070,7 @@ func TestSkipAutoSync(t *testing.T) {
 			Status:   v1alpha1.SyncStatusCodeOutOfSync,
 			Revision: "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{
 			{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync, RequiresPruning: true},
 		}, true)
 		assert.Nil(t, cond)
@@ -1108,7 +1108,7 @@ func TestAutoSyncIndicateError(t *testing.T) {
 			Source:   *app.Spec.Source.DeepCopy(),
 		},
 	}
-	cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+	cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 	assert.NotNil(t, cond)
 	app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 	require.NoError(t, err)
@@ -1152,7 +1152,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 			Revision: "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
 		}
 		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
@@ -1183,7 +1183,7 @@ func TestAutoSyncParameterOverrides(t *testing.T) {
 			Status:    v1alpha1.SyncStatusCodeOutOfSync,
 			Revisions: []string{"z", "x", "v"},
 		}
-		cond, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
+		cond, _, _ := ctrl.autoSync(t.Context(), app, &syncStatus, []v1alpha1.ResourceStatus{{Name: "guestbook", Kind: kube.DeploymentKind, Status: v1alpha1.SyncStatusCodeOutOfSync}}, true)
 		assert.Nil(t, cond)
 		app, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(test.FakeArgoCDNamespace).Get(t.Context(), "my-app", metav1.GetOptions{})
 		require.NoError(t, err)
