@@ -441,6 +441,18 @@ data:
   # understand the risks.
   oidc.tls.insecure.skip.verify: "false"
 
+  # Global projects: an AppProject whose labels match the selector inherits the source repos, destinations,
+  # resource allow/deny lists, sync windows and destination service accounts of the named project.
+  # See docs/user-guide/projects.md#configuring-global-projects-v18
+  # globalProjects: |
+  #   - projectName: proj-global-test
+  #     labelSelector:
+  #       matchExpressions:
+  #         - key: opt
+  #           operator: In
+  #           values:
+  #             - prod
+
   # Add Deep Links to ArgoCD UI
   # sample project level links
   project.links: |

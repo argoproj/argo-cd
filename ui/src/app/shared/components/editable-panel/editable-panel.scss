@@ -9,6 +9,21 @@
         z-index: 10;
     }
 
+    &__hint {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font-size: smaller;
+        cursor: help;
+
+        &:focus-visible {
+            // Override the global argo-ui outline reset for keyboard navigation.
+            outline: 2px solid $argo-color-teal-6 !important;
+            outline-offset: 2px;
+        }
+    }
+
     &__buttons {
         position: absolute;
         top: 30px;
