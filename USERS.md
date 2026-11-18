@@ -359,6 +359,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Shock Media](https://www.shockmedia.nl)
 1. [SI Analytics](https://si-analytics.ai)
 1. [Sidewalk Entertainment](https://sidewalkplay.com/)
+1. [Siemens](https://www.siemens.com/)
 1. [Skit](https://skit.ai/)
 1. [Skribble](https://skribble.com)
 1. [Skyscanner](https://www.skyscanner.net/)
