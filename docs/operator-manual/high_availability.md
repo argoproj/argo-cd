@@ -146,8 +146,10 @@ This setting does not poll repositories, trigger manifest generation, override `
 or pinned versions, or wait before applying changed Git/Application values. Always-fresh
 Go-client operations continue contacting the origin regardless of this freshness window.
 A `200` or `304` publishes against the shared generation observed before the fetch.
-Publication atomically replaces that generation or inserts an absent record, so delayed
-responses cannot overwrite concurrent updates and evicted shared records can be restored.
+Publication atomically replaces that generation or inserts a key observed as absent.
+If an observed generation disappears, its in-flight response cannot restore it: eviction may
+have hidden an intervening publication. A subsequent fetch can observe absence and repopulate
+the shared record. Delayed responses cannot overwrite concurrent updates.
 The comparison transfers both encoded records to Redis; frequent revalidation increases
 local/shared storage work even when the origin transfers no index body.
 
@@ -163,7 +165,16 @@ This also applies to cold fetches and executed hard refreshes. During a Redis ou
 a shared adapter without atomic publication, expired disk records stay expired and builds may
 revalidate more often. A store without a shared cache continues renewing its disk records normally.
 
+Redis observations before origin requests receive at most one second and one quarter of the
+remaining request deadline. Managed Redis clients enforce that deadline for socket I/O; an
+observation timeout leaves the result unconfirmed and the build proceeds to the origin.
+Custom cache adapters without context support retain their own read-timeout policy; Redis
+clients supplied by integrations must enable `ContextTimeoutEnabled` to participate in bounded reads.
+
 Each Helm invocation still has private config, cache, data, credentials and certificate files.
+The effective installed plugin directory remains available through `HELM_PLUGINS`, preserving
+getters used by chart archive URLs even when their repository index uses HTTP.
+An explicitly empty `HELM_PLUGINS` continues to disable plugin discovery.
 Argo copies the original validated index bytes into that home and uses `--skip-refresh` only
 after every required HTTP repository is ready. OS file locks coordinate builds and cleanup
 between processes sharing a local directory. Lock waits respect request cancellation;
@@ -201,8 +212,10 @@ digests. Disk bodies are hashed on read; shared bytes identical to a validated l
 avoid a second hash. Unchanged bodies avoid repeated YAML parsing, and changed bodies are validated normally. This cache retains no index bodies and does not
 extend freshness or retention. Valid shared publications still take precedence after validation.
 
-Go-client chart listing, connectivity tests and revision resolution retain their always-fresh
-behavior independently of dependency-cache enablement. A `304` response avoids transferring the index
+Go-client chart listing and connectivity tests contact the origin on every call, independently
+of dependency-cache enablement. Revision resolution preserves its existing policy: an exact
+version skips index lookup; a version range may use a fresh Redis index when
+`noRevisionCache=false`, and forces origin revalidation when `noRevisionCache=true`. A `304` response avoids transferring the index
 body; it still counts as a GET. Chart extraction through `helm pull --repo` can make its own index
 request on archive misses. Archive downloads and checkout-triggered builds are unchanged.
 
@@ -235,6 +248,8 @@ and an authentication challenge reports the credential lookup error.
 HTTP Helm operations and native OCI clients snapshot custom CA file contents for both
 the TLS transport and cache identity, so rotating that file creates a new cache view.
 Prewarmed Helm subprocesses receive the same frozen CA contents in their private configuration.
+An explicitly configured empty CA file is rejected before index prewarming, since Helm would
+otherwise fall back to system roots. An unset CA continues using the normal system trust policy.
 
 Atomic shared records keep index bytes and validators together. Cache implementations that only
 support separate body and validator reads use process-local validators bound to the body's
@@ -246,6 +261,10 @@ body reads and writes retain their original contract. A cache without atomic
 generation comparison cannot confirm a new shared or disk deadline, which can cause extra origin
 requests. A `304` without a sent validator is unusable and retries once unconditionally;
 another `304` fails instead of renewing unvalidated cached bytes.
+A `304` with an ETag that cannot identify the retained body also requires that retry,
+including a new strong ETag after date-based validation. Matching strong/weak validators
+and usable responses omitting the ETag retain conditional revalidation. See
+[RFC 9111 section 4.3.4](https://www.rfc-editor.org/rfc/rfc9111.html#section-4.3.4).
 
 Validators are also bound to a fingerprint of the effective response URL, including its query.
 Conditions follow only that resource through redirects. A stable redirect can revalidate with

@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"errors"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -134,7 +135,8 @@ type indexCacheRecorder interface {
 }
 
 // Every response is published against the shared generation observed before
-// its fetch. An absent key may be restored atomically, never overwriting a winner.
+// its fetch. Insertion requires observing absence; a vanished generation must
+// not be revived because eviction can hide an intervening publication.
 type indexCacheRecordRevalidator interface {
 	CompareAndSwapHelmIndexRecord(context.Context, string, *HelmIndexRecord, *HelmIndexRecord) (bool, error)
 }
@@ -144,8 +146,24 @@ type indexRecordObservation struct {
 	known  bool
 }
 
-func observeIndexRecord(reader indexCacheRecordReader, repo string) indexRecordObservation {
-	record, err := reader.GetHelmIndexRetainedRecord(repo)
+// Shared observation gets at most one second and one quarter of the remaining
+// request budget, leaving time to validate at the origin after a cache outage.
+func observeIndexRecord(ctx context.Context, reader indexCacheRecordReader, repo string) indexRecordObservation {
+	var record *HelmIndexRecord
+	var err error
+	if bounded, ok := reader.(interface {
+		GetHelmIndexRetainedRecordContext(context.Context, string) (*HelmIndexRecord, error)
+	}); ok {
+		budget := time.Second
+		if deadline, ok := ctx.Deadline(); ok {
+			budget = min(budget, time.Until(deadline)/4)
+		}
+		observation, cancel := context.WithTimeout(ctx, budget)
+		defer cancel()
+		record, err = bounded.GetHelmIndexRetainedRecordContext(observation, repo)
+	} else {
+		record, err = reader.GetHelmIndexRetainedRecord(repo)
+	}
 	if err != nil {
 		return indexRecordObservation{known: errors.Is(err, cacheutil.ErrCacheMiss)}
 	}
@@ -199,4 +217,17 @@ func (r *HelmIndexRecord) Fresh(freshness time.Duration) bool {
 // freshness — the revalidation path reads it to send conditional headers.
 type indexCacheRecordReader interface {
 	GetHelmIndexRetainedRecord(repo string) (*HelmIndexRecord, error)
+}
+
+// RFC 9111 section 4.3.4: a new strong ETag cannot identify bytes cached
+// under a different or weak validator. Weak tags must match their opaque
+// value; a response omitting its ETag can still validate the sent condition.
+func matchingNotModifiedETag(cached, received string) bool {
+	if received == "" {
+		return true
+	}
+	if after, ok := strings.CutPrefix(received, "W/"); ok {
+		return cached != "" && strings.TrimPrefix(cached, "W/") == after
+	}
+	return cached == received && !strings.HasPrefix(cached, "W/")
 }

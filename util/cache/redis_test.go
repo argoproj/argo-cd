@@ -3,6 +3,7 @@ package cache
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
 	"io"
 	"strconv"
 	"testing"
@@ -264,10 +265,18 @@ func TestRedisCompareAndSwap(t *testing.T) {
 			require.Len(t, keys, 1)
 			require.Contains(t, keys[0], "helm-cas-test:index|")
 			require.Equal(t, 2*time.Minute, server.TTL(keys[0]))
-			updated, err := first.CompareAndSwapItem(t.Context(), "missing", old, current, time.Minute)
+			require.NoError(t, second.SetItem("evicted", current, &CacheActionOpts{Expiration: time.Minute}))
+			require.NoError(t, second.SetItem("evicted", current, &CacheActionOpts{Delete: true}))
+			updated, err := first.CompareAndSwapItem(t.Context(), "evicted", old, old, time.Minute)
 			require.NoError(t, err)
-			require.True(t, updated, "an evicted record may be restored atomically")
+			require.False(t, updated, "an old response cannot revive itself after a newer publication was evicted")
+			updated, err = first.CompareAndSwapItem(t.Context(), "missing", old, current, time.Minute)
+			require.NoError(t, err)
+			require.False(t, updated, "a vanished generation cannot be safely restored from an earlier observation")
 			updated, err = first.CompareAndSwapItem(t.Context(), "missing", nil, old, time.Minute)
+			require.NoError(t, err)
+			require.True(t, updated)
+			updated, err = first.CompareAndSwapItem(t.Context(), "missing", nil, current, time.Minute)
 			require.NoError(t, err)
 			require.False(t, updated, "an absent-key observation cannot replace a concurrent insert")
 			updated, err = first.CompareAndSwapItem(t.Context(), "cold", nil, old, time.Minute)
@@ -290,4 +299,25 @@ func TestCompareAndSwapUnsupportedClient(t *testing.T) {
 	var value string
 	require.NoError(t, cache.GetItem("key", &value))
 	require.Equal(t, "old", value)
+}
+
+func TestRedisClientsEnableContextDeadlines(t *testing.T) {
+	standalone := buildRedisClient("127.0.0.1:6379", "", "", 0, -1, nil)
+	t.Cleanup(func() { require.NoError(t, standalone.Close()) })
+	require.True(t, standalone.Options().ContextTimeoutEnabled)
+	failover := buildFailoverRedisClient("master", "", "", "", "", 0, -1, nil, []string{"127.0.0.1:26379"})
+	t.Cleanup(func() { require.NoError(t, failover.Close()) })
+	require.True(t, failover.Options().ContextTimeoutEnabled)
+}
+
+func TestRedisContextReadRejectsUnboundedClient(t *testing.T) {
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	cache := NewCache(NewRedisCache(client, time.Minute, RedisCompressionNone))
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	var body []byte
+	require.ErrorContains(t, cache.GetItemContext(ctx, "index", &body), "does not enforce context deadlines")
+	require.Zero(t, server.CommandCount(), "unsupported deadline enforcement must fail before I/O")
 }

@@ -2,6 +2,7 @@ package mocks
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/stretchr/testify/mock"
@@ -14,6 +15,15 @@ type MockCacheClient struct {
 	BaseCache  cache.CacheClient
 	ReadDelay  time.Duration
 	WriteDelay time.Duration
+}
+
+func (c *MockCacheClient) GetContext(ctx context.Context, key string, obj any) error {
+	if client, ok := c.BaseCache.(interface {
+		GetContext(context.Context, string, any) error
+	}); ok {
+		return client.GetContext(ctx, key, obj)
+	}
+	return errors.New("wrapped cache does not support context-aware reads")
 }
 
 // Preserve optional atomic publication when wrapping a real Redis client.

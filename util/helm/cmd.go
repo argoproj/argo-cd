@@ -13,6 +13,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 
@@ -89,6 +90,7 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 			"XDG_CONFIG_HOME="+c.helmHome+"/config",
 			"XDG_DATA_HOME="+c.helmHome+"/data")
 		if c.persistentIndexStore != nil {
+			cmd.Env = append(cmd.Env, "HELM_PLUGINS="+helmPluginsDirectory())
 			// Explicit Helm variables take precedence over XDG. Override inherited
 			// values too, using the same paths into which we prewarm snapshots.
 			cmd.Env = append(cmd.Env,
@@ -154,12 +156,6 @@ func (c *Cmd) writeRepoCredential(data []byte) (string, error) {
 	if len(data) == 0 {
 		return "", nil
 	}
-	return c.writeRepoCredentialFile(data)
-}
-
-// Unlike an optional client certificate, an explicitly configured CA file
-// must keep its path even when empty; omitting it changes Helm's trust policy.
-func (c *Cmd) writeRepoCredentialFile(data []byte) (string, error) {
 	dir := filepath.Join(c.helmHome, "config")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err
@@ -692,4 +688,28 @@ func (c *Cmd) getHelmRegistry(repo string) (string, error) {
 	}
 
 	return uri.Host, nil
+}
+
+// Resolve before changing data/config homes so installed getters remain
+// discoverable. This follows Helm's HELM_PLUGINS, data-home and XDG precedence.
+func helmPluginsDirectory() string {
+	if plugins, configured := os.LookupEnv("HELM_PLUGINS"); configured {
+		return plugins
+	}
+	if data := os.Getenv("HELM_DATA_HOME"); data != "" {
+		return filepath.Join(data, "plugins")
+	}
+	data := os.Getenv("XDG_DATA_HOME")
+	if data == "" {
+		home, _ := os.UserHomeDir()
+		switch runtime.GOOS {
+		case "darwin":
+			data = filepath.Join(home, "Library")
+		case "windows":
+			data = os.Getenv("APPDATA")
+		default:
+			data = filepath.Join(home, ".local", "share")
+		}
+	}
+	return filepath.Join(data, "helm", "plugins")
 }

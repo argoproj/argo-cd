@@ -288,7 +288,7 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 }
 
 // CompareAndSwapHelmIndexRecord publishes only against the observed shared
-// generation, or inserts an absent record without overwriting a concurrent winner.
+// generation. Only an observed absence permits insertion of a missing record.
 func (c *Cache) CompareAndSwapHelmIndexRecord(ctx context.Context, repo string, expected, record *HelmIndexRecord) (bool, error) {
 	if record == nil || len(record.Body) == 0 {
 		return false, errors.New("cannot revalidate an empty helm index record")
@@ -306,6 +306,16 @@ func (c *Cache) CompareAndSwapHelmIndexRecord(ctx context.Context, repo string, 
 		previous = expected
 	}
 	return c.cache.CompareAndSwapItem(ctx, helmIndexV2Key(repo), previous, record, remaining)
+}
+
+// GetHelmIndexRetainedRecordContext bounds the shared observation before an
+// origin request. It never falls back to a context-free Redis operation.
+func (c *Cache) GetHelmIndexRetainedRecordContext(ctx context.Context, repo string) (*HelmIndexRecord, error) {
+	var record HelmIndexRecord
+	if err := c.cache.GetItemContext(ctx, helmIndexV2Key(repo), &record); err != nil {
+		return nil, err
+	}
+	return &record, nil
 }
 
 // GetHelmIndexRetainedRecord reads the versioned record regardless of body

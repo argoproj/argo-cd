@@ -90,12 +90,13 @@ func (s *IndexStore) retention() time.Duration {
 // indexRecord is the on-disk versioned record: index body and the validators
 // the origin returned with it, stored together in one atomic write.
 type indexRecord struct {
-	APIVersion   string `json:"apiVersion"`
-	ETag         string `json:"etag,omitempty"`
-	LastModified string `json:"lastModified,omitempty"`
-	URLIdentity  string `json:"urlIdentity,omitempty"`
-	StoredAt     string `json:"storedAt"`
-	Body         string `json:"body"` // base64-encoded index.yaml bytes
+	persistedStoredAt string // original generation timestamp, before filesystem age adjustment
+	APIVersion        string `json:"apiVersion"`
+	ETag              string `json:"etag,omitempty"`
+	LastModified      string `json:"lastModified,omitempty"`
+	URLIdentity       string `json:"urlIdentity,omitempty"`
+	StoredAt          string `json:"storedAt"`
+	Body              string `json:"body"` // base64-encoded index.yaml bytes
 }
 
 // parseIndexBody rejects bodies that are not plausibly valid Helm repo
@@ -195,6 +196,7 @@ func (s *IndexStore) readRecord(repoURL string, expiredAsMiss bool) (*indexRecor
 	rec.Body = string(body)
 	// Preserve the effective deadline, including legacy records and an older
 	// mtime, when a validator-only update republishes this record.
+	rec.persistedStoredAt = rec.StoredAt
 	rec.StoredAt = validatedAt.UTC().Format(time.RFC3339Nano)
 	return &rec, nil
 }
@@ -445,15 +447,17 @@ func (v retainedIndexView) GetHelmIndexValidators(string) (string, string, error
 func (v retainedIndexView) SetHelmIndexValidators(string, string, string) error { return nil }
 
 func (s *IndexStore) retainedRecord(identity string) (*HelmIndexRecord, bool) {
-	record, shared, _ := s.observeRetainedRecord(identity)
+	record, shared, _ := s.observeRetainedRecord(context.Background(), identity)
 	return record, shared
 }
 
-func (s *IndexStore) observeRetainedRecord(identity string) (*HelmIndexRecord, bool, indexRecordObservation) {
+func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string) (*HelmIndexRecord, bool, indexRecordObservation) {
 	var observation indexRecordObservation
 	var newest *HelmIndexRecord
+	var persistedStoredAt string
 	fromShared := false
 	if local, err := s.readRecord(identity, false); err == nil {
+		persistedStoredAt = local.persistedStoredAt
 		newest = &HelmIndexRecord{Body: []byte(local.Body), ETag: local.ETag, LastModified: local.LastModified, StoredAt: local.StoredAt, URLIdentity: local.URLIdentity}
 		// Older records had no timestamp. Their existing mtime is authoritative.
 		if info, err := os.Stat(s.cacheFileName(identity)); err == nil {
@@ -464,7 +468,7 @@ func (s *IndexStore) observeRetainedRecord(identity string) (*HelmIndexRecord, b
 		}
 	}
 	if s.cache != nil {
-		observation = observeIndexRecord(s.cache, identity)
+		observation = observeIndexRecord(ctx, s.cache, identity)
 		if record := observation.record; record != nil {
 			validatedAt, err := time.Parse(time.RFC3339Nano, record.StoredAt)
 			if err == nil && time.Since(validatedAt) <= s.expiration+s.retention() && int64(len(record.Body)) <= s.indexCacheMaxSize {
@@ -473,7 +477,7 @@ func (s *IndexStore) observeRetainedRecord(identity string) (*HelmIndexRecord, b
 				// second parse/hash, but different shared bytes must be validated.
 				matchingBody := newest != nil && bytes.Equal(newest.Body, record.Body)
 				if matchingBody || validateIndexBody(record.Body) == nil {
-					fromShared = !matchingBody || newest.ETag != record.ETag || newest.LastModified != record.LastModified || newest.URLIdentity != record.URLIdentity || newest.StoredAt != record.StoredAt
+					fromShared = !matchingBody || newest.ETag != record.ETag || newest.LastModified != record.LastModified || newest.URLIdentity != record.URLIdentity || persistedStoredAt != record.StoredAt
 					newest = record
 				}
 			}
@@ -545,7 +549,7 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 		}
 	}()
 
-	candidate, fromShared, observed := s.observeRetainedRecord(repoURL)
+	candidate, fromShared, observed := s.observeRetainedRecord(ctx, repoURL)
 	if candidate != nil && candidate.Fresh(s.expiration) {
 		// Preserve timestamps when installing a newer Redis generation locally.
 		if fromShared {
@@ -613,7 +617,7 @@ func (s *IndexStore) ForceRefresh(ctx context.Context, repoURL string, chartClie
 
 	var observed indexRecordObservation
 	if s.cache != nil {
-		observed = observeIndexRecord(s.cache, repoURL)
+		observed = observeIndexRecord(ctx, s.cache, repoURL)
 	}
 	operation := *chartClient
 	operation.indexCache = nil

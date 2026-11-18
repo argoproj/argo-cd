@@ -7483,6 +7483,10 @@ func TestHelmIndexDelayedResponsePreservesNewerSharedGeneration(t *testing.T) {
 		t.Run(test.name, func(t *testing.T) {
 			requirePinnedHelmIndexTest(t)
 			archive := packageIndexTestChart(t, "1.0.0")
+			seedVersion, seedETag := "1.0.0", `"one"`
+			if test.status == http.StatusOK {
+				seedVersion, seedETag = "0.9.0", `"seed"`
+			}
 			entered, release := make(chan struct{}), make(chan struct{})
 			resume := sync.OnceFunc(func() { close(release) })
 			var requests atomic.Int32
@@ -7493,7 +7497,7 @@ func TestHelmIndexDelayedResponsePreservesNewerSharedGeneration(t *testing.T) {
 					return
 				}
 				requests.Add(1)
-				expected := `"one"`
+				expected := seedETag
 				if test.force {
 					expected = ""
 				}
@@ -7525,11 +7529,11 @@ func TestHelmIndexDelayedResponsePreservesNewerSharedGeneration(t *testing.T) {
 				return fmt.Appendf(nil, "apiVersion: v1\nentries:\n  child:\n    - name: child\n      version: %s\n      apiVersion: v2\n      urls: [%s/child-%s.tgz]\n", version, url, version)
 			}
 			redisServer := miniredis.RunT(t)
-			redisClient := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+			redisClient := redis.NewClient(&redis.Options{Addr: redisServer.Addr(), ContextTimeoutEnabled: true})
 			t.Cleanup(func() { require.NoError(t, redisClient.Close()) })
 			cache := cache.NewCache(cacheutil.NewCache(cacheutil.NewRedisCache(redisClient, time.Hour, cacheutil.RedisCompressionNone)), 24*time.Hour, time.Minute, time.Second)
 			key := url + "\x00" + helm.CredsScope(helm.HelmCreds{})
-			require.NoError(t, cache.SetHelmIndexRetainedRecord(key, &helm.HelmIndexRecord{Body: index("1.0.0"), ETag: `"one"`, URLIdentity: helm.IndexURLIdentity(url + "/index.yaml"), StoredAt: time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339Nano)}))
+			require.NoError(t, cache.SetHelmIndexRetainedRecord(key, &helm.HelmIndexRecord{Body: index(seedVersion), ETag: seedETag, URLIdentity: helm.IndexURLIdentity(url + "/index.yaml"), StoredAt: time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339Nano)}))
 			store := helm.NewIndexStore(t.TempDir(), time.Minute, 1<<20, cache)
 			parent := t.TempDir()
 			require.NoError(t, os.WriteFile(filepath.Join(parent, "Chart.yaml"), fmt.Appendf(nil, "apiVersion: v2\nname: parent\nversion: 0.1.0\ndependencies:\n  - name: child\n    version: '>=1.0.0'\n    repository: %s\n", url), 0o600))

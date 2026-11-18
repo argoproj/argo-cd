@@ -526,3 +526,28 @@ func TestRepoEntryPutsCAPathInCAFile(t *testing.T) {
 	require.Empty(t, entries[0].CertFile, "certFile is for mTLS client certs, never the CA")
 	require.Equal(t, caPath, entries[0].CAFile, "CA path must land in caFile so helm trusts the origin")
 }
+
+func TestHelmPluginsDirectoryMatchesPinnedHelm(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	for _, mode := range []string{"data home", "explicit plugins", "empty plugins", "XDG data", "platform default"} {
+		t.Run(mode, func(t *testing.T) {
+			for _, key := range []string{"HELM_DATA_HOME", "HELM_PLUGINS", "XDG_DATA_HOME"} {
+				t.Setenv(key, "")
+				require.NoError(t, os.Unsetenv(key))
+			}
+			switch mode {
+			case "data home":
+				t.Setenv("HELM_DATA_HOME", t.TempDir())
+			case "explicit plugins":
+				t.Setenv("HELM_PLUGINS", t.TempDir())
+			case "empty plugins":
+				t.Setenv("HELM_PLUGINS", "")
+			case "XDG data":
+				t.Setenv("XDG_DATA_HOME", t.TempDir())
+			}
+			output, err := exec.CommandContext(t.Context(), "helm", "env", "HELM_PLUGINS").Output()
+			require.NoError(t, err)
+			require.Equal(t, strings.Trim(strings.TrimSpace(string(output)), "\""), helmPluginsDirectory())
+		})
+	}
+}

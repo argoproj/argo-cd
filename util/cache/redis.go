@@ -157,9 +157,29 @@ func (r *redisCache) Get(key string, obj any) error {
 	return r.unmarshal(data, obj)
 }
 
+// GetContext is used for optional index observations with a bounded budget.
+// A caller-supplied Redis client must opt in to enforcing context deadlines.
+func (r *redisCache) GetContext(ctx context.Context, key string, obj any) error {
+	if !r.client.Options().ContextTimeoutEnabled {
+		return errors.New("redis client does not enforce context deadlines")
+	}
+	var data []byte
+	err := r.cache.Get(ctx, r.getKey(key), &data)
+	if errors.Is(err, rediscache.ErrCacheMiss) {
+		return ErrCacheMiss
+	}
+	if err != nil {
+		return err
+	}
+	if err := r.unmarshal(data, obj); err != nil {
+		return err
+	}
+	return ctx.Err()
+}
+
 var compareAndSwapScript = redis.NewScript(`
 local current = redis.call('GET', KEYS[1])
-if not current or (ARGV[4] == '1' and current == ARGV[1]) then
+if (not current and ARGV[4] == '0') or (ARGV[4] == '1' and current == ARGV[1]) then
     redis.call('SET', KEYS[1], ARGV[2], 'PX', ARGV[3])
     return 1
 end

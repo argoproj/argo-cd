@@ -1741,17 +1741,11 @@ func TestHelmCAFileRotationCannotUsePreviousTrust(t *testing.T) {
 	require.Equal(t, oldPEM, copied, "the Helm subprocess must use the same frozen CA as the index request")
 	_, err = client.GetIndex(t.Context(), false, 1<<20)
 	require.Error(t, err, "a warm index cannot bypass the changed TLS trust context")
-	// Preserve an explicitly configured empty CA file too: omitting its
-	// path would let Helm silently fall back to system roots.
 	require.NoError(t, os.WriteFile(ca, nil, 0o600))
 	emptyCA, err := snapshotCreds(creds)
-	require.NoError(t, err)
-	entries, err = buildRepoEntries(&helm{cmd: *cmd}, HelmRepository{Name: "empty-ca", Repo: server.URL, Creds: emptyCA})
-	require.NoError(t, err)
-	require.NotEmpty(t, entries[0].CAFile, "an empty configured CA must not silently become default trust")
-	copied, err = os.ReadFile(entries[0].CAFile)
-	require.NoError(t, err)
-	require.Empty(t, copied)
+	require.NoError(t, err, "credential snapshots preserve existing non-prewarm behavior")
+	_, err = buildRepoEntries(&helm{cmd: *cmd}, HelmRepository{Name: "charts", Repo: server.URL, Creds: emptyCA})
+	require.ErrorContains(t, err, "empty", "prewarming cannot let Helm replace empty custom trust with system roots")
 }
 
 type nonAtomicRecordCache struct {
@@ -1855,4 +1849,68 @@ func TestMetadataCacheWithoutComparisonCannotPublish(t *testing.T) {
 			require.Equal(t, upstreamIndex(2), cache.record.Body)
 		})
 	}
+}
+
+func TestConditionalGET304CannotChangeBodyIdentity(t *testing.T) {
+	for _, tc := range []struct {
+		name, cached, received string
+		retry                  bool
+	}{
+		{"last modified gains strong tag", "", `"new"`, true},
+		{"different strong tag", `"old"`, `"new"`, true},
+		{"weak cannot authorize strong", `W/"same"`, `"same"`, true},
+		{"different weak tag", `W/"old"`, `W/"new"`, true},
+		{"matching strong", `"same"`, `"same"`, false},
+		{"matching weak", `W/"same"`, `W/"same"`, false},
+		{"strong becomes weak", `"same"`, `W/"same"`, false},
+		{"omitted tag", `"same"`, "", false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if requests.Add(1) == 1 {
+					if tc.cached != "" {
+						assert.Equal(t, tc.cached, r.Header.Get("If-None-Match"))
+					} else {
+						assert.NotEmpty(t, r.Header.Get("If-Modified-Since"))
+					}
+					if tc.received != "" {
+						w.Header().Set("ETag", tc.received)
+					}
+					w.WriteHeader(http.StatusNotModified)
+					return
+				}
+				assert.Empty(t, r.Header.Get("If-None-Match"))
+				assert.Empty(t, r.Header.Get("If-Modified-Since"))
+				w.Header().Set("ETag", `"new"`)
+				_, _ = w.Write(upstreamIndex(2))
+			}))
+			t.Cleanup(server.Close)
+			record := &HelmIndexRecord{Body: upstreamIndex(1), ETag: tc.cached, LastModified: "Wed, 21 Oct 2026 07:28:00 GMT", URLIdentity: IndexURLIdentity(server.URL + "/index.yaml")}
+			client := NewClient(server.URL, HelmCreds{}, false, "", "", WithIndexCache(retainedIndexView{record})).(*nativeHelmChart)
+			body, err := client.loadRepoIndex(t.Context(), 1<<20)
+			require.NoError(t, err)
+			if tc.retry {
+				require.Equal(t, upstreamIndex(2), body)
+				require.EqualValues(t, 2, requests.Load())
+			} else {
+				require.Equal(t, record.Body, body)
+				require.EqualValues(t, 1, requests.Load())
+			}
+		})
+	}
+}
+
+func TestExtractChartCredentialFailureRemovesTemporaryHome(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("TMPDIR", root)
+	t.Setenv("TMP", root)
+	t.Setenv("TEMP", root)
+	client := NewClient("registry.example.com/charts", HelmCreds{CAPath: filepath.Join(root, "missing-ca.pem")}, true, "", "")
+	_, closer, err := client.ExtractChart(t.Context(), "child", "1.0.0", false, 1<<20, false)
+	require.ErrorContains(t, err, "CA file")
+	require.Nil(t, closer)
+	entries, err := os.ReadDir(root)
+	require.NoError(t, err)
+	require.Empty(t, entries, "failed extraction must leave no directory owned by a missing closer")
 }

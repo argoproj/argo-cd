@@ -14,6 +14,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"fmt"
+	"io"
 	"math/big"
 	"net/http"
 	"net/http/httptest"
@@ -657,3 +658,56 @@ func osWriteFile(path string, data []byte, perm os.FileMode) error {
 	return os.WriteFile(path, data, perm)
 }
 func osReadFile(path string) ([]byte, error) { return os.ReadFile(path) }
+
+func TestIndexCachePreservesArchiveGetter(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	for _, explicit := range []bool{false, true} {
+		t.Run(strconv.FormatBool(explicit), func(t *testing.T) {
+			dataHome := t.TempDir()
+			t.Setenv("HELM_DATA_HOME", dataHome)
+			plugins := filepath.Join(dataHome, "plugins")
+			if explicit {
+				plugins = t.TempDir()
+				t.Setenv("HELM_PLUGINS", plugins)
+			} else {
+				t.Setenv("HELM_PLUGINS", "")
+				require.NoError(t, os.Unsetenv("HELM_PLUGINS"))
+			}
+			dir := filepath.Join(plugins, "fixture-getter")
+			require.NoError(t, os.MkdirAll(dir, 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "plugin.yaml"), []byte("name: fixture-getter\nversion: 0.1.0\ndownloaders:\n  - protocols: [fixture]\n    command: getter.sh\n"), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "getter.sh"), []byte("#!/bin/sh\ncat \"$HELM_PLUGIN_DIR/child.tgz\"\n"), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "child.tgz"), regressionPackage(t, "1.0.0"), 0o600))
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, "apiVersion: v1\nentries:\n  child:\n    - name: child\n      version: 1.0.0\n      apiVersion: v2\n      urls: [fixture://charts/child.tgz]\n")
+			}))
+			t.Cleanup(server.Close)
+			repo := HelmRepository{Name: "charts", Repo: server.URL, Creds: HelmCreds{}}
+			for _, cached := range []bool{false, true} {
+				var store *IndexStore
+				if cached {
+					store = NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+				}
+				app, err := regressionBuild(t, regressionParent(t, "@charts", nil), repo, store, false)
+				require.NoError(t, err, "cached=%v explicit=%v", cached, explicit)
+				regressionRender(t, app, "1.0.0")
+			}
+		})
+	}
+}
+
+func TestIndexCacheRejectsEmptyConfiguredCA(t *testing.T) {
+	fixture := newRegressionChartRepo(t, false, "")
+	ca := filepath.Join(t.TempDir(), "empty-ca.pem")
+	require.NoError(t, os.WriteFile(ca, nil, 0o600))
+	repo := HelmRepository{Name: "charts", Repo: fixture.server.URL, Creds: HelmCreds{CAPath: ca}}
+	_, err := regressionBuild(t, regressionParent(t, "@charts", nil), repo, NewIndexStore(t.TempDir(), time.Hour, 1<<20), false)
+	require.ErrorContains(t, err, "empty")
+	fixture.mu.Lock()
+	requests := len(fixture.requests)
+	fixture.mu.Unlock()
+	require.Zero(t, requests, "invalid trust must fail before prewarming contacts the origin")
+	app, err := regressionBuild(t, regressionParent(t, "@charts", nil), repo, nil, false)
+	require.NoError(t, err, "cache-disabled HTTP builds preserve their existing CA handling")
+	regressionRender(t, app, "1.0.0")
+}

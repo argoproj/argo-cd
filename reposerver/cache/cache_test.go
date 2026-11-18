@@ -1,11 +1,15 @@
 package cache
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net"
 	"net/http"
 	"net/http/httptest"
+	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync"
@@ -1040,7 +1044,7 @@ func (o *helmIndexContractOrigin) ServeHTTP(w http.ResponseWriter, r *http.Reque
 func helmIndexContractSetup(t *testing.T) (*Cache, *miniredis.Miniredis, *helmIndexContractOrigin, string) {
 	t.Helper()
 	redisServer := miniredis.RunT(t)
-	redisClient := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+	redisClient := redis.NewClient(&redis.Options{Addr: redisServer.Addr(), ContextTimeoutEnabled: true})
 	t.Cleanup(func() { require.NoError(t, redisClient.Close()) })
 	base := cacheutil.NewCache(cacheutil.NewRedisCache(redisClient, time.Hour, cacheutil.RedisCompressionNone))
 	cache := NewCache(base, time.Hour, time.Minute, 10*time.Second)
@@ -1239,7 +1243,7 @@ func TestHelmIndexCacheExpirationIndependentFromRevisions(t *testing.T) {
 func regressionRedisCache(t *testing.T) (*Cache, *miniredis.Miniredis) {
 	t.Helper()
 	server := miniredis.RunT(t)
-	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	client := redis.NewClient(&redis.Options{Addr: server.Addr(), ContextTimeoutEnabled: true})
 	t.Cleanup(func() { require.NoError(t, client.Close()) })
 	base := cacheutil.NewCache(cacheutil.NewRedisCache(client, time.Hour, cacheutil.RedisCompressionNone))
 	return NewCache(base, time.Hour, time.Minute, 10*time.Second), server
@@ -1493,6 +1497,19 @@ func (c *generationReadBarrier) GetHelmIndexRetainedRecord(key string) (*HelmInd
 	return record, err
 }
 
+func (c *generationReadBarrier) GetHelmIndexRetainedRecordContext(ctx context.Context, key string) (*HelmIndexRecord, error) {
+	record, err := c.Cache.GetHelmIndexRetainedRecordContext(ctx, key)
+	c.once.Do(func() {
+		close(c.observed)
+		select {
+		case <-c.resume:
+		case <-ctx.Done():
+			err = ctx.Err()
+		}
+	})
+	return record, err
+}
+
 func TestIndexRecordReadInterleavingKeepsGeneration(t *testing.T) {
 	cache, _, origin, url := helmIndexContractSetup(t)
 	body := helmIndexContractBody("1.0.0")
@@ -1703,8 +1720,12 @@ func TestIndexRedirectTargetOwnsValidators(t *testing.T) {
 	target.Store(1)
 	var mu sync.Mutex
 	var statuses []int
+	var redirectValidators []string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/index.yaml" {
+			mu.Lock()
+			redirectValidators = append(redirectValidators, r.Header.Get("If-None-Match")+r.Header.Get("If-Modified-Since"))
+			mu.Unlock()
 			http.Redirect(w, r, fmt.Sprintf("/v%d/index.yaml", target.Load()), http.StatusFound)
 			return
 		}
@@ -1738,6 +1759,7 @@ func TestIndexRedirectTargetOwnsValidators(t *testing.T) {
 	mu.Lock()
 	defer mu.Unlock()
 	require.Equal(t, []int{200, 304, 200, 304}, statuses)
+	require.Equal(t, []string{"", "", "", ""}, redirectValidators)
 }
 
 func TestIndexDelayed200PreservesConcurrentGeneration(t *testing.T) {
@@ -1801,4 +1823,70 @@ func TestIndexLegacyRecordWithoutURLFetchesBody(t *testing.T) {
 	origin.mu.Lock()
 	defer origin.mu.Unlock()
 	require.Equal(t, []int{http.StatusOK}, origin.statuses, "a legacy record without URL provenance cannot authorize a 304")
+}
+
+func TestHelmIndexObservationBudgetLeavesTimeForOrigin(t *testing.T) {
+	for _, force := range []bool{false, true} {
+		t.Run(strconv.FormatBool(force), func(t *testing.T) {
+			listener, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+			require.NoError(t, err)
+			var mu sync.Mutex
+			var connections []net.Conn
+			done := make(chan struct{})
+			go func() {
+				defer close(done)
+				for {
+					conn, err := listener.Accept()
+					if err != nil {
+						return
+					}
+					mu.Lock()
+					connections = append(connections, conn)
+					mu.Unlock()
+				}
+			}()
+			t.Cleanup(func() {
+				_ = listener.Close()
+				<-done
+				mu.Lock()
+				defer mu.Unlock()
+				for _, conn := range connections {
+					_ = conn.Close()
+				}
+			})
+			client := redis.NewClient(&redis.Options{Addr: listener.Addr().String(), ReadTimeout: time.Second, MaxRetries: -1, ContextTimeoutEnabled: true})
+			t.Cleanup(func() { require.NoError(t, client.Close()) })
+			shared := NewCache(cacheutil.NewCache(cacheutil.NewRedisCache(client, time.Minute, cacheutil.RedisCompressionNone)), time.Hour, time.Minute, time.Minute)
+			archive, err := os.ReadFile(filepath.Join("..", "..", "test", "e2e", "testdata", "helm-repo", "helm-1.0.0.tgz"))
+			require.NoError(t, err)
+			var requests, archives atomic.Int32
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path == "/helm-1.0.0.tgz" {
+					archives.Add(1)
+					_, _ = w.Write(archive)
+					return
+				}
+				requests.Add(1)
+				_, _ = w.Write([]byte("apiVersion: v1\nentries:\n  helm:\n    - name: helm\n      apiVersion: v1\n      version: 1.0.0\n      urls: [helm-1.0.0.tgz]\n"))
+			}))
+			t.Cleanup(origin.Close)
+			store := helm.NewIndexStore(t.TempDir(), time.Minute, 1<<20, shared)
+			// The public store methods take the private client type; exercise the
+			// same path through dependency build with a real declared repository.
+			parent := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(parent, "Chart.yaml"), []byte("apiVersion: v2\nname: parent\nversion: 0.1.0\ndependencies:\n  - name: helm\n    version: 1.0.0\n    repository: "+origin.URL+"\n"), 0o600))
+			app, err := helm.NewHelmAppWithIndexStore(parent, []helm.HelmRepository{{Name: "charts", Repo: origin.URL, Creds: helm.HelmCreds{}}}, false, "", "", "", false, false, store, force)
+			require.NoError(t, err)
+			t.Cleanup(app.Dispose)
+			ctx, cancel := context.WithTimeout(t.Context(), 800*time.Millisecond)
+			defer cancel()
+			err = app.DependencyBuild(ctx)
+			require.EqualValues(t, 1, requests.Load(), "a stalled Redis must not consume the origin request deadline")
+			require.NoError(t, err, "a healthy origin must complete the dependency build during a Redis stall")
+			require.EqualValues(t, 1, archives.Load())
+			require.NoError(t, ctx.Err(), "the request budget must remain available after the bounded observation")
+			_, err = store.Get(origin.URL + "\x00" + helm.CredsScope(helm.HelmCreds{}))
+			require.Error(t, err, "unconfirmed observation must not publish a fresh disk record")
+		})
+	}
 }

@@ -495,16 +495,18 @@ func TestIndexProvider304WithoutSharedComparisonPreservesNewerRecord(t *testing.
 
 type atomicProviderRecordCache struct {
 	*providerRecordCache
-	compareErr error
+	compareErr   error
+	compareCalls int
 }
 
 func (c *atomicProviderRecordCache) CompareAndSwapHelmIndexRecord(_ context.Context, _ string, expected, replacement *HelmIndexRecord) (bool, error) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
+	c.compareCalls++
 	if c.compareErr != nil {
 		return false, c.compareErr
 	}
-	if c.record != nil && !reflect.DeepEqual(c.record, expected) {
+	if !reflect.DeepEqual(c.record, expected) {
 		return false, nil
 	}
 	cloned := *replacement
@@ -517,8 +519,12 @@ func TestIndexProviderPublicationConfirmation(t *testing.T) {
 	for _, status := range []int{http.StatusOK, http.StatusNotModified} {
 		for _, mode := range []string{"matching", "mismatch", "error", "unsupported", "evicted", "absent", "read-error"} {
 			t.Run(fmt.Sprintf("%d/%s", status, mode), func(t *testing.T) {
-				old := &HelmIndexRecord{Body: upstreamIndex(1), ETag: `"one"`, StoredAt: time.Now().Add(-2 * time.Hour).UTC().Format(time.RFC3339Nano)}
+				old := &HelmIndexRecord{Body: upstreamIndex(0), ETag: `"one"`, StoredAt: time.Now().Add(-2 * time.Hour).UTC().Format(time.RFC3339Nano)}
 				newer := &HelmIndexRecord{Body: upstreamIndex(2), ETag: `"two"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
+				responseBody, responseETag := old.Body, old.ETag
+				if status == http.StatusOK {
+					responseBody, responseETag = upstreamIndex(1), `"response-one"`
+				}
 				base := &providerRecordCache{record: old}
 				atomicCache := &atomicProviderRecordCache{providerRecordCache: base}
 				var shared IndexRecordCache = atomicCache
@@ -530,9 +536,14 @@ func TestIndexProviderPublicationConfirmation(t *testing.T) {
 				}
 				var requests atomic.Int32
 				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-					requests.Add(1)
+					request := requests.Add(1)
 					if r.Header.Get("If-None-Match") != `"one"` {
 						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
+					if request == 2 && mode == "evicted" {
+						w.Header().Set("ETag", newer.ETag)
+						_, _ = w.Write(newer.Body)
 						return
 					}
 					base.mu.Lock()
@@ -544,10 +555,10 @@ func TestIndexProviderPublicationConfirmation(t *testing.T) {
 					}
 					base.err = nil
 					base.mu.Unlock()
-					w.Header().Set("ETag", `"one"`)
+					w.Header().Set("ETag", responseETag)
 					w.WriteHeader(status)
 					if status == http.StatusOK {
-						_, _ = w.Write(old.Body)
+						_, _ = w.Write(responseBody)
 					}
 				}))
 				t.Cleanup(server.Close)
@@ -562,21 +573,45 @@ func TestIndexProviderPublicationConfirmation(t *testing.T) {
 				}
 				body, err := store.Revalidate(t.Context(), "view", regressionClient(server.URL))
 				require.NoError(t, err)
-				require.Equal(t, old.Body, body)
-				local, err := store.Get("view")
-				if mode == "matching" || mode == "evicted" || mode == "absent" {
-					require.NoError(t, err)
-					require.Equal(t, old.Body, local)
-					next, err := store.Revalidate(t.Context(), "view", regressionClient(server.URL))
-					require.NoError(t, err)
-					require.Equal(t, old.Body, next)
-				} else {
-					require.Error(t, err, "unconfirmed publication must leave disk expired")
-					next, err := store.Revalidate(t.Context(), "view", regressionClient(server.URL))
-					require.NoError(t, err)
-					require.Equal(t, newer.Body, next, "the next build must see the winner")
+				require.Equal(t, responseBody, body, "a 200 must return its downloaded body")
+				if mode == "read-error" {
+					base.mu.Lock()
+					calls := atomicCache.compareCalls
+					base.mu.Unlock()
+					require.Zero(t, calls, "an unknown observation cannot attempt publication")
 				}
-				require.EqualValues(t, 1, requests.Load(), "the second build must not contact origin")
+				local, localErr := store.Get("view")
+				retained, sharedErr := shared.GetHelmIndexRetainedRecord("view")
+				wantNext := newer.Body
+				wantRequests := int32(1)
+				switch mode {
+				case "matching", "absent":
+					require.NoError(t, localErr)
+					require.Equal(t, responseBody, local)
+					require.NoError(t, sharedErr)
+					require.Equal(t, responseBody, retained.Body)
+					require.Equal(t, responseETag, retained.ETag)
+					require.True(t, retained.Fresh(time.Hour))
+					wantNext = responseBody
+				case "evicted":
+					require.Error(t, localErr)
+					require.ErrorIs(t, sharedErr, cacheutil.ErrCacheMiss, "a vanished observed generation must not be revived")
+					wantRequests = 2
+				default:
+					require.Error(t, localErr, "unconfirmed publication must leave disk expired")
+					require.NoError(t, sharedErr)
+					require.Equal(t, newer.Body, retained.Body)
+				}
+				next, err := store.Revalidate(t.Context(), "view", regressionClient(server.URL))
+				require.NoError(t, err)
+				require.Equal(t, wantNext, next)
+				require.Equal(t, wantRequests, requests.Load())
+				if mode == "evicted" {
+					retained, err = shared.GetHelmIndexRetainedRecord("view")
+					require.NoError(t, err)
+					require.Equal(t, newer.Body, retained.Body)
+					require.True(t, retained.Fresh(time.Hour))
+				}
 			})
 		}
 	}
@@ -624,4 +659,30 @@ func TestIndexProviderIdenticalSharedHitDoesNotRewriteDisk(t *testing.T) {
 	after, err := os.Stat(file)
 	require.NoError(t, err)
 	require.Equal(t, before.ModTime(), after.ModTime(), "an identical shared hit must not rewrite the index file")
+}
+
+func TestIndexProviderCoarseMtimeDoesNotRewriteDisk(t *testing.T) {
+	record := &HelmIndexRecord{Body: upstreamIndex(1), ETag: `"one"`, StoredAt: time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano)}
+	shared := &providerRecordCache{record: record}
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, shared)
+	_, err := store.Revalidate(t.Context(), "view", regressionClient("https://unused.invalid"))
+	require.NoError(t, err)
+	stamp, err := time.Parse(time.RFC3339Nano, record.StoredAt)
+	require.NoError(t, err)
+	coarse := stamp.Truncate(time.Second)
+	file := store.cacheFileName("view")
+	require.NoError(t, os.Chtimes(file, coarse, coarse))
+	before, err := os.Stat(file)
+	require.NoError(t, err)
+	for range 2 {
+		body, err := store.Revalidate(t.Context(), "view", regressionClient("https://unused.invalid"))
+		require.NoError(t, err)
+		require.Equal(t, record.Body, body)
+	}
+	after, err := os.Stat(file)
+	require.NoError(t, err)
+	require.Equal(t, before.ModTime(), after.ModTime(), "timestamp precision must not force a full-record rewrite")
+	local, err := store.readRecord("view", false)
+	require.NoError(t, err)
+	require.Equal(t, coarse.Format(time.RFC3339Nano), local.StoredAt, "local age must still respect the earlier filesystem timestamp")
 }

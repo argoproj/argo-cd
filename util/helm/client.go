@@ -289,9 +289,15 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 		return "", nil, fmt.Errorf("error creating temporary directory: %w", err)
 	}
 
+	owned := true
+	defer func() {
+		if owned {
+			_ = os.RemoveAll(tempDir)
+		}
+	}()
+
 	cachedChartPath, err := c.getCachedChartPath(chart, version)
 	if err != nil {
-		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error getting cached chart path: %w", err)
 	}
 
@@ -301,7 +307,6 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 	// check if chart tar is already downloaded
 	exists, err := fileExist(cachedChartPath)
 	if err != nil {
-		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error checking existence of cached chart path: %w", err)
 	}
 
@@ -317,7 +322,6 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 			exists = false
 		} else if time.Since(info.ModTime()) > c.helmChartCacheExpiration {
 			if err := os.RemoveAll(cachedChartPath); err != nil {
-				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf(
 					"error removing expired cached chart: %w",
 					err,
@@ -331,7 +335,6 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 		// create empty temp directory to extract chart from the registry
 		tempDest, err := files.CreateTempDir(os.TempDir())
 		if err != nil {
-			_ = os.RemoveAll(tempDir)
 			return "", nil, fmt.Errorf("error creating temporary destination directory: %w", err)
 		}
 		defer func() { _ = os.RemoveAll(tempDest) }()
@@ -344,7 +347,6 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 			if snap.password != "" && snap.GetUsername() != "" {
 				_, err = helmCmd.RegistryLogin(ctx, c.repoURL, snap, c.plainHTTP)
 				if err != nil {
-					_ = os.RemoveAll(tempDir)
 					return "", nil, fmt.Errorf("error logging into OCI registry: %w", err)
 				}
 
@@ -356,13 +358,11 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 			// 'helm pull' ensures that chart is downloaded into temp directory
 			_, err = helmCmd.PullOCI(c.repoURL, chart, version, tempDest, c.creds, c.plainHTTP)
 			if err != nil {
-				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf("error pulling OCI chart: %w", err)
 			}
 		} else {
 			_, err = helmCmd.Fetch(c.repoURL, chart, version, tempDest, c.creds, passCredentials)
 			if err != nil {
-				_ = os.RemoveAll(tempDir)
 				return "", nil, fmt.Errorf("error fetching chart: %w", err)
 			}
 		}
@@ -386,9 +386,9 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 
 	err = untarChart(ctx, tempDir, cachedChartPath, manifestMaxExtractedSize, disableManifestMaxExtractedSize)
 	if err != nil {
-		_ = os.RemoveAll(tempDir)
 		return "", nil, fmt.Errorf("error untarring chart: %w", err)
 	}
+	owned = false
 	return path.Join(tempDir, normalizeChartName(chart)), utilio.NewCloser(func() error {
 		return os.RemoveAll(tempDir)
 	}), nil
@@ -554,21 +554,22 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	}
 	var cachedBody []byte
 	var cachedRecordETag, cachedRecordLastModified, cachedURLIdentity string
-	var retainedRecord bool
+	var retainedRecord, atomicReader bool
 	if c.indexCache != nil {
 		// Read the COMPLETE record in one call when the cache supports it:
 		// reading body and validators separately lets a concurrent replica
 		// publication slip a new validator in between, so a 304 would pair
 		// the new validator with the previous body.
 		if reader, ok := c.indexCache.(indexCacheRecordReader); ok {
-			c.cacheObservation = observeIndexRecord(reader, repoKey)
+			atomicReader = true
+			c.cacheObservation = observeIndexRecord(ctx, reader, repoKey)
 			if rec := c.cacheObservation.record; rec != nil && len(rec.Body) > 0 {
 				cachedBody = rec.Body
 				cachedRecordETag, cachedRecordLastModified, cachedURLIdentity = rec.ETag, rec.LastModified, rec.URLIdentity
 				retainedRecord = true
 			}
 		}
-		if !retainedRecord {
+		if !retainedRecord && !atomicReader {
 			if err := c.indexCache.GetHelmIndex(repoKey, &cachedBody); err != nil {
 				cachedBody = nil
 			}
@@ -628,7 +629,7 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 
 	c.responseURLIdentity = IndexURLIdentity(resp.Request.URL.String())
 	sentValidator := resp.Request.Header.Get("If-None-Match") != "" || resp.Request.Header.Get("If-Modified-Since") != ""
-	if resp.StatusCode == http.StatusNotModified && len(cachedBody) > 0 && sentValidator && c.responseURLIdentity == cachedURLIdentity {
+	if resp.StatusCode == http.StatusNotModified && len(cachedBody) > 0 && sentValidator && c.responseURLIdentity == cachedURLIdentity && matchingNotModifiedETag(cachedRecordETag, resp.Header.Get("ETag")) {
 		c.indexNotModified = true
 		log.WithFields(log.Fields{"repo": c.repoURL}).Info("helm index not modified (HTTP 304), using cached body")
 		// Keep the request's validators when a 304 omits them. The owner can

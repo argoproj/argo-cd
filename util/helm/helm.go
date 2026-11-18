@@ -158,6 +158,9 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		if err != nil {
 			return fmt.Errorf("resolve credentials for helm repository %s: %w", repo.Repo, err)
 		}
+		if snap.caPath != "" && len(snap.caData) == 0 {
+			return errors.New("configured helm CA file is empty")
+		}
 		repo.Creds = snap
 		identity := scopedIndexIdentity(repo.Repo, credsScope(snap), h.cmd.proxy, h.cmd.noProxy)
 		data, ok := indexes[identity]
@@ -304,6 +307,9 @@ func (h *helm) supportsIndexPrewarm() bool {
 // helm-manager-<sha> name (the name helm's dependency manager resolves
 // unmanaged dependencies by).
 func buildRepoEntries(h *helm, repo HelmRepository) ([]helmRepoEntry, error) {
+	if snapshot, ok := repo.Creds.(credsSnapshot); ok && snapshot.caPath != "" && len(snapshot.caData) == 0 {
+		return nil, errors.New("configured helm CA file is empty")
+	}
 	password, err := repo.GetPassword()
 	if err != nil {
 		return nil, err
@@ -318,7 +324,7 @@ func buildRepoEntries(h *helm, repo HelmRepository) ([]helmRepoEntry, error) {
 	}
 	caFile := repo.GetCAPath()
 	if snapshot, ok := repo.Creds.(credsSnapshot); ok && snapshot.caPath != "" {
-		caFile, err = h.cmd.writeRepoCredentialFile(snapshot.caData)
+		caFile, err = h.cmd.writeRepoCredential(snapshot.caData)
 		if err != nil {
 			return nil, err
 		}
