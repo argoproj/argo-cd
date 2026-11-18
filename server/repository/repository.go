@@ -408,7 +408,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeSettings,
 		HelmOptions:      helmOptions,
-		AppName:          appName,
+		AppName:          argo.AppInstanceName(appName, appNs, s.settings.GetNamespace()),
 		RefSources:       refSources,
 	})
 }

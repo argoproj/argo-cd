@@ -740,7 +740,7 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		db.EXPECT().GetProjectClusters(mock.Anything, "default").Return(nil, nil)
 		expectedResp := apiclient.RepoAppDetailsResponse{Type: "Helm"}
 		repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool {
-			return req.AppName == "guestbook"
+			return req.AppName == "apps_guestbook"
 		})).Return(&expectedResp, nil)
 		app := guestbookApp.DeepCopy()
 		app.Namespace = "apps"
@@ -780,19 +780,22 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 	})
 	t.Run("Test_QualifiedAppNameUsesNormalizedRBACObject", func(t *testing.T) {
 		tests := []struct {
-			name      string
-			namespace string
-			policy    string
+			name         string
+			namespace    string
+			policy       string
+			instanceName string
 		}{
 			{
-				name:      "app in control plane namespace",
-				namespace: testNamespace,
-				policy:    "p, role:guestbook, applications, get, default/guestbook, allow",
+				name:         "app in control plane namespace",
+				namespace:    testNamespace,
+				policy:       "p, role:guestbook, applications, get, default/guestbook, allow",
+				instanceName: "guestbook",
 			},
 			{
-				name:      "app in other namespace",
-				namespace: "apps",
-				policy:    "p, role:guestbook, applications, get, default/apps/guestbook, allow",
+				name:         "app in other namespace",
+				namespace:    "apps",
+				policy:       "p, role:guestbook, applications, get, default/apps/guestbook, allow",
+				instanceName: "apps_guestbook",
 			},
 		}
 		for _, tt := range tests {
@@ -810,7 +813,9 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 				db.EXPECT().GetProjectRepositories("default").Return(nil, nil)
 				db.EXPECT().GetProjectClusters(mock.Anything, "default").Return(nil, nil)
 				expectedResp := apiclient.RepoAppDetailsResponse{Type: "Helm"}
-				repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.Anything).Return(&expectedResp, nil)
+				repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool {
+					return req.AppName == tt.instanceName
+				})).Return(&expectedResp, nil)
 				app := guestbookApp.DeepCopy()
 				app.Namespace = tt.namespace
 				appLister, projLister := newAppAndProjLister(defaultProj, app)
