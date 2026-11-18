@@ -181,7 +181,7 @@ func (g *AzureDevOpsProvider) GetBranches(ctx context.Context, repo *Repository)
 	}
 
 	if branches == nil {
-		return nil, fmt.Errorf("got empty branch result from repository %v, project %v: %w", repo.Repository, g.teamProject, err)
+		return nil, fmt.Errorf("got empty branch result from repository %v, project %v", repo.Repository, g.teamProject)
 	}
 
 	for _, azureBranch := range *branches {
