@@ -1,7 +1,9 @@
-import {DataLoader, DropDownMenu} from 'argo-ui';
+import {useQuery} from '@tanstack/react-query';
+import {DropDownMenu} from 'argo-ui';
 import * as React from 'react';
 
-import {services} from '../../../shared/services';
+import {loading, loadFailed} from '../../query-client';
+import {settingsQueries} from '../../queries';
 import {Context} from '../../context';
 
 require('./badge-panel.scss');
@@ -9,6 +11,7 @@ require('./badge-panel.scss');
 export const BadgePanel = ({app, project, appNamespace, nsEnabled}: {app?: string; project?: string; appNamespace?: string; nsEnabled?: boolean}) => {
     const [badgeType, setBadgeType] = React.useState('URL');
     const context = React.useContext(Context);
+    const settings = useQuery(settingsQueries.get());
     if (!app && !project) {
         throw new Error('Either app or project property must be specified');
     }
@@ -70,9 +73,13 @@ export const BadgePanel = ({app, project, appNamespace, nsEnabled}: {app?: strin
         );
     }
 
+    if (!settings.data) {
+        return settings.isFetching || !settings.isError ? loading : loadFailed(settings.refetch);
+    }
     return (
-        <DataLoader load={() => services.authService.settings()}>
-            {settings => (settings.statusBadgeEnabled && <div>{badgeContent(settings.statusBadgeRootUrl)}</div>) || null}
-        </DataLoader>
+        <>
+            {settings.isRefetchError && !settings.isFetching && loadFailed(settings.refetch)}
+            {settings.data.statusBadgeEnabled && <div>{badgeContent(settings.data.statusBadgeRootUrl)}</div>}
+        </>
     );
 };

@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -332,10 +333,8 @@ func (proj *AppProject) AddGroupToRole(roleName, group string) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	for _, roleGroup := range role.Groups {
-		if group == roleGroup {
-			return false, nil
-		}
+	if slices.Contains(role.Groups, group) {
+		return false, nil
 	}
 	role.Groups = append(role.Groups, group)
 	proj.Spec.Roles[roleIndex] = *role
@@ -513,11 +512,23 @@ func (proj AppProject) isDestinationMatched(dst ApplicationDestination) bool {
 		dstServerMatched := dst.Server != "" && globMatch(item.Server, dst.Server, true)
 		dstNamespaceMatched := globMatch(item.Namespace, dst.Namespace, true)
 
+		// A deny pattern that positively matches the cluster's name or server
+		// vetoes this entry, even when the entry's other identifier matches.
+		// Otherwise the allow case below silently overrides the deny.
+		if dstNamespaceMatched {
+			if isDenyPattern(item.Name) && dst.Name != "" && glob.Match(item.Name[1:], dst.Name) {
+				return false
+			}
+			if isDenyPattern(item.Server) && dst.Server != "" && glob.Match(item.Server[1:], dst.Server) {
+				return false
+			}
+		}
+
 		matched := (dstServerMatched || dstNameMatched) && dstNamespaceMatched
 		switch {
 		case matched:
 			anyDestinationMatched = true
-		case (!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server)) && dstNamespaceMatched:
+		case ((!dstNameMatched && isDenyPattern(item.Name)) || (!dstServerMatched && isDenyPattern(item.Server))) && dstNamespaceMatched:
 			return false
 		case !dstNamespaceMatched && isDenyPattern(item.Namespace) && dstServerMatched:
 			return false

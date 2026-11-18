@@ -1,0 +1,76 @@
+tests:
+  # Scenario 1: autosync enabled (enabled=nil, i.e. default) with prune+selfHeal -> disable (set enabled=false, preserve prune/selfHeal)
+  - given:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: test-app
+      spec:
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+    when:
+      action: toggle-auto-sync
+    expect:
+      spec:
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+            enabled: false
+
+  # Scenario 2: autosync disabled (enabled=false) with prune+selfHeal -> enable (set enabled=true, preserve prune/selfHeal)
+  - given:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: test-app
+      spec:
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+            enabled: false
+    when:
+      action: toggle-auto-sync
+    expect:
+      spec:
+        syncPolicy:
+          automated:
+            prune: true
+            selfHeal: true
+            enabled: true
+
+  # Scenario 3: autosync explicitly enabled (enabled=true) -> disable
+  - given:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: test-app
+      spec:
+        syncPolicy:
+          automated:
+            enabled: true
+    when:
+      action: toggle-auto-sync
+    expect:
+      spec:
+        syncPolicy:
+          automated:
+            enabled: false
+
+  # Scenario 4: no automated block (autosync off) -> enable (create automated with enabled=true)
+  - given:
+      apiVersion: argoproj.io/v1alpha1
+      kind: Application
+      metadata:
+        name: test-app
+      spec: {}
+    when:
+      action: toggle-auto-sync
+    expect:
+      spec:
+        syncPolicy:
+          automated:
+            enabled: true

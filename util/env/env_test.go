@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"k8s.io/utils/ptr"
 )
 
 func TestParseNumFromEnv(t *testing.T) {
@@ -262,12 +261,12 @@ func TestStringFromEnv(t *testing.T) {
 		def      string
 		opts     []StringFromEnvOpts
 	}{
-		{"Some string", ptr.To("true"), "true", def, nil},
-		{"Empty string with default", ptr.To(""), def, def, nil},
-		{"Empty string without default", ptr.To(""), "", "", nil},
+		{"Some string", new("true"), "true", def, nil},
+		{"Empty string with default", new(""), def, def, nil},
+		{"Empty string without default", new(""), "", "", nil},
 		{"No env variable with default allow empty", nil, "default", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
-		{"Some variable with default allow empty", ptr.To("true"), "true", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
-		{"Empty variable with default allow empty", ptr.To(""), "", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
+		{"Some variable with default allow empty", new("true"), "true", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
+		{"Empty variable with default allow empty", new(""), "", "default", []StringFromEnvOpts{{AllowEmpty: true}}},
 	}
 
 	for _, tt := range testCases {
@@ -331,7 +330,8 @@ func TestParseStringToStringFromEnv(t *testing.T) {
 		{"success, two pairs with spaces", "key1 = value1, key2 = value2", map[string]string{"key1": "value1", "key2": "value2"}, def, ","},
 		{"failure, one key", "key1", map[string]string{}, def, ","},
 		{"failure, duplicate keys", "key1=value1,key1=value2", map[string]string{}, def, ","},
-		{"failure, one key ending with two successive equals to", "key1==", map[string]string{}, def, ","},
+		{"success, value containing equals signs", "authorization=Basic dXNlcjpwYXNz==", map[string]string{"authorization": "Basic dXNlcjpwYXNz=="}, def, ","},
+		{"success, one key ending with two successive equals to", "key1==", map[string]string{"key1": "="}, def, ","},
 		{"failure, one valid pair and invalid one key", "key1=value1,key2", map[string]string{}, def, ","},
 		{"failure, two valid pairs and invalid two keys", "key1=value1,key2=value2,key3,key4", map[string]string{}, def, ","},
 	}

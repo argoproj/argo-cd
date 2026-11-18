@@ -1,7 +1,8 @@
 import * as React from 'react';
-import * as renderer from 'react-test-renderer';
+import {renderToStaticMarkup} from 'react-dom/server.node';
 import {
     Application,
+    Cluster,
     HealthStatus,
     HealthStatuses,
     OperationPhases,
@@ -12,16 +13,35 @@ import {
 } from '../../shared/models';
 import * as jsYaml from 'js-yaml';
 import {
+    appRBACName,
     ComparisonStatusIcon,
+    getAppDrySource,
+    getAppHydrateToSource,
+    getAppHydratorSyncSource,
+    getAppOfAppsParentRef,
+    getApplicationParentRef,
+    getApplicationDetailsContainerClass,
+    hydrationStatusMessage,
     getAppOperationState,
+    getAppSpecDefaultSource,
+    getClusterOptions,
+    getHydratorSyncSourceRepoURL,
     getOperationType,
     getPodStateReason,
     HealthStatusIcon,
+    isFavorite,
+    formatCreationTimestamp,
+    nameConfirmationError,
     OperationState,
-    ResourceResultIcon
+    ResourceResultIcon,
+    toggleFavorite
 } from './utils';
 
 const zero = new Date(0).toISOString();
+
+function renderMarkup(element: React.ReactElement) {
+  return renderToStaticMarkup(element);
+}
 
 test('getAppOperationState.DeletionTimestamp', () => {
     const state = getAppOperationState({metadata: {deletionTimestamp: zero}} as Application);
@@ -77,165 +97,159 @@ test('getOperationType.Unknown', () => {
 });
 
 test('OperationState.undefined', () => {
-    const tree = renderer.create(<OperationState app={{metadata: {}, status: {}} as Application} />).toJSON();
+  const tree = renderMarkup(<OperationState app={{metadata: {}, status: {}} as Application} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('OperationState.quiet', () => {
-    const tree = renderer.create(<OperationState app={{metadata: {}, status: {operationState: {}}} as Application} quiet={true} />).toJSON();
+  const tree = renderMarkup(<OperationState app={{metadata: {}, status: {operationState: {}}} as Application} quiet={true} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('OperationState.Unknown', () => {
-    const tree = renderer.create(<OperationState app={{metadata: {}, status: {operationState: {}}} as Application} />).toJSON();
+  const tree = renderMarkup(<OperationState app={{metadata: {}, status: {operationState: {}}} as Application} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('OperationState.Deleting', () => {
-    const tree = renderer.create(<OperationState app={{metadata: {deletionTimestamp: zero}, status: {operationState: {}}} as Application} />).toJSON();
+  const tree = renderMarkup(<OperationState app={{metadata: {deletionTimestamp: zero}, status: {operationState: {}}} as Application} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('OperationState.Sync OK', () => {
-    const tree = renderer
-        .create(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Succeeded}}} as Application} />)
-        .toJSON();
+  const tree = renderMarkup(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Succeeded}}} as Application} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('OperationState.Sync error', () => {
-    const tree = renderer.create(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Error}}} as Application} />).toJSON();
+  const tree = renderMarkup(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Error}}} as Application} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('OperationState.Sync failed', () => {
-    const tree = renderer.create(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Failed}}} as Application} />).toJSON();
+  const tree = renderMarkup(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Failed}}} as Application} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('OperationState.Syncing', () => {
-    const tree = renderer
-        .create(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Running}}} as Application} />)
-        .toJSON();
+  const tree = renderMarkup(<OperationState app={{metadata: {}, status: {operationState: {operation: {sync: {}}, phase: OperationPhases.Running}}} as Application} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ComparisonStatusIcon.Synced', () => {
-    const tree = renderer.create(<ComparisonStatusIcon status={SyncStatuses.Synced} />).toJSON();
+  const tree = renderMarkup(<ComparisonStatusIcon status={SyncStatuses.Synced} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ComparisonStatusIcon.OutOfSync', () => {
-    const tree = renderer.create(<ComparisonStatusIcon status={SyncStatuses.OutOfSync} />).toJSON();
+  const tree = renderMarkup(<ComparisonStatusIcon status={SyncStatuses.OutOfSync} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ComparisonStatusIcon.Unknown', () => {
-    const tree = renderer.create(<ComparisonStatusIcon status={SyncStatuses.Unknown} />).toJSON();
+  const tree = renderMarkup(<ComparisonStatusIcon status={SyncStatuses.Unknown} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('HealthStatusIcon.Unknown', () => {
-    const tree = renderer.create(<HealthStatusIcon state={{status: HealthStatuses.Unknown} as HealthStatus} />).toJSON();
+  const tree = renderMarkup(<HealthStatusIcon state={{status: HealthStatuses.Unknown} as HealthStatus} />);
 
     expect(tree).toMatchSnapshot();
 });
 test('HealthStatusIcon.Progressing', () => {
-    const tree = renderer.create(<HealthStatusIcon state={{status: HealthStatuses.Progressing} as HealthStatus} />).toJSON();
+  const tree = renderMarkup(<HealthStatusIcon state={{status: HealthStatuses.Progressing} as HealthStatus} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('HealthStatusIcon.Suspended', () => {
-    const tree = renderer.create(<HealthStatusIcon state={{status: HealthStatuses.Suspended} as HealthStatus} />).toJSON();
+  const tree = renderMarkup(<HealthStatusIcon state={{status: HealthStatuses.Suspended} as HealthStatus} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('HealthStatusIcon.Healthy', () => {
-    const tree = renderer.create(<HealthStatusIcon state={{status: HealthStatuses.Healthy} as HealthStatus} />).toJSON();
+  const tree = renderMarkup(<HealthStatusIcon state={{status: HealthStatuses.Healthy} as HealthStatus} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('HealthStatusIcon.Degraded', () => {
-    const tree = renderer.create(<HealthStatusIcon state={{status: HealthStatuses.Degraded} as HealthStatus} />).toJSON();
+  const tree = renderMarkup(<HealthStatusIcon state={{status: HealthStatuses.Degraded} as HealthStatus} />);
 
     expect(tree).toMatchSnapshot();
 });
 test('HealthStatusIcon.Missing', () => {
-    const tree = renderer.create(<HealthStatusIcon state={{status: HealthStatuses.Missing} as HealthStatus} />).toJSON();
+  const tree = renderMarkup(<HealthStatusIcon state={{status: HealthStatuses.Missing} as HealthStatus} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Synced', () => {
-    const tree = renderer.create(<ResourceResultIcon resource={{status: ResultCodes.Synced, message: 'my-message'} as ResourceResult} />).toJSON();
+  const tree = renderMarkup(<ResourceResultIcon resource={{status: ResultCodes.Synced, message: 'my-message'} as ResourceResult} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Pruned', () => {
-    const tree = renderer.create(<ResourceResultIcon resource={{status: ResultCodes.Pruned} as ResourceResult} />).toJSON();
+  const tree = renderMarkup(<ResourceResultIcon resource={{status: ResultCodes.Pruned} as ResourceResult} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.SyncFailed', () => {
-    const tree = renderer.create(<ResourceResultIcon resource={{status: ResultCodes.SyncFailed} as ResourceResult} />).toJSON();
+  const tree = renderMarkup(<ResourceResultIcon resource={{status: ResultCodes.SyncFailed} as ResourceResult} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Hook.Running', () => {
-    const tree = renderer
-        .create(
-            <ResourceResultIcon
-                resource={
-                    {
-                        hookType: 'Sync',
-                        hookPhase: OperationPhases.Running,
-                        message: 'my-message',
-                    } as ResourceResult
-                }
-            />,
-        )
-        .toJSON();
+  const tree = renderMarkup(
+    <ResourceResultIcon
+      resource={
+        {
+          hookType: 'Sync',
+          hookPhase: OperationPhases.Running,
+          message: 'my-message',
+        } as ResourceResult
+      }
+    />,
+  );
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Hook.Failed', () => {
-    const tree = renderer.create(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Failed} as ResourceResult} />).toJSON();
+  const tree = renderMarkup(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Failed} as ResourceResult} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Hook.Error', () => {
-    const tree = renderer.create(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Error} as ResourceResult} />).toJSON();
+  const tree = renderMarkup(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Error} as ResourceResult} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Hook.Succeeded', () => {
-    const tree = renderer.create(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Succeeded} as ResourceResult} />).toJSON();
+  const tree = renderMarkup(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Succeeded} as ResourceResult} />);
 
     expect(tree).toMatchSnapshot();
 });
 
 test('ResourceResultIcon.Hook.Terminating', () => {
-    const tree = renderer.create(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Terminating} as ResourceResult} />).toJSON();
+  const tree = renderMarkup(<ResourceResultIcon resource={{hookType: 'Sync', hookPhase: OperationPhases.Terminating} as ResourceResult} />);
 
     expect(tree).toMatchSnapshot();
 });
@@ -891,5 +905,473 @@ status:
         const {reason} = getPodStateReason(pod as State);
 
         expect(reason).toBe('SchedulingGated');
+    });
+});
+
+describe('appRBACName', () => {
+    it('returns project/namespace/name when namespace is defined', () => {
+        const app = {
+            metadata: {
+                name: 'my-app',
+                namespace: 'my-namespace'
+            },
+            spec: {
+                project: 'my-project'
+            }
+        } as Application;
+
+        const result = appRBACName(app);
+
+        expect(result).toBe('my-project/my-namespace/my-app');
+    });
+
+    it('returns project/name when namespace is undefined', () => {
+        const app = {
+            metadata: {
+                name: 'my-app'
+            },
+            spec: {
+                project: 'my-project'
+            }
+        } as Application;
+
+        const result = appRBACName(app);
+
+        expect(result).toBe('my-project/my-app');
+    });
+
+    it('handles empty namespace string as undefined', () => {
+        const app = {
+            metadata: {
+                name: 'test-app',
+                namespace: ''
+            },
+            spec: {
+                project: 'test-project'
+            }
+        } as Application;
+
+        // Note: The function uses a falsy check on namespace, so empty string is treated the same as undefined
+        const result = appRBACName(app);
+
+        expect(result).toBe('test-project/test-app');
+    });
+});
+
+describe('getAppDrySource', () => {
+    it('returns null for undefined app', () => {
+        expect(getAppDrySource(undefined)).toBeNull();
+    });
+
+    it('returns full source for non-hydrator app', () => {
+        const app = {
+            spec: {
+                source: {
+                    repoURL: 'https://github.com/example/repo.git',
+                    path: 'helm-chart',
+                    targetRevision: 'HEAD',
+                    helm: {
+                        parameters: [{name: 'replicaCount', value: '2'}],
+                    },
+                },
+            },
+        } as Application;
+
+        const result = getAppDrySource(app);
+
+        expect(result).toEqual(app.spec.source);
+        expect(result.helm).toBeDefined();
+        expect(result.helm.parameters).toHaveLength(1);
+    });
+
+    it('returns stripped drySource for hydrator app', () => {
+        const app = {
+            spec: {
+                source: {
+                    repoURL: 'https://github.com/example/repo.git',
+                    path: 'helm-chart',
+                    targetRevision: 'HEAD',
+                    helm: {
+                        parameters: [{name: 'replicaCount', value: '2'}],
+                    },
+                },
+                sourceHydrator: {
+                    drySource: {
+                        repoURL: 'https://github.com/example/dry-repo.git',
+                        path: 'dry-path',
+                        targetRevision: 'main',
+                    },
+                },
+            },
+        } as Application;
+
+        const result = getAppDrySource(app);
+
+        expect(result).toEqual({
+            repoURL: 'https://github.com/example/dry-repo.git',
+            path: 'dry-path',
+            targetRevision: 'main',
+        });
+        expect(result).not.toHaveProperty('helm');
+    });
+});
+
+describe('getHydratorSyncSourceRepoURL', () => {
+    it('uses syncSource repoURL when set', () => {
+        expect(
+            getHydratorSyncSourceRepoURL({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main'},
+                syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'}
+            })
+        ).toBe('https://github.com/example/hydrated.git');
+    });
+
+    it('falls back to drySource repoURL when syncSource repoURL is unset', () => {
+        expect(
+            getHydratorSyncSourceRepoURL({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main'},
+                syncSource: {targetBranch: 'env/test', path: 'out'}
+            })
+        ).toBe('https://github.com/example/dry.git');
+    });
+
+    it('returns empty string when sourceHydrator is undefined', () => {
+        expect(getHydratorSyncSourceRepoURL(undefined)).toBe('');
+    });
+});
+
+describe('getAppHydratorSyncSource', () => {
+    it('returns the sync source with resolved repo URL', () => {
+        expect(
+            getAppHydratorSyncSource({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'}
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/hydrated.git',
+            targetRevision: 'env/test',
+            path: 'out'
+        });
+    });
+});
+
+describe('getAppHydrateToSource', () => {
+    it('uses hydrateTo.targetBranch when set', () => {
+        expect(
+            getAppHydrateToSource({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'},
+                hydrateTo: {targetBranch: 'env/test-hydrate'}
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/hydrated.git',
+            targetRevision: 'env/test-hydrate',
+            path: 'out'
+        });
+    });
+
+    it('falls back to the sync source branch when hydrateTo is unset', () => {
+        expect(
+            getAppHydrateToSource({
+                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                syncSource: {targetBranch: 'env/test', path: 'out'}
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/dry.git',
+            targetRevision: 'env/test',
+            path: 'out'
+        });
+    });
+});
+
+describe('hydrationStatusMessage', () => {
+    it('shows hydrateTo as the destination while hydrating', () => {
+        const html = renderMarkup(
+            hydrationStatusMessage({
+                status: {
+                    sourceHydrator: {
+                        currentOperation: {
+                            phase: 'Hydrating',
+                            sourceHydrator: {
+                                drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main'},
+                                syncSource: {targetBranch: 'env/test', path: 'out'},
+                                hydrateTo: {targetBranch: 'env/test-hydrate'}
+                            }
+                        }
+                    }
+                }
+            } as Application)
+        );
+        expect(html).toContain('env/test-hydrate');
+        expect(html).not.toContain('env/test)');
+        expect(html).not.toMatch(/>env\/test</);
+    });
+});
+
+describe('nameConfirmationError', () => {
+    const emptyMsg = 'Enter the resource name to confirm the deletion';
+    const mismatchMsg = 'Resource name does not match';
+
+    it('returns false when entered value matches expected', () => {
+        expect(nameConfirmationError('my-app', 'my-app', emptyMsg, mismatchMsg)).toBe(false);
+    });
+
+    it('returns empty message when field is empty', () => {
+        expect(nameConfirmationError('', 'my-app', emptyMsg, mismatchMsg)).toBe(emptyMsg);
+    });
+
+    it('returns mismatch message when field has a wrong value', () => {
+        expect(nameConfirmationError('wrong-name', 'my-app', emptyMsg, mismatchMsg)).toBe(mismatchMsg);
+    });
+
+    it('returns mismatch message when field has a partial value', () => {
+        expect(nameConfirmationError('my-ap', 'my-app', emptyMsg, mismatchMsg)).toBe(mismatchMsg);
+    });
+
+    it('returns false when both entered and expected are empty strings', () => {
+        expect(nameConfirmationError('', '', emptyMsg, mismatchMsg)).toBe(false);
+    });
+
+    it('uses the provided message strings (application delete variant)', () => {
+        const appEmpty = 'Enter the application name to confirm the deletion';
+        const appMismatch = 'Application name does not match';
+        expect(nameConfirmationError('', 'guestbook', appEmpty, appMismatch)).toBe(appEmpty);
+        expect(nameConfirmationError('guestbook-typo', 'guestbook', appEmpty, appMismatch)).toBe(appMismatch);
+        expect(nameConfirmationError('guestbook', 'guestbook', appEmpty, appMismatch)).toBe(false);
+    });
+});
+
+describe('getAppSpecDefaultSource', () => {
+    it('returns sync source for hydrator apps', () => {
+        expect(
+            getAppSpecDefaultSource({
+                sourceHydrator: {
+                    drySource: {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'},
+                    syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'}
+                }
+            })
+        ).toEqual({
+            repoURL: 'https://github.com/example/hydrated.git',
+            targetRevision: 'env/test',
+            path: 'out'
+        });
+    });
+});
+
+describe('getApplicationDetailsContainerClass', () => {
+    it('keeps the static application-details class and adds a prefixed per-application class', () => {
+        expect(getApplicationDetailsContainerClass('guestbook')).toBe('application-details user-app-guestbook');
+    });
+
+    it('prefixes the per-application class so an app named after a component class does not collide (#24220)', () => {
+        const classes = getApplicationDetailsContainerClass('login').split(' ');
+        // the per-application hook is present, but namespaced...
+        expect(classes).toContain('user-app-login');
+        // ...and must NOT emit a bare `login` class that would pull in the login page's `.login` styles.
+        expect(classes).not.toContain('login');
+    });
+});
+
+describe('getAppOfAppsParentRef', () => {
+    const app = (metadata: any) => ({kind: 'Application', metadata: {name: 'child-app', namespace: 'argocd', ...metadata}}) as Application;
+
+    it('resolves the parent from the tracking-id annotation by default', () => {
+        const ref = getAppOfAppsParentRef(app({annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:argocd/child-app'}}));
+        expect(ref).toEqual({name: 'parent-app'});
+    });
+
+    it('resolves the parent from the annotation for annotation+label tracking', () => {
+        const ref = getAppOfAppsParentRef(
+            app({annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:argocd/child-app'}}),
+            undefined,
+            'annotation+label'
+        );
+        expect(ref).toEqual({name: 'parent-app'});
+    });
+
+    it('uses the instance label only when the tracking method is label', () => {
+        const ref = getAppOfAppsParentRef(app({labels: {'app.kubernetes.io/instance': 'parent-app'}}), undefined, 'label');
+        expect(ref).toEqual({name: 'parent-app'});
+    });
+
+    it('parses the namespace and name from a namespaced instance label value', () => {
+        const ref = getAppOfAppsParentRef(app({labels: {'app.kubernetes.io/instance': 'other-ns_parent-app'}}), undefined, 'label');
+        expect(ref).toEqual({name: 'parent-app', namespace: 'other-ns'});
+    });
+
+    it('parses the namespace and name from a namespaced tracking-id annotation', () => {
+        const ref = getAppOfAppsParentRef(app({annotations: {'argocd.argoproj.io/tracking-id': 'other-ns_parent-app:argoproj.io/Application:argocd/child-app'}}));
+        expect(ref).toEqual({name: 'parent-app', namespace: 'other-ns'});
+    });
+
+    it('uses a custom instance label key when provided with label tracking', () => {
+        const ref = getAppOfAppsParentRef(app({labels: {'argocd.argoproj.io/instance': 'parent-app'}}), 'argocd.argoproj.io/instance', 'label');
+        expect(ref).toEqual({name: 'parent-app'});
+    });
+
+    it('ignores the instance label when the tracking method is not label', () => {
+        const ref = getAppOfAppsParentRef(app({labels: {'app.kubernetes.io/instance': 'label-parent'}}), undefined, 'annotation');
+        expect(ref).toBeNull();
+    });
+
+    it('ignores the annotation when the tracking method is label', () => {
+        const ref = getAppOfAppsParentRef(
+            app({annotations: {'argocd.argoproj.io/tracking-id': 'annotation-parent:argoproj.io/Application:argocd/child-app'}}),
+            undefined,
+            'label'
+        );
+        expect(ref).toBeNull();
+    });
+
+    it('returns null when there is no tracking metadata', () => {
+        expect(getAppOfAppsParentRef(app({}))).toBeNull();
+    });
+
+    it('returns null when the tracking metadata refers to the application itself', () => {
+        const ref = getAppOfAppsParentRef(app({annotations: {'argocd.argoproj.io/tracking-id': 'child-app:argoproj.io/Application:argocd/child-app'}}));
+        expect(ref).toBeNull();
+    });
+
+    it('does not treat an ApplicationSet as a self-reference when it shares the parent Application name and namespace', () => {
+        const appSet = {
+            kind: 'ApplicationSet',
+            metadata: {
+                name: 'shared-name',
+                namespace: 'argocd',
+                annotations: {'argocd.argoproj.io/tracking-id': 'shared-name:argoproj.io/ApplicationSet:argocd/shared-name'}
+            }
+        } as any;
+        expect(getAppOfAppsParentRef(appSet)).toEqual({name: 'shared-name'});
+    });
+});
+
+describe('getApplicationParentRef', () => {
+    it('prefers the ApplicationSet owner over app-of-apps tracking metadata', () => {
+        const app = {
+            metadata: {
+                name: 'child-app',
+                namespace: 'argocd',
+                ownerReferences: [{kind: 'ApplicationSet', name: 'my-appset'}],
+                annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:argocd/child-app'}
+            }
+        } as unknown as Application;
+        expect(getApplicationParentRef(app)).toEqual({name: 'my-appset', namespace: 'argocd', kind: 'ApplicationSet'});
+    });
+
+    it('falls back to the app-of-apps parent Application (no namespace) for a bare instance name', () => {
+        const app = {
+            metadata: {
+                name: 'child-app',
+                namespace: 'argocd',
+                annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:argocd/child-app'}
+            }
+        } as unknown as Application;
+        // A bare instance name has no encoded namespace, so the parent resolves to the namespace-less form.
+        expect(getApplicationParentRef(app)).toEqual({name: 'parent-app', kind: 'Application'});
+    });
+
+    it('targets the parent namespace encoded in the instance name when it differs from the child', () => {
+        const app = {
+            metadata: {
+                name: 'child-app',
+                namespace: 'child-ns',
+                annotations: {'argocd.argoproj.io/tracking-id': 'parent-ns_parent-app:argoproj.io/Application:child-ns/child-app'}
+            }
+        } as unknown as Application;
+        expect(getApplicationParentRef(app)).toEqual({name: 'parent-app', namespace: 'parent-ns', kind: 'Application'});
+    });
+
+    it('does not guess the child namespace for a bare instance name when the child is in another namespace', () => {
+        const app = {
+            metadata: {
+                name: 'child-app',
+                namespace: 'child-ns',
+                annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/Application:child-ns/child-app'}
+            }
+        } as unknown as Application;
+        expect(getApplicationParentRef(app)).toEqual({name: 'parent-app', kind: 'Application'});
+    });
+
+    it('returns null when the application has no parent', () => {
+        const app = {metadata: {name: 'child-app', namespace: 'argocd'}} as unknown as Application;
+        expect(getApplicationParentRef(app)).toBeNull();
+    });
+
+    it('resolves the app-of-apps parent Application for a managed ApplicationSet', () => {
+        const appSet = {
+            kind: 'ApplicationSet',
+            metadata: {
+                name: 'child-appset',
+                namespace: 'argocd',
+                annotations: {'argocd.argoproj.io/tracking-id': 'parent-app:argoproj.io/ApplicationSet:argocd/child-appset'}
+            }
+        } as any;
+        expect(getApplicationParentRef(appSet)).toEqual({name: 'parent-app', kind: 'Application'});
+    });
+});
+
+describe('favorites', () => {
+    const app = {metadata: {name: 'guestbook', namespace: 'ns1'}} as Application;
+    const sameNameOtherNamespace = {metadata: {name: 'guestbook', namespace: 'ns2'}} as Application;
+
+    it('stores favorites namespace-qualified', () => {
+        expect(toggleFavorite([], app)).toEqual(['ns1/guestbook']);
+    });
+
+    it('does not match the same name in another namespace', () => {
+        const favorites = toggleFavorite([], app);
+        expect(isFavorite(favorites, app)).toBe(true);
+        expect(isFavorite(favorites, sameNameOtherNamespace)).toBe(false);
+    });
+
+    it('removes only the favorited application', () => {
+        const favorites = toggleFavorite(toggleFavorite([], app), sameNameOtherNamespace);
+        expect(favorites).toEqual(['ns1/guestbook', 'ns2/guestbook']);
+        expect(toggleFavorite(favorites, app)).toEqual(['ns2/guestbook']);
+    });
+
+    it('keeps matching favorites stored before the list became namespace-qualified', () => {
+        expect(isFavorite(['guestbook'], app)).toBe(true);
+        expect(isFavorite(['guestbook'], sameNameOtherNamespace)).toBe(true);
+    });
+
+    it('qualifies a legacy favorite when it is toggled off and on again', () => {
+        expect(toggleFavorite(['guestbook'], app)).toEqual([]);
+        expect(toggleFavorite(toggleFavorite(['guestbook'], app), app)).toEqual(['ns1/guestbook']);
+    });
+
+    it('handles an undefined favorites list', () => {
+        expect(isFavorite(undefined, app)).toBe(false);
+        expect(toggleFavorite(undefined, app)).toEqual(['ns1/guestbook']);
+    });
+});
+
+describe('formatCreationTimestamp', () => {
+    it('renders the absolute timestamp and a relative fromNow string', () => {
+        const html = renderMarkup(formatCreationTimestamp('2020-06-15T12:00:00Z') as React.ReactElement);
+        expect(html).toMatch(/2020/);
+        expect(html).toMatch(/ago/i);
+        expect(html).not.toContain('<time');
+    });
+});
+
+describe('getClusterOptions', () => {
+    const clusters = [
+        {name: 'zeta-prod', server: 'https://zeta.example.com'},
+        {name: 'alpha-dev', server: 'https://alpha.example.com'},
+        {name: 'mike-staging', server: 'https://mike.example.com'}
+    ] as Cluster[];
+
+    it('sorts cluster names', () => {
+        expect(getClusterOptions(clusters, 'name')).toEqual(['alpha-dev', 'mike-staging', 'zeta-prod']);
+    });
+
+    it('sorts cluster server URLs', () => {
+        expect(getClusterOptions(clusters, 'server')).toEqual(['https://alpha.example.com', 'https://mike.example.com', 'https://zeta.example.com']);
+    });
+
+    it('does not reorder the input', () => {
+        getClusterOptions(clusters, 'name');
+        expect(clusters.map(cluster => cluster.name)).toEqual(['zeta-prod', 'alpha-dev', 'mike-staging']);
     });
 });

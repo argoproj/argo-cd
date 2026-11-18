@@ -6,7 +6,7 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 
 	scmm "github.com/scm-manager/goscm"
 )
@@ -58,7 +58,7 @@ func (g *ScmManagerService) List(ctx context.Context) ([]*PullRequest, error) {
 			return nil, err
 		}
 		list = append(list, &PullRequest{
-			Number:  prId,
+			Number:  int64(prId),
 			Branch:  pr.Source,
 			HeadSHA: changeset.Id,
 			Labels:  make([]string, 0),

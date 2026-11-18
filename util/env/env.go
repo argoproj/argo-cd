@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	timeutil "github.com/argoproj/pkg/time"
+	timeutil "github.com/argoproj/pkg/v2/time"
 
 	log "github.com/sirupsen/logrus"
 )
@@ -164,7 +164,7 @@ func StringFromEnv(env string, defaultValue string, opts ...StringFromEnvOpts) s
 }
 
 // StringsFromEnv parses given value from the environment as a list of strings,
-// using separator as the delimeter, and returns them as a slice. The strings
+// using separator as the delimiter, and returns them as a slice. The strings
 // in the returned slice will have leading and trailing white space removed.
 func StringsFromEnv(env string, defaultValue []string, separator string) []string {
 	if str := os.Getenv(env); str != "" {
@@ -202,16 +202,18 @@ func ParseStringToStringFromEnv(envVar string, defaultValue map[string]string, s
 	}
 
 	parsed := make(map[string]string)
-	for _, pair := range strings.Split(str, separator) {
-		keyvalue := strings.Split(pair, "=")
-		if len(keyvalue) != 2 {
-			log.Warnf("Invalid key-value pair when parsing environment '%s' as a string map", str)
+	for pair := range strings.SplitSeq(str, separator) {
+		// Split on the first '=' only: values such as base64 credentials may contain '='.
+		key, value, ok := strings.Cut(pair, "=")
+		if !ok {
+			// Don't log the value: it may hold credentials (e.g. OTLP auth headers).
+			log.Warnf("Invalid key-value pair when parsing environment '%s' as a string map", envVar)
 			return defaultValue
 		}
-		key := strings.TrimSpace(keyvalue[0])
-		value := strings.TrimSpace(keyvalue[1])
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
 		if _, ok := parsed[key]; ok {
-			log.Warnf("Duplicate key '%s' when parsing environment '%s' as a string map", key, str)
+			log.Warnf("Duplicate key '%s' when parsing environment '%s' as a string map", key, envVar)
 			return defaultValue
 		}
 		parsed[key] = value

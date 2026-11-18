@@ -71,35 +71,48 @@ export default {
             const fullUrl = `${apiRoot()}${url}`;
 
             const abortController = new AbortController();
+            let errored = false;
 
-            // If there is an error, show it beforehand
-            fetch(fullUrl, {signal: abortController.signal})
-                .then(response => {
-                    if (!response.ok) {
-                        return response.text().then(text => {
+            // EventSource's error event is opaque (no status, no body). On failure,
+            // issue a one-shot fetch so we can surface the server's HTTP status and
+            // body. This replaces the always-on prefetch, which doubled the open
+            // watch streams per subscription and held an HTTP/1.1 connection slot
+            // for the lifetime of every watch — see issue #27877.
+            const probeAndError = (eventSourceError: any) => {
+                if (errored) {
+                    return;
+                }
+                errored = true;
+                fetch(fullUrl, {signal: abortController.signal})
+                    .then(async response => {
+                        if (!response.ok) {
+                            const text = await response.text();
                             observer.error({status: response.status, statusText: response.statusText, body: text});
-                        });
-                    }
-                })
-                .catch(err => {
-                    if (err.name === 'AbortError') {
-                        return;
-                    }
-                    observer.error(err);
-                });
+                            onError.next({status: response.status, name: response.statusText, message: text} as agent.ResponseError);
+                        } else {
+                            await response.body?.cancel();
+                            observer.error(eventSourceError);
+                            onError.next(eventSourceError);
+                        }
+                    })
+                    .catch(fetchErr => {
+                        if (fetchErr.name === 'AbortError') {
+                            return;
+                        }
+                        observer.error(fetchErr);
+                        onError.next(fetchErr);
+                    });
+            };
 
             let eventSource = new EventSource(fullUrl);
             eventSource.onmessage = msg => observer.next(msg.data);
-            eventSource.onerror = e => () => {
-                observer.error(e);
-                onError.next(e);
-            };
+            eventSource.onerror = e => probeAndError(e);
 
             // EventSource does not provide easy way to get notification when connection closed.
             // check readyState periodically instead.
             const interval = setInterval(() => {
                 if (eventSource && eventSource.readyState === ReadyState.CLOSED) {
-                    observer.error('connection got closed unexpectedly');
+                    probeAndError('connection got closed unexpectedly');
                 }
             }, 500);
             return () => {

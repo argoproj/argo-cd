@@ -1,10 +1,12 @@
-import {Checkbox, DataLoader, Select, Tooltip} from 'argo-ui';
-import * as classNames from 'classnames';
+import {Checkbox, Select, Tooltip} from 'argo-ui';
+import classNames from 'classnames';
 import * as React from 'react';
-import * as ReactForm from 'react-form';
+import {useQuery} from '@tanstack/react-query';
+import {ReactForm} from 'argo-ui';
 
 import './application-sync-options.scss';
-import {services} from '../../../shared/services';
+import {settingsQueries} from '../../../shared/queries';
+import {loading, loadFailed} from '../../../shared/query-client';
 
 const ReplaceWarning = () => (
     <div>
@@ -118,14 +120,35 @@ export interface SyncFlags {
 const syncOptions: Array<(props: ApplicationSyncOptionProps) => React.ReactNode> = [
     props => booleanOption('Validate', 'Skip Schema Validation', false, props, true),
     props => booleanOption('CreateNamespace', 'Auto-Create Namespace', false, props, false),
-    props => booleanOption('PruneLast', 'Prune Last', false, props, false),
     props => booleanOption('ApplyOutOfSyncOnly', 'Apply Out of Sync Only', false, props, false),
     props => booleanOption('RespectIgnoreDifferences', 'Respect Ignore Differences', false, props, false),
     props => booleanOption('ServerSideApply', 'Server-Side Apply', false, props, false),
-    props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props)
+    props => booleanOption('PruneLast', 'Prune Last', false, props, false),
+    props => selectOption('PrunePropagationPolicy', 'Prune Propagation Policy', 'foreground', ['foreground', 'background', 'orphan'], props),
+    props => selectOption('Prune', 'Prune', 'true', ['true', 'false', 'confirm'], props),
+    props => selectOption('Delete', 'Delete', 'true', ['true', 'false', 'confirm'], props)
 ];
 
 const optionStyle = {marginTop: '0.5em'};
+
+// Replace is only offered when the server allows it (--sync-with-replace-allowed).
+const ReplaceOption = (props: ApplicationSyncOptionProps) => {
+    // refetchOnMount 'always': every mount refetches, whatever staleTime the query or client sets.
+    // networkMode 'always': offline, the refetch fails (as DataLoader's did) instead of pausing with the cached value shown.
+    const settings = useQuery({...settingsQueries.get(), networkMode: 'always', refetchOnMount: 'always'});
+    // Decide on freshly loaded settings, as before: a cached value could still offer Replace after the server stopped allowing it.
+    if (settings.isFetching || settings.isError || !settings.data) {
+        return settings.isError && !settings.isFetching ? loadFailed(settings.refetch) : loading;
+    }
+    if (!settings.data.syncWithReplaceAllowed) {
+        return null;
+    }
+    return (
+        <div className='small-12' style={optionStyle}>
+            {booleanOption('Replace', 'Replace', false, props, false)}
+        </div>
+    );
+};
 
 export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
     <div className='row application-sync-options'>
@@ -134,25 +157,12 @@ export const ApplicationSyncOptions = (props: ApplicationSyncOptionProps) => (
                 key={i}
                 style={optionStyle}
                 className={classNames('small-12', {
-                    'large-6': i < syncOptions.length - 1
+                    'large-6': i < syncOptions.length - 3
                 })}>
                 {render(props)}
             </div>
         ))}
-        <DataLoader
-            load={async () => {
-                const settings = await services.authService.settings();
-                return settings.syncWithReplaceAllowed;
-            }}>
-            {syncWithReplaceAllowed =>
-                (syncWithReplaceAllowed && (
-                    <div className='small-12' style={optionStyle}>
-                        {booleanOption('Replace', 'Replace', false, props, false)}
-                    </div>
-                )) ||
-                null
-            }
-        </DataLoader>
+        <ReplaceOption {...props} />
     </div>
 );
 

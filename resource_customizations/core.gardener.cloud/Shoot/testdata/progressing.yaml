@@ -1,0 +1,48 @@
+apiVersion: core.gardener.cloud/v1beta1
+kind: Shoot
+metadata:
+  name: example
+  namespace: garden-dev  
+  labels:
+    shoot.gardener.cloud/status: progressing
+spec:
+  hibernation:
+    enabled: false  
+status:
+  conditions:
+    - lastTransitionTime: '2025-12-17T12:15:19Z'
+      lastUpdateTime: '2025-12-17T12:15:19Z'
+      message: API server /healthz endpoint responded with success status code.
+      reason: HealthzRequestSucceeded
+      status: 'False'
+      type: APIServerAvailable
+    - lastTransitionTime: '2025-12-17T12:16:00Z'
+      lastUpdateTime: '2025-12-17T12:16:00Z'
+      message: All control plane components are healthy.
+      reason: ControlPlaneRunning
+      status: 'True'
+      type: ControlPlaneHealthy
+    - lastTransitionTime: '2025-12-17T12:15:19Z'
+      lastUpdateTime: '2025-12-17T12:15:19Z'
+      message: All observability components are healthy.
+      reason: ObservabilityComponentsRunning
+      status: 'True'
+      type: ObservabilityComponentsHealthy
+    - lastTransitionTime: '2025-12-17T12:15:19Z'
+      lastUpdateTime: '2025-12-17T12:15:19Z'
+      message: All nodes are ready.
+      reason: EveryNodeReady
+      status: 'True'
+      type: EveryNodeReady
+    - lastTransitionTime: '2025-12-17T12:15:19Z'
+      lastUpdateTime: '2025-12-17T12:15:19Z'
+      message: All system components are healthy.
+      reason: SystemComponentsRunning
+      status: 'True'
+      type: SystemComponentsHealthy
+  lastOperation:
+    description: Shoot cluster has been successfully reconciled.
+    lastUpdateTime: '2025-12-17T12:15:19Z'
+    progress: 100
+    state: Succeeded
+    type: Reconcile

@@ -9,11 +9,11 @@ import (
 // Interface provides access to all the informers in this group version.
 type Interface interface {
 	// AppProjects returns a AppProjectInformer.
-	AppProjects() AppProjectInformer
+	AppProjects() TypedAppProjectInformer
 	// Applications returns a ApplicationInformer.
-	Applications() ApplicationInformer
+	Applications() TypedApplicationInformer
 	// ApplicationSets returns a ApplicationSetInformer.
-	ApplicationSets() ApplicationSetInformer
+	ApplicationSets() TypedApplicationSetInformer
 }
 
 type version struct {
@@ -27,17 +27,17 @@ func New(f internalinterfaces.SharedInformerFactory, namespace string, tweakList
 	return &version{factory: f, namespace: namespace, tweakListOptions: tweakListOptions}
 }
 
-// AppProjects returns a AppProjectInformer.
-func (v *version) AppProjects() AppProjectInformer {
+// AppProjects returns a TypedAppProjectInformer.
+func (v *version) AppProjects() TypedAppProjectInformer {
 	return &appProjectInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// Applications returns a ApplicationInformer.
-func (v *version) Applications() ApplicationInformer {
+// Applications returns a TypedApplicationInformer.
+func (v *version) Applications() TypedApplicationInformer {
 	return &applicationInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }
 
-// ApplicationSets returns a ApplicationSetInformer.
-func (v *version) ApplicationSets() ApplicationSetInformer {
+// ApplicationSets returns a TypedApplicationSetInformer.
+func (v *version) ApplicationSets() TypedApplicationSetInformer {
 	return &applicationSetInformer{factory: v.factory, namespace: v.namespace, tweakListOptions: v.tweakListOptions}
 }

@@ -84,7 +84,7 @@ kubectl get svc argocd-server -n argocd -o=jsonpath='{.status.loadBalancer.ingre
 Follow the [ingress documentation](operator-manual/ingress.md) on how to configure Argo CD with ingress.
 
 ### Port Forwarding
-Kubectl port-forwarding can also be used to connect to the API server without exposing the service.
+`kubectl port-forward` can also be used to connect to the API server without exposing the service.
 
 ```bash
 kubectl port-forward svc/argocd-server -n argocd 8080:443
@@ -93,7 +93,7 @@ kubectl port-forward svc/argocd-server -n argocd 8080:443
 The API server can then be accessed using https://localhost:8080
 
 
-## 4. Login Using The CLI
+## 4. Log in Using The CLI
 
 The initial password for the `admin` account is auto-generated and stored as
 clear text in the field `password` in a secret named `argocd-initial-admin-secret`
@@ -111,7 +111,7 @@ argocd admin initial-password -n argocd
 > safely be deleted at any time. It will be re-created on demand by Argo CD
 > if a new admin password must be re-generated.
 
-Using the username `admin` and the password from above, login to Argo CD's IP or hostname:
+Using the username `admin` and the password from above, log in to Argo CD's IP or hostname:
 
 ```bash
 argocd login <ARGOCD_SERVER>
@@ -120,13 +120,16 @@ argocd login <ARGOCD_SERVER>
 > [!NOTE]
 > The CLI environment must be able to communicate with the Argo CD API server. If it isn't directly accessible as described above in step 3, you can tell the CLI to access it using port forwarding through one of these mechanisms: 1) add `--port-forward-namespace argocd` flag to every CLI command; or 2) set `ARGOCD_OPTS` environment variable: `export ARGOCD_OPTS='--port-forward-namespace argocd'`.
 
+> [!NOTE]
+> The `argocd` CLI talks to the Argo CD API server over gRPC, which uses HTTP/2. If you access Argo CD through an ingress or reverse proxy that does not support HTTP/2, commands such as `argocd login` may time out. In that case, either enable HTTP/2 (gRPC) on the ingress, or run the CLI in gRPC-Web mode over HTTP/1.1 with the `--grpc-web` flag. (The CLI already retries with gRPC-Web when a plain gRPC call fails and prints a warning pointing at `--grpc-web`.) See the [Ingress Configuration](operator-manual/ingress.md) page for details.
+
 Change the password using the command:
 
 ```bash
 argocd account update-password
 ```
 
-## 5. Register A Cluster To Deploy Apps To (Optional)
+## 5. Register a Cluster to Deploy Apps To (Optional)
 
 This step registers a cluster's credentials to Argo CD, and is only necessary when deploying to
 an external cluster. When deploying internally (to the same cluster that Argo CD is running in),
@@ -157,11 +160,11 @@ An example repository containing a guestbook application is available at
 [https://github.com/argoproj/argocd-example-apps.git](https://github.com/argoproj/argocd-example-apps.git) to demonstrate how Argo CD works.
 
 > [!NOTE]
-> Note: The following example application may only be compatible with AMD64 architecture. If you are running on a different architecture (such as ARM64 or ARMv7), you may encounter issues with dependencies or container images that are not built for your platform. Consider verifying the compatibility of the application or building architecture-specific images if necessary.
+> The following example application may only be compatible with AMD64 architecture. If you are running on a different architecture (such as ARM64 or ARMv7), you may encounter issues with dependencies or container images that are not built for your platform. Consider verifying the compatibility of the application or building architecture-specific images if necessary.
 
 ### Creating Apps Via CLI
 
-First we need to set the current namespace to argocd running the following command:
+First, set the current namespace to argocd by running the following command:
 
 ```bash
 kubectl config set-context --current --namespace=argocd

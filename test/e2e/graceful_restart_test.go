@@ -1,8 +1,10 @@
 package e2e
 
 import (
+	"errors"
+	"io"
 	"net/http"
-	"strings"
+	"syscall"
 	"testing"
 	"time"
 
@@ -20,8 +22,8 @@ func checkHealth(t *testing.T, requireHealthy bool) {
 		require.Equal(t, http.StatusOK, resp.StatusCode)
 	} else {
 		if err != nil {
-			if !strings.Contains(err.Error(), "connection refused") && !strings.Contains(err.Error(), "connection reset by peer") {
-				require.NoErrorf(t, err, "If an error returned, it must be about connection refused or reset by peer")
+			if !errors.Is(err, syscall.ECONNREFUSED) && !errors.Is(err, syscall.ECONNRESET) && !errors.Is(err, io.EOF) {
+				require.NoErrorf(t, err, "If an error returned, it must be about connection refused, reset by peer or EOF")
 			}
 		} else {
 			require.Contains(t, []int{http.StatusOK, http.StatusServiceUnavailable}, resp.StatusCode)
@@ -38,7 +40,7 @@ func TestAPIServerGracefulRestart(t *testing.T) {
 	require.NoError(t, fixture.SetParamInSettingConfigMap("url", "http://test-api-server-graceful-restart"))
 
 	// Wait for ~5 seconds
-	for i := 0; i < 50; i++ {
+	for range 50 {
 		checkHealth(t, false)
 		time.Sleep(100 * time.Millisecond)
 	}

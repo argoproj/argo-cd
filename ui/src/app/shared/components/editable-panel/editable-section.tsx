@@ -1,11 +1,13 @@
 import {ErrorNotification, NotificationType} from 'argo-ui';
-import React, {useState, useRef, useEffect, Fragment, useCallback} from 'react';
-import type {FormApi, FormState} from 'react-form';
-import {Form} from 'react-form';
+import * as React from 'react';
+import {useState, Fragment, useCallback} from 'react';
+import type {FormApi} from 'argo-ui';
+import {Form} from 'argo-ui';
 import {ContextApis} from '../../context';
-import {EditablePanelItem} from './editable-panel';
+import {EditablePanelItem, EditablePanelItemTitle} from './editable-panel';
 import {Spinner} from '../spinner';
-import {helpTip} from '../../../applications/components/utils';
+import {helpTip} from '../app-utils';
+import {useAutoSaveForm} from './use-auto-save-form';
 
 export interface EditableSectionProps<T> {
     title?: string | React.ReactNode;
@@ -49,24 +51,7 @@ function EditableSection<T extends {} = {}>({
 }: EditableSectionProps<T>) {
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
-    const formApiRef = useRef<FormApi | null>(null);
-    const prevValuesRef = useRef<T>(values);
-
-    useEffect(() => {
-        if (formApiRef.current && JSON.stringify(prevValuesRef.current) !== JSON.stringify(values) && noReadonlyMode) {
-            formApiRef.current.setAllValues(values);
-        }
-        prevValuesRef.current = values;
-    }, [values, noReadonlyMode]);
-
-    const onFormDidUpdate = useCallback(
-        async (form: FormState) => {
-            if (noReadonlyMode && save) {
-                await save(form.values as any, {});
-            }
-        },
-        [noReadonlyMode, save]
-    );
+    const {formApiRef, onFormDidUpdate} = useAutoSaveForm(values, noReadonlyMode, save);
 
     const onFormSubmit = useCallback<<K extends T>(data: K) => Promise<void>>(
         async input => {
@@ -164,7 +149,9 @@ function EditableSection<T extends {} = {}>({
                             <Fragment key={'read_' + uniqueId + '_' + (item.key || item.title)}>
                                 {item.before}
                                 <div className='row white-box__details-row'>
-                                    <div className='columns small-3'>{item.customTitle || item.title}</div>
+                                    <div className='columns small-3'>
+                                        <EditablePanelItemTitle item={item} />
+                                    </div>
                                     <div className='columns small-9'>{item.view}</div>
                                 </div>
                             </Fragment>
@@ -179,7 +166,9 @@ function EditableSection<T extends {} = {}>({
                                 <Fragment key={'edit_' + uniqueId + '_' + (item.key || item.title)}>
                                     {item.before}
                                     <div className='row white-box__details-row'>
-                                        <div className='columns small-3'>{(item.titleEdit && item.titleEdit(api)) || item.customTitle || item.title}</div>
+                                        <div className='columns small-3'>
+                                            <EditablePanelItemTitle item={item} formApi={api} />
+                                        </div>
                                         <div className='columns small-9'>{(item.edit && item.edit(api)) || item.view}</div>
                                     </div>
                                 </Fragment>

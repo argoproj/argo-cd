@@ -23,7 +23,7 @@
 email:
   subject: Application {{.app.metadata.name}} has been created.
 message: Application {{.app.metadata.name}} has been created.
-teams:
+teams-workflows:
   title: Application {{.app.metadata.name}} has been created.
 
 ```
@@ -33,7 +33,7 @@ teams:
 email:
   subject: Application {{.app.metadata.name}} has been deleted.
 message: Application {{.app.metadata.name}} has been deleted.
-teams:
+teams-workflows:
   title: Application {{.app.metadata.name}} has been deleted.
 
 ```
@@ -79,7 +79,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Sync Status",
@@ -160,7 +160,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Health Status",
@@ -237,7 +237,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Sync Status",
@@ -318,7 +318,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Sync Status",
@@ -403,7 +403,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Sync Status",
@@ -479,7 +479,7 @@ slack:
   deliveryPolicy: Post
   groupingKey: ""
   notifyBroadcast: false
-teams:
+teams-workflows:
   facts: |
     [{
       "name": "Sync Status",

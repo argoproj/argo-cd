@@ -1,8 +1,9 @@
+import {useQuery} from '@tanstack/react-query';
 import {Tooltip} from 'argo-ui';
 import {Boundary, Placement} from 'popper.js';
-import {useData} from 'argo-ui/v2';
 import * as React from 'react';
 import {Context} from '../shared/context';
+import {versionQueries} from '../shared/queries';
 import {services, ViewPreferences} from '../shared/services';
 
 require('./sidebar.scss');
@@ -19,10 +20,11 @@ export const useSidebarTarget = () => {
     const sidebarTarget = React.useRef(document.createElement('div'));
 
     React.useEffect(() => {
+        const target = sidebarTarget.current;
         const sidebar = document.getElementById(SIDEBAR_TOOLS_ID);
-        sidebar.appendChild(sidebarTarget?.current);
+        sidebar?.appendChild(target);
         return () => {
-            sidebarTarget.current?.remove();
+            target?.remove();
         };
     }, []);
 
@@ -31,7 +33,7 @@ export const useSidebarTarget = () => {
 
 export const Sidebar = (props: SidebarProps) => {
     const context = React.useContext(Context);
-    const [version, loading, error] = useData(() => services.version.version());
+    const {data: version, isPending, isFetching} = useQuery(versionQueries.get());
     const locationPath = context.history.location.pathname;
 
     const tooltipProps = {
@@ -62,38 +64,62 @@ export const Sidebar = (props: SidebarProps) => {
                                 className='sidebar__logo__text-logo'
                             />
                             <div className='sidebar__version' onClick={props.onVersionClick}>
-                                {loading ? 'Loading...' : error?.state ? 'Unknown' : version?.Version || 'Unknown'}
+                                {version ? version.Version || 'Unknown' : isPending || isFetching ? 'Loading...' : 'Unknown'}
                             </div>
                         </div>
                     )}
                     <img onClick={() => context.history.push('/')} title={'Go to start page'} src='assets/images/logo.png' alt='Argo' className='sidebar__logo__character' />{' '}
                 </div>
 
-                {(props.navItems || []).map(item => (
-                    <Tooltip key={item.path} content={<div className='sidebar__tooltip'>{item?.tooltip || item.title}</div>} {...tooltipProps}>
-                        <div
-                            key={item.title}
-                            className={`sidebar__nav-item ${locationPath === item.path || locationPath.startsWith(`${item.path}/`) ? 'sidebar__nav-item--active' : ''}`}
-                            onClick={() => context.history.push(item.path)}>
-                            <div>
-                                <i className={item?.iconClassName || ''} />
-                                {!props.pref.hideSidebar && item.title}
-                            </div>
-                        </div>
-                    </Tooltip>
-                ))}
+                <nav aria-label='Main'>
+                    <ul className='sidebar__nav'>
+                        {(props.navItems || []).map(item => {
+                            // Full base-href-prefixed href so native middle-click / right-click / status-bar URL preview
+                            // work; navItem paths are absolute (e.g. /applications) while baseHref carries a trailing slash.
+                            const href = `${context.baseHref}${item.path.replace(/^\//, '')}`;
+                            const active = locationPath === item.path || locationPath.startsWith(`${item.path}/`);
+                            return (
+                                <li key={item.path} className='sidebar__nav-li'>
+                                    <Tooltip content={<div className='sidebar__tooltip'>{item?.tooltip || item.title}</div>} {...tooltipProps}>
+                                        <a
+                                            href={href}
+                                            // The title text is hidden when collapsed, so name the link explicitly for screen readers.
+                                            aria-label={item.title}
+                                            aria-current={active ? 'page' : undefined}
+                                            className={`sidebar__nav-item ${active ? 'sidebar__nav-item--active' : ''}`}
+                                            onClick={e => {
+                                                // Let modifier- and non-left-clicks fall through to the browser (open in new tab/window).
+                                                if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey || e.button !== 0) {
+                                                    return;
+                                                }
+                                                e.preventDefault();
+                                                context.history.push(item.path);
+                                            }}>
+                                            <i className={item?.iconClassName || ''} />
+                                            {!props.pref.hideSidebar && item.title}
+                                        </a>
+                                    </Tooltip>
+                                </li>
+                            );
+                        })}
 
-                {props.pref.hideSidebar && (
-                    <Tooltip content='Show Filters' {...tooltipProps}>
-                        <div
-                            onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})}
-                            className='sidebar__nav-item sidebar__filter-button'>
-                            <div>
-                                <i className={`fas fa-filter`} />
-                            </div>
-                        </div>
-                    </Tooltip>
-                )}
+                        {props.pref.hideSidebar && (
+                            <li className='sidebar__nav-li'>
+                                <Tooltip content='Show Filters' {...tooltipProps}>
+                                    <button
+                                        type='button'
+                                        aria-label='Show Filters'
+                                        onClick={() => services.viewPreferences.updatePreferences({...props.pref, hideSidebar: !props.pref.hideSidebar})}
+                                        className='sidebar__nav-item sidebar__filter-button'>
+                                        <div>
+                                            <i className={`fas fa-filter`} />
+                                        </div>
+                                    </button>
+                                </Tooltip>
+                            </li>
+                        )}
+                    </ul>
+                </nav>
             </div>
             <div id={SIDEBAR_TOOLS_ID} />
         </div>

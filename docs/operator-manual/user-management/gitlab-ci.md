@@ -68,7 +68,7 @@ deploy:
 
 ## Configuring RBAC
 
-When using ArgoCD global RBAC comfig map, you can define your `policy.csv` like so:
+When using ArgoCD global RBAC config map, you can define your `policy.csv` like so:
 
 ```yaml
 configs:

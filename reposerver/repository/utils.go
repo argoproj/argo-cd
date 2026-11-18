@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"fmt"
+	"io/fs"
 	"path/filepath"
 	"strings"
 
@@ -36,7 +38,7 @@ func getApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 		}(len(commonParts), len(parts))
 
 		// check if diverge /disjoint in some point
-		for i := 0; i < minLen; i++ {
+		for i := range minLen {
 			if commonParts[i] != parts[i] {
 				commonParts = commonParts[:i]
 				disjoint = true
@@ -55,7 +57,7 @@ func getApplicationRootPath(q *apiclient.ManifestRequest, appPath, repoPath stri
 // getPaths retrieves all absolute paths associated with the generation of application manifests.
 func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 	var paths []string
-	for _, annotationPath := range strings.Split(q.AnnotationManifestGeneratePaths, ";") {
+	for annotationPath := range strings.SplitSeq(q.AnnotationManifestGeneratePaths, ";") {
 		if annotationPath == "" {
 			continue
 		}
@@ -82,4 +84,38 @@ func getPaths(q *apiclient.ManifestRequest, appPath, repoPath string) []string {
 		paths = append(paths, path)
 	}
 	return paths
+}
+
+// walkDirectoryTree walks a directory tree and returns relative paths to all subdirectories.
+func walkDirectoryTree(rootPath string, includeHidden bool) ([]string, error) {
+	var paths []string
+	if err := filepath.WalkDir(rootPath, func(path string, entry fs.DirEntry, fnErr error) error {
+		if fnErr != nil {
+			return fmt.Errorf("error walking the file tree: %w", fnErr)
+		}
+		if !entry.IsDir() { // Skip files: directories only
+			return nil
+		}
+
+		if !includeHidden && strings.HasPrefix(entry.Name(), ".") {
+			return filepath.SkipDir // Skip hidden directory
+		}
+
+		relativePath, err := filepath.Rel(rootPath, path)
+		if err != nil {
+			return fmt.Errorf("error constructing relative repo path: %w", err)
+		}
+
+		if relativePath == "." { // Exclude '.' from results
+			return nil
+		}
+
+		paths = append(paths, relativePath)
+
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	return paths, nil
 }

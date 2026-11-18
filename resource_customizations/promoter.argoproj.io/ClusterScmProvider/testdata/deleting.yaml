@@ -1,0 +1,12 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ClusterScmProvider
+metadata:
+  name: github-enterprise
+  deletionTimestamp: "2025-07-04T12:00:00Z"
+  finalizers:
+    - clusterscmprovider.promoter.argoproj.io/finalizer
+spec:
+  secretRef:
+    name: github-app-secret
+  github:
+    appID: 1

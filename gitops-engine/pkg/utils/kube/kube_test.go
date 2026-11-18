@@ -10,6 +10,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	fakedisco "k8s.io/client-go/discovery/fake"
 	"k8s.io/client-go/rest"
@@ -41,6 +42,7 @@ spec:
 var standardVerbs = metav1.Verbs{"create", "delete", "deletecollection", "get", "list", "patch", "update", "watch"}
 
 func TestUnsetLabels(t *testing.T) {
+	t.Parallel()
 	for _, yamlStr := range [][]byte{[]byte(depWithLabel)} {
 		var obj unstructured.Unstructured
 		err := yaml.Unmarshal(yamlStr, &obj)
@@ -59,6 +61,7 @@ func TestUnsetLabels(t *testing.T) {
 }
 
 func TestCleanKubectlOutput(t *testing.T) {
+	t.Parallel()
 	{
 		s := `error: error validating "STDIN": error validating data: ValidationError(Deployment.spec): missing required field "selector" in io.k8s.api.apps.v1beta2.DeploymentSpec; if you choose to ignore these errors, turn validation off with --validate=false`
 		assert.Equal(t, `error validating data: ValidationError(Deployment.spec): missing required field "selector" in io.k8s.api.apps.v1beta2.DeploymentSpec`, cleanKubectlOutput(s))
@@ -88,6 +91,7 @@ for: "/var/folders/_m/991sn1ds7g39lnbhp6wvqp9d_j5476/T/224503547": Service "my-s
 }
 
 func TestInClusterKubeConfig(t *testing.T) {
+	t.Parallel()
 	restConfig := &rest.Config{}
 	kubeConfig := NewKubeConfig(restConfig, "")
 	assert.NotEmpty(t, kubeConfig.AuthInfos[kubeConfig.CurrentContext].TokenFile)
@@ -109,6 +113,7 @@ func TestInClusterKubeConfig(t *testing.T) {
 }
 
 func TestNewKubeConfig_TLSServerName(t *testing.T) {
+	t.Parallel()
 	const (
 		host          = "something.test"
 		tlsServerName = "something.else.test"
@@ -130,7 +135,43 @@ func TestNewKubeConfig_TLSServerName(t *testing.T) {
 	assert.Equal(t, tlsServerName, kubeConfig.Clusters[host].TLSServerName)
 }
 
+func TestNewKubeConfig_ExecProviderConfig(t *testing.T) {
+	t.Parallel()
+	const host = "https://cluster1.example.com:6443"
+
+	restConfig := &rest.Config{
+		Host: host,
+		ExecProvider: &clientcmdapi.ExecConfig{
+			APIVersion: "client.authentication.k8s.io/v1",
+			Command:    "aws",
+		},
+	}
+	kubeConfig := NewKubeConfig(restConfig, "")
+	assert.Nil(t, kubeConfig.Clusters[host].Extensions)
+
+	configBytes, err := json.Marshal(map[string]string{"clusterName": "cluster1"})
+	require.NoError(t, err)
+	restConfig = &rest.Config{
+		Host: host,
+		ExecProvider: &clientcmdapi.ExecConfig{
+			APIVersion:         "client.authentication.k8s.io/v1",
+			Command:            "cp-creds",
+			ProvideClusterInfo: true,
+			Config: &runtime.Unknown{
+				Raw:         configBytes,
+				ContentType: runtime.ContentTypeJSON,
+			},
+		},
+	}
+	kubeConfig = NewKubeConfig(restConfig, "")
+	assert.NotNil(t, kubeConfig.Clusters[host].Extensions)
+	assert.NotNil(t, kubeConfig.Clusters[host].Extensions[clusterExecExtensionKey])
+	unknown := kubeConfig.Clusters[host].Extensions[clusterExecExtensionKey].(*runtime.Unknown)
+	assert.JSONEq(t, `{"clusterName":"cluster1"}`, string(unknown.Raw))
+}
+
 func TestGetDeploymentReplicas(t *testing.T) {
+	t.Parallel()
 	manifest := []byte(`
 apiVersion: apps/v1
 kind: Deployment
@@ -159,6 +200,7 @@ spec:
 }
 
 func TestGetNilDeploymentReplicas(t *testing.T) {
+	t.Parallel()
 	manifest := []byte(`
 apiVersion: v1
 kind: Pod
@@ -179,6 +221,7 @@ spec:
 }
 
 func TestGetResourceImages(t *testing.T) {
+	t.Parallel()
 	testCases := []struct {
 		manifest    []byte
 		expected    []string
@@ -332,6 +375,7 @@ spec:
 
 	for _, tc := range testCases {
 		t.Run(tc.description, func(t *testing.T) {
+			t.Parallel()
 			resource := unstructured.Unstructured{}
 			err := yaml.Unmarshal(tc.manifest, &resource)
 			require.NoError(t, err)
@@ -342,24 +386,28 @@ spec:
 }
 
 func TestSplitYAML_SingleObject(t *testing.T) {
+	t.Parallel()
 	objs, err := SplitYAML([]byte(depWithLabel))
 	require.NoError(t, err)
 	assert.Len(t, objs, 1)
 }
 
 func TestSplitYAML_MultipleObjects(t *testing.T) {
+	t.Parallel()
 	objs, err := SplitYAML([]byte(depWithLabel + "\n---\n" + depWithLabel))
 	require.NoError(t, err)
 	assert.Len(t, objs, 2)
 }
 
 func TestSplitYAML_TrailingNewLines(t *testing.T) {
+	t.Parallel()
 	objs, err := SplitYAML([]byte("\n\n\n---" + depWithLabel))
 	require.NoError(t, err)
 	assert.Len(t, objs, 1)
 }
 
 func TestServerResourceGroupForGroupVersionKind(t *testing.T) {
+	t.Parallel()
 	fakeDisco := &fakedisco.FakeDiscovery{Fake: &testcore.Fake{}}
 	fakeDisco.Resources = append(make([]*metav1.APIResourceList, 0),
 		&metav1.APIResourceList{
@@ -371,27 +419,72 @@ func TestServerResourceGroupForGroupVersionKind(t *testing.T) {
 		})
 
 	t.Run("Successfully resolve for all verbs", func(t *testing.T) {
+		t.Parallel()
 		for _, v := range standardVerbs {
 			_, err := ServerResourceForGroupVersionKind(fakeDisco, schema.FromAPIVersionAndKind("test.argoproj.io/v1alpha1", "TestAllVerbs"), v)
 			assert.NoError(t, err, "Could not resolve verb %s", v)
 		}
 	})
 	t.Run("Successfully resolve for some verbs", func(t *testing.T) {
+		t.Parallel()
 		for _, v := range []string{"get", "list"} {
 			_, err := ServerResourceForGroupVersionKind(fakeDisco, schema.FromAPIVersionAndKind("test.argoproj.io/v1alpha1", "TestSomeVerbs"), v)
 			assert.NoError(t, err, "Could not resolve verb %s", v)
 		}
 	})
 	t.Run("Verb not supported", func(t *testing.T) {
+		t.Parallel()
 		for _, v := range []string{"patch"} {
 			_, err := ServerResourceForGroupVersionKind(fakeDisco, schema.FromAPIVersionAndKind("test.argoproj.io/v1alpha1", "TestSomeVerbs"), v)
 			assert.Equal(t, err, apierrors.NewMethodNotSupported(schema.GroupResource{Group: "test.argoproj.io", Resource: "TestSomeVerbs"}, v))
 		}
 	})
 	t.Run("Resource not found", func(t *testing.T) {
+		t.Parallel()
 		for _, v := range standardVerbs {
 			_, err := ServerResourceForGroupVersionKind(fakeDisco, schema.FromAPIVersionAndKind("test.argoproj.io/v1alpha1", "TestNonExisting"), v)
 			assert.Equal(t, err, apierrors.NewNotFound(schema.GroupResource{Group: "test.argoproj.io", Resource: "TestNonExisting"}, ""))
 		}
 	})
+}
+
+func TestIsAPIService(t *testing.T) {
+	t.Parallel()
+	testCases := []struct {
+		name     string
+		obj      *unstructured.Unstructured
+		expected bool
+	}{
+		{
+			name: "is an APIService",
+			obj: &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "apiregistration.k8s.io/v1",
+				"kind":       "APIService",
+			}},
+			expected: true,
+		},
+		{
+			name: "wrong group",
+			obj: &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "example.com/v1",
+				"kind":       "APIService",
+			}},
+			expected: false,
+		},
+		{
+			name: "wrong kind",
+			obj: &unstructured.Unstructured{Object: map[string]any{
+				"apiVersion": "apiregistration.k8s.io/v1",
+				"kind":       "Service",
+			}},
+			expected: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			assert.Equal(t, tc.expected, IsAPIService(tc.obj))
+		})
+	}
 }

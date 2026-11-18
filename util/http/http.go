@@ -12,6 +12,7 @@ import (
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	utilnet "k8s.io/apimachinery/pkg/util/net"
 	"k8s.io/client-go/transport"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -58,10 +59,7 @@ func splitCookie(key, value, attributes string) []string {
 
 	var end int
 	for i, j := 0, 0; i < valueLength; i, j = i+maxValueLength, j+1 {
-		end = i + maxValueLength
-		if end > valueLength {
-			end = valueLength
-		}
+		end = min(i+maxValueLength, valueLength)
 
 		var cookie string
 		switch {
@@ -182,6 +180,46 @@ func WithRetry(maxRetries int64, baseRetryBackoff time.Duration) transport.Wrapp
 			backoff:    baseRetryBackoff,
 		}
 	}
+}
+
+// WithServerSideTimeout adds the timeout query parameter understood by the
+// Kubernetes API server without imposing a client-side deadline.
+func WithServerSideTimeout(timeout time.Duration) transport.WrapperFunc {
+	return func(rt http.RoundTripper) http.RoundTripper {
+		if timeout <= 0 {
+			return rt
+		}
+		if rt == nil {
+			rt = http.DefaultTransport
+		}
+		return &serverSideTimeoutTransport{
+			inner:   rt,
+			timeout: timeout,
+		}
+	}
+}
+
+type serverSideTimeoutTransport struct {
+	inner   http.RoundTripper
+	timeout time.Duration
+}
+
+var _ utilnet.RoundTripperWrapper = (*serverSideTimeoutTransport)(nil)
+
+func (t *serverSideTimeoutTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	query := req.URL.Query()
+	if query.Get("timeout") != "" {
+		return t.inner.RoundTrip(req)
+	}
+
+	clonedReq := req.Clone(req.Context())
+	query.Set("timeout", t.timeout.String())
+	clonedReq.URL.RawQuery = query.Encode()
+	return t.inner.RoundTrip(clonedReq)
+}
+
+func (t *serverSideTimeoutTransport) WrappedRoundTripper() http.RoundTripper {
+	return t.inner
 }
 
 type retryTransport struct {

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/argoproj/gitops-engine/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 
@@ -146,16 +146,14 @@ func RemoveLabel(un *unstructured.Unstructured, key string) error {
 		return nil
 	}
 
-	for k := range labels {
-		if k == key {
-			delete(labels, k)
-			if len(labels) == 0 {
-				un.SetLabels(nil)
-			} else {
-				un.SetLabels(labels)
-			}
-			break
-		}
+	if _, ok := labels[key]; !ok {
+		return nil
+	}
+	delete(labels, key)
+	if len(labels) == 0 {
+		un.SetLabels(nil)
+	} else {
+		un.SetLabels(labels)
 	}
 	return nil
 }
@@ -170,16 +168,14 @@ func RemoveAnnotation(un *unstructured.Unstructured, key string) error {
 		return nil
 	}
 
-	for k := range annotations {
-		if k == key {
-			delete(annotations, k)
-			if len(annotations) == 0 {
-				un.SetAnnotations(nil)
-			} else {
-				un.SetAnnotations(annotations)
-			}
-			break
-		}
+	if _, ok := annotations[key]; !ok {
+		return nil
+	}
+	delete(annotations, key)
+	if len(annotations) == 0 {
+		un.SetAnnotations(nil)
+	} else {
+		un.SetAnnotations(annotations)
 	}
 	return nil
 }

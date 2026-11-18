@@ -3,7 +3,7 @@ package e2e
 import (
 	"testing"
 
-	. "github.com/argoproj/gitops-engine/pkg/sync/common"
+	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -76,7 +76,7 @@ func TestDeletingAppByLabelWait(t *testing.T) {
 		CreateApp("--label=foo=bar").
 		Sync().
 		Then().
-		Expect(SyncStatusIs(SyncStatusCode(SyncStatusCodeSynced))).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
 		When().
 		DeleteBySelectorWithWait("foo=bar").
 		Then().

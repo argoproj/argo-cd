@@ -25,13 +25,9 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/tls"
 )
 
-const (
-	cliName = "argocd-dex"
-)
-
 func NewCommand() *cobra.Command {
 	command := &cobra.Command{
-		Use:               cliName,
+		Use:               common.CommandDex,
 		Short:             "argocd-dex tools used by Argo CD",
 		Long:              "argocd-dex has internal utility tools used by Argo CD",
 		DisableAutoGenTag: true,
@@ -84,7 +80,7 @@ func NewRunDexCommand() *cobra.Command {
 			kubeClientset := kubernetes.NewForConfigOrDie(config)
 
 			if !disableTLS {
-				config, err := tls.CreateServerTLSConfig("/tls/tls.crt", "/tls/tls.key", []string{"localhost", "dexserver"})
+				config, err := tls.CreateServerTLSConfig("/tls/tls.crt", "/tls/tls.key", []string{"localhost", "dexserver"}, "")
 				if err != nil {
 					log.Fatalf("could not create TLS config: %v", err)
 				}
@@ -189,10 +185,8 @@ func NewGenDexConfigCommand() *cobra.Command {
 						for i := range staticClients {
 							staticClient := staticClients[i]
 							if mappings, ok := staticClient.(map[string]any); ok {
-								for key := range mappings {
-									if key == "secret" {
-										mappings[key] = "******"
-									}
+								if _, ok := mappings["secret"]; ok {
+									mappings["secret"] = "******"
 								}
 								staticClients[i] = mappings
 							}

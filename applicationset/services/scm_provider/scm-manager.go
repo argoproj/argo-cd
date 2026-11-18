@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/argoproj/argo-cd/v2/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 
 	scmm "github.com/scm-manager/goscm"
 )

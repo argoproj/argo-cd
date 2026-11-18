@@ -1,12 +1,13 @@
 package generators
 
 import (
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/services/github_app_auth"
 	"github.com/argoproj/argo-cd/v3/applicationset/services/scm_provider"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
@@ -160,11 +161,9 @@ func TestSCMProviderGenerateParams(t *testing.T) {
 			mockProvider := &scm_provider.MockProvider{
 				Repos: testCaseCopy.repos,
 			}
-			scmGenerator := &SCMProviderGenerator{overrideProvider: mockProvider, SCMConfig: SCMConfig{enableSCMProviders: true}}
+			scmGenerator := &SCMProviderGenerator{overrideProvider: mockProvider, enableSCMProviders: true}
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 						SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
@@ -242,22 +241,18 @@ func TestAllowedSCMProvider(t *testing.T) {
 			t.Parallel()
 
 			scmGenerator := &SCMProviderGenerator{
-				SCMConfig: SCMConfig{
-					allowedSCMProviders: []string{
-						"github.myorg.com",
-						"gitlab.myorg.com",
-						"gitea.myorg.com",
-						"bitbucket.myorg.com",
-						"azuredevops.myorg.com",
-					},
-					enableSCMProviders: true,
+				allowedSCMProviders: []string{
+					"github.myorg.com",
+					"gitlab.myorg.com",
+					"gitea.myorg.com",
+					"bitbucket.myorg.com",
+					"azuredevops.myorg.com",
 				},
+				enableSCMProviders: true,
 			}
 
 			applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: argoprojiov1alpha1.ApplicationSetSpec{
 					Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 						SCMProvider: testCaseCopy.providerConfig,
@@ -275,12 +270,10 @@ func TestAllowedSCMProvider(t *testing.T) {
 }
 
 func TestSCMProviderDisabled_SCMGenerator(t *testing.T) {
-	generator := &SCMProviderGenerator{SCMConfig: SCMConfig{enableSCMProviders: false}}
+	generator := &SCMProviderGenerator{enableSCMProviders: false}
 
 	applicationSetInfo := argoprojiov1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "set",
-		},
+		Name: "set",
 		Spec: argoprojiov1alpha1.ApplicationSetSpec{
 			Generators: []argoprojiov1alpha1.ApplicationSetGenerator{{
 				SCMProvider: &argoprojiov1alpha1.SCMProviderGenerator{
@@ -294,4 +287,106 @@ func TestSCMProviderDisabled_SCMGenerator(t *testing.T) {
 
 	_, err := generator.GenerateParams(&applicationSetInfo.Spec.Generators[0], &applicationSetInfo, nil)
 	assert.ErrorIs(t, err, ErrSCMProvidersDisabled)
+}
+
+func TestNewSCMHTTPClient(t *testing.T) {
+	t.Run("no proxy", func(t *testing.T) {
+		g := &SCMProviderGenerator{
+			scmProxyURL: "",
+		}
+		client := g.newSCMHTTPClient()
+		assert.NotNil(t, client)
+		assert.Nil(t, client.Transport)
+	})
+
+	t.Run("with proxy", func(t *testing.T) {
+		proxyURL := "http://proxy.example.com:8080"
+		g := &SCMProviderGenerator{
+			scmProxyURL: proxyURL,
+			scmNoProxy:  "example.com",
+		}
+		client := g.newSCMHTTPClient()
+		assert.NotNil(t, client)
+		require.NotNil(t, client.Transport)
+		tr, ok := client.Transport.(*http.Transport)
+		assert.True(t, ok)
+		assert.NotNil(t, tr.Proxy)
+
+		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://github.com", http.NoBody)
+		u, err := tr.Proxy(req)
+		require.NoError(t, err)
+		assert.NotNil(t, u)
+		assert.Equal(t, "proxy.example.com:8080", u.Host)
+
+		reqNoProxy, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://example.com", http.NoBody)
+		u, err = tr.Proxy(reqNoProxy)
+		require.NoError(t, err)
+		assert.Nil(t, u)
+	})
+}
+
+func TestNewSCMConfig(t *testing.T) {
+	scmRootCAPath := "/path/to/ca"
+	allowedSCMProviders := []string{"github.com", "gitlab.com"}
+	enableSCMProviders := true
+	enableGitHubAPIMetrics := true
+	gitHubApps := github_app_auth.Credentials(nil)
+	tokenRefStrictMode := true
+
+	t.Run("default config", func(t *testing.T) {
+		config := NewSCMConfig(scmRootCAPath, allowedSCMProviders, enableSCMProviders, enableGitHubAPIMetrics, gitHubApps, tokenRefStrictMode)
+		assert.Equal(t, scmRootCAPath, config.scmRootCAPath)
+		assert.Equal(t, allowedSCMProviders, config.allowedSCMProviders)
+		assert.Equal(t, enableSCMProviders, config.enableSCMProviders)
+		assert.Equal(t, enableGitHubAPIMetrics, config.enableGitHubAPIMetrics)
+		assert.Equal(t, gitHubApps, config.GitHubApps)
+		assert.Equal(t, tokenRefStrictMode, config.tokenRefStrictMode)
+		assert.Empty(t, config.scmProxyURL)
+		assert.Empty(t, config.scmNoProxy)
+	})
+
+	t.Run("config with options", func(t *testing.T) {
+		proxyURL := "http://proxy.example.com"
+		noProxy := "localhost,127.0.0.1"
+		config := NewSCMConfig(scmRootCAPath, allowedSCMProviders, enableSCMProviders, enableGitHubAPIMetrics, gitHubApps, tokenRefStrictMode,
+			WithProxyURL(proxyURL),
+			WithNoProxyList(noProxy),
+		)
+		assert.Equal(t, proxyURL, config.scmProxyURL)
+		assert.Equal(t, noProxy, config.scmNoProxy)
+	})
+}
+
+func TestGithubProvider_ProxyWithoutMetrics(t *testing.T) {
+	proxyURL := "http://proxy.example.com:8080"
+
+	t.Run("token-based auth passes httpClient when metrics disabled", func(t *testing.T) {
+		g := &SCMProviderGenerator{
+			enableGitHubAPIMetrics: false,
+			scmProxyURL:            proxyURL,
+		}
+		httpClient := g.newSCMHTTPClient()
+
+		// Verify the client has a proxy-configured transport
+		require.NotNil(t, httpClient.Transport)
+		tr, ok := httpClient.Transport.(*http.Transport)
+		require.True(t, ok)
+		require.NotNil(t, tr.Proxy)
+
+		req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://github.com", http.NoBody)
+		u, err := tr.Proxy(req)
+		require.NoError(t, err)
+		assert.Equal(t, "proxy.example.com:8080", u.Host)
+	})
+
+	t.Run("no proxy configured returns bare client when metrics disabled", func(t *testing.T) {
+		g := &SCMProviderGenerator{
+			enableGitHubAPIMetrics: false,
+			scmProxyURL:            "",
+		}
+		httpClient := g.newSCMHTTPClient()
+
+		assert.NotNil(t, httpClient)
+		assert.Nil(t, httpClient.Transport) // bare &http.Client{} — uses DefaultTransport
+	})
 }

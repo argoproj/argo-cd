@@ -14,8 +14,16 @@ if obj.status ~= nil then
             total = tonumber(total)
 
             if ready == 0 then
-                hs.status = "Degraded"
-                hs.message = "No replicas are ready"
+                -- DaemonSet desiredNumberScheduled is based on eligible nodes.
+                -- 0/0 is valid when no nodes match; treat as Healthy.
+                -- https://kubernetes.io/docs/concepts/workloads/controllers/daemonset/#how-daemon-pods-are-scheduled
+                if obj.spec ~= nil and obj.spec.mode == "daemonset" and total == 0 then
+                    hs.status = "Healthy"
+                    hs.message = "DaemonSet has no eligible nodes (0/0)"
+                else
+                    hs.status = "Degraded"
+                    hs.message = "No replicas are ready"
+                end
             elseif ready == total then
                 hs.status = "Healthy"
                 hs.message = "All replicas are ready"

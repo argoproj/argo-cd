@@ -55,7 +55,7 @@ func TestGetCallBack(t *testing.T) {
 	t.Run("custom proxy absent", func(t *testing.T) {
 		proxyEnv := "http://proxy:8888"
 		t.Setenv("http_proxy", "http://proxy:8888")
-		url, err := GetCallback("", "")(httptest.NewRequest(http.MethodGet, proxyEnv, http.NoBody))
+		url, err := GetCallback("", "")(httptest.NewRequestWithContext(t.Context(), http.MethodGet, proxyEnv, http.NoBody))
 		require.NoError(t, err)
 		assert.Equal(t, proxyEnv, url.String())
 	})

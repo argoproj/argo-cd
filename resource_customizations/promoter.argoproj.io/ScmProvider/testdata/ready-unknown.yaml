@@ -1,0 +1,18 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ScmProvider
+metadata:
+  name: github-provider
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  secretRef:
+    name: github-app-secret
+  github:
+    appID: 1
+status:
+  conditions:
+    - type: Ready
+      status: Unknown
+      reason: ValidationPending
+      message: Checking GitHub API connectivity
+      observedGeneration: 1

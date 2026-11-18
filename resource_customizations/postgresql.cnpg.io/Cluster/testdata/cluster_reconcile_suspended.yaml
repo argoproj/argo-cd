@@ -2,7 +2,7 @@ apiVersion: postgresql.cnpg.io/v1
 kind: Cluster
 metadata:
   annotations:
-    cnpg.io/reconciliation: "disabled"
+    cnpg.io/reconciliationLoop: "disabled"
     kubectl.kubernetes.io/last-applied-configuration: |
       {"apiVersion":"postgresql.cnpg.io/v1","kind":"Cluster","metadata":{"annotations":{},"name":"cluster-example","namespace":"default"},"spec":{"imageName":"ghcr.io/cloudnative-pg/postgresql:13","instances":3,"storage":{"size":"1Gi"}}}
   creationTimestamp: "2025-04-25T20:44:24Z"

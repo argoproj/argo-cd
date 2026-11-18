@@ -12,7 +12,7 @@ After you have tested locally, you can move to the second phase of building a do
 
 For both cases, you will need a working K8s cluster, where Argo CD will store all of its resources and configuration.
 
-In order to have all the required resources in your cluster, you will deploy Argo CD from your development branch and then scale down all it's instances.
+In order to have all the required resources in your cluster, you will deploy Argo CD from your development branch and then scale down all its instances.
 This will ensure you have all the relevant configuration (such as Argo CD Config Maps and CRDs) in the cluster while the instances themselves are stopped.
 
 ### Deploy Argo CD resources to your cluster
@@ -70,7 +70,7 @@ This will start all Argo CD services and the UI in a Docker container and expose
 * The Argo CD UI server on port 4000
 * The Helm registry server on port 5000
 
-You can now use either the web UI by pointing your browser to `http://localhost:4000` or use the CLI against the API at `http://localhost:8080`. Be sure to use the `--insecure` and `--plaintext` options to the CLI. Webpack will take a while to bundle resources initially, so the first page load can take several seconds or minutes.
+You can now use the web UI by pointing your browser to `http://localhost:4000` or use the CLI against the API at `http://localhost:8080`. Be sure to use the `--insecure` and `--plaintext` options to the CLI. Webpack will take a while to bundle resources initially, so the first page load can take several seconds or minutes.
 
 As an alternative to using the above command line parameters each time you call `argocd` CLI, you can set the following environment variables:
 
@@ -130,10 +130,11 @@ export ARGOCD_OPTS="--plaintext --insecure"
 
 #### Docs Changes
 
-Modifying the docs auto-reloads the changes on the [documentation website](https://argo-cd.readthedocs.io/) that can be locally built using `make serve-docs-local` command. 
+The doc-site can be run in a container with `make serve-docs` or locally using `make serve-docs-local`. 
+When the doc-site process is run locally, modifying the docs will auto-reload changes in a preview of the [documentation website](https://argo-cd.readthedocs.io/). 
 Once running, you can view your locally built documentation on port 8000.
 
-Read more about this [here](https://argo-cd.readthedocs.io/en/latest/developer-guide/docs-site/).
+The developer guide has detailed information about the [doc-site process](https://argo-cd.readthedocs.io/en/latest/developer-guide/docs-site/).
 
 #### UI Changes
 
@@ -211,7 +212,7 @@ export IMAGE_TAG=1.5.0-myrc
 
 > [!NOTE]
 > The image will be built for `linux/amd64` platform by default. If you are running on Mac with Apple chip (ARM),
-> you need to specify the correct buld platform by running:
+> you need to specify the correct build platform by running:
 > ```bash
 > export TARGET_ARCH=linux/arm64 
 > ```
@@ -230,7 +231,7 @@ DEV_IMAGE=true DOCKER_PUSH=true make image
 ```
 
 > [!NOTE]
-> The first run of this build task may take a long time because it needs first to build the base image first; however,
+> The first run of this build task may take a long time because it needs to build the base image first; however,
 > once it's done, the build process should be much faster than a regular full image build in Docker.
 
 

@@ -2,6 +2,7 @@ package generators
 
 import (
 	"fmt"
+	"maps"
 )
 
 func appendTemplatedValues(values map[string]string, params map[string]any, useGoTemplate bool, goTemplateOptions []string) error {
@@ -26,9 +27,7 @@ func appendTemplatedValues(values map[string]string, params map[string]any, useG
 		}
 	}
 
-	for key, value := range tmp {
-		params[key] = value
-	}
+	maps.Copy(params, tmp)
 
 	return nil
 }

@@ -6,15 +6,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestGetSecretRef(t *testing.T) {
+	t.Parallel()
 	secret := &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-secret", Namespace: "test"},
+		Name: "test-secret", Namespace: "test",
 		Data: map[string][]byte{
 			"my-token": []byte("secret"),
 		},
@@ -66,6 +66,7 @@ func TestGetSecretRef(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			token, err := GetSecretRef(ctx, client, c.ref, c.namespace, false)
 			if c.hasError {
 				require.Error(t, err)
@@ -78,8 +79,9 @@ func TestGetSecretRef(t *testing.T) {
 }
 
 func TestGetConfigMapData(t *testing.T) {
+	t.Parallel()
 	configMap := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{Name: "test-configmap", Namespace: "test"},
+		Name: "test-configmap", Namespace: "test",
 		Data: map[string]string{
 			"my-data": "configmap-data",
 		},
@@ -131,6 +133,7 @@ func TestGetConfigMapData(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
 			data, err := GetConfigMapData(ctx, client, c.ref, c.namespace)
 			if c.hasError {
 				require.Error(t, err)

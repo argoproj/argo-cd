@@ -40,8 +40,11 @@ This proposal is opinionated. It is based on the belief that, in order to reap t
 This requirement is incompatible with tooling which injects nondeterministic configuration into the desired state before it is deployed by the GitOps controller. Examples of nondeterministic external configuration are:
 
 1) Helm chart dependencies on unpinned chart versions
+
 2) Kustomize remote bases to unpinned git revisions
+
 3) Config tool parameter overrides in the Argo CD Application `spec.source` fields
+
 4) Multiple sources referenced in the same application (knowledge of combination of source versions is held externally to git)
 
 Injecting nondeterministic configuration makes it impossible to know the complete history of an application by looking at a git branch history. Even if the nondeterministic output is databased (for example, in a hydrated source branch in git), it is impossible for developers to confidently make changes to desired state, because they cannot know ahead of time what other configuration will be injected at deploy time.
@@ -49,6 +52,7 @@ Injecting nondeterministic configuration makes it impossible to know the complet
 We believe that the problems of injecting external configuration are best solved by asking these two questions:
 
 1) Does the configuration belong in the developer's interface (i.e. the dry manifests)?
+
 2) Does the configuration need to be mutable at runtime, or only at deploy time?
 
 If the configuration belongs in the developer's interface, write a tool to push the information to git. Image tags are a good example of such configuration, and the Argo CD Image Updater is a good example of such tooling.
@@ -72,9 +76,13 @@ Many organizations have implemented their own manifest hydration system. By impl
 ### Goals
 
 1) Make manifest hydration easy and intuitive for Argo CD users
+
 2) Make it possible to implement a promotion system which relies on the manifest hydration's push-to-stage mode
+
 3) Emphasize maintaining as much of the system's state as possible in git rather than in the Application CR (e.g. source hydrator config values, such as Helm values)
+
 4) Every deployed change must have a corresponding dry commit - i.e. git is always the source of any changes
+
 5) Developers should be able to easily reproduce the manifest hydration process locally, i.e. by running some commands
 
 #### Hydration Reproducibility
@@ -88,7 +96,9 @@ The hydration system should enable developers to easily reproduce the hydration 
 To provide this experience, the hydrator needs to provide the developer with a few pieces of information:
 
 1) The input repo URL, path, and commit SHA
+
 2) The hydration tool CLI version(s) (for example, the version of the Helm CLI used for hydration)
+
 3) A series of commands and arguments which the developer can run locally
 
 Equipped with this information, the developer can perform the exact same steps as Argo CD and be confident that their dry manifest changes will produce the desired output.
@@ -368,7 +378,9 @@ So environments-as-directories has emerged as the standard for good GitOps pract
 This proposal recommends using different branches for the _hydrated_ representation of environments only. Using different branches has some benefits:
 
 1) Intuitive grouping of "changes to ship at once" - for example, if you have app-1-east and app-1-west, it makes sense to merge a single hydrated PR to deploy to both of those apps at once
+
 2) Easy-to-read history of a single environment via the commits history
+
 3) Easy comparison between environments using the SCMs' "compare" interfaces
 
 In other words, branches make a very nice _read_ interface for _hydrated_ manifests while preserving the best-practice of using _directories_ for the _write_ interface.

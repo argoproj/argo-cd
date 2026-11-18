@@ -12,6 +12,7 @@ import (
 )
 
 func TestPlugin(t *testing.T) {
+	t.Parallel()
 	expectedJSON := `{"parameters": [{"number":123,"digest":"sha256:942ae2dfd73088b54d7151a3c3fd5af038a51c50029bfcfd21f1e650d9579967"},{"number":456,"digest":"sha256:224e68cc69566e5cbbb76034b3c42cd2ed57c1a66720396e1c257794cb7d68c1"}]}`
 	token := "0bc57212c3cbbec69d20b34c507284bd300def5b"
 
@@ -22,7 +23,14 @@ func TestPlugin(t *testing.T) {
 			w.WriteHeader(http.StatusUnauthorized)
 			return
 		}
-		_, err := w.Write([]byte(expectedJSON))
+
+		var serviceRequest ServiceRequest
+		err := json.NewDecoder(r.Body).Decode(&serviceRequest)
+		require.NoError(t, err)
+		assert.Equal(t, "plugin-test", serviceRequest.ApplicationSetName)
+		assert.Equal(t, "example-ns", serviceRequest.ApplicationSetNamespace)
+
+		_, err = w.Write([]byte(expectedJSON))
 		if err != nil {
 			assert.NoError(t, fmt.Errorf("Error Write %w", err))
 		}
@@ -30,7 +38,7 @@ func TestPlugin(t *testing.T) {
 	ts := httptest.NewServer(handler)
 	defer ts.Close()
 
-	client, err := NewPluginService("plugin-test", ts.URL, token, 0)
+	client, err := NewPluginService("plugin-test", "example-ns", ts.URL, token, 0)
 	require.NoError(t, err)
 
 	data, err := client.List(t.Context(), nil)

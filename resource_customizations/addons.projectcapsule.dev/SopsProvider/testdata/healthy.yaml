@@ -1,0 +1,17 @@
+apiVersion: addons.projectcapsule.dev/v1alpha1
+kind: SopsProvider
+metadata:
+  name: aws-kms-provider
+  generation: 1
+spec:
+  provider:
+    awsKms:
+      keyArn: arn:aws:kms:us-east-1:111122223333:key/example-key-id
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: All configured providers are available
+      reason: Ready

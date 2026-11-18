@@ -196,7 +196,7 @@ __argocd_custom_func() {
 func NewCompletionCommand() *cobra.Command {
 	command := &cobra.Command{
 		Use:   "completion SHELL",
-		Short: "output shell completion code for the specified shell (bash, zsh or fish)",
+		Short: "Output shell completion code for the specified shell (bash, zsh or fish)",
 		Long: `Write bash, zsh or fish shell completion code to standard output.
 
 For bash, ensure you have bash completions installed and enabled.
