@@ -21,7 +21,7 @@ const FilterLimit = 9999
 
 var _ SCMProviderService = &ScmManagerProvider{}
 
-func NewScmManagerProvider(ctx context.Context, token, url string, allBranches, insecure bool, scmRootCAPath string, caCerts []byte) (*ScmManagerProvider, error) {
+func NewScmManagerProvider(_ context.Context, token, url string, allBranches, insecure bool, scmRootCAPath string, caCerts []byte) (*ScmManagerProvider, error) {
 	if token == "" {
 		token = os.Getenv("SCMM_TOKEN")
 	}
@@ -43,7 +43,7 @@ func NewScmManagerProvider(ctx context.Context, token, url string, allBranches, 
 	}, nil
 }
 
-func (g *ScmManagerProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
+func (g *ScmManagerProvider) GetBranches(_ context.Context, repo *Repository) ([]*Repository, error) {
 	scmmRepo, err := g.client.GetRepo(repo.Organization, repo.Repository)
 	if err != nil {
 		return nil, err
@@ -86,7 +86,7 @@ func (g *ScmManagerProvider) GetBranches(ctx context.Context, repo *Repository) 
 	return repos, nil
 }
 
-func (g *ScmManagerProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *ScmManagerProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
 	repos := []*Repository{}
 	filter := g.client.NewRepoListFilter()
 	filter.Limit = FilterLimit
@@ -138,7 +138,7 @@ func getProtocolUrlByName(urls []scmm.ProtocolUrl, name string) string {
 	return ""
 }
 
-func (g *ScmManagerProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
+func (g *ScmManagerProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
 	_, resp, err := g.client.GetContent(repo.Organization, repo.Repository, repo.Branch, path)
 	if resp != nil && resp.StatusCode == http.StatusNotFound {
 		return false, nil

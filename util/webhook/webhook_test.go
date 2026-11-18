@@ -224,7 +224,7 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 func TestScmmWebhook(t *testing.T) {
 	hook := test.NewGlobal()
 	h := NewMockHandler(nil, []string{})
-	req := httptest.NewRequest(http.MethodPost, "/api/webhook", nil)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
 	req.Header.Set("X-SCM-Event", "Push")
 	eventJSON, err := os.ReadFile("testdata/scmm-webhook-data.json")
 	require.NoError(t, err)

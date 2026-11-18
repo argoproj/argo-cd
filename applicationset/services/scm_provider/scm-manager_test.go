@@ -112,7 +112,7 @@ func handleBranchesRequestWithExistingBranches(t *testing.T, w http.ResponseWrit
 
 func handleRepositoryOverviewRequest(t *testing.T, repositoryName string, w http.ResponseWriter) {
 	t.Helper()
-	_, err := io.WriteString(w, fmt.Sprintf(`{
+	_, err := fmt.Fprintf(w, `{
 			"page": 0,
 			"pageTotal": 1,
 			"_embedded": {
@@ -131,7 +131,7 @@ func handleRepositoryOverviewRequest(t *testing.T, repositoryName string, w http
 					}
 				}]
 			}
-		}`, repositoryName, repositoryName, repositoryName))
+		}`, repositoryName, repositoryName, repositoryName)
 	if err != nil {
 		t.Fail()
 	}

@@ -304,12 +304,7 @@ var scmManagerAllowedPullRequestActions = []string{
 }
 
 func isAllowedScmManagerPullRequestAction(action string) bool {
-	for _, allow := range scmManagerAllowedPullRequestActions {
-		if allow == action {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(scmManagerAllowedPullRequestActions, action)
 }
 
 func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInfo) bool {

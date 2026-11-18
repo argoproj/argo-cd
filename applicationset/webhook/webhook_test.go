@@ -18,7 +18,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
 	kubefake "k8s.io/client-go/kubernetes/fake"
@@ -1029,11 +1028,7 @@ func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace
 }
 
 func fakeAppWithScmManagerGenerator(name, namespace, reponame, api string) *v1alpha1.ApplicationSet {
-	return &v1alpha1.ApplicationSet{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name,
-			Namespace: namespace,
-		},
+	appSet := &v1alpha1.ApplicationSet{
 		Spec: v1alpha1.ApplicationSetSpec{
 			Generators: []v1alpha1.ApplicationSetGenerator{
 				{
@@ -1057,6 +1052,9 @@ func fakeAppWithScmManagerGenerator(name, namespace, reponame, api string) *v1al
 			},
 		},
 	}
+	appSet.Name = name
+	appSet.Namespace = namespace
+	return appSet
 }
 
 func newFakeClient(ns string) *kubefake.Clientset {

@@ -19,7 +19,7 @@ type ScmManagerService struct {
 
 var _ PullRequestService = (*ScmManagerService)(nil)
 
-func NewScmManagerService(ctx context.Context, token, url, namespace, name string, insecure bool, scmRootCAPath string, caCerts []byte) (PullRequestService, error) {
+func NewScmManagerService(_ context.Context, token, url, namespace, name string, insecure bool, scmRootCAPath string, caCerts []byte) (PullRequestService, error) {
 	if token == "" {
 		token = os.Getenv("SCMM_TOKEN")
 	}
@@ -42,7 +42,7 @@ func NewScmManagerService(ctx context.Context, token, url, namespace, name strin
 	}, nil
 }
 
-func (g *ScmManagerService) List(ctx context.Context) ([]*PullRequest, error) {
+func (g *ScmManagerService) List(_ context.Context) ([]*PullRequest, error) {
 	prs, err := g.client.ListPullRequests(g.namespace, g.name, g.client.NewPullRequestListFilter())
 	if err != nil {
 		return nil, err
