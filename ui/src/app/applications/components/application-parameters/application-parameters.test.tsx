@@ -5,7 +5,6 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {ApplicationParameters} from './application-parameters';
-import * as kustomizeImage from './kustomize-image';
 
 jest.mock('../../../shared/services', () => ({
     services: {
@@ -29,6 +28,10 @@ jest.mock('lodash-es', () => ({
 
 jest.mock('./source-panel', () => ({
     SourcePanel: () => null
+}));
+
+jest.mock('../revision-form-field/revision-form-field', () => ({
+    RevisionFormField: () => null
 }));
 
 jest.mock('../utils', () => ({
@@ -709,13 +712,8 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         renderWithContext(<ApplicationParameters application={app} save={save} pageNumber={0} setPageNumber={jest.fn()} />);
         expect(await screen.findByRole('alert')).toHaveTextContent('repository unavailable');
         await user.click(screen.getAllByRole('button', {name: 'Edit'})[multiSource ? 1 : 0]);
-        const format = kustomizeImage.format;
-        const formatter = jest.spyOn(kustomizeImage, 'format').mockImplementation(image => (image.name === 'empty-image' ? '' : format(image)));
-        try {
-            await user.type(screen.getByPlaceholderText('empty-image'), 'blank');
-        } finally {
-            formatter.mockRestore();
-        }
+        const clearedRow = screen.getByText('empty-image').closest('.white-box__details-row');
+        await user.clear(within(clearedRow).getByPlaceholderText('1.0'));
         const removedRow = screen.getByText('removed-image').closest('.white-box__details-row');
         await user.click(within(removedRow).getByText('Remove override'));
         const panel = screen.getByText('KUSTOMIZE').parentElement.parentElement;
@@ -810,6 +808,54 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         await act(async () => finishSave());
         expect(within(panel()).getByText('Keep override')).toBe(keepOverride);
         expect(within(panel()).getByRole('button', {name: 'Save', exact: true})).toBeEnabled();
+        await user.click(keepOverride);
+        expect(await within(panel()).findByText('Remove override')).toBeInTheDocument();
+    });
+
+    test('does not carry removal markers into a replacement source editor', async () => {
+        const app = multiSourceApp();
+        const source = {
+            repoURL: 'https://charts.example.com',
+            chart: 'web-app',
+            targetRevision: 'main',
+            helm: {parameters: [{name: 'replicas', value: '3'}]}
+        } as models.ApplicationSource;
+        if (multiSource) {
+            app.spec.sources = [source];
+        } else {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        appDetails.mockImplementation((current: models.ApplicationSource) =>
+            Promise.resolve({type: 'Helm', helm: {parameters: [{name: current.targetRevision === 'main' ? 'replicas' : 'workers', value: '1'}]}})
+        );
+        let finishSave: () => void;
+        const save = jest.fn(
+            () =>
+                new Promise<void>(resolve => {
+                    finishSave = resolve;
+                })
+        );
+        const parameters = (application: models.Application) => (
+            <Context.Provider value={ctxValue}>
+                <ApplicationParameters application={application} save={save} pageNumber={0} setPageNumber={jest.fn()} />
+            </Context.Provider>
+        );
+        const user = userEvent.setup();
+        const {rerender} = render(parameters(app));
+        expect(await screen.findByText('HELM')).toBeInTheDocument();
+        await user.click(screen.getAllByRole('button', {name: 'Edit'})[multiSource ? 1 : 0]);
+        const panel = () => screen.getByText('HELM').parentElement.parentElement;
+        await user.click(within(panel()).getByText('Remove override'));
+        await user.click(within(panel()).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        const nextSource = {...source, targetRevision: 'release', helm: {parameters: [{name: 'workers', value: '5'}]}};
+        rerender(parameters({...app, spec: {...app.spec, ...(multiSource ? {sources: [nextSource]} : {source: nextSource})}}));
+        expect(await screen.findByText('workers')).toBeInTheDocument();
+        await user.click(screen.getAllByRole('button', {name: 'Edit'})[multiSource ? 1 : 0]);
+        expect(screen.queryByText('Keep override')).not.toBeInTheDocument();
+        expect(screen.getByDisplayValue('5')).toBeInTheDocument();
+        await act(async () => finishSave());
     });
 
     test.each([
@@ -876,6 +922,111 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         expect(screen.queryByText('obsolete lookup failed')).not.toBeInTheDocument();
         expect(screen.queryByText('old-default')).not.toBeInTheDocument();
     });
+});
+
+function overrideApplication(multiSource: boolean): models.Application {
+    const app = multiSourceApp();
+    const source = {
+        repoURL: 'https://charts.example.com',
+        chart: 'web-app',
+        targetRevision: 'main',
+        helm: {
+            parameters: [
+                {name: 'alpha', value: '3'},
+                {name: 'beta', value: '4'},
+                {name: 'gamma', value: '7'}
+            ]
+        }
+    } as models.ApplicationSource;
+    if (multiSource) {
+        app.spec.sources = [source];
+    } else {
+        app.spec.source = source;
+        delete app.spec.sources;
+    }
+    return app;
+}
+
+const overrideDetails = {
+    type: 'Helm',
+    helm: {
+        parameters: [
+            {name: 'alpha', value: '1'},
+            {name: 'beta', value: '2'},
+            {name: 'gamma', value: '6'}
+        ]
+    }
+} as models.RepoAppDetails;
+
+test.each([false, true])('clears only acknowledged auto-save removals (multi-source: %s)', async multiSource => {
+    const save = jest.fn().mockResolvedValue(undefined);
+    const parameters = (application: models.Application) => (
+        <Context.Provider value={ctxValue}>
+            <ApplicationParameters application={application} details={overrideDetails} multiSourceIndex={multiSource ? 0 : undefined} noReadonlyMode save={save} />
+        </Context.Provider>
+    );
+    const {rerender} = render(parameters(overrideApplication(multiSource)));
+    save.mockImplementation(async application => rerender(parameters(application)));
+    const user = userEvent.setup();
+    const row = (name: string) => screen.getByText(name).closest('.white-box__details-row');
+    await user.click(within(row('alpha')).getByText('Remove override'));
+    await waitFor(() => expect(save).toHaveBeenCalled());
+    await waitFor(() => expect(within(row('beta')).queryByText('Keep override')).not.toBeInTheDocument());
+    expect(within(row('beta')).getByDisplayValue('4')).toBeInTheDocument();
+    expect(screen.queryByText('Keep override')).not.toBeInTheDocument();
+});
+
+test('preserves a later auto-save removal when an earlier save is acknowledged', async () => {
+    const writes: models.Application[] = [];
+    const finishes: Array<() => void> = [];
+    const save = jest.fn((application: models.Application) => {
+        writes.push(application);
+        return new Promise<void>(resolve => finishes.push(resolve));
+    });
+    const parameters = (application: models.Application) => (
+        <Context.Provider value={ctxValue}>
+            <ApplicationParameters application={application} details={overrideDetails} noReadonlyMode save={save} />
+        </Context.Provider>
+    );
+    const {rerender} = render(parameters(overrideApplication(false)));
+    const user = userEvent.setup();
+    const row = (name: string) => screen.getByText(name).closest('.white-box__details-row');
+    await user.click(within(row('alpha')).getByText('Remove override'));
+    await waitFor(() => expect(writes).toHaveLength(1));
+    await user.click(within(row('beta')).getByText('Remove override'));
+    await waitFor(() => expect(writes).toHaveLength(2));
+    expect(writes[1].spec.source.helm.parameters.map(parameter => parameter.name)).toEqual(['gamma']);
+    rerender(parameters(writes[0]));
+    await act(async () => finishes[0]());
+    expect(within(row('beta')).getByText('Keep override')).toBeInTheDocument();
+    const gamma = within(row('gamma')).getByRole('textbox');
+    await user.clear(gamma);
+    await user.type(gamma, '8');
+    await waitFor(() => expect(writes[writes.length - 1].spec.source.helm.parameters).toEqual([{name: 'gamma', value: '8'}]));
+    rerender(parameters(writes[writes.length - 1]));
+    await act(async () => finishes.forEach(finish => finish()));
+    await waitFor(() => expect(screen.queryByText('Keep override')).not.toBeInTheDocument());
+    expect(within(row('gamma')).getByDisplayValue('8')).toBeInTheDocument();
+});
+
+test('canceling one source leaves another source removal pending', async () => {
+    const app = multiSourceApp();
+    app.spec.sources = [
+        {repoURL: 'https://charts.example.com', chart: 'web-app', targetRevision: 'main', helm: {parameters: [{name: 'replicas', value: '3'}]}} as models.ApplicationSource,
+        {repoURL: 'https://git.example.com/values.git', ref: 'values', targetRevision: 'main'} as models.ApplicationSource
+    ];
+    (services.repos.appDetails as jest.Mock).mockReset().mockResolvedValue({type: 'Helm', helm: {parameters: [{name: 'replicas', value: '1'}]}});
+    const user = userEvent.setup();
+    renderWithContext(<ApplicationParameters application={app} save={jest.fn()} pageNumber={0} setPageNumber={jest.fn()} />);
+    expect(await screen.findByText('HELM')).toBeInTheDocument();
+    const first = screen.getByText('HELM').parentElement.parentElement;
+    await user.click(within(first).getByRole('button', {name: 'Edit', exact: true}));
+    await user.click(within(first).getByText('Remove override'));
+    const keep = within(first).getByText('Keep override');
+    const second = screen.getByText('SOURCE 2').parentElement.parentElement;
+    await user.click(within(second).getByRole('button', {name: 'Edit', exact: true}));
+    await user.click(within(second).getByRole('button', {name: 'Cancel', exact: true}));
+    expect(within(first).getByText('Keep override')).toBe(keep);
 });
 
 test('unlocks the sibling section only after a successful Save', async () => {

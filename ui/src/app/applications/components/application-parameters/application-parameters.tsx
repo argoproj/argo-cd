@@ -74,20 +74,87 @@ function processPath(path: string) {
     return '';
 }
 
+interface ParameterOverride {
+    key?: string;
+    overrideIndex: number;
+    original: string;
+    metadata: {name: string; value: string};
+}
+
+function hasImageOverride(value: unknown): boolean {
+    if (typeof value !== 'string' || value.trim().length === 0) {
+        return false;
+    }
+    const image = kustomize.parse(value);
+    return !!(image.newName || image.newTag || image.digest);
+}
+
+const ParameterOverrideEditor = ({
+    app,
+    fieldsPath,
+    index,
+    param,
+    component,
+    formApi
+}: {
+    app: models.Application;
+    fieldsPath: string;
+    index: number;
+    param: ParameterOverride;
+    component: React.ComponentType<any>;
+    formApi: FormApi;
+}) => {
+    const valuesPath = fieldsPath.replace(/\[(\d+)\]/g, '.$1');
+    const savedOverride = getNestedField(app, valuesPath)?.[param.overrideIndex];
+    const signature = JSON.stringify([param.overrideIndex >= 0, savedOverride]);
+    const [removal, setRemoval] = React.useState({signature, removed: false});
+    if (removal.signature !== signature) {
+        setRemoval({signature, removed: false});
+    }
+    const removed = removal.signature === signature && removal.removed;
+    const field = `${fieldsPath}[${index}]`;
+    React.useEffect(() => {
+        if (removed && getNestedField(formApi.values, valuesPath)?.[index] !== null) {
+            formApi.setValue(field, null);
+        }
+    }, [removed, formApi, field, valuesPath, index]);
+    const labelStyle = {position: 'absolute', right: 0, top: 0, zIndex: 11} as any;
+    return (
+        <>
+            {removed ? <span>{param.original}</span> : <FormField formApi={formApi} field={field} component={component} componentProps={{metadata: param.metadata}} />}
+            {param.metadata.value !== param.original && !removed && (
+                <a
+                    onClick={() => {
+                        setRemoval({signature, removed: true});
+                        formApi.setValue(field, null);
+                    }}
+                    style={labelStyle}>
+                    Remove override
+                </a>
+            )}
+            {removed && (
+                <a
+                    onClick={() => {
+                        setRemoval({signature, removed: false});
+                        formApi.setValue(field, cloneDeep(savedOverride));
+                    }}
+                    style={labelStyle}>
+                    Keep override
+                </a>
+            )}
+        </>
+    );
+};
+
 function getParamsEditableItems(
     app: models.Application,
     title: string,
     fieldsPath: string,
-    removedOverrides: boolean[],
-    setRemovedOverrides: React.Dispatch<boolean[]>,
-    params: {
-        key?: string;
-        overrideIndex: number;
-        original: string;
-        metadata: {name: string; value: string};
-    }[],
+    source: models.ApplicationSource,
+    params: ParameterOverride[],
     component: React.ComponentType<any> = TextWithMetadataField
 ) {
+    const scope = JSON.stringify([app.metadata.name, app.spec.project, source.repoURL, source.path, source.chart, source.targetRevision, source.ref, fieldsPath]);
     return params
         .sort(overridesFirst)
         .map((param, i) => ({
@@ -98,47 +165,7 @@ function getParamsEditableItems(
                     {param.overrideIndex > -1 && <span className='fa fa-gavel' title={`Original value: ${param.original}`} />} {param.metadata.value}
                 </span>
             ),
-            edit: (formApi: FormApi) => {
-                const labelStyle = {position: 'absolute', right: 0, top: 0, zIndex: 11} as any;
-                const overrideRemoved = removedOverrides[i];
-                const fieldItemPath = `${fieldsPath}[${i}]`;
-                return (
-                    <React.Fragment>
-                        {(overrideRemoved && <span>{param.original}</span>) || (
-                            <FormField
-                                formApi={formApi}
-                                field={fieldItemPath}
-                                component={component}
-                                componentProps={{
-                                    metadata: param.metadata
-                                }}
-                            />
-                        )}
-                        {param.metadata.value !== param.original && !overrideRemoved && (
-                            <a
-                                onClick={() => {
-                                    formApi.setValue(fieldItemPath, null);
-                                    removedOverrides[i] = true;
-                                    setRemovedOverrides(removedOverrides);
-                                }}
-                                style={labelStyle}>
-                                Remove override
-                            </a>
-                        )}
-                        {overrideRemoved && (
-                            <a
-                                onClick={() => {
-                                    formApi.setValue(fieldItemPath, getNestedField(app, fieldsPath)[i]);
-                                    removedOverrides[i] = false;
-                                    setRemovedOverrides(removedOverrides);
-                                }}
-                                style={labelStyle}>
-                                Keep override
-                            </a>
-                        )}
-                    </React.Fragment>
-                );
-            }
+            edit: (formApi: FormApi) => <ParameterOverrideEditor key={scope} app={app} fieldsPath={fieldsPath} index={i} param={param} component={component} formApi={formApi} />
         }))
         .map((item, i) => ({...item, before: (i === 0 && <p style={{marginTop: '1em'}}>{title}</p>) || null}));
 }
@@ -160,7 +187,6 @@ export const ApplicationParameters = (props: {
     const app = cloneDeep(props.application);
     const source = getAppDefaultSource(app); // For source field
     const appSources = app?.spec.sources;
-    const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
     const collapsible = props.collapsedSources !== undefined && props.handleCollapse !== undefined;
     const [createApi, setCreateApi] = React.useState(null);
     const [isAddingSource, setIsAddingSource] = React.useState(false);
@@ -261,18 +287,7 @@ export const ApplicationParameters = (props: {
                 return null;
             }
             return getEditablePanel(
-                gatherDetails(
-                    isMulti ? ind : 0,
-                    props.details,
-                    [],
-                    attrSource,
-                    app,
-                    setRemovedOverrides,
-                    removedOverrides,
-                    appParamsDeletedState,
-                    setAppParamsDeletedState,
-                    isMulti
-                ),
+                gatherDetails(isMulti ? ind : 0, props.details, [], attrSource, app, appParamsDeletedState, setAppParamsDeletedState, isMulti),
                 props.details,
                 isMulti ? ind : undefined
             );
@@ -281,9 +296,7 @@ export const ApplicationParameters = (props: {
             return (
                 <SourceDetailsLoader input={{source: getAppDrySource(app), name: app.metadata.name, project: app.spec.project, index: 0}} initialEditing={props.noReadonlyMode}>
                     {(details, onModeSwitch) => {
-                        const attr = details
-                            ? gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false)
-                            : [];
+                        const attr = details ? gatherDetails(0, details, [], source, app, appParamsDeletedState, setAppParamsDeletedState, false) : [];
                         return details && getEditablePanel(attr, details, undefined, onModeSwitch);
                     }}
                 </SourceDetailsLoader>
@@ -360,20 +373,18 @@ export const ApplicationParameters = (props: {
                 <EditablePanel
                     save={
                         props.save &&
-                        (async (input: models.Application) => {
+                        (async (values: models.Application) => {
+                            const input = cloneDeep(values);
                             const updatedSrc = isMulti ? input.spec.sources[ind] : input.spec.source;
 
                             function isDefined(item: any) {
                                 return item !== null && item !== undefined;
                             }
-                            function isNonEmptyImage(item: any) {
-                                return typeof item === 'string' && item.trim().length > 0;
-                            }
                             if (updatedSrc && updatedSrc.helm?.parameters) {
                                 updatedSrc.helm.parameters = updatedSrc.helm.parameters.filter(isDefined);
                             }
                             if (updatedSrc && updatedSrc.kustomize?.images) {
-                                updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isNonEmptyImage);
+                                updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(hasImageOverride);
                             }
 
                             let params = isMulti ? input.spec?.sources[ind]?.plugin?.parameters : input.spec?.source?.plugin?.parameters;
@@ -428,9 +439,6 @@ export const ApplicationParameters = (props: {
                     }}
                     onModeSwitch={isEditing => {
                         notifyModeSwitch?.(isEditing);
-                        if (!isEditing) {
-                            setRemovedOverrides(new Array<boolean>());
-                        }
                         if (repoAppDetails?.plugin) {
                             setAppParamsDeletedState([]);
                         }
@@ -457,20 +465,7 @@ export const ApplicationParameters = (props: {
 
         const upperPanel = gatherCoreSourceDetails(ind, upperPanelAttributes, appSources[ind], app);
         const lowerPanel =
-            refOnly || !repoAppDetails
-                ? []
-                : gatherDetails(
-                      ind,
-                      repoAppDetails,
-                      lowerPanelAttributes,
-                      appSources[ind],
-                      app,
-                      setRemovedOverrides,
-                      removedOverrides,
-                      appParamsDeletedState,
-                      setAppParamsDeletedState,
-                      true
-                  );
+            refOnly || !repoAppDetails ? [] : gatherDetails(ind, repoAppDetails, lowerPanelAttributes, appSources[ind], app, appParamsDeletedState, setAppParamsDeletedState, true);
 
         if (refOnly) {
             floatingTitle = 'Source ' + (ind + 1) + ': REF=' + src.ref + ', URL=' + src.repoURL + (src.targetRevision ? ', TARGET REVISION=' + src.targetRevision : '');
@@ -522,21 +517,19 @@ export const ApplicationParameters = (props: {
                 saveTop={props.save}
                 saveBottom={
                     props.save &&
-                    (async (input: models.Application) => {
+                    (async (values: models.Application) => {
+                        const input = cloneDeep(values);
                         const appSrc = input.spec.sources[ind];
 
                         function isDefined(item: any) {
                             return item !== null && item !== undefined;
-                        }
-                        function isNonEmptyImage(item: any) {
-                            return typeof item === 'string' && item.trim().length > 0;
                         }
 
                         if (appSrc.helm && appSrc.helm.parameters) {
                             appSrc.helm.parameters = appSrc.helm.parameters.filter(isDefined);
                         }
                         if (appSrc.kustomize && appSrc.kustomize.images) {
-                            appSrc.kustomize.images = appSrc.kustomize.images.filter(isNonEmptyImage);
+                            appSrc.kustomize.images = appSrc.kustomize.images.filter(hasImageOverride);
                         }
 
                         let params = input.spec?.sources[ind]?.plugin?.parameters;
@@ -595,9 +588,6 @@ export const ApplicationParameters = (props: {
                 }}
                 onModeSwitch={isEditing => {
                     notifyModeSwitch?.(isEditing);
-                    if (!isEditing) {
-                        setRemovedOverrides(new Array<boolean>());
-                    }
                     if (repoAppDetails?.plugin) {
                         setAppParamsDeletedState([]);
                     }
@@ -723,8 +713,6 @@ function gatherDetails(
     attributes: EditablePanelItem[],
     source: models.ApplicationSource,
     app: models.Application,
-    setRemovedOverrides: any,
-    removedOverrides: any,
     appParamsDeletedState: any[],
     setAppParamsDeletedState: any,
     isMultiSource: boolean
@@ -788,8 +776,7 @@ function gatherDetails(
                     app,
                     'IMAGES',
                     isMultiSource ? 'spec.sources[' + ind + '].kustomize.images' : 'spec.source.kustomize.images',
-                    removedOverrides,
-                    setRemovedOverrides,
+                    source,
                     distinct(imagesByName.keys(), overridesByName.keys()).map(name => {
                         const param = imagesByName.get(name);
                         const original = param && kustomize.format(param);
@@ -860,8 +847,7 @@ function gatherDetails(
                 app,
                 'PARAMETERS',
                 isMultiSource ? 'spec.sources[' + ind + '].helm.parameters' : 'spec.source.helm.parameters',
-                removedOverrides,
-                setRemovedOverrides,
+                source,
                 distinct(paramsByName.keys(), overridesByName.keys()).map(name => {
                     const param = paramsByName.get(name);
                     const original = (param && param.value) || '';
@@ -883,8 +869,7 @@ function gatherDetails(
                 app,
                 'PARAMETERS',
                 isMultiSource ? 'spec.sources[' + ind + '].helm.parameters' : 'spec.source.helm.parameters',
-                removedOverrides,
-                setRemovedOverrides,
+                source,
                 distinct(fileParamsByName.keys(), fileOverridesByName.keys()).map(name => {
                     const param = fileParamsByName.get(name);
                     const original = (param && param.path) || '';
