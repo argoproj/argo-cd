@@ -3,10 +3,18 @@ package cache
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
+	"net/http"
+	"net/http/httptest"
+	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/redis/go-redis/v9"
 	"github.com/spf13/cobra"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -16,6 +24,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/reposerver/cache/mocks"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	"github.com/argoproj/argo-cd/v3/util/helm"
 )
 
 type MockedCache struct {
@@ -995,4 +1004,594 @@ func TestHelmIndexValidators(t *testing.T) {
 	// Missing validators → cache miss error, empty strings.
 	_, _, err = fixtures.cache.GetHelmIndexValidators("missing-repo")
 	assert.Error(t, err)
+}
+
+// This fixture implements actual conditional responses. A server that always
+// returns 200 cannot detect a mismatched body/ETag or prove retention saves bytes.
+type helmIndexContractOrigin struct {
+	mu       sync.Mutex
+	version  string
+	statuses []int
+	bytes    []int
+}
+
+func helmIndexContractBody(version string) []byte {
+	return []byte(fmt.Sprintf("apiVersion: v1\nentries:\n  child:\n    - version: %s\n", version))
+}
+
+func (o *helmIndexContractOrigin) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	o.mu.Lock()
+	defer o.mu.Unlock()
+	etag := `"` + o.version + `"`
+	w.Header().Set("ETag", etag)
+	if r.Header.Get("If-None-Match") == etag {
+		o.statuses = append(o.statuses, http.StatusNotModified)
+		o.bytes = append(o.bytes, 0)
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	body := helmIndexContractBody(o.version)
+	o.statuses = append(o.statuses, http.StatusOK)
+	o.bytes = append(o.bytes, len(body))
+	_, _ = w.Write(body)
+}
+
+func helmIndexContractSetup(t *testing.T) (*Cache, *miniredis.Miniredis, *helmIndexContractOrigin, string) {
+	t.Helper()
+	redisServer := miniredis.RunT(t)
+	redisClient := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+	t.Cleanup(func() { require.NoError(t, redisClient.Close()) })
+	base := cacheutil.NewCache(cacheutil.NewRedisCache(redisClient, time.Hour, cacheutil.RedisCompressionNone))
+	cache := NewCache(base, time.Hour, time.Minute, 10*time.Second)
+	origin := &helmIndexContractOrigin{version: "1.0.0"}
+	server := httptest.NewServer(origin)
+	t.Cleanup(server.Close)
+	return cache, redisServer, origin, server.URL
+}
+
+func TestHelmIndexRedisContractRetainsBodyAndValidators(t *testing.T) {
+	cache, redisServer, origin, url := helmIndexContractSetup(t)
+	client := helm.NewClient(url, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(cache))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	redisServer.FastForward(2 * time.Minute)
+	index, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.Equal(t, "1.0.0", index.Entries["child"][0].Version)
+	origin.mu.Lock()
+	defer origin.mu.Unlock()
+	require.Equal(t, []int{http.StatusOK, http.StatusNotModified}, origin.statuses,
+		"after freshness expires, retained body and validators must permit 304")
+	assert.Zero(t, origin.bytes[1])
+}
+
+func TestHelmIndexRedisContractLegacyWriterCannotPoison304(t *testing.T) {
+	cache, _, origin, url := helmIndexContractSetup(t)
+	client := helm.NewClient(url, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(cache))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	origin.mu.Lock()
+	origin.version = "2.0.0"
+	origin.mu.Unlock()
+	index, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.Equal(t, "2.0.0", index.Entries["child"][0].Version)
+	// Simulate a delayed old replica: it only knows the legacy raw-body key.
+	// It must not be able to change the new representation associated with v2.
+	require.NoError(t, cache.cache.SetItem(helmIndexRefsKey(url), helmIndexContractBody("1.0.0"), &cacheutil.CacheActionOpts{Expiration: time.Hour}))
+	index, err = client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	assert.Equal(t, "2.0.0", index.Entries["child"][0].Version,
+		"a matching origin ETag must never authorize an old replica's body")
+	origin.mu.Lock()
+	defer origin.mu.Unlock()
+	require.Equal(t, http.StatusNotModified, origin.statuses[len(origin.statuses)-1])
+}
+
+type operationCredentials struct {
+	helm.HelmCreds
+	mu     sync.Mutex
+	tokens []string
+	calls  int
+	err    error
+}
+
+func (c *operationCredentials) GetPassword() (string, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.calls++
+	if c.err != nil {
+		return "", c.err
+	}
+	return c.tokens[min(c.calls-1, len(c.tokens)-1)], nil
+}
+
+func credentialCacheKey(url, password string) string {
+	return url + "\x00" + helm.CredsScope(helm.HelmCreds{Username: "reader", Password: password})
+}
+
+func TestHelmIndexCredentialsStayConsistentAcrossOperations(t *testing.T) {
+	cache, _ := regressionRedisCache(t)
+	var requestLock sync.Mutex
+	var requests []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, password, _ := r.BasicAuth()
+		requestLock.Lock()
+		requests = append(requests, password)
+		requestLock.Unlock()
+		version := "1.0.0"
+		if password == "token-B" {
+			version = "2.0.0"
+		}
+		w.Header().Set("ETag", `"`+version+`"`)
+		_, _ = w.Write(helmIndexContractBody(version))
+	}))
+	t.Cleanup(server.Close)
+	provider := &operationCredentials{
+		Username: "reader",
+		tokens:   []string{"token-A", "token-B"},
+	}
+	client := helm.NewClient(server.URL, provider, false, "", "", helm.WithIndexCacheScopedByCreds(cache))
+	for i, version := range []string{"1.0.0", "2.0.0", "2.0.0"} {
+		index, err := client.GetIndex(t.Context(), i == 0, 1<<20)
+		require.NoError(t, err)
+		require.Equal(t, version, index.Entries["child"][0].Version)
+	}
+	requestLock.Lock()
+	gotRequests := append([]string(nil), requests...)
+	requestLock.Unlock()
+	assert.Equal(t, []string{"token-A", "token-B"}, gotRequests, "the second token must fetch its own view; the third operation should hit that cache")
+	assert.Equal(t, 3, provider.calls, "resolve the provider exactly once for every operation, including cache hits")
+	for password, version := range map[string]string{"token-A": "1.0.0", "token-B": "2.0.0"} {
+		record, err := cache.GetHelmIndexRecord(credentialCacheKey(server.URL, password))
+		require.NoError(t, err)
+		assert.Equal(t, helmIndexContractBody(version), record.Body)
+		assert.Equal(t, `"`+version+`"`, record.ETag)
+	}
+}
+
+func TestHelmIndexCredentialFailureCannotUseWarmCache(t *testing.T) {
+	cache, _ := regressionRedisCache(t)
+	url := "https://example.invalid"
+	require.NoError(t, cache.SetHelmIndexRecord(credentialCacheKey(url, "token-A"), helmIndexContractBody("1.0.0"), `"one"`, ""))
+	provider := &operationCredentials{Username: "reader", tokens: []string{"token-A"}}
+	client := helm.NewClient(url, provider, false, "", "", helm.WithIndexCacheScopedByCreds(cache))
+	_, err := client.GetIndex(t.Context(), false, 1<<20)
+	require.NoError(t, err)
+	provider.err = errors.New("credential lookup failed")
+	_, err = client.GetIndex(t.Context(), false, 1<<20)
+	require.ErrorContains(t, err, "credential lookup failed", "a previous operation's warm entry cannot bypass current credential resolution")
+}
+
+func TestHelmTagsCacheUsesCurrentCredentialView(t *testing.T) {
+	cache, _ := regressionRedisCache(t)
+	url := "registry.example.invalid/child"
+	require.NoError(t, cache.SetOCITags(credentialCacheKey(url, "token-A"), []byte(`{"Tags":["1.0.0"]}`)))
+	require.NoError(t, cache.SetOCITags(credentialCacheKey(url, "token-B"), []byte(`{"Tags":["2.0.0"]}`)))
+	provider := &operationCredentials{Username: "reader", tokens: []string{"token-A", "token-B"}}
+	client := helm.NewClient("registry.example.invalid", provider, true, "", "", helm.WithIndexCacheScopedByCreds(cache))
+	for _, version := range []string{"1.0.0", "2.0.0"} {
+		tags, err := client.GetTags(t.Context(), "child", false)
+		require.NoError(t, err)
+		assert.Equal(t, []string{version}, tags)
+	}
+	assert.Equal(t, 2, provider.calls)
+}
+
+func TestHelmIndexCacheExpirationIndependentFromRevisions(t *testing.T) {
+	for _, expiration := range []time.Duration{0, 30 * time.Second, time.Minute, 3 * time.Minute, 48 * time.Hour} {
+		t.Run(expiration.String(), func(t *testing.T) {
+			cache, redisServer, _, _ := helmIndexContractSetup(t)
+			require.Equal(t, time.Minute, cache.GetHelmIndexCacheExpiration())
+			cache.revisionCacheExpiration = 7 * time.Minute
+			cache.SetHelmIndexCacheExpiration(expiration)
+			require.Equal(t, expiration, cache.GetHelmIndexCacheExpiration())
+			validatedAt := time.Now().Add(-45 * time.Second)
+			record := &helm.HelmIndexRecord{
+				Body: helmIndexContractBody("1.0.0"), ETag: `"1.0.0"`,
+				StoredAt: validatedAt.UTC().Format(time.RFC3339Nano),
+			}
+			require.NoError(t, cache.SetHelmIndexRetainedRecord("record", record))
+			var body []byte
+			err := cache.GetHelmIndex("record", &body)
+			if expiration > 45*time.Second {
+				require.NoError(t, err)
+				require.Equal(t, record.Body, body)
+			} else {
+				require.ErrorIs(t, err, ErrCacheMiss, "expired Helm bodies must miss despite the longer Git revision interval")
+			}
+			retained, err := cache.GetHelmIndexRetainedRecord("record")
+			require.NoError(t, err)
+			require.Equal(t, record, retained, "validators and body must survive freshness expiry together")
+			require.NoError(t, cache.SetGitReferences("git", nil))
+			require.NoError(t, cache.SetOCITags("oci", []byte("tags")))
+			require.NoError(t, cache.SetHelmIndex("legacy", record.Body))
+			checked := 0
+			for _, key := range redisServer.Keys() {
+				switch {
+				case strings.Contains(key, "helm-index-v2|record"):
+					want := time.Until(validatedAt.Add(expiration + max(24*time.Hour, expiration)))
+					require.InDelta(t, float64(want), float64(redisServer.TTL(key)), float64(time.Second))
+					checked++
+				case strings.Contains(key, "git-refs|git"), strings.Contains(key, "oci-tags|oci"):
+					require.Equal(t, 7*time.Minute, redisServer.TTL(key), "Helm configuration must not change Git/OCI TTLs")
+					checked++
+				case strings.Contains(key, "helm-index|legacy") && expiration > 0:
+					require.Equal(t, expiration, redisServer.TTL(key))
+					checked++
+				}
+			}
+			wantKeys := 4
+			if expiration == 0 {
+				wantKeys-- // Zero uses the Redis backend's default legacy-key TTL.
+			}
+			require.Equal(t, wantKeys, checked)
+		})
+	}
+}
+
+// These tests came out of the code review of the Helm index cache (issue
+// #30949): they assert the Redis layer's externally relevant guarantees and
+// deliberately fail on the reviewed regressions. They live in this package
+// because util/helm cannot import reposerver/cache (import cycle).
+
+func regressionRedisCache(t *testing.T) (*Cache, *miniredis.Miniredis) {
+	t.Helper()
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	base := cacheutil.NewCache(cacheutil.NewRedisCache(client, time.Hour, cacheutil.RedisCompressionNone))
+	return NewCache(base, time.Hour, time.Minute, 10*time.Second), server
+}
+
+// regressionChartRepo serves a minimal helm repo whose index can be
+// re-published with a new chart version between requests.
+type regressionChartRepo struct {
+	server *httptest.Server
+	mu     sync.Mutex
+	index  string
+}
+
+func (f *regressionChartRepo) publish(version string) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	f.index = fmt.Sprintf(`apiVersion: v1
+entries:
+  child:
+    - name: child
+      version: %s
+      urls:
+        - %s/child-%s.tgz
+`, version, f.server.URL, version)
+}
+
+func newRegressionChartRepo(t *testing.T) *regressionChartRepo {
+	t.Helper()
+	f := &regressionChartRepo{}
+	mux := http.NewServeMux()
+	mux.HandleFunc("/index.yaml", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		index := f.index
+		f.mu.Unlock()
+		// Version-derived ETag: strong validator that changes when the
+		// index is re-published, enabling 304 revalidation in tests.
+		etag := `"` + f.indexVersion(t) + `"`
+		w.Header().Set("ETag", etag)
+		if r.Header.Get("If-None-Match") == etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = w.Write([]byte(index))
+	})
+	f.server = httptest.NewServer(mux)
+	f.publish("1.0.0")
+	t.Cleanup(f.server.Close)
+	return f
+}
+
+func TestIndexCacheRegressionRedisRetainsRevalidationDataAfterFreshness(t *testing.T) {
+	cache, redisServer := regressionRedisCache(t)
+	fixture := newRegressionChartRepo(t)
+	client := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(cache))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	// Advance Redis time without sleeping. The body's freshness expires, but
+	// validators must be retained longer so the next read can revalidate
+	// conditionally instead of re-downloading.
+	redisServer.FastForward(2 * time.Minute)
+	_, err = client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+}
+
+func TestIndexCacheRegressionLegacyRedisWriterCannotPoison304(t *testing.T) {
+	cache, _ := regressionRedisCache(t)
+	fixture := newRegressionChartRepo(t)
+	client := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(cache))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	var oldBody []byte
+	require.NoError(t, cache.GetHelmIndex(fixture.server.URL, &oldBody))
+	fixture.publish("2.0.0")
+	_, err = client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.Equal(t, "2.0.0", fixture.indexVersion(t), "origin now serves 2.0.0")
+	// A delayed old replica writes only the legacy body, without the new
+	// validator protocol. New records must be isolated from that legacy key:
+	// a 304 must never pair a new validator with the old body.
+	require.NoError(t, cache.cache.SetItem(helmIndexRefsKey(fixture.server.URL), oldBody, &cacheutil.CacheActionOpts{Expiration: time.Hour}))
+	index, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	assert.Equal(t, "2.0.0", index.Entries["child"][0].Version, "an old replica must not make the client serve an old body under a new validator")
+}
+
+// indexVersion returns the version currently published by the fixture.
+func (f *regressionChartRepo) indexVersion(t *testing.T) string {
+	t.Helper()
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	for line := range strings.SplitSeq(f.index, "\n") {
+		if after, ok := strings.CutPrefix(line, "      version: "); ok {
+			return strings.TrimSpace(after)
+		}
+	}
+	return ""
+}
+
+// --- Round-2 review regressions (findings 2/3/4/6 of the second review) ---
+
+// Finding 4: redis keys carry only the repo URL, so a private-credentialed
+// connectivity check would populate cache entries that an anonymous reader
+// consumes. With scoped clients, the two views must see disjoint keys.
+func TestIndexCacheRegressionRedisKeysScopedByCredentials(t *testing.T) {
+	cache, _ := regressionRedisCache(t)
+	fixture := newRegressionChartRepo(t)
+
+	private := helm.NewClient(fixture.server.URL,
+		helm.HelmCreds{Username: "reader", Password: "secret"},
+		false, "", "", helm.WithIndexCacheScopedByCreds(cache))
+	_, err := private.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+
+	// The private fetch publishes under a scoped key; the legacy bare-URL
+	// keys must remain untouched (that is what an anonymous reader uses).
+	var body []byte
+	require.ErrorIs(t, cache.GetHelmIndex(fixture.server.URL, &body), cacheutil.ErrCacheMiss,
+		"a private-credentialed fetch must not populate the shared bare-URL cache entry")
+	_, _, err = cache.GetHelmIndexValidators(fixture.server.URL)
+	require.Error(t, err, "validators must also stay scoped: an anonymous reader must not inherit private-fetch metadata")
+
+	// An anonymous client with the SAME empty-credential scope shares keys
+	// with other anonymous clients (that is the point: same view = same key).
+	anon := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "",
+		helm.WithIndexCacheScopedByCreds(cache))
+	_, err = anon.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+}
+
+// Finding 2: the v2 record must stop serving once body freshness expires
+// (age > revision-cache TTL), even though the record itself is retained
+// longer for 304 revalidation. A stale body served to an ordinary reader
+// would extend staleness from minutes to the repo-cache window.
+func TestIndexCacheRegressionRedisStaleBodyNotServedAfterFreshness(t *testing.T) {
+	cache, _ := regressionRedisCache(t)
+	fixture := newRegressionChartRepo(t)
+	client := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "",
+		helm.WithIndexCacheScopedByCreds(cache))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+
+	// The client publishes under the SCOPED key — assert on the populated
+	// key, not the bare URL (a bare-URL miss would pass regardless of
+	// freshness and prove nothing).
+	scopedKey := fixture.server.URL + "\x00" + helm.CredsScope(helm.HelmCreds{})
+
+	// Freshness is measured from the record's StoredAt with time.Now() —
+	// miniredis FastForward does NOT move that clock. Backdate the stored
+	// validation timestamp to simulate real aging instead.
+	rec, err := cache.GetHelmIndexRecord(scopedKey)
+	require.NoError(t, err)
+	require.NotEmpty(t, rec.Body, "the test must exercise the populated key")
+	// Backdate the validation timestamp in place (package-internal SetItem).
+	rec.StoredAt = time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339Nano)
+	require.NoError(t, cache.cache.SetItem(helmIndexV2Key(scopedKey), rec,
+		&cacheutil.CacheActionOpts{Expiration: cache.repoCacheExpiration}))
+
+	// Past freshness: ordinary readers must NOT get the stale body...
+	var body []byte
+	err = cache.GetHelmIndex(scopedKey, &body)
+	require.ErrorIs(t, err, cacheutil.ErrCacheMiss, "stale body must not be served to ordinary readers after freshness expiry")
+
+	// ...while the revalidation path can still read the retained record.
+	retained, err := cache.GetHelmIndexRetainedRecord(scopedKey)
+	require.NoError(t, err, "the retained record must survive freshness expiry for 304 revalidation")
+	assert.NotEmpty(t, retained.Body)
+	assert.Equal(t, rec.ETag, retained.ETag)
+}
+
+// Finding 6: a fresh client instance must keep validators across a 304 so
+// the chain is 200 → 304 → 304 (not 200 → 304 → 200). Fresh clients arise
+// naturally: repo-server builds a new client per request.
+func TestIndexCacheRegressionFreshClientKeepsValidatorsAfter304(t *testing.T) {
+	cache, redisServer := regressionRedisCache(t)
+	fixture := newRegressionChartRepo(t)
+
+	// Client 1: cold fetch, publishes body+validators (200).
+	first := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "",
+		helm.WithIndexCacheScopedByCreds(cache))
+	_, err := first.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+
+	// Expire freshness so the next read revalidates conditionally.
+	redisServer.FastForward(2 * time.Minute)
+
+	// Client 2: fresh instance, sees expired record → conditional GET → 304.
+	second := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "",
+		helm.WithIndexCacheScopedByCreds(cache))
+	_, err = second.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	scopedKey := fixture.server.URL + "\x00" + helm.CredsScope(helm.HelmCreds{})
+	rec, err := cache.GetHelmIndexRecord(scopedKey)
+	require.NoError(t, err)
+	require.NotEmpty(t, rec.ETag, "a 304 on a fresh client must retain the validators, not republish empty ones")
+
+	// Client 3: another fresh instance AFTER another expiry must again get a
+	// 304 (validators survived), proving the chain 200 → 304 → 304.
+	redisServer.FastForward(2 * time.Minute)
+	third := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "",
+		helm.WithIndexCacheScopedByCreds(cache))
+	_, err = third.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+}
+
+func TestHelmOCITagsKeepRevisionExpiration(t *testing.T) {
+	cache, redisServer, _, _ := helmIndexContractSetup(t)
+	cache.revisionCacheExpiration = 7 * time.Minute
+	cache.SetHelmIndexCacheExpiration(30 * time.Second)
+	var requests, version atomic.Int32
+	version.Store(1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = fmt.Fprintf(w, `{"name":"child","tags":["%d.0.0"]}`, version.Load())
+	}))
+	t.Cleanup(server.Close)
+	t.Setenv("DOCKER_CONFIG", t.TempDir())
+	host := strings.TrimPrefix(server.URL, "http://")
+	client := helm.NewClient(host, helm.HelmCreds{}, true, "", "", helm.WithPlainHTTP(), helm.WithIndexCache(cache))
+	tags, err := client.GetTags(t.Context(), "child", false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0.0"}, tags)
+	// Expose the former HTTP-record route without depending on wall-clock sleeps.
+	if record, err := cache.GetHelmIndexRecord(host + "/child"); err == nil {
+		record.StoredAt = time.Now().Add(-90 * time.Second).UTC().Format(time.RFC3339Nano)
+		require.NoError(t, cache.SetHelmIndexRetainedRecord(host+"/child", record))
+	}
+	redisServer.FastForward(90 * time.Second)
+	version.Store(2)
+	tags, err = client.GetTags(t.Context(), "child", false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0.0"}, tags, "HTTP index expiry must not expire OCI tags")
+	require.EqualValues(t, 1, requests.Load())
+	redisServer.FastForward(6 * time.Minute)
+	tags, err = client.GetTags(t.Context(), "child", false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"2.0.0"}, tags)
+	require.EqualValues(t, 2, requests.Load())
+}
+
+type generationReadBarrier struct {
+	*Cache
+	observed, resume chan struct{}
+	once             sync.Once
+}
+
+func (c *generationReadBarrier) GetHelmIndexRetainedRecord(key string) (*HelmIndexRecord, error) {
+	record, err := c.Cache.GetHelmIndexRetainedRecord(key)
+	c.once.Do(func() { close(c.observed); <-c.resume })
+	return record, err
+}
+
+func TestIndexRecordReadInterleavingKeepsGeneration(t *testing.T) {
+	cache, _, origin, url := helmIndexContractSetup(t)
+	body := helmIndexContractBody("1.0.0")
+	require.NoError(t, cache.SetHelmIndexRecord(url, body, `"1.0.0"`, ""))
+	view := &generationReadBarrier{Cache: cache, observed: make(chan struct{}), resume: make(chan struct{})}
+	release := sync.OnceFunc(func() { close(view.resume) })
+	t.Cleanup(release)
+	client := helm.NewClient(url, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(view))
+	type result struct {
+		index *helm.Index
+		err   error
+	}
+	done := make(chan result, 1)
+	go func() { index, err := client.GetIndex(t.Context(), true, 1<<20); done <- result{index, err} }()
+	select {
+	case <-view.observed:
+	case <-time.After(5 * time.Second):
+		t.Fatal("client never observed the retained record")
+	}
+	require.NoError(t, cache.SetHelmIndexRecord(url, helmIndexContractBody("2.0.0"), `"2.0.0"`, ""))
+	release()
+	var got result
+	select {
+	case got = <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("revalidation did not finish")
+	}
+	require.NoError(t, got.err)
+	require.Equal(t, "1.0.0", got.index.Entries["child"][0].Version, "304 must return the generation whose validator was sent")
+	record, err := cache.GetHelmIndexRecord(url)
+	require.NoError(t, err)
+	require.Equal(t, body, record.Body)
+	require.Equal(t, `"1.0.0"`, record.ETag)
+	origin.mu.Lock()
+	defer origin.mu.Unlock()
+	require.Equal(t, []int{http.StatusNotModified}, origin.statuses)
+}
+
+type legacyRecordCache struct {
+	cache     *Cache
+	published []*HelmIndexRecord
+}
+
+func (c *legacyRecordCache) GetHelmIndex(k string, b *[]byte) error {
+	return c.cache.GetHelmIndex(k, b)
+}
+
+func (c *legacyRecordCache) SetHelmIndex(k string, b []byte) error { return c.cache.SetHelmIndex(k, b) }
+
+func (c *legacyRecordCache) GetHelmIndexValidators(k string) (string, string, error) {
+	return c.cache.GetHelmIndexValidators(k)
+}
+
+func (c *legacyRecordCache) SetHelmIndexValidators(k, e, m string) error {
+	return c.cache.SetHelmIndexValidators(k, e, m)
+}
+
+func (c *legacyRecordCache) SetHelmIndexRecord(k string, b []byte, e, m string) error {
+	c.published = append(c.published, &HelmIndexRecord{Body: append([]byte(nil), b...), ETag: e, LastModified: m})
+	return c.cache.SetHelmIndexRecord(k, b, e, m)
+}
+
+func TestLegacy304KeepsRequestBodyAndValidators(t *testing.T) {
+	cache, _ := regressionRedisCache(t)
+	body := helmIndexContractBody("1.0.0")
+	updates := make(chan error, 1)
+	headers := make(chan string, 1)
+	var url string
+	var attempts atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if attempts.Add(1) == 1 {
+			w.Header().Set("ETag", `"1.0.0"`)
+			_, _ = w.Write(body)
+			return
+		}
+		headers <- r.Header.Get("If-None-Match")
+		updates <- cache.SetHelmIndexRecord(url, helmIndexContractBody("2.0.0"), `"2.0.0"`, "")
+		// A 304 can omit validators; they must be inherited from the request's
+		// held generation, never recovered from the concurrently replaced record.
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	t.Cleanup(server.Close)
+	url = server.URL
+	require.NoError(t, cache.SetHelmIndexRecord(url, body, `"1.0.0"`, ""))
+	view := &legacyRecordCache{cache: cache}
+	client := helm.NewClient(url, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(view))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	view.published = nil
+	index, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.NoError(t, <-updates)
+	require.Equal(t, `"1.0.0"`, <-headers)
+	require.Equal(t, "1.0.0", index.Entries["child"][0].Version)
+	require.NotEmpty(t, view.published)
+	for _, record := range view.published {
+		require.Equal(t, body, record.Body)
+		require.Equal(t, `"1.0.0"`, record.ETag)
+	}
+	final, err := cache.GetHelmIndexRecord(url)
+	require.NoError(t, err)
+	require.Equal(t, body, final.Body)
+	require.Equal(t, `"1.0.0"`, final.ETag)
 }

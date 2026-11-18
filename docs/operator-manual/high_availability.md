@@ -157,7 +157,8 @@ Argo copies the original validated index bytes into that home and uses `--skip-r
 after every required HTTP repository is ready. OS file locks coordinate builds and cleanup
 between processes sharing a local directory. Lock waits respect request cancellation;
 context-free maintenance waits are limited to 30 seconds. A crashed process releases its locks,
-and startup/publication cleanup removes orphaned record temporary files. Lock files remain
+and startup/publication cleanup removes orphaned record temporary files with the cache's
+64-character lowercase hexadecimal record names. Other filenames are left alone. Lock files remain
 on disk to prevent independent locks being created for the same identity.
 
 > [!NOTE]
@@ -200,6 +201,7 @@ an incorrect `304`, a reused ETag, or an unchanged modification timestamp can hi
 OCI repositories use registry tags, manifests and blobs instead of `index.yaml`; this index cache
 does not cache OCI content or change OCI tag-cache freshness. Mixed HTTP/OCI builds retain
 registry authentication and pulls while reusing only the HTTP index.
+Helm OCI tag lists use the revision-cache expiration, independently of HTTP index expiration.
 
 During a rolling upgrade, new versioned Redis records coexist with legacy raw-index keys;
 old readers never receive a record envelope in a raw key. Older replicas may continue making full
@@ -214,6 +216,14 @@ A bounded process-local cache avoids repeating the derivation for warm credentia
 retains only keyed lookup tags and derived fingerprints, not plaintext credentials. Cold
 derivations are serialized to bound additional derivation memory. Fingerprint-version changes
 make previous entries cold; those records expire through their normal retention policies.
+Helm OCI tag-cache identities include effective Docker-store credentials when those credentials
+authenticate registry requests. Native OCI clients snapshot custom CA file contents for both
+the TLS transport and cache identity, so rotating that file creates a new cache view for new clients.
+
+Atomic shared records keep index bytes and validators together. Cache implementations that only
+support separate body and validator reads use process-local validators bound to the body's
+SHA-256 digest. Their first revalidation after restart may download the complete index;
+subsequent requests can use conditional GETs without pairing validators with different bytes.
 
 Measure index GETs, `200`/`304` statuses, transferred bytes, dependency-build duration and origin
 errors separately on a canary. Verify cold, warm, expired and executed hard-refresh builds against

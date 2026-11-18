@@ -5,8 +5,11 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"io"
 	"math"
 	"net/http"
 	"net/http/httptest"
@@ -16,6 +19,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -1017,4 +1021,553 @@ version: %s
 	require.NoError(t, tarWriter.Close())
 	require.NoError(t, gzipWriter.Close())
 	return archive.Bytes()
+}
+
+// fakeValidatorsCache is an indexCache that also implements
+// indexCacheWithValidators, mirroring reposerver/cache.Cache.
+type fakeValidatorsCache struct {
+	fakeIndexCache
+	etag         string
+	lastModified string
+}
+
+func (f *fakeValidatorsCache) SetHelmIndexValidators(_ string, etag string, lastModified string) error {
+	f.etag = etag
+	f.lastModified = lastModified
+	return nil
+}
+
+func (f *fakeValidatorsCache) GetHelmIndexValidators(_ string) (string, string, error) {
+	if f.etag == "" && f.lastModified == "" {
+		return "", "", errors.New("validators not found")
+	}
+	return f.etag, f.lastModified, nil
+}
+
+type conditionalGetServer struct {
+	etag         string
+	lastModified string
+	body         []byte
+	requests     atomic.Int32
+	// when true, a matching If-None-Match returns 304; otherwise 200 always.
+	supports304 bool
+}
+
+func (s *conditionalGetServer) handler() http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		s.requests.Add(1)
+		inm := r.Header.Get("If-None-Match")
+		if s.supports304 && inm != "" && inm == s.etag {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		if s.lastModified != "" {
+			w.Header().Set("Last-Modified", s.lastModified)
+		}
+		if s.etag != "" {
+			w.Header().Set("ETag", s.etag)
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write(s.body)
+	}
+}
+
+func newIndex(t *testing.T) []byte {
+	t.Helper()
+	fakeIndex := Index{Entries: map[string]Entries{"fake": {}}}
+	data := bytes.Buffer{}
+	require.NoError(t, yaml.NewEncoder(&data).Encode(fakeIndex))
+	return data.Bytes()
+}
+
+func TestConditionalGET_Revalidates(t *testing.T) {
+	body := newIndex(t)
+	srv := &conditionalGetServer{etag: `"v1"`, body: body, supports304: true}
+	httpSrv := httptest.NewServer(srv.handler())
+	defer httpSrv.Close()
+
+	cache := &fakeValidatorsCache{}
+	client := NewClient(httpSrv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
+
+	// First fetch: 200, validators stored.
+	_, err := client.GetIndex(t.Context(), true, 10000)
+	require.NoError(t, err)
+	assert.Equal(t, int32(1), srv.requests.Load())
+	assert.Equal(t, `"v1"`, cache.etag)
+
+	// Second fetch: If-None-Match sent, 304 received, cached body returned —
+	// still only 2 requests total, no re-download.
+	idx, err := client.GetIndex(t.Context(), true, 10000)
+	require.NoError(t, err)
+	assert.Equal(t, int32(2), srv.requests.Load())
+	assert.Equal(t, body, cache.data)
+	assert.NotNil(t, idx)
+}
+
+func TestConditionalGET_LastModifiedOnly(t *testing.T) {
+	body := newIndex(t)
+	srv := &conditionalGetServer{lastModified: "Wed, 21 Oct 2026 07:28:00 GMT", body: body, supports304: true}
+	httpSrv := httptest.NewServer(srv.handler())
+	defer httpSrv.Close()
+
+	cache := &fakeValidatorsCache{}
+	client := NewClient(httpSrv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
+
+	_, err := client.GetIndex(t.Context(), true, 10000)
+	require.NoError(t, err)
+	_, err = client.GetIndex(t.Context(), true, 10000)
+	require.NoError(t, err)
+	assert.Equal(t, int32(2), srv.requests.Load())
+}
+
+func TestConditionalGET_NoValidatorSupport(t *testing.T) {
+	// Server sends no ETag/Last-Modified: every fetch is a plain 200 GET.
+	body := newIndex(t)
+	srv := &conditionalGetServer{body: body}
+	httpSrv := httptest.NewServer(srv.handler())
+	defer httpSrv.Close()
+
+	cache := &fakeValidatorsCache{}
+	client := NewClient(httpSrv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
+
+	for range 3 {
+		_, err := client.GetIndex(t.Context(), true, 10000)
+		require.NoError(t, err)
+	}
+	assert.Equal(t, int32(3), srv.requests.Load())
+	assert.Empty(t, cache.etag)
+}
+
+func TestConditionalGET_IndexChanged(t *testing.T) {
+	// 200 with a new body and new ETag replaces both body and validators.
+	srv := &conditionalGetServer{etag: `"v1"`, body: newIndex(t), supports304: true}
+	var handler atomic.Pointer[http.HandlerFunc]
+	wrapped := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if h := handler.Load(); h != nil {
+			(*h)(w, r)
+			return
+		}
+		srv.handler()(w, r)
+	})
+	httpSrv := httptest.NewServer(wrapped)
+	defer httpSrv.Close()
+
+	cache := &fakeValidatorsCache{}
+	client := NewClient(httpSrv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
+
+	_, err := client.GetIndex(t.Context(), true, 10000)
+	require.NoError(t, err)
+
+	// Server now has a new index with a new ETag; 304 support for the old
+	// ETag is gone, so a conditional request gets a fresh 200.
+	srv.etag = `"v2"`
+	srv.body = newIndex(t)
+	newBody := append([]byte(nil), srv.body...)
+	srv.body = newBody
+	srv.supports304 = false
+
+	idx, err := client.GetIndex(t.Context(), true, 10000)
+	require.NoError(t, err)
+	assert.Equal(t, int32(2), srv.requests.Load())
+	assert.Equal(t, `"v2"`, cache.etag)
+	assert.Equal(t, newBody, cache.data)
+	require.NotNil(t, idx)
+}
+
+func TestApplyConditionalHeaders(t *testing.T) {
+	req, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://example.com/index.yaml", http.NoBody)
+	applyConditionalHeaders(req, `"abc"`, "Wed, 21 Oct 2026 07:28:00 GMT")
+	// ETag present: only If-None-Match is sent (RFC 9110 §13.1.2).
+	assert.Equal(t, `"abc"`, req.Header.Get("If-None-Match"))
+	assert.Empty(t, req.Header.Get("If-Modified-Since"))
+
+	req2, _ := http.NewRequestWithContext(t.Context(), http.MethodGet, "http://example.com/index.yaml", http.NoBody)
+	applyConditionalHeaders(req2, "", "Wed, 21 Oct 2026 07:28:00 GMT")
+	assert.Empty(t, req2.Header.Get("If-None-Match"))
+	assert.Equal(t, "Wed, 21 Oct 2026 07:28:00 GMT", req2.Header.Get("If-Modified-Since"))
+}
+
+func TestInMemoryIndexValidators(t *testing.T) {
+	v := newInMemoryIndexValidators()
+	_, _, err := v.GetHelmIndexValidators("repo")
+	require.Error(t, err)
+	require.NoError(t, v.SetHelmIndexValidators("repo", `"e"`, "lm"))
+	etag, lm, err := v.GetHelmIndexValidators("repo")
+	require.NoError(t, err)
+	assert.Equal(t, `"e"`, etag)
+	assert.Equal(t, "lm", lm)
+}
+
+func TestValidatorsFor_InMemoryFallback(t *testing.T) {
+	// A cache implementing only the base interface gets the in-process
+	// fallback (never nil).
+	v := validatorsFor(&fakeIndexCache{})
+	require.NotNil(t, v)
+	// A cache implementing the extension is used directly.
+	ext := validatorsFor(&fakeValidatorsCache{})
+	assert.Same(t, sharedInMemoryValidators, validatorsFor(&fakeIndexCache{}))
+	_ = ext
+}
+
+func TestConditionalGET_304WithoutCachedBody(t *testing.T) {
+	// Validators survive but the cached body was evicted: 304 → one retry
+	// without validators → 200 body.
+	body := newIndex(t)
+	srv := &conditionalGetServer{etag: `"v1"`, body: body, supports304: true}
+	httpSrv := httptest.NewServer(srv.handler())
+	defer httpSrv.Close()
+
+	cache := &fakeValidatorsCache{}
+	client := NewClient(httpSrv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
+
+	// Prime validators.
+	_, err := client.GetIndex(t.Context(), true, 10000)
+	require.NoError(t, err)
+
+	// Evict the body but keep validators. Conditional headers are only sent
+	// when a usable cached body exists, so this degrades to a plain 200 GET
+	// (loadRepoIndex keeps a defensive one-shot unconditional retry for an
+	// orphan 304 — unreachable through this path, but protects against a
+	// body-evicting cache change).
+	cache.data = nil
+	idx, err := client.GetIndex(t.Context(), true, 10000)
+	require.NoError(t, err)
+	assert.Equal(t, int32(2), srv.requests.Load())
+	assert.Equal(t, body, cache.data)
+	require.NotNil(t, idx)
+}
+
+func upstreamIndex(version int32) []byte {
+	return []byte(fmt.Sprintf("apiVersion: v1\nentries:\n  child:\n    - version: %d.0.0\n      urls: [child-%d.0.0.tgz]\n", version, version))
+}
+
+func TestIndexUpstreamValidatorChanges(t *testing.T) {
+	for _, mode := range []string{"etag", "weak etag", "last modified", "both", "none"} {
+		t.Run(mode, func(t *testing.T) {
+			var version atomic.Int32
+			version.Store(1)
+			type request struct {
+				etag, modified string
+				status         int
+			}
+			requests := make(chan request, 8)
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				generation := version.Load()
+				etag, modified := "", ""
+				if mode == "etag" || mode == "both" || mode == "weak etag" {
+					etag = fmt.Sprintf(`"v%d"`, generation)
+					if mode == "weak etag" {
+						etag = "W/" + etag
+					}
+					w.Header().Set("ETag", etag)
+				}
+				if mode == "last modified" || mode == "both" {
+					modified = time.Date(2026, 1, 1, int(generation), 0, 0, 0, time.UTC).Format(http.TimeFormat)
+					w.Header().Set("Last-Modified", modified)
+				}
+				status := http.StatusOK
+				if etag != "" && r.Header.Get("If-None-Match") == etag ||
+					etag == "" && modified != "" && r.Header.Get("If-Modified-Since") == modified {
+					status = http.StatusNotModified
+				}
+				requests <- request{r.Header.Get("If-None-Match"), r.Header.Get("If-Modified-Since"), status}
+				w.WriteHeader(status)
+				if status == http.StatusOK {
+					_, _ = w.Write(upstreamIndex(generation))
+				}
+			}))
+			t.Cleanup(server.Close)
+			store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+			client := regressionClient(server.URL)
+			fetch := func(want int32) {
+				t.Helper()
+				body, err := store.Revalidate(t.Context(), "upstream", client)
+				require.NoError(t, err)
+				require.Equal(t, upstreamIndex(want), body)
+			}
+			fetch(1)
+			require.Equal(t, http.StatusOK, (<-requests).status)
+			fetch(1)
+			require.Empty(t, requests, "a warm read must not check upstream")
+			regressionExpire(t, store, "upstream")
+			fetch(1)
+			unchanged := <-requests
+			wantStatus := http.StatusNotModified
+			if mode == "none" {
+				wantStatus = http.StatusOK
+			}
+			require.Equal(t, wantStatus, unchanged.status)
+			if mode == "last modified" {
+				require.NotEmpty(t, unchanged.modified)
+				require.Empty(t, unchanged.etag)
+			}
+			if mode == "both" {
+				require.NotEmpty(t, unchanged.etag)
+				require.Empty(t, unchanged.modified, "ETag takes precedence")
+			}
+			version.Store(2)
+			regressionExpire(t, store, "upstream")
+			fetch(2)
+			changed := <-requests
+			require.Equal(t, http.StatusOK, changed.status)
+			require.Equal(t, unchanged.etag, changed.etag)
+			require.Equal(t, unchanged.modified, changed.modified)
+			regressionExpire(t, store, "upstream")
+			fetch(2)
+			revalidated := <-requests
+			require.Equal(t, wantStatus, revalidated.status)
+			if mode != "none" {
+				require.NotEqual(t, unchanged, revalidated, "the new response's validators must replace the old generation")
+			}
+		})
+	}
+}
+
+func TestIndexUpstreamOrphan304RetryIsBounded(t *testing.T) {
+	for _, repeat304 := range []bool{false, true} {
+		t.Run(fmt.Sprintf("repeat304=%t", repeat304), func(t *testing.T) {
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if requests.Add(1) == 1 || repeat304 {
+					w.WriteHeader(http.StatusNotModified)
+					return
+				}
+				_, _ = w.Write(upstreamIndex(2))
+			}))
+			t.Cleanup(server.Close)
+			body, err := regressionClient(server.URL).loadRepoIndex(t.Context(), 1<<20)
+			if repeat304 {
+				require.ErrorContains(t, err, "304")
+				require.Empty(t, body)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, upstreamIndex(2), body)
+			}
+			require.EqualValues(t, 2, requests.Load(), "an unusable 304 must retry exactly once")
+		})
+	}
+}
+
+func TestIndexUpstreamRedirectRetainsConditionalRequest(t *testing.T) {
+	requests := make(chan string, 4)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/index.yaml" {
+			http.Redirect(w, r, "/actual/index.yaml", http.StatusTemporaryRedirect)
+			return
+		}
+		requests <- r.Header.Get("If-None-Match")
+		w.Header().Set("ETag", `"redirected"`)
+		if r.Header.Get("If-None-Match") == `"redirected"` {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = w.Write(upstreamIndex(1))
+	}))
+	t.Cleanup(server.Close)
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+	for range 2 {
+		body, err := store.Revalidate(t.Context(), "redirect", regressionClient(server.URL))
+		require.NoError(t, err)
+		require.Equal(t, upstreamIndex(1), body)
+		regressionExpire(t, store, "redirect")
+	}
+	require.Empty(t, <-requests)
+	require.Equal(t, `"redirected"`, <-requests)
+}
+
+func TestIndexUpstreamValidationThroughProxy(t *testing.T) {
+	for _, policy := range []string{"expired", "always fresh", "forced"} {
+		t.Run(policy, func(t *testing.T) {
+			var originRequests atomic.Int32
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				originRequests.Add(1)
+				w.Header().Set("ETag", `"new"`)
+				_, _ = w.Write(upstreamIndex(2))
+			}))
+			t.Cleanup(origin.Close)
+			gateway := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				// A proxy may satisfy an unconditional request using its own
+				// still-fresh response unless origin validation is requested.
+				if !strings.Contains(r.Header.Get("Cache-Control"), "no-cache") {
+					w.Header().Set("ETag", `"old"`)
+					_, _ = w.Write(upstreamIndex(1))
+					return
+				}
+				req, err := http.NewRequestWithContext(r.Context(), http.MethodGet, origin.URL+"/index.yaml", http.NoBody)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadGateway)
+					return
+				}
+				req.Header = r.Header.Clone()
+				response, err := origin.Client().Do(req)
+				if err != nil {
+					http.Error(w, err.Error(), http.StatusBadGateway)
+					return
+				}
+				defer func() { _ = response.Body.Close() }()
+				w.Header().Set("ETag", response.Header.Get("ETag"))
+				w.WriteHeader(response.StatusCode)
+				_, _ = io.Copy(w, response.Body)
+			}))
+			t.Cleanup(gateway.Close)
+			store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+			require.NoError(t, store.SetWithValidators("proxy", upstreamIndex(1), `"old"`, ""))
+			client := NewClient("http://charts.example.invalid", HelmCreds{}, false, gateway.URL, "").(*nativeHelmChart)
+			var body []byte
+			var err error
+			switch policy {
+			case "expired":
+				regressionExpire(t, store, "proxy")
+				body, err = store.Revalidate(t.Context(), "proxy", client)
+			case "always fresh":
+				client.indexCache = retainedIndexView{&HelmIndexRecord{Body: upstreamIndex(1), ETag: `"old"`}}
+				body, err = client.loadRepoIndex(t.Context(), 1<<20)
+			case "forced":
+				body, err = store.ForceRefresh(t.Context(), "proxy", client)
+			}
+			require.NoError(t, err)
+			require.Equal(t, upstreamIndex(2), body, "freshness checks must reach the origin through a caching proxy")
+			require.EqualValues(t, 1, originRequests.Load())
+		})
+	}
+}
+
+func TestIndexOCIChangedTagsAndAuthentication(t *testing.T) {
+	var version, tagRequests, indexRequests atomic.Int32
+	var authorized atomic.Bool
+	version.Store(1)
+	authorized.Store(true)
+	registry := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasSuffix(r.URL.Path, "index.yaml") {
+			indexRequests.Add(1)
+		}
+		username, password, ok := r.BasicAuth()
+		if !authorized.Load() || !ok || username != "reader" || password != "secret" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="registry"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path == "/v2/child/tags/list" {
+			tagRequests.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(map[string]any{"name": "child", "tags": []string{fmt.Sprintf("%d.0.0", version.Load())}})
+			return
+		}
+		if r.URL.Path != "/v2/" {
+			http.NotFound(w, r)
+		}
+	}))
+	t.Cleanup(registry.Close)
+	cache := &fakeIndexCache{}
+	client := NewClient(strings.TrimPrefix(registry.URL, "http://"), HelmCreds{Username: "reader", Password: "secret"}, true, "", "",
+		WithPlainHTTP(), WithIndexCacheScopedByCreds(cache))
+	tags, err := client.GetTags(t.Context(), "child", false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0.0"}, tags)
+	version.Store(2)
+	tags, err = client.GetTags(t.Context(), "child", false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"1.0.0"}, tags, "ordinary calls retain the existing tag-cache policy")
+	require.EqualValues(t, 1, tagRequests.Load())
+	tags, err = client.GetTags(t.Context(), "child", true)
+	require.NoError(t, err)
+	require.Equal(t, []string{"2.0.0"}, tags, "forced tag resolution must observe newly published versions")
+	require.EqualValues(t, 2, tagRequests.Load())
+	version.Store(3)
+	cache.data = nil // Simulate tag-cache eviction/expiry.
+	tags, err = client.GetTags(t.Context(), "child", false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"3.0.0"}, tags)
+	require.EqualValues(t, 3, tagRequests.Load())
+	authorized.Store(false)
+	_, err = client.GetTags(t.Context(), "child", true)
+	require.ErrorContains(t, err, "401", "a warmed tag cache must not mask forced authentication failures")
+	require.Zero(t, indexRequests.Load(), "OCI tag discovery must never request index.yaml")
+}
+
+type credentialIndexCache struct{ bodies map[string][]byte }
+
+func (c *credentialIndexCache) GetHelmIndex(key string, body *[]byte) error {
+	data, ok := c.bodies[key]
+	if !ok {
+		return errors.New("cache miss")
+	}
+	*body = append([]byte(nil), data...)
+	return nil
+}
+
+func (c *credentialIndexCache) SetHelmIndex(key string, body []byte) error {
+	c.bodies[key] = append([]byte(nil), body...)
+	return nil
+}
+
+func TestConditionalGET_BaseCacheRetainsValidators(t *testing.T) {
+	var conditional atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("If-None-Match") == `"unchanged"` {
+			conditional.Add(1)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Header().Set("ETag", `"unchanged"`)
+		_, _ = w.Write([]byte(regressionIndexBody))
+	}))
+	t.Cleanup(server.Close)
+	client := NewClient(server.URL, HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{}))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	_, err = client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, conditional.Load(), "base-interface cache must publish to the in-memory validator fallback")
+}
+
+func TestConditionalGET_BaseCacheRejectsMismatchedGeneration(t *testing.T) {
+	var headers []string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		headers = append(headers, r.Header.Get("If-None-Match"))
+		w.Header().Set("ETag", `"origin"`)
+		_, _ = w.Write([]byte(regressionIndexBody))
+	}))
+	t.Cleanup(server.Close)
+	cache := &fakeIndexCache{}
+	client := NewClient(server.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	// Another writer changes the body without publishing a paired validator.
+	cache.data = []byte(strings.ReplaceAll(regressionIndexBody, "0.1.0", "0.2.0") + "\n")
+	_, err = client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.Equal(t, []string{"", ""}, headers, "validators must match the exact cached bytes")
+}
+
+func TestGetTagsDockerFallbackCredentialIsolation(t *testing.T) {
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		username, password, ok := r.BasicAuth()
+		if !ok || username != "reader" || password != "test-secret" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="registry"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"name":"child","tags":["private-version"]}`))
+	}))
+	t.Cleanup(server.Close)
+	host := strings.TrimPrefix(server.URL, "http://")
+	dir := t.TempDir()
+	t.Setenv("DOCKER_CONFIG", dir)
+	config, _ := json.Marshal(map[string]any{"auths": map[string]any{host: map[string]string{"auth": base64.StdEncoding.EncodeToString([]byte("reader:test-secret"))}}})
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), config, 0o600))
+	cache := &credentialIndexCache{bodies: map[string][]byte{}}
+	first := NewClient(host, HelmCreds{}, true, "", "", WithPlainHTTP(), WithIndexCacheScopedByCreds(cache))
+	tags, err := first.GetTags(t.Context(), "child", false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"private-version"}, tags)
+	before := requests.Load()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"auths":{}}`), 0o600))
+	second := NewClient(host, HelmCreds{}, true, "", "", WithPlainHTTP(), WithIndexCacheScopedByCreds(cache))
+	_, err = second.GetTags(t.Context(), "child", false)
+	require.Error(t, err, "anonymous operation must not read Docker-authenticated private tag metadata")
+	assert.Greater(t, requests.Load(), before, "the second authentication context must reach the origin")
 }

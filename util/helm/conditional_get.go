@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"crypto/sha256"
 	"errors"
 	"net/http"
 	"sync"
@@ -19,8 +20,8 @@ type indexCacheWithValidators interface {
 	GetHelmIndexValidators(repo string) (etag string, lastModified string, err error)
 }
 
-// inMemoryIndexValidators is a per-process fallback for caches that do not
-// implement indexCacheWithValidators. Losing the validators on restart merely
+// inMemoryIndexValidators is a body-bound fallback for caches without atomic
+// record reads. Losing the validators on restart merely
 // means the next fetch is an unconditional GET. Entries never expire
 // client-side: the server decides via 304/200, and any 200 refreshes them.
 type inMemoryIndexValidators struct {
@@ -31,6 +32,35 @@ type inMemoryIndexValidators struct {
 type helmIndexValidators struct {
 	etag         string
 	lastModified string
+	bodyDigest   [sha256.Size]byte
+	bound        bool
+}
+
+// Bind fallback validators to the exact body. An external cache writer must
+// never make a different body eligible for a 304 under these validators.
+func (v *inMemoryIndexValidators) setForBody(repo string, body []byte, etag, modified string) {
+	digest := sha256.Sum256(body)
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	if etag == "" && modified == "" {
+		delete(v.m, repo)
+		return
+	}
+	if v.m == nil {
+		v.m = map[string]helmIndexValidators{}
+	}
+	v.m[repo] = helmIndexValidators{etag: etag, lastModified: modified, bodyDigest: digest, bound: true}
+}
+
+func (v *inMemoryIndexValidators) getForBody(repo string, body []byte) (string, string) {
+	digest := sha256.Sum256(body)
+	v.mu.RLock()
+	defer v.mu.RUnlock()
+	entry, ok := v.m[repo]
+	if !ok || !entry.bound || entry.bodyDigest != digest {
+		return "", ""
+	}
+	return entry.etag, entry.lastModified
 }
 
 func newInMemoryIndexValidators() *inMemoryIndexValidators {
@@ -77,16 +107,6 @@ func validatorsFor(indexCacheObj indexCache) indexCacheWithValidators {
 
 // sharedInMemoryValidators backs clients whose cache cannot store validators.
 var sharedInMemoryValidators = newInMemoryIndexValidators()
-
-// getIndexValidators retrieves stored validators for a repo; empty strings
-// when none are available (caller sends an unconditional GET).
-func getIndexValidators(validators indexCacheWithValidators, repo string) (string, string) {
-	etag, lastModified, err := validators.GetHelmIndexValidators(repo)
-	if err != nil {
-		return "", ""
-	}
-	return etag, lastModified
-}
 
 // applyConditionalHeaders sets If-None-Match / If-Modified-Since on the
 // request. Per RFC 9110 §13.1.2, If-None-Match takes precedence when both

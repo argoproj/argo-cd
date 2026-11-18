@@ -191,6 +191,9 @@ func (s *IndexStore) readRecord(repoURL string, expiredAsMiss bool) (*indexRecor
 		return nil, err
 	}
 	rec.Body = string(body)
+	// Preserve the effective deadline, including legacy records and an older
+	// mtime, when a validator-only update republishes this record.
+	rec.StoredAt = validatedAt.UTC().Format(time.RFC3339Nano)
 	return &rec, nil
 }
 
@@ -623,7 +626,10 @@ func (s *IndexStore) Sweep() {
 		if entry.IsDir() {
 			continue
 		}
-		if record, _, ok := strings.Cut(entry.Name(), ".json.tmp-"); ok {
+		if record, suffix, ok := strings.Cut(entry.Name(), ".json.tmp-"); ok {
+			if suffix == "" || !isIndexRecordName(record+".json") {
+				continue
+			}
 			unlock, err := s.lock(context.Background(), filepath.Join(s.dir, record+".json"), false, false)
 			if err == nil {
 				_ = os.Remove(filepath.Join(s.dir, entry.Name()))
@@ -631,11 +637,24 @@ func (s *IndexStore) Sweep() {
 			}
 			continue
 		}
-		if !strings.HasSuffix(entry.Name(), ".json") {
+		if !isIndexRecordName(entry.Name()) {
 			continue
 		}
 		s.evictExpiredFile(filepath.Join(s.dir, entry.Name()))
 	}
+}
+
+func isIndexRecordName(name string) bool {
+	digest, ok := strings.CutSuffix(name, ".json")
+	if !ok || len(digest) != sha256.Size*2 {
+		return false
+	}
+	for _, char := range digest {
+		if (char < '0' || char > '9') && (char < 'a' || char > 'f') {
+			return false
+		}
+	}
+	return true
 }
 
 func (s *IndexStore) evictExpiredFile(file string) {

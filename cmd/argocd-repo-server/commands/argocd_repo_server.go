@@ -54,10 +54,6 @@ var (
 
 func NewCommand() *cobra.Command {
 	var (
-		helmIndexCacheEnabled              bool
-		helmIndexCacheFilterEnabled        bool
-		helmIndexCacheDir                  string
-		helmIndexCacheExpiration           time.Duration
 		parallelismLimit                   int64
 		listenPort                         int
 		listenHost                         string
@@ -81,6 +77,10 @@ func NewCommand() *cobra.Command {
 		streamedManifestMaxExtractedSize   string
 		helmManifestMaxExtractedSize       string
 		helmRegistryMaxIndexSize           string
+		helmIndexCacheEnabled              bool
+		helmIndexCacheFilterEnabled        bool
+		helmIndexCacheDir                  string
+		helmIndexCacheExpiration           time.Duration
 		ociManifestMaxExtractedSize        string
 		disableOCIManifestMaxExtractedSize bool
 		disableManifestMaxExtractedSize    bool

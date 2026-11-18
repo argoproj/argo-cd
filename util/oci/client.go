@@ -97,6 +97,7 @@ type Creds struct {
 	KeyData            []byte
 	InsecureSkipVerify bool
 	InsecureHTTPOnly   bool
+	caData             []byte // immutable CA snapshot shared by TLS and cache identity
 }
 
 type ClientOpts func(c *nativeOCIClient)
@@ -115,8 +116,17 @@ func WithIndexCache(indexCache tagsCache) ClientOpts {
 // keys. Without this option the bare repo URL is used (legacy behavior).
 func WithIndexCacheScopedByCreds(indexCache tagsCache, creds Creds) ClientOpts {
 	return func(c *nativeOCIClient) {
-		c.tagsCache = indexCache
-		c.tagsCacheScope = credsScope(creds)
+		effective := creds
+		if c.credentialSnapshot != nil {
+			effective = *c.credentialSnapshot
+		}
+		c.tagsCacheScope = credsScope(effective)
+		if c.tagsCacheScope != "" {
+			c.tagsCache = indexCache
+		} else {
+			// An unreadable trust context cannot safely identify shared data.
+			c.tagsCache = nil
+		}
 	}
 }
 
@@ -129,6 +139,7 @@ type nativeOCIClient struct {
 	repoLock                        sync.KeyLock
 	tagsCache                       tagsCache
 	tagsCacheScope                  string // credential fingerprint scoping tags-cache keys (empty = legacy bare-URL keys)
+	credentialSnapshot              *Creds
 	repoCachePaths                  utilio.TempPaths
 	allowedMediaTypes               []string
 	manifestMaxExtractedSize        int64
@@ -147,15 +158,31 @@ func (c *nativeOCIClient) cacheRepoKey() string {
 // credsScope returns a versioned, memory-hard fingerprint of the effective
 // authentication and TLS context, without truncating its 256-bit output.
 func credsScope(creds Creds) string {
-	return cryptoutil.CredentialScope("oci-credentials",
+	creds, err := snapshotCredentials(creds)
+	if err != nil {
+		return ""
+	}
+	return cryptoutil.CredentialScope("oci-credentials-v2",
 		creds.Username,
 		creds.Password,
 		creds.CAPath,
+		string(creds.caData),
 		string(creds.CertData),
 		string(creds.KeyData),
 		strconv.FormatBool(creds.InsecureSkipVerify),
 		strconv.FormatBool(creds.InsecureHTTPOnly),
 	)
+}
+
+func snapshotCredentials(creds Creds) (Creds, error) {
+	if creds.CAPath != "" && creds.caData == nil && !creds.InsecureHTTPOnly {
+		data, err := os.ReadFile(creds.CAPath)
+		if err != nil {
+			return Creds{}, err
+		}
+		creds.caData = data
+	}
+	return creds, nil
 }
 
 func WithImagePaths(repoCachePaths utilio.TempPaths) ClientOpts {
@@ -181,6 +208,13 @@ func NewClient(repoURL string, creds Creds, proxy, noProxy string, layerMediaTyp
 }
 
 func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
+	var err error
+	creds, err = snapshotCredentials(creds)
+	if err != nil {
+		return nil, fmt.Errorf("read OCI trust context: %w", err)
+	}
+	// Options use the same CA generation that constructed this transport.
+	opts = append([]ClientOpts{func(c *nativeOCIClient) { c.credentialSnapshot = &creds }}, opts...)
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
@@ -523,15 +557,16 @@ func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (s
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
+	var err error
+	creds, err = snapshotCredentials(creds)
+	if err != nil {
+		return nil, err
+	}
 	tlsConfig := &tls.Config{InsecureSkipVerify: creds.InsecureSkipVerify}
 
 	if creds.CAPath != "" {
-		caData, err := os.ReadFile(creds.CAPath)
-		if err != nil {
-			return nil, err
-		}
 		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caData)
+		caCertPool.AppendCertsFromPEM(creds.caData)
 		tlsConfig.RootCAs = caCertPool
 	}
 
