@@ -62,6 +62,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/git"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/lua"
 	"github.com/argoproj/argo-cd/v3/util/manifeststream"
@@ -1310,6 +1311,7 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 			minVersion = 0
 		}
 	}
+	grpc_util.StartStream(ws)
 
 	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
 	// caller has RBAC privileges permissions to view it
@@ -1695,10 +1697,18 @@ func (s *Server) WatchResourceTree(q *application.ResourcesQuery, ws application
 		return err
 	}
 
+	grpc_util.StartStream(ws)
+
 	cacheKey := argo.AppInstanceName(q.GetApplicationName(), q.GetAppNamespace(), s.ns)
+	// The callback also runs when the subscription starts. That sends the current tree, so a client that
+	// connects, or reconnects after an interruption, is not left with the changes it missed until the next one.
 	return s.cache.OnAppResourcesTreeChanged(ws.Context(), cacheKey, func() error {
 		var tree v1alpha1.ApplicationTree
 		err := s.cache.GetAppResourcesTree(cacheKey, &tree)
+		if errors.Is(err, ErrCacheMiss) {
+			// The controller has not stored a tree for the application; it is sent once there is one.
+			return nil
+		}
 		if err != nil {
 			return fmt.Errorf("error getting app resource tree: %w", err)
 		}

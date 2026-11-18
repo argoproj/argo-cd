@@ -22,6 +22,9 @@ enum ReadyState {
     DONE = 4
 }
 
+// How long loadEventSource waits for the HTTP status of a stream that the server refused.
+export const STREAM_STATUS_TIMEOUT = 3000;
+
 let baseHRef = '/';
 
 const onError = new BehaviorSubject<agent.ResponseError>(null);
@@ -72,51 +75,82 @@ export default {
 
             const abortController = new AbortController();
             let errored = false;
+            let statusTimeout: ReturnType<typeof setTimeout>;
 
-            // EventSource's error event is opaque (no status, no body). On failure,
-            // issue a one-shot fetch so we can surface the server's HTTP status and
-            // body. This replaces the always-on prefetch, which doubled the open
-            // watch streams per subscription and held an HTTP/1.1 connection slot
-            // for the lifetime of every watch — see issue #27877.
-            const probeAndError = (eventSourceError: any) => {
-                if (errored) {
-                    return;
-                }
-                errored = true;
+            const fail = (err: any) => {
+                observer.error(err);
+                onError.next(err);
+            };
+
+            // EventSource's error event is opaque (no status, no body). When the server refused the stream,
+            // issue a one-shot fetch so we can surface its HTTP status and body. This replaces the always-on
+            // prefetch, which doubled the open watch streams per subscription and held an HTTP/1.1 connection
+            // slot for the lifetime of every watch — see issue #27877.
+            const failWithStatus = (eventSourceError: any) => {
+                // The fetch is the same stream again, so it can be accepted and then stay silent: a watch may
+                // not answer until it has something to send. Give up on the status then, not on the stream.
+                // Nothing is listening until the subscriber gets the error and reconnects.
+                statusTimeout = setTimeout(() => {
+                    abortController.abort();
+                    fail(eventSourceError);
+                }, STREAM_STATUS_TIMEOUT);
                 fetch(fullUrl, {signal: abortController.signal})
                     .then(async response => {
+                        if (abortController.signal.aborted) {
+                            return;
+                        }
+                        clearTimeout(statusTimeout);
                         if (!response.ok) {
                             const text = await response.text();
                             observer.error({status: response.status, statusText: response.statusText, body: text});
                             onError.next({status: response.status, name: response.statusText, message: text} as agent.ResponseError);
                         } else {
                             await response.body?.cancel();
-                            observer.error(eventSourceError);
-                            onError.next(eventSourceError);
+                            fail(eventSourceError);
                         }
                     })
                     .catch(fetchErr => {
-                        if (fetchErr.name === 'AbortError') {
+                        // Aborted by the timeout, which reported the error, or by the subscriber leaving.
+                        if (abortController.signal.aborted) {
                             return;
                         }
-                        observer.error(fetchErr);
-                        onError.next(fetchErr);
+                        clearTimeout(statusTimeout);
+                        fail(fetchErr);
                     });
+            };
+
+            const onStreamError = (eventSourceError: any) => {
+                if (errored) {
+                    return;
+                }
+                errored = true;
+                // The browser closes a stream for good when the server answers it with an error status, which
+                // is the only case with a status to learn. After a dropped connection it is reconnecting.
+                const refused = eventSource.readyState === ReadyState.CLOSED;
+                // Reconnecting is up to the subscriber, which may have to reload what it missed. Don't let the
+                // browser reconnect as well: the subscriber's stream would come on top of it.
+                eventSource.close();
+                if (refused) {
+                    failWithStatus(eventSourceError);
+                } else {
+                    fail(eventSourceError);
+                }
             };
 
             let eventSource = new EventSource(fullUrl);
             eventSource.onmessage = msg => observer.next(msg.data);
-            eventSource.onerror = e => probeAndError(e);
+            eventSource.onerror = e => onStreamError(e);
 
             // EventSource does not provide easy way to get notification when connection closed.
             // check readyState periodically instead.
             const interval = setInterval(() => {
                 if (eventSource && eventSource.readyState === ReadyState.CLOSED) {
-                    probeAndError('connection got closed unexpectedly');
+                    onStreamError('connection got closed unexpectedly');
                 }
             }, 500);
             return () => {
                 clearInterval(interval);
+                clearTimeout(statusTimeout);
                 eventSource.close();
                 abortController.abort();
                 eventSource = null;

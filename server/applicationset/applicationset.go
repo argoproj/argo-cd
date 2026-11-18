@@ -44,6 +44,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/collections"
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/github_app"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/session"
@@ -99,6 +100,7 @@ func (s *Server) Watch(q *applicationset.ApplicationSetWatchQuery, ws applicatio
 			minVersion = 0
 		}
 	}
+	grpc_util.StartStream(ws)
 	sendIfPermitted := func(a v1alpha1.ApplicationSet, eventType watch.EventType) {
 		permitted := s.isApplicationsetPermitted(selector, minVersion, claims, appsetName, appsetNs, projects, a)
 		if !permitted {

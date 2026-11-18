@@ -33,6 +33,8 @@ const (
 	// redisNoSuchKeyErr is the error string Redis returns from RENAME when the source key does not
 	// exist. It is treated as a cache miss rather than a failed request.
 	redisNoSuchKeyErr = "ERR no such key"
+	// subscribeTimeout is how long OnUpdated waits for Redis to confirm a subscription.
+	subscribeTimeout = 10 * time.Second
 )
 
 func CompressionTypeFromString(s string) (RedisCompressionType, error) {
@@ -164,6 +166,18 @@ func (r *redisCache) Delete(key string) error {
 func (r *redisCache) OnUpdated(ctx context.Context, key string, callback func() error) error {
 	pubsub := r.client.Subscribe(ctx, key)
 	defer utilio.Close(pubsub)
+
+	// Subscribe returns before Redis has registered the subscription. Wait for the confirmation, so that
+	// every update published after the first callback read the current value is delivered.
+	if _, err := pubsub.ReceiveTimeout(ctx, subscribeTimeout); err != nil {
+		if ctx.Err() != nil {
+			return nil
+		}
+		return fmt.Errorf("error subscribing to updates of %s: %w", key, err)
+	}
+	if err := callback(); err != nil {
+		return err
+	}
 
 	ch := pubsub.Channel()
 	for {

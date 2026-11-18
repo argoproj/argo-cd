@@ -1,22 +1,29 @@
 package application
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"io"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	//nolint:staticcheck
 	"github.com/golang/protobuf/proto"
 	"github.com/grpc-ecosystem/grpc-gateway/runtime"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/grpc/metadata"
+	"google.golang.org/grpc/status"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 
@@ -24,6 +31,7 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 )
 
 func TestProcessApplicationListField_SyncOperation(t *testing.T) {
@@ -721,6 +729,98 @@ func TestLogsForwarder_DownloadFileName(t *testing.T) {
 			}
 			forward_ApplicationService_PodLogs_1(t.Context(), runtime.NewServeMux(), nil, rec, req, recv)
 			assert.Equal(t, `attachment;filename="`+tt.expected+`"`, rec.Header().Get("Content-Disposition"))
+		})
+	}
+}
+
+// quietWatchServer is an application service whose watches, like the real ones, start their stream once the
+// request is accepted and then have nothing to send.
+type quietWatchServer struct {
+	UnimplementedApplicationServiceServer
+	// err, when set, is the error the watches are rejected with
+	err error
+}
+
+func (s *quietWatchServer) watch(stream grpc.ServerStream) error {
+	if s.err != nil {
+		return s.err
+	}
+	grpc_util.StartStream(stream)
+	<-stream.Context().Done()
+	return nil
+}
+
+func (s *quietWatchServer) Watch(_ *ApplicationQuery, ws ApplicationService_WatchServer) error {
+	return s.watch(ws)
+}
+
+func (s *quietWatchServer) WatchResourceTree(_ *ResourcesQuery, ws ApplicationService_WatchResourceTreeServer) error {
+	return s.watch(ws)
+}
+
+// openEventStream requests path as the browser's EventSource does, from the application service served through
+// grpc-gateway the way the API server serves it.
+func openEventStream(t *testing.T, server ApplicationServiceServer, path string) (*http.Response, error) {
+	t.Helper()
+	lis, err := (&net.ListenConfig{}).Listen(t.Context(), "tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	grpcServer := grpc.NewServer()
+	RegisterApplicationServiceServer(grpcServer, server)
+	go func() { _ = grpcServer.Serve(lis) }()
+	t.Cleanup(grpcServer.Stop)
+
+	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = conn.Close() })
+	mux := runtime.NewServeMux(runtime.WithMarshalerOption(runtime.MIMEWildcard, new(grpc_util.JSONMarshaler)))
+	require.NoError(t, RegisterApplicationServiceHandler(t.Context(), mux, conn))
+	gateway := httptest.NewServer(mux)
+	t.Cleanup(gateway.Close)
+
+	// Long enough for a loaded machine, and shorter than the 15 seconds after which the keepalive of the event
+	// stream would start the response anyway.
+	ctx, cancel := context.WithTimeout(t.Context(), 10*time.Second)
+	t.Cleanup(cancel)
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, gateway.URL+path, http.NoBody)
+	require.NoError(t, err)
+	req.Header.Set("Accept", "text/event-stream")
+	resp, err := http.DefaultClient.Do(req)
+	if err == nil {
+		t.Cleanup(func() { _ = resp.Body.Close() })
+	}
+	return resp, err
+}
+
+func TestWatchEventStreams(t *testing.T) {
+	t.Parallel()
+	paths := map[string]string{
+		"applications":  "/api/v1/stream/applications?resourceVersion=1",
+		"resource tree": "/api/v1/stream/applications/guestbook/resource-tree",
+	}
+	for name, path := range paths {
+		t.Run(name+" watch answers before it has anything to send", func(t *testing.T) {
+			t.Parallel()
+			// Without an answer the browser cannot tell a watch of resources that are not changing from a
+			// request the server never took, and proxies give up on it with a gateway timeout.
+			resp, err := openEventStream(t, &quietWatchServer{}, path)
+			require.NoError(t, err)
+
+			assert.Equal(t, http.StatusOK, resp.StatusCode)
+			assert.Equal(t, "text/event-stream", resp.Header.Get("Content-Type"))
+			line, err := bufio.NewReader(resp.Body).ReadString('\n')
+			require.NoError(t, err)
+			assert.Equal(t, ":\n", line, "the response starts with a comment, which event stream clients ignore")
+		})
+
+		t.Run(name+" watch that is rejected answers with the HTTP status of the error", func(t *testing.T) {
+			t.Parallel()
+			resp, err := openEventStream(t, &quietWatchServer{err: status.Error(codes.PermissionDenied, "permission denied")}, path)
+			require.NoError(t, err)
+
+			assert.Equal(t, http.StatusForbidden, resp.StatusCode)
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			assert.Contains(t, string(body), "permission denied")
 		})
 	}
 }

@@ -89,8 +89,9 @@ func (i *InMemoryCache) Flush() {
 	i.memCache.Flush()
 }
 
-func (i *InMemoryCache) OnUpdated(_ context.Context, _ string, _ func() error) error {
-	return nil
+// OnUpdated calls callback once and returns, because the in-memory cache publishes no updates to wait for.
+func (i *InMemoryCache) OnUpdated(_ context.Context, _ string, callback func() error) error {
+	return callback()
 }
 
 func (i *InMemoryCache) NotifyUpdated(_ string) error {

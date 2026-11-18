@@ -103,11 +103,17 @@ func (broadcasterMock) OnUpdate(any, any) {}
 func (broadcasterMock) OnDelete(any)      {}
 
 // mockApplicationWatchServer captures the applications sent through a Watch stream. The embedded
-// grpc.ServerStream is never used because Watch only calls Context and Send, both overridden here.
+// grpc.ServerStream is never used because Watch only calls Context, SendHeader and Send, all overridden here.
 type mockApplicationWatchServer struct {
 	googlegrpc.ServerStream
-	ctx  context.Context
-	sent []*v1alpha1.ApplicationWatchEvent
+	ctx        context.Context
+	headerSent bool
+	sent       []*v1alpha1.ApplicationWatchEvent
+}
+
+func (m *mockApplicationWatchServer) SendHeader(metadata.MD) error {
+	m.headerSent = true
+	return nil
 }
 
 func (m *mockApplicationWatchServer) Send(event *v1alpha1.ApplicationWatchEvent) error {
@@ -662,10 +668,13 @@ func (t *TestServerStream) ServerStream() TestServerStream {
 }
 
 type TestResourceTreeServer struct {
-	ctx context.Context
+	ctx        context.Context
+	headerSent bool
+	sent       []*v1alpha1.ApplicationTree
 }
 
-func (t *TestResourceTreeServer) Send(_ *v1alpha1.ApplicationTree) error {
+func (t *TestResourceTreeServer) Send(tree *v1alpha1.ApplicationTree) error {
+	t.sent = append(t.sent, tree)
 	return nil
 }
 
@@ -674,6 +683,7 @@ func (t *TestResourceTreeServer) SetHeader(metadata.MD) error {
 }
 
 func (t *TestResourceTreeServer) SendHeader(metadata.MD) error {
+	t.headerSent = true
 	return nil
 }
 
@@ -1394,6 +1404,64 @@ func TestListAppWithNamespacedNames(t *testing.T) {
 		appList, err := appServer.List(t.Context(), &appQuery)
 		require.NoError(t, err)
 		assert.Empty(t, appList.Items)
+	})
+}
+
+func TestWatchStartsStreamBeforeAnyEvent(t *testing.T) {
+	appServer := newTestAppServer(t, newTestApp())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	// Cancel immediately so Watch returns instead of blocking on the broadcaster loop.
+	cancel()
+	ws := &mockApplicationWatchServer{ctx: ctx}
+
+	// A watch from a resource version has no initial events, and none of the applications is newer.
+	err := appServer.Watch(&application.ApplicationQuery{ResourceVersion: new("1000000")}, ws)
+	require.NoError(t, err)
+
+	assert.Empty(t, ws.sent)
+	assert.True(t, ws.headerSent, "the stream must start although there is no event to send, or the HTTP request stays unanswered")
+}
+
+func TestWatchResourceTree(t *testing.T) {
+	testApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Status.Resources = []v1alpha1.ResourceStatus{{Kind: "Deployment", Name: "guestbook", Namespace: "default"}}
+	})
+
+	t.Run("sends the current tree when the watch starts", func(t *testing.T) {
+		appServer := newTestAppServer(t, testApp)
+		ws := &TestResourceTreeServer{ctx: t.Context()}
+
+		err := appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: &testApp.Name}, ws)
+		require.NoError(t, err)
+
+		assert.True(t, ws.headerSent)
+		require.Len(t, ws.sent, 1, "a client that connects or reconnects must get the tree without waiting for the next change")
+		require.Len(t, ws.sent[0].Nodes, 1)
+		assert.Equal(t, "guestbook", ws.sent[0].Nodes[0].Name)
+	})
+
+	t.Run("starts the stream when there is no tree yet", func(t *testing.T) {
+		appServer := newTestAppServer(t, testApp)
+		appServer.cache = servercache.NewCache(appstate.NewCache(cache.NewCache(cache.NewInMemoryCache(time.Hour)), time.Hour), time.Hour, time.Hour)
+		ws := &TestResourceTreeServer{ctx: t.Context()}
+
+		err := appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: &testApp.Name}, ws)
+		require.NoError(t, err)
+
+		assert.True(t, ws.headerSent)
+		assert.Empty(t, ws.sent)
+	})
+
+	t.Run("does not start the stream of an application the user may not get", func(t *testing.T) {
+		appServer := newTestAppServer(t, testApp)
+		ws := &TestResourceTreeServer{ctx: t.Context()}
+
+		err := appServer.WatchResourceTree(&application.ResourcesQuery{ApplicationName: new("does-not-exist")}, ws)
+		require.EqualError(t, err, common.PermissionDeniedAPIError.Error())
+
+		assert.False(t, ws.headerSent, "the error is reported with its HTTP status only while the stream has not started")
+		assert.Empty(t, ws.sent)
 	})
 }
 

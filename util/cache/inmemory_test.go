@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -26,4 +27,21 @@ func TestInMemoryCache(t *testing.T) {
 	err = cache.Get("my-key", obj)
 	require.NoError(t, err)
 	assert.Equal(t, &foo{Bar: "bar"}, obj)
+}
+
+func TestInMemoryCacheOnUpdated(t *testing.T) {
+	t.Parallel()
+	cache := NewInMemoryCache(1 * time.Hour)
+
+	calls := 0
+	err := cache.OnUpdated(t.Context(), "my-key", func() error {
+		calls++
+		return nil
+	})
+	require.NoError(t, err)
+	assert.Equal(t, 1, calls, "the callback reads the current value once; there are no updates to wait for")
+
+	expected := errors.New("callback failed")
+	err = cache.OnUpdated(t.Context(), "my-key", func() error { return expected })
+	require.ErrorIs(t, err, expected)
 }

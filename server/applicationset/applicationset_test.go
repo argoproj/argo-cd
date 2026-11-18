@@ -1,6 +1,7 @@
 package applicationset
 
 import (
+	"context"
 	"sort"
 	"testing"
 	"time"
@@ -12,6 +13,8 @@ import (
 	"github.com/argoproj/pkg/v2/sync"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	corev1 "k8s.io/api/core/v1"
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -376,6 +379,45 @@ func TestListAppSetsWithoutNamespace(t *testing.T) {
 	res, err := appSetServer.List(t.Context(), &appsetQuery)
 	require.NoError(t, err)
 	assert.Empty(t, res.Items)
+}
+
+// mockAppSetWatchServer captures what a Watch stream sends. The embedded grpc.ServerStream is never used because
+// Watch only calls Context, SendHeader and Send, all overridden here.
+type mockAppSetWatchServer struct {
+	grpc.ServerStream
+	ctx        context.Context
+	headerSent bool
+	sent       []*appsv1.ApplicationSetWatchEvent
+}
+
+func (m *mockAppSetWatchServer) Context() context.Context {
+	return m.ctx
+}
+
+func (m *mockAppSetWatchServer) SendHeader(metadata.MD) error {
+	m.headerSent = true
+	return nil
+}
+
+func (m *mockAppSetWatchServer) Send(event *appsv1.ApplicationSetWatchEvent) error {
+	m.sent = append(m.sent, event)
+	return nil
+}
+
+func TestWatchStartsStreamBeforeAnyEvent(t *testing.T) {
+	appSetServer := newTestAppSetServer(t, newTestAppSet())
+
+	ctx, cancel := context.WithCancel(t.Context())
+	// Cancel immediately so Watch returns instead of blocking on the broadcaster loop.
+	cancel()
+	ws := &mockAppSetWatchServer{ctx: ctx}
+
+	// A watch of every ApplicationSet has no initial events.
+	err := appSetServer.Watch(&applicationset.ApplicationSetWatchQuery{ResourceVersion: "1000000"}, ws)
+	require.NoError(t, err)
+
+	assert.Empty(t, ws.sent)
+	assert.True(t, ws.headerSent, "the stream must start although there is no event to send, or the HTTP request stays unanswered")
 }
 
 func TestCreateAppSet(t *testing.T) {

@@ -14,6 +14,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/validation"
 
+	grpc_util "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/kube"
 
 	"github.com/argoproj/pkg/v2/grpc/http"
@@ -326,14 +327,14 @@ func init() {
 	}
 	forward_ApplicationService_PodLogs_0 = logsForwarder
 	forward_ApplicationService_PodLogs_1 = logsForwarder
-	forward_ApplicationService_WatchResourceTree_0 = http.StreamForwarder
-	forward_ApplicationService_Watch_0 = http.NewStreamForwarder(func(message proto.Message) (string, error) {
+	forward_ApplicationService_WatchResourceTree_0 = grpc_util.StartEventStream(http.StreamForwarder)
+	forward_ApplicationService_Watch_0 = grpc_util.StartEventStream(http.NewStreamForwarder(func(message proto.Message) (string, error) {
 		event, ok := message.(*v1alpha1.ApplicationWatchEvent)
 		if !ok {
 			return "", errors.New("unexpected message type")
 		}
 		return event.Application.Name, nil
-	})
+	}))
 	forward_ApplicationService_List_0 = func(ctx context.Context, mux *runtime.ServeMux, marshaler runtime.Marshaler, w gohttp.ResponseWriter, req *gohttp.Request, resp proto.Message, opts ...func(context.Context, gohttp.ResponseWriter, proto.Message) error) {
 		appList, ok := resp.(*v1alpha1.ApplicationList)
 		if !ok {

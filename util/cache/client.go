@@ -32,6 +32,9 @@ type CacheClient interface {
 	Rename(oldKey string, newKey string, expiration time.Duration) error
 	Get(key string, obj any) error
 	Delete(key string) error
+	// OnUpdated blocks until ctx is done, calling callback once it listens for updates of key and then after
+	// each update. The first call is how a caller reads the current value without missing an update that is
+	// published while it does. An error from callback ends the wait and is returned.
 	OnUpdated(ctx context.Context, key string, callback func() error) error
 	NotifyUpdated(key string) error
 }

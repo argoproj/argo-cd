@@ -3,6 +3,8 @@ package cache
 import (
 	"bytes"
 	"compress/gzip"
+	"context"
+	"errors"
 	"io"
 	"strconv"
 	"testing"
@@ -218,4 +220,77 @@ func TestRedisMetrics(t *testing.T) {
 	err = o.(prometheus.Metric).Write(metric)
 	require.NoError(t, err)
 	assert.Equal(t, 4, int(metric.Histogram.GetSampleCount()))
+}
+
+func TestRedisOnUpdated(t *testing.T) {
+	mr, err := miniredis.Run()
+	require.NoError(t, err)
+	defer mr.Close()
+	client := NewRedisCache(redis.NewClient(&redis.Options{Addr: mr.Addr()}), 60*time.Second, RedisCompressionNone)
+
+	requireCallback := func(t *testing.T, calls <-chan struct{}) {
+		t.Helper()
+		select {
+		case <-calls:
+		case <-time.After(5 * time.Second):
+			require.FailNow(t, "callback was not called")
+		}
+	}
+
+	t.Run("calls back once subscribed and then after each update", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		calls := make(chan struct{}, 10)
+		done := make(chan error, 1)
+		first := true
+		go func() {
+			done <- client.OnUpdated(ctx, "key", func() error {
+				if first {
+					first = false
+					// An update published while the caller reads the current value must not be missed.
+					if err := client.NotifyUpdated("key"); err != nil {
+						return err
+					}
+				}
+				calls <- struct{}{}
+				return nil
+			})
+		}()
+
+		requireCallback(t, calls)
+		requireCallback(t, calls)
+
+		require.NoError(t, client.NotifyUpdated("other-key"))
+		require.NoError(t, client.NotifyUpdated("key"))
+		requireCallback(t, calls)
+		assert.Empty(t, calls, "an update of another key must not call back")
+
+		cancel()
+		require.NoError(t, <-done)
+	})
+
+	t.Run("returns the callback error", func(t *testing.T) {
+		expected := errors.New("callback failed")
+		err := client.OnUpdated(t.Context(), "key", func() error { return expected })
+		require.ErrorIs(t, err, expected)
+	})
+
+	t.Run("returns an error when it cannot subscribe", func(t *testing.T) {
+		unreachable := NewRedisCache(redis.NewClient(&redis.Options{Addr: "invalidredishost.invalid:12345"}), 60*time.Second, RedisCompressionNone)
+		called := false
+		err := unreachable.OnUpdated(t.Context(), "key", func() error {
+			called = true
+			return nil
+		})
+		require.ErrorContains(t, err, "error subscribing to updates of key")
+		assert.False(t, called)
+	})
+
+	t.Run("returns when the context is done before it subscribed", func(t *testing.T) {
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		require.NoError(t, client.OnUpdated(ctx, "key", func() error {
+			return errors.New("must not be called")
+		}))
+	})
 }
