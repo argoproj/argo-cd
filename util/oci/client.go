@@ -120,17 +120,14 @@ func WithIndexCacheScopedByCreds(indexCache tagsCache, creds Creds) ClientOpts {
 		if c.credentialSnapshot != nil {
 			effective = *c.credentialSnapshot
 		}
-		c.tagsCacheScope = credsScope(effective)
-		if c.tagsCacheScope != "" {
-			c.tagsCacheScope = cryptoutil.CredentialScope("oci-tags-transport-v1", c.tagsCacheScope,
+		c.tagsCacheCredentials = &effective
+		if c.tagsCacheTransport == nil {
+			c.tagsCacheTransport = []string{
 				c.proxy, c.noProxy, os.Getenv("HTTP_PROXY"), os.Getenv("http_proxy"),
-				os.Getenv("HTTPS_PROXY"), os.Getenv("https_proxy"),
-				os.Getenv("NO_PROXY"), os.Getenv("no_proxy"), os.Getenv("REQUEST_METHOD"))
-			c.tagsCache = indexCache
-		} else {
-			// An unreadable trust context cannot safely identify shared data.
-			c.tagsCache = nil
+				os.Getenv("HTTPS_PROXY"), os.Getenv("https_proxy"), os.Getenv("NO_PROXY"), os.Getenv("no_proxy"), os.Getenv("REQUEST_METHOD"),
+			}
 		}
+		c.tagsCache = indexCache
 	}
 }
 
@@ -142,7 +139,8 @@ type nativeOCIClient struct {
 	tagsFunc                        func(context.Context, string) ([]string, error)
 	repoLock                        sync.KeyLock
 	tagsCache                       tagsCache
-	tagsCacheScope                  string // credential fingerprint scoping tags-cache keys (empty = legacy bare-URL keys)
+	tagsCacheCredentials            *Creds
+	tagsCacheTransport              []string
 	credentialSnapshot              *Creds
 	proxy, noProxy                  string
 	repoCachePaths                  utilio.TempPaths
@@ -153,21 +151,34 @@ type nativeOCIClient struct {
 }
 
 // cacheRepoKey returns the tags-cache key for this client's credential view.
-func (c *nativeOCIClient) cacheRepoKey() string {
-	if c.tagsCacheScope == "" {
-		return c.repoURL
+func (c *nativeOCIClient) cacheRepoKey(ctx context.Context) (string, error) {
+	if c.tagsCacheCredentials == nil {
+		return c.repoURL, nil
 	}
-	return c.repoURL + "\x00" + c.tagsCacheScope
+	scope, err := credsScopeContext(ctx, *c.tagsCacheCredentials)
+	if err != nil {
+		return "", err
+	}
+	scope, err = cryptoutil.CredentialScopeContext(ctx, "oci-tags-transport-v1", append([]string{scope}, c.tagsCacheTransport...)...)
+	if err != nil {
+		return "", err
+	}
+	return c.repoURL + "\x00" + scope, nil
 }
 
 // credsScope returns a versioned, memory-hard fingerprint of the effective
 // authentication and TLS context, without truncating its 256-bit output.
 func credsScope(creds Creds) string {
+	scope, _ := credsScopeContext(context.Background(), creds)
+	return scope
+}
+
+func credsScopeContext(ctx context.Context, creds Creds) (string, error) {
 	creds, err := snapshotCredentials(creds)
 	if err != nil {
-		return ""
+		return "", err
 	}
-	return cryptoutil.CredentialScope("oci-credentials-v2",
+	return cryptoutil.CredentialScopeContext(ctx, "oci-credentials-v2",
 		creds.Username,
 		creds.Password,
 		creds.CAPath,
@@ -180,6 +191,9 @@ func credsScope(creds Creds) string {
 }
 
 func snapshotCredentials(creds Creds) (Creds, error) {
+	creds.CertData = slices.Clone(creds.CertData)
+	creds.KeyData = slices.Clone(creds.KeyData)
+	creds.caData = slices.Clone(creds.caData)
 	if creds.CAPath != "" && creds.caData == nil && !creds.InsecureHTTPOnly {
 		data, err := os.ReadFile(creds.CAPath)
 		if err != nil {
@@ -510,12 +524,16 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, 
 }
 
 func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, error) {
+	cacheKey, err := c.cacheRepoKey(ctx)
+	if err != nil {
+		return nil, err
+	}
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
 	var data []byte
 	if !noCache && c.tagsCache != nil {
-		if err := c.tagsCache.GetOCITags(c.cacheRepoKey(), &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
+		if err := c.tagsCache.GetOCITags(cacheKey, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoURL, err)
 		}
 	}
@@ -543,7 +561,7 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 			if err != nil {
 				return nil, fmt.Errorf("failed to encode tags: %w", err)
 			}
-			if err := c.tagsCache.SetOCITags(c.cacheRepoKey(), cacheData); err != nil {
+			if err := c.tagsCache.SetOCITags(cacheKey, cacheData); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %s", c.repoURL, err)
 			}
 		}

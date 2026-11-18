@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	log "github.com/sirupsen/logrus"
@@ -39,6 +40,9 @@ type IndexRecordCache interface {
 // conditional revalidation for another max(24h, freshness). Reads and copies
 // never restart either deadline.
 type IndexStore struct {
+	// An unretirable superseded record must stay ineligible on subsequent
+	// reads, including when the shared cache later becomes unavailable.
+	localDisabled atomic.Bool
 	// FilterEnabled reduces only private build snapshots. Configure before use;
 	// false retains complete original indexes and disables snapshot retries.
 	FilterEnabled bool
@@ -170,6 +174,9 @@ func (s *IndexStore) readRecord(repoURL string, expiredAsMiss bool) (*indexRecor
 	if s == nil || s.dir == "" {
 		return nil, errors.New("index cache is disabled")
 	}
+	if s.localDisabled.Load() {
+		return nil, errors.New("local helm index cache disabled after retirement failure")
+	}
 
 	file := s.cacheFileName(repoURL)
 
@@ -270,6 +277,9 @@ func (s *IndexStore) writeRecord(repoURL string, rec *indexRecord) error {
 // publishRecord writes the record file assuming the caller already holds the
 // record lock. Revalidate already holds it for the entire fetch and publish.
 func (s *IndexStore) publishRecord(repoURL string, rec *indexRecord) error {
+	if s.localDisabled.Load() {
+		return errors.New("local helm index cache disabled after retirement failure")
+	}
 	if rec.BodyDigest == "" {
 		body, err := base64.StdEncoding.DecodeString(rec.Body)
 		if err != nil {
@@ -639,22 +649,20 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 	}()
 
 	var rejectedDigest string
-	retireRejectedRecord := func() error {
+	retireRejectedRecord := func() {
 		if rejectedDigest == "" {
-			return nil
+			return
 		}
 		// Retire known superseded bytes under the record lock. An origin
 		// failure followed by a shared-cache outage must not resurrect them
 		// on this request or on the next dependency build.
 		if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
-			return fmt.Errorf("retire superseded helm index: %w", err)
+			s.localDisabled.Store(true)
+			log.WithError(err).Warn("disabling local Helm index reuse after retirement failure")
 		}
-		return nil
 	}
 	candidate, fromShared := s.observeRetainedRecord(ctx, repoURL, &rejectedDigest)
-	if err := retireRejectedRecord(); err != nil {
-		return nil, err
-	}
+	retireRejectedRecord()
 	if candidate != nil && candidate.Fresh(s.expiration) {
 		// Preserve timestamps when installing a newer Redis generation locally.
 		if fromShared {
@@ -663,6 +671,8 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 		return candidate.Body, nil
 	}
 	owner := beginIndexFetch(ctx, s.cache, repoURL)
+	stopRenewing := keepIndexFetchAlive(ctx, s.cache, repoURL, owner)
+	defer stopRenewing()
 	fetchPublished := false
 	defer func() {
 		if !fetchPublished {
@@ -673,9 +683,7 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 		// Observe again after claiming: an intervening maintenance write
 		// could not invalidate a claim that did not exist yet.
 		candidate, fromShared = s.observeRetainedRecord(ctx, repoURL, &rejectedDigest)
-		if err := retireRejectedRecord(); err != nil {
-			return nil, err
-		}
+		retireRejectedRecord()
 		if candidate != nil && candidate.Fresh(s.expiration) {
 			if fromShared {
 				published = s.installRecord(repoURL, candidate)
@@ -743,6 +751,8 @@ func (s *IndexStore) ForceRefresh(ctx context.Context, repoURL string, chartClie
 	}()
 
 	owner := beginIndexFetch(ctx, s.cache, repoURL)
+	stopRenewing := keepIndexFetchAlive(ctx, s.cache, repoURL, owner)
+	defer stopRenewing()
 	defer func() {
 		if !published {
 			releaseIndexFetch(ctx, s.cache, repoURL, owner)

@@ -148,6 +148,8 @@ Go-client operations continue contacting the origin regardless of this freshness
 A `200` or `304` publishes only with the ownership token acquired before its origin request.
 Overlapping fetches cannot preempt a live claim. Successful publication consumes it;
 failure or cancellation releases only the matching token, with a bounded cleanup timeout.
+Claims expire after 30 seconds unless a live fetch renews them every 10 seconds.
+Abandoned claims therefore recover without waiting for a long lease after Redis recovers.
 Acquisition retries can confirm their own token but cannot replace a later owner's token.
 Maintenance publication, expiry or eviction invalidates a claim. Missing tokens cannot
 authorize publication, even if every index key was evicted in the meantime.
@@ -165,6 +167,8 @@ a usable shared body or origin validation.
 Local records persist checksums binding the body, validators and freshness metadata,
 verified before their validators can authorize a `304`. A record known to be superseded
 is retired before another shared lookup or origin request, so a later timeout cannot restore it.
+If retirement fails, disk reuse is disabled for that store's lifetime; verified shared indexes
+and successful origin responses remain usable.
 Encoded disk reads are bounded before JSON and base64 decoding, including after lowering the index-size limit.
 The same computed hash supplies YAML-validation memoization and comparison with shared metadata.
 Legacy disk files without a checksum require a verified shared body or full origin response
@@ -184,6 +188,9 @@ a shared adapter without atomic publication, expired disk records stay expired a
 revalidate more often. After confirmed metadata publication, a failed body transfer does not
 prevent the validated response from warming the local store. Cold readers treat the missing
 body as a miss and validate at the origin; they never substitute an older shared body.
+An explicit body-reference rejection means a newer publication superseded the response,
+so that response does not warm disk. A body-transfer error after metadata confirmation
+still permits local warming.
 A store without a shared cache continues renewing its disk records normally.
 
 Redis record reads receive at most five seconds and one quarter of the remaining request
@@ -238,6 +245,10 @@ expired records are conditionally revalidated. Hard refresh (`NoCache`) fetches 
 Existing dependency markers, downloaded charts and `Chart.lock` still govern whether a build
 runs and which versions it uses. Enabling the cache does not force a rebuild or unlock versions.
 Unsupported getter schemes retain Helm's original registration and refresh path for the whole build.
+The same fallback applies when an HTTP dependency has no configured repository to prewarm.
+The optimized path rejects aliases that share a URL but use different credentials before
+starting Helm, whose archive lookup cannot preserve those distinct views. Configure distinct
+repository URLs for those views. Aliases sharing the same credential view remain supported.
 
 Shared records require a complete, size-bounded index with `apiVersion: v1`. Invalid or truncated
 responses are never published.

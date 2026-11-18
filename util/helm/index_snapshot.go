@@ -213,7 +213,7 @@ func isIndexSnapshotError(err error) bool {
 	if strings.Contains(message, "error loading ") && strings.Contains(message, "-index.yaml:") {
 		return true
 	}
-	if strings.HasSuffix(strings.TrimSpace(message), "Error: could not find : entry not found") {
+	if strings.HasSuffix(strings.TrimSpace(message), "Error: could not find : entry not found") || strings.HasSuffix(strings.TrimSpace(message), "Error: could not find : no matching version") {
 		return true
 	}
 	for _, text := range []string{"no cached repository", "no cached repo found", "chart not found in repo", "can't get a valid version for", "no chart name found", "no chart version found"} {

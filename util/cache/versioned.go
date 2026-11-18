@@ -50,6 +50,18 @@ func (c *Cache) ReleaseUpdate(ctx context.Context, key, token string) (bool, err
 	return false, ErrAtomicPublicationUnsupported
 }
 
+func (c *Cache) RenewUpdate(ctx context.Context, key, token string, expiration time.Duration) (bool, error) {
+	if err := ctx.Err(); err != nil {
+		return false, err
+	}
+	if client, ok := c.GetClient().(interface {
+		RenewUpdate(context.Context, string, string, time.Duration) (bool, error)
+	}); ok {
+		return client.RenewUpdate(ctx, c.generateFullKey(key), token, expiration)
+	}
+	return false, ErrAtomicPublicationUnsupported
+}
+
 func (c *Cache) StoreVersionedItem(ctx context.Context, item VersionedItem) (bool, error) {
 	if err := ctx.Err(); err != nil {
 		return false, err

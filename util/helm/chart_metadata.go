@@ -21,6 +21,9 @@ func readChartMetadataFile(dir, name string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+	if info.IsDir() && name != ".helmignore" {
+		return nil, &os.PathError{Op: "read", Path: file, Err: os.ErrNotExist}
+	}
 	if !info.Mode().IsRegular() || info.Size() > maxChartMetadataBytes {
 		return nil, fmt.Errorf("unsupported or oversized Helm metadata file %s", name)
 	}

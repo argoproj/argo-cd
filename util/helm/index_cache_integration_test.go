@@ -767,7 +767,7 @@ func TestIndexCacheDoesNotDiscoverCheckoutGetters(t *testing.T) {
 	}
 }
 
-func TestIndexCacheAliasesWithDifferentValidCredentials(t *testing.T) {
+func TestIndexCacheAliasesWithSameCredentialView(t *testing.T) {
 	regressionRequirePinnedHelm(t)
 	archive := regressionPackage(t, "1.0.0")
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -791,7 +791,7 @@ func TestIndexCacheAliasesWithDifferentValidCredentials(t *testing.T) {
 			store.FilterEnabled = filtered
 			app, err := NewHelmAppWithIndexStore(dir, []HelmRepository{
 				{Name: "first", Repo: origin.URL, Creds: HelmCreds{Username: "reader", Password: "first"}},
-				{Name: "second", Repo: origin.URL, Creds: HelmCreds{Username: "reader", Password: "second"}},
+				{Name: "second", Repo: origin.URL, Creds: HelmCreds{Username: "reader", Password: "first"}},
 			}, false, "", "", "", false, false, store, false)
 			require.NoError(t, err)
 			t.Cleanup(app.Dispose)
@@ -803,23 +803,70 @@ func TestIndexCacheAliasesWithDifferentValidCredentials(t *testing.T) {
 	}
 }
 
+func TestIndexCacheAliasesWithDifferentValidCredentials(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	archives := map[string][]byte{"first": regressionNamedPackage(t, "first", "1.0.0"), "second": regressionNamedPackage(t, "second", "1.0.0")}
+	var requests atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		_, password, ok := r.BasicAuth()
+		if !ok || archives[password] == nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path == "/index.yaml" {
+			_, _ = fmt.Fprintf(w, "apiVersion: v1\nentries:\n  %s:\n    - apiVersion: v2\n      name: %s\n      version: 1.0.0\n      urls: [%s-1.0.0.tgz]\n", password, password, password)
+			return
+		}
+		if r.URL.Path != "/"+password+"-1.0.0.tgz" {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+		_, _ = w.Write(archives[password])
+	}))
+	t.Cleanup(origin.Close)
+	for _, filtered := range []bool{false, true} {
+		t.Run(strconv.FormatBool(filtered), func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte("apiVersion: v2\nname: parent\nversion: 1.0.0\ndependencies:\n  - name: first\n    version: 1.0.0\n    repository: '@first'\n  - name: second\n    version: 1.0.0\n    repository: '@second'\n"), 0o600))
+			store := NewIndexStore(t.TempDir(), time.Minute, 1<<20)
+			store.FilterEnabled = filtered
+			app, err := NewHelmAppWithIndexStore(dir, []HelmRepository{
+				{Name: "first", Repo: origin.URL, Creds: HelmCreds{Username: "reader", Password: "first"}},
+				{Name: "second", Repo: origin.URL, Creds: HelmCreds{Username: "reader", Password: "second"}},
+			}, false, "", "", "", false, false, store, false)
+			require.NoError(t, err)
+			t.Cleanup(app.Dispose)
+			err = app.DependencyBuild(t.Context())
+			require.ErrorContains(t, err, "configure distinct repository URLs")
+			require.Zero(t, requests.Load(), "reject ambiguous views before fetching an index or archive")
+		})
+	}
+}
+
 func TestIndexCacheUnregisteredRepositoryStillResolves(t *testing.T) {
 	regressionRequirePinnedHelm(t)
 	registered := newRegressionChartRepo(t, true, "")
-	public := newRegressionChartRepo(t, false, "")
+	archive := regressionNamedPackage(t, "other", "1.0.0")
+	public := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/index.yaml" {
+			_, _ = io.WriteString(w, "apiVersion: v1\nentries:\n  other:\n    - apiVersion: v2\n      name: other\n      version: 1.0.0\n      urls: [other-1.0.0.tgz]\n")
+			return
+		}
+		_, _ = w.Write(archive)
+	}))
+	t.Cleanup(public.Close)
 	dir := t.TempDir()
-	chart := fmt.Sprintf("apiVersion: v2\nname: parent\nversion: 1.0.0\ndependencies:\n  - name: child\n    alias: registered-child\n    version: 1.0.0\n    repository: '@registered'\n  - name: child\n    alias: public-child\n    version: 1.0.0\n    repository: %q\n", public.server.URL)
+	chart := fmt.Sprintf("apiVersion: v2\nname: parent\nversion: 1.0.0\ndependencies:\n  - name: child\n    version: 1.0.0\n    repository: '@registered'\n  - name: other\n    version: 1.0.0\n    repository: %q\n", public.URL)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte(chart), 0o600))
 	app, err := NewHelmAppWithIndexStore(dir, []HelmRepository{{Name: "registered", Repo: registered.server.URL, Creds: HelmCreds{InsecureSkipVerify: true}}}, false, "", "", "127.0.0.1,localhost", false, false, NewIndexStore(t.TempDir(), time.Minute, 1<<20), false)
 	require.NoError(t, err)
 	t.Cleanup(app.Dispose)
-	require.NotNil(t, app.(*helm).cmd.persistentIndexStore)
 	require.NoError(t, app.DependencyBuild(t.Context()))
-	output, _, err := app.Template(&TemplateOpts{Name: "unregistered", Namespace: "default"})
+	require.Nil(t, app.(*helm).cmd.persistentIndexStore, "unmanaged HTTP dependencies preserve Helm refresh")
+	output, _, err := app.Template(&TemplateOpts{Name: "triage", Namespace: "default"})
 	require.NoError(t, err)
 	require.Equal(t, 2, strings.Count(output, "kind: ConfigMap"))
-	requests, _ := public.snapshot()
-	require.NotEmpty(t, requests)
 }
 
 func TestIndexCacheRespectsIgnoredRequirements(t *testing.T) {

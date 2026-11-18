@@ -41,6 +41,19 @@ func (r *redisCache) ReleaseUpdate(ctx context.Context, key, token string) (bool
 	return result == 1, err
 }
 
+var renewVersionedScript = redis.NewScript(`
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+return redis.call('PEXPIRE', KEYS[1], ARGV[2])
+`)
+
+func (r *redisCache) RenewUpdate(ctx context.Context, key, token string, expiration time.Duration) (bool, error) {
+	if !r.client.Options().ContextTimeoutEnabled {
+		return false, errors.New("redis client does not enforce context deadlines")
+	}
+	result, err := renewVersionedScript.Run(ctx, r.client, []string{r.getKey(key)}, token, max(int64(1), expiration.Milliseconds())).Int64()
+	return result == 1, err
+}
+
 // A missing owner is a lost claim, including when Redis evicts every key.
 // Consumption makes each claim single-use; maintenance writes invalidate it.
 var publishVersionedScript = redis.NewScript(`

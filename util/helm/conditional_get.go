@@ -146,6 +146,38 @@ type indexCacheSnapshotReader interface {
 	GetHelmIndexSnapshotContext(context.Context, string) (*HelmIndexRecord, bool, error)
 }
 
+// IndexFetchLease bounds abandoned claims. Live fetches renew it without
+// creating or replacing another owner.
+const IndexFetchLease = 30 * time.Second
+
+func keepIndexFetchAlive(ctx context.Context, cache any, repo, owner string) context.CancelFunc {
+	renewer, ok := cache.(interface {
+		RenewHelmIndexFetch(context.Context, string, string) (bool, error)
+	})
+	if owner == "" || !ok {
+		return func() {}
+	}
+	lifetime, stop := context.WithCancel(ctx)
+	go func() {
+		ticker := time.NewTicker(IndexFetchLease / 3)
+		defer ticker.Stop()
+		for {
+			select {
+			case <-lifetime.Done():
+				return
+			case <-ticker.C:
+				renewal, cancel := indexCacheContext(lifetime, time.Second)
+				current, err := renewer.RenewHelmIndexFetch(renewal, repo, owner)
+				cancel()
+				if err != nil || !current {
+					return
+				}
+			}
+		}
+	}()
+	return stop
+}
+
 func indexCacheContext(ctx context.Context, maximum time.Duration) (context.Context, context.CancelFunc) {
 	budget := maximum
 	if deadline, ok := ctx.Deadline(); ok {

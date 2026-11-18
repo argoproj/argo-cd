@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -1969,6 +1970,9 @@ type indexProtocolBackend struct {
 	stalls           int
 	publicationReply string
 	afterPublication func()
+	beforeBody       func()
+	lostClaimReply   bool
+	failedRelease    bool
 	bodyWrites       int
 	readDelays       map[string]time.Duration
 	readKeys         []string
@@ -2010,12 +2014,19 @@ func (b *indexProtocolBackend) GetContext(ctx context.Context, key string, obj a
 }
 
 func (b *indexProtocolBackend) BeginUpdate(ctx context.Context, key, token string, expiration time.Duration) (bool, error) {
-	return b.CacheClient.(interface {
+	current, err := b.CacheClient.(interface {
 		BeginUpdate(context.Context, string, string, time.Duration) (bool, error)
 	}).BeginUpdate(ctx, key, token, expiration)
+	if current && b.lostClaimReply {
+		return false, io.ErrUnexpectedEOF
+	}
+	return current, err
 }
 
 func (b *indexProtocolBackend) ReleaseUpdate(ctx context.Context, key, token string) (bool, error) {
+	if b.failedRelease {
+		return false, io.ErrUnexpectedEOF
+	}
 	return b.CacheClient.(interface {
 		ReleaseUpdate(context.Context, string, string) (bool, error)
 	}).ReleaseUpdate(ctx, key, token)
@@ -2051,6 +2062,10 @@ func (b *indexProtocolBackend) StoreVersioned(ctx context.Context, item cacheuti
 
 func (b *indexProtocolBackend) StoreVersionedBody(ctx context.Context, referenceKey, bodyKey, referenceValue string, body any, expiration time.Duration) (bool, error) {
 	b.bodyWrites++
+	if callback := b.beforeBody; callback != nil {
+		b.beforeBody = nil
+		callback()
+	}
 	if b.stallBody {
 		b.stalls++
 		<-ctx.Done()
@@ -2430,4 +2445,62 @@ func TestHelmIndexClaimCarriesReleaseKey(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, contender)
 	require.NoError(t, shared.ReleaseHelmIndexFetch(t.Context(), "original-repository", next))
+}
+
+func TestHelmIndexRejectedBodyReferenceDoesNotWarmDisk(t *testing.T) {
+	requirePinnedHelmForCacheTest(t)
+	for _, force := range []bool{false, true} {
+		t.Run(strconv.FormatBool(force), func(t *testing.T) {
+			shared, backend := newIndexProtocolCache(t)
+			url, _, archives, body := indexProtocolOrigin(t)
+			identity := url + "\x00" + helm.CredsScope(helm.HelmCreds{})
+			newer := bytes.ReplaceAll(body, []byte("version: 1.0.0"), []byte("version: 2.0.0"))
+			require.NotEqual(t, body, newer)
+			backend.beforeBody = func() {
+				require.NoError(t, shared.SetHelmIndexRetainedRecord(identity, &HelmIndexRecord{Body: newer, ETag: `"newer"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}))
+			}
+			store := helm.NewIndexStore(t.TempDir(), time.Minute, 1<<20, shared)
+			indexProtocolBuild(t, t.Context(), url, store, force)
+			require.EqualValues(t, 1, archives.Load(), "the successful live response still builds")
+			_, err := store.Get(identity)
+			require.Error(t, err, "an explicitly rejected reference cannot warm an older local generation")
+			record, err := shared.GetHelmIndexRecord(identity)
+			require.NoError(t, err)
+			require.Equal(t, newer, record.Body)
+		})
+	}
+}
+
+func TestHelmIndexAbandonedClaimAndRenewal(t *testing.T) {
+	shared, server := regressionRedisCache(t)
+	backend := &indexProtocolBackend{CacheClient: shared.cache.GetClient(), lostClaimReply: true, failedRelease: true}
+	shared.cache = cacheutil.NewCache(backend)
+	_, err := shared.BeginHelmIndexFetch(t.Context(), "lease-test")
+	require.Error(t, err)
+	backend.lostClaimReply, backend.failedRelease = false, false
+	owner, err := shared.BeginHelmIndexFetch(t.Context(), "lease-test")
+	require.NoError(t, err)
+	require.Empty(t, owner)
+	server.FastForward(helm.IndexFetchLease + time.Second)
+	owner, err = shared.BeginHelmIndexFetch(t.Context(), "lease-test")
+	require.NoError(t, err)
+	require.NotEmpty(t, owner, "an abandoned claim must recover within the short lease")
+	// Use the real backend for renewal, retaining its production key encoding.
+	shared.cache = cacheutil.NewCache(backend.CacheClient)
+	server.FastForward(helm.IndexFetchLease - time.Second)
+	renewed, err := shared.RenewHelmIndexFetch(t.Context(), "lease-test", owner)
+	require.NoError(t, err)
+	require.True(t, renewed)
+	server.FastForward(2 * time.Second)
+	contender, err := shared.BeginHelmIndexFetch(t.Context(), "lease-test")
+	require.NoError(t, err)
+	require.Empty(t, contender, "renewal protects a live fetch beyond its original expiry")
+	require.NoError(t, shared.ReleaseHelmIndexFetch(t.Context(), "lease-test", owner))
+	next, err := shared.BeginHelmIndexFetch(t.Context(), "lease-test")
+	require.NoError(t, err)
+	require.NotEmpty(t, next)
+	renewed, err = shared.RenewHelmIndexFetch(t.Context(), "lease-test", owner)
+	require.NoError(t, err)
+	require.False(t, renewed, "a late renewal must not renew a later owner's claim")
+	require.NoError(t, shared.ReleaseHelmIndexFetch(t.Context(), "lease-test", next))
 }

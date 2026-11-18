@@ -1168,7 +1168,8 @@ func TestConditionalGET_IndexChanged(t *testing.T) {
 
 	// Server now has a new index with a new ETag; 304 support for the old
 	// ETag is gone, so a conditional request gets a fresh 200.
-	newBody := newIndex(t)
+	newBody := upstreamIndex(2)
+	require.NotEqual(t, srv.body, newBody)
 	next := &conditionalGetServer{etag: `"v2"`, body: newBody}
 	nextHandler := next.handler()
 	handler.Store(&nextHandler)
@@ -1180,6 +1181,8 @@ func TestConditionalGET_IndexChanged(t *testing.T) {
 	assert.Equal(t, `"v2"`, etag)
 	assert.Equal(t, newBody, cache.data)
 	require.NotNil(t, idx)
+	require.Equal(t, "2.0.0", idx.Entries["child"][0].Version)
+	require.NotContains(t, idx.Entries, "fake")
 }
 
 func TestApplyConditionalHeaders(t *testing.T) {
@@ -1726,11 +1729,22 @@ func TestGetTagsSlowOptionalDockerHelperLeavesOriginBudget(t *testing.T) {
 
 func TestGetTagsDockerHelperDescendantCannotHoldOutputPipe(t *testing.T) {
 	dir := t.TempDir()
+	marker := filepath.Join(dir, "descendant-started")
+	t.Setenv("ARGOCD_TEST_HELPER_MARKER", marker)
+	t.Cleanup(func() {
+		if raw, err := os.ReadFile(marker); err == nil {
+			if pid, err := strconv.Atoi(strings.TrimSpace(string(raw))); err == nil {
+				if process, err := os.FindProcess(pid); err == nil {
+					_ = process.Kill()
+				}
+			}
+		}
+	})
 	t.Setenv("DOCKER_CONFIG", dir)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"credsStore":"argocd-descendant-test"}`), 0o600))
 	// Killing this shell leaves its child holding stdout open. The lookup must
 	// close the inherited pipe instead of waiting for the child to finish.
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-descendant-test"), []byte("#!/bin/sh\nsleep 3 &\nwait\n"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-descendant-test"), []byte("#!/bin/sh\nsh -c 'echo $$ > \"$ARGOCD_TEST_HELPER_MARKER\"; exec sleep 8' &\nwait\n"), 0o700))
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -1738,11 +1752,12 @@ func TestGetTagsDockerHelperDescendantCannotHoldOutputPipe(t *testing.T) {
 	}))
 	t.Cleanup(origin.Close)
 	client := NewClient(strings.TrimPrefix(origin.URL, "http://"), HelmCreds{}, true, "", "", WithPlainHTTP())
-	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	ctx, cancel := context.WithTimeout(t.Context(), 4*time.Second)
 	defer cancel()
 	tags, err := client.GetTags(ctx, "child", false)
 	require.NoError(t, err)
 	require.NoError(t, ctx.Err(), "the helper must leave time for the origin request")
+	require.FileExists(t, marker, "the descendant must actually inherit stdout before cancellation")
 	require.Equal(t, []string{"public-version"}, tags)
 }
 
@@ -2206,9 +2221,11 @@ func TestOptionalCredentialSuccessAtDeadlineRemainsAuthoritative(t *testing.T) {
 
 func TestGetTagsSlowHelperStillAllowsAnonymousBearer(t *testing.T) {
 	dir := t.TempDir()
+	marker := filepath.Join(dir, "helper-starts")
+	t.Setenv("ARGOCD_TEST_HELPER_STARTS", marker)
 	t.Setenv("DOCKER_CONFIG", dir)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"credsStore":"argocd-bearer-slow"}`), 0o600))
-	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-bearer-slow"), []byte("#!/bin/sh\nexec sleep 10\n"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-bearer-slow"), []byte("#!/bin/sh\nprintf 'started\\n' >> \"$ARGOCD_TEST_HELPER_STARTS\"\nexec sleep 10\n"), 0o700))
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	var endpoint atomic.Pointer[string]
 	var tokens atomic.Int32
@@ -2225,7 +2242,14 @@ func TestGetTagsSlowHelperStillAllowsAnonymousBearer(t *testing.T) {
 			return
 		}
 		w.Header().Set("Content-Type", "application/json")
-		_, _ = io.WriteString(w, `{"name":"child","tags":["public-version"]}`)
+		page := 1
+		if raw := r.URL.Query().Get("page"); raw != "" {
+			page, _ = strconv.Atoi(raw)
+		}
+		if page < 5 {
+			w.Header().Set("Link", fmt.Sprintf(`</v2/child/tags/list?page=%d>; rel="next"`, page+1))
+		}
+		_, _ = fmt.Fprintf(w, `{"name":"child","tags":["public-version-%d"]}`, page)
 	}))
 	endpoint.Store(&origin.URL)
 	t.Cleanup(origin.Close)
@@ -2237,8 +2261,11 @@ func TestGetTagsSlowHelperStillAllowsAnonymousBearer(t *testing.T) {
 	tags, err := client.GetTags(ctx, "child", false)
 	require.NoError(t, err)
 	require.NoError(t, ctx.Err())
-	require.Equal(t, []string{"public-version"}, tags)
-	require.EqualValues(t, 1, tokens.Load())
+	require.Equal(t, []string{"public-version-1", "public-version-2", "public-version-3", "public-version-4", "public-version-5"}, tags)
+	require.EqualValues(t, 5, tokens.Load())
+	starts, err := os.ReadFile(marker)
+	require.NoError(t, err)
+	require.Len(t, strings.Fields(string(starts)), 2, "one prelookup and one retry serve the entire paginated listing")
 	require.Empty(t, cache.bodies)
 }
 
@@ -2271,4 +2298,112 @@ func TestIndexURLMatchesPinnedHelmForEscapedTrailingSlash(t *testing.T) {
 	defer mu.Unlock()
 	require.Len(t, paths, 2)
 	require.Equal(t, paths[0], paths[1], "native fetches must match the pinned Helm binary's request path")
+}
+
+func TestGetTagsRetryCredentialsStayAtConfiguredRegistry(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("DOCKER_CONFIG", dir)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	var foreignCredential atomic.Bool
+	foreign := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Query().Get("last") == "first" {
+			user, password, _ := r.BasicAuth()
+			if user != "foreign-reader" || password != "fixture-secret" {
+				w.Header().Set("WWW-Authenticate", `Basic realm="foreign"`)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
+			foreignCredential.Store(true)
+			_, _ = io.WriteString(w, `{"name":"child","tags":["second"]}`)
+			return
+		}
+		w.Header().Set("Link", `</v2/child/tags/list?last=first>; rel="next"`)
+		_, _ = io.WriteString(w, `{"name":"child","tags":["first"]}`)
+	}))
+	t.Cleanup(foreign.Close)
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, foreign.URL+r.URL.RequestURI(), http.StatusFound)
+	}))
+	t.Cleanup(origin.Close)
+	configured := strings.TrimPrefix(origin.URL, "http://")
+	other := strings.TrimPrefix(foreign.URL, "http://")
+	config, err := json.Marshal(map[string]any{"credHelpers": map[string]string{configured: "argocd-triage-slow", other: "argocd-triage-foreign"}})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), config, 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-triage-slow"), []byte("#!/bin/sh\nexec sleep 10\n"), 0o700))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-triage-foreign"), []byte("#!/bin/sh\nprintf '%s' '{\"Username\":\"foreign-reader\",\"Secret\":\"fixture-secret\"}'\n"), 0o700))
+	client := NewClient(configured, HelmCreds{}, true, "", "", WithPlainHTTP())
+	ctx, cancel := context.WithTimeout(t.Context(), 6*time.Second)
+	defer cancel()
+	_, _ = client.GetTags(ctx, "child", false)
+	require.False(t, foreignCredential.Load(), "a listing configured for the original registry must not select Docker credentials for a redirected pagination host")
+}
+
+func TestDockerCredentialUsesOneConfigurationSnapshot(t *testing.T) {
+	if _, err := exec.LookPath("mkfifo"); err != nil {
+		t.Skip("requires a FIFO to control replacement between config reads")
+	}
+	dir := t.TempDir()
+	t.Setenv("DOCKER_CONFIG", dir)
+	path := filepath.Join(dir, "config.json")
+	first := []byte(`{"auths":{"registry.example":{"auth":"cmVhZGVyOmZpcnN0"}}}`)
+	require.NoError(t, os.WriteFile(path, first, 0o600))
+	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+	require.NoError(t, err)
+	require.NoError(t, os.Remove(path))
+	require.NoError(t, exec.CommandContext(t.Context(), "mkfifo", path).Run())
+	replacement := filepath.Join(dir, "replacement.json")
+	require.NoError(t, os.WriteFile(replacement, []byte(`{"credsStore":"new-helper","auths":{"registry.example":{"username":"stale","password":"inline"}}}`), 0o600))
+	done := make(chan error, 1)
+	go func() {
+		writer, err := os.OpenFile(path, os.O_WRONLY, 0)
+		if err != nil {
+			done <- err
+			return
+		}
+		defer writer.Close()
+		// The resolver has opened generation A. Replace its pathname with B
+		// before supplying A's bytes; a second open deterministically sees B.
+		if err := os.Rename(replacement, path); err != nil {
+			done <- err
+			return
+		}
+		_, err = writer.Write(first)
+		done <- err
+	}()
+	resolver, err := boundedDockerCredential(store)
+	require.NoError(t, err)
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("config replacement did not complete")
+	}
+	credential, err := resolver(t.Context(), "registry.example")
+	require.NoError(t, err)
+	require.Equal(t, auth.Credential{Username: "reader", Password: "first"}, credential)
+}
+
+func TestDockerInlineCredentialCompatibility(t *testing.T) {
+	for _, config := range []string{
+		`{"auths":{"registry.example":{"username":"reader","password":"secret","identitytoken":"refresh","registrytoken":"access"}}}`,
+		`{"auths":{"https://registry.example/v1/":{"auth":"cmVhZGVyOnNlY3JldDphbm90aGVy"}}}`,
+		`{"auths":{"registry.example":{"auth":"cmVhZGVyOnNlY3JldA==","username":"ignored","password":"ignored"}}}`,
+		`{"auths":{"unused.example":{"auth":123}}}`,
+	} {
+		t.Run(config, func(t *testing.T) {
+			t.Setenv("DOCKER_CONFIG", t.TempDir())
+			require.NoError(t, os.WriteFile(filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json"), []byte(config), 0o600))
+			store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+			require.NoError(t, err)
+			want, err := credentials.Credential(store)(t.Context(), "registry.example")
+			require.NoError(t, err)
+			resolver, err := boundedDockerCredential(store)
+			require.NoError(t, err)
+			got, err := resolver(t.Context(), "registry.example")
+			require.NoError(t, err)
+			require.Equal(t, want, got)
+		})
+	}
 }

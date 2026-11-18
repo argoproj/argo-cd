@@ -107,6 +107,11 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 	if !useStore {
 		h.cmd.persistentIndexStore = nil
 	}
+	if useStore {
+		if err := h.validateIndexRepositoryViews(ctx); err != nil {
+			return err
+		}
+	}
 	indexes := make(map[string][]byte)
 	configurations := make(map[string]helmRepoEntry)
 	var dependencyNames map[string]map[string]struct{}
@@ -270,6 +275,7 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 // Getter plugins must retain Helm's complete registration/refresh path.
 // Classify the whole build before writing any part of the isolated config.
 func (h *helm) supportsIndexPrewarm() bool {
+	registered := make(map[string]struct{})
 	for _, repo := range h.repos {
 		if repo.EnableOci {
 			continue
@@ -278,6 +284,7 @@ func (h *helm) supportsIndexPrewarm() bool {
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
 			return false
 		}
+		registered[strings.TrimSuffix(repo.Repo, "/")] = struct{}{}
 	}
 	for _, name := range []string{"Chart.yaml", "requirements.yaml"} {
 		data, err := ReadChartMetadata(h.cmd.WorkDir, name)
@@ -301,13 +308,45 @@ func (h *helm) supportsIndexPrewarm() bool {
 				return false
 			}
 			switch u.Scheme {
-			case "http", "https", "file", "oci":
+			case "http", "https":
+				if _, installed := registered[strings.TrimSuffix(repository, "/")]; !installed {
+					return false
+				}
+			case "file", "oci":
 			default:
 				return false
 			}
 		}
 	}
 	return true
+}
+
+// Helm resolves aliases to URLs for archive lookup, so distinct credential
+// views of one URL cannot remain isolated inside a single dependency build.
+func (h *helm) validateIndexRepositoryViews(ctx context.Context) error {
+	type view struct{ name, scope string }
+	views := make(map[string]view)
+	for i := range h.repos {
+		repo := &h.repos[i]
+		if repo.EnableOci {
+			continue
+		}
+		snapshot, err := snapshotCreds(repo.Creds)
+		if err != nil {
+			return err
+		}
+		repo.Creds = snapshot
+		scope, err := credsScopeContext(ctx, snapshot)
+		if err != nil {
+			return err
+		}
+		key := strings.TrimSuffix(repo.Repo, "/")
+		if previous, exists := views[key]; exists && previous.scope != scope {
+			return fmt.Errorf("Helm repositories %q and %q use the same URL with different credentials; configure distinct repository URLs", previous.name, repo.Name)
+		}
+		views[key] = view{repo.Name, scope}
+	}
+	return nil
 }
 
 // buildRepoEntries returns the repositories.yaml entries for one warmed

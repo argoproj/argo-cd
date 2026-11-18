@@ -308,7 +308,11 @@ func TestIndexSnapshotLockedBuildRestoresFullBackup(t *testing.T) {
 	require.NoError(t, err)
 	lock, err := os.ReadFile(filepath.Join(firstDir, "Chart.lock"))
 	require.NoError(t, err)
-	for name, corruption := range map[string][]byte{"malformed": []byte("invalid: ["), "missing-entry": []byte("apiVersion: v1\nentries: {}\n")} {
+	for name, corruption := range map[string][]byte{
+		"malformed":       []byte("invalid: ["),
+		"missing-entry":   []byte("apiVersion: v1\nentries: {}\n"),
+		"missing-version": []byte("apiVersion: v1\nentries:\n  child:\n    - apiVersion: v2\n      name: child\n      version: 2.0.0\n      urls: [child-2.0.0.tgz]\n"),
+	} {
 		t.Run(name, func(t *testing.T) {
 			app, err := NewHelmAppWithIndexStore(regressionParent(t, "@fixture", lock), []HelmRepository{repo}, false, "", "", "127.0.0.1,localhost", false, false, store, false)
 			require.NoError(t, err)

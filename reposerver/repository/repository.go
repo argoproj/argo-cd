@@ -1254,6 +1254,8 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 
 type dependencies struct {
 	APIVersion   string         `json:"apiVersion"`
+	Name         string         `json:"name"`
+	Version      string         `json:"version"`
 	Dependencies []repositories `yaml:"dependencies"`
 }
 
@@ -1264,7 +1266,8 @@ type repositories struct {
 func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	repos := make([]*v1alpha1.Repository, 0)
 	f, err := helm.ReadChartMetadata(appPath, "Chart.yaml")
-	if err != nil {
+	chartMissing := os.IsNotExist(err)
+	if err != nil && !chartMissing {
 		return nil, fmt.Errorf("error reading helm chart from %s: %w", filepath.Join(appPath, "Chart.yaml"), err)
 	}
 
@@ -1280,6 +1283,9 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 		}
 	} else if !os.IsNotExist(err) {
 		return nil, err
+	}
+	if chartMissing && (d.Name == "" || d.Version == "") {
+		return nil, fmt.Errorf("no usable Helm chart metadata in %s", appPath)
 	}
 
 	for _, r := range d.Dependencies {

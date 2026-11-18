@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +17,7 @@ import (
 	"path"
 	"path/filepath"
 	"strings"
+	stdsync "sync"
 	"time"
 
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
@@ -460,6 +462,8 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 		start := time.Now()
 		var err error
 		owner := beginIndexFetch(ctx, c.indexCache, repoKey)
+		stopRenewing := keepIndexFetchAlive(ctx, c.indexCache, repoKey, owner)
+		defer stopRenewing()
 		if owner != "" {
 			// A maintenance publication between the initial observation and
 			// this claim cannot be invalidated retroactively. Read its record
@@ -880,13 +884,14 @@ func lookupRegistryCredential(ctx context.Context, resolver auth.CredentialFunc,
 	return credential, timedOut, err
 }
 
-// ORAS's native helper executor has no pipe-drain deadline. Keep its file-store
-// parsing and helper precedence, but bound both cancellation and inherited
-// stdout pipes when executing the Docker credential-helper protocol.
+// ORAS's native helper executor has no pipe-drain deadline. Preserve helper
+// precedence and inline credential formats from one configuration snapshot,
+// bounding cancellation and inherited stdout pipes when executing a helper.
 func boundedDockerCredential(store *credentials.DynamicStore) (auth.CredentialFunc, error) {
 	var config struct {
-		Store   string            `json:"credsStore"`
-		Helpers map[string]string `json:"credHelpers"`
+		Store   string                     `json:"credsStore"`
+		Helpers map[string]string          `json:"credHelpers"`
+		Auths   map[string]json.RawMessage `json:"auths"`
 	}
 	file, err := os.Open(store.ConfigPath())
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
@@ -899,10 +904,6 @@ func boundedDockerCredential(store *credentials.DynamicStore) (auth.CredentialFu
 			return nil, err
 		}
 	}
-	plain, err := credentials.NewFileStore(store.ConfigPath())
-	if err != nil {
-		return nil, err
-	}
 	return func(ctx context.Context, host string) (auth.Credential, error) {
 		address := credentials.ServerAddressFromHostname(host)
 		if address == "" {
@@ -913,7 +914,7 @@ func boundedDockerCredential(store *credentials.DynamicStore) (auth.CredentialFu
 			helper = config.Store
 		}
 		if helper == "" {
-			return plain.Get(ctx, address)
+			return dockerInlineCredential(config.Auths, address)
 		}
 		cmd := exec.CommandContext(ctx, "docker-credential-"+helper, "get")
 		cmd.Stdin = strings.NewReader(address)
@@ -936,6 +937,43 @@ func boundedDockerCredential(store *credentials.DynamicStore) (auth.CredentialFu
 		}
 		return auth.Credential{Username: result.Username, Password: result.Secret}, nil
 	}, nil
+}
+
+// Match ORAS's inline credential formats using the same immutable config
+// snapshot that selected the helper. Never include decoded secrets in errors.
+func dockerInlineCredential(auths map[string]json.RawMessage, address string) (auth.Credential, error) {
+	raw, found := auths[address]
+	if !found {
+		for key, value := range auths {
+			host, _, _ := strings.Cut(strings.TrimPrefix(strings.TrimPrefix(key, "http://"), "https://"), "/")
+			if host == address {
+				raw, found = value, true
+				break
+			}
+		}
+	}
+	if !found {
+		return auth.EmptyCredential, nil
+	}
+	var entry struct {
+		Username, Password, Auth, IdentityToken, RegistryToken string
+	}
+	if err := json.Unmarshal(raw, &entry); err != nil {
+		return auth.EmptyCredential, err
+	}
+	credential := auth.Credential{Username: entry.Username, Password: entry.Password, RefreshToken: entry.IdentityToken, AccessToken: entry.RegistryToken}
+	if entry.Auth != "" {
+		decoded, err := base64.StdEncoding.DecodeString(entry.Auth)
+		if err != nil {
+			return auth.EmptyCredential, fmt.Errorf("decode Docker authentication: %w", err)
+		}
+		var ok bool
+		credential.Username, credential.Password, ok = strings.Cut(string(decoded), ":")
+		if !ok {
+			return auth.EmptyCredential, errors.New("invalid Docker authentication format")
+		}
+	}
+	return credential, nil
 }
 
 func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache bool) ([]string, error) {
@@ -981,12 +1019,21 @@ func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache boo
 				credential = auth.EmptyCredential
 				c.indexCache = nil
 				storeUnavailable = true
+				var retryOnce stdsync.Once
+				var retried auth.Credential
+				var retryErr error
 				retryCredential = func(ctx context.Context, host string) (auth.Credential, error) {
-					credential, timedOut, err := lookupRegistryCredential(ctx, resolver, host, 30*time.Second, 3)
-					if timedOut {
+					if host != repoHost {
 						return auth.EmptyCredential, nil
 					}
-					return credential, err
+					retryOnce.Do(func() {
+						var timedOut bool
+						retried, timedOut, retryErr = lookupRegistryCredential(ctx, resolver, host, 30*time.Second, 3)
+						if timedOut {
+							retried, retryErr = auth.EmptyCredential, nil
+						}
+					})
+					return retried, retryErr
 				}
 			}
 			if credential != auth.EmptyCredential {

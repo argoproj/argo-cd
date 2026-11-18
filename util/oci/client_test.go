@@ -1057,13 +1057,34 @@ func TestTagCacheScopeIncludesProxyRoutes(t *testing.T) {
 		t.Helper()
 		client, err := NewClient("oci://registry.example/charts", creds, proxy, noProxy, nil, WithIndexCacheScopedByCreds(&fakeTagsCache{}, creds))
 		require.NoError(t, err)
-		return client.(*nativeOCIClient).cacheRepoKey()
+		key, err := client.(*nativeOCIClient).cacheRepoKey(t.Context())
+		require.NoError(t, err)
+		return key
 	}
 	first := key("http://user:proxy-secret@first.example", "")
 	require.Equal(t, first, key("http://user:proxy-secret@first.example", ""))
 	require.NotEqual(t, first, key("http://second.example", ""))
 	require.NotEqual(t, first, key("http://user:proxy-secret@first.example", "registry.example"))
 	require.NotContains(t, first, "proxy-secret")
+}
+
+func TestTagCacheScopeRespectsOperationCancellation(t *testing.T) {
+	creds := Creds{Username: "canceled-scope", Password: "fixture"}
+	client, err := NewClient("oci://registry.example/charts", creds, "", "", nil, WithIndexCacheScopedByCreds(&fakeTagsCache{data: []byte(`["1.0.0"]`)}, creds))
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = client.(*nativeOCIClient).getTags(ctx, false)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestCredentialSnapshotKeepsCertificateGeneration(t *testing.T) {
+	creds := Creds{CertData: []byte("certificate"), KeyData: []byte("key"), caData: []byte("authority")}
+	snapshot, err := snapshotCredentials(creds)
+	require.NoError(t, err)
+	scope := credsScope(snapshot)
+	creds.CertData[0], creds.KeyData[0], creds.caData[0] = 'X', 'X', 'X'
+	require.Equal(t, scope, credsScope(snapshot), "deferred scope derivation must retain the transport's credential generation")
 }
 
 func TestCredentialScopeObservesCAFileRotation(t *testing.T) {
@@ -1081,7 +1102,8 @@ func TestCredentialScopeObservesCAFileRotation(t *testing.T) {
 	client, err := NewClient("oci://example.com/charts", creds, "", "", nil, WithIndexCacheScopedByCreds(&fakeTagsCache{}, creds))
 	require.NoError(t, err)
 	original := client.(*nativeOCIClient).credentialSnapshot
-	originalKey := client.(*nativeOCIClient).cacheRepoKey()
+	originalKey, err := client.(*nativeOCIClient).cacheRepoKey(t.Context())
+	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(ca, newPEM, 0o600))
 	two := credsScope(creds)
 	require.NotEmpty(t, two)
@@ -1090,7 +1112,9 @@ func TestCredentialScopeObservesCAFileRotation(t *testing.T) {
 	require.Equal(t, one, credsScope(*original), "existing transport and identity must keep the same immutable CA snapshot")
 	native := client.(*nativeOCIClient)
 	WithIndexCacheScopedByCreds(&fakeTagsCache{}, creds)(native)
-	require.Equal(t, originalKey, native.cacheRepoKey(), "the actual cache key must use the transport's original CA snapshot")
+	key, err := native.cacheRepoKey(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, originalKey, key, "the actual cache key must use the transport's original CA snapshot")
 	transport := client.(*nativeOCIClient).repo.(*remote.Repository).Client.(*auth.Client).Client.Transport.(*http.Transport)
 	pool := x509.NewCertPool()
 	require.True(t, pool.AppendCertsFromPEM(oldPEM))

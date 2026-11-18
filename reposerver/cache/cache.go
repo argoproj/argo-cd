@@ -320,7 +320,7 @@ func (c *Cache) BeginHelmIndexFetch(ctx context.Context, repo string) (string, e
 	// Carry the already-scoped key in the opaque claim so cancellation cleanup
 	// never has to repeat an evicted credential-scope derivation.
 	owner := prefix + "owner|fetch|" + token.String()
-	ok, err := c.cache.BeginUpdate(claimContext, prefix+"owner", owner, 15*time.Minute)
+	ok, err := c.cache.BeginUpdate(claimContext, prefix+"owner", owner, helm.IndexFetchLease)
 	cancel()
 	if err != nil {
 		// Use the reserved portion of this phase rather than adding another
@@ -341,15 +341,31 @@ func (c *Cache) BeginHelmIndexFetch(ctx context.Context, repo string) (string, e
 }
 
 func (c *Cache) ReleaseHelmIndexFetch(ctx context.Context, _ string, owner string) error {
+	key, err := helmIndexClaimKey(owner)
+	if err != nil {
+		return err
+	}
+	_, err = c.cache.ReleaseUpdate(ctx, key, owner)
+	return err
+}
+
+func (c *Cache) RenewHelmIndexFetch(ctx context.Context, _ string, owner string) (bool, error) {
+	key, err := helmIndexClaimKey(owner)
+	if err != nil {
+		return false, err
+	}
+	return c.cache.RenewUpdate(ctx, key, owner, helm.IndexFetchLease)
+}
+
+func helmIndexClaimKey(owner string) (string, error) {
 	key, nonce, ok := strings.Cut(owner, "|fetch|")
 	if !ok || !strings.HasPrefix(key, "helm-index-v3|{argon2id-v1:") || !strings.HasSuffix(key, "}|owner") {
-		return errors.New("invalid helm index fetch claim")
+		return "", errors.New("invalid helm index fetch claim")
 	}
 	if _, err := uuid.Parse(nonce); err != nil {
-		return errors.New("invalid helm index fetch claim nonce")
+		return "", errors.New("invalid helm index fetch claim nonce")
 	}
-	_, err := c.cache.ReleaseUpdate(ctx, key, owner)
-	return err
+	return key, nil
 }
 
 func (c *Cache) PublishHelmIndexRecord(ctx context.Context, repo, owner string, record *HelmIndexRecord) (bool, error) {
@@ -408,7 +424,10 @@ func (c *Cache) storeHelmIndex(ctx context.Context, repo, owner string, record *
 	if err != nil || !updated {
 		return updated, err
 	}
-	_, bodyErr := c.cache.StoreVersionedBody(ctx, prefix+"body-reference", bodyKey, metadata.BodyDigest, record.Body, remaining)
+	bodyStored, bodyErr := c.cache.StoreVersionedBody(ctx, prefix+"body-reference", bodyKey, metadata.BodyDigest, record.Body, remaining)
+	if bodyErr == nil && !bodyStored {
+		return false, nil // The confirmed reference was superseded before sharing.
+	}
 	if bodyErr != nil {
 		if !fenced {
 			return false, bodyErr

@@ -7609,3 +7609,23 @@ func TestHelmDependencyDiscoveryRespectsHelmIgnore(t *testing.T) {
 	require.Len(t, repos, 1)
 	require.Equal(t, "https://charts.example/inline", repos[0].Repo)
 }
+
+func TestHelmDependencyMetadataMatchesPinnedLoader(t *testing.T) {
+	requirePinnedHelmIndexTest(t)
+	for _, candidate := range []string{"ignored-chart", "requirements-directory"} {
+		t.Run(candidate, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte("apiVersion: v2\nname: parent\nversion: 1.0.0\n"), 0o600))
+			if candidate == "ignored-chart" {
+				require.NoError(t, os.WriteFile(filepath.Join(dir, ".helmignore"), []byte("Chart.yaml\n"), 0o600))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "requirements.yaml"), []byte("apiVersion: v1\nname: parent\nversion: 1.0.0\n"), 0o600))
+			} else {
+				require.NoError(t, os.Mkdir(filepath.Join(dir, "requirements.yaml"), 0o700))
+			}
+			output, err := exec.CommandContext(t.Context(), "helm", "template", "triage", dir).CombinedOutput()
+			require.NoError(t, err, string(output))
+			_, err = getHelmDependencyRepos(dir)
+			require.NoError(t, err, "dependency discovery must accept metadata loaded by pinned Helm")
+		})
+	}
+}
