@@ -2535,24 +2535,22 @@ func TestReconcilerValidationProjectErrorBehaviour(t *testing.T) {
 
 func TestGetParametersGeneratedCondition(t *testing.T) {
 	t.Run("parameters generated", func(t *testing.T) {
-		condition := getParametersGeneratedCondition(1, true, "")
+		condition := getParametersGeneratedCondition(true, "")
 		assert.Equal(t, v1alpha1.ApplicationSetCondition{
-			Type:               v1alpha1.ApplicationSetConditionParametersGenerated,
-			Message:            "All parameters have been generated successfully",
-			Reason:             v1alpha1.ApplicationSetReasonParametersGenerated,
-			Status:             v1alpha1.ApplicationSetConditionStatusTrue,
-			ObservedGeneration: 1,
+			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+			Message: "All parameters have been generated successfully",
+			Reason:  v1alpha1.ApplicationSetReasonParametersGenerated,
+			Status:  v1alpha1.ApplicationSetConditionStatusTrue,
 		}, condition)
 	})
 
 	t.Run("parameters not generated", func(t *testing.T) {
-		condition := getParametersGeneratedCondition(3, false, "failed to generate parameters")
+		condition := getParametersGeneratedCondition(false, "failed to generate parameters")
 		assert.Equal(t, v1alpha1.ApplicationSetCondition{
-			Type:               v1alpha1.ApplicationSetConditionParametersGenerated,
-			Message:            "failed to generate parameters",
-			Reason:             v1alpha1.ApplicationSetReasonErrorOccurred,
-			Status:             v1alpha1.ApplicationSetConditionStatusFalse,
-			ObservedGeneration: 3,
+			Type:    v1alpha1.ApplicationSetConditionParametersGenerated,
+			Message: "failed to generate parameters",
+			Reason:  v1alpha1.ApplicationSetReasonErrorOccurred,
+			Status:  v1alpha1.ApplicationSetConditionStatusFalse,
 		}, condition)
 	})
 }
@@ -2563,7 +2561,8 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 	require.NoError(t, err)
 	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
 	someTime := &metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
-	existingParameterGeneratedCondition := getParametersGeneratedCondition(1, true, "")
+	existingParameterGeneratedCondition := getParametersGeneratedCondition(true, "")
+	existingParameterGeneratedCondition.ObservedGeneration = 1
 	existingParameterGeneratedCondition.LastTransitionTime = someTime
 
 	for _, c := range []struct {
@@ -2802,6 +2801,7 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 						{
 							Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
 							Message:            "existing",
+							ObservedGeneration: 1,
 							LastTransitionTime: someTime,
 						},
 						existingParameterGeneratedCondition,
@@ -2809,11 +2809,13 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 							Type:               v1alpha1.ApplicationSetConditionResourcesUpToDate,
 							Message:            "existing",
 							Status:             v1alpha1.ApplicationSetConditionStatusFalse,
+							ObservedGeneration: 1,
 							LastTransitionTime: someTime,
 						},
 						{
 							Type:               v1alpha1.ApplicationSetConditionRolloutProgressing,
 							Message:            "existing",
+							ObservedGeneration: 1,
 							LastTransitionTime: someTime,
 						},
 					},
@@ -3080,12 +3082,99 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			err = r.setApplicationSetStatusCondition(t.Context(), &c.appset, c.condition, c.parametersGenerated)
+			err = r.setApplicationSetStatusCondition(t.Context(), &c.appset, c.condition, c.parametersGenerated, c.appset.Generation)
 			require.NoError(t, err)
 
 			c.testfunc(t, c.appset.Status.Conditions)
 		})
 	}
+}
+
+func findAppSetCondition(conditions []v1alpha1.ApplicationSetCondition, condType v1alpha1.ApplicationSetConditionType) *v1alpha1.ApplicationSetCondition {
+	for i := range conditions {
+		if conditions[i].Type == condType {
+			return &conditions[i]
+		}
+	}
+	return nil
+}
+
+func TestSetApplicationSetStatusConditionObservedGeneration(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
+
+	newReconciler := func(client crtclient.Client) ApplicationSetReconciler {
+		return ApplicationSetReconciler{
+			Client:   client,
+			Scheme:   scheme,
+			Renderer: &utils.Render{},
+			Recorder: record.NewFakeRecorder(10),
+			Generators: map[string]generators.Generator{
+				"List": generators.NewListGenerator(),
+			},
+			ArgoDB:        db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset),
+			KubeClientset: kubeclientset,
+			Metrics:       appsetmetrics.NewFakeAppsetMetrics(),
+		}
+	}
+
+	baseSpec := v1alpha1.ApplicationSetSpec{
+		Generators: []v1alpha1.ApplicationSetGenerator{
+			{List: &v1alpha1.ListGenerator{
+				Elements: []apiextensionsv1.JSON{{
+					Raw: []byte(`{"cluster": "my-cluster","url": "https://kubernetes.default.svc"}`),
+				}},
+			}},
+		},
+		Template: v1alpha1.ApplicationSetTemplate{},
+	}
+
+	t.Run("keeps the observed generation of conditions that are not evaluated", func(t *testing.T) {
+		rollingSyncSpec := *baseSpec.DeepCopy()
+		rollingSyncSpec.Strategy = &v1alpha1.ApplicationSetStrategy{
+			Type:        "RollingSync",
+			RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
+		}
+
+		appset := v1alpha1.ApplicationSet{
+			ObjectMeta: metav1.ObjectMeta{Name: "name", Namespace: "argocd", Generation: 7},
+			Spec:       rollingSyncSpec,
+			Status: v1alpha1.ApplicationSetStatus{
+				Conditions: []v1alpha1.ApplicationSetCondition{
+					{
+						Type:               v1alpha1.ApplicationSetConditionRolloutProgressing,
+						Message:            "ApplicationSet is performing rollout of step 1",
+						Reason:             v1alpha1.ApplicationSetReasonApplicationSetModified,
+						Status:             v1alpha1.ApplicationSetConditionStatusTrue,
+						ObservedGeneration: 6,
+						LastTransitionTime: &metav1.Time{Time: time.Now().Add(-5 * time.Minute)},
+					},
+				},
+			},
+		}
+
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appset).WithStatusSubresource(&appset).Build()
+		r := newReconciler(client)
+
+		err := r.setApplicationSetStatusCondition(t.Context(), &appset, []v1alpha1.ApplicationSetCondition{
+			{
+				Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
+				Message: "unable to generate applications",
+				Reason:  v1alpha1.ApplicationSetReasonApplicationValidationError,
+				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
+			},
+		}, true, appset.Generation)
+		require.NoError(t, err)
+
+		errorOccurred := findAppSetCondition(appset.Status.Conditions, v1alpha1.ApplicationSetConditionErrorOccurred)
+		require.NotNil(t, errorOccurred)
+		assert.Equal(t, int64(7), errorOccurred.ObservedGeneration, "a condition evaluated in this pass reports the generation being reconciled")
+
+		rolloutProgressing := findAppSetCondition(appset.Status.Conditions, v1alpha1.ApplicationSetConditionRolloutProgressing)
+		require.NotNil(t, rolloutProgressing)
+		assert.Equal(t, int64(6), rolloutProgressing.ObservedGeneration, "a condition that was not evaluated keeps the generation it was last computed for")
+	})
 }
 
 func applicationsUpdateSyncPolicyTest(t *testing.T, applicationsSyncPolicy v1alpha1.ApplicationsSyncPolicy, recordBuffer int, allowPolicyOverride bool) v1alpha1.Application {
@@ -5595,6 +5684,7 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 				tt.applications,
 				tt.desiredApplications,
 				0,
+				tt.appset.Generation,
 			)
 
 			require.NoError(t, err)
