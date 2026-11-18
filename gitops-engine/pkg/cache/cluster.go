@@ -1309,10 +1309,8 @@ func (c *store) managesNamespace(namespace string) bool {
 // specified in targetObjs list. isManaged runs with the cache's read lock held,
 // so it must not call back into the cache.
 func (c *store) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isManaged func(r *Resource) bool) (map[kube.ResourceKey]*unstructured.Unstructured, error) {
-	// Collect the resources used below so manifests are decoded after
-	// unlocking. No copies needed: of a cached Resource only OwnerRefs
-	// changes in place (setOwnerRef; isParentOf too, but only tests call it),
-	// and it isn't read after unlocking.
+	// Shallow-copy the matches so manifests can be decoded after unlocking
+	// without depending on how the cache updates a stored Resource.
 	managed := map[kube.ResourceKey]*Resource{}
 	targets := make(map[kube.ResourceKey]*Resource, len(targetObjs))
 	var watchedGKs map[schema.GroupKind]struct{}
@@ -1330,13 +1328,15 @@ func (c *store) GetManagedLiveObjs(targetObjs []*unstructured.Unstructured, isMa
 		}
 		for k, v := range c.resources {
 			if isManaged(v) && v.HasManifest() && len(v.OwnerRefs) == 0 {
-				managed[k] = v
+				r := *v
+				managed[k] = &r
 			}
 		}
 		for _, o := range targetObjs {
 			key := kube.GetResourceKey(o)
 			if v, ok := c.resources[key]; ok {
-				targets[key] = v
+				r := *v
+				targets[key] = &r
 			}
 		}
 		watchedGKs = make(map[schema.GroupKind]struct{}, len(c.apisMeta))
