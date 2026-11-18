@@ -579,6 +579,114 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         }
     });
 
+    test.each([false, true])('ignores a Save completion after Cancel (next edit before completion: %s)', async editBeforeCompletion => {
+        const app = multiSourceApp();
+        const source = app.spec.sources[0];
+        source.plugin.parameters = [{name: 'options', string: 'configured'}];
+        if (!multiSource) {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        const lookup = deferredRepoDetails();
+        appDetails.mockRejectedValueOnce(new Error('repository unavailable')).mockReturnValueOnce(lookup.promise);
+        let finishSave: () => void;
+        const save = jest.fn(
+            () =>
+                new Promise<void>(resolve => {
+                    finishSave = resolve;
+                })
+        );
+        const user = userEvent.setup();
+        renderWithContext(<ApplicationParameters application={app} save={save} pageNumber={0} setPageNumber={jest.fn()} />);
+        expect(await screen.findByRole('alert')).toHaveTextContent('repository unavailable');
+        const panel = () => screen.getByText('PLUGIN').parentElement.parentElement;
+        await user.click(within(panel()).getByRole('button', {name: 'Edit', exact: true}));
+        const firstEditor = screen.getByDisplayValue('configured');
+        await user.clear(firstEditor);
+        await user.type(firstEditor, 'first-draft');
+        await user.click(within(panel()).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        within(panel()).getByRole('button', {name: 'Cancel', exact: true}).focus();
+        await user.keyboard('{Enter}');
+
+        const beginNextEdit = async () => {
+            within(panel()).getByRole('button', {name: 'Edit', exact: true}).focus();
+            await user.keyboard('{Enter}');
+            const editor = screen.getByDisplayValue('configured');
+            await user.clear(editor);
+            await user.type(editor, 'second-draft');
+            return editor;
+        };
+        let currentEditor: HTMLElement;
+        if (editBeforeCompletion) {
+            currentEditor = await beginNextEdit();
+        }
+        await act(async () => finishSave());
+        if (!editBeforeCompletion) {
+            currentEditor = await beginNextEdit();
+        }
+        expect(screen.getByDisplayValue('second-draft')).toBe(currentEditor);
+        await user.click(screen.getByRole('button', {name: 'Retry'}));
+        await act(async () => lookup.resolve({type: 'Plugin', plugin: {parametersAnnouncement: [{name: 'options', collectionType: 'map'}]}} as models.RepoAppDetails));
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.getByDisplayValue('second-draft')).toBe(currentEditor);
+        expect(within(panel()).getByRole('button', {name: 'Save', exact: true})).toBeEnabled();
+    });
+
+    test.each(['string', 'array', 'map'])('keeps Plugin %s parameters with identical titles distinct', async collectionType => {
+        const app = multiSourceApp();
+        const source = app.spec.sources[0];
+        source.plugin.parameters = [{name: 'first', string: 'configured'}];
+        if (!multiSource) {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        appDetails.mockRejectedValueOnce(new Error('repository unavailable')).mockResolvedValue({
+            type: 'Plugin',
+            plugin: {
+                parametersAnnouncement: [
+                    {name: 'first', title: 'first', collectionType},
+                    {name: 'second', title: 'first', collectionType}
+                ]
+            }
+        });
+        const errors = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        try {
+            const user = userEvent.setup();
+            renderWithContext(<ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} />);
+            expect(await screen.findByRole('alert')).toHaveTextContent('repository unavailable');
+            await user.click(screen.getByRole('button', {name: 'Retry'}));
+            await waitFor(() => expect(screen.getAllByText('first')).toHaveLength(2));
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+            expect(errors.mock.calls.some(([message]) => String(message).includes('Encountered two children with the same key'))).toBe(false);
+        } finally {
+            errors.mockRestore();
+        }
+    });
+
+    test('shows configured Kustomize image overrides when discovery fails', async () => {
+        const app = multiSourceApp();
+        const source = {
+            repoURL: 'https://git.example.com/manifests.git',
+            path: 'manifests',
+            targetRevision: 'main',
+            kustomize: {images: ['nginx=registry.example.com/nginx:2.0']}
+        } as models.ApplicationSource;
+        if (multiSource) {
+            app.spec.sources = [source];
+        } else {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        appDetails.mockRejectedValue(new Error('repository unavailable'));
+        renderWithContext(<ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} />);
+        expect(await screen.findByRole('alert')).toHaveTextContent('repository unavailable');
+        expect(screen.getByText('KUSTOMIZE')).toBeInTheDocument();
+        expect(screen.getByText('IMAGES')).toBeInTheDocument();
+        expect(screen.getByText('nginx')).toBeInTheDocument();
+        expect(screen.getByText('nginx=registry.example.com/nginx:2.0')).toBeInTheDocument();
+    });
+
     test.each([
         {olderFirst: false, currentFailure: false},
         {olderFirst: true, currentFailure: false},

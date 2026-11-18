@@ -20,7 +20,7 @@ export interface ApplicationParametersPanelProps<T> {
     saveBottom?: (input: T, query: {validate?: boolean}) => Promise<any>;
     itemsTop?: EditablePanelItem[];
     itemsBottom?: EditablePanelItem[];
-    onModeSwitch?: () => any;
+    onModeSwitch?: (isEditing: boolean) => any;
     viewTop?: string | ReactNode;
     viewBottom?: string | ReactNode;
     editTop?: (formApi: FormApi) => ReactNode;
@@ -39,9 +39,9 @@ export function ApplicationParametersSource<T = {}>(props: ApplicationParameters
     const [savingTop] = useState(false);
     const ctx = useContext(Context);
 
-    const onModeSwitch = () => {
+    const onModeSwitch = (editing: boolean) => {
         if (props.onModeSwitch) {
-            props.onModeSwitch();
+            props.onModeSwitch(editing);
         }
     };
 
@@ -56,7 +56,7 @@ export function ApplicationParametersSource<T = {}>(props: ApplicationParameters
                 items={props.itemsTop}
                 validate={props.validateTop}
                 save={props.saveTop}
-                onModeSwitch={() => onModeSwitch()}
+                onModeSwitch={onModeSwitch}
                 noReadonlyMode={props.noReadonlyMode}
                 edit={props.editTop}
                 collapsible={props.collapsible}
@@ -86,7 +86,7 @@ export function ApplicationParametersSource<T = {}>(props: ApplicationParameters
                     items={props.itemsBottom}
                     validate={props.validateBottom}
                     save={props.saveBottom}
-                    onModeSwitch={() => onModeSwitch()}
+                    onModeSwitch={onModeSwitch}
                     noReadonlyMode={props.noReadonlyMode}
                     edit={props.editBottom}
                     collapsible={props.collapsible}

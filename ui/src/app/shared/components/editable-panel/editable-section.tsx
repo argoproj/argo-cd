@@ -16,7 +16,7 @@ export interface EditableSectionProps<T> {
     validate?: (values: T) => any;
     save?: (input: T, query: {validate?: boolean}) => Promise<any>;
     items: EditablePanelItem[];
-    onModeSwitch?: () => any;
+    onModeSwitch?: (isEditing: boolean) => any;
     noReadonlyMode?: boolean;
     view?: string | React.ReactNode;
     edit?: (formApi: FormApi) => React.ReactNode;
@@ -38,7 +38,7 @@ function EditableSection<T extends {} = {}>({
     isTopSection,
     collapsible,
     values,
-    onModeSwitch,
+    onModeSwitch: onModeSwitchProp,
     updateButtons,
     disabledState,
     deleteSource,
@@ -51,15 +51,27 @@ function EditableSection<T extends {} = {}>({
 }: EditableSectionProps<T>) {
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
+    const editSession = React.useRef(0);
     const {formApiRef, onFormDidUpdate} = useAutoSaveForm(values, noReadonlyMode, save);
+
+    const onModeSwitch = useCallback(
+        (editing: boolean) => {
+            editSession.current++;
+            onModeSwitchProp?.(editing);
+        },
+        [onModeSwitchProp]
+    );
 
     const onFormSubmit = useCallback<<K extends T>(data: K) => Promise<void>>(
         async input => {
+            const session = editSession.current;
             try {
                 setIsSaving(true);
                 await save(input as any, {});
-                setIsEditing(false);
-                onModeSwitch?.();
+                if (session === editSession.current) {
+                    setIsEditing(false);
+                    onModeSwitch(false);
+                }
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to save changes' e={e} />,
@@ -89,7 +101,7 @@ function EditableSection<T extends {} = {}>({
                                 onClick={() => {
                                     setIsEditing(true);
                                     updateButtons?.(true);
-                                    onModeSwitch?.();
+                                    onModeSwitch(true);
                                 }}
                                 disabled={disabledState}
                                 className='argo-button argo-button--base'>
@@ -125,7 +137,7 @@ function EditableSection<T extends {} = {}>({
                                     onClick={() => {
                                         setIsEditing(false);
                                         updateButtons?.(false);
-                                        onModeSwitch?.();
+                                        onModeSwitch(false);
                                     }}
                                     className='argo-button argo-button--base-o'>
                                     Cancel

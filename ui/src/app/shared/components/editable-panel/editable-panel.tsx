@@ -78,7 +78,7 @@ export interface EditablePanelProps<T> {
     validate?: (values: T) => any;
     save?: (input: T, query: {validate?: boolean}) => Promise<any>;
     items: EditablePanelContent[];
-    onModeSwitch?: () => any;
+    onModeSwitch?: (isEditing: boolean) => any;
     noReadonlyMode?: boolean;
     view?: string | ReactNode;
     edit?: (formApi: FormApi) => ReactNode;
@@ -107,6 +107,7 @@ function EditablePanel<T extends {} = {}>({
 }: EditablePanelProps<T>) {
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
+    const editSession = React.useRef(0);
     const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsedProp);
     const [prevCollapsedProp, setPrevCollapsedProp] = useState<boolean>(collapsedProp);
     const ctx = useContext(Context);
@@ -119,21 +120,27 @@ function EditablePanel<T extends {} = {}>({
         setIsCollapsed(collapsedProp);
     }
 
-    const onModeSwitch = useCallback(() => {
-        if (onModeSwitchProp) {
-            onModeSwitchProp();
-        }
-    }, [onModeSwitchProp]);
+    const onModeSwitch = useCallback(
+        (editing: boolean) => {
+            editSession.current++;
+            if (onModeSwitchProp) {
+                onModeSwitchProp(editing);
+            }
+        },
+        [onModeSwitchProp]
+    );
 
     const handleSubmit = useCallback<<K extends T>(data: K) => Promise<void>>(
         async input => {
             if (!save) return;
+            const session = editSession.current;
             try {
                 setIsSaving(true);
                 await save(input, {});
-                setIsEditing(false);
-                setIsSaving(false);
-                onModeSwitch();
+                if (session === editSession.current) {
+                    setIsEditing(false);
+                    onModeSwitch(false);
+                }
             } catch (e) {
                 ctx.notifications.show({
                     content: <ErrorNotification title='Unable to save changes' e={e} />,
@@ -148,7 +155,7 @@ function EditablePanel<T extends {} = {}>({
 
     const handleCancel = useCallback(() => {
         setIsEditing(false);
-        onModeSwitch();
+        onModeSwitch(false);
     }, [onModeSwitch]);
 
     const renderItem = (item: EditablePanelItem, api?: FormApi, isIndented = false) => (
@@ -202,7 +209,7 @@ function EditablePanel<T extends {} = {}>({
                                     <button
                                         onClick={() => {
                                             setIsEditing(true);
-                                            onModeSwitch();
+                                            onModeSwitch(true);
                                         }}
                                         disabled={hasMultipleSources}
                                         className='argo-button argo-button--base'>

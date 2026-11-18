@@ -348,7 +348,7 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanel(items: EditablePanelItem[], repoAppDetails: models.RepoAppDetails, multiSourceIndex?: number, notifyModeSwitch?: () => void): any {
+    function getEditablePanel(items: EditablePanelItem[], repoAppDetails: models.RepoAppDetails, multiSourceIndex?: number, notifyModeSwitch?: (isEditing: boolean) => void): any {
         const ind = multiSourceIndex;
         const isMulti = ind !== undefined;
         const jsonnetTlas = isMulti ? `spec.sources[${ind}].directory.jsonnet.tlas` : 'spec.source.directory.jsonnet.tlas';
@@ -427,8 +427,8 @@ export const ApplicationParameters = (props: {
 
                         return errors;
                     }}
-                    onModeSwitch={() => {
-                        notifyModeSwitch?.();
+                    onModeSwitch={isEditing => {
+                        notifyModeSwitch?.(isEditing);
                         if (repoAppDetails?.plugin) {
                             setAppParamsDeletedState([]);
                         }
@@ -442,7 +442,12 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource, notifyModeSwitch?: () => void): any {
+    function getEditablePanelForOneSource(
+        repoAppDetails: models.RepoAppDetails | undefined,
+        ind: number,
+        src: models.ApplicationSource,
+        notifyModeSwitch?: (isEditing: boolean) => void
+    ): any {
         let floatingTitle: string;
         const lowerPanelAttributes: EditablePanelItem[] = [];
         const upperPanelAttributes: EditablePanelItem[] = [];
@@ -587,8 +592,8 @@ export const ApplicationParameters = (props: {
 
                     return errors;
                 }}
-                onModeSwitch={() => {
-                    notifyModeSwitch?.();
+                onModeSwitch={isEditing => {
+                    notifyModeSwitch?.(isEditing);
                     if (repoAppDetails?.plugin) {
                         setAppParamsDeletedState([]);
                     }
@@ -767,7 +772,7 @@ function gatherDetails(
         const srcImages = ((repoDetails && repoDetails.kustomize && repoDetails.kustomize.images) || []).map(val => kustomize.parse(val));
         const images = ((source.kustomize && source.kustomize.images) || []).map(val => kustomize.parse(val));
 
-        if (srcImages.length > 0) {
+        if (srcImages.length > 0 || images.length > 0) {
             const imagesByName = new Map<string, kustomize.Image>();
             srcImages.forEach(img => imagesByName.set(img.name, img));
 
@@ -951,6 +956,7 @@ function gatherDetails(
                 const items = new Array<NameValue>();
                 Array.from(entries).forEach(([key, value]) => items.push({name: key, value: `${value}`}));
                 attributes.push({
+                    key: 'plugin_parameter_' + name,
                     title: announcement?.title ?? announcement?.name ?? name,
                     customTitle: (
                         <span>
@@ -988,6 +994,7 @@ function gatherDetails(
                     liveParamArray = liveParam?.array ?? [];
                 }
                 attributes.push({
+                    key: 'plugin_parameter_' + name,
                     title: announcement?.title ?? announcement?.name ?? name,
                     customTitle: (
                         <span>
@@ -1030,6 +1037,7 @@ function gatherDetails(
                     liveParamString = liveParam?.string ?? '';
                 }
                 attributes.push({
+                    key: 'plugin_parameter_' + name,
                     title: announcement?.title ?? announcement?.name ?? name,
                     customTitle: (
                         <span>
@@ -1144,7 +1152,7 @@ interface SourceDetailsInput {
 
 interface SourceDetailsLoaderProps {
     input: SourceDetailsInput;
-    children: (details: models.RepoAppDetails, onModeSwitch: () => void) => React.ReactNode;
+    children: (details: models.RepoAppDetails, onModeSwitch: (isEditing: boolean) => void) => React.ReactNode;
     initialEditing?: boolean;
 }
 
@@ -1159,8 +1167,8 @@ const SourceDetailsRequest = ({input, children, initialEditing}: SourceDetailsLo
     const editing = React.useRef(!!initialEditing);
     const deferredResult = React.useRef<SourceDetails>(null);
     const [retrying, setRetrying] = React.useState(false);
-    const onModeSwitch = () => {
-        editing.current = !editing.current;
+    const onModeSwitch = (isEditing: boolean) => {
+        editing.current = isEditing;
         if (!editing.current && deferredResult.current) {
             const result = deferredResult.current;
             deferredResult.current = null;
@@ -1212,7 +1220,7 @@ function getPluginFieldSchema(details: models.RepoAppDetails, source: models.App
         const parameter = parameters.find(item => item.name === name);
         const announcement = announcements.find(item => item.name === name);
         const type = announcement?.collectionType === undefined ? (parameter?.map ? 'map' : parameter?.array ? 'array' : 'string') : announcement.collectionType || 'string';
-        schema.set(name, JSON.stringify([announcement?.title ?? name, type]));
+        schema.set(name, type);
     }
     return schema;
 }
