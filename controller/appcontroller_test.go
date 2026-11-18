@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
@@ -304,7 +304,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		response[k] = v.ResourceNode
 	}
 	mockStateCache.EXPECT().GetNamespaceTopLevelResources(mock.Anything, mock.Anything).Return(response, nil)
-	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.EXPECT().GetClusterCache(mock.Anything).Return(clusterCacheMock, nil)
 	mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Cluster, keys []kube.ResourceKey, action func(_ v1alpha1.ResourceNode, _ string) bool) {
 		for _, key := range keys {
@@ -4640,70 +4639,102 @@ func TestApplicationController_PersistAppStatus_FallbackPatchAlsoFails(t *testin
 	assert.Equal(t, 2, patchCalls, "fallback patch should be attempted exactly once after initial size-limit failure")
 }
 
+// mockHostsCache serves livePods and index from GetClusterHosts, counting calls.
+func mockHostsCache(livePods map[kube.ResourceKey]statecache.PodInfo, index *statecache.ClusterHosts) (*mockstatecache.LiveStateCache, *atomic.Int32) {
+	calls := &atomic.Int32{}
+	stateCache := &mockstatecache.LiveStateCache{}
+	stateCache.EXPECT().GetClusterHosts(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ *v1alpha1.Cluster, _ []kube.ResourceKey) (map[kube.ResourceKey]statecache.PodInfo, *statecache.ClusterHosts, error) {
+			calls.Add(1)
+			return livePods, index, nil
+		}).Maybe()
+	return stateCache, calls
+}
+
 func TestGetAppHosts(t *testing.T) {
-	app := newFakeApp()
-	data := &fakeData{
-		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
-			Namespace: test.FakeDestNamespace,
-			Server:    test.FakeClusterURL,
-			Revision:  "abc123",
-		},
-		configMapData: map[string]string{
-			"application.allowedNodeLabels": "label1,label2",
-		},
+	cpu := func(q string) corev1.ResourceList {
+		return corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(q)}
 	}
-	ctrl := newFakeController(t.Context(), data, nil)
-	mockStateCache := &mockstatecache.LiveStateCache{}
-	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.MatchedBy(func(callback func(res *clustercache.Resource, info *statecache.ResourceInfo)) bool {
-		// node resource
-		callback(&clustercache.Resource{
-			Ref: corev1.ObjectReference{Name: "minikube", Kind: "Node", APIVersion: "v1"},
-		}, &statecache.ResourceInfo{NodeInfo: &statecache.NodeInfo{
+	app := newFakeApp()
+	cluster := &v1alpha1.Cluster{Server: "test", Name: "test"}
+	pod1 := kube.NewResourceKey("", kube.PodKind, "default", "pod1")
+	pod2 := kube.NewResourceKey("", kube.PodKind, "default", "pod2")
+	appNodes := []v1alpha1.ResourceNode{{Name: "pod1", Namespace: "default", Kind: kube.PodKind}}
+	index := &statecache.ClusterHosts{
+		Nodes: map[string]statecache.NodeInfo{"minikube": {
 			Name:       "minikube",
 			SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
-			Capacity:   map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("5")},
-			Labels:     map[string]string{"label1": "value1", "label2": "value2"},
-		}})
-
-		// app pod
-		callback(&clustercache.Resource{
-			Ref: corev1.ObjectReference{Name: "pod1", Kind: kube.PodKind, APIVersion: "v1", Namespace: "default"},
-		}, &statecache.ResourceInfo{PodInfo: &statecache.PodInfo{
-			NodeName:         "minikube",
-			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("1")},
-		}})
-		// neighbor pod
-		callback(&clustercache.Resource{
-			Ref: corev1.ObjectReference{Name: "pod2", Kind: kube.PodKind, APIVersion: "v1", Namespace: "default"},
-		}, &statecache.ResourceInfo{PodInfo: &statecache.PodInfo{
-			NodeName:         "minikube",
-			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("2")},
-		}})
-		return true
-	})).Return(nil).Maybe()
-	ctrl.stateCache = mockStateCache
-
-	hosts, err := ctrl.getAppHosts(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, []v1alpha1.ResourceNode{{
-		Name: "pod1", Namespace: "default", Kind: kube.PodKind,
-		Info: []v1alpha1.InfoItem{{
-			Name:  "Host",
-			Value: "Minikube",
+			Capacity:   cpu("5"),
+			Labels:     map[string]string{"label1": "value1", "label2": "value2", "label3": "value3"},
 		}},
-	}})
-
-	require.NoError(t, err)
-	assert.Equal(t, []v1alpha1.HostInfo{{
-		Name:       "minikube",
-		SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
-		ResourcesInfo: []v1alpha1.HostResourceInfo{
-			{
-				ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000,
-			},
+		Pods: map[kube.ResourceKey]statecache.PodInfo{
+			pod1: {NodeName: "minikube", ResourceRequests: cpu("1")},
+			pod2: {NodeName: "minikube", ResourceRequests: cpu("2")},
 		},
-		Labels: map[string]string{"label1": "value1", "label2": "value2"},
-	}}, hosts)
+		RequestsByNode: map[string]map[corev1.ResourceName]int64{"minikube": {corev1.ResourceCPU: 3000}},
+	}
+	newCtrl := func(t *testing.T) *ApplicationController {
+		t.Helper()
+		return newFakeController(t.Context(), &fakeData{
+			apps:          []runtime.Object{app, &defaultProj},
+			configMapData: map[string]string{"application.allowedNodeLabels": "label1,label2"},
+		}, nil)
+	}
+
+	t.Run("splits node requests between the app and its neighbors", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		ctrl.stateCache, _ = mockHostsCache(map[kube.ResourceKey]statecache.PodInfo{pod1: index.Pods[pod1]}, index)
+		hosts, err := ctrl.getAppHosts(cluster, app, appNodes)
+		require.NoError(t, err)
+		assert.Equal(t, []v1alpha1.HostInfo{{
+			Name:       "minikube",
+			SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
+			ResourcesInfo: []v1alpha1.HostResourceInfo{{
+				ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000,
+			}},
+			Labels: map[string]string{"label1": "value1", "label2": "value2"},
+		}}, hosts)
+	})
+
+	t.Run("uses the app's live pods over the index's copy", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		ctrl.stateCache, _ = mockHostsCache(map[kube.ResourceKey]statecache.PodInfo{
+			pod1: {NodeName: "minikube", ResourceRequests: cpu("3")},
+		}, index)
+		hosts, err := ctrl.getAppHosts(cluster, app, appNodes)
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, int64(3000), hosts[0].ResourcesInfo[0].RequestedByApp)
+		// The index still holds the old request; neighbors must not absorb the change.
+		assert.Equal(t, int64(2000), hosts[0].ResourcesInfo[0].RequestedByNeighbors)
+	})
+
+	t.Run("subtracts a pod listed twice once", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		ctrl.stateCache, _ = mockHostsCache(map[kube.ResourceKey]statecache.PodInfo{pod1: index.Pods[pod1]}, index)
+		hosts, err := ctrl.getAppHosts(cluster, app, append(appNodes, appNodes...))
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, int64(2000), hosts[0].ResourcesInfo[0].RequestedByNeighbors)
+	})
+
+	t.Run("skips the cache for apps without pods", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		var calls *atomic.Int32
+		ctrl.stateCache, calls = mockHostsCache(nil, index)
+		hosts, err := ctrl.getAppHosts(cluster, app, nil)
+		require.NoError(t, err)
+		assert.Empty(t, hosts)
+		assert.Equal(t, int32(0), calls.Load())
+	})
+
+	t.Run("has no hosts while the app's pods are unscheduled", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		ctrl.stateCache, _ = mockHostsCache(map[kube.ResourceKey]statecache.PodInfo{pod1: {}}, nil)
+		hosts, err := ctrl.getAppHosts(cluster, app, appNodes)
+		require.NoError(t, err)
+		assert.Empty(t, hosts)
+	})
 }
 
 func TestMetricsExpiration(t *testing.T) {
