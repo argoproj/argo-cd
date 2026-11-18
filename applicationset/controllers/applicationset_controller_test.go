@@ -3445,6 +3445,116 @@ func TestReconcilePopulatesResourcesStatusOnFirstRun(t *testing.T) {
 	assert.Equal(t, "good-cluster", retrievedAppSet.Status.Resources[0].Name)
 }
 
+// Clearing the refresh annotation must not rewrite the spec: a full write drops explicit zero values
+// on omitempty fields and adds empty generator templates, which tools managing the ApplicationSet
+// report as drift.
+func TestReconcileClearsRefreshAnnotationWithoutWritingSpec(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	defaultProject := v1alpha1.AppProject{
+		Name: "default", Namespace: "argocd",
+		Spec: v1alpha1.AppProjectSpec{SourceRepos: []string{"*"}, Destinations: []v1alpha1.ApplicationDestination{{Namespace: "*", Server: "https://good-cluster"}}},
+	}
+	appSet := v1alpha1.ApplicationSet{
+		Name:      "name",
+		Namespace: "argocd",
+		Annotations: map[string]string{
+			argocommon.AnnotationApplicationSetRefresh: "true",
+			"unrelated": "kept",
+		},
+		Spec: v1alpha1.ApplicationSetSpec{
+			Generators: []v1alpha1.ApplicationSetGenerator{{
+				List: &v1alpha1.ListGenerator{
+					Elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "good-cluster","url": "https://good-cluster"}`)}},
+				},
+			}},
+			Template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{Name: "{{cluster}}", Namespace: "argocd"},
+				Spec: v1alpha1.ApplicationSpec{
+					Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps", Path: "guestbook"},
+					Project:     "default",
+					Destination: v1alpha1.ApplicationDestination{Server: "{{url}}"},
+				},
+			},
+		},
+	}
+
+	secret := &corev1.Secret{
+		Name:      "my-cluster",
+		Namespace: "argocd",
+		Labels:    map[string]string{argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster},
+		Data: map[string][]byte{
+			"name":   []byte("good-cluster"),
+			"server": []byte("https://good-cluster"),
+			"config": []byte("{\"username\":\"foo\",\"password\":\"foo\"}"),
+		},
+	}
+
+	appSetUpdates := 0
+	var appSetPatches []map[string]any
+	kubeclientset := getDefaultTestClientSet(secret)
+	client := fake.NewClientBuilder().
+		WithScheme(scheme).
+		WithObjects(&appSet, &defaultProject, secret).
+		WithStatusSubresource(&appSet).
+		WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Update: func(ctx context.Context, c crtclient.WithWatch, obj crtclient.Object, opts ...crtclient.UpdateOption) error {
+				if _, ok := obj.(*v1alpha1.ApplicationSet); ok {
+					appSetUpdates++
+				}
+				return c.Update(ctx, obj, opts...)
+			},
+			Patch: func(ctx context.Context, c crtclient.WithWatch, obj crtclient.Object, patch crtclient.Patch, opts ...crtclient.PatchOption) error {
+				if _, ok := obj.(*v1alpha1.ApplicationSet); ok {
+					data, err := patch.Data(obj)
+					require.NoError(t, err)
+					var body map[string]any
+					require.NoError(t, json.Unmarshal(data, &body))
+					appSetPatches = append(appSetPatches, body)
+				}
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).
+		Build()
+
+	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+	clusterInformer, err := settings.NewClusterInformer(kubeclientset, "argocd")
+	require.NoError(t, err)
+	defer startAndSyncInformer(t, clusterInformer)()
+
+	r := ApplicationSetReconciler{
+		Client:          client,
+		Scheme:          scheme,
+		Renderer:        &utils.Render{},
+		Recorder:        record.NewFakeRecorder(1),
+		Generators:      map[string]generators.Generator{"List": generators.NewListGenerator()},
+		ArgoDB:          argodb,
+		ArgoCDNamespace: "argocd",
+		KubeClientset:   kubeclientset,
+		Policy:          v1alpha1.ApplicationsSyncPolicySync,
+		Metrics:         appsetmetrics.NewFakeAppsetMetrics(),
+		ClusterInformer: clusterInformer,
+	}
+
+	_, err = r.Reconcile(t.Context(), ctrl.Request{Namespace: "argocd", Name: "name"})
+	require.NoError(t, err)
+
+	assert.Zero(t, appSetUpdates, "the ApplicationSet must not be written with a full Update")
+	require.Len(t, appSetPatches, 1)
+	assert.NotContains(t, appSetPatches[0], "spec")
+	metadata, ok := appSetPatches[0]["metadata"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, map[string]any{argocommon.AnnotationApplicationSetRefresh: nil}, metadata["annotations"])
+	assert.NotEmpty(t, metadata["resourceVersion"], "the patch must keep the optimistic lock")
+
+	var retrievedAppSet v1alpha1.ApplicationSet
+	require.NoError(t, r.Get(t.Context(), crtclient.ObjectKey{Namespace: "argocd", Name: "name"}, &retrievedAppSet))
+	assert.Equal(t, map[string]string{"unrelated": "kept"}, retrievedAppSet.Annotations)
+}
+
 func TestUpdatePerformedWithSyncPolicyCreateOnlyAndAllowPolicyOverrideFalse(t *testing.T) {
 	applicationsSyncPolicy := v1alpha1.ApplicationsSyncPolicyCreateOnly
 
@@ -5232,11 +5342,31 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 		},
 	} {
 		t.Run(cc.name, func(t *testing.T) {
+			appSetUpdates := 0
+			var appSetPatches []map[string]any
 			client := fake.NewClientBuilder().
 				WithScheme(scheme).
 				WithObjects(&cc.appSet).
 				WithStatusSubresource(&cc.appSet).
 				WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+				WithInterceptorFuncs(interceptor.Funcs{
+					Update: func(ctx context.Context, c crtclient.WithWatch, obj crtclient.Object, opts ...crtclient.UpdateOption) error {
+						if _, ok := obj.(*v1alpha1.ApplicationSet); ok {
+							appSetUpdates++
+						}
+						return c.Update(ctx, obj, opts...)
+					},
+					Patch: func(ctx context.Context, c crtclient.WithWatch, obj crtclient.Object, patch crtclient.Patch, opts ...crtclient.PatchOption) error {
+						if _, ok := obj.(*v1alpha1.ApplicationSet); ok {
+							data, err := patch.Data(obj)
+							require.NoError(t, err)
+							var body map[string]any
+							require.NoError(t, json.Unmarshal(data, &body))
+							appSetPatches = append(appSetPatches, body)
+						}
+						return c.Patch(ctx, obj, patch, opts...)
+					},
+				}).
 				Build()
 			metrics := appsetmetrics.NewFakeAppsetMetrics()
 			argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
@@ -5274,6 +5404,12 @@ func TestReconcileAddsFinalizer_WhenDeletionOrderReverse(t *testing.T) {
 			// Verify the finalizers
 			assert.Equal(t, cc.expectedFinalizers, updatedAppSet.Finalizers,
 				"finalizers should match expected value")
+
+			// Adding the finalizer must not rewrite the spec.
+			assert.Zero(t, appSetUpdates, "the ApplicationSet must not be written with a full Update")
+			for _, p := range appSetPatches {
+				assert.NotContains(t, p, "spec")
+			}
 		})
 	}
 }

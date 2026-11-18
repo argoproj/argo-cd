@@ -188,8 +188,11 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	// ensure finalizer exists if deletionOrder is set as Reverse
 	if r.EnableProgressiveSyncs && progressivesync.IsDeletionOrderReversed(&applicationSet) {
 		if !controllerutil.ContainsFinalizer(&applicationSet, argov1alpha1.ResourcesFinalizerName) {
+			// Patch rather than Update to avoid rewriting the spec (see the refresh annotation below). A merge
+			// patch replaces the whole finalizers list, so the optimistic lock guards concurrent writers.
+			original := applicationSet.DeepCopy()
 			controllerutil.AddFinalizer(&applicationSet, argov1alpha1.ResourcesFinalizerName)
-			if err := r.Update(ctx, &applicationSet); err != nil {
+			if err := r.Patch(ctx, &applicationSet, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{})); err != nil {
 				return ctrl.Result{}, err
 			}
 		}
@@ -418,8 +421,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 	}
 
 	if applicationSet.RefreshRequired() {
+		// Patch only the annotation: a full Update re-serializes the spec through the Go types, which
+		// drops explicit zero values on omitempty fields and adds empty generator templates, so tools
+		// that manage the ApplicationSet see drift. The optimistic lock is needed because when the
+		// refresh key is the only annotation, the computed patch sets annotations to null.
+		original := applicationSet.DeepCopy()
 		delete(applicationSet.Annotations, common.AnnotationApplicationSetRefresh)
-		err := r.Update(ctx, &applicationSet)
+		err := r.Patch(ctx, &applicationSet, client.MergeFromWithOptions(original, client.MergeFromWithOptimisticLock{}))
 		if err != nil {
 			logCtx.Warnf("error occurred while updating ApplicationSet: %v", err)
 			_ = r.setApplicationSetStatusCondition(
@@ -614,7 +622,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 
 // validateGeneratedApplications uses the Argo CD validation functions to verify the correctness of the
 // generated applications.
-func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet) (map[string]error, error) {
+func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSet argov1alpha1.ApplicationSet) (map[string]error, error) {
 	errorsByApp := map[string]error{}
 	namesSet := map[string]bool{}
 	for i := range desiredApplications {
@@ -624,11 +632,11 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 		// assign a random name that subsequent reconciles could never match back to the desired app.
 		// A missing name commonly happens when the name is only set via a templatePatch that renders empty.
 		if app.Name == "" {
-			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)", applicationSetInfo.Name)
+			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)", applicationSet.Name)
 			continue
 		}
 		if namesSet[app.Name] {
-			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
+			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSet.Name, app.Name)
 			continue
 		}
 		namesSet[app.Name] = true
@@ -651,9 +659,9 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	return errorsByApp, nil
 }
 
-func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1alpha1.ApplicationSet) time.Duration {
+func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSet *argov1alpha1.ApplicationSet) time.Duration {
 	var res time.Duration
-	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
+	for _, requestedGenerator := range applicationSet.Spec.Generators {
 		relevantGenerators := generators.GetRelevantGenerators(&requestedGenerator, r.Generators)
 
 		for _, g := range relevantGenerators {
@@ -665,8 +673,8 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 		}
 	}
 
-	if r.EnableProgressiveSyncs && r.RefreshGracePeriodSeconds > 0 && progressivesync.RollingSyncStrategyEnabled(applicationSetInfo) {
-		if latest := progressivesync.GetLatestWaitingTransitionTimeOfAppset(applicationSetInfo); latest != nil {
+	if r.EnableProgressiveSyncs && r.RefreshGracePeriodSeconds > 0 && progressivesync.RollingSyncStrategyEnabled(applicationSet) {
+		if latest := progressivesync.GetLatestWaitingTransitionTimeOfAppset(applicationSet); latest != nil {
 			remaining := time.Duration(r.RefreshGracePeriodSeconds)*time.Second - time.Since(latest.Time)
 			if remaining <= 0 {
 				remaining = time.Second // grace period already elapsed; force a near-immediate recheck rather than falling through to no-requeue

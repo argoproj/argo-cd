@@ -1,6 +1,6 @@
 import {Tooltip} from 'argo-ui';
 import * as React from 'react';
-import {useQuery} from '@tanstack/react-query';
+import {noop, useQuery, useQueryClient} from '@tanstack/react-query';
 import * as models from '../models';
 import {clusterQueries} from '../queries';
 import {loadFailed} from '../query-client';
@@ -22,14 +22,26 @@ const clusterHTML = (cluster: models.Cluster, showUrl: boolean) => {
     );
 };
 
-export const ClusterCtx = React.createContext<Promise<Array<models.Cluster>>>(null);
+// True on list pages, which load all clusters once; elsewhere each cluster is looked up on its own.
+export const ClusterCtx = React.createContext(false);
+
+// Refreshes the cluster list once per view of a list page. A layout effect starts the request before a page
+// opened by a click is painted, so its rows don't briefly show a failure cached by a previous visit.
+export const useRefreshClusterList = () => {
+    const queryClient = useQueryClient();
+    React.useLayoutEffect(() => {
+        // A failure is shown by the components reading the list, so it is not handled here.
+        queryClient.query(clusterQueries.list()).catch(noop);
+    }, [queryClient]);
+};
+
+// Reads the cluster list on a list page. The page refreshes it when it mounts, so components only read
+// it, and components mounting after a failure don't refetch it ("try again" still does).
+export const useClusterList = (enabled = true) => useQuery({...clusterQueries.list(), enabled, staleTime: Infinity, retryOnMount: false});
 
 export const Cluster = (props: {server: string; name?: string; showUrl?: boolean}) => {
-    // List pages provide ClusterCtx and load all clusters once; elsewhere each cluster is looked up on its own.
-    const inList = React.useContext(ClusterCtx) !== null;
-    // The list page refreshes the list when it mounts, so its rows only read it, and rows mounting
-    // after a failure don't refetch it ("try again" still does).
-    const list = useQuery({...clusterQueries.list(), enabled: inList, staleTime: Infinity, retryOnMount: false});
+    const inList = React.useContext(ClusterCtx);
+    const list = useClusterList(inList);
     const lookup = useQuery({...clusterQueries.lookup(props.server, props.name), enabled: !inList});
 
     if (inList && list.isError && !list.data) {
