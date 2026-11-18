@@ -1,6 +1,5 @@
 import {AutocompleteField, DataLoader, ErrorNotification, FormField, FormSelect, getNestedField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
-import {concat, from, NEVER} from 'rxjs';
 import {FieldApi, FormApi, FormFieldHOC as ReactFormField, Text, TextArea} from 'argo-ui';
 import {cloneDeep} from 'lodash-es';
 import {
@@ -279,21 +278,15 @@ export const ApplicationParameters = (props: {
             );
         } else {
             // For single source field, details page where we have to do the load to retrieve repo details
-            // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
-                <DataLoader noLoaderOnInputChange={true} input={app} load={application => concat(from(getSingleSource(application)), NEVER)}>
-                    {({details, error}: SourceDetails) => {
+                <SourceDetailsLoader input={{source: getAppDrySource(app), name: app.metadata.name, project: app.spec.project, index: 0}}>
+                    {details => {
                         const attr = details
                             ? gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false)
                             : [];
-                        return (
-                            <>
-                                <SourceDetailsWarning details={details} error={error} />
-                                {details && getEditablePanel(attr, details)}
-                            </>
-                        );
+                        return details && getEditablePanel(attr, details);
                     }}
-                </DataLoader>
+                </SourceDetailsLoader>
             );
         }
     }
@@ -343,17 +336,11 @@ export const ApplicationParameters = (props: {
                     {isRefOnlySource(app.spec.sources[index]) ? (
                         getEditablePanelForOneSource(undefined, index, app.spec.sources[index])
                     ) : (
-                        <DataLoader
+                        <SourceDetailsLoader
                             key={'app_params_source_' + index}
-                            input={app.spec.sources[index]}
-                            load={src => concat(from(getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)), NEVER)}>
-                            {({details, error}: SourceDetails) => (
-                                <>
-                                    <SourceDetailsWarning details={details} error={error} />
-                                    {getEditablePanelForOneSource(details, index, app.spec.sources[index])}
-                                </>
-                            )}
-                        </DataLoader>
+                            input={{source: app.spec.sources[index], name: app.metadata.name, project: app.spec.project, index}}>
+                            {details => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
+                        </SourceDetailsLoader>
                     )}
                 </div>
             </div>
@@ -1142,27 +1129,46 @@ async function getSourceFromAppSources(aSource: models.ApplicationSource, name: 
     }
 }
 
-// Delete when source field is removed
-async function getSingleSource(app: models.Application): Promise<SourceDetails> {
-    if (app.spec.source || app.spec.sourceHydrator) {
-        const source = getAppDrySource(app);
-        return getSourceFromAppSources(source, app.metadata.name, app.spec.project, 0, 0);
-    }
-    return {details: null};
-}
-
 interface SourceDetails {
     details: models.RepoAppDetails;
     error?: Error;
 }
 
-const SourceDetailsWarning = ({details, error}: SourceDetails) =>
+interface SourceDetailsInput {
+    source: models.ApplicationSource;
+    name: string;
+    project: string;
+    index: number;
+}
+
+const SourceDetailsLoader = ({input, children}: {input: SourceDetailsInput; children: (details: models.RepoAppDetails) => React.ReactNode}) => {
+    const loader = React.useRef<DataLoader<SourceDetails, SourceDetailsInput>>(null);
+    return (
+        <DataLoader
+            key={JSON.stringify(input)}
+            ref={loader}
+            input={input}
+            load={({source, name, project, index}) => (source ? getSourceFromAppSources(source, name, project, index, 0) : Promise.resolve({details: null}))}>
+            {({details, error}: SourceDetails) => (
+                <>
+                    <SourceDetailsWarning details={details} error={error} retry={() => loader.current?.reload()} />
+                    {children(details)}
+                </>
+            )}
+        </DataLoader>
+    );
+};
+
+const SourceDetailsWarning = ({details, error, retry}: SourceDetails & {retry: () => void}) =>
     error ? (
         <p role='alert'>
             <ErrorNotification
                 title={details ? 'Unable to load repository details. Showing configured source settings' : 'Unable to load repository details. Source type unknown'}
                 e={error}
-            />
+            />{' '}
+            <button type='button' className='argo-button argo-button--base-o' onClick={retry}>
+                Retry
+            </button>
         </p>
     ) : null;
 

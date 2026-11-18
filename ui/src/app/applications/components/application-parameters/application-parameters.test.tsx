@@ -373,10 +373,38 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         expect(screen.getByRole('alert')).toHaveTextContent(warning);
         expect(screen.queryByText(/Source type unknown/)).not.toBeInTheDocument();
 
-        appDetails.mockResolvedValue({type: 'Directory', path: 'manifests', directory: {}} as models.RepoAppDetails);
+        appDetails.mockResolvedValue({type: 'Helm', helm: {parameters: [{name: 'recovered-repository-default', value: 'ready'}]}} as models.RepoAppDetails);
         rerender(parameters({...appSource, targetRevision: 'release'}));
-        await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+        expect(await screen.findByText('recovered-repository-default')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+
+        appDetails.mockResolvedValue({type: 'Directory', path: 'manifests', directory: {}} as models.RepoAppDetails);
+        rerender(parameters({...appSource, targetRevision: 'directory-discovery'}));
         expect(await screen.findByText('DIRECTORY')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+
+    test('retries a failed lookup without changing its input', async () => {
+        const app = multiSourceApp();
+        const appSource = app.spec.sources[0];
+        if (!multiSource) {
+            app.spec.source = appSource;
+            delete app.spec.sources;
+        }
+        appDetails
+            .mockRejectedValueOnce(new Error('repository unavailable'))
+            .mockResolvedValue({type: 'Plugin', plugin: {parametersAnnouncement: [{name: 'retry-default', string: 'ready'}]}});
+        const user = userEvent.setup();
+        renderWithContext(<ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} />);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('repository unavailable');
+        expect(screen.getByDisplayValue('my-plugin')).toBeInTheDocument();
+        await user.click(screen.getByRole('button', {name: 'Retry'}));
+        expect(await screen.findByText('retry-default')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(appDetails).toHaveBeenCalledTimes(2);
+        expect(appDetails.mock.calls[0]).toEqual([appSource, 'test-app', 'default', 0, 0]);
+        expect(appDetails.mock.calls[1]).toEqual(appDetails.mock.calls[0]);
     });
 
     test.each([
@@ -443,6 +471,88 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         expect(screen.queryByText('obsolete lookup failed')).not.toBeInTheDocument();
         expect(screen.queryByText('old-default')).not.toBeInTheDocument();
     });
+});
+
+test('does not restart single-source lookups for watch updates', async () => {
+    const app = multiSourceApp();
+    app.spec.source = app.spec.sources[0];
+    delete app.spec.sources;
+    const request = deferredRepoDetails();
+    const appDetails = services.repos.appDetails as jest.Mock;
+    appDetails.mockReset().mockReturnValue(request.promise);
+    const parameters = (version: string) => (
+        <Context.Provider value={ctxValue}>
+            <ApplicationParameters application={{...app, metadata: {...app.metadata, resourceVersion: version}, status: {reconciledAt: version} as any}} />
+        </Context.Provider>
+    );
+    const {rerender} = render(parameters('1'));
+    await waitFor(() => expect(appDetails).toHaveBeenCalledTimes(1));
+    for (const version of ['2', '3', '4']) {
+        rerender(parameters(version));
+        expect(appDetails).toHaveBeenCalledTimes(1);
+    }
+    await act(async () => request.resolve({type: 'Plugin', plugin: {}} as models.RepoAppDetails));
+    const name = await screen.findByDisplayValue('my-plugin');
+    rerender(parameters('5'));
+    expect(screen.getByDisplayValue('my-plugin')).toBe(name);
+    expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+    expect(appDetails).toHaveBeenCalledTimes(1);
+});
+
+test.each([false, true])('hides stored single-source details while another source loads (previous failure: %s)', async previousFailure => {
+    const app = multiSourceApp();
+    app.spec.source = {repoURL: 'https://charts.example.com', chart: 'web-app', targetRevision: 'main'} as models.ApplicationSource;
+    delete app.spec.sources;
+    const request = deferredRepoDetails();
+    const appDetails = services.repos.appDetails as jest.Mock;
+    appDetails.mockReset();
+    if (previousFailure) {
+        appDetails.mockRejectedValueOnce(new Error('previous repository unavailable'));
+    } else {
+        appDetails.mockResolvedValueOnce({type: 'Helm', helm: {parameters: []}});
+    }
+    appDetails.mockReturnValueOnce(request.promise);
+    const parameters = (application: models.Application) => (
+        <Context.Provider value={ctxValue}>
+            <ApplicationParameters application={application} />
+        </Context.Provider>
+    );
+    const {rerender} = render(parameters(app));
+    expect(await screen.findByText('HELM')).toBeInTheDocument();
+    const updatedSource = {
+        repoURL: 'https://git.example.com/plugin.git',
+        path: 'manifests',
+        targetRevision: 'release',
+        plugin: {name: 'current-plugin'}
+    } as models.ApplicationSource;
+    rerender(parameters({...app, spec: {...app.spec, source: updatedSource}}));
+    expect(screen.queryByText('HELM')).not.toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    expect(screen.getByText('Loading...')).toBeInTheDocument();
+    await act(async () => request.resolve({type: 'Plugin', plugin: {}} as models.RepoAppDetails));
+    expect(await screen.findByDisplayValue('current-plugin')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+});
+
+test.each(['project', 'name'])('reloads multi-source details when only the application %s changes', async field => {
+    const app = multiSourceApp();
+    const appDetails = services.repos.appDetails as jest.Mock;
+    appDetails
+        .mockReset()
+        .mockRejectedValueOnce(new Error('previous context unavailable'))
+        .mockResolvedValue({type: 'Plugin', plugin: {parametersAnnouncement: [{name: 'current-context-default', string: 'ready'}]}});
+    const parameters = (application: models.Application) => (
+        <Context.Provider value={ctxValue}>
+            <ApplicationParameters application={application} pageNumber={0} setPageNumber={jest.fn()} />
+        </Context.Provider>
+    );
+    const {rerender} = render(parameters(app));
+    expect(await screen.findByRole('alert')).toHaveTextContent('previous context unavailable');
+    const updatedApp = field === 'project' ? {...app, spec: {...app.spec, project: 'other-project'}} : {...app, metadata: {...app.metadata, name: 'other-app'}};
+    rerender(parameters(updatedApp));
+    await waitFor(() => expect(appDetails).toHaveBeenLastCalledWith(app.spec.sources[0], updatedApp.metadata.name, updatedApp.spec.project, 0, 0));
+    expect(await screen.findByText('current-context-default')).toBeInTheDocument();
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument();
 });
 
 test('a failed source does not hide a successful source or its collapsed summary', async () => {
