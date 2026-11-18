@@ -105,79 +105,6 @@ const (
 	ComparisonWithNothing CompareWith = 0
 )
 
-func comparisonLevelTraceValue(level CompareWith) string {
-	switch level {
-	case ComparisonWithNothing:
-		return "nothing"
-	case CompareWithRecent:
-		return "recent"
-	case CompareWithLatest:
-		return "latest"
-	case CompareWithLatestForceResolve:
-		return "latest_force_resolve"
-	default:
-		return "unknown"
-	}
-}
-
-func operationReconciliationCause(app *appv1.Application) string {
-	if app == nil {
-		return "unknown"
-	}
-	if isOperationInProgress(app) {
-		state := app.Status.OperationState
-		if state != nil && state.Phase == synccommon.OperationRunning && state.FinishedAt != nil {
-			return "retry"
-		}
-		if state != nil && state.Phase == synccommon.OperationTerminating {
-			return "termination"
-		}
-		return "resume"
-	}
-	if app.Operation != nil && app.Operation.InitiatedBy.Automated {
-		return "auto_sync"
-	}
-	return "manual"
-}
-
-func operationReconciliationOutcome(state *appv1.OperationState, attemptPhase *synccommon.OperationPhase, requeuedForRetry bool) string {
-	if requeuedForRetry {
-		return "retry_wait"
-	}
-	phase := synccommon.OperationPhase("")
-	if attemptPhase != nil {
-		phase = *attemptPhase
-	} else if state != nil {
-		phase = state.Phase
-	}
-	switch phase {
-	case synccommon.OperationSucceeded:
-		return "succeeded"
-	case synccommon.OperationFailed, synccommon.OperationError:
-		return "error"
-	case synccommon.OperationRunning:
-		return "progressing"
-	case synccommon.OperationTerminating:
-		return "terminating"
-	default:
-		return "unknown"
-	}
-}
-
-func refreshReconciliationOutcome(origStatus, finalStatus *appv1.ApplicationStatus, failed bool) (string, bool) {
-	if failed || origStatus == nil || finalStatus == nil {
-		return "error", false
-	}
-	// SyncStatus contains the observed revision(s) and ComparedTo inputs, but no timestamps. Comparing
-	// it as a value catches a new release even when both snapshots remain Synced. ReconciledAt is
-	// intentionally excluded so periodic refreshes can still be classified as no_change.
-	statusChanged := !reflect.DeepEqual(origStatus.Sync, finalStatus.Sync) || origStatus.Health.Status != finalStatus.Health.Status
-	if statusChanged {
-		return "state_changed", true
-	}
-	return "no_change", false
-}
-
 func init() {
 	settings_util.ConfigureGoClientFeatures()
 }
@@ -1688,56 +1615,10 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	// requeuedForRetry marks the retry-backoff early return, where no sync work is
 	// performed this cycle and the app is only rescheduled for a future retry.
 	requeuedForRetry := false
-	// Registered first so it runs last: after the panic-recovery and timing defers below have
-	// finalized state. The operation reports failure via state.Phase (not a return value), so map
-	// a terminal failed phase onto the span status; panics are handled by the recovery defer.
+	// Registered first so tracing runs after recovery. Keep the closure so its
+	// arguments are read at exit, after the attempt and persisted state are final.
 	defer func() {
-		if !span.IsRecording() {
-			span.End()
-			return
-		}
-		traceState := state
-		// Retain a failed attempt's outcome when retry handling resets its phase.
-		// Other outcomes follow the final state, including concurrent termination.
-		var outcomePhase *synccommon.OperationPhase
-		if attemptPhase != nil && isFailedOperationPhase(*attemptPhase) {
-			outcomePhase = attemptPhase
-		}
-		if state != nil {
-			// Persistence can shrink an oversized operation into a different phase without
-			// changing the attempted state. Keep the controller's state and attempt metadata
-			// intact while reporting the phase that was actually retained by Kubernetes.
-			traceStateCopy := *state
-			traceState = &traceStateCopy
-			if persistedState == nil {
-				traceState.Phase = ""
-				outcomePhase = nil
-				span.SetStatus(otel_codes.Error, "operation state was not persisted")
-			} else {
-				traceState.Phase = persistedState.Phase
-				if persistedState.Phase != state.Phase {
-					outcomePhase = nil
-				}
-				if !requeuedForRetry && persistedState != state {
-					span.SetStatus(otel_codes.Error, persistedState.Message)
-				}
-			}
-		}
-		setOperationStateTraceAttrs(span, traceState, attemptPhase)
-		span.SetAttributes(attribute.String("argocd.reconciliation.outcome", operationReconciliationOutcome(traceState, outcomePhase, requeuedForRetry)))
-		attemptFailed := attemptPhase != nil && isFailedOperationPhase(*attemptPhase)
-		stateFailed := persistedState != nil && isFailedOperationPhase(persistedState.Phase)
-		if attemptFailed || stateFailed {
-			description := ""
-			if state != nil {
-				description = state.Message
-			}
-			if persistedState != nil && persistedState != state && !requeuedForRetry {
-				description = persistedState.Message
-			}
-			span.SetStatus(otel_codes.Error, description)
-		}
-		span.End()
+		finishOperationTrace(span, state, persistedState, attemptPhase, requeuedForRetry)
 	}()
 	defer func() {
 		// Recover from any unexpected panics and automatically set the status to be failed
@@ -1938,7 +1819,8 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 }
 
 // setOperationState returns the state actually retained by Kubernetes, which can differ
-// from state when a size-limit fallback is needed. A nil result means no write succeeded.
+// from state when a size-limit fallback is needed. The same pointer means a normal
+// write or no-op, a different pointer means a fallback, and nil means the write failed.
 func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) *appv1.OperationState {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	if state.Phase == "" {

@@ -68,55 +68,19 @@ func TestIsFailedOperationPhase(t *testing.T) {
 }
 
 func TestSetComparisonResultTraceAttrs(t *testing.T) {
-	t.Run("single source", func(t *testing.T) {
+	t.Run("requested ref is not reported as resolved", func(t *testing.T) {
 		attrs := recordTraceAttrs(t, func(span oteltrace.Span) {
 			setComparisonResultTraceAttrs(span, &comparisonResult{
 				syncStatus: &v1alpha1.SyncStatus{
-					Status:   v1alpha1.SyncStatusCodeSynced,
-					Revision: "4f26ae8",
+					Status:   v1alpha1.SyncStatusCodeOutOfSync,
+					Revision: "HEAD",
 				},
-				healthStatus:         health.HealthStatusHealthy,
-				hasResolvedRevisions: true,
-			})
-		})
-
-		assert.Equal(t, "Synced", attrs["argocd.app.sync.status"].AsString())
-		assert.Equal(t, "Healthy", attrs["argocd.app.health.status"].AsString())
-		assert.Equal(t, "4f26ae8", attrs["argocd.resolved_revision"].AsString())
-		assert.NotContains(t, attrs, "argocd.resolved_revisions")
-	})
-
-	t.Run("multiple sources preserve order", func(t *testing.T) {
-		attrs := recordTraceAttrs(t, func(span oteltrace.Span) {
-			setComparisonResultTraceAttrs(span, &comparisonResult{
-				syncStatus: &v1alpha1.SyncStatus{
-					Status:    v1alpha1.SyncStatusCodeOutOfSync,
-					Revisions: []string{"second-source-sha", "first-source-sha"},
-				},
-				healthStatus:         health.HealthStatusDegraded,
-				hasResolvedRevisions: true,
+				healthStatus: health.HealthStatusDegraded,
 			})
 		})
 
 		assert.Equal(t, "OutOfSync", attrs["argocd.app.sync.status"].AsString())
 		assert.Equal(t, "Degraded", attrs["argocd.app.health.status"].AsString())
-		assert.Equal(t, []string{"second-source-sha", "first-source-sha"}, attrs["argocd.resolved_revisions"].AsStringSlice())
-		assert.NotContains(t, attrs, "argocd.resolved_revision")
-	})
-
-	t.Run("requested ref is not reported as resolved", func(t *testing.T) {
-		attrs := recordTraceAttrs(t, func(span oteltrace.Span) {
-			setComparisonResultTraceAttrs(span, &comparisonResult{
-				syncStatus: &v1alpha1.SyncStatus{
-					Status:   v1alpha1.SyncStatusCodeUnknown,
-					Revision: "HEAD",
-				},
-				healthStatus: health.HealthStatusUnknown,
-			})
-		})
-
-		assert.Equal(t, "Unknown", attrs["argocd.app.sync.status"].AsString())
-		assert.Equal(t, "Unknown", attrs["argocd.app.health.status"].AsString())
 		assert.NotContains(t, attrs, "argocd.resolved_revision")
 		assert.NotContains(t, attrs, "argocd.resolved_revisions")
 	})
@@ -139,55 +103,30 @@ func TestSetComparisonResultTraceAttrs(t *testing.T) {
 }
 
 func TestSetOperationStateTraceAttrs(t *testing.T) {
-	for _, phase := range []synccommon.OperationPhase{
-		synccommon.OperationRunning,
-		synccommon.OperationSucceeded,
-		synccommon.OperationFailed,
-		synccommon.OperationError,
-	} {
-		t.Run(string(phase), func(t *testing.T) {
-			attemptPhase := phase
-			attrs := recordTraceAttrs(t, func(span oteltrace.Span) {
-				setOperationStateTraceAttrs(span, &v1alpha1.OperationState{
-					Phase:      phase,
-					RetryCount: 2,
-					Operation: v1alpha1.Operation{
-						InitiatedBy: v1alpha1.OperationInitiator{Automated: true},
-						Sync: &v1alpha1.SyncOperation{
-							DryRun: true,
-							Prune:  true,
-						},
-					},
-				}, &attemptPhase)
-			})
-
-			assert.Equal(t, string(phase), attrs["argocd.operation.phase"].AsString())
-			assert.Equal(t, string(phase), attrs["argocd.operation.attempt.phase"].AsString())
-			assert.EqualValues(t, 2, attrs["argocd.operation.retry_count"].AsInt64())
-			assert.True(t, attrs["argocd.operation.initiated_by.automated"].AsBool())
-			assert.True(t, attrs["argocd.sync.dry_run"].AsBool())
-			assert.True(t, attrs["argocd.sync.prune"].AsBool())
-		})
-	}
-
 	t.Run("failed attempt scheduled for retry", func(t *testing.T) {
 		attemptPhase := synccommon.OperationFailed
 		attrs := recordTraceAttrs(t, func(span oteltrace.Span) {
 			setOperationStateTraceAttrs(span, &v1alpha1.OperationState{
 				Phase:      synccommon.OperationRunning,
-				RetryCount: 1,
-				Operation:  v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}},
-			}, &attemptPhase)
+				RetryCount: 2,
+				Operation: v1alpha1.Operation{
+					InitiatedBy: v1alpha1.OperationInitiator{Automated: true},
+					Sync:        &v1alpha1.SyncOperation{DryRun: true, Prune: true},
+				},
+			}, synccommon.OperationRunning, &attemptPhase)
 		})
 
 		assert.Equal(t, "Running", attrs["argocd.operation.phase"].AsString())
 		assert.Equal(t, "Failed", attrs["argocd.operation.attempt.phase"].AsString())
-		assert.EqualValues(t, 1, attrs["argocd.operation.retry_count"].AsInt64())
+		assert.EqualValues(t, 2, attrs["argocd.operation.retry_count"].AsInt64())
+		assert.True(t, attrs["argocd.operation.initiated_by.automated"].AsBool())
+		assert.True(t, attrs["argocd.sync.dry_run"].AsBool())
+		assert.True(t, attrs["argocd.sync.prune"].AsBool())
 	})
 
 	t.Run("nil state", func(t *testing.T) {
 		attrs := recordTraceAttrs(t, func(span oteltrace.Span) {
-			setOperationStateTraceAttrs(span, nil, nil)
+			setOperationStateTraceAttrs(span, nil, "", nil)
 		})
 
 		assert.Empty(t, attrs)
@@ -195,7 +134,7 @@ func TestSetOperationStateTraceAttrs(t *testing.T) {
 
 	t.Run("no sync attempt", func(t *testing.T) {
 		attrs := recordTraceAttrs(t, func(span oteltrace.Span) {
-			setOperationStateTraceAttrs(span, &v1alpha1.OperationState{}, nil)
+			setOperationStateTraceAttrs(span, &v1alpha1.OperationState{}, "", nil)
 		})
 
 		assert.NotContains(t, attrs, "argocd.operation.attempt.phase")
@@ -229,7 +168,7 @@ func TestComparisonLevelTraceValue(t *testing.T) {
 	}
 }
 
-func TestOperationReconciliationCauseAndOutcome(t *testing.T) {
+func TestOperationReconciliationCause(t *testing.T) {
 	assert.Equal(t, "auto_sync", operationReconciliationCause(&v1alpha1.Application{
 		Operation: &v1alpha1.Operation{InitiatedBy: v1alpha1.OperationInitiator{Automated: true}},
 	}))
@@ -237,12 +176,82 @@ func TestOperationReconciliationCauseAndOutcome(t *testing.T) {
 	assert.Equal(t, "resume", operationReconciliationCause(&v1alpha1.Application{Status: v1alpha1.ApplicationStatus{
 		OperationState: &v1alpha1.OperationState{Phase: synccommon.OperationRunning},
 	}}))
+}
 
-	succeeded := synccommon.OperationSucceeded
-	failed := synccommon.OperationFailed
-	assert.Equal(t, "succeeded", operationReconciliationOutcome(&v1alpha1.OperationState{}, &succeeded, false))
-	assert.Equal(t, "error", operationReconciliationOutcome(&v1alpha1.OperationState{}, &failed, false))
-	assert.Equal(t, "retry_wait", operationReconciliationOutcome(&v1alpha1.OperationState{}, nil, true))
+func TestCalculateOperationTraceResult(t *testing.T) {
+	running := &v1alpha1.OperationState{Phase: synccommon.OperationRunning, Message: "attempt message"}
+	succeeded := &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded, Message: "attempt message"}
+	failed := &v1alpha1.OperationState{Phase: synccommon.OperationFailed, Message: "attempt message"}
+	terminating := &v1alpha1.OperationState{Phase: synccommon.OperationTerminating, Message: "attempt message"}
+	fallbackRunning := &v1alpha1.OperationState{Phase: synccommon.OperationRunning, Message: "fallback message"}
+	fallbackTerminating := &v1alpha1.OperationState{Phase: synccommon.OperationTerminating, Message: "fallback message"}
+	fallbackError := &v1alpha1.OperationState{Phase: synccommon.OperationError, Message: "fallback message"}
+	cases := []struct {
+		name         string
+		attempted    *v1alpha1.OperationState
+		persisted    *v1alpha1.OperationState
+		attemptPhase *synccommon.OperationPhase
+		retryWait    bool
+		want         operationTraceResult
+	}{
+		{
+			name: "no attempt or retained state",
+			want: operationTraceResult{outcome: "unknown"},
+		},
+		{
+			name: "progressing attempt", attempted: running, persisted: running, attemptPhase: new(synccommon.OperationRunning),
+			want: operationTraceResult{phase: synccommon.OperationRunning, outcome: "progressing"},
+		},
+		{
+			name: "successful attempt", attempted: succeeded, persisted: succeeded, attemptPhase: new(synccommon.OperationSucceeded),
+			want: operationTraceResult{phase: synccommon.OperationSucceeded, outcome: "succeeded"},
+		},
+		{
+			name: "failed attempt", attempted: failed, persisted: failed, attemptPhase: new(synccommon.OperationFailed),
+			want: operationTraceResult{phase: synccommon.OperationFailed, outcome: "error", hasError: true, errorMessage: "attempt message"},
+		},
+		{
+			name: "failed attempt reset for retry", attempted: running, persisted: running, attemptPhase: new(synccommon.OperationFailed),
+			want: operationTraceResult{phase: synccommon.OperationRunning, outcome: "error", hasError: true, errorMessage: "attempt message"},
+		},
+		{
+			name: "retry wait uses a separate state copy", attempted: running, persisted: fallbackRunning, retryWait: true,
+			want: operationTraceResult{phase: synccommon.OperationRunning, outcome: "retry_wait"},
+		},
+		{
+			name: "concurrent termination", attempted: terminating, persisted: terminating, attemptPhase: new(synccommon.OperationRunning),
+			want: operationTraceResult{phase: synccommon.OperationTerminating, outcome: "terminating"},
+		},
+		{
+			name: "successful attempt requires terminating fallback", attempted: succeeded, persisted: fallbackTerminating, attemptPhase: new(synccommon.OperationSucceeded),
+			want: operationTraceResult{phase: synccommon.OperationTerminating, outcome: "terminating", hasError: true, errorMessage: "fallback message"},
+		},
+		{
+			name: "fallback retains the same phase", attempted: running, persisted: fallbackRunning, attemptPhase: new(synccommon.OperationRunning),
+			want: operationTraceResult{phase: synccommon.OperationRunning, outcome: "progressing", hasError: true, errorMessage: "fallback message"},
+		},
+		{
+			name: "fallback error message wins over failed attempt", attempted: failed, persisted: fallbackError, attemptPhase: new(synccommon.OperationFailed),
+			want: operationTraceResult{phase: synccommon.OperationError, outcome: "error", hasError: true, errorMessage: "fallback message"},
+		},
+		{
+			name: "retained state is unknown", attempted: succeeded, attemptPhase: new(synccommon.OperationSucceeded),
+			want: operationTraceResult{outcome: "unknown", hasError: true, errorMessage: "operation state was not persisted"},
+		},
+		{
+			name: "failed attempt message wins when persistence also fails", attempted: running, attemptPhase: new(synccommon.OperationFailed),
+			want: operationTraceResult{outcome: "unknown", hasError: true, errorMessage: "attempt message"},
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			attemptedBefore := tc.attempted.DeepCopy()
+			persistedBefore := tc.persisted.DeepCopy()
+			assert.Equal(t, tc.want, calculateOperationTraceResult(tc.attempted, tc.persisted, tc.attemptPhase, tc.retryWait))
+			assert.Equal(t, attemptedBefore, tc.attempted)
+			assert.Equal(t, persistedBefore, tc.persisted)
+		})
+	}
 }
 
 func TestRefreshReconciliationOutcome(t *testing.T) {
@@ -337,10 +346,7 @@ func TestProcessAppRefreshQueueItemTraceIncludesResult(t *testing.T) {
 		},
 		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}, nil)
-	key, err := cache.MetaNamespaceKeyFunc(app)
-	require.NoError(t, err)
-	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
-	ctrl.appRefreshQueue.AddRateLimited(key)
+	enqueueRefresh(t, ctrl, app, CompareWithLatest)
 
 	ctrl.processAppRefreshQueueItem()
 
@@ -353,7 +359,8 @@ func TestProcessAppRefreshQueueItemTraceIncludesResult(t *testing.T) {
 	assert.True(t, attrs["argocd.reconciliation.status_changed"].AsBool())
 	assert.Equal(t, "4f26ae8", attrs["argocd.resolved_revision"].AsString())
 	assert.Equal(t, "Synced", attrs["argocd.app.sync.status"].AsString())
-	assert.Contains(t, attrs, "argocd.app.health.status")
+	assert.Equal(t, "Healthy", attrs["argocd.app.health.status"].AsString())
+	assert.NotContains(t, attrs, "argocd.resolved_revisions")
 }
 
 func TestProcessAppRefreshQueueItemTraceIncludesStatusOnPreComparisonReturn(t *testing.T) {
@@ -363,10 +370,7 @@ func TestProcessAppRefreshQueueItemTraceIncludesStatusOnPreComparisonReturn(t *t
 	reconciledAt := metav1.NewTime(time.Now().Add(-time.Second))
 	app.Status.ReconciledAt = &reconciledAt
 	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
-	key, err := cache.MetaNamespaceKeyFunc(app)
-	require.NoError(t, err)
-	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
-	ctrl.appRefreshQueue.AddRateLimited(key)
+	enqueueRefresh(t, ctrl, app, CompareWithLatest)
 
 	ctrl.processAppRefreshQueueItem()
 
@@ -402,10 +406,7 @@ func TestProcessAppRefreshQueueItemTraceDoesNotReportStaleStatusOnComparisonErro
 		apps:             []runtime.Object{app, &defaultProj},
 		manifestResponse: &apiclient.ManifestResponse{},
 	}, errors.New("temporary repository failure"))
-	key, err := cache.MetaNamespaceKeyFunc(app)
-	require.NoError(t, err)
-	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
-	ctrl.appRefreshQueue.AddRateLimited(key)
+	enqueueRefresh(t, ctrl, app, CompareWithLatest)
 
 	ctrl.processAppRefreshQueueItem()
 
@@ -438,10 +439,7 @@ func TestProcessAppRefreshQueueItemTraceRecordsPanic(t *testing.T) {
 		AppStateManager: ctrl.appStateManager,
 		panicValue:      errors.New("comparison panic"),
 	}
-	key, err := cache.MetaNamespaceKeyFunc(app)
-	require.NoError(t, err)
-	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
-	ctrl.appRefreshQueue.AddRateLimited(key)
+	enqueueRefresh(t, ctrl, app, CompareWithLatest)
 
 	ctrl.processAppRefreshQueueItem()
 
@@ -454,42 +452,49 @@ func TestProcessAppRefreshQueueItemTraceRecordsPanic(t *testing.T) {
 	assert.NotEmpty(t, span.Events())
 }
 
-func TestProcessAppRefreshQueueItemTraceRecordsResourcesTreeCacheFailure(t *testing.T) {
-	recorder := installRecordingTracer(t)
-	app := newFakeApp()
-	reconciledAt := metav1.Now()
-	app.Status = v1alpha1.ApplicationStatus{
-		ReconciledAt: &reconciledAt,
-		Sync: v1alpha1.SyncStatus{
-			Status: v1alpha1.SyncStatusCodeSynced,
-			ComparedTo: v1alpha1.ComparedTo{
-				Source:      app.Spec.GetSource(),
-				Destination: app.Spec.Destination,
-			},
-		},
-		Health: v1alpha1.AppHealthStatus{Status: health.HealthStatusHealthy},
+func TestProcessAppRefreshQueueItemTraceRecordsCacheFailures(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		level CompareWith
+	}{
+		{name: "tree reconciliation", level: ComparisonWithNothing},
+		{name: "full comparison", level: CompareWithLatest},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := installRecordingTracer(t)
+			app := newFakeApp()
+			now := metav1.Now()
+			app.Status.ReconciledAt = &now
+			app.Status.Sync = v1alpha1.SyncStatus{
+				Status: v1alpha1.SyncStatusCodeSynced,
+				ComparedTo: v1alpha1.ComparedTo{
+					Source:      app.Spec.GetSource(),
+					Destination: app.Spec.Destination,
+				},
+			}
+			app.Status.Health.Status = health.HealthStatusHealthy
+			ctrl := newFakeController(t.Context(), &fakeData{
+				apps:             []runtime.Object{app, &defaultProj},
+				manifestResponse: &apiclient.ManifestResponse{Revision: "resolved-revision"},
+				managedLiveObjs:  make(map[kube.ResourceKey]*unstructured.Unstructured),
+			}, nil)
+			if tc.level == ComparisonWithNothing {
+				require.NoError(t, ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), []*v1alpha1.ResourceDiff{}))
+			}
+			baseClient := ctrl.cache.Cache.GetClient()
+			ctrl.cache.Cache.SetClient(&failingSetCacheClient{CacheClient: baseClient, err: errors.New("resources cache unavailable")})
+			enqueueRefresh(t, ctrl, app, tc.level)
+
+			ctrl.processAppRefreshQueueItem()
+
+			span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
+			attrs := traceAttrs(span)
+			assert.Equal(t, tc.level != ComparisonWithNothing, hasRecordedSpan(recorder.Ended(), "controller.CompareAppState"))
+			assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
+			assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
+			assert.Equal(t, codes.Error, span.Status().Code)
+		})
 	}
-	ctrl := newFakeController(t.Context(), &fakeData{
-		apps:            []runtime.Object{app, &defaultProj},
-		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-	}, nil)
-	instanceName := app.InstanceName(ctrl.namespace)
-	require.NoError(t, ctrl.cache.SetAppManagedResources(instanceName, []*v1alpha1.ResourceDiff{}))
-	cacheErr := errors.New("resources tree cache unavailable")
-	baseCacheClient := ctrl.cache.Cache.GetClient()
-	ctrl.cache.Cache.SetClient(&failingSetCacheClient{CacheClient: baseCacheClient, err: cacheErr})
-	key, err := cache.MetaNamespaceKeyFunc(app)
-	require.NoError(t, err)
-	ctrl.requestAppRefresh(app.Name, ComparisonWithNothing.Pointer(), nil)
-	ctrl.appRefreshQueue.AddRateLimited(key)
-
-	ctrl.processAppRefreshQueueItem()
-
-	span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
-	attrs := traceAttrs(span)
-	assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
-	assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
-	assert.Equal(t, codes.Error, span.Status().Code)
 }
 
 func TestSyncAppStateTraceRecordsAndPropagatesPanic(t *testing.T) {
@@ -522,7 +527,7 @@ func TestTraceAttrsDoNotExportUnfilteredApplicationMetadata(t *testing.T) {
 
 	attrs := recordTraceAttrs(t, func(span oteltrace.Span) {
 		setAppTraceAttrs(span, app)
-		setOperationStateTraceAttrs(span, &v1alpha1.OperationState{Operation: *app.Operation}, nil)
+		setOperationStateTraceAttrs(span, &v1alpha1.OperationState{Operation: *app.Operation}, "", nil)
 	})
 
 	assert.Equal(t, "checkout", attrs["argocd.app.name"].AsString())
@@ -533,33 +538,6 @@ func TestTraceAttrsDoNotExportUnfilteredApplicationMetadata(t *testing.T) {
 		assert.NotContains(t, value.String(), "do-not-export")
 		assert.NotContains(t, value.String(), "alice@example.com")
 	}
-}
-
-func TestProcessAppRefreshQueueItemTraceRecordsFullComparisonCacheFailure(t *testing.T) {
-	recorder := installRecordingTracer(t)
-	app := newFakeApp()
-	ctrl := newFakeController(t.Context(), &fakeData{
-		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &apiclient.ManifestResponse{
-			Revision: "resolved-revision",
-		},
-		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
-	}, nil)
-	baseClient := ctrl.cache.Cache.GetClient()
-	ctrl.cache.Cache.SetClient(&failingSetCacheClient{CacheClient: baseClient, err: errors.New("managed resources cache unavailable")})
-	key, err := cache.MetaNamespaceKeyFunc(app)
-	require.NoError(t, err)
-	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
-	ctrl.appRefreshQueue.Add(key)
-
-	ctrl.processAppRefreshQueueItem()
-
-	span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
-	attrs := traceAttrs(span)
-	assert.True(t, hasRecordedSpan(recorder.Ended(), "controller.CompareAppState"))
-	assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
-	assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
-	assert.Equal(t, codes.Error, span.Status().Code)
 }
 
 func TestCompareAppStateTraceRecordsMultiSourceResolution(t *testing.T) {
@@ -631,10 +609,7 @@ func TestProcessAppRefreshQueueItemTraceRecordsComparisonConditionFailure(t *tes
 		manifestResponse: &apiclient.ManifestResponse{},
 		managedLiveObjs:  make(map[kube.ResourceKey]*unstructured.Unstructured),
 	}, errors.New("manifest generation failed"))
-	key, err := cache.MetaNamespaceKeyFunc(app)
-	require.NoError(t, err)
-	ctrl.requestAppRefresh(app.Name, CompareWithLatestForceResolve.Pointer(), nil)
-	ctrl.appRefreshQueue.Add(key)
+	enqueueRefresh(t, ctrl, app, CompareWithLatestForceResolve)
 
 	ctrl.processAppRefreshQueueItem()
 
@@ -784,6 +759,14 @@ func TestProcessRequestedAppOperationTraceReportsPersistedFallback(t *testing.T)
 			assert.True(t, attrs["argocd.sync.prune"].AsBool())
 		})
 	}
+}
+
+func enqueueRefresh(t *testing.T, ctrl *ApplicationController, app *v1alpha1.Application, level CompareWith) {
+	t.Helper()
+	key, err := cache.MetaNamespaceKeyFunc(app)
+	require.NoError(t, err)
+	ctrl.requestAppRefresh(app.Name, level.Pointer(), nil)
+	ctrl.appRefreshQueue.Add(key)
 }
 
 func recordTraceAttrs(t *testing.T, setAttrs func(oteltrace.Span)) map[string]attribute.Value {

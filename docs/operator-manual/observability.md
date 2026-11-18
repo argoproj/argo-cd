@@ -107,22 +107,24 @@ Refresh outcomes are `state_changed`, `no_change`, and `error`. A state change d
 the Application is healthy or that an operation has finished. Operation outcomes are `succeeded`,
 `progressing`, `retry_wait`, `terminating`, `error`, and `unknown`.
 
-If an oversized operation state requires a reduced fallback, the operation phase and outcome reflect
-that fallback, such as `Terminating` and `terminating`. The attempt phase, retry count, and sync flags
-still describe the attempted work. A failed attempt scheduled for retry records outcome `error` even
-when its retained phase is `Running`. A retry-backoff dequeue records `retry_wait` without inventing
-an attempt phase.
+The persisted phase, attempt phase, outcome, and span status answer different questions:
+
+| Scenario | Persisted phase | Attempt phase | Outcome | OTel status |
+| --- | --- | --- | --- | --- |
+| Failed sync scheduled for retry | `Running` | `Failed` or `Error` | `error` | `Error` |
+| Waiting for retry backoff | `Running` | Absent | `retry_wait` | `Unset` |
+| Running sync observes a concurrent termination | `Terminating` | `Running` | `terminating` | `Unset` |
+| Successful sync requires a size-limit fallback | `Terminating` | `Succeeded` | `terminating` | `Error` |
+
+The attempt phase, retry count, and sync flags describe the attempted work, including when a reduced
+fallback is persisted. `Unset` means the span was not marked as a controller error; it does not report
+Application health.
 
 #### Error status
 
 An observed `OutOfSync` or `Degraded` Application is not by itself a controller execution error.
-Comparison failures and cache failures set the relevant controller span's OpenTelemetry status to
-`Error`. `OperationFailed` and `OperationError` also set error status, including failed sync attempts
-that are subsequently scheduled for retry. Their attempt phase remains visible even when the
-retained operation phase becomes `Running`.
-
-Operation-state persistence failures, including size-limit fallbacks, also set error status. A fallback
-can therefore have outcome `terminating` and error status while the sync attempt itself succeeded.
+Comparison, cache, and operation-state persistence failures set the relevant span's OpenTelemetry
+status to `Error`. Failed sync attempts also set error status, including attempts scheduled for retry.
 
 Refresh and sync panics are recorded before the span ends, preserving the controller's existing
 recovery behavior. `SyncAppState` re-panics after finalizing its span.
