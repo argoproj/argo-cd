@@ -407,6 +407,111 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         expect(appDetails.mock.calls[1]).toEqual(appDetails.mock.calls[0]);
     });
 
+    test('preserves a Helm valuesObject draft across watch updates', async () => {
+        const app = multiSourceApp();
+        const source = {
+            repoURL: 'https://charts.example.com',
+            chart: 'web-app',
+            targetRevision: '1.0.0',
+            helm: {valuesObject: {replicaCount: 1}}
+        } as models.ApplicationSource;
+        if (multiSource) {
+            app.spec.sources = [source];
+        } else {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        appDetails.mockResolvedValue({type: 'Helm', helm: {parameters: [], valueFiles: [], fileParameters: []}});
+        const save = jest.fn();
+        const parameters = (version: string) => (
+            <Context.Provider value={ctxValue}>
+                <ApplicationParameters application={{...app, metadata: {...app.metadata, resourceVersion: version}}} save={save} pageNumber={0} setPageNumber={jest.fn()} />
+            </Context.Provider>
+        );
+        const user = userEvent.setup();
+        const {container, rerender} = render(parameters('1'));
+        expect(await screen.findByText('HELM')).toBeInTheDocument();
+        await user.click(screen.getAllByRole('button', {name: 'Edit'})[multiSource ? 1 : 0]);
+        const editor = container.querySelector('textarea');
+        await user.clear(editor);
+        await user.type(editor, 'replicaCount: 7\n');
+        expect(editor).toHaveValue('replicaCount: 7\n');
+
+        rerender(parameters('2'));
+
+        expect(appDetails).toHaveBeenCalledTimes(1);
+        expect(container.querySelector('textarea')).toBe(editor);
+        expect(editor).toHaveValue('replicaCount: 7\n');
+        expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
+        expect(save).not.toHaveBeenCalled();
+    });
+
+    test.each([false, true])('preserves an unsaved Helm draft during Retry (success: %s)', async retrySuccess => {
+        const app = multiSourceApp();
+        const source = {
+            repoURL: 'https://charts.example.com',
+            chart: 'web-app',
+            targetRevision: '1.0.0',
+            helm: {valuesObject: {replicaCount: 1}}
+        } as models.ApplicationSource;
+        if (multiSource) {
+            app.spec.sources = [source];
+        } else {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        const request = deferredRepoDetails();
+        appDetails.mockRejectedValueOnce(new Error('repository unavailable')).mockReturnValueOnce(request.promise);
+        const save = jest.fn();
+        const parameters = (application: models.Application) => (
+            <Context.Provider value={ctxValue}>
+                <ApplicationParameters application={application} save={save} pageNumber={0} setPageNumber={jest.fn()} />
+            </Context.Provider>
+        );
+        const user = userEvent.setup();
+        const {container, rerender} = render(parameters(app));
+        expect(await screen.findByRole('alert')).toHaveTextContent('repository unavailable');
+        await user.click(screen.getAllByRole('button', {name: 'Edit'})[multiSource ? 1 : 0]);
+        const editor = container.querySelector('textarea');
+        await user.clear(editor);
+        await user.type(editor, 'replicaCount: 7\n');
+        await user.click(screen.getByRole('button', {name: 'Retry'}));
+
+        expect(container.querySelector('textarea')).toBe(editor);
+        expect(editor).toHaveValue('replicaCount: 7\n');
+        expect(screen.getByRole('alert')).toHaveTextContent('repository unavailable');
+        expect(screen.getByRole('button', {name: 'Retry'})).toBeDisabled();
+        rerender(parameters({...app, metadata: {...app.metadata, resourceVersion: '2'}}));
+        expect(appDetails).toHaveBeenCalledTimes(2);
+        expect(container.querySelector('textarea')).toBe(editor);
+        await act(async () => {
+            if (retrySuccess) {
+                request.resolve({type: 'Helm', helm: {parameters: [], valueFiles: [], fileParameters: []}} as models.RepoAppDetails);
+            } else {
+                request.reject(new Error('retry failed'));
+            }
+        });
+
+        expect(container.querySelector('textarea')).toBe(editor);
+        expect(editor).toHaveValue('replicaCount: 7\n');
+        expect(save).not.toHaveBeenCalled();
+        if (retrySuccess) {
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        } else {
+            expect(screen.getByRole('alert')).toHaveTextContent('retry failed');
+            expect(screen.getByRole('button', {name: 'Retry'})).toBeEnabled();
+
+            const staleRetry = deferredRepoDetails();
+            appDetails.mockReturnValueOnce(staleRetry.promise).mockResolvedValueOnce({type: 'Helm', helm: {parameters: [{name: 'current-context-default', value: 'ready'}]}});
+            await user.click(screen.getByRole('button', {name: 'Retry'}));
+            rerender(parameters({...app, spec: {...app.spec, project: 'other-project'}}));
+            expect(await screen.findByText('current-context-default')).toBeInTheDocument();
+            await act(async () => staleRetry.reject(new Error('obsolete retry failed')));
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+            expect(screen.getByText('current-context-default')).toBeInTheDocument();
+        }
+    });
+
     test.each([
         {olderFirst: false, currentFailure: false},
         {olderFirst: true, currentFailure: false},

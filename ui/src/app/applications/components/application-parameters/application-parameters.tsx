@@ -1141,17 +1141,42 @@ interface SourceDetailsInput {
     index: number;
 }
 
-const SourceDetailsLoader = ({input, children}: {input: SourceDetailsInput; children: (details: models.RepoAppDetails) => React.ReactNode}) => {
+interface SourceDetailsLoaderProps {
+    input: SourceDetailsInput;
+    children: (details: models.RepoAppDetails) => React.ReactNode;
+}
+
+const SourceDetailsLoader = (props: SourceDetailsLoaderProps) => <SourceDetailsRequest key={JSON.stringify(props.input)} {...props} input={cloneDeep(props.input)} />;
+
+function loadSourceDetails({source, name, project, index}: SourceDetailsInput): Promise<SourceDetails> {
+    return source ? getSourceFromAppSources(source, name, project, index, 0) : Promise.resolve({details: null});
+}
+
+const SourceDetailsRequest = ({input, children}: SourceDetailsLoaderProps) => {
     const loader = React.useRef<DataLoader<SourceDetails, SourceDetailsInput>>(null);
+    const [retrying, setRetrying] = React.useState(false);
+    const retry = async () => {
+        const activeLoader = loader.current;
+        if (!activeLoader || retrying) {
+            return;
+        }
+        setRetrying(true);
+        try {
+            const result = await loadSourceDetails(input);
+            if (loader.current === activeLoader) {
+                activeLoader.setData(result);
+            }
+        } finally {
+            if (loader.current === activeLoader) {
+                setRetrying(false);
+            }
+        }
+    };
     return (
-        <DataLoader
-            key={JSON.stringify(input)}
-            ref={loader}
-            input={input}
-            load={({source, name, project, index}) => (source ? getSourceFromAppSources(source, name, project, index, 0) : Promise.resolve({details: null}))}>
+        <DataLoader ref={loader} input={input} load={loadSourceDetails}>
             {({details, error}: SourceDetails) => (
                 <>
-                    <SourceDetailsWarning details={details} error={error} retry={() => loader.current?.reload()} />
+                    <SourceDetailsWarning details={details} error={error} retry={retry} retrying={retrying} />
                     {children(details)}
                 </>
             )}
@@ -1159,14 +1184,14 @@ const SourceDetailsLoader = ({input, children}: {input: SourceDetailsInput; chil
     );
 };
 
-const SourceDetailsWarning = ({details, error, retry}: SourceDetails & {retry: () => void}) =>
+const SourceDetailsWarning = ({details, error, retry, retrying}: SourceDetails & {retry: () => void; retrying: boolean}) =>
     error ? (
         <p role='alert'>
             <ErrorNotification
                 title={details ? 'Unable to load repository details. Showing configured source settings' : 'Unable to load repository details. Source type unknown'}
                 e={error}
             />{' '}
-            <button type='button' className='argo-button argo-button--base-o' onClick={retry}>
+            <button type='button' className='argo-button argo-button--base-o' onClick={retry} disabled={retrying}>
                 Retry
             </button>
         </p>
