@@ -28,6 +28,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	otel_codes "go.opentelemetry.io/otel/codes"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -113,9 +114,11 @@ func setOperationStateTraceAttrs(span oteltrace.Span, state *v1alpha1.OperationS
 	}
 
 	attrs := []attribute.KeyValue{
-		attribute.String("argocd.operation.phase", string(state.Phase)),
 		attribute.Int64("argocd.operation.retry_count", state.RetryCount),
 		attribute.Bool("argocd.operation.initiated_by.automated", state.Operation.InitiatedBy.Automated),
+	}
+	if state.Phase != "" {
+		attrs = append(attrs, attribute.String("argocd.operation.phase", string(state.Phase)))
 	}
 	if attemptPhase != nil {
 		attrs = append(attrs, attribute.String("argocd.operation.attempt.phase", string(*attemptPhase)))
@@ -210,6 +213,9 @@ type comparisonResult struct {
 	// hasResolvedRevisions is true only when manifest generation successfully resolved every source.
 	// syncStatus can contain requested refs on earlier return paths.
 	hasResolvedRevisions bool
+	// hasComparisonErrors records failures from this comparison, independently of
+	// observed workload health and the return error used by controller control flow.
+	hasComparisonErrors bool
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -775,6 +781,9 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	setAppTraceAttrs(span, app)
 	defer func() {
 		setComparisonResultTraceAttrs(span, result)
+		if result != nil && result.hasComparisonErrors {
+			span.SetStatus(otel_codes.Error, "application comparison failed")
+		}
 		traceutil.EndSpan(span, retErr)
 	}()
 	ts := stats.NewTimingStats()
@@ -806,7 +815,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	ts.AddCheckpoint("settings_ms")
 	if err != nil {
 		log.Infof("Basic comparison settings cannot be loaded, using unknown comparison: %s", err.Error())
-		return &comparisonResult{syncStatus: syncStatus, healthStatus: health.HealthStatusUnknown}, nil
+		return &comparisonResult{syncStatus: syncStatus, healthStatus: health.HealthStatusUnknown, hasComparisonErrors: true}, nil
 	}
 
 	// do best effort loading live and target state to present as much information about app state as possible
@@ -1267,6 +1276,12 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		hasPreDeleteHooks:       hasPreDeleteHooks,
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
 		hasResolvedRevisions:    hasResolvedRevisions,
+	}
+	for _, condition := range conditions {
+		if condition.IsError() {
+			compRes.hasComparisonErrors = true
+			break
+		}
 	}
 
 	if hasMultipleSources {

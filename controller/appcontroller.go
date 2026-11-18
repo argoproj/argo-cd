@@ -1683,6 +1683,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	setAppTraceAttrs(span, app)
 	span.SetAttributes(attribute.String("argocd.reconciliation.cause", operationReconciliationCause(app)))
 	var state *appv1.OperationState
+	persistedState := app.Status.OperationState
 	var attemptPhase *synccommon.OperationPhase
 	// requeuedForRetry marks the retry-backoff early return, where no sync work is
 	// performed this cycle and the app is only rescheduled for a future retry.
@@ -1691,14 +1692,48 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	// finalized state. The operation reports failure via state.Phase (not a return value), so map
 	// a terminal failed phase onto the span status; panics are handled by the recovery defer.
 	defer func() {
-		setOperationStateTraceAttrs(span, state, attemptPhase)
-		span.SetAttributes(attribute.String("argocd.reconciliation.outcome", operationReconciliationOutcome(state, attemptPhase, requeuedForRetry)))
+		if !span.IsRecording() {
+			span.End()
+			return
+		}
+		traceState := state
+		// Retain a failed attempt's outcome when retry handling resets its phase.
+		// Other outcomes follow the final state, including concurrent termination.
+		var outcomePhase *synccommon.OperationPhase
+		if attemptPhase != nil && isFailedOperationPhase(*attemptPhase) {
+			outcomePhase = attemptPhase
+		}
+		if state != nil {
+			// Persistence can shrink an oversized operation into a different phase without
+			// changing the attempted state. Keep the controller's state and attempt metadata
+			// intact while reporting the phase that was actually retained by Kubernetes.
+			traceStateCopy := *state
+			traceState = &traceStateCopy
+			if persistedState == nil {
+				traceState.Phase = ""
+				outcomePhase = nil
+				span.SetStatus(otel_codes.Error, "operation state was not persisted")
+			} else {
+				traceState.Phase = persistedState.Phase
+				if persistedState.Phase != state.Phase {
+					outcomePhase = nil
+				}
+				if !requeuedForRetry && persistedState != state {
+					span.SetStatus(otel_codes.Error, persistedState.Message)
+				}
+			}
+		}
+		setOperationStateTraceAttrs(span, traceState, attemptPhase)
+		span.SetAttributes(attribute.String("argocd.reconciliation.outcome", operationReconciliationOutcome(traceState, outcomePhase, requeuedForRetry)))
 		attemptFailed := attemptPhase != nil && isFailedOperationPhase(*attemptPhase)
-		stateFailed := state != nil && isFailedOperationPhase(state.Phase)
+		stateFailed := persistedState != nil && isFailedOperationPhase(persistedState.Phase)
 		if attemptFailed || stateFailed {
 			description := ""
 			if state != nil {
 				description = state.Message
+			}
+			if persistedState != nil && persistedState != state && !requeuedForRetry {
+				description = persistedState.Message
 			}
 			span.SetStatus(otel_codes.Error, description)
 		}
@@ -1718,7 +1753,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			} else {
 				state.Message = fmt.Sprintf("%v", r)
 			}
-			ctrl.setOperationState(ctx, app, state)
+			persistedState = ctrl.setOperationState(ctx, app, state)
 		}
 	}()
 	ts := stats.NewTimingStats()
@@ -1780,7 +1815,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			state.Phase = synccommon.OperationTerminating
 			state.Message = "operation is terminating due to timeout"
 			terminatingCause = "controller sync timeout"
-			ctrl.setOperationState(ctx, app, state)
+			persistedState = ctrl.setOperationState(ctx, app, state)
 			logCtx.Infof("Terminating in-progress operation due to timeout. Started at: %v, timeout: %v", state.StartedAt, ctrl.syncTimeout)
 		case state.Phase == synccommon.OperationRunning && state.FinishedAt != nil:
 			// Failed operation with retry strategy might be in-progress and has completion time
@@ -1788,7 +1823,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			if err != nil {
 				state.Phase = synccommon.OperationError
 				state.Message = err.Error()
-				ctrl.setOperationState(ctx, app, state)
+				persistedState = ctrl.setOperationState(ctx, app, state)
 				return
 			}
 			retryAfter := time.Until(retryAt)
@@ -1813,14 +1848,14 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 			state.Message = fmt.Sprintf("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 			state.FinishedAt = nil
 			state.SyncResult = nil
-			ctrl.setOperationState(ctx, app, state)
+			persistedState = ctrl.setOperationState(ctx, app, state)
 			logCtx.Infof("Retrying operation%s. Attempt #%d", extraMsg, state.RetryCount)
 		default:
 			logCtx.Infof("Resuming in-progress operation. phase: %s, message: %s", state.Phase, state.Message)
 		}
 	} else {
 		state = NewOperationState(*app.Operation)
-		ctrl.setOperationState(ctx, app, state)
+		persistedState = ctrl.setOperationState(ctx, app, state)
 		logCtx.Infof("Initialized new operation: %v", *app.Operation)
 	}
 	ts.AddCheckpoint("initial_operation_stage_ms")
@@ -1877,7 +1912,7 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 		}
 	}
 
-	ctrl.setOperationState(ctx, app, state)
+	persistedState = ctrl.setOperationState(ctx, app, state)
 	ts.AddCheckpoint("final_set_operation_state_ms")
 	if state.Phase.Completed() && (app.Operation.Sync != nil && !app.Operation.Sync.DryRun) {
 		// if we just completed an operation, force a refresh so that UI will report up-to-date
@@ -1902,7 +1937,9 @@ func (ctrl *ApplicationController) processRequestedAppOperation(app *appv1.Appli
 	ts.AddCheckpoint("request_app_refresh_ms")
 }
 
-func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) {
+// setOperationState returns the state actually retained by Kubernetes, which can differ
+// from state when a size-limit fallback is needed. A nil result means no write succeeded.
+func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *appv1.Application, state *appv1.OperationState) *appv1.OperationState {
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 	if state.Phase == "" {
 		// expose any bugs where we neglect to set phase
@@ -1915,7 +1952,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	clearOperation := state.Phase.Completed() && app.Operation != nil
 	if reflect.DeepEqual(app.Status.OperationState, state) && !clearOperation {
 		logCtx.Infof("No operation updates necessary to '%s'. Skipping patch", app.QualifiedName())
-		return
+		return state
 	}
 	// Replace the whole operationState since we re-evaluated the whole object
 	patchOps := []map[string]any{
@@ -1928,10 +1965,11 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	patchJSON, err := json.Marshal(patchOps)
 	if err != nil {
 		logCtx.WithError(err).Error("error marshaling json")
-		return
+		return nil
 	}
 
 	var nonRetryableError error
+	persisted := false
 	kube.RetryUntilSucceed(ctx, updateOperationStateTimeout, "Update application operation state", logutils.NewLogrusLogger(logutils.NewWithCurrentConfig()), func() error {
 		_, err := ctrl.PatchAppWithWriteBack(ctx, app.Name, app.Namespace, types.JSONPatchType, patchJSON, metav1.PatchOptions{})
 		if err != nil {
@@ -1950,6 +1988,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 			logCtx.WithError(err).Warn("error patching application with operation state")
 			return fmt.Errorf("error patching application with operation state: %w", err)
 		}
+		persisted = true
 		return nil
 	})
 
@@ -1960,7 +1999,7 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	if nonRetryableError != nil {
 		persistedState = ctrl.persistOperationStateFallback(app, state, nonRetryableError, logCtx)
 		if persistedState == nil {
-			return
+			return nil
 		}
 	}
 
@@ -1971,6 +2010,10 @@ func (ctrl *ApplicationController) setOperationState(ctx context.Context, app *a
 	if persistedState.Phase.Completed() {
 		ctrl.recordOperationCompletion(ctx, app, logCtx, persistedState)
 	}
+	if persisted || nonRetryableError != nil {
+		return persistedState
+	}
+	return nil
 }
 
 // persistOperationStateFallback handles the case where the primary operation-state patch could
@@ -2284,26 +2327,28 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	reconciliationFailed := false
 	defer func() {
 		recovered := recover()
-		if recovered != nil {
-			reconciliationFailed = true
-			span.SetStatus(otel_codes.Error, fmt.Sprintf("%v", recovered))
-			if recoveredErr, ok := recovered.(error); ok {
-				span.RecordError(recoveredErr)
+		if span.IsRecording() {
+			if recovered != nil {
+				reconciliationFailed = true
+				span.SetStatus(otel_codes.Error, fmt.Sprintf("%v", recovered))
+				if recoveredErr, ok := recovered.(error); ok {
+					span.RecordError(recoveredErr)
+				}
 			}
-		}
-		setApplicationStatusTraceAttrs(span, statusFallback)
-		setComparisonResultTraceAttrs(span, compareResult)
-		finalStatus := &app.Status
-		if statusFallback != nil {
-			finalStatus = statusFallback
-		}
-		outcome, statusChanged := refreshReconciliationOutcome(&origApp.Status, finalStatus, reconciliationFailed)
-		span.SetAttributes(
-			attribute.String("argocd.reconciliation.outcome", outcome),
-			attribute.Bool("argocd.reconciliation.status_changed", statusChanged),
-		)
-		if reconciliationFailed && recovered == nil {
-			span.SetStatus(otel_codes.Error, "reconciliation failed")
+			setApplicationStatusTraceAttrs(span, statusFallback)
+			setComparisonResultTraceAttrs(span, compareResult)
+			finalStatus := &app.Status
+			if statusFallback != nil {
+				finalStatus = statusFallback
+			}
+			outcome, statusChanged := refreshReconciliationOutcome(&origApp.Status, finalStatus, reconciliationFailed)
+			span.SetAttributes(
+				attribute.String("argocd.reconciliation.outcome", outcome),
+				attribute.Bool("argocd.reconciliation.status_changed", statusChanged),
+			)
+			if reconciliationFailed && recovered == nil {
+				span.SetStatus(otel_codes.Error, "reconciliation failed")
+			}
 		}
 		span.End()
 		if recovered != nil {
@@ -2365,6 +2410,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	ts.AddCheckpoint("refresh_app_conditions_ms")
 	now := metav1.Now()
 	if hasErrors {
+		reconciliationFailed = true
 		app.Status.Sync.Status = appv1.SyncStatusCodeUnknown
 		app.Status.Health.Status = health.HealthStatusUnknown
 		app.Status.Health.Message = ""
@@ -2430,7 +2476,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 
 	ts.AddCheckpoint("compare_app_state_ms")
 
-	if err != nil {
+	if err != nil || (compareResult != nil && compareResult.hasComparisonErrors) {
 		reconciliationFailed = true
 	}
 	if stderrors.Is(err, ErrCompareStateRepo) {
@@ -2448,6 +2494,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 	tree, err := ctrl.setAppManagedResources(ctx, destCluster, app, compareResult)
 	ts.AddCheckpoint("set_app_managed_resources_ms")
 	if err != nil {
+		reconciliationFailed = true
 		logCtx.WithError(err).Error("Failed to cache app resources")
 	} else {
 		app.Status.Summary = tree.GetSummary(app)

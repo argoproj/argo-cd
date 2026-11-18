@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"errors"
+	"strings"
 	"testing"
 	"time"
 
@@ -10,6 +11,7 @@ import (
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/codes"
@@ -19,10 +21,13 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
+	kubetesting "k8s.io/client-go/testing"
 	"k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
+	mockrepoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	argotest "github.com/argoproj/argo-cd/v3/test"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 )
@@ -39,6 +44,16 @@ func (m *panicCompareAppStateManager) CompareAppState(context.Context, *v1alpha1
 type failingSetCacheClient struct {
 	cacheutil.CacheClient
 	err error
+}
+
+type fixedPhaseAppStateManager struct {
+	AppStateManager
+	phase synccommon.OperationPhase
+}
+
+func (m *fixedPhaseAppStateManager) SyncAppState(_ context.Context, _ *v1alpha1.Application, _ *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+	state.Phase = m.phase
+	state.Message = "attempt completed"
 }
 
 func (c *failingSetCacheClient) Set(*cacheutil.Item) error {
@@ -362,6 +377,9 @@ func TestProcessAppRefreshQueueItemTraceIncludesStatusOnPreComparisonReturn(t *t
 	assert.NotContains(t, attrs, "argocd.resolved_revision")
 	assert.NotContains(t, attrs, "argocd.resolved_revisions")
 	assert.False(t, hasRecordedSpan(recorder.Ended(), "controller.CompareAppState"))
+	assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
+	assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
+	assert.Equal(t, codes.Error, span.Status().Code)
 }
 
 func TestProcessAppRefreshQueueItemTraceDoesNotReportStaleStatusOnComparisonError(t *testing.T) {
@@ -493,11 +511,9 @@ func TestSyncAppStateTraceRecordsAndPropagatesPanic(t *testing.T) {
 
 func TestTraceAttrsDoNotExportUnfilteredApplicationMetadata(t *testing.T) {
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:        "checkout",
-			Namespace:   "argocd",
-			Annotations: map[string]string{"example.com/secret": "do-not-export"},
-		},
+		Name:        "checkout",
+		Namespace:   "argocd",
+		Annotations: map[string]string{"example.com/secret": "do-not-export"},
 		Operation: &v1alpha1.Operation{
 			InitiatedBy: v1alpha1.OperationInitiator{Username: "alice@example.com"},
 			Info:        []*v1alpha1.Info{{Name: "token", Value: "do-not-export"}},
@@ -519,6 +535,257 @@ func TestTraceAttrsDoNotExportUnfilteredApplicationMetadata(t *testing.T) {
 	}
 }
 
+func TestProcessAppRefreshQueueItemTraceRecordsFullComparisonCacheFailure(t *testing.T) {
+	recorder := installRecordingTracer(t)
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Revision: "resolved-revision",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}, nil)
+	baseClient := ctrl.cache.Cache.GetClient()
+	ctrl.cache.Cache.SetClient(&failingSetCacheClient{CacheClient: baseClient, err: errors.New("managed resources cache unavailable")})
+	key, err := cache.MetaNamespaceKeyFunc(app)
+	require.NoError(t, err)
+	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
+	ctrl.appRefreshQueue.Add(key)
+
+	ctrl.processAppRefreshQueueItem()
+
+	span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
+	attrs := traceAttrs(span)
+	assert.True(t, hasRecordedSpan(recorder.Ended(), "controller.CompareAppState"))
+	assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
+	assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
+	assert.Equal(t, codes.Error, span.Status().Code)
+}
+
+func TestCompareAppStateTraceRecordsMultiSourceResolution(t *testing.T) {
+	for _, partialFailure := range []bool{false, true} {
+		name := "all sources resolved"
+		if partialFailure {
+			name = "second source fails after first resolves"
+		}
+		t.Run(name, func(t *testing.T) {
+			recorder := installRecordingTracer(t)
+			app := newFakeApp()
+			source := app.Spec.GetSource()
+			app.Spec.Source = nil
+			app.Spec.Sources = []v1alpha1.ApplicationSource{source, source}
+			app.Spec.Sources[0].Path = "first"
+			app.Spec.Sources[0].TargetRevision = "main"
+			app.Spec.Sources[1].Path = "second"
+			app.Spec.Sources[1].TargetRevision = "HEAD"
+			ctrl := newFakeController(t.Context(), &fakeData{
+				apps:            []runtime.Object{app, &defaultProj},
+				managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			}, nil)
+			manager := ctrl.appStateManager.(*appStateManager)
+			repo := &mockrepoclient.RepoServerServiceClient{}
+			repo.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(request *apiclient.ManifestRequest) bool {
+				return request.ApplicationSource.Path == "first"
+			})).Return(&apiclient.ManifestResponse{Revision: "first-resolved-sha"}, nil).Once()
+			secondResponse := &apiclient.ManifestResponse{Revision: "second-resolved-sha"}
+			var secondErr error
+			if partialFailure {
+				secondResponse = nil
+				secondErr = errors.New("second source unavailable")
+			}
+			repo.EXPECT().GenerateManifest(mock.Anything, mock.MatchedBy(func(request *apiclient.ManifestRequest) bool {
+				return request.ApplicationSource.Path == "second"
+			})).Return(secondResponse, secondErr).Once()
+			manager.repoClientset = &mockrepoclient.Clientset{RepoServerServiceClient: repo}
+
+			result, err := manager.CompareAppState(t.Context(), app, &defaultProj, []string{"main", "HEAD"}, app.Spec.Sources, false, true, nil, true)
+
+			require.NoError(t, err, "comparison errors are returned as Application conditions on this path")
+			require.NotNil(t, result)
+			repo.AssertExpectations(t)
+			span := findRecordedSpan(t, recorder.Ended(), "controller.CompareAppState")
+			attrs := traceAttrs(span)
+			assert.NotContains(t, attrs, "argocd.resolved_revision")
+			if partialFailure {
+				assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, result.syncStatus.Status)
+				assert.False(t, result.hasResolvedRevisions)
+				assert.NotEmpty(t, app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{
+					v1alpha1.ApplicationConditionComparisonError: true,
+				}))
+				assert.NotContains(t, attrs, "argocd.resolved_revisions")
+				assert.Equal(t, codes.Error, span.Status().Code)
+			} else {
+				assert.True(t, result.hasResolvedRevisions)
+				assert.Equal(t, []string{"first-resolved-sha", "second-resolved-sha"}, attrs["argocd.resolved_revisions"].AsStringSlice())
+				assert.Equal(t, codes.Unset, span.Status().Code)
+			}
+		})
+	}
+}
+
+func TestProcessAppRefreshQueueItemTraceRecordsComparisonConditionFailure(t *testing.T) {
+	recorder := installRecordingTracer(t)
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:             []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{},
+		managedLiveObjs:  make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}, errors.New("manifest generation failed"))
+	key, err := cache.MetaNamespaceKeyFunc(app)
+	require.NoError(t, err)
+	ctrl.requestAppRefresh(app.Name, CompareWithLatestForceResolve.Pointer(), nil)
+	ctrl.appRefreshQueue.Add(key)
+
+	ctrl.processAppRefreshQueueItem()
+
+	comparison := findRecordedSpan(t, recorder.Ended(), "controller.CompareAppState")
+	assert.Equal(t, codes.Error, comparison.Status().Code)
+	span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
+	attrs := traceAttrs(span)
+	assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
+	assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
+	assert.Equal(t, codes.Error, span.Status().Code)
+	assert.NotContains(t, attrs, "argocd.resolved_revision")
+}
+
+func TestProcessRequestedAppOperationTraceRetryBackoffAndDisabledTracing(t *testing.T) {
+	for _, recording := range []bool{true, false} {
+		name := "recording"
+		sampler := sdktrace.AlwaysSample()
+		if !recording {
+			name = "tracing disabled"
+			sampler = sdktrace.NeverSample()
+		}
+		t.Run(name, func(t *testing.T) {
+			recorder := installRecordingTracer(t, sdktrace.WithSampler(sampler))
+			app := newFakeApp()
+			app.Operation = &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{},
+				Retry: v1alpha1.RetryStrategy{Limit: 1, Backoff: &v1alpha1.Backoff{
+					Duration:    "1h",
+					MaxDuration: "1h",
+				}},
+			}
+			app.Status.OperationState.Operation = *app.Operation
+			app.Status.OperationState.Phase = synccommon.OperationRunning
+			app.Status.OperationState.RetryCount = 1
+			app.Status.OperationState.FinishedAt = &metav1.Time{Time: time.Now().Add(-time.Second)}
+			originalState := app.Status.OperationState.DeepCopy()
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+			queue := &recordingOperationQueue{TypedRateLimitingInterface: ctrl.appOperationQueue}
+			ctrl.appOperationQueue = queue
+
+			ctrl.processRequestedAppOperation(app)
+
+			require.Len(t, queue.calls, 1)
+			assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), queue.calls[0].item)
+			assert.Greater(t, queue.calls[0].delay, 50*time.Minute)
+			assert.LessOrEqual(t, queue.calls[0].delay, time.Hour)
+			stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, originalState, stored.Status.OperationState)
+			assert.NotNil(t, stored.Operation)
+			assert.False(t, hasRecordedSpan(recorder.Ended(), "controller.SyncAppState"))
+			if !recording {
+				assert.Empty(t, recorder.Ended())
+				return
+			}
+			span := findRecordedSpan(t, recorder.Ended(), "controller.Operation")
+			attrs := traceAttrs(span)
+			assert.Equal(t, "retry", attrs["argocd.reconciliation.cause"].AsString())
+			assert.Equal(t, "retry_wait", attrs["argocd.reconciliation.outcome"].AsString())
+			assert.Equal(t, "Running", attrs["argocd.operation.phase"].AsString())
+			assert.EqualValues(t, 1, attrs["argocd.operation.retry_count"].AsInt64())
+			assert.NotContains(t, attrs, "argocd.operation.attempt.phase")
+			assert.Equal(t, codes.Unset, span.Status().Code)
+		})
+	}
+}
+
+func TestProcessRequestedAppOperationTraceRecordsConcurrentTermination(t *testing.T) {
+	recorder := installRecordingTracer(t)
+	app := newFakeApp()
+	app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+	app.Status.OperationState.Operation = *app.Operation
+	app.Status.OperationState.Phase = synccommon.OperationRunning
+	app.Status.OperationState.FinishedAt = nil
+	storedApp := app.DeepCopy()
+	storedApp.Status.OperationState.Phase = synccommon.OperationTerminating
+	ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{storedApp, &defaultProj}}, nil)
+	ctrl.appStateManager = &fixedPhaseAppStateManager{AppStateManager: ctrl.appStateManager, phase: synccommon.OperationRunning}
+	queue := &recordingOperationQueue{TypedRateLimitingInterface: ctrl.appOperationQueue}
+	ctrl.appOperationQueue = queue
+
+	ctrl.processRequestedAppOperation(app)
+
+	stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+	require.NoError(t, err)
+	require.NotNil(t, stored.Status.OperationState)
+	assert.Equal(t, synccommon.OperationTerminating, stored.Status.OperationState.Phase)
+	span := findRecordedSpan(t, recorder.Ended(), "controller.Operation")
+	attrs := traceAttrs(span)
+	assert.Equal(t, "Running", attrs["argocd.operation.attempt.phase"].AsString())
+	assert.Equal(t, "Terminating", attrs["argocd.operation.phase"].AsString())
+	assert.Equal(t, "terminating", attrs["argocd.reconciliation.outcome"].AsString())
+	assert.Equal(t, codes.Unset, span.Status().Code)
+	require.Len(t, queue.calls, 1)
+	assert.Equal(t, ctrl.toAppKey(app.QualifiedName()), queue.calls[0].item)
+	assert.Equal(t, appOperationMaxRequeueInterval, queue.calls[0].delay)
+}
+
+func TestProcessRequestedAppOperationTraceReportsPersistedFallback(t *testing.T) {
+	cases := []struct {
+		name           string
+		initialPhase   synccommon.OperationPhase
+		attemptPhase   synccommon.OperationPhase
+		retryLimit     int64
+		finalPhase     synccommon.OperationPhase
+		outcome        string
+		wantRetryCount int64
+	}{
+		{name: "successful attempt", initialPhase: synccommon.OperationRunning, attemptPhase: synccommon.OperationSucceeded, finalPhase: synccommon.OperationTerminating, outcome: "terminating"},
+		{name: "new operation without prior state", attemptPhase: synccommon.OperationSucceeded, finalPhase: synccommon.OperationTerminating, outcome: "terminating"},
+		{name: "failed attempt scheduled for retry", initialPhase: synccommon.OperationRunning, attemptPhase: synccommon.OperationFailed, retryLimit: 1, finalPhase: synccommon.OperationTerminating, outcome: "terminating", wantRetryCount: 1},
+		{name: "failed terminating attempt", initialPhase: synccommon.OperationTerminating, attemptPhase: synccommon.OperationFailed, finalPhase: synccommon.OperationError, outcome: "error"},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := installRecordingTracer(t)
+			app := newFakeApp()
+			app.Operation = &v1alpha1.Operation{
+				Sync:  &v1alpha1.SyncOperation{DryRun: true, Prune: true},
+				Retry: v1alpha1.RetryStrategy{Limit: tc.retryLimit},
+			}
+			if tc.initialPhase == "" {
+				app.Status.OperationState = nil
+			} else {
+				app.Status.OperationState.Operation = *app.Operation
+				app.Status.OperationState.Phase = tc.initialPhase
+				app.Status.OperationState.FinishedAt = nil
+			}
+			ctrl := newFakeControllerWithFailingPatch(t, &fakeData{apps: []runtime.Object{app, &defaultProj}}, func(action kubetesting.PatchAction) bool {
+				return action.GetPatchType() == types.JSONPatchType && strings.HasPrefix(jsonPatchOperationStateMessage(action.GetPatch()), "attempt completed")
+			})
+			ctrl.appStateManager = &fixedPhaseAppStateManager{AppStateManager: ctrl.appStateManager, phase: tc.attemptPhase}
+
+			ctrl.processRequestedAppOperation(app)
+
+			stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, stored.Status.OperationState)
+			require.Equal(t, tc.finalPhase, stored.Status.OperationState.Phase)
+			span := findRecordedSpan(t, recorder.Ended(), "controller.Operation")
+			attrs := traceAttrs(span)
+			assert.Equal(t, string(tc.attemptPhase), attrs["argocd.operation.attempt.phase"].AsString())
+			assert.Equal(t, string(stored.Status.OperationState.Phase), attrs["argocd.operation.phase"].AsString())
+			assert.Equal(t, tc.outcome, attrs["argocd.reconciliation.outcome"].AsString())
+			assert.Equal(t, tc.wantRetryCount, attrs["argocd.operation.retry_count"].AsInt64())
+			assert.True(t, attrs["argocd.sync.dry_run"].AsBool())
+			assert.True(t, attrs["argocd.sync.prune"].AsBool())
+		})
+	}
+}
+
 func recordTraceAttrs(t *testing.T, setAttrs func(oteltrace.Span)) map[string]attribute.Value {
 	t.Helper()
 
@@ -533,10 +800,12 @@ func recordTraceAttrs(t *testing.T, setAttrs func(oteltrace.Span)) map[string]at
 	return traceAttrs(ended[0])
 }
 
-func installRecordingTracer(t *testing.T) *tracetest.SpanRecorder {
+func installRecordingTracer(t *testing.T, options ...sdktrace.TracerProviderOption) *tracetest.SpanRecorder {
 	t.Helper()
 	recorder := tracetest.NewSpanRecorder()
-	provider := sdktrace.NewTracerProvider(sdktrace.WithSpanProcessor(recorder))
+	options = append([]sdktrace.TracerProviderOption{sdktrace.WithSpanProcessor(recorder)}, options...)
+	provider := sdktrace.NewTracerProvider(options...)
+	// These tests must remain sequential while they temporarily replace the package tracer.
 	originalTracer := tracer
 	tracer = provider.Tracer("controller-test")
 	t.Cleanup(func() {
