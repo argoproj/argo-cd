@@ -154,7 +154,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	appsToSync := getAppsToSync(appset, appDependencyList, applications)
 	logCtx.Infof("Application allowed to sync before maxUpdate?: %+v", appsToSync)
 
-	_, err = m.UpdateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap)
+	_, err = m.UpdateApplicationSetApplicationStatusProgress(ctx, logCtx, &appset, appsToSync, appStepMap, applications)
 	if err != nil {
 		return nil, fmt.Errorf("failed to update applicationset application status progress: %w", err)
 	}
@@ -648,6 +648,13 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
+					// The application stops consuming a maxUpdate slot here, so
+					// release it for applications evaluated later in this call.
+					// Otherwise a Synced application admitted later in the same
+					// call still sees the slot as full.
+					if step, inStep := appStepMap[app.Name]; inStep && updateCountMap != nil {
+						updateCountMap[step]--
+					}
 				}
 			}
 		}
@@ -891,10 +898,24 @@ func (m *Manager) ensureApplicationsReconciled(logCtx *log.Entry, appset *argov1
 }
 
 // check Applications that are in Waiting status and promote them to Pending if needed
-func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
+func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Context, logCtx *log.Entry, applicationSet *argov1alpha1.ApplicationSet, appsToSync map[string]bool, appStepMap map[string]int, applications []argov1alpha1.Application) ([]argov1alpha1.ApplicationSetApplicationStatus, error) {
 	now := metav1.Now()
 
 	appStatuses := make([]argov1alpha1.ApplicationSetApplicationStatus, 0, len(applicationSet.Status.ApplicationStatus))
+
+	// Live sync status per application. A Waiting application that is already
+	// Synced never goes to Pending: Pending triggers a sync, and the Synced
+	// shortcut in UpdateApplicationSetApplicationStatus already owns admission
+	// for those applications (it promotes them straight to Progressing once a
+	// maxUpdate slot frees up). Only applications that are not Synced need the
+	// Pending step. Applications missing from this list keep the previous
+	// behaviour, so direct callers without live data are unaffected.
+	syncedApps := make(map[string]bool, len(applications))
+	for _, app := range applications {
+		if app.Status.Sync.Status == argov1alpha1.SyncStatusCodeSynced {
+			syncedApps[app.Name] = true
+		}
+	}
 
 	// if we have no RollingUpdate steps, clear out the existing ApplicationStatus entries
 	if RollingSyncStrategyEnabled(applicationSet) {
@@ -938,7 +959,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 				}
 			}
 
-			if appStatus.Status == argov1alpha1.ProgressiveSyncWaiting && appsToSync[appStatus.Application] && maxUpdateAllowed {
+			if appStatus.Status == argov1alpha1.ProgressiveSyncWaiting && appsToSync[appStatus.Application] && maxUpdateAllowed && !syncedApps[appStatus.Application] {
 				appStatus.LastTransitionTime = &now
 				appStatus.Status = argov1alpha1.ProgressiveSyncPending
 				appStatus.Message = "Application moved to Pending status, watching for the Application resource to start Progressing"

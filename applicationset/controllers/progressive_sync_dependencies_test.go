@@ -2036,7 +2036,15 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			}
 			r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, appClientSet, r)
 
-			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap)
+			// Live applications for the Progress call. Cases without appMap keep
+			// the previous behaviour: applications missing here are treated as
+			// not Synced, so their Waiting -> Pending admission is unchanged.
+			liveApps := make([]v1alpha1.Application, 0, len(cc.appMap))
+			for _, app := range cc.appMap {
+				liveApps = append(liveApps, app)
+			}
+
+			appStatuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appSyncMap, cc.appStepMap, liveApps)
 
 			// opt out of testing the LastTransitionTime is accurate
 			for i := range appStatuses {
@@ -2046,5 +2054,156 @@ func TestUpdateApplicationSetApplicationStatusProgress(t *testing.T) {
 			require.NoError(t, err, "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedAppStatus, appStatuses, "expected appStatuses did not match actual")
 		})
+	}
+}
+
+// TestSyncedAppWaitingForSlotSkipsPendingAndSync pins the behaviour ppapapetrou76
+// asked about on #30988: a Synced but unhealthy application that waits for a
+// maxUpdate slot must not be synced once the slot frees up. It goes straight
+// to Progressing and never enters Pending, so SyncDesiredApplications attaches
+// no sync operation to it — before the admission gate the appset never synced
+// such an application, and waiting for a slot must not change that.
+//
+// The test drives UpdateApplicationSetApplicationStatus and
+// UpdateApplicationSetApplicationStatusProgress in sequence, mirroring the order
+// PerformProgressiveSyncs calls them in, across two reconciles: first with the
+// step full, then with the slot freed by the other application becoming Healthy.
+// The waiting application is processed before the freeing one in the second
+// reconcile, so the status function still sees the slot as full and the
+// Progress function must not second-guess it by moving the application to Pending.
+func TestSyncedAppWaitingForSlotSkipsPendingAndSync(t *testing.T) {
+	t.Parallel()
+	nowMinus5 := metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	newAppSet := func() v1alpha1.ApplicationSet {
+		maxUpdate := intstr.FromInt(1)
+		return v1alpha1.ApplicationSet{
+			Name:      "name",
+			Namespace: "argocd",
+			Spec: v1alpha1.ApplicationSetSpec{
+				Strategy: &v1alpha1.ApplicationSetStrategy{
+					Type: "RollingSync",
+					RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+						Steps: []v1alpha1.ApplicationSetRolloutStep{
+							{MaxUpdate: &maxUpdate, MatchExpressions: []v1alpha1.ApplicationMatchExpression{}},
+						},
+					},
+				},
+			},
+			Status: v1alpha1.ApplicationSetStatus{
+				ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+					{
+						Application:        "app1",
+						Message:            "Application resource has synced, updating status to Progressing",
+						Status:             v1alpha1.ProgressiveSyncProgressing,
+						Step:               "1",
+						TargetRevisions:    []string{"current"},
+						LastTransitionTime: &nowMinus5,
+					},
+					{
+						Application:        "app2",
+						Message:            "Application resource has synced but is waiting for an available update slot in this step",
+						Status:             v1alpha1.ProgressiveSyncWaiting,
+						Step:               "1",
+						TargetRevisions:    []string{"current"},
+						LastTransitionTime: &nowMinus5,
+					},
+				},
+			},
+		}
+	}
+
+	newApp := func(name string, healthStatus health.HealthStatusCode, syncStatus v1alpha1.SyncStatusCode) v1alpha1.Application {
+		return v1alpha1.Application{
+			Name: name,
+			Status: v1alpha1.ApplicationStatus{
+				ReconciledAt: &metav1.Time{Time: time.Now()},
+				Health:       v1alpha1.AppHealthStatus{Status: healthStatus},
+				Sync: v1alpha1.SyncStatus{
+					Status:   syncStatus,
+					Revision: "current",
+				},
+				OperationState: &v1alpha1.OperationState{
+					Phase:      common.OperationSucceeded,
+					StartedAt:  metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
+					FinishedAt: &metav1.Time{Time: time.Now().Add(-1 * time.Second)},
+				},
+			},
+		}
+	}
+
+	appSet := newAppSet()
+	kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).Build()
+	metrics := appsetmetrics.NewFakeAppsetMetrics()
+	appClientSet := appfake.NewSimpleClientset([]runtime.Object{}...)
+	argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+
+	r := &ApplicationSetReconciler{
+		Client:        client,
+		Scheme:        scheme,
+		Recorder:      record.NewFakeRecorder(1),
+		Generators:    map[string]generators.Generator{},
+		ArgoDB:        argodb,
+		KubeClientset: kubeclientset,
+		Metrics:       metrics,
+	}
+	r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, appClientSet, r)
+	logCtx := log.NewEntry(log.StandardLogger())
+	appStepMap := map[string]int{"app1": 0, "app2": 0}
+	appsToSync := map[string]bool{"app1": true, "app2": true}
+
+	statusOf := func(statuses []v1alpha1.ApplicationSetApplicationStatus, app string) v1alpha1.ProgressiveSyncStatusCode {
+		for _, s := range statuses {
+			if s.Application == app {
+				return s.Status
+			}
+		}
+		t.Fatalf("no status for application %q in %+v", app, statuses)
+		return ""
+	}
+
+	// Reconcile 1: the step is full (app1 is Progressing), so app2 must stay Waiting.
+	app1 := newApp("app1", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced)
+	app2 := newApp("app2", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced)
+	statuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatus(t.Context(), logCtx, &appSet, []v1alpha1.Application{app1, app2}, []v1alpha1.Application{app1, app2}, appStepMap)
+	require.NoError(t, err)
+	assert.Equal(t, v1alpha1.ProgressiveSyncWaiting, statusOf(statuses, "app2"), "app2 must wait while the step is full")
+	appSet.Status.ApplicationStatus = statuses
+
+	statuses, err = r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), logCtx, &appSet, appsToSync, appStepMap, []v1alpha1.Application{app1, app2})
+	require.NoError(t, err)
+	assert.Equal(t, v1alpha1.ProgressiveSyncWaiting, statusOf(statuses, "app2"), "app2 must not go Pending while the step is full")
+	appSet.Status.ApplicationStatus = statuses
+
+	// Reconcile 2: app1 becomes Healthy, freeing the slot. app2 is processed
+	// first, so the status function still counts the slot as full here.
+	app1 = newApp("app1", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced)
+	statuses, err = r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatus(t.Context(), logCtx, &appSet, []v1alpha1.Application{app2, app1}, []v1alpha1.Application{app2, app1}, appStepMap)
+	require.NoError(t, err)
+	assert.Equal(t, v1alpha1.ProgressiveSyncHealthy, statusOf(statuses, "app1"), "app1 must become Healthy once it is healthy and synced")
+	appSet.Status.ApplicationStatus = statuses
+
+	statuses, err = r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatusProgress(t.Context(), logCtx, &appSet, appsToSync, appStepMap, []v1alpha1.Application{app2, app1})
+	require.NoError(t, err)
+	assert.NotEqual(t, v1alpha1.ProgressiveSyncPending, statusOf(statuses, "app2"),
+		"a Synced application that waited for a slot must never go through Pending once the slot frees up")
+	appSet.Status.ApplicationStatus = statuses
+
+	// Reconcile 3: the status function now sees the free slot and must promote
+	// app2 straight to Progressing.
+	statuses, err = r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatus(t.Context(), logCtx, &appSet, []v1alpha1.Application{app2, app1}, []v1alpha1.Application{app2, app1}, appStepMap)
+	require.NoError(t, err)
+	assert.Equal(t, v1alpha1.ProgressiveSyncProgressing, statusOf(statuses, "app2"),
+		"app2 must go straight to Progressing once admitted, skipping the sync queue")
+	appSet.Status.ApplicationStatus = statuses
+
+	// No sync may be triggered for app2: it is already Synced, and only Pending
+	// applications get a sync operation attached.
+	rolloutApps := r.ProgressiveSyncManager.SyncDesiredApplications(logCtx, &appSet, appsToSync, []v1alpha1.Application{app1, app2})
+	for _, app := range rolloutApps {
+		assert.Nil(t, app.Operation, "no sync operation must be triggered for already-Synced application %q", app.Name)
 	}
 }
