@@ -118,7 +118,7 @@ type nativeHelmChart struct {
 // any cache read, and use the same immutable credentials for authentication,
 // TLS, and every cache read/write. Keep the original provider on the reusable
 // client so the next operation can observe rotation or a lookup failure.
-func (c *nativeHelmChart) withResolvedCredentials() (*nativeHelmChart, error) {
+func (c *nativeHelmChart) withResolvedCredentials(ctx context.Context) (*nativeHelmChart, error) {
 	snap, err := snapshotCreds(c.creds)
 	if err != nil {
 		return nil, err
@@ -128,34 +128,50 @@ func (c *nativeHelmChart) withResolvedCredentials() (*nativeHelmChart, error) {
 	operation.lastValidators = nil
 	operation.cacheReadAttempted = false
 	operation.cacheObservation = indexRecordObservation{}
+	if _, paired := operation.indexCache.(indexCacheRecordReader); paired {
+		operation.requireCompleteIndex = true
+	}
+	if _, publisher := operation.indexCache.(indexCachePublisher); publisher {
+		operation.requireCompleteIndex = true
+	}
+	if _, snapshot := operation.indexCache.(indexCacheSnapshotReader); snapshot {
+		operation.requireCompleteIndex = true
+	}
 	if operation.scopedByCreds {
-		operation.indexCacheScope = credsScope(snap)
+		operation.indexCacheScope, err = credsScopeContext(ctx, snap)
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &operation, nil
 }
 
 // cacheRepoKey returns the cache key for an operation's resolved credential
 // view, or the explicit/legacy scope for clients without automatic scoping.
-func (c *nativeHelmChart) cacheRepoKey() string {
-	return c.cacheRepoKeyScoped(c.indexCacheScope)
+func (c *nativeHelmChart) cacheRepoKey(ctx context.Context) (string, error) {
+	return c.cacheRepoKeyScoped(ctx, c.indexCacheScope)
 }
 
 // cacheRepoKeyScoped returns the repo cache key under an explicit credential
 // scope. An empty scope preserves the legacy bare-URL key.
-func (c *nativeHelmChart) cacheRepoKeyScoped(scope string) string {
+func (c *nativeHelmChart) cacheRepoKeyScoped(ctx context.Context, scope string) (string, error) {
 	if scope == "" {
-		return c.repoURL
+		return c.repoURL, nil
 	}
-	return scopedIndexIdentity(c.repoURL, scope, c.proxy, c.noProxy)
+	return scopedIndexIdentityContext(ctx, c.repoURL, scope, c.proxy, c.noProxy)
 }
 
 // cacheTagsKey returns the cache key for an OCI tags URL under this client's
 // credential scope (tags share the index cache's key space).
-func (c *nativeHelmChart) cacheTagsKey(tagsURL string) string {
+func (c *nativeHelmChart) cacheTagsKey(ctx context.Context, tagsURL string) (string, error) {
 	if c.indexCacheScope == "" {
-		return tagsURL
+		return tagsURL, nil
 	}
-	return scopedIndexIdentity(tagsURL, c.indexCacheScope, c.proxy, c.noProxy)
+	scheme := "https"
+	if c.plainHTTP {
+		scheme = "http"
+	}
+	return scopedIndexIdentityContext(ctx, tagsURL, c.indexCacheScope+"\x00"+scheme, c.proxy, c.noProxy)
 }
 
 type Client interface {
@@ -398,13 +414,17 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 }
 
 func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*Index, error) {
-	operation, err := c.withResolvedCredentials()
+	operation, err := c.withResolvedCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
 	c = operation
 
-	unlock, err := indexClientLocks.acquire(ctx, "index\x00"+c.cacheRepoKey())
+	repoKey, err := c.cacheRepoKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	unlock, err := indexClientLocks.acquire(ctx, "index\x00"+repoKey)
 	if err != nil {
 		return nil, err
 	}
@@ -412,39 +432,60 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 
 	var data []byte
 	if !noCache && c.indexCache != nil {
-		if reader, ok := c.indexCache.(interface {
-			GetHelmIndexSnapshotContext(context.Context, string) (*HelmIndexRecord, bool, error)
-		}); ok {
+		if reader, ok := c.indexCache.(indexCacheSnapshotReader); ok {
 			operation, cancel := indexCacheContext(ctx, 5*time.Second)
-			record, fresh, err := reader.GetHelmIndexSnapshotContext(operation, c.cacheRepoKey())
+			record, fresh, err := reader.GetHelmIndexSnapshotContext(operation, repoKey)
 			cancel()
 			c.cacheReadAttempted = true
 			c.cacheObservation = indexRecordObservation{record: record}
 			if err == nil && fresh && record != nil {
 				data = record.Body
 			}
-		} else if err := c.indexCache.GetHelmIndex(c.cacheRepoKey(), &data); err != nil {
+		} else if err := c.indexCache.GetHelmIndex(repoKey, &data); err != nil {
 			data = nil
 		}
 	}
 
-	if c.scopedByCreds && len(data) > 0 && (int64(len(data)) > maxIndexSize || validateIndexBody(data) != nil) {
+	if len(data) > 0 && (int64(len(data)) > maxIndexSize || (c.requireCompleteIndex || c.scopedByCreds) && validateIndexBody(data) != nil) {
 		data = nil
 	}
 
+	index := &Index{}
+	if len(data) > 0 {
+		if err := yaml.NewDecoder(bytes.NewReader(data)).Decode(index); err != nil {
+			data = nil
+		}
+	}
 	if len(data) == 0 {
 		start := time.Now()
 		var err error
-		owner := beginIndexFetch(ctx, c.indexCache, c.cacheRepoKey())
+		owner := beginIndexFetch(ctx, c.indexCache, repoKey)
+		if owner != "" {
+			// A maintenance publication between the initial observation and
+			// this claim cannot be invalidated retroactively. Read its record
+			// before allowing a 304 to renew the claimed generation.
+			c.cacheReadAttempted = false
+			c.cacheObservation = indexRecordObservation{}
+		}
+		published := false
+		defer func() {
+			if !published {
+				releaseIndexFetch(ctx, c.indexCache, repoKey, owner)
+			}
+		}()
 		data, err = c.loadRepoIndex(ctx, maxIndexSize)
 		if err != nil {
 			return nil, fmt.Errorf("error loading repo index: %w", err)
+		}
+		index = &Index{}
+		if err := yaml.NewDecoder(bytes.NewReader(data)).Decode(index); err != nil {
+			return nil, fmt.Errorf("error decoding index: %w", err)
 		}
 		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
 
 		if c.indexCache != nil {
 			if _, ok := c.indexCache.(indexCachePublisher); ok {
-				publishIndexFetch(ctx, c.indexCache, c.cacheRepoKey(), owner, c.fetchedIndexRecord(data))
+				published = publishIndexFetch(ctx, c.indexCache, repoKey, owner, c.fetchedIndexRecord(data))
 			} else if !c.indexNotModified {
 				_, reader := c.indexCache.(indexCacheRecordReader)
 				_, writer := c.indexCache.(indexCacheRecorder)
@@ -452,7 +493,7 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 				// Metadata adapters cannot fall back to a non-atomic write.
 				// Only legacy raw-body caches retain their original setter contract.
 				if !reader && !writer && !validators {
-					if err := c.indexCache.SetHelmIndex(c.cacheRepoKey(), data); err != nil {
+					if err := c.indexCache.SetHelmIndex(repoKey, data); err != nil {
 						log.WithError(err).Debug("failed to publish legacy helm index body")
 					}
 				}
@@ -461,17 +502,11 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 				etag, modified := responseValidatorHeaders(c.lastValidators)
 				// Bind fallback validators only when the cache actually holds these bytes.
 				var cached []byte
-				if err := c.indexCache.GetHelmIndex(c.cacheRepoKey(), &cached); err == nil && bytes.Equal(cached, data) {
-					sharedInMemoryValidators.setForResponse(c.cacheRepoKey(), data, etag, modified, c.responseURLIdentity)
+				if err := c.indexCache.GetHelmIndex(repoKey, &cached); err == nil && bytes.Equal(cached, data) {
+					sharedInMemoryValidators.setForResponse(repoKey, data, etag, modified, c.responseURLIdentity)
 				}
 			}
 		}
-	}
-
-	index := &Index{}
-	err = yaml.NewDecoder(bytes.NewBuffer(data)).Decode(index)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding index: %w", err)
 	}
 
 	return index, nil
@@ -561,9 +596,9 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	// errors. Cache keys use the
 	// scope of THIS operation's snapshot: the request authenticates with
 	// snap's token, so it must read and publish under snap's identity.
-	repoKey := c.cacheRepoKeyScoped(c.indexCacheScope)
-	if c.indexCache != nil && c.scopedByCreds {
-		repoKey = c.cacheRepoKeyScoped(credsScope(snap))
+	repoKey, err := c.cacheRepoKey(ctx)
+	if err != nil {
+		return nil, err
 	}
 	var cachedBody []byte
 	var cachedRecordETag, cachedRecordLastModified, cachedURLIdentity string
@@ -590,7 +625,7 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 			}
 			cachedBody = bytes.Clone(cachedBody)
 		}
-		if (c.requireCompleteIndex || c.scopedByCreds) && len(cachedBody) > 0 && (int64(len(cachedBody)) > maxIndexSize || validateIndexBody(cachedBody) != nil) {
+		if len(cachedBody) > 0 && (int64(len(cachedBody)) > maxIndexSize || (c.requireCompleteIndex || c.scopedByCreds || atomicReader) && validateIndexBody(cachedBody) != nil) {
 			cachedBody = nil
 			retainedRecord = false
 			cachedRecordETag, cachedRecordLastModified = "", ""
@@ -621,20 +656,28 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 		ForceAttemptHTTP2: true,
 	}
 	allowConditional := true
-	applyCondition := func(request *http.Request) {
+	applyCondition := func(request *http.Request) error {
 		request.Header.Del("If-None-Match")
 		request.Header.Del("If-Modified-Since")
-		if allowConditional && len(cachedBody) > 0 && cachedURLIdentity != "" && IndexURLIdentity(request.URL.String()) == cachedURLIdentity {
-			applyConditionalHeaders(request, cachedRecordETag, cachedRecordLastModified)
+		if allowConditional && len(cachedBody) > 0 && cachedURLIdentity != "" {
+			identity, err := indexURLIdentityContext(request.Context(), request.URL.String())
+			if err != nil {
+				return err
+			}
+			if identity == cachedURLIdentity {
+				applyConditionalHeaders(request, cachedRecordETag, cachedRecordLastModified)
+			}
 		}
+		return nil
 	}
-	applyCondition(req)
+	if err := applyCondition(req); err != nil {
+		return nil, err
+	}
 	client := http.Client{Transport: tr, CheckRedirect: func(request *http.Request, via []*http.Request) error {
 		if len(via) >= 10 {
 			return errors.New("stopped after 10 redirects")
 		}
-		applyCondition(request)
-		return nil
+		return applyCondition(request)
 	}}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -642,7 +685,13 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	c.responseURLIdentity = IndexURLIdentity(resp.Request.URL.String())
+	needURLIdentity := c.requireCompleteIndex || c.indexCache != nil
+	if needURLIdentity {
+		c.responseURLIdentity, err = indexURLIdentityContext(ctx, resp.Request.URL.String())
+		if err != nil {
+			return nil, err
+		}
+	}
 	sentValidator := resp.Request.Header.Get("If-None-Match") != "" || resp.Request.Header.Get("If-Modified-Since") != ""
 	if resp.StatusCode == http.StatusNotModified && len(cachedBody) > 0 && sentValidator && c.responseURLIdentity == cachedURLIdentity && matchingNotModifiedETag(cachedRecordETag, resp.Header.Get("ETag")) {
 		c.indexNotModified = true
@@ -685,7 +734,12 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 				return nil, fmt.Errorf("error reading index response body: %w", err)
 			}
 			c.lastValidators = resp2.Header
-			c.responseURLIdentity = IndexURLIdentity(resp2.Request.URL.String())
+			if needURLIdentity {
+				c.responseURLIdentity, err = indexURLIdentityContext(ctx, resp2.Request.URL.String())
+				if err != nil {
+					return nil, err
+				}
+			}
 			return data, nil
 		}
 		return nil, errors.New("failed to get index: " + resp2.Status)
@@ -803,9 +857,85 @@ func getIndexURL(rawURL string) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("error parsing repository URL: %w", err)
 	}
-	repoURL.Path = path.Join(repoURL.Path, indexFile)
-	repoURL.RawPath = path.Join(repoURL.RawPath, indexFile)
-	return repoURL.String(), nil
+	repoURL.RawPath = strings.TrimSuffix(repoURL.RawPath, "/") + "/"
+	repoURL.Path = strings.TrimSuffix(repoURL.Path, "/") + "/"
+	resolved := repoURL.ResolveReference(&url.URL{Path: indexFile})
+	resolved.RawQuery = repoURL.RawQuery
+	return resolved.String(), nil
+}
+
+// A prelookup uses one quarter of the remaining deadline. A challenge retry
+// can use three quarters (up to thirty seconds), preserving time for anonymous
+// bearer authentication if the optional helper still stalls. A successful
+// lookup remains authoritative even if its timer expires just afterward.
+func lookupRegistryCredential(ctx context.Context, resolver auth.CredentialFunc, host string, maximum time.Duration, quarters int) (auth.Credential, bool, error) {
+	budget := maximum
+	if deadline, ok := ctx.Deadline(); ok {
+		budget = min(budget, time.Until(deadline)/4*time.Duration(quarters))
+	}
+	lookup, cancel := context.WithTimeout(ctx, budget)
+	defer cancel()
+	credential, err := resolver(lookup, host)
+	timedOut := err != nil && lookup.Err() != nil && ctx.Err() == nil
+	return credential, timedOut, err
+}
+
+// ORAS's native helper executor has no pipe-drain deadline. Keep its file-store
+// parsing and helper precedence, but bound both cancellation and inherited
+// stdout pipes when executing the Docker credential-helper protocol.
+func boundedDockerCredential(store *credentials.DynamicStore) (auth.CredentialFunc, error) {
+	var config struct {
+		Store   string            `json:"credsStore"`
+		Helpers map[string]string `json:"credHelpers"`
+	}
+	file, err := os.Open(store.ConfigPath())
+	if err != nil && !errors.Is(err, os.ErrNotExist) {
+		return nil, err
+	}
+	if err == nil {
+		err = json.NewDecoder(file).Decode(&config)
+		_ = file.Close()
+		if err != nil && !errors.Is(err, io.EOF) {
+			return nil, err
+		}
+	}
+	plain, err := credentials.NewFileStore(store.ConfigPath())
+	if err != nil {
+		return nil, err
+	}
+	return func(ctx context.Context, host string) (auth.Credential, error) {
+		address := credentials.ServerAddressFromHostname(host)
+		if address == "" {
+			return auth.EmptyCredential, nil
+		}
+		helper := config.Helpers[address]
+		if helper == "" {
+			helper = config.Store
+		}
+		if helper == "" {
+			return plain.Get(ctx, address)
+		}
+		cmd := exec.CommandContext(ctx, "docker-credential-"+helper, "get")
+		cmd.Stdin = strings.NewReader(address)
+		cmd.Stderr = os.Stderr
+		cmd.WaitDelay = 25 * time.Millisecond
+		output, err := cmd.Output()
+		if err != nil && (!errors.Is(err, exec.ErrWaitDelay) || ctx.Err() != nil) {
+			var exit *exec.ExitError
+			if errors.As(err, &exit) && strings.TrimSpace(string(output)) == "credentials not found in native keychain" {
+				return auth.EmptyCredential, nil
+			}
+			return auth.EmptyCredential, err
+		}
+		var result struct{ Username, Secret string }
+		if err := json.Unmarshal(output, &result); err != nil {
+			return auth.EmptyCredential, err
+		}
+		if result.Username == "<token>" {
+			return auth.Credential{RefreshToken: result.Secret}, nil
+		}
+		return auth.Credential{Username: result.Username, Password: result.Secret}, nil
+	}, nil
 }
 
 func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache bool) ([]string, error) {
@@ -814,7 +944,7 @@ func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache boo
 	}
 
 	tagsURL := strings.Replace(fmt.Sprintf("%s/%s", c.repoURL, chart), "https://", "", 1)
-	operation, err := c.withResolvedCredentials()
+	operation, err := c.withResolvedCredentials(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -830,16 +960,45 @@ func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache boo
 	repoHost := repo.Reference.Host()
 	credential := auth.Credential{Username: snap.GetUsername(), Password: snap.password}
 	var credentialErr error
+	var retryCredential auth.CredentialFunc
+	storeUnavailable := false
 	if credential.Username == "" && credential.Password == "" {
 		// Resolve the Docker store before any shared-cache read. The same
 		// immutable credential must authenticate and identify this operation.
 		store, storeErr := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+		var resolver auth.CredentialFunc
+		if storeErr == nil {
+			resolver, storeErr = boundedDockerCredential(store)
+		}
 		credentialErr = storeErr
-		if storeErr == nil && store != nil {
-			credential, credentialErr = credentials.Credential(store)(ctx, repoHost)
+		storeUnavailable = storeErr != nil
+		if storeErr == nil {
+			var optionalTimeout bool
+			credential, optionalTimeout, credentialErr = lookupRegistryCredential(ctx, resolver, repoHost, time.Second, 1)
+			if optionalTimeout {
+				// Keep the remaining request budget for anonymous registry
+				// access, without reading or publishing shared tag metadata.
+				credential = auth.EmptyCredential
+				c.indexCache = nil
+				storeUnavailable = true
+				retryCredential = func(ctx context.Context, host string) (auth.Credential, error) {
+					credential, timedOut, err := lookupRegistryCredential(ctx, resolver, host, 30*time.Second, 3)
+					if timedOut {
+						return auth.EmptyCredential, nil
+					}
+					return credential, err
+				}
+			}
 			if credential != auth.EmptyCredential {
-				c.indexCacheScope = cryptoutil.CredentialScope("helm-docker-credentials",
-					c.indexCacheScope, credsScope(snap), credential.Username, credential.Password, credential.AccessToken, credential.RefreshToken)
+				scope, err := credsScopeContext(ctx, snap)
+				if err != nil {
+					return nil, err
+				}
+				c.indexCacheScope, err = cryptoutil.CredentialScopeContext(ctx, "helm-docker-credentials",
+					c.indexCacheScope, scope, credential.Username, credential.Password, credential.AccessToken, credential.RefreshToken)
+				if err != nil {
+					return nil, err
+				}
 			}
 		}
 	}
@@ -848,12 +1007,22 @@ func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache boo
 		// Public registries may never challenge. Unknown credentials cannot
 		// identify shared data; retain the lookup error for an auth challenge.
 		c.indexCache = nil
-		credentialFunc = func(context.Context, string) (auth.Credential, error) {
-			return auth.EmptyCredential, fmt.Errorf("resolve registry credentials: %w", credentialErr)
+		// Failure to construct the optional store historically retained
+		// anonymous bearer authentication. A loaded store's helper error still
+		// fails an authentication challenge instead of hiding the lookup error.
+		if retryCredential != nil {
+			credentialFunc = retryCredential
+		} else if !storeUnavailable {
+			credentialFunc = func(context.Context, string) (auth.Credential, error) {
+				return auth.EmptyCredential, fmt.Errorf("resolve registry credentials: %w", credentialErr)
+			}
 		}
 	}
 
-	tagsKey := c.cacheTagsKey(tagsURL)
+	tagsKey, err := c.cacheTagsKey(ctx, tagsURL)
+	if err != nil {
+		return nil, err
+	}
 
 	unlock, err := indexClientLocks.acquire(ctx, "tags\x00"+tagsKey)
 	if err != nil {

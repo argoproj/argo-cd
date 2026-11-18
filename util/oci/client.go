@@ -122,6 +122,10 @@ func WithIndexCacheScopedByCreds(indexCache tagsCache, creds Creds) ClientOpts {
 		}
 		c.tagsCacheScope = credsScope(effective)
 		if c.tagsCacheScope != "" {
+			c.tagsCacheScope = cryptoutil.CredentialScope("oci-tags-transport-v1", c.tagsCacheScope,
+				c.proxy, c.noProxy, os.Getenv("HTTP_PROXY"), os.Getenv("http_proxy"),
+				os.Getenv("HTTPS_PROXY"), os.Getenv("https_proxy"),
+				os.Getenv("NO_PROXY"), os.Getenv("no_proxy"), os.Getenv("REQUEST_METHOD"))
 			c.tagsCache = indexCache
 		} else {
 			// An unreadable trust context cannot safely identify shared data.
@@ -140,6 +144,7 @@ type nativeOCIClient struct {
 	tagsCache                       tagsCache
 	tagsCacheScope                  string // credential fingerprint scoping tags-cache keys (empty = legacy bare-URL keys)
 	credentialSnapshot              *Creds
+	proxy, noProxy                  string
 	repoCachePaths                  utilio.TempPaths
 	allowedMediaTypes               []string
 	manifestMaxExtractedSize        int64
@@ -214,7 +219,10 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		return nil, fmt.Errorf("read OCI trust context: %w", err)
 	}
 	// Options use the same CA generation that constructed this transport.
-	opts = append([]ClientOpts{func(c *nativeOCIClient) { c.credentialSnapshot = &creds }}, opts...)
+	opts = append([]ClientOpts{func(c *nativeOCIClient) {
+		c.credentialSnapshot = &creds
+		c.proxy, c.noProxy = proxyURL, noProxy
+	}}, opts...)
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {

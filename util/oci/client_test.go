@@ -1051,6 +1051,21 @@ func TestCredentialScopeIsolatesViews(t *testing.T) {
 	require.NotEqual(t, first, credsScope(Creds{Username: "reader", Password: "one", InsecureHTTPOnly: true}))
 }
 
+func TestTagCacheScopeIncludesProxyRoutes(t *testing.T) {
+	creds := Creds{Username: "reader", Password: "secret"}
+	key := func(proxy, noProxy string) string {
+		t.Helper()
+		client, err := NewClient("oci://registry.example/charts", creds, proxy, noProxy, nil, WithIndexCacheScopedByCreds(&fakeTagsCache{}, creds))
+		require.NoError(t, err)
+		return client.(*nativeOCIClient).cacheRepoKey()
+	}
+	first := key("http://user:proxy-secret@first.example", "")
+	require.Equal(t, first, key("http://user:proxy-secret@first.example", ""))
+	require.NotEqual(t, first, key("http://second.example", ""))
+	require.NotEqual(t, first, key("http://user:proxy-secret@first.example", "registry.example"))
+	require.NotContains(t, first, "proxy-secret")
+}
+
 func TestCredentialScopeObservesCAFileRotation(t *testing.T) {
 	first, err := utilstls.GenerateHealthCheckClientCert()
 	require.NoError(t, err)
@@ -1063,9 +1078,10 @@ func TestCredentialScopeObservesCAFileRotation(t *testing.T) {
 	creds := Creds{CAPath: ca}
 	one := credsScope(creds)
 	require.NotEmpty(t, one)
-	client, err := NewClient("oci://example.com/charts", creds, "", "", nil)
+	client, err := NewClient("oci://example.com/charts", creds, "", "", nil, WithIndexCacheScopedByCreds(&fakeTagsCache{}, creds))
 	require.NoError(t, err)
 	original := client.(*nativeOCIClient).credentialSnapshot
+	originalKey := client.(*nativeOCIClient).cacheRepoKey()
 	require.NoError(t, os.WriteFile(ca, newPEM, 0o600))
 	two := credsScope(creds)
 	require.NotEmpty(t, two)
@@ -1074,7 +1090,7 @@ func TestCredentialScopeObservesCAFileRotation(t *testing.T) {
 	require.Equal(t, one, credsScope(*original), "existing transport and identity must keep the same immutable CA snapshot")
 	native := client.(*nativeOCIClient)
 	WithIndexCacheScopedByCreds(&fakeTagsCache{}, creds)(native)
-	require.Equal(t, native.repoURL+"\x00"+one, native.cacheRepoKey(), "the actual cache key must use the transport's original CA snapshot")
+	require.Equal(t, originalKey, native.cacheRepoKey(), "the actual cache key must use the transport's original CA snapshot")
 	transport := client.(*nativeOCIClient).repo.(*remote.Repository).Client.(*auth.Client).Client.Transport.(*http.Transport)
 	pool := x509.NewCertPool()
 	require.True(t, pool.AppendCertsFromPEM(oldPEM))

@@ -212,12 +212,20 @@ func ociTagsKey(repo string) string {
 // The v3 namespace isolates ownership-aware writers from older replicas.
 // All publication keys share a Redis hash tag for atomic multi-key updates.
 func helmIndexKey(repo, part string) string {
-	return "helm-index-v3|{" + cryptoutil.CredentialScope("helm-index-record-v3", repo) + "}|" + part
+	prefix, _ := helmIndexKeyPrefix(context.Background(), repo)
+	return prefix + part
+}
+
+func helmIndexKeyPrefix(ctx context.Context, repo string) (string, error) {
+	scope, err := cryptoutil.CredentialScopeContext(ctx, "helm-index-record-v3", repo)
+	if err != nil {
+		return "", err
+	}
+	return "helm-index-v3|{" + scope + "}|", nil
 }
 func helmIndexRecordKey(repo string) string        { return helmIndexKey(repo, "record") }
 func helmIndexBodyReferenceKey(repo string) string { return helmIndexKey(repo, "body-reference") }
 func helmIndexBodyKey(repo string) string          { return helmIndexKey(repo, "body") }
-func helmIndexOwnerKey(repo string) string         { return helmIndexKey(repo, "owner") }
 
 type HelmIndexRecord = helm.HelmIndexRecord
 
@@ -248,7 +256,7 @@ func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 	if record != nil || (err != nil && !errors.Is(err, ErrCacheMiss)) {
 		return err
 	}
-	return c.cache.GetItem(helmIndexRefsKey(repo), indexData)
+	return ErrCacheMiss // A raw legacy entry has no trusted validation time.
 }
 
 // Fresh and retained lookups, including old keys, share the caller's budget.
@@ -274,7 +282,7 @@ func (c *Cache) GetHelmIndexSnapshotContext(ctx context.Context, repo string) (*
 	if err := c.cache.GetItemContext(ctx, helmIndexRefsKey(repo), &body); err != nil {
 		return nil, false, err
 	}
-	return &HelmIndexRecord{Body: body}, c.helmIndexCacheExpiration > 0, nil
+	return &HelmIndexRecord{Body: body}, false, nil
 }
 
 func (c *Cache) SetHelmIndexRecord(repo string, body []byte, etag, modified string) error {
@@ -296,18 +304,52 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 }
 
 func (c *Cache) BeginHelmIndexFetch(ctx context.Context, repo string) (string, error) {
+	prefix, err := helmIndexKeyPrefix(ctx, repo)
+	if err != nil {
+		return "", err
+	}
 	token, err := uuid.NewRandom()
 	if err != nil {
 		return "", err
 	}
-	ok, err := c.cache.BeginUpdate(ctx, helmIndexOwnerKey(repo), token.String(), 15*time.Minute)
+	claimContext := ctx
+	cancel := func() {}
+	if deadline, ok := ctx.Deadline(); ok {
+		claimContext, cancel = context.WithTimeout(ctx, time.Until(deadline)*3/4)
+	}
+	// Carry the already-scoped key in the opaque claim so cancellation cleanup
+	// never has to repeat an evicted credential-scope derivation.
+	owner := prefix + "owner|fetch|" + token.String()
+	ok, err := c.cache.BeginUpdate(claimContext, prefix+"owner", owner, 15*time.Minute)
+	cancel()
 	if err != nil {
+		// Use the reserved portion of this phase rather than adding another
+		// timeout after acquisition has already spent the caller's budget.
+		cleanup, stop := context.WithTimeout(ctx, 250*time.Millisecond)
+		if ctx.Err() != nil {
+			stop()
+			cleanup, stop = context.WithTimeout(context.WithoutCancel(ctx), 25*time.Millisecond)
+		}
+		_, _ = c.cache.ReleaseUpdate(cleanup, prefix+"owner", owner)
+		stop()
 		return "", err
 	}
 	if !ok {
-		return "", cacheutil.ErrAtomicPublicationUnsupported
+		return "", nil // Another fetch holds the claim until publication or release.
 	}
-	return token.String(), nil
+	return owner, nil
+}
+
+func (c *Cache) ReleaseHelmIndexFetch(ctx context.Context, _ string, owner string) error {
+	key, nonce, ok := strings.Cut(owner, "|fetch|")
+	if !ok || !strings.HasPrefix(key, "helm-index-v3|{argon2id-v1:") || !strings.HasSuffix(key, "}|owner") {
+		return errors.New("invalid helm index fetch claim")
+	}
+	if _, err := uuid.Parse(nonce); err != nil {
+		return errors.New("invalid helm index fetch claim nonce")
+	}
+	_, err := c.cache.ReleaseUpdate(ctx, key, owner)
+	return err
 }
 
 func (c *Cache) PublishHelmIndexRecord(ctx context.Context, repo, owner string, record *HelmIndexRecord) (bool, error) {
@@ -329,23 +371,44 @@ func (c *Cache) storeHelmIndex(ctx context.Context, repo, owner string, record *
 	if remaining <= 0 {
 		return false, nil
 	}
+	prefix, err := helmIndexKeyPrefix(ctx, repo)
+	if err != nil {
+		return false, err
+	}
 	digest := sha256.Sum256(record.Body)
 	metadata := *record
 	metadata.Body = nil
 	metadata.Generation = owner
 	metadata.BodyDigest = hex.EncodeToString(digest[:])
-	bodyKey := helmIndexBodyKey(repo)
-	updated, err := c.cache.StoreVersionedItem(ctx, cacheutil.VersionedItem{Key: helmIndexRecordKey(repo), ReferenceKey: helmIndexBodyReferenceKey(repo), ReferenceValue: metadata.BodyDigest, BodyKey: bodyKey, OwnerKey: helmIndexOwnerKey(repo), Token: owner, Object: &metadata, Expiration: remaining, RequireOwner: fenced})
+	bodyKey := prefix + "body"
+	// Reserve time to confirm an ambiguous reply and share the body. A script
+	// can commit and consume the owner before its reply is lost or retried.
+	writeContext := ctx
+	cancel := func() {}
+	if deadline, ok := ctx.Deadline(); ok && fenced {
+		writeContext, cancel = context.WithTimeout(ctx, time.Until(deadline)*3/4)
+	}
+	updated, err := c.cache.StoreVersionedItem(writeContext, cacheutil.VersionedItem{Key: prefix + "record", ReferenceKey: prefix + "body-reference", ReferenceValue: metadata.BodyDigest, BodyKey: bodyKey, OwnerKey: prefix + "owner", Token: owner, Object: &metadata, Expiration: remaining, RequireOwner: fenced})
+	cancel()
 	if !fenced && errors.Is(err, cacheutil.ErrAtomicPublicationUnsupported) {
 		// Inline storage preserves legacy in-memory integrations, which have no
 		// authority to publish origin responses through the distributed protocol.
 		metadata.Body = record.Body
-		return false, c.cache.SetItem(helmIndexRecordKey(repo), &metadata, &cacheutil.CacheActionOpts{Expiration: remaining})
+		return false, c.cache.SetItem(prefix+"record", &metadata, &cacheutil.CacheActionOpts{Expiration: remaining})
+	}
+	if fenced && (err != nil || !updated) && ctx.Err() == nil {
+		var current HelmIndexRecord
+		confirmation, stop := context.WithTimeout(ctx, time.Second)
+		readErr := c.cache.GetItemContext(confirmation, prefix+"record", &current)
+		stop()
+		if readErr == nil && current.Generation == metadata.Generation && current.BodyDigest == metadata.BodyDigest && current.StoredAt == metadata.StoredAt && current.ETag == metadata.ETag && current.LastModified == metadata.LastModified && current.URLIdentity == metadata.URLIdentity {
+			updated, err = true, nil
+		}
 	}
 	if err != nil || !updated {
 		return updated, err
 	}
-	_, bodyErr := c.cache.StoreVersionedBody(ctx, helmIndexBodyReferenceKey(repo), bodyKey, metadata.BodyDigest, record.Body, remaining)
+	_, bodyErr := c.cache.StoreVersionedBody(ctx, prefix+"body-reference", bodyKey, metadata.BodyDigest, record.Body, remaining)
 	if bodyErr != nil {
 		if !fenced {
 			return false, bodyErr
@@ -364,8 +427,12 @@ func (c *Cache) GetHelmIndexGenerationContext(ctx context.Context, repo string) 
 }
 
 func (c *Cache) GetHelmIndexMetadataContext(ctx context.Context, repo string) (*HelmIndexRecord, error) {
+	prefix, err := helmIndexKeyPrefix(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
 	var metadata HelmIndexRecord
-	if err := c.cache.GetItemContext(ctx, helmIndexRecordKey(repo), &metadata); err != nil {
+	if err := c.cache.GetItemContext(ctx, prefix+"record", &metadata); err != nil {
 		return nil, err
 	}
 	if metadata.Generation == "" {
@@ -376,6 +443,10 @@ func (c *Cache) GetHelmIndexMetadataContext(ctx context.Context, repo string) (*
 }
 
 func (c *Cache) readHelmIndex(ctx context.Context, repo string, contextual bool) (*HelmIndexRecord, error) {
+	prefix, err := helmIndexKeyPrefix(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
 	get := func(key string, obj any) error {
 		if contextual {
 			return c.cache.GetItemContext(ctx, key, obj)
@@ -383,14 +454,14 @@ func (c *Cache) readHelmIndex(ctx context.Context, repo string, contextual bool)
 		return c.cache.GetItem(key, obj)
 	}
 	var metadata HelmIndexRecord
-	if err := get(helmIndexRecordKey(repo), &metadata); err != nil {
+	if err := get(prefix+"record", &metadata); err != nil {
 		return nil, err
 	}
 	if len(metadata.Body) > 0 {
 		return &metadata, nil
 	} // Legacy in-memory adapter.
 	var body []byte
-	if err := get(helmIndexBodyKey(repo), &body); err != nil {
+	if err := get(prefix+"body", &body); err != nil {
 		return &metadata, err
 	}
 	digest := sha256.Sum256(body)
@@ -426,12 +497,8 @@ func (c *Cache) SetHelmIndexValidators(repo, etag, modified string) error {
 }
 
 // GetHelmIndexValidators retrieves the HTTP validators for a repository's
-// index.yaml, preferring the versioned record. Implements helmutil's
-// indexCacheWithValidators.
+// index.yaml from the legacy split key. Body-bound readers use the record API.
 func (c *Cache) GetHelmIndexValidators(repo string) (string, string, error) {
-	if record, err := c.GetHelmIndexRecord(repo); err == nil {
-		return record.ETag, record.LastModified, nil
-	}
 	var validators HelmIndexValidators
 	if err := c.cache.GetItem(helmIndexValidatorsKey(repo), &validators); err != nil {
 		return "", "", err

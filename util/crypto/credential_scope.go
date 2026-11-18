@@ -1,6 +1,7 @@
 package crypto
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
@@ -29,6 +30,13 @@ func CredentialScope(namespace string, fields ...string) string {
 	return credentialScopes.scope(namespace, fields...)
 }
 
+// CredentialScopeContext preserves the same identity while allowing a request
+// to stop waiting for queued or running derivation work. At most one cold
+// derivation runs at a time, including after its caller cancels.
+func CredentialScopeContext(ctx context.Context, namespace string, fields ...string) (string, error) {
+	return credentialScopes.scopeContext(ctx, namespace, fields...)
+}
+
 func deriveCredentialScope(material, salt []byte) []byte {
 	// Argon2id's minimum recommended cost: 19 MiB, two passes, one lane.
 	return argon2.IDKey(material, salt, 2, 19*1024, 1, 32)
@@ -41,11 +49,11 @@ type credentialScopeCache struct {
 	derive    func([]byte, []byte) []byte
 	// Serialize cold derivations to bound additional KDF memory to 19 MiB.
 	// Warm hits only take mu and are not blocked by this work.
-	deriveMu sync.Mutex
+	deriving chan struct{}
 }
 
 func newCredentialScopeCache(limit int, derive func([]byte, []byte) []byte) *credentialScopeCache {
-	c := &credentialScopeCache{values: lru.New(limit), derive: derive}
+	c := &credentialScopeCache{values: lru.New(limit), derive: derive, deriving: make(chan struct{}, 1)}
 	if _, err := rand.Read(c.lookupKey[:]); err != nil {
 		panic(err)
 	}
@@ -63,6 +71,14 @@ func (c *credentialScopeCache) get(key [32]byte) (string, bool) {
 }
 
 func (c *credentialScopeCache) scope(namespace string, fields ...string) string {
+	value, _ := c.scopeContext(context.Background(), namespace, fields...)
+	return value
+}
+
+func (c *credentialScopeCache) scopeContext(ctx context.Context, namespace string, fields ...string) (string, error) {
+	if err := ctx.Err(); err != nil {
+		return "", err
+	}
 	material := binary.AppendUvarint(nil, uint64(len(namespace)))
 	material = append(material, namespace...)
 	for _, field := range fields {
@@ -74,18 +90,36 @@ func (c *credentialScopeCache) scope(namespace string, fields ...string) string 
 	var key [32]byte
 	copy(key[:], mac.Sum(nil))
 	if value, ok := c.get(key); ok {
-		return value
+		return value, nil
 	}
 
-	c.deriveMu.Lock()
-	defer c.deriveMu.Unlock()
+	select {
+	case c.deriving <- struct{}{}:
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
+	if err := ctx.Err(); err != nil {
+		<-c.deriving
+		return "", err
+	}
 	// A previous waiter may already have derived this credential view.
 	if value, ok := c.get(key); ok {
-		return value
+		<-c.deriving
+		return value, nil
 	}
-	value := "argon2id-v1:" + hex.EncodeToString(c.derive(material, []byte("argo-cd/credential-scope/v1/"+namespace)))
-	c.mu.Lock()
-	c.values.Add(key, value)
-	c.mu.Unlock()
-	return value
+	result := make(chan string, 1)
+	go func() {
+		defer func() { <-c.deriving }()
+		value := "argon2id-v1:" + hex.EncodeToString(c.derive(material, []byte("argo-cd/credential-scope/v1/"+namespace)))
+		c.mu.Lock()
+		c.values.Add(key, value)
+		c.mu.Unlock()
+		result <- value
+	}()
+	select {
+	case value := <-result:
+		return value, nil
+	case <-ctx.Done():
+		return "", ctx.Err()
+	}
 }

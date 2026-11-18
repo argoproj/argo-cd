@@ -112,7 +112,7 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 	var dependencyNames map[string]map[string]struct{}
 	if useStore && h.cmd.persistentIndexStore.FilterEnabled {
 		var err error
-		dependencyNames, err = dependencyNamesByRepository(h.cmd.WorkDir, h.repos)
+		dependencyNames, err = dependencyNamesByRepository(ctx, h.cmd.WorkDir, h.repos)
 		if err != nil {
 			log.WithError(err).Warn("using complete Helm indexes: unable to select dependency names")
 		}
@@ -162,7 +162,14 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 			return errors.New("configured helm CA file is empty")
 		}
 		repo.Creds = snap
-		identity := scopedIndexIdentity(repo.Repo, credsScope(snap), h.cmd.proxy, h.cmd.noProxy)
+		scope, err := credsScopeContext(ctx, snap)
+		if err != nil {
+			return err
+		}
+		identity, err := scopedIndexIdentityContext(ctx, repo.Repo, scope, h.cmd.proxy, h.cmd.noProxy)
+		if err != nil {
+			return err
+		}
 		data, ok := indexes[identity]
 		if !ok {
 			client := h.nativeChartClientWithCreds(repo, snap)
@@ -179,7 +186,11 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		snapshot := data
 		reducedSnapshot := false
 		if dependencyNames != nil {
-			names := dependencyNames[scopedIndexIdentity(repo.Repo, "", "", "")]
+			key, err := scopedIndexIdentityContext(ctx, repo.Repo, "", "", "")
+			if err != nil {
+				return err
+			}
+			names := dependencyNames[key]
 			selected, reduced, err := dependencyIndexes.snapshot(data, names)
 			if err != nil {
 				log.WithError(err).Warn("using complete Helm index: dependency snapshot unavailable")
@@ -205,11 +216,8 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 			configurations[identity] = repoEntries[0]
 		} else {
 			configuration.URL = repo.Repo
-			for _, name := range []string{repo.Name, managerKeyPrefix + managerKey(repo.Repo)} {
-				entry := configuration
-				entry.Name = name
-				repoEntries = append(repoEntries, entry)
-			}
+			configuration.Name = repo.Name
+			repoEntries = append(repoEntries, configuration)
 		}
 		entries = append(entries, repoEntries...)
 	}
@@ -272,7 +280,7 @@ func (h *helm) supportsIndexPrewarm() bool {
 		}
 	}
 	for _, name := range []string{"Chart.yaml", "requirements.yaml"} {
-		data, err := os.ReadFile(filepath.Join(h.cmd.WorkDir, name))
+		data, err := ReadChartMetadata(h.cmd.WorkDir, name)
 		if os.IsNotExist(err) {
 			continue
 		}
@@ -303,9 +311,8 @@ func (h *helm) supportsIndexPrewarm() bool {
 }
 
 // buildRepoEntries returns the repositories.yaml entries for one warmed
-// repository: under the user-facing name and under helm's generated
-// helm-manager-<sha> name (the name helm's dependency manager resolves
-// unmanaged dependencies by).
+// repository. Helm resolves registered URLs through their configured names;
+// adding a shared generated name would collide for distinct credential views.
 func buildRepoEntries(h *helm, repo HelmRepository) ([]helmRepoEntry, error) {
 	if snapshot, ok := repo.Creds.(credsSnapshot); ok && snapshot.caPath != "" && len(snapshot.caData) == 0 {
 		return nil, errors.New("configured helm CA file is empty")
@@ -329,23 +336,18 @@ func buildRepoEntries(h *helm, repo HelmRepository) ([]helmRepoEntry, error) {
 			return nil, err
 		}
 	}
-	managerName := managerKeyPrefix + managerKey(repo.Repo)
-	result := make([]helmRepoEntry, 0, 2)
-	for _, name := range []string{repo.Name, managerName} {
-		entry := helmRepoEntry{
-			Name:                  name,
-			URL:                   repo.Repo,
-			Username:              repo.GetUsername(),
-			CAFile:                caFile,
-			CertFile:              certFile,
-			KeyFile:               keyFile,
-			InsecureSkipTLSverify: repo.GetInsecureSkipVerify(),
-			PassCredentialsAll:    h.passCredentials,
-		}
-		entry.Password = password
-		result = append(result, entry)
+	entry := helmRepoEntry{
+		Name:                  repo.Name,
+		URL:                   repo.Repo,
+		Username:              repo.GetUsername(),
+		CAFile:                caFile,
+		CertFile:              certFile,
+		KeyFile:               keyFile,
+		InsecureSkipTLSverify: repo.GetInsecureSkipVerify(),
+		PassCredentialsAll:    h.passCredentials,
 	}
-	return result, nil
+	entry.Password = password
+	return []helmRepoEntry{entry}, nil
 }
 
 // repoIdentity returns the persistent-store cache identity for a repository:
@@ -361,9 +363,15 @@ func repoIdentity(repo HelmRepository) string {
 // path escaping remains significant. Queries, URL credentials and transport
 // credentials are hashed, so they cannot appear as plaintext in cache keys.
 func scopedIndexIdentity(repoURL, scope, proxy, noProxy string) string {
+	identity, _ := scopedIndexIdentityContext(context.Background(), repoURL, scope, proxy, noProxy)
+	return identity
+}
+
+func scopedIndexIdentityContext(ctx context.Context, repoURL, scope, proxy, noProxy string) (string, error) {
 	u, err := url.Parse(repoURL)
 	if err != nil {
-		return "invalid:" + cryptoutil.CredentialScope("helm-invalid-repository", repoURL, scope, proxy, noProxy)
+		identity, err := cryptoutil.CredentialScopeContext(ctx, "helm-invalid-repository", repoURL, scope, proxy, noProxy)
+		return "invalid:" + identity, err
 	}
 	userinfo := ""
 	if u.User != nil {
@@ -376,13 +384,16 @@ func scopedIndexIdentity(repoURL, scope, proxy, noProxy string) string {
 	if u.Scheme == "http" || u.Scheme == "https" {
 		u.Host = strings.ToLower(u.Host)
 		if u.RawPath == "" {
-			u.Path = strings.TrimRight(u.Path, "/")
+			u.Path = strings.TrimSuffix(u.Path, "/")
 		}
 	}
 	if proxy != "" || noProxy != "" || userinfo != "" || query != "" {
-		scope = cryptoutil.CredentialScope("helm-repository-transport", scope, proxy, noProxy, userinfo, query)
+		scope, err = cryptoutil.CredentialScopeContext(ctx, "helm-repository-transport", scope, proxy, noProxy, userinfo, query)
+		if err != nil {
+			return "", err
+		}
 	}
-	return u.String() + "\x00" + scope
+	return u.String() + "\x00" + scope, nil
 }
 
 // CredsScope exposes the credential-view fingerprint used to scope index-cache
@@ -398,6 +409,11 @@ func CredsScope(creds Creds) string {
 // that an anonymous (or differently-credentialed) reader would consume.
 // Plaintext secrets never enter the fingerprint output.
 func credsScope(creds Creds) string {
+	scope, _ := credsScopeContext(context.Background(), creds)
+	return scope
+}
+
+func credsScopeContext(ctx context.Context, creds Creds) (string, error) {
 	// Resolve through the snapshot so the fingerprint uses the SAME resolved
 	// values as the HTTP request of the same operation — a rotating provider
 	// (Azure workload identity) must not produce a scope from token A while
@@ -415,7 +431,7 @@ func credsScope(creds Creds) string {
 	if snapshot, ok := creds.(credsSnapshot); ok {
 		caData = string(snapshot.caData)
 	}
-	return cryptoutil.CredentialScope("helm-credentials-v2",
+	return cryptoutil.CredentialScopeContext(ctx, "helm-credentials-v2",
 		creds.GetUsername(), password, creds.GetCAPath(), string(creds.GetCertData()), string(creds.GetKeyData()),
 		caData,
 		strconv.FormatBool(creds.GetInsecureSkipVerify()),

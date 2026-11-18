@@ -712,3 +712,144 @@ func TestIndexCacheRejectsEmptyConfiguredCA(t *testing.T) {
 	require.NoError(t, err, "cache-disabled HTTP builds preserve their existing CA handling")
 	regressionRender(t, app, "1.0.0")
 }
+
+func TestIndexCacheDoesNotDiscoverCheckoutGetters(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	for _, mode := range []string{"empty", "missing-home", "relative"} {
+		t.Run(mode, func(t *testing.T) {
+			for _, name := range []string{"HELM_PLUGINS", "HELM_DATA_HOME", "XDG_DATA_HOME"} {
+				t.Setenv(name, "")
+				require.NoError(t, os.Unsetenv(name))
+			}
+			switch mode {
+			case "empty":
+				t.Setenv("HELM_PLUGINS", "")
+			case "missing-home":
+				t.Setenv("HOME", "")
+			case "relative":
+				t.Setenv("HELM_PLUGINS", "checkout-plugins")
+			}
+			parent := regressionParent(t, "@charts", nil)
+			plugins := filepath.Join(parent, helmPluginsDirectory())
+			dir := filepath.Join(plugins, "fixture-getter")
+			require.NoError(t, os.MkdirAll(dir, 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "plugin.yaml"), []byte("name: fixture-getter\nversion: 0.1.0\ndownloaders:\n  - protocols: [fixture]\n    command: getter.sh\n"), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "getter.sh"), []byte("#!/bin/sh\ntouch \"$HELM_PLUGIN_DIR/executed\"\ncat \"$HELM_PLUGIN_DIR/child.tgz\"\n"), 0o700))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "child.tgz"), regressionPackage(t, "1.0.0"), 0o600))
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				_, _ = io.WriteString(w, "apiVersion: v1\nentries:\n  child:\n    - name: child\n      version: 1.0.0\n      apiVersion: v2\n      urls: [fixture://charts/child.tgz]\n")
+			}))
+			t.Cleanup(origin.Close)
+			// First prove this exact getter and archive work when explicitly
+			// trusted. Remove its marker before exercising checkout isolation.
+			func() {
+				t.Setenv("HELM_PLUGINS", plugins)
+				app, err := regressionBuild(t, regressionParent(t, "@charts", nil), HelmRepository{Name: "charts", Repo: origin.URL, Creds: HelmCreds{}}, NewIndexStore(t.TempDir(), time.Minute, 1<<20), false)
+				require.NoError(t, err)
+				regressionRender(t, app, "1.0.0")
+				require.FileExists(t, filepath.Join(dir, "executed"))
+				require.NoError(t, os.Remove(filepath.Join(dir, "executed")))
+			}()
+			// Restore this subtest's empty/relative setting after the control.
+			switch mode {
+			case "empty":
+				t.Setenv("HELM_PLUGINS", "")
+			case "missing-home":
+				require.NoError(t, os.Unsetenv("HELM_PLUGINS"))
+			case "relative":
+				t.Setenv("HELM_PLUGINS", "checkout-plugins")
+			}
+			_, err := regressionBuild(t, parent, HelmRepository{Name: "charts", Repo: origin.URL, Creds: HelmCreds{}}, NewIndexStore(t.TempDir(), time.Minute, 1<<20), false)
+			require.Error(t, err, "a checkout getter must not supply the archive")
+			_, err = os.Stat(filepath.Join(dir, "executed"))
+			require.True(t, os.IsNotExist(err), "Helm must never execute the checkout getter")
+		})
+	}
+}
+
+func TestIndexCacheAliasesWithDifferentValidCredentials(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	archive := regressionPackage(t, "1.0.0")
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, password, ok := r.BasicAuth()
+		if !ok || (password != "first" && password != "second") {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		if r.URL.Path == "/index.yaml" {
+			_, _ = io.WriteString(w, "apiVersion: v1\nentries:\n  child:\n    - apiVersion: v2\n      name: child\n      version: 1.0.0\n      urls: [child-1.0.0.tgz]\n")
+			return
+		}
+		_, _ = w.Write(archive)
+	}))
+	t.Cleanup(origin.Close)
+	for _, filtered := range []bool{false, true} {
+		t.Run(strconv.FormatBool(filtered), func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte("apiVersion: v2\nname: parent\nversion: 1.0.0\ndependencies:\n  - name: child\n    alias: first-child\n    version: 1.0.0\n    repository: '@first'\n  - name: child\n    alias: second-child\n    version: 1.0.0\n    repository: '@second'\n"), 0o600))
+			store := NewIndexStore(t.TempDir(), time.Minute, 1<<20)
+			store.FilterEnabled = filtered
+			app, err := NewHelmAppWithIndexStore(dir, []HelmRepository{
+				{Name: "first", Repo: origin.URL, Creds: HelmCreds{Username: "reader", Password: "first"}},
+				{Name: "second", Repo: origin.URL, Creds: HelmCreds{Username: "reader", Password: "second"}},
+			}, false, "", "", "", false, false, store, false)
+			require.NoError(t, err)
+			t.Cleanup(app.Dispose)
+			require.NoError(t, app.DependencyBuild(t.Context()))
+			out, _, err := app.Template(&TemplateOpts{Name: "aliases", Namespace: "default"})
+			require.NoError(t, err)
+			require.Equal(t, 2, strings.Count(out, "kind: ConfigMap"))
+		})
+	}
+}
+
+func TestIndexCacheUnregisteredRepositoryStillResolves(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	registered := newRegressionChartRepo(t, true, "")
+	public := newRegressionChartRepo(t, false, "")
+	dir := t.TempDir()
+	chart := fmt.Sprintf("apiVersion: v2\nname: parent\nversion: 1.0.0\ndependencies:\n  - name: child\n    alias: registered-child\n    version: 1.0.0\n    repository: '@registered'\n  - name: child\n    alias: public-child\n    version: 1.0.0\n    repository: %q\n", public.server.URL)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte(chart), 0o600))
+	app, err := NewHelmAppWithIndexStore(dir, []HelmRepository{{Name: "registered", Repo: registered.server.URL, Creds: HelmCreds{InsecureSkipVerify: true}}}, false, "", "", "127.0.0.1,localhost", false, false, NewIndexStore(t.TempDir(), time.Minute, 1<<20), false)
+	require.NoError(t, err)
+	t.Cleanup(app.Dispose)
+	require.NotNil(t, app.(*helm).cmd.persistentIndexStore)
+	require.NoError(t, app.DependencyBuild(t.Context()))
+	output, _, err := app.Template(&TemplateOpts{Name: "unregistered", Namespace: "default"})
+	require.NoError(t, err)
+	require.Equal(t, 2, strings.Count(output, "kind: ConfigMap"))
+	requests, _ := public.snapshot()
+	require.NotEmpty(t, requests)
+}
+
+func TestIndexCacheRespectsIgnoredRequirements(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	fixture := newRegressionChartRepo(t, false, "")
+	for _, filtered := range []bool{false, true} {
+		t.Run(strconv.FormatBool(filtered), func(t *testing.T) {
+			dir := regressionParent(t, "@fixture", nil)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "requirements.yaml"), []byte("invalid: ["), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, ".helmignore"), []byte("/requirements.yaml\n"), 0o600))
+			store := NewIndexStore(t.TempDir(), time.Minute, 1<<20)
+			store.FilterEnabled = filtered
+			app, err := regressionBuild(t, dir, HelmRepository{Name: "fixture", Repo: fixture.server.URL, Creds: HelmCreds{}}, store, false)
+			require.NoError(t, err)
+			require.NotNil(t, app.(*helm).cmd.persistentIndexStore)
+			regressionRender(t, app, "1.0.0")
+		})
+	}
+}
+
+func TestIndexCacheOversizedMetadataUsesHelmValidation(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	dir := t.TempDir()
+	file, err := os.Create(filepath.Join(dir, "Chart.yaml"))
+	require.NoError(t, err)
+	require.NoError(t, file.Truncate(maxChartMetadataBytes+1))
+	require.NoError(t, file.Close())
+	app, err := NewHelmAppWithIndexStore(dir, nil, false, "", "", "", false, false, NewIndexStore(t.TempDir(), time.Minute, 1<<20), false)
+	require.NoError(t, err)
+	t.Cleanup(app.Dispose)
+	require.Nil(t, app.(*helm).cmd.persistentIndexStore, "optional prewarming must leave oversized metadata to Helm")
+	require.ErrorContains(t, app.DependencyBuild(t.Context()), "maximum decompressed size")
+}

@@ -105,12 +105,14 @@ func TestIndexSnapshotRetryClassification(t *testing.T) {
 		"no cached repository for fixture found: error loading index.yaml",
 		"child chart not found in repo https://charts.example",
 		"can't get a valid version for subchart child (https://charts.example)",
+		"failed running helm: Error: could not find : entry not found",
 	} {
 		require.True(t, isIndexSnapshotError(errors.New(message)))
 	}
 	for _, message := range []string{
 		"could not download chart.tgz: 401 Unauthorized",
 		"failed to fetch chart.tgz: connection timed out",
+		"failed to fetch chart.tgz: could not find object: entry not found",
 		"can't get a valid version for registry-child (oci://registry.example)",
 		"can't get a valid version for local-child (file://../child)",
 		"Chart.lock is out of sync with Chart.yaml",
@@ -120,17 +122,20 @@ func TestIndexSnapshotRetryClassification(t *testing.T) {
 }
 
 func TestIndexSnapshotGroupsOriginalNamesByRepository(t *testing.T) {
-	for _, legacy := range []bool{false, true} {
-		t.Run(fmt.Sprintf("legacy=%t", legacy), func(t *testing.T) {
+	for _, metadata := range []struct {
+		apiVersion string
+		legacy     bool
+	}{{"v2", false}, {"v1", true}, {"", true}, {"v2", true}} {
+		t.Run(fmt.Sprintf("api=%s/requirements=%t", metadata.apiVersion, metadata.legacy), func(t *testing.T) {
 			dir := t.TempDir()
 			dependencies := "dependencies:\n  - name: child\n    alias: renamed\n    repository: '@first'\n  - name: sibling\n    repository: https://charts.example/repo/\n  - name: child\n    alias: another\n    repository: 'alias:second'\n  - name: local\n    repository: file://../local\n  - name: registry\n    repository: oci://registry.example/charts\n"
-			chart := "apiVersion: v2\n" + dependencies
-			if legacy {
-				chart = "apiVersion: v1\ndependencies: []\n"
+			chart := "apiVersion: " + metadata.apiVersion + "\n" + dependencies
+			if metadata.legacy {
+				chart = "apiVersion: " + metadata.apiVersion + "\ndependencies: []\n"
 				require.NoError(t, os.WriteFile(filepath.Join(dir, "requirements.yaml"), []byte(dependencies), 0o600))
 			}
 			require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte(chart), 0o600))
-			names, err := dependencyNamesByRepository(dir, []HelmRepository{
+			names, err := dependencyNamesByRepository(t.Context(), dir, []HelmRepository{
 				{Name: "first", Repo: "https://charts.example/repo"},
 				{Name: "second", Repo: "https://charts.example/repo/"},
 			})
@@ -289,6 +294,52 @@ func TestIndexSnapshotExpiryHardRefreshAndLockfile(t *testing.T) {
 	require.Empty(t, requests[3].etag, "hard refresh remains unconditional when filtering is enabled")
 }
 
+func TestIndexSnapshotLockedBuildRestoresFullBackup(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	fixture := newRegressionChartRepo(t, false, "")
+	fixture.mu.Lock()
+	fixture.extraEntries = "  unrelated:\n    - apiVersion: v2\n      name: unrelated\n      version: 1.0.0\n      urls: [unused.tgz]\n"
+	fixture.mu.Unlock()
+	repo := HelmRepository{Name: "fixture", Repo: fixture.server.URL, Creds: HelmCreds{}}
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+	store.FilterEnabled = true
+	firstDir := regressionParent(t, "@fixture", nil)
+	_, err := regressionBuild(t, firstDir, repo, store, false)
+	require.NoError(t, err)
+	lock, err := os.ReadFile(filepath.Join(firstDir, "Chart.lock"))
+	require.NoError(t, err)
+	for name, corruption := range map[string][]byte{"malformed": []byte("invalid: ["), "missing-entry": []byte("apiVersion: v1\nentries: {}\n")} {
+		t.Run(name, func(t *testing.T) {
+			app, err := NewHelmAppWithIndexStore(regressionParent(t, "@fixture", lock), []HelmRepository{repo}, false, "", "", "127.0.0.1,localhost", false, false, store, false)
+			require.NoError(t, err)
+			t.Cleanup(app.Dispose)
+			h := app.(*helm)
+			original := h.cmd.runWithRedactor
+			builds := 0
+			h.cmd.runWithRedactor = func(command *exec.Cmd, redactor func(string) string) (string, error) {
+				if len(command.Args) >= 3 && command.Args[1] == "dependency" && command.Args[2] == "build" {
+					builds++
+					if builds == 1 {
+						files, err := filepath.Glob(filepath.Join(h.cmd.helmHome, "cache", "helm", "repository", "*-index.yaml"))
+						require.NoError(t, err)
+						require.NotEmpty(t, files)
+						for _, file := range files {
+							require.NoError(t, os.WriteFile(file, corruption, 0o600))
+						}
+					}
+				}
+				return original(command, redactor)
+			}
+			require.NoError(t, app.DependencyBuild(t.Context()))
+			require.Equal(t, 2, builds, "locked builds must also restore the complete snapshot once")
+			regressionRender(t, app, "1.0.0")
+		})
+	}
+
+	requests, _ := fixture.snapshot()
+	require.Len(t, requests, 1, "fallback reuses the original generation without another index request")
+}
+
 func BenchmarkIndexSnapshotHelmBuild27MiB(b *testing.B) {
 	regressionRequirePinnedHelm(b)
 	full := append(benchmarkIndexBody(b), []byte("  child:\n    - apiVersion: v2\n      name: child\n      version: 1.0.0\n      urls: [child-1.0.0.tgz]\n")...)
@@ -351,4 +402,76 @@ func BenchmarkIndexSnapshotHelmBuild27MiB(b *testing.B) {
 			b.ReportMetric(float64(copied)/float64(b.N), "index-bytes/op")
 		})
 	}
+}
+
+func TestChartMetadataIgnoreRules(t *testing.T) {
+	for _, test := range []struct {
+		rule    string
+		ignored bool
+	}{
+		{"requirements.yaml", true},
+		{"/requirements.yaml", true},
+		{"!Chart.yaml", true},
+		{"!requirements.yaml", false},
+		{"requirements.yaml/", false},
+		{"templates/*", false},
+		{"\ufeffrequirements.yaml", true},
+	} {
+		t.Run(test.rule, func(t *testing.T) {
+			dir := t.TempDir()
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "requirements.yaml"), []byte("dependencies: []\n"), 0o600))
+			require.NoError(t, os.WriteFile(filepath.Join(dir, ".helmignore"), []byte(test.rule+"\n"), 0o600))
+			_, err := ReadChartMetadata(dir, "requirements.yaml")
+			if test.ignored {
+				require.True(t, os.IsNotExist(err))
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestChartMetadataReaderBoundsAndHelmIgnore(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "requirements.yaml"), []byte("dependencies: []\n"), 0o600))
+	for _, tc := range []struct {
+		rule    string
+		ignored bool
+		invalid bool
+	}{
+		{"requirements.yaml\n", true, false},
+		{"/requirements.yaml\n", true, false},
+		{"*.yaml\n", true, false},
+		{"*.tmp\n", false, false},
+		{"requirements.yaml/\n", false, false},
+		{"!Chart.yaml\n", true, false},
+		{"!requirements.yaml\n", false, false},
+		{"\ufeffrequirements.yaml\n", true, false},
+		{"requirements.yaml\n**\n", false, true},
+	} {
+		t.Run(tc.rule, func(t *testing.T) {
+			require.NoError(t, os.WriteFile(filepath.Join(dir, ".helmignore"), []byte(tc.rule), 0o600))
+			data, err := ReadChartMetadata(dir, "requirements.yaml")
+			switch {
+			case tc.invalid:
+				require.Error(t, err)
+			case tc.ignored:
+				require.True(t, os.IsNotExist(err))
+			default:
+				require.NoError(t, err)
+				require.Equal(t, "dependencies: []\n", string(data))
+			}
+		})
+	}
+	require.NoError(t, os.Remove(filepath.Join(dir, ".helmignore")))
+	file, err := os.Create(filepath.Join(dir, "Chart.yaml"))
+	require.NoError(t, err)
+	require.NoError(t, file.Truncate(maxChartMetadataBytes+1))
+	require.NoError(t, file.Close())
+	_, err = ReadChartMetadata(dir, "Chart.yaml")
+	require.ErrorContains(t, err, "oversized")
+	app, err := NewHelmAppWithIndexStore(dir, nil, false, "", "", "", false, false, NewIndexStore(t.TempDir(), time.Minute, 1<<20), false)
+	require.NoError(t, err)
+	t.Cleanup(app.Dispose)
+	require.Nil(t, app.(*helm).cmd.persistentIndexStore, "optional prewarming must defer oversized metadata to Helm")
 }

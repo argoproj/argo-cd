@@ -142,6 +142,10 @@ type indexCachePublisher interface {
 	PublishHelmIndexRecord(context.Context, string, string, *HelmIndexRecord) (bool, error)
 }
 
+type indexCacheSnapshotReader interface {
+	GetHelmIndexSnapshotContext(context.Context, string) (*HelmIndexRecord, bool, error)
+}
+
 func indexCacheContext(ctx context.Context, maximum time.Duration) (context.Context, context.CancelFunc) {
 	budget := maximum
 	if deadline, ok := ctx.Deadline(); ok {
@@ -163,6 +167,27 @@ func beginIndexFetch(ctx context.Context, cache any, repo string) string {
 		return ""
 	}
 	return owner
+}
+
+func releaseIndexFetch(ctx context.Context, cache any, repo, owner string) {
+	if owner == "" {
+		return
+	}
+	if releaser, ok := cache.(interface {
+		ReleaseHelmIndexFetch(context.Context, string, string) error
+	}); ok {
+		budget := 250 * time.Millisecond
+		if ctx.Err() != nil {
+			budget = 25 * time.Millisecond
+		} else if deadline, ok := ctx.Deadline(); ok {
+			budget = max(25*time.Millisecond, min(budget, time.Until(deadline)/4))
+		}
+		cleanup, cancel := context.WithTimeout(context.WithoutCancel(ctx), budget)
+		defer cancel()
+		if err := releaser.ReleaseHelmIndexFetch(cleanup, repo, owner); err != nil {
+			log.WithError(err).Debug("helm index fetch claim release failed")
+		}
+	}
 }
 
 func publishIndexFetch(ctx context.Context, cache any, repo, owner string, record *HelmIndexRecord) bool {
@@ -212,7 +237,12 @@ func observeIndexRecordWithBudget(ctx context.Context, reader indexCacheRecordRe
 // IndexURLIdentity binds validators to the effective response URL without
 // putting URL credentials or query secrets in disk or Redis metadata.
 func IndexURLIdentity(rawURL string) string {
-	return cryptoutil.CredentialScope("helm-index-response-url", rawURL)
+	identity, _ := indexURLIdentityContext(context.Background(), rawURL)
+	return identity
+}
+
+func indexURLIdentityContext(ctx context.Context, rawURL string) (string, error) {
+	return cryptoutil.CredentialScopeContext(ctx, "helm-index-response-url", rawURL)
 }
 
 // responseValidatorHeaders extracts validators from the headers of the last

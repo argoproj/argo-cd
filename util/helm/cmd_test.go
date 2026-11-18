@@ -522,7 +522,7 @@ func TestRepoEntryPutsCAPathInCAFile(t *testing.T) {
 	h := &helm{cmd: *cmd}
 	entries, err := buildRepoEntries(h, repo)
 	require.NoError(t, err)
-	require.Len(t, entries, 2, "repo name + helm-manager entries")
+	require.Len(t, entries, 1, "registered repositories use their configured name")
 	require.Empty(t, entries[0].CertFile, "certFile is for mTLS client certs, never the CA")
 	require.Equal(t, caPath, entries[0].CAFile, "CA path must land in caFile so helm trusts the origin")
 }

@@ -9,12 +9,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"math"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
+	yamlv3 "go.yaml.in/yaml/v3"
 
 	"sigs.k8s.io/yaml"
 
@@ -93,6 +96,7 @@ func (s *IndexStore) retention() time.Duration {
 // the origin returned with it, stored together in one atomic write.
 type indexRecord struct {
 	persistedStoredAt string // original generation timestamp, before filesystem age adjustment
+	digestVerified    bool
 	APIVersion        string `json:"apiVersion"`
 	Generation        string `json:"generation,omitempty"`
 	ETag              string `json:"etag,omitempty"`
@@ -100,12 +104,33 @@ type indexRecord struct {
 	URLIdentity       string `json:"urlIdentity,omitempty"`
 	StoredAt          string `json:"storedAt"`
 	Body              string `json:"body"` // base64-encoded index.yaml bytes
+	BodyDigest        string `json:"bodyDigest,omitempty"`
+	RecordDigest      string `json:"recordDigest,omitempty"`
+}
+
+// Bind validators and freshness to the verified body digest as well as to
+// each other. A body-only checksum cannot detect altered validator metadata.
+func (r *indexRecord) checksum() string {
+	metadata, _ := json.Marshal([]string{r.APIVersion, r.BodyDigest, r.Generation, r.ETag, r.LastModified, r.URLIdentity, r.StoredAt})
+	digest := sha256.Sum256(metadata)
+	return hex.EncodeToString(digest[:])
 }
 
 // parseIndexBody rejects bodies that are not plausibly valid Helm repo
 // indexes, per the plan's "validate complete bounded responses and
 // apiVersion: v1 before publication".
 func parseIndexBody(data []byte) error {
+	// The schema decoder accepts only the first YAML document. Check the
+	// complete stream too, so trailing corruption cannot acquire validators.
+	// Successful validation is memoized by body digest, including warm reads.
+	decoder := yamlv3.NewDecoder(bytes.NewReader(data))
+	var document yamlv3.Node
+	if err := decoder.Decode(&document); err != nil {
+		return fmt.Errorf("helm index is not valid YAML: %w", err)
+	}
+	if err := decoder.Decode(&document); !errors.Is(err, io.EOF) {
+		return errors.New("helm index must contain exactly one YAML document")
+	}
 	var env struct {
 		APIVersion string             `json:"apiVersion"`
 		Entries    map[string]Entries `json:"entries"`
@@ -153,9 +178,24 @@ func (s *IndexStore) readRecord(repoURL string, expiredAsMiss bool) (*indexRecor
 		return nil, fmt.Errorf("no cached helm index for repo %s: %w", repoURL, err)
 	}
 
-	raw, err := os.ReadFile(file)
+	// Allow base64 expansion plus bounded metadata. Check before allocation,
+	// and limit the read as well in case the file grows after Stat.
+	const metadataAllowance int64 = 1 << 20
+	encodedLimit := min(max(int64(0), s.indexCacheMaxSize), (math.MaxInt64-metadataAllowance-1)/2)*2 + metadataAllowance
+	if info.Size() > encodedLimit {
+		return nil, errors.New("encoded helm index record exceeds maximum size")
+	}
+	f, err := os.Open(file)
+	if err != nil {
+		return nil, fmt.Errorf("failed to open cached helm index: %w", err)
+	}
+	defer func() { _ = f.Close() }()
+	raw, err := io.ReadAll(io.LimitReader(f, encodedLimit+1))
 	if err != nil {
 		return nil, fmt.Errorf("failed to read cached helm index for repo %s: %w", repoURL, err)
+	}
+	if int64(len(raw)) > encodedLimit {
+		return nil, errors.New("encoded helm index record exceeds maximum size")
 	}
 	var rec indexRecord
 	if err := json.Unmarshal(raw, &rec); err != nil {
@@ -193,7 +233,17 @@ func (s *IndexStore) readRecord(repoURL string, expiredAsMiss bool) (*indexRecor
 	if int64(len(body)) > s.indexCacheMaxSize {
 		return nil, errors.New("cached helm index exceeds maximum size")
 	}
-	if err := validateIndexBody(body); err != nil {
+	digest := sha256.Sum256(body)
+	actualDigest := hex.EncodeToString(digest[:])
+	if rec.BodyDigest != "" && rec.BodyDigest != actualDigest {
+		return nil, errors.New("helm index disk body does not match its stored digest")
+	}
+	if rec.RecordDigest != "" && rec.RecordDigest != rec.checksum() {
+		return nil, errors.New("helm index disk metadata does not match its stored digest")
+	}
+	rec.digestVerified = rec.BodyDigest != "" && rec.RecordDigest != ""
+	rec.BodyDigest = actualDigest
+	if err := validatedIndexBodies.validateBodyDigest(body, digest); err != nil {
 		return nil, err
 	}
 	rec.Body = string(body)
@@ -220,9 +270,18 @@ func (s *IndexStore) writeRecord(repoURL string, rec *indexRecord) error {
 // publishRecord writes the record file assuming the caller already holds the
 // record lock. Revalidate already holds it for the entire fetch and publish.
 func (s *IndexStore) publishRecord(repoURL string, rec *indexRecord) error {
+	if rec.BodyDigest == "" {
+		body, err := base64.StdEncoding.DecodeString(rec.Body)
+		if err != nil {
+			return fmt.Errorf("decode helm index for publication: %w", err)
+		}
+		digest := sha256.Sum256(body)
+		rec.BodyDigest = hex.EncodeToString(digest[:])
+	}
 	if rec.StoredAt == "" {
 		rec.StoredAt = time.Now().UTC().Format(time.RFC3339Nano)
 	}
+	rec.RecordDigest = rec.checksum()
 	raw, err := json.Marshal(rec)
 	if err != nil {
 		return err
@@ -450,22 +509,29 @@ func (v retainedIndexView) GetHelmIndexValidators(string) (string, string, error
 func (v retainedIndexView) SetHelmIndexValidators(string, string, string) error { return nil }
 
 func (s *IndexStore) retainedRecord(identity string) (*HelmIndexRecord, bool) {
-	return s.observeRetainedRecord(context.Background(), identity)
+	return s.observeRetainedRecord(context.Background(), identity, nil)
 }
 
-func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string) (*HelmIndexRecord, bool) {
+func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string, rejectedDigest *string) (*HelmIndexRecord, bool) {
 	var newest *HelmIndexRecord
 	var persistedStoredAt string
+	var needsLocalDigest bool
 	fromShared := false
-	if local, err := s.readRecord(identity, false); err == nil {
+	if local, err := s.readRecord(identity, false); err == nil && (rejectedDigest == nil || local.BodyDigest != *rejectedDigest) {
 		persistedStoredAt = local.persistedStoredAt
-		newest = &HelmIndexRecord{Body: []byte(local.Body), ETag: local.ETag, LastModified: local.LastModified, StoredAt: local.StoredAt, URLIdentity: local.URLIdentity, Generation: local.Generation}
+		newest = &HelmIndexRecord{Body: []byte(local.Body), BodyDigest: local.BodyDigest, ETag: local.ETag, LastModified: local.LastModified, StoredAt: local.StoredAt, URLIdentity: local.URLIdentity, Generation: local.Generation}
+		needsLocalDigest = !local.digestVerified
 		// Older records had no timestamp. Their existing mtime is authoritative.
 		if info, err := os.Stat(s.cacheFileName(identity)); err == nil {
 			validatedAt, err := time.Parse(time.RFC3339Nano, newest.StoredAt)
 			if err != nil || info.ModTime().Before(validatedAt) {
 				newest.StoredAt = info.ModTime().UTC().Format(time.RFC3339Nano)
 			}
+		}
+		if needsLocalDigest {
+			// Upgrade legacy files through a verified shared record or a full
+			// origin response before trusting their validators or freshness.
+			newest.StoredAt, newest.ETag, newest.LastModified, newest.URLIdentity = "", "", "", ""
 		}
 	}
 	if s.cache != nil {
@@ -476,18 +542,25 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string)
 			GetHelmIndexMetadataContext(context.Context, string) (*HelmIndexRecord, error)
 		}); ok && newest != nil {
 			record, err := metadata.GetHelmIndexMetadataContext(readContext, identity)
-			if err == nil && record != nil && record.Generation != "" && record.Generation == newest.Generation {
-				return newest, false
-			}
 			if err == nil && record != nil {
-				newest.StoredAt = ""
-				digest := sha256.Sum256(newest.Body)
-				if record.BodyDigest == hex.EncodeToString(digest[:]) {
+				if record.BodyDigest != "" && record.BodyDigest == newest.BodyDigest {
+					if !needsLocalDigest && record.Generation != "" && record.Generation == newest.Generation && newest.ETag == record.ETag && newest.LastModified == record.LastModified && newest.URLIdentity == record.URLIdentity && persistedStoredAt == record.StoredAt {
+						return newest, false
+					}
 					// Another replica may have revalidated the same bytes. Its
 					// confirmed metadata can reuse our validated local body even
 					// when the large shared-body transfer is unavailable.
-					record.Body = newest.Body
-					sharedRecord = record
+					cloned := *record
+					cloned.Body = newest.Body
+					sharedRecord = &cloned
+					newest.StoredAt = ""
+				} else {
+					// Valid YAML is insufficient: keep neither altered bytes nor
+					// their validators eligible for a 304 after an integrity miss.
+					if rejectedDigest != nil {
+						*rejectedDigest = newest.BodyDigest
+					}
+					newest = nil
 				}
 			}
 			if err != nil && !errors.Is(err, cacheutil.ErrCacheMiss) {
@@ -505,7 +578,7 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string)
 				// second parse/hash, but different shared bytes must be validated.
 				matchingBody := newest != nil && bytes.Equal(newest.Body, record.Body)
 				if matchingBody || validateIndexBody(record.Body) == nil {
-					fromShared = !matchingBody || newest.ETag != record.ETag || newest.LastModified != record.LastModified || newest.URLIdentity != record.URLIdentity || newest.Generation != record.Generation || persistedStoredAt != record.StoredAt
+					fromShared = needsLocalDigest || !matchingBody || newest.ETag != record.ETag || newest.LastModified != record.LastModified || newest.URLIdentity != record.URLIdentity || newest.Generation != record.Generation || persistedStoredAt != record.StoredAt
 					newest = record
 				}
 			}
@@ -515,7 +588,7 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string)
 }
 
 func (s *IndexStore) installRecord(identity string, record *HelmIndexRecord) bool {
-	err := s.publishRecord(identity, &indexRecord{APIVersion: "v1", Body: base64.StdEncoding.EncodeToString(record.Body), ETag: record.ETag, LastModified: record.LastModified, StoredAt: record.StoredAt, URLIdentity: record.URLIdentity, Generation: record.Generation})
+	err := s.publishRecord(identity, &indexRecord{APIVersion: "v1", Body: base64.StdEncoding.EncodeToString(record.Body), BodyDigest: record.BodyDigest, ETag: record.ETag, LastModified: record.LastModified, StoredAt: record.StoredAt, URLIdentity: record.URLIdentity, Generation: record.Generation})
 	if err != nil {
 		log.WithError(err).Debug("failed to persist helm index record")
 	}
@@ -565,7 +638,23 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 		}
 	}()
 
-	candidate, fromShared := s.observeRetainedRecord(ctx, repoURL)
+	var rejectedDigest string
+	retireRejectedRecord := func() error {
+		if rejectedDigest == "" {
+			return nil
+		}
+		// Retire known superseded bytes under the record lock. An origin
+		// failure followed by a shared-cache outage must not resurrect them
+		// on this request or on the next dependency build.
+		if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
+			return fmt.Errorf("retire superseded helm index: %w", err)
+		}
+		return nil
+	}
+	candidate, fromShared := s.observeRetainedRecord(ctx, repoURL, &rejectedDigest)
+	if err := retireRejectedRecord(); err != nil {
+		return nil, err
+	}
 	if candidate != nil && candidate.Fresh(s.expiration) {
 		// Preserve timestamps when installing a newer Redis generation locally.
 		if fromShared {
@@ -574,6 +663,26 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 		return candidate.Body, nil
 	}
 	owner := beginIndexFetch(ctx, s.cache, repoURL)
+	fetchPublished := false
+	defer func() {
+		if !fetchPublished {
+			releaseIndexFetch(ctx, s.cache, repoURL, owner)
+		}
+	}()
+	if owner != "" {
+		// Observe again after claiming: an intervening maintenance write
+		// could not invalidate a claim that did not exist yet.
+		candidate, fromShared = s.observeRetainedRecord(ctx, repoURL, &rejectedDigest)
+		if err := retireRejectedRecord(); err != nil {
+			return nil, err
+		}
+		if candidate != nil && candidate.Fresh(s.expiration) {
+			if fromShared {
+				published = s.installRecord(repoURL, candidate)
+			}
+			return candidate.Body, nil
+		}
+	}
 	operation := *chartClient
 	operation.indexCache = retainedIndexView{candidate}
 	operation.requireCompleteIndex = true
@@ -583,6 +692,7 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 		return nil, err
 	}
 	published = s.publishFetchedRecord(ctx, repoURL, owner, operation.fetchedIndexRecord(data))
+	fetchPublished = published
 	return data, nil
 }
 
@@ -633,6 +743,11 @@ func (s *IndexStore) ForceRefresh(ctx context.Context, repoURL string, chartClie
 	}()
 
 	owner := beginIndexFetch(ctx, s.cache, repoURL)
+	defer func() {
+		if !published {
+			releaseIndexFetch(ctx, s.cache, repoURL, owner)
+		}
+	}()
 	operation := *chartClient
 	operation.indexCache = nil
 	operation.requireCompleteIndex = true

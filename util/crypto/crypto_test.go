@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"context"
 	"crypto/rand"
 	"fmt"
 	"os"
@@ -136,6 +137,55 @@ func TestCredentialScopeConcurrentMissesDoNotBlockWarmHits(t *testing.T) {
 		}
 	}
 	require.EqualValues(t, 2, calls.Load(), "concurrent misses must derive a view only once")
+}
+
+func TestCredentialScopeCancellationBoundsColdWork(t *testing.T) {
+	started, release := make(chan struct{}), make(chan struct{})
+	var calls atomic.Int32
+	cache := newCredentialScopeCache(4, func(_, _ []byte) []byte {
+		calls.Add(1)
+		close(started)
+		<-release
+		return bytes.Repeat([]byte{1}, 32)
+	})
+	var released atomic.Bool
+	resume := func() {
+		if released.CompareAndSwap(false, true) {
+			close(release)
+		}
+	}
+	t.Cleanup(resume)
+	ctx, cancel := context.WithCancel(t.Context())
+	first := make(chan error, 1)
+	go func() { _, err := cache.scopeContext(ctx, "helm", "first"); first <- err }()
+	select {
+	case <-started:
+	case <-time.After(3 * time.Second):
+		t.Fatal("cold derivation did not start")
+	}
+	cancel()
+	select {
+	case err := <-first:
+		require.ErrorIs(t, err, context.Canceled, "a running KDF must not hold its canceled caller")
+	case <-time.After(time.Second):
+		t.Fatal("canceled derivation did not release its caller")
+	}
+	for range 8 {
+		waiter, stop := context.WithTimeout(t.Context(), 10*time.Millisecond)
+		_, err := cache.scopeContext(waiter, "helm", "queued")
+		stop()
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+	}
+	require.EqualValues(t, 1, calls.Load(), "canceled callers cannot create concurrent KDF workers")
+	resume()
+	value, err := cache.scopeContext(t.Context(), "helm", "first")
+	require.NoError(t, err)
+	require.NotEmpty(t, value)
+	require.EqualValues(t, 1, calls.Load(), "completed background work remains reusable")
+	canceled, stop := context.WithCancel(t.Context())
+	stop()
+	_, err = cache.scopeContext(canceled, "helm", "first")
+	require.ErrorIs(t, err, context.Canceled, "an already canceled request must not begin key work")
 }
 
 func BenchmarkCredentialScope(b *testing.B) {

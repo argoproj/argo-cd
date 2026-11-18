@@ -2,6 +2,7 @@ package helm
 
 import (
 	"bufio"
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -53,6 +54,18 @@ func TestIndexStoreSetGet(t *testing.T) {
 func TestIndexStoreEmptyDataRejected(t *testing.T) {
 	s := NewIndexStore(t.TempDir(), time.Hour, 1<<30)
 	require.Error(t, s.Set("https://example.com/index.yaml", nil))
+}
+
+func TestIndexStoreBoundsEncodedRecordBeforeDecode(t *testing.T) {
+	body := append([]byte("apiVersion: v1\nentries: {}\n# "), bytes.Repeat([]byte("x"), 2<<20)...)
+	store := NewIndexStore(t.TempDir(), time.Hour, int64(len(body)))
+	require.NoError(t, store.Set("view", body))
+	got, err := store.Get("view")
+	require.NoError(t, err)
+	require.Equal(t, body, got, "the configured body limit is inclusive")
+	store.indexCacheMaxSize = int64(len(body) / 4)
+	_, err = store.Get("view")
+	require.ErrorContains(t, err, "encoded helm index record exceeds maximum size")
 }
 
 func TestIndexStoreExpiration(t *testing.T) {
@@ -863,6 +876,7 @@ func TestIndexStoreLegacyValidatorUpdatePreservesDeadline(t *testing.T) {
 	var record indexRecord
 	require.NoError(t, json.Unmarshal(raw, &record))
 	record.StoredAt = ""
+	record.RecordDigest = "" // Legacy records predate the metadata checksum too.
 	raw, err = json.Marshal(record)
 	require.NoError(t, err)
 	require.NoError(t, os.WriteFile(path, raw, 0o600))

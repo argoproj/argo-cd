@@ -3,6 +3,7 @@ package repository
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -1262,7 +1263,7 @@ type repositories struct {
 
 func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	repos := make([]*v1alpha1.Repository, 0)
-	f, err := os.ReadFile(filepath.Join(appPath, "Chart.yaml"))
+	f, err := helm.ReadChartMetadata(appPath, "Chart.yaml")
 	if err != nil {
 		return nil, fmt.Errorf("error reading helm chart from %s: %w", filepath.Join(appPath, "Chart.yaml"), err)
 	}
@@ -1272,16 +1273,13 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 		return nil, fmt.Errorf("error unmarshalling the helm chart while getting helm dependency repos: %w", err)
 	}
 
-	if d.APIVersion == "v1" {
-		legacy, err := os.ReadFile(filepath.Join(appPath, "requirements.yaml"))
-		if err == nil {
-			d = &dependencies{}
-			if err := yaml.Unmarshal(legacy, d); err != nil {
-				return nil, fmt.Errorf("read legacy Helm dependency repositories: %w", err)
-			}
-		} else if !os.IsNotExist(err) {
-			return nil, err
+	legacy, err := helm.ReadChartMetadata(appPath, "requirements.yaml")
+	if err == nil {
+		if err := yaml.Unmarshal(legacy, d); err != nil {
+			return nil, fmt.Errorf("read legacy Helm dependency repositories: %w", err)
 		}
+	} else if !os.IsNotExist(err) {
+		return nil, err
 	}
 
 	for _, r := range d.Dependencies {
@@ -1308,7 +1306,10 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 }
 
 func sanitizeRepoName(repoName string) string {
-	return strings.ReplaceAll(repoName, "/", "-")
+	if strings.HasPrefix(repoName, "oci://") {
+		return strings.ReplaceAll(repoName, "/", "-")
+	}
+	return fmt.Sprintf("helm-%x", sha256.Sum256([]byte(repoName)))
 }
 
 // runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once

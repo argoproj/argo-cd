@@ -4,6 +4,7 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"crypto/tls"
 	"crypto/x509"
 	"encoding/base64"
@@ -17,6 +18,7 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"slices"
 	"strconv"
@@ -30,6 +32,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
+	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/credentials"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	utiltls "github.com/argoproj/argo-cd/v3/util/tls"
@@ -1164,15 +1168,14 @@ func TestConditionalGET_IndexChanged(t *testing.T) {
 
 	// Server now has a new index with a new ETag; 304 support for the old
 	// ETag is gone, so a conditional request gets a fresh 200.
-	srv.etag = `"v2"`
-	srv.body = newIndex(t)
-	newBody := append([]byte(nil), srv.body...)
-	srv.body = newBody
-	srv.supports304 = false
+	newBody := newIndex(t)
+	next := &conditionalGetServer{etag: `"v2"`, body: newBody}
+	nextHandler := next.handler()
+	handler.Store(&nextHandler)
 
 	idx, err := client.GetIndex(t.Context(), true, 10000)
 	require.NoError(t, err)
-	assert.Equal(t, int32(2), srv.requests.Load())
+	assert.Equal(t, int32(2), srv.requests.Load()+next.requests.Load())
 	etag, _ := sharedInMemoryValidators.getForBody(httpSrv.URL, cache.data)
 	assert.Equal(t, `"v2"`, etag)
 	assert.Equal(t, newBody, cache.data)
@@ -1537,9 +1540,9 @@ func TestConditionalGET_BaseCacheRetainsValidators(t *testing.T) {
 }
 
 func TestConditionalGET_BaseCacheRejectsMismatchedGeneration(t *testing.T) {
-	var headers []string
+	headers := &recordedIndexHeaders{}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		headers = append(headers, r.Header.Get("If-None-Match"))
+		headers.record(r.Header.Get("If-None-Match"))
 		w.Header().Set("ETag", `"origin"`)
 		_, _ = w.Write([]byte(regressionIndexBody))
 	}))
@@ -1552,7 +1555,21 @@ func TestConditionalGET_BaseCacheRejectsMismatchedGeneration(t *testing.T) {
 	cache.data = []byte(strings.ReplaceAll(regressionIndexBody, "0.1.0", "0.2.0") + "\n")
 	_, err = client.GetIndex(t.Context(), true, 1<<20)
 	require.NoError(t, err)
-	require.Equal(t, []string{"", ""}, headers, "validators must match the exact cached bytes")
+	require.Equal(t, []string{"", ""}, headers.snapshot(), "validators must match the exact cached bytes")
+}
+
+func TestIndexIdentityCancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err := credsScopeContext(ctx, HelmCreds{Username: "canceled-cold-identity"})
+	require.ErrorIs(t, err, context.Canceled)
+	_, err = scopedIndexIdentityContext(ctx, "https://charts.example?token=cold", "scope", "", "")
+	require.ErrorIs(t, err, context.Canceled)
+	_, err = indexURLIdentityContext(ctx, "https://charts.example/canceled/index.yaml")
+	require.ErrorIs(t, err, context.Canceled)
+	identity, err := indexURLIdentityContext(t.Context(), "https://charts.example/index.yaml")
+	require.NoError(t, err)
+	require.Equal(t, IndexURLIdentity("https://charts.example/index.yaml"), identity)
 }
 
 func TestGetTagsDockerFallbackCredentialIsolation(t *testing.T) {
@@ -1647,6 +1664,120 @@ func TestGetTagsDockerHelperFailure(t *testing.T) {
 			}
 			require.Positive(t, requests.Load(), "unknown credentials must reach the origin without consulting shared metadata")
 			require.Empty(t, cache.bodies, "unknown credentials must never populate an anonymous shared-cache identity")
+		})
+	}
+}
+
+func TestGetTagsMalformedDockerConfigPreservesAnonymousBearer(t *testing.T) {
+	t.Setenv("DOCKER_CONFIG", t.TempDir())
+	require.NoError(t, os.WriteFile(filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json"), []byte("{invalid"), 0o600))
+	var tokens atomic.Int32
+	var endpoint atomic.Pointer[string]
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		if r.URL.Path == "/token" {
+			tokens.Add(1)
+			_, _ = io.WriteString(w, `{"token":"public-token"}`)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer public-token" {
+			w.Header().Set("WWW-Authenticate", fmt.Sprintf(`Bearer realm="%s/token",service="test-registry"`, *endpoint.Load()))
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		_, _ = io.WriteString(w, `{"name":"child","tags":["public-version"]}`)
+	}))
+	endpoint.Store(&server.URL)
+	t.Cleanup(server.Close)
+	cache := &credentialIndexCache{bodies: map[string][]byte{}}
+	client := NewClient(strings.TrimPrefix(server.URL, "http://"), HelmCreds{}, true, "", "", WithPlainHTTP(), WithIndexCacheScopedByCreds(cache))
+	tags, err := client.GetTags(t.Context(), "child", false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"public-version"}, tags)
+	require.EqualValues(t, 1, tokens.Load())
+	require.Empty(t, cache.bodies, "an unresolved Docker store cannot establish a shared cache identity")
+}
+
+func TestGetTagsSlowOptionalDockerHelperLeavesOriginBudget(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("DOCKER_CONFIG", dir)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"credsStore":"argocd-slow-test"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-slow-test"), []byte("#!/bin/sh\nexec sleep 10\n"), 0o700))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	var requests atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"name":"child","tags":["public-version"]}`)
+	}))
+	t.Cleanup(origin.Close)
+	cache := &credentialIndexCache{bodies: map[string][]byte{}}
+	client := NewClient(strings.TrimPrefix(origin.URL, "http://"), HelmCreds{}, true, "", "", WithPlainHTTP(), WithIndexCacheScopedByCreds(cache))
+	_ = credsScope(HelmCreds{})
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	tags, err := client.GetTags(ctx, "child", false)
+	require.NoError(t, err)
+	require.NoError(t, ctx.Err())
+	require.Equal(t, []string{"public-version"}, tags)
+	require.EqualValues(t, 1, requests.Load())
+	require.Empty(t, cache.bodies)
+}
+
+func TestGetTagsDockerHelperDescendantCannotHoldOutputPipe(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("DOCKER_CONFIG", dir)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"credsStore":"argocd-descendant-test"}`), 0o600))
+	// Killing this shell leaves its child holding stdout open. The lookup must
+	// close the inherited pipe instead of waiting for the child to finish.
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-descendant-test"), []byte("#!/bin/sh\nsleep 3 &\nwait\n"), 0o700))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"name":"child","tags":["public-version"]}`)
+	}))
+	t.Cleanup(origin.Close)
+	client := NewClient(strings.TrimPrefix(origin.URL, "http://"), HelmCreds{}, true, "", "", WithPlainHTTP())
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	tags, err := client.GetTags(ctx, "child", false)
+	require.NoError(t, err)
+	require.NoError(t, ctx.Err(), "the helper must leave time for the origin request")
+	require.Equal(t, []string{"public-version"}, tags)
+}
+
+func TestBoundedDockerCredentialPreservesHelperProtocol(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		helper string
+		script string
+		want   auth.Credential
+	}{
+		{name: "default", script: `printf '{"Username":"reader","Secret":"password"}'`, want: auth.Credential{Username: "reader", Password: "password"}},
+		{name: "host override and Docker Hub alias", helper: "host", script: `address=$(cat); [ "$address" = 'https://index.docker.io/v1/' ] || exit 2; printf '{"Username":"<token>","Secret":"refresh-token"}'`, want: auth.Credential{RefreshToken: "refresh-token"}},
+		{name: "missing keychain entry", script: `printf 'credentials not found in native keychain'; exit 1`},
+		{name: "successful helper leaves inherited pipe", script: `printf '{"Username":"reader","Secret":"password"}'; sleep 1 &`, want: auth.Credential{Username: "reader", Password: "password"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			dir := t.TempDir()
+			t.Setenv("DOCKER_CONFIG", dir)
+			t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+			config := `{"credsStore":"argocd-default","credHelpers":{"https://index.docker.io/v1/":"` + tc.helper + `"}}`
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(config), 0o600))
+			helper := "argocd-default"
+			if tc.helper != "" {
+				helper = tc.helper
+			}
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-"+helper), []byte("#!/bin/sh\n"+tc.script+"\n"), 0o700))
+			store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+			require.NoError(t, err)
+			resolver, err := boundedDockerCredential(store)
+			require.NoError(t, err)
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			got, err := resolver(ctx, "registry-1.docker.io")
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
 		})
 	}
 }
@@ -1913,4 +2044,231 @@ func TestExtractChartCredentialFailureRemovesTemporaryHome(t *testing.T) {
 	entries, err := os.ReadDir(root)
 	require.NoError(t, err)
 	require.Empty(t, entries, "failed extraction must leave no directory owned by a missing closer")
+}
+
+func TestGetTagsRetriesHelperAfterOptionalTimeoutOnChallenge(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("DOCKER_CONFIG", dir)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"credsStore":"argocd-retry-test"}`), 0o600))
+	script := "#!/bin/sh\ncat >/dev/null\nif [ ! -f \"$DOCKER_CONFIG/attempted\" ]; then touch \"$DOCKER_CONFIG/attempted\"; exec sleep 10; fi\nprintf '%s' '{\"Username\":\"reader\",\"Secret\":\"secret\"}'\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-retry-test"), []byte(script), 0o700))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	var authenticated atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, _ := r.BasicAuth()
+		if username != "reader" || password != "secret" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="registry"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		authenticated.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"name":"child","tags":["private-version"]}`)
+	}))
+	t.Cleanup(origin.Close)
+	cache := &credentialIndexCache{bodies: map[string][]byte{}}
+	client := NewClient(strings.TrimPrefix(origin.URL, "http://"), HelmCreds{}, true, "", "", WithPlainHTTP(), WithIndexCacheScopedByCreds(cache))
+	_ = credsScope(HelmCreds{})
+	ctx, cancel := context.WithTimeout(t.Context(), 4*time.Second)
+	defer cancel()
+	tags, err := client.GetTags(ctx, "child", false)
+	require.NoError(t, err)
+	require.Equal(t, []string{"private-version"}, tags)
+	require.EqualValues(t, 1, authenticated.Load())
+	require.Empty(t, cache.bodies, "an uncertain prelookup must never populate shared metadata")
+}
+
+func TestGetTagsHTTPAndHTTPSCacheIsolation(t *testing.T) {
+	var requests atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"name":"child","tags":["http-version"]}`)
+	}))
+	t.Cleanup(origin.Close)
+	host := strings.TrimPrefix(origin.URL, "http://")
+	cache := &credentialIndexCache{bodies: map[string][]byte{}}
+	creds := HelmCreds{Username: "reader", Password: "secret"}
+	httpClient := NewClient(host, creds, true, "", "", WithPlainHTTP(), WithIndexCacheScopedByCreds(cache))
+	_, err := httpClient.GetTags(t.Context(), "child", false)
+	require.NoError(t, err)
+	httpsClient := NewClient(host, creds, true, "", "", WithIndexCacheScopedByCreds(cache))
+	_, err = httpsClient.GetTags(t.Context(), "child", false)
+	require.Error(t, err, "HTTPS must reach its own transport rather than inherit a plain-HTTP cache hit")
+	_, err = httpClient.GetTags(t.Context(), "child", false)
+	require.NoError(t, err)
+	require.EqualValues(t, 1, requests.Load(), "matching HTTP clients remain warm")
+}
+
+func TestIndexURLPreservesDistinctRepositoryPaths(t *testing.T) {
+	var requests atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		version := int32(1)
+		if r.URL.Path == "/repo//index.yaml" {
+			version = 2
+		}
+		_, _ = w.Write(upstreamIndex(version))
+	}))
+	t.Cleanup(origin.Close)
+	cache := &credentialIndexCache{bodies: map[string][]byte{}}
+	for i, path := range []string{"/repo/", "/repo//"} {
+		client := NewClient(origin.URL+path, HelmCreds{}, false, "", "", WithIndexCacheScopedByCreds(cache))
+		index, err := client.GetIndex(t.Context(), false, 1<<20)
+		require.NoError(t, err)
+		require.Equal(t, strconv.Itoa(i+1)+".0.0", index.Entries["child"][0].Version)
+	}
+	require.EqualValues(t, 2, requests.Load())
+}
+
+func TestIndexRejectsMalformedResponseBeforePublishing(t *testing.T) {
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("ETag", `"bad"`)
+		_, _ = io.WriteString(w, "invalid: [")
+	}))
+	t.Cleanup(origin.Close)
+	old := &HelmIndexRecord{Body: []byte("invalid: ["), ETag: `"bad"`, URLIdentity: IndexURLIdentity(origin.URL + "/index.yaml"), StoredAt: time.Now().Add(-time.Hour).UTC().Format(time.RFC3339Nano)}
+	cache := &indexChangedBeforeClaimCache{atomicProviderRecordCache: &atomicProviderRecordCache{providerRecordCache: &providerRecordCache{record: old}}, next: old}
+	client := NewClient(origin.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.Error(t, err)
+	require.Zero(t, cache.publishCalls, "decoding must finish before body or validators can publish")
+}
+
+func TestIndexRejectsMalformedRetainedBodyBefore304(t *testing.T) {
+	var conditional atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("If-None-Match") != "" {
+			conditional.Add(1)
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = w.Write(upstreamIndex(2))
+	}))
+	t.Cleanup(origin.Close)
+	old := &HelmIndexRecord{Body: []byte("invalid: ["), ETag: `"bad"`, URLIdentity: IndexURLIdentity(origin.URL + "/index.yaml"), StoredAt: time.Now().Add(-time.Hour).UTC().Format(time.RFC3339Nano)}
+	cache := &indexChangedBeforeClaimCache{atomicProviderRecordCache: &atomicProviderRecordCache{providerRecordCache: &providerRecordCache{record: old}}, next: old}
+	index, err := NewClient(origin.URL, HelmCreds{}, false, "", "", WithIndexCache(cache)).GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.Equal(t, "2.0.0", index.Entries["child"][0].Version)
+	require.Zero(t, conditional.Load())
+}
+
+func TestIndexRejectsTrailingDocumentsInAtomicRecords(t *testing.T) {
+	for _, trailing := range []string{"\n---\ninvalid: [", "\n---\napiVersion: v1\nentries: {}\n"} {
+		for _, cached := range []bool{false, true} {
+			t.Run(fmt.Sprintf("cached=%t/%s", cached, trailing), func(t *testing.T) {
+				bad := append(bytes.Clone(upstreamIndex(1)), []byte(trailing)...)
+				var requests, conditional atomic.Int32
+				origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					if r.Header.Get("If-None-Match") != "" {
+						conditional.Add(1)
+						w.WriteHeader(http.StatusNotModified)
+						return
+					}
+					w.Header().Set("ETag", `"origin"`)
+					if cached {
+						_, _ = w.Write(upstreamIndex(2))
+					} else {
+						_, _ = w.Write(bad)
+					}
+				}))
+				t.Cleanup(origin.Close)
+				var old *HelmIndexRecord
+				if cached {
+					old = &HelmIndexRecord{Body: bad, ETag: `"bad"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano), URLIdentity: IndexURLIdentity(origin.URL + "/index.yaml")}
+				}
+				cache := &indexChangedBeforeClaimCache{atomicProviderRecordCache: &atomicProviderRecordCache{providerRecordCache: &providerRecordCache{record: old}}, next: old, fresh: cached}
+				index, err := NewClient(origin.URL, HelmCreds{}, false, "", "", WithIndexCache(cache)).GetIndex(t.Context(), false, 1<<20)
+				if cached {
+					require.NoError(t, err)
+					require.Equal(t, "2.0.0", index.Entries["child"][0].Version)
+					require.Equal(t, 1, cache.publishCalls)
+				} else {
+					require.Error(t, err)
+					require.Zero(t, cache.publishCalls)
+				}
+				require.EqualValues(t, 1, requests.Load())
+				require.Zero(t, conditional.Load(), "a corrupt retained record cannot authorize a 304")
+			})
+		}
+	}
+}
+
+func TestOptionalCredentialSuccessAtDeadlineRemainsAuthoritative(t *testing.T) {
+	want := auth.Credential{Username: "reader", Password: "secret"}
+	credential, timedOut, err := lookupRegistryCredential(t.Context(), func(ctx context.Context, _ string) (auth.Credential, error) { <-ctx.Done(); return want, nil }, "registry.example", time.Nanosecond, 1)
+	require.NoError(t, err)
+	require.False(t, timedOut)
+	require.Equal(t, want, credential)
+}
+
+func TestGetTagsSlowHelperStillAllowsAnonymousBearer(t *testing.T) {
+	dir := t.TempDir()
+	t.Setenv("DOCKER_CONFIG", dir)
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"credsStore":"argocd-bearer-slow"}`), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-bearer-slow"), []byte("#!/bin/sh\nexec sleep 10\n"), 0o700))
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	var endpoint atomic.Pointer[string]
+	var tokens atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/token" {
+			tokens.Add(1)
+			w.Header().Set("Content-Type", "application/json")
+			_, _ = io.WriteString(w, `{"token":"anonymous-token"}`)
+			return
+		}
+		if r.Header.Get("Authorization") != "Bearer anonymous-token" {
+			w.Header().Set("WWW-Authenticate", `Bearer realm="`+*endpoint.Load()+`/token",service="registry"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"name":"child","tags":["public-version"]}`)
+	}))
+	endpoint.Store(&origin.URL)
+	t.Cleanup(origin.Close)
+	cache := &credentialIndexCache{bodies: map[string][]byte{}}
+	client := NewClient(strings.TrimPrefix(origin.URL, "http://"), HelmCreds{}, true, "", "", WithPlainHTTP(), WithIndexCacheScopedByCreds(cache))
+	_ = credsScope(HelmCreds{})
+	ctx, cancel := context.WithTimeout(t.Context(), 4*time.Second)
+	defer cancel()
+	tags, err := client.GetTags(ctx, "child", false)
+	require.NoError(t, err)
+	require.NoError(t, ctx.Err())
+	require.Equal(t, []string{"public-version"}, tags)
+	require.EqualValues(t, 1, tokens.Load())
+	require.Empty(t, cache.bodies)
+}
+
+func TestGetIndexRejectsOversizedUnscopedCacheHit(t *testing.T) {
+	large := append(upstreamIndex(1), []byte("#"+strings.Repeat("x", 2048))...)
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write(large) }))
+	t.Cleanup(origin.Close)
+	_, err := NewClient(origin.URL, HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: large})).GetIndex(t.Context(), false, 1024)
+	require.ErrorContains(t, err, "maximum size")
+}
+
+func TestIndexURLMatchesPinnedHelmForEscapedTrailingSlash(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	var mu sync.Mutex
+	var paths []string
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+		paths = append(paths, r.URL.EscapedPath())
+		mu.Unlock()
+		_, _ = w.Write(upstreamIndex(1))
+	}))
+	t.Cleanup(origin.Close)
+	repoURL := origin.URL + "/team%2F?token=test"
+	command := exec.CommandContext(t.Context(), "helm", "repo", "add", "fixture", repoURL, "--repository-cache", t.TempDir(), "--repository-config", filepath.Join(t.TempDir(), "repositories.yaml"))
+	output, err := command.CombinedOutput()
+	require.NoError(t, err, "%s", output)
+	_, err = NewClient(repoURL, HelmCreds{}, false, "", "").GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	mu.Lock()
+	defer mu.Unlock()
+	require.Len(t, paths, 2)
+	require.Equal(t, paths[0], paths[1], "native fetches must match the pinned Helm binary's request path")
 }

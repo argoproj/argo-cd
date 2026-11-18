@@ -1,13 +1,13 @@
 package helm
 
 import (
+	"context"
 	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"maps"
 	"os"
-	"path/filepath"
 	"strings"
 	"sync"
 
@@ -151,29 +151,26 @@ func (c *indexSnapshotCache) snapshot(data []byte, names map[string]struct{}) ([
 // dependencyNamesByRepository uses original chart names, never chart aliases.
 // Repository aliases and URL variants are grouped before building snapshots so
 // every direct dependency using a repository is retained, with all versions.
-func dependencyNamesByRepository(dir string, repos []HelmRepository) (map[string]map[string]struct{}, error) {
+func dependencyNamesByRepository(ctx context.Context, dir string, repos []HelmRepository) (map[string]map[string]struct{}, error) {
 	type dependency struct{ Name, Repository string }
 	var chart struct {
 		APIVersion   string
 		Dependencies []dependency
 	}
-	data, err := os.ReadFile(filepath.Join(dir, "Chart.yaml"))
+	data, err := ReadChartMetadata(dir, "Chart.yaml")
 	if err != nil {
 		return nil, err
 	}
 	if err := yaml.Unmarshal(data, &chart); err != nil {
 		return nil, err
 	}
-	if chart.APIVersion == "v1" {
-		data, err := os.ReadFile(filepath.Join(dir, "requirements.yaml"))
-		if err == nil {
-			chart.Dependencies = nil
-			if err := yaml.Unmarshal(data, &chart); err != nil {
-				return nil, err
-			}
-		} else if !os.IsNotExist(err) {
+	data, err = ReadChartMetadata(dir, "requirements.yaml")
+	if err == nil {
+		if err := yaml.Unmarshal(data, &chart); err != nil {
 			return nil, err
 		}
+	} else if !os.IsNotExist(err) {
+		return nil, err
 	}
 	aliases := make(map[string]string)
 	for _, repo := range repos {
@@ -196,7 +193,10 @@ func dependencyNamesByRepository(dir string, repos []HelmRepository) (map[string
 		if dep.Name == "" {
 			return nil, errors.New("dependency has no chart name")
 		}
-		key := scopedIndexIdentity(repository, "", "", "")
+		key, err := scopedIndexIdentityContext(ctx, repository, "", "", "")
+		if err != nil {
+			return nil, err
+		}
 		if result[key] == nil {
 			result[key] = make(map[string]struct{})
 		}
@@ -209,6 +209,12 @@ func isIndexSnapshotError(err error) bool {
 	message := err.Error()
 	if strings.Contains(message, "oci://") || strings.Contains(message, "file://") {
 		return false
+	}
+	if strings.Contains(message, "error loading ") && strings.Contains(message, "-index.yaml:") {
+		return true
+	}
+	if strings.HasSuffix(strings.TrimSpace(message), "Error: could not find : entry not found") {
+		return true
 	}
 	for _, text := range []string{"no cached repository", "no cached repo found", "chart not found in repo", "can't get a valid version for", "no chart name found", "no chart version found"} {
 		if strings.Contains(message, text) {

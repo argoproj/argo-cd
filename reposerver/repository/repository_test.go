@@ -3521,6 +3521,35 @@ func Test_getHelmDependencyRepos(t *testing.T) {
 	assert.Equal(t, repos[1].Repo, repo2)
 }
 
+func TestHelmDependencyRepositoryNamesDoNotCollide(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte("apiVersion: v2\ndependencies:\n  - repository: https://charts.example/a-b\n  - repository: https://charts.example/a/b\n"), 0o600))
+	repos, err := getHelmDependencyRepos(dir)
+	require.NoError(t, err)
+	require.Len(t, repos, 2)
+	require.NotEqual(t, repos[0].Name, repos[1].Name)
+}
+
+func TestHelmLegacyDependencyRepositoryMetadata(t *testing.T) {
+	for _, api := range []string{"", "apiVersion: v1\n", "apiVersion: v2\n"} {
+		for _, requirements := range []string{"dependencies:\n  - repository: https://charts.example/legacy\n", "# no dependencies override\n"} {
+			t.Run(api+requirements, func(t *testing.T) {
+				dir := t.TempDir()
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte(api+"dependencies:\n  - repository: https://charts.example/inline\n"), 0o600))
+				require.NoError(t, os.WriteFile(filepath.Join(dir, "requirements.yaml"), []byte(requirements), 0o600))
+				repos, err := getHelmDependencyRepos(dir)
+				require.NoError(t, err)
+				require.Len(t, repos, 1)
+				want := "https://charts.example/inline"
+				if strings.Contains(requirements, "repository:") {
+					want = "https://charts.example/legacy"
+				}
+				require.Equal(t, want, repos[0].Repo)
+			})
+		}
+	}
+}
+
 func TestResolveRevision(t *testing.T) {
 	expectedRevision := "03b17e0233e64787ffb5fcf65c740cc2a20822ba"
 	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
@@ -7568,4 +7597,15 @@ func TestHelmIndexDelayedResponsePreservesNewerSharedGeneration(t *testing.T) {
 			require.FileExists(t, filepath.Join(parent, "charts", "child-1.0.0.tgz"))
 		})
 	}
+}
+
+func TestHelmDependencyDiscoveryRespectsHelmIgnore(t *testing.T) {
+	dir := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte("apiVersion: v2\ndependencies:\n  - repository: https://charts.example/inline\n"), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "requirements.yaml"), []byte("invalid: ["), 0o600))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, ".helmignore"), []byte("requirements.yaml\n"), 0o600))
+	repos, err := getHelmDependencyRepos(dir)
+	require.NoError(t, err)
+	require.Len(t, repos, 1)
+	require.Equal(t, "https://charts.example/inline", repos[0].Repo)
 }

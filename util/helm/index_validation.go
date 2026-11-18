@@ -37,6 +37,11 @@ func (c *indexValidationCache) contains(digest [sha256.Size]byte) bool {
 
 func (c *indexValidationCache) validateBody(body []byte) error {
 	digest := sha256.Sum256(body)
+	return c.validateBodyDigest(body, digest)
+}
+
+// The caller computes this digest from the bytes, never from cache metadata.
+func (c *indexValidationCache) validateBodyDigest(body []byte, digest [sha256.Size]byte) error {
 	if c.contains(digest) {
 		return nil
 	}

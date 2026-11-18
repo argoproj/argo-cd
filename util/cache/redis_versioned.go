@@ -12,10 +12,33 @@ func (r *redisCache) BeginUpdate(ctx context.Context, key, token string, expirat
 	if !r.client.Options().ContextTimeoutEnabled {
 		return false, errors.New("redis client does not enforce context deadlines")
 	}
-	if err := r.client.Set(ctx, r.getKey(key), token, expiration).Err(); err != nil {
-		return false, err
+	result, err := acquireVersionedScript.Run(ctx, r.client, []string{r.getKey(key)}, token, max(int64(1), expiration.Milliseconds())).Int64()
+	return result == 1, err
+}
+
+// Replaying acquisition can confirm the same token, never replace a later
+// owner's token. Contenders cannot preempt a live fetch before publication.
+var acquireVersionedScript = redis.NewScript(`
+local owner = redis.call('GET', KEYS[1])
+if owner then
+ if owner == ARGV[1] then return 1 end
+ return 0
+end
+redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[2])
+return 1
+`)
+
+var releaseVersionedScript = redis.NewScript(`
+if redis.call('GET', KEYS[1]) ~= ARGV[1] then return 0 end
+return redis.call('DEL', KEYS[1])
+`)
+
+func (r *redisCache) ReleaseUpdate(ctx context.Context, key, token string) (bool, error) {
+	if !r.client.Options().ContextTimeoutEnabled {
+		return false, errors.New("redis client does not enforce context deadlines")
 	}
-	return true, nil
+	result, err := releaseVersionedScript.Run(ctx, r.client, []string{r.getKey(key)}, token).Int64()
+	return result == 1, err
 }
 
 // A missing owner is a lost claim, including when Redis evicts every key.
@@ -25,8 +48,14 @@ if ARGV[5] == '1' and redis.call('GET', KEYS[3]) ~= ARGV[3] then return 0 end
 redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[4])
 redis.call('SET', KEYS[2], ARGV[2], 'PX', ARGV[4])
 redis.call('DEL', KEYS[3])
-local ttl = redis.call('PTTL', KEYS[4])
-if ttl >= 0 and ttl < tonumber(ARGV[4]) then redis.call('PEXPIRE', KEYS[4], ARGV[4]) end
+if redis.call('GET', KEYS[5]) == ARGV[2] then
+ local ttl = redis.call('PTTL', KEYS[4])
+ if ttl >= 0 then
+  if ttl < tonumber(ARGV[4]) then ttl = tonumber(ARGV[4]) end
+  redis.call('PEXPIRE', KEYS[4], ttl)
+  redis.call('PEXPIRE', KEYS[5], ttl)
+ end
+end
 return 1
 `)
 
@@ -50,15 +79,19 @@ func (r *redisCache) StoreVersioned(ctx context.Context, item VersionedItem) (bo
 		fenced = "1"
 	}
 	bodyKey := r.getKey(item.BodyKey)
-	result, err := publishVersionedScript.Run(ctx, r.client, []string{r.getKey(item.Key), r.getKey(item.ReferenceKey), r.getKey(item.OwnerKey), bodyKey}, metadata, item.ReferenceValue, item.Token, max(int64(1), expiration.Milliseconds()), fenced).Int64()
+	result, err := publishVersionedScript.Run(ctx, r.client, []string{r.getKey(item.Key), r.getKey(item.ReferenceKey), r.getKey(item.OwnerKey), bodyKey, r.getKey(item.BodyKey + "|digest")}, metadata, item.ReferenceValue, item.Token, max(int64(1), expiration.Milliseconds()), fenced).Int64()
 	return result == 1, err
 }
 
 var shareVersionedBodyScript = redis.NewScript(`
 if redis.call('GET', KEYS[1]) ~= ARGV[3] then return 0 end
-local ttl = redis.call('PTTL', KEYS[2])
-if ttl < tonumber(ARGV[2]) then ttl = tonumber(ARGV[2]) end
+local ttl = tonumber(ARGV[2])
+if redis.call('GET', KEYS[3]) == ARGV[3] then
+ local existing = redis.call('PTTL', KEYS[2])
+ if existing > ttl then ttl = existing end
+end
 redis.call('SET', KEYS[2], ARGV[1], 'PX', ttl)
+redis.call('SET', KEYS[3], ARGV[3], 'PX', ttl)
 return 1
 `)
 
@@ -79,6 +112,6 @@ func (r *redisCache) StoreVersionedBody(ctx context.Context, referenceKey, bodyK
 	if expiration == 0 {
 		expiration = r.expiration
 	}
-	result, err := shareVersionedBodyScript.Run(ctx, r.client, []string{r.getKey(referenceKey), r.getKey(bodyKey)}, value, max(int64(1), expiration.Milliseconds()), referenceValue).Int64()
+	result, err := shareVersionedBodyScript.Run(ctx, r.client, []string{r.getKey(referenceKey), r.getKey(bodyKey), r.getKey(bodyKey + "|digest")}, value, max(int64(1), expiration.Milliseconds()), referenceValue).Int64()
 	return result == 1, err
 }

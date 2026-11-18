@@ -35,6 +35,15 @@ func (c *MockCacheClient) BeginUpdate(ctx context.Context, key, token string, ex
 	return false, cache.ErrAtomicPublicationUnsupported
 }
 
+func (c *MockCacheClient) ReleaseUpdate(ctx context.Context, key, token string) (bool, error) {
+	if client, ok := c.BaseCache.(interface {
+		ReleaseUpdate(context.Context, string, string) (bool, error)
+	}); ok {
+		return client.ReleaseUpdate(ctx, key, token)
+	}
+	return false, cache.ErrAtomicPublicationUnsupported
+}
+
 func (c *MockCacheClient) StoreVersioned(ctx context.Context, item cache.VersionedItem) (bool, error) {
 	if client, ok := c.BaseCache.(interface {
 		StoreVersioned(context.Context, cache.VersionedItem) (bool, error)

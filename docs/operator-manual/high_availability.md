@@ -146,20 +146,29 @@ This setting does not poll repositories, trigger manifest generation, override `
 or pinned versions, or wait before applying changed Git/Application values. Always-fresh
 Go-client operations continue contacting the origin regardless of this freshness window.
 A `200` or `304` publishes only with the ownership token acquired before its origin request.
-Another fetch or maintenance publication invalidates that token. Missing, expired or evicted
-tokens cannot authorize publication, even if every index key was evicted in the meantime.
-A subsequent fetch acquires a new token before contacting the origin.
+Overlapping fetches cannot preempt a live claim. Successful publication consumes it;
+failure or cancellation releases only the matching token, with a bounded cleanup timeout.
+Acquisition retries can confirm their own token but cannot replace a later owner's token.
+Maintenance publication, expiry or eviction invalidates a claim. Missing tokens cannot
+authorize publication, even if every index key was evicted in the meantime.
 Publication atomically commits small metadata containing validators, validation time,
 generation and a SHA-256 reference to the body. Each identity uses one separate body key;
 readers verify that bytes match the published digest, and body writes require that digest
 to remain current. Delayed transfers cannot overwrite a different current body. Losing the
 small metadata keys does not accumulate large orphan bodies across subsequent generations.
+The body and its digest marker are written atomically. Metadata extends the body's retention
+only when that marker identifies the same bytes; a pending replacement does not extend the old body.
 Warm builds read only small shared metadata when their generation still matches. When another
 replica revalidates the same bytes, its confirmed metadata can reuse the matching local body
 by digest, including when large shared-body transfers time out. A different digest requires
 a usable shared body or origin validation.
-Warm local builds compare the small shared generation rather than downloading the complete
-body from Redis. Local records still contain the complete original index and are rewritten
+Local records persist checksums binding the body, validators and freshness metadata,
+verified before their validators can authorize a `304`. A record known to be superseded
+is retired before another shared lookup or origin request, so a later timeout cannot restore it.
+Encoded disk reads are bounded before JSON and base64 decoding, including after lowering the index-size limit.
+The same computed hash supplies YAML-validation memoization and comparison with shared metadata.
+Legacy disk files without a checksum require a verified shared body or full origin response
+before their freshness and validators are trusted. Local records contain the complete original index and are rewritten
 after successful revalidation, including `304` responses.
 
 Expired indexes and validators remain available for another `max(24h, freshness)`;
@@ -184,6 +193,13 @@ and sharing its body together receive at most five seconds and one quarter of th
 deadline. Managed Redis clients enforce these deadlines for socket I/O, leaving time for
 origin requests and Helm. A read timeout does not prevent an origin response from publishing
 if ownership can still be acquired and metadata publication confirmed.
+If a metadata commit's reply is lost, a bounded lookup confirms its generation, body digest,
+validators and validation time before body sharing or disk warming. Absent or different metadata
+leaves publication unconfirmed. Cold credential, transport, response-URL and Redis key derivation
+respect request cancellation while queued or running; cancellation does not start overlapping
+memory-hard workers. Uncached HTTP fetches skip response-URL fingerprinting.
+An expired record is observed again after acquiring publication ownership, so a maintenance
+write between the initial read and the claim cannot be overwritten by a `304` for older bytes.
 Custom cache adapters without context support retain their own read-timeout policy; Redis
 clients supplied by integrations must enable `ContextTimeoutEnabled` to participate in bounded reads.
 
@@ -248,7 +264,10 @@ Helm OCI tag lists use the revision-cache expiration, independently of HTTP inde
 During a rolling upgrade, ownership-aware versioned Redis records use a separate namespace
 from older versioned writers and coexist with legacy raw-index keys;
 old readers never receive a record envelope in a raw key. Older replicas may continue making full
-index downloads. Rollback does not require deleting Redis records. To disable dependency reuse,
+index downloads. Raw legacy entries remain available for origin validation, but their unknown
+age cannot establish freshness under a reader's configured expiration. Legacy split-validator
+getters and setters use the same separate key and cannot change body-bound record metadata.
+Rollback does not require deleting Redis records. To disable dependency reuse,
 set `reposerver.helm.index.cache.enabled: "false"` and restart repo-server; remove its volume contents only after every
 process using that directory has stopped.
 
@@ -264,6 +283,18 @@ authenticate registry requests, while preserving an explicitly selected cache sc
 Docker Hub aliases use the registry's effective hostname for authentication. If a Docker
 credential helper fails, the request bypasses shared metadata: public access can still succeed,
 and an authentication challenge reports the credential lookup error.
+If the optional Docker configuration cannot be loaded, shared metadata is also bypassed,
+while anonymous bearer-token authentication remains available for public registries.
+Optional Docker helper prelookups get at most one second and one quarter of the remaining request
+deadline. A lookup timeout bypasses shared metadata and leaves time for anonymous registry access.
+OCI tag-cache identities also include repository proxy settings and inherited proxy policy.
+Helm OCI tag keys distinguish HTTP from HTTPS. After a prelookup timeout, a registry challenge
+can retry the helper for at most 30 seconds and three quarters of the remaining request deadline.
+Another helper timeout leaves time for anonymous bearer authentication; shared caching stays disabled.
+Malformed HTTP index responses are decoded before publication and cannot renew cached validators.
+Repository index URLs preserve significant repeated slashes, matching Helm's URL resolution.
+Chart metadata selection honors root `.helmignore` rules and bounds reads to Helm's 100 MiB
+chart budget; oversized metadata disables optional prewarming and is left to Helm's loader.
 HTTP Helm operations and native OCI clients snapshot custom CA file contents for both
 the TLS transport and cache identity, so rotating that file creates a new cache view.
 Prewarmed Helm subprocesses receive the same frozen CA contents in their private configuration.
