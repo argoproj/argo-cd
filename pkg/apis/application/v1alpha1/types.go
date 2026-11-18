@@ -1992,6 +1992,27 @@ type ApplicationList struct {
 	metav1.TypeMeta `json:",inline"`
 	metav1.ListMeta `json:"metadata" protobuf:"bytes,1,opt,name=metadata"`
 	Items           []Application `json:"items" protobuf:"bytes,2,rep,name=items"`
+	// Stats is set only for paginated (server-side) list responses; nil is omitted from JSON.
+	Stats *ApplicationListStats `json:"stats,omitempty" protobuf:"bytes,3,opt,name=stats"`
+}
+
+// ApplicationLabelStats holds a label key and its observed values across a filtered application list.
+type ApplicationLabelStats struct {
+	Key    string   `json:"key" protobuf:"bytes,1,opt,name=key"`
+	Values []string `json:"values" protobuf:"bytes,2,rep,name=values"`
+}
+
+// ApplicationListStats holds aggregate information about applications matching a list query.
+// Stats are computed over the full filtered set even when the response is paginated.
+type ApplicationListStats struct {
+	Total               int64                             `json:"total" protobuf:"varint,1,opt,name=total"`
+	TotalBySyncStatus   map[SyncStatusCode]int64          `json:"totalBySyncStatus,omitempty" protobuf:"bytes,2,rep,name=totalBySyncStatus"`
+	TotalByHealthStatus map[health.HealthStatusCode]int64 `json:"totalByHealthStatus,omitempty" protobuf:"bytes,3,rep,name=totalByHealthStatus"`
+	AutoSyncCount       map[string]int64                  `json:"autoSyncCount,omitempty" protobuf:"bytes,4,rep,name=autoSyncCount"`
+	Destinations        []ApplicationDestination          `json:"destinations,omitempty" protobuf:"bytes,5,rep,name=destinations"`
+	Namespaces          []string                          `json:"namespaces,omitempty" protobuf:"bytes,6,rep,name=namespaces"`
+	Labels              []ApplicationLabelStats           `json:"labels,omitempty" protobuf:"bytes,7,rep,name=labels"`
+	Repos               []string                          `json:"repos,omitempty" protobuf:"bytes,8,rep,name=repos"`
 }
 
 // ComponentParameter contains information about component parameter value

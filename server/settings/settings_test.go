@@ -53,7 +53,7 @@ func TestSettingsServer(t *testing.T) {
 	t.Parallel()
 	newServer := func(data map[string]string) *Server {
 		_, settingsMgr := fixtures(t.Context(), data)
-		return NewServer(settingsMgr, nil, nil, false, false, false, false)
+		return NewServer(settingsMgr, nil, nil, false, false, false, false, false, 0)
 	}
 
 	t.Run("TestGetInstallationID", func(t *testing.T) {
@@ -132,7 +132,7 @@ func TestGetDexConfig(t *testing.T) {
 	t.Parallel()
 	newServer := func(data map[string]string) *Server {
 		_, settingsMgr := fixtures(t.Context(), data)
-		return NewServer(settingsMgr, nil, nil, false, false, false, false)
+		return NewServer(settingsMgr, nil, nil, false, false, false, false, false, 0)
 	}
 
 	const dexConfig = `connectors:

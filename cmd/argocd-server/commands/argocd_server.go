@@ -94,12 +94,14 @@ func NewCommand() *cobra.Command {
 		webhookParallelism       int
 		globCacheSize            int
 		webhookRefreshWorkers    int
-		hydratorEnabled          bool
-		syncWithReplaceAllowed   bool
-		disableSwaggerUI         bool
-		enableSourceIPLogging    bool
-		trustedProxies           []string
-		clientIPHeader           string
+		hydratorEnabled               bool
+		syncWithReplaceAllowed        bool
+		serverSidePaginationEnabled   bool
+		applicationPageSize           int64
+		disableSwaggerUI              bool
+		enableSourceIPLogging         bool
+		trustedProxies                []string
+		clientIPHeader                string
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -266,8 +268,10 @@ func NewCommand() *cobra.Command {
 				WebhookParallelism:      webhookParallelism,
 				WebhookRefreshWorkers:   webhookRefreshWorkers,
 				EnableK8sEvent:          enableK8sEvent,
-				HydratorEnabled:         hydratorEnabled,
-				SyncWithReplaceAllowed:  syncWithReplaceAllowed,
+				HydratorEnabled:             hydratorEnabled,
+				SyncWithReplaceAllowed:      syncWithReplaceAllowed,
+				ServerSidePaginationEnabled: serverSidePaginationEnabled,
+				ApplicationPageSize:         applicationPageSize,
 				OTLPAddress:             otlpAddress,
 				OTLPInsecure:            otlpInsecure,
 				OTLPHeaders:             otlpHeaders,
@@ -369,6 +373,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
 	command.Flags().BoolVar(&syncWithReplaceAllowed, "sync-with-replace-allowed", env.ParseBoolFromEnv("ARGOCD_SYNC_WITH_REPLACE_ALLOWED", true), "Whether to allow users to select replace for syncs from UI/CLI")
+	command.Flags().BoolVar(&serverSidePaginationEnabled, "enable-server-side-pagination", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_SERVER_SIDE_PAGINATION", false), "Feature flag to enable server-side search and pagination in the applications list UI. Default (\"false\")")
+	command.Flags().Int64Var(&applicationPageSize, "application-page-size", int64(env.ParseNumFromEnv("ARGOCD_SERVER_APPLICATION_PAGE_SIZE", 250, 1, math.MaxInt32)), "Default number of applications loaded per request when server-side pagination is enabled")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")

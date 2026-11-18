@@ -168,6 +168,7 @@ const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean
             placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
             disableKeyboardShortcuts={!!appInput}
             regexEnabled={searchRegex}
+            debounceMs={250}
             autocomplete={{
                 items: apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
                 filterSuggestions: true,
@@ -425,6 +426,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                             const cleared = {...pref};
                                                                                             AppsListPreferences.clearFilters(cleared);
                                                                                             onAppFilterPrefChanged(ctx, cleared);
+                                                                                            ctx.navigation.goto('.', {search: null, page: null}, {replace: true});
                                                                                         }}>
                                                                                         clear filters
                                                                                     </a>

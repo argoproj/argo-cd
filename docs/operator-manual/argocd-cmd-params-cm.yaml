@@ -261,6 +261,10 @@ data:
   server.default.cache.expiration: "24h0m0s"
   # Enable the experimental proxy extension feature
   server.enable.proxy.extension: "false"
+  # Enable server-side search/pagination for the applications list UI (Alpha; default false)
+  server.enable.server.side.pagination: "false"
+  # Batch size for server-side applications list requests when the feature is enabled (default 250)
+  server.application.page.size: "250"
   # Enables profile endpoint on the internal metrics port
   server.profile.enabled: "false"
   # QPS (Queries Per Second) limit for K8s API client requests (default "50")

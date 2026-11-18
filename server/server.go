@@ -259,10 +259,12 @@ type ArgoCDServerOpts struct {
 	WebhookParallelism      int
 	WebhookRefreshWorkers   int
 	EnableK8sEvent          []string
-	HydratorEnabled         bool
-	SyncWithReplaceAllowed  bool
-	DisableSwaggerUI        bool
-	EnableSourceIPLogging   bool
+	HydratorEnabled             bool
+	SyncWithReplaceAllowed      bool
+	ServerSidePaginationEnabled bool
+	ApplicationPageSize         int64
+	DisableSwaggerUI            bool
+	EnableSourceIPLogging       bool
 	// TrustedProxies and ClientIPHeader decide which address source IP logging attributes a request to.
 	TrustedProxies      []netip.Prefix
 	ClientIPHeader      string
@@ -1146,7 +1148,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 
 	projectService := project.NewServer(a.Namespace, a.KubeClientset, a.AppClientset, a.enf, projectLock, a.sessionMgr, a.policyEnforcer, a.projInformer, a.settingsMgr, a.db, a.EnableK8sEvent)
 	appsInAnyNamespaceEnabled := len(a.ApplicationNamespaces) > 0
-	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled, a.SyncWithReplaceAllowed)
+	settingsService := settings.NewServer(a.settingsMgr, a.RepoClientset, a, a.DisableAuth, appsInAnyNamespaceEnabled, a.HydratorEnabled, a.SyncWithReplaceAllowed, a.ServerSidePaginationEnabled, a.ApplicationPageSize)
 	accountService := account.NewServer(a.sessionMgr, a.settingsMgr, a.enf, a.Namespace)
 
 	notificationService := notification.NewServer(a.apiFactory)

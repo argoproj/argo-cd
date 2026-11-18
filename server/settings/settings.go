@@ -19,22 +19,40 @@ import (
 
 // Server provides a Settings service
 type Server struct {
-	mgr                       *settings.SettingsManager
-	repoClient                apiclient.Clientset
-	authenticator             Authenticator
-	disableAuth               bool
-	appsInAnyNamespaceEnabled bool
-	hydratorEnabled           bool
-	syncWithReplaceAllowed    bool
+	mgr                         *settings.SettingsManager
+	repoClient                  apiclient.Clientset
+	authenticator               Authenticator
+	disableAuth                 bool
+	appsInAnyNamespaceEnabled   bool
+	hydratorEnabled             bool
+	syncWithReplaceAllowed      bool
+	serverSidePaginationEnabled bool
+	applicationPageSize         int64
 }
+
+// DefaultApplicationPageSize is used when server-side pagination is enabled and no page size is configured.
+const DefaultApplicationPageSize int64 = 250
 
 type Authenticator interface {
 	Authenticate(ctx context.Context) (context.Context, error)
 }
 
 // NewServer returns a new instance of the Settings service
-func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool, syncWithReplaceAllowed bool) *Server {
-	return &Server{mgr: mgr, repoClient: repoClient, authenticator: authenticator, disableAuth: disableAuth, appsInAnyNamespaceEnabled: appsInAnyNamespaceEnabled, hydratorEnabled: hydratorEnabled, syncWithReplaceAllowed: syncWithReplaceAllowed}
+func NewServer(mgr *settings.SettingsManager, repoClient apiclient.Clientset, authenticator Authenticator, disableAuth, appsInAnyNamespaceEnabled bool, hydratorEnabled bool, syncWithReplaceAllowed bool, serverSidePaginationEnabled bool, applicationPageSize int64) *Server {
+	if applicationPageSize <= 0 {
+		applicationPageSize = DefaultApplicationPageSize
+	}
+	return &Server{
+		mgr:                         mgr,
+		repoClient:                  repoClient,
+		authenticator:               authenticator,
+		disableAuth:                 disableAuth,
+		appsInAnyNamespaceEnabled:   appsInAnyNamespaceEnabled,
+		hydratorEnabled:             hydratorEnabled,
+		syncWithReplaceAllowed:      syncWithReplaceAllowed,
+		serverSidePaginationEnabled: serverSidePaginationEnabled,
+		applicationPageSize:         applicationPageSize,
+	}
 }
 
 // Get returns Argo CD settings
@@ -122,9 +140,11 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		ExecEnabled:               argoCDSettings.ExecEnabled,
 		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
 		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
-		HydratorEnabled:           s.hydratorEnabled,
-		SyncWithReplaceAllowed:    s.syncWithReplaceAllowed,
-		ResourceViewEnabled:       argoCDSettings.ResourceViewEnabled,
+		HydratorEnabled:             s.hydratorEnabled,
+		SyncWithReplaceAllowed:      s.syncWithReplaceAllowed,
+		ResourceViewEnabled:         argoCDSettings.ResourceViewEnabled,
+		ServerSidePaginationEnabled: s.serverSidePaginationEnabled,
+		ApplicationPageSize:         s.applicationPageSize,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {

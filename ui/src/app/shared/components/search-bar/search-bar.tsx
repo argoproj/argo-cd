@@ -15,6 +15,8 @@ interface SearchBarProps {
     /** When true, the input's border switches to a teal/red active/invalid state based on
      *  whether `value` parses as a valid RegExp. The toggle button lives outside the SearchBar. */
     regexEnabled?: boolean;
+    /** Debounce onChange notifications (keeps the input responsive while delaying URL/filter updates). */
+    debounceMs?: number;
     /** Optional autocomplete configuration */
     autocomplete?: {
         items: Array<string | {value: string; label: string}>;
@@ -24,13 +26,14 @@ interface SearchBarProps {
     };
 }
 
-export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholder = 'Search...', disableKeyboardShortcuts = false, regexEnabled, autocomplete}) => {
+export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholder = 'Search...', disableKeyboardShortcuts = false, regexEnabled, debounceMs = 0, autocomplete}) => {
     const inputRef = React.useRef<HTMLInputElement>(null);
     const searchBarRef = React.useRef<HTMLDivElement>(null);
     const {registerKeybinding} = React.useContext(KeybindingContext);
     const [isFocused, setFocus] = React.useState(false);
     const [localValue, setLocalValue] = React.useState(value);
     const [prevValue, setPrevValue] = React.useState(value);
+    const debounceTimer = React.useRef<number | undefined>(undefined);
 
     // Sync local value with prop value when it changes externally
     if (value !== prevValue) {
@@ -38,8 +41,23 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
         setLocalValue(value);
     }
 
+    React.useEffect(() => {
+        return () => {
+            if (debounceTimer.current !== undefined) {
+                window.clearTimeout(debounceTimer.current);
+            }
+        };
+    }, []);
+
     const handleChange = (newValue: string) => {
         setLocalValue(newValue);
+        if (debounceMs > 0) {
+            if (debounceTimer.current !== undefined) {
+                window.clearTimeout(debounceTimer.current);
+            }
+            debounceTimer.current = window.setTimeout(() => onChange(newValue), debounceMs);
+            return;
+        }
         onChange(newValue);
     };
 

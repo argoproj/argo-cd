@@ -37,6 +37,34 @@ message ApplicationQuery {
 	repeated string project = 8;
 	// the application names to restrict returned list applications (used by the UI favorites filter). An entry may be qualified as 'namespace/name' to match only the application in that namespace
 	repeated string names = 9;
+	// the repos filter (server-side pagination / filtering)
+	repeated string repos = 10;
+	// the clusters filter
+	repeated string clusters = 11;
+	// the destination namespaces filter
+	repeated string namespaces = 12;
+	// the labels filter; each entry is key=value
+	repeated string labels = 13;
+	// the auto sync filter values (Enabled / Disabled)
+	repeated string autoSyncs = 14;
+	// the sync status filter
+	repeated string syncStatuses = 15;
+	// the health status filter
+	repeated string healthStatuses = 16;
+	// free-text search over application name and namespace (substring; use searchRegex for regex)
+	optional string search = 17;
+	// when true, treat search as a regular expression
+	optional bool searchRegex = 18;
+	// offset into the filtered, sorted list (omit with limit for full list)
+	optional int64 offset = 30;
+	// maximum number of applications to return (omit for full list)
+	optional int64 limit = 31;
+	// optional sort key: name (default), createdAt, synchronizedAt
+	optional string sortBy = 32;
+	// the application name to start from (inclusive); used as a Watch cursor
+	optional string minName = 33;
+	// the application name to end at (inclusive); used as a Watch cursor
+	optional string maxName = 34;
 }
 
 message NodeQuery {

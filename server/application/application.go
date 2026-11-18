@@ -322,38 +322,43 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	// Filter applications by projects
 	filteredApps = argo.FilterByProjectsP(filteredApps, getProjectsFromApplicationQuery(*q))
 
-	// Filter applications by source repo URL
+	// Filter applications by source repo URL (legacy single repo filter)
 	filteredApps = argo.FilterByRepoP(filteredApps, q.GetRepo())
 
-	// Filter applications by name
-	filteredApps = argo.FilterByNamesP(filteredApps, q.GetNames())
-
-	newItems := make([]v1alpha1.Application, 0)
+	// Apply RBAC first so unauthorized apps are excluded from stats and pages.
+	permittedApps := make([]*v1alpha1.Application, 0, len(filteredApps))
 	for _, a := range filteredApps {
-		// Skip any application that is neither in the control plane's namespace
-		// nor in the list of enabled namespaces.
 		if !s.isNamespaceEnabled(a.Namespace) {
 			continue
 		}
 		if s.enf.Enforce(ctx.Value("claims"), rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns)) {
-			// Create a deep copy to ensure all metadata fields including annotations are preserved
-			appCopy := a.DeepCopy()
-			// Explicitly copy annotations in case DeepCopy does not preserve them
-			if a.Annotations != nil {
-				appCopy.Annotations = a.Annotations
-			}
-			newItems = append(newItems, *appCopy)
+			permittedApps = append(permittedApps, a)
 		}
 	}
 
-	// Sort found applications by name
-	sort.Slice(newItems, func(i, j int) bool {
-		return newItems[i].Name < newItems[j].Name
-	})
+	filteredApps = filterApplicationsByQuery(permittedApps, q)
+	sortApplications(filteredApps, q.GetSortBy())
+	paginatedApps := paginateApplications(filteredApps, q)
+
+	newItems := make([]v1alpha1.Application, 0, len(paginatedApps))
+	for _, a := range paginatedApps {
+		appCopy := a.DeepCopy()
+		if a.Annotations != nil {
+			appCopy.Annotations = a.Annotations
+		}
+		newItems = append(newItems, *appCopy)
+	}
 
 	appList := v1alpha1.ApplicationList{
-		ResourceVersion: s.appInformer.LastSyncResourceVersion(),
-		Items:           newItems,
+		ListMeta: metav1.ListMeta{
+			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+		},
+		Items: newItems,
+	}
+	// Facet/stats passes are expensive; only compute them for paginated (SSP) list requests.
+	if q.Limit != nil {
+		stats := buildApplicationListStats(permittedApps, q)
+		appList.Stats = &stats
 	}
 	return &appList, nil
 }
@@ -1258,12 +1263,8 @@ func (s *Server) Delete(ctx context.Context, q *application.ApplicationDeleteReq
 	return &application.ApplicationResponse{}, nil
 }
 
-func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, names map[string]bool, a v1alpha1.Application) bool {
+func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int, claims any, appName, appNs string, projects map[string]bool, q *application.ApplicationQuery, a v1alpha1.Application) bool {
 	if len(projects) > 0 && !projects[a.Spec.GetProject()] {
-		return false
-	}
-
-	if len(names) > 0 && !argo.MatchesNameFilter(names, a.Namespace, a.Name) {
 		return false
 	}
 
@@ -1284,6 +1285,10 @@ func (s *Server) isApplicationPermitted(selector labels.Selector, minVersion int
 		return false
 	}
 
+	if q != nil && !matchesApplicationQueryQ(&a, q) {
+		return false
+	}
+
 	return true
 }
 
@@ -1298,7 +1303,6 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	for _, project := range getProjectsFromApplicationQuery(*q) {
 		projects[project] = true
 	}
-	names := argo.NewNameFilter(q.GetNames())
 	claims := ws.Context().Value("claims")
 	selector, err := labels.Parse(q.GetSelector())
 	if err != nil {
@@ -1311,13 +1315,10 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		}
 	}
 
-	// sendIfPermitted is a helper to send the application to the client's streaming channel if the
-	// caller has RBAC privileges permissions to view it
-	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
-		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, names, a)
-		if !permitted {
-			return
-		}
+	// Track apps currently visible under the query so filter exits can emit DELETED.
+	visible := map[string]bool{}
+
+	sendEvent := func(a v1alpha1.Application, eventType watch.EventType) {
 		s.inferResourcesStatusHealth(&a)
 		err := ws.Send(&v1alpha1.ApplicationWatchEvent{
 			Type:        eventType,
@@ -1325,8 +1326,29 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		})
 		if err != nil {
 			logCtx.Warnf("Unable to send stream message: %v", err)
+		}
+	}
+
+	// sendIfPermitted emits the event when the app matches RBAC + query filters.
+	// If a previously visible app no longer matches the filter, emit DELETED so the UI does not go stale.
+	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
+		key := a.QualifiedName()
+		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, q, a)
+		if !permitted {
+			if visible[key] && eventType != watch.Deleted {
+				delete(visible, key)
+				sendEvent(a, watch.Deleted)
+			} else if eventType == watch.Deleted {
+				delete(visible, key)
+			}
 			return
 		}
+		if eventType == watch.Deleted {
+			delete(visible, key)
+		} else {
+			visible[key] = true
+		}
+		sendEvent(a, eventType)
 	}
 
 	events := make(chan *v1alpha1.ApplicationWatchEvent, watchAPIBufferSize)

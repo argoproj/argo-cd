@@ -1407,6 +1407,50 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 	_ = w.Flush()
 }
 
+const defaultAppListBatchSize int64 = 500
+
+// listApplicationsPaged lists applications using server-side pagination when supported.
+// If the server ignores limit and returns more items than requested, the response is treated as a full list.
+func listApplicationsPaged(ctx context.Context, appIf application.ApplicationServiceClient, selector, appNamespace string, offset, limit int64) ([]argoappv1.Application, error) {
+	if limit > 0 {
+		apps, err := appIf.List(ctx, &application.ApplicationQuery{
+			Selector:     &selector,
+			AppNamespace: &appNamespace,
+			Offset:       &offset,
+			Limit:        &limit,
+		})
+		if err != nil {
+			return nil, err
+		}
+		return apps.Items, nil
+	}
+
+	var all []argoappv1.Application
+	var next int64
+	batch := defaultAppListBatchSize
+	for {
+		apps, err := appIf.List(ctx, &application.ApplicationQuery{
+			Selector:     &selector,
+			AppNamespace: &appNamespace,
+			Offset:       &next,
+			Limit:        &batch,
+		})
+		if err != nil {
+			return nil, err
+		}
+		// Server without pagination returns the full list even when limit is set.
+		if int64(len(apps.Items)) > batch {
+			return apps.Items, nil
+		}
+		all = append(all, apps.Items...)
+		if int64(len(apps.Items)) < batch {
+			break
+		}
+		next += batch
+	}
+	return all, nil
+}
+
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -1418,6 +1462,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		cluster      string
 		appPath      string
 		files        []string
+		offset       int64
+		limit        int64
+		search       string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1430,19 +1477,37 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app list -l app.kubernetes.io/instance!=my-app
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
-  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
+  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'
+
+  # Server-side search and pagination (requires API server support)
+  argocd app list --search my-app --limit 50 --offset 0`,
 		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
-			apps, err := appIf.List(ctx, &application.ApplicationQuery{
-				Selector:     new(selector),
-				AppNamespace: &appNamespace,
-			})
 
-			errors.CheckError(err)
-			appList := apps.Items
+			var appList []argoappv1.Application
+			var err error
+			if search != "" || limit > 0 {
+				q := &application.ApplicationQuery{
+					Selector:     &selector,
+					AppNamespace: &appNamespace,
+				}
+				if search != "" {
+					q.Search = &search
+				}
+				if limit > 0 {
+					q.Offset = &offset
+					q.Limit = &limit
+				}
+				apps, listErr := appIf.List(ctx, q)
+				errors.CheckError(listErr)
+				appList = apps.Items
+			} else {
+				appList, err = listApplicationsPaged(ctx, appIf, selector, appNamespace, 0, 0)
+				errors.CheckError(err)
+			}
 
 			if len(projects) != 0 {
 				appList = argo.FilterByProjects(appList, projects)
@@ -1481,6 +1546,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
 	command.Flags().StringVarP(&appPath, "path", "P", "", "List apps by source path")
 	command.Flags().StringArrayVarP(&files, "file", "f", []string{}, "List apps affected by given file paths (evaluated against source path and manifest-generate-paths annotation)")
+	command.Flags().Int64Var(&offset, "offset", 0, "Server-side list offset (requires API support)")
+	command.Flags().Int64Var(&limit, "limit", 0, "Server-side list limit; when unset the CLI pages in batches of 500")
+	command.Flags().StringVar(&search, "search", "", "Server-side search over application name and namespace")
 	return command
 }
 

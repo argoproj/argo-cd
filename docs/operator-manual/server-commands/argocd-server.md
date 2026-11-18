@@ -29,6 +29,7 @@ argocd-server [flags]
       --api-content-types string                                  Semicolon separated list of allowed content types for non GET api requests. Any content type is allowed if empty. (default "application/json")
       --app-state-cache-expiration duration                       Cache expiration for app state (default 1h0m0s)
       --application-namespaces strings                            List of additional namespaces where application resources can be managed in
+      --application-page-size int                                 Default number of applications loaded per request when server-side pagination is enabled (default 250)
       --appset-allowed-scm-providers strings                      The list of allowed custom SCM provider API URLs. This restriction does not apply to SCM or PR generators which do not accept a custom API URL. (Default: Empty = all)
       --appset-enable-github-api-metrics[=true|false]             Enable GitHub API metrics for generators that use the GitHub API
       --appset-enable-new-git-file-globbing[=true|false]          Enable new globbing in Git files generator.
@@ -56,6 +57,7 @@ argocd-server [flags]
       --enable-gzip[=true|false]                                  Enable GZIP compression (default true)
       --enable-k8s-event none                                     Enable ArgoCD to use k8s event. For disabling all events, set the value as none. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated) (default [all])
       --enable-proxy-extension[=true|false]                       Enable Proxy Extension feature
+      --enable-server-side-pagination[=true|false]                Feature flag to enable server-side search and pagination in the applications list UI. Default ("false")
       --enable-source-ip-logging[=true|false]                     Include the source IP address of the client in API request logs
       --glob-cache-size int                                       Maximum number of compiled glob patterns to cache for RBAC evaluation (default 10000)
       --gloglevel int                                             Set the glog logging level
