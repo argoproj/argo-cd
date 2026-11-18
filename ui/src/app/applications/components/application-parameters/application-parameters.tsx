@@ -82,11 +82,7 @@ interface ParameterOverride {
 }
 
 function hasImageOverride(value: unknown): boolean {
-    if (typeof value !== 'string' || value.trim().length === 0) {
-        return false;
-    }
-    const image = kustomize.parse(value);
-    return !!(image.newName || image.newTag || image.digest);
+    return typeof value === 'string' && value.trim().length > 0;
 }
 
 const ParameterOverrideEditor = ({

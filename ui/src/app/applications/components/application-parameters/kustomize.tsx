@@ -12,6 +12,12 @@ export const ImageTagFieldEditor = ReactFormField((props: {metadata: {value: str
     const val = getValue();
     const image = val ? parse(val) : {name: origImage.name};
     const mustBeDigest = (image.digest || '').indexOf(':') > -1;
+    const setImage = (next: ReturnType<typeof parse>) => {
+        const value = format(next);
+        if (value !== val) {
+            setValue(next.newName || next.newTag || next.digest ? value : null);
+        }
+    };
     return (
         <div>
             <input
@@ -20,7 +26,7 @@ export const ImageTagFieldEditor = ReactFormField((props: {metadata: {value: str
                 className={props.className}
                 value={image.newName || ''}
                 onChange={el => {
-                    setValue(format({...image, newName: el.target.value}));
+                    setImage({...image, newName: el.target.value});
                 }}
             />
             <input
@@ -29,9 +35,9 @@ export const ImageTagFieldEditor = ReactFormField((props: {metadata: {value: str
                 onChange={el => {
                     const forceDigest = el.target.value.indexOf(':') > -1;
                     if (image.digest || forceDigest) {
-                        setValue(format({...image, newTag: null, digest: el.target.value}));
+                        setImage({...image, newTag: null, digest: el.target.value});
                     } else {
-                        setValue(format({...image, newTag: el.target.value, digest: null}));
+                        setImage({...image, newTag: el.target.value, digest: null});
                     }
                 }}
                 placeholder={origImage.newTag || origImage.digest}
@@ -53,7 +59,7 @@ export const ImageTagFieldEditor = ReactFormField((props: {metadata: {value: str
                             nextImg.digest = nextImg.newTag;
                             nextImg.newTag = null;
                         }
-                        setValue(format(nextImg));
+                        setImage(nextImg);
                     }}
                 />{' '}
                 <label htmlFor={`${image.name}_is-digest`}> Digest?</label>

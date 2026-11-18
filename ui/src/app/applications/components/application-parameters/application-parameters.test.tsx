@@ -692,6 +692,49 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         expect(screen.getByText('nginx=registry.example.com/nginx:2.0')).toBeInTheDocument();
     });
 
+    test('preserves untouched templated images when saving another Kustomize field', async () => {
+        const app = multiSourceApp();
+        const images = ['nginx:${ARGOCD_APP_REVISION}', 'busybox:$ARGOCD_APP_REVISION', 'mysql=mariadb-next'];
+        const source = {
+            repoURL: 'https://git.example.com/manifests.git',
+            path: 'manifests',
+            targetRevision: 'main',
+            kustomize: {namespace: 'old-namespace', images}
+        } as models.ApplicationSource;
+        if (multiSource) {
+            app.spec.sources = [source];
+        } else {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        appDetails.mockRejectedValue(new Error('repository unavailable'));
+        const save = jest.fn().mockResolvedValue(undefined);
+        const user = userEvent.setup();
+        renderWithContext(<ApplicationParameters application={app} save={save} pageNumber={0} setPageNumber={jest.fn()} />);
+        expect(await screen.findByText('KUSTOMIZE')).toBeInTheDocument();
+        const panel = () => screen.getByText('KUSTOMIZE').parentElement.parentElement;
+        await user.click(within(panel()).getByRole('button', {name: 'Edit', exact: true}));
+        const namespace = screen.getByDisplayValue('old-namespace');
+        await user.clear(namespace);
+        await user.type(namespace, 'new-namespace');
+        await user.click(within(panel()).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        const saved = save.mock.calls[0][0] as models.Application;
+        const savedSource = multiSource ? saved.spec.sources[0] : saved.spec.source;
+        expect(savedSource.kustomize.namespace).toBe('new-namespace');
+        expect(savedSource.kustomize.images).toEqual(images);
+
+        await user.click(within(panel()).getByRole('button', {name: 'Edit', exact: true}));
+        const opaqueRow = screen.getByText(images[1]).closest('.white-box__details-row');
+        await user.click(within(opaqueRow).getByRole('checkbox'));
+        const templatedRow = screen.getByText(images[0]).closest('.white-box__details-row');
+        await user.click(within(templatedRow).getByText('Remove override'));
+        await user.click(within(panel()).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+        const removed = save.mock.calls[1][0] as models.Application;
+        expect((multiSource ? removed.spec.sources[0] : removed.spec.source).kustomize.images).toEqual(images.slice(1));
+    });
+
     test('preserves rename-only images and excludes empty overrides when saving without discovery', async () => {
         const app = multiSourceApp();
         const source = {
@@ -722,6 +765,19 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         const saved = save.mock.calls[0][0] as models.Application;
         const savedSource = multiSource ? saved.spec.sources[0] : saved.spec.source;
         expect(savedSource.kustomize.images).toEqual(['mysql=mariadb-next', 'nginx@sha256:0123']);
+
+        appDetails.mockResolvedValue({type: 'Kustomize', kustomize: {images: ['default-image']}});
+        await user.click(screen.getByRole('button', {name: 'Retry'}));
+        expect(await screen.findAllByText('default-image')).not.toHaveLength(0);
+        await user.click(within(panel).getByRole('button', {name: 'Edit', exact: true}));
+        const defaultRow = screen.getByText('default-image').closest('.white-box__details-row');
+        const tag = within(defaultRow).getAllByRole('textbox')[1];
+        await user.type(tag, '1.0');
+        await user.clear(tag);
+        await user.click(within(panel).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+        const clearedDefault = save.mock.calls[1][0] as models.Application;
+        expect((multiSource ? clearedDefault.spec.sources[0] : clearedDefault.spec.source).kustomize.images).not.toContain('default-image');
     });
 
     test('does not clear replacement-editor parameter deletions after an unmounted Save completes', async () => {
