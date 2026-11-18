@@ -408,7 +408,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeSettings,
 		HelmOptions:      helmOptions,
-		AppName:          q.AppName,
+		AppName:          appName,
 		RefSources:       refSources,
 	})
 }
@@ -838,11 +838,12 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 		// multi source revision
 		if len(h.Sources) > 0 {
 			if h.ID == int64(versionId) {
-				if h.Revisions == nil {
+				if index < 0 || int(index) >= len(h.Sources) || int(index) >= len(h.Revisions) {
 					continue
 				}
-				h.Sources[index].TargetRevision = h.Revisions[index]
-				if source.Equals(&h.Sources[index]) {
+				historySource := h.Sources[index]
+				historySource.TargetRevision = h.Revisions[index]
+				if source.Equals(&historySource) {
 					return true
 				}
 			}

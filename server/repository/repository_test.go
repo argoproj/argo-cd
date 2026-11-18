@@ -739,7 +739,9 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		db.EXPECT().GetProjectRepositories("default").Return(nil, nil)
 		db.EXPECT().GetProjectClusters(mock.Anything, "default").Return(nil, nil)
 		expectedResp := apiclient.RepoAppDetailsResponse{Type: "Helm"}
-		repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.Anything).Return(&expectedResp, nil)
+		repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerAppDetailsQuery) bool {
+			return req.AppName == "guestbook"
+		})).Return(&expectedResp, nil)
 		app := guestbookApp.DeepCopy()
 		app.Namespace = "apps"
 		appLister, projLister := newAppAndProjLister(defaultProj, app)
@@ -1027,6 +1029,45 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		})
 		require.NoError(t, err)
 		assert.Equal(t, expectedResp, *resp)
+	})
+}
+
+func Test_isSourceInHistory(t *testing.T) {
+	newApp := func() *appsv1.Application {
+		return &appsv1.Application{
+			Spec: appsv1.ApplicationSpec{
+				Sources: []appsv1.ApplicationSource{
+					{RepoURL: "https://git.example.com/repo.git", Path: "app", TargetRevision: "main"},
+				},
+			},
+			Status: appsv1.ApplicationStatus{
+				History: appsv1.RevisionHistories{
+					{
+						ID:        1,
+						Revisions: []string{"abc123"},
+						Sources: []appsv1.ApplicationSource{
+							{RepoURL: "https://git.example.com/repo.git", Path: "app", TargetRevision: "HEAD"},
+						},
+					},
+				},
+			},
+		}
+	}
+	historicalSource := appsv1.ApplicationSource{RepoURL: "https://git.example.com/repo.git", Path: "app", TargetRevision: "abc123"}
+
+	t.Run("matches a historical source without modifying the app", func(t *testing.T) {
+		app := newApp()
+		assert.True(t, isSourceInHistory(app, historicalSource, 0, 1))
+		assert.Equal(t, "HEAD", app.Status.History[0].Sources[0].TargetRevision)
+	})
+	t.Run("returns false for an out of range source index", func(t *testing.T) {
+		assert.False(t, isSourceInHistory(newApp(), historicalSource, 1, 1))
+		assert.False(t, isSourceInHistory(newApp(), historicalSource, -1, 1))
+	})
+	t.Run("returns false when revisions are missing", func(t *testing.T) {
+		app := newApp()
+		app.Status.History[0].Revisions = nil
+		assert.False(t, isSourceInHistory(app, historicalSource, 0, 1))
 	})
 }
 
