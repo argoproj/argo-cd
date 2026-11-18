@@ -676,10 +676,6 @@ func (h *Hydrator) appNeedsHydration(ctx context.Context, app *appv1.Application
 		return false, "source hydrator not configured", ""
 	case app.Status.SourceHydrator.CurrentOperation == nil:
 		return true, "no previous hydrate operation", ""
-	case app.Status.SourceHydrator.LastSuccessfulOperation != nil:
-		if h.hydrationFormat != app.Status.SourceHydrator.LastSuccessfulOperation.HydrationFormat {
-			return true, fmt.Sprintf("hydrator hydrationFormat ('%s') and LastSuccessfulOperation.HydrationFormat('%s') differ", h.hydrationFormat, app.Status.SourceHydrator.LastSuccessfulOperation.HydrationFormat), ""
-		}
 	case app.Status.SourceHydrator.CurrentOperation.Phase == appv1.HydrateOperationPhaseHydrating:
 		return false, reasonHydrationOperationAlreadyInProgress, ""
 	case requested && hydrateType == appv1.HydrateTypeHard:
@@ -703,6 +699,13 @@ func (h *Hydrator) appNeedsHydration(ctx context.Context, app *appv1.Application
 		}
 		// Within cooldown with a baseline: fall through to newRevisionHasChanges so a
 		// new dry commit retries immediately while an unchanged revision stays idle.
+	}
+
+	// check hydration format
+	if app.Status.SourceHydrator.LastSuccessfulOperation != nil {
+		if h.hydrationFormat != app.Status.SourceHydrator.LastSuccessfulOperation.HydrationFormat {
+			return true, fmt.Sprintf("hydrator hydrationFormat ('%s') and LastSuccessfulOperation.HydrationFormat('%s') differ", h.hydrationFormat, app.Status.SourceHydrator.LastSuccessfulOperation.HydrationFormat), ""
+		}
 	}
 
 	// Check for new revision changes
