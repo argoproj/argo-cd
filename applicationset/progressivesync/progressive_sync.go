@@ -456,8 +456,10 @@ func (m *Manager) resolveMaxUpdate(statusLogCtx *log.Entry, applicationSet *argo
 
 	// ensure that percentage values greater than 0% always result in at least 1 Application being selected.
 	// Compare the parsed percentage, not its spelling: "00%" parses to zero
-	// just like "0%" and must not gain the one-slot minimum.
-	if maxUpdate.Type == intstr.String && maxUpdateVal < 1 {
+	// just like "0%" and must not gain the one-slot minimum. A value that
+	// failed to parse at all (for example "0.5%") keeps the zero limit from
+	// the error path above instead of gaining a slot here.
+	if err == nil && maxUpdate.Type == intstr.String && maxUpdateVal < 1 {
 		if percent, err := strconv.ParseFloat(strings.TrimSuffix(maxUpdate.StrVal, "%"), 64); err == nil && percent > 0 {
 			maxUpdateVal = 1
 		}
@@ -501,8 +503,21 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 				totalCountMap[step]++
 			}
 		}
+		// Only statuses of applications that still exist consume a slot:
+		// appStepMap is built from desired applications, so a deleted
+		// application keeps its step mapping, but no sync can be in flight
+		// for it. Its persisted Pending/Progressing status must not block a
+		// live waiter; the application re-acquires a slot if it is
+		// recreated and admitted again.
+		liveApps := make(map[string]struct{}, len(applications))
+		for _, app := range applications {
+			liveApps[app.Name] = struct{}{}
+		}
 		for _, appStatus := range applicationSet.Status.ApplicationStatus {
 			if appStatus.Status == argov1alpha1.ProgressiveSyncPending || appStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
+				if _, live := liveApps[appStatus.Application]; !live {
+					continue
+				}
 				if step, ok := appStepMap[appStatus.Application]; ok {
 					updateCountMap[step]++
 				}
@@ -586,16 +601,16 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			// App has changed to waiting because the TargetRevisions changed or it is a new selected app
 			// This does not mean we should always sync the app. The app may not be OutOfSync
 			// and may not require a sync if it does not have differences.
+			step, inStep := appStepMap[app.Name]
+			// An application whose recorded status is Pending or
+			// Progressing already holds one of its step's maxUpdate
+			// slots: updateCountMap was built from those recorded
+			// statuses above. Leaving a counted status releases the
+			// slot; staying in a counted status keeps it, so a reset
+			// must not reserve a second one.
+			wasCounted := inStep && updateCountMap != nil &&
+				(currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending || currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing)
 			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
-				step, inStep := appStepMap[app.Name]
-				// An application whose recorded status is Pending or
-				// Progressing already holds one of its step's maxUpdate
-				// slots: updateCountMap was built from those recorded
-				// statuses above. Leaving a counted status releases the
-				// slot; staying in a counted status keeps it, so a reset
-				// must not reserve a second one.
-				wasCounted := inStep && updateCountMap != nil &&
-					(currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending || currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing)
 				if app.Status.Health.Status == health.HealthStatusHealthy {
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
@@ -638,6 +653,13 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 						updateCountMap[step]--
 					}
 				}
+			} else if wasCounted {
+				// An OutOfSync application reset to Waiting leaves its
+				// counted status just like a Synced one: release its slot
+				// now so a waiter later in this pass can use it. It
+				// re-acquires a slot when it later moves from Waiting to
+				// Pending.
+				updateCountMap[step]--
 			}
 		} else {
 			// The target revision is the same, so we need to evaluate the current revision progress

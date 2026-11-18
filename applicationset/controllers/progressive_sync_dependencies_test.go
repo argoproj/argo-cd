@@ -2221,9 +2221,14 @@ func TestSyncedAppWaitingForSlotSkipsPendingAndSync(t *testing.T) {
 //   - a Progressing application that reports the new revision Synced but
 //     still unhealthy keeps its slot and goes straight back to Progressing
 //     instead of being denied by its own reservation and flickering to
-//     Waiting.
+//     Waiting;
+//   - a Progressing application that reports the new revision OutOfSync
+//     releases its slot too, so a waiter later in the same pass can be
+//     admitted instead of waiting for a later reconcile;
+//   - a persisted Progressing status for an application that no longer
+//     exists does not consume a slot, so a live waiter is admitted.
 //
-// Both cases fail on the previous commit and pass with the fix.
+// All cases fail on the previous commit and pass with the fix.
 func TestRevisionChangeReleasesMaxUpdateSlot(t *testing.T) {
 	t.Parallel()
 	nowMinus5 := metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
@@ -2346,5 +2351,32 @@ func TestRevisionChangeReleasesMaxUpdateSlot(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, v1alpha1.ProgressiveSyncProgressing, statusOf(t, statuses, "app1"), "app1 must keep its slot and stay Progressing for the new revision")
 		assert.Equal(t, v1alpha1.ProgressiveSyncWaiting, statusOf(t, statuses, "app2"), "app2 must keep waiting while app1 still holds the step's only slot")
+	})
+
+	t.Run("out-of-sync new revision releases the slot for a waiter in the same pass", func(t *testing.T) {
+		t.Parallel()
+		appSet := newAppSet()
+		r := newManager(t, appSet)
+
+		app1 := newApp("app1", "new", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeOutOfSync)
+		app2 := newApp("app2", "old", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced)
+		statuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatus(t.Context(), logCtx, &appSet, []v1alpha1.Application{app1, app2}, []v1alpha1.Application{app1, app2}, appStepMap)
+		require.NoError(t, err)
+		assert.Equal(t, v1alpha1.ProgressiveSyncWaiting, statusOf(t, statuses, "app1"), "app1 must reset to Waiting for the new revision")
+		assert.Equal(t, v1alpha1.ProgressiveSyncProgressing, statusOf(t, statuses, "app2"), "app2 must be admitted in the same pass once app1 releases its slot")
+	})
+
+	t.Run("deleted application status does not consume a slot", func(t *testing.T) {
+		t.Parallel()
+		appSet := newAppSet()
+		r := newManager(t, appSet)
+
+		// app1 is deleted but still generated: it keeps its step mapping
+		// and its persisted Progressing status, but it is not in the live
+		// application list, so it must not hold the step's only slot.
+		app2 := newApp("app2", "old", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced)
+		statuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatus(t.Context(), logCtx, &appSet, []v1alpha1.Application{app2}, []v1alpha1.Application{app2}, appStepMap)
+		require.NoError(t, err)
+		assert.Equal(t, v1alpha1.ProgressiveSyncProgressing, statusOf(t, statuses, "app2"), "app2 must be admitted when the only counted status belongs to a deleted application")
 	})
 }
