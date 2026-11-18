@@ -725,13 +725,21 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         expect(savedSource.kustomize.images).toEqual(images);
 
         await user.click(within(panel()).getByRole('button', {name: 'Edit', exact: true}));
-        const opaqueRow = screen.getByText(images[1]).closest('.white-box__details-row');
-        await user.click(within(opaqueRow).getByRole('checkbox'));
-        const templatedRow = screen.getByText(images[0]).closest('.white-box__details-row');
-        await user.click(within(templatedRow).getByText('Remove override'));
+        const taggedRow = screen.getByText('nginx').closest('.white-box__details-row');
+        const tag = within(taggedRow).getByDisplayValue('${ARGOCD_APP_REVISION}');
+        await user.clear(tag);
+        await user.type(tag, '2');
         await user.click(within(panel()).getByRole('button', {name: 'Save', exact: true}));
         await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
-        const removed = save.mock.calls[1][0] as models.Application;
+        const retagged = save.mock.calls[1][0] as models.Application;
+        expect((multiSource ? retagged.spec.sources[0] : retagged.spec.source).kustomize.images).toEqual(['nginx:2', ...images.slice(1)]);
+
+        await user.click(within(panel()).getByRole('button', {name: 'Edit', exact: true}));
+        const templatedRow = screen.getByText('nginx').closest('.white-box__details-row');
+        await user.click(within(templatedRow).getByText('Remove override'));
+        await user.click(within(panel()).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(3));
+        const removed = save.mock.calls[2][0] as models.Application;
         expect((multiSource ? removed.spec.sources[0] : removed.spec.source).kustomize.images).toEqual(images.slice(1));
     });
 
@@ -777,7 +785,7 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         await user.click(within(panel).getByRole('button', {name: 'Save', exact: true}));
         await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
         const clearedDefault = save.mock.calls[1][0] as models.Application;
-        expect((multiSource ? clearedDefault.spec.sources[0] : clearedDefault.spec.source).kustomize.images).not.toContain('default-image');
+        expect((multiSource ? clearedDefault.spec.sources[0] : clearedDefault.spec.source).kustomize.images).toEqual(source.kustomize.images);
     });
 
     test('does not clear replacement-editor parameter deletions after an unmounted Save completes', async () => {
