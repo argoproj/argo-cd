@@ -16,6 +16,7 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
@@ -2573,4 +2574,56 @@ func TestPerformReverseDeletionTerminatingApp(t *testing.T) {
 			assert.Zero(t, deleteAttempts, "must not re-Delete an already terminating Application")
 		})
 	}
+}
+
+// TestResolveMaxUpdate pins the one-slot minimum for percentage maxUpdate
+// values: a positive percentage that scales down to zero still admits one
+// application, while a zero percentage admits none regardless of spelling.
+// "00%" parses to zero just like "0%" (intstr uses strconv.Atoi after
+// trimming "%"), so it must not gain the minimum.
+func TestResolveMaxUpdate(t *testing.T) {
+	t.Parallel()
+
+	newAppSet := func(maxUpdate *intstr.IntOrString) *v1alpha1.ApplicationSet {
+		return &v1alpha1.ApplicationSet{
+			Spec: v1alpha1.ApplicationSetSpec{
+				Strategy: &v1alpha1.ApplicationSetStrategy{
+					Type: "RollingSync",
+					RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+						Steps: []v1alpha1.ApplicationSetRolloutStep{
+							{MaxUpdate: maxUpdate, MatchExpressions: []v1alpha1.ApplicationMatchExpression{}},
+						},
+					},
+				},
+			},
+		}
+	}
+
+	for _, tc := range []struct {
+		name       string
+		maxUpdate  *intstr.IntOrString
+		totalCount int
+		wantVal    int
+		wantOK     bool
+	}{
+		{"zero percent admits none", intstrPtr(intstr.FromString("0%")), 10, 0, true},
+		{"double-zero percent admits none", intstrPtr(intstr.FromString("00%")), 10, 0, true},
+		{"one percent admits one", intstrPtr(intstr.FromString("1%")), 10, 1, true},
+		{"fifty percent scales", intstrPtr(intstr.FromString("50%")), 10, 5, true},
+		{"zero count admits none", intstrPtr(intstr.FromInt(0)), 10, 0, true},
+		{"integer count passes through", intstrPtr(intstr.FromInt(2)), 10, 2, true},
+		{"unset maxUpdate disables admission", nil, 10, 0, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			m := &Manager{}
+			gotVal, gotOK := m.resolveMaxUpdate(log.NewEntry(log.StandardLogger()), newAppSet(tc.maxUpdate), 0, tc.totalCount)
+			assert.Equal(t, tc.wantOK, gotOK)
+			assert.Equal(t, tc.wantVal, gotVal)
+		})
+	}
+}
+
+func intstrPtr(v intstr.IntOrString) *intstr.IntOrString {
+	return &v
 }

@@ -2207,3 +2207,144 @@ func TestSyncedAppWaitingForSlotSkipsPendingAndSync(t *testing.T) {
 		assert.Nil(t, app.Operation, "no sync operation must be triggered for already-Synced application %q", app.Name)
 	}
 }
+
+// TestRevisionChangeReleasesMaxUpdateSlot pins the slot accounting when a
+// new target revision arrives for an application that already holds a
+// maxUpdate slot (recorded Pending or Progressing). The revision change
+// resets the application to Waiting first, so the status function must
+// release the slot on the same pass when the application leaves its counted
+// status, and must not reserve a second slot when it stays active:
+//
+//   - a Progressing application that reports the new revision Synced and
+//     Healthy releases its slot, so a waiter later in the same pass can be
+//     admitted;
+//   - a Progressing application that reports the new revision Synced but
+//     still unhealthy keeps its slot and goes straight back to Progressing
+//     instead of being denied by its own reservation and flickering to
+//     Waiting.
+//
+// Both cases fail on the previous commit and pass with the fix.
+func TestRevisionChangeReleasesMaxUpdateSlot(t *testing.T) {
+	t.Parallel()
+	nowMinus5 := metav1.Time{Time: time.Now().Add(-5 * time.Minute)}
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	newManager := func(t *testing.T, appSet v1alpha1.ApplicationSet) *ApplicationSetReconciler {
+		t.Helper()
+		kubeclientset := kubefake.NewClientset([]runtime.Object{}...)
+		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).Build()
+		metrics := appsetmetrics.NewFakeAppsetMetrics()
+		appClientSet := appfake.NewSimpleClientset([]runtime.Object{}...)
+		argodb := db.NewDB("argocd", settings.NewSettingsManager(t.Context(), kubeclientset, "argocd"), kubeclientset)
+
+		r := &ApplicationSetReconciler{
+			Client:        client,
+			Scheme:        scheme,
+			Recorder:      record.NewFakeRecorder(1),
+			Generators:    map[string]generators.Generator{},
+			ArgoDB:        argodb,
+			KubeClientset: kubeclientset,
+			Metrics:       metrics,
+		}
+		r.ProgressiveSyncManager = appsetprogressiveSync.NewManager(r.Client, r.Client, appClientSet, r)
+		return r
+	}
+
+	newAppSet := func() v1alpha1.ApplicationSet {
+		maxUpdate := intstr.FromInt(1)
+		return v1alpha1.ApplicationSet{
+			Name:      "name",
+			Namespace: "argocd",
+			Spec: v1alpha1.ApplicationSetSpec{
+				Strategy: &v1alpha1.ApplicationSetStrategy{
+					Type: "RollingSync",
+					RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{
+						Steps: []v1alpha1.ApplicationSetRolloutStep{
+							{MaxUpdate: &maxUpdate, MatchExpressions: []v1alpha1.ApplicationMatchExpression{}},
+						},
+					},
+				},
+			},
+			Status: v1alpha1.ApplicationSetStatus{
+				ApplicationStatus: []v1alpha1.ApplicationSetApplicationStatus{
+					{
+						Application:        "app1",
+						Message:            "Application resource has synced, updating status to Progressing",
+						Status:             v1alpha1.ProgressiveSyncProgressing,
+						Step:               "0",
+						TargetRevisions:    []string{"old"},
+						LastTransitionTime: &nowMinus5,
+					},
+					{
+						Application:        "app2",
+						Message:            "Application resource has synced but is waiting for an available update slot in this step",
+						Status:             v1alpha1.ProgressiveSyncWaiting,
+						Step:               "0",
+						TargetRevisions:    []string{"old"},
+						LastTransitionTime: &nowMinus5,
+					},
+				},
+			},
+		}
+	}
+
+	newApp := func(name, revision string, healthStatus health.HealthStatusCode, syncStatus v1alpha1.SyncStatusCode) v1alpha1.Application {
+		return v1alpha1.Application{
+			Name: name,
+			Status: v1alpha1.ApplicationStatus{
+				ReconciledAt: &metav1.Time{Time: time.Now()},
+				Health:       v1alpha1.AppHealthStatus{Status: healthStatus},
+				Sync: v1alpha1.SyncStatus{
+					Status:   syncStatus,
+					Revision: revision,
+				},
+				OperationState: &v1alpha1.OperationState{
+					Phase:      common.OperationSucceeded,
+					StartedAt:  metav1.Time{Time: time.Now().Add(-1 * time.Minute)},
+					FinishedAt: &metav1.Time{Time: time.Now().Add(-1 * time.Second)},
+				},
+			},
+		}
+	}
+
+	statusOf := func(t *testing.T, statuses []v1alpha1.ApplicationSetApplicationStatus, app string) v1alpha1.ProgressiveSyncStatusCode {
+		t.Helper()
+		for _, s := range statuses {
+			if s.Application == app {
+				return s.Status
+			}
+		}
+		t.Fatalf("no status for application %q in %+v", app, statuses)
+		return ""
+	}
+
+	appStepMap := map[string]int{"app1": 0, "app2": 0}
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	t.Run("healthy new revision releases the slot for a waiter in the same pass", func(t *testing.T) {
+		t.Parallel()
+		appSet := newAppSet()
+		r := newManager(t, appSet)
+
+		app1 := newApp("app1", "new", health.HealthStatusHealthy, v1alpha1.SyncStatusCodeSynced)
+		app2 := newApp("app2", "old", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced)
+		statuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatus(t.Context(), logCtx, &appSet, []v1alpha1.Application{app1, app2}, []v1alpha1.Application{app1, app2}, appStepMap)
+		require.NoError(t, err)
+		assert.Equal(t, v1alpha1.ProgressiveSyncHealthy, statusOf(t, statuses, "app1"), "app1 must become Healthy for the new revision")
+		assert.Equal(t, v1alpha1.ProgressiveSyncProgressing, statusOf(t, statuses, "app2"), "app2 must be admitted in the same pass once app1 releases its slot")
+	})
+
+	t.Run("unhealthy new revision keeps its slot instead of flickering to Waiting", func(t *testing.T) {
+		t.Parallel()
+		appSet := newAppSet()
+		r := newManager(t, appSet)
+
+		app1 := newApp("app1", "new", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced)
+		app2 := newApp("app2", "old", health.HealthStatusDegraded, v1alpha1.SyncStatusCodeSynced)
+		statuses, err := r.ProgressiveSyncManager.UpdateApplicationSetApplicationStatus(t.Context(), logCtx, &appSet, []v1alpha1.Application{app1, app2}, []v1alpha1.Application{app1, app2}, appStepMap)
+		require.NoError(t, err)
+		assert.Equal(t, v1alpha1.ProgressiveSyncProgressing, statusOf(t, statuses, "app1"), "app1 must keep its slot and stay Progressing for the new revision")
+		assert.Equal(t, v1alpha1.ProgressiveSyncWaiting, statusOf(t, statuses, "app2"), "app2 must keep waiting while app1 still holds the step's only slot")
+	})
+}

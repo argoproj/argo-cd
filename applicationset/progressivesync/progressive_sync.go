@@ -454,9 +454,13 @@ func (m *Manager) resolveMaxUpdate(statusLogCtx *log.Entry, applicationSet *argo
 		}
 	}
 
-	// ensure that percentage values greater than 0% always result in at least 1 Application being selected
-	if maxUpdate.Type == intstr.String && maxUpdate.StrVal != "0%" && maxUpdateVal < 1 {
-		maxUpdateVal = 1
+	// ensure that percentage values greater than 0% always result in at least 1 Application being selected.
+	// Compare the parsed percentage, not its spelling: "00%" parses to zero
+	// just like "0%" and must not gain the one-slot minimum.
+	if maxUpdate.Type == intstr.String && maxUpdateVal < 1 {
+		if percent, err := strconv.ParseFloat(strings.TrimSuffix(maxUpdate.StrVal, "%"), 64); err == nil && percent > 0 {
+			maxUpdateVal = 1
+		}
 	}
 	return maxUpdateVal, true
 }
@@ -583,31 +587,55 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			// This does not mean we should always sync the app. The app may not be OutOfSync
 			// and may not require a sync if it does not have differences.
 			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
+				step, inStep := appStepMap[app.Name]
+				// An application whose recorded status is Pending or
+				// Progressing already holds one of its step's maxUpdate
+				// slots: updateCountMap was built from those recorded
+				// statuses above. Leaving a counted status releases the
+				// slot; staying in a counted status keeps it, so a reset
+				// must not reserve a second one.
+				wasCounted := inStep && updateCountMap != nil &&
+					(currentAppStatus.Status == argov1alpha1.ProgressiveSyncPending || currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing)
 				if app.Status.Health.Status == health.HealthStatusHealthy {
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource has synced, updating status to Healthy"
+					if wasCounted {
+						updateCountMap[step]--
+					}
 				} else {
 					// A Synced but unhealthy application skips the sync queue, so
 					// promote it to Progressing only if the step still has a free
 					// maxUpdate slot. Otherwise it stays Waiting and the normal
 					// Waiting -> Pending admission re-checks it once a slot frees up.
-					step, inStep := appStepMap[app.Name]
+					// A slot the application already holds does not count
+					// against it: it keeps updating under the same slot.
 					admitted := true
 					if inStep && updateCountMap != nil {
-						if maxUpdateVal, ok := m.resolveMaxUpdate(statusLogCtx, applicationSet, step, totalCountMap[step]); ok && updateCountMap[step] >= maxUpdateVal {
-							admitted = false
-							statusLogCtx.Infof("Application is not allowed to progress yet, %v/%v Applications already updating in step %v", updateCountMap[step], maxUpdateVal, getAppStep(app.Name, appStepMap))
-							newAppStatus.Message = "Application resource has synced but is waiting for an available update slot in this step"
+						if maxUpdateVal, ok := m.resolveMaxUpdate(statusLogCtx, applicationSet, step, totalCountMap[step]); ok {
+							effectiveCount := updateCountMap[step]
+							if wasCounted {
+								effectiveCount--
+							}
+							if effectiveCount >= maxUpdateVal {
+								admitted = false
+								statusLogCtx.Infof("Application is not allowed to progress yet, %v/%v Applications already updating in step %v", updateCountMap[step], maxUpdateVal, getAppStep(app.Name, appStepMap))
+								newAppStatus.Message = "Application resource has synced but is waiting for an available update slot in this step"
+							}
 						}
 					}
 					if admitted {
 						newAppStatus.LastTransitionTime = &now
 						newAppStatus.Status = argov1alpha1.ProgressiveSyncProgressing
 						newAppStatus.Message = "Application resource has synced, updating status to Progressing"
-						if updateCountMap != nil && inStep {
+						if updateCountMap != nil && inStep && !wasCounted {
 							updateCountMap[step]++
 						}
+					} else if wasCounted {
+						// The application leaves its counted status for
+						// Waiting without being admitted, so it stops
+						// consuming a slot for the rest of this call.
+						updateCountMap[step]--
 					}
 				}
 			}
