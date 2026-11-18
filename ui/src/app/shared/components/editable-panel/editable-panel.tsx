@@ -108,6 +108,12 @@ function EditablePanel<T extends {} = {}>({
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const editSession = React.useRef(0);
+    React.useEffect(
+        () => () => {
+            editSession.current++;
+        },
+        []
+    );
     const [isCollapsed, setIsCollapsed] = useState<boolean>(collapsedProp);
     const [prevCollapsedProp, setPrevCollapsedProp] = useState<boolean>(collapsedProp);
     const ctx = useContext(Context);

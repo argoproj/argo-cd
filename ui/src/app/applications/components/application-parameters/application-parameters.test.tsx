@@ -5,6 +5,7 @@ import * as models from '../../../shared/models';
 import {services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {ApplicationParameters} from './application-parameters';
+import * as kustomizeImage from './kustomize-image';
 
 jest.mock('../../../shared/services', () => ({
     services: {
@@ -12,7 +13,8 @@ jest.mock('../../../shared/services', () => ({
             appDetails: jest.fn()
         },
         authService: {
-            plugins: jest.fn().mockResolvedValue([{name: 'my-plugin'}])
+            plugins: jest.fn().mockResolvedValue([{name: 'my-plugin'}]),
+            settings: jest.fn().mockResolvedValue({kustomizeVersions: []})
         },
         viewPreferences: {
             getPreferences: jest.fn().mockResolvedValue({pageSizes: {'5': 10}, sortOptions: {}}),
@@ -687,6 +689,129 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         expect(screen.getByText('nginx=registry.example.com/nginx:2.0')).toBeInTheDocument();
     });
 
+    test('preserves rename-only images and excludes empty overrides when saving without discovery', async () => {
+        const app = multiSourceApp();
+        const source = {
+            repoURL: 'https://git.example.com/manifests.git',
+            path: 'manifests',
+            targetRevision: 'main',
+            kustomize: {images: ['mysql=mariadb-next', 'nginx@sha256:0123', 'empty-image:1.0', 'removed-image:1.0']}
+        } as models.ApplicationSource;
+        if (multiSource) {
+            app.spec.sources = [source];
+        } else {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        appDetails.mockRejectedValue(new Error('repository unavailable'));
+        const save = jest.fn().mockResolvedValue(undefined);
+        const user = userEvent.setup();
+        renderWithContext(<ApplicationParameters application={app} save={save} pageNumber={0} setPageNumber={jest.fn()} />);
+        expect(await screen.findByRole('alert')).toHaveTextContent('repository unavailable');
+        await user.click(screen.getAllByRole('button', {name: 'Edit'})[multiSource ? 1 : 0]);
+        const format = kustomizeImage.format;
+        const formatter = jest.spyOn(kustomizeImage, 'format').mockImplementation(image => (image.name === 'empty-image' ? '' : format(image)));
+        try {
+            await user.type(screen.getByPlaceholderText('empty-image'), 'blank');
+        } finally {
+            formatter.mockRestore();
+        }
+        const removedRow = screen.getByText('removed-image').closest('.white-box__details-row');
+        await user.click(within(removedRow).getByText('Remove override'));
+        const panel = screen.getByText('KUSTOMIZE').parentElement.parentElement;
+        await user.click(within(panel).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        const saved = save.mock.calls[0][0] as models.Application;
+        const savedSource = multiSource ? saved.spec.sources[0] : saved.spec.source;
+        expect(savedSource.kustomize.images).toEqual(['mysql=mariadb-next', 'nginx@sha256:0123']);
+    });
+
+    test('does not clear replacement-editor parameter deletions after an unmounted Save completes', async () => {
+        const app = multiSourceApp();
+        const source = app.spec.sources[0];
+        source.plugin.parameters = [{name: 'options', string: 'configured'}];
+        if (!multiSource) {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        appDetails.mockRejectedValue(new Error('repository unavailable'));
+        let finishSave: () => void;
+        const save = jest
+            .fn()
+            .mockImplementationOnce(
+                () =>
+                    new Promise<void>(resolve => {
+                        finishSave = resolve;
+                    })
+            )
+            .mockResolvedValue(undefined);
+        const parameters = (application: models.Application) => (
+            <Context.Provider value={ctxValue}>
+                <ApplicationParameters application={application} save={save} pageNumber={0} setPageNumber={jest.fn()} />
+            </Context.Provider>
+        );
+        const user = userEvent.setup();
+        const {rerender} = render(parameters(app));
+        expect(await screen.findByText('PLUGIN')).toBeInTheDocument();
+        const panel = () => screen.getByText('PLUGIN').parentElement.parentElement;
+        await user.click(within(panel()).getByRole('button', {name: 'Edit', exact: true}));
+        await user.click(within(panel()).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        const updatedSource = {...source, targetRevision: 'release'};
+        rerender(parameters({...app, spec: {...app.spec, ...(multiSource ? {sources: [updatedSource]} : {source: updatedSource})}}));
+        expect(await screen.findByText('PLUGIN')).toBeInTheDocument();
+        await user.click(within(panel()).getByRole('button', {name: 'Edit', exact: true}));
+        const row = screen.getByText('options').closest('.white-box__details-row');
+        await user.click(within(row).getByRole('button', {name: 'Delete', exact: true}));
+        expect(screen.queryByText('options')).not.toBeInTheDocument();
+        await act(async () => finishSave());
+        expect(screen.queryByText('options')).not.toBeInTheDocument();
+        await user.click(within(panel()).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+        const saved = save.mock.calls[1][0] as models.Application;
+        expect((multiSource ? saved.spec.sources[0] : saved.spec.source).plugin.parameters).toEqual([]);
+    });
+
+    test('does not clear a newer override removal when a cancelled Save completes', async () => {
+        const app = multiSourceApp();
+        const source = {
+            repoURL: 'https://charts.example.com',
+            chart: 'web-app',
+            targetRevision: '1.0.0',
+            helm: {parameters: [{name: 'replicas', value: '3'}]}
+        } as models.ApplicationSource;
+        if (multiSource) {
+            app.spec.sources = [source];
+        } else {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        appDetails.mockResolvedValue({type: 'Helm', helm: {parameters: [{name: 'replicas', value: '1'}]}});
+        let finishSave: () => void;
+        const save = jest.fn(
+            () =>
+                new Promise<void>(resolve => {
+                    finishSave = resolve;
+                })
+        );
+        const user = userEvent.setup();
+        renderWithContext(<ApplicationParameters application={app} save={save} pageNumber={0} setPageNumber={jest.fn()} />);
+        expect(await screen.findByText('HELM')).toBeInTheDocument();
+        const panel = () => screen.getByText('HELM').parentElement.parentElement;
+        await user.click(within(panel()).getByRole('button', {name: 'Edit', exact: true}));
+        await user.click(within(panel()).getByRole('button', {name: 'Save', exact: true}));
+        await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+        within(panel()).getByRole('button', {name: 'Cancel', exact: true}).focus();
+        await user.keyboard('{Enter}');
+        within(panel()).getByRole('button', {name: 'Edit', exact: true}).focus();
+        await user.keyboard('{Enter}');
+        await user.click(within(panel()).getByText('Remove override'));
+        const keepOverride = within(panel()).getByText('Keep override');
+        await act(async () => finishSave());
+        expect(within(panel()).getByText('Keep override')).toBe(keepOverride);
+        expect(within(panel()).getByRole('button', {name: 'Save', exact: true})).toBeEnabled();
+    });
+
     test.each([
         {olderFirst: false, currentFailure: false},
         {olderFirst: true, currentFailure: false},
@@ -751,6 +876,33 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         expect(screen.queryByText('obsolete lookup failed')).not.toBeInTheDocument();
         expect(screen.queryByText('old-default')).not.toBeInTheDocument();
     });
+});
+
+test('unlocks the sibling section only after a successful Save', async () => {
+    const app = multiSourceApp();
+    app.spec.sources = [{repoURL: 'https://charts.example.com', chart: 'web-app', targetRevision: '1.0.0', helm: {values: 'replicaCount: 1\n'}} as models.ApplicationSource];
+    (services.repos.appDetails as jest.Mock).mockReset().mockResolvedValue({type: 'Helm', helm: {parameters: [], valueFiles: [], fileParameters: []}});
+    const save = jest.fn().mockRejectedValueOnce(new Error('save failed')).mockResolvedValue(undefined);
+    const notifications = {show: jest.fn()};
+    const user = userEvent.setup();
+    render(
+        <Context.Provider value={{notifications} as any}>
+            <ApplicationParameters application={app} save={save} pageNumber={0} setPageNumber={jest.fn()} />
+        </Context.Provider>
+    );
+    expect(await screen.findByText('HELM')).toBeInTheDocument();
+    const [topEdit, bottomEdit] = screen.getAllByRole('button', {name: 'Edit', exact: true});
+    await user.click(bottomEdit);
+    expect(topEdit).toBeDisabled();
+    const panel = screen.getByText('HELM').parentElement.parentElement;
+    const saveButton = within(panel).getByRole('button', {name: 'Save', exact: true});
+    await user.click(saveButton);
+    await waitFor(() => expect(notifications.show).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(saveButton).toBeEnabled());
+    expect(topEdit).toBeDisabled();
+    await user.click(saveButton);
+    await waitFor(() => expect(save).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(topEdit).toBeEnabled());
 });
 
 test('does not restart single-source lookups for watch updates', async () => {

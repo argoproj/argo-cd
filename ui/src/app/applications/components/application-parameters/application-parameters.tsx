@@ -366,14 +366,14 @@ export const ApplicationParameters = (props: {
                             function isDefined(item: any) {
                                 return item !== null && item !== undefined;
                             }
-                            function isDefinedWithVersion(item: any) {
-                                return item !== null && item !== undefined && item.match(/:/);
+                            function isNonEmptyImage(item: any) {
+                                return typeof item === 'string' && item.trim().length > 0;
                             }
                             if (updatedSrc && updatedSrc.helm?.parameters) {
                                 updatedSrc.helm.parameters = updatedSrc.helm.parameters.filter(isDefined);
                             }
                             if (updatedSrc && updatedSrc.kustomize?.images) {
-                                updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isDefinedWithVersion);
+                                updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isNonEmptyImage);
                             }
 
                             let params = isMulti ? input.spec?.sources[ind]?.plugin?.parameters : input.spec?.source?.plugin?.parameters;
@@ -407,7 +407,6 @@ export const ApplicationParameters = (props: {
                                 updatedSrc.helm.values = '';
                             }
                             await props.save(input, {});
-                            setRemovedOverrides(new Array<boolean>());
                         })
                     }
                     values={((repoAppDetails?.plugin || (isMulti ? app?.spec?.sources[ind]?.plugin : app?.spec?.source?.plugin)) && cloneDeep(app)) || app}
@@ -429,6 +428,9 @@ export const ApplicationParameters = (props: {
                     }}
                     onModeSwitch={isEditing => {
                         notifyModeSwitch?.(isEditing);
+                        if (!isEditing) {
+                            setRemovedOverrides(new Array<boolean>());
+                        }
                         if (repoAppDetails?.plugin) {
                             setAppParamsDeletedState([]);
                         }
@@ -526,15 +528,15 @@ export const ApplicationParameters = (props: {
                         function isDefined(item: any) {
                             return item !== null && item !== undefined;
                         }
-                        function isDefinedWithVersion(item: any) {
-                            return item !== null && item !== undefined && item.match(/:/);
+                        function isNonEmptyImage(item: any) {
+                            return typeof item === 'string' && item.trim().length > 0;
                         }
 
                         if (appSrc.helm && appSrc.helm.parameters) {
                             appSrc.helm.parameters = appSrc.helm.parameters.filter(isDefined);
                         }
                         if (appSrc.kustomize && appSrc.kustomize.images) {
-                            appSrc.kustomize.images = appSrc.kustomize.images.filter(isDefinedWithVersion);
+                            appSrc.kustomize.images = appSrc.kustomize.images.filter(isNonEmptyImage);
                         }
 
                         let params = input.spec?.sources[ind]?.plugin?.parameters;
@@ -562,7 +564,6 @@ export const ApplicationParameters = (props: {
                         }
 
                         await props.save(input, {});
-                        setRemovedOverrides(new Array<boolean>());
                     })
                 }
                 valuesTop={(app?.spec?.sources && (repoAppDetails?.plugin || app?.spec?.sources[ind]?.plugin) && cloneDeep(app)) || app}
@@ -594,6 +595,9 @@ export const ApplicationParameters = (props: {
                 }}
                 onModeSwitch={isEditing => {
                     notifyModeSwitch?.(isEditing);
+                    if (!isEditing) {
+                        setRemovedOverrides(new Array<boolean>());
+                    }
                     if (repoAppDetails?.plugin) {
                         setAppParamsDeletedState([]);
                     }

@@ -52,6 +52,12 @@ function EditableSection<T extends {} = {}>({
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
     const editSession = React.useRef(0);
+    React.useEffect(
+        () => () => {
+            editSession.current++;
+        },
+        []
+    );
     const {formApiRef, onFormDidUpdate} = useAutoSaveForm(values, noReadonlyMode, save);
 
     const onModeSwitch = useCallback(
@@ -70,6 +76,7 @@ function EditableSection<T extends {} = {}>({
                 await save(input as any, {});
                 if (session === editSession.current) {
                     setIsEditing(false);
+                    updateButtons?.(false);
                     onModeSwitch(false);
                 }
             } catch (e) {
@@ -81,7 +88,7 @@ function EditableSection<T extends {} = {}>({
                 setIsSaving(false);
             }
         },
-        [save, ctx.notifications, onModeSwitch]
+        [save, ctx.notifications, onModeSwitch, updateButtons]
     );
 
     return (
