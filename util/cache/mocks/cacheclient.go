@@ -16,6 +16,16 @@ type MockCacheClient struct {
 	WriteDelay time.Duration
 }
 
+// Preserve optional atomic publication when wrapping a real Redis client.
+func (c *MockCacheClient) CompareAndSwap(ctx context.Context, key string, expected, replacement any, expiration time.Duration) (bool, error) {
+	if client, ok := c.BaseCache.(interface {
+		CompareAndSwap(context.Context, string, any, any, time.Duration) (bool, error)
+	}); ok {
+		return client.CompareAndSwap(ctx, key, expected, replacement, expiration)
+	}
+	return false, nil
+}
+
 func (c *MockCacheClient) Rename(oldKey string, newKey string, expiration time.Duration) error {
 	args := c.Called(oldKey, newKey, expiration)
 	if len(args) > 0 && args.Get(0) != nil {

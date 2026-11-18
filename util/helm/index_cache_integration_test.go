@@ -273,6 +273,8 @@ func TestIndexCacheIntegrationExpiredUses304(t *testing.T) {
 	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
 	require.NoError(t, store.Set(scopedIndexIdentity(repo.Repo, credsScope(repo.Creds), "", "127.0.0.1,localhost"), fixture.index()))
 	require.NoError(t, store.SetHelmIndexValidators(scopedIndexIdentity(repo.Repo, credsScope(repo.Creds), "", "127.0.0.1,localhost"), `"1.0.0"`, ""))
+	identity := scopedIndexIdentity(repo.Repo, credsScope(repo.Creds), "", "127.0.0.1,localhost")
+	require.True(t, store.installRecord(identity, &HelmIndexRecord{Body: fixture.index(), ETag: `"1.0.0"`, URLIdentity: IndexURLIdentity(fixture.server.URL + "/index.yaml"), StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}))
 	regressionExpire(t, store, scopedIndexIdentity(repo.Repo, credsScope(repo.Creds), "", "127.0.0.1,localhost"))
 	h, err := regressionBuild(t, regressionParent(t, repo.Repo, nil), repo, store, false)
 	require.NoError(t, err)
@@ -513,7 +515,7 @@ func TestIndexCacheIntegrationMutualTLS(t *testing.T) {
 		home := app.(*helm).cmd.helmHome
 		credentials, err := filepath.Glob(filepath.Join(home, "config", "repo-credential-*"))
 		require.NoError(t, err)
-		require.Len(t, credentials, 2)
+		require.Len(t, credentials, 3, "client certificate, key and frozen repository CA must be private")
 		for _, file := range credentials {
 			info, err := os.Stat(file)
 			require.NoError(t, err)

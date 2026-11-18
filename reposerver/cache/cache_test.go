@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1495,7 +1496,7 @@ func (c *generationReadBarrier) GetHelmIndexRetainedRecord(key string) (*HelmInd
 func TestIndexRecordReadInterleavingKeepsGeneration(t *testing.T) {
 	cache, _, origin, url := helmIndexContractSetup(t)
 	body := helmIndexContractBody("1.0.0")
-	require.NoError(t, cache.SetHelmIndexRecord(url, body, `"1.0.0"`, ""))
+	require.NoError(t, cache.SetHelmIndexRetainedRecord(url, &HelmIndexRecord{Body: body, ETag: `"1.0.0"`, URLIdentity: helm.IndexURLIdentity(url + "/index.yaml"), StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}))
 	view := &generationReadBarrier{Cache: cache, observed: make(chan struct{}), resume: make(chan struct{})}
 	release := sync.OnceFunc(func() { close(view.resume) })
 	t.Cleanup(release)
@@ -1639,6 +1640,7 @@ func TestSplitIndexCacheNeverPublishesUnboundValidators(t *testing.T) {
 	}))
 	t.Cleanup(server.Close)
 	url = server.URL
+	require.NoError(t, cache.SetHelmIndex(url, helmIndexContractBody("1.0.0")))
 	client := helm.NewClient(url, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(view))
 	_, err := client.GetIndex(t.Context(), true, 1<<20)
 	require.NoError(t, err)
@@ -1672,7 +1674,7 @@ func TestIndexDelayed304PreservesConcurrentGeneration(t *testing.T) {
 	t.Cleanup(server.Close)
 	t.Cleanup(resume)
 	url := server.URL
-	require.NoError(t, cache.SetHelmIndexRetainedRecord(url, &HelmIndexRecord{Body: helmIndexContractBody("1.0.0"), ETag: `"one"`, StoredAt: time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339Nano)}))
+	require.NoError(t, cache.SetHelmIndexRetainedRecord(url, &HelmIndexRecord{Body: helmIndexContractBody("1.0.0"), ETag: `"one"`, URLIdentity: helm.IndexURLIdentity(url + "/index.yaml"), StoredAt: time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339Nano)}))
 	client := helm.NewClient(url, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(cache))
 	result := make(chan error, 1)
 	go func() { _, err := client.GetIndex(t.Context(), true, 1<<20); result <- err }()
@@ -1693,4 +1695,110 @@ func TestIndexDelayed304PreservesConcurrentGeneration(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, helmIndexContractBody("2.0.0"), record.Body, "a delayed 304 cannot roll back a newer shared generation")
 	require.Equal(t, `"two"`, record.ETag)
+}
+
+func TestIndexRedirectTargetOwnsValidators(t *testing.T) {
+	cache, _ := regressionRedisCache(t)
+	var target atomic.Int32
+	target.Store(1)
+	var mu sync.Mutex
+	var statuses []int
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/index.yaml" {
+			http.Redirect(w, r, fmt.Sprintf("/v%d/index.yaml", target.Load()), http.StatusFound)
+			return
+		}
+		version := "1.0.0"
+		if r.URL.Path == "/v2/index.yaml" {
+			version = "2.0.0"
+		}
+		status := http.StatusOK
+		w.Header().Set("ETag", `"shared-tag"`)
+		if r.Header.Get("If-None-Match") == `"shared-tag"` {
+			status = http.StatusNotModified
+		}
+		mu.Lock()
+		statuses = append(statuses, status)
+		mu.Unlock()
+		w.WriteHeader(status)
+		if status == http.StatusOK {
+			_, _ = w.Write(helmIndexContractBody(version))
+		}
+	}))
+	t.Cleanup(server.Close)
+	client := helm.NewClient(server.URL, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(cache))
+	for _, version := range []string{"1.0.0", "1.0.0", "2.0.0", "2.0.0"} {
+		if version == "2.0.0" {
+			target.Store(2)
+		}
+		index, err := client.GetIndex(t.Context(), true, 1<<20)
+		require.NoError(t, err)
+		require.Equal(t, version, index.Entries["child"][0].Version, "an ETag from another redirect target cannot authorize these bytes")
+	}
+	mu.Lock()
+	defer mu.Unlock()
+	require.Equal(t, []int{200, 304, 200, 304}, statuses)
+}
+
+func TestIndexDelayed200PreservesConcurrentGeneration(t *testing.T) {
+	for _, warm := range []bool{false, true} {
+		t.Run(strconv.FormatBool(warm), func(t *testing.T) {
+			cache, _ := regressionRedisCache(t)
+			entered, release := make(chan struct{}), make(chan struct{})
+			resume := sync.OnceFunc(func() { close(release) })
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				w.Header().Set("ETag", `"one"`)
+				w.WriteHeader(http.StatusOK)
+				w.(http.Flusher).Flush()
+				close(entered)
+				select {
+				case <-release:
+				case <-r.Context().Done():
+					return
+				}
+				_, _ = w.Write(helmIndexContractBody("1.0.0"))
+			}))
+			t.Cleanup(server.Close)
+			t.Cleanup(resume)
+			if warm {
+				require.NoError(t, cache.SetHelmIndexRecord(server.URL, helmIndexContractBody("0.0.1"), `"old"`, ""))
+			}
+			client := helm.NewClient(server.URL, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(cache))
+			done := make(chan error, 1)
+			go func() { _, err := client.GetIndex(t.Context(), true, 1<<20); done <- err }()
+			select {
+			case <-entered:
+			case <-time.After(5 * time.Second):
+				t.Fatal("200 never started")
+			}
+			require.NoError(t, cache.SetHelmIndexRecord(server.URL, helmIndexContractBody("2.0.0"), `"two"`, ""))
+			resume()
+			select {
+			case err := <-done:
+				require.NoError(t, err)
+			case <-time.After(5 * time.Second):
+				t.Fatal("200 did not finish")
+			}
+			record, err := cache.GetHelmIndexRecord(server.URL)
+			require.NoError(t, err)
+			require.Equal(t, helmIndexContractBody("2.0.0"), record.Body)
+			require.Equal(t, `"two"`, record.ETag)
+		})
+	}
+}
+
+func TestIndexLegacyRecordWithoutURLFetchesBody(t *testing.T) {
+	cache, _, origin, url := helmIndexContractSetup(t)
+	origin.mu.Lock()
+	origin.version = "2.0.0"
+	origin.mu.Unlock()
+	// The old ETag may have belonged to an earlier redirect target.
+	require.NoError(t, cache.SetHelmIndexRecord(url, helmIndexContractBody("1.0.0"), `"2.0.0"`, ""))
+	client := helm.NewClient(url, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(cache))
+	index, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.Equal(t, "2.0.0", index.Entries["child"][0].Version)
+	origin.mu.Lock()
+	defer origin.mu.Unlock()
+	require.Equal(t, []int{http.StatusOK}, origin.statuses, "a legacy record without URL provenance cannot authorize a 304")
 }

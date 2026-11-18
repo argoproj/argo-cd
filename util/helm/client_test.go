@@ -5,8 +5,10 @@ import (
 	"bytes"
 	"compress/gzip"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"fmt"
 	"io"
@@ -30,6 +32,7 @@ import (
 	"gopkg.in/yaml.v2"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
+	utiltls "github.com/argoproj/argo-cd/v3/util/tls"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/mocks"
 )
@@ -1087,7 +1090,7 @@ func TestConditionalGET_Revalidates(t *testing.T) {
 	httpSrv := httptest.NewServer(srv.handler())
 	defer httpSrv.Close()
 
-	cache := &fakeValidatorsCache{}
+	cache := &fakeIndexCache{}
 	client := NewClient(httpSrv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
 
 	// First fetch: 200, validators stored.
@@ -1096,7 +1099,6 @@ func TestConditionalGET_Revalidates(t *testing.T) {
 	assert.Equal(t, int32(1), srv.requests.Load())
 	etag, _ := sharedInMemoryValidators.getForBody(httpSrv.URL, cache.data)
 	assert.Equal(t, `"v1"`, etag)
-	assert.Empty(t, cache.etag, "split validators must stay process-local")
 
 	// Second fetch: If-None-Match sent, 304 received, cached body returned —
 	// still only 2 requests total, no re-download.
@@ -1113,7 +1115,7 @@ func TestConditionalGET_LastModifiedOnly(t *testing.T) {
 	httpSrv := httptest.NewServer(srv.handler())
 	defer httpSrv.Close()
 
-	cache := &fakeValidatorsCache{}
+	cache := &fakeIndexCache{}
 	client := NewClient(httpSrv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
 
 	_, err := client.GetIndex(t.Context(), true, 10000)
@@ -1130,7 +1132,7 @@ func TestConditionalGET_NoValidatorSupport(t *testing.T) {
 	httpSrv := httptest.NewServer(srv.handler())
 	defer httpSrv.Close()
 
-	cache := &fakeValidatorsCache{}
+	cache := &fakeIndexCache{}
 	client := NewClient(httpSrv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
 
 	for range 3 {
@@ -1138,7 +1140,6 @@ func TestConditionalGET_NoValidatorSupport(t *testing.T) {
 		require.NoError(t, err)
 	}
 	assert.Equal(t, int32(3), srv.requests.Load())
-	assert.Empty(t, cache.etag)
 }
 
 func TestConditionalGET_IndexChanged(t *testing.T) {
@@ -1155,7 +1156,7 @@ func TestConditionalGET_IndexChanged(t *testing.T) {
 	httpSrv := httptest.NewServer(wrapped)
 	defer httpSrv.Close()
 
-	cache := &fakeValidatorsCache{}
+	cache := &fakeIndexCache{}
 	client := NewClient(httpSrv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
 
 	_, err := client.GetIndex(t.Context(), true, 10000)
@@ -1174,7 +1175,6 @@ func TestConditionalGET_IndexChanged(t *testing.T) {
 	assert.Equal(t, int32(2), srv.requests.Load())
 	etag, _ := sharedInMemoryValidators.getForBody(httpSrv.URL, cache.data)
 	assert.Equal(t, `"v2"`, etag)
-	assert.Empty(t, cache.etag, "split validators must stay process-local")
 	assert.Equal(t, newBody, cache.data)
 	require.NotNil(t, idx)
 }
@@ -1222,7 +1222,7 @@ func TestConditionalGET_304WithoutCachedBody(t *testing.T) {
 	httpSrv := httptest.NewServer(srv.handler())
 	defer httpSrv.Close()
 
-	cache := &fakeValidatorsCache{}
+	cache := &fakeIndexCache{}
 	client := NewClient(httpSrv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
 
 	// Prime validators.
@@ -1654,7 +1654,13 @@ func TestGetTagsDockerHelperFailure(t *testing.T) {
 func TestGetTagsDockerCredentialsPreserveExplicitScope(t *testing.T) {
 	t.Setenv("DOCKER_CONFIG", t.TempDir())
 	var requests atomic.Int32
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		username, password, _ := r.BasicAuth()
+		if username != "reader" || password != "test-secret" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="registry"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
 		requests.Add(1)
 		w.Header().Set("Content-Type", "application/json")
 		_, _ = io.WriteString(w, `{"name":"child","tags":["1.0.0"]}`)
@@ -1680,7 +1686,7 @@ func TestConditionalGET_Unsolicited304WithCachedBody(t *testing.T) {
 			var requests atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 				if requests.Add(1) == 2 && retryOK {
-					_, _ = io.WriteString(w, regressionIndexBody)
+					_, _ = w.Write(upstreamIndex(2))
 					return
 				}
 				w.WriteHeader(http.StatusNotModified)
@@ -1688,13 +1694,165 @@ func TestConditionalGET_Unsolicited304WithCachedBody(t *testing.T) {
 			t.Cleanup(server.Close)
 			cache := &fakeIndexCache{data: []byte(regressionIndexBody)}
 			client := NewClient(server.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
-			_, err := client.GetIndex(t.Context(), true, 1<<20)
+			index, err := client.GetIndex(t.Context(), true, 1<<20)
 			if retryOK {
 				require.NoError(t, err)
+				require.Equal(t, "2.0.0", index.Entries["child"][0].Version, "the retry must return the new response body")
 			} else {
 				require.Error(t, err)
 			}
 			require.EqualValues(t, 2, requests.Load(), "a body without a sent validator cannot authorize a 304")
+		})
+	}
+}
+
+func TestHelmCAFileRotationCannotUsePreviousTrust(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) { _, _ = io.WriteString(w, regressionIndexBody) }))
+	t.Cleanup(server.Close)
+	ca := filepath.Join(t.TempDir(), "ca.pem")
+	oldPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: server.Certificate().Raw})
+	require.NoError(t, os.WriteFile(ca, oldPEM, 0o600))
+	creds := HelmCreds{CAPath: ca}
+	oldScope := credsScope(creds)
+	frozen, err := snapshotCreds(creds)
+	require.NoError(t, err)
+	cache := &credentialIndexCache{bodies: map[string][]byte{}}
+	client := NewClient(server.URL, creds, false, "", "", WithIndexCacheScopedByCreds(cache))
+	_, err = client.GetIndex(t.Context(), false, 1<<20)
+	require.NoError(t, err)
+	different, err := utiltls.GenerateHealthCheckClientCert()
+	require.NoError(t, err)
+	newPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: different.Certificate[0]})
+	require.NoError(t, os.WriteFile(ca, newPEM, 0o600))
+	assert.NotEqual(t, oldScope, credsScope(creds), "Helm HTTP cache identity must include CA contents, as native OCI does")
+	config, err := newTLSConfig(frozen)
+	require.NoError(t, err)
+	pool := x509.NewCertPool()
+	require.True(t, pool.AppendCertsFromPEM(oldPEM))
+	require.True(t, config.RootCAs.Equal(pool), "the HTTP transport must keep its snapshotted CA")
+	again, err := snapshotCreds(frozen)
+	require.NoError(t, err)
+	require.Equal(t, oldScope, credsScope(again), "resnapshotting must not reread rotated CA material")
+	cmd := newTestCmd(t)
+	entries, err := buildRepoEntries(&helm{cmd: *cmd}, HelmRepository{Name: "charts", Repo: server.URL, Creds: frozen})
+	require.NoError(t, err)
+	copied, err := os.ReadFile(entries[0].CAFile)
+	require.NoError(t, err)
+	require.Equal(t, oldPEM, copied, "the Helm subprocess must use the same frozen CA as the index request")
+	_, err = client.GetIndex(t.Context(), false, 1<<20)
+	require.Error(t, err, "a warm index cannot bypass the changed TLS trust context")
+	// Preserve an explicitly configured empty CA file too: omitting its
+	// path would let Helm silently fall back to system roots.
+	require.NoError(t, os.WriteFile(ca, nil, 0o600))
+	emptyCA, err := snapshotCreds(creds)
+	require.NoError(t, err)
+	entries, err = buildRepoEntries(&helm{cmd: *cmd}, HelmRepository{Name: "empty-ca", Repo: server.URL, Creds: emptyCA})
+	require.NoError(t, err)
+	require.NotEmpty(t, entries[0].CAFile, "an empty configured CA must not silently become default trust")
+	copied, err = os.ReadFile(entries[0].CAFile)
+	require.NoError(t, err)
+	require.Empty(t, copied)
+}
+
+type nonAtomicRecordCache struct {
+	mu     sync.Mutex
+	record *HelmIndexRecord
+	writes int
+}
+
+func (c *nonAtomicRecordCache) GetHelmIndex(_ string, b *[]byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	*b = bytes.Clone(c.record.Body)
+	return nil
+}
+
+func (c *nonAtomicRecordCache) SetHelmIndex(_ string, b []byte) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.writes++
+	c.record = &HelmIndexRecord{Body: bytes.Clone(b)}
+	return nil
+}
+
+func (c *nonAtomicRecordCache) GetHelmIndexRetainedRecord(string) (*HelmIndexRecord, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	r := *c.record
+	r.Body = bytes.Clone(r.Body)
+	return &r, nil
+}
+
+func (c *nonAtomicRecordCache) SetHelmIndexRecord(_ string, b []byte, e, m string) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.writes++
+	c.record = &HelmIndexRecord{Body: bytes.Clone(b), ETag: e, LastModified: m}
+	return nil
+}
+
+type nonAtomicValidatorCache struct {
+	indexCache
+	records *nonAtomicRecordCache
+}
+
+func (c *nonAtomicValidatorCache) GetHelmIndexValidators(string) (string, string, error) {
+	c.records.mu.Lock()
+	defer c.records.mu.Unlock()
+	return c.records.record.ETag, c.records.record.LastModified, nil
+}
+
+func (c *nonAtomicValidatorCache) SetHelmIndexValidators(_ string, etag, modified string) error {
+	c.records.mu.Lock()
+	defer c.records.mu.Unlock()
+	c.records.writes++
+	c.records.record.ETag, c.records.record.LastModified = etag, modified
+	return nil
+}
+
+func TestMetadataCacheWithoutComparisonCannotPublish(t *testing.T) {
+	for _, kind := range []string{"records", "validators only"} {
+		t.Run(kind, func(t *testing.T) {
+			cache := &nonAtomicRecordCache{record: &HelmIndexRecord{Body: upstreamIndex(0)}}
+			var adapter indexCache = cache
+			if kind == "validators only" {
+				adapter = &nonAtomicValidatorCache{indexCache: cache, records: cache}
+			}
+			entered, release := make(chan struct{}), make(chan struct{})
+			resume := sync.OnceFunc(func() { close(release) })
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				close(entered)
+				select {
+				case <-release:
+				case <-r.Context().Done():
+					return
+				}
+				_, _ = w.Write(upstreamIndex(1))
+			}))
+			t.Cleanup(server.Close)
+			t.Cleanup(resume)
+			client := NewClient(server.URL, HelmCreds{}, false, "", "", WithIndexCache(adapter))
+			done := make(chan error, 1)
+			go func() { _, err := client.GetIndex(t.Context(), true, 1<<20); done <- err }()
+			select {
+			case <-entered:
+			case <-time.After(5 * time.Second):
+				t.Fatal("fetch never started")
+			}
+			cache.mu.Lock()
+			cache.record = &HelmIndexRecord{Body: upstreamIndex(2)}
+			cache.mu.Unlock()
+			resume()
+			select {
+			case err := <-done:
+				require.NoError(t, err)
+			case <-time.After(5 * time.Second):
+				t.Fatal("fetch never finished")
+			}
+			cache.mu.Lock()
+			defer cache.mu.Unlock()
+			require.Zero(t, cache.writes, "a versioned cache must not fall back to unguarded publication")
+			require.Equal(t, upstreamIndex(2), cache.record.Body)
 		})
 	}
 }

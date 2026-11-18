@@ -154,6 +154,12 @@ func (c *Cmd) writeRepoCredential(data []byte) (string, error) {
 	if len(data) == 0 {
 		return "", nil
 	}
+	return c.writeRepoCredentialFile(data)
+}
+
+// Unlike an optional client certificate, an explicitly configured CA file
+// must keep its path even when empty; omitting it changes Helm's trust policy.
+func (c *Cmd) writeRepoCredentialFile(data []byte) (string, error) {
 	dir := filepath.Join(c.helmHome, "config")
 	if err := os.MkdirAll(dir, 0o700); err != nil {
 		return "", err

@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -305,6 +306,7 @@ type credsSnapshot struct {
 	username           string
 	password           string
 	caPath             string
+	caData             []byte
 	certData           []byte
 	keyData            []byte
 	insecureSkipVerify bool
@@ -340,14 +342,26 @@ func (c credsSnapshot) GetInsecureSkipVerify() bool {
 // propagating lookup errors (a rotating token provider can fail transiently;
 // the caller must not silently fall back to anonymous credentials).
 func snapshotCreds(creds Creds) (credsSnapshot, error) {
+	if snapshot, ok := creds.(credsSnapshot); ok {
+		return snapshot, nil
+	}
 	password, err := creds.GetPassword()
 	if err != nil {
 		return credsSnapshot{}, fmt.Errorf("failed to resolve helm credentials: %w", err)
 	}
+	caPath := creds.GetCAPath()
+	var caData []byte
+	if caPath != "" {
+		caData, err = os.ReadFile(caPath)
+		if err != nil {
+			return credsSnapshot{}, fmt.Errorf("failed to read helm CA file: %w", err)
+		}
+	}
 	return credsSnapshot{
 		username:           creds.GetUsername(),
 		password:           password,
-		caPath:             creds.GetCAPath(),
+		caPath:             caPath,
+		caData:             caData,
 		certData:           append([]byte(nil), creds.GetCertData()...),
 		keyData:            append([]byte(nil), creds.GetKeyData()...),
 		insecureSkipVerify: creds.GetInsecureSkipVerify(),

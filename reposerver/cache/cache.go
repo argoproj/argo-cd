@@ -287,10 +287,10 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 	return c.cache.SetItem(helmIndexV2Key(repo), record, &cacheutil.CacheActionOpts{Expiration: remaining})
 }
 
-// RevalidateHelmIndexRecord renews only the generation validated by the request.
-// A concurrent publication or eviction makes this a no-op.
-func (c *Cache) RevalidateHelmIndexRecord(ctx context.Context, repo string, expected, record *HelmIndexRecord) (bool, error) {
-	if expected == nil || record == nil || len(record.Body) == 0 {
+// CompareAndSwapHelmIndexRecord publishes only against the observed shared
+// generation, or inserts an absent record without overwriting a concurrent winner.
+func (c *Cache) CompareAndSwapHelmIndexRecord(ctx context.Context, repo string, expected, record *HelmIndexRecord) (bool, error) {
+	if record == nil || len(record.Body) == 0 {
 		return false, errors.New("cannot revalidate an empty helm index record")
 	}
 	validatedAt, err := time.Parse(time.RFC3339Nano, record.StoredAt)
@@ -301,7 +301,11 @@ func (c *Cache) RevalidateHelmIndexRecord(ctx context.Context, repo string, expe
 	if remaining <= 0 {
 		return false, nil
 	}
-	return c.cache.CompareAndSwapItem(ctx, helmIndexV2Key(repo), expected, record, remaining)
+	var previous any
+	if expected != nil {
+		previous = expected
+	}
+	return c.cache.CompareAndSwapItem(ctx, helmIndexV2Key(repo), previous, record, remaining)
 }
 
 // GetHelmIndexRetainedRecord reads the versioned record regardless of body

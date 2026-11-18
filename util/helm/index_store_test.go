@@ -618,7 +618,7 @@ func TestIndexCacheRegressionOriginFailureDoesNotServeExpiredBody(t *testing.T) 
 }
 
 func TestIndexCacheRegression200WithoutValidatorsClearsOldOnes(t *testing.T) {
-	cache := &fakeValidatorsCache{}
+	cache := &fakeIndexCache{}
 	var requests atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		if requests.Add(1) == 1 {
@@ -638,13 +638,12 @@ func TestIndexCacheRegression200WithoutValidatorsClearsOldOnes(t *testing.T) {
 	etag, modified := sharedInMemoryValidators.getForBody(srv.URL, cache.data)
 	assert.Empty(t, etag, "a new 200 replaces validator metadata, including removing it")
 	assert.Empty(t, modified)
-	assert.Empty(t, cache.lastModified)
 }
 
 // Simulate Redis accepting metadata but failing its separate body write. The
 // next conditional request must not label the old body with the new body's ETag.
 type regressionFailingBodyCache struct {
-	fakeValidatorsCache
+	fakeIndexCache
 	failBodyWrite bool
 }
 
@@ -692,7 +691,7 @@ func TestIndexCacheRegressionOversizedResponseNotCached(t *testing.T) {
 		_, _ = w.Write([]byte(prefix + "# body exceeds the configured limit\n"))
 	}))
 	t.Cleanup(srv.Close)
-	cache := &fakeValidatorsCache{}
+	cache := &fakeIndexCache{}
 	client := NewClient(srv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
 	_, err := client.GetIndex(t.Context(), true, int64(len(prefix)))
 	require.ErrorContains(t, err, "exceeds maximum size")

@@ -145,8 +145,9 @@ Expiry is demand-driven: the next eligible dependency build revalidates an expir
 This setting does not poll repositories, trigger manifest generation, override `Chart.lock`
 or pinned versions, or wait before applying changed Git/Application values. Always-fresh
 Go-client operations continue contacting the origin regardless of this freshness window.
-A `304` still writes complete records. Shared renewal atomically compares the observed
-record and replaces it once, so a delayed response cannot overwrite a concurrent update.
+A `200` or `304` publishes against the shared generation observed before the fetch.
+Publication atomically replaces that generation or inserts an absent record, so delayed
+responses cannot overwrite concurrent updates and evicted shared records can be restored.
 The comparison transfers both encoded records to Redis; frequent revalidation increases
 local/shared storage work even when the origin transfers no index body.
 
@@ -154,9 +155,13 @@ Expired indexes and validators remain available for another `max(24h, freshness)
 normal reads and snapshot copies never extend either deadline. Successful origin responses
 advance validation time. A retained index is never served after an origin validation error.
 Copying a fresh Redis hit to disk preserves its timestamp and never writes it back to Redis.
-If a shared `304` comparison loses to a concurrent update, that older response does not
-renew the disk record either. Its in-flight build may finish using its validated snapshot;
-the next store lookup can select the newer shared record.
+If shared publication loses a comparison, errors, or cannot be confirmed, that response does
+not renew the disk record either. Its in-flight build may finish using its validated snapshot;
+the next store lookup selects the valid shared publication, even when its publishing pod's clock
+is behind the local pod. Timestamps govern freshness and retention, rather than publication order.
+This also applies to cold fetches and executed hard refreshes. During a Redis outage or with
+a shared adapter without atomic publication, expired disk records stay expired and builds may
+revalidate more often. A store without a shared cache continues renewing its disk records normally.
 
 Each Helm invocation still has private config, cache, data, credentials and certificate files.
 Argo copies the original validated index bytes into that home and uses `--skip-refresh` only
@@ -192,9 +197,9 @@ Unsupported getter schemes retain Helm's original registration and refresh path 
 Shared records require a complete, size-bounded index with `apiVersion: v1`. Invalid or truncated
 responses are never published.
 Successful body validation is remembered in a bounded process-local cache of 256 SHA-256
-digests. Each candidate body is hashed on read; unchanged bodies avoid repeated YAML parsing,
-and changed bodies are validated normally. This cache retains no index bodies and does not
-extend freshness or retention. Newer shared records still take precedence after validation.
+digests. Disk bodies are hashed on read; shared bytes identical to a validated local body
+avoid a second hash. Unchanged bodies avoid repeated YAML parsing, and changed bodies are validated normally. This cache retains no index bodies and does not
+extend freshness or retention. Valid shared publications still take precedence after validation.
 
 Go-client chart listing, connectivity tests and revision resolution retain their always-fresh
 behavior independently of dependency-cache enablement. A `304` response avoids transferring the index
@@ -227,17 +232,25 @@ authenticate registry requests, while preserving an explicitly selected cache sc
 Docker Hub aliases use the registry's effective hostname for authentication. If a Docker
 credential helper fails, the request bypasses shared metadata: public access can still succeed,
 and an authentication challenge reports the credential lookup error.
-Native OCI clients snapshot custom CA file contents for both
-the TLS transport and cache identity, so rotating that file creates a new cache view for new clients.
+HTTP Helm operations and native OCI clients snapshot custom CA file contents for both
+the TLS transport and cache identity, so rotating that file creates a new cache view.
+Prewarmed Helm subprocesses receive the same frozen CA contents in their private configuration.
 
 Atomic shared records keep index bytes and validators together. Cache implementations that only
 support separate body and validator reads use process-local validators bound to the body's
 SHA-256 digest. Their first revalidation after restart may download the complete index;
 subsequent requests can use conditional GETs without pairing validators with different bytes.
-Split validator setters are never used to publish response metadata. A cache without atomic
-generation comparison does not renew shared freshness on `304`, which can cause extra origin
+Adapters exposing record or validator metadata require atomic generation comparison to publish;
+they never fall back to unguarded body or validator writes. Legacy adapters exposing only raw
+body reads and writes retain their original contract. A cache without atomic
+generation comparison cannot confirm a new shared or disk deadline, which can cause extra origin
 requests. A `304` without a sent validator is unusable and retries once unconditionally;
 another `304` fails instead of renewing unvalidated cached bytes.
+
+Validators are also bound to a fingerprint of the effective response URL, including its query.
+Conditions follow only that resource through redirects. A stable redirect can revalidate with
+`304`; a changed target or a legacy record without URL provenance requires a body response.
+The fingerprint keeps URL credentials and query secrets out of the record metadata.
 
 Measure index GETs, `200`/`304` statuses, transferred bytes, dependency-build duration and origin
 errors separately on a canary. Verify cold, warm, expired and executed hard-refresh builds against

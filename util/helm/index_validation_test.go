@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"reflect"
 	"runtime"
 	"strings"
 	"sync"
@@ -18,6 +19,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
+
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 )
 
 func TestIndexValidationWarmBodyAvoidsYAMLAllocations(t *testing.T) {
@@ -197,7 +200,7 @@ func (c *providerRecordCache) GetHelmIndexRetainedRecord(string) (*HelmIndexReco
 		return nil, c.err
 	}
 	if c.record == nil {
-		return nil, errors.New("cache miss")
+		return nil, cacheutil.ErrCacheMiss
 	}
 	cloned := *c.record
 	cloned.Body = bytes.Clone(cloned.Body)
@@ -216,7 +219,7 @@ func (c *providerRecordCache) SetHelmIndexRetainedRecord(_ string, record *HelmI
 	return nil
 }
 
-func TestIndexProviderSelectsNewestValidation(t *testing.T) {
+func TestIndexProviderUsesSharedPublicationOrder(t *testing.T) {
 	for _, sharedNewer := range []bool{false, true} {
 		t.Run(map[bool]string{false: "disk newer", true: "Redis newer"}[sharedNewer], func(t *testing.T) {
 			var requests atomic.Int32
@@ -227,13 +230,11 @@ func TestIndexProviderSelectsNewestValidation(t *testing.T) {
 			t.Cleanup(server.Close)
 			diskTime := time.Now().Add(-20 * time.Minute).UTC()
 			sharedTime := diskTime.Add(-10 * time.Minute)
-			want := regressionIndexBody + "# disk\n"
-			wantTime := diskTime
 			if sharedNewer {
 				sharedTime = diskTime.Add(10 * time.Minute)
-				want = regressionIndexBody + "# Redis\n"
-				wantTime = sharedTime
 			}
+			want := regressionIndexBody + "# Redis\n"
+			wantTime := sharedTime
 			shared := &providerRecordCache{record: &HelmIndexRecord{Body: []byte(regressionIndexBody + "# Redis\n"), StoredAt: sharedTime.Format(time.RFC3339Nano)}}
 			store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, shared)
 			require.NoError(t, store.publishRecord("view", &indexRecord{APIVersion: "v1", Body: base64.StdEncoding.EncodeToString([]byte(regressionIndexBody + "# disk\n")), StoredAt: diskTime.Format(time.RFC3339Nano)}))
@@ -244,7 +245,7 @@ func TestIndexProviderSelectsNewestValidation(t *testing.T) {
 			require.Zero(t, requests.Load())
 			record, err := store.readRecord("view", true)
 			require.NoError(t, err)
-			require.Equal(t, wantTime.Format(time.RFC3339Nano), record.StoredAt, "copying must not restart freshness")
+			require.Equal(t, wantTime.Format(time.RFC3339Nano), record.StoredAt, "copying must preserve the shared validation time")
 		})
 	}
 }
@@ -264,14 +265,16 @@ func TestIndexProviderCacheOutageAnd304ValidatorUpdate(t *testing.T) {
 	shared := &providerRecordCache{err: errors.New("Redis unavailable")}
 	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, shared)
 	old := time.Now().Add(-2 * time.Hour).UTC().Format(time.RFC3339Nano)
-	require.NoError(t, store.publishRecord("view", &indexRecord{APIVersion: "v1", ETag: `"one"`, Body: base64.StdEncoding.EncodeToString([]byte(regressionIndexBody)), StoredAt: old}))
+	require.NoError(t, store.publishRecord("view", &indexRecord{APIVersion: "v1", ETag: `"one"`, URLIdentity: IndexURLIdentity(server.URL + "/index.yaml"), Body: base64.StdEncoding.EncodeToString([]byte(regressionIndexBody)), StoredAt: old}))
 	body, err := store.Revalidate(t.Context(), "view", NewClient(server.URL, HelmCreds{}, false, "", "").(*nativeHelmChart))
 	require.NoError(t, err)
 	require.Equal(t, regressionIndexBody, string(body))
 	require.EqualValues(t, 1, requests.Load())
 	etag, _, err := store.GetHelmIndexValidators("view")
 	require.NoError(t, err)
-	require.Equal(t, `W/"one"`, etag, "304 response metadata must replace validators when supplied")
+	require.Equal(t, `"one"`, etag, "an outage cannot confirm a new shared deadline or metadata")
+	_, err = store.Get("view")
+	require.Error(t, err, "disk must remain expired while shared publication is unconfirmed")
 }
 
 func TestIndexProviderPublicationFailurePreservesHTTPResult(t *testing.T) {
@@ -289,7 +292,7 @@ func TestIndexProviderPublicationFailurePreservesHTTPResult(t *testing.T) {
 		_, _ = w.Write([]byte(regressionIndexBody))
 	}))
 	t.Cleanup(server.Close)
-	store := NewIndexStore(dir, time.Hour, 1<<20, &providerRecordCache{err: errors.New("Redis unavailable")})
+	store := NewIndexStore(dir, time.Hour, 1<<20)
 	body, err := store.Revalidate(t.Context(), "view", NewClient(server.URL, HelmCreds{}, false, "", "").(*nativeHelmChart))
 	require.NoError(t, err)
 	require.Equal(t, regressionIndexBody, string(body))
@@ -469,6 +472,7 @@ func TestIndexProvider304WithoutSharedComparisonPreservesNewerRecord(t *testing.
 		w.WriteHeader(http.StatusNotModified)
 	}))
 	t.Cleanup(server.Close)
+	old.URLIdentity = IndexURLIdentity(server.URL + "/index.yaml")
 	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, shared)
 	body, err := store.Revalidate(t.Context(), "view", regressionClient(server.URL))
 	require.NoError(t, err)
@@ -482,7 +486,142 @@ func TestIndexProvider304WithoutSharedComparisonPreservesNewerRecord(t *testing.
 	record, err := shared.GetHelmIndexRetainedRecord("view")
 	require.NoError(t, err)
 	require.Equal(t, newer.Body, record.Body)
-	local, err := store.readRecord("view", true)
+	_, err = store.readRecord("view", true)
+	require.Error(t, err, "unsupported shared publication cannot renew disk freshness")
+	next, err := store.Revalidate(t.Context(), "view", regressionClient(server.URL))
 	require.NoError(t, err)
-	require.Equal(t, string(old.Body), local.Body, "successful validation may renew the local snapshot")
+	require.Equal(t, newer.Body, next, "the next build must select the shared winner")
+}
+
+type atomicProviderRecordCache struct {
+	*providerRecordCache
+	compareErr error
+}
+
+func (c *atomicProviderRecordCache) CompareAndSwapHelmIndexRecord(_ context.Context, _ string, expected, replacement *HelmIndexRecord) (bool, error) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if c.compareErr != nil {
+		return false, c.compareErr
+	}
+	if c.record != nil && !reflect.DeepEqual(c.record, expected) {
+		return false, nil
+	}
+	cloned := *replacement
+	cloned.Body = bytes.Clone(replacement.Body)
+	c.record = &cloned
+	return true, nil
+}
+
+func TestIndexProviderPublicationConfirmation(t *testing.T) {
+	for _, status := range []int{http.StatusOK, http.StatusNotModified} {
+		for _, mode := range []string{"matching", "mismatch", "error", "unsupported", "evicted", "absent", "read-error"} {
+			t.Run(fmt.Sprintf("%d/%s", status, mode), func(t *testing.T) {
+				old := &HelmIndexRecord{Body: upstreamIndex(1), ETag: `"one"`, StoredAt: time.Now().Add(-2 * time.Hour).UTC().Format(time.RFC3339Nano)}
+				newer := &HelmIndexRecord{Body: upstreamIndex(2), ETag: `"two"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
+				base := &providerRecordCache{record: old}
+				atomicCache := &atomicProviderRecordCache{providerRecordCache: base}
+				var shared IndexRecordCache = atomicCache
+				if mode == "unsupported" {
+					shared = base
+				}
+				if mode == "error" {
+					atomicCache.compareErr = errors.New("comparison unavailable")
+				}
+				var requests atomic.Int32
+				server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+					requests.Add(1)
+					if r.Header.Get("If-None-Match") != `"one"` {
+						w.WriteHeader(http.StatusBadRequest)
+						return
+					}
+					base.mu.Lock()
+					switch mode {
+					case "evicted":
+						base.record = nil
+					case "mismatch", "error", "unsupported", "read-error":
+						base.record = newer
+					}
+					base.err = nil
+					base.mu.Unlock()
+					w.Header().Set("ETag", `"one"`)
+					w.WriteHeader(status)
+					if status == http.StatusOK {
+						_, _ = w.Write(old.Body)
+					}
+				}))
+				t.Cleanup(server.Close)
+				old.URLIdentity = IndexURLIdentity(server.URL + "/index.yaml")
+				store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, shared)
+				require.True(t, store.installRecord("view", old))
+				if mode == "absent" {
+					base.record = nil
+				}
+				if mode == "read-error" {
+					base.err = errors.New("shared read failed")
+				}
+				body, err := store.Revalidate(t.Context(), "view", regressionClient(server.URL))
+				require.NoError(t, err)
+				require.Equal(t, old.Body, body)
+				local, err := store.Get("view")
+				if mode == "matching" || mode == "evicted" || mode == "absent" {
+					require.NoError(t, err)
+					require.Equal(t, old.Body, local)
+					next, err := store.Revalidate(t.Context(), "view", regressionClient(server.URL))
+					require.NoError(t, err)
+					require.Equal(t, old.Body, next)
+				} else {
+					require.Error(t, err, "unconfirmed publication must leave disk expired")
+					next, err := store.Revalidate(t.Context(), "view", regressionClient(server.URL))
+					require.NoError(t, err)
+					require.Equal(t, newer.Body, next, "the next build must see the winner")
+				}
+				require.EqualValues(t, 1, requests.Load(), "the second build must not contact origin")
+			})
+		}
+	}
+}
+
+func TestLatestSharedPublicationWinsWithClockSkew(t *testing.T) {
+	first := &HelmIndexRecord{Body: upstreamIndex(1), StoredAt: time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano)}
+	base := &providerRecordCache{record: first}
+	shared := &atomicProviderRecordCache{providerRecordCache: base}
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, shared)
+	body, err := store.Revalidate(t.Context(), "view", regressionClient("https://unused.invalid"))
+	require.NoError(t, err)
+	require.Equal(t, first.Body, body)
+	// A second pod with a clock 100ms behind publishes a later generation.
+	timestamp, err := time.Parse(time.RFC3339Nano, first.StoredAt)
+	require.NoError(t, err)
+	next := &HelmIndexRecord{Body: upstreamIndex(2), StoredAt: timestamp.Add(-100 * time.Millisecond).Format(time.RFC3339Nano)}
+	updated, err := shared.CompareAndSwapHelmIndexRecord(t.Context(), "view", first, next)
+	require.NoError(t, err)
+	require.True(t, updated)
+	body, err = store.Revalidate(t.Context(), "view", regressionClient("https://unused.invalid"))
+	require.NoError(t, err)
+	require.Equal(t, next.Body, body, "a later shared publication must not lose to a stale local timestamp")
+}
+
+func TestIndexProviderIdenticalSharedHitDoesNotRewriteDisk(t *testing.T) {
+	record := &HelmIndexRecord{Body: upstreamIndex(1), ETag: `"one"`, URLIdentity: IndexURLIdentity("https://example.com/index.yaml"), StoredAt: time.Now().Add(-time.Second).UTC().Format(time.RFC3339Nano)}
+	shared := &providerRecordCache{record: record}
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, shared)
+	client := NewClient("https://example.com", HelmCreds{}, false, "", "").(*nativeHelmChart)
+	_, err := store.Revalidate(t.Context(), "view", client)
+	require.NoError(t, err)
+	file := store.cacheFileName("view")
+	// readRecord uses the earlier of mtime and StoredAt, so moving mtime
+	// forward does not change this record's freshness or shared identity.
+	marker := time.Now().Add(time.Hour)
+	require.NoError(t, os.Chtimes(file, marker, marker))
+	before, err := os.Stat(file)
+	require.NoError(t, err)
+	for range 2 {
+		body, err := store.Revalidate(t.Context(), "view", client)
+		require.NoError(t, err)
+		require.Equal(t, record.Body, body)
+	}
+	after, err := os.Stat(file)
+	require.NoError(t, err)
+	require.Equal(t, before.ModTime(), after.ModTime(), "an identical shared hit must not rewrite the index file")
 }

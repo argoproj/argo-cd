@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"sync"
 	"time"
+
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	cryptoutil "github.com/argoproj/argo-cd/v3/util/crypto"
 )
 
 // indexCacheWithValidators is an optional extension of the indexCache
@@ -33,11 +36,12 @@ type helmIndexValidators struct {
 	lastModified string
 	bodyDigest   [sha256.Size]byte
 	bound        bool
+	urlIdentity  string
 }
 
 // Bind fallback validators to the exact body. An external cache writer must
 // never make a different body eligible for a 304 under these validators.
-func (v *inMemoryIndexValidators) setForBody(repo string, body []byte, etag, modified string) {
+func (v *inMemoryIndexValidators) setForResponse(repo string, body []byte, etag, modified, urlIdentity string) {
 	digest := sha256.Sum256(body)
 	v.mu.Lock()
 	defer v.mu.Unlock()
@@ -48,18 +52,23 @@ func (v *inMemoryIndexValidators) setForBody(repo string, body []byte, etag, mod
 	if v.m == nil {
 		v.m = map[string]helmIndexValidators{}
 	}
-	v.m[repo] = helmIndexValidators{etag: etag, lastModified: modified, bodyDigest: digest, bound: true}
+	v.m[repo] = helmIndexValidators{etag: etag, lastModified: modified, bodyDigest: digest, bound: true, urlIdentity: urlIdentity}
 }
 
 func (v *inMemoryIndexValidators) getForBody(repo string, body []byte) (string, string) {
+	etag, modified, _ := v.getForResponse(repo, body)
+	return etag, modified
+}
+
+func (v *inMemoryIndexValidators) getForResponse(repo string, body []byte) (string, string, string) {
 	digest := sha256.Sum256(body)
 	v.mu.RLock()
 	defer v.mu.RUnlock()
 	entry, ok := v.m[repo]
 	if !ok || !entry.bound || entry.bodyDigest != digest {
-		return "", ""
+		return "", "", ""
 	}
-	return entry.etag, entry.lastModified
+	return entry.etag, entry.lastModified, entry.urlIdentity
 }
 
 func newInMemoryIndexValidators() *inMemoryIndexValidators {
@@ -124,9 +133,29 @@ type indexCacheRecorder interface {
 	SetHelmIndexRecord(repo string, indexData []byte, etag string, lastModified string) error
 }
 
-// A 304 can renew shared freshness only if the observed generation still exists.
+// Every response is published against the shared generation observed before
+// its fetch. An absent key may be restored atomically, never overwriting a winner.
 type indexCacheRecordRevalidator interface {
-	RevalidateHelmIndexRecord(context.Context, string, *HelmIndexRecord, *HelmIndexRecord) (bool, error)
+	CompareAndSwapHelmIndexRecord(context.Context, string, *HelmIndexRecord, *HelmIndexRecord) (bool, error)
+}
+
+type indexRecordObservation struct {
+	record *HelmIndexRecord
+	known  bool
+}
+
+func observeIndexRecord(reader indexCacheRecordReader, repo string) indexRecordObservation {
+	record, err := reader.GetHelmIndexRetainedRecord(repo)
+	if err != nil {
+		return indexRecordObservation{known: errors.Is(err, cacheutil.ErrCacheMiss)}
+	}
+	return indexRecordObservation{record: record, known: true}
+}
+
+// IndexURLIdentity binds validators to the effective response URL without
+// putting URL credentials or query secrets in disk or Redis metadata.
+func IndexURLIdentity(rawURL string) string {
+	return cryptoutil.CredentialScope("helm-index-response-url", rawURL)
 }
 
 // responseValidatorHeaders extracts validators from the headers of the last
@@ -145,6 +174,7 @@ type HelmIndexRecord struct {
 	Body         []byte `json:"body"`
 	ETag         string `json:"etag,omitempty"`
 	LastModified string `json:"lastModified,omitempty"`
+	URLIdentity  string `json:"urlIdentity,omitempty"`
 	// StoredAt is the publication time; freshness is measured from it while
 	// the record is retained longer for 304 revalidation.
 	StoredAt string `json:"storedAt,omitempty"`

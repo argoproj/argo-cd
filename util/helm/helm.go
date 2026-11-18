@@ -316,6 +316,13 @@ func buildRepoEntries(h *helm, repo HelmRepository) ([]helmRepoEntry, error) {
 	if err != nil {
 		return nil, err
 	}
+	caFile := repo.GetCAPath()
+	if snapshot, ok := repo.Creds.(credsSnapshot); ok && snapshot.caPath != "" {
+		caFile, err = h.cmd.writeRepoCredentialFile(snapshot.caData)
+		if err != nil {
+			return nil, err
+		}
+	}
 	managerName := managerKeyPrefix + managerKey(repo.Repo)
 	result := make([]helmRepoEntry, 0, 2)
 	for _, name := range []string{repo.Name, managerName} {
@@ -323,7 +330,7 @@ func buildRepoEntries(h *helm, repo HelmRepository) ([]helmRepoEntry, error) {
 			Name:                  name,
 			URL:                   repo.Repo,
 			Username:              repo.GetUsername(),
-			CAFile:                repo.GetCAPath(),
+			CAFile:                caFile,
 			CertFile:              certFile,
 			KeyFile:               keyFile,
 			InsecureSkipTLSverify: repo.GetInsecureSkipVerify(),
@@ -398,8 +405,13 @@ func credsScope(creds Creds) string {
 	password, _ := creds.GetPassword()
 	// Include inherited proxy policy because shared Redis and disk
 	// records can outlive a process or be read by differently configured pods.
-	return cryptoutil.CredentialScope("helm-credentials",
+	caData := ""
+	if snapshot, ok := creds.(credsSnapshot); ok {
+		caData = string(snapshot.caData)
+	}
+	return cryptoutil.CredentialScope("helm-credentials-v2",
 		creds.GetUsername(), password, creds.GetCAPath(), string(creds.GetCertData()), string(creds.GetKeyData()),
+		caData,
 		strconv.FormatBool(creds.GetInsecureSkipVerify()),
 		os.Getenv("HTTP_PROXY"), os.Getenv("http_proxy"),
 		os.Getenv("HTTPS_PROXY"), os.Getenv("https_proxy"),

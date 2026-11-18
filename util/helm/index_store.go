@@ -1,6 +1,7 @@
 package helm
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha256"
 	"encoding/base64"
@@ -92,6 +93,7 @@ type indexRecord struct {
 	APIVersion   string `json:"apiVersion"`
 	ETag         string `json:"etag,omitempty"`
 	LastModified string `json:"lastModified,omitempty"`
+	URLIdentity  string `json:"urlIdentity,omitempty"`
 	StoredAt     string `json:"storedAt"`
 	Body         string `json:"body"` // base64-encoded index.yaml bytes
 }
@@ -443,10 +445,16 @@ func (v retainedIndexView) GetHelmIndexValidators(string) (string, string, error
 func (v retainedIndexView) SetHelmIndexValidators(string, string, string) error { return nil }
 
 func (s *IndexStore) retainedRecord(identity string) (*HelmIndexRecord, bool) {
+	record, shared, _ := s.observeRetainedRecord(identity)
+	return record, shared
+}
+
+func (s *IndexStore) observeRetainedRecord(identity string) (*HelmIndexRecord, bool, indexRecordObservation) {
+	var observation indexRecordObservation
 	var newest *HelmIndexRecord
 	fromShared := false
 	if local, err := s.readRecord(identity, false); err == nil {
-		newest = &HelmIndexRecord{Body: []byte(local.Body), ETag: local.ETag, LastModified: local.LastModified, StoredAt: local.StoredAt}
+		newest = &HelmIndexRecord{Body: []byte(local.Body), ETag: local.ETag, LastModified: local.LastModified, StoredAt: local.StoredAt, URLIdentity: local.URLIdentity}
 		// Older records had no timestamp. Their existing mtime is authoritative.
 		if info, err := os.Stat(s.cacheFileName(identity)); err == nil {
 			validatedAt, err := time.Parse(time.RFC3339Nano, newest.StoredAt)
@@ -456,41 +464,50 @@ func (s *IndexStore) retainedRecord(identity string) (*HelmIndexRecord, bool) {
 		}
 	}
 	if s.cache != nil {
-		if record, err := s.cache.GetHelmIndexRetainedRecord(identity); err == nil && record != nil {
+		observation = observeIndexRecord(s.cache, identity)
+		if record := observation.record; record != nil {
 			validatedAt, err := time.Parse(time.RFC3339Nano, record.StoredAt)
 			if err == nil && time.Since(validatedAt) <= s.expiration+s.retention() && int64(len(record.Body)) <= s.indexCacheMaxSize {
-				previous := time.Time{}
-				if newest != nil {
-					previous, _ = time.Parse(time.RFC3339Nano, newest.StoredAt)
-				}
-				// An older/equal shared generation cannot supersede the local
-				// record. Only validate a body that could actually be selected.
-				if (newest == nil || validatedAt.After(previous)) && validateIndexBody(record.Body) == nil {
+				// Shared publication order is authoritative across pods; wall
+				// clocks can differ. Identical locally validated bytes need no
+				// second parse/hash, but different shared bytes must be validated.
+				matchingBody := newest != nil && bytes.Equal(newest.Body, record.Body)
+				if matchingBody || validateIndexBody(record.Body) == nil {
+					fromShared = !matchingBody || newest.ETag != record.ETag || newest.LastModified != record.LastModified || newest.URLIdentity != record.URLIdentity || newest.StoredAt != record.StoredAt
 					newest = record
-					fromShared = true
 				}
 			}
 		}
 	}
-	return newest, fromShared
+	return newest, fromShared, observation
 }
 
 func (s *IndexStore) installRecord(identity string, record *HelmIndexRecord) bool {
-	err := s.publishRecord(identity, &indexRecord{APIVersion: "v1", Body: base64.StdEncoding.EncodeToString(record.Body), ETag: record.ETag, LastModified: record.LastModified, StoredAt: record.StoredAt})
+	err := s.publishRecord(identity, &indexRecord{APIVersion: "v1", Body: base64.StdEncoding.EncodeToString(record.Body), ETag: record.ETag, LastModified: record.LastModified, StoredAt: record.StoredAt, URLIdentity: record.URLIdentity})
 	if err != nil {
 		log.WithError(err).Debug("failed to persist helm index record")
 	}
 	return err == nil
 }
 
-func (s *IndexStore) publishSharedRecord(identity string, record *HelmIndexRecord) bool {
-	published := s.installRecord(identity, record)
+// Only a confirmed shared publication can establish a new disk deadline.
+// Unknown state, unsupported comparisons, errors and lost races leave disk stale.
+func (s *IndexStore) publishFetchedRecord(ctx context.Context, identity string, observed indexRecordObservation, record *HelmIndexRecord) bool {
 	if s.cache != nil {
-		if err := s.cache.SetHelmIndexRetainedRecord(identity, record); err != nil {
-			log.WithError(err).Debug("failed to cache helm index record")
+		publisher, ok := s.cache.(indexCacheRecordRevalidator)
+		if !ok || !observed.known {
+			return false
+		}
+		updated, err := publisher.CompareAndSwapHelmIndexRecord(ctx, identity, observed.record, record)
+		if err != nil {
+			log.WithError(err).Debug("failed to publish shared helm index record")
+			return false
+		}
+		if !updated {
+			return false
 		}
 	}
-	return published
+	return s.installRecord(identity, record)
 }
 
 // Revalidate refreshes a stored entry using conditional GET (Part 3
@@ -528,7 +545,7 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 		}
 	}()
 
-	candidate, fromShared := s.retainedRecord(repoURL)
+	candidate, fromShared, observed := s.observeRetainedRecord(repoURL)
 	if candidate != nil && candidate.Fresh(s.expiration) {
 		// Preserve timestamps when installing a newer Redis generation locally.
 		if fromShared {
@@ -544,26 +561,7 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 	if err != nil {
 		return nil, err
 	}
-	etag, modified := responseValidatorHeaders(operation.lastValidators)
-	record := &HelmIndexRecord{Body: data, ETag: etag, LastModified: modified, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
-	if operation.indexNotModified {
-		mayPublish := true
-		if revalidator, ok := s.cache.(indexCacheRecordRevalidator); ok && candidate != nil {
-			updated, err := revalidator.RevalidateHelmIndexRecord(ctx, repoURL, candidate, record)
-			if err != nil {
-				log.WithError(err).Debug("failed to revalidate shared helm index record")
-			} else {
-				// A lost comparison means another generation won. Do not make
-				// this older body newer on disk either; the next read selects it.
-				mayPublish = updated
-			}
-		}
-		if mayPublish {
-			published = s.installRecord(repoURL, record)
-		}
-	} else {
-		published = s.publishSharedRecord(repoURL, record)
-	}
+	published = s.publishFetchedRecord(ctx, repoURL, observed, operation.fetchedIndexRecord(data))
 	return data, nil
 }
 
@@ -613,6 +611,10 @@ func (s *IndexStore) ForceRefresh(ctx context.Context, repoURL string, chartClie
 		}
 	}()
 
+	var observed indexRecordObservation
+	if s.cache != nil {
+		observed = observeIndexRecord(s.cache, repoURL)
+	}
 	operation := *chartClient
 	operation.indexCache = nil
 	operation.requireCompleteIndex = true
@@ -625,8 +627,7 @@ func (s *IndexStore) ForceRefresh(ctx context.Context, repoURL string, chartClie
 	if err := validateIndexBody(data); err != nil {
 		return nil, fmt.Errorf("refreshed helm index for repo %s failed validation: %w", repoURL, err)
 	}
-	etag, modified := responseValidatorHeaders(chartClient.lastValidators)
-	published = s.publishSharedRecord(repoURL, &HelmIndexRecord{Body: data, ETag: etag, LastModified: modified, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)})
+	published = s.publishFetchedRecord(ctx, repoURL, observed, chartClient.fetchedIndexRecord(data))
 	return data, nil
 }
 
