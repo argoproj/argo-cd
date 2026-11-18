@@ -382,6 +382,20 @@ func (c *Cache) GetItem(key string, item any) error {
 	return client.Get(key, item)
 }
 
+// CompareAndSwapItem replaces exactly the observed value. Clients without an
+// atomic comparison leave the item unchanged rather than emulate it with reads.
+func (c *Cache) CompareAndSwapItem(ctx context.Context, key string, expected, replacement any, expiration time.Duration) (bool, error) {
+	if expected == nil || replacement == nil {
+		return false, errors.New("cannot compare or replace a nil cache item")
+	}
+	if client, ok := c.client.(interface {
+		CompareAndSwap(context.Context, string, any, any, time.Duration) (bool, error)
+	}); ok {
+		return client.CompareAndSwap(ctx, c.generateFullKey(key), expected, replacement, expiration)
+	}
+	return false, nil
+}
+
 // localCacheClient is implemented by clients that keep a local copy of external cache entries.
 type localCacheClient interface {
 	GetLocal(key string, obj any) error

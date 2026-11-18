@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -1093,7 +1094,9 @@ func TestConditionalGET_Revalidates(t *testing.T) {
 	_, err := client.GetIndex(t.Context(), true, 10000)
 	require.NoError(t, err)
 	assert.Equal(t, int32(1), srv.requests.Load())
-	assert.Equal(t, `"v1"`, cache.etag)
+	etag, _ := sharedInMemoryValidators.getForBody(httpSrv.URL, cache.data)
+	assert.Equal(t, `"v1"`, etag)
+	assert.Empty(t, cache.etag, "split validators must stay process-local")
 
 	// Second fetch: If-None-Match sent, 304 received, cached body returned —
 	// still only 2 requests total, no re-download.
@@ -1169,7 +1172,9 @@ func TestConditionalGET_IndexChanged(t *testing.T) {
 	idx, err := client.GetIndex(t.Context(), true, 10000)
 	require.NoError(t, err)
 	assert.Equal(t, int32(2), srv.requests.Load())
-	assert.Equal(t, `"v2"`, cache.etag)
+	etag, _ := sharedInMemoryValidators.getForBody(httpSrv.URL, cache.data)
+	assert.Equal(t, `"v2"`, etag)
+	assert.Empty(t, cache.etag, "split validators must stay process-local")
 	assert.Equal(t, newBody, cache.data)
 	require.NotNil(t, idx)
 }
@@ -1285,13 +1290,23 @@ func TestIndexUpstreamValidatorChanges(t *testing.T) {
 				require.NoError(t, err)
 				require.Equal(t, upstreamIndex(want), body)
 			}
+			observe := func() request {
+				t.Helper()
+				select {
+				case got := <-requests:
+					return got
+				default:
+					t.Fatal("expected one completed origin request")
+					return request{}
+				}
+			}
 			fetch(1)
-			require.Equal(t, http.StatusOK, (<-requests).status)
+			require.Equal(t, http.StatusOK, observe().status)
 			fetch(1)
 			require.Empty(t, requests, "a warm read must not check upstream")
 			regressionExpire(t, store, "upstream")
 			fetch(1)
-			unchanged := <-requests
+			unchanged := observe()
 			wantStatus := http.StatusNotModified
 			if mode == "none" {
 				wantStatus = http.StatusOK
@@ -1308,13 +1323,13 @@ func TestIndexUpstreamValidatorChanges(t *testing.T) {
 			version.Store(2)
 			regressionExpire(t, store, "upstream")
 			fetch(2)
-			changed := <-requests
+			changed := observe()
 			require.Equal(t, http.StatusOK, changed.status)
 			require.Equal(t, unchanged.etag, changed.etag)
 			require.Equal(t, unchanged.modified, changed.modified)
 			regressionExpire(t, store, "upstream")
 			fetch(2)
-			revalidated := <-requests
+			revalidated := observe()
 			require.Equal(t, wantStatus, revalidated.status)
 			if mode != "none" {
 				require.NotEqual(t, unchanged, revalidated, "the new response's validators must replace the old generation")
@@ -1570,4 +1585,116 @@ func TestGetTagsDockerFallbackCredentialIsolation(t *testing.T) {
 	_, err = second.GetTags(t.Context(), "child", false)
 	require.Error(t, err, "anonymous operation must not read Docker-authenticated private tag metadata")
 	assert.Greater(t, requests.Load(), before, "the second authentication context must reach the origin")
+}
+
+func TestGetTagsDockerHubAliases(t *testing.T) {
+	t.Setenv("DOCKER_CONFIG", t.TempDir())
+	config := `{"auths":{"https://index.docker.io/v1/":{"auth":"cmVhZGVyOnRlc3Qtc2VjcmV0"}}}`
+	require.NoError(t, os.WriteFile(filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json"), []byte(config), 0o600))
+	var authenticated atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Host != "registry-1.docker.io" {
+			w.WriteHeader(http.StatusBadGateway)
+			return
+		}
+		user, password, _ := r.BasicAuth()
+		if user != "reader" || password != "test-secret" {
+			w.Header().Set("WWW-Authenticate", `Basic realm="registry"`)
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		authenticated.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"name":"private/child","tags":["1.0.0"]}`)
+	}))
+	t.Cleanup(server.Close)
+	for _, host := range []string{"docker.io", "registry-1.docker.io"} {
+		t.Run(host, func(t *testing.T) {
+			client := NewClient(host, HelmCreds{}, true, server.URL, "", WithPlainHTTP())
+			tags, err := client.GetTags(t.Context(), "private/child", true)
+			require.NoError(t, err)
+			require.Equal(t, []string{"1.0.0"}, tags)
+		})
+	}
+	require.EqualValues(t, 2, authenticated.Load())
+}
+
+func TestGetTagsDockerHelperFailure(t *testing.T) {
+	t.Setenv("DOCKER_CONFIG", t.TempDir())
+	require.NoError(t, os.WriteFile(filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json"), []byte(`{"credsStore":"argocd-definitely-missing-test-helper"}`), 0o600))
+	for _, challenge := range []bool{false, true} {
+		t.Run(strconv.FormatBool(challenge), func(t *testing.T) {
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				requests.Add(1)
+				if challenge {
+					w.Header().Set("WWW-Authenticate", `Basic realm="registry"`)
+					w.WriteHeader(http.StatusUnauthorized)
+					return
+				}
+				w.Header().Set("Content-Type", "application/json")
+				_, _ = io.WriteString(w, `{"name":"child","tags":["public-version"]}`)
+			}))
+			t.Cleanup(server.Close)
+			cache := &credentialIndexCache{bodies: map[string][]byte{}}
+			client := NewClient(strings.TrimPrefix(server.URL, "http://"), HelmCreds{}, true, "", "", WithPlainHTTP(), WithIndexCacheScopedByCreds(cache))
+			tags, err := client.GetTags(t.Context(), "child", false)
+			if challenge {
+				require.ErrorContains(t, err, "argocd-definitely-missing-test-helper")
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, []string{"public-version"}, tags)
+			}
+			require.Positive(t, requests.Load(), "unknown credentials must reach the origin without consulting shared metadata")
+			require.Empty(t, cache.bodies, "unknown credentials must never populate an anonymous shared-cache identity")
+		})
+	}
+}
+
+func TestGetTagsDockerCredentialsPreserveExplicitScope(t *testing.T) {
+	t.Setenv("DOCKER_CONFIG", t.TempDir())
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"name":"child","tags":["1.0.0"]}`)
+	}))
+	t.Cleanup(server.Close)
+	host := strings.TrimPrefix(server.URL, "http://")
+	config, err := json.Marshal(map[string]any{"auths": map[string]any{host: map[string]string{"auth": "cmVhZGVyOnRlc3Qtc2VjcmV0"}}})
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(filepath.Join(os.Getenv("DOCKER_CONFIG"), "config.json"), config, 0o600))
+	cache := &credentialIndexCache{bodies: map[string][]byte{}}
+	for _, scope := range []string{"first", "second", "first"} {
+		client := NewClient(host, HelmCreds{}, true, "", "", WithPlainHTTP(), WithIndexCache(cache), WithIndexCacheScope(scope))
+		_, err := client.GetTags(t.Context(), "child", false)
+		require.NoError(t, err)
+	}
+	require.EqualValues(t, 2, requests.Load(), "each explicit partition must fetch once")
+	require.Len(t, cache.bodies, 2)
+}
+
+func TestConditionalGET_Unsolicited304WithCachedBody(t *testing.T) {
+	for _, retryOK := range []bool{false, true} {
+		t.Run(strconv.FormatBool(retryOK), func(t *testing.T) {
+			var requests atomic.Int32
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				if requests.Add(1) == 2 && retryOK {
+					_, _ = io.WriteString(w, regressionIndexBody)
+					return
+				}
+				w.WriteHeader(http.StatusNotModified)
+			}))
+			t.Cleanup(server.Close)
+			cache := &fakeIndexCache{data: []byte(regressionIndexBody)}
+			client := NewClient(server.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
+			_, err := client.GetIndex(t.Context(), true, 1<<20)
+			if retryOK {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+			}
+			require.EqualValues(t, 2, requests.Load(), "a body without a sent validator cannot authorize a 304")
+		})
+	}
 }

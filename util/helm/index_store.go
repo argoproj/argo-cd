@@ -475,17 +475,22 @@ func (s *IndexStore) retainedRecord(identity string) (*HelmIndexRecord, bool) {
 	return newest, fromShared
 }
 
-func (s *IndexStore) publishSharedRecord(identity string, record *HelmIndexRecord) bool {
+func (s *IndexStore) installRecord(identity string, record *HelmIndexRecord) bool {
 	err := s.publishRecord(identity, &indexRecord{APIVersion: "v1", Body: base64.StdEncoding.EncodeToString(record.Body), ETag: record.ETag, LastModified: record.LastModified, StoredAt: record.StoredAt})
 	if err != nil {
 		log.WithError(err).Debug("failed to persist helm index record")
 	}
+	return err == nil
+}
+
+func (s *IndexStore) publishSharedRecord(identity string, record *HelmIndexRecord) bool {
+	published := s.installRecord(identity, record)
 	if s.cache != nil {
 		if err := s.cache.SetHelmIndexRetainedRecord(identity, record); err != nil {
 			log.WithError(err).Debug("failed to cache helm index record")
 		}
 	}
-	return err == nil
+	return published
 }
 
 // Revalidate refreshes a stored entry using conditional GET (Part 3
@@ -527,7 +532,7 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 	if candidate != nil && candidate.Fresh(s.expiration) {
 		// Preserve timestamps when installing a newer Redis generation locally.
 		if fromShared {
-			published = s.publishSharedRecord(repoURL, candidate)
+			published = s.installRecord(repoURL, candidate)
 		}
 		return candidate.Body, nil
 	}
@@ -540,7 +545,25 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 		return nil, err
 	}
 	etag, modified := responseValidatorHeaders(operation.lastValidators)
-	published = s.publishSharedRecord(repoURL, &HelmIndexRecord{Body: data, ETag: etag, LastModified: modified, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)})
+	record := &HelmIndexRecord{Body: data, ETag: etag, LastModified: modified, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	if operation.indexNotModified {
+		mayPublish := true
+		if revalidator, ok := s.cache.(indexCacheRecordRevalidator); ok && candidate != nil {
+			updated, err := revalidator.RevalidateHelmIndexRecord(ctx, repoURL, candidate, record)
+			if err != nil {
+				log.WithError(err).Debug("failed to revalidate shared helm index record")
+			} else {
+				// A lost comparison means another generation won. Do not make
+				// this older body newer on disk either; the next read selects it.
+				mayPublish = updated
+			}
+		}
+		if mayPublish {
+			published = s.installRecord(repoURL, record)
+		}
+	} else {
+		published = s.publishSharedRecord(repoURL, record)
+	}
 	return data, nil
 }
 

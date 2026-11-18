@@ -1247,9 +1247,10 @@ func regressionRedisCache(t *testing.T) (*Cache, *miniredis.Miniredis) {
 // regressionChartRepo serves a minimal helm repo whose index can be
 // re-published with a new chart version between requests.
 type regressionChartRepo struct {
-	server *httptest.Server
-	mu     sync.Mutex
-	index  string
+	server   *httptest.Server
+	mu       sync.Mutex
+	index    string
+	statuses []int
 }
 
 func (f *regressionChartRepo) publish(version string) {
@@ -1277,8 +1278,15 @@ func newRegressionChartRepo(t *testing.T) *regressionChartRepo {
 		// index is re-published, enabling 304 revalidation in tests.
 		etag := `"` + f.indexVersion(t) + `"`
 		w.Header().Set("ETag", etag)
+		status := http.StatusOK
 		if r.Header.Get("If-None-Match") == etag {
-			w.WriteHeader(http.StatusNotModified)
+			status = http.StatusNotModified
+		}
+		f.mu.Lock()
+		f.statuses = append(f.statuses, status)
+		f.mu.Unlock()
+		w.WriteHeader(status)
+		if status == http.StatusNotModified {
 			return
 		}
 		_, _ = w.Write([]byte(index))
@@ -1412,35 +1420,28 @@ func TestIndexCacheRegressionRedisStaleBodyNotServedAfterFreshness(t *testing.T)
 // the chain is 200 → 304 → 304 (not 200 → 304 → 200). Fresh clients arise
 // naturally: repo-server builds a new client per request.
 func TestIndexCacheRegressionFreshClientKeepsValidatorsAfter304(t *testing.T) {
-	cache, redisServer := regressionRedisCache(t)
+	cache, _ := regressionRedisCache(t)
 	fixture := newRegressionChartRepo(t)
-
-	// Client 1: cold fetch, publishes body+validators (200).
-	first := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "",
-		helm.WithIndexCacheScopedByCreds(cache))
-	_, err := first.GetIndex(t.Context(), true, 1<<20)
-	require.NoError(t, err)
-
-	// Expire freshness so the next read revalidates conditionally.
-	redisServer.FastForward(2 * time.Minute)
-
-	// Client 2: fresh instance, sees expired record → conditional GET → 304.
-	second := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "",
-		helm.WithIndexCacheScopedByCreds(cache))
-	_, err = second.GetIndex(t.Context(), true, 1<<20)
-	require.NoError(t, err)
 	scopedKey := fixture.server.URL + "\x00" + helm.CredsScope(helm.HelmCreds{})
-	rec, err := cache.GetHelmIndexRecord(scopedKey)
-	require.NoError(t, err)
-	require.NotEmpty(t, rec.ETag, "a 304 on a fresh client must retain the validators, not republish empty ones")
-
-	// Client 3: another fresh instance AFTER another expiry must again get a
-	// 304 (validators survived), proving the chain 200 → 304 → 304.
-	redisServer.FastForward(2 * time.Minute)
-	third := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "",
-		helm.WithIndexCacheScopedByCreds(cache))
-	_, err = third.GetIndex(t.Context(), true, 1<<20)
-	require.NoError(t, err)
+	for attempt := range 3 {
+		if attempt > 0 {
+			record, err := cache.GetHelmIndexRecord(scopedKey)
+			require.NoError(t, err)
+			record.StoredAt = time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339Nano)
+			require.NoError(t, cache.SetHelmIndexRetainedRecord(scopedKey, record))
+		}
+		client := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "", helm.WithIndexCacheScopedByCreds(cache))
+		index, err := client.GetIndex(t.Context(), false, 1<<20)
+		require.NoError(t, err)
+		require.Equal(t, "1.0.0", index.Entries["child"][0].Version)
+		record, err := cache.GetHelmIndexRecord(scopedKey)
+		require.NoError(t, err)
+		require.Equal(t, `"1.0.0"`, record.ETag)
+		require.True(t, record.Fresh(time.Minute), "304 must renew the same shared generation")
+	}
+	fixture.mu.Lock()
+	defer fixture.mu.Unlock()
+	require.Equal(t, []int{http.StatusOK, http.StatusNotModified, http.StatusNotModified}, fixture.statuses)
 }
 
 func TestHelmOCITagsKeepRevisionExpiration(t *testing.T) {
@@ -1522,8 +1523,8 @@ func TestIndexRecordReadInterleavingKeepsGeneration(t *testing.T) {
 	require.Equal(t, "1.0.0", got.index.Entries["child"][0].Version, "304 must return the generation whose validator was sent")
 	record, err := cache.GetHelmIndexRecord(url)
 	require.NoError(t, err)
-	require.Equal(t, body, record.Body)
-	require.Equal(t, `"1.0.0"`, record.ETag)
+	require.Equal(t, helmIndexContractBody("2.0.0"), record.Body, "a delayed 304 must leave the concurrent generation intact")
+	require.Equal(t, `"2.0.0"`, record.ETag)
 	origin.mu.Lock()
 	defer origin.mu.Unlock()
 	require.Equal(t, []int{http.StatusNotModified}, origin.statuses)
@@ -1561,9 +1562,15 @@ func TestLegacy304KeepsRequestBodyAndValidators(t *testing.T) {
 	var url string
 	var attempts atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if attempts.Add(1) == 1 {
+		switch attempts.Add(1) {
+		case 1:
 			w.Header().Set("ETag", `"1.0.0"`)
 			_, _ = w.Write(body)
+			return
+		case 2:
+			// The only expected revalidation request.
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
 			return
 		}
 		headers <- r.Header.Get("If-None-Match")
@@ -1582,16 +1589,108 @@ func TestLegacy304KeepsRequestBodyAndValidators(t *testing.T) {
 	view.published = nil
 	index, err := client.GetIndex(t.Context(), true, 1<<20)
 	require.NoError(t, err)
+	require.EqualValues(t, 2, attempts.Load(), "observe the second request before consuming handler results")
 	require.NoError(t, <-updates)
 	require.Equal(t, `"1.0.0"`, <-headers)
 	require.Equal(t, "1.0.0", index.Entries["child"][0].Version)
-	require.NotEmpty(t, view.published)
-	for _, record := range view.published {
-		require.Equal(t, body, record.Body)
-		require.Equal(t, `"1.0.0"`, record.ETag)
-	}
+	require.Empty(t, view.published, "a cache without generation comparison cannot safely republish a 304")
 	final, err := cache.GetHelmIndexRecord(url)
 	require.NoError(t, err)
-	require.Equal(t, body, final.Body)
-	require.Equal(t, `"1.0.0"`, final.ETag)
+	require.Equal(t, helmIndexContractBody("2.0.0"), final.Body)
+	require.Equal(t, `"2.0.0"`, final.ETag)
+}
+
+type splitIndexCache struct {
+	cache           *Cache
+	validatorWrites int
+}
+
+func (c *splitIndexCache) GetHelmIndex(k string, b *[]byte) error { return c.cache.GetHelmIndex(k, b) }
+
+func (c *splitIndexCache) SetHelmIndex(k string, b []byte) error { return c.cache.SetHelmIndex(k, b) }
+
+func (c *splitIndexCache) GetHelmIndexValidators(k string) (string, string, error) {
+	return c.cache.GetHelmIndexValidators(k)
+}
+
+func (c *splitIndexCache) SetHelmIndexValidators(k, e, m string) error {
+	c.validatorWrites++
+	return c.cache.SetHelmIndexValidators(k, e, m)
+}
+
+func TestSplitIndexCacheNeverPublishesUnboundValidators(t *testing.T) {
+	cache, _ := regressionRedisCache(t)
+	view := &splitIndexCache{cache: cache}
+	var requests atomic.Int32
+	var publication error
+	var url string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if requests.Add(1) == 1 {
+			w.Header().Set("ETag", `"one"`)
+			_, _ = w.Write(helmIndexContractBody("1.0.0"))
+			return
+		}
+		publication = cache.SetHelmIndexRecord(url, helmIndexContractBody("2.0.0"), `"two"`, "")
+		if r.Header.Get("If-None-Match") != `"one"` {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	t.Cleanup(server.Close)
+	url = server.URL
+	client := helm.NewClient(url, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(view))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	_, err = client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.NoError(t, publication)
+	require.Zero(t, view.validatorWrites, "split caches cannot prove the generation of a validator-only write")
+	record, err := cache.GetHelmIndexRecord(url)
+	require.NoError(t, err)
+	require.Equal(t, helmIndexContractBody("2.0.0"), record.Body)
+	require.Equal(t, `"two"`, record.ETag)
+}
+
+func TestIndexDelayed304PreservesConcurrentGeneration(t *testing.T) {
+	cache, _ := regressionRedisCache(t)
+	entered, release := make(chan struct{}), make(chan struct{})
+	resume := sync.OnceFunc(func() { close(release) })
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("If-None-Match") != `"one"` {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		close(entered)
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	t.Cleanup(server.Close)
+	t.Cleanup(resume)
+	url := server.URL
+	require.NoError(t, cache.SetHelmIndexRetainedRecord(url, &HelmIndexRecord{Body: helmIndexContractBody("1.0.0"), ETag: `"one"`, StoredAt: time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339Nano)}))
+	client := helm.NewClient(url, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(cache))
+	result := make(chan error, 1)
+	go func() { _, err := client.GetIndex(t.Context(), true, 1<<20); result <- err }()
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("request never reached origin")
+	}
+	require.NoError(t, cache.SetHelmIndexRecord(url, helmIndexContractBody("2.0.0"), `"two"`, ""))
+	resume()
+	select {
+	case err := <-result:
+		require.NoError(t, err)
+	case <-time.After(5 * time.Second):
+		t.Fatal("revalidation did not finish")
+	}
+	record, err := cache.GetHelmIndexRecord(url)
+	require.NoError(t, err)
+	require.Equal(t, helmIndexContractBody("2.0.0"), record.Body, "a delayed 304 cannot roll back a newer shared generation")
+	require.Equal(t, `"two"`, record.ETag)
 }

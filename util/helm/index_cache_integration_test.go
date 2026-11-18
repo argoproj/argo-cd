@@ -579,9 +579,7 @@ generated: "2026-01-01T00:00:00Z"
 
 func newFixtureRepo(t *testing.T) *fixtureRepo {
 	t.Helper()
-	if _, err := exec.LookPath("helm"); err != nil {
-		t.Skip("helm binary not available in PATH")
-	}
+	regressionRequirePinnedHelm(t)
 	dir := t.TempDir()
 	writeChartPackage(t, dir, "child", "0.1.2")
 	fr := &fixtureRepo{dir: dir}
@@ -608,8 +606,6 @@ func TestDependencyBuildZeroWarmDownloads(t *testing.T) {
 	repo := newFixtureRepo(t)
 	store := NewIndexStore(t.TempDir(), 1*time.Hour, 1<<30)
 
-	parentWork := t.TempDir() // fresh parent chart dir per phase
-	require.NoError(t, osMkdirAll(parentWork, 0o700))
 	chartYAML := fmt.Sprintf(`apiVersion: v2
 name: parent
 version: 0.1.0
@@ -618,14 +614,20 @@ dependencies:
     version: ">=0.1.0"
     repository: %s
 `, repo.srv.URL)
-	require.NoError(t, osWriteFile(filepath.Join(parentWork, "Chart.yaml"), []byte(chartYAML), 0o600))
+	newParent := func() string {
+		t.Helper()
+		parent := t.TempDir()
+		require.NoError(t, osWriteFile(filepath.Join(parent, "Chart.yaml"), []byte(chartYAML), 0o600))
+		return parent
+	}
 
 	repos := []HelmRepository{{Name: "fixture", Repo: repo.srv.URL, Creds: HelmCreds{}}}
 
 	// COLD build: no store entry → helm downloads the index (1 GET), build
 	// succeeds, harvest persists the index. workDir is the chart directory.
-	h1, err := NewHelmAppWithIndexStore(parentWork, repos, false, "", "", "", false, false, store, false)
+	h1, err := NewHelmAppWithIndexStore(newParent(), repos, false, "", "", "", false, false, store, false)
 	require.NoError(t, err)
+	t.Cleanup(h1.Dispose)
 	require.NoError(t, h1.DependencyBuild(context.Background()))
 	assert.Equal(t, int32(1), repo.indexGets.Load(), "cold build downloads the index once")
 	_, err = store.Get(repoIdentity(repos[0]))
@@ -633,15 +635,17 @@ dependencies:
 
 	// WARM build in a COMPLETELY FRESH work dir: --skip-refresh + prewarmed
 	// index → zero index downloads.
-	h2, err := NewHelmAppWithIndexStore(parentWork, repos, false, "", "", "", false, false, store, false)
+	h2, err := NewHelmAppWithIndexStore(newParent(), repos, false, "", "", "", false, false, store, false)
 	require.NoError(t, err)
+	t.Cleanup(h2.Dispose)
 	require.NoError(t, h2.DependencyBuild(context.Background()))
 	assert.Equal(t, int32(1), repo.indexGets.Load(), "warm build must not download index.yaml (helm dependency build --skip-refresh)")
 
 	// Forced refresh: policy flag makes the build ignore the store and
 	// contact the origin again.
-	h3, err := NewHelmAppWithIndexStore(parentWork, repos, false, "", "", "", false, false, store, true)
+	h3, err := NewHelmAppWithIndexStore(newParent(), repos, false, "", "", "", false, false, store, true)
 	require.NoError(t, err)
+	t.Cleanup(h3.Dispose)
 	require.NoError(t, h3.DependencyBuild(context.Background()))
 	assert.Equal(t, int32(2), repo.indexGets.Load(), "forced refresh must contact the origin unconditionally")
 }

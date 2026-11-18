@@ -145,12 +145,18 @@ Expiry is demand-driven: the next eligible dependency build revalidates an expir
 This setting does not poll repositories, trigger manifest generation, override `Chart.lock`
 or pinned versions, or wait before applying changed Git/Application values. Always-fresh
 Go-client operations continue contacting the origin regardless of this freshness window.
-A `304` still republishes the complete disk/Redis record, so frequent revalidation also
-increases local/shared storage work even when no index body is transferred from the origin.
+A `304` still writes complete records. Shared renewal atomically compares the observed
+record and replaces it once, so a delayed response cannot overwrite a concurrent update.
+The comparison transfers both encoded records to Redis; frequent revalidation increases
+local/shared storage work even when the origin transfers no index body.
 
 Expired indexes and validators remain available for another `max(24h, freshness)`;
 normal reads and snapshot copies never extend either deadline. Successful origin responses
 advance validation time. A retained index is never served after an origin validation error.
+Copying a fresh Redis hit to disk preserves its timestamp and never writes it back to Redis.
+If a shared `304` comparison loses to a concurrent update, that older response does not
+renew the disk record either. Its in-flight build may finish using its validated snapshot;
+the next store lookup can select the newer shared record.
 
 Each Helm invocation still has private config, cache, data, credentials and certificate files.
 Argo copies the original validated index bytes into that home and uses `--skip-refresh` only
@@ -217,13 +223,21 @@ retains only keyed lookup tags and derived fingerprints, not plaintext credentia
 derivations are serialized to bound additional derivation memory. Fingerprint-version changes
 make previous entries cold; those records expire through their normal retention policies.
 Helm OCI tag-cache identities include effective Docker-store credentials when those credentials
-authenticate registry requests. Native OCI clients snapshot custom CA file contents for both
+authenticate registry requests, while preserving an explicitly selected cache scope.
+Docker Hub aliases use the registry's effective hostname for authentication. If a Docker
+credential helper fails, the request bypasses shared metadata: public access can still succeed,
+and an authentication challenge reports the credential lookup error.
+Native OCI clients snapshot custom CA file contents for both
 the TLS transport and cache identity, so rotating that file creates a new cache view for new clients.
 
 Atomic shared records keep index bytes and validators together. Cache implementations that only
 support separate body and validator reads use process-local validators bound to the body's
 SHA-256 digest. Their first revalidation after restart may download the complete index;
 subsequent requests can use conditional GETs without pairing validators with different bytes.
+Split validator setters are never used to publish response metadata. A cache without atomic
+generation comparison does not renew shared freshness on `304`, which can cause extra origin
+requests. A `304` without a sent validator is unusable and retries once unconditionally;
+another `304` fails instead of renewing unvalidated cached bytes.
 
 Measure index GETs, `200`/`304` statuses, transferred bytes, dependency-build duration and origin
 errors separately on a canary. Verify cold, warm, expired and executed hard-refresh builds against

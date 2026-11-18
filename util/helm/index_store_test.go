@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -229,7 +230,18 @@ func TestIndexStoreProcessHelper(t *testing.T) {
 	require.Equal(t, regressionIndexBody, string(body))
 }
 
-func startIndexProcess(t *testing.T, action, dir, url string) *exec.Cmd {
+type indexTestProcess struct {
+	*exec.Cmd
+	finished chan struct{}
+	err      error
+}
+
+func (p *indexTestProcess) Wait() error {
+	<-p.finished
+	return p.err
+}
+
+func startIndexProcess(t *testing.T, action, dir, url string) *indexTestProcess {
 	t.Helper()
 	command := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^TestIndexStoreProcessHelper$", "-test.timeout=10s")
 	command.Env = append(os.Environ(), "ARGOCD_INDEX_TEST_ACTION="+action, "ARGOCD_INDEX_TEST_DIR="+dir, "ARGOCD_INDEX_TEST_URL="+url)
@@ -239,9 +251,15 @@ func startIndexProcess(t *testing.T, action, dir, url string) *exec.Cmd {
 	require.NoError(t, err)
 	command.Stderr = os.Stderr
 	require.NoError(t, command.Start())
+	process := &indexTestProcess{Cmd: command, finished: make(chan struct{})}
 	t.Cleanup(func() {
 		_ = stdin.Close()
-		_ = command.Process.Kill()
+		select {
+		case <-process.finished:
+		default:
+			_ = command.Process.Kill()
+		}
+		_ = process.Wait()
 	})
 	ready := make(chan bool, 1)
 	go func() {
@@ -252,6 +270,8 @@ func startIndexProcess(t *testing.T, action, dir, url string) *exec.Cmd {
 		}
 		ready <- scanner.Scan() && scanner.Text() == expected
 		_, _ = io.Copy(io.Discard, stdout)
+		process.err = command.Wait()
+		close(process.finished)
 	}()
 	select {
 	case ok := <-ready:
@@ -259,7 +279,7 @@ func startIndexProcess(t *testing.T, action, dir, url string) *exec.Cmd {
 	case <-time.After(5 * time.Second):
 		t.Fatal("helper did not reach its barrier")
 	}
-	return command
+	return process
 }
 
 func TestIndexStoreProcessLockCancellationAndCrashRecovery(t *testing.T) {
@@ -289,7 +309,9 @@ func TestIndexStoreProcessLockCancellationAndCrashRecovery(t *testing.T) {
 	require.EqualValues(t, 1, requests.Load())
 	info, err := os.Stat(store.cacheFileName("shared") + ".lock")
 	require.NoError(t, err)
-	require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	if runtime.GOOS != "windows" {
+		require.Equal(t, os.FileMode(0o600), info.Mode().Perm())
+	}
 	store.Sweep()
 	after, err := os.Stat(store.cacheFileName("shared") + ".lock")
 	require.NoError(t, err)
@@ -609,10 +631,13 @@ func TestIndexCacheRegression200WithoutValidatorsClearsOldOnes(t *testing.T) {
 	client := NewClient(srv.URL, HelmCreds{}, false, "", "", WithIndexCache(cache))
 	_, err := client.GetIndex(t.Context(), true, 1<<20)
 	require.NoError(t, err)
-	require.Equal(t, `"old"`, cache.etag)
+	etag, _ := sharedInMemoryValidators.getForBody(srv.URL, cache.data)
+	require.Equal(t, `"old"`, etag)
 	_, err = client.GetIndex(t.Context(), true, 1<<20)
 	require.NoError(t, err)
-	assert.Empty(t, cache.etag, "a new 200 replaces validator metadata, including removing it")
+	etag, modified := sharedInMemoryValidators.getForBody(srv.URL, cache.data)
+	assert.Empty(t, etag, "a new 200 replaces validator metadata, including removing it")
+	assert.Empty(t, modified)
 	assert.Empty(t, cache.lastModified)
 }
 
@@ -749,7 +774,9 @@ func TestIndexCacheRegressionSweepEvictsOrphanedEntries(t *testing.T) {
 	// A sweep (as run at init or after another repo's publication) must
 	// remove the past-retention orphan even though nothing reads its identity.
 	store.Sweep()
-	_, err := store.GetRetained(orphan)
+	_, err := os.Stat(store.cacheFileName(orphan))
+	require.ErrorIs(t, err, os.ErrNotExist, "the orphan must actually be removed from disk")
+	_, err = store.GetRetained(orphan)
 	require.Error(t, err, "an orphaned entry past retention must be evicted by the sweep")
 
 	// A fresh entry is never swept.
@@ -842,9 +869,16 @@ func TestIndexStoreLegacyValidatorUpdatePreservesDeadline(t *testing.T) {
 	require.NoError(t, os.WriteFile(path, raw, 0o600))
 	old := time.Now().Add(-2 * time.Hour)
 	require.NoError(t, os.Chtimes(path, old, old))
+	info, err := os.Stat(path)
+	require.NoError(t, err)
 	_, err = store.Get("repo")
 	require.Error(t, err)
 	require.NoError(t, store.UpdateValidators("repo", `"updated"`, ""))
+	retained, err := store.readRecord("repo", false)
+	require.NoError(t, err)
+	require.Equal(t, `"updated"`, retained.ETag)
+	require.Equal(t, regressionIndexBody, retained.Body)
+	require.Equal(t, info.ModTime().UTC().Format(time.RFC3339Nano), retained.StoredAt)
 	_, err = store.Get("repo")
 	require.Error(t, err, "validator-only update must leave the legacy record expired")
 }

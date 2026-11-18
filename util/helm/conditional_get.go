@@ -1,13 +1,12 @@
 package helm
 
 import (
+	"context"
 	"crypto/sha256"
 	"errors"
 	"net/http"
 	"sync"
 	"time"
-
-	log "github.com/sirupsen/logrus"
 )
 
 // indexCacheWithValidators is an optional extension of the indexCache
@@ -119,24 +118,15 @@ func applyConditionalHeaders(req *http.Request, etag string, lastModified string
 	}
 }
 
-// storeResponseValidators persists the validators from a successful
-// (200) response. Best-effort: failures are logged and never fail the fetch.
-func storeResponseValidators(validators indexCacheWithValidators, repo string, resp *http.Response) {
-	etag := resp.Header.Get("ETag")
-	lastModified := resp.Header.Get("Last-Modified")
-	// A 200 is authoritative: when it carries no validators, stale validators
-	// from an earlier response must be dropped, otherwise a later conditional
-	// GET could 304 against a validator that no longer describes the origin
-	// state.
-	if err := validators.SetHelmIndexValidators(repo, etag, lastModified); err != nil {
-		log.WithError(err).Debugf("failed to store helm index validators for repo %s", repo)
-	}
-}
-
 // indexCacheRecorder is implemented by caches that can store the index body
 // and its validators as one atomic versioned record.
 type indexCacheRecorder interface {
 	SetHelmIndexRecord(repo string, indexData []byte, etag string, lastModified string) error
+}
+
+// A 304 can renew shared freshness only if the observed generation still exists.
+type indexCacheRecordRevalidator interface {
+	RevalidateHelmIndexRecord(context.Context, string, *HelmIndexRecord, *HelmIndexRecord) (bool, error)
 }
 
 // responseValidatorHeaders extracts validators from the headers of the last

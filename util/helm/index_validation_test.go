@@ -257,7 +257,7 @@ func TestIndexProviderCacheOutageAnd304ValidatorUpdate(t *testing.T) {
 			w.WriteHeader(http.StatusBadRequest)
 			return
 		}
-		w.Header().Set("ETag", `W/"two"`)
+		w.Header().Set("ETag", `W/"one"`)
 		w.WriteHeader(http.StatusNotModified)
 	}))
 	t.Cleanup(server.Close)
@@ -271,7 +271,7 @@ func TestIndexProviderCacheOutageAnd304ValidatorUpdate(t *testing.T) {
 	require.EqualValues(t, 1, requests.Load())
 	etag, _, err := store.GetHelmIndexValidators("view")
 	require.NoError(t, err)
-	require.Equal(t, `W/"two"`, etag, "304 response metadata must replace validators when supplied")
+	require.Equal(t, `W/"one"`, etag, "304 response metadata must replace validators when supplied")
 }
 
 func TestIndexProviderPublicationFailurePreservesHTTPResult(t *testing.T) {
@@ -329,7 +329,6 @@ func TestIndexClientLockWaitRespectsCancellation(t *testing.T) {
 	entered, release := make(chan struct{}), make(chan struct{})
 	var once sync.Once
 	resume := func() { once.Do(func() { close(release) }) }
-	t.Cleanup(resume)
 	var requests atomic.Int32
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if requests.Add(1) == 1 {
@@ -343,6 +342,7 @@ func TestIndexClientLockWaitRespectsCancellation(t *testing.T) {
 		_, _ = w.Write([]byte(regressionIndexBody))
 	}))
 	t.Cleanup(server.Close)
+	t.Cleanup(resume)
 	client := NewClient(server.URL, HelmCreds{}, false, "", "")
 	completed := make(chan error, 1)
 	go func() { _, err := client.GetIndex(t.Context(), true, 1<<20); completed <- err }()
@@ -353,11 +353,23 @@ func TestIndexClientLockWaitRespectsCancellation(t *testing.T) {
 	}
 	ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
 	defer cancel()
-	_, err := client.GetIndex(ctx, true, 1<<20)
-	require.ErrorIs(t, err, context.DeadlineExceeded)
+	waiter := make(chan error, 1)
+	go func() { _, err := client.GetIndex(ctx, true, 1<<20); waiter <- err }()
+	select {
+	case err := <-waiter:
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+	case <-time.After(3 * time.Second):
+		resume()
+		t.Fatal("the lock waiter ignored cancellation")
+	}
 	require.EqualValues(t, 1, requests.Load())
 	resume()
-	require.NoError(t, <-completed)
+	select {
+	case err := <-completed:
+		require.NoError(t, err)
+	case <-time.After(3 * time.Second):
+		t.Fatal("the original request did not finish after release")
+	}
 }
 
 func TestIndexStoreRejectsUnsafeSnapshotName(t *testing.T) {
@@ -405,4 +417,72 @@ func TestIndexRepositoryConfigRejectsConflictingCredentials(t *testing.T) {
 		{Name: "same", URL: "https://example.com", Password: "second"},
 	})
 	require.ErrorContains(t, err, "conflicting credentials")
+}
+
+type providerReadRaceCache struct {
+	*providerRecordCache
+	newer  *HelmIndexRecord
+	writes int
+}
+
+func (c *providerReadRaceCache) GetHelmIndexRetainedRecord(key string) (*HelmIndexRecord, error) {
+	observed, err := c.providerRecordCache.GetHelmIndexRetainedRecord(key)
+	if err == nil {
+		err = c.providerRecordCache.SetHelmIndexRetainedRecord(key, c.newer)
+	}
+	return observed, err
+}
+
+func (c *providerReadRaceCache) SetHelmIndexRetainedRecord(key string, record *HelmIndexRecord) error {
+	c.writes++
+	return c.providerRecordCache.SetHelmIndexRetainedRecord(key, record)
+}
+
+func TestIndexProviderSharedHitCannotRollBackNewerRecord(t *testing.T) {
+	old := &HelmIndexRecord{Body: []byte(regressionIndexBody + "# old\n"), StoredAt: time.Now().Add(-time.Minute).UTC().Format(time.RFC3339Nano)}
+	newer := &HelmIndexRecord{Body: []byte(regressionIndexBody + "# new\n"), StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	shared := &providerReadRaceCache{providerRecordCache: &providerRecordCache{record: old}, newer: newer}
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, shared)
+	body, err := store.Revalidate(t.Context(), "view", regressionClient("https://unused.invalid"))
+	require.NoError(t, err)
+	require.Equal(t, old.Body, body)
+	require.Zero(t, shared.writes, "a Redis hit is copied to disk without being published back")
+	record, err := shared.providerRecordCache.GetHelmIndexRetainedRecord("view")
+	require.NoError(t, err)
+	require.Equal(t, newer.Body, record.Body)
+	local, err := store.readRecord("view", true)
+	require.NoError(t, err)
+	require.Equal(t, old.StoredAt, local.StoredAt)
+}
+
+func TestIndexProvider304WithoutSharedComparisonPreservesNewerRecord(t *testing.T) {
+	old := &HelmIndexRecord{Body: []byte(regressionIndexBody + "# old\n"), ETag: `"one"`, StoredAt: time.Now().Add(-2 * time.Hour).UTC().Format(time.RFC3339Nano)}
+	newer := &HelmIndexRecord{Body: []byte(regressionIndexBody + "# new\n"), ETag: `"two"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
+	shared := &providerRecordCache{record: old}
+	result := make(chan error, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("If-None-Match") != `"one"` {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		result <- shared.SetHelmIndexRetainedRecord("view", newer)
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	t.Cleanup(server.Close)
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, shared)
+	body, err := store.Revalidate(t.Context(), "view", regressionClient(server.URL))
+	require.NoError(t, err)
+	require.Equal(t, old.Body, body)
+	select {
+	case err := <-result:
+		require.NoError(t, err)
+	default:
+		t.Fatal("no conditional request")
+	}
+	record, err := shared.GetHelmIndexRetainedRecord("view")
+	require.NoError(t, err)
+	require.Equal(t, newer.Body, record.Body)
+	local, err := store.readRecord("view", true)
+	require.NoError(t, err)
+	require.Equal(t, string(old.Body), local.Body, "successful validation may renew the local snapshot")
 }

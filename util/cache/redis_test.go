@@ -219,3 +219,69 @@ func TestRedisMetrics(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 4, int(metric.Histogram.GetSampleCount()))
 }
+
+func TestRedisCompareAndSwap(t *testing.T) {
+	for _, compression := range []RedisCompressionType{RedisCompressionNone, RedisCompressionGZip} {
+		t.Run(string(compression), func(t *testing.T) {
+			t.Setenv("ARGOCD_REDIS_KEY_PREFIX", "helm-cas-test:")
+			server := miniredis.RunT(t)
+			newClient := func() *Cache {
+				client := redis.NewClient(&redis.Options{Addr: server.Addr()})
+				t.Cleanup(func() { require.NoError(t, client.Close()) })
+				return NewCache(NewRedisCache(client, time.Minute, compression))
+			}
+			first, second := newClient(), newClient()
+			type record struct {
+				Generation int
+				Body       string
+			}
+			old := record{Generation: 1, Body: "original"}
+			require.NoError(t, first.SetItem("index", old, &CacheActionOpts{Expiration: time.Minute}))
+			type result struct {
+				updated bool
+				err     error
+			}
+			done := make(chan result, 8)
+			for n := range 8 {
+				go func() {
+					updated, err := []*Cache{first, second}[n%2].CompareAndSwapItem(t.Context(), "index", old, record{Generation: n + 2, Body: "replacement"}, 2*time.Minute)
+					done <- result{updated, err}
+				}()
+			}
+			winners := 0
+			for range 8 {
+				r := <-done
+				require.NoError(t, r.err)
+				if r.updated {
+					winners++
+				}
+			}
+			require.Equal(t, 1, winners, "independent clients may renew an observed generation only once")
+			var current record
+			require.NoError(t, first.GetItem("index", &current))
+			require.Equal(t, "replacement", current.Body)
+			keys := server.Keys()
+			require.Len(t, keys, 1)
+			require.Contains(t, keys[0], "helm-cas-test:index|")
+			require.Equal(t, 2*time.Minute, server.TTL(keys[0]))
+			updated, err := first.CompareAndSwapItem(t.Context(), "missing", old, current, time.Minute)
+			require.NoError(t, err)
+			require.False(t, updated)
+			updated, err = first.CompareAndSwapItem(t.Context(), "index", old, old, time.Minute)
+			require.NoError(t, err)
+			require.False(t, updated)
+			require.Equal(t, 2*time.Minute, server.TTL(keys[0]), "a failed comparison cannot renew or shorten TTL")
+		})
+	}
+}
+
+func TestCompareAndSwapUnsupportedClient(t *testing.T) {
+	cache := NewCache(NewInMemoryCache(time.Minute))
+	require.NoError(t, cache.SetItem("key", "old", nil))
+	updated, err := cache.CompareAndSwapItem(t.Context(), "key", "old", "new", time.Minute)
+	require.NoError(t, err)
+	require.False(t, updated)
+	var value string
+	require.NoError(t, cache.GetItem("key", &value))
+	require.Equal(t, "old", value)
+}

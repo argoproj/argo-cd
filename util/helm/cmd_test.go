@@ -518,8 +518,7 @@ func TestRepoEntryPutsCAPathInCAFile(t *testing.T) {
 		Repo:  "https://example.com/",
 		Creds: HelmCreds{CAPath: caPath},
 	}
-	cmd, err := newCmdWithVersion(t.TempDir(), false, "", "", nil)
-	require.NoError(t, err)
+	cmd := newTestCmd(t)
 	h := &helm{cmd: *cmd}
 	entries, err := buildRepoEntries(h, repo)
 	require.NoError(t, err)

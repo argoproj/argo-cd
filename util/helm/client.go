@@ -93,7 +93,9 @@ func WithIndexCacheScopedByCreds(indexCache indexCache) ClientOpts {
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
-	lastValidators           http.Header // ETag/Last-Modified of the most recent 200 from loadRepoIndex; consumed by GetIndex for atomic publish
+	indexNotModified         bool
+	revalidationRecord       *HelmIndexRecord
+	lastValidators           http.Header // response validators consumed by the publication owner
 	chartCachePaths          utilio.TempPaths
 	repoURL                  string
 	requireCompleteIndex     bool
@@ -424,7 +426,18 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 		}
 		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
 
-		if c.indexCache != nil {
+		if c.indexCache != nil && c.indexNotModified {
+			etag, modified := responseValidatorHeaders(c.lastValidators)
+			if revalidator, ok := c.indexCache.(indexCacheRecordRevalidator); ok && c.revalidationRecord != nil {
+				record := &HelmIndexRecord{Body: data, ETag: etag, LastModified: modified, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
+				if _, err := revalidator.RevalidateHelmIndexRecord(ctx, c.cacheRepoKey(), c.revalidationRecord, record); err != nil {
+					log.WithError(err).Debug("failed to revalidate shared helm index record")
+				}
+			}
+			if _, pairedReader := c.indexCache.(indexCacheRecordReader); !pairedReader {
+				sharedInMemoryValidators.setForBody(c.cacheRepoKey(), data, etag, modified)
+			}
+		} else if c.indexCache != nil {
 			// When the cache can store body and validators as ONE versioned
 			// record, publish them atomically: a partial publication must
 			// never pair a new body with stale validators (or vice versa).
@@ -438,12 +451,8 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 			} else if err := c.indexCache.SetHelmIndex(c.cacheRepoKey(), data); err != nil {
 				log.Warnf("Failed to store index cache for repo: %s: %v", c.repoURL, err)
 			} else if c.lastValidators != nil {
-				// Publish validators only after the corresponding body succeeds.
-				vc := validatorsFor(c.indexCache)
+				// A split setter cannot prove which body its validators describe.
 				etag, lastModified := responseValidatorHeaders(c.lastValidators)
-				if err := vc.SetHelmIndexValidators(c.cacheRepoKey(), etag, lastModified); err != nil {
-					log.WithError(err).Debugf("failed to store helm index validators for repo %s", c.repoURL)
-				}
 				sharedInMemoryValidators.setForBody(c.cacheRepoKey(), data, etag, lastModified)
 			}
 		}
@@ -494,6 +503,8 @@ func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
 }
 
 func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64) ([]byte, error) {
+	c.indexNotModified = false
+	c.revalidationRecord = nil
 	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error getting index URL: %w", err)
@@ -535,18 +546,18 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	if c.indexCache != nil && c.scopedByCreds {
 		repoKey = c.cacheRepoKeyScoped(credsScope(snap))
 	}
-	var validators indexCacheWithValidators
 	var cachedBody []byte
 	var cachedRecordETag, cachedRecordLastModified string
 	var retainedRecord bool
 	if c.indexCache != nil {
-		validators = validatorsFor(c.indexCache)
 		// Read the COMPLETE record in one call when the cache supports it:
 		// reading body and validators separately lets a concurrent replica
 		// publication slip a new validator in between, so a 304 would pair
 		// the new validator with the previous body.
 		if recorder, ok := c.indexCache.(indexCacheRecordReader); ok {
 			if rec, err := recorder.GetHelmIndexRetainedRecord(repoKey); err == nil && len(rec.Body) > 0 {
+				held := *rec
+				c.revalidationRecord = &held
 				cachedBody = rec.Body
 				cachedRecordETag, cachedRecordLastModified = rec.ETag, rec.LastModified
 				retainedRecord = true
@@ -562,6 +573,7 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 			cachedBody = nil
 			retainedRecord = false
 			cachedRecordETag, cachedRecordLastModified = "", ""
+			c.revalidationRecord = nil
 		}
 
 		if len(cachedBody) > 0 {
@@ -595,14 +607,12 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
-	if resp.StatusCode == http.StatusNotModified && len(cachedBody) > 0 {
+	sentValidator := req.Header.Get("If-None-Match") != "" || req.Header.Get("If-Modified-Since") != ""
+	if resp.StatusCode == http.StatusNotModified && len(cachedBody) > 0 && sentValidator {
+		c.indexNotModified = true
 		log.WithFields(log.Fields{"repo": c.repoURL}).Info("helm index not modified (HTTP 304), using cached body")
-		// The caller publishes body+validators after loadRepoIndex returns;
-		// a 304 confirms the cached validators are STILL VALID, so expose
-		// them via lastValidators too. Without this, a fresh client instance
-		// (lastValidators nil) republishes the record with EMPTY validators
-		// and the next revalidation degrades to a full GET (200→304→200
-		// instead of 200→304→304).
+		// Keep the request's validators when a 304 omits them. The owner can
+		// renew this generation atomically after the HTTP read completes.
 		if c.lastValidators == nil {
 			c.lastValidators = http.Header{}
 		}
@@ -618,25 +628,12 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 			}
 		}
 
-		if recorder, ok := c.indexCache.(indexCacheRecorder); ok {
-			// Re-publish the SAME body+validators as one record: this re-stamps
-			// freshness so ordinary readers are served again, atomically.
-			if err := recorder.SetHelmIndexRecord(repoKey, cachedBody, c.lastValidators.Get("ETag"), c.lastValidators.Get("Last-Modified")); err != nil {
-				log.WithError(err).Debugf("failed to refresh helm index record for repo %s", c.repoURL)
-			}
-		} else if !retainedRecord {
-			// Preserve validators omitted by a 304, without rereading a newer
-			// cache generation after validating our held body.
-			storeResponseValidators(validators, repoKey, &http.Response{Header: c.lastValidators})
-			etag, modified := responseValidatorHeaders(c.lastValidators)
-			sharedInMemoryValidators.setForBody(repoKey, cachedBody, etag, modified)
-		}
+		// The owner publishes once, using a generation comparison for shared data.
 		return cachedBody, nil
 	}
 	if resp.StatusCode == http.StatusNotModified {
-		// 304 without a usable cached body (e.g. the body was evicted but the
-		// validators survived): retry once unconditionally, without validators.
-		log.WithFields(log.Fields{"repo": c.repoURL}).Debug("helm index 304 without cached body, retrying without validators")
+		// A 304 requires both a usable body and a condition actually sent.
+		log.WithFields(log.Fields{"repo": c.repoURL}).Debug("unusable helm index 304, retrying without validators")
 		clearValidators := req.Clone(ctx)
 		clearValidators.Header.Del("If-None-Match")
 		clearValidators.Header.Del("If-Modified-Since")
@@ -651,7 +648,6 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 				return nil, fmt.Errorf("error reading index response body: %w", err)
 			}
 			c.lastValidators = resp2.Header
-			_ = validators
 			return data, nil
 		}
 		return nil, errors.New("failed to get index: " + resp2.Status)
@@ -671,7 +667,6 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	// a new validator with the previous body. The adapter-based revalidation
 	// path relies on the same ordering (Revalidate publishes body+validators
 	// in one record after this returns).
-	_ = validators
 	return data, nil
 }
 
@@ -784,21 +779,33 @@ func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache boo
 	if err != nil {
 		return nil, err
 	}
-	repoHost, _, _ := strings.Cut(tagsURL, "/")
+	repo, err := remote.NewRepository(tagsURL)
+	if err != nil {
+		return nil, fmt.Errorf("failed to initialize repository: %w", err)
+	}
+	repoHost := repo.Reference.Host()
 	credential := auth.Credential{Username: snap.GetUsername(), Password: snap.password}
+	var credentialErr error
 	if credential.Username == "" && credential.Password == "" {
 		// Resolve the Docker store before any shared-cache read. The same
 		// immutable credential must authenticate and identify this operation.
-		store, _ := credentials.NewStoreFromDocker(credentials.StoreOptions{})
-		if store != nil {
-			credential, err = credentials.Credential(store)(ctx, repoHost)
-			if err != nil {
-				return nil, fmt.Errorf("resolve registry credentials: %w", err)
-			}
+		store, storeErr := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+		credentialErr = storeErr
+		if storeErr == nil && store != nil {
+			credential, credentialErr = credentials.Credential(store)(ctx, repoHost)
 			if credential != auth.EmptyCredential {
 				c.indexCacheScope = cryptoutil.CredentialScope("helm-docker-credentials",
-					credsScope(snap), credential.Username, credential.Password, credential.AccessToken, credential.RefreshToken)
+					c.indexCacheScope, credsScope(snap), credential.Username, credential.Password, credential.AccessToken, credential.RefreshToken)
 			}
+		}
+	}
+	credentialFunc := auth.StaticCredential(repoHost, credential)
+	if credentialErr != nil {
+		// Public registries may never challenge. Unknown credentials cannot
+		// identify shared data; retain the lookup error for an auth challenge.
+		c.indexCache = nil
+		credentialFunc = func(context.Context, string) (auth.Credential, error) {
+			return auth.EmptyCredential, fmt.Errorf("resolve registry credentials: %w", credentialErr)
 		}
 	}
 
@@ -830,10 +837,6 @@ func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache boo
 	entries := &entriesStruct{}
 	if len(data) == 0 {
 		start := time.Now()
-		repo, err := remote.NewRepository(tagsURL)
-		if err != nil {
-			return nil, fmt.Errorf("failed to initialize repository: %w", err)
-		}
 		repo.PlainHTTP = c.plainHTTP
 		tlsConf, err := newTLSConfig(c.creds)
 		if err != nil {
@@ -859,7 +862,7 @@ func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache boo
 		repo.Client = &auth.Client{
 			Client:     client,
 			Cache:      nil,
-			Credential: auth.StaticCredential(repoHost, credential),
+			Credential: credentialFunc,
 		}
 
 		err = repo.Tags(ctx, "", func(tagsResult []string) error {

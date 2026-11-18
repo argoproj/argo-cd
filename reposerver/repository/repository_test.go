@@ -23,10 +23,13 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/alicebob/miniredis/v2"
 	imagev1 "github.com/opencontainers/image-spec/specs-go/v1"
+	"github.com/redis/go-redis/v9"
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
@@ -7127,11 +7130,12 @@ func packageIndexTestChart(t *testing.T, version string) []byte {
 	return result.Bytes()
 }
 
-func TestHelmIndexCacheManifestGeneration(t *testing.T) {
-	t.Setenv("ARGOCD_GPG_ENABLED", "false")
-	hack, err := filepath.Abs("../../hack")
-	require.NoError(t, err)
-	t.Setenv("PATH", hack+string(os.PathListSeparator)+os.Getenv("PATH"))
+func requirePinnedHelmIndexTest(t *testing.T) {
+	t.Helper()
+	for _, name := range []string{"HELM_REPOSITORY_CONFIG", "HELM_REPOSITORY_CACHE", "HELM_REGISTRY_CONFIG", "HELM_CONFIG_HOME", "HELM_CACHE_HOME", "HELM_DATA_HOME"} {
+		t.Setenv(name, "")
+		require.NoError(t, os.Unsetenv(name))
+	}
 	if _, err := exec.LookPath("helm"); err != nil {
 		t.Skip("requires repository-pinned Helm")
 	}
@@ -7144,6 +7148,14 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 			require.True(t, strings.HasPrefix(string(version), "v"+strings.Trim(pinned, "\"'")+"+"), "use the pinned Helm binary")
 		}
 	}
+}
+
+func TestHelmIndexCacheManifestGeneration(t *testing.T) {
+	t.Setenv("ARGOCD_GPG_ENABLED", "false")
+	hack, err := filepath.Abs("../../hack")
+	require.NoError(t, err)
+	t.Setenv("PATH", hack+string(os.PathListSeparator)+os.Getenv("PATH"))
+	requirePinnedHelmIndexTest(t)
 	archives := map[string][]byte{"1.0.0": packageIndexTestChart(t, "1.0.0"), "2.0.0": packageIndexTestChart(t, "2.0.0")}
 	var mu sync.Mutex
 	currentVersion := "1.0.0"
@@ -7460,4 +7472,74 @@ func TestHelmIndexCacheManifestGeneration(t *testing.T) {
 	require.ErrorContains(t, err, "401", "warm data must never hide invalid current credentials")
 	t.Log("always-fresh RPCs: listing=304 connectivity=304 revision=304 chart-details=304 extraction=200 changed-listing=200 wrong-credentials=401")
 	t.Logf("index requests: disabled=%d cold=1 Redis-warm=0 normal-refresh-apps=25/0 expired-normal=1/304 hard=1/200 revision=0 locked=0 legacy=0 existing-build=0", disabledGets)
+}
+
+func TestHelmIndexDelayed304PreservesNewerSharedGeneration(t *testing.T) {
+	requirePinnedHelmIndexTest(t)
+	archive := packageIndexTestChart(t, "1.0.0")
+	entered, release := make(chan struct{}), make(chan struct{})
+	resume := sync.OnceFunc(func() { close(release) })
+	var requests atomic.Int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/child-1.0.0.tgz" {
+			_, _ = w.Write(archive)
+			return
+		}
+		requests.Add(1)
+		if r.Header.Get("If-None-Match") != `"one"` {
+			w.WriteHeader(http.StatusBadRequest)
+			return
+		}
+		close(entered)
+		select {
+		case <-release:
+		case <-r.Context().Done():
+			return
+		}
+		w.WriteHeader(http.StatusNotModified)
+	}))
+	t.Cleanup(server.Close)
+	t.Cleanup(resume)
+	url := server.URL
+	index := func(version string) []byte {
+		return fmt.Appendf(nil, "apiVersion: v1\nentries:\n  child:\n    - name: child\n      version: %s\n      apiVersion: v2\n      urls: [%s/child-%s.tgz]\n", version, url, version)
+	}
+	redisServer := miniredis.RunT(t)
+	redisClient := redis.NewClient(&redis.Options{Addr: redisServer.Addr()})
+	t.Cleanup(func() { require.NoError(t, redisClient.Close()) })
+	cache := cache.NewCache(cacheutil.NewCache(cacheutil.NewRedisCache(redisClient, time.Hour, cacheutil.RedisCompressionNone)), 24*time.Hour, time.Minute, time.Second)
+	key := url + "\x00" + helm.CredsScope(helm.HelmCreds{})
+	require.NoError(t, cache.SetHelmIndexRetainedRecord(key, &helm.HelmIndexRecord{Body: index("1.0.0"), ETag: `"one"`, StoredAt: time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339Nano)}))
+	store := helm.NewIndexStore(t.TempDir(), time.Minute, 1<<20, cache)
+	parent := t.TempDir()
+	require.NoError(t, os.WriteFile(filepath.Join(parent, "Chart.yaml"), fmt.Appendf(nil, "apiVersion: v2\nname: parent\nversion: 0.1.0\ndependencies:\n  - name: child\n    version: '>=1.0.0'\n    repository: %s\n", url), 0o600))
+	app, err := helm.NewHelmAppWithIndexStore(parent, []helm.HelmRepository{{Name: "charts", Repo: url, Creds: helm.HelmCreds{}}}, false, "", "", "", false, false, store, false)
+	require.NoError(t, err)
+	t.Cleanup(app.Dispose)
+	done := make(chan error, 1)
+	go func() { done <- app.DependencyBuild(t.Context()) }()
+	select {
+	case <-entered:
+	case <-time.After(5 * time.Second):
+		t.Fatal("dependency build did not revalidate")
+	}
+	require.NoError(t, cache.SetHelmIndexRecord(key, index("2.0.0"), `"two"`, ""))
+	resume()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(10 * time.Second):
+		t.Fatal("dependency build did not finish")
+	}
+	record, err := cache.GetHelmIndexRecord(key)
+	require.NoError(t, err)
+	require.Equal(t, index("2.0.0"), record.Body)
+	require.Equal(t, `"two"`, record.ETag)
+	require.EqualValues(t, 1, requests.Load())
+	// The successful in-flight build can use its held v1. A subsequent store
+	// selection must prefer v2 instead of locally renewing v1 after the lost CAS.
+	local, err := store.Get(key)
+	require.Error(t, err)
+	require.Empty(t, local)
+	require.FileExists(t, filepath.Join(parent, "charts", "child-1.0.0.tgz"))
 }

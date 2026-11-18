@@ -1,6 +1,7 @@
 package cache
 
 import (
+	"context"
 	"encoding/base64"
 	"encoding/json"
 	"errors"
@@ -284,6 +285,23 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 		return nil
 	}
 	return c.cache.SetItem(helmIndexV2Key(repo), record, &cacheutil.CacheActionOpts{Expiration: remaining})
+}
+
+// RevalidateHelmIndexRecord renews only the generation validated by the request.
+// A concurrent publication or eviction makes this a no-op.
+func (c *Cache) RevalidateHelmIndexRecord(ctx context.Context, repo string, expected, record *HelmIndexRecord) (bool, error) {
+	if expected == nil || record == nil || len(record.Body) == 0 {
+		return false, errors.New("cannot revalidate an empty helm index record")
+	}
+	validatedAt, err := time.Parse(time.RFC3339Nano, record.StoredAt)
+	if err != nil {
+		return false, fmt.Errorf("invalid helm index validation time: %w", err)
+	}
+	remaining := time.Until(validatedAt.Add(c.helmIndexCacheExpiration + max(24*time.Hour, c.helmIndexCacheExpiration)))
+	if remaining <= 0 {
+		return false, nil
+	}
+	return c.cache.CompareAndSwapItem(ctx, helmIndexV2Key(repo), expected, record, remaining)
 }
 
 // GetHelmIndexRetainedRecord reads the versioned record regardless of body
