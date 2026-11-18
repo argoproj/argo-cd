@@ -384,7 +384,7 @@ $status-panel-toggle-height: 22px;
         }
         .white-box__details-row .columns.small-3 {
             overflow-wrap: unset !important;
-            overflow: scroll;
+            overflow: auto;
         }
         .white-box__details-row .columns.small-9{
             padding-left: 4px;
