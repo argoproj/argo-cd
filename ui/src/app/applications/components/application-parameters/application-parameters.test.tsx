@@ -1,4 +1,4 @@
-import {render, screen, waitFor, within} from '@testing-library/react';
+import {act, render, screen, waitFor, within} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import * as React from 'react';
 import * as models from '../../../shared/models';
@@ -225,6 +225,16 @@ const multiSourceApp = (): models.Application =>
 const ctxValue = {notifications: {show: () => undefined}} as any;
 const renderWithContext = (element: React.ReactElement) => render(<Context.Provider value={ctxValue}>{element}</Context.Provider>);
 
+function deferredRepoDetails() {
+    let resolve: (details: models.RepoAppDetails) => void;
+    let reject: (error: Error) => void;
+    const promise = new Promise<models.RepoAppDetails>((onResolve, onReject) => {
+        resolve = onResolve;
+        reject = onReject;
+    });
+    return {promise, resolve, reject};
+}
+
 test('collapsed multi-source summary shows plugin env values', async () => {
     renderWithContext(<ApplicationParameters application={multiSourceApp()} pageNumber={0} setPageNumber={jest.fn()} collapsedSources={[true]} handleCollapse={() => undefined} />);
 
@@ -340,10 +350,98 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         }
         appDetails.mockRejectedValue(new Error('repository unavailable'));
 
-        renderWithContext(<ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} />);
+        const parameters = (source: models.ApplicationSource) => (
+            <Context.Provider value={ctxValue}>
+                <ApplicationParameters application={{...app, spec: {...app.spec, ...(multiSource ? {sources: [source]} : {source})}}} pageNumber={0} setPageNumber={jest.fn()} />
+            </Context.Provider>
+        );
+        const {rerender} = render(parameters(appSource));
 
-        expect(await screen.findByRole('alert')).toHaveTextContent(warning);
+        expect(await screen.findByRole('alert')).toHaveTextContent('Source type unknown');
+        expect(screen.queryByText('DIRECTORY')).not.toBeInTheDocument();
+        expect(screen.queryByText('DIRECTORY RECURSE')).not.toBeInTheDocument();
+        expect(screen.queryByText(/TYPE=Directory/)).not.toBeInTheDocument();
         expect(appDetails).toHaveBeenCalledWith(appSource, 'test-app', 'default', 0, 0);
+        if (multiSource) {
+            expect(screen.getByText(appSource.repoURL)).toBeInTheDocument();
+            expect(screen.getByText('manifests')).toBeInTheDocument();
+            expect(screen.getByText('main')).toBeInTheDocument();
+        }
+
+        rerender(parameters({...appSource, targetRevision: 'explicit', directory: {recurse: true}}));
+        expect(await screen.findByText('DIRECTORY')).toBeInTheDocument();
+        expect(screen.getByRole('alert')).toHaveTextContent(warning);
+        expect(screen.queryByText(/Source type unknown/)).not.toBeInTheDocument();
+
+        appDetails.mockResolvedValue({type: 'Directory', path: 'manifests', directory: {}} as models.RepoAppDetails);
+        rerender(parameters({...appSource, targetRevision: 'release'}));
+        await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+        expect(await screen.findByText('DIRECTORY')).toBeInTheDocument();
+    });
+
+    test.each([
+        {olderFirst: false, currentFailure: false},
+        {olderFirst: true, currentFailure: false},
+        {olderFirst: false, currentFailure: true},
+        {olderFirst: true, currentFailure: true}
+    ])('ignores a superseded result (older first: $olderFirst, current failure: $currentFailure)', async ({olderFirst, currentFailure}) => {
+        const older = deferredRepoDetails();
+        const current = deferredRepoDetails();
+        appDetails.mockImplementation((source: models.ApplicationSource) => (source.targetRevision === 'main' ? older.promise : current.promise));
+        const appSource = {repoURL: 'https://charts.example.com', chart: 'web-app', targetRevision: 'main'} as models.ApplicationSource;
+        const app = multiSourceApp();
+        if (multiSource) {
+            app.spec.sources = [appSource];
+        } else {
+            app.spec.source = appSource;
+            delete app.spec.sources;
+        }
+        const parameters = (application: models.Application) => (
+            <Context.Provider value={ctxValue}>
+                <ApplicationParameters application={application} pageNumber={0} setPageNumber={jest.fn()} />
+            </Context.Provider>
+        );
+        const {rerender} = render(parameters(app));
+        await waitFor(() => expect(appDetails).toHaveBeenCalledTimes(1));
+        const updatedSource = {...appSource, targetRevision: 'release'};
+        rerender(parameters({...app, spec: {...app.spec, ...(multiSource ? {sources: [updatedSource]} : {source: updatedSource})}}));
+        await waitFor(() => expect(appDetails).toHaveBeenLastCalledWith(updatedSource, 'test-app', 'default', 0, 0));
+
+        const finishOlder = () =>
+            act(async () => {
+                if (currentFailure) {
+                    older.resolve({type: 'Helm', helm: {parameters: [{name: 'old-default', value: 'stale'}]}} as models.RepoAppDetails);
+                } else {
+                    older.reject(new Error('obsolete lookup failed'));
+                }
+            });
+        const finishCurrent = () =>
+            act(async () => {
+                if (currentFailure) {
+                    current.reject(new Error('current lookup failed'));
+                } else {
+                    current.resolve({type: 'Helm', helm: {parameters: [{name: 'current-default', value: 'current'}]}} as models.RepoAppDetails);
+                }
+            });
+
+        if (olderFirst) {
+            await finishOlder();
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+            expect(screen.queryByText('old-default')).not.toBeInTheDocument();
+            await finishCurrent();
+        } else {
+            await finishCurrent();
+            await finishOlder();
+        }
+
+        if (currentFailure) {
+            expect(screen.getByRole('alert')).toHaveTextContent('current lookup failed');
+        } else {
+            expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+            expect(screen.getByText('current-default')).toBeInTheDocument();
+        }
+        expect(screen.queryByText('obsolete lookup failed')).not.toBeInTheDocument();
+        expect(screen.queryByText('old-default')).not.toBeInTheDocument();
     });
 });
 
@@ -371,9 +469,15 @@ test('a failed source does not hide a successful source or its collapsed summary
 
     expect(await screen.findByRole('alert')).toHaveTextContent('plugin repository unavailable');
     expect(await screen.findByText('HELM')).toBeInTheDocument();
+    const helmPanel = screen.getByText('HELM').closest('.white-box');
     expect(screen.getByText('web-app:1.0.0')).toBeInTheDocument();
     expect(screen.getAllByRole('alert')).toHaveLength(1);
+    await user.click(helmPanel.querySelector('.fa-angle-up'));
+    expect(await screen.findByText('CHART=web-app, REVISION=1.0.0')).toBeInTheDocument();
+    expect(screen.getByRole('alert')).toHaveTextContent('plugin repository unavailable');
+    expect(screen.getByDisplayValue('my-plugin')).toBeInTheDocument();
+    expect(screen.queryByText('HELM')).not.toBeInTheDocument();
     await user.click(container.querySelector('.fa-angle-up'));
     expect(await screen.findByText('PATH=manifests, REVISION=main, ENV=[FOO=bar, ENVIRONMENT=prod]')).toBeInTheDocument();
-    expect(screen.getByText('HELM')).toBeInTheDocument();
+    expect(screen.getByText('CHART=web-app, REVISION=1.0.0')).toBeInTheDocument();
 });

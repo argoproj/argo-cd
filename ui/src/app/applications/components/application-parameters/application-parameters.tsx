@@ -1,5 +1,6 @@
 import {AutocompleteField, DataLoader, ErrorNotification, FormField, FormSelect, getNestedField, NotificationType, SlidingPanel} from 'argo-ui';
 import * as React from 'react';
+import {concat, from, NEVER} from 'rxjs';
 import {FieldApi, FormApi, FormFieldHOC as ReactFormField, Text, TextArea} from 'argo-ui';
 import {cloneDeep} from 'lodash-es';
 import {
@@ -280,13 +281,15 @@ export const ApplicationParameters = (props: {
             // For single source field, details page where we have to do the load to retrieve repo details
             // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
-                <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
+                <DataLoader noLoaderOnInputChange={true} input={app} load={application => concat(from(getSingleSource(application)), NEVER)}>
                     {({details, error}: SourceDetails) => {
-                        const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
+                        const attr = details
+                            ? gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false)
+                            : [];
                         return (
                             <>
-                                <SourceDetailsWarning error={error} />
-                                {getEditablePanel(attr, details)}
+                                <SourceDetailsWarning details={details} error={error} />
+                                {details && getEditablePanel(attr, details)}
                             </>
                         );
                     }}
@@ -343,10 +346,10 @@ export const ApplicationParameters = (props: {
                         <DataLoader
                             key={'app_params_source_' + index}
                             input={app.spec.sources[index]}
-                            load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
+                            load={src => concat(from(getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)), NEVER)}>
                             {({details, error}: SourceDetails) => (
                                 <>
-                                    <SourceDetailsWarning error={error} />
+                                    <SourceDetailsWarning details={details} error={error} />
                                     {getEditablePanelForOneSource(details, index, app.spec.sources[index])}
                                 </>
                             )}
@@ -609,7 +612,7 @@ export const ApplicationParameters = (props: {
                 itemsTop={upperPanel as EditablePanelItem[]}
                 noReadonlyMode={props.noReadonlyMode}
                 collapsible={collapsible}
-                hideBottom={refOnly}
+                hideBottom={refOnly || !repoAppDetails}
                 numberOfSources={app?.spec?.sources.length}
                 deleteSource={() => {
                     deleteSourceAction(app, app.spec.sources.at(ind), props.appContext);
@@ -1135,7 +1138,7 @@ async function getSourceFromAppSources(aSource: models.ApplicationSource, name: 
         const repoDetail = await services.repos.appDetails(aSource, name, project, index, version);
         return {details: applyExplicitSourceType(aSource, repoDetail)};
     } catch (error) {
-        return {details: getExplicitSourceDetails(aSource), error};
+        return {details: hasExplicitSourceType(aSource) ? getExplicitSourceDetails(aSource) : null, error};
     }
 }
 
@@ -1153,10 +1156,13 @@ interface SourceDetails {
     error?: Error;
 }
 
-const SourceDetailsWarning = ({error}: {error?: Error}) =>
+const SourceDetailsWarning = ({details, error}: SourceDetails) =>
     error ? (
         <p role='alert'>
-            <ErrorNotification title='Unable to load repository details. Showing configured source settings' e={error} />
+            <ErrorNotification
+                title={details ? 'Unable to load repository details. Showing configured source settings' : 'Unable to load repository details. Source type unknown'}
+                e={error}
+            />
         </p>
     ) : null;
 
