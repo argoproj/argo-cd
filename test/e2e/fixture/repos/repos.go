@@ -360,3 +360,27 @@ func AddWriteCredentials(t *testing.T, name string, insecure bool, repoURLType f
 	)
 	require.NoError(t, err)
 }
+
+// AddOCIWriteCredentials adds write credentials for the repository at imagePath in the unauthenticated OCI registry.
+// Write credentials are used by the commit-server to push hydrated manifests to the repository. The registry does not
+// require a login, but it is only reachable over plain HTTP, which the commit-server has to be told.
+func AddOCIWriteCredentials(t *testing.T, name, imagePath string) {
+	t.Helper()
+
+	_, err := fixture.KubeClientset.CoreV1().Secrets(fixture.ArgoCDNamespace).Create(
+		context.Background(),
+		&corev1.Secret{
+			Name: "write-creds-" + name,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeRepositoryWrite,
+			},
+			StringData: map[string]string{
+				"url":                  fmt.Sprintf("%s/%s", fixture.OCIHostURL, imagePath),
+				"type":                 "oci",
+				"insecureOCIForceHttp": "true",
+			},
+		},
+		metav1.CreateOptions{},
+	)
+	require.NoError(t, err)
+}

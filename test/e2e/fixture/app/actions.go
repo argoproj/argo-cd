@@ -303,6 +303,14 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 		args = append(args, "--sync-source-path", a.context.syncSourcePath)
 	}
 
+	if a.context.syncSourceRepo != "" {
+		args = append(args, "--sync-source-repo", a.context.syncSourceRepo)
+	}
+
+	if a.context.syncSourceRevision != "" {
+		args = append(args, "--sync-source-revision", a.context.syncSourceRevision)
+	}
+
 	if a.context.hydrateToBranch != "" {
 		args = append(args, "--hydrate-to-branch", a.context.hydrateToBranch)
 	}

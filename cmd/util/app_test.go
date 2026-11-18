@@ -423,6 +423,12 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("sync-source-path", "apps"))
 		assert.Equal(t, "apps", f.spec.SourceHydrator.SyncSource.Path)
 
+		require.NoError(t, f.SetFlag("sync-source-repo", "oci://example.com/hydrated"))
+		assert.Equal(t, "oci://example.com/hydrated", f.spec.SourceHydrator.SyncSource.RepoURL)
+
+		require.NoError(t, f.SetFlag("sync-source-revision", "dev"))
+		assert.Equal(t, "dev", f.spec.SourceHydrator.SyncSource.TargetRevision)
+
 		require.NoError(t, f.SetFlag("hydrate-to-branch", "env/test-next"))
 		assert.Equal(t, "env/test-next", f.spec.SourceHydrator.HydrateTo.TargetBranch)
 

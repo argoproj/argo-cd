@@ -7,6 +7,7 @@ import (
 	"maps"
 	"path/filepath"
 	"slices"
+	"strings"
 	"sync"
 	"time"
 
@@ -202,7 +203,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	})
 
 	// Get all applications sharing the same hydration key
-	apps, err := h.getAppsForHydrationKey(hydrationKey)
+	apps, conflictingApps, err := h.getAppsForHydrationKey(hydrationKey)
 	if err != nil {
 		// If we get an error here, we cannot proceed with hydration and we do not know
 		// which apps to update with the failure. The best we can do is log an error in
@@ -221,6 +222,9 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	// validate all the applications to make sure they are all correctly configured.
 	// All applications sharing the same hydration key must succeed for the hydration to be processed.
 	projects, validationErrors := h.validateApplications(apps)
+	if len(validationErrors) == 0 {
+		validationErrors = h.validateTagOwnership(apps, conflictingApps)
+	}
 	if len(validationErrors) > 0 {
 		// For the applications that have an error, set the specific error in their status.
 		// Applications without error will still fail with a generic error since the hydration cannot be partial
@@ -345,26 +349,31 @@ func (h *Hydrator) setAppHydratorError(app *appv1.Application, err error) {
 	h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 }
 
-// getAppsForHydrationKey returns the applications matching the hydration key.
-func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) ([]*appv1.Application, error) {
+// getAppsForHydrationKey returns the applications matching the hydration key. It also returns the applications which
+// hydrate to the same OCI repository and tag from a different dry source. Pushing a tag replaces the whole artifact,
+// so unlike a git branch a tag cannot be shared by applications which are not hydrated together.
+func (h *Hydrator) getAppsForHydrationKey(hydrationKey types.HydrationQueueKey) (relevantApps []*appv1.Application, conflictingApps []*appv1.Application, err error) {
 	// Get all apps
 	apps, err := h.dependencies.GetProcessableApps()
 	if err != nil {
-		return nil, fmt.Errorf("failed to list apps: %w", err)
+		return nil, nil, fmt.Errorf("failed to list apps: %w", err)
 	}
 
-	var relevantApps []*appv1.Application
 	for _, app := range apps.Items {
 		if app.Spec.SourceHydrator == nil {
 			continue
 		}
 		appKey := getHydrationQueueKey(&app)
-		if appKey != hydrationKey {
-			continue
+		switch {
+		case appKey == hydrationKey:
+			relevantApps = append(relevantApps, &app)
+		case app.Spec.SourceHydrator.IsSyncSourceOCI() &&
+			appKey.DestinationRepoURL == hydrationKey.DestinationRepoURL &&
+			appKey.DestinationBranch == hydrationKey.DestinationBranch:
+			conflictingApps = append(conflictingApps, &app)
 		}
-		relevantApps = append(relevantApps, &app)
 	}
-	return relevantApps, nil
+	return relevantApps, conflictingApps, nil
 }
 
 // validateApplications checks that all applications are valid for hydration.
@@ -378,6 +387,11 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 	uniquePaths := make(map[hydrationDestKey]string, len(apps))
 
 	for _, app := range apps {
+		if problems := hydrator.ValidateSourceHydrator(app.Spec.SourceHydrator); len(problems) > 0 {
+			errors[app.QualifiedName()] = fmt.Errorf("invalid source hydrator configuration: %s", strings.Join(problems, "; "))
+			continue
+		}
+
 		// Get the project for the app and validate if the app is allowed to use the source.
 		// We can't short-circuit this even if we have seen this project before, because we need to verify that this
 		// particular app is allowed to use this project.
@@ -393,15 +407,23 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 		}
 		projects[app.Spec.Project] = proj
 
-		// Disallow hydrating to the repository root.
-		// Hydrating to root would overwrite or delete files at the top level of the repo,
-		// which can break other applications or shared configuration.
-		// Every hydrated app must write into a subdirectory instead.
 		hydrateToSource := app.Spec.GetHydrateToSource()
 		destPath := hydrateToSource.Path
 		if IsRootPath(destPath) {
-			errors[app.QualifiedName()] = fmt.Errorf("app is configured to hydrate to the repository root (branch %q, path %q) which is not allowed", hydrateToSource.TargetRevision, destPath)
-			continue
+			if !hydrateToSource.IsOCI() {
+				// Disallow hydrating to the repository root.
+				// Hydrating to root would overwrite or delete files at the top level of the repo,
+				// which can break other applications or shared configuration.
+				// Every hydrated app must write into a subdirectory instead.
+				errors[app.QualifiedName()] = fmt.Errorf("app is configured to hydrate to the repository root (branch %q, path %q) which is not allowed", hydrateToSource.TargetRevision, destPath)
+				continue
+			}
+			// An OCI artifact holds nothing but the hydrated manifests, so the root is a valid destination as long as
+			// no other application needs a place in the same artifact.
+			if len(apps) > 1 {
+				errors[app.QualifiedName()] = fmt.Errorf("app is configured to hydrate to the root of the OCI artifact (tag %q, path %q) which is only allowed when no other application hydrates to the same tag", hydrateToSource.TargetRevision, destPath)
+				continue
+			}
 		}
 
 		if !proj.IsSourcePermitted(hydrateToSource) {
@@ -427,6 +449,28 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 	return projects, errors
 }
 
+// validateTagOwnership checks that no application outside the group hydrates to the OCI tag the group hydrates to.
+// conflictingApps are the candidates returned by getAppsForHydrationKey. An application whose project does not permit
+// the destination can never push to it, so it is not allowed to block the applications which legitimately own the tag.
+func (h *Hydrator) validateTagOwnership(apps []*appv1.Application, conflictingApps []*appv1.Application) map[string]error {
+	errors := make(map[string]error)
+	if len(apps) == 0 {
+		return errors
+	}
+	for _, conflict := range conflictingApps {
+		proj, err := h.dependencies.GetProcessableAppProj(conflict)
+		if err != nil || !proj.IsSourcePermitted(conflict.Spec.GetHydrateToSource()) {
+			continue
+		}
+		hydrateToSource := apps[0].Spec.GetHydrateToSource()
+		for _, app := range apps {
+			errors[app.QualifiedName()] = fmt.Errorf("OCI tag %q of %s is also the hydration destination of application %s, which uses a different dry source repository or revision; a tag can only be hydrated from one dry source", hydrateToSource.TargetRevision, git.SanitizeRepoURL(hydrateToSource.RepoURL), conflict.QualifiedName())
+		}
+		break
+	}
+	return errors
+}
+
 func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1.Application, projects map[string]*appv1.AppProject) (string, string, map[string]error, error) {
 	errors := make(map[string]error)
 	if len(apps) == 0 {
@@ -434,14 +478,20 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	}
 
 	// These values are the same for all apps being hydrated together, so just get them from the first app.
-	destinationRepoURL := apps[0].Spec.GetHydrateToSource().RepoURL
-	targetBranch := apps[0].Spec.GetHydrateToSource().TargetRevision
+	hydrateToSource := apps[0].Spec.GetHydrateToSource()
+	destinationRepoURL := hydrateToSource.RepoURL
+	// For an OCI repository, the "branch" is the tag the hydrated manifests are pushed to.
+	targetBranch := hydrateToSource.TargetRevision
 	// FIXME: As a convenience, the commit server will create the syncBranch if it does not exist. If the
 	// targetBranch does not exist, it will create it based on the syncBranch. On the next line, we take
 	// the `syncBranch` from the first app and assume that they're all configured the same. Instead, if any
 	// app has a different syncBranch, we should send the commit server an empty string and allow it to
 	// create the targetBranch as an orphan since we can't reliable determine a reasonable base.
 	syncBranch := apps[0].Spec.SourceHydrator.SyncSource.TargetBranch
+	if hydrateToSource.IsOCI() {
+		// A tag has no base to be created from.
+		syncBranch = ""
+	}
 	drySourceRepoURL := apps[0].Spec.SourceHydrator.DrySource.RepoURL
 
 	// Get a static SHA revision from the first app so that all apps are hydrated from the same revision.
@@ -454,9 +504,15 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	logCtx = logCtx.WithFields(log.Fields{"drySha": targetRevision})
 	// De-dupe, if the drySha was already hydrated log a debug and return using the data from the last successful hydration run.
 	// We only inspect one app. If apps have been added/removed, that will be handled on the next DRY commit.
-	if apps[0].Status.SourceHydrator.LastSuccessfulOperation != nil && targetRevision == apps[0].Status.SourceHydrator.LastSuccessfulOperation.DrySHA {
-		logCtx.Debug("Skipping hydration since the DRY commit was already hydrated")
-		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
+	if lastSuccessful := apps[0].Status.SourceHydrator.LastSuccessfulOperation; lastSuccessful != nil && targetRevision == lastSuccessful.DrySHA {
+		// The last successful hydration only says something about the destination it pushed to. An OCI tag is
+		// expected to exist as soon as it is configured, so when the hydrator configuration has changed since then
+		// (e.g. a new tag, or a move from git to OCI) the manifests must be pushed even though the DRY commit is the
+		// same.
+		if !hydrateToSource.IsOCI() || lastSuccessful.SourceHydrator.DeepEquals(*apps[0].Spec.SourceHydrator) {
+			logCtx.Debug("Skipping hydration since the DRY commit was already hydrated")
+			return targetRevision, lastSuccessful.HydratedSHA, nil, nil
+		}
 	}
 
 	// NB: use a distinct name for the errgroup-derived context. errgroup cancels it as soon as
@@ -550,6 +606,7 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 		ReadmeMessage:     readmeTemplate,
 		AuthorName:        authorName,
 		AuthorEmail:       authorEmail,
+		DryRepoURL:        drySourceRepoURL,
 	}
 
 	closer, commitService, err := h.commitClientset.NewCommitServerClient()

@@ -30,9 +30,11 @@ import {
     getPodStateReason,
     HealthStatusIcon,
     isFavorite,
+    isHydratorSyncSourceOCI,
     formatCreationTimestamp,
     nameConfirmationError,
     OperationState,
+    removeInapplicableHydratorSyncFields,
     ResourceResultIcon,
     toggleFavorite
 } from './utils';
@@ -1040,6 +1042,25 @@ describe('getHydratorSyncSourceRepoURL', () => {
     });
 });
 
+const ociDigest = 'sha256:' + '0123456789abcdef'.repeat(4);
+const drySource = {repoURL: 'https://github.com/example/dry.git', targetRevision: 'main', path: 'in'};
+
+describe('isHydratorSyncSourceOCI', () => {
+    it('is true for an explicit OCI sync repo', () => {
+        expect(isHydratorSyncSourceOCI({drySource, syncSource: {repoURL: 'oci://registry.example.com/hydrated', targetRevision: 'dev', path: '.'}})).toBe(true);
+    });
+
+    it('is true when the sync repo is inherited from an OCI dry source repo', () => {
+        expect(isHydratorSyncSourceOCI({drySource: {...drySource, repoURL: 'oci://registry.example.com/dry'}, syncSource: {targetRevision: 'dev', path: '.'}})).toBe(true);
+    });
+
+    it('is false for Git sync repos, explicit or inherited, whatever fields are set', () => {
+        expect(isHydratorSyncSourceOCI({drySource, syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetRevision: 'dev', path: 'out'}})).toBe(false);
+        expect(isHydratorSyncSourceOCI({drySource, syncSource: {targetBranch: 'env/test', path: 'out'}})).toBe(false);
+        expect(isHydratorSyncSourceOCI(undefined)).toBe(false);
+    });
+});
+
 describe('getAppHydratorSyncSource', () => {
     it('returns the sync source with resolved repo URL', () => {
         expect(
@@ -1052,6 +1073,16 @@ describe('getAppHydratorSyncSource', () => {
             targetRevision: 'env/test',
             path: 'out'
         });
+    });
+
+    it('uses the tag of an OCI sync source and the branch of a Git one, ignoring the other field', () => {
+        const syncSource = {targetBranch: 'env/test', targetRevision: 'dev', path: '.'};
+        expect(getAppHydratorSyncSource({drySource, syncSource: {...syncSource, repoURL: 'oci://registry.example.com/hydrated'}})).toEqual({
+            repoURL: 'oci://registry.example.com/hydrated',
+            targetRevision: 'dev',
+            path: '.'
+        });
+        expect(getAppHydratorSyncSource({drySource, syncSource}).targetRevision).toBe('env/test');
     });
 });
 
@@ -1082,9 +1113,65 @@ describe('getAppHydrateToSource', () => {
             path: 'out'
         });
     });
+
+    it('falls back to the tag of an OCI sync source', () => {
+        expect(getAppHydrateToSource({drySource, syncSource: {repoURL: 'oci://registry.example.com/hydrated', targetRevision: 'dev', path: '.'}})).toEqual({
+            repoURL: 'oci://registry.example.com/hydrated',
+            targetRevision: 'dev',
+            path: '.'
+        });
+    });
+});
+
+describe('removeInapplicableHydratorSyncFields', () => {
+    // What the forms hold after the sync repo URL was switched between Git and OCI: both kinds of fields are filled in.
+    const edited = (repoURL: string) => ({
+        drySource,
+        syncSource: {repoURL, targetBranch: 'env/test', targetRevision: 'dev', path: 'out'},
+        hydrateTo: {targetBranch: 'env/test-next'}
+    });
+
+    it('keeps only the tag for an OCI sync source', () => {
+        const sourceHydrator = edited('oci://registry.example.com/hydrated');
+        removeInapplicableHydratorSyncFields(sourceHydrator);
+        expect(sourceHydrator).toEqual({drySource, syncSource: {repoURL: 'oci://registry.example.com/hydrated', targetRevision: 'dev', path: 'out'}});
+    });
+
+    it('keeps only the branches for a Git sync source', () => {
+        const sourceHydrator = edited('https://github.com/example/hydrated.git');
+        removeInapplicableHydratorSyncFields(sourceHydrator);
+        expect(sourceHydrator).toEqual({
+            drySource,
+            syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/test', path: 'out'},
+            hydrateTo: {targetBranch: 'env/test-next'}
+        });
+    });
 });
 
 describe('hydrationStatusMessage', () => {
+    it('shows the tag and shortened digest of an OCI sync source without a commit link', () => {
+        const html = renderMarkup(
+            hydrationStatusMessage({
+                status: {
+                    sourceHydrator: {
+                        currentOperation: {
+                            phase: 'Hydrated',
+                            drySHA: '24eb0b24099b2e9afff72558724e88125eaa0176',
+                            hydratedSHA: ociDigest,
+                            sourceHydrator: {
+                                drySource,
+                                // a registry on a host that would be linked as GitLab if it were a Git repo
+                                syncSource: {repoURL: 'oci://gitlab.example.com:5050/example/hydrated', targetRevision: 'dev', path: '.'}
+                            }
+                        }
+                    }
+                }
+            } as Application)
+        );
+        expect(html).toContain('main (24eb0b2)');
+        expect(html).toContain('<span>dev (sha256:0123456)</span>');
+    });
+
     it('shows hydrateTo as the destination while hydrating', () => {
         const html = renderMarkup(
             hydrationStatusMessage({

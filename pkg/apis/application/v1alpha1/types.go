@@ -263,19 +263,11 @@ func (spec *ApplicationSpec) GetSource() ApplicationSource {
 // HydrateTo only specifies a different branch; it inherits repo and path from syncSource.
 func (spec *ApplicationSpec) GetHydrateToSource() ApplicationSource {
 	if spec.SourceHydrator != nil {
-		targetRevision := spec.SourceHydrator.SyncSource.TargetBranch
-		repoURL := spec.SourceHydrator.SyncSource.RepoURL
-		if repoURL == "" {
-			repoURL = spec.SourceHydrator.DrySource.RepoURL
-		}
+		source := spec.SourceHydrator.GetSyncSource()
 		if spec.SourceHydrator.HydrateTo != nil {
-			targetRevision = spec.SourceHydrator.HydrateTo.TargetBranch
+			source.TargetRevision = spec.SourceHydrator.HydrateTo.TargetBranch
 		}
-		return ApplicationSource{
-			RepoURL:        repoURL,
-			Path:           spec.SourceHydrator.SyncSource.Path,
-			TargetRevision: targetRevision,
-		}
+		return source
 	}
 	return ApplicationSource{}
 }
@@ -443,11 +435,22 @@ func (s SourceHydrator) GetSyncSource() ApplicationSource {
 	if repoURL == "" {
 		repoURL = s.DrySource.RepoURL
 	}
-	return ApplicationSource{
+	source := ApplicationSource{
 		RepoURL:        repoURL,
 		Path:           s.SyncSource.Path,
 		TargetRevision: s.SyncSource.TargetBranch,
 	}
+	if source.IsOCI() {
+		source.TargetRevision = s.SyncSource.TargetRevision
+	}
+	return source
+}
+
+// IsSyncSourceOCI returns true when hydrated manifests are pushed to and synced from an OCI repository instead of a
+// Git repository.
+func (s SourceHydrator) IsSyncSourceOCI() bool {
+	source := s.GetSyncSource()
+	return source.IsOCI()
 }
 
 // GetDrySource gets the dry source when a source hydrator is configured.
@@ -502,21 +505,29 @@ func (in DrySource) Equals(other DrySource) bool {
 
 // SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed
 // to be the same as the associated DrySource config in the SourceHydrator.
+//
+// +kubebuilder:validation:XValidation:rule="(has(self.repoURL) && self.repoURL.startsWith('oci://')) || size(self.path) >= 2 || (self.path != '.' && self.path != '/')",message="path must not point to the root of the repository unless repoURL is an OCI repository"
 type SyncSource struct {
 	// TargetBranch is the branch from which hydrated manifests will be synced.
 	// If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
-	TargetBranch string `json:"targetBranch" protobuf:"bytes,1,name=targetBranch"`
-	// Path is a directory path within the git repository where hydrated manifests should be committed to and synced
-	// from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
-	// hydrated manifests will be synced.
+	// Required when the hydrated manifests are stored in a Git repository. Must not be set when RepoURL is an OCI
+	// repository; use TargetRevision instead.
+	TargetBranch string `json:"targetBranch,omitempty" protobuf:"bytes,1,opt,name=targetBranch"`
+	// Path is a directory path within the repository where hydrated manifests should be written to and synced from.
+	// For a Git repository the Path should never point to the root of the repo. For an OCI repository the Path is
+	// relative to the root of the artifact and may point to the root. If hydrateTo is set, this is just the path from
+	// which hydrated manifests will be synced.
 	//
 	// +kubebuilder:validation:Required
 	// +kubebuilder:validation:MinLength=1
-	// +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
 	Path string `json:"path" protobuf:"bytes,2,name=path"`
-	// RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
-	// the DrySource.RepoURL.
+	// RepoURL is the URL to the repository that contains the hydrated manifests. It is either a Git repository or an
+	// OCI repository (oci://). If not set, defaults to the DrySource.RepoURL.
 	RepoURL string `json:"repoURL,omitempty" protobuf:"bytes,3,opt,name=repoURL"`
+	// TargetRevision is the tag to which hydrated manifests are pushed and from which they are synced when RepoURL is
+	// an OCI repository. The tag is created if it does not exist. Must not be set when the hydrated manifests are
+	// stored in a Git repository; use TargetBranch instead.
+	TargetRevision string `json:"targetRevision,omitempty" protobuf:"bytes,4,opt,name=targetRevision"`
 }
 
 // HydrateTo specifies a branch to which hydrated manifests should be pushed as a "staging area" before being moved to
@@ -1284,7 +1295,9 @@ type HydrateOperation struct {
 	Message string `json:"message" protobuf:"bytes,4,opt,name=message"`
 	// DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
 	DrySHA string `json:"drySHA,omitempty" protobuf:"bytes,5,opt,name=drySHA"`
-	// HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+	// HydratedSHA holds the resolved revision of the hydrated source as of the most recent reconciliation. It is a
+	// commit sha when the hydrated manifests are stored in Git, and a manifest digest when they are stored in an OCI
+	// repository.
 	HydratedSHA string `json:"hydratedSHA,omitempty" protobuf:"bytes,6,opt,name=hydratedSHA"`
 	// SourceHydrator holds the hydrator config used for the hydrate operation
 	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,7,opt,name=sourceHydrator"`
@@ -1294,7 +1307,9 @@ type HydrateOperation struct {
 type SuccessfulHydrateOperation struct {
 	// DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
 	DrySHA string `json:"drySHA,omitempty" protobuf:"bytes,5,opt,name=drySHA"`
-	// HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+	// HydratedSHA holds the resolved revision of the hydrated source as of the most recent reconciliation. It is a
+	// commit sha when the hydrated manifests are stored in Git, and a manifest digest when they are stored in an OCI
+	// repository.
 	HydratedSHA string `json:"hydratedSHA,omitempty" protobuf:"bytes,6,opt,name=hydratedSHA"`
 	// SourceHydrator holds the hydrator config used for the hydrate operation
 	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,7,opt,name=sourceHydrator"`

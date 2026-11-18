@@ -15,7 +15,7 @@ import {HydratorSourcePanel} from './hydrator-source-panel';
 import {CollapsibleMultiSourceSection} from './collapsible-multi-source-section';
 import {SourcePanel} from './source-panel';
 import './application-create-panel.scss';
-import {getClusterOptions} from '../utils';
+import {getClusterOptions, removeInapplicableHydratorSyncFields} from '../utils';
 import {
     APP_SOURCE_TYPES,
     getConfiguredSourceType,
@@ -208,6 +208,7 @@ export const ApplicationCreatePanel = (props: {
         if (data.spec.sourceHydrator && !data.spec.sourceHydrator.hydrateTo?.targetBranch) {
             delete data.spec.sourceHydrator.hydrateTo;
         }
+        removeInapplicableHydratorSyncFields(data.spec.sourceHydrator);
 
         if (multiSourceMode && data.spec.sources && data.spec.sources.length > 0) {
             // Clearing a path may be temporary: normalize only the submitted copy, preserving the editable draft.

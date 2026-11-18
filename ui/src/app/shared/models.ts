@@ -272,7 +272,10 @@ export interface DrySource {
 }
 
 export interface SyncSource {
-    targetBranch: string;
+    // targetBranch is the branch of a Git sync source. It must not be set for an OCI sync source.
+    targetBranch?: string;
+    // targetRevision is the tag of an OCI sync source. It must not be set for a Git sync source.
+    targetRevision?: string;
     path: string;
     repoURL?: string;
 }
@@ -570,7 +573,7 @@ export interface HydrateOperation {
     message: string;
     // drySHA is the sha of the DRY commit being hydrated. This will be empty if the operation is not successful.
     drySHA: string;
-    // hydratedSHA is the sha of the hydrated commit. This will be empty if the operation is not successful.
+    // hydratedSHA is the sha of the hydrated commit, or the manifest digest (sha256:...) for an OCI sync source. This will be empty if the operation is not successful.
     hydratedSHA: string;
     sourceHydrator: SourceHydrator;
 }

@@ -4,6 +4,7 @@ import {AutocompleteField, FormField} from 'argo-ui';
 
 import * as models from '../../../shared/models';
 import {RevisionFormField} from '../revision-form-field/revision-form-field';
+import {isHydratorSyncSourceOCI} from '../utils';
 
 interface HydratorSourcePanelProps {
     formApi: FormApi;
@@ -48,6 +49,7 @@ export const HydratorSourcePanel = (props: HydratorSourcePanelProps) => {
     const app = props.formApi.getFormState().values as models.Application;
     const drySourceRepoURL = app.spec.sourceHydrator?.drySource?.repoURL || '';
     const syncSourceRepoURL = app.spec.sourceHydrator?.syncSource?.repoURL || drySourceRepoURL;
+    const isOCISyncSource = isHydratorSyncSourceOCI(app.spec.sourceHydrator);
 
     return (
         <div style={{display: 'flex', flexDirection: 'column', gap: '1rem'}}>
@@ -99,13 +101,21 @@ export const HydratorSourcePanel = (props: HydratorSourcePanelProps) => {
                             />
                         </div>
                     </div>
-                    <LabeledRevisionField
-                        formApi={props.formApi}
-                        repoURL={syncSourceRepoURL}
-                        repoType='git'
-                        fieldValue='spec.sourceHydrator.syncSource.targetBranch'
-                        revisionType='Branches'
-                    />
+                    {isOCISyncSource ? (
+                        <div style={{display: 'flex', width: '100%'}}>
+                            <div style={{flex: 1, minWidth: 0}}>
+                                <FormField formApi={props.formApi} label='Tag' field='spec.sourceHydrator.syncSource.targetRevision' component={Text} />
+                            </div>
+                        </div>
+                    ) : (
+                        <LabeledRevisionField
+                            formApi={props.formApi}
+                            repoURL={syncSourceRepoURL}
+                            repoType='git'
+                            fieldValue='spec.sourceHydrator.syncSource.targetBranch'
+                            revisionType='Branches'
+                        />
+                    )}
                     <div style={{display: 'flex', width: '100%'}}>
                         <div style={{flex: 1, minWidth: 0}}>
                             <FormField formApi={props.formApi} label='Path' field='spec.sourceHydrator.syncSource.path' component={Text} />
@@ -113,18 +123,20 @@ export const HydratorSourcePanel = (props: HydratorSourcePanelProps) => {
                     </div>
                 </div>
             </div>
-            <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
-                <p style={{fontWeight: 600}}>HYDRATE TO</p>
-                <div style={subsectionBodyStyle}>
-                    <LabeledRevisionField
-                        formApi={props.formApi}
-                        repoURL={syncSourceRepoURL}
-                        repoType='git'
-                        fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
-                        revisionType='Branches'
-                    />
+            {!isOCISyncSource && (
+                <div style={{display: 'flex', flexDirection: 'column', gap: '0.5rem'}}>
+                    <p style={{fontWeight: 600}}>HYDRATE TO</p>
+                    <div style={subsectionBodyStyle}>
+                        <LabeledRevisionField
+                            formApi={props.formApi}
+                            repoURL={syncSourceRepoURL}
+                            repoType='git'
+                            fieldValue='spec.sourceHydrator.hydrateTo.targetBranch'
+                            revisionType='Branches'
+                        />
+                    </div>
                 </div>
-            </div>
+            )}
         </div>
     );
 };

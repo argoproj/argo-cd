@@ -77,9 +77,14 @@ beforeEach(() => {
     queryClient = new QueryClient({defaultOptions: {queries: {retry: false}}});
 });
 
-const renderPanel = (onAppChanged: (app: models.Application) => any, onFormApi: (api: FormApi) => void) => (
+const renderPanel = (
+    onAppChanged: (app: models.Application) => any,
+    onFormApi: (api: FormApi) => void,
+    app = {} as models.Application,
+    createApp: (app: models.Application) => any = jest.fn()
+) => (
     <QueryClientProvider client={queryClient}>
-        <ApplicationCreatePanel app={{} as models.Application} onAppChanged={onAppChanged} createApp={jest.fn()} getFormApi={onFormApi} />
+        <ApplicationCreatePanel app={app} onAppChanged={onAppChanged} createApp={createApp} getFormApi={onFormApi} />
     </QueryClientProvider>
 );
 
@@ -134,5 +139,39 @@ describe('ApplicationCreatePanel', () => {
 
         await new Promise(resolve => setTimeout(resolve, 1000));
         expect(onAppChanged).toHaveBeenCalledTimes(1);
+    });
+
+    test('offers and submits only the fields that apply to the kind of sync source of the source hydrator', async () => {
+        let formApi: FormApi;
+        const createApp = jest.fn();
+        const drySource = {repoURL: 'https://github.com/example/dry.git', targetRevision: 'HEAD', path: 'guestbook'};
+        const app = {
+            metadata: {name: 'my-app'},
+            spec: {
+                project: 'default',
+                destination: {server: 'https://kubernetes.default.svc', namespace: 'default'},
+                sourceHydrator: {drySource, syncSource: {targetBranch: 'env/dev', path: 'guestbook'}, hydrateTo: {targetBranch: 'env/dev-next'}}
+            }
+        } as models.Application;
+        const submittedSourceHydrator = () => {
+            act(() => formApi.submitForm(null));
+            return createApp.mock.lastCall[0].spec.sourceHydrator;
+        };
+        render(renderPanel(jest.fn(), api => (formApi = api), app, createApp));
+        await waitFor(() => expect(formApi).toBeDefined());
+        expect(screen.queryByLabelText('Tag')).toBeNull();
+        expect(screen.queryByText('HYDRATE TO')).not.toBeNull();
+
+        // Switching to an OCI repository replaces the branch with a tag and removes the staging branch.
+        act(() => formApi.setValue('spec.sourceHydrator.syncSource.repoURL', 'oci://registry.example.com/hydrated'));
+        expect(screen.queryByText('HYDRATE TO')).toBeNull();
+        fireEvent.change(screen.getByLabelText('Tag'), {target: {value: 'dev'}});
+        expect(submittedSourceHydrator()).toEqual({drySource, syncSource: {repoURL: 'oci://registry.example.com/hydrated', targetRevision: 'dev', path: 'guestbook'}});
+
+        // Switching back to a Git repository drops the tag again.
+        act(() => formApi.setValue('spec.sourceHydrator.syncSource.repoURL', 'https://github.com/example/hydrated.git'));
+        expect(screen.queryByLabelText('Tag')).toBeNull();
+        act(() => formApi.setValue('spec.sourceHydrator.syncSource.targetBranch', 'env/dev'));
+        expect(submittedSourceHydrator()).toEqual({drySource, syncSource: {repoURL: 'https://github.com/example/hydrated.git', targetBranch: 'env/dev', path: 'guestbook'}});
     });
 });

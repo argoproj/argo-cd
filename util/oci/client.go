@@ -127,9 +127,10 @@ func NewClient(repoURL string, creds Creds, proxy, noProxy string, layerMediaTyp
 	return NewClientWithLock(repoURL, creds, globalLock, proxy, noProxy, layerMediaTypes, opts...)
 }
 
-func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
-	ociRepo := strings.TrimPrefix(repoURL, "oci://")
-	repo, err := remote.NewRepository(ociRepo)
+// newRemoteRepository returns the registry connection for an oci:// repository URL. It is the single place where TLS,
+// proxy and credentials are configured, so that the read (Client) and write (Pusher) sides always connect the same way.
+func newRemoteRepository(repoURL string, creds Creds, proxyURL, noProxy string) (*remote.Repository, error) {
+	repo, err := remote.NewRepository(strings.TrimPrefix(repoURL, "oci://"))
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize repository: %w", err)
 	}
@@ -164,6 +165,16 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 			Username: creds.Username,
 			Password: creds.Password,
 		}),
+	}
+
+	return repo, nil
+}
+
+func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
+	ociRepo := strings.TrimPrefix(repoURL, "oci://")
+	repo, err := newRemoteRepository(repoURL, creds, proxyURL, noProxy)
+	if err != nil {
+		return nil, err
 	}
 
 	parsed, err := url.Parse(repoURL)

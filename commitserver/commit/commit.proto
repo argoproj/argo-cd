@@ -6,11 +6,13 @@ import "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1/generated.p
 // CommitHydratedManifestsRequest is the request to commit hydrated manifests to a repository.
 message CommitHydratedManifestsRequest {
   // Repo contains repository information including, at minimum, the URL of the repository. Generally it will contain
-  // repo credentials.
+  // repo credentials. The URL is either a Git repository or an OCI repository (oci://).
   github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
-  // SyncBranch is the branch Argo CD syncs from, i.e. the hydrated branch.
+  // SyncBranch is the branch Argo CD syncs from, i.e. the hydrated branch. It is not used when the repository is an
+  // OCI repository.
   string syncBranch = 2;
-  // TargetBranch is the branch Argo CD is committing to, i.e. the branch that will be updated.
+  // TargetBranch is the branch Argo CD is committing to, i.e. the branch that will be updated. When the repository is
+  // an OCI repository, it is the tag the hydrated manifests are pushed to.
   string targetBranch = 3;
   // DrySha is the commit SHA from the dry branch, i.e. pre-rendered manifest branch.
   string drySha = 4;
@@ -26,6 +28,9 @@ message CommitHydratedManifestsRequest {
   string authorEmail = 9;
   // ReadmeMessage is the message content for README template updates.
   string readmeMessage = 10;
+  // DryRepoURL is the URL of the repository the DRY manifests were hydrated from. It is only used when the repository
+  // is an OCI repository, where it is recorded in the hydrator metadata and the artifact annotations.
+  string dryRepoURL = 11;
 }
 
 // PathDetails holds information about hydrated manifests to be written to a particular path in the hydrated manifests
@@ -47,7 +52,8 @@ message HydratedManifestDetails {
 
 // ManifestsResponse is the response to the ManifestsRequest.
 message CommitHydratedManifestsResponse {
-  // HydratedSha is the commit SHA of the hydrated manifests commit.
+  // HydratedSha is the commit SHA of the hydrated manifests commit. When the repository is an OCI repository, it is
+  // the manifest digest of the artifact the tag points to.
   string hydratedSha = 1;
 }
 

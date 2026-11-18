@@ -359,10 +359,11 @@ func Test_getAppsForHydrationKey_RepoURLNormalization(t *testing.T) {
 		DestinationBranch:    "main",
 	}
 
-	apps, err := hydrator.getAppsForHydrationKey(hydrationKey)
+	apps, conflictingApps, err := hydrator.getAppsForHydrationKey(hydrationKey)
 
 	require.NoError(t, err)
 	assert.Len(t, apps, 2, "Expected both apps to be considered relevant despite URL differences")
+	assert.Empty(t, conflictingApps, "Applications sharing a git branch are not in conflict")
 }
 
 func TestHydrator_getTemplatedCommitMessage(t *testing.T) {
@@ -1920,4 +1921,242 @@ func TestProcessHydrationQueueItem_LargeGroupAllAppsPersisted(t *testing.T) {
 	})
 
 	require.Len(t, hydrated, totalApps, "every app in the group must end up persisted as Hydrated")
+}
+
+const testOCIRepoURL = "oci://example.com/hydrated"
+
+func newTestOCIApp(name string) *v1alpha1.Application {
+	app := newTestApp(name)
+	app.Spec.SourceHydrator.SyncSource = v1alpha1.SyncSource{RepoURL: testOCIRepoURL, TargetRevision: "dev", Path: "."}
+	app.Spec.SourceHydrator.HydrateTo = nil
+	return app
+}
+
+func newTestOCIProject() *v1alpha1.AppProject {
+	proj := newTestProject()
+	proj.Spec.SourceRepos = append(proj.Spec.SourceRepos, testOCIRepoURL)
+	return proj
+}
+
+func Test_getAppsForHydrationKey_OCITagConflict(t *testing.T) {
+	t.Parallel()
+
+	owner := newTestOCIApp("owner")
+	otherDrySource := newTestOCIApp("other-dry-source")
+	otherDrySource.Spec.SourceHydrator.DrySource.RepoURL = "https://example.com/other-repo"
+	otherDryRevision := newTestOCIApp("other-dry-revision")
+	otherDryRevision.Spec.SourceHydrator.DrySource.TargetRevision = "release"
+	otherTag := newTestOCIApp("other-tag")
+	otherTag.Spec.SourceHydrator.SyncSource.TargetRevision = "prod"
+	gitApp := newTestApp("git-app")
+
+	d := mocks.NewDependencies(t)
+	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{
+		Items: []v1alpha1.Application{*owner, *otherDrySource, *otherDryRevision, *otherTag, *gitApp},
+	}, nil)
+	h := &Hydrator{dependencies: d}
+
+	hydrationKey := getHydrationQueueKey(owner)
+	assert.Equal(t, testOCIRepoURL, hydrationKey.DestinationRepoURL)
+	assert.Equal(t, "dev", hydrationKey.DestinationBranch)
+
+	apps, conflictingApps, err := h.getAppsForHydrationKey(hydrationKey)
+
+	require.NoError(t, err)
+	require.Len(t, apps, 1)
+	assert.Equal(t, "owner", apps[0].Name)
+	require.Len(t, conflictingApps, 2)
+	assert.Equal(t, "other-dry-source", conflictingApps[0].Name)
+	assert.Equal(t, "other-dry-revision", conflictingApps[1].Name)
+}
+
+func TestValidateApplications_OCI(t *testing.T) {
+	t.Parallel()
+
+	t.Run("root path is allowed for a single application", func(t *testing.T) {
+		t.Parallel()
+		d := mocks.NewDependencies(t)
+		app := newTestOCIApp("app")
+		d.EXPECT().GetProcessableAppProj(app).Return(newTestOCIProject(), nil).Once()
+		h := &Hydrator{dependencies: d}
+
+		projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+
+		require.Empty(t, errs)
+		require.Len(t, projects, 1)
+	})
+
+	t.Run("root path is rejected when another application shares the tag", func(t *testing.T) {
+		t.Parallel()
+		d := mocks.NewDependencies(t)
+		rootApp := newTestOCIApp("root-app")
+		subdirApp := newTestOCIApp("subdir-app")
+		subdirApp.Spec.SourceHydrator.SyncSource.Path = "subdir"
+		d.EXPECT().GetProcessableAppProj(mock.Anything).Return(newTestOCIProject(), nil)
+		h := &Hydrator{dependencies: d}
+
+		projects, errs := h.validateApplications([]*v1alpha1.Application{rootApp, subdirApp})
+
+		require.Nil(t, projects)
+		require.Len(t, errs, 1)
+		require.ErrorContains(t, errs[rootApp.QualifiedName()], "only allowed when no other application hydrates to the same tag")
+	})
+
+	t.Run("destination not permitted in project", func(t *testing.T) {
+		t.Parallel()
+		d := mocks.NewDependencies(t)
+		app := newTestOCIApp("app")
+		d.EXPECT().GetProcessableAppProj(app).Return(newTestProject(), nil).Once()
+		h := &Hydrator{dependencies: d}
+
+		projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+
+		require.Nil(t, projects)
+		require.ErrorContains(t, errs[app.QualifiedName()], "destination repo oci://example.com/hydrated is not permitted in project 'test-project'")
+	})
+
+	t.Run("invalid configuration is rejected before anything is pushed", func(t *testing.T) {
+		t.Parallel()
+		app := newTestOCIApp("app")
+		app.Spec.SourceHydrator.HydrateTo = &v1alpha1.HydrateTo{TargetBranch: "dev-next"}
+		h := &Hydrator{dependencies: mocks.NewDependencies(t)}
+
+		projects, errs := h.validateApplications([]*v1alpha1.Application{app})
+
+		require.Nil(t, projects)
+		require.ErrorContains(t, errs[app.QualifiedName()], "spec.sourceHydrator.hydrateTo is not supported when the sync source is an OCI repository")
+	})
+}
+
+func TestValidateTagOwnership(t *testing.T) {
+	t.Parallel()
+
+	newConflict := func() *v1alpha1.Application {
+		conflict := newTestOCIApp("conflict")
+		conflict.Spec.Project = "other-project"
+		conflict.Spec.SourceHydrator.DrySource.RepoURL = "https://example.com/other-repo"
+		return conflict
+	}
+
+	t.Run("tag hydrated from another dry source", func(t *testing.T) {
+		t.Parallel()
+		d := mocks.NewDependencies(t)
+		app1 := newTestOCIApp("app1")
+		app2 := newTestOCIApp("app2")
+		conflict := newConflict()
+		d.EXPECT().GetProcessableAppProj(conflict).Return(newTestOCIProject(), nil).Once()
+		h := &Hydrator{dependencies: d}
+
+		errs := h.validateTagOwnership([]*v1alpha1.Application{app1, app2}, []*v1alpha1.Application{conflict})
+
+		require.Len(t, errs, 2)
+		require.ErrorContains(t, errs[app1.QualifiedName()], `OCI tag "dev" of oci://example.com/hydrated is also the hydration destination of application default/conflict`)
+		require.Error(t, errs[app2.QualifiedName()])
+	})
+
+	t.Run("application not permitted to use the repository cannot claim the tag", func(t *testing.T) {
+		t.Parallel()
+		d := mocks.NewDependencies(t)
+		conflict := newConflict()
+		d.EXPECT().GetProcessableAppProj(conflict).Return(newTestProject(), nil).Once()
+		h := &Hydrator{dependencies: d}
+
+		errs := h.validateTagOwnership([]*v1alpha1.Application{newTestOCIApp("app")}, []*v1alpha1.Application{conflict})
+
+		require.Empty(t, errs)
+	})
+}
+
+func TestHydrator_hydrate_OCI(t *testing.T) {
+	t.Parallel()
+
+	// newHydrator returns a hydrator which expects exactly one push of the application to the OCI repository.
+	newHydrator := func(t *testing.T, app *v1alpha1.Application, proj *v1alpha1.AppProject) *Hydrator {
+		t.Helper()
+		d := mocks.NewDependencies(t)
+		r := mocks.NewRepoGetter(t)
+		cc := commitservermocks.NewCommitServiceClient(t)
+		rc := reposervermocks.NewRepoServerServiceClient(t)
+		readRepo := &v1alpha1.Repository{Repo: "https://example.com/repo"}
+		writeRepo := &v1alpha1.Repository{Repo: testOCIRepoURL, Username: "user", Password: "pass"}
+
+		d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
+		r.EXPECT().GetRepository(mock.Anything, readRepo.Repo, proj.Name).Return(readRepo, nil)
+		rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{Message: "metadata"}, nil)
+		d.EXPECT().GetWriteCredentials(mock.Anything, testOCIRepoURL, proj.Name).Return(writeRepo, nil)
+		d.EXPECT().GetHydratorCommitMessageTemplate().Return("commit message", nil)
+		d.EXPECT().GetHydratorReadmeMessageTemplate().Return("readme message", nil)
+		d.EXPECT().GetCommitAuthorName().Return("", nil)
+		d.EXPECT().GetCommitAuthorEmail().Return("", nil)
+		cc.EXPECT().CommitHydratedManifests(mock.Anything, mock.Anything).Return(&commitclient.CommitHydratedManifestsResponse{HydratedSha: "sha256:abc"}, nil).Run(func(_ context.Context, in *commitclient.CommitHydratedManifestsRequest, _ ...grpc.CallOption) {
+			assert.Equal(t, writeRepo, in.Repo)
+			assert.Equal(t, "dev", in.TargetBranch, "the tag is sent as the target")
+			assert.Empty(t, in.SyncBranch, "a tag has no base branch")
+			assert.Equal(t, "sha123", in.DrySha)
+			require.Len(t, in.Paths, 1)
+			assert.Equal(t, ".", in.Paths[0].Path)
+		}).Once()
+
+		return &Hydrator{
+			dependencies:    d,
+			repoGetter:      r,
+			repoClientset:   &reposervermocks.Clientset{RepoServerServiceClient: rc},
+			commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
+		}
+	}
+	logCtx := log.NewEntry(log.StandardLogger())
+
+	t.Run("pushes to the tag and returns the digest", func(t *testing.T) {
+		t.Parallel()
+		app := newTestOCIApp("app")
+		proj := newTestOCIProject()
+		h := newHydrator(t, app, proj)
+
+		sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, map[string]*v1alpha1.AppProject{app.Spec.Project: proj})
+
+		require.NoError(t, err)
+		assert.Empty(t, errs)
+		assert.Equal(t, "sha123", sha)
+		assert.Equal(t, "sha256:abc", hydratedSha)
+	})
+
+	t.Run("pushes an already hydrated DRY commit when the destination has changed", func(t *testing.T) {
+		t.Parallel()
+		app := newTestOCIApp("app")
+		// The DRY commit was hydrated to a git branch before the application was pointed at the OCI repository.
+		app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+			DrySHA:         "sha123",
+			HydratedSHA:    "gitsha",
+			SourceHydrator: *newTestApp("app").Spec.SourceHydrator,
+		}
+		proj := newTestOCIProject()
+		h := newHydrator(t, app, proj)
+
+		_, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, map[string]*v1alpha1.AppProject{app.Spec.Project: proj})
+
+		require.NoError(t, err)
+		assert.Empty(t, errs)
+		assert.Equal(t, "sha256:abc", hydratedSha)
+	})
+
+	t.Run("skips an already hydrated DRY commit when the destination is unchanged", func(t *testing.T) {
+		t.Parallel()
+		app := newTestOCIApp("app")
+		app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+			DrySHA:         "sha123",
+			HydratedSHA:    "sha256:previous",
+			SourceHydrator: *app.Spec.SourceHydrator,
+		}
+		proj := newTestOCIProject()
+		d := mocks.NewDependencies(t)
+		d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil).Once()
+		// No commit client is configured: reaching the commit server would panic.
+		h := &Hydrator{dependencies: d}
+
+		_, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, map[string]*v1alpha1.AppProject{app.Spec.Project: proj})
+
+		require.NoError(t, err)
+		assert.Empty(t, errs)
+		assert.Equal(t, "sha256:previous", hydratedSha)
+	})
 }

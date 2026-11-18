@@ -103,6 +103,8 @@ type AppOptions struct {
 	drySourcePath                   string
 	syncSourceBranch                string
 	syncSourcePath                  string
+	syncSourceRepo                  string
+	syncSourceRevision              string
 	hydrateToBranch                 string
 }
 
@@ -118,6 +120,8 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.drySourcePath, "dry-source-path", "", "Path in repository to the app directory for the dry source")
 	command.Flags().StringVar(&opts.syncSourceBranch, "sync-source-branch", "", "The branch from which the app will sync")
 	command.Flags().StringVar(&opts.syncSourcePath, "sync-source-path", "", "The path in the repository from which the app will sync")
+	command.Flags().StringVar(&opts.syncSourceRepo, "sync-source-repo", "", "Repository URL to which the app is hydrated and from which it will sync, either a Git repository or an OCI repository (oci://). Defaults to the dry source repository")
+	command.Flags().StringVar(&opts.syncSourceRevision, "sync-source-revision", "", "The tag to which the app is hydrated and from which it will sync when the sync source is an OCI repository")
 	command.Flags().StringVar(&opts.hydrateToBranch, "hydrate-to-branch", "", "The branch to hydrate the app to")
 	command.Flags().IntVar(&opts.revisionHistoryLimit, "revision-history-limit", argoappv1.RevisionHistoryLimit, "How many items to keep in revision history")
 	command.Flags().StringVar(&opts.destServer, "dest-server", "", "K8s cluster URL (e.g. https://kubernetes.default.svc)")
@@ -867,6 +871,12 @@ func constructSourceHydrator(h *argoappv1.SourceHydrator, appOpts AppOptions, fl
 		case "sync-source-path":
 			ensureNotNil(appOpts.syncSourcePath != "")
 			h.SyncSource.Path = appOpts.syncSourcePath
+		case "sync-source-repo":
+			ensureNotNil(appOpts.syncSourceRepo != "")
+			h.SyncSource.RepoURL = appOpts.syncSourceRepo
+		case "sync-source-revision":
+			ensureNotNil(appOpts.syncSourceRevision != "")
+			h.SyncSource.TargetRevision = appOpts.syncSourceRevision
 		case "hydrate-to-branch":
 			ensureNotNil(appOpts.hydrateToBranch != "")
 			if appOpts.hydrateToBranch == "" {
