@@ -274,3 +274,22 @@ func TestHelmIndexSharedBodyStorageIsBounded(t *testing.T) {
 		require.Len(t, server.Keys(), 1, "only the current large body may remain after metadata eviction")
 	}
 }
+
+func TestHelmIndexLocalBodiesStayWarmAcrossReplicasWhenSharingStalls(t *testing.T) {
+	requirePinnedHelmForCacheTest(t)
+	shared, backend := newIndexProtocolCache(t)
+	backend.stallBody = true
+	url, requests, _, _ := indexProtocolOrigin(t)
+	stores := []*helm.IndexStore{
+		helm.NewIndexStore(t.TempDir(), time.Minute, 1<<20, shared),
+		helm.NewIndexStore(t.TempDir(), time.Minute, 1<<20, shared),
+	}
+	for build := range 4 {
+		ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+		indexProtocolBuild(t, ctx, url, stores[build%2], false)
+		cancel()
+		require.EqualValues(t, min(build+1, 2), requests.Load(), "a new shared validation of identical bytes must not make an already-warm replica cold")
+	}
+	require.Equal(t, 2, backend.stalls, "only the first cold build on each replica attempts body sharing")
+	require.Equal(t, 1, backend.bodyReads, "matching local bytes must avoid another full shared-body read")
+}

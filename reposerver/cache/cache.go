@@ -356,14 +356,23 @@ func (c *Cache) storeHelmIndex(ctx context.Context, repo, owner string, record *
 }
 
 func (c *Cache) GetHelmIndexGenerationContext(ctx context.Context, repo string) (string, error) {
-	var metadata HelmIndexRecord
-	if err := c.cache.GetItemContext(ctx, helmIndexRecordKey(repo), &metadata); err != nil {
+	metadata, err := c.GetHelmIndexMetadataContext(ctx, repo)
+	if err != nil {
 		return "", err
 	}
-	if metadata.Generation == "" {
-		return "", ErrCacheMiss
-	}
 	return metadata.Generation, nil
+}
+
+func (c *Cache) GetHelmIndexMetadataContext(ctx context.Context, repo string) (*HelmIndexRecord, error) {
+	var metadata HelmIndexRecord
+	if err := c.cache.GetItemContext(ctx, helmIndexRecordKey(repo), &metadata); err != nil {
+		return nil, err
+	}
+	if metadata.Generation == "" {
+		return nil, ErrCacheMiss
+	}
+	metadata.Body = nil
+	return &metadata, nil
 }
 
 func (c *Cache) readHelmIndex(ctx context.Context, repo string, contextual bool) (*HelmIndexRecord, error) {

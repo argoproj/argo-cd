@@ -471,22 +471,33 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string)
 	if s.cache != nil {
 		readContext, cancel := indexCacheContext(ctx, 5*time.Second)
 		defer cancel()
+		var sharedRecord *HelmIndexRecord
 		if metadata, ok := s.cache.(interface {
-			GetHelmIndexGenerationContext(context.Context, string) (string, error)
+			GetHelmIndexMetadataContext(context.Context, string) (*HelmIndexRecord, error)
 		}); ok && newest != nil {
-			generation, err := metadata.GetHelmIndexGenerationContext(readContext, identity)
-			if err == nil && generation != "" && generation == newest.Generation {
+			record, err := metadata.GetHelmIndexMetadataContext(readContext, identity)
+			if err == nil && record != nil && record.Generation != "" && record.Generation == newest.Generation {
 				return newest, false
 			}
-			if err == nil && generation != newest.Generation {
+			if err == nil && record != nil {
 				newest.StoredAt = ""
+				digest := sha256.Sum256(newest.Body)
+				if record.BodyDigest == hex.EncodeToString(digest[:]) {
+					// Another replica may have revalidated the same bytes. Its
+					// confirmed metadata can reuse our validated local body even
+					// when the large shared-body transfer is unavailable.
+					record.Body = newest.Body
+					sharedRecord = record
+				}
 			}
 			if err != nil && !errors.Is(err, cacheutil.ErrCacheMiss) {
 				return newest, false
 			}
 		}
-		observation := observeIndexRecordWithBudget(readContext, s.cache, identity)
-		if record := observation.record; record != nil {
+		if sharedRecord == nil {
+			sharedRecord = observeIndexRecordWithBudget(readContext, s.cache, identity).record
+		}
+		if record := sharedRecord; record != nil {
 			validatedAt, err := time.Parse(time.RFC3339Nano, record.StoredAt)
 			if err == nil && time.Since(validatedAt) <= s.expiration+s.retention() && int64(len(record.Body)) <= s.indexCacheMaxSize {
 				// Shared publication order is authoritative across pods; wall

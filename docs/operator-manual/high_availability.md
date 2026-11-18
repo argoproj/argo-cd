@@ -154,6 +154,10 @@ generation and a SHA-256 reference to the body. Each identity uses one separate 
 readers verify that bytes match the published digest, and body writes require that digest
 to remain current. Delayed transfers cannot overwrite a different current body. Losing the
 small metadata keys does not accumulate large orphan bodies across subsequent generations.
+Warm builds read only small shared metadata when their generation still matches. When another
+replica revalidates the same bytes, its confirmed metadata can reuse the matching local body
+by digest, including when large shared-body transfers time out. A different digest requires
+a usable shared body or origin validation.
 Warm local builds compare the small shared generation rather than downloading the complete
 body from Redis. Local records still contain the complete original index and are rewritten
 after successful revalidation, including `304` responses.
