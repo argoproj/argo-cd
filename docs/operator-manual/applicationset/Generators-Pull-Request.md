@@ -390,6 +390,8 @@ spec:
 
 By default, the generator returns an error when the SCM provider reports that the configured repository does not exist, and the ApplicationSet keeps its current Applications. Set `continueOnRepoNotFoundError: true` to treat a missing repository as a repository with no pull requests instead, so the generator produces no parameters and the Applications generated from it are removed.
 
+This matters most when the ApplicationSet has more than one generator, or uses the Pull Request generator inside a matrix: an error from any generator stops the whole ApplicationSet from reconciling, so one missing repository would also block the Applications produced by the other generators. With `continueOnRepoNotFoundError: true` the rest keep reconciling.
+
 > [!WARNING]
 > SCM providers usually answer "404 Not Found" rather than "403 Forbidden" when a repository exists but the token has no access to it. With `continueOnRepoNotFoundError: true`, losing access to the repository therefore deletes the Applications generated from it.
 
