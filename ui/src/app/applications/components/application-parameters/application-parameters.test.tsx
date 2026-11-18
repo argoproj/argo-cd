@@ -254,3 +254,126 @@ test('multi-source default (no collapse state) renders the expanded panel, not t
     expect(await screen.findByDisplayValue('FOO')).toBeInTheDocument();
     expect(screen.queryByText(/ENV=\[FOO=bar, ENVIRONMENT=prod\]/)).not.toBeInTheDocument();
 });
+
+describe.each([false, true])('ApplicationParameters repository failures (multi-source: %s)', multiSource => {
+    const appDetails = services.repos.appDetails as jest.Mock;
+    const warning = 'Unable to load repository details. Showing configured source settings';
+
+    beforeEach(() => {
+        appDetails.mockReset();
+    });
+
+    test.each([
+        {
+            type: 'Helm',
+            source: {
+                chart: 'web-app',
+                helm: {valueFiles: ['production.yaml'], parameters: [{name: 'replicas', value: '3'}]}
+            },
+            assertSettings: () => {
+                expect(screen.getByText('production.yaml')).toBeInTheDocument();
+                expect(screen.getByText('replicas')).toBeInTheDocument();
+                expect(screen.getByText('3')).toBeInTheDocument();
+            }
+        },
+        {
+            type: 'Plugin',
+            source: {
+                path: 'manifests',
+                plugin: {name: 'my-plugin', env: [{name: 'FOO', value: 'bar'}], parameters: [{name: 'replicas', string: '3'}]}
+            },
+            assertSettings: () => {
+                expect(screen.getByDisplayValue('my-plugin')).toBeInTheDocument();
+                expect(screen.getByDisplayValue('FOO')).toBeInTheDocument();
+                expect(screen.getByDisplayValue('bar')).toBeInTheDocument();
+                expect(screen.getByText('replicas')).toBeInTheDocument();
+                expect(screen.getByDisplayValue('3')).toBeInTheDocument();
+            }
+        }
+    ])('warns without hiding configured $type settings', async ({type, source, assertSettings}) => {
+        const appSource = {repoURL: 'https://github.com/example/repo', targetRevision: 'main', ...source} as models.ApplicationSource;
+        const app = multiSourceApp();
+        if (multiSource) {
+            app.spec.sources = [appSource];
+        } else {
+            app.spec.source = appSource;
+            delete app.spec.sources;
+        }
+        appDetails.mockRejectedValue(new Error('repository unavailable'));
+
+        const {rerender} = renderWithContext(<ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} collapsedSources={[]} handleCollapse={jest.fn()} />);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(`${warning}: repository unavailable`);
+        expect(screen.getByText(type.toUpperCase())).toBeInTheDocument();
+        expect(screen.queryByText('DIRECTORY')).not.toBeInTheDocument();
+        assertSettings();
+        if (multiSource) {
+            expect(screen.getByText(appSource.repoURL)).toBeInTheDocument();
+            expect(screen.getByText(type === 'Helm' ? 'web-app:main' : 'manifests')).toBeInTheDocument();
+        }
+
+        appDetails.mockResolvedValue(
+            type === 'Helm' ? {type: 'Helm', helm: {valueFiles: [], parameters: [], fileParameters: []}} : {type: 'Plugin', path: 'manifests', plugin: {}}
+        );
+        const updatedSource = {...appSource, targetRevision: 'release'};
+        const updatedApp = {...app, spec: {...app.spec, ...(multiSource ? {sources: [updatedSource]} : {source: updatedSource})}};
+        rerender(
+            <Context.Provider value={ctxValue}>
+                <ApplicationParameters application={updatedApp} pageNumber={0} setPageNumber={jest.fn()} collapsedSources={[]} handleCollapse={jest.fn()} />
+            </Context.Provider>
+        );
+
+        await waitFor(() => expect(appDetails).toHaveBeenLastCalledWith(updatedSource, 'test-app', 'default', 0, 0));
+        await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument());
+        expect(screen.getByText(type.toUpperCase())).toBeInTheDocument();
+        assertSettings();
+    });
+
+    test('warns when the source type cannot be discovered', async () => {
+        const appSource = {repoURL: 'https://github.com/example/repo', path: 'manifests', targetRevision: 'main'} as models.ApplicationSource;
+        const app = multiSourceApp();
+        if (multiSource) {
+            app.spec.sources = [appSource];
+        } else {
+            app.spec.source = appSource;
+            delete app.spec.sources;
+        }
+        appDetails.mockRejectedValue(new Error('repository unavailable'));
+
+        renderWithContext(<ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} />);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(warning);
+        expect(appDetails).toHaveBeenCalledWith(appSource, 'test-app', 'default', 0, 0);
+    });
+});
+
+test('a failed source does not hide a successful source or its collapsed summary', async () => {
+    const app = multiSourceApp();
+    app.spec.sources[0].path = 'manifests';
+    app.spec.sources.push({repoURL: 'https://charts.example.com', chart: 'web-app', targetRevision: '1.0.0'} as models.ApplicationSource);
+    (services.repos.appDetails as jest.Mock).mockImplementation((source: models.ApplicationSource) =>
+        source.plugin ? Promise.reject(new Error('plugin repository unavailable')) : Promise.resolve({type: 'Helm', helm: {valueFiles: [], parameters: [], fileParameters: []}})
+    );
+    const Panels = () => {
+        const [collapsedSources, setCollapsedSources] = React.useState<boolean[]>([]);
+        return (
+            <ApplicationParameters
+                application={app}
+                pageNumber={0}
+                setPageNumber={jest.fn()}
+                collapsedSources={collapsedSources}
+                handleCollapse={(index, collapsed) => setCollapsedSources(previous => Object.assign([...previous], {[index]: collapsed}))}
+            />
+        );
+    };
+    const user = userEvent.setup();
+    const {container} = renderWithContext(<Panels />);
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('plugin repository unavailable');
+    expect(await screen.findByText('HELM')).toBeInTheDocument();
+    expect(screen.getByText('web-app:1.0.0')).toBeInTheDocument();
+    expect(screen.getAllByRole('alert')).toHaveLength(1);
+    await user.click(container.querySelector('.fa-angle-up'));
+    expect(await screen.findByText('PATH=manifests, REVISION=main, ENV=[FOO=bar, ENVIRONMENT=prod]')).toBeInTheDocument();
+    expect(screen.getByText('HELM')).toBeInTheDocument();
+});

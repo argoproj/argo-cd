@@ -281,9 +281,14 @@ export const ApplicationParameters = (props: {
             // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
                 <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
-                    {(details: models.RepoAppDetails) => {
+                    {({details, error}: SourceDetails) => {
                         const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
-                        return getEditablePanel(attr, details);
+                        return (
+                            <>
+                                <SourceDetailsWarning error={error} />
+                                {getEditablePanel(attr, details)}
+                            </>
+                        );
                     }}
                 </DataLoader>
             );
@@ -339,7 +344,12 @@ export const ApplicationParameters = (props: {
                             key={'app_params_source_' + index}
                             input={app.spec.sources[index]}
                             load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
-                            {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
+                            {({details, error}: SourceDetails) => (
+                                <>
+                                    <SourceDetailsWarning error={error} />
+                                    {getEditablePanelForOneSource(details, index, app.spec.sources[index])}
+                                </>
+                            )}
                         </DataLoader>
                     )}
                 </div>
@@ -1120,20 +1130,35 @@ function gatherDetails(
 }
 
 // For Sources field. Get one source with index i from the list
-async function getSourceFromAppSources(aSource: models.ApplicationSource, name: string, project: string, index: number, version: number) {
-    const repoDetail = await services.repos.appDetails(aSource, name, project, index, version).catch(() => getExplicitSourceDetails(aSource));
-    return applyExplicitSourceType(aSource, repoDetail);
+async function getSourceFromAppSources(aSource: models.ApplicationSource, name: string, project: string, index: number, version: number): Promise<SourceDetails> {
+    try {
+        const repoDetail = await services.repos.appDetails(aSource, name, project, index, version);
+        return {details: applyExplicitSourceType(aSource, repoDetail)};
+    } catch (error) {
+        return {details: getExplicitSourceDetails(aSource), error};
+    }
 }
 
 // Delete when source field is removed
-async function getSingleSource(app: models.Application) {
+async function getSingleSource(app: models.Application): Promise<SourceDetails> {
     if (app.spec.source || app.spec.sourceHydrator) {
         const source = getAppDrySource(app);
-        const repoDetail = await services.repos.appDetails(source, app.metadata.name, app.spec.project, 0, 0).catch(() => getExplicitSourceDetails(source));
-        return applyExplicitSourceType(source, repoDetail);
+        return getSourceFromAppSources(source, app.metadata.name, app.spec.project, 0, 0);
     }
-    return null;
+    return {details: null};
 }
+
+interface SourceDetails {
+    details: models.RepoAppDetails;
+    error?: Error;
+}
+
+const SourceDetailsWarning = ({error}: {error?: Error}) =>
+    error ? (
+        <p role='alert'>
+            <ErrorNotification title='Unable to load repository details. Showing configured source settings' e={error} />
+        </p>
+    ) : null;
 
 function applyExplicitSourceType(source: models.ApplicationSource, details: models.RepoAppDetails): models.RepoAppDetails {
     const explicitDetails = getExplicitSourceDetails(source);
