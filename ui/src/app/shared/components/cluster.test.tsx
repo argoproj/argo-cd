@@ -1,11 +1,12 @@
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
-import {fireEvent, render, screen} from '@testing-library/react';
+import {fireEvent, render, screen, waitFor} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
 import {newQueryClient} from '../query-client';
+import {clusterQueries} from '../queries';
 import {services} from '../services';
-import {Cluster, ClusterCtx} from './cluster';
+import {Cluster, ClusterCtx, useRefreshClusterList} from './cluster';
 
 jest.mock('argo-ui', () => ({...jest.requireActual('argo-ui'), Tooltip: (props: {children: React.ReactNode}) => props.children}));
 jest.mock('../services', () => ({services: {clusters: {get: jest.fn(), list: jest.fn()}}}));
@@ -47,8 +48,7 @@ describe('Cluster', () => {
     });
 
     describe('with a cluster list', () => {
-        const renderWithList = (children: React.ReactNode, client?: QueryClient) =>
-            renderClusters(<ClusterCtx.Provider value={Promise.resolve([])}>{children}</ClusterCtx.Provider>, client);
+        const renderWithList = (children: React.ReactNode, client?: QueryClient) => renderClusters(<ClusterCtx.Provider value={true}>{children}</ClusterCtx.Provider>, client);
 
         it('finds clusters by server or name with one list request', async () => {
             jest.mocked(services.clusters.list).mockResolvedValue([inCluster, prod]);
@@ -82,7 +82,7 @@ describe('Cluster', () => {
 
             rerender(
                 <QueryClientProvider client={client}>
-                    <ClusterCtx.Provider value={Promise.resolve([])}>
+                    <ClusterCtx.Provider value={true}>
                         <Cluster server={prod.server} />
                         <Cluster server={inCluster.server} />
                     </ClusterCtx.Provider>
@@ -101,6 +101,60 @@ describe('Cluster', () => {
             fireEvent.click(await screen.findByText('try again'));
             expect(await screen.findByText('prod')).toBeInTheDocument();
             expect(show).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('useRefreshClusterList', () => {
+        const ListPage = (props: {children: React.ReactNode}) => {
+            useRefreshClusterList();
+            return <ClusterCtx.Provider value={true}>{props.children}</ClusterCtx.Provider>;
+        };
+
+        it('loads the list with one request for the page and its rows', async () => {
+            jest.mocked(services.clusters.list).mockResolvedValue([prod]);
+            renderClusters(
+                <ListPage>
+                    <Cluster server={prod.server} />
+                    <Cluster server={prod.server} showUrl={true} />
+                </ListPage>
+            );
+
+            expect(await screen.findByText('prod')).toBeInTheDocument();
+            expect(services.clusters.list).toHaveBeenCalledTimes(1);
+        });
+
+        it('refreshes a cached list when the page mounts', async () => {
+            jest.mocked(services.clusters.list).mockResolvedValue([{...prod, name: 'prod-renamed'}]);
+            const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+            client.setQueryData(clusterQueries.list().queryKey, [prod]);
+            renderClusters(
+                <ListPage>
+                    <Cluster server={prod.server} />
+                </ListPage>,
+                client
+            );
+
+            expect(await screen.findByText('prod-renamed')).toBeInTheDocument();
+            expect(services.clusters.list).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not refetch the list for rows mounting after it has loaded', async () => {
+            jest.mocked(services.clusters.list).mockResolvedValue([prod]);
+            const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+            // Rows usually appear later, once the page has loaded its applications or resources.
+            const {rerender} = renderClusters(<ListPage>{null}</ListPage>, client);
+            await waitFor(() => expect(client.getQueryData(clusterQueries.list().queryKey)).toEqual([prod]));
+
+            rerender(
+                <QueryClientProvider client={client}>
+                    <ListPage>
+                        <Cluster server={prod.server} />
+                    </ListPage>
+                </QueryClientProvider>
+            );
+
+            expect(await screen.findByText('prod')).toBeInTheDocument();
+            expect(services.clusters.list).toHaveBeenCalledTimes(1);
         });
     });
 });
