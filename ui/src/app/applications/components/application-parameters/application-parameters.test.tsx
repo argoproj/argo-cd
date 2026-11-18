@@ -11,6 +11,9 @@ jest.mock('../../../shared/services', () => ({
         repos: {
             appDetails: jest.fn()
         },
+        authService: {
+            plugins: jest.fn().mockResolvedValue([{name: 'my-plugin'}])
+        },
         viewPreferences: {
             getPreferences: jest.fn().mockResolvedValue({pageSizes: {'5': 10}, sortOptions: {}}),
             updatePreferences: jest.fn()
@@ -387,21 +390,33 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
     test('retries a failed lookup without changing its input', async () => {
         const app = multiSourceApp();
         const appSource = app.spec.sources[0];
+        appSource.plugin.parameters = [{name: 'options', string: 'configured'}];
         if (!multiSource) {
             app.spec.source = appSource;
             delete app.spec.sources;
         }
-        appDetails
-            .mockRejectedValueOnce(new Error('repository unavailable'))
-            .mockResolvedValue({type: 'Plugin', plugin: {parametersAnnouncement: [{name: 'retry-default', string: 'ready'}]}});
+        appDetails.mockRejectedValueOnce(new Error('repository unavailable')).mockResolvedValue({
+            type: 'Plugin',
+            plugin: {
+                parametersAnnouncement: [
+                    {name: 'options', collectionType: 'string'},
+                    {name: 'retry-default', string: 'ready'}
+                ]
+            }
+        });
         const user = userEvent.setup();
-        renderWithContext(<ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} />);
+        renderWithContext(<ApplicationParameters application={app} save={jest.fn()} pageNumber={0} setPageNumber={jest.fn()} />);
 
         expect(await screen.findByRole('alert')).toHaveTextContent('repository unavailable');
         expect(screen.getByDisplayValue('my-plugin')).toBeInTheDocument();
+        await user.click(screen.getAllByRole('button', {name: 'Edit'})[multiSource ? 1 : 0]);
+        const editor = screen.getByDisplayValue('configured');
+        await user.clear(editor);
+        await user.type(editor, 'user-draft');
         await user.click(screen.getByRole('button', {name: 'Retry'}));
         expect(await screen.findByText('retry-default')).toBeInTheDocument();
         expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.getByDisplayValue('user-draft')).toBe(editor);
         expect(appDetails).toHaveBeenCalledTimes(2);
         expect(appDetails.mock.calls[0]).toEqual([appSource, 'test-app', 'default', 0, 0]);
         expect(appDetails.mock.calls[1]).toEqual(appDetails.mock.calls[0]);
@@ -477,6 +492,9 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
         await user.type(editor, 'replicaCount: 7\n');
         await user.click(screen.getByRole('button', {name: 'Retry'}));
 
+        expect(appDetails).toHaveBeenNthCalledWith(2, source, 'test-app', 'default', 0, 0);
+        expect(appDetails.mock.calls[1][0].helm).toEqual({valuesObject: {replicaCount: 1}});
+        expect(appDetails.mock.calls[1][0].helm).not.toHaveProperty('values');
         expect(container.querySelector('textarea')).toBe(editor);
         expect(editor).toHaveValue('replicaCount: 7\n');
         expect(screen.getByRole('alert')).toHaveTextContent('repository unavailable');
@@ -509,6 +527,55 @@ describe.each([false, true])('ApplicationParameters repository failures (multi-s
             await act(async () => staleRetry.reject(new Error('obsolete retry failed')));
             expect(screen.queryByRole('alert')).not.toBeInTheDocument();
             expect(screen.getByText('current-context-default')).toBeInTheDocument();
+        }
+    });
+
+    test.each(['Save', 'Cancel'])('defers incompatible Plugin announcements until %s', async action => {
+        const app = multiSourceApp();
+        const source = app.spec.sources[0];
+        source.plugin.parameters = [{name: 'options', string: 'configured'}];
+        if (!multiSource) {
+            app.spec.source = source;
+            delete app.spec.sources;
+        }
+        const request = deferredRepoDetails();
+        appDetails.mockRejectedValueOnce(new Error('repository unavailable')).mockReturnValueOnce(request.promise);
+        const save = jest.fn().mockResolvedValue(undefined);
+        const user = userEvent.setup();
+        renderWithContext(<ApplicationParameters application={app} save={save} pageNumber={0} setPageNumber={jest.fn()} />);
+
+        expect(await screen.findByRole('alert')).toHaveTextContent('repository unavailable');
+        await user.click(screen.getAllByRole('button', {name: 'Edit'})[multiSource ? 1 : 0]);
+        const editor = screen.getByDisplayValue('configured');
+        await user.clear(editor);
+        await user.type(editor, 'user-draft');
+        await user.click(screen.getByRole('button', {name: 'Retry'}));
+        await act(async () =>
+            request.resolve({
+                type: 'Plugin',
+                plugin: {
+                    parametersAnnouncement: [
+                        {name: 'options', collectionType: 'map'},
+                        {name: 'fresh-default', string: 'ready'}
+                    ]
+                }
+            } as models.RepoAppDetails)
+        );
+
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+        expect(screen.getByDisplayValue('user-draft')).toBe(editor);
+        expect(screen.queryByText('fresh-default')).not.toBeInTheDocument();
+        const pluginPanel = screen.getByText('PLUGIN').parentElement.parentElement;
+        await user.click(within(pluginPanel).getByRole('button', {name: action, exact: true}));
+        expect(await screen.findByText('fresh-default')).toBeInTheDocument();
+        if (action === 'Save') {
+            await waitFor(() => expect(save).toHaveBeenCalledTimes(1));
+            const saved = save.mock.calls[0][0] as models.Application;
+            const savedSource = multiSource ? saved.spec.sources[0] : saved.spec.source;
+            expect(savedSource.plugin.parameters).toEqual([{name: 'options', string: 'user-draft'}]);
+            expect(savedSource.plugin.parameters[0]).not.toHaveProperty('map');
+        } else {
+            expect(save).not.toHaveBeenCalled();
         }
     });
 

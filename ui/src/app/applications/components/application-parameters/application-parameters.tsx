@@ -279,12 +279,12 @@ export const ApplicationParameters = (props: {
         } else {
             // For single source field, details page where we have to do the load to retrieve repo details
             return (
-                <SourceDetailsLoader input={{source: getAppDrySource(app), name: app.metadata.name, project: app.spec.project, index: 0}}>
-                    {details => {
+                <SourceDetailsLoader input={{source: getAppDrySource(app), name: app.metadata.name, project: app.spec.project, index: 0}} initialEditing={props.noReadonlyMode}>
+                    {(details, onModeSwitch) => {
                         const attr = details
                             ? gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false)
                             : [];
-                        return details && getEditablePanel(attr, details);
+                        return details && getEditablePanel(attr, details, undefined, onModeSwitch);
                     }}
                 </SourceDetailsLoader>
             );
@@ -338,8 +338,9 @@ export const ApplicationParameters = (props: {
                     ) : (
                         <SourceDetailsLoader
                             key={'app_params_source_' + index}
-                            input={{source: app.spec.sources[index], name: app.metadata.name, project: app.spec.project, index}}>
-                            {details => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
+                            input={{source: app.spec.sources[index], name: app.metadata.name, project: app.spec.project, index}}
+                            initialEditing={props.noReadonlyMode}>
+                            {(details, onModeSwitch) => getEditablePanelForOneSource(details, index, app.spec.sources[index], onModeSwitch)}
                         </SourceDetailsLoader>
                     )}
                 </div>
@@ -347,7 +348,7 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanel(items: EditablePanelItem[], repoAppDetails: models.RepoAppDetails, multiSourceIndex?: number): any {
+    function getEditablePanel(items: EditablePanelItem[], repoAppDetails: models.RepoAppDetails, multiSourceIndex?: number, notifyModeSwitch?: () => void): any {
         const ind = multiSourceIndex;
         const isMulti = ind !== undefined;
         const jsonnetTlas = isMulti ? `spec.sources[${ind}].directory.jsonnet.tlas` : 'spec.source.directory.jsonnet.tlas';
@@ -426,12 +427,12 @@ export const ApplicationParameters = (props: {
 
                         return errors;
                     }}
-                    onModeSwitch={
-                        repoAppDetails?.plugin &&
-                        (() => {
+                    onModeSwitch={() => {
+                        notifyModeSwitch?.();
+                        if (repoAppDetails?.plugin) {
                             setAppParamsDeletedState([]);
-                        })
-                    }
+                        }
+                    }}
                     title={repoAppDetails?.type?.toLocaleUpperCase()}
                     items={items as EditablePanelItem[]}
                     noReadonlyMode={props.noReadonlyMode}
@@ -441,7 +442,7 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource): any {
+    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource, notifyModeSwitch?: () => void): any {
         let floatingTitle: string;
         const lowerPanelAttributes: EditablePanelItem[] = [];
         const upperPanelAttributes: EditablePanelItem[] = [];
@@ -586,12 +587,12 @@ export const ApplicationParameters = (props: {
 
                     return errors;
                 }}
-                onModeSwitch={
-                    repoAppDetails?.plugin &&
-                    (() => {
+                onModeSwitch={() => {
+                    notifyModeSwitch?.();
+                    if (repoAppDetails?.plugin) {
                         setAppParamsDeletedState([]);
-                    })
-                }
+                    }
+                }}
                 titleBottom={repoAppDetails?.type?.toLocaleUpperCase()}
                 titleTop={'SOURCE ' + (ind + 1)}
                 floatingTitle={floatingTitle ? floatingTitle : null}
@@ -1143,7 +1144,8 @@ interface SourceDetailsInput {
 
 interface SourceDetailsLoaderProps {
     input: SourceDetailsInput;
-    children: (details: models.RepoAppDetails) => React.ReactNode;
+    children: (details: models.RepoAppDetails, onModeSwitch: () => void) => React.ReactNode;
+    initialEditing?: boolean;
 }
 
 const SourceDetailsLoader = (props: SourceDetailsLoaderProps) => <SourceDetailsRequest key={JSON.stringify(props.input)} {...props} input={cloneDeep(props.input)} />;
@@ -1152,9 +1154,19 @@ function loadSourceDetails({source, name, project, index}: SourceDetailsInput): 
     return source ? getSourceFromAppSources(source, name, project, index, 0) : Promise.resolve({details: null});
 }
 
-const SourceDetailsRequest = ({input, children}: SourceDetailsLoaderProps) => {
+const SourceDetailsRequest = ({input, children, initialEditing}: SourceDetailsLoaderProps) => {
     const loader = React.useRef<DataLoader<SourceDetails, SourceDetailsInput>>(null);
+    const editing = React.useRef(!!initialEditing);
+    const deferredResult = React.useRef<SourceDetails>(null);
     const [retrying, setRetrying] = React.useState(false);
+    const onModeSwitch = () => {
+        editing.current = !editing.current;
+        if (!editing.current && deferredResult.current) {
+            const result = deferredResult.current;
+            deferredResult.current = null;
+            loader.current?.setData(result);
+        }
+    };
     const retry = async () => {
         const activeLoader = loader.current;
         if (!activeLoader || retrying) {
@@ -1164,7 +1176,14 @@ const SourceDetailsRequest = ({input, children}: SourceDetailsLoaderProps) => {
         try {
             const result = await loadSourceDetails(input);
             if (loader.current === activeLoader) {
-                activeLoader.setData(result);
+                const previous = activeLoader.getData();
+                if (editing.current && hasIncompatiblePluginSchema(previous?.details, result.details, input.source)) {
+                    deferredResult.current = result;
+                    activeLoader.setData({...result, details: previous.details});
+                } else {
+                    deferredResult.current = null;
+                    activeLoader.setData(result);
+                }
             }
         } finally {
             if (loader.current === activeLoader) {
@@ -1177,12 +1196,34 @@ const SourceDetailsRequest = ({input, children}: SourceDetailsLoaderProps) => {
             {({details, error}: SourceDetails) => (
                 <>
                     <SourceDetailsWarning details={details} error={error} retry={retry} retrying={retrying} />
-                    {children(details)}
+                    {children(details, onModeSwitch)}
                 </>
             )}
         </DataLoader>
     );
 };
+
+function getPluginFieldSchema(details: models.RepoAppDetails, source: models.ApplicationSource): Map<string, string> {
+    const parameters = source.plugin?.parameters || [];
+    const announcements = details.plugin?.parametersAnnouncement || [];
+    const names = new Set([...parameters.map(parameter => parameter.name), ...announcements.map(announcement => announcement.name)]);
+    const schema = new Map<string, string>();
+    for (const name of names) {
+        const parameter = parameters.find(item => item.name === name);
+        const announcement = announcements.find(item => item.name === name);
+        const type = announcement?.collectionType === undefined ? (parameter?.map ? 'map' : parameter?.array ? 'array' : 'string') : announcement.collectionType || 'string';
+        schema.set(name, JSON.stringify([announcement?.title ?? name, type]));
+    }
+    return schema;
+}
+
+function hasIncompatiblePluginSchema(previous: models.RepoAppDetails, next: models.RepoAppDetails, source: models.ApplicationSource): boolean {
+    if (previous?.type !== 'Plugin' || next?.type !== 'Plugin') {
+        return false;
+    }
+    const nextSchema = getPluginFieldSchema(next, source);
+    return Array.from(getPluginFieldSchema(previous, source)).some(([name, field]) => nextSchema.get(name) !== field);
+}
 
 const SourceDetailsWarning = ({details, error, retry, retrying}: SourceDetails & {retry: () => void; retrying: boolean}) =>
     error ? (
