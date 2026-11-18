@@ -33,6 +33,7 @@ import (
 	mockrepoclient "github.com/argoproj/argo-cd/v3/reposerver/apiclient/mocks"
 	argotest "github.com/argoproj/argo-cd/v3/test"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
+	appstatecache "github.com/argoproj/argo-cd/v3/util/cache/appstate"
 )
 
 type panicCompareAppStateManager struct {
@@ -476,16 +477,21 @@ func TestProcessAppRefreshQueueItemTraceRecordsCacheFailures(t *testing.T) {
 				},
 			}
 			app.Status.Health.Status = health.HealthStatusHealthy
+			baseClient := cacheutil.NewInMemoryCache(time.Minute)
+			if tc.level == ComparisonWithNothing {
+				appCache := appstatecache.NewCache(cacheutil.NewCache(baseClient), time.Minute)
+				require.NoError(t, appCache.SetAppManagedResources(app.InstanceName(argotest.FakeArgoCDNamespace), []*v1alpha1.ResourceDiff{}))
+			}
+			appCache := appstatecache.NewCache(cacheutil.NewCache(&failingSetCacheClient{
+				CacheClient: baseClient,
+				err:         errors.New("resources cache unavailable"),
+			}), time.Minute)
 			ctrl := newFakeController(t.Context(), &fakeData{
 				apps:             []runtime.Object{app, &defaultProj},
 				manifestResponse: &apiclient.ManifestResponse{Revision: "resolved-revision"},
 				managedLiveObjs:  make(map[kube.ResourceKey]*unstructured.Unstructured),
+				cache:            appCache,
 			}, nil)
-			if tc.level == ComparisonWithNothing {
-				require.NoError(t, ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), []*v1alpha1.ResourceDiff{}))
-			}
-			baseClient := ctrl.cache.Cache.GetClient()
-			ctrl.cache.Cache.SetClient(&failingSetCacheClient{CacheClient: baseClient, err: errors.New("resources cache unavailable")})
 			enqueueRefresh(t, ctrl, app, tc.level)
 
 			ctrl.processAppRefreshQueueItem()

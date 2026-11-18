@@ -100,6 +100,8 @@ type fakeData struct {
 	// reconciledAtHeartbeat bounds how stale the persisted status.reconciledAt may
 	// become. Zero writes it on every full reconciliation.
 	reconciledAtHeartbeat time.Duration
+	// cache, when set, is passed to the controller before informer event handlers start reading it.
+	cache *appstatecache.Cache
 	// reconciledAtCache, when set, is passed to the controller as its separate reconciledAt cache
 	// (as with --reconciled-at-redis). It must be set here rather than assigned after
 	// newFakeController returns, because the app informer's event handlers read it.
@@ -236,6 +238,13 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	if data.persistResourceHealth != nil {
 		persistResourceHealth = *data.persistResourceHealth
 	}
+	appCache := data.cache
+	if appCache == nil {
+		appCache = appstatecache.NewCache(
+			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
+			1*time.Minute,
+		)
+	}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
@@ -243,10 +252,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		appclientset.NewSimpleClientset(data.apps...),
 		mockRepoClientset,
 		mockCommitClientset,
-		appstatecache.NewCache(
-			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
-			1*time.Minute,
-		),
+		appCache,
 		data.reconciledAtCache,
 		kubectl,
 		appResyncPeriod,
