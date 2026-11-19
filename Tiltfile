@@ -294,7 +294,6 @@ local_resource(
     'make lint-local',
     deps = code_deps,
     allow_parallel=True,
-    resource_deps=['vendor']
 )
 
 local_resource(
@@ -306,14 +305,3 @@ local_resource(
     allow_parallel=True,
     resource_deps=['node-modules'],
 )
-
-local_resource(
-    'vendor',
-    'go mod vendor',
-    deps = [
-        'go.mod',
-        'go.sum',
-    ],
-    allow_parallel=True,
-)
-

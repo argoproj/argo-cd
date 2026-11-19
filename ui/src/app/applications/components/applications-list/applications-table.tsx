@@ -12,7 +12,16 @@ import {isApp} from '../utils';
 import {services} from '../../../shared/services';
 import {ApplicationTableRow} from './application-table-row';
 import {AppSetTableRow} from './appset-table-row';
-import {appsLayoutKey, getTableRowHeight, shouldUseVirtualScroll, TABLE_OVERSCAN_ROW_COUNT, TABLE_ROW_HEIGHT, useWindowScrollerPosition} from './virtual-scroll';
+import {
+    appsLayoutKey,
+    bidirectionalOverscanIndicesGetter,
+    computeOverscanRowCount,
+    getTableRowHeight,
+    shouldUseVirtualScroll,
+    TABLE_OVERSCAN_ROW_COUNT,
+    TABLE_ROW_HEIGHT,
+    useWindowScrollerPosition
+} from './virtual-scroll';
 
 import './applications-table.scss';
 
@@ -117,7 +126,7 @@ export const ApplicationsTable = (props: {
                             };
 
                             return (
-                                <div className='applications-table argo-table-list argo-table-list--clickable' role='list'>
+                                <div className='applications-table argo-table-list argo-table-list--clickable'>
                                     <WindowScroller ref={windowScrollerRef} updateScrollTopOnUpdatePosition={true}>
                                         {({height, isScrolling, onChildScroll, scrollTop}) => (
                                             <AutoSizer disableHeight={true}>
@@ -133,8 +142,8 @@ export const ApplicationsTable = (props: {
                                                         rowCount={props.applications.length}
                                                         rowHeight={getRowHeight}
                                                         rowRenderer={rowRenderer}
-                                                        overscanRowCount={TABLE_OVERSCAN_ROW_COUNT}
-                                                        scrollingResetTimeInterval={150}
+                                                        overscanRowCount={computeOverscanRowCount(height, TABLE_ROW_HEIGHT, TABLE_OVERSCAN_ROW_COUNT)}
+                                                        overscanIndicesGetter={bidirectionalOverscanIndicesGetter}
                                                     />
                                                 )}
                                             </AutoSizer>

@@ -552,11 +552,12 @@ func TestAppInNamespaceCommands(t *testing.T) {
 }
 
 func TestNamespacedAppWithSecrets(t *testing.T) {
+	ctx := Given(t)
+
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 
-	ctx := Given(t)
 	ctx.
 		Path("secrets").
 		SetAppNamespace(fixture.AppNamespace()).

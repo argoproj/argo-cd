@@ -429,11 +429,12 @@ func assetSecretDataHidden(t *testing.T, manifest string) {
 }
 
 func TestAppWithSecrets(t *testing.T) {
+	ctx := Given(t)
+
 	closer, client, err := fixture.ArgoCDClientset.NewApplicationClient()
 	require.NoError(t, err)
 	defer utilio.Close(closer)
 
-	ctx := Given(t)
 	ctx.Path("secrets").
 		When().
 		CreateApp().

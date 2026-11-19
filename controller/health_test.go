@@ -304,7 +304,7 @@ func TestSetApplicationHealth_HealthImproves(t *testing.T) {
 		}}
 		resourceStatuses := initStatuses(resources)
 
-		t.Run(string(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus)), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%s to %s", tc.oldStatus, tc.newStatus), func(t *testing.T) {
 			healthStatus, healthCauses, err := setApplicationHealth(resources, resourceStatuses, overrides, app, true)
 			require.NoError(t, err)
 			assert.Equal(t, tc.newStatus, healthStatus)

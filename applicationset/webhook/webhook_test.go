@@ -2,12 +2,15 @@ package webhook
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
+	"maps"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,9 +19,11 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/types"
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 
@@ -27,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	argosettings "github.com/argoproj/argo-cd/v3/util/settings"
+	"github.com/argoproj/argo-cd/v3/util/webhook"
 )
 
 type generatorMock struct {
@@ -103,6 +109,24 @@ func TestWebhookHandler(t *testing.T) {
 			expectedRefresh:    true,
 		},
 		{
+			desc:               "WebHook from a GitHub repository via tag push matching a semver constraint",
+			headerKey:          "X-GitHub-Event",
+			headerValue:        "push",
+			payloadFile:        "github-tag-event.json",
+			effectedAppSets:    []string{"git-github-tag", "git-github-semver", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
+			desc:               "WebHook from a GitLab repository via tag push matching a semver constraint",
+			headerKey:          "X-Gitlab-Event",
+			headerValue:        "Tag Push Hook",
+			payloadFile:        "gitlab-tag-event.json",
+			effectedAppSets:    []string{"git-gitlab-tag", "git-gitlab-semver", "plugin", "matrix-pull-request-github-plugin"},
+			expectedStatusCode: http.StatusOK,
+			expectedRefresh:    true,
+		},
+		{
 			desc:               "WebHook from a System Hook via Commit",
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "System Hook",
@@ -126,6 +150,22 @@ func TestWebhookHandler(t *testing.T) {
 			headerValue:        "Push Hook",
 			payloadFile:        "invalid-event.json",
 			effectedAppSets:    []string{"git-gitlab", "git-gitlab-ssh", "git-gitlab-alt-ssh", "plugin"},
+			expectedStatusCode: http.StatusBadRequest,
+			expectedRefresh:    false,
+		},
+		{
+			desc:               "WebHook from Bitbucket Server is not supported",
+			headerKey:          "X-Event-Key",
+			headerValue:        "repo:refs_changed",
+			payloadFile:        "github-commit-event.json",
+			expectedStatusCode: http.StatusBadRequest,
+			expectedRefresh:    false,
+		},
+		{
+			desc:               "WebHook from Gogs is not supported",
+			headerKey:          "X-Gogs-Event",
+			headerValue:        "push",
+			payloadFile:        "github-commit-event.json",
 			expectedStatusCode: http.StatusBadRequest,
 			expectedRefresh:    false,
 		},
@@ -161,7 +201,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Merge Request Hook",
 			payloadFile:        "gitlab-merge-request-open-event.json",
-			effectedAppSets:    []string{"pull-request-gitlab", "plugin", "matrix-pull-request-github-plugin"},
+			effectedAppSets:    []string{"pull-request-gitlab", "pull-request-gitlab-path", "pull-request-gitlab-path-case", "plugin", "matrix-pull-request-github-plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    true,
 		},
@@ -170,7 +210,7 @@ func TestWebhookHandler(t *testing.T) {
 			headerKey:          "X-Gitlab-Event",
 			headerValue:        "Merge Request Hook",
 			payloadFile:        "gitlab-merge-request-approval-event.json",
-			effectedAppSets:    []string{"pull-request-gitlab", "plugin"},
+			effectedAppSets:    []string{"pull-request-gitlab", "pull-request-gitlab-path", "pull-request-gitlab-path-case", "plugin"},
 			expectedStatusCode: http.StatusOK,
 			expectedRefresh:    false,
 		},
@@ -225,8 +265,17 @@ func TestWebhookHandler(t *testing.T) {
 				fakeAppWithGitGenerator("git-gitlab-alt-ssh", namespace, "ssh://git@altssh.gitlab.com:443/group/name"),
 				fakeAppWithGitGenerator("git-azure-devops", namespace, "https://dev.azure.com/fabrikam-fiber-inc/DefaultCollection/_git/Fabrikam-Fiber-Git"),
 				fakeAppWithGitGeneratorWithRevision("github-shorthand", namespace, "https://github.com/org/repo", "env/dev"),
+				fakeAppWithGitGeneratorWithRevision("git-github-tag", namespace, "https://github.com/org/repo", "v1.2.0"),
+				fakeAppWithGitGeneratorWithRevision("git-github-semver", namespace, "https://github.com/org/repo", ">=1.0.0 <2.0.0"),
+				fakeAppWithGitGeneratorWithRevision("git-github-semver-nomatch", namespace, "https://github.com/org/repo", "2.*"),
+				fakeAppWithGitGeneratorWithRevision("git-gitlab-tag", namespace, "https://gitlab.com/group/name", "refs/tags/v1.2.0"),
+				fakeAppWithGitGeneratorWithRevision("git-gitlab-semver", namespace, "https://gitlab.com/group/name", "1.*"),
+				fakeAppWithGitGeneratorWithRevision("git-gitlab-semver-nomatch", namespace, "https://gitlab.com/group/name", "2.*"),
 				fakeAppWithGithubPullRequestGenerator("pull-request-github", namespace, "CodErTOcat", "Hello-World"),
 				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab", namespace, "100500"),
+				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab-path", namespace, "group/name"),
+				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab-path-case", namespace, "Group/Name"),
+				fakeAppWithGitlabPullRequestGenerator("pull-request-gitlab-path-nomatch", namespace, "group/other"),
 				fakeAppWithAzureDevOpsPullRequestGenerator("pull-request-azure-devops", namespace, "DefaultCollection", "Fabrikam"),
 				fakeAppWithPluginGenerator("plugin", namespace),
 				fakeAppWithOciGenerator("oci-ghcr", namespace, "oci://ghcr.io/org/image", "1.0.0"),
@@ -338,6 +387,134 @@ func mockGenerators() map[string]generators.Generator {
 	}
 }
 
+// TestWebhookHandlerRejectsRequests covers the responses the ApplicationSet webhook
+// shares with the API server webhook for requests it cannot accept.
+func TestWebhookHandlerRejectsRequests(t *testing.T) {
+	t.Parallel()
+	namespace := "test"
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	ghcrEvent, err := os.ReadFile(filepath.Join("testdata", "ghcr-package-event.json"))
+	require.NoError(t, err)
+
+	tests := []struct {
+		desc               string
+		headerValue        string
+		body               []byte
+		expectedStatusCode int
+		expectedBody       string
+	}{
+		{
+			desc:               "GHCR event without a valid signature is unauthorized",
+			headerValue:        "package",
+			body:               ghcrEvent,
+			expectedStatusCode: http.StatusUnauthorized,
+			expectedBody:       "Unauthorized",
+		},
+		{
+			desc:               "payload over webhook.maxPayloadSizeMB is rejected",
+			headerValue:        "push",
+			body:               bytes.Repeat([]byte("a"), 1024*1024+1),
+			expectedStatusCode: http.StatusBadRequest,
+			expectedBody:       "Webhook processing failed: payload must be valid JSON under 1 MB",
+		},
+		{
+			desc:               "parse error is not echoed to the caller",
+			headerValue:        "issues",
+			body:               []byte(`{}`),
+			expectedStatusCode: http.StatusBadRequest,
+			expectedBody:       "Webhook processing failed",
+		},
+	}
+	for _, test := range tests {
+		t.Run(test.desc, func(t *testing.T) {
+			t.Parallel()
+			kubeClient := newFakeClientWithSettings(namespace,
+				map[string]string{"webhook.maxPayloadSizeMB": "1"},
+				map[string][]byte{"webhook.github.secret": []byte("secret")},
+			)
+			fc := fake.NewClientBuilder().WithScheme(scheme).Build()
+			set := argosettings.NewSettingsManager(t.Context(), kubeClient, namespace)
+			h, err := NewWebhookHandler(1, set, fc, mockGenerators())
+			require.NoError(t, err)
+
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", bytes.NewReader(test.body))
+			req.Header.Set("X-GitHub-Event", test.headerValue)
+			w := httptest.NewRecorder()
+
+			h.Handler(w, req)
+			close(h.queue)
+			h.Wait()
+
+			assert.Equal(t, test.expectedStatusCode, w.Code)
+			assert.Equal(t, test.expectedBody, strings.TrimSpace(w.Body.String()))
+		})
+	}
+}
+
+// TestParserOptionsParity makes sure every webhook event the Argo CD API server
+// handles is also handled by the ApplicationSet webhook, so a provider added to one
+// handler is not silently missing from the other.
+func TestParserOptionsParity(t *testing.T) {
+	// Providers the Argo CD webhook handles that the ApplicationSet webhook does not
+	// yet. Delete an entry when adding that provider to appSetParserOptions.
+	knownGaps := map[string]bool{
+		"bitbucket":       true,
+		"bitbucketserver": true,
+		"gogs":            true,
+		"harbor":          true,
+		"dockerhub":       true,
+	}
+
+	argocdEvents := parserEvents(webhook.ArgoCDParserOptions())
+	appSetEvents := parserEvents(appSetParserOptions())
+	for event := range argocdEvents {
+		provider, _, _ := strings.Cut(event, ":")
+		if knownGaps[provider] {
+			assert.NotContains(t, appSetEvents, event, "the ApplicationSet webhook handles %s now, remove %q from knownGaps", event, provider)
+			continue
+		}
+		assert.Contains(t, appSetEvents, event, "the Argo CD webhook handles %s but the ApplicationSet webhook does not", event)
+	}
+}
+
+// parserEvents flattens opts into "provider:event" keys, e.g. "github:push".
+func parserEvents(opts webhook.ParserOptions) map[string]bool {
+	events := map[string]bool{}
+	add := func(provider string, event any) {
+		events[fmt.Sprintf("%s:%v", provider, event)] = true
+	}
+	for _, e := range opts.AzureDevOpsEvents {
+		add("azuredevops", e)
+	}
+	for _, e := range opts.GogsEvents {
+		add("gogs", e)
+	}
+	for _, e := range opts.GitHubEvents {
+		add("github", e)
+	}
+	for _, e := range opts.GitLabEvents {
+		add("gitlab", e)
+	}
+	for _, e := range opts.BitbucketEvents {
+		add("bitbucket", e)
+	}
+	for _, e := range opts.BitbucketServerEvents {
+		add("bitbucketserver", e)
+	}
+	if opts.Harbor {
+		add("harbor", "registry")
+	}
+	if opts.GHCR {
+		add("ghcr", "registry")
+	}
+	if opts.DockerHub {
+		add("dockerhub", "registry")
+	}
+	return events
+}
+
 func TestGenRevisionHasChanged(t *testing.T) {
 	t.Parallel()
 	type args struct {
@@ -390,13 +567,63 @@ func TestGenRevisionHasChanged(t *testing.T) {
 			revision:    "v3.14.1",
 			touchedHead: false,
 		}, want: true},
+		// A semver constraint is resolved by util/git when the generator runs, so a
+		// push of a matching tag must refresh it, exactly as it does for an
+		// Application with the same target revision.
+		{name: "foundSemverConstraint", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: ">=1.0.0"},
+			revision:    "v1.2.3",
+			touchedHead: false,
+		}, want: true},
+		{name: "foundSemverConstraintWildcard", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "1.*"},
+			revision:    "1.1.0",
+			touchedHead: false,
+		}, want: true},
+		{name: "notFoundSemverConstraint", args: args{
+			gen:         &v1alpha1.GitGenerator{Revision: "1.*"},
+			revision:    "2.0.0",
+			touchedHead: false,
+		}, want: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			assert.Equalf(t, tt.want, genRevisionHasChanged(tt.args.gen, tt.args.revision, tt.args.touchedHead), "genRevisionHasChanged(%v, %v, %v)", tt.args.gen, tt.args.revision, tt.args.touchedHead)
+			assert.Equalf(t, tt.want, webhook.RevisionHasChanged(tt.args.gen.Revision, tt.args.revision, tt.args.touchedHead), "RevisionHasChanged(%v, %v, %v)", tt.args.gen.Revision, tt.args.revision, tt.args.touchedHead)
 		})
 	}
+}
+
+// The refresh request must not write the spec back: a whole-object patch adds empty generator
+// templates, which tools managing the ApplicationSet report as drift.
+func TestRefreshApplicationSetPatchesOnlyTheAnnotation(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	appSet := fakeAppWithGitGenerator("git-github", "argocd", "https://github.com/org/repo")
+	appSet.Annotations = map[string]string{"unrelated": "kept"}
+
+	var patches []string
+	fc := fake.NewClientBuilder().WithScheme(scheme).WithObjects(appSet).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+				data, err := patch.Data(obj)
+				require.NoError(t, err)
+				assert.Equal(t, types.MergePatchType, patch.Type())
+				patches = append(patches, string(data))
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+		}).Build()
+
+	require.NoError(t, refreshApplicationSet(fc, appSet.DeepCopy()))
+
+	require.Len(t, patches, 1)
+	assert.JSONEq(t, `{"metadata":{"annotations":{"argocd.argoproj.io/application-set-refresh":"true"}}}`, patches[0])
+
+	var got v1alpha1.ApplicationSet
+	require.NoError(t, fc.Get(t.Context(), client.ObjectKeyFromObject(appSet), &got))
+	assert.Equal(t, map[string]string{"unrelated": "kept", common.AnnotationApplicationSetRefresh: "true"}, got.Annotations)
 }
 
 func fakeAppWithGitGenerator(name, namespace, repo string) *v1alpha1.ApplicationSet {
@@ -791,18 +1018,24 @@ func fakeAppWithMatrixAndPullRequestGeneratorWithPluginGenerator(name, namespace
 }
 
 func newFakeClient(ns string) *kubefake.Clientset {
-	s := runtime.NewScheme()
-	s.AddKnownTypes(v1alpha1.SchemeGroupVersion, &v1alpha1.ApplicationSet{})
+	return newFakeClientWithSettings(ns, nil, nil)
+}
+
+// newFakeClientWithSettings returns a clientset holding argocd-cm and argocd-secret
+// with the given extra data.
+func newFakeClientWithSettings(ns string, cmData map[string]string, secretData map[string][]byte) *kubefake.Clientset {
+	data := map[string][]byte{
+		"server.secretkey": nil,
+	}
+	maps.Copy(data, secretData)
 	return kubefake.NewClientset(&corev1.ConfigMap{Name: "argocd-cm", Namespace: ns, Labels: map[string]string{
 		"app.kubernetes.io/part-of": "argocd",
-	}}, &corev1.Secret{
+	}, Data: cmData}, &corev1.Secret{
 		Name:      common.ArgoCDSecretName,
 		Namespace: ns,
 		Labels: map[string]string{
 			"app.kubernetes.io/part-of": "argocd",
 		},
-		Data: map[string][]byte{
-			"server.secretkey": nil,
-		},
+		Data: data,
 	})
 }

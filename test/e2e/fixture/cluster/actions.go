@@ -3,7 +3,6 @@ package cluster
 import (
 	"context"
 	"errors"
-	"log"
 	"os"
 	"strings"
 	"time"
@@ -60,7 +59,7 @@ func (a *Actions) Create() *Actions {
 	})
 	if err != nil {
 		if !a.ignoreErrors {
-			log.Fatalf("Failed to upsert cluster %v", err.Error())
+			a.context.T().Fatalf("Failed to upsert cluster %v", err.Error())
 		}
 		a.lastError = errors.New(err.Error())
 	}
@@ -165,6 +164,12 @@ func (a *Actions) GetByName() *Actions {
 func (a *Actions) SetNamespaces() *Actions {
 	a.context.T().Helper()
 	a.runCli("cluster", "set", a.context.GetName(), "--namespace", strings.Join(a.context.namespaces, ","))
+	return a
+}
+
+func (a *Actions) InvalidateCache() *Actions {
+	a.context.T().Helper()
+	a.runCli("cluster", "invalidate-cache", a.context.GetName())
 	return a
 }
 
