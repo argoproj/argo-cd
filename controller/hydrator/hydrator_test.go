@@ -1970,6 +1970,21 @@ func Test_getAppsForHydrationKey_OCITagConflict(t *testing.T) {
 	assert.Equal(t, "other-dry-revision", conflictingApps[1].Name)
 }
 
+func Test_getHydrationQueueKey_OCIRepositoryIdentity(t *testing.T) {
+	t.Parallel()
+
+	app := newTestOCIApp("app")
+	// ".git" is a legitimate part of an OCI repository name, so this is a different repository.
+	dotGit := newTestOCIApp("dot-git")
+	dotGit.Spec.SourceHydrator.SyncSource.RepoURL = testOCIRepoURL + ".git"
+	// The host of a registry is not case-sensitive, so this is the same repository.
+	upperCaseHost := newTestOCIApp("upper-case-host")
+	upperCaseHost.Spec.SourceHydrator.SyncSource.RepoURL = "oci://EXAMPLE.com/hydrated"
+
+	assert.NotEqual(t, getHydrationQueueKey(app), getHydrationQueueKey(dotGit))
+	assert.Equal(t, getHydrationQueueKey(app), getHydrationQueueKey(upperCaseHost))
+}
+
 func TestValidateApplications_OCI(t *testing.T) {
 	t.Parallel()
 
@@ -2070,8 +2085,8 @@ func TestValidateTagOwnership(t *testing.T) {
 func TestHydrator_hydrate_OCI(t *testing.T) {
 	t.Parallel()
 
-	// newHydrator returns a hydrator which expects exactly one push of the application to the OCI repository.
-	newHydrator := func(t *testing.T, app *v1alpha1.Application, proj *v1alpha1.AppProject) *Hydrator {
+	// newHydrator returns a hydrator which expects exactly one push of the applications to the OCI repository.
+	newHydrator := func(t *testing.T, proj *v1alpha1.AppProject, apps ...*v1alpha1.Application) *Hydrator {
 		t.Helper()
 		d := mocks.NewDependencies(t)
 		r := mocks.NewRepoGetter(t)
@@ -2080,7 +2095,16 @@ func TestHydrator_hydrate_OCI(t *testing.T) {
 		readRepo := &v1alpha1.Repository{Repo: "https://example.com/repo"}
 		writeRepo := &v1alpha1.Repository{Repo: testOCIRepoURL, Username: "user", Password: "pass"}
 
-		d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
+		var expectedPaths []string
+		for i, app := range apps {
+			// The first application resolves the DRY revision, the others are rendered at the resolved commit.
+			revision := "main"
+			if i > 0 {
+				revision = "sha123"
+			}
+			d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), revision, proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil)
+			expectedPaths = append(expectedPaths, app.Spec.SourceHydrator.SyncSource.Path)
+		}
 		r.EXPECT().GetRepository(mock.Anything, readRepo.Repo, proj.Name).Return(readRepo, nil)
 		rc.EXPECT().GetRevisionMetadata(mock.Anything, mock.Anything).Return(&v1alpha1.RevisionMetadata{Message: "metadata"}, nil)
 		d.EXPECT().GetWriteCredentials(mock.Anything, testOCIRepoURL, proj.Name).Return(writeRepo, nil)
@@ -2093,8 +2117,11 @@ func TestHydrator_hydrate_OCI(t *testing.T) {
 			assert.Equal(t, "dev", in.TargetBranch, "the tag is sent as the target")
 			assert.Empty(t, in.SyncBranch, "a tag has no base branch")
 			assert.Equal(t, "sha123", in.DrySha)
-			require.Len(t, in.Paths, 1)
-			assert.Equal(t, ".", in.Paths[0].Path)
+			var paths []string
+			for _, p := range in.Paths {
+				paths = append(paths, p.Path)
+			}
+			assert.ElementsMatch(t, expectedPaths, paths, "the artifact must hold every application of the group")
 		}).Once()
 
 		return &Hydrator{
@@ -2104,13 +2131,28 @@ func TestHydrator_hydrate_OCI(t *testing.T) {
 			commitClientset: &commitservermocks.Clientset{CommitServiceClient: cc},
 		}
 	}
+	// newHydratedGroup returns two applications sharing a tag, both hydrated at the DRY commit the tests resolve.
+	newHydratedGroup := func() (*v1alpha1.Application, *v1alpha1.Application) {
+		var group []*v1alpha1.Application
+		for _, name := range []string{"first", "second"} {
+			app := newTestOCIApp(name)
+			app.Spec.SourceHydrator.SyncSource.Path = name
+			app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
+				DrySHA:         "sha123",
+				HydratedSHA:    "sha256:previous",
+				SourceHydrator: *app.Spec.SourceHydrator,
+			}
+			group = append(group, app)
+		}
+		return group[0], group[1]
+	}
 	logCtx := log.NewEntry(log.StandardLogger())
 
 	t.Run("pushes to the tag and returns the digest", func(t *testing.T) {
 		t.Parallel()
 		app := newTestOCIApp("app")
 		proj := newTestOCIProject()
-		h := newHydrator(t, app, proj)
+		h := newHydrator(t, proj, app)
 
 		sha, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, map[string]*v1alpha1.AppProject{app.Spec.Project: proj})
 
@@ -2130,7 +2172,7 @@ func TestHydrator_hydrate_OCI(t *testing.T) {
 			SourceHydrator: *newTestApp("app").Spec.SourceHydrator,
 		}
 		proj := newTestOCIProject()
-		h := newHydrator(t, app, proj)
+		h := newHydrator(t, proj, app)
 
 		_, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, map[string]*v1alpha1.AppProject{app.Spec.Project: proj})
 
@@ -2139,21 +2181,44 @@ func TestHydrator_hydrate_OCI(t *testing.T) {
 		assert.Equal(t, "sha256:abc", hydratedSha)
 	})
 
-	t.Run("skips an already hydrated DRY commit when the destination is unchanged", func(t *testing.T) {
+	t.Run("pushes an already hydrated DRY commit when an application other than the first was reconfigured", func(t *testing.T) {
 		t.Parallel()
-		app := newTestOCIApp("app")
-		app.Status.SourceHydrator.LastSuccessfulOperation = &v1alpha1.SuccessfulHydrateOperation{
-			DrySHA:         "sha123",
-			HydratedSHA:    "sha256:previous",
-			SourceHydrator: *app.Spec.SourceHydrator,
-		}
+		first, second := newHydratedGroup()
+		second.Spec.SourceHydrator.DrySource.Path = "base/other-app"
+		proj := newTestOCIProject()
+		h := newHydrator(t, proj, first, second)
+
+		_, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{first, second}, map[string]*v1alpha1.AppProject{first.Spec.Project: proj})
+
+		require.NoError(t, err)
+		assert.Empty(t, errs)
+		assert.Equal(t, "sha256:abc", hydratedSha)
+	})
+
+	t.Run("pushes an already hydrated DRY commit when an application was added to the tag", func(t *testing.T) {
+		t.Parallel()
+		first, second := newHydratedGroup()
+		second.Status.SourceHydrator.LastSuccessfulOperation = nil
+		proj := newTestOCIProject()
+		h := newHydrator(t, proj, first, second)
+
+		_, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{first, second}, map[string]*v1alpha1.AppProject{first.Spec.Project: proj})
+
+		require.NoError(t, err)
+		assert.Empty(t, errs)
+		assert.Equal(t, "sha256:abc", hydratedSha)
+	})
+
+	t.Run("skips an already hydrated DRY commit when no application of the tag has changed", func(t *testing.T) {
+		t.Parallel()
+		first, second := newHydratedGroup()
 		proj := newTestOCIProject()
 		d := mocks.NewDependencies(t)
-		d.EXPECT().GetRepoObjs(mock.Anything, app, app.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil).Once()
+		d.EXPECT().GetRepoObjs(mock.Anything, first, first.Spec.SourceHydrator.GetDrySource(), "main", proj).Return(nil, &repoclient.ManifestResponse{Revision: "sha123"}, nil).Once()
 		// No commit client is configured: reaching the commit server would panic.
 		h := &Hydrator{dependencies: d}
 
-		_, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{app}, map[string]*v1alpha1.AppProject{app.Spec.Project: proj})
+		_, hydratedSha, errs, err := h.hydrate(t.Context(), logCtx, []*v1alpha1.Application{first, second}, map[string]*v1alpha1.AppProject{first.Spec.Project: proj})
 
 		require.NoError(t, err)
 		assert.Empty(t, errs)

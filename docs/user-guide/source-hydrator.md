@@ -316,9 +316,10 @@ Pushing to a tag replaces the whole artifact. Unlike with a Git branch, Argo CD 
 one Application to a tag without knowing the manifests of every other Application stored in it.
 
 Applications which have the same `drySource.repoURL` and `drySource.targetRevision` are hydrated together and can share
-a tag, as long as each of them uses a different `syncSource.path`. The artifact always contains exactly the paths of
-the Applications which currently hydrate to the tag; a path is no longer part of the artifact once its Application is
-gone.
+a tag, as long as each of them uses a different `syncSource.path`. Adding an Application to a tag, or changing the
+source hydrator configuration of one of its Applications, pushes the artifact again. The artifact contains the paths of
+the Applications which hydrated to the tag when it was last pushed; the path of a removed Application is dropped with
+the next push.
 
 The following configurations are rejected, and the hydration fails with an error on the affected Applications:
 
@@ -347,8 +348,13 @@ tag keeps its digest. This mirrors the Git behaviour of not creating a commit wh
   unsigned, and the commit server logs a warning if commit signing is enabled.
 * There is no equivalent of the [Git notes](#git-note-based-hydration-state-tracking) the hydrator uses to track the
   hydration state in Git.
-* The commit server serializes pushes to a tag per replica only. Each tag should be hydrated by a single Argo CD
-  instance.
+* A registry accepts whichever push to a tag arrives last. Pushes are only serialized within one commit server replica
+  and one application controller shard. If the Applications of a tag are spread over controller shards, or over Argo
+  CD instances, two hydrations of different dry commits can race, and the tag can be left holding the older manifests
+  until its next hydration. Each tag should be hydrated by a single Argo CD instance.
+* In an ApplicationSet template, `syncSource.path` can only be the root if the template's `syncSource.repoURL` starts
+  with a literal `oci://`, for example `oci://myreg.io/myorg/{{.name}}`. The template is validated before it is
+  rendered, so a `repoURL` which is entirely a template expression is not recognized as an OCI repository.
 
 ## Source Configuration Options
 

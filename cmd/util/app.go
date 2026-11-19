@@ -873,10 +873,15 @@ func constructSourceHydrator(h *argoappv1.SourceHydrator, appOpts AppOptions, fl
 			h.SyncSource.Path = appOpts.syncSourcePath
 		case "sync-source-repo":
 			ensureNotNil(appOpts.syncSourceRepo != "")
-			h.SyncSource.RepoURL = appOpts.syncSourceRepo
+			// There is nothing to clear when the application has no source hydrator.
+			if h != nil {
+				h.SyncSource.RepoURL = appOpts.syncSourceRepo
+			}
 		case "sync-source-revision":
 			ensureNotNil(appOpts.syncSourceRevision != "")
-			h.SyncSource.TargetRevision = appOpts.syncSourceRevision
+			if h != nil {
+				h.SyncSource.TargetRevision = appOpts.syncSourceRevision
+			}
 		case "hydrate-to-branch":
 			ensureNotNil(appOpts.hydrateToBranch != "")
 			if appOpts.hydrateToBranch == "" {

@@ -435,6 +435,13 @@ func Test_setAppSpecOptions(t *testing.T) {
 		require.NoError(t, f.SetFlag("hydrate-to-branch", ""))
 		assert.Nil(t, f.spec.SourceHydrator.HydrateTo)
 	})
+	t.Run("clearing a sync source flag without a source hydrator", func(t *testing.T) {
+		for _, flag := range []string{"sync-source-repo", "sync-source-revision"} {
+			f := newAppOptionsFixture()
+			require.NoError(t, f.SetFlag(flag, ""))
+			assert.Nil(t, f.spec.SourceHydrator, "flag %s", flag)
+		}
+	})
 }
 
 func newMultiSourceAppOptionsFixture() *appOptionsFixture {

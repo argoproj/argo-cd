@@ -173,10 +173,15 @@ func (h *Hydrator) ProcessAppHydrateQueueItem(origApp *appv1.Application) {
 
 func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 	hydrateToSource := app.Spec.GetHydrateToSource()
+	destinationRepoURL := git.NormalizeGitURLAllowInvalid(hydrateToSource.RepoURL)
+	if hydrateToSource.IsOCI() {
+		// The git normalization strips a ".git" suffix, which is a legitimate part of an OCI repository name.
+		destinationRepoURL = strings.ToLower(strings.TrimSpace(hydrateToSource.RepoURL))
+	}
 	key := types.HydrationQueueKey{
 		SourceRepoURL:        git.NormalizeGitURLAllowInvalid(app.Spec.SourceHydrator.DrySource.RepoURL),
 		SourceTargetRevision: app.Spec.SourceHydrator.DrySource.TargetRevision,
-		DestinationRepoURL:   git.NormalizeGitURLAllowInvalid(hydrateToSource.RepoURL),
+		DestinationRepoURL:   destinationRepoURL,
 		DestinationBranch:    hydrateToSource.TargetRevision,
 	}
 	return key
@@ -503,13 +508,13 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	paths := []*commitclient.PathDetails{pathDetails}
 	logCtx = logCtx.WithFields(log.Fields{"drySha": targetRevision})
 	// De-dupe, if the drySha was already hydrated log a debug and return using the data from the last successful hydration run.
-	// We only inspect one app. If apps have been added/removed, that will be handled on the next DRY commit.
+	// For git, we only inspect one app. If apps have been added/removed, that will be handled on the next DRY commit.
 	if lastSuccessful := apps[0].Status.SourceHydrator.LastSuccessfulOperation; lastSuccessful != nil && targetRevision == lastSuccessful.DrySHA {
-		// The last successful hydration only says something about the destination it pushed to. An OCI tag is
-		// expected to exist as soon as it is configured, so when the hydrator configuration has changed since then
-		// (e.g. a new tag, or a move from git to OCI) the manifests must be pushed even though the DRY commit is the
-		// same.
-		if !hydrateToSource.IsOCI() || lastSuccessful.SourceHydrator.DeepEquals(*apps[0].Spec.SourceHydrator) {
+		// Pushing an OCI tag replaces the whole artifact, and the tag is expected to exist as soon as it is
+		// configured. So one application which was added to the tag or reconfigured since it was last hydrated
+		// (e.g. a new path, a new tag, or a move from git to OCI) means the manifests must be pushed even though
+		// the DRY commit is the same.
+		if !hydrateToSource.IsOCI() || allHydratedTo(apps, targetRevision, lastSuccessful.HydratedSHA) {
 			logCtx.Debug("Skipping hydration since the DRY commit was already hydrated")
 			return targetRevision, lastSuccessful.HydratedSHA, nil, nil
 		}
@@ -619,6 +624,21 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 		return targetRevision, "", errors, fmt.Errorf("failed to commit hydrated manifests: %w", err)
 	}
 	return targetRevision, resp.HydratedSha, errors, nil
+}
+
+// allHydratedTo returns true if the last successful hydration of every application was a hydration of the given DRY
+// commit to the given revision, with the source hydrator configuration the application has now.
+func allHydratedTo(apps []*appv1.Application, drySHA, hydratedSHA string) bool {
+	for _, app := range apps {
+		lastSuccessful := app.Status.SourceHydrator.LastSuccessfulOperation
+		if lastSuccessful == nil ||
+			lastSuccessful.DrySHA != drySHA ||
+			lastSuccessful.HydratedSHA != hydratedSHA ||
+			!lastSuccessful.SourceHydrator.DeepEquals(*app.Spec.SourceHydrator) {
+			return false
+		}
+	}
+	return true
 }
 
 // getManifests gets the manifests for the given application and target revision. It returns the resolved revision

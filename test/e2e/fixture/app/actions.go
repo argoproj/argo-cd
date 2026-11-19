@@ -266,7 +266,7 @@ func (a *Actions) prepareCreateAppArgs(args []string) []string {
 		"app", "create", a.context.AppQualifiedName(),
 	}, args...)
 
-	if a.context.drySourceRevision != "" || a.context.drySourcePath != "" || a.context.syncSourcePath != "" || a.context.syncSourceBranch != "" || a.context.hydrateToBranch != "" {
+	if a.context.drySourceRevision != "" || a.context.drySourcePath != "" || a.context.syncSourcePath != "" || a.context.syncSourceBranch != "" || a.context.syncSourceRepo != "" || a.context.syncSourceRevision != "" || a.context.hydrateToBranch != "" {
 		args = append(args, "--dry-source-repo", fixture.RepoURL(a.context.repoURLType))
 	} else {
 		var repo string

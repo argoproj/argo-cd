@@ -33,6 +33,19 @@ Let the Source Hydrator publish hydrated manifests as an OCI artifact, and let t
   looking at where it hydrated to. For OCI destinations this proposal makes the skip conditional on the hydrator
   configuration being unchanged, so that pointing an Application at a new tag creates that tag right away. Git
   destinations keep today's behaviour. Should Git be aligned?
+* **Ordering pushes to a tag.** A registry accepts whichever push to a tag arrives last, so an older hydration can
+  replace a newer one when two controller shards hydrate the same tag at once (see
+  [Concurrent pushes](#concurrent-pushes)). Candidate mechanisms are to have exactly one shard hydrate a hydration
+  group, or to verify what the tag points to after the push and retry. Which one, and whether it is needed for a first
+  iteration, should be settled in review.
+* **Admission checks for ApplicationSet templates.** The CEL rule on `syncSource` (see [API changes](#api-changes)) is
+  also part of the ApplicationSet CRD, where it sees the template before it is rendered. A template whose `repoURL` is
+  entirely a template expression is therefore treated as Git and cannot use the root path; keeping the `oci://` prefix
+  literal in the template avoids this. Relatedly, `targetBranch` is no longer required by the schema, so a Git sync
+  source without it is rejected by spec validation instead of at admission. Adding CEL rules for both was tried, and
+  the resulting ApplicationSet CRD did not pass the API server's CRD validation; the cause was not established, but the
+  rules are repeated under every generator of that CRD. One way out is to not emit these rules into the ApplicationSet
+  CRD and rely on the generated Applications being validated.
 
 ## Summary
 
@@ -332,8 +345,9 @@ not.
 * The commit request carries the tag and no sync branch, and the returned digest is stored in `hydratedSHA`.
 * A dry commit that was already hydrated is pushed again when the hydrator configuration has changed since, so a newly
   configured tag exists as soon as it is configured.
-* Syncing needs no new code path. The sync source becomes an ordinary `oci://` `ApplicationSource` with the tag as its
-  `targetRevision`, which existing OCI support resolves and extracts.
+* Syncing reuses the existing OCI support: the sync source is an ordinary `oci://` `ApplicationSource` with the tag as
+  its `targetRevision`. One change is needed in the API server, which resolved the revision to sync as if the sync
+  source were the same kind of repository as the dry source.
 
 #### Testing
 
@@ -415,27 +429,45 @@ Two Applications with the same dry repository and dry target revision may publis
 its own non-root path. Both paths end up in the one artifact:
 
 ```yaml
-# Application "guestbook-dev"
-sourceHydrator:
-  drySource:
-    repoURL: https://github.com/argoproj/argocd-example-apps.git
-    targetRevision: HEAD
-    path: guestbook
-  syncSource:
-    repoURL: oci://myreg.io/myorg/argo-cd-example
-    targetRevision: dev
-    path: guestbook
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: guestbook-dev
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+    syncSource:
+      repoURL: oci://myreg.io/myorg/argo-cd-example
+      targetRevision: dev
+      path: guestbook
 ---
-# Application "helm-guestbook-dev"
-sourceHydrator:
-  drySource:
-    repoURL: https://github.com/argoproj/argocd-example-apps.git
-    targetRevision: HEAD
-    path: helm-guestbook
-  syncSource:
-    repoURL: oci://myreg.io/myorg/argo-cd-example
-    targetRevision: dev
-    path: helm-guestbook
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: helm-guestbook-dev
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: helm-guestbook
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: helm-guestbook
+    syncSource:
+      repoURL: oci://myreg.io/myorg/argo-cd-example
+      targetRevision: dev
+      path: helm-guestbook
 ```
 
 A third Application that targets `oci://myreg.io/myorg/argo-cd-example` at `dev` from a different dry repository or dry
@@ -480,12 +512,27 @@ Application status rather than the artifact.
 
 #### Concurrent pushes
 
-The commit server's lock is per replica. Git covers the cross-replica case by rejecting non-fast-forward pushes; a
-registry has no such rejection, so two replicas pushing the same tag is last-writer-wins.
+Git rejects a push which is not a fast-forward, so of two hydrations racing for one branch, the one based on the older
+state fails and is retried. A registry has no such check: whichever push to a tag arrives last wins, and nothing in
+this proposal orders pushes by dry commit.
 
-Mitigation: archives are deterministic, so concurrent pushes for the same input produce the same content and the race
-is harmless. The ownership rule keeps different inputs away from one tag, but it is only enforced within one Argo CD
-instance. As with Git branches, a hydrated tag should be owned by a single Argo CD instance.
+Pushes to one tag are serialized in two places, and neither covers every case:
+
+* The commit server locks per repository and tag, but only within one replica.
+* The controller never hydrates one hydration group twice at the same time, but only within one controller shard. The
+  Applications of a group may be spread over shards, and every shard that owns one of them hydrates the whole group.
+
+The exposure is therefore two controller shards (or two Argo CD instances) hydrating the same tag at the same time
+after resolving the dry revision to different commits. If the push for the older commit arrives last, the tag holds the
+older manifests while Application status may already report the newer dry commit. Nothing notices the difference
+until the next hydration of the tag, for example the next dry commit or a hard refresh.
+
+Concurrent pushes of the same dry commit are harmless: archives are deterministic, so they produce the same artifact.
+The [ownership rule](#tag-ownership) keeps different dry sources away from one tag within one Argo CD instance.
+
+Mitigation: this is documented as a limitation, and a tag should be hydrated by a single Argo CD instance. Closing the
+window needs a mechanism that holds across controller shards and commit server replicas, which is an
+[open question](#open-questions).
 
 #### Tag mutability
 
