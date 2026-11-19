@@ -600,7 +600,7 @@ To enable hooks during partial syncs, use the `RunHooksOnPartialSync=true` sync 
 
 ```bash
 # Sync a specific resource while also running hooks
-argocd app sync my-app --resource :Deployment:guestbook-ui --sync-option RunHooksOnPartialSync=true
+argocd app sync my-app --resource apps:Deployment:guestbook-ui --sync-option RunHooksOnPartialSync=true
 ```
 
 This option can also be set at the Application level:
