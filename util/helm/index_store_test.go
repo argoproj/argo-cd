@@ -41,7 +41,7 @@ func TestIndexStoreSetGetRoundTrip(t *testing.T) {
 
 	got, err := store.Get("https://charts.example.com")
 	require.NoError(t, err)
-	assert.Equal(t, data, []byte(got))
+	assert.Equal(t, data, got)
 }
 
 func TestIndexStoreFreshnessExpiry(t *testing.T) {
@@ -59,7 +59,7 @@ func TestIndexStoreFreshnessExpiry(t *testing.T) {
 	require.NoError(t, os.Chtimes(path, stale, stale))
 
 	_, err = store.Get("https://charts.example.com")
-	assert.Error(t, err, "fresh Get must miss past expiration")
+	require.Error(t, err, "fresh Get must miss past expiration")
 
 	retained, err := store.GetRetained("https://charts.example.com")
 	require.NoError(t, err)

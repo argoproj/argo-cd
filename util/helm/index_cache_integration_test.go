@@ -35,7 +35,6 @@ type regressionChartRepo struct {
 	server   *httptest.Server
 	mu       sync.Mutex
 	version  string
-	password string
 	requests []regressionIndexRequest
 	archives int
 	packages map[string][]byte

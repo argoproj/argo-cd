@@ -571,14 +571,13 @@ func (s *IndexStore) installRecord(identity string, record *HelmIndexRecord) boo
 // (generation tokens, body/reference split, retirement on ambiguity) arrives
 // in the fencing slice; until then a failed share is logged and the disk
 // record remains the source of truth.
-func (s *IndexStore) publishFetchedRecord(ctx context.Context, identity string, record *HelmIndexRecord) bool {
+func (s *IndexStore) publishFetchedRecord(ctx context.Context, identity string, record *HelmIndexRecord) {
 	if s.cache != nil {
 		if err := s.cache.SetHelmIndexRetainedRecord(identity, record); err != nil {
 			log.WithError(err).Debug("failed to share helm index record with the shared cache")
 		}
 	}
-	_ = ctx
-	return s.installRecord(identity, record)
+	s.installRecord(identity, record)
 }
 
 // The caller holds the exclusive record lock. Do not retire an unrelated

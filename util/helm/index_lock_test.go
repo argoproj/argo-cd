@@ -19,10 +19,8 @@ func TestIndexRecordLockSerializesWriters(t *testing.T) {
 
 	done := make(chan struct{})
 	var wg sync.WaitGroup
-	for i := 0; i < 8; i++ {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+	for range 8 {
+		wg.Go(func() {
 			unlock, err := acquireIndexLock(t.Context(), record, false, true)
 			require.NoError(t, err)
 			mu.Lock()
@@ -36,7 +34,7 @@ func TestIndexRecordLockSerializesWriters(t *testing.T) {
 			concurrent--
 			mu.Unlock()
 			unlock()
-		}()
+		})
 	}
 	go func() { wg.Wait(); close(done) }()
 	select {
@@ -64,20 +62,20 @@ func TestReadIndexRecordStateRoundTrip(t *testing.T) {
 	require.NoError(t, os.WriteFile(record, []byte("{}"), 0o600))
 
 	_, err := readIndexRecordState(record)
-	assert.Error(t, err, "missing state file must read as invalid")
+	require.Error(t, err, "missing state file must read as invalid")
 
 	// Invalidation writes the '!' marker; readers reject the record.
 	require.NoError(t, writeIndexRecordState(record, ""))
 	_, err = readIndexRecordState(record)
-	assert.Error(t, err, "invalidated state must reject reads")
+	require.Error(t, err, "invalidated state must reject reads")
 
-	require.NoError(t, writeIndexRecordState(record, strings_Repeat("f", 64)))
+	require.NoError(t, writeIndexRecordState(record, stringsRepeat("f", 64)))
 	digest, err := readIndexRecordState(record)
 	require.NoError(t, err)
-	assert.Equal(t, strings_Repeat("f", 64), digest)
+	assert.Equal(t, stringsRepeat("f", 64), digest)
 }
 
-func strings_Repeat(s string, n int) string {
+func stringsRepeat(s string, n int) string {
 	out := make([]rune, 0, n*len(s))
 	for range n {
 		out = append(out, []rune(s)...)
@@ -90,18 +88,18 @@ func TestWriteIndexRecordStateInvalidateThenCommit(t *testing.T) {
 	record := filepath.Join(dir, "dddddddd.json")
 	require.NoError(t, os.WriteFile(record, []byte("{}"), 0o600))
 
-	require.NoError(t, writeIndexRecordState(record, strings_Repeat("a", 64)))
+	require.NoError(t, writeIndexRecordState(record, stringsRepeat("a", 64)))
 	digest, err := readIndexRecordState(record)
 	require.NoError(t, err)
-	assert.Equal(t, strings_Repeat("a", 64), digest)
+	assert.Equal(t, stringsRepeat("a", 64), digest)
 
 	// Invalidate: readers must reject the record until it is committed again.
 	require.NoError(t, writeIndexRecordState(record, ""))
 	_, err = readIndexRecordState(record)
-	assert.Error(t, err, "invalidated state must reject reads")
+	require.Error(t, err, "invalidated state must reject reads")
 
-	require.NoError(t, writeIndexRecordState(record, strings_Repeat("b", 64)))
+	require.NoError(t, writeIndexRecordState(record, stringsRepeat("b", 64)))
 	digest, err = readIndexRecordState(record)
 	require.NoError(t, err)
-	assert.Equal(t, strings_Repeat("b", 64), digest)
+	assert.Equal(t, stringsRepeat("b", 64), digest)
 }
