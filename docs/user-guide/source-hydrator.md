@@ -116,6 +116,14 @@ repository. The `drySource` field tells Argo CD where your original, unrendered 
 This can be a Helm chart, a Kustomize directory, or plain manifests. Argo CD reads this source, renders the final Kubernetes
 manifests from it, and then writes those hydrated manifests into the location specified by `syncSource.path`.
 
+> [!IMPORTANT]
+> Inside the path specified by `syncSource.path`, ArgoCD takes ownership of the "manifests/" directory and the
+> "manifest.yaml" file. In case this file or folder already exists, ArgoCD might overwrite/delete them depending
+> on the hydration format.
+> 
+> In case they already exist, please migrate the "manifest.yaml" file or "manifests/" directory within the `syncSource.path`
+> to a different file and/or directory before activating the source hydrator for the `syncSource.path`.
+
 ### Separate destination repository
 
 By default, hydrated manifests are written to the same Git repository as the dry source. Set `syncSource.repoURL` to
@@ -193,14 +201,16 @@ The source hydrator has two different formats which can be used for the manifest
 
     The generated manifests are ordered into a file-structure. Each kubernetes manifest is written as an individual file can be found at the following location relative to the path specified in the `syncSource`: 
 
-    `manifests/<namespace>/<apiVersion>/<lowercaseKind>_<metadataName>.yaml`
+    `normalize(manifests/<namespace>/<apiVersion>/<lowercaseKind>_<metadataName>).yaml`
 
-    where
+    where `normalize` is a simple replacement of "." with "_", and
 
     * `namespace` is either the namespace specified in the generated manifest, or the string `_unnamespaced` in case no namespace is specified
     * `apiVersion` is the apiVersion as specified in the manifest (for example "v1" for Pods and "apps/v1" for Deployments)
     * `lowercaseKind` is the lowercase string representation for the kind (for example "pod" for Pods and "deployment" for Deployments)
     * `metadataName` is the name as specified at '.metadata.name' inside the manifest  
+
+    For example a Kubernetes Rolebinding with name `my-rb` and namespace `my-ns` would be expected to end up in the file `manifests/my-ns/rbac_authorization_k8s_io/v1/rolebinding_my-rb.yaml`
 
 #### Setting the hydration format
 The hydration format can be set using the flag `--hydration-format=<hydrationFormat>` on the **argocd-application-controller**. Instead of using the flag, users can also set the environment variable `ARGOCD_HYDRATION_FORMAT` for the **argocd-application-controller**.

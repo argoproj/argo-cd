@@ -29,7 +29,7 @@ var sprigFuncMap = sprig.GenericFuncMap() // a singleton for better performance
 const gitAttributesContents = `**/README.md linguist-generated=true
 **/hydrator.metadata linguist-generated=true`
 
-const inexistentDirName = "_unnamespaced"
+const unnamespacedDirName = "_unnamespaced"
 
 type manifestMetadata struct {
 	ApiVersion string `json:"apiVersion"`
@@ -278,19 +278,22 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 		}
 
 		// prepare subdirectory
-		namespaceSubDirectory := inexistentDirName
+		namespaceSubDirectory := unnamespacedDirName
 		if metaObj.Metadata.Namespace != "" {
 			namespaceSubDirectory = metaObj.Metadata.Namespace
 		}
 
-		currentManifestDirectoryPath := filepath.Join(manifestsDirectoryPath, namespaceSubDirectory, metaObj.ApiVersion)
+		normalizedNamespaceSubDirectory := strings.ReplaceAll(namespaceSubDirectory, ".", "_")
+		normalizedApiVersion := strings.ReplaceAll(metaObj.ApiVersion, ".", "_")
+
+		currentManifestDirectoryPath := filepath.Join(manifestsDirectoryPath, normalizedNamespaceSubDirectory, normalizedApiVersion)
 		err = ensureDirectoryExists(root, currentManifestDirectoryPath, false)
 		if err != nil {
 			return fmt.Errorf("error while ensuring that directory %s exists: %w", currentManifestDirectoryPath, err)
 		}
 
 		// prepare and write manifest
-		manifestName, err := getSplitManifestName(metaObj)
+		manifestName, err := getNormalizedSplitManifestFileName(metaObj)
 		if err != nil {
 			return fmt.Errorf("error resolving filename for using properties %v:%w", metaObj, err)
 		}
@@ -305,7 +308,7 @@ func writeSplitManifests(root *os.Root, dirPath string, manifests []*apiclient.H
 	return nil
 }
 
-func getSplitManifestName(metaObj *manifestMetadata) (string, error) {
+func getNormalizedSplitManifestFileName(metaObj *manifestMetadata) (string, error) {
 	name := metaObj.Metadata.Name
 	if name == "" {
 		name = metaObj.Metadata.GenerateName
@@ -313,7 +316,8 @@ func getSplitManifestName(metaObj *manifestMetadata) (string, error) {
 	if name == "" {
 		return "", errors.New("cannot derive manifest file name: metadata.name and metadata.generateName are both empty")
 	}
-	return fmt.Sprintf("%s_%s.yaml", strings.ToLower(metaObj.Kind), name), nil
+	normalizedName := strings.ReplaceAll(fmt.Sprintf("%s_%s", strings.ToLower(metaObj.Kind), name), ".", "_")
+	return normalizedName + ".yaml", nil
 }
 
 func ensureDirectoryExists(root *os.Root, directoryPath string, recreate bool) error {

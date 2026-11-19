@@ -114,28 +114,85 @@ func TestWriteForPaths_WithSplitHydrationFormat(t *testing.T) {
 
 	repoURL := "https://github.com/example/repo"
 	drySha := "abc123"
-	paths := []*apiclient.PathDetails{
+	tests := []struct {
+		pathDetails            apiclient.PathDetails
+		expectedOutputFilePath string
+	}{
 		{
-			Path: "path1",
-			Manifests: []*apiclient.HydratedManifestDetails{
-				{ManifestJSON: `{"kind":"Pod","apiVersion":"v1","metadata":{"name":"test-pod","namespace":"test-ns"}}`},
+			expectedOutputFilePath: "manifests/test-ns/v1/pod_test-pod.yaml",
+			pathDetails: apiclient.PathDetails{
+				Path: "path1",
+				Manifests: []*apiclient.HydratedManifestDetails{
+					{ManifestJSON: `{"kind":"Pod","apiVersion":"v1","metadata":{"name":"test-pod","namespace":"test-ns"}}`},
+				},
+				Commands: []string{"command1", "command2"},
 			},
-			Commands: []string{"command1", "command2"},
 		},
 		{
-			Path: "path2",
-			Manifests: []*apiclient.HydratedManifestDetails{
-				{ManifestJSON: `{"kind":"Service","apiVersion":"v1","metadata":{"name":"test-service","namespace":"test-ns"}}`},
+			expectedOutputFilePath: "manifests/test-ns/v1/service_test-service.yaml",
+			pathDetails: apiclient.PathDetails{
+				Path: "path2",
+				Manifests: []*apiclient.HydratedManifestDetails{
+					{ManifestJSON: `{"kind":"Service","apiVersion":"v1","metadata":{"name":"test-service","namespace":"test-ns"}}`},
+				},
+				Commands: []string{"command3"},
 			},
-			Commands: []string{"command3"},
 		},
 		{
-			Path: "path3/nested",
-			Manifests: []*apiclient.HydratedManifestDetails{
-				{ManifestJSON: `{"kind":"Deployment","apiVersion":"apps/v1","metadata":{"name":"test-deployment"}}`},
+			expectedOutputFilePath: "manifests/_unnamespaced/apps/v1/deployment_test-deployment.yaml",
+			pathDetails: apiclient.PathDetails{
+				Path: "path3/nested",
+				Manifests: []*apiclient.HydratedManifestDetails{
+					{ManifestJSON: `{"kind":"Deployment","apiVersion":"apps/v1","metadata":{"name":"test-deployment"}}`},
+				},
+				Commands: []string{"command4"},
 			},
-			Commands: []string{"command4"},
 		},
+		{
+			expectedOutputFilePath: "manifests/_unnamespaced/rbac_authorization_k8s_io/v1/rolebinding_test-rolebinding.yaml",
+			pathDetails: apiclient.PathDetails{
+				Path: "path4",
+				Manifests: []*apiclient.HydratedManifestDetails{
+					{ManifestJSON: `{"kind":"RoleBinding","apiVersion":"rbac.authorization.k8s.io/v1","metadata":{"name":"test-rolebinding"}}`},
+				},
+				Commands: []string{"command5"},
+			},
+		},
+		{
+			expectedOutputFilePath: "manifests/test-ns/__/abc/v1/pod_test-pod.yaml",
+			pathDetails: apiclient.PathDetails{
+				Path: "path5",
+				Manifests: []*apiclient.HydratedManifestDetails{
+					{ManifestJSON: `{"kind":"Pod","apiVersion":"v1","metadata":{"name":"test-pod","namespace":"test-ns/../abc"}}`},
+				},
+				Commands: []string{"command1", "command2"},
+			},
+		},
+		{
+			expectedOutputFilePath: "manifests/test-ns/my_api_version/v1/abcdef_test-pod.yaml",
+			pathDetails: apiclient.PathDetails{
+				Path: "path6",
+				Manifests: []*apiclient.HydratedManifestDetails{
+					{ManifestJSON: `{"kind":"Abcdef","apiVersion":"my.api.version/v1","metadata":{"name":"test-pod","namespace":"test-ns"}}`},
+				},
+				Commands: []string{"command1", "command2"},
+			},
+		},
+		{
+			expectedOutputFilePath: "manifests/test-ns/__/my_api_version/abcdef_test-pod.yaml",
+			pathDetails: apiclient.PathDetails{
+				Path: "path7",
+				Manifests: []*apiclient.HydratedManifestDetails{
+					{ManifestJSON: `{"kind":"Abcdef","apiVersion":"../my.api.version","metadata":{"name":"test-pod","namespace":"test-ns"}}`},
+				},
+				Commands: []string{"command1", "command2"},
+			},
+		},
+	}
+
+	var paths []*apiclient.PathDetails
+	for _, test := range tests {
+		paths = append(paths, &test.pathDetails)
 	}
 
 	now := metav1.NewTime(time.Now())
@@ -160,7 +217,7 @@ Argocd-reference-commit-sha: abc123
 		},
 	}
 	mockGitClient := gitmocks.NewClient(t)
-	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Times(len(paths))
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Times(len(tests))
 
 	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate, common.HydrationFormatSplit)
 	require.NoError(t, err)
@@ -183,8 +240,8 @@ Argocd-reference-commit-sha: abc123
 	assert.Equal(t, metadata.Date.Format(time.RFC3339), topMetadata.Date)
 	assert.Equal(t, metadata.References, topMetadata.References)
 
-	for _, p := range paths {
-		fullHydratePath := filepath.Join(root.Name(), p.Path)
+	for _, tc := range tests {
+		fullHydratePath := filepath.Join(root.Name(), tc.pathDetails.Path)
 
 		// Check if each path directory exists
 		assert.DirExists(t, fullHydratePath)
@@ -208,21 +265,13 @@ Argocd-reference-commit-sha: abc123
 		manifestsPath := path.Join(fullHydratePath, "manifests")
 		assert.DirExists(t, manifestsPath)
 
-		for _, m := range p.Manifests {
+		for _, m := range tc.pathDetails.Manifests {
 			metaObj := manifestMetadata{}
 			err := json.Unmarshal([]byte(m.ManifestJSON), &metaObj)
 			require.NoError(t, err)
-			namespace := inexistentDirName
-			if metaObj.Metadata.Namespace != "" {
-				namespace = metaObj.Metadata.Namespace
-			}
-			currentManifestDirectoryPath := filepath.Join(manifestsPath, namespace, metaObj.ApiVersion)
-			assert.DirExists(t, currentManifestDirectoryPath)
-			manifestName, err := getSplitManifestName(&metaObj)
-			require.NoError(t, err)
-			currentManifestPath := filepath.Join(currentManifestDirectoryPath, manifestName)
-			assert.FileExists(t, currentManifestPath)
-			manifestBytes, err := os.ReadFile(currentManifestPath)
+			pathToManifest := filepath.Join(fullHydratePath, tc.expectedOutputFilePath)
+			assert.FileExists(t, pathToManifest)
+			manifestBytes, err := os.ReadFile(pathToManifest)
 			require.NoError(t, err)
 			assert.Contains(t, string(manifestBytes), "kind")
 		}
