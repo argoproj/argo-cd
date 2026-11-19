@@ -439,7 +439,12 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 		readDone := make(chan cacheRead, 1)
 		go func() {
 			var cached []byte
-			readDone <- cacheRead{body: cached, err: c.indexCache.GetHelmIndex(repoKey, &cached)}
+			err := c.indexCache.GetHelmIndex(repoKey, &cached)
+			// Capture the result only after the read completes: evaluating
+			// body: cached inside the composite literal would race the same
+			// call that mutates cached, and a successful read could publish
+			// a stale nil body.
+			readDone <- cacheRead{body: cached, err: err}
 		}()
 		var readResult cacheRead
 		select {
