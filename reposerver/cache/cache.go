@@ -203,7 +203,7 @@ func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error 
 }
 
 func helmIndexRefsKey(repo string) string {
-	return "helm-index|" + repo
+	return "helm-index|" + cryptoutil.CredentialScope("helm-index-mirror-v1", repo)
 }
 
 // The v3 record keys isolate credentialed fetches from anonymous ones: the

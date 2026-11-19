@@ -1073,3 +1073,13 @@ func TestHelmIndexRecord(t *testing.T) {
 		assert.Equal(t, helm.DefaultIndexCacheExpiration, cache.GetHelmIndexCacheExpiration())
 	})
 }
+
+// CR follow-up: the legacy body mirror must not leak credentialed bodies
+// across credential views — its key carries the credential fingerprint.
+func TestLegacyMirrorKeyIsCredentialScoped(t *testing.T) {
+	assert.NotEqual(t,
+		helmIndexRefsKey("https://charts.example.com"),
+		helmIndexRefsKey("https://charts.example.com\x00authuser"),
+		"mirror keys must differ when the credential view differs")
+	assert.Contains(t, helmIndexRefsKey("https://charts.example.com"), "argon2id-v1:")
+}

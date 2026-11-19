@@ -548,6 +548,15 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string,
 				// Identical locally validated bytes need no second parse/hash,
 				// but different shared bytes must be validated.
 				matchingBody := newest != nil && bytes.Equal(newest.Body, record.Body)
+				// Never replace a validated newer local record with an older
+				// shared one (e.g. a Redis write of A landing after a hard
+				// refresh published B to disk).
+				if !matchingBody && newest != nil && !needsLocalDigest {
+					localAt, localErr := time.Parse(time.RFC3339Nano, newest.StoredAt)
+					if localErr == nil && validatedAt.Before(localAt) {
+						return newest, false
+					}
+				}
 				if matchingBody || validateIndexBody(record.Body) == nil {
 					fromShared = needsLocalDigest || !matchingBody || newest.ETag != record.ETag || newest.LastModified != record.LastModified || newest.URLIdentity != record.URLIdentity || newest.Generation != record.Generation || persistedStoredAt != record.StoredAt
 					newest = record
@@ -573,8 +582,20 @@ func (s *IndexStore) installRecord(identity string, record *HelmIndexRecord) boo
 // record remains the source of truth.
 func (s *IndexStore) publishFetchedRecord(ctx context.Context, identity string, record *HelmIndexRecord) {
 	if s.cache != nil {
-		if err := s.cache.SetHelmIndexRetainedRecord(identity, record); err != nil {
-			log.WithError(err).Debug("failed to share helm index record with the shared cache")
+		// The exclusive record lock must not pin this process on a slow
+		// shared-cache write: bound it by the same budget as record reads.
+		// The disk publication below remains the source of truth either way.
+		writeContext, cancel := observeIndexReadContext(ctx)
+		defer cancel()
+		done := make(chan error, 1)
+		go func() { done <- s.cache.SetHelmIndexRetainedRecord(identity, record) }()
+		select {
+		case err := <-done:
+			if err != nil {
+				log.WithError(err).Debug("failed to share helm index record with the shared cache")
+			}
+		case <-writeContext.Done():
+			log.WithError(writeContext.Err()).Debug("timed out sharing helm index record with the shared cache")
 		}
 	}
 	s.installRecord(identity, record)

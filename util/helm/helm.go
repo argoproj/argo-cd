@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
@@ -177,12 +178,16 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		if !ok {
 			client := h.nativeChartClientWithCreds(repo, snap, scope)
 			clients[identity] = client
+			// Bound each store fetch so one slow origin cannot hold the whole
+			// dependency build (and the per-identity lock) indefinitely.
+			fetchContext, cancelFetch := indexFetchContext(ctx)
 			if h.forceRefresh {
-				data, err = h.cmd.persistentIndexStore.ForceRefresh(ctx, identity, client)
+				data, err = h.cmd.persistentIndexStore.ForceRefresh(fetchContext, identity, client)
 				fetched[identity] = true
 			} else {
-				data, fetched[identity], err = h.cmd.persistentIndexStore.revalidate(ctx, identity, client, false)
+				data, fetched[identity], err = h.cmd.persistentIndexStore.revalidate(fetchContext, identity, client, false)
 			}
+			cancelFetch()
 			if err != nil {
 				return fmt.Errorf("%s is not a valid chart repository or cannot be reached: %w", repo.Repo, err)
 			}
@@ -615,4 +620,19 @@ func (h *helm) nativeChartClientWithCreds(repo HelmRepository, creds Creds, scop
 	client := NewClientWithLock(repo.Repo, creds, globalLock, false, h.cmd.proxy, h.cmd.noProxy).(*nativeHelmChart)
 	client.indexCacheScope = scope
 	return client
+}
+
+// indexFetchContext bounds one store fetch (origin request + publication) by
+// a fixed budget, never extending past the caller's own deadline. Dependency
+// builds have generous timeouts, but a hung origin must not consume them all
+// on the first repository.
+func indexFetchContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	const indexFetchBudget = 30 * time.Second
+	budget := indexFetchBudget
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining < budget {
+			budget = remaining
+		}
+	}
+	return context.WithTimeout(ctx, budget)
 }
