@@ -47,9 +47,14 @@ const CustomBanner = (props: {
     );
 };
 
+export const bannerRefetchInterval = 5 * 60 * 1000;
+
 export const Banner = (props: React.PropsWithChildren<{}>) => {
-    const [visible, setVisible] = React.useState(true);
-    const {data: settings, isError, refetch} = useQuery(settingsQueries.get());
+    // "Dismiss for now" hides only the content dismissed, so a changed banner shows again.
+    const [dismissed, setDismissed] = React.useState<string>(null);
+    // The banner stays mounted across pages, so poll to pick up banner changes made on the server. Silent:
+    // a failed refresh keeps the current banner, and a failed first load already renders loadFailed.
+    const {data: settings, isError, refetch} = useQuery({...settingsQueries.get(), refetchInterval: bannerRefetchInterval, meta: {silent: true}});
     const prefs = useViewPreferences();
     const hideBannerContent = prefs.hideBannerContent;
     const content = settings?.uiBannerContent;
@@ -62,6 +67,8 @@ export const Banner = (props: React.PropsWithChildren<{}>) => {
     if (!settings) {
         return isError ? loadFailed(refetch) : loading;
     }
+    const visible = dismissed !== content;
+    const setVisible = (v: boolean) => setDismissed(v ? null : content);
     const url = settings.uiBannerURL;
     const permanent = settings.uiBannerPermanent;
     const chatText = settings.help.chatText;

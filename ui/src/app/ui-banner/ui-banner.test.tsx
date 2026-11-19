@@ -3,8 +3,9 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
+import {newQueryClient} from '../shared/query-client';
 import {services} from '../shared/services';
-import {Banner} from './ui-banner';
+import {Banner, bannerRefetchInterval} from './ui-banner';
 
 jest.mock('argo-ui', () => ({...jest.requireActual('argo-ui'), Tooltip: (props: {children: React.ReactNode}) => props.children}));
 jest.mock('../shared/services', () => {
@@ -16,9 +17,9 @@ const content = 'Maintenance on Saturday';
 
 const mockSettings = (settings: object) => jest.mocked(services.authService.settings).mockResolvedValue({help: {}, ...settings} as any);
 
-const renderBanner = () =>
+const renderBanner = (client: QueryClient = new QueryClient({defaultOptions: {queries: {retry: false}}})) =>
     render(
-        <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
+        <QueryClientProvider client={client}>
             <Banner>
                 <div>app content</div>
             </Banner>
@@ -132,5 +133,38 @@ describe('Banner', () => {
         expect(screen.queryByText('Loading...')).not.toBeInTheDocument();
         expect(screen.getByText(content)).toBeInTheDocument();
         expect(services.authService.settings).toHaveBeenCalledTimes(2);
+    });
+
+    describe('polling', () => {
+        beforeEach(() => jest.useFakeTimers());
+        afterEach(() => jest.useRealTimers());
+
+        const nextPoll = () => act(() => jest.advanceTimersByTimeAsync(bannerRefetchInterval));
+
+        it('picks up a changed banner, showing it again after "Dismiss for now"', async () => {
+            mockSettings({uiBannerContent: content});
+            renderBanner();
+            fireEvent.click(await screen.findByText('Dismiss for now'));
+            expect(bannerVisibility()).toBe('hidden');
+
+            mockSettings({uiBannerContent: 'Maintenance moved to Sunday'});
+            await nextPoll();
+
+            expect(screen.getByText('Maintenance moved to Sunday').closest('.ui-banner')).toHaveStyle({visibility: 'visible'});
+        });
+
+        it('keeps the banner without an error notification when a refresh fails', async () => {
+            const notifications = {show: jest.fn()};
+            mockSettings({uiBannerContent: content});
+            renderBanner(newQueryClient(notifications as any));
+            await screen.findByText(content);
+
+            jest.mocked(services.authService.settings).mockRejectedValue(new Error('boom'));
+            await nextPoll();
+
+            expect(services.authService.settings).toHaveBeenCalledTimes(2);
+            expect(bannerVisibility()).toBe('visible');
+            expect(notifications.show).not.toHaveBeenCalled();
+        });
     });
 });
