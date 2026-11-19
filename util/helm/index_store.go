@@ -580,11 +580,16 @@ func (s *IndexStore) publishFetchedRecord(ctx context.Context, identity string, 
 	if s.cache != nil {
 		// The exclusive record lock must not pin this process on a slow
 		// shared-cache write: bound it by the same budget as record reads.
-		// The disk publication below remains the source of truth either way.
+		// The writer gets its own record copy — SetHelmIndexRetainedRecord
+		// fills BodyDigest on the passed value, and a timed-out write must
+		// never race installRecord's read of the local record. Body bytes
+		// stay shared because neither path mutates them. The disk
+		// publication below remains the source of truth either way.
+		sharedRecord := *record
 		writeContext, cancel := observeIndexReadContext(ctx)
 		defer cancel()
 		done := make(chan error, 1)
-		go func() { done <- s.cache.SetHelmIndexRetainedRecord(identity, record) }()
+		go func() { done <- s.cache.SetHelmIndexRetainedRecord(identity, &sharedRecord) }()
 		select {
 		case err := <-done:
 			if err != nil {

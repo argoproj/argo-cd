@@ -428,20 +428,31 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 	if !noCache && c.indexCache != nil {
 		// The per-key lock above must not pin this request on a slow cache:
 		// the raw CacheClient interface has no ctx-aware Get, so abandon the
-		// read past the shared read budget (the same policy as retained reads).
+		// read past the shared read budget (the same policy as retained
+		// reads). The worker owns its own byte slice — a late cache result
+		// must never overwrite the origin body in `data`.
 		readContext, cancelRead := observeIndexReadContext(ctx)
-		readDone := make(chan error, 1)
-		go func() { readDone <- c.indexCache.GetHelmIndex(repoKey, &data) }()
+		type cacheRead struct {
+			body []byte
+			err  error
+		}
+		readDone := make(chan cacheRead, 1)
+		go func() {
+			var cached []byte
+			readDone <- cacheRead{body: cached, err: c.indexCache.GetHelmIndex(repoKey, &cached)}
+		}()
+		var readResult cacheRead
 		select {
-		case err := <-readDone:
-			if err != nil {
-				data = nil
-			}
+		case readResult = <-readDone:
 		case <-readContext.Done():
 			log.WithError(readContext.Err()).Debug("abandoned slow helm index cache read")
-			data = nil
 		}
 		cancelRead()
+		if readResult.err != nil {
+			data = nil
+		} else if readResult.body != nil {
+			data = readResult.body
+		}
 		if data != nil {
 			var identity string
 			reader, isReader := c.indexCache.(indexCacheRecordReader)
