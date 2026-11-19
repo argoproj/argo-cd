@@ -81,7 +81,7 @@ func TestPublishRecordInvalidatesBeforeTempFile(t *testing.T) {
 	// invalidation step has run. The injected failure models ANY failure
 	// between invalidation and rename (temp file create/write/close).
 	require.NoError(t, os.Chmod(dir, 0o700))
-	store.renameRecord = func(from, to string) error {
+	store.renameRecord = func(_, _ string) error {
 		return errors.New("simulated temp-file stage failure")
 	}
 
