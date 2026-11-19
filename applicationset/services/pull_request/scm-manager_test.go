@@ -104,7 +104,7 @@ func TestScmManagerPrList(t *testing.T) {
 	prs, err := host.List(context.Background())
 	require.NoError(t, err)
 	assert.Len(t, prs, 1)
-	assert.Equal(t, 1, prs[0].Number)
+	assert.Equal(t, int64(1), prs[0].Number)
 	assert.Equal(t, "test_pr", prs[0].Branch)
 	assert.Equal(t, "b4ed814b1afe810c4902bc5590c7b09531296679", prs[0].HeadSHA)
 }
