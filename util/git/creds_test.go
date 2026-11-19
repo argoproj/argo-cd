@@ -1191,6 +1191,26 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		require.NoError(t, err, "should succeed when response arrives within timeout")
 		require.Equal(t, "ghs_slow_ok", token)
 	})
+
+	t.Run("zero gitClientTimeout means no timeout for token requests", func(t *testing.T) {
+		gitClientTimeout = 0
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/access_tokens") {
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_no_timeout"))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL)
+		token, err := creds.getAccessToken()
+
+		require.NoError(t, err, "a zero timeout should mean no timeout, not an already-expired context")
+		require.Equal(t, "ghs_no_timeout", token)
+	})
 }
 
 func TestGitHubAppGetInstallationTransport_DiscoveryHonorsGitClientTimeout(t *testing.T) {

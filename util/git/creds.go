@@ -646,14 +646,15 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 // getAccessToken fetches GitHub token using the app id, install id, and private key.
 // the token is then cached for re-use.
 func (g GitHubAppCreds) getAccessToken() (string, error) {
-	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
-	defer cancel()
-
 	itr, err := g.getInstallationTransport()
 	if err != nil {
 		return "", fmt.Errorf("failed to create GitHub app installation transport: %w", err)
 	}
+
+	// Create the token context only after installation discovery, so time spent
+	// waiting for discovery does not shorten the token request's timeout.
+	ctx, cancel := newGitRequestContext(gitClientTimeout)
+	defer cancel()
 
 	return itr.Token(ctx)
 }
