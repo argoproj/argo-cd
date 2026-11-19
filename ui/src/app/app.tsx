@@ -356,8 +356,7 @@ export class App extends React.Component<
                                                     );
                                                 })}
                                                 {/* One Route for every page with the layout, so the sidebar and banner stay mounted
-                                                    across sections instead of refetching on each change. Its render re-runs on every
-                                                    location change, which the sidebar needs to update the active item. */}
+                                                    across sections instead of refetching on each change. */}
                                                 <Route
                                                     path={layoutPaths}
                                                     render={() => (

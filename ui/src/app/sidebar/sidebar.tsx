@@ -2,6 +2,7 @@ import {useQuery} from '@tanstack/react-query';
 import {Tooltip} from 'argo-ui';
 import {Boundary, Placement} from 'popper.js';
 import * as React from 'react';
+import {useLocation} from 'react-router';
 import {Context} from '../shared/context';
 import {versionQueries} from '../shared/queries';
 import {services, ViewPreferences} from '../shared/services';
@@ -34,7 +35,7 @@ export const useSidebarTarget = () => {
 export const Sidebar = (props: SidebarProps) => {
     const context = React.useContext(Context);
     const {data: version, isPending, isFetching} = useQuery(versionQueries.get());
-    const locationPath = context.history.location.pathname;
+    const locationPath = useLocation().pathname;
 
     const tooltipProps = {
         placement: 'right' as Placement,
