@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"maps"
 	"math"
+	"path/filepath"
 	"reflect"
 	"slices"
 	"sort"
@@ -1371,6 +1372,12 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 				return fmt.Errorf("application %s has duplicate source name: %s", app.Name, source.Name)
 			}
 			sourceNames[source.Name] = true
+		}
+	}
+
+	for _, source := range app.Spec.GetSources() {
+		if p := filepath.Clean(source.Path); p == ".." || strings.HasPrefix(p, ".."+string(filepath.Separator)) {
+			return status.Errorf(codes.InvalidArgument, "application source path %q for %s must not point outside the repository", source.Path, app.Name)
 		}
 	}
 

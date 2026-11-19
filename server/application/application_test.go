@@ -1677,6 +1677,43 @@ func TestCreateAppWithOperation(t *testing.T) {
 	assert.Nil(t, app.Operation)
 }
 
+func TestCreateAppRejectsPathOutsideRepo(t *testing.T) {
+	for _, path := range []string{"..", "../other", "apps/../../other"} {
+		appServer := newTestAppServer(t)
+		testApp := newTestApp()
+		testApp.Spec.Source.Path = path
+		_, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{Application: testApp, Validate: new(false)})
+		require.Equal(t, codes.InvalidArgument, status.Code(err), path)
+		require.ErrorContains(t, err, "must not point outside the repository", path)
+	}
+
+	t.Run("second source", func(t *testing.T) {
+		appServer := newTestAppServer(t)
+		testApp := newMultiSourceTestApp()
+		testApp.Spec.Sources[1].Path = "../other"
+		_, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{Application: testApp})
+		require.Equal(t, codes.InvalidArgument, status.Code(err))
+	})
+
+	t.Run("path that stays in the repo", func(t *testing.T) {
+		appServer := newTestAppServer(t)
+		testApp := newTestApp()
+		testApp.Spec.Source.Path = "apps/../other"
+		_, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{Application: testApp})
+		require.NoError(t, err)
+	})
+}
+
+func TestUpdateAppRejectsPathOutsideRepo(t *testing.T) {
+	testApp := newTestApp()
+	appServer := newTestAppServer(t, testApp)
+	updateApp := testApp.DeepCopy()
+	updateApp.Spec.Source.Path = "../other"
+	_, err := appServer.Update(t.Context(), &application.ApplicationUpdateRequest{Application: updateApp})
+	require.Equal(t, codes.InvalidArgument, status.Code(err))
+	require.ErrorContains(t, err, "must not point outside the repository")
+}
+
 func TestCreateAppUpsert(t *testing.T) {
 	t.Parallel()
 	t.Run("No error when spec equals", func(t *testing.T) {
