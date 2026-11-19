@@ -1615,3 +1615,19 @@ func TestIndexRecordRoundTripThroughClient(t *testing.T) {
 	assert.Less(t, origin.Load(), int64(3), "second fetch should be a single conditional request")
 	_ = time.Now // silence unused import if helpers change
 }
+
+func TestNewTLSConfigRejectsEmptyCAFile(t *testing.T) {
+	emptyCA := t.TempDir() + "/empty-ca.pem"
+	require.NoError(t, os.WriteFile(emptyCA, nil, 0o600))
+
+	_, err := newTLSConfig(HelmCreds{CAPath: emptyCA})
+	require.Error(t, err, "an empty configured CA bundle must fail closed instead of falling back to system trust")
+
+	_, err = newTLSConfig(HelmCreds{CAPath: t.TempDir() + "/missing-ca.pem"})
+	require.Error(t, err)
+
+	// No custom CA configured: system trust (nil RootCAs) is the default.
+	tlsConfig, err := newTLSConfig(HelmCreds{})
+	require.NoError(t, err)
+	require.Nil(t, tlsConfig.RootCAs)
+}
