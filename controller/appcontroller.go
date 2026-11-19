@@ -5,18 +5,19 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
+	"maps"
 	"math"
 	"math/rand"
 	"net/http"
 	"reflect"
 	"runtime/debug"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
@@ -705,43 +706,37 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 		corev1.ResourceStorage: true,
 		corev1.ResourceMemory:  true,
 	}
-	appPods := map[kube.ResourceKey]bool{}
+	var appPods []kube.ResourceKey
 	for _, node := range appNodes {
 		if node.Group == "" && node.Kind == kube.PodKind {
-			appPods[kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name)] = true
+			appPods = append(appPods, kube.NewResourceKey(node.Group, node.Kind, node.Namespace, node.Name))
 		}
 	}
+	if len(appPods) == 0 {
+		return nil, nil
+	}
 
-	allNodesInfo := map[string]statecache.NodeInfo{}
-	allPodsByNode := map[string][]statecache.PodInfo{}
-	appPodsByNode := map[string][]statecache.PodInfo{}
-	err := ctrl.stateCache.IterateResources(destCluster, func(res *clustercache.Resource, info *statecache.ResourceInfo) {
-		key := res.ResourceKey()
-
-		switch {
-		case info.NodeInfo != nil && key.Group == "" && key.Kind == "Node":
-			allNodesInfo[key.Name] = *info.NodeInfo
-		case info.PodInfo != nil && key.Group == "" && key.Kind == kube.PodKind:
-			if appPods[key] {
-				appPodsByNode[info.PodInfo.NodeName] = append(appPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
-			} else {
-				allPodsByNode[info.PodInfo.NodeName] = append(allPodsByNode[info.PodInfo.NodeName], *info.PodInfo)
-			}
-		}
-	})
-	ts.AddCheckpoint("iterate_resources_ms")
-	if err != nil {
+	// The app's own pods are read live, since their changes are what refresh
+	// the app; only neighbors come from the shared index.
+	livePods, index, err := ctrl.stateCache.GetClusterHosts(destCluster, appPods)
+	ts.AddCheckpoint("get_cluster_hosts_ms")
+	if err != nil || index == nil {
 		return nil, err
 	}
+	appPodsByNode := map[string][]statecache.PodInfo{}
+	for _, pod := range livePods {
+		appPodsByNode[pod.NodeName] = append(appPodsByNode[pod.NodeName], pod)
+	}
+	allNodesInfo := index.Nodes
+	neighborRequests := index.NeighborRequests(slices.Collect(maps.Keys(appPodsByNode)), appPods)
+	allowedNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
 
 	var hosts []appv1.HostInfo
-	for nodeName, appPods := range appPodsByNode {
+	for nodeName, podsOnNode := range appPodsByNode {
 		node, ok := allNodesInfo[nodeName]
 		if !ok {
 			continue
 		}
-
-		neighbors := allPodsByNode[nodeName]
 
 		resources := map[corev1.ResourceName]appv1.HostResourceInfo{}
 		for name, resource := range node.Capacity {
@@ -751,7 +746,7 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			resources[name] = info
 		}
 
-		for _, pod := range appPods {
+		for _, pod := range podsOnNode {
 			for name, resource := range pod.ResourceRequests {
 				if !supportedResourceNames[name] {
 					continue
@@ -763,15 +758,13 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			}
 		}
 
-		for _, pod := range neighbors {
-			for name, resource := range pod.ResourceRequests {
-				if !supportedResourceNames[name] || pod.Phase == corev1.PodSucceeded || pod.Phase == corev1.PodFailed {
-					continue
-				}
-				info := resources[name]
-				info.RequestedByNeighbors += resource.MilliValue()
-				resources[name] = info
+		for name, total := range neighborRequests[nodeName] {
+			if !supportedResourceNames[name] {
+				continue
 			}
+			info := resources[name]
+			info.RequestedByNeighbors += total
+			resources[name] = info
 		}
 
 		var resourcesInfo []appv1.HostResourceInfo
@@ -784,7 +777,6 @@ func (ctrl *ApplicationController) getAppHosts(destCluster *appv1.Cluster, a *ap
 			return resourcesInfo[i].ResourceName < resourcesInfo[j].ResourceName
 		})
 
-		allowedNodeLabels := ctrl.settingsMgr.GetAllowedNodeLabels()
 		nodeLabels := make(map[string]string)
 		for _, label := range allowedNodeLabels {
 			if val, ok := node.Labels[label]; ok {
