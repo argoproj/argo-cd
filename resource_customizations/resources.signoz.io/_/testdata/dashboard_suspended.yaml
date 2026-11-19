@@ -1,0 +1,53 @@
+apiVersion: resources.signoz.io/v1alpha1
+kind: Dashboard
+metadata:
+  name: service-overview
+  namespace: monitoring
+  generation: 4
+  finalizers:
+  - resources.signoz.io/finalizer
+spec:
+  objectTemplate:
+    spec:
+      name: service-overview
+      schemaVersion: v6
+      spec:
+        display:
+          description: Golden signals for the checkout service
+          name: Service overview
+        layouts: []
+        panels: {}
+        variables: []
+      tags:
+      - key: team
+        value: platform
+  providerConfigRef:
+    kind: ProviderConfig
+    name: signoz
+  reclaimPolicy: Delete
+  suspend: true
+status:
+  conditions:
+  - lastTransitionTime: '2026-11-19T08:58:16Z'
+    message: reconciliation is suspended by spec.suspend
+    observedGeneration: 4
+    reason: Suspended
+    status: Unknown
+    type: Synced
+  - lastTransitionTime: '2026-11-19T08:58:16Z'
+    message: reconciliation is suspended by spec.suspend
+    observedGeneration: 4
+    reason: Suspended
+    status: 'False'
+    type: Ready
+  - lastTransitionTime: '2026-11-19T08:58:16Z'
+    message: reconciliation is suspended by spec.suspend
+    observedGeneration: 4
+    reason: Suspended
+    status: 'True'
+    type: Suspended
+  observedGeneration: 4
+  observedHash: 6f8b5c31273b71522db437911018b3db326db1268d310241531296a0be69c601
+  reconciledAt: '2026-11-19T08:58:16Z'
+  signozResource:
+    id: 01a1f303-8221-75c7-865f-22d5f62f3713

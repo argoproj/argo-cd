@@ -1,0 +1,79 @@
+apiVersion: resources.signoz.io/v1alpha1
+kind: Rule
+metadata:
+  name: high-memory-usage
+  namespace: monitoring
+  generation: 1
+  finalizers:
+  - resources.signoz.io/finalizer
+spec:
+  objectTemplate:
+    spec:
+      alert: High memory usage
+      alertType: METRIC_BASED_ALERT
+      condition:
+        compositeQuery:
+          panelType: graph
+          queries:
+          - spec:
+              aggregations:
+              - metricName: system_memory_utilization
+                spaceAggregation: max
+                timeAggregation: avg
+              filter:
+                expression: state = 'used'
+              name: A
+              signal: metrics
+              stepInterval: 1m
+            type: builder_query
+          queryType: builder
+        selectedQueryName: A
+        thresholds:
+          kind: basic
+          spec:
+          - matchType: at_least_once
+            name: critical
+            op: above
+            target: 0.9
+      description: Memory usage stayed above 90% of capacity
+      evaluation:
+        kind: rolling
+        spec:
+          evalWindow: 5m
+          frequency: 1m
+      labels:
+        severity: critical
+      notificationSettings:
+        renotify:
+          alertStates:
+          - firing
+          enabled: true
+          interval: 4h
+      ruleType: threshold_rule
+      schemaVersion: v2alpha1
+  providerConfigRef:
+    kind: ProviderConfig
+    name: signoz
+  reclaimPolicy: Delete
+status:
+  conditions:
+  - lastTransitionTime: '2026-11-19T08:59:11Z'
+    message: 'could not reach SigNoz: Get "https://signoz.example.com/api/v3/rules?limit=100&offset=0": dial tcp 192.0.2.10:443: connect: connection refused'
+    observedGeneration: 1
+    reason: BackendUnreachable
+    status: Unknown
+    type: Synced
+  - lastTransitionTime: '2026-11-19T08:59:11Z'
+    message: 'could not reach SigNoz: Get "https://signoz.example.com/api/v3/rules?limit=100&offset=0": dial tcp 192.0.2.10:443: connect: connection refused'
+    observedGeneration: 1
+    reason: BackendUnreachable
+    status: 'True'
+    type: Recoverable
+  - lastTransitionTime: '2026-11-19T08:59:11Z'
+    message: 'could not reach SigNoz: Get "https://signoz.example.com/api/v3/rules?limit=100&offset=0": dial tcp 192.0.2.10:443: connect: connection refused'
+    observedGeneration: 1
+    reason: BackendUnreachable
+    status: Unknown
+    type: Ready
+  observedGeneration: 1
+  reconciledAt: '2026-11-19T08:59:11Z'

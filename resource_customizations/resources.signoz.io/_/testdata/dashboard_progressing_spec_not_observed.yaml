@@ -1,0 +1,46 @@
+apiVersion: resources.signoz.io/v1alpha1
+kind: Dashboard
+metadata:
+  name: service-overview
+  namespace: monitoring
+  generation: 3
+  finalizers:
+  - resources.signoz.io/finalizer
+spec:
+  objectTemplate:
+    spec:
+      name: service-overview
+      schemaVersion: v6
+      spec:
+        display:
+          description: Golden signals for the checkout service
+          name: Service overview
+        layouts: []
+        panels: {}
+        variables: []
+      tags:
+      - key: team
+        value: platform
+  providerConfigRef:
+    kind: ProviderConfig
+    name: signoz
+  reclaimPolicy: Delete
+status:
+  conditions:
+  - lastTransitionTime: '2026-11-19T08:54:15Z'
+    message: In sync with SigNoz
+    observedGeneration: 2
+    reason: Synced
+    status: 'True'
+    type: Synced
+  - lastTransitionTime: '2026-11-19T08:54:15Z'
+    message: In sync with SigNoz
+    observedGeneration: 2
+    reason: Synced
+    status: 'True'
+    type: Ready
+  observedGeneration: 2
+  observedHash: faa3c11a140cc6d1b53c8ab6f01c2724915b6bba7a989edd8cb146078308f2b5
+  reconciledAt: '2026-11-19T08:54:15Z'
+  signozResource:
+    id: 01a1f303-8221-75c7-865f-22d5f62f3713
