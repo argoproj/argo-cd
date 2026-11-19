@@ -210,14 +210,6 @@ func flatVals(input any, output map[string]string, prefixes ...string) {
 	}
 }
 
-// scopedIndexIdentity is shared by the disk provider and Redis clients. URL
-// path escaping remains significant. Queries, URL credentials and transport
-// credentials are hashed, so they cannot appear as plaintext in cache keys.
-func scopedIndexIdentity(repoURL, scope, proxy, noProxy string) string {
-	identity, _ := scopedIndexIdentityContext(context.Background(), repoURL, scope, proxy, noProxy)
-	return identity
-}
-
 func scopedIndexIdentityContext(ctx context.Context, repoURL, scope, proxy, noProxy string) (string, error) {
 	u, err := url.Parse(repoURL)
 	if err != nil {

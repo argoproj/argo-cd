@@ -2,7 +2,6 @@ package helm
 
 import (
 	"net/http"
-	"strings"
 	"testing"
 	"time"
 
@@ -65,21 +64,21 @@ func TestMatchingNotModifiedETag(t *testing.T) {
 
 func TestApplyConditionalHeaders(t *testing.T) {
 	t.Run("ETagTakesPrecedence", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodGet, "https://example.com/index.yaml", http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com/index.yaml", http.NoBody)
 		require.NoError(t, err)
 		applyConditionalHeaders(req, `"etag"`, "Mon, 02 Jan 2006 15:04:05 GMT")
 		assert.Equal(t, `"etag"`, req.Header.Get("If-None-Match"))
 		assert.Empty(t, req.Header.Get("If-Modified-Since"))
 	})
 	t.Run("FallbackToLastModified", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodGet, "https://example.com/index.yaml", http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com/index.yaml", http.NoBody)
 		require.NoError(t, err)
 		applyConditionalHeaders(req, "", "Mon, 02 Jan 2006 15:04:05 GMT")
 		assert.Empty(t, req.Header.Get("If-None-Match"))
 		assert.Equal(t, "Mon, 02 Jan 2006 15:04:05 GMT", req.Header.Get("If-Modified-Since"))
 	})
 	t.Run("InvalidValidatorsNotSent", func(t *testing.T) {
-		req, err := http.NewRequest(http.MethodGet, "https://example.com/index.yaml", http.NoBody)
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://example.com/index.yaml", http.NoBody)
 		require.NoError(t, err)
 		applyConditionalHeaders(req, "*", "not-a-date")
 		assert.Empty(t, req.Header.Get("If-None-Match"))
@@ -222,7 +221,7 @@ func TestInMemoryIndexValidatorsBodyBinding(t *testing.T) {
 
 	// A validator that was never bound (e.g. restored from an external
 	// writer) must not be eligible for a 304 against different bytes.
-	store.SetHelmIndexValidators("repo", `"etag-b"`, "")
+	require.NoError(t, store.SetHelmIndexValidators("repo", `"etag-b"`, ""))
 	etag, _, _ = store.getForResponse("repo", bodyA)
 	assert.Empty(t, etag, "unbound validators must not match a body")
 
@@ -235,5 +234,4 @@ func TestInMemoryIndexValidatorsBodyBinding(t *testing.T) {
 
 func TestDefaultIndexCacheExpirationValue(t *testing.T) {
 	assert.Equal(t, time.Minute, DefaultIndexCacheExpiration)
-	assert.False(t, strings.Contains("", "unreachable"), "placeholder")
 }

@@ -36,7 +36,6 @@ import (
 
 var (
 	globalLock = sync.NewKeyLock()
-	indexLock  = sync.NewKeyLock()
 
 	ErrOCINotEnabled = errors.New("could not perform the action when oci is not enabled")
 )
@@ -480,16 +479,17 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 			// Only legacy raw-body caches retain their original setter
 			// contract. A 304 keeps the previous generation: the record is
 			// still current, never republished.
-			if isRetainedWriter && !c.indexNotModified {
+			switch {
+			case isRetainedWriter && !c.indexNotModified:
 				if err := retainedWriter.SetHelmIndexRetainedRecord(repoKey, c.fetchedIndexRecord(data)); err != nil {
 					log.WithError(err).Debug("failed to publish retained helm index record")
 				}
-			} else if isRecorder && !c.indexNotModified {
+			case isRecorder && !c.indexNotModified:
 				etag, modified := responseValidatorHeaders(c.lastValidators)
 				if err := recorder.SetHelmIndexRecord(repoKey, data, etag, modified); err != nil {
 					log.WithError(err).Debug("failed to publish helm index record")
 				}
-			} else if !isReader && !isRecorder && !isValidators && !c.indexNotModified {
+			case !isReader && !isRecorder && !isValidators && !c.indexNotModified:
 				if err := c.indexCache.SetHelmIndex(repoKey, data); err != nil {
 					log.WithError(err).Debug("failed to publish legacy helm index body")
 				}

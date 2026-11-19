@@ -162,14 +162,6 @@ type indexRecordObservation struct {
 	record *HelmIndexRecord
 }
 
-func indexCacheContext(ctx context.Context, maximum time.Duration) (context.Context, context.CancelFunc) {
-	budget := maximum
-	if deadline, ok := ctx.Deadline(); ok {
-		budget = min(budget, time.Until(deadline)/4)
-	}
-	return context.WithTimeout(ctx, budget)
-}
-
 // Whole-body reads may take longer than metadata; callers bound them with a
 // request deadline so one slow cache read cannot consume the whole budget.
 // The PR1 record reader has no context-aware variant; the bounded read is
