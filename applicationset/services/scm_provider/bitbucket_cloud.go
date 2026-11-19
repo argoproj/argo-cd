@@ -76,7 +76,7 @@ func (g *BitBucketCloudProvider) GetBranches(_ context.Context, repo *Repository
 	for _, branch := range branches {
 		hash, ok := branch.Target["hash"].(string)
 		if !ok {
-			return nil, fmt.Errorf("error getting SHA for branch for %s/%s/%s: %w", g.owner, repo.Repository, branch.Name, err)
+			return nil, fmt.Errorf("error getting SHA for branch %q of %s/%s: the commit hash is missing or not a string", branch.Name, g.owner, repo.Repository)
 		}
 		repos = append(repos, &Repository{
 			Organization: repo.Organization,
