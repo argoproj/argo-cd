@@ -177,7 +177,7 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	}
 
 	logCtx.Debug("Writing manifests")
-	shouldCommit, err := WriteForPaths(ctx, root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient, r.ReadmeMessage)
+	shouldCommit, err := WriteForPaths(ctx, root, r.Repo.Repo, r.DrySha, r.TargetBranch, r.DryCommitMetadata, r.Paths, gitClient, r.ReadmeMessage)
 	if err != nil {
 		return "", "", fmt.Errorf("failed to write manifests: %w", err)
 	}

@@ -14,6 +14,7 @@ func TestGetCommitMetadata(t *testing.T) {
 	t.Parallel()
 	repoURL := "https://github.com/test/argocd-example-apps"
 	drySHA := "3ff41cc5247197a6caf50216c4c76cc29d78a97d"
+	targetBranch := "environment/dev-next"
 	date := &metav1.Time{Time: metav1.Now().Time}
 	revisionAuthor := "test test@test.com"
 	references := make([]appv1.RevisionReference, 0)
@@ -27,16 +28,18 @@ func TestGetCommitMetadata(t *testing.T) {
 	}
 	references = append(references, revReference)
 	hydratedCommitMetadata := HydratorCommitMetadata{
-		RepoURL:    repoURL,
-		DrySHA:     drySHA,
-		Author:     revisionAuthor,
-		Date:       date.Format(time.RFC3339),
-		References: references,
-		Subject:    "testMessage",
+		RepoURL:      repoURL,
+		DrySHA:       drySHA,
+		Author:       revisionAuthor,
+		Date:         date.Format(time.RFC3339),
+		References:   references,
+		Subject:      "testMessage",
+		TargetBranch: targetBranch,
 	}
 	type args struct {
 		repoURL           string
 		drySha            string
+		targetBranch      string
 		dryCommitMetadata *appv1.RevisionMetadata
 	}
 	tests := []struct {
@@ -48,8 +51,9 @@ func TestGetCommitMetadata(t *testing.T) {
 		{
 			name: "test GetHydratorCommitMD",
 			args: args{
-				repoURL: repoURL,
-				drySha:  drySHA,
+				repoURL:      repoURL,
+				drySha:       drySHA,
+				targetBranch: targetBranch,
 				dryCommitMetadata: &appv1.RevisionMetadata{
 					Author:     revisionAuthor,
 					Date:       date,
@@ -63,7 +67,7 @@ func TestGetCommitMetadata(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, err := GetCommitMetadata(tt.args.repoURL, tt.args.drySha, tt.args.dryCommitMetadata)
+			got, err := GetCommitMetadata(tt.args.repoURL, tt.args.drySha, tt.args.targetBranch, tt.args.dryCommitMetadata)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetCommitMetadata() error = %v, wantErr %v", err, tt.wantErr)
 				return

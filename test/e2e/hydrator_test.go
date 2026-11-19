@@ -1,14 +1,17 @@
 package e2e
 
 import (
+	"encoding/json"
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	. "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test/e2e/fixture"
 	. "github.com/argoproj/argo-cd/v3/test/e2e/fixture/app"
+	"github.com/argoproj/argo-cd/v3/util/hydrator"
 
 	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 )
@@ -78,6 +81,30 @@ func TestHydrateTo(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHydratorMetadataTargetBranch(t *testing.T) {
+	Given(t).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourcePath("guestbook").
+		SyncSourceBranch("env/test").
+		HydrateToBranch("env/test-next").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Then().
+		AndAction(func() {
+			// Both the root and the per-path hydrator.metadata record the branch that was hydrated to.
+			for _, file := range []string{"hydrator.metadata", "guestbook/hydrator.metadata"} {
+				out, err := fixture.Run(fixture.LocalRepoRoot(), "git", "show", "env/test-next:"+file)
+				require.NoError(t, err)
+				var metadata hydrator.HydratorCommitMetadata
+				require.NoError(t, json.Unmarshal([]byte(out), &metadata))
+				assert.Equal(t, "env/test-next", metadata.TargetBranch, file)
+			}
+		})
 }
 
 func TestAddingApp(t *testing.T) {

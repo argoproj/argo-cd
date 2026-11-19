@@ -35,9 +35,9 @@ func init() {
 }
 
 // WriteForPaths writes the manifests, hydrator.metadata, and README.md files for each path in the provided paths. It
-// also writes a root-level hydrator.metadata file containing the repo URL and dry SHA.
-func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client, rawReadmeTemplate string) (bool, error) { //nolint:revive //FIXME(var-naming)
-	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, dryCommitMetadata)
+// also writes a root-level hydrator.metadata file containing the repo URL, dry SHA, and target branch.
+func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha, targetBranch string, dryCommitMetadata *appv1.RevisionMetadata, paths []*apiclient.PathDetails, gitClient git.Client, rawReadmeTemplate string) (bool, error) { //nolint:revive //FIXME(var-naming)
+	hydratorMetadata, err := hydrator.GetCommitMetadata(repoUrl, drySha, targetBranch, dryCommitMetadata)
 	if err != nil {
 		return false, fmt.Errorf("failed to retrieve hydrator metadata: %w", err)
 	}
@@ -87,9 +87,10 @@ func WriteForPaths(ctx context.Context, root *os.Root, repoUrl, drySha string, d
 
 		// Write hydrator.metadata containing information about the hydration process.
 		hydratorMetadata := hydrator.HydratorCommitMetadata{
-			Commands: p.Commands,
-			DrySHA:   drySha,
-			RepoURL:  repoUrl,
+			Commands:     p.Commands,
+			DrySHA:       drySha,
+			RepoURL:      repoUrl,
+			TargetBranch: targetBranch,
 		}
 		err = writeMetadata(root, hydratePath, hydratorMetadata)
 		if err != nil {

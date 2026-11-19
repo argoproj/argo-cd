@@ -518,7 +518,7 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	if err != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated commit message template: %w", err)
 	}
-	commitMessage, errMsg := getTemplatedCommitMessage(drySourceRepoURL, targetRevision, commitMessageTemplate, revisionMetadata)
+	commitMessage, errMsg := getTemplatedCommitMessage(drySourceRepoURL, targetRevision, targetBranch, commitMessageTemplate, revisionMetadata)
 	if errMsg != nil {
 		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
 	}
@@ -704,8 +704,8 @@ func (h *Hydrator) appNeedsHydration(ctx context.Context, app *appv1.Application
 // getTemplatedCommitMessage gets the multi-line commit message based on the template defined in the configmap. It is a two step process:
 // 1. Get the metadata template engine would use to render the template
 // 2. Pass the output of Step 1 and Step 2 to template Render
-func getTemplatedCommitMessage(repoURL, revision, commitMessageTemplate string, dryCommitMetadata *appv1.RevisionMetadata) (string, error) {
-	hydratorCommitMetadata, err := hydrator.GetCommitMetadata(repoURL, revision, dryCommitMetadata)
+func getTemplatedCommitMessage(repoURL, revision, targetBranch, commitMessageTemplate string, dryCommitMetadata *appv1.RevisionMetadata) (string, error) {
+	hydratorCommitMetadata, err := hydrator.GetCommitMetadata(repoURL, revision, targetBranch, dryCommitMetadata)
 	if err != nil {
 		return "", fmt.Errorf("failed to get hydrated commit message: %w", err)
 	}
