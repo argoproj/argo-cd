@@ -35,6 +35,12 @@ var (
 		descClusterDefaultLabels,
 		nil,
 	)
+	descClusterCacheResourcesByGroupKind = prometheus.NewDesc(
+		"argocd_cluster_cache_resource_objects",
+		"Number of k8s resource objects in the cache, by group and kind.",
+		append(descClusterDefaultLabels, "group", "kind"),
+		nil,
+	)
 	descClusterAPIs = prometheus.NewDesc(
 		"argocd_cluster_api_resources",
 		"Number of monitored kubernetes API resources.",
@@ -158,6 +164,7 @@ func (c *clusterCollector) getClusterData() ([]*clusterData, error) {
 func (c *clusterCollector) Describe(ch chan<- *prometheus.Desc) {
 	ch <- descClusterInfo
 	ch <- descClusterCacheResources
+	ch <- descClusterCacheResourcesByGroupKind
 	ch <- descClusterAPIs
 	ch <- descClusterCacheAgeSeconds
 	ch <- descClusterConnectionStatus
@@ -180,6 +187,9 @@ func (c *clusterCollector) Collect(ch chan<- prometheus.Metric) {
 		defaultValues := []string{info.Server}
 		ch <- prometheus.MustNewConstMetric(descClusterInfo, prometheus.GaugeValue, 1, append(defaultValues, info.K8SVersion, name)...)
 		ch <- prometheus.MustNewConstMetric(descClusterCacheResources, prometheus.GaugeValue, float64(info.ResourcesCount), defaultValues...)
+		for gk, count := range info.ResourcesCountByGroupKind {
+			ch <- prometheus.MustNewConstMetric(descClusterCacheResourcesByGroupKind, prometheus.GaugeValue, float64(count), info.Server, gk.Group, gk.Kind)
+		}
 		ch <- prometheus.MustNewConstMetric(descClusterAPIs, prometheus.GaugeValue, float64(info.APIsCount), defaultValues...)
 		cacheAgeSeconds := -1
 		if info.LastCacheSyncTime != nil {

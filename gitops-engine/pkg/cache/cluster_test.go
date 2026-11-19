@@ -1150,7 +1150,42 @@ func TestGetClusterInfo(t *testing.T) {
 		Server:       cluster.config.Host,
 		APIResources: apiResources,
 		K8SVersion:   version,
+
+		ResourcesCountByGroupKind: map[schema.GroupKind]int{},
 	}, info)
+}
+
+func TestGetClusterInfoResourcesCountByGroupKind(t *testing.T) {
+	t.Parallel()
+	cluster := newCluster(t, testPod1(), testPod2(), testRS(), testDeploy())
+	require.NoError(t, cluster.EnsureSynced())
+
+	podGK := schema.GroupKind{Kind: kube.PodKind}
+	rsGK := schema.GroupKind{Group: "apps", Kind: kube.ReplicaSetKind}
+	deployGK := schema.GroupKind{Group: "apps", Kind: kube.DeploymentKind}
+	info := cluster.GetClusterInfo()
+	assert.Equal(t, map[schema.GroupKind]int{podGK: 2, rsGK: 1, deployGK: 1}, info.ResourcesCountByGroupKind)
+	assert.Equal(t, 4, info.ResourcesCount)
+
+	// Updating an existing resource must not change its count.
+	updated := testPod1()
+	updated.ResourceVersion = "999"
+	cluster.recordEvent(watch.Modified, mustToUnstructured(updated))
+	assert.Equal(t, 2, cluster.GetClusterInfo().ResourcesCountByGroupKind[podGK])
+
+	cluster.recordEvent(watch.Deleted, mustToUnstructured(testPod1()))
+	cluster.recordEvent(watch.Deleted, mustToUnstructured(testDeploy()))
+	info = cluster.GetClusterInfo()
+	assert.Equal(t, map[schema.GroupKind]int{podGK: 1, rsGK: 1}, info.ResourcesCountByGroupKind)
+
+	// The returned map is a copy and must not alias cache state.
+	info.ResourcesCountByGroupKind[rsGK] = 100
+	assert.Equal(t, 1, cluster.GetClusterInfo().ResourcesCountByGroupKind[rsGK])
+
+	// A full resync rebuilds the counts from scratch.
+	cluster.Invalidate()
+	require.NoError(t, cluster.EnsureSynced())
+	assert.Equal(t, map[schema.GroupKind]int{podGK: 2, rsGK: 1, deployGK: 1}, cluster.GetClusterInfo().ResourcesCountByGroupKind)
 }
 
 func TestDeleteAPIResource(t *testing.T) {

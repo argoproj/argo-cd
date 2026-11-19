@@ -676,6 +676,7 @@ func (ctrl *ApplicationController) getResourceTree(destCluster *appv1.Cluster, a
 		}}
 	}
 	ctrl.metricsServer.SetOrphanedResourcesMetric(a, len(orphanedNodes))
+	ctrl.metricsServer.AddResourceTreeNodes(destCluster.Server, nodes, orphanedNodes)
 	a.Status.SetConditions(conditions, map[appv1.ApplicationConditionType]bool{appv1.ApplicationConditionOrphanedResourceWarning: true})
 	sort.Slice(orphanedNodes, func(i, j int) bool {
 		return orphanedNodes[i].ResourceRef.String() < orphanedNodes[j].ResourceRef.String()
