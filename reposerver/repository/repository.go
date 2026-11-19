@@ -173,6 +173,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 			recordCache = cache
 		}
 		helmIndexStore = helm.NewIndexStore(initConstants.HelmIndexCacheDir, freshness, initConstants.HelmRegistryMaxIndexSize, recordCache)
+		helmIndexStore.FilterEnabled = initConstants.HelmIndexCacheFilterEnabled
 		log.WithField("dir", initConstants.HelmIndexCacheDir).Infof("Helm dependency index cache enabled, freshness %s", freshness)
 	}
 	return &Service{

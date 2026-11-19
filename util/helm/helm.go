@@ -192,6 +192,24 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 			return fmt.Errorf("prepare isolated helm index for %s: %w", repo.Repo, err)
 		}
 		prepared = append(prepared, preparedIndex{url: repo.Repo, name: repo.Name, identity: identity, body: data})
+		if h.cmd.persistentIndexStore.FilterEnabled {
+			// Private snapshot only: disk/shared records keep the full index.
+			names, err := dependencyNamesByRepository(ctx, h.cmd.WorkDir, h.repos)
+			if err != nil {
+				return fmt.Errorf("collect helm dependencies for %s: %w", repo.Repo, err)
+			}
+			if wanted := names[identity]; len(wanted) > 0 {
+				filtered, replaced, err := dependencyIndexes.snapshot(data, wanted)
+				if err != nil {
+					return fmt.Errorf("filter helm index for %s: %w", repo.Repo, err)
+				}
+				if replaced {
+					if err := h.cmd.installIndexes(repo.Repo, filtered, repo.Name, true); err != nil {
+						return fmt.Errorf("install filtered helm index for %s: %w", repo.Repo, err)
+					}
+				}
+			}
+		}
 		configuration, exists := configurations[identity]
 		var repoEntries []helmRepoEntry
 		if !exists {
@@ -232,8 +250,24 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		}
 	}
 	_, err := h.cmd.dependencyBuild(ctx, h.insecure, plainHTTP, useStore)
+	filteredSnapshot := useStore && h.cmd.persistentIndexStore.FilterEnabled
+	if err != nil && filteredSnapshot && isIndexSnapshotError(err) {
+		// The filtered private snapshot may itself be the problem (projection
+		// dropped a version Helm selects differently). One fallback restores
+		// the FULL original into the private home and retries the build.
+		log.WithError(err).Warn("retrying Helm dependency build with the full index after filtered snapshot miss")
+		for _, index := range prepared {
+			if installErr := h.cmd.installIndexes(index.url, index.body, index.name, true); installErr != nil {
+				return fmt.Errorf("restore full Helm index after filtered snapshot failure (%w): %w", err, installErr)
+			}
+		}
+		if _, fallbackErr := h.cmd.dependencyBuild(ctx, h.insecure, plainHTTP, useStore); fallbackErr != nil {
+			return fmt.Errorf("Helm index lookup failed (%w); full-index fallback failed: %w", err, fallbackErr)
+		}
+		return nil
+	}
 	refreshed := make(map[string][]byte)
-	if err != nil && useStore && isIndexVersionLookupError(err) {
+	if err != nil && useStore && !filteredSnapshot && isIndexVersionLookupError(err) {
 		for _, index := range prepared {
 			if fetched[index.identity] || refreshed[index.identity] != nil || !missingDependencyVersion(h.cmd.WorkDir, index.url, aliases, index.body) {
 				continue

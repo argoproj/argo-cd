@@ -27,6 +27,7 @@ argocd-repo-server [flags]
       --helm-index-cache-dir string                             Directory for the on-disk helm index cache used with --helm-index-cache-enabled; defaults to a temporary directory when unset
       --helm-index-cache-enabled[=true|false]                   Cache and reuse validated helm repository indexes for helm dependency builds in a persistent on-disk store; replaces helm's repository refresh with validated originals (requires --helm-index-cache-dir for a custom location; falls back to a temp dir by default)
       --helm-index-cache-expiration duration                    Freshness window for cached HTTP helm repository indexes; records older than this are revalidated with the origin via conditional GET before reuse. 0 revalidates on every use; negative values fall back to the default (default 1m0s)
+      --helm-index-cache-filter-enabled[=true|false]            Serve helm dependency builds from dependency-only snapshots of cached indexes; requires --helm-index-cache-enabled
       --helm-manifest-max-extracted-size string                 Maximum size of helm manifest archives when extracted (default "1G")
       --helm-registry-max-index-size string                     Maximum size of registry index file (default "1G")
   -h, --help[=true|false]                                       help for argocd-repo-server
