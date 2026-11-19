@@ -1305,6 +1305,17 @@ func (sc *syncContext) ensureCRDReady(ctx context.Context, name string) error {
 	return nil
 }
 
+// shouldReplace returns true if the resource should be replaced instead of applied.
+// Replace=false on the target resource takes precedence over Replace=true set on the
+// sync operation, the Application or the live resource.
+func (sc *syncContext) shouldReplace(t *syncTask) bool {
+	if resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionDisableReplace) {
+		return false
+	}
+
+	return sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionReplace))
+}
+
 func (sc *syncContext) shouldUseServerSideApply(targetObj *unstructured.Unstructured, dryRun bool) bool {
 	// if it is a dry run, disable server side apply, as the goal is to validate only the
 	// yaml correctness of the rendered manifests.
@@ -1431,7 +1442,7 @@ func (sc *syncContext) applyObject(ctx context.Context, t *syncTask, dryRun, val
 
 	var err error
 	var message string
-	shouldReplace := sc.replace || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionReplace) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionReplace))
+	shouldReplace := sc.shouldReplace(t)
 	force := sc.force || resourceutil.HasAnnotationOption(t.targetObj, common.AnnotationSyncOptions, common.SyncOptionForce) || (t.liveObj != nil && resourceutil.HasAnnotationOption(t.liveObj, common.AnnotationSyncOptions, common.SyncOptionForce))
 
 	serverSideApply := sc.shouldUseServerSideApply(t.targetObj, dryRun)

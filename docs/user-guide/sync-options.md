@@ -265,6 +265,18 @@ metadata:
     argocd.argoproj.io/sync-options: Replace=true
 ```
 
+If you want to keep a specific resource from being replaced, while `Replace=true` is set at the application level
+or selected for a sync, add the following sync-option annotation in it:
+
+```yaml
+metadata:
+  annotations:
+    argocd.argoproj.io/sync-options: Replace=false
+```
+
+The resource is then applied with `kubectl apply` instead. This is useful for resources that must not be deleted
+and created again, such as custom resources whose finalizer deletes an external resource.
+
 ## Force Sync
 
 For certain resources you might want to delete and recreate, e.g. job resources that should run every time when syncing.
