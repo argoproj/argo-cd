@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"strings"
 	"testing"
@@ -365,6 +366,100 @@ func TestProcessAppRefreshQueueItemTraceIncludesResult(t *testing.T) {
 	assert.Equal(t, "Synced", attrs["argocd.app.sync.status"].AsString())
 	assert.Equal(t, "Healthy", attrs["argocd.app.health.status"].AsString())
 	assert.NotContains(t, attrs, "argocd.resolved_revisions")
+}
+
+func TestProcessAppRefreshQueueItemTraceRecordsStatusWriteResult(t *testing.T) {
+	for _, tc := range []struct {
+		name        string
+		level       CompareWith
+		patchErr    error
+		wantPatches int
+	}{
+		{name: "successful status write", level: CompareWithLatest, wantPatches: 1},
+		{name: "failed status write", level: CompareWithLatest, patchErr: errors.New("status write failed"), wantPatches: 1},
+		{name: "successful size-limit fallback", level: CompareWithLatest, patchErr: apierrors.NewRequestEntityTooLargeError("status too large"), wantPatches: 2},
+		{name: "failed tree-only status write", level: ComparisonWithNothing, patchErr: errors.New("status write failed"), wantPatches: 1},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			recorder := installRecordingTracer(t)
+			app := newFakeApp()
+			now := metav1.Now()
+			app.Status.ReconciledAt = &now
+			app.Status.Sync.ComparedTo = v1alpha1.ComparedTo{
+				Source:      app.Spec.GetSource(),
+				Destination: app.Spec.Destination,
+			}
+			app.Annotations = map[string]string{v1alpha1.AnnotationKeyRefreshTimestamp: now.Format(time.RFC3339Nano)}
+			appCache := appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute)
+			if tc.level == ComparisonWithNothing {
+				app.Status.Summary.Images = []string{"previous-image"}
+				require.NoError(t, appCache.SetAppManagedResources(app.InstanceName(argotest.FakeArgoCDNamespace), []*v1alpha1.ResourceDiff{}))
+			} else {
+				app.Annotations[v1alpha1.AnnotationKeyRefresh] = string(v1alpha1.RefreshTypeNormal)
+			}
+			statusPatches := 0
+			ctrl := newFakeController(t.Context(), &fakeData{
+				apps:             []runtime.Object{app, &defaultProj},
+				manifestResponse: &apiclient.ManifestResponse{Revision: "resolved-revision"},
+				managedLiveObjs:  make(map[kube.ResourceKey]*unstructured.Unstructured),
+				cache:            appCache,
+				configureAppClient: func(client *appclientset.Clientset) {
+					client.PrependReactor("patch", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+						patch := action.(kubetesting.PatchAction)
+						if patch.GetPatchType() != types.MergePatchType {
+							return false, nil, nil
+						}
+						var body map[string]json.RawMessage
+						require.NoError(t, json.Unmarshal(patch.GetPatch(), &body))
+						if body["status"] == nil {
+							return false, nil, nil
+						}
+						statusPatches++
+						if statusPatches == 1 && tc.patchErr != nil {
+							return true, nil, tc.patchErr
+						}
+						return false, nil, nil
+					})
+				},
+			}, nil)
+			enqueueRefresh(t, ctrl, app, tc.level)
+
+			ctrl.processAppRefreshQueueItem()
+
+			require.Equal(t, tc.wantPatches, statusPatches)
+			span := findRecordedSpan(t, recorder.Ended(), "controller.Refresh")
+			attrs := traceAttrs(span)
+			persistSpan := findRecordedSpan(t, recorder.Ended(), "controller.persistAppStatus")
+			if tc.patchErr != nil {
+				assert.Equal(t, "error", attrs["argocd.reconciliation.outcome"].AsString())
+				assert.False(t, attrs["argocd.reconciliation.status_changed"].AsBool())
+				assert.Equal(t, codes.Error, span.Status().Code)
+				assert.Equal(t, codes.Error, persistSpan.Status().Code)
+			} else {
+				assert.Equal(t, "state_changed", attrs["argocd.reconciliation.outcome"].AsString())
+				assert.True(t, attrs["argocd.reconciliation.status_changed"].AsBool())
+				assert.Equal(t, codes.Unset, span.Status().Code)
+				assert.Equal(t, codes.Unset, persistSpan.Status().Code)
+			}
+			assert.Equal(t, tc.level != ComparisonWithNothing, hasRecordedSpan(recorder.Ended(), "controller.CompareAppState"))
+			stored, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.NotContains(t, stored.Annotations, v1alpha1.AnnotationKeyRefresh)
+			assert.NotContains(t, stored.Annotations, v1alpha1.AnnotationKeyRefreshTimestamp)
+			if tc.patchErr != nil {
+				assert.Equal(t, app.Status.Sync.Status, stored.Status.Sync.Status)
+				assert.Equal(t, app.Status.Health.Status, stored.Status.Health.Status)
+				assert.Equal(t, app.Status.Summary, stored.Status.Summary)
+			} else {
+				assert.Equal(t, v1alpha1.SyncStatusCodeSynced, stored.Status.Sync.Status)
+				assert.Equal(t, health.HealthStatusHealthy, stored.Status.Health.Status)
+			}
+			if apierrors.IsRequestEntityTooLargeError(tc.patchErr) {
+				require.Len(t, stored.Status.Conditions, 1)
+				assert.Equal(t, v1alpha1.ApplicationConditionUnknownError, stored.Status.Conditions[0].Type)
+			}
+		})
+	}
 }
 
 func TestProcessAppRefreshQueueItemTraceIncludesStatusOnPreComparisonReturn(t *testing.T) {

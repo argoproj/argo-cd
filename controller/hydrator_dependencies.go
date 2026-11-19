@@ -101,7 +101,7 @@ func (ctrl *ApplicationController) RequestAppRefresh(appName string, appNamespac
 func (ctrl *ApplicationController) PersistHydrationStatus(orig *appv1.Application, newStatus *appv1.SourceHydratorStatus) {
 	status := orig.Status.DeepCopy()
 	status.SourceHydrator = *newStatus
-	ctrl.persistAppStatus(context.Background(), orig, status)
+	_, _ = ctrl.persistAppStatus(context.Background(), orig, status)
 }
 
 func (ctrl *ApplicationController) AddHydrationQueueItem(key types.HydrationQueueKey) {

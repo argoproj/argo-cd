@@ -83,6 +83,8 @@ type fakeData struct {
 	configMapData          map[string]string
 	metricsCacheExpiration time.Duration
 	applicationNamespaces  []string
+	// configureAppClient installs reactors before the informers start using the client.
+	configureAppClient func(*appclientset.Clientset)
 	// wrapProjectRefreshQueue, when set, replaces the controller's project refresh queue before the
 	// informers start, so tests can observe enqueues without racing the informer event handlers.
 	wrapProjectRefreshQueue         func(workqueue.TypedRateLimitingInterface[string]) workqueue.TypedRateLimitingInterface[string]
@@ -245,11 +247,15 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 			1*time.Minute,
 		)
 	}
+	appClient := appclientset.NewSimpleClientset(data.apps...)
+	if data.configureAppClient != nil {
+		data.configureAppClient(appClient)
+	}
 	ctrl, err := NewApplicationController(
 		test.FakeArgoCDNamespace,
 		settingsMgr,
 		kubeClient,
-		appclientset.NewSimpleClientset(data.apps...),
+		appClient,
 		mockRepoClientset,
 		mockCommitClientset,
 		appCache,
@@ -4491,7 +4497,8 @@ func TestApplicationController_PersistAppStatus_FallbackOnSizeLimit(t *testing.T
 		{Name: "bloat-1", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync},
 	}
 
-	ctrl.persistAppStatus(t.Context(), app, newStatus)
+	_, err := ctrl.persistAppStatus(t.Context(), app, newStatus)
+	require.True(t, apierrors.IsRequestEntityTooLargeError(err))
 
 	require.Equal(t, 2, patchCalls, "expected initial patch + fallback patch")
 
@@ -4538,7 +4545,8 @@ func TestApplicationController_PersistAppStatus_NonSizeLimitErrorNoFallback(t *t
 	newStatus := app.Status.DeepCopy()
 	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
 
-	ctrl.persistAppStatus(t.Context(), app, newStatus)
+	_, err := ctrl.persistAppStatus(t.Context(), app, newStatus)
+	require.EqualError(t, err, "boom")
 
 	assert.Equal(t, 1, patchCalls, "non-size-limit errors should NOT trigger fallback patch")
 
@@ -4581,7 +4589,8 @@ func TestApplicationController_PersistAppStatus_FallbackMessageContainsUserGuida
 		{Name: "bloat-1", Kind: "ConfigMap", Status: v1alpha1.SyncStatusCodeOutOfSync},
 	}
 
-	ctrl.persistAppStatus(t.Context(), app, newStatus)
+	_, err := ctrl.persistAppStatus(t.Context(), app, newStatus)
+	require.True(t, apierrors.IsRequestEntityTooLargeError(err))
 
 	require.Equal(t, 2, patchCalls, "expected initial patch + fallback patch")
 
@@ -4638,7 +4647,8 @@ func TestApplicationController_PersistAppStatus_FallbackPatchAlsoFails(t *testin
 	// Must not panic or block when the fallback patch also fails — the error
 	// should be logged and persistAppStatus should return normally.
 	assert.NotPanics(t, func() {
-		ctrl.persistAppStatus(t.Context(), app, newStatus)
+		_, err := ctrl.persistAppStatus(t.Context(), app, newStatus)
+		require.True(t, apierrors.IsRequestEntityTooLargeError(err))
 	})
 
 	assert.Equal(t, 2, patchCalls, "fallback patch should be attempted exactly once after initial size-limit failure")
@@ -5235,7 +5245,8 @@ func TestPersistReconciliationStatus_AnnotationManagement(t *testing.T) {
 		origApp := app.DeepCopy()
 		newStatus := app.Status.DeepCopy()
 
-		ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+		_, err := ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+		require.NoError(t, err)
 
 		// Verify the patch was created correctly
 		patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
@@ -5282,7 +5293,8 @@ func TestPersistReconciliationStatus_AnnotationManagement(t *testing.T) {
 		origApp := app.DeepCopy()
 		newStatus := app.Status.DeepCopy()
 
-		ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+		_, err := ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+		require.NoError(t, err)
 		// Verify no patch was performed
 		assert.Zero(t, patchCalls)
 	})
@@ -5303,7 +5315,8 @@ func TestPersistReconciliationStatus_AnnotationManagement(t *testing.T) {
 		origApp := app.DeepCopy()
 		newStatus := app.Status.DeepCopy()
 
-		ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+		_, err := ctrl.persistReconciliationStatus(t.Context(), origApp, newStatus)
+		require.NoError(t, err)
 		// Verify no patch was performed
 		assert.Zero(t, patchCalls)
 	})
@@ -6307,7 +6320,8 @@ func TestApplicationController_PersistAppStatus_EvictsWhenFallbackPatchFindsAppG
 
 	newStatus := app.Status.DeepCopy()
 	newStatus.Sync.Status = v1alpha1.SyncStatusCodeOutOfSync
-	ctrl.persistAppStatus(t.Context(), app, newStatus)
+	_, err := ctrl.persistAppStatus(t.Context(), app, newStatus)
+	require.True(t, apierrors.IsRequestEntityTooLargeError(err))
 
 	require.Equal(t, 2, patchCalls)
 	_, exists, err := ctrl.appInformer.GetStore().Get(app)

@@ -123,8 +123,13 @@ Application health.
 #### Error status
 
 An observed `OutOfSync` or `Degraded` Application is not by itself a controller execution error.
-Comparison, cache, and operation-state persistence failures set the relevant span's OpenTelemetry
-status to `Error`. Failed sync attempts also set error status, including attempts scheduled for retry.
+Comparison, cache, and application-status or operation-state persistence failures set the relevant
+span's OpenTelemetry status to `Error`. Failed sync attempts also set error status, including attempts
+scheduled for retry.
+
+An application-status write failure also marks the parent `controller.Refresh` as an error, with
+`argocd.reconciliation.outcome=error` and `argocd.reconciliation.status_changed=false`. This includes
+size-limit failures where a reduced error condition is persisted instead of the requested status.
 
 Failure to initiate auto-sync marks both `controller.autoSync` and its `controller.Refresh` parent as
 errors. Historical failed-sync conditions and intentional policy skips are observations of controller

@@ -2272,7 +2272,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 					logCtx.WithError(err).Error("Failed to build resources tree")
 				}
 
-				patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
+				if patchDuration, err = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status); err != nil {
+					reconciliationFailed = true
+				}
 				return processNext
 			}
 			logCtx.Warnf("Failed to get cached managed resources for tree reconciliation, fall back to full reconciliation")
@@ -2289,7 +2291,7 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		app.Status.Health.Status = health.HealthStatusUnknown
 		app.Status.Health.Message = ""
 		statusFallback = &app.Status
-		patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
+		patchDuration, _ = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), &appv1.ApplicationTree{}); err != nil {
 			logCtx.WithError(err).Warn("failed to set app resource tree")
@@ -2445,7 +2447,9 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 	}
 	ts.AddCheckpoint("process_finalizers_ms")
-	patchDuration = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status)
+	if patchDuration, err = ctrl.persistReconciliationStatus(ctx, origApp, &app.Status); err != nil {
+		reconciliationFailed = true
+	}
 	// This is a partly a duplicate of patch_ms, but more descriptive and allows to have measurement for the next step.
 	ts.AddCheckpoint("persist_app_status_ms")
 	return processNext
@@ -2776,9 +2780,9 @@ func createMergePatch(orig, newV any) ([]byte, bool, error) {
 }
 
 // persistReconciliationStatus persists updates to application status and consumes the refresh and refresh-timestamp annotations.
-func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) time.Duration {
-	duration := ctrl.persistAppStatus(ctx, orig, newStatus)
-	return duration + ctrl.handleRefreshAnnotation(ctx, orig, appv1.AnnotationKeyRefresh, appv1.AnnotationKeyRefreshTimestamp)
+func (ctrl *ApplicationController) persistReconciliationStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) (time.Duration, error) {
+	duration, err := ctrl.persistAppStatus(ctx, orig, newStatus)
+	return duration + ctrl.handleRefreshAnnotation(ctx, orig, appv1.AnnotationKeyRefresh, appv1.AnnotationKeyRefreshTimestamp), err
 }
 
 // Conditionally removes given refresh annotation (for application refresh or hydration)
@@ -2918,15 +2922,15 @@ func (ctrl *ApplicationController) removeRefreshAnnotationCombo(app *appv1.Appli
 
 // persistAppStatus persists updates to application status
 // If no changes were made, it is a no-op
-func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) (patchDuration time.Duration) {
-	// NB: leaf span only — the status patch below deliberately stays on context.Background() so a
+// The error describes the requested status update, even if a reduced fallback is persisted.
+func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *appv1.Application, newStatus *appv1.ApplicationStatus) (patchDuration time.Duration, spanErr error) {
+	// NB: leaf span only; the status patch below deliberately stays on context.Background() so a
 	// canceled reconcile ctx never aborts a durable status write. The span just measures it.
 	_, span := tracer.Start(ctx, "controller.persistAppStatus")
 	setAppTraceAttrs(span, orig)
 	// spanErr records a failed status write on the span so a trace doesn't look successful when
 	// the patch below failed. These are Kubernetes API/merge-patch errors, not repo URLs, so
 	// recording the message via EndSpan does not risk leaking credentials.
-	var spanErr error
 	defer func() { traceutil.EndSpan(span, spanErr) }()
 	logCtx := log.WithFields(applog.GetAppLogFields(orig))
 	if orig.Status.Sync.Status != newStatus.Sync.Status {
@@ -2972,11 +2976,11 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	if err != nil {
 		spanErr = err
 		logCtx.WithError(err).Error("Error constructing app status patch")
-		return patchDuration
+		return patchDuration, spanErr
 	}
 	if !modified {
 		logCtx.Infof("No status changes. Skipping patch")
-		return patchDuration
+		return patchDuration, spanErr
 	}
 	// With the heartbeat on, a reconciledAt-only change is held back; any other
 	// change carries it. A requested refresh always writes it: progressive sync
@@ -2988,7 +2992,7 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 			}
 			if json.Unmarshal(patch, &p) == nil && len(p.Status) == 1 && p.Status["reconciledAt"] != nil {
 				logCtx.Infof("No status changes. Skipping patch")
-				return patchDuration
+				return patchDuration, spanErr
 			}
 		}
 	}
@@ -3032,10 +3036,10 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 			)
 			if mpErr != nil {
 				logCtx.WithError(mpErr).Error("Error constructing fallback status patch")
-				return patchDuration
+				return patchDuration, spanErr
 			}
 			if !modified {
-				return patchDuration
+				return patchDuration, spanErr
 			}
 			if _, err = ctrl.PatchAppWithWriteBack(context.Background(), orig.Name, orig.Namespace, types.MergePatchType, fallbackPatch, metav1.PatchOptions{}); err != nil {
 				logCtx.WithError(err).Error("Error persisting fallback status with error condition")
@@ -3049,7 +3053,7 @@ func (ctrl *ApplicationController) persistAppStatus(ctx context.Context, orig *a
 	} else {
 		logCtx.Infof("Update successful")
 	}
-	return patchDuration
+	return patchDuration, spanErr
 }
 
 // autoSync initiates a sync operation for an application configured with automated sync.
