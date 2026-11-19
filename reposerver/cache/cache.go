@@ -306,11 +306,7 @@ func helmIndexRecordRetention(freshness time.Duration) time.Duration {
 	if freshness <= 0 {
 		freshness = helm.DefaultIndexCacheExpiration
 	}
-	retention := 2 * freshness
-	if retention < time.Hour {
-		retention = time.Hour
-	}
-	return retention
+	return max(2*freshness, time.Hour)
 }
 
 func (c *Cache) GetHelmIndexRetainedRecord(repo string) (*HelmIndexRecord, error) {

@@ -105,16 +105,6 @@ func (v *inMemoryIndexValidators) GetHelmIndexValidators(repo string) (string, s
 	return vv.etag, vv.lastModified, nil
 }
 
-// validatorsFor returns the validator store for an indexCache: the cache
-// itself when it implements indexCacheWithValidators, otherwise the shared
-// in-process fallback.
-func validatorsFor(indexCacheObj indexCache) indexCacheWithValidators {
-	if vc, ok := indexCacheObj.(indexCacheWithValidators); ok {
-		return vc
-	}
-	return sharedInMemoryValidators
-}
-
 // sharedInMemoryValidators backs clients whose cache cannot store validators.
 var sharedInMemoryValidators = newInMemoryIndexValidators()
 
@@ -206,7 +196,7 @@ func observeIndexRecord(ctx context.Context, reader indexCacheRecordReader, repo
 	}()
 	select {
 	case res := <-done:
-		return indexRecordObservation{record: res.record}
+		return indexRecordObservation(res)
 	case <-readCtx.Done():
 		return indexRecordObservation{}
 	}

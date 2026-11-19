@@ -4,7 +4,9 @@ import (
 	"archive/tar"
 	"bytes"
 	"compress/gzip"
+	"crypto/sha256"
 	"crypto/tls"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -25,8 +27,6 @@ import (
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
 
-	"crypto/sha256"
-	"encoding/hex"
 	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
@@ -1282,10 +1282,9 @@ func newIndexBody(version string) []byte {
 }
 
 type recordingIndexCache struct {
-	data       []byte
-	sets       atomic.Int64
-	gets       atomic.Int64
-	recordSets atomic.Int64
+	data []byte
+	sets atomic.Int64
+	gets atomic.Int64
 }
 
 func (f *recordingIndexCache) SetHelmIndex(_ string, indexData []byte) error {
@@ -1489,7 +1488,7 @@ func TestIndexCredentialScopeIsolation(t *testing.T) {
 }
 
 func TestIndexBadBodyIsNotCached(t *testing.T) {
-	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.Header().Set("ETag", `"bad-index"`)
 		_, _ = w.Write([]byte("this is not a helm index"))
 	}))
