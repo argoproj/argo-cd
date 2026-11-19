@@ -632,7 +632,7 @@ func TestSetHelmIndex(t *testing.T) {
 		require.NoError(t, err)
 		// PR1 dual write: the atomic versioned record plus the legacy
 		// body-mirror key (one Set each).
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2})
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 3})
 	})
 	t.Run("SetHelmIndex with nil", func(t *testing.T) {
 		t.Parallel()

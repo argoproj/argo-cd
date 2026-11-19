@@ -284,11 +284,43 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 		digest := sha256.Sum256(record.Body)
 		record.BodyDigest = hex.EncodeToString(digest[:])
 	}
+	// Refresh the legacy body mirror alongside the versioned record: readers
+	// without the record API (older replicas, cross-version upgrades) stay
+	// warm on successful fetches. Legacy readers cannot revalidate, so the
+	// mirror only serves as a starting point for their own fetch flow.
+	if err := c.cache.SetItem(helmIndexRefsKey(repo), record.Body, &cacheutil.CacheActionOpts{Expiration: c.helmIndexCacheExpiration}); err != nil {
+		return err
+	}
 	return c.cache.SetItem(helmIndexRecordKey(repo), record, &cacheutil.CacheActionOpts{Expiration: c.helmIndexCacheExpiration})
 }
 
 func (c *Cache) GetHelmIndexRetainedRecord(repo string) (*HelmIndexRecord, error) {
-	return c.readHelmIndex(repo)
+	return c.GetHelmIndexRetainedRecordContext(context.Background(), repo)
+}
+
+// GetHelmIndexRetainedRecordContext honors the caller's context while the
+// Redis read is in flight, so a slow backend cannot hold a per-key index
+// lock past cancellation. The underlying read is abandoned, not cancelled —
+// the shared CacheClient interface has no context-aware Get.
+func (c *Cache) GetHelmIndexRetainedRecordContext(ctx context.Context, repo string) (*HelmIndexRecord, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	type result struct {
+		record *HelmIndexRecord
+		err    error
+	}
+	done := make(chan result, 1)
+	go func() {
+		record, err := c.readHelmIndex(repo)
+		done <- result{record, err}
+	}()
+	select {
+	case res := <-done:
+		return res.record, res.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 func (c *Cache) readHelmIndex(repo string) (*HelmIndexRecord, error) {

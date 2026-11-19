@@ -281,6 +281,13 @@ type indexCacheRecordReader interface {
 	GetHelmIndexRetainedRecord(repo string) (*HelmIndexRecord, error)
 }
 
+// indexCacheContextedReader is implemented by caches whose retained-record
+// read can honor the caller's context, so a slow backend releases the
+// per-key index lock on cancellation.
+type indexCacheContextedReader interface {
+	GetHelmIndexRetainedRecordContext(ctx context.Context, repo string) (*HelmIndexRecord, error)
+}
+
 // RFC 9111 section 4.3.4: a new strong ETag cannot identify bytes cached
 // under a different or weak validator. Weak tags must match their opaque
 // value; a response omitting its ETag can still validate the sent condition.

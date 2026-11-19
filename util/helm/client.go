@@ -430,7 +430,8 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 			data = nil
 		} else {
 			var identity string
-			if reader, ok := c.indexCache.(indexCacheRecordReader); ok {
+			reader, isReader := c.indexCache.(indexCacheRecordReader)
+			if isReader {
 				c.cacheObservation = observeIndexRecord(ctx, reader, repoKey)
 				c.cacheReadAttempted = true
 				if record := c.cacheObservation.record; record != nil && bytes.Equal(data, record.Body) {
@@ -439,7 +440,15 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 			} else {
 				_, _, identity = sharedInMemoryValidators.getForResponse(repoKey, data)
 			}
-			if !c.matchesIndexRequest(ctx, identity) {
+			// A body-only cache cannot bind the hit to a request profile, so
+			// it can never authorize a conditional GET. Unscoped deployments
+			// keep master's behavior — serve the warm body as-is (it was
+			// validated by the writer at fetch time); scoped deployments
+			// treat an unattributable body as a miss, since credential
+			// isolation is the very thing the identity check protects.
+			if !c.scopedByCreds && !isReader {
+				// serve regardless of identity
+			} else if !c.matchesIndexRequest(ctx, identity) {
 				data = nil
 			}
 		}
