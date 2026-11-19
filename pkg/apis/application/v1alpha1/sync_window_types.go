@@ -74,15 +74,15 @@ type SyncWindowRef struct {
 }
 
 // SyncWindowProjectRef is a reference to a SyncWindow from an AppProject.
-// It allows specifying additional filters that restrict which apps the referenced
-// sync windows apply to.
+// Each non-empty application, namespace, or cluster filter on the ref replaces the
+// matching filter on the referenced sync windows. Empty filters keep the window's own.
 type SyncWindowProjectRef struct {
 	// Ref references a SyncWindow by name or selector.
 	Ref SyncWindowRef `json:"ref" protobuf:"bytes,1,opt,name=ref"`
-	// Applications restricts which applications the referenced sync windows apply to (glob patterns supported).
+	// Applications, if set, replaces the applications filter of the referenced sync windows (glob patterns supported).
 	Applications []string `json:"applications,omitempty" protobuf:"bytes,2,rep,name=applications"`
-	// Namespaces restricts which namespaces the referenced sync windows apply to (glob patterns supported).
+	// Namespaces, if set, replaces the namespaces filter of the referenced sync windows (glob patterns supported).
 	Namespaces []string `json:"namespaces,omitempty" protobuf:"bytes,3,rep,name=namespaces"`
-	// Clusters restricts which clusters the referenced sync windows apply to (glob patterns supported).
+	// Clusters, if set, replaces the clusters filter of the referenced sync windows (glob patterns supported).
 	Clusters []string `json:"clusters,omitempty" protobuf:"bytes,4,rep,name=clusters"`
 }

@@ -3074,19 +3074,19 @@ message SyncWindowList {
 }
 
 // SyncWindowProjectRef is a reference to a SyncWindow from an AppProject.
-// It allows specifying additional filters that restrict which apps the referenced
-// sync windows apply to.
+// Each non-empty application, namespace, or cluster filter on the ref replaces the
+// matching filter on the referenced sync windows. Empty filters keep the window's own.
 message SyncWindowProjectRef {
   // Ref references a SyncWindow by name or selector.
   optional SyncWindowRef ref = 1;
 
-  // Applications restricts which applications the referenced sync windows apply to (glob patterns supported).
+  // Applications, if set, replaces the applications filter of the referenced sync windows (glob patterns supported).
   repeated string applications = 2;
 
-  // Namespaces restricts which namespaces the referenced sync windows apply to (glob patterns supported).
+  // Namespaces, if set, replaces the namespaces filter of the referenced sync windows (glob patterns supported).
   repeated string namespaces = 3;
 
-  // Clusters restricts which clusters the referenced sync windows apply to (glob patterns supported).
+  // Clusters, if set, replaces the clusters filter of the referenced sync windows (glob patterns supported).
   repeated string clusters = 4;
 }
 
