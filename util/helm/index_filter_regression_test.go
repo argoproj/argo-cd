@@ -127,3 +127,17 @@ func TestPublishRecordInvalidatesBeforeTempFile(t *testing.T) {
 	assert.Contains(t, getErr.Error(), "unconfirmed",
 		"the pre-publication invalidation must mark the record, got: %v", getErr)
 }
+
+// ANY snapshot failure — projection parse errors and absent dependencies
+// alike — must keep the full index installed: the filter stage treats every
+// snapshot error the same and never aborts the build. Projection errors are
+// not absent-dependency errors, so the classification stays distinct even
+// though the fallback is shared.
+func TestIndexProjectionFailureIsNotAbsentDependency(t *testing.T) {
+	// A scalar entries value fails the projection decode.
+	_, _, err := dependencyIndexes.snapshot(
+		[]byte("apiVersion: v1\nentries:\n  child: not-a-chart-entry\n"),
+		map[string]struct{}{"child": {}})
+	require.Error(t, err, "a scalar entry must fail projection")
+	assert.False(t, isIndexDependencyAbsentError(err), "a decode failure is not an absent dependency")
+}

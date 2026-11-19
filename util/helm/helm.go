@@ -219,14 +219,14 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 			if wanted := allNames[unscopedIdentity]; len(wanted) > 0 {
 				filtered, replaced, err := dependencyIndexes.snapshot(data, wanted)
 				switch {
-				case isIndexDependencyAbsentError(err):
-					// The cached index predates this dependency. Keep
-					// the full index installed; revalidation (freshness
-					// expiry or the version-miss fallback) picks the
-					// chart up on a later build.
-					log.WithError(err).Debug("falling back to full helm index for dependencies absent from the cached index")
 				case err != nil:
-					return fmt.Errorf("filter helm index for %s: %w", repo.Repo, err)
+					// Any projection failure (dependency absent from the
+					// cached index, malformed or rejected projection body)
+					// keeps the FULL index installed: the build must behave
+					// exactly like a repo without filtering. Revalidation
+					// (freshness expiry or the version-miss fallback) picks
+					// the chart up on a later build.
+					log.WithError(err).Debug("falling back to full helm index after snapshot failure")
 				case replaced:
 					if err := h.cmd.installIndexes(repo.Repo, filtered, repo.Name, true); err != nil {
 						return fmt.Errorf("install filtered helm index for %s: %w", repo.Repo, err)
