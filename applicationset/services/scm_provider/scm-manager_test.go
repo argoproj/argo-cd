@@ -30,15 +30,13 @@ func scmManagerMockHandler(t *testing.T, repositoryName string) func(http.Respon
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		switch r.RequestURI {
-		case "/api/v2/repositories?pageSize=9999&archived=true":
+		case "/api/v2/repositories?archived=true&pageSize=9999":
 			handleRepositoryOverviewRequest(t, repositoryName, w)
 		case "/api/v2/repositories/test-argocd/pr-test/branches/":
 			handleBranchesRequestWithExistingBranches(t, w)
 		case "/api/v2/repositories/test-argocd/empty/branches/":
 			handleBranchesRequestWithoutBranches(t, w)
-		case "/api/v2/repositories/test-argocd/" + repositoryName:
-			handleRepositoryRequest(t, w)
-		case "/api/v2/repositories/test-argocd/pr-test/content/master/README.md?ref=master":
+		case "/api/v2/repositories/test-argocd/pr-test/content/master/README.md":
 			_, err := io.WriteString(w, `"my readme test"`)
 			require.NoError(t, err)
 		case "/api/v2/repositories/test-argocd/pr-test/content/master/build":
@@ -47,32 +45,9 @@ func scmManagerMockHandler(t *testing.T, repositoryName string) func(http.Respon
 		case "/api/v2/repositories/test-argocd/pr-test/content/master/unknownFile":
 			w.WriteHeader(http.StatusNotFound)
 		default:
-			_, err := io.WriteString(w, `[]`)
-			if err != nil {
-				t.Fail()
-			}
+			t.Errorf("unexpected request %s", r.RequestURI)
+			w.WriteHeader(http.StatusNotFound)
 		}
-	}
-}
-
-func handleRepositoryRequest(t *testing.T, w http.ResponseWriter) {
-	t.Helper()
-	_, err := io.WriteString(w, `{
-				"namespace": "test-argocd",
-				"name": "pr-test",
-				"type": "git",
-				"description": "test",
-				"contact": "eduard.heimbuch@cloudogu.com",
-				"archived": false,
-				"_links": {
-					"protocol": [
-						{ "name": "ssh", "href": "git@scm-manager.org:test-argocd/pr-test.git" },
-						{ "name": "http", "href": "https://scm-manager.org/test-argocd/pr-test" }
-					]
-				}
-			}`)
-	if err != nil {
-		t.Fail()
 	}
 }
 
@@ -174,6 +149,13 @@ func TestScmManagerListRepos(t *testing.T) {
 			url:         "git@scm-manager.org:test-argocd/pr-test.git",
 			branches:    []string{"main"},
 		},
+		{
+			name:        "all branches with https",
+			allBranches: true,
+			proto:       "https",
+			url:         "https://scm-manager.org/test-argocd/pr-test",
+			branches:    []string{"main"},
+		},
 	}
 	ts := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		scmManagerMockHandlerWithNormalRepository(t)(w, r)
@@ -195,7 +177,7 @@ func TestScmManagerListRepos(t *testing.T) {
 						branches = append(branches, r.Branch)
 					}
 				}
-				assert.NotEmpty(t, repos)
+				require.NotEmpty(t, repos)
 				assert.Equal(t, c.url, repos[0].URL)
 				for _, b := range c.branches {
 					assert.Contains(t, branches, b)
@@ -247,4 +229,90 @@ func TestScmManagerHasPath(t *testing.T) {
 		require.NoError(t, err)
 		assert.False(t, ok)
 	})
+}
+
+func TestScmManagerRepositoryPages(t *testing.T) {
+	for _, failNextPage := range []bool{false, true} {
+		name := "all pages"
+		if failNextPage {
+			name = "later page fails"
+		}
+		t.Run(name, func(t *testing.T) {
+			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				switch r.URL.Path {
+				case "/api/v2/repositories":
+					switch r.URL.Query().Get("page") {
+					case "":
+						_, _ = io.WriteString(w, `{"page":0,"pageTotal":2,"_embedded":{"repositories":[{"namespace":"team","name":"first","_links":{"protocol":[{"name":"http","href":"https://example.org/first"}]}}]}}`)
+					case "1":
+						if failNextPage {
+							w.WriteHeader(http.StatusServiceUnavailable)
+							return
+						}
+						_, _ = io.WriteString(w, `{"page":1,"pageTotal":2,"_embedded":{"repositories":[{"namespace":"team","name":"second","_links":{"protocol":[{"name":"http","href":"https://example.org/second"}]}}]}}`)
+					default:
+						t.Errorf("unexpected page in %s", r.RequestURI)
+						w.WriteHeader(http.StatusBadRequest)
+					}
+				case "/api/v2/repositories/team/first/branches/", "/api/v2/repositories/team/second/branches/":
+					handleBranchesRequestWithExistingBranches(t, w)
+				default:
+					t.Errorf("unexpected request %s", r.RequestURI)
+					w.WriteHeader(http.StatusNotFound)
+				}
+			}))
+			defer server.Close()
+			provider, err := NewScmManagerProvider(t.Context(), "", server.URL, false, false, "", nil)
+			require.NoError(t, err)
+			repos, err := provider.ListRepos(t.Context(), "https")
+			if failNextPage {
+				require.ErrorContains(t, err, "HTTP 503")
+				require.Nil(t, repos)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, repos, 2)
+			assert.Equal(t, "second", repos[1].Repository)
+		})
+	}
+}
+
+func TestScmManagerPrivateContent(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer private-token" {
+			w.WriteHeader(http.StatusUnauthorized)
+			return
+		}
+		switch r.URL.Path {
+		case "/api/v2/repositories/team/work/content/main/README.md":
+			_, _ = io.WriteString(w, "readme")
+		case "/api/v2/repositories/team/work/content/main/truncated":
+			w.Header().Set("Content-Length", "20")
+			_, _ = io.WriteString(w, "short")
+		case "/api/v2/repositories/team/work/content/main/unavailable":
+			w.WriteHeader(http.StatusServiceUnavailable)
+		default:
+			t.Errorf("unexpected request %s", r.RequestURI)
+			w.WriteHeader(http.StatusNotFound)
+		}
+	}))
+	defer server.Close()
+	provider, err := NewScmManagerProvider(t.Context(), "private-token", server.URL, false, false, "", nil)
+	require.NoError(t, err)
+	repo := &Repository{Organization: "team", Repository: "work", Branch: "main"}
+
+	found, err := provider.RepoHasPath(t.Context(), repo, "README.md")
+	require.NoError(t, err)
+	assert.True(t, found)
+	found, err = provider.RepoHasPath(t.Context(), repo, "unavailable")
+	require.ErrorContains(t, err, "HTTP 503")
+	assert.False(t, found)
+	found, err = provider.RepoHasPath(t.Context(), repo, "truncated")
+	require.ErrorIs(t, err, io.ErrUnexpectedEOF)
+	assert.False(t, found)
+
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = provider.RepoHasPath(ctx, repo, "README.md")
+	require.ErrorIs(t, err, context.Canceled)
 }

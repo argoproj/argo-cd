@@ -673,11 +673,11 @@ type PullRequestGenerator struct {
 	Bitbucket           *PullRequestGeneratorBitbucket `json:"bitbucket,omitempty" protobuf:"bytes,8,opt,name=bitbucket"`
 	// Additional provider to use and config for it.
 	AzureDevOps *PullRequestGeneratorAzureDevOps `json:"azuredevops,omitempty" protobuf:"bytes,9,opt,name=azuredevops"`
-	ScmManager  *PullRequestGeneratorScmManager  `json:"scmManager,omitempty" protobuf:"bytes,10,opt,name=scmManager"`
 	// Values contains key/value pairs which are passed directly as parameters to the template
-	Values map[string]string `json:"values,omitempty" protobuf:"bytes,11,name=values"`
+	Values map[string]string `json:"values,omitempty" protobuf:"bytes,10,name=values"`
 	// ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
-	ContinueOnRepoNotFoundError bool `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,12,opt,name=continueOnRepoNotFoundError"`
+	ContinueOnRepoNotFoundError bool                            `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,11,opt,name=continueOnRepoNotFoundError"`
+	ScmManager                  *PullRequestGeneratorScmManager `json:"scmManager,omitempty" protobuf:"bytes,13,opt,name=scmManager"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 

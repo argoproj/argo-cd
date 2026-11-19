@@ -1782,13 +1782,13 @@ message PullRequestGenerator {
   // Additional provider to use and config for it.
   optional PullRequestGeneratorAzureDevOps azuredevops = 9;
 
-  optional PullRequestGeneratorScmManager scmManager = 10;
-
   // Values contains key/value pairs which are passed directly as parameters to the template
-  map<string, string> values = 11;
+  map<string, string> values = 10;
 
   // ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
-  optional bool continueOnRepoNotFoundError = 12;
+  optional bool continueOnRepoNotFoundError = 11;
+
+  optional PullRequestGeneratorScmManager scmManager = 13;
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.

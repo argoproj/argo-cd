@@ -4,16 +4,16 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"os"
+	"net/url"
+	"strconv"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/applicationset/services/internal/scmmanager"
 
 	scmm "github.com/scm-manager/goscm"
 )
 
 type ScmManagerProvider struct {
-	client      *scmm.Client
+	client      *scmmanager.Client
 	allBranches bool
 }
 
@@ -21,80 +21,64 @@ const FilterLimit = 9999
 
 var _ SCMProviderService = &ScmManagerProvider{}
 
-func NewScmManagerProvider(_ context.Context, token, url string, allBranches, insecure bool, scmRootCAPath string, caCerts []byte) (*ScmManagerProvider, error) {
-	if token == "" {
-		token = os.Getenv("SCMM_TOKEN")
-	}
-	httpClient := &http.Client{}
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
-	httpClient.Transport = tr
-
-	client, err := scmm.NewClient(url, token)
-	if err != nil {
-		return nil, fmt.Errorf("error creating a new SCM-Manager client: %w", err)
-	}
-
-	client.SetHttpClient(httpClient)
-
+func NewScmManagerProvider(_ context.Context, token, apiURL string, allBranches, insecure bool, scmRootCAPath string, caCerts []byte) (*ScmManagerProvider, error) {
 	return &ScmManagerProvider{
-		client:      client,
+		client:      scmmanager.NewClient(apiURL, token, insecure, scmRootCAPath, caCerts),
 		allBranches: allBranches,
 	}, nil
 }
 
-func (g *ScmManagerProvider) GetBranches(_ context.Context, repo *Repository) ([]*Repository, error) {
-	scmmRepo, err := g.client.GetRepo(repo.Organization, repo.Repository)
+func (g *ScmManagerProvider) listBranches(ctx context.Context, namespace, name string) ([]scmm.Branch, error) {
+	var branches scmm.BranchContainer
+	path := scmmanager.RepositoryPath(namespace, name) + "/branches/"
+	if err := g.client.GetJSON(ctx, path, nil, &branches); err != nil {
+		return nil, err
+	}
+	return branches.Embedded.Branches, nil
+}
+
+func (g *ScmManagerProvider) GetBranches(ctx context.Context, repo *Repository) ([]*Repository, error) {
+	branches, err := g.listBranches(ctx, repo.Organization, repo.Repository)
 	if err != nil {
 		return nil, err
 	}
-
-	if !g.allBranches {
-		defaultBranch, err := g.client.GetDefaultBranch(repo.Organization, repo.Repository)
-		if err != nil {
-			return nil, err
+	repos := make([]*Repository, 0, len(branches))
+	for _, branch := range branches {
+		if !g.allBranches && !branch.DefaultBranch {
+			continue
 		}
-
-		return []*Repository{
-			{
-				Organization: repo.Organization,
-				Repository:   repo.Repository,
-				Branch:       defaultBranch.Name,
-				URL:          repo.URL,
-				SHA:          defaultBranch.Revision,
-				Labels:       make([]string, 0),
-				RepositoryId: scmmRepo.Namespace + "/" + scmmRepo.Name,
-			},
-		}, nil
-	}
-	repos := []*Repository{}
-	branches, err := g.client.ListRepoBranches(repo.Organization, repo.Repository)
-	if err != nil {
-		return nil, err
-	}
-	for _, branch := range branches.Embedded.Branches {
 		repos = append(repos, &Repository{
-			Organization: scmmRepo.Namespace,
-			Repository:   scmmRepo.Name,
+			Organization: repo.Organization,
+			Repository:   repo.Repository,
 			Branch:       branch.Name,
-			URL:          scmmRepo.Links.ProtocolUrl[0].Href,
+			URL:          repo.URL,
 			SHA:          branch.Revision,
-			Labels:       make([]string, 0),
-			RepositoryId: scmmRepo.Namespace + "/" + scmmRepo.Name,
+			Labels:       []string{},
+			RepositoryId: repo.Organization + "/" + repo.Repository,
 		})
+		if !g.allBranches {
+			break
+		}
+	}
+	if !g.allBranches && len(repos) == 0 {
+		if len(branches) == 0 {
+			return nil, scmm.ErrEmptyRepository
+		}
+		return nil, scmm.ErrNoDefaultBranchFound
 	}
 	return repos, nil
 }
 
-func (g *ScmManagerProvider) ListRepos(_ context.Context, cloneProtocol string) ([]*Repository, error) {
+func (g *ScmManagerProvider) ListRepos(ctx context.Context, cloneProtocol string) ([]*Repository, error) {
 	repos := []*Repository{}
-	filter := g.client.NewRepoListFilter()
-	filter.Limit = FilterLimit
-	scmmRepos, err := g.client.ListRepos(filter)
+	query := url.Values{"pageSize": {strconv.Itoa(FilterLimit)}, "archived": {"true"}}
+	scmmRepos, err := scmmanager.ListPages(ctx, g.client, "/api/v2/repositories", query, func(page scmm.RepoContainer) ([]scmm.Repository, int, int) {
+		return page.Embedded.Repositories, page.Page, page.PageTotal
+	})
 	if err != nil {
 		return nil, err
 	}
-	for _, scmmRepo := range scmmRepos.Embedded.Repositories {
+	for _, scmmRepo := range scmmRepos {
 		var url string
 		switch cloneProtocol {
 		// Default to SSH if unspecified (i.e. if ""). SSH Plugin needs to be installed
@@ -110,21 +94,22 @@ func (g *ScmManagerProvider) ListRepos(_ context.Context, cloneProtocol string) 
 			return nil, errors.New("could not find valid repository protocol url")
 		}
 
-		defaultBranch, err := g.client.GetDefaultBranch(scmmRepo.Namespace, scmmRepo.Name)
+		branches, err := g.listBranches(ctx, scmmRepo.Namespace, scmmRepo.Name)
 		if err != nil {
-			if errors.Is(err, scmm.ErrEmptyRepository) || errors.Is(err, scmm.ErrNoDefaultBranchFound) {
-				continue
-			}
 			return nil, err
 		}
-
-		repos = append(repos, &Repository{
-			Organization: scmmRepo.Namespace,
-			Repository:   scmmRepo.Name,
-			Branch:       defaultBranch.Name,
-			URL:          url,
-			RepositoryId: scmmRepo.Namespace + "/" + scmmRepo.Name,
-		})
+		for _, branch := range branches {
+			if branch.DefaultBranch {
+				repos = append(repos, &Repository{
+					Organization: scmmRepo.Namespace,
+					Repository:   scmmRepo.Name,
+					Branch:       branch.Name,
+					URL:          url,
+					RepositoryId: scmmRepo.Namespace + "/" + scmmRepo.Name,
+				})
+				break
+			}
+		}
 	}
 	return repos, nil
 }
@@ -138,16 +123,7 @@ func getProtocolUrlByName(urls []scmm.ProtocolUrl, name string) string {
 	return ""
 }
 
-func (g *ScmManagerProvider) RepoHasPath(_ context.Context, repo *Repository, path string) (bool, error) {
-	_, resp, err := g.client.GetContent(repo.Organization, repo.Repository, repo.Branch, path)
-	if resp != nil && resp.StatusCode == http.StatusNotFound {
-		return false, nil
-	}
-	if err != nil {
-		if err.Error() == "expect file, got directory" {
-			return true, nil
-		}
-		return false, err
-	}
-	return true, nil
+func (g *ScmManagerProvider) RepoHasPath(ctx context.Context, repo *Repository, path string) (bool, error) {
+	endpoint := scmmanager.RepositoryPath(repo.Organization, repo.Repository) + "/content/" + url.PathEscape(repo.Branch) + "/" + url.PathEscape(path)
+	return g.client.HasContent(ctx, endpoint)
 }

@@ -1,9 +1,12 @@
 package webhook
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -102,7 +105,7 @@ func NewParsers(set *settings.ArgoCDSettings, opts ParserOptions) []Extractor {
 		if hook, err := scmmanager.New(scmmanager.Options.Secret(set.WebhookScmmSecret)); err != nil {
 			log.Warnf("Unable to init the SCM-Manager webhook: %v", err)
 		} else {
-			parsers = append(parsers, &scmManagerParser{webhook: hook, events: opts.SCMManagerEvents})
+			parsers = append(parsers, &scmManagerParser{webhook: hook, events: opts.SCMManagerEvents, verifySignature: set.WebhookScmmSecret != ""})
 		}
 	}
 
@@ -211,8 +214,9 @@ func isParsingPayloadError(err error) bool {
 }
 
 type scmManagerParser struct {
-	webhook *scmmanager.ArgoCDWebhook
-	events  []scmmanager.Event
+	webhook         *scmmanager.ArgoCDWebhook
+	events          []scmmanager.Event
+	verifySignature bool
 }
 
 func (p *scmManagerParser) CanHandle(r *http.Request) bool {
@@ -220,6 +224,15 @@ func (p *scmManagerParser) CanHandle(r *http.Request) bool {
 }
 
 func (p *scmManagerParser) Parse(r *http.Request) (any, error) {
+	if p.verifySignature {
+		signature, ok := strings.CutPrefix(r.Header.Get("X-SCM-Signature"), "sha1=")
+		if !ok || len(signature) != hex.EncodedLen(sha1.Size) {
+			return nil, ErrSecretVerificationFailed
+		}
+		if _, err := hex.DecodeString(signature); err != nil {
+			return nil, ErrSecretVerificationFailed
+		}
+	}
 	payload, err := p.webhook.Parse(r, p.events...)
 	if errors.Is(err, scmmanager.ErrSecretVerification) ||
 		errors.Is(err, scmmanager.ErrMissingScmSignatureHeader) ||

@@ -2,66 +2,76 @@ package pull_request
 
 import (
 	"context"
-	"net/http"
-	"os"
+	"fmt"
+	"net/url"
 	"strconv"
 
-	"github.com/argoproj/argo-cd/v3/applicationset/utils"
-
 	scmm "github.com/scm-manager/goscm"
+
+	"github.com/argoproj/argo-cd/v3/applicationset/services/internal/scmmanager"
 )
 
 type ScmManagerService struct {
-	client    *scmm.Client
+	client    *scmmanager.Client
 	namespace string
 	name      string
 }
 
 var _ PullRequestService = (*ScmManagerService)(nil)
 
-func NewScmManagerService(_ context.Context, token, url, namespace, name string, insecure bool, scmRootCAPath string, caCerts []byte) (PullRequestService, error) {
-	if token == "" {
-		token = os.Getenv("SCMM_TOKEN")
-	}
-
-	httpClient := &http.Client{}
-	tr := http.DefaultTransport.(*http.Transport).Clone()
-	tr.TLSClientConfig = utils.GetTlsConfig(scmRootCAPath, insecure, caCerts)
-	httpClient.Transport = tr
-
-	client, err := scmm.NewClient(url, token)
-	if err != nil {
-		return nil, err
-	}
-
-	client.SetHttpClient(httpClient)
+func NewScmManagerService(_ context.Context, token, apiURL, namespace, name string, insecure bool, scmRootCAPath string, caCerts []byte) (PullRequestService, error) {
 	return &ScmManagerService{
-		client:    client,
+		client:    scmmanager.NewClient(apiURL, token, insecure, scmRootCAPath, caCerts),
 		namespace: namespace,
 		name:      name,
 	}, nil
 }
 
-func (g *ScmManagerService) List(_ context.Context) ([]*PullRequest, error) {
-	prs, err := g.client.ListPullRequests(g.namespace, g.name, g.client.NewPullRequestListFilter())
+type scmManagerPullRequest struct {
+	scmm.PullRequest
+	Author struct {
+		ID string `json:"id"`
+	} `json:"author"`
+}
+
+type scmManagerPullRequestPage struct {
+	Page      int `json:"page"`
+	PageTotal int `json:"pageTotal"`
+	Embedded  struct {
+		PullRequests []scmManagerPullRequest `json:"pullRequests"`
+	} `json:"_embedded"`
+}
+
+func (g *ScmManagerService) List(ctx context.Context) ([]*PullRequest, error) {
+	path := "/api/v2/pull-requests/" + url.PathEscape(g.namespace) + "/" + url.PathEscape(g.name)
+	prs, err := scmmanager.ListPages(ctx, g.client, path, url.Values{"status": {"OPEN"}, "pageSize": {"10"}}, func(page scmManagerPullRequestPage) ([]scmManagerPullRequest, int, int) {
+		return page.Embedded.PullRequests, page.Page, page.PageTotal
+	})
 	if err != nil {
 		return nil, err
 	}
-	list := []*PullRequest{}
-	for _, pr := range prs.Embedded.PullRequests {
-		changeset, err := g.client.GetHeadChangesetForBranch(g.namespace, g.name, pr.Source)
+	list := make([]*PullRequest, 0, len(prs))
+	for _, pr := range prs {
+		number, err := strconv.ParseInt(pr.Id, 10, 64)
 		if err != nil {
 			return nil, err
 		}
-		prId, err := strconv.Atoi(pr.Id)
-		if err != nil {
+		path := scmmanager.RepositoryPath(g.namespace, g.name) + "/branches/" + url.PathEscape(pr.Source) + "/changesets"
+		var changesets scmm.ChangesetContainer
+		if err := g.client.GetJSON(ctx, path, url.Values{"pageSize": {"1"}}, &changesets); err != nil {
 			return nil, err
+		}
+		if len(changesets.Embedded.Changesets) == 0 {
+			return nil, fmt.Errorf("SCM-Manager pull request %d has no changesets for branch %q", number, pr.Source)
 		}
 		list = append(list, &PullRequest{
-			Number:  int64(prId),
-			Branch:  pr.Source,
-			HeadSHA: changeset.Id,
-			Labels:  make([]string, 0),
+			Number:       number,
+			Branch:       pr.Source,
+			TargetBranch: pr.Target,
+			Title:        pr.Title,
+			Author:       pr.Author.ID,
+			HeadSHA:      changesets.Embedded.Changesets[0].Id,
+			Labels:       []string{},
 		})
 	}
 	return list, nil

@@ -3370,17 +3370,17 @@ func (in *PullRequestGenerator) DeepCopyInto(out *PullRequestGenerator) {
 		*out = new(PullRequestGeneratorAzureDevOps)
 		(*in).DeepCopyInto(*out)
 	}
-	if in.ScmManager != nil {
-		in, out := &in.ScmManager, &out.ScmManager
-		*out = new(PullRequestGeneratorScmManager)
-		(*in).DeepCopyInto(*out)
-	}
 	if in.Values != nil {
 		in, out := &in.Values, &out.Values
 		*out = make(map[string]string, len(*in))
 		for key, val := range *in {
 			(*out)[key] = val
 		}
+	}
+	if in.ScmManager != nil {
+		in, out := &in.ScmManager, &out.ScmManager
+		*out = new(PullRequestGeneratorScmManager)
+		(*in).DeepCopyInto(*out)
 	}
 	return
 }

@@ -362,6 +362,8 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - pullRequest:
       scmManager:
@@ -382,13 +384,23 @@ spec:
       filters:
       - branchMatch: ".*-argocd"
   template:
-  # ...
+    metadata:
+      name: 'preview-{{.number}}'
+    spec:
+      project: default
+      source:
+        repoURL: 'https://scm-manager.org/scm/repo/myproject/myrepository'
+        targetRevision: '{{.head_sha}}'
+        path: manifests
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
 ```
 
 * `namespace`: Required namespace of the SCM-Manager repository.
 * `name`: Required name of the SCM-Manager repository.
 * `api`: Required URL to access the SCM-Manager REST API. For e.g. to fetch all pull requests of your repository.
-* `tokenRef`: A `Secret` name and key containing the SCM-Manager access token to use for requests. If not specified, will make anonymous requests which can only see public repositories. (Optional)
+* `tokenRef`: A `Secret` name and key containing the SCM-Manager access token to use for requests. If omitted, Argo CD uses `SCMM_TOKEN` when set. Anonymous requests can only access public repositories. (Optional)
 * `insecure`: `Allow for self-signed certificates, primarily for testing.`
 
 ## Filters
@@ -554,9 +566,9 @@ For more information about each event, please refer to the [official documentati
 To enable the webhook in SCM-Manager, you need to install the ArgoCD plugin. The plugin is available in the SCM-Manager
 through the plugin center. When this is done, you can configure the webhook either globally or in the repository settings.
 In the settings, go to "Settings/Webhooks" in the global or in the repository navigation and add a new webhook of type
-"ArgoCD". The URL should be the URL of the ArgoCD ApplicationSet webhook server.
+"ArgoCD". Use the URL of the ApplicationSet webhook server ending in `/api/webhook`. The webhook must send native SCM-Manager pull request events (`X-SCM-Event`). To verify signatures, configure a shared secret in the SCM-Manager webhook and set the same value in `argocd-secret` under `webhook.scmmanager.secret`.
 
-![Add Gitlab Webhook](../../assets/applicationset/webhook-config-merge-request-scm-manager.png "Add SCM-Manager webhook")
+![Add SCM-Manager Webhook](../../assets/applicationset/webhook-config-merge-request-scm-manager.png "Add SCM-Manager webhook")
 
 ## Lifecycle
 

@@ -477,6 +477,8 @@ const (
 	settingsWebhookBitbucketServerSecretKey = "webhook.bitbucketserver.secret"
 	// settingsWebhookGogsSecret is the key for Gogs webhook secret
 	settingsWebhookGogsSecretKey = "webhook.gogs.secret"
+	// settingsWebhookScmmSecretKey is the key for the SCM-Manager webhook secret.
+	settingsWebhookScmmSecretKey = "webhook.scmmanager.secret"
 	// settingsWebhookHarborSecret is the key for Harbor webhook secret
 	settingsWebhookHarborSecretKey = "webhook.harbor.secret"
 	// settingsWebhookAzureDevOpsUsernameKey is the key for Azure DevOps webhook username
@@ -1924,6 +1926,7 @@ func (mgr *SettingsManager) updateSettingsFromSecret(settings *ArgoCDSettings, a
 	settings.WebhookBitbucketUUID = string(argoCDSecret.Data[settingsWebhookBitbucketUUIDKey])
 	settings.WebhookBitbucketServerSecret = string(argoCDSecret.Data[settingsWebhookBitbucketServerSecretKey])
 	settings.WebhookGogsSecret = string(argoCDSecret.Data[settingsWebhookGogsSecretKey])
+	settings.WebhookScmmSecret = string(argoCDSecret.Data[settingsWebhookScmmSecretKey])
 	settings.WebhookHarborSecret = string(argoCDSecret.Data[settingsWebhookHarborSecretKey])
 	settings.WebhookAzureDevOpsUsername = string(argoCDSecret.Data[settingsWebhookAzureDevOpsUsernameKey])
 	settings.WebhookAzureDevOpsPassword = string(argoCDSecret.Data[settingsWebhookAzureDevOpsPasswordKey])

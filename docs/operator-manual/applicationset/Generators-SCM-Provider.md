@@ -415,8 +415,11 @@ kind: ApplicationSet
 metadata:
   name: myapps
 spec:
+  goTemplate: true
+  goTemplateOptions: ["missingkey=error"]
   generators:
   - scmProvider:
+      cloneProtocol: https
       scmManager:
         # The SCM-Manager server url
         api: https://scm-manager.org/scm
@@ -427,12 +430,22 @@ spec:
           secretName: scmm-token
           key: token
   template:
-  # ...
+    metadata:
+      name: '{{.repository}}-{{.branchNormalized}}'
+    spec:
+      project: default
+      source:
+        repoURL: '{{.url}}'
+        targetRevision: '{{.sha}}'
+        path: manifests
+      destination:
+        server: https://kubernetes.default.svc
+        namespace: default
 ```
 
 * `api`: The URL of the SCM-Manager instance you are using.
 * `allBranches`: By default (false) the template will only be evaluated for the default branch of each repo. If this is true, every branch of every repository will be passed to the filters. If using this flag, you likely want to use a `branchMatch` filter.
-* `tokenRef`: A `Secret` name and key containing the Gitea access token to use for requests. If not specified, will make anonymous requests which have a lower rate limit and can only see public repositories.
+* `tokenRef`: A `Secret` name and key containing the SCM-Manager access token. If omitted, Argo CD uses `SCMM_TOKEN` when set. Anonymous requests can only access public repositories.
 * `insecure`: Allow for self-signed TLS certificates.
 
 SCM-Manager SCM provider does not yet support label filtering.
