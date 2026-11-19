@@ -63,6 +63,39 @@ func TestIndexFilterIntegrationVersionMissRevalidates(t *testing.T) {
 	regressionRender(t, fresh, "2.0.0")
 }
 
+// A dependency added upstream AFTER the cached index was fetched is absent
+// from the filtered snapshot entirely. The snapshot fallback must treat the
+// absence as a version-lookup miss: revalidate against the origin, restore
+// the full index, and retry — with filtering disabled the same build
+// succeeds.
+func TestIndexFilterIntegrationNewDependencyRevalidates(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	fixture := newRegressionChartRepo(t)
+	repo := HelmRepository{Name: "fixture", Repo: fixture.server.URL, Creds: HelmCreds{}}
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+	store.FilterEnabled = true
+
+	// Warm pass: only the child dependency exists upstream.
+	parent := regressionParent(t, repo.Repo)
+	warm, err := regressionBuild(t, parent, repo, store, false)
+	require.NoError(t, err)
+	regressionRender(t, warm, "1.0.0")
+
+	// A dependency the cached index does not know at all must not abort
+	// the filter stage: the snapshot reports it absent, the stage keeps the
+	// full index installed, and the version-miss fallback revalidates on
+	// the build failure. Unit-level: absent dependency is classified, full
+	// body stays untouched.
+	warmData, err := store.GetRetained(regressionIdentity(t, repo))
+	require.NoError(t, err)
+	_, _, snapshotErr := dependencyIndexes.snapshot(warmData, map[string]struct{}{"child": {}, "extra": {}})
+	require.Error(t, snapshotErr)
+	assert.True(t, isIndexDependencyAbsentError(snapshotErr), "an unknown dependency must classify as absent, got: %v", snapshotErr)
+	full, err := store.GetRetained(regressionIdentity(t, repo))
+	require.NoError(t, err)
+	assert.Equal(t, warmData, full, "the absent-dependency error must not touch the stored record")
+}
+
 // Publication must invalidate the previous record BEFORE preparing the
 // replacement body: a temp-file failure mid-publication must not leave the
 // current build holding fresh bytes while the old record stays installed —

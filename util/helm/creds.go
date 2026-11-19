@@ -311,10 +311,16 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(ctx cont
 // pairs a cache key derived from token A with a request (or stored index)
 // authenticated with token B.
 type credsSnapshot struct {
-	username           string
-	password           string
-	caPath             string
-	caData             []byte
+	username string
+	password string
+	caPath   string
+	caData   []byte
+	// caConfigured records that a CA file was configured at snapshot time,
+	// even when its captured bytes were empty. TLS must trust exactly the
+	// captured bytes — an empty capture is a fail-closed error, never a
+	// reason to reread the file (which could pair the cached fingerprint
+	// with a rotated CA).
+	caConfigured       bool
 	certData           []byte
 	keyData            []byte
 	insecureSkipVerify bool
@@ -363,7 +369,9 @@ func snapshotCreds(creds Creds) (credsSnapshot, error) {
 	}
 	caPath := creds.GetCAPath()
 	var caData []byte
+	caConfigured := false
 	if caPath != "" {
+		caConfigured = true
 		caData, err = os.ReadFile(caPath)
 		if err != nil {
 			return credsSnapshot{}, fmt.Errorf("failed to read helm CA file: %w", err)
@@ -374,6 +382,7 @@ func snapshotCreds(creds Creds) (credsSnapshot, error) {
 		password:           password,
 		caPath:             caPath,
 		caData:             caData,
+		caConfigured:       caConfigured,
 		certData:           append([]byte(nil), creds.GetCertData()...),
 		keyData:            append([]byte(nil), creds.GetKeyData()...),
 		insecureSkipVerify: creds.GetInsecureSkipVerify(),

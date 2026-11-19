@@ -824,19 +824,24 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 	// Prefer CA bytes already resolved on a credential snapshot: the cache
 	// fingerprint captured those exact bytes, so TLS must verify against
 	// them — rereading the path could rotate the CA under the cached
-	// identity.
+	// identity. A configured-but-empty capture fails closed: falling back to
+	// a reread or to system trust would pair the cached fingerprint with
+	// trust material it never saw. Implementing CACredentials alone is not
+	// "CA configured" — the snapshot reports that via its captured path.
 	var caData []byte
+	caConfigured := false
 	if caCreds, ok := creds.(CACredentials); ok {
 		caData = caCreds.GetCAData()
+		caConfigured = creds.GetCAPath() != ""
 	}
-	if len(caData) == 0 && creds.GetCAPath() != "" {
+	if !caConfigured && creds.GetCAPath() != "" {
 		var err error
 		caData, err = os.ReadFile(creds.GetCAPath())
 		if err != nil {
 			return nil, fmt.Errorf("error reading CA file %s: %w", creds.GetCAPath(), err)
 		}
 	}
-	if len(caData) == 0 && creds.GetCAPath() != "" {
+	if len(caData) == 0 && (caConfigured || creds.GetCAPath() != "") {
 		// "Custom CA configured but empty" is a misconfiguration: falling
 		// back to system trust would broaden trust beyond the operator's
 		// intent. Fail closed instead.

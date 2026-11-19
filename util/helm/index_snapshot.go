@@ -163,7 +163,11 @@ func (c *indexSnapshotCache) snapshot(data []byte, names map[string]struct{}) ([
 	for name := range names {
 		entry, ok := index.entries[name]
 		if !ok {
-			return nil, false, fmt.Errorf("dependency %q is absent from the index", name)
+			// A dependency the cached index does not know at all (added
+			// upstream after the fetch) is not a snapshot bug: callers fall
+			// back to the full index and revalidation picks the chart up on
+			// the next pass.
+			return nil, false, &indexDependencyAbsentError{name: name}
 		}
 		selected[name] = entry
 	}
@@ -264,4 +268,24 @@ func isIndexSnapshotError(err error) bool {
 		}
 	}
 	return strings.Contains(message, "matching") && strings.Contains(message, "not found in") && strings.Contains(message, "index")
+}
+
+// indexDependencyAbsentError reports that a required dependency does not
+// exist in the cached index at all (typically a chart published upstream
+// after the index was fetched). Callers must fall back to the full index
+// instead of failing the build.
+type indexDependencyAbsentError struct {
+	name string
+}
+
+func (e *indexDependencyAbsentError) Error() string {
+	return fmt.Sprintf("dependency %q is absent from the index", e.name)
+}
+
+// isIndexDependencyAbsentError reports whether the error came from a
+// dependency missing from the cached index (as opposed to a malformed
+// projection).
+func isIndexDependencyAbsentError(err error) bool {
+	var absent *indexDependencyAbsentError
+	return errors.As(err, &absent)
 }

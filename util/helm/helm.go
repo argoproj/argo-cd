@@ -208,16 +208,27 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 			if err != nil {
 				return fmt.Errorf("collect helm dependencies for %s: %w", repo.Repo, err)
 			}
-			unscopedIdentity, err := scopedIndexIdentityContext(ctx, repo.Repo, "", h.cmd.proxy, h.cmd.noProxy)
+			// The selection map is keyed WITHOUT proxy settings, so the
+			// lookup-side translation must strip them too: keeping proxy in
+			// only one side of the comparison re-splits the keyspace and
+			// silently disables filtering for explicitly proxied repos.
+			unscopedIdentity, err := scopedIndexIdentityContext(ctx, repo.Repo, "", "", "")
 			if err != nil {
 				return fmt.Errorf("resolve dependency repository identity for %s: %w", repo.Repo, err)
 			}
 			if wanted := allNames[unscopedIdentity]; len(wanted) > 0 {
 				filtered, replaced, err := dependencyIndexes.snapshot(data, wanted)
 				if err != nil {
-					return fmt.Errorf("filter helm index for %s: %w", repo.Repo, err)
-				}
-				if replaced {
+					if isIndexDependencyAbsentError(err) {
+						// The cached index predates this dependency. Keep
+						// the full index installed; revalidation (freshness
+						// expiry or the version-miss fallback) picks the
+						// chart up on a later build.
+						log.WithError(err).Debug("falling back to full helm index for dependencies absent from the cached index")
+					} else {
+						return fmt.Errorf("filter helm index for %s: %w", repo.Repo, err)
+					}
+				} else if replaced {
 					if err := h.cmd.installIndexes(repo.Repo, filtered, repo.Name, true); err != nil {
 						return fmt.Errorf("install filtered helm index for %s: %w", repo.Repo, err)
 					}
@@ -266,26 +277,29 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 	_, err := h.cmd.dependencyBuild(ctx, h.insecure, plainHTTP, useStore)
 	filteredSnapshot := useStore && h.cmd.persistentIndexStore.FilterEnabled
 	if err != nil && filteredSnapshot && isIndexSnapshotError(err) {
-		// A filtered snapshot can miss for two different reasons: the
-		// projection dropped a version Helm selects differently (snapshot
-		// error), or the snapshot was rendered from a STALE index while the
-		// origin published a new one (version-lookup error). The first needs
-		// only the full original; the second needs revalidation, otherwise
-		// the fallback would retry the same stale bytes forever. Revalidate
-		// each miss against the origin and publish the fresh body BEFORE
-		// restoring full indexes, so the retry cannot repeat the stale miss.
+		// A filtered snapshot can miss for three different reasons: the
+		// projection dropped a version or a WHOLE CHART Helm selects
+		// differently (snapshot error), or the snapshot was rendered from a
+		// STALE index while the origin published a new one (version-lookup
+		// error, including newly added dependencies absent from the cached
+		// index). The first needs only the full original; the others need
+		// revalidation, otherwise the fallback would retry the same stale
+		// bytes forever. Revalidate EVERY miss against the origin and
+		// publish the fresh body BEFORE restoring full indexes, so the
+		// retry cannot repeat the stale miss. A chart absent from the cached
+		// index revalidates to the same absent body — the retry then fails
+		// again with the original error, which is the correct outcome for a
+		// dependency the origin genuinely does not serve.
 		revalidated := make(map[string][]byte)
-		if isIndexVersionLookupError(err) {
-			for _, index := range prepared {
-				if fetched[index.identity] || revalidated[index.identity] != nil || !missingDependencyVersion(h.cmd.WorkDir, index.url, aliases, index.body) {
-					continue
-				}
-				body, _, refreshErr := h.cmd.persistentIndexStore.revalidate(ctx, index.identity, clients[index.identity], true)
-				if refreshErr != nil {
-					return fmt.Errorf("revalidate Helm index after filtered snapshot version miss (%w): %w", err, refreshErr)
-				}
-				revalidated[index.identity] = body
+		for _, index := range prepared {
+			if fetched[index.identity] || revalidated[index.identity] != nil || !missingDependencyVersion(h.cmd.WorkDir, index.url, aliases, index.body) {
+				continue
 			}
+			body, _, refreshErr := h.cmd.persistentIndexStore.revalidate(ctx, index.identity, clients[index.identity], true)
+			if refreshErr != nil {
+				return fmt.Errorf("revalidate Helm index after filtered snapshot version miss (%w): %w", err, refreshErr)
+			}
+			revalidated[index.identity] = body
 		}
 		for _, index := range prepared {
 			// Publish the revalidated body when available; the stale snapshot
