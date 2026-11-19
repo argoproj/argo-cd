@@ -427,12 +427,7 @@ func TestNewClient_SendsHeadersWhenRefreshingExpiredToken(t *testing.T) {
 }
 
 func TestNewClient_RefreshingExpiredTokenTimesOut(t *testing.T) {
-	// Mutates refreshAuthTokenTimeout, so it must NOT run in parallel.
-	previousTimeout := refreshAuthTokenTimeout
-	refreshAuthTokenTimeout = 100 * time.Millisecond
-	t.Cleanup(func() {
-		refreshAuthTokenTimeout = previousTimeout
-	})
+	t.Parallel()
 
 	// Accept every request and never answer, like a stalled OIDC provider.
 	release := make(chan struct{})
@@ -463,16 +458,30 @@ func TestNewClient_RefreshingExpiredTokenTimesOut(t *testing.T) {
 
 	done := make(chan error, 1)
 	go func() {
-		_, err := NewClient(&ClientOptions{ConfigPath: configPath})
+		_, err := NewClient(&ClientOptions{ConfigPath: configPath, AuthRefreshTimeout: 100 * time.Millisecond})
 		done <- err
 	}()
 
 	select {
 	case err := <-done:
 		require.ErrorContains(t, err, "timed out after 100ms refreshing the auth token")
+		require.ErrorContains(t, err, "--auth-refresh-timeout")
 	case <-time.After(10 * time.Second):
 		t.Fatal("NewClient did not return: refreshing the expired auth token has no deadline")
 	}
+}
+
+func TestNewClient_RejectsNegativeAuthRefreshTimeout(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewClient(&ClientOptions{
+		ServerAddr:         "localhost:1234",
+		PlainText:          true,
+		GRPCWeb:            true,
+		AuthRefreshTimeout: -time.Second,
+	})
+
+	require.ErrorContains(t, err, "--auth-refresh-timeout must not be negative")
 }
 
 func TestNewClient_ReturnsErrorForMalformedHeader(t *testing.T) {
