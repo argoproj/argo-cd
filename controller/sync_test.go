@@ -432,6 +432,19 @@ func TestSyncWindowEventRequeueRespectsCanProcessApp(t *testing.T) {
 		assert.False(t, requested)
 	})
 
+	t.Run("same-named window in another namespace has no refresh requested", func(t *testing.T) {
+		t.Parallel()
+		app := newAppReferencingWindow()
+		ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app}}, nil)
+
+		otherSW := sw.DeepCopy()
+		otherSW.Namespace = "other-namespace"
+		ctrl.syncWindowEventHandlerFuncs().AddFunc(otherSW)
+
+		requested, _ := ctrl.isRefreshRequested(app.QualifiedName())
+		assert.False(t, requested)
+	})
+
 	t.Run("resync update with unchanged resource version is ignored", func(t *testing.T) {
 		t.Parallel()
 		app := newAppReferencingWindow()

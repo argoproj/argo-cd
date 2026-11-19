@@ -3308,6 +3308,7 @@ func (ctrl *ApplicationController) syncWindowEventHandlerFuncs() cache.ResourceE
 		if !ok {
 			return
 		}
+		swNamespace := sw.GetNamespace()
 		swName := sw.GetName()
 		swLabels := labels.Set(sw.GetLabels())
 		apps, err := ctrl.appLister.List(labels.Everything())
@@ -3316,7 +3317,7 @@ func (ctrl *ApplicationController) syncWindowEventHandlerFuncs() cache.ResourceE
 			return
 		}
 		for _, app := range apps {
-			if !ctrl.appReferencesSyncWindow(app, swName, swLabels) {
+			if !ctrl.appReferencesSyncWindow(app, swNamespace, swName, swLabels) {
 				continue
 			}
 			if !ctrl.canProcessApp(app) {
@@ -3365,14 +3366,20 @@ func syncWindowRefMatches(ref appv1.SyncWindowRef, swName string, swLabels label
 }
 
 // appReferencesSyncWindow reports whether the given application should be refreshed
-// in response to a change of the SyncWindow with the given name and labels. An app
-// is affected if it or its project references the sync window directly (by name) or
-// via a matching label selector.
-func (ctrl *ApplicationController) appReferencesSyncWindow(app *appv1.Application, swName string, swLabels labels.Set) bool {
-	for _, ref := range app.Spec.SyncWindowRefs {
-		if syncWindowRefMatches(ref, swName, swLabels) {
-			return true
+// in response to a change of the SyncWindow with the given namespace, name and labels.
+// An app is affected if it or its project references the sync window directly (by name)
+// or via a matching label selector, in the namespace that reference resolves from.
+func (ctrl *ApplicationController) appReferencesSyncWindow(app *appv1.Application, swNamespace, swName string, swLabels labels.Set) bool {
+	if swNamespace == app.Namespace {
+		for _, ref := range app.Spec.SyncWindowRefs {
+			if syncWindowRefMatches(ref, swName, swLabels) {
+				return true
+			}
 		}
+	}
+	// Project refs always resolve from the control-plane namespace.
+	if swNamespace != ctrl.namespace {
+		return false
 	}
 	obj, exists, err := ctrl.projInformer.GetIndexer().GetByKey(ctrl.namespace + "/" + app.Spec.GetProject())
 	if err != nil || !exists {
