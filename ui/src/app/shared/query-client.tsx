@@ -2,8 +2,6 @@ import {QueryCache, QueryClient} from '@tanstack/react-query';
 import {ErrorNotification, NotificationsApi, NotificationType} from 'argo-ui';
 import * as React from 'react';
 
-require('./query-client.scss');
-
 declare module '@tanstack/react-query' {
     interface Register {
         queryMeta: {silent?: boolean};
@@ -25,21 +23,13 @@ export function newQueryClient(notifications: NotificationsApi): QueryClient {
     });
 }
 
-// Match DataLoader's loading and failure messages.
+// Same markup DataLoader rendered while loading and on failure.
 export const loading = <p style={{padding: '0.5em', textAlign: 'center'}}>Loading...</p>;
 
 export function loadFailed(retry: () => void) {
     return (
         <p style={{padding: '0.5em', textAlign: 'center'}}>
-            Failed to load data, please{' '}
-            <button
-                type='button'
-                className='query-retry'
-                style={{background: 'none', border: 0, padding: 0, font: 'inherit', color: 'inherit', textDecoration: 'underline', cursor: 'pointer'}}
-                onClick={() => retry()}>
-                try again
-            </button>
-            .
+            Failed to load data, please <a onClick={() => retry()}>try again</a>.
         </p>
     );
 }
