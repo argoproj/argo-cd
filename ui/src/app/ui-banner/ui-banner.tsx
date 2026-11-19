@@ -54,7 +54,7 @@ export const Banner = (props: React.PropsWithChildren<{}>) => {
     const [dismissed, setDismissed] = React.useState<string>(null);
     // The banner stays mounted across pages, so poll to pick up banner changes made on the server. Silent:
     // a failed refresh keeps the current banner, and a failed first load already renders loadFailed.
-    const {data: settings, isError, refetch} = useQuery({...settingsQueries.get(), refetchInterval: bannerRefetchInterval, meta: {silent: true}});
+    const {data: settings, isError, refetch} = useQuery({...settingsQueries.banner(), refetchInterval: bannerRefetchInterval});
     const prefs = useViewPreferences();
     const hideBannerContent = prefs.hideBannerContent;
     const content = settings?.uiBannerContent;

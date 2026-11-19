@@ -1,8 +1,9 @@
 import * as React from 'react';
-import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
+import {QueryClient, QueryClientProvider, useQuery} from '@tanstack/react-query';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
 import '@testing-library/jest-dom';
 
+import {settingsQueries} from '../shared/queries';
 import {newQueryClient} from '../shared/query-client';
 import {services} from '../shared/services';
 import {Banner, bannerRefetchInterval} from './ui-banner';
@@ -163,6 +164,36 @@ describe('Banner', () => {
             await nextPoll();
 
             expect(services.authService.settings).toHaveBeenCalledTimes(2);
+            expect(bannerVisibility()).toBe('visible');
+            expect(notifications.show).not.toHaveBeenCalled();
+        });
+
+        it('keeps a failed refresh silent when another settings reader renders during it', async () => {
+            const notifications = {show: jest.fn()};
+            let setCount: (n: number) => void;
+            const OtherReader = () => {
+                useQuery(settingsQueries.get());
+                const [count, set] = React.useState(0);
+                setCount = set;
+                return <span>{count}</span>;
+            };
+            mockSettings({uiBannerContent: content});
+            render(
+                <QueryClientProvider client={newQueryClient(notifications as any)}>
+                    <OtherReader />
+                    <Banner>
+                        <div>app content</div>
+                    </Banner>
+                </QueryClientProvider>
+            );
+            await screen.findByText(content);
+
+            let rejectPoll: (e: Error) => void;
+            jest.mocked(services.authService.settings).mockReturnValueOnce(new Promise((_, reject) => (rejectPoll = reject)));
+            await nextPoll();
+            act(() => setCount(1));
+            await act(async () => rejectPoll(new Error('boom')));
+
             expect(bannerVisibility()).toBe('visible');
             expect(notifications.show).not.toHaveBeenCalled();
         });
