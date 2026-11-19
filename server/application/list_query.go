@@ -134,14 +134,8 @@ func paginateApplications(apps []*v1alpha1.Application, q *application.Applicati
 	if q.Offset != nil && *q.Offset > 0 {
 		offset = *q.Offset
 	}
-	start := offset
-	if start > int64(len(apps)) {
-		start = int64(len(apps))
-	}
-	end := start + *q.Limit
-	if end > int64(len(apps)) {
-		end = int64(len(apps))
-	}
+	start := min(offset, int64(len(apps)))
+	end := min(start+*q.Limit, int64(len(apps)))
 	return apps[start:end]
 }
 

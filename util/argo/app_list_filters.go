@@ -2,6 +2,7 @@ package argo
 
 import (
 	"regexp"
+	"slices"
 	"strings"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -42,12 +43,7 @@ func MatchesNamespaces(app *argoappv1.Application, namespaces []string) bool {
 	if len(namespaces) == 0 {
 		return true
 	}
-	for _, ns := range namespaces {
-		if app.Spec.Destination.Namespace == ns {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(namespaces, app.Spec.Destination.Namespace)
 }
 
 // MatchesLabels returns true if the application has every key=value label in labels.
@@ -85,12 +81,7 @@ func MatchesAutoSync(app *argoappv1.Application, autoSyncs []string) bool {
 	if enabled {
 		state = "Enabled"
 	}
-	for _, v := range autoSyncs {
-		if v == state {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(autoSyncs, state)
 }
 
 // MatchesSyncStatuses returns true if the application sync status is in syncStatuses.
@@ -99,12 +90,7 @@ func MatchesSyncStatuses(app *argoappv1.Application, syncStatuses []string) bool
 		return true
 	}
 	status := string(app.Status.Sync.Status)
-	for _, s := range syncStatuses {
-		if s == status {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(syncStatuses, status)
 }
 
 // MatchesHealthStatuses returns true if the application health status is in healthStatuses.
@@ -113,12 +99,7 @@ func MatchesHealthStatuses(app *argoappv1.Application, healthStatuses []string) 
 		return true
 	}
 	status := string(app.Status.Health.Status)
-	for _, s := range healthStatuses {
-		if s == status {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(healthStatuses, status)
 }
 
 // MatchesSearch returns true if search matches the application name or namespace.

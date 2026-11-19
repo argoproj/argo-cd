@@ -1,6 +1,10 @@
 package v1alpha1
 
-import "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+import (
+	"maps"
+
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
+)
 
 // DeepCopyInto copies the receiver into out.
 func (in *ApplicationListStats) DeepCopyInto(out *ApplicationListStats) {
@@ -8,23 +12,17 @@ func (in *ApplicationListStats) DeepCopyInto(out *ApplicationListStats) {
 	if in.TotalBySyncStatus != nil {
 		in, out := &in.TotalBySyncStatus, &out.TotalBySyncStatus
 		*out = make(map[SyncStatusCode]int64, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		maps.Copy((*out), *in)
 	}
 	if in.TotalByHealthStatus != nil {
 		in, out := &in.TotalByHealthStatus, &out.TotalByHealthStatus
 		*out = make(map[health.HealthStatusCode]int64, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		maps.Copy((*out), *in)
 	}
 	if in.AutoSyncCount != nil {
 		in, out := &in.AutoSyncCount, &out.AutoSyncCount
 		*out = make(map[string]int64, len(*in))
-		for key, val := range *in {
-			(*out)[key] = val
-		}
+		maps.Copy((*out), *in)
 	}
 	if in.Destinations != nil {
 		in, out := &in.Destinations, &out.Destinations

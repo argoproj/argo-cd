@@ -5,14 +5,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func testApp(name, ns string) *argoappv1.Application {
 	return &argoappv1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: ns},
+		Name: name, Namespace: ns,
 		Spec: argoappv1.ApplicationSpec{
 			Project: "default",
 			Source:  &argoappv1.ApplicationSource{RepoURL: "https://example.com/repo.git"},

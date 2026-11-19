@@ -350,10 +350,8 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	}
 
 	appList := v1alpha1.ApplicationList{
-		ListMeta: metav1.ListMeta{
-			ResourceVersion: s.appInformer.LastSyncResourceVersion(),
-		},
-		Items: newItems,
+		ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+		Items:           newItems,
 	}
 	// Facet/stats passes are expensive; only compute them for paginated (SSP) list requests.
 	if q.Limit != nil {

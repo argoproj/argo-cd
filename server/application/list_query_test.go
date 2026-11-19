@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -15,8 +14,8 @@ func ptr[T any](v T) *T { return &v }
 
 func TestMatchesApplicationQuerySearch(t *testing.T) {
 	app := &v1alpha1.Application{
-		ObjectMeta: metav1.ObjectMeta{Name: "guestbook", Namespace: "argocd"},
-		Spec:       v1alpha1.ApplicationSpec{Project: "default"},
+		Name: "guestbook", Namespace: "argocd",
+		Spec: v1alpha1.ApplicationSpec{Project: "default"},
 		Status: v1alpha1.ApplicationStatus{
 			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
 			Health: v1alpha1.AppHealthStatus{Status: "Healthy"},
@@ -33,9 +32,9 @@ func TestMatchesApplicationQuerySearch(t *testing.T) {
 
 func TestPaginateApplications(t *testing.T) {
 	apps := []*v1alpha1.Application{
-		{ObjectMeta: metav1.ObjectMeta{Name: "a"}},
-		{ObjectMeta: metav1.ObjectMeta{Name: "b"}},
-		{ObjectMeta: metav1.ObjectMeta{Name: "c"}},
+		{Name: "a"},
+		{Name: "b"},
+		{Name: "c"},
 	}
 	require.Len(t, paginateApplications(apps, &application.ApplicationQuery{}), 3)
 	page := paginateApplications(apps, &application.ApplicationQuery{Offset: ptr(int64(1)), Limit: ptr(int64(1))})
@@ -46,7 +45,7 @@ func TestPaginateApplications(t *testing.T) {
 func TestBuildApplicationListStats(t *testing.T) {
 	apps := []*v1alpha1.Application{
 		{
-			ObjectMeta: metav1.ObjectMeta{Name: "a", Labels: map[string]string{"env": "prod"}},
+			Name: "a", Labels: map[string]string{"env": "prod"},
 			Spec: v1alpha1.ApplicationSpec{
 				Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/example/a"},
 				Destination: v1alpha1.ApplicationDestination{Server: "https://k8s", Namespace: "ns1"},
@@ -54,7 +53,7 @@ func TestBuildApplicationListStats(t *testing.T) {
 			Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}, Health: v1alpha1.AppHealthStatus{Status: "Healthy"}},
 		},
 		{
-			ObjectMeta: metav1.ObjectMeta{Name: "b"},
+			Name: "b",
 			Spec: v1alpha1.ApplicationSpec{
 				Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/example/b"},
 				Destination: v1alpha1.ApplicationDestination{Server: "https://k8s", Namespace: "ns2"},

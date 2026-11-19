@@ -56,52 +56,52 @@ var (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient              *redis.Client
-		insecure                 bool
-		listenHost               string
-		listenPort               int
-		metricsHost              string
-		metricsPort              int
-		otlpAddress              string
-		otlpInsecure             bool
-		otlpHeaders              map[string]string
-		otlpAttrs                []string
-		otlpMetricsEnabled       bool
-		otlpMetricsInterval      time.Duration
-		otlpSampleRatio          float64
-		glogLevel                int
-		clientConfig             clientcmd.ClientConfig
-		repoServerTimeoutSeconds int
-		baseHRef                 string
-		rootPath                 string
-		repoServerAddress        string
-		dexServerAddress         string
-		disableAuth              bool
-		contentTypes             string
-		enableGZip               bool
-		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
-		cacheSrc                 func() (*servercache.Cache, error)
-		repoServerCacheSrc       func() (*reposervercache.Cache, error)
-		frameOptions             string
-		contentSecurityPolicy    string
-		repoServerPlaintext      bool
-		repoServerStrictTLS      bool
-		dexServerPlaintext       bool
-		dexServerStrictTLS       bool
-		staticAssetsDir          string
-		applicationNamespaces    []string
-		enableProxyExtension     bool
-		webhookParallelism       int
-		globCacheSize            int
-		webhookRefreshWorkers    int
-		hydratorEnabled               bool
-		syncWithReplaceAllowed        bool
-		serverSidePaginationEnabled   bool
-		applicationPageSize           int64
-		disableSwaggerUI              bool
-		enableSourceIPLogging         bool
-		trustedProxies                []string
-		clientIPHeader                string
+		redisClient                 *redis.Client
+		insecure                    bool
+		listenHost                  string
+		listenPort                  int
+		metricsHost                 string
+		metricsPort                 int
+		otlpAddress                 string
+		otlpInsecure                bool
+		otlpHeaders                 map[string]string
+		otlpAttrs                   []string
+		otlpMetricsEnabled          bool
+		otlpMetricsInterval         time.Duration
+		otlpSampleRatio             float64
+		glogLevel                   int
+		clientConfig                clientcmd.ClientConfig
+		repoServerTimeoutSeconds    int
+		baseHRef                    string
+		rootPath                    string
+		repoServerAddress           string
+		dexServerAddress            string
+		disableAuth                 bool
+		contentTypes                string
+		enableGZip                  bool
+		tlsConfigCustomizerSrc      func() (tls.ConfigCustomizer, error)
+		cacheSrc                    func() (*servercache.Cache, error)
+		repoServerCacheSrc          func() (*reposervercache.Cache, error)
+		frameOptions                string
+		contentSecurityPolicy       string
+		repoServerPlaintext         bool
+		repoServerStrictTLS         bool
+		dexServerPlaintext          bool
+		dexServerStrictTLS          bool
+		staticAssetsDir             string
+		applicationNamespaces       []string
+		enableProxyExtension        bool
+		webhookParallelism          int
+		globCacheSize               int
+		webhookRefreshWorkers       int
+		hydratorEnabled             bool
+		syncWithReplaceAllowed      bool
+		serverSidePaginationEnabled bool
+		applicationPageSize         int64
+		disableSwaggerUI            bool
+		enableSourceIPLogging       bool
+		trustedProxies              []string
+		clientIPHeader              string
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -238,50 +238,50 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			argoCDOpts := server.ArgoCDServerOpts{
-				Insecure:                insecure,
-				ListenPort:              listenPort,
-				ListenHost:              listenHost,
-				MetricsPort:             metricsPort,
-				MetricsHost:             metricsHost,
-				Namespace:               namespace,
-				BaseHRef:                baseHRef,
-				RootPath:                rootPath,
-				DynamicClientset:        dynamicClient,
-				KubeControllerClientset: controllerClient,
-				KubeClientset:           kubeclientset,
-				AppClientset:            appClientSet,
-				RepoClientset:           repoclientset,
-				DexServerAddr:           dexServerAddress,
-				DexTLSConfig:            dexTLSConfig,
-				DisableAuth:             disableAuth,
-				ContentTypes:            contentTypesList,
-				EnableGZip:              enableGZip,
-				TLSConfigCustomizer:     tlsConfigCustomizer,
-				Cache:                   cache,
-				RepoServerCache:         repoServerCache,
-				XFrameOptions:           frameOptions,
-				ContentSecurityPolicy:   contentSecurityPolicy,
-				RedisClient:             redisClient,
-				StaticAssetsDir:         staticAssetsDir,
-				ApplicationNamespaces:   applicationNamespaces,
-				EnableProxyExtension:    enableProxyExtension,
-				WebhookParallelism:      webhookParallelism,
-				WebhookRefreshWorkers:   webhookRefreshWorkers,
-				EnableK8sEvent:          enableK8sEvent,
+				Insecure:                    insecure,
+				ListenPort:                  listenPort,
+				ListenHost:                  listenHost,
+				MetricsPort:                 metricsPort,
+				MetricsHost:                 metricsHost,
+				Namespace:                   namespace,
+				BaseHRef:                    baseHRef,
+				RootPath:                    rootPath,
+				DynamicClientset:            dynamicClient,
+				KubeControllerClientset:     controllerClient,
+				KubeClientset:               kubeclientset,
+				AppClientset:                appClientSet,
+				RepoClientset:               repoclientset,
+				DexServerAddr:               dexServerAddress,
+				DexTLSConfig:                dexTLSConfig,
+				DisableAuth:                 disableAuth,
+				ContentTypes:                contentTypesList,
+				EnableGZip:                  enableGZip,
+				TLSConfigCustomizer:         tlsConfigCustomizer,
+				Cache:                       cache,
+				RepoServerCache:             repoServerCache,
+				XFrameOptions:               frameOptions,
+				ContentSecurityPolicy:       contentSecurityPolicy,
+				RedisClient:                 redisClient,
+				StaticAssetsDir:             staticAssetsDir,
+				ApplicationNamespaces:       applicationNamespaces,
+				EnableProxyExtension:        enableProxyExtension,
+				WebhookParallelism:          webhookParallelism,
+				WebhookRefreshWorkers:       webhookRefreshWorkers,
+				EnableK8sEvent:              enableK8sEvent,
 				HydratorEnabled:             hydratorEnabled,
 				SyncWithReplaceAllowed:      syncWithReplaceAllowed,
 				ServerSidePaginationEnabled: serverSidePaginationEnabled,
 				ApplicationPageSize:         applicationPageSize,
-				OTLPAddress:             otlpAddress,
-				OTLPInsecure:            otlpInsecure,
-				OTLPHeaders:             otlpHeaders,
-				OTLPAttrs:               otlpAttrs,
-				OTLPMetricsEnabled:      otlpMetricsEnabled,
-				OTLPMetricsInterval:     otlpMetricsInterval,
-				DisableSwaggerUI:        disableSwaggerUI,
-				EnableSourceIPLogging:   enableSourceIPLogging,
-				TrustedProxies:          trustedProxyPrefixes,
-				ClientIPHeader:          clientIPHeader,
+				OTLPAddress:                 otlpAddress,
+				OTLPInsecure:                otlpInsecure,
+				OTLPHeaders:                 otlpHeaders,
+				OTLPAttrs:                   otlpAttrs,
+				OTLPMetricsEnabled:          otlpMetricsEnabled,
+				OTLPMetricsInterval:         otlpMetricsInterval,
+				DisableSwaggerUI:            disableSwaggerUI,
+				EnableSourceIPLogging:       enableSourceIPLogging,
+				TrustedProxies:              trustedProxyPrefixes,
+				ClientIPHeader:              clientIPHeader,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{

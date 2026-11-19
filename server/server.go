@@ -229,36 +229,36 @@ type ArgoCDServer struct {
 }
 
 type ArgoCDServerOpts struct {
-	DisableAuth             bool
-	ContentTypes            []string
-	EnableGZip              bool
-	Insecure                bool
-	StaticAssetsDir         string
-	ListenPort              int
-	ListenHost              string
-	MetricsPort             int
-	MetricsHost             string
-	Namespace               string
-	DexServerAddr           string
-	DexTLSConfig            *dexutil.DexTLSConfig
-	BaseHRef                string
-	RootPath                string
-	DynamicClientset        dynamic.Interface
-	KubeControllerClientset client.Client
-	KubeClientset           kubernetes.Interface
-	AppClientset            appclientset.Interface
-	RepoClientset           repoapiclient.Clientset
-	Cache                   *servercache.Cache
-	RepoServerCache         *repocache.Cache
-	RedisClient             *redis.Client
-	TLSConfigCustomizer     tlsutil.ConfigCustomizer
-	XFrameOptions           string
-	ContentSecurityPolicy   string
-	ApplicationNamespaces   []string
-	EnableProxyExtension    bool
-	WebhookParallelism      int
-	WebhookRefreshWorkers   int
-	EnableK8sEvent          []string
+	DisableAuth                 bool
+	ContentTypes                []string
+	EnableGZip                  bool
+	Insecure                    bool
+	StaticAssetsDir             string
+	ListenPort                  int
+	ListenHost                  string
+	MetricsPort                 int
+	MetricsHost                 string
+	Namespace                   string
+	DexServerAddr               string
+	DexTLSConfig                *dexutil.DexTLSConfig
+	BaseHRef                    string
+	RootPath                    string
+	DynamicClientset            dynamic.Interface
+	KubeControllerClientset     client.Client
+	KubeClientset               kubernetes.Interface
+	AppClientset                appclientset.Interface
+	RepoClientset               repoapiclient.Clientset
+	Cache                       *servercache.Cache
+	RepoServerCache             *repocache.Cache
+	RedisClient                 *redis.Client
+	TLSConfigCustomizer         tlsutil.ConfigCustomizer
+	XFrameOptions               string
+	ContentSecurityPolicy       string
+	ApplicationNamespaces       []string
+	EnableProxyExtension        bool
+	WebhookParallelism          int
+	WebhookRefreshWorkers       int
+	EnableK8sEvent              []string
 	HydratorEnabled             bool
 	SyncWithReplaceAllowed      bool
 	ServerSidePaginationEnabled bool
