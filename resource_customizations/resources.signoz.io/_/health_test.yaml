@@ -1,0 +1,33 @@
+tests:
+  - healthStatus:
+      status: Healthy
+      message: "In sync with SigNoz"
+    inputPath: testdata/dashboard_healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'the server rejected the request (HTTP 400): {"status":"error","error":{"type":"invalid-input","code":"dashboard_invalid_input","message":"invalid line interpolation \"step\": must be `linear`, `spline`, `step_after`, or `step_before`","errors":[],"suggestions":[]}}'
+    inputPath: testdata/dashboard_degraded_rejected.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for SigNoz to accept the resource"
+    inputPath: testdata/dashboard_progressing_spec_not_observed.yaml
+  - healthStatus:
+      status: Suspended
+      message: "reconciliation is suspended by spec.suspend"
+    inputPath: testdata/dashboard_suspended.yaml
+  - healthStatus:
+      status: Progressing
+      message: "Waiting for SigNoz to accept the resource"
+    inputPath: testdata/rule_progressing_no_status.yaml
+  - healthStatus:
+      status: Progressing
+      message: 'could not reach SigNoz: Get "https://signoz.example.com/api/v3/rules?limit=100&offset=0": dial tcp 192.0.2.10:443: connect: connection refused'
+    inputPath: testdata/rule_progressing_recoverable.yaml
+  - healthStatus:
+      status: Healthy
+      message: "Endpoint and credential resolved"
+    inputPath: testdata/providerconfig_healthy.yaml
+  - healthStatus:
+      status: Degraded
+      message: 'Secret "signoz-api" not found in namespace "monitoring"'
+    inputPath: testdata/providerconfig_degraded.yaml
