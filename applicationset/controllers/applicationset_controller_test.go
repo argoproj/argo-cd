@@ -2187,7 +2187,7 @@ func TestRequeueGeneratorFails(t *testing.T) {
 			}},
 		},
 	}
-	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).Build()
+	client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithStatusSubresource(&appSet).Build()
 
 	generator := v1alpha1.ApplicationSetGenerator{
 		PullRequest: &v1alpha1.PullRequestGenerator{},
@@ -2796,7 +2796,14 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 					},
 					Template: v1alpha1.ApplicationSetTemplate{},
 				},
+				// Health has to match what CalculateHealth derives from these conditions. The status
+				// is only unchanged if every field is, and the single status write now notices a
+				// health-only difference that the old per-field checks silently ignored.
 				Status: v1alpha1.ApplicationSetStatus{
+					Health: v1alpha1.HealthStatus{
+						Status:  health.HealthStatusUnknown,
+						Message: "Waiting for health status to be determined",
+					},
 					Conditions: []v1alpha1.ApplicationSetCondition{
 						{
 							Type:               v1alpha1.ApplicationSetConditionErrorOccurred,
@@ -3082,8 +3089,9 @@ func TestSetApplicationSetStatusCondition(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			err = r.setApplicationSetStatusCondition(t.Context(), &c.appset, c.condition, c.parametersGenerated, c.appset.Generation)
-			require.NoError(t, err)
+			w := &statusWriter{}
+			r.setApplicationSetStatusCondition(&c.appset, c.condition, c.parametersGenerated, c.appset.Generation, w)
+			require.NoError(t, w.Flush(t.Context(), client, &c.appset))
 
 			c.testfunc(t, c.appset.Status.Conditions)
 		})
@@ -3136,9 +3144,9 @@ func TestSetApplicationSetStatusConditionObservedGeneration(t *testing.T) {
 			Type:        "RollingSync",
 			RollingSync: &v1alpha1.ApplicationSetRolloutStrategy{},
 		}
-
+		objectMeta := metav1.ObjectMeta{Name: "name", Namespace: "argocd", Generation: 7}
 		appset := v1alpha1.ApplicationSet{
-			ObjectMeta: metav1.ObjectMeta{Name: "name", Namespace: "argocd", Generation: 7},
+			ObjectMeta: objectMeta,
 			Spec:       rollingSyncSpec,
 			Status: v1alpha1.ApplicationSetStatus{
 				Conditions: []v1alpha1.ApplicationSetCondition{
@@ -3157,15 +3165,16 @@ func TestSetApplicationSetStatusConditionObservedGeneration(t *testing.T) {
 		client := fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appset).WithStatusSubresource(&appset).Build()
 		r := newReconciler(client)
 
-		err := r.setApplicationSetStatusCondition(t.Context(), &appset, []v1alpha1.ApplicationSetCondition{
+		w := &statusWriter{}
+		r.setApplicationSetStatusCondition(&appset, []v1alpha1.ApplicationSetCondition{
 			{
 				Type:    v1alpha1.ApplicationSetConditionErrorOccurred,
 				Message: "unable to generate applications",
 				Reason:  v1alpha1.ApplicationSetReasonApplicationValidationError,
 				Status:  v1alpha1.ApplicationSetConditionStatusTrue,
 			},
-		}, true, appset.Generation)
-		require.NoError(t, err)
+		}, true, appset.Generation, w)
+		require.NoError(t, w.Flush(t.Context(), client, &appset))
 
 		errorOccurred := findAppSetCondition(appset.Status.Conditions, v1alpha1.ApplicationSetConditionErrorOccurred)
 		require.NotNil(t, errorOccurred)
@@ -4098,8 +4107,9 @@ func TestSetApplicationSetApplicationStatus(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			err = r.setAppSetApplicationStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appStatuses)
-			require.NoError(t, err)
+			w := &statusWriter{}
+			r.setAppSetApplicationStatus(log.NewEntry(log.StandardLogger()), &cc.appSet, cc.appStatuses, w)
+			require.NoError(t, w.Flush(t.Context(), client, &cc.appSet))
 
 			assert.Equal(t, cc.expectedAppStatuses, cc.appSet.Status.ApplicationStatus)
 		})
@@ -4130,7 +4140,7 @@ func TestUpdateResourceStatus(t *testing.T) {
 				},
 			},
 			apps:              []v1alpha1.Application{},
-			expectedResources: nil,
+			expectedResources: []v1alpha1.ResourceStatus{},
 		},
 		{
 			name: "adds status if no existing statuses",
@@ -4357,9 +4367,9 @@ func TestUpdateResourceStatus(t *testing.T) {
 				MaxResourcesStatusCount: cc.maxResourcesStatusCount,
 			}
 
-			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
-
-			require.NoError(t, err, "expected no errors, but errors occurred")
+			w := &statusWriter{}
+			r.updateResourcesStatus(log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, w)
+			require.NoError(t, w.Flush(t.Context(), client, &cc.appSet), "expected no errors, but errors occurred")
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
 		})
 	}
@@ -4445,14 +4455,12 @@ func TestResourceStatusAreOrdered(t *testing.T) {
 				Metrics:       metrics,
 			}
 
-			err := r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
-			require.NoError(t, err, "expected no errors, but errors occurred")
-
-			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
-			require.NoError(t, err, "expected no errors, but errors occurred")
-
-			err = r.updateResourcesStatus(t.Context(), log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps)
-			require.NoError(t, err, "expected no errors, but errors occurred")
+			// Three passes: the status must converge rather than accumulate entries.
+			for range 3 {
+				w := &statusWriter{}
+				r.updateResourcesStatus(log.NewEntry(log.StandardLogger()), &cc.appSet, cc.apps, w)
+				require.NoError(t, w.Flush(t.Context(), client, &cc.appSet), "expected no errors, but errors occurred")
+			}
 
 			assert.Equal(t, cc.expectedResources, cc.appSet.Status.Resources, "expected resources did not match actual")
 		})
@@ -4715,8 +4723,9 @@ func TestMigrateStatus(t *testing.T) {
 				Client: client,
 			}
 
-			err := r.migrateStatus(t.Context(), &tc.appset)
-			require.NoError(t, err)
+			w := &statusWriter{}
+			r.migrateStatus(&tc.appset, w)
+			require.NoError(t, w.Flush(t.Context(), client, &tc.appset))
 			assert.Equal(t, tc.expectedStatus, tc.appset.Status)
 		})
 	}
@@ -5813,17 +5822,19 @@ func TestPerformProgressiveSyncsWithReconciliationCheck(t *testing.T) {
 			}
 			manager := progressivesync.NewManager(client, client, appClientSet, &r)
 
+			w := &statusWriter{}
 			syncMap, err := manager.PerformProgressiveSyncs(
-				t.Context(),
 				log.NewEntry(log.StandardLogger()),
 				tt.appset,
 				tt.applications,
 				tt.desiredApplications,
 				0,
 				tt.appset.Generation,
+				w,
 			)
 
 			require.NoError(t, err)
+			require.NoError(t, w.Flush(t.Context(), client, &tt.appset))
 			assert.Equal(t, tt.expectedSyncMap, syncMap)
 
 			var persisted v1alpha1.ApplicationSet
