@@ -370,8 +370,10 @@ func TestIndexBuildOriginFailureDoesNotFallBack(t *testing.T) {
 			repo := HelmRepository{Name: "private", Repo: server.URL, Creds: HelmCreds{}}
 			store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
 			require.NoError(t, store.Set(repoIdentity(repo), []byte(regressionIndexBody)))
-			old := time.Now().Add(-2 * time.Hour)
-			require.NoError(t, os.Chtimes(store.cacheFileName(repoIdentity(repo)), old, old))
+			if !forced {
+				old := time.Now().Add(-2 * time.Hour)
+				require.NoError(t, os.Chtimes(store.cacheFileName(repoIdentity(repo)), old, old))
+			}
 			command.persistentIndexStore = store
 			app := &helm{cmd: *command, repos: []HelmRepository{repo}, forceRefresh: forced}
 			err = app.DependencyBuild(t.Context())

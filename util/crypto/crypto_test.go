@@ -9,6 +9,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -60,6 +61,7 @@ func TestCredentialScopeStableAcrossIndependentCaches(t *testing.T) {
 	fields := []string{"reader", "private-password", string([]byte{0xff, 0, 0xfe})}
 	scope := first.scope("helm", fields...)
 	require.Equal(t, scope, second.scope("helm", fields...), "process-local lookup keys must not change persisted identities")
+	require.True(t, strings.HasPrefix(scope, "argon2id-v1:"))
 	require.Len(t, strings.TrimPrefix(scope, "argon2id-v1:"), 64, "persist the full 256-bit result")
 	require.NotContains(t, scope, "private-password")
 	require.NotEqual(t, scope, first.scope("oci", fields...), "protocol domains must remain isolated")
@@ -101,6 +103,8 @@ func TestCredentialScopeCacheBoundedAndReusesWarmEntries(t *testing.T) {
 func TestCredentialScopeConcurrentMissesDoNotBlockWarmHits(t *testing.T) {
 	var calls atomic.Int32
 	started, release := make(chan struct{}), make(chan struct{})
+	resume := sync.OnceFunc(func() { close(release) })
+	t.Cleanup(resume)
 	cache := newCredentialScopeCache(4, func(_, _ []byte) []byte {
 		if calls.Add(1) == 2 {
 			close(started)
@@ -125,10 +129,10 @@ func TestCredentialScopeConcurrentMissesDoNotBlockWarmHits(t *testing.T) {
 	case got := <-warmResult:
 		require.Equal(t, warm, got)
 	case <-time.After(3 * time.Second):
-		close(release)
+		resume()
 		t.Fatal("a cold derivation blocked an unrelated warm lookup")
 	}
-	close(release)
+	resume()
 	for range workers {
 		select {
 		case <-results:

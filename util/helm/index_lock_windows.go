@@ -18,3 +18,7 @@ func tryIndexLock(file *os.File, shared bool) (bool, error) {
 	}
 	return err == nil, err
 }
+
+func releaseIndexLock(file *os.File) error {
+	return windows.UnlockFileEx(windows.Handle(file.Fd()), 0, 1, 0, &windows.Overlapped{})
+}

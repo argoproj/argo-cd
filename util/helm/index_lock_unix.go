@@ -20,3 +20,7 @@ func tryIndexLock(file *os.File, shared bool) (bool, error) {
 	}
 	return err == nil, err
 }
+
+func releaseIndexLock(file *os.File) error {
+	return unix.Flock(int(file.Fd()), unix.LOCK_UN)
+}

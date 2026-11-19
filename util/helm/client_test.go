@@ -20,15 +20,19 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 	"sync/atomic"
+	"syscall"
 	"testing"
 	"time"
 
 	keysync "github.com/argoproj/pkg/v2/sync"
+	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/yaml.v2"
@@ -87,11 +91,20 @@ func TestIndex(t *testing.T) {
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
 
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
+		var requests atomic.Int32
+		origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			requests.Add(1)
+			_, _ = w.Write(data.Bytes())
+		}))
+		t.Cleanup(origin.Close)
+		client := NewClient(origin.URL, HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{}))
+		_, err = client.GetIndex(t.Context(), true, 10000)
+		require.NoError(t, err)
 		index, err := client.GetIndex(t.Context(), false, 10000)
 
 		require.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
+		require.EqualValues(t, 1, requests.Load(), "a confirmed validator-less representation must remain warm")
 	})
 
 	t.Run("Limited", func(t *testing.T) {
@@ -1057,6 +1070,7 @@ type conditionalGetServer struct {
 	lastModified string
 	body         []byte
 	requests     atomic.Int32
+	notModified  atomic.Int32
 	// when true, a matching If-None-Match returns 304; otherwise 200 always.
 	supports304 bool
 }
@@ -1065,7 +1079,8 @@ func (s *conditionalGetServer) handler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		s.requests.Add(1)
 		inm := r.Header.Get("If-None-Match")
-		if s.supports304 && inm != "" && inm == s.etag {
+		if s.supports304 && ((inm != "" && inm == s.etag) || (s.etag == "" && s.lastModified != "" && r.Header.Get("If-Modified-Since") == s.lastModified)) {
+			s.notModified.Add(1)
 			w.WriteHeader(http.StatusNotModified)
 			return
 		}
@@ -1111,6 +1126,7 @@ func TestConditionalGET_Revalidates(t *testing.T) {
 	assert.Equal(t, int32(2), srv.requests.Load())
 	assert.Equal(t, body, cache.data)
 	assert.NotNil(t, idx)
+	require.EqualValues(t, 1, srv.notModified.Load())
 }
 
 func TestConditionalGET_LastModifiedOnly(t *testing.T) {
@@ -1127,6 +1143,7 @@ func TestConditionalGET_LastModifiedOnly(t *testing.T) {
 	_, err = client.GetIndex(t.Context(), true, 10000)
 	require.NoError(t, err)
 	assert.Equal(t, int32(2), srv.requests.Load())
+	require.EqualValues(t, 1, srv.notModified.Load(), "Last-Modified must authorize a body-free 304")
 }
 
 func TestConditionalGET_NoValidatorSupport(t *testing.T) {
@@ -1181,6 +1198,7 @@ func TestConditionalGET_IndexChanged(t *testing.T) {
 	assert.Equal(t, `"v2"`, etag)
 	assert.Equal(t, newBody, cache.data)
 	require.NotNil(t, idx)
+	require.Len(t, idx.Entries["child"], 1)
 	require.Equal(t, "2.0.0", idx.Entries["child"][0].Version)
 	require.NotContains(t, idx.Entries, "fake")
 }
@@ -1215,9 +1233,9 @@ func TestValidatorsFor_InMemoryFallback(t *testing.T) {
 	v := validatorsFor(&fakeIndexCache{})
 	require.NotNil(t, v)
 	// A cache implementing the extension is used directly.
-	ext := validatorsFor(&fakeValidatorsCache{})
+	ext := &fakeValidatorsCache{}
+	assert.Same(t, ext, validatorsFor(ext))
 	assert.Same(t, sharedInMemoryValidators, validatorsFor(&fakeIndexCache{}))
-	_ = ext
 }
 
 func TestConditionalGET_304WithoutCachedBody(t *testing.T) {
@@ -1246,6 +1264,106 @@ func TestConditionalGET_304WithoutCachedBody(t *testing.T) {
 	assert.Equal(t, int32(2), srv.requests.Load())
 	assert.Equal(t, body, cache.data)
 	require.NotNil(t, idx)
+}
+
+func TestFallbackIndexValidatorsAreBounded(t *testing.T) {
+	for _, bound := range []bool{false, true} {
+		t.Run(strconv.FormatBool(bound), func(t *testing.T) {
+			validators := newInMemoryIndexValidators()
+			for i := range 512 {
+				key := strconv.Itoa(i)
+				if bound {
+					validators.setForResponse(key, []byte(key), `"one"`, "", "origin")
+				} else {
+					require.NoError(t, validators.SetHelmIndexValidators(key, `"one"`, ""))
+				}
+			}
+			_, _, err := validators.GetHelmIndexValidators("0")
+			require.Error(t, err, "retired credential scopes must be evicted")
+			etag, _, err := validators.GetHelmIndexValidators("511")
+			require.NoError(t, err)
+			require.Equal(t, `"one"`, etag)
+			if bound {
+				etag, _ = validators.getForBody("511", []byte("511"))
+				require.Equal(t, `"one"`, etag)
+			}
+		})
+	}
+}
+
+func TestIndexLegacyCacheMatchesRequestAgent(t *testing.T) {
+	var requests atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Vary", "User-Agent")
+		modified, version := "Tue, 17 Nov 2026 08:00:00 GMT", "2.0.0"
+		if r.UserAgent() == "variant-b" {
+			modified, version = "Mon, 16 Nov 2026 08:00:00 GMT", "1.0.0"
+		}
+		w.Header().Set("Last-Modified", modified)
+		if condition, err := http.ParseTime(r.Header.Get("If-Modified-Since")); err == nil {
+			lastChanged, _ := http.ParseTime(modified)
+			if !lastChanged.After(condition) {
+				w.WriteHeader(http.StatusNotModified)
+				return
+			}
+		}
+		_, _ = fmt.Fprintf(w, "apiVersion: v1\nentries:\n  child:\n    - version: %s\n", version)
+	}))
+	t.Cleanup(origin.Close)
+	cache := &fakeIndexCache{}
+	a := NewClient(origin.URL, HelmCreds{}, false, "", "", WithIndexCache(cache), WithUserAgent("variant-a"))
+	b := NewClient(origin.URL, HelmCreds{}, false, "", "", WithIndexCache(cache), WithUserAgent("variant-b"))
+	_, err := a.GetIndex(t.Context(), false, 1<<20)
+	require.NoError(t, err)
+	for _, fresh := range []bool{true, false} {
+		index, err := b.GetIndex(t.Context(), fresh, 1<<20)
+		require.NoError(t, err)
+		require.Equal(t, "1.0.0", index.Entries["child"][0].Version)
+	}
+	require.EqualValues(t, 2, requests.Load(), "the same confirmed variant remains reusable")
+}
+
+func TestHelmOCITagKeysHaveTheirOwnFormatNamespace(t *testing.T) {
+	for _, scope := range []string{"", "explicit-scope"} {
+		client := NewClient("registry.example/team", HelmCreds{}, true, "", "", WithIndexCacheScope(scope)).(*nativeHelmChart)
+		key, err := client.cacheTagsKey(t.Context(), "registry.example/team/chart")
+		require.NoError(t, err)
+		require.True(t, strings.HasPrefix(key, "helm-oci-tags-v1|"))
+		require.NotEqual(t, "registry.example/team/chart", key, "native OCI stores a different JSON representation")
+	}
+}
+
+func TestConditionalGETRejectsInvalidEntityTags(t *testing.T) {
+	for _, etag := range []string{"*", "bare", `"one", "two"`, `W/"unterminated`, "\"control\x7f\""} {
+		t.Run(etag, func(t *testing.T) {
+			request, err := http.NewRequestWithContext(t.Context(), http.MethodGet, "https://charts.example/index.yaml", http.NoBody)
+			require.NoError(t, err)
+			applyConditionalHeaders(request, etag, "Wed, 21 Oct 2015 07:28:00 GMT")
+			require.Empty(t, request.Header.Get("If-None-Match"))
+			require.NotEmpty(t, request.Header.Get("If-Modified-Since"))
+		})
+	}
+	var requests atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		version := "1.0.0"
+		if requests.Add(1) > 1 {
+			version = "2.0.0"
+		}
+		if r.Header.Get("If-None-Match") == "*" {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		w.Header().Set("ETag", "*")
+		_, _ = fmt.Fprintf(w, "apiVersion: v1\nentries:\n  child:\n    - version: %s\n", version)
+	}))
+	t.Cleanup(origin.Close)
+	client := NewClient(origin.URL, HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{}))
+	_, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	index, err := client.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.Equal(t, "2.0.0", index.Entries["child"][0].Version)
 }
 
 func upstreamIndex(version int32) []byte {
@@ -1701,7 +1819,50 @@ func TestGetTagsMalformedDockerConfigPreservesAnonymousBearer(t *testing.T) {
 	require.Empty(t, cache.bodies, "an unresolved Docker store cannot establish a shared cache identity")
 }
 
+func requirePOSIXCredentialHelper(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("requires a POSIX shell credential-helper fixture")
+	}
+}
+
+func TestDockerCredentialHelperRespectsWorkerBudget(t *testing.T) {
+	requirePOSIXCredentialHelper(t)
+	dir := t.TempDir()
+	marker := filepath.Join(dir, "executed")
+	t.Setenv("DOCKER_CONFIG", dir)
+	t.Setenv("ARGOCD_TEST_HELPER_MARKER", marker)
+	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"credsStore":"argocd-budget-test"}`), 0o600))
+	script := "#!/bin/sh\nprintf 'started\\n' > \"$ARGOCD_TEST_HELPER_MARKER\"\nprintf '%s' '{\"Username\":\"reader\",\"Secret\":\"secret\"}'\n"
+	require.NoError(t, os.WriteFile(filepath.Join(dir, "docker-credential-argocd-budget-test"), []byte(script), 0o700))
+	store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+	require.NoError(t, err)
+	resolver, err := boundedDockerCredential(store)
+	require.NoError(t, err)
+	credential, err := resolver(t.Context(), "registry.example")
+	require.NoError(t, err)
+	require.Equal(t, auth.Credential{Username: "reader", Password: "secret"}, credential)
+	require.NoError(t, os.Remove(marker))
+	for range cap(dockerHelperProcesses) {
+		dockerHelperProcesses <- struct{}{}
+	}
+	t.Cleanup(func() {
+		for range cap(dockerHelperProcesses) {
+			<-dockerHelperProcesses
+		}
+	})
+	ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+	defer cancel()
+	credential, err = resolver(ctx, "registry.example")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.Equal(t, auth.EmptyCredential, credential)
+	_, err = os.Stat(marker)
+	require.ErrorIs(t, err, os.ErrNotExist, "a saturated process budget must not execute another helper")
+}
+
 func TestGetTagsSlowOptionalDockerHelperLeavesOriginBudget(t *testing.T) {
+	requirePOSIXCredentialHelper(t)
 	dir := t.TempDir()
 	t.Setenv("DOCKER_CONFIG", dir)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"credsStore":"argocd-slow-test"}`), 0o600))
@@ -1728,6 +1889,7 @@ func TestGetTagsSlowOptionalDockerHelperLeavesOriginBudget(t *testing.T) {
 }
 
 func TestGetTagsDockerHelperDescendantCannotHoldOutputPipe(t *testing.T) {
+	requirePOSIXCredentialHelper(t)
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "descendant-started")
 	t.Setenv("ARGOCD_TEST_HELPER_MARKER", marker)
@@ -1762,6 +1924,7 @@ func TestGetTagsDockerHelperDescendantCannotHoldOutputPipe(t *testing.T) {
 }
 
 func TestBoundedDockerCredentialPreservesHelperProtocol(t *testing.T) {
+	requirePOSIXCredentialHelper(t)
 	for _, tc := range []struct {
 		name   string
 		helper string
@@ -2008,6 +2171,9 @@ func TestConditionalGET304CannotChangeBodyIdentity(t *testing.T) {
 		{"different weak tag", `W/"old"`, `W/"new"`, true},
 		{"matching strong", `"same"`, `"same"`, false},
 		{"matching weak", `W/"same"`, `W/"same"`, false},
+		{"weak tag containing a comma", `W/"a,b"`, `W/"a,b"`, false},
+		{"multiple matching tags", `"same"`, "\"same\"\n\"same\"", true},
+		{"multiple different tags", `"same"`, "\"same\"\n\"other\"", true},
 		{"strong becomes weak", `"same"`, `W/"same"`, false},
 		{"omitted tag", `"same"`, "", false},
 	} {
@@ -2021,7 +2187,9 @@ func TestConditionalGET304CannotChangeBodyIdentity(t *testing.T) {
 						assert.NotEmpty(t, r.Header.Get("If-Modified-Since"))
 					}
 					if tc.received != "" {
-						w.Header().Set("ETag", tc.received)
+						for tag := range strings.SplitSeq(tc.received, "\n") {
+							w.Header().Add("ETag", tag)
+						}
 					}
 					w.WriteHeader(http.StatusNotModified)
 					return
@@ -2062,6 +2230,7 @@ func TestExtractChartCredentialFailureRemovesTemporaryHome(t *testing.T) {
 }
 
 func TestGetTagsRetriesHelperAfterOptionalTimeoutOnChallenge(t *testing.T) {
+	requirePOSIXCredentialHelper(t)
 	dir := t.TempDir()
 	t.Setenv("DOCKER_CONFIG", dir)
 	require.NoError(t, os.WriteFile(filepath.Join(dir, "config.json"), []byte(`{"credsStore":"argocd-retry-test"}`), 0o600))
@@ -2220,6 +2389,7 @@ func TestOptionalCredentialSuccessAtDeadlineRemainsAuthoritative(t *testing.T) {
 }
 
 func TestGetTagsSlowHelperStillAllowsAnonymousBearer(t *testing.T) {
+	requirePOSIXCredentialHelper(t)
 	dir := t.TempDir()
 	marker := filepath.Join(dir, "helper-starts")
 	t.Setenv("ARGOCD_TEST_HELPER_STARTS", marker)
@@ -2301,13 +2471,16 @@ func TestIndexURLMatchesPinnedHelmForEscapedTrailingSlash(t *testing.T) {
 }
 
 func TestGetTagsRetryCredentialsStayAtConfiguredRegistry(t *testing.T) {
+	requirePOSIXCredentialHelper(t)
 	dir := t.TempDir()
 	t.Setenv("DOCKER_CONFIG", dir)
 	t.Setenv("PATH", dir+string(os.PathListSeparator)+os.Getenv("PATH"))
 	var foreignCredential atomic.Bool
+	var secondPageRequests atomic.Int32
 	foreign := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		if r.URL.Query().Get("last") == "first" {
+			secondPageRequests.Add(1)
 			user, password, _ := r.BasicAuth()
 			if user != "foreign-reader" || password != "fixture-secret" {
 				w.Header().Set("WWW-Authenticate", `Basic realm="foreign"`)
@@ -2336,7 +2509,10 @@ func TestGetTagsRetryCredentialsStayAtConfiguredRegistry(t *testing.T) {
 	client := NewClient(configured, HelmCreds{}, true, "", "", WithPlainHTTP())
 	ctx, cancel := context.WithTimeout(t.Context(), 6*time.Second)
 	defer cancel()
-	_, _ = client.GetTags(ctx, "child", false)
+	_, err = client.GetTags(ctx, "child", false)
+	require.ErrorIs(t, err, auth.ErrBasicCredentialNotFound)
+	require.NoError(t, ctx.Err(), "authentication must fail before the operation deadline")
+	require.Positive(t, secondPageRequests.Load(), "the redirected second-page challenge must actually occur")
 	require.False(t, foreignCredential.Load(), "a listing configured for the original registry must not select Docker credentials for a redirected pagination host")
 }
 
@@ -2356,11 +2532,44 @@ func TestDockerCredentialUsesOneConfigurationSnapshot(t *testing.T) {
 	replacement := filepath.Join(dir, "replacement.json")
 	require.NoError(t, os.WriteFile(replacement, []byte(`{"credsStore":"new-helper","auths":{"registry.example":{"username":"stale","password":"inline"}}}`), 0o600))
 	done := make(chan error, 1)
+	writerExited := make(chan struct{})
+	type resolverResult struct {
+		resolver auth.CredentialFunc
+		err      error
+	}
+	readerResult := make(chan resolverResult, 1)
+	readerExited := make(chan struct{})
+	writerContext, cancelWriter := context.WithTimeout(t.Context(), 5*time.Second)
+	t.Cleanup(func() {
+		cancelWriter()
+		if info, err := os.Lstat(path); err == nil && info.Mode()&os.ModeNamedPipe != 0 {
+			if rescue, err := os.OpenFile(path, os.O_RDWR|syscall.O_NONBLOCK, 0); err == nil {
+				defer rescue.Close()
+				_, _ = rescue.Write(append(first, '\n'))
+			}
+		}
+		<-writerExited
+		<-readerExited
+	})
 	go func() {
-		writer, err := os.OpenFile(path, os.O_WRONLY, 0)
-		if err != nil {
-			done <- err
-			return
+		defer close(writerExited)
+		var writer *os.File
+		for {
+			var err error
+			writer, err = os.OpenFile(path, os.O_WRONLY|syscall.O_NONBLOCK, 0)
+			if err == nil {
+				break
+			}
+			if !errors.Is(err, syscall.ENXIO) {
+				done <- err
+				return
+			}
+			select {
+			case <-writerContext.Done():
+				done <- writerContext.Err()
+				return
+			case <-time.After(10 * time.Millisecond):
+			}
 		}
 		defer writer.Close()
 		// The resolver has opened generation A. Replace its pathname with B
@@ -2369,24 +2578,39 @@ func TestDockerCredentialUsesOneConfigurationSnapshot(t *testing.T) {
 			done <- err
 			return
 		}
-		_, err = writer.Write(first)
+		_, err := writer.Write(first)
 		done <- err
 	}()
-	resolver, err := boundedDockerCredential(store)
-	require.NoError(t, err)
-	select {
-	case err := <-done:
-		require.NoError(t, err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("config replacement did not complete")
+	go func() {
+		defer close(readerExited)
+		resolver, err := boundedDockerCredential(store)
+		readerResult <- resolverResult{resolver, err}
+	}()
+	var loaded resolverResult
+	var writerResult <-chan error = done
+	ready := false
+	for !ready || writerResult != nil {
+		select {
+		case loaded = <-readerResult:
+			require.NoError(t, loaded.err)
+			ready = true
+		case err := <-writerResult:
+			require.NoError(t, err)
+			writerResult = nil
+		case <-writerContext.Done():
+			t.Fatal("config replacement did not complete")
+		}
 	}
-	credential, err := resolver(t.Context(), "registry.example")
+	credential, err := loaded.resolver(t.Context(), "registry.example")
 	require.NoError(t, err)
 	require.Equal(t, auth.Credential{Username: "reader", Password: "first"}, credential)
 }
 
 func TestDockerInlineCredentialCompatibility(t *testing.T) {
 	for _, config := range []string{
+		`{"auths":{"registry.example":{"username":"reader","password":"secret"}},"Auths":true}`,
+		`{"auths":{"registry.example":{"username":"reader","password":"secret"}},"CredsStore":true}`,
+		`{"auths":{"registry.example":{"username":"reader","password":"secret"}},"CredHelpers":true}`,
 		`{"auths":{"registry.example":{"username":"reader","password":"secret","identitytoken":"refresh","registrytoken":"access"}}}`,
 		`{"auths":{"https://registry.example/v1/":{"auth":"cmVhZGVyOnNlY3JldDphbm90aGVy"}}}`,
 		`{"auths":{"registry.example":{"auth":"cmVhZGVyOnNlY3JldA==","username":"ignored","password":"ignored"}}}`,
@@ -2406,4 +2630,129 @@ func TestDockerInlineCredentialCompatibility(t *testing.T) {
 			require.Equal(t, want, got)
 		})
 	}
+}
+
+func TestIndexRevalidationLogsExcludeURLSecrets(t *testing.T) {
+	previous := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	level := log.GetLevel()
+	hook := logtest.NewGlobal()
+	log.SetLevel(log.DebugLevel)
+	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(previous); log.SetLevel(level) })
+	body := newIndex(t)
+	var requests atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("ETag", `"one"`)
+		if n := requests.Add(1); n == 2 || n == 3 {
+			w.WriteHeader(http.StatusNotModified)
+			return
+		}
+		_, _ = w.Write(body)
+	}))
+	t.Cleanup(origin.Close)
+	target, err := url.Parse(origin.URL + "?token=fixture-query-secret")
+	require.NoError(t, err)
+	target.User = url.UserPassword("fixture-user-secret", "fixture-password-secret")
+	client := NewClient(target.String(), HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{}))
+	for range 2 {
+		_, err = client.GetIndex(t.Context(), true, 1<<20)
+		require.NoError(t, err)
+	}
+	orphan := NewClient(target.String(), HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{}))
+	_, err = orphan.GetIndex(t.Context(), true, 1<<20)
+	require.NoError(t, err)
+	require.EqualValues(t, 4, requests.Load())
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+	destination := t.TempDir()
+	for range 2 {
+		require.NoError(t, store.CopyTo(target.String(), body, destination, "fixture"))
+	}
+	found := false
+	retried := false
+	for _, entry := range hook.AllEntries() {
+		text, err := entry.String()
+		require.NoError(t, err)
+		for _, secret := range []string{"fixture-query-secret", "fixture-user-secret", "fixture-password-secret"} {
+			require.NotContains(t, text, secret)
+		}
+		found = found || strings.Contains(entry.Message, "not modified")
+		retried = retried || strings.Contains(entry.Message, "unusable helm index 304")
+	}
+	require.True(t, retried, "the unusable 304 debug log must actually be exercised")
+	require.True(t, found, "the successful 304 log must actually be exercised")
+}
+
+func TestGetTagsStalledDockerConfigPreservesOriginBudget(t *testing.T) {
+	if _, err := exec.LookPath("mkfifo"); err != nil {
+		t.Skip("requires a FIFO fixture")
+	}
+	require.Eventually(t, func() bool { return len(dockerConfigLoaders) == 0 }, time.Second, time.Millisecond)
+	dir := t.TempDir()
+	t.Setenv("DOCKER_CONFIG", dir)
+	fifo := filepath.Join(dir, "config.json")
+	require.NoError(t, exec.CommandContext(t.Context(), "mkfifo", fifo).Run())
+	var requests atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		requests.Add(1)
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = io.WriteString(w, `{"name":"child","tags":["public"]}`)
+	}))
+	t.Cleanup(origin.Close)
+	cache := &fakeIndexCache{data: []byte(`["unconfirmed-private-cache"]`)}
+	client := NewClient(strings.TrimPrefix(origin.URL, "http://"), HelmCreds{}, true, "", "", WithPlainHTTP(), WithIndexCache(cache))
+	type result struct {
+		tags []string
+		err  error
+	}
+	results := make(chan result, 1)
+	exited := make(chan struct{})
+	ctx, cancel := context.WithTimeout(t.Context(), 2*time.Second)
+	defer cancel()
+	t.Cleanup(func() {
+		deadline := time.Now().Add(3 * time.Second)
+		var writer *os.File
+		for time.Now().Before(deadline) {
+			var err error
+			writer, err = os.OpenFile(fifo, os.O_WRONLY|syscall.O_NONBLOCK, 0)
+			if err == nil {
+				break
+			}
+			if !errors.Is(err, syscall.ENXIO) {
+				t.Error(err)
+				return
+			}
+			time.Sleep(time.Millisecond)
+		}
+		if writer == nil {
+			t.Error("stalled config reader never opened the FIFO")
+			return
+		}
+		replacement := filepath.Join(dir, "replacement.json")
+		require.NoError(t, os.WriteFile(replacement, []byte(`{}`), 0o600))
+		require.NoError(t, os.Rename(replacement, fifo))
+		_, err := writer.WriteString(`{}`)
+		require.NoError(t, err)
+		require.NoError(t, writer.Close())
+		select {
+		case <-exited:
+		case <-time.After(time.Second):
+			t.Error("tag operation did not finish after config recovery")
+		}
+		require.Eventually(t, func() bool { return len(dockerConfigLoaders) == 0 }, time.Second, time.Millisecond)
+	})
+	go func() {
+		defer close(exited)
+		tags, err := client.GetTags(ctx, "child", false)
+		results <- result{tags, err}
+	}()
+	select {
+	case got := <-results:
+		require.NoError(t, got.err)
+		require.Equal(t, []string{"public"}, got.tags)
+		require.NoError(t, ctx.Err())
+	case <-time.After(3 * time.Second):
+		t.Fatal("Docker configuration loading blocked beyond the tag deadline")
+	}
+	require.EqualValues(t, 1, requests.Load())
+	require.Len(t, dockerConfigLoaders, 1, "the fixture must leave a real configuration read stalled")
+	require.Equal(t, `["unconfirmed-private-cache"]`, string(cache.data))
 }

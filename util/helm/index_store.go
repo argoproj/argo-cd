@@ -40,9 +40,10 @@ type IndexRecordCache interface {
 // conditional revalidation for another max(24h, freshness). Reads and copies
 // never restart either deadline.
 type IndexStore struct {
-	// An unretirable superseded record must stay ineligible on subsequent
-	// reads, including when the shared cache later becomes unavailable.
+	// An unconfirmed invalidation disables this store as a further safeguard.
+	// The lock file carries eligibility across stores and process lifetimes.
 	localDisabled atomic.Bool
+	lastSweep     atomic.Int64
 	// FilterEnabled reduces only private build snapshots. Configure before use;
 	// false retains complete original indexes and disables snapshot retries.
 	FilterEnabled bool
@@ -53,6 +54,9 @@ type IndexStore struct {
 	expiration time.Duration
 	// lock coordinates readers, publishers and cleanup across processes.
 	lock func(context.Context, string, bool, bool) (func(), error)
+	// File operations permit portable, deterministic disk-failure coverage.
+	removeRecord func(string) error
+	renameRecord func(string, string) error
 	// indexCacheMaxSize bounds how much of a downloaded index.yaml is read
 	// during Go-side revalidation (mirrors --helm-registry-max-index-size).
 	indexCacheMaxSize int64
@@ -77,13 +81,14 @@ func NewIndexStore(dir string, expiration time.Duration, indexCacheMaxSize int64
 			dir = absolute
 		}
 	}
-	store := &IndexStore{dir: dir, expiration: expiration, lock: acquireIndexLock, indexCacheMaxSize: indexCacheMaxSize}
+	store := &IndexStore{dir: dir, expiration: expiration, lock: acquireIndexLock, removeRecord: os.Remove, renameRecord: os.Rename, indexCacheMaxSize: indexCacheMaxSize}
 	if len(caches) > 0 {
 		store.cache = caches[0]
 	}
 	// Init-time sweep: evict entries orphaned by previous process lifetimes
 	// (credential rotation, renamed repos) that no read will ever touch.
 	store.Sweep()
+	store.lastSweep.Store(time.Now().UnixNano())
 	return store
 }
 
@@ -127,19 +132,32 @@ func parseIndexBody(data []byte) error {
 	// The schema decoder accepts only the first YAML document. Check the
 	// complete stream too, so trailing corruption cannot acquire validators.
 	// Successful validation is memoized by body digest, including warm reads.
-	decoder := yamlv3.NewDecoder(bytes.NewReader(data))
-	var document yamlv3.Node
-	if err := decoder.Decode(&document); err != nil {
-		return fmt.Errorf("helm index is not valid YAML: %w", err)
-	}
-	if err := decoder.Decode(&document); !errors.Is(err, io.EOF) {
-		return errors.New("helm index must contain exactly one YAML document")
+	jsonBody := json.Valid(data)
+	if !jsonBody {
+		decoder := yamlv3.NewDecoder(bytes.NewReader(data))
+		var document yamlv3.Node
+		if err := decoder.Decode(&document); err != nil {
+			return fmt.Errorf("helm index is not valid YAML: %w", err)
+		}
+		if err := decoder.Decode(&document); !errors.Is(err, io.EOF) {
+			return errors.New("helm index must contain exactly one YAML document")
+		}
 	}
 	var env struct {
-		APIVersion string             `json:"apiVersion"`
-		Entries    map[string]Entries `json:"entries"`
+		APIVersion  string                             `json:"apiVersion"`
+		Generated   time.Time                          `json:"generated"`
+		Entries     map[string][]*indexValidationChart `json:"entries"`
+		ServerInfo  map[string]any                     `json:"serverInfo"`
+		PublicKeys  []string                           `json:"publicKeys"`
+		Annotations map[string]string                  `json:"annotations"`
 	}
-	if err := yaml.Unmarshal(data, &env); err != nil {
+	// Match the pinned Helm loader: JSON permits unknown fields, YAML uses
+	// strict schema decoding. Validation remains memoized for unchanged bytes.
+	if jsonBody {
+		if err := json.Unmarshal(data, &env); err != nil {
+			return fmt.Errorf("helm index is not valid JSON: %w", err)
+		}
+	} else if err := yaml.UnmarshalStrict(data, &env); err != nil {
 		return fmt.Errorf("helm index is not valid YAML: %w", err)
 	}
 	// Only complete Helm v1 indexes can be published to shared storage.
@@ -209,6 +227,13 @@ func (s *IndexStore) readRecord(repoURL string, expiredAsMiss bool) (*indexRecor
 		// A corrupt record is as good as none.
 		return nil, fmt.Errorf("cached helm index for repo %s is corrupt: %w", repoURL, err)
 	}
+	stateDigest, err := readIndexRecordState(file)
+	if err != nil || (rec.RecordDigest != "" && stateDigest != rec.RecordDigest) {
+		return nil, errors.New("helm index disk eligibility is unconfirmed")
+	}
+	if expiredAsMiss && rec.RecordDigest == "" {
+		return nil, errors.New("legacy helm index disk freshness is unconfirmed")
+	}
 	validatedAt := info.ModTime()
 	if rec.StoredAt != "" {
 		storedAt, err := time.Parse(time.RFC3339Nano, rec.StoredAt)
@@ -249,6 +274,9 @@ func (s *IndexStore) readRecord(repoURL string, expiredAsMiss bool) (*indexRecor
 		return nil, errors.New("helm index disk metadata does not match its stored digest")
 	}
 	rec.digestVerified = rec.BodyDigest != "" && rec.RecordDigest != ""
+	if !rec.digestVerified {
+		rec.ETag, rec.LastModified, rec.URLIdentity = "", "", ""
+	}
 	rec.BodyDigest = actualDigest
 	if err := validatedIndexBodies.validateBodyDigest(body, digest); err != nil {
 		return nil, err
@@ -327,10 +355,13 @@ func (s *IndexStore) publishRecord(repoURL string, rec *indexRecord) error {
 	if err := os.Chtimes(tmpName, validatedAt, validatedAt); err != nil {
 		return err
 	}
-	if err := os.Rename(tmpName, file); err != nil {
+	if err := writeIndexRecordState(file, ""); err != nil {
+		return fmt.Errorf("invalidate previous helm index record: %w", err)
+	}
+	if err := s.renameRecord(tmpName, file); err != nil {
 		return fmt.Errorf("failed to install helm index cache file: %w", err)
 	}
-	return nil
+	return writeIndexRecordState(file, rec.RecordDigest)
 }
 
 // Get returns the FRESH cached index bytes for the given repository identity,
@@ -397,6 +428,7 @@ func (s *IndexStore) SetWithValidators(repoURL string, data []byte, etag string,
 	}
 	rec := &indexRecord{
 		APIVersion:   "v1",
+		URLIdentity:  IndexURLIdentity(""),
 		ETag:         etag,
 		LastModified: lastModified,
 		Body:         base64.StdEncoding.EncodeToString(data),
@@ -435,18 +467,18 @@ func (s *IndexStore) updateValidators(repoURL string, etag string, lastModified 
 
 // CopyTo copies the given index bytes into destDir as an index file named
 // cacheIndexFileName(name) — the exact path and name helm expects in its own
-// cache home. The copy is written atomically under the store lock, so
-// concurrent invocations copying the same repo never race on dest.
+// cache home. Installation is atomic and serialized by destination, so
+// concurrent invocations cannot replace an already installed snapshot.
 func (s *IndexStore) CopyTo(repoURL string, data []byte, destDir string, name string) error {
 	return s.copyTo(repoURL, data, destDir, name, false)
 }
 
-func (s *IndexStore) copyTo(repoURL string, data []byte, destDir string, name string, replace bool) error {
+func (s *IndexStore) copyTo(_ string, data []byte, destDir string, name string, replace bool) error {
 	if s == nil || s.dir == "" {
 		return errors.New("index cache is disabled")
 	}
 
-	if filepath.Base(name) != name || strings.ContainsAny(name, "/\\") || filepath.VolumeName(name) != "" {
+	if name != "" && (filepath.Base(name) != name || strings.ContainsAny(name, "/\\") || filepath.VolumeName(name) != "") {
 		return errors.New("invalid helm repository cache name")
 	}
 
@@ -457,7 +489,7 @@ func (s *IndexStore) copyTo(repoURL string, data []byte, destDir string, name st
 	dest := filepath.Join(destDir, cacheIndexFileName(name))
 	if !replace {
 		if _, err := os.Stat(dest); err == nil {
-			log.WithFields(log.Fields{"repo": repoURL, "file": dest}).Debug("Helm index snapshot already installed")
+			log.WithField("file", dest).Debug("Helm index snapshot already installed")
 			return nil
 		}
 	}
@@ -478,8 +510,12 @@ func (s *IndexStore) copyTo(repoURL string, data []byte, destDir string, name st
 	if err := tmp.Close(); err != nil {
 		return fmt.Errorf("failed to write helm cache index: %w", err)
 	}
-	// If another invocation already installed an index file for this name,
-	// keep theirs — both came from the same persistent store.
+	unlock, err := acquireIndexLock(context.Background(), dest, false, true)
+	if err != nil {
+		return err
+	}
+	defer unlock()
+	// The existence check and rename must share the destination lock.
 	if !replace {
 		if _, err := os.Stat(dest); err == nil {
 			return nil
@@ -607,10 +643,39 @@ func (s *IndexStore) installRecord(identity string, record *HelmIndexRecord) boo
 
 // Only confirmed ownership-aware publication establishes a new disk deadline.
 func (s *IndexStore) publishFetchedRecord(ctx context.Context, identity, owner string, record *HelmIndexRecord) bool {
-	if s.cache != nil && !publishIndexFetch(ctx, s.cache, identity, owner, record) {
-		return false
+	if s.cache != nil {
+		published, err := publishIndexFetch(ctx, s.cache, identity, owner, record)
+		if errors.Is(err, ErrHelmIndexBodyReferenceRejected) || errors.Is(err, ErrHelmIndexPublicationUnconfirmed) {
+			digest := sha256.Sum256(record.Body)
+			s.retireLocalRecord(identity, hex.EncodeToString(digest[:]))
+		}
+		if !published {
+			return false
+		}
 	}
 	return s.installRecord(identity, record)
+}
+
+// The caller holds the exclusive record lock. Do not retire an unrelated
+// winning body. Eligibility is revoked durably before attempting unlink.
+func (s *IndexStore) retireLocalRecord(identity, rejectedDigest string) {
+	if rejectedDigest == "" {
+		return
+	}
+	local, err := s.readRecord(identity, false)
+	if err != nil || local.BodyDigest != rejectedDigest {
+		return
+	}
+	file := s.cacheFileName(identity)
+	if err := writeIndexRecordState(file, ""); err != nil {
+		s.localDisabled.Store(true)
+		_ = s.removeRecord(file)
+		log.WithError(err).Warn("disabling local Helm index reuse after invalidation failure")
+		return
+	}
+	if err := s.removeRecord(file); err != nil && !errors.Is(err, os.ErrNotExist) {
+		log.WithError(err).Debug("invalidated Helm index record could not be removed")
+	}
 }
 
 // Revalidate refreshes a stored entry using conditional GET (Part 3
@@ -629,8 +694,15 @@ func (s *IndexStore) publishFetchedRecord(ctx context.Context, identity, owner s
 // concurrent local processes share one fetch and cannot overwrite
 // newer state with older responses.
 func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient *nativeHelmChart) ([]byte, error) {
+	body, _, err := s.revalidate(ctx, repoURL, chartClient, false)
+	return body, err
+}
+
+// revalidate reports whether this operation contacted the origin. A version
+// lookup miss may ignore freshness while retaining conditional validators.
+func (s *IndexStore) revalidate(ctx context.Context, repoURL string, chartClient *nativeHelmChart, ignoreFreshness bool) ([]byte, bool, error) {
 	if s == nil || s.dir == "" {
-		return nil, errors.New("index cache is disabled")
+		return nil, false, errors.New("index cache is disabled")
 	}
 
 	// Single-flight per identity within this process: concurrent misses
@@ -638,37 +710,22 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 	file := s.cacheFileName(repoURL)
 	unlock, err := s.lock(ctx, file, false, true)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	published := false
 	defer func() {
 		unlock()
-		if published {
-			s.Sweep()
-		}
+		s.maybeSweep()
 	}()
 
 	var rejectedDigest string
-	retireRejectedRecord := func() {
-		if rejectedDigest == "" {
-			return
-		}
-		// Retire known superseded bytes under the record lock. An origin
-		// failure followed by a shared-cache outage must not resurrect them
-		// on this request or on the next dependency build.
-		if err := os.Remove(file); err != nil && !errors.Is(err, os.ErrNotExist) {
-			s.localDisabled.Store(true)
-			log.WithError(err).Warn("disabling local Helm index reuse after retirement failure")
-		}
-	}
 	candidate, fromShared := s.observeRetainedRecord(ctx, repoURL, &rejectedDigest)
-	retireRejectedRecord()
-	if candidate != nil && candidate.Fresh(s.expiration) {
+	s.retireLocalRecord(repoURL, rejectedDigest)
+	if !ignoreFreshness && candidate != nil && candidate.Fresh(s.expiration) && chartClient.matchesIndexRequest(ctx, candidate.URLIdentity) {
 		// Preserve timestamps when installing a newer Redis generation locally.
 		if fromShared {
-			published = s.installRecord(repoURL, candidate)
+			s.installRecord(repoURL, candidate)
 		}
-		return candidate.Body, nil
+		return candidate.Body, false, nil
 	}
 	owner := beginIndexFetch(ctx, s.cache, repoURL)
 	stopRenewing := keepIndexFetchAlive(ctx, s.cache, repoURL, owner)
@@ -683,12 +740,12 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 		// Observe again after claiming: an intervening maintenance write
 		// could not invalidate a claim that did not exist yet.
 		candidate, fromShared = s.observeRetainedRecord(ctx, repoURL, &rejectedDigest)
-		retireRejectedRecord()
-		if candidate != nil && candidate.Fresh(s.expiration) {
+		s.retireLocalRecord(repoURL, rejectedDigest)
+		if !ignoreFreshness && candidate != nil && candidate.Fresh(s.expiration) && chartClient.matchesIndexRequest(ctx, candidate.URLIdentity) {
 			if fromShared {
-				published = s.installRecord(repoURL, candidate)
+				s.installRecord(repoURL, candidate)
 			}
-			return candidate.Body, nil
+			return candidate.Body, false, nil
 		}
 	}
 	operation := *chartClient
@@ -697,11 +754,10 @@ func (s *IndexStore) Revalidate(ctx context.Context, repoURL string, chartClient
 	operation.lastValidators = nil
 	data, err := operation.loadRepoIndex(ctx, s.indexCacheMaxSize)
 	if err != nil {
-		return nil, err
+		return nil, false, err
 	}
-	published = s.publishFetchedRecord(ctx, repoURL, owner, operation.fetchedIndexRecord(data))
-	fetchPublished = published
-	return data, nil
+	fetchPublished = s.publishFetchedRecord(ctx, repoURL, owner, operation.fetchedIndexRecord(data))
+	return data, true, nil
 }
 
 // GetHelmIndexValidators returns the validators stored with the record for
@@ -745,9 +801,7 @@ func (s *IndexStore) ForceRefresh(ctx context.Context, repoURL string, chartClie
 	published := false
 	defer func() {
 		unlock()
-		if published {
-			s.Sweep()
-		}
+		s.maybeSweep()
 	}()
 
 	owner := beginIndexFetch(ctx, s.cache, repoURL)
@@ -781,6 +835,15 @@ func (s *IndexStore) ForceRefresh(ctx context.Context, repoURL string, chartClie
 // prunes the identity being read. The scan is O(entries) with one stat per
 // file; it runs (a) once at store initialization and (b) opportunistically
 // after Revalidate/ForceRefresh publications — never on the hot Get path.
+func (s *IndexStore) maybeSweep() {
+	now := time.Now().UnixNano()
+	previous := s.lastSweep.Load()
+	if time.Duration(now-previous) < time.Minute || !s.lastSweep.CompareAndSwap(previous, now) {
+		return
+	}
+	s.Sweep()
+}
+
 func (s *IndexStore) Sweep() {
 	if s == nil || s.dir == "" {
 		return
@@ -804,10 +867,11 @@ func (s *IndexStore) Sweep() {
 			}
 			continue
 		}
-		if !isIndexRecordName(entry.Name()) {
+		record := strings.TrimSuffix(strings.TrimSuffix(entry.Name(), ".state"), ".lock")
+		if !isIndexRecordName(record) {
 			continue
 		}
-		s.evictExpiredFile(filepath.Join(s.dir, entry.Name()))
+		s.evictExpiredFile(filepath.Join(s.dir, record))
 	}
 }
 
@@ -833,8 +897,14 @@ func (s *IndexStore) evictExpiredFile(file string) {
 	// Read the current file after acquiring the publisher's lock: a record
 	// discovered by ReadDir may have been replaced with a fresh generation.
 	info, err := os.Stat(file)
+	if errors.Is(err, os.ErrNotExist) {
+		_ = os.Remove(file + ".state")
+		return
+	}
 	if err != nil || time.Since(info.ModTime()) <= s.expiration+s.retention() {
 		return
 	}
-	_ = os.Remove(file)
+	if os.Remove(file) == nil {
+		_ = os.Remove(file + ".state")
+	}
 }

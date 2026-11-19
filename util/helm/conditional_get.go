@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/groupcache/lru"
 	log "github.com/sirupsen/logrus"
 
 	cryptoutil "github.com/argoproj/argo-cd/v3/util/crypto"
@@ -26,11 +27,11 @@ type indexCacheWithValidators interface {
 
 // inMemoryIndexValidators is a body-bound fallback for caches without atomic
 // record reads. Losing the validators on restart merely
-// means the next fetch is an unconditional GET. Entries never expire
-// client-side: the server decides via 304/200, and any 200 refreshes them.
+// means the next fetch is an unconditional GET. Bound retained credential
+// scopes; eviction simply makes the next origin request unconditional.
 type inMemoryIndexValidators struct {
-	mu sync.RWMutex
-	m  map[string]helmIndexValidators
+	mu sync.Mutex
+	m  *lru.Cache
 }
 
 type helmIndexValidators struct {
@@ -47,14 +48,9 @@ func (v *inMemoryIndexValidators) setForResponse(repo string, body []byte, etag,
 	digest := sha256.Sum256(body)
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	if etag == "" && modified == "" {
-		delete(v.m, repo)
-		return
-	}
-	if v.m == nil {
-		v.m = map[string]helmIndexValidators{}
-	}
-	v.m[repo] = helmIndexValidators{etag: etag, lastModified: modified, bodyDigest: digest, bound: true, urlIdentity: urlIdentity}
+	// Keep request provenance even when the origin has no validators, so a
+	// fresh raw-cache hit can still establish the selected representation.
+	v.m.Add(repo, helmIndexValidators{etag: etag, lastModified: modified, bodyDigest: digest, bound: true, urlIdentity: urlIdentity})
 }
 
 func (v *inMemoryIndexValidators) getForBody(repo string, body []byte) (string, string) {
@@ -64,17 +60,21 @@ func (v *inMemoryIndexValidators) getForBody(repo string, body []byte) (string, 
 
 func (v *inMemoryIndexValidators) getForResponse(repo string, body []byte) (string, string, string) {
 	digest := sha256.Sum256(body)
-	v.mu.RLock()
-	defer v.mu.RUnlock()
-	entry, ok := v.m[repo]
-	if !ok || !entry.bound || entry.bodyDigest != digest {
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	value, ok := v.m.Get(repo)
+	if !ok {
+		return "", "", ""
+	}
+	entry := value.(helmIndexValidators)
+	if !entry.bound || entry.bodyDigest != digest {
 		return "", "", ""
 	}
 	return entry.etag, entry.lastModified, entry.urlIdentity
 }
 
 func newInMemoryIndexValidators() *inMemoryIndexValidators {
-	return &inMemoryIndexValidators{m: map[string]helmIndexValidators{}}
+	return &inMemoryIndexValidators{m: lru.New(256)}
 }
 
 // SetHelmIndexValidators REPLACES any validators previously stored for the
@@ -84,22 +84,23 @@ func newInMemoryIndexValidators() *inMemoryIndexValidators {
 func (v *inMemoryIndexValidators) SetHelmIndexValidators(repo string, etag string, lastModified string) error {
 	v.mu.Lock()
 	defer v.mu.Unlock()
-	if v.m == nil {
-		v.m = map[string]helmIndexValidators{}
-	}
 	if etag == "" && lastModified == "" {
-		delete(v.m, repo)
+		v.m.Remove(repo)
 		return nil
 	}
-	v.m[repo] = helmIndexValidators{etag: etag, lastModified: lastModified}
+	v.m.Add(repo, helmIndexValidators{etag: etag, lastModified: lastModified})
 	return nil
 }
 
 func (v *inMemoryIndexValidators) GetHelmIndexValidators(repo string) (string, string, error) {
-	v.mu.RLock()
-	defer v.mu.RUnlock()
-	vv, ok := v.m[repo]
+	v.mu.Lock()
+	defer v.mu.Unlock()
+	value, ok := v.m.Get(repo)
 	if !ok {
+		return "", "", errors.New("no validators for repo")
+	}
+	vv := value.(helmIndexValidators)
+	if vv.etag == "" && vv.lastModified == "" {
 		return "", "", errors.New("no validators for repo")
 	}
 	return vv.etag, vv.lastModified, nil
@@ -122,11 +123,26 @@ var sharedInMemoryValidators = newInMemoryIndexValidators()
 // request. Per RFC 9110 §13.1.2, If-None-Match takes precedence when both
 // are sent, so If-Modified-Since is only set when there is no ETag.
 func applyConditionalHeaders(req *http.Request, etag string, lastModified string) {
-	if etag != "" {
+	if validEntityTag(etag) {
 		req.Header.Set("If-None-Match", etag)
-	} else if lastModified != "" {
+	} else if _, err := http.ParseTime(lastModified); err == nil {
 		req.Header.Set("If-Modified-Since", lastModified)
 	}
+}
+
+// A response must contain one entity-tag, never the If-None-Match wildcard
+// or a list. Otherwise a 304 could validate existence rather than these bytes.
+func validEntityTag(value string) bool {
+	value = strings.TrimPrefix(value, "W/")
+	if len(value) < 2 || value[0] != '"' || value[len(value)-1] != '"' {
+		return false
+	}
+	for i := 1; i < len(value)-1; i++ {
+		if b := value[i]; b < 0x21 || b == '"' || b == 0x7f {
+			return false
+		}
+	}
+	return true
 }
 
 // indexCacheRecorder is implemented by caches that can store the index body
@@ -169,7 +185,7 @@ func keepIndexFetchAlive(ctx context.Context, cache any, repo, owner string) con
 				renewal, cancel := indexCacheContext(lifetime, time.Second)
 				current, err := renewer.RenewHelmIndexFetch(renewal, repo, owner)
 				cancel()
-				if err != nil || !current {
+				if err == nil && !current {
 					return
 				}
 			}
@@ -222,10 +238,18 @@ func releaseIndexFetch(ctx context.Context, cache any, repo, owner string) {
 	}
 }
 
-func publishIndexFetch(ctx context.Context, cache any, repo, owner string, record *HelmIndexRecord) bool {
+// ErrHelmIndexBodyReferenceRejected means Redis no longer authorizes sharing
+// this body, either because its reference changed or because it was evicted.
+var ErrHelmIndexBodyReferenceRejected = errors.New("helm index body reference rejected")
+
+// ErrHelmIndexPublicationUnconfirmed prevents local warming when an ambiguous
+// body write cannot confirm that its metadata generation remains current.
+var ErrHelmIndexPublicationUnconfirmed = errors.New("helm index publication no longer confirmed")
+
+func publishIndexFetch(ctx context.Context, cache any, repo, owner string, record *HelmIndexRecord) (bool, error) {
 	publisher, ok := cache.(indexCachePublisher)
 	if !ok || owner == "" {
-		return false
+		return false, nil
 	}
 	operation, cancel := indexCacheContext(ctx, 5*time.Second)
 	defer cancel()
@@ -233,9 +257,9 @@ func publishIndexFetch(ctx context.Context, cache any, repo, owner string, recor
 	published, err := publisher.PublishHelmIndexRecord(operation, repo, owner, record)
 	if err != nil {
 		log.WithError(err).Debug("helm index publication unconfirmed")
-		return false
+		return false, err
 	}
-	return published
+	return published, nil
 }
 
 type indexRecordObservation struct {
@@ -266,7 +290,7 @@ func observeIndexRecordWithBudget(ctx context.Context, reader indexCacheRecordRe
 	return indexRecordObservation{record: record}
 }
 
-// IndexURLIdentity binds validators to the effective response URL without
+// IndexURLIdentity binds the default request profile and effective URL without
 // putting URL credentials or query secrets in disk or Redis metadata.
 func IndexURLIdentity(rawURL string) string {
 	identity, _ := indexURLIdentityContext(context.Background(), rawURL)
@@ -274,7 +298,49 @@ func IndexURLIdentity(rawURL string) string {
 }
 
 func indexURLIdentityContext(ctx context.Context, rawURL string) (string, error) {
-	return cryptoutil.CredentialScopeContext(ctx, "helm-index-response-url", rawURL)
+	return (&nativeHelmChart{}).indexURLIdentityContext(ctx, rawURL)
+}
+
+func (c *nativeHelmChart) indexRequestPrefix(ctx context.Context) (string, error) {
+	profile, err := cryptoutil.CredentialScopeContext(ctx, "helm-index-request-agent-v1", c.getUserAgent())
+	return "helm-index-request-v1|" + profile + "|", err
+}
+
+func (c *nativeHelmChart) indexURLIdentityContext(ctx context.Context, rawURL string) (string, error) {
+	prefix, err := c.indexRequestPrefix(ctx)
+	if err != nil {
+		return "", err
+	}
+	identity, err := cryptoutil.CredentialScopeContext(ctx, "helm-index-response-url", rawURL)
+	return prefix + identity, err
+}
+
+func (c *nativeHelmChart) matchesIndexRequest(ctx context.Context, identity string) bool {
+	if !strings.HasPrefix(identity, "helm-index-request-v1|") {
+		return false
+	}
+	prefix, err := c.indexRequestPrefix(ctx)
+	return err == nil && strings.HasPrefix(identity, prefix)
+}
+
+// All mutable request headers must be represented in the cache view. Agent
+// values are bound above; credentials and transport policy have scoped keys.
+// The remaining supported fields are fixed by this GET implementation.
+func (c *nativeHelmChart) supportsIndexVary(header http.Header) bool {
+	for _, value := range header.Values("Vary") {
+		for field := range strings.SplitSeq(value, ",") {
+			switch strings.ToLower(strings.TrimSpace(field)) {
+			case "", "user-agent", "accept", "accept-encoding", "cache-control", "origin", "access-control-request-method", "access-control-request-headers":
+			case "authorization":
+				if c.indexCacheScope == "" && !c.scopedByCreds {
+					return false
+				}
+			default:
+				return false
+			}
+		}
+	}
+	return true
 }
 
 // responseValidatorHeaders extracts validators from the headers of the last
@@ -283,7 +349,16 @@ func responseValidatorHeaders(h http.Header) (string, string) {
 	if h == nil {
 		return "", ""
 	}
-	return h.Get("ETag"), h.Get("Last-Modified")
+	return singleResponseValidator(h, "ETag"), singleResponseValidator(h, "Last-Modified")
+}
+
+func singleResponseValidator(header http.Header, name string) string {
+	if len(header.Values(name)) > 1 {
+		// Keep malformed distinct from omitted, especially on a 304. This
+		// sentinel fails the entity-tag and HTTP-date grammar checks.
+		return "invalid-multiple-" + name
+	}
+	return header.Get(name)
 }
 
 // HelmIndexRecord is the versioned cache record for a helm repository index:
@@ -328,6 +403,9 @@ type indexCacheRecordReader interface {
 func matchingNotModifiedETag(cached, received string) bool {
 	if received == "" {
 		return true
+	}
+	if !validEntityTag(received) {
+		return false
 	}
 	if after, ok := strings.CutPrefix(received, "W/"); ok {
 		return cached != "" && strings.TrimPrefix(cached, "W/") == after

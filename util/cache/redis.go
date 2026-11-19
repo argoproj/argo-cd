@@ -160,7 +160,15 @@ func (r *redisCache) Get(key string, obj any) error {
 // GetContext is used for optional index observations with a bounded budget.
 // A caller-supplied Redis client must opt in to enforcing context deadlines.
 func (r *redisCache) GetContext(ctx context.Context, key string, obj any) error {
-	if !r.client.Options().ContextTimeoutEnabled {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if _, bounded := ctx.Deadline(); !bounded {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, 5*time.Second)
+		defer cancel()
+	}
+	if !r.enforcesContextDeadlines() {
 		return errors.New("redis client does not enforce context deadlines")
 	}
 	var data []byte
@@ -175,6 +183,13 @@ func (r *redisCache) GetContext(ctx context.Context, key string, obj any) error 
 		return err
 	}
 	return ctx.Err()
+}
+
+func (r *redisCache) enforcesContextDeadlines() bool {
+	options := r.client.Options()
+	// go-redis normalizes the -2 opt-out to -1. Zero still permits a
+	// context deadline; a negative value bypasses Set{Read,Write}Deadline.
+	return options.ContextTimeoutEnabled && options.ReadTimeout >= 0 && options.WriteTimeout >= 0
 }
 
 func (r *redisCache) Delete(key string) error {

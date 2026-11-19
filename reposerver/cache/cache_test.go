@@ -1092,8 +1092,14 @@ func TestHelmIndexRedisContractRetainsBodyAndValidators(t *testing.T) {
 	client := helm.NewClient(url, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(cache))
 	_, err := client.GetIndex(t.Context(), true, 1<<20)
 	require.NoError(t, err)
+	record, err := cache.GetHelmIndexRecord(url)
+	require.NoError(t, err)
+	record.StoredAt = time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339Nano)
+	require.NoError(t, cache.SetHelmIndexRetainedRecord(url, record))
 	redisServer.FastForward(2 * time.Minute)
-	index, err := client.GetIndex(t.Context(), true, 1<<20)
+	var fresh []byte
+	require.ErrorIs(t, cache.GetHelmIndex(url, &fresh), cacheutil.ErrCacheMiss)
+	index, err := client.GetIndex(t.Context(), false, 1<<20)
 	require.NoError(t, err)
 	require.Equal(t, "1.0.0", index.Entries["child"][0].Version)
 	origin.mu.Lock()
@@ -1204,8 +1210,8 @@ func TestHelmIndexCredentialFailureCannotUseWarmCache(t *testing.T) {
 func TestHelmTagsCacheUsesCurrentCredentialView(t *testing.T) {
 	cache, _ := regressionRedisCache(t)
 	url := "registry.example.invalid/child"
-	require.NoError(t, cache.SetOCITags(credentialCacheKey(url, "token-A")+"\x00https", []byte(`{"Tags":["1.0.0"]}`)))
-	require.NoError(t, cache.SetOCITags(credentialCacheKey(url, "token-B")+"\x00https", []byte(`{"Tags":["2.0.0"]}`)))
+	require.NoError(t, cache.SetOCITags("helm-oci-tags-v1|"+credentialCacheKey(url, "token-A")+"\x00https", []byte(`{"Tags":["1.0.0"]}`)))
+	require.NoError(t, cache.SetOCITags("helm-oci-tags-v1|"+credentialCacheKey(url, "token-B")+"\x00https", []byte(`{"Tags":["2.0.0"]}`)))
 	provider := &operationCredentials{Username: "reader", tokens: []string{"token-A", "token-B"}}
 	client := helm.NewClient("registry.example.invalid", provider, true, "", "", helm.WithIndexCacheScopedByCreds(cache))
 	for _, version := range []string{"1.0.0", "2.0.0"} {
@@ -1244,6 +1250,7 @@ func TestHelmIndexCacheExpirationIndependentFromRevisions(t *testing.T) {
 			expected := *record
 			expected.Generation = retained.Generation
 			expected.BodyDigest = retained.BodyDigest
+			expected.URLIdentity = helm.IndexURLIdentity("")
 			require.Equal(t, &expected, retained, "validators and body survive together without changing validation time")
 			generation, err := cache.GetHelmIndexGenerationContext(t.Context(), "record")
 			require.NoError(t, err)
@@ -1351,9 +1358,18 @@ func TestIndexCacheRegressionRedisRetainsRevalidationDataAfterFreshness(t *testi
 	// Advance Redis time without sleeping. The body's freshness expires, but
 	// validators must be retained longer so the next read can revalidate
 	// conditionally instead of re-downloading.
-	redisServer.FastForward(2 * time.Minute)
-	_, err = client.GetIndex(t.Context(), true, 1<<20)
+	record, err := cache.GetHelmIndexRecord(fixture.server.URL)
 	require.NoError(t, err)
+	record.StoredAt = time.Now().Add(-2 * time.Minute).UTC().Format(time.RFC3339Nano)
+	require.NoError(t, cache.SetHelmIndexRetainedRecord(fixture.server.URL, record))
+	redisServer.FastForward(2 * time.Minute)
+	var fresh []byte
+	require.ErrorIs(t, cache.GetHelmIndex(fixture.server.URL, &fresh), cacheutil.ErrCacheMiss)
+	_, err = client.GetIndex(t.Context(), false, 1<<20)
+	require.NoError(t, err)
+	fixture.mu.Lock()
+	defer fixture.mu.Unlock()
+	require.Equal(t, []int{http.StatusOK, http.StatusNotModified}, fixture.statuses)
 }
 
 func TestIndexCacheRegressionLegacyRedisWriterCannotPoison304(t *testing.T) {
@@ -1397,28 +1413,47 @@ func (f *regressionChartRepo) indexVersion(t *testing.T) string {
 // consumes. With scoped clients, the two views must see disjoint keys.
 func TestIndexCacheRegressionRedisKeysScopedByCredentials(t *testing.T) {
 	cache, _ := regressionRedisCache(t)
-	fixture := newRegressionChartRepo(t)
+	var privateRequests, anonymousRequests atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		version := "1.0.0"
+		if user, secret, ok := r.BasicAuth(); ok && user == "reader" && secret == "secret" {
+			privateRequests.Add(1)
+			version = "2.0.0"
+		} else {
+			anonymousRequests.Add(1)
+		}
+		_, _ = w.Write(helmIndexContractBody(version))
+	}))
+	t.Cleanup(origin.Close)
 
-	private := helm.NewClient(fixture.server.URL,
+	private := helm.NewClient(origin.URL,
 		helm.HelmCreds{Username: "reader", Password: "secret"},
 		false, "", "", helm.WithIndexCacheScopedByCreds(cache))
-	_, err := private.GetIndex(t.Context(), true, 1<<20)
+	index, err := private.GetIndex(t.Context(), false, 1<<20)
 	require.NoError(t, err)
+	require.Equal(t, "2.0.0", index.Entries["child"][0].Version)
 
 	// The private fetch publishes under a scoped key; the legacy bare-URL
 	// keys must remain untouched (that is what an anonymous reader uses).
 	var body []byte
-	require.ErrorIs(t, cache.GetHelmIndex(fixture.server.URL, &body), cacheutil.ErrCacheMiss,
+	require.ErrorIs(t, cache.cache.GetItem(helmIndexRefsKey(origin.URL), &body), cacheutil.ErrCacheMiss,
 		"a private-credentialed fetch must not populate the shared bare-URL cache entry")
-	_, _, err = cache.GetHelmIndexValidators(fixture.server.URL)
+	_, _, err = cache.GetHelmIndexValidators(origin.URL)
 	require.Error(t, err, "validators must also stay scoped: an anonymous reader must not inherit private-fetch metadata")
 
 	// An anonymous client with the SAME empty-credential scope shares keys
 	// with other anonymous clients (that is the point: same view = same key).
-	anon := helm.NewClient(fixture.server.URL, helm.HelmCreds{}, false, "", "",
+	anon := helm.NewClient(origin.URL, helm.HelmCreds{}, false, "", "",
 		helm.WithIndexCacheScopedByCreds(cache))
-	_, err = anon.GetIndex(t.Context(), true, 1<<20)
+	index, err = anon.GetIndex(t.Context(), false, 1<<20)
 	require.NoError(t, err)
+	require.Equal(t, "1.0.0", index.Entries["child"][0].Version, "an anonymous v3 cache lookup must never expose the private chart version")
+	index, err = private.GetIndex(t.Context(), false, 1<<20)
+	require.NoError(t, err)
+	require.Equal(t, "2.0.0", index.Entries["child"][0].Version)
+	require.EqualValues(t, 1, privateRequests.Load())
+	require.EqualValues(t, 1, anonymousRequests.Load())
+	require.ErrorIs(t, cache.cache.GetItem(helmIndexRefsKey(origin.URL), &body), cacheutil.ErrCacheMiss)
 }
 
 // Finding 2: the v2 record must stop serving once body freshness expires
@@ -1680,15 +1715,20 @@ func TestSplitIndexCacheNeverPublishesUnboundValidators(t *testing.T) {
 	cache, _ := regressionRedisCache(t)
 	view := &splitIndexCache{cache: cache}
 	var requests atomic.Int32
-	var publication error
+	publication := make(chan error, 1)
 	var url string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if requests.Add(1) == 1 {
+		switch requests.Add(1) {
+		case 1:
 			w.Header().Set("ETag", `"one"`)
 			_, _ = w.Write(helmIndexContractBody("1.0.0"))
 			return
+		case 2:
+		default:
+			w.WriteHeader(http.StatusInternalServerError)
+			return
 		}
-		publication = cache.SetHelmIndexRecord(url, helmIndexContractBody("2.0.0"), `"two"`, "")
+		publication <- cache.SetHelmIndexRecord(url, helmIndexContractBody("2.0.0"), `"two"`, "")
 		if r.Header.Get("If-None-Match") != `"one"` {
 			w.WriteHeader(http.StatusBadRequest)
 			return
@@ -1703,7 +1743,8 @@ func TestSplitIndexCacheNeverPublishesUnboundValidators(t *testing.T) {
 	require.NoError(t, err)
 	_, err = client.GetIndex(t.Context(), true, 1<<20)
 	require.NoError(t, err)
-	require.NoError(t, publication)
+	require.NoError(t, <-publication)
+	require.EqualValues(t, 2, requests.Load())
 	require.Zero(t, view.validatorWrites, "split caches cannot prove the generation of a validator-only write")
 	record, err := cache.GetHelmIndexRecord(url)
 	require.NoError(t, err)
@@ -1973,6 +2014,7 @@ type indexProtocolBackend struct {
 	beforeBody       func()
 	lostClaimReply   bool
 	failedRelease    bool
+	failedReads      bool
 	bodyWrites       int
 	readDelays       map[string]time.Duration
 	readKeys         []string
@@ -1981,6 +2023,9 @@ type indexProtocolBackend struct {
 }
 
 func (b *indexProtocolBackend) GetContext(ctx context.Context, key string, obj any) error {
+	if b.failedReads {
+		return io.ErrUnexpectedEOF
+	}
 	delay := b.missDelay
 	if b.readDelays != nil {
 		kind := "v3"
@@ -2332,6 +2377,137 @@ func TestHelmIndexRecoversCommittedPublicationAfterLostReply(t *testing.T) {
 	}
 }
 
+func TestHelmIndexConfirmsMaintenancePublicationAfterLostReply(t *testing.T) {
+	for _, mode := range []string{"error", "retry", "timeout"} {
+		t.Run(mode, func(t *testing.T) {
+			shared, backend := newIndexProtocolCache(t)
+			backend.publicationReply = mode
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			record := &HelmIndexRecord{Body: helmIndexContractBody("1.0.0"), ETag: `"one"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
+			updated, err := shared.storeHelmIndex(ctx, "https://charts.example.test", "maintenance", record, false)
+			require.NoError(t, err)
+			require.True(t, updated)
+			require.Equal(t, 1, backend.bodyWrites)
+			retained, err := shared.GetHelmIndexRetainedRecord("https://charts.example.test")
+			require.NoError(t, err)
+			require.Equal(t, record.Body, retained.Body)
+		})
+	}
+}
+
+func TestHelmIndexBodyWriteErrorRequiresCurrentGeneration(t *testing.T) {
+	requirePinnedHelmForCacheTest(t)
+	for _, warm := range []bool{false, true} {
+		for _, mode := range []string{"current", "newer", "unknown"} {
+			t.Run(strconv.FormatBool(warm)+mode, func(t *testing.T) {
+				shared, backend := newIndexProtocolCache(t)
+				url, _, _, body := indexProtocolOrigin(t)
+				identity := url + "\x00" + helm.CredsScope(helm.HelmCreds{})
+				store := helm.NewIndexStore(t.TempDir(), time.Minute, 1<<20, shared)
+				if warm {
+					require.NoError(t, store.Set(identity, body))
+				}
+				backend.beforeBody = func() {
+					if mode != "current" {
+						require.NoError(t, shared.SetHelmIndexRecord(identity, helmIndexContractBody("2.0.0"), `"newer"`, ""))
+					}
+					backend.stallBody = true
+					backend.failedReads = mode == "unknown"
+				}
+				ctx, cancel := context.WithTimeout(t.Context(), 3*time.Second)
+				defer cancel()
+				indexProtocolBuild(t, ctx, url, store, true)
+				cached, err := store.Get(identity)
+				if mode == "current" {
+					require.NoError(t, err)
+					require.Equal(t, body, cached)
+				} else {
+					require.Error(t, err, "a superseded or unconfirmed generation cannot become a warm disk hit")
+				}
+			})
+		}
+	}
+}
+
+func TestHelmIndexRequestVariantsRemainIsolated(t *testing.T) {
+	for _, alwaysFresh := range []bool{false, true} {
+		t.Run(strconv.FormatBool(alwaysFresh), func(t *testing.T) {
+			shared, _ := regressionRedisCache(t)
+			var requests, notModified, wrongCondition atomic.Int32
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				w.Header().Set("Vary", "User-Agent")
+				date, version := "Tue, 17 Nov 2026 08:00:00 GMT", "2.0.0"
+				if r.UserAgent() == "variant-b" {
+					date, version = "Mon, 16 Nov 2026 08:00:00 GMT", "1.0.0"
+					if r.Header.Get("If-Modified-Since") == "Tue, 17 Nov 2026 08:00:00 GMT" {
+						wrongCondition.Add(1)
+					}
+				}
+				w.Header().Set("Last-Modified", date)
+				if condition, err := http.ParseTime(r.Header.Get("If-Modified-Since")); err == nil {
+					changed, _ := http.ParseTime(date)
+					if !changed.After(condition) {
+						notModified.Add(1)
+						w.WriteHeader(http.StatusNotModified)
+						return
+					}
+				}
+				_, _ = w.Write(helmIndexContractBody(version))
+			}))
+			t.Cleanup(origin.Close)
+			a := helm.NewClient(origin.URL, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(shared), helm.WithUserAgent("variant-a"))
+			b := helm.NewClient(origin.URL, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(shared), helm.WithUserAgent("variant-b"))
+			_, err := a.GetIndex(t.Context(), false, 1<<20)
+			require.NoError(t, err)
+			index, err := b.GetIndex(t.Context(), alwaysFresh, 1<<20)
+			require.NoError(t, err)
+			require.Equal(t, "1.0.0", index.Entries["child"][0].Version)
+			_, err = b.GetIndex(t.Context(), false, 1<<20)
+			require.NoError(t, err)
+			require.EqualValues(t, 2, requests.Load(), "freshness must apply only to the confirmed request variant")
+			index, err = b.GetIndex(t.Context(), true, 1<<20)
+			require.NoError(t, err)
+			require.Equal(t, "1.0.0", index.Entries["child"][0].Version)
+			require.EqualValues(t, 1, notModified.Load())
+			require.Zero(t, wrongCondition.Load())
+		})
+	}
+}
+
+func TestHelmIndexUnsupportedVaryCannotReuseCachedBytes(t *testing.T) {
+	for _, vary := range []string{"*", "X-Unknown-Variant", "Origin, Access-Control-Request-Method"} {
+		t.Run(vary, func(t *testing.T) {
+			shared, _ := regressionRedisCache(t)
+			var requests, conditions atomic.Int32
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				w.Header().Set("Vary", vary)
+				w.Header().Set("ETag", `"one"`)
+				if r.Header.Get("If-None-Match") != "" {
+					conditions.Add(1)
+					w.WriteHeader(http.StatusNotModified)
+					return
+				}
+				_, _ = w.Write(helmIndexContractBody("1.0.0"))
+			}))
+			t.Cleanup(origin.Close)
+			client := helm.NewClient(origin.URL, helm.HelmCreds{}, false, "", "", helm.WithIndexCache(shared))
+			for range 2 {
+				_, err := client.GetIndex(t.Context(), false, 1<<20)
+				require.NoError(t, err)
+			}
+			want := int32(2)
+			if strings.HasPrefix(vary, "Origin") {
+				want = 1
+			}
+			require.Equal(t, want, requests.Load())
+			require.Zero(t, conditions.Load())
+		})
+	}
+}
+
 func TestHelmIndexPublicationConfirmationRequiresCurrentMetadata(t *testing.T) {
 	for _, mode := range []string{"missing", "newer", "changed-fields"} {
 		t.Run(mode, func(t *testing.T) {
@@ -2341,7 +2517,9 @@ func TestHelmIndexPublicationConfirmationRequiresCurrentMetadata(t *testing.T) {
 			require.NoError(t, err)
 			require.NotEmpty(t, owner)
 			backend.publicationReply = "error"
+			committed := false
 			backend.afterPublication = func() {
+				committed = true
 				switch mode {
 				case "missing":
 					require.NoError(t, shared.cache.SetItem(helmIndexRecordKey(repo), 0, &cacheutil.CacheActionOpts{Delete: true}))
@@ -2357,6 +2535,7 @@ func TestHelmIndexPublicationConfirmationRequiresCurrentMetadata(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
 			defer cancel()
 			updated, _ := shared.PublishHelmIndexRecord(ctx, repo, owner, &HelmIndexRecord{Body: helmIndexContractBody("1.0.0"), ETag: `"one"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)})
+			require.True(t, committed, "the initial publication must commit before its reply is lost")
 			require.False(t, updated, "absent or different metadata cannot confirm this publication")
 			wantWrites := 0
 			if mode == "newer" {
@@ -2449,10 +2628,15 @@ func TestHelmIndexClaimCarriesReleaseKey(t *testing.T) {
 
 func TestHelmIndexRejectedBodyReferenceDoesNotWarmDisk(t *testing.T) {
 	requirePinnedHelmForCacheTest(t)
-	for _, force := range []bool{false, true} {
-		t.Run(strconv.FormatBool(force), func(t *testing.T) {
+	for _, test := range []struct {
+		name        string
+		force, warm bool
+	}{
+		{name: "cold"}, {name: "hard-cold", force: true}, {name: "hard-warm", force: true, warm: true},
+	} {
+		t.Run(test.name, func(t *testing.T) {
 			shared, backend := newIndexProtocolCache(t)
-			url, _, archives, body := indexProtocolOrigin(t)
+			url, requests, archives, body := indexProtocolOrigin(t)
 			identity := url + "\x00" + helm.CredsScope(helm.HelmCreds{})
 			newer := bytes.ReplaceAll(body, []byte("version: 1.0.0"), []byte("version: 2.0.0"))
 			require.NotEqual(t, body, newer)
@@ -2460,13 +2644,21 @@ func TestHelmIndexRejectedBodyReferenceDoesNotWarmDisk(t *testing.T) {
 				require.NoError(t, shared.SetHelmIndexRetainedRecord(identity, &HelmIndexRecord{Body: newer, ETag: `"newer"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}))
 			}
 			store := helm.NewIndexStore(t.TempDir(), time.Minute, 1<<20, shared)
-			indexProtocolBuild(t, t.Context(), url, store, force)
+			if test.warm {
+				require.NoError(t, store.Set(identity, body))
+			}
+			indexProtocolBuild(t, t.Context(), url, store, test.force)
 			require.EqualValues(t, 1, archives.Load(), "the successful live response still builds")
 			_, err := store.Get(identity)
 			require.Error(t, err, "an explicitly rejected reference cannot warm an older local generation")
 			record, err := shared.GetHelmIndexRecord(identity)
 			require.NoError(t, err)
 			require.Equal(t, newer, record.Body)
+			// A later Redis outage cannot make the rejected existing A reusable.
+			backend.failedReads = true
+			indexProtocolBuild(t, t.Context(), url, store, false)
+			require.EqualValues(t, 2, requests.Load(), "the next build must validate at the origin instead of reusing the rejected record")
+			require.EqualValues(t, 2, archives.Load())
 		})
 	}
 }
@@ -2503,4 +2695,16 @@ func TestHelmIndexAbandonedClaimAndRenewal(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, renewed, "a late renewal must not renew a later owner's claim")
 	require.NoError(t, shared.ReleaseHelmIndexFetch(t.Context(), "lease-test", next))
+}
+
+func TestHelmIndexWrappedCacheRenewsClaim(t *testing.T) {
+	fixture := newFixtures()
+	t.Cleanup(fixture.mockCache.StopRedisCallback)
+	owner, err := fixture.cache.BeginHelmIndexFetch(t.Context(), "wrapped-lease")
+	require.NoError(t, err)
+	require.NotEmpty(t, owner)
+	renewed, err := fixture.cache.RenewHelmIndexFetch(t.Context(), "wrapped-lease", owner)
+	require.NoError(t, err)
+	require.True(t, renewed, "the production Redis renewal must remain available through the mock wrapper")
+	require.NoError(t, fixture.cache.ReleaseHelmIndexFetch(t.Context(), "wrapped-lease", owner))
 }

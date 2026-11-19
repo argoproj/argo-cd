@@ -495,6 +495,8 @@ func TestWarmBuildDoesNotRestartFreshness(t *testing.T) {
 	require.NoError(t, store.Set(identity, []byte(regressionIndexBody)))
 	old := time.Now().Add(-30 * time.Minute)
 	require.NoError(t, os.Chtimes(store.cacheFileName(identity), old, old))
+	baseline, err := os.Stat(store.cacheFileName(identity))
+	require.NoError(t, err)
 	command, err := newCmdWithVersion(t.TempDir(), false, "", "", func(*exec.Cmd, func(string) string) (string, error) { return "", nil })
 	require.NoError(t, err)
 	t.Cleanup(command.Close)
@@ -503,7 +505,7 @@ func TestWarmBuildDoesNotRestartFreshness(t *testing.T) {
 	require.NoError(t, app.DependencyBuild(t.Context()))
 	info, err := os.Stat(store.cacheFileName(identity))
 	require.NoError(t, err)
-	require.WithinDuration(t, old, info.ModTime(), time.Microsecond)
+	require.Equal(t, baseline.ModTime(), info.ModTime())
 }
 
 // Finding 3: the repositories.yaml entry written for a repo with a custom CA
@@ -588,6 +590,7 @@ func TestHelmCommandUsesTrustedPluginPaths(t *testing.T) {
 				t.Setenv("HELM_PLUGINS", "")
 			case "missing home":
 				t.Setenv("HOME", "")
+				t.Setenv("APPDATA", "")
 			case "relative explicit":
 				t.Setenv("HELM_PLUGINS", "relative/plugins")
 			case "trusted absolute":

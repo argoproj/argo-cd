@@ -167,13 +167,14 @@ func (c *nativeHelmChart) cacheRepoKeyScoped(ctx context.Context, scope string) 
 // credential scope (tags share the index cache's key space).
 func (c *nativeHelmChart) cacheTagsKey(ctx context.Context, tagsURL string) (string, error) {
 	if c.indexCacheScope == "" {
-		return tagsURL, nil
+		return "helm-oci-tags-v1|" + tagsURL, nil
 	}
 	scheme := "https"
 	if c.plainHTTP {
 		scheme = "http"
 	}
-	return scopedIndexIdentityContext(ctx, tagsURL, c.indexCacheScope+"\x00"+scheme, c.proxy, c.noProxy)
+	key, err := scopedIndexIdentityContext(ctx, tagsURL, c.indexCacheScope+"\x00"+scheme, c.proxy, c.noProxy)
+	return "helm-oci-tags-v1|" + key, err
 }
 
 type Client interface {
@@ -440,11 +441,25 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 			cancel()
 			c.cacheReadAttempted = true
 			c.cacheObservation = indexRecordObservation{record: record}
-			if err == nil && fresh && record != nil {
+			if err == nil && fresh && record != nil && c.matchesIndexRequest(ctx, record.URLIdentity) {
 				data = record.Body
 			}
 		} else if err := c.indexCache.GetHelmIndex(repoKey, &data); err != nil {
 			data = nil
+		} else {
+			var identity string
+			if reader, ok := c.indexCache.(indexCacheRecordReader); ok {
+				c.cacheObservation = observeIndexRecord(ctx, reader, repoKey)
+				c.cacheReadAttempted = true
+				if record := c.cacheObservation.record; record != nil && bytes.Equal(data, record.Body) {
+					identity = record.URLIdentity
+				}
+			} else {
+				_, _, identity = sharedInMemoryValidators.getForResponse(repoKey, data)
+			}
+			if !c.matchesIndexRequest(ctx, identity) {
+				data = nil
+			}
 		}
 	}
 
@@ -489,7 +504,7 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 
 		if c.indexCache != nil {
 			if _, ok := c.indexCache.(indexCachePublisher); ok {
-				published = publishIndexFetch(ctx, c.indexCache, repoKey, owner, c.fetchedIndexRecord(data))
+				published, _ = publishIndexFetch(ctx, c.indexCache, repoKey, owner, c.fetchedIndexRecord(data))
 			} else if !c.indexNotModified {
 				_, reader := c.indexCache.(indexCacheRecordReader)
 				_, writer := c.indexCache.(indexCacheRecorder)
@@ -664,7 +679,7 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 		request.Header.Del("If-None-Match")
 		request.Header.Del("If-Modified-Since")
 		if allowConditional && len(cachedBody) > 0 && cachedURLIdentity != "" {
-			identity, err := indexURLIdentityContext(request.Context(), request.URL.String())
+			identity, err := c.indexURLIdentityContext(request.Context(), request.URL.String())
 			if err != nil {
 				return err
 			}
@@ -677,9 +692,13 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	if err := applyCondition(req); err != nil {
 		return nil, err
 	}
+	cacheableVariant := true
 	client := http.Client{Transport: tr, CheckRedirect: func(request *http.Request, via []*http.Request) error {
 		if len(via) >= 10 {
 			return errors.New("stopped after 10 redirects")
+		}
+		if request.Response != nil && !c.supportsIndexVary(request.Response.Header) {
+			cacheableVariant = false
 		}
 		return applyCondition(request)
 	}}
@@ -691,15 +710,18 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 
 	needURLIdentity := c.requireCompleteIndex || c.indexCache != nil
 	if needURLIdentity {
-		c.responseURLIdentity, err = indexURLIdentityContext(ctx, resp.Request.URL.String())
+		c.responseURLIdentity, err = c.indexURLIdentityContext(ctx, resp.Request.URL.String())
 		if err != nil {
 			return nil, err
 		}
+		if !cacheableVariant || !c.supportsIndexVary(resp.Header) {
+			c.responseURLIdentity = "unmatched-vary"
+		}
 	}
 	sentValidator := resp.Request.Header.Get("If-None-Match") != "" || resp.Request.Header.Get("If-Modified-Since") != ""
-	if resp.StatusCode == http.StatusNotModified && len(cachedBody) > 0 && sentValidator && c.responseURLIdentity == cachedURLIdentity && matchingNotModifiedETag(cachedRecordETag, resp.Header.Get("ETag")) {
+	if resp.StatusCode == http.StatusNotModified && len(cachedBody) > 0 && sentValidator && c.responseURLIdentity == cachedURLIdentity && matchingNotModifiedETag(cachedRecordETag, singleResponseValidator(resp.Header, "ETag")) {
 		c.indexNotModified = true
-		log.WithFields(log.Fields{"repo": c.repoURL}).Info("helm index not modified (HTTP 304), using cached body")
+		log.Info("helm index not modified (HTTP 304), using cached body")
 		// Keep the request's validators when a 304 omits them. The owner can
 		// renew this generation atomically after the HTTP read completes.
 		if c.lastValidators == nil {
@@ -712,7 +734,7 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 			c.lastValidators.Set("Last-Modified", cachedRecordLastModified)
 		}
 		for _, name := range []string{"ETag", "Last-Modified"} {
-			if value := resp.Header.Get(name); value != "" {
+			if value := singleResponseValidator(resp.Header, name); value != "" {
 				c.lastValidators.Set(name, value)
 			}
 		}
@@ -722,7 +744,7 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 	}
 	if resp.StatusCode == http.StatusNotModified {
 		// A 304 requires both a usable body and a condition actually sent.
-		log.WithFields(log.Fields{"repo": c.repoURL}).Debug("unusable helm index 304, retrying without validators")
+		log.Debug("unusable helm index 304, retrying without validators")
 		allowConditional = false
 		clearValidators := req.Clone(ctx)
 		clearValidators.Header.Del("If-None-Match")
@@ -739,9 +761,12 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 			}
 			c.lastValidators = resp2.Header
 			if needURLIdentity {
-				c.responseURLIdentity, err = indexURLIdentityContext(ctx, resp2.Request.URL.String())
+				c.responseURLIdentity, err = c.indexURLIdentityContext(ctx, resp2.Request.URL.String())
 				if err != nil {
 					return nil, err
+				}
+				if !cacheableVariant || !c.supportsIndexVary(resp2.Header) {
+					c.responseURLIdentity = "unmatched-vary"
 				}
 			}
 			return data, nil
@@ -893,15 +918,23 @@ func boundedDockerCredential(store *credentials.DynamicStore) (auth.CredentialFu
 		Helpers map[string]string          `json:"credHelpers"`
 		Auths   map[string]json.RawMessage `json:"auths"`
 	}
+	var fields map[string]json.RawMessage
 	file, err := os.Open(store.ConfigPath())
 	if err != nil && !errors.Is(err, os.ErrNotExist) {
 		return nil, err
 	}
 	if err == nil {
-		err = json.NewDecoder(file).Decode(&config)
+		err = json.NewDecoder(file).Decode(&fields)
 		_ = file.Close()
 		if err != nil && !errors.Is(err, io.EOF) {
 			return nil, err
+		}
+	}
+	for key, target := range map[string]any{"credsStore": &config.Store, "credHelpers": &config.Helpers, "auths": &config.Auths} {
+		if raw, present := fields[key]; present {
+			if err := json.Unmarshal(raw, target); err != nil {
+				return nil, err
+			}
 		}
 	}
 	return func(ctx context.Context, host string) (auth.Credential, error) {
@@ -916,6 +949,10 @@ func boundedDockerCredential(store *credentials.DynamicStore) (auth.CredentialFu
 		if helper == "" {
 			return dockerInlineCredential(config.Auths, address)
 		}
+		if err := acquireDockerConfigLoader(ctx, dockerHelperProcesses); err != nil {
+			return auth.EmptyCredential, err
+		}
+		defer func() { <-dockerHelperProcesses }()
 		cmd := exec.CommandContext(ctx, "docker-credential-"+helper, "get")
 		cmd.Stdin = strings.NewReader(address)
 		cmd.Stderr = os.Stderr
@@ -976,6 +1013,54 @@ func dockerInlineCredential(auths map[string]json.RawMessage, address string) (a
 	return credential, nil
 }
 
+// Filesystem reads cannot always be interrupted. Bound their caller's wait
+// and the number of outstanding loaders, including a blocked configuration open.
+var dockerConfigLoaders = make(chan struct{}, 4)
+
+// Optional lookups and challenge retries share this process limit. Resolving
+// credentials precedes the tag-cache lock and can otherwise fan out on a hit.
+var dockerHelperProcesses = make(chan struct{}, 4)
+
+func acquireDockerConfigLoader(ctx context.Context, slots chan struct{}) error {
+	select {
+	case slots <- struct{}{}:
+		return nil
+	case <-ctx.Done():
+		return ctx.Err()
+	}
+}
+
+func loadDockerCredentialResolver(ctx context.Context) (auth.CredentialFunc, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	operation, cancel := indexCacheContext(ctx, time.Second)
+	defer cancel()
+	if err := acquireDockerConfigLoader(operation, dockerConfigLoaders); err != nil {
+		return nil, err
+	}
+	type result struct {
+		resolver auth.CredentialFunc
+		err      error
+	}
+	finished := make(chan result, 1)
+	go func() {
+		defer func() { <-dockerConfigLoaders }()
+		store, err := credentials.NewStoreFromDocker(credentials.StoreOptions{})
+		var resolver auth.CredentialFunc
+		if err == nil {
+			resolver, err = boundedDockerCredential(store)
+		}
+		finished <- result{resolver, err}
+	}()
+	select {
+	case <-operation.Done():
+		return nil, operation.Err()
+	case loaded := <-finished:
+		return loaded.resolver, loaded.err
+	}
+}
+
 func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache bool) ([]string, error) {
 	if !c.enableOci {
 		return nil, ErrOCINotEnabled
@@ -1003,11 +1088,7 @@ func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache boo
 	if credential.Username == "" && credential.Password == "" {
 		// Resolve the Docker store before any shared-cache read. The same
 		// immutable credential must authenticate and identify this operation.
-		store, storeErr := credentials.NewStoreFromDocker(credentials.StoreOptions{})
-		var resolver auth.CredentialFunc
-		if storeErr == nil {
-			resolver, storeErr = boundedDockerCredential(store)
-		}
+		resolver, storeErr := loadDockerCredentialResolver(ctx)
 		credentialErr = storeErr
 		storeUnavailable = storeErr != nil
 		if storeErr == nil {

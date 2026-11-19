@@ -393,15 +393,27 @@ func (c *Cache) storeHelmIndex(ctx context.Context, repo, owner string, record *
 	}
 	digest := sha256.Sum256(record.Body)
 	metadata := *record
+	if !fenced && metadata.URLIdentity == "" {
+		// Explicit maintenance seeding supplies a default request view. The
+		// unbound URL cannot authorize conditional headers for an origin.
+		metadata.URLIdentity = helm.IndexURLIdentity("")
+	}
 	metadata.Body = nil
 	metadata.Generation = owner
 	metadata.BodyDigest = hex.EncodeToString(digest[:])
 	bodyKey := prefix + "body"
+	confirmCurrent := func() bool {
+		var current HelmIndexRecord
+		confirmation, stop := context.WithTimeout(ctx, time.Second)
+		defer stop()
+		readErr := c.cache.GetItemContext(confirmation, prefix+"record", &current)
+		return readErr == nil && current.Generation == metadata.Generation && current.BodyDigest == metadata.BodyDigest && current.StoredAt == metadata.StoredAt && current.ETag == metadata.ETag && current.LastModified == metadata.LastModified && current.URLIdentity == metadata.URLIdentity
+	}
 	// Reserve time to confirm an ambiguous reply and share the body. A script
 	// can commit and consume the owner before its reply is lost or retried.
 	writeContext := ctx
 	cancel := func() {}
-	if deadline, ok := ctx.Deadline(); ok && fenced {
+	if deadline, ok := ctx.Deadline(); ok {
 		writeContext, cancel = context.WithTimeout(ctx, time.Until(deadline)*3/4)
 	}
 	updated, err := c.cache.StoreVersionedItem(writeContext, cacheutil.VersionedItem{Key: prefix + "record", ReferenceKey: prefix + "body-reference", ReferenceValue: metadata.BodyDigest, BodyKey: bodyKey, OwnerKey: prefix + "owner", Token: owner, Object: &metadata, Expiration: remaining, RequireOwner: fenced})
@@ -412,25 +424,30 @@ func (c *Cache) storeHelmIndex(ctx context.Context, repo, owner string, record *
 		metadata.Body = record.Body
 		return false, c.cache.SetItem(prefix+"record", &metadata, &cacheutil.CacheActionOpts{Expiration: remaining})
 	}
-	if fenced && (err != nil || !updated) && ctx.Err() == nil {
-		var current HelmIndexRecord
-		confirmation, stop := context.WithTimeout(ctx, time.Second)
-		readErr := c.cache.GetItemContext(confirmation, prefix+"record", &current)
-		stop()
-		if readErr == nil && current.Generation == metadata.Generation && current.BodyDigest == metadata.BodyDigest && current.StoredAt == metadata.StoredAt && current.ETag == metadata.ETag && current.LastModified == metadata.LastModified && current.URLIdentity == metadata.URLIdentity {
+	if (err != nil || !updated) && ctx.Err() == nil {
+		if confirmCurrent() {
 			updated, err = true, nil
 		}
 	}
 	if err != nil || !updated {
 		return updated, err
 	}
-	bodyStored, bodyErr := c.cache.StoreVersionedBody(ctx, prefix+"body-reference", bodyKey, metadata.BodyDigest, record.Body, remaining)
+	bodyContext := ctx
+	stopBody := func() {}
+	if deadline, ok := ctx.Deadline(); ok {
+		bodyContext, stopBody = context.WithTimeout(ctx, time.Until(deadline)*3/4)
+	}
+	bodyStored, bodyErr := c.cache.StoreVersionedBody(bodyContext, prefix+"body-reference", bodyKey, metadata.BodyDigest, record.Body, remaining)
+	stopBody()
 	if bodyErr == nil && !bodyStored {
-		return false, nil // The confirmed reference was superseded before sharing.
+		return false, helm.ErrHelmIndexBodyReferenceRejected
 	}
 	if bodyErr != nil {
 		if !fenced {
 			return false, bodyErr
+		}
+		if !confirmCurrent() {
+			return false, helm.ErrHelmIndexPublicationUnconfirmed
 		}
 		log.WithError(bodyErr).Debug("helm index version confirmed; shared body unavailable")
 	}

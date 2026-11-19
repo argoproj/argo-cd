@@ -74,6 +74,56 @@ func TestIndexSnapshotCacheBoundsRetainedBytes(t *testing.T) {
 	require.Error(t, err, "unsafe YAML conversion must fall back to the original full index")
 }
 
+func TestIndexSnapshotRejectsCaseVariantFields(t *testing.T) {
+	for _, field := range []string{"Entries", "ENTRIES", "ApiVersion", "GENERATED", "PublicKeys", "Annotations", "ServerInfo"} {
+		t.Run(field, func(t *testing.T) {
+			value := `{"child":[{"name":"child","version":"2.0.0"}]}`
+			switch strings.ToLower(field) {
+			case "apiversion":
+				value = `"v1"`
+			case "generated":
+				value = `"2026-01-01T00:00:00Z"`
+			case "publickeys":
+				value = `[]`
+			case "annotations", "serverinfo":
+				value = `{}`
+			}
+			body := []byte(fmt.Sprintf(`{"apiVersion":"v1","entries":{"child":[{"name":"child","version":"1.0.0"}],"unrelated":[]},%q:%s}`, field, value))
+			_, filtered, err := newIndexSnapshotCache(1<<20).snapshot(body, map[string]struct{}{"child": {}})
+			require.Error(t, err, "unsafe field casing must retain the full original index")
+			require.False(t, filtered)
+		})
+	}
+}
+
+func TestIndexSnapshotCaseVariantUsesFullIndex(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	fixture := newRegressionChartRepo(t, false, "")
+	body := []byte(`{"apiVersion":"v1","entries":{"child":[{"name":"child","version":"1.0.0","urls":["child-1.0.0.tgz"]}],"unrelated":[]},"Entries":{"child":[{"name":"child","version":"2.0.0","urls":["child-2.0.0.tgz"]}]}}`)
+	var requests atomic.Int32
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/index.yaml" {
+			requests.Add(1)
+			_, _ = w.Write(body)
+			return
+		}
+		fixture.serveHTTP(w, r)
+	}))
+	t.Cleanup(origin.Close)
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+	store.FilterEnabled = true
+	for range 2 {
+		repo := HelmRepository{Name: "fixture", Repo: origin.URL, Creds: HelmCreds{}}
+		app, err := regressionBuild(t, regressionParent(t, "@fixture", nil), repo, store, false)
+		require.NoError(t, err)
+		regressionRender(t, app, "2.0.0")
+		snapshot, err := os.ReadFile(filepath.Join(app.(*helm).cmd.helmHome, "cache", "helm", "repository", "fixture-index.yaml"))
+		require.NoError(t, err)
+		require.Equal(t, body, snapshot, "ambiguous structural fields must retain their original ordering")
+	}
+	require.EqualValues(t, 1, requests.Load())
+}
+
 func TestIndexSnapshotConcurrentDependencySets(t *testing.T) {
 	cache := newIndexSnapshotCache(1 << 20)
 	body := snapshotFixtureIndex(128 << 10)
@@ -146,6 +196,26 @@ func TestIndexSnapshotGroupsOriginalNamesByRepository(t *testing.T) {
 	}
 }
 
+func TestIndexSnapshotRepositoryAliasPrefixesAreNotNested(t *testing.T) {
+	aliases := map[string]string{"edge": "https://edge.example", "alias:edge": "https://alias-edge.example"}
+	repos := []HelmRepository{{Name: "edge", Repo: aliases["edge"]}, {Name: "alias:edge", Repo: aliases["alias:edge"]}}
+	for _, alias := range []string{"@alias:edge", "alias:alias:edge", "@edge", "alias:edge"} {
+		t.Run(alias, func(t *testing.T) {
+			want := aliases["edge"]
+			if alias == "@alias:edge" || alias == "alias:alias:edge" {
+				want = aliases["alias:edge"]
+			}
+			dir := t.TempDir()
+			metadata := fmt.Sprintf("apiVersion: v2\nname: parent\nversion: 1.0.0\ndependencies:\n  - name: child\n    version: 1.0.0\n    repository: %q\n", alias)
+			require.NoError(t, os.WriteFile(filepath.Join(dir, "Chart.yaml"), []byte(metadata), 0o600))
+			names, err := dependencyNamesByRepository(t.Context(), dir, repos)
+			require.NoError(t, err)
+			require.Equal(t, map[string]map[string]struct{}{scopedIndexIdentity(want, "", "", ""): {"child": {}}}, names)
+			require.True(t, missingDependencyVersion(dir, want, aliases, []byte("apiVersion: v1\nentries: {}\n")), "version lookup must inspect the same repository selected for the snapshot")
+		})
+	}
+}
+
 func TestIndexSnapshotRealHelmAndFullBackup(t *testing.T) {
 	regressionRequirePinnedHelm(t)
 	full := snapshotFixtureIndex(128 << 10)
@@ -154,7 +224,7 @@ func TestIndexSnapshotRealHelmAndFullBackup(t *testing.T) {
 		"/child-2.0.0.tgz":   regressionPackage(t, "2.0.0"),
 		"/sibling-1.0.0.tgz": regressionNamedPackage(t, "sibling", "1.0.0"),
 	}
-	for _, mode := range []string{"full", "filtered", "projection-fallback", "fallback", "invalid-number", "fallback-fails", "archive-error"} {
+	for _, mode := range []string{"full", "filtered", "quoted-annotations", "projection-fallback", "typed-projection-fallback", "fallback", "fallback-fails", "archive-error"} {
 		t.Run(mode, func(t *testing.T) {
 			full := full
 			if mode == "projection-fallback" {
@@ -162,10 +232,11 @@ func TestIndexSnapshotRealHelmAndFullBackup(t *testing.T) {
 				// projection must preserve that valid original representation.
 				full = []byte(strings.Replace(string(full), "apiVersion: v1", "APIVersion: v1", 1))
 			}
-			if mode == "invalid-number" {
-				// Both original YAML and projected JSON must reject invalid
-				// numeric chart versions; fallback must not hide source errors.
-				full = []byte(strings.ReplaceAll(string(full), "version: 1.0.0", "version: 1.0"))
+			switch mode {
+			case "typed-projection-fallback":
+				full = append([]byte("annotations: {build: 42}\n"), full...)
+			case "quoted-annotations":
+				full = append([]byte("annotations: {build: '42'}\n"), full...)
 			}
 			var indexRequests, archiveRequests atomic.Int32
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -210,7 +281,7 @@ func TestIndexSnapshotRealHelmAndFullBackup(t *testing.T) {
 					for _, file := range files {
 						body, err := os.ReadFile(file)
 						require.NoError(t, err)
-						if builds == 1 && mode != "full" && mode != "projection-fallback" {
+						if builds == 1 && mode != "full" && !strings.Contains(mode, "projection-fallback") {
 							require.True(t, json.Valid(body))
 							require.Less(t, len(body), 4096)
 							require.NotContains(t, string(body), "unrelated")
@@ -226,7 +297,7 @@ func TestIndexSnapshotRealHelmAndFullBackup(t *testing.T) {
 			}
 			err = app.DependencyBuild(t.Context())
 			switch mode {
-			case "fallback-fails", "invalid-number":
+			case "fallback-fails":
 				require.ErrorContains(t, err, "complete-index fallback failed")
 				require.Equal(t, 2, builds)
 			case "archive-error":
@@ -249,6 +320,36 @@ func TestIndexSnapshotRealHelmAndFullBackup(t *testing.T) {
 			stored, err := store.Get(identity)
 			require.NoError(t, err)
 			require.Equal(t, full, stored, "persistent storage must retain complete original bytes")
+		})
+	}
+}
+
+func TestIndexStoreRejectsNumericVersionLikePinnedHelm(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	body := []byte("apiVersion: v1\nentries:\n  child:\n    - apiVersion: v2\n      name: child\n      version: 1.0\n      urls: [child-1.0.0.tgz]\n  unrelated: []\n")
+	for _, mode := range []string{"helm", "full", "filtered"} {
+		t.Run(mode, func(t *testing.T) {
+			var requests atomic.Int32
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				requests.Add(1)
+				_, _ = w.Write(body)
+			}))
+			t.Cleanup(origin.Close)
+			var store *IndexStore
+			if mode != "helm" {
+				store = NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+				store.FilterEnabled = mode == "filtered"
+			}
+			app, err := NewHelmAppWithIndexStore(regressionParent(t, "@fixture", nil), []HelmRepository{{Name: "fixture", Repo: origin.URL, Creds: HelmCreds{}}}, false, "", "", "", false, false, store, false)
+			require.NoError(t, err)
+			t.Cleanup(app.Dispose)
+			require.ErrorContains(t, app.DependencyBuild(t.Context()), "cannot unmarshal number")
+			require.EqualValues(t, 1, requests.Load())
+			if store != nil {
+				files, err := filepath.Glob(filepath.Join(store.dir, "*.json"))
+				require.NoError(t, err)
+				require.Empty(t, files, "the same invalid metadata rejected by Helm cannot acquire cache freshness")
+			}
 		})
 	}
 }

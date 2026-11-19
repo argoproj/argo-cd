@@ -7517,6 +7517,7 @@ func TestHelmIndexDelayedResponsePreservesNewerSharedGeneration(t *testing.T) {
 				seedVersion, seedETag = "0.9.0", `"seed"`
 			}
 			entered, release := make(chan struct{}), make(chan struct{})
+			markEntered := sync.OnceFunc(func() { close(entered) })
 			resume := sync.OnceFunc(func() { close(release) })
 			var requests atomic.Int32
 			var index func(string) []byte
@@ -7539,7 +7540,7 @@ func TestHelmIndexDelayedResponsePreservesNewerSharedGeneration(t *testing.T) {
 					w.WriteHeader(http.StatusOK)
 					w.(http.Flusher).Flush()
 				}
-				close(entered)
+				markEntered()
 				select {
 				case <-release:
 				case <-r.Context().Done():

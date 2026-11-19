@@ -13,6 +13,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"runtime"
 	"strconv"
 	"strings"
@@ -208,6 +209,11 @@ func (c *providerRecordCache) GetHelmIndexRetainedRecord(string) (*HelmIndexReco
 	}
 	cloned := *c.record
 	cloned.Body = bytes.Clone(cloned.Body)
+	// Hand-seeded fixture records use the explicit default request view,
+	// matching production maintenance seeding without authorizing a URL.
+	if cloned.URLIdentity == "" {
+		cloned.URLIdentity = IndexURLIdentity("")
+	}
 	return &cloned, nil
 }
 
@@ -219,6 +225,9 @@ func (c *providerRecordCache) SetHelmIndexRetainedRecord(_ string, record *HelmI
 	}
 	cloned := *record
 	cloned.Body = bytes.Clone(cloned.Body)
+	if cloned.URLIdentity == "" {
+		cloned.URLIdentity = IndexURLIdentity("")
+	}
 	c.record = &cloned
 	return nil
 }
@@ -386,7 +395,7 @@ func TestIndexStoreRejectsUnsafeSnapshotName(t *testing.T) {
 }
 
 func TestIndexProviderPreservesLargeOriginalBody(t *testing.T) {
-	body := append([]byte("apiVersion: v1\nentries: {}\nx-extension: preserve-me\n# "), bytes.Repeat([]byte("x"), 6<<20)...)
+	body := append([]byte("apiVersion: v1\nentries: {}\nannotations:\n  x-extension: preserve-me\n# "), bytes.Repeat([]byte("x"), 6<<20)...)
 	body = append(body, '\n')
 	var requests atomic.Int32
 	var transferred atomic.Int64
@@ -406,7 +415,7 @@ func TestIndexProviderPreservesLargeOriginalBody(t *testing.T) {
 	for range 2 {
 		got, err := store.Revalidate(t.Context(), "large", client)
 		require.NoError(t, err)
-		require.Equal(t, body, got, "unknown fields and original formatting must survive")
+		require.Equal(t, body, got, "annotations and original formatting must survive")
 	}
 	old := time.Now().Add(-2 * time.Hour)
 	require.NoError(t, os.Chtimes(store.cacheFileName("large"), old, old))
@@ -604,6 +613,9 @@ func (c *metadataProviderRecordCache) GetHelmIndexMetadataContext(context.Contex
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	metadata := *c.record
+	if metadata.URLIdentity == "" {
+		metadata.URLIdentity = IndexURLIdentity("")
+	}
 	digest := sha256.Sum256(metadata.Body)
 	metadata.BodyDigest = hex.EncodeToString(digest[:])
 	metadata.Body = nil
@@ -964,36 +976,50 @@ func (c *indexReadsFailAfterClaim) GetHelmIndexMetadataContext(ctx context.Conte
 }
 
 func TestIndexStoreDoesNotResurrectSupersededDiskAfterClaim(t *testing.T) {
-	for _, firstOriginFailure := range []bool{false, true} {
-		t.Run(strconv.FormatBool(firstOriginFailure), func(t *testing.T) {
-			var headers recordedIndexHeaders
-			var requests atomic.Int32
-			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				headers.record(r.Header.Get("If-None-Match"))
-				if requests.Add(1) == 1 && firstOriginFailure {
-					w.WriteHeader(http.StatusServiceUnavailable)
-					return
-				}
-				_, _ = w.Write(upstreamIndex(2))
-			}))
-			t.Cleanup(origin.Close)
-			old := &HelmIndexRecord{Body: upstreamIndex(1), Generation: "old", ETag: `"old"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano), URLIdentity: IndexURLIdentity(origin.URL + "/index.yaml")}
-			newer := &HelmIndexRecord{Body: upstreamIndex(2), Generation: "new", ETag: `"new"`, StoredAt: old.StoredAt, URLIdentity: old.URLIdentity}
-			cache := &indexReadsFailAfterClaim{metadataProviderRecordCache: &metadataProviderRecordCache{atomicProviderRecordCache: &atomicProviderRecordCache{providerRecordCache: &providerRecordCache{record: newer}}, missingBody: true}}
-			store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, cache)
-			require.True(t, store.installRecord("view", old))
-			body, err := store.Revalidate(t.Context(), "view", regressionClient(origin.URL))
-			wantHeaders := []string{""}
-			if firstOriginFailure {
-				require.Error(t, err)
-				_, err = os.Stat(store.cacheFileName("view"))
-				require.ErrorIs(t, err, os.ErrNotExist)
-				body, err = store.Revalidate(t.Context(), "view", regressionClient(origin.URL))
-				wantHeaders = append(wantHeaders, "")
+	for _, cannotRemove := range []bool{false, true} {
+		t.Run("unlink-"+strconv.FormatBool(cannotRemove), func(t *testing.T) {
+			for _, firstOriginFailure := range []bool{false, true} {
+				t.Run(strconv.FormatBool(firstOriginFailure), func(t *testing.T) {
+					var headers recordedIndexHeaders
+					var requests atomic.Int32
+					origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+						headers.record(r.Header.Get("If-None-Match"))
+						if requests.Add(1) == 1 && firstOriginFailure {
+							w.WriteHeader(http.StatusServiceUnavailable)
+							return
+						}
+						_, _ = w.Write(upstreamIndex(2))
+					}))
+					t.Cleanup(origin.Close)
+					old := &HelmIndexRecord{Body: upstreamIndex(1), Generation: "old", ETag: `"old"`, StoredAt: time.Now().UTC().Format(time.RFC3339Nano), URLIdentity: IndexURLIdentity(origin.URL + "/index.yaml")}
+					newer := &HelmIndexRecord{Body: upstreamIndex(2), Generation: "new", ETag: `"new"`, StoredAt: old.StoredAt, URLIdentity: old.URLIdentity}
+					cache := &indexReadsFailAfterClaim{metadataProviderRecordCache: &metadataProviderRecordCache{atomicProviderRecordCache: &atomicProviderRecordCache{providerRecordCache: &providerRecordCache{record: newer}}, missingBody: true}}
+					store := NewIndexStore(t.TempDir(), time.Hour, 1<<20, cache)
+					require.True(t, store.installRecord("view", old))
+					if cannotRemove {
+						store.removeRecord = func(string) error { return os.ErrPermission }
+					}
+					body, err := store.Revalidate(t.Context(), "view", regressionClient(origin.URL))
+					wantHeaders := []string{""}
+					if firstOriginFailure {
+						require.Error(t, err)
+						if cannotRemove {
+							require.FileExists(t, store.cacheFileName("view"))
+						} else {
+							_, err = os.Stat(store.cacheFileName("view"))
+							require.ErrorIs(t, err, os.ErrNotExist)
+						}
+						store = NewIndexStore(store.dir, time.Hour, 1<<20, cache)
+						_, err = store.Get("view")
+						require.Error(t, err, "a new store cannot revive rejected bytes after an origin failure")
+						body, err = store.Revalidate(t.Context(), "view", regressionClient(origin.URL))
+						wantHeaders = append(wantHeaders, "")
+					}
+					require.NoError(t, err)
+					require.Equal(t, newer.Body, body)
+					require.Equal(t, wantHeaders, headers.snapshot(), "known superseded bytes cannot become fresh after a timeout")
+				})
 			}
-			require.NoError(t, err)
-			require.Equal(t, newer.Body, body)
-			require.Equal(t, wantHeaders, headers.snapshot(), "known superseded bytes cannot become fresh after a timeout")
 		})
 	}
 }
@@ -1024,9 +1050,41 @@ func TestIndexStoreChecksumBindsAllRecordMetadata(t *testing.T) {
 	require.NoError(t, err, "an unmodified record must retain conditional reuse")
 }
 
+func TestIndexStoreUnwritableEligibilityRejectsEveryStore(t *testing.T) {
+	if runtime.GOOS == "windows" {
+		t.Skip("requires POSIX file permissions")
+	}
+	dir := t.TempDir()
+	store := NewIndexStore(dir, time.Hour, 1<<20)
+	require.NoError(t, store.Set("view", upstreamIndex(1)))
+	record, err := store.readRecord("view", false)
+	require.NoError(t, err)
+	state := store.cacheFileName("view") + ".state"
+	before, err := os.ReadFile(state)
+	require.NoError(t, err)
+	require.NoError(t, os.Chmod(state, 0o400))
+	t.Cleanup(func() { _ = os.Chmod(state, 0o600) })
+	if file, err := os.OpenFile(state, os.O_RDWR, 0); err == nil {
+		_ = file.Close()
+		t.Skip("current user bypasses file permissions")
+	}
+	store.removeRecord = func(path string) error { return &os.PathError{Op: "remove", Path: path, Err: os.ErrPermission} }
+	store.retireLocalRecord("view", record.BodyDigest)
+	after, err := os.ReadFile(state)
+	require.NoError(t, err)
+	require.Equal(t, before, after, "the fixture must leave the old matching marker intact")
+	for _, reader := range []*IndexStore{store, NewIndexStore(dir, time.Hour, 1<<20)} {
+		_, err := reader.Get("view")
+		require.Error(t, err, "disk reuse requires a writable eligibility inode, including for a new store")
+	}
+}
+
 func TestIndexStoreRetirementFailureKeepsSharedAndOriginUsable(t *testing.T) {
-	if os.Getuid() == 0 {
-		t.Skip("requires permission enforcement for the cache directory")
+	const childDirectory = "ARGOCD_TEST_INDEX_INELIGIBLE_DIR"
+	if dir := os.Getenv(childDirectory); dir != "" {
+		_, err := NewIndexStore(dir, time.Hour, 1<<20).Get("view")
+		require.Error(t, err, "a restarted process must not reuse the surviving superseded record")
+		return
 	}
 	var requests atomic.Int32
 	var headers recordedIndexHeaders
@@ -1042,25 +1100,36 @@ func TestIndexStoreRetirementFailureKeepsSharedAndOriginUsable(t *testing.T) {
 	cache := &indexReadsFailAfterClaim{metadataProviderRecordCache: &metadataProviderRecordCache{atomicProviderRecordCache: &atomicProviderRecordCache{providerRecordCache: &providerRecordCache{record: newer}}}}
 	dir := t.TempDir()
 	store := NewIndexStore(dir, time.Hour, 1<<20, cache)
+	other := NewIndexStore(dir, time.Hour, 1<<20, cache)
 	require.True(t, store.installRecord("view", old))
-	require.NoError(t, os.WriteFile(store.cacheFileName("view")+".lock", nil, 0o600))
-	require.NoError(t, os.Chmod(dir, 0o500))
-	t.Cleanup(func() { require.NoError(t, os.Chmod(dir, 0o700)) })
+	// Simulate both failed unlink and failed replacement without assuming POSIX
+	// directory permissions. Eligibility writes still use the real lock file.
+	store.removeRecord = func(path string) error { return &os.PathError{Op: "remove", Path: path, Err: os.ErrPermission} }
+	store.renameRecord = func(_, path string) error { return &os.PathError{Op: "rename", Path: path, Err: os.ErrPermission} }
 	body, err := store.Revalidate(t.Context(), "view", regressionClient(origin.URL))
 	require.NoError(t, err)
 	require.Equal(t, newer.Body, body)
 	require.Zero(t, requests.Load())
-	// Even after permissions recover, a later Redis outage cannot restore A.
-	require.NoError(t, os.Chmod(dir, 0o700))
+	for _, reader := range []*IndexStore{store, other, NewIndexStore(dir, time.Hour, 1<<20, cache)} {
+		_, err := reader.Get("view")
+		require.Error(t, err, "all stores must reject the surviving old record")
+	}
+	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+	defer cancel()
+	child := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestIndexStoreRetirementFailureKeepsSharedAndOriginUsable$")
+	child.Env = append(os.Environ(), childDirectory+"="+dir)
+	output, err := child.CombinedOutput()
+	require.NoError(t, err, string(output))
 	cache.claimed = true
 	cache.err = context.DeadlineExceeded
-	body, err = store.Revalidate(t.Context(), "view", regressionClient(origin.URL))
+	body, err = other.Revalidate(t.Context(), "view", regressionClient(origin.URL))
 	require.NoError(t, err)
 	require.Equal(t, upstreamIndex(3), body)
 	require.EqualValues(t, 1, requests.Load())
 	require.Equal(t, []string{""}, headers.snapshot())
-	_, err = store.Get("view")
-	require.Error(t, err, "disk reuse stays disabled until a new store is created")
+	body, err = NewIndexStore(dir, time.Hour, 1<<20).Get("view")
+	require.NoError(t, err)
+	require.Equal(t, upstreamIndex(3), body, "a successful replacement restores durable eligibility")
 }
 
 func TestIndexStoreRejectsAlteredValidatorsDuringSharedReadFailure(t *testing.T) {
@@ -1158,4 +1227,196 @@ func TestIndexFetchRenewsOnlyDuringLiveOwnership(t *testing.T) {
 			})
 		})
 	}
+}
+
+type transientIndexRenewalProbe struct{ calls atomic.Int32 }
+
+func (p *transientIndexRenewalProbe) RenewHelmIndexFetch(context.Context, string, string) (bool, error) {
+	if p.calls.Add(1) == 1 {
+		return false, context.DeadlineExceeded
+	}
+	return true, nil
+}
+
+func TestIndexFetchRenewsAfterTransientError(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		probe := &transientIndexRenewalProbe{}
+		stop := keepIndexFetchAlive(t.Context(), probe, "view", "owner")
+		defer stop()
+		time.Sleep(2 * IndexFetchLease)
+		synctest.Wait()
+		require.GreaterOrEqual(t, probe.calls.Load(), int32(5))
+		stop()
+		synctest.Wait()
+		calls := probe.calls.Load()
+		time.Sleep(IndexFetchLease)
+		require.Equal(t, calls, probe.calls.Load())
+	})
+}
+
+func TestIndexStoreRequiresConfirmedDiskEligibility(t *testing.T) {
+	for name, state := range map[string]string{
+		"missing": "", "interrupted": "\x001short", "invalid": "\x00!", "different": "\x001" + strings.Repeat("b", 64),
+	} {
+		t.Run(name, func(t *testing.T) {
+			var requests atomic.Int32
+			var headers recordedIndexHeaders
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				requests.Add(1)
+				headers.record(r.Header.Get("If-None-Match"))
+				_, _ = w.Write(upstreamIndex(2))
+			}))
+			t.Cleanup(origin.Close)
+			dir := t.TempDir()
+			store := NewIndexStore(dir, time.Hour, 1<<20)
+			require.NoError(t, store.SetWithValidators("view", upstreamIndex(1), `"old"`, ""))
+			require.NoError(t, os.WriteFile(store.cacheFileName("view")+".state", []byte(state), 0o600))
+			reader := NewIndexStore(dir, time.Hour, 1<<20)
+			_, err := reader.Get("view")
+			require.Error(t, err)
+			body, err := reader.Revalidate(t.Context(), "view", regressionClient(origin.URL))
+			require.NoError(t, err)
+			require.Equal(t, upstreamIndex(2), body)
+			require.EqualValues(t, 1, requests.Load())
+			require.Equal(t, []string{""}, headers.snapshot())
+			body, err = reader.Get("view")
+			require.NoError(t, err)
+			require.Equal(t, upstreamIndex(2), body)
+		})
+	}
+}
+
+func TestIndexStoreLegacyValidatorsRequireVerifiedMetadata(t *testing.T) {
+	var headers recordedIndexHeaders
+	origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		headers.record(r.Header.Get("If-None-Match"))
+		_, _ = w.Write(upstreamIndex(2))
+	}))
+	t.Cleanup(origin.Close)
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+	require.NoError(t, store.SetWithValidators("view", upstreamIndex(1), `"original"`, "original-date"))
+	file := store.cacheFileName("view")
+	raw, err := os.ReadFile(file)
+	require.NoError(t, err)
+	var record indexRecord
+	require.NoError(t, json.Unmarshal(raw, &record))
+	record.RecordDigest = ""
+	record.ETag = `"altered"`
+	record.LastModified = "altered-date"
+	raw, err = json.Marshal(record)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(file, raw, 0o600))
+	etag, modified, err := store.GetHelmIndexValidators("view")
+	require.NoError(t, err)
+	require.Empty(t, etag)
+	require.Empty(t, modified)
+	body, err := store.Revalidate(t.Context(), "view", regressionClient(origin.URL))
+	require.NoError(t, err)
+	require.Equal(t, upstreamIndex(2), body)
+	require.Equal(t, []string{""}, headers.snapshot())
+}
+
+func TestIndexValidationChecksGeneratedTimestamp(t *testing.T) {
+	for _, value := range []string{`"not-a-timestamp"`, `42`, `true`} {
+		t.Run(value, func(t *testing.T) {
+			body := append([]byte(regressionIndexBody), []byte("\ngenerated: "+value+"\n")...)
+			store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+			require.Error(t, store.Set("view", body))
+			_, err := store.Get("view")
+			require.Error(t, err)
+			var bad atomic.Bool
+			bad.Store(true)
+			var requests atomic.Int32
+			origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+				requests.Add(1)
+				if bad.Load() {
+					_, _ = w.Write(body)
+				} else {
+					_, _ = w.Write([]byte(regressionIndexBody))
+				}
+			}))
+			t.Cleanup(origin.Close)
+			_, err = store.Revalidate(t.Context(), "view", regressionClient(origin.URL))
+			require.Error(t, err)
+			bad.Store(false)
+			got, err := store.Revalidate(t.Context(), "view", regressionClient(origin.URL))
+			require.NoError(t, err)
+			require.Equal(t, []byte(regressionIndexBody), got)
+			_, err = store.Revalidate(t.Context(), "view", regressionClient(origin.URL))
+			require.NoError(t, err)
+			require.EqualValues(t, 2, requests.Load())
+		})
+	}
+	for _, value := range []string{`"2026-11-19T00:00:00Z"`, `null`} {
+		require.NoError(t, validateIndexBody(append([]byte(regressionIndexBody), []byte("\ngenerated: "+value+"\n")...)))
+	}
+}
+
+func TestDockerConfigLoaderWaitsForSlotWithinBudget(t *testing.T) {
+	for _, mode := range []string{"available", "canceled", "expired"} {
+		t.Run(mode, func(t *testing.T) {
+			synctest.Test(t, func(t *testing.T) {
+				slots := make(chan struct{}, 4)
+				for range cap(slots) {
+					slots <- struct{}{}
+				}
+				ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+				defer cancel()
+				result := make(chan error, 1)
+				go func() { result <- acquireDockerConfigLoader(ctx, slots) }()
+				synctest.Wait()
+				select {
+				case err := <-result:
+					t.Fatalf("credential loading failed before its slot budget elapsed: %v", err)
+				default:
+				}
+				switch mode {
+				case "available":
+					<-slots
+				case "canceled":
+					cancel()
+				case "expired":
+					time.Sleep(time.Second)
+				}
+				synctest.Wait()
+				err := <-result
+				switch mode {
+				case "available":
+					require.NoError(t, err)
+					require.Len(t, slots, 4)
+				case "canceled":
+					require.ErrorIs(t, err, context.Canceled)
+				case "expired":
+					require.ErrorIs(t, err, context.DeadlineExceeded)
+				}
+			})
+		})
+	}
+}
+
+func TestIndexClientLockCancelsActiveWaiter(t *testing.T) {
+	synctest.Test(t, func(t *testing.T) {
+		lock := &indexClientLock{entries: make(map[string]*indexClientLockEntry)}
+		unlock, err := lock.acquire(t.Context(), "view")
+		require.NoError(t, err)
+		defer unlock()
+		ctx, cancel := context.WithCancel(t.Context())
+		defer cancel()
+		finished := make(chan error, 1)
+		go func() {
+			release, err := lock.acquire(ctx, "view")
+			if err == nil {
+				release()
+			}
+			finished <- err
+		}()
+		synctest.Wait()
+		lock.mu.Lock()
+		users := lock.entries["view"].users
+		lock.mu.Unlock()
+		require.Equal(t, 2, users, "the second request must already be waiting")
+		cancel()
+		synctest.Wait()
+		require.ErrorIs(t, <-finished, context.Canceled)
+	})
 }

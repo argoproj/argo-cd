@@ -11,6 +11,7 @@ import (
 	"strings"
 	"sync"
 
+	"github.com/Masterminds/semver/v3"
 	"github.com/golang/groupcache/lru"
 	"golang.org/x/sync/singleflight"
 	"sigs.k8s.io/yaml"
@@ -55,6 +56,13 @@ func (c *indexSnapshotCache) get(digest [sha256.Size]byte) *indexProjectionResul
 	return nil
 }
 
+func helmRepositoryAliasName(repository string) string {
+	if name, ok := strings.CutPrefix(repository, "@"); ok {
+		return name
+	}
+	return strings.TrimPrefix(repository, "alias:")
+}
+
 func parseIndexProjection(data []byte) (*indexProjection, error) {
 	if !json.Valid(data) {
 		var err error
@@ -62,10 +70,20 @@ func parseIndexProjection(data []byte) (*indexProjection, error) {
 		if err != nil {
 			return nil, err
 		}
+		if err := validateIndexBody(data); err != nil {
+			return nil, fmt.Errorf("JSON projection changes Helm field types: %w", err)
+		}
 	}
 	index := &indexProjection{}
 	if err := json.Unmarshal(data, &index.metadata); err != nil {
 		return nil, err
+	}
+	for key := range index.metadata {
+		for _, field := range []string{"apiVersion", "entries", "generated", "publicKeys", "annotations", "serverInfo"} {
+			if strings.EqualFold(key, field) && key != field {
+				return nil, errors.New("index field casing cannot be projected safely")
+			}
+		}
 	}
 	if string(index.metadata["apiVersion"]) != `"v1"` {
 		return nil, errors.New("unsupported index projection version")
@@ -180,7 +198,7 @@ func dependencyNamesByRepository(ctx context.Context, dir string, repos []HelmRe
 	for _, dep := range chart.Dependencies {
 		repository := dep.Repository
 		if strings.HasPrefix(repository, "@") || strings.HasPrefix(repository, "alias:") {
-			name := strings.TrimPrefix(strings.TrimPrefix(repository, "@"), "alias:")
+			name := helmRepositoryAliasName(repository)
 			var ok bool
 			repository, ok = aliases[name]
 			if !ok {
@@ -222,4 +240,73 @@ func isIndexSnapshotError(err error) bool {
 		}
 	}
 	return strings.Contains(message, "matching") && strings.Contains(message, "not found in") && strings.Contains(message, "index")
+}
+
+func isIndexVersionLookupError(err error) bool {
+	message := err.Error()
+	if strings.Contains(message, "oci://") || strings.Contains(message, "file://") {
+		return false
+	}
+	return strings.Contains(message, "can't get a valid version for") || strings.Contains(message, "chart not found in repo") || strings.HasSuffix(strings.TrimSpace(message), "Error: could not find : entry not found") || strings.HasSuffix(strings.TrimSpace(message), "Error: could not find : no matching version")
+}
+
+// Only the failure path inspects requested versions. Projected fragments are
+// shared by generation; ordinary warm builds retain their zero-request path.
+func missingDependencyVersion(dir, repository string, aliases map[string]string, body []byte) bool {
+	var metadata struct {
+		Dependencies []struct{ Name, Version, Repository string }
+	}
+	for _, name := range []string{"Chart.yaml", "requirements.yaml", "Chart.lock", "requirements.lock"} {
+		data, err := ReadChartMetadata(dir, name)
+		if os.IsNotExist(err) {
+			continue
+		}
+		if err != nil || yaml.Unmarshal(data, &metadata) != nil {
+			return false
+		}
+	}
+	projected, projectionErr := dependencyIndexes.projection(body)
+	type entry struct {
+		Version string
+		URLs    []string
+	}
+	var full struct{ Entries map[string][]entry }
+	if projectionErr != nil && yaml.Unmarshal(body, &full) != nil {
+		return false
+	}
+	for _, dependency := range metadata.Dependencies {
+		target := dependency.Repository
+		if strings.HasPrefix(target, "@") || strings.HasPrefix(target, "alias:") {
+			target = aliases[helmRepositoryAliasName(target)]
+		}
+		if target == "" || helmRepositoryURLKey(target) != helmRepositoryURLKey(repository) {
+			continue
+		}
+		constraint, err := semver.NewConstraint(dependency.Version)
+		if err != nil {
+			continue
+		}
+		entries := full.Entries[dependency.Name]
+		if projectionErr == nil {
+			raw, exists := projected.entries[dependency.Name]
+			if !exists {
+				return true
+			}
+			if yaml.Unmarshal(raw, &entries) != nil {
+				return false
+			}
+		}
+		found := false
+		for _, entry := range entries {
+			version, err := semver.NewVersion(entry.Version)
+			if err == nil && constraint.Check(version) && len(entry.URLs) > 0 {
+				found = true
+				break
+			}
+		}
+		if !found {
+			return true
+		}
+	}
+	return false
 }

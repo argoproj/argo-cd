@@ -5,7 +5,9 @@ import (
 	"compress/gzip"
 	"context"
 	"io"
+	"net"
 	"strconv"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -230,6 +232,43 @@ func TestRedisClientsEnableContextDeadlines(t *testing.T) {
 	require.True(t, failover.Options().ContextTimeoutEnabled)
 }
 
+type readDeadlineHook struct{ deadline time.Time }
+
+func (h *readDeadlineHook) DialHook(next redis.DialHook) redis.DialHook { return next }
+
+func (h *readDeadlineHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return next
+}
+
+func (h *readDeadlineHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, command redis.Cmder) error {
+		if command.Name() == "get" {
+			h.deadline, _ = ctx.Deadline()
+		}
+		return next(ctx, command)
+	}
+}
+
+func TestRedisContextReadBoundsDeadlineFreeContext(t *testing.T) {
+	server := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr(), ContextTimeoutEnabled: true, ReadTimeout: -1})
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	hook := &readDeadlineHook{}
+	client.AddHook(hook)
+	cache := NewCache(NewRedisCache(client, time.Minute, RedisCompressionNone))
+	ctx, cancel := context.WithCancel(t.Context())
+	defer cancel()
+	var body []byte
+	require.ErrorIs(t, cache.GetItemContext(ctx, "index", &body), ErrCacheMiss)
+	require.False(t, hook.deadline.IsZero(), "Redis must receive a real deadline even when socket timeouts are disabled")
+	require.Positive(t, time.Until(hook.deadline))
+	require.LessOrEqual(t, time.Until(hook.deadline), 5*time.Second)
+	before := server.CommandCount()
+	cancel()
+	require.ErrorIs(t, cache.GetItemContext(ctx, "index", &body), context.Canceled)
+	require.Equal(t, before, server.CommandCount(), "an already-cancelled request must not start Redis I/O")
+}
+
 func TestRedisContextReadRejectsUnboundedClient(t *testing.T) {
 	server := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: server.Addr()})
@@ -240,6 +279,99 @@ func TestRedisContextReadRejectsUnboundedClient(t *testing.T) {
 	var body []byte
 	require.ErrorContains(t, cache.GetItemContext(ctx, "index", &body), "does not enforce context deadlines")
 	require.Zero(t, server.CommandCount(), "unsupported deadline enforcement must fail before I/O")
+}
+
+func TestRedisContextRejectsDisabledSocketDeadlines(t *testing.T) {
+	for _, write := range []bool{false, true} {
+		t.Run(strconv.FormatBool(write), func(t *testing.T) {
+			server := miniredis.RunT(t)
+			options := &redis.Options{Addr: server.Addr(), ContextTimeoutEnabled: true}
+			if write {
+				options.WriteTimeout = -2
+			} else {
+				options.ReadTimeout = -2
+			}
+			client := redis.NewClient(options)
+			t.Cleanup(func() { require.NoError(t, client.Close()) })
+			cache := NewCache(NewRedisCache(client, time.Minute, RedisCompressionNone))
+			ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+			defer cancel()
+			var body []byte
+			require.ErrorContains(t, cache.GetItemContext(ctx, "index", &body), "does not enforce context deadlines")
+			_, err := cache.BeginUpdate(ctx, "owner", "token", time.Minute)
+			require.ErrorContains(t, err, "does not enforce context deadlines")
+			_, err = cache.StoreVersionedItem(ctx, VersionedItem{Key: "metadata", ReferenceKey: "reference", ReferenceValue: "digest", BodyKey: "body", OwnerKey: "owner", Token: "token", Object: "metadata", RequireOwner: true})
+			require.ErrorContains(t, err, "does not enforce context deadlines")
+			require.Zero(t, server.CommandCount(), "unsupported socket deadlines must be rejected before I/O")
+		})
+	}
+}
+
+type lostMaintenanceReplyConn struct {
+	net.Conn
+	armed atomic.Bool
+	lost  *atomic.Bool
+	after func()
+}
+
+func (c *lostMaintenanceReplyConn) Write(data []byte) (int, error) {
+	if bytes.Contains(data, []byte("ARGV[5]")) {
+		c.armed.Store(true)
+	}
+	return c.Conn.Write(data)
+}
+
+func (c *lostMaintenanceReplyConn) Read(data []byte) (int, error) {
+	n, err := c.Conn.Read(data)
+	if n > 0 && c.armed.Swap(false) && c.lost.CompareAndSwap(false, true) {
+		c.after()
+		return 0, io.EOF
+	}
+	return n, err
+}
+
+func TestRedisMaintenancePublicationDoesNotReplayAfterLostReply(t *testing.T) {
+	server := miniredis.RunT(t)
+	later := redis.NewClient(&redis.Options{Addr: server.Addr(), ContextTimeoutEnabled: true})
+	t.Cleanup(func() { require.NoError(t, later.Close()) })
+	newer := NewCache(NewRedisCache(later, time.Minute, RedisCompressionNone))
+	item := VersionedItem{Key: "{index}|metadata", ReferenceKey: "{index}|reference", BodyKey: "{index}|body", OwnerKey: "{index}|owner", ReferenceValue: "old-body", Token: "old", Object: "old", Expiration: time.Minute}
+	var lost atomic.Bool
+	committed := make(chan error, 1)
+	observed := make(chan string, 1)
+	client := redis.NewClient(&redis.Options{Addr: server.Addr(), ContextTimeoutEnabled: true, MaxRetries: 3, Dialer: func(ctx context.Context, network, address string) (net.Conn, error) {
+		connection, err := (&net.Dialer{}).DialContext(ctx, network, address)
+		if err != nil {
+			return nil, err
+		}
+		return &lostMaintenanceReplyConn{Conn: connection, lost: &lost, after: func() {
+			var initial string
+			if err := newer.GetItem(item.Key, &initial); err != nil {
+				observed <- ""
+				committed <- err
+				return
+			}
+			observed <- initial
+			replacement := item
+			replacement.Token, replacement.ReferenceValue, replacement.Object = "new", "new-body", "new"
+			_, err := newer.StoreVersionedItem(t.Context(), replacement)
+			committed <- err
+		}}, nil
+	}})
+	t.Cleanup(func() { require.NoError(t, client.Close()) })
+	cache := NewCache(NewRedisCache(client, time.Minute, RedisCompressionNone))
+	_, err := cache.StoreVersionedItem(t.Context(), item)
+	require.Error(t, err, "a lost maintenance reply must not replay the write")
+	require.True(t, lost.Load(), "the first publication must commit before its reply is discarded")
+	require.NoError(t, <-committed)
+	require.Equal(t, "old", <-observed, "the first write must commit before the replacement")
+	var current string
+	require.NoError(t, newer.GetItem(item.Key, &current))
+	require.Equal(t, "new", current, "retries cannot restore an older maintenance generation")
+	item.Token, item.ReferenceValue, item.Object = "fresh", "fresh-body", "fresh"
+	ok, err := cache.StoreVersionedItem(t.Context(), item)
+	require.NoError(t, err)
+	require.True(t, ok, "a new maintenance operation must still replace the current generation")
 }
 
 func TestRedisFetchOwnership(t *testing.T) {

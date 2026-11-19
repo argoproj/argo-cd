@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -53,7 +54,7 @@ func NewHelmApp(workDir string, repos []HelmRepository, isLocal bool, version st
 	}
 	cmd.IsLocal = isLocal
 
-	return &helm{repos: repos, cmd: *cmd, passCredentials: passCredentials, insecure: insecure}, nil
+	return &helm{repos: slices.Clone(repos), cmd: *cmd, passCredentials: passCredentials, insecure: insecure}, nil
 }
 
 // NewHelmAppWithIndexStore creates a new helm wrapper like NewHelmApp, and
@@ -113,6 +114,12 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		}
 	}
 	indexes := make(map[string][]byte)
+	fetched := make(map[string]bool)
+	clients := make(map[string]*nativeHelmChart)
+	aliases := make(map[string]string)
+	for _, repo := range h.repos {
+		aliases[repo.Name] = repo.Repo
+	}
 	configurations := make(map[string]helmRepoEntry)
 	var dependencyNames map[string]map[string]struct{}
 	if useStore && h.cmd.persistentIndexStore.FilterEnabled {
@@ -124,6 +131,8 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 	}
 	type preparedIndex struct {
 		url, name string
+		identity  string
+		reduced   bool
 		body      []byte
 	}
 	var prepared []preparedIndex
@@ -177,11 +186,13 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		}
 		data, ok := indexes[identity]
 		if !ok {
-			client := h.nativeChartClientWithCreds(repo, snap)
+			client := h.nativeChartClientWithCreds(repo, snap, scope)
+			clients[identity] = client
 			if h.forceRefresh {
 				data, err = h.cmd.persistentIndexStore.ForceRefresh(ctx, identity, client)
+				fetched[identity] = true
 			} else {
-				data, err = h.cmd.persistentIndexStore.Revalidate(ctx, identity, client)
+				data, fetched[identity], err = h.cmd.persistentIndexStore.revalidate(ctx, identity, client, false)
 			}
 			if err != nil {
 				return fmt.Errorf("%s is not a valid chart repository or cannot be reached: %w", repo.Repo, err)
@@ -209,8 +220,8 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		}
 		if reducedSnapshot {
 			filtered = true
-			prepared = append(prepared, preparedIndex{url: repo.Repo, name: repo.Name, body: data})
 		}
+		prepared = append(prepared, preparedIndex{url: repo.Repo, name: repo.Name, identity: identity, reduced: reducedSnapshot, body: data})
 		configuration, exists := configurations[identity]
 		var repoEntries []helmRepoEntry
 		if !exists {
@@ -251,17 +262,37 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		}
 	}
 	_, err := h.cmd.dependencyBuild(ctx, h.insecure, plainHTTP, useStore)
-	if err != nil && filtered && isIndexSnapshotError(err) {
+	refreshed := make(map[string][]byte)
+	if err != nil && useStore && isIndexVersionLookupError(err) {
+		for _, index := range prepared {
+			if fetched[index.identity] || refreshed[index.identity] != nil || !missingDependencyVersion(h.cmd.WorkDir, index.url, aliases, index.body) {
+				continue
+			}
+			body, _, refreshErr := h.cmd.persistentIndexStore.revalidate(ctx, index.identity, clients[index.identity], true)
+			if refreshErr != nil {
+				return fmt.Errorf("revalidate Helm index after version lookup miss: %w", refreshErr)
+			}
+			refreshed[index.identity] = body
+		}
+	}
+	if err != nil && ((filtered && isIndexSnapshotError(err)) || len(refreshed) > 0) {
 		// Retry only index lookup/load failures. Origin validation and archive
 		// authentication/network failures must keep their normal failure path.
-		log.WithError(err).Warn("retrying Helm dependency build with complete indexes")
+		log.Warn("retrying Helm dependency build with complete indexes")
 		for _, index := range prepared {
-			if restoreErr := h.cmd.installIndexes(index.url, index.body, index.name, true); restoreErr != nil {
+			body := refreshed[index.identity]
+			if body == nil {
+				if !index.reduced {
+					continue
+				}
+				body = index.body
+			}
+			if restoreErr := h.cmd.installIndexes(index.url, body, index.name, true); restoreErr != nil {
 				return fmt.Errorf("restore complete Helm index after snapshot failure (%w): %w", err, restoreErr)
 			}
 		}
 		if _, fallbackErr := h.cmd.dependencyBuild(ctx, h.insecure, plainHTTP, useStore); fallbackErr != nil {
-			return fmt.Errorf("selective Helm index failed (%w); complete-index fallback failed: %w", err, fallbackErr)
+			return fmt.Errorf("Helm index lookup failed (%w); complete-index fallback failed: %w", err, fallbackErr)
 		}
 		return nil
 	}
@@ -276,16 +307,36 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 // Classify the whole build before writing any part of the isolated config.
 func (h *helm) supportsIndexPrewarm() bool {
 	registered := make(map[string]struct{})
+	names := make(map[string]string)
 	for _, repo := range h.repos {
 		if repo.EnableOci {
+			if os.Getenv("HELM_REGISTRY_CONFIG") != "" {
+				return false
+			}
 			continue
 		}
 		u, err := url.Parse(repo.Repo)
 		if err != nil || (u.Scheme != "http" && u.Scheme != "https") {
 			return false
 		}
-		registered[strings.TrimSuffix(repo.Repo, "/")] = struct{}{}
+		registered[helmRepositoryURLKey(repo.Repo)] = struct{}{}
+		if repo.Name != "" {
+			if owner, exists := names[repo.Name]; exists && owner != helmRepositoryURLKey(repo.Repo) {
+				return false
+			}
+			names[repo.Name] = helmRepositoryURLKey(repo.Repo)
+		}
 	}
+	// Generated snapshots and configured names share one Helm cache directory.
+	// Resolve collisions before installing any bytes or private configuration.
+	for _, repo := range h.repos {
+		if !repo.EnableOci {
+			if owner, exists := names[managerKeyPrefix+managerKey(repo.Repo)]; exists && owner != helmRepositoryURLKey(repo.Repo) {
+				return false
+			}
+		}
+	}
+	var chart struct{ Dependencies []struct{ Repository string } }
 	for _, name := range []string{"Chart.yaml", "requirements.yaml"} {
 		data, err := ReadChartMetadata(h.cmd.WorkDir, name)
 		if os.IsNotExist(err) {
@@ -294,31 +345,48 @@ func (h *helm) supportsIndexPrewarm() bool {
 		if err != nil {
 			return false
 		}
-		var chart struct{ Dependencies []struct{ Repository string } }
 		if yaml.Unmarshal(data, &chart) != nil {
 			return false
 		}
-		for _, dependency := range chart.Dependencies {
-			repository := dependency.Repository
-			if repository == "" || strings.HasPrefix(repository, "@") || strings.HasPrefix(repository, "alias:") {
-				continue
-			}
-			u, err := url.Parse(repository)
-			if err != nil {
+	}
+	for _, dependency := range chart.Dependencies {
+		repository := dependency.Repository
+		if repository == "" || strings.HasPrefix(repository, "@") || strings.HasPrefix(repository, "alias:") {
+			continue
+		}
+		u, err := url.Parse(repository)
+		if err != nil {
+			return false
+		}
+		switch u.Scheme {
+		case "http", "https":
+			if _, installed := registered[helmRepositoryURLKey(repository)]; !installed {
 				return false
 			}
-			switch u.Scheme {
-			case "http", "https":
-				if _, installed := registered[strings.TrimSuffix(repository, "/")]; !installed {
-					return false
-				}
-			case "file", "oci":
-			default:
+		case "oci":
+			if os.Getenv("HELM_REGISTRY_CONFIG") != "" {
 				return false
 			}
+		case "file":
+		default:
+			return false
 		}
 	}
 	return true
+}
+
+// Match the pinned Helm binary's urlutil.Equal, including path cleaning.
+// Other URL components retain their original spelling and escaping.
+func helmRepositoryURLKey(repository string) string {
+	u, err := url.Parse(repository)
+	if err != nil {
+		return filepath.Clean(repository)
+	}
+	if u.Path == "" {
+		u.Path = "/"
+	}
+	u.Path = filepath.Clean(u.Path)
+	return u.String()
 }
 
 // Helm resolves aliases to URLs for archive lookup, so distinct credential
@@ -340,7 +408,7 @@ func (h *helm) validateIndexRepositoryViews(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		key := strings.TrimSuffix(repo.Repo, "/")
+		key := helmRepositoryURLKey(repo.Repo)
 		if previous, exists := views[key]; exists && previous.scope != scope {
 			return fmt.Errorf("Helm repositories %q and %q use the same URL with different credentials; configure distinct repository URLs", previous.name, repo.Name)
 		}
@@ -566,6 +634,8 @@ func flatVals(input any, output map[string]string, prefixes ...string) {
 // RESOLVED credential snapshot: the DependencyBuild disk identity and the
 // HTTP fetch must use the same resolved values even when the underlying
 // provider rotates tokens between calls.
-func (h *helm) nativeChartClientWithCreds(repo HelmRepository, creds Creds) *nativeHelmChart {
-	return NewClientWithLock(repo.Repo, creds, globalLock, false, h.cmd.proxy, h.cmd.noProxy).(*nativeHelmChart)
+func (h *helm) nativeChartClientWithCreds(repo HelmRepository, creds Creds, scope string) *nativeHelmChart {
+	client := NewClientWithLock(repo.Repo, creds, globalLock, false, h.cmd.proxy, h.cmd.noProxy).(*nativeHelmChart)
+	client.indexCacheScope = scope
+	return client
 }

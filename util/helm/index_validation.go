@@ -3,6 +3,7 @@ package helm
 import (
 	"crypto/sha256"
 	"sync"
+	"time"
 
 	"github.com/golang/groupcache/lru"
 	"golang.org/x/sync/singleflight"
@@ -12,6 +13,32 @@ import (
 // authentication metadata. Every read hashes its bytes, so a changed/corrupt
 // body cannot reuse validation through matching timestamps or file sizes.
 var validatedIndexBodies = newIndexValidationCache(256, parseIndexBody)
+
+// Decode the pinned Helm index's complete schema without importing Helm's
+// command dependencies. Semantic chart validation remains Helm's responsibility.
+type indexValidationChart struct {
+	*IndexValidationMetadata
+	URLs                                         []string
+	Created                                      time.Time
+	Removed                                      bool
+	Digest, Checksum, Engine, TillerVersion, URL string
+}
+
+// IndexValidationMetadata is exported so encoding/json can initialize the
+// embedded pointer, matching the pinned Helm decoder's treatment of scalars.
+type IndexValidationMetadata struct {
+	Name, Home, Version, Description, Icon, APIVersion, Condition, Tags, AppVersion, KubeVersion, Type string
+	Sources, Keywords                                                                                  []string
+	Deprecated                                                                                         bool
+	Annotations                                                                                        map[string]string
+	Maintainers                                                                                        []*struct{ Name, Email, URL string }
+	Dependencies                                                                                       []*struct {
+		Name, Version, Repository, Condition, Alias string
+		Tags                                        []string
+		Enabled                                     bool
+		ImportValues                                []any `json:"import-values"`
+	}
+}
 
 func validateIndexBody(data []byte) error {
 	return validatedIndexBodies.validateBody(data)

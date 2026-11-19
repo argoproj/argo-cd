@@ -9,7 +9,7 @@ import (
 )
 
 func (r *redisCache) BeginUpdate(ctx context.Context, key, token string, expiration time.Duration) (bool, error) {
-	if !r.client.Options().ContextTimeoutEnabled {
+	if !r.enforcesContextDeadlines() {
 		return false, errors.New("redis client does not enforce context deadlines")
 	}
 	result, err := acquireVersionedScript.Run(ctx, r.client, []string{r.getKey(key)}, token, max(int64(1), expiration.Milliseconds())).Int64()
@@ -34,7 +34,7 @@ return redis.call('DEL', KEYS[1])
 `)
 
 func (r *redisCache) ReleaseUpdate(ctx context.Context, key, token string) (bool, error) {
-	if !r.client.Options().ContextTimeoutEnabled {
+	if !r.enforcesContextDeadlines() {
 		return false, errors.New("redis client does not enforce context deadlines")
 	}
 	result, err := releaseVersionedScript.Run(ctx, r.client, []string{r.getKey(key)}, token).Int64()
@@ -47,7 +47,7 @@ return redis.call('PEXPIRE', KEYS[1], ARGV[2])
 `)
 
 func (r *redisCache) RenewUpdate(ctx context.Context, key, token string, expiration time.Duration) (bool, error) {
-	if !r.client.Options().ContextTimeoutEnabled {
+	if !r.enforcesContextDeadlines() {
 		return false, errors.New("redis client does not enforce context deadlines")
 	}
 	result, err := renewVersionedScript.Run(ctx, r.client, []string{r.getKey(key)}, token, max(int64(1), expiration.Milliseconds())).Int64()
@@ -56,7 +56,7 @@ func (r *redisCache) RenewUpdate(ctx context.Context, key, token string, expirat
 
 // A missing owner is a lost claim, including when Redis evicts every key.
 // Consumption makes each claim single-use; maintenance writes invalidate it.
-var publishVersionedScript = redis.NewScript(`
+const publishVersionedLua = `
 if ARGV[5] == '1' and redis.call('GET', KEYS[3]) ~= ARGV[3] then return 0 end
 redis.call('SET', KEYS[1], ARGV[1], 'PX', ARGV[4])
 redis.call('SET', KEYS[2], ARGV[2], 'PX', ARGV[4])
@@ -70,10 +70,18 @@ if redis.call('GET', KEYS[5]) == ARGV[2] then
  end
 end
 return 1
-`)
+`
+
+var publishVersionedScript = redis.NewScript(publishVersionedLua)
+
+// A maintenance publication has no fetch owner to fence a replay. A lost
+// reply must be confirmed by its generation rather than executing it again.
+type nonRetryableRedisCommand struct{ *redis.Cmd }
+
+func (*nonRetryableRedisCommand) NoRetry() bool { return true }
 
 func (r *redisCache) StoreVersioned(ctx context.Context, item VersionedItem) (bool, error) {
-	if item.RequireOwner && !r.client.Options().ContextTimeoutEnabled {
+	if !r.enforcesContextDeadlines() {
 		return false, errors.New("redis client does not enforce context deadlines")
 	}
 	metadata, err := r.marshal(item.Object)
@@ -92,7 +100,23 @@ func (r *redisCache) StoreVersioned(ctx context.Context, item VersionedItem) (bo
 		fenced = "1"
 	}
 	bodyKey := r.getKey(item.BodyKey)
-	result, err := publishVersionedScript.Run(ctx, r.client, []string{r.getKey(item.Key), r.getKey(item.ReferenceKey), r.getKey(item.OwnerKey), bodyKey, r.getKey(item.BodyKey + "|digest")}, metadata, item.ReferenceValue, item.Token, max(int64(1), expiration.Milliseconds()), fenced).Int64()
+	keys := []string{r.getKey(item.Key), r.getKey(item.ReferenceKey), r.getKey(item.OwnerKey), bodyKey, r.getKey(item.BodyKey + "|digest")}
+	args := []any{metadata, item.ReferenceValue, item.Token, max(int64(1), expiration.Milliseconds()), fenced}
+	var result int64
+	if item.RequireOwner {
+		result, err = publishVersionedScript.Run(ctx, r.client, keys, args...).Int64()
+	} else {
+		commandArgs := []any{"eval", publishVersionedLua, len(keys)}
+		for _, key := range keys {
+			commandArgs = append(commandArgs, key)
+		}
+		commandArgs = append(commandArgs, args...)
+		command := &nonRetryableRedisCommand{redis.NewCmd(ctx, commandArgs...)}
+		command.SetFirstKeyPos(3)
+		if err = r.client.Process(ctx, command); err == nil {
+			result, err = command.Int64()
+		}
+	}
 	return result == 1, err
 }
 
@@ -109,7 +133,7 @@ return 1
 `)
 
 func (r *redisCache) StoreVersionedBody(ctx context.Context, referenceKey, bodyKey, referenceValue string, body any, expiration time.Duration) (bool, error) {
-	if _, bounded := ctx.Deadline(); bounded && !r.client.Options().ContextTimeoutEnabled {
+	if _, bounded := ctx.Deadline(); bounded && !r.enforcesContextDeadlines() {
 		return false, errors.New("redis client does not enforce context deadlines")
 	}
 	if ctx.Err() != nil {
