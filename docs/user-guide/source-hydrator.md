@@ -435,6 +435,10 @@ The `targetBranch` field is the branch the hydrated manifests were pushed to: `s
 if it is set, otherwise `spec.sourceHydrator.syncSource.targetBranch`. It is also written to the `hydrator.metadata`
 file in each application path.
 
+The `hydrator.metadata` file in an application path describes the hydration that last changed that path's manifests,
+so a path whose manifests did not change keeps its earlier `drySha` and `targetBranch`. When `hydrateTo` is set,
+`targetBranch` is the `hydrateTo` branch, and it keeps that value after the content is merged into the sync branch.
+
 ## Commit Message Template
 
 The commit message is generated using a [Go text/template](https://pkg.go.dev/text/template), optionally configured by the user via the argocd-cm ConfigMap. The template is rendered using the values from `hydrator.metadata`. The template can be multi-line, allowing users to define a subject line, body and optional trailers. To define the commit message template, you need to set the `sourceHydrator.commitMessageTemplate` field in argocd-cm ConfigMap.
