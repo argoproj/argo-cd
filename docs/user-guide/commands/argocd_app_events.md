@@ -6,7 +6,7 @@ List the events of an application or of one of its resources
 
 ### Synopsis
 
-List the events of an application or of one of its resources. Without --kind and --resource-name, the events of the Application object are listed. With them, the events of the matching resource in the application are listed.
+List the events of an application or of one of its resources, from the oldest to the most recent. Without --kind and --resource-name, the events of the Application object are listed. With them, the events of the matching resource in the application are listed.
 
 ```
 argocd app events APPNAME [flags]
@@ -24,6 +24,9 @@ argocd app events APPNAME [flags]
   # Select the resource by group and namespace when several resources match
   argocd app events my-app --kind Deployment --group apps --namespace default --resource-name guestbook-ui
 
+  # Select a resource of the core API group
+  argocd app events my-app --kind Service --group "" --resource-name guestbook-ui
+
   # Print the events in JSON format
   argocd app events my-app -o json
 ```
@@ -37,6 +40,7 @@ argocd app events APPNAME [flags]
       --kind string            Kind of the resource
       --namespace string       Namespace of the resource
   -o, --output string          Output format. One of: wide|json|yaml (default "wide")
+      --project string         The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist
       --resource-name string   Name of the resource
 ```
 

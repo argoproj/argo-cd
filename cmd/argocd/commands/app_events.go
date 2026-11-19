@@ -7,7 +7,6 @@ import (
 	"io"
 	"os"
 	"sort"
-	"strconv"
 	"strings"
 	"text/tabwriter"
 	"time"
@@ -25,17 +24,20 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 )
 
-// resourceEventsFilter selects a resource of an application whose events should be listed
+// resourceEventsFilter selects a resource of an application whose events should be listed.
+// groupSet and namespaceSet tell an empty value (the core group, a cluster-scoped resource) from a flag that was not given.
 type resourceEventsFilter struct {
-	kind      string
-	group     string
-	namespace string
-	name      string
+	kind         string
+	group        string
+	groupSet     bool
+	namespace    string
+	namespaceSet bool
+	name         string
 }
 
 // isSet reports whether the filter selects a resource. Without a resource, the events of the application itself are listed.
 func (f resourceEventsFilter) isSet() bool {
-	return f.kind != "" || f.name != "" || f.group != "" || f.namespace != ""
+	return f.kind != "" || f.name != "" || f.groupSet || f.namespaceSet
 }
 
 func (f resourceEventsFilter) validate() error {
@@ -49,13 +51,14 @@ func (f resourceEventsFilter) validate() error {
 func NewApplicationEventsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
 		appNamespace string
+		project      string
 		filter       resourceEventsFilter
 		output       string
 	)
 	command := &cobra.Command{
 		Use:   "events APPNAME",
 		Short: "List the events of an application or of one of its resources",
-		Long:  "List the events of an application or of one of its resources. Without --kind and --resource-name, the events of the Application object are listed. With them, the events of the matching resource in the application are listed.",
+		Long:  "List the events of an application or of one of its resources, from the oldest to the most recent. Without --kind and --resource-name, the events of the Application object are listed. With them, the events of the matching resource in the application are listed.",
 		Example: `  # List the events of the application
   argocd app events my-app
 
@@ -64,6 +67,9 @@ func NewApplicationEventsCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 
   # Select the resource by group and namespace when several resources match
   argocd app events my-app --kind Deployment --group apps --namespace default --resource-name guestbook-ui
+
+  # Select a resource of the core API group
+  argocd app events my-app --kind Service --group "" --resource-name guestbook-ui
 
   # Print the events in JSON format
   argocd app events my-app -o json`,
@@ -74,6 +80,8 @@ func NewApplicationEventsCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 				c.HelpFunc()(c, args)
 				os.Exit(1)
 			}
+			filter.groupSet = c.Flags().Changed("group")
+			filter.namespaceSet = c.Flags().Changed("namespace")
 			errors.CheckError(filter.validate())
 			if output != "wide" && output != "json" && output != "yaml" {
 				errors.CheckError(fmt.Errorf("unknown output format: %s", output))
@@ -84,7 +92,7 @@ func NewApplicationEventsCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
 
-			events, err := listApplicationEvents(ctx, appIf, appName, appNs, filter)
+			events, err := listApplicationEvents(ctx, appIf, appName, appNs, project, filter)
 			errors.CheckError(err)
 
 			if output == "wide" {
@@ -95,6 +103,7 @@ func NewApplicationEventsCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 		}),
 	}
 	command.Flags().StringVarP(&appNamespace, "app-namespace", "N", "", "Namespace of the application")
+	command.Flags().StringVar(&project, "project", "", `The name of the application's project - specifying this allows the command to report "not found" instead of "permission denied" if the app does not exist`)
 	command.Flags().StringVar(&filter.kind, "kind", "", "Kind of the resource")
 	command.Flags().StringVar(&filter.group, "group", "", "Group of the resource")
 	command.Flags().StringVar(&filter.namespace, "namespace", "", "Namespace of the resource")
@@ -104,15 +113,17 @@ func NewApplicationEventsCommand(clientOpts *argocdclient.ClientOptions) *cobra.
 }
 
 // listApplicationEvents returns the events of the application, or of the resource selected by the filter, sorted from the oldest to the most recent
-func listApplicationEvents(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, appName, appNs string, filter resourceEventsFilter) ([]eventspkg.Event, error) {
+func listApplicationEvents(ctx context.Context, appIf applicationpkg.ApplicationServiceClient, appName, appNs, project string, filter resourceEventsFilter) ([]eventspkg.Event, error) {
 	query := &applicationpkg.ApplicationResourceEventsQuery{
 		Name:         &appName,
 		AppNamespace: &appNs,
+		Project:      &project,
 	}
 	if filter.isSet() {
 		tree, err := appIf.ResourceTree(ctx, &applicationpkg.ResourcesQuery{
 			ApplicationName: &appName,
 			AppNamespace:    &appNs,
+			Project:         &project,
 		})
 		if err != nil {
 			return nil, fmt.Errorf("error getting resource tree of application %s: %w", appName, err)
@@ -132,7 +143,7 @@ func listApplicationEvents(ctx context.Context, appIf applicationpkg.Application
 	}
 	events := list.Items
 	sort.SliceStable(events, func(i, j int) bool {
-		return eventLastSeen(events[i]).Before(eventLastSeen(events[j]))
+		return events[i].LastTimestamp.Before(&events[j].LastTimestamp)
 	})
 	return events, nil
 }
@@ -145,7 +156,7 @@ func findResourceNode(tree *v1alpha1.ApplicationTree, appName string, filter res
 			if n.Kind != filter.kind || n.Name != filter.name {
 				continue
 			}
-			if (filter.group != "" && n.Group != filter.group) || (filter.namespace != "" && n.Namespace != filter.namespace) {
+			if (filter.groupSet && n.Group != filter.group) || (filter.namespaceSet && n.Namespace != filter.namespace) {
 				continue
 			}
 			matches = append(matches, n)
@@ -161,30 +172,24 @@ func findResourceNode(tree *v1alpha1.ApplicationTree, appName string, filter res
 	}
 }
 
-// eventLastSeen returns when the event was last observed. Events created through the events.k8s.io API only set eventTime.
-func eventLastSeen(e eventspkg.Event) time.Time {
-	if !e.LastTimestamp.IsZero() {
-		return e.LastTimestamp.Time
-	}
-	return e.EventTime.Time
-}
-
+// printEventsTable prints the events as a table. The API server fills LastTimestamp and Count from EventTime and Series
+// for events created through the events.k8s.io API, so they are used as is.
 func printEventsTable(out io.Writer, events []eventspkg.Event) {
 	w := tabwriter.NewWriter(out, 0, 0, 2, ' ', 0)
-	_, _ = fmt.Fprintf(w, "LAST SEEN\tTYPE\tREASON\tOBJECT\tCOUNT\tMESSAGE\n")
+	_, _ = fmt.Fprint(w, "LAST SEEN\tTYPE\tREASON\tOBJECT\tCOUNT\tMESSAGE\n")
 	for _, e := range events {
 		lastSeen := "-"
-		if t := eventLastSeen(e); !t.IsZero() {
-			lastSeen = t.UTC().Format(time.RFC3339)
+		if !e.LastTimestamp.IsZero() {
+			lastSeen = e.LastTimestamp.UTC().Format(time.RFC3339)
 		}
-		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s/%s\t%s\t%s\n",
+		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s/%s\t%d\t%s\n",
 			lastSeen,
 			e.Type,
 			e.Reason,
 			e.InvolvedObject.Kind,
 			e.InvolvedObject.Name,
-			strconv.Itoa(int(e.Count)),
-			strings.ReplaceAll(e.Message, "\n", " "),
+			e.Count,
+			strings.NewReplacer("\n", " ", "\t", " ").Replace(e.Message),
 		)
 	}
 	_ = w.Flush()
