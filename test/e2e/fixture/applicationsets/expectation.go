@@ -1,7 +1,6 @@
 package applicationsets
 
 import (
-	"encoding/json"
 	"fmt"
 	"reflect"
 	"regexp"
@@ -468,66 +467,44 @@ func ApplicationsExistAndNotBeingDeleted(appNames []string) Expectation {
 	}
 }
 
-// ApplicationSetHasRolloutStartAnnotation checks that the rollout start time annotation is set
-func ApplicationSetHasRolloutStartAnnotation() Expectation {
+// ApplicationSetHasRolloutStartedAtStatus checks that the rollout started at status field is set
+func ApplicationSetHasRolloutStartedAtStatus() Expectation {
 	return func(c *Consequences) (state, string) {
 		appSet := c.applicationSet(c.context.GetName())
 		if appSet == nil {
 			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
 		}
-		if appSet.Annotations == nil {
-			return pending, "ApplicationSet has no annotations"
+		if appSet.Status.RolloutStartedAt == nil {
+			return pending, "rollout started at status not set"
 		}
-		if _, ok := appSet.Annotations["argocd.argoproj.io/progressive-sync-rollout-start"]; !ok {
-			return pending, "rollout start time annotation not set"
-		}
-		return succeeded, "rollout start time annotation is set"
+		return succeeded, "rollout started at status is set"
 	}
 }
 
-// ApplicationSetHasStepStartTimesAnnotation checks that the step start times annotation is set and valid JSON
-func ApplicationSetHasStepStartTimesAnnotation() Expectation {
+// ApplicationSetHasStepStartedAtStatus checks that the step started at status field is set and non-empty
+func ApplicationSetHasStepStartedAtStatus() Expectation {
 	return func(c *Consequences) (state, string) {
 		appSet := c.applicationSet(c.context.GetName())
 		if appSet == nil {
 			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
 		}
-		if appSet.Annotations == nil {
-			return pending, "ApplicationSet has no annotations"
+		if len(appSet.Status.StepStartedAt) == 0 {
+			return pending, "step started at status is empty"
 		}
-		annotation, ok := appSet.Annotations["argocd.argoproj.io/progressive-sync-step-starts"]
-		if !ok {
-			return pending, "step start times annotation not set"
-		}
-		// Verify it's valid JSON
-		var parsed map[string]string
-		if err := json.Unmarshal([]byte(annotation), &parsed); err != nil {
-			return failed, fmt.Sprintf("step start times annotation contains invalid JSON: %v", err)
-		}
-		if len(parsed) == 0 {
-			return pending, "step start times annotation is empty"
-		}
-		return succeeded, fmt.Sprintf("step start times annotation is set with %d steps", len(parsed))
+		return succeeded, fmt.Sprintf("step started at status is set with %d steps", len(appSet.Status.StepStartedAt))
 	}
 }
 
-// ApplicationSetRolloutAnnotationsRemoved checks that both rollout timing annotations are removed
-func ApplicationSetRolloutAnnotationsRemoved() Expectation {
+// ApplicationSetHasRolloutFinishedAtStatus checks that the rollout finished at status field is set
+func ApplicationSetHasRolloutFinishedAtStatus() Expectation {
 	return func(c *Consequences) (state, string) {
 		appSet := c.applicationSet(c.context.GetName())
 		if appSet == nil {
 			return pending, fmt.Sprintf("no application set found with name '%s'", c.context.GetName())
 		}
-		if appSet.Annotations == nil {
-			return succeeded, "ApplicationSet has no annotations (both removed)"
+		if appSet.Status.RolloutFinishedAt == nil {
+			return pending, "rollout finished at status not set"
 		}
-		_, hasRolloutStart := appSet.Annotations["argocd.argoproj.io/progressive-sync-rollout-start"]
-		_, hasStepStarts := appSet.Annotations["argocd.argoproj.io/progressive-sync-step-starts"]
-		if hasRolloutStart || hasStepStarts {
-			return pending, "rollout timing annotations still present"
-		}
-		// When these annotations are removed, it triggers the metrics observation (ObserveRolloutDuration
-		// and ObserveStepCompletionDuration) which records the timing data to Prometheus histograms.
-		return succeeded, "both rollout timing annotations removed"
+		return succeeded, "rollout finished at status is set"
 	}
 }
