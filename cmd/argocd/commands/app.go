@@ -465,19 +465,22 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 			}
 
-			windows, err := appIf.GetApplicationSyncWindows(ctx, &application.ApplicationSyncWindowsQuery{
-				Name:         &appName,
-				AppNamespace: &appNs,
-				Project:      &app.Spec.Project,
-			})
-			errors.CheckError(err)
+			getWindows := func() *application.ApplicationSyncWindowsResponse {
+				windows, err := appIf.GetApplicationSyncWindows(ctx, &application.ApplicationSyncWindowsQuery{
+					Name:         &appName,
+					AppNamespace: &appNs,
+					Project:      &app.Spec.Project,
+				})
+				errors.CheckError(err)
+				return windows
+			}
 
 			switch output {
 			case "yaml", "json":
 				err := PrintResource(app, output)
 				errors.CheckError(err)
 			case "wide", "":
-				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
+				printHeader(ctx, acdClient, app, getWindows(), showOperation, showParams, sourcePosition)
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -485,14 +488,14 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					_ = w.Flush()
 				}
 			case "tree":
-				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
+				printHeader(ctx, acdClient, app, getWindows(), showOperation, showParams, sourcePosition)
 				mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 				if len(mapUIDToNode) > 0 {
 					fmt.Println()
 					printTreeView(mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
 			case "tree=detailed":
-				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
+				printHeader(ctx, acdClient, app, getWindows(), showOperation, showParams, sourcePosition)
 				mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 				if len(mapUIDToNode) > 0 {
 					fmt.Println()
