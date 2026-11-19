@@ -1,5 +1,65 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
+.application-sync-panel__kind-filter {
+    display: flex;
+    align-items: center;
+    clear: both;
+    margin-top: 0.5em;
+    margin-bottom: 0.5em;
+
+    label {
+        margin-right: 0.5em;
+    }
+
+    .select {
+        min-width: 14em;
+    }
+}
+
+.application-sync-panel__kind-filter-actions {
+    margin-left: 1em;
+    font-size: 0.9em;
+}
+
+.application-sync-panel__kind-filter-action-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    color: $argo-color-teal-5;
+    cursor: pointer;
+    font: inherit;
+    font-size: inherit;
+    text-decoration: underline;
+
+    &:hover,
+    &:focus {
+        text-decoration: underline;
+    }
+}
+
+.kind-filter-select {
+    &__trigger {
+        background: transparent;
+        border-top: none;
+        border-left: none;
+        border-right: none;
+        font: inherit;
+        color: inherit;
+        width: 100%;
+        text-align: left;
+        display: block;
+        box-sizing: border-box;
+
+        &:focus {
+            outline: 1px dotted $argo-color-teal-5;
+        }
+    }
+
+    &__option--highlighted {
+        background-color: $argo-color-gray-1;
+    }
+}
+
 .application-sync-panel__resource {
     margin-top: 0.5em;
     white-space: nowrap;
@@ -21,7 +81,6 @@
         white-space: nowrap;
         display: inline-block;
         margin-right: 0.3em;
-
 
         label {
             cursor: pointer;

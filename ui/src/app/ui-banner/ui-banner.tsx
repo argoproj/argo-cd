@@ -58,8 +58,10 @@ export const Banner = (props: React.PropsWithChildren<{}>) => {
                             url: items[0].uiBannerURL,
                             prefs: items[1],
                             permanent: items[0].uiBannerPermanent,
-                            chatText: items[0].help.chatText,
-                            chatUrl: items[0].help.chatUrl,
+                            // `help` is absent when /api/v1/settings isn't answered by a matching argocd-server;
+                            // without the guard the banner throws and every page fails to render.
+                            chatText: items[0].help?.chatText ?? '',
+                            chatUrl: items[0].help?.chatUrl ?? '',
                             position: items[0].uiBannerPosition
                         };
                     })
