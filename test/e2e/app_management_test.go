@@ -305,6 +305,43 @@ func TestGetAppResource(t *testing.T) {
 		})
 }
 
+func TestAppEvents(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		Path(guestbookPath).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		And(func(_ *Application) {
+			require.EventuallyWithT(t, func(c *assert.CollectT) {
+				out, err := fixture.RunCli("app", "events", ctx.GetName())
+				require.NoError(c, err)
+				assert.Contains(c, out, "OperationCompleted")
+				assert.Contains(c, out, "Application/"+ctx.GetName())
+			}, 30*time.Second, time.Second)
+		}).
+		And(func(_ *Application) {
+			require.EventuallyWithT(t, func(c *assert.CollectT) {
+				out, err := fixture.RunCli("app", "events", ctx.GetName(), "--kind", "Deployment", "--group", "apps", "--resource-name", "guestbook-ui")
+				require.NoError(c, err)
+				assert.Contains(c, out, "ScalingReplicaSet")
+				assert.Contains(c, out, "Deployment/guestbook-ui")
+			}, 30*time.Second, time.Second)
+		}).
+		And(func(_ *Application) {
+			out, err := fixture.RunCli("app", "events", ctx.GetName(), "-o", "json")
+			require.NoError(t, err)
+			assert.Contains(t, out, `"reason": "OperationCompleted"`)
+		}).
+		And(func(_ *Application) {
+			_, err := fixture.RunCli("app", "events", ctx.GetName(), "--kind", "Deployment", "--resource-name", "missing")
+			require.ErrorContains(t, err, "resource Deployment/missing not found in application "+ctx.GetName())
+		})
+}
+
 func TestDeleteAppResource(t *testing.T) {
 	ctx := Given(t)
 
