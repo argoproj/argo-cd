@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"maps"
 	"reflect"
 	"slices"
 	"sort"
@@ -1018,9 +1019,7 @@ func getStepStartTimesFromStatus(appset *argov1alpha1.ApplicationSet) map[string
 		return map[string]metav1.Time{}
 	}
 	result := make(map[string]metav1.Time, len(appset.Status.StepStartedAt))
-	for k, v := range appset.Status.StepStartedAt {
-		result[k] = v
-	}
+	maps.Copy(result, appset.Status.StepStartedAt)
 	return result
 }
 
