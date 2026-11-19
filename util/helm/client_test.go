@@ -16,6 +16,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -75,11 +76,20 @@ func TestIndex(t *testing.T) {
 		err := yaml.NewEncoder(&data).Encode(fakeIndex)
 		require.NoError(t, err)
 
-		client := NewClient("https://argoproj.github.io/argo-helm", HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{data: data.Bytes()}))
+		var requests atomic.Int32
+		origin := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			requests.Add(1)
+			_, _ = w.Write(data.Bytes())
+		}))
+		t.Cleanup(origin.Close)
+		client := NewClient(origin.URL, HelmCreds{}, false, "", "", WithIndexCache(&fakeIndexCache{}))
+		_, err = client.GetIndex(t.Context(), true, 10000)
+		require.NoError(t, err)
 		index, err := client.GetIndex(t.Context(), false, 10000)
 
 		require.NoError(t, err)
 		assert.Equal(t, fakeIndex, *index)
+		require.EqualValues(t, 1, requests.Load(), "a confirmed validator-less representation must remain warm")
 	})
 
 	t.Run("Limited", func(t *testing.T) {

@@ -58,6 +58,38 @@ type indexCache interface {
 	GetHelmIndex(repo string, indexData *[]byte) error
 }
 
+// OCI tags retain the revision-cache policy rather than HTTP index freshness.
+type ociTagsCache interface {
+	SetOCITags(repo string, data []byte) error
+	GetOCITags(repo string, data *[]byte) error
+}
+
+// WithIndexCacheScope restricts the index-cache keys used by the client to
+// one credential view: the cache key becomes "<repoURL>\x00<scope>" instead
+// of the bare repository URL. The scope is a versioned fingerprint of the
+// effective authentication/TLS context, so a fetch made with private
+// credentials can never publish index metadata that an anonymous (or
+// differently-credentialed) reader would consume — the two views see
+// disjoint cache keys. Without this option the bare URL is used, preserving
+// the legacy shared-key behavior.
+func WithIndexCacheScope(scope string) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.indexCacheScope = scope
+	}
+}
+
+// WithIndexCacheScopedByCreds attaches the index cache and automatically
+// scopes its keys to the client's credential view (see WithIndexCacheScope
+// and credsScope). All in-repo call sites should prefer this over a bare
+// WithIndexCache so private-credentialed fetches can never share cache
+// entries with anonymous readers.
+func WithIndexCacheScopedByCreds(indexCache indexCache) ClientOpts {
+	return func(c *nativeHelmChart) {
+		c.indexCache = indexCache
+		c.scopedByCreds = true
+	}
+}
+
 type Client interface {
 	CleanChartCache(chart string, version string) error
 	ExtractChart(ctx context.Context, chart string, version string, passCredentials bool, manifestMaxExtractedSize int64, disableManifestMaxExtractedSize bool) (string, utilio.Closer, error)
@@ -125,8 +157,16 @@ func WithHelmChartCacheExpiration(helmChartCacheExpiration time.Duration) Client
 var _ Client = &nativeHelmChart{}
 
 type nativeHelmChart struct {
+	indexNotModified         bool
+	cacheObservation         indexRecordObservation
+	cacheReadAttempted       bool
+	responseURLIdentity      string
+	lastValidators           http.Header // response validators consumed by the publication owner
 	chartCachePaths          utilio.TempPaths
 	repoURL                  string
+	requireCompleteIndex     bool
+	indexCacheScope          string // credential-view fingerprint scoping index-cache keys (empty = legacy bare-URL keys)
+	scopedByCreds            bool   // derive the cache scope from each operation's resolved credentials
 	creds                    Creds
 	repoLock                 sync.KeyLock
 	enableOci                bool
@@ -148,6 +188,61 @@ func (c *nativeHelmChart) getUserAgent() string {
 	// Default User-Agent with version and platform info
 	version := common.GetVersion()
 	return fmt.Sprintf("argocd-repo-server/%s (%s)", version.Version, version.Platform)
+}
+
+// withResolvedCredentials copies the client for one operation. Resolve before
+// any cache read, and use the same immutable credentials for authentication,
+// TLS, and every cache read/write. Keep the original provider on the reusable
+// client so the next operation can observe rotation or a lookup failure.
+func (c *nativeHelmChart) withResolvedCredentials(ctx context.Context) (*nativeHelmChart, error) {
+	snap, err := snapshotCreds(c.creds)
+	if err != nil {
+		return nil, err
+	}
+	operation := *c
+	operation.creds = snap
+	operation.lastValidators = nil
+	operation.cacheReadAttempted = false
+	operation.cacheObservation = indexRecordObservation{}
+	if _, paired := operation.indexCache.(indexCacheRecordReader); paired {
+		operation.requireCompleteIndex = true
+	}
+	if operation.scopedByCreds {
+		operation.indexCacheScope, err = credsScopeContext(ctx, snap)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &operation, nil
+}
+
+// cacheRepoKey returns the cache key for an operation's resolved credential
+// view, or the explicit/legacy scope for clients without automatic scoping.
+func (c *nativeHelmChart) cacheRepoKey(ctx context.Context) (string, error) {
+	return c.cacheRepoKeyScoped(ctx, c.indexCacheScope)
+}
+
+// cacheRepoKeyScoped returns the repo cache key under an explicit credential
+// scope. An empty scope preserves the legacy bare-URL key.
+func (c *nativeHelmChart) cacheRepoKeyScoped(ctx context.Context, scope string) (string, error) {
+	if scope == "" {
+		return c.repoURL, nil
+	}
+	return scopedIndexIdentityContext(ctx, c.repoURL, scope, c.proxy, c.noProxy)
+}
+
+// cacheTagsKey returns the cache key for an OCI tags URL under this client's
+// credential scope (tags share the index cache's key space).
+func (c *nativeHelmChart) cacheTagsKey(ctx context.Context, tagsURL string) (string, error) {
+	if c.indexCacheScope == "" {
+		return "helm-oci-tags-v1|" + tagsURL, nil
+	}
+	scheme := "https"
+	if c.plainHTTP {
+		scheme = "http"
+	}
+	key, err := scopedIndexIdentityContext(ctx, tagsURL, c.indexCacheScope+"\x00"+scheme, c.proxy, c.noProxy)
+	return "helm-oci-tags-v1|" + key, err
 }
 
 func fileExist(filePath string) (bool, error) {
@@ -314,39 +409,108 @@ func (c *nativeHelmChart) ExtractChart(ctx context.Context, chart string, versio
 }
 
 func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSize int64) (*Index, error) {
-	indexLock.Lock(c.repoURL)
-	defer indexLock.Unlock(c.repoURL)
+	operation, err := c.withResolvedCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c = operation
+
+	repoKey, err := c.cacheRepoKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	unlock, err := indexClientLocks.acquire(ctx, "index\x00"+repoKey)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 
 	var data []byte
 	if !noCache && c.indexCache != nil {
-		if err := c.indexCache.GetHelmIndex(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
-			log.Warnf("Failed to load index cache for repo: %s: %v", c.repoURL, err)
-		}
-	}
-
-	if len(data) == 0 {
-		start := time.Now()
-		var err error
-		data, err = c.loadRepoIndex(ctx, maxIndexSize)
-		if err != nil {
-			return nil, fmt.Errorf("error loading repo index: %w", err)
-		}
-		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
-
-		if c.indexCache != nil {
-			if err := c.indexCache.SetHelmIndex(c.repoURL, data); err != nil {
-				log.Warnf("Failed to store index cache for repo: %s: %v", c.repoURL, err)
+		if err := c.indexCache.GetHelmIndex(repoKey, &data); err != nil {
+			data = nil
+		} else {
+			var identity string
+			if reader, ok := c.indexCache.(indexCacheRecordReader); ok {
+				c.cacheObservation = observeIndexRecord(ctx, reader, repoKey)
+				c.cacheReadAttempted = true
+				if record := c.cacheObservation.record; record != nil && bytes.Equal(data, record.Body) {
+					identity = record.URLIdentity
+				}
+			} else {
+				_, _, identity = sharedInMemoryValidators.getForResponse(repoKey, data)
+			}
+			if !c.matchesIndexRequest(ctx, identity) {
+				data = nil
 			}
 		}
 	}
 
+	if len(data) > 0 && (int64(len(data)) > maxIndexSize || (c.requireCompleteIndex || c.scopedByCreds) && validateIndexBody(data) != nil) {
+		data = nil
+	}
+
 	index := &Index{}
-	err := yaml.NewDecoder(bytes.NewBuffer(data)).Decode(index)
-	if err != nil {
-		return nil, fmt.Errorf("error decoding index: %w", err)
+	if len(data) > 0 {
+		if err := yaml.NewDecoder(bytes.NewReader(data)).Decode(index); err != nil {
+			data = nil
+		}
+	}
+	if len(data) == 0 {
+		start := time.Now()
+		data, err = c.loadRepoIndex(ctx, maxIndexSize)
+		if err != nil {
+			return nil, fmt.Errorf("error loading repo index: %w", err)
+		}
+		index = &Index{}
+		if err := yaml.NewDecoder(bytes.NewReader(data)).Decode(index); err != nil {
+			return nil, fmt.Errorf("error decoding index: %w", err)
+		}
+		log.WithFields(log.Fields{"seconds": time.Since(start).Seconds()}).Info("took to get index")
+
+		if c.indexCache != nil {
+			recorder, isRecorder := c.indexCache.(indexCacheRecorder)
+			retainedWriter, isRetainedWriter := c.indexCache.(indexCacheRetainedWriter)
+			_, isReader := c.indexCache.(indexCacheRecordReader)
+			_, isValidators := c.indexCache.(indexCacheWithValidators)
+			// The record API publishes body+validators in one atomic record —
+			// the writer path for caches implementing the record contract.
+			// The retained writer carries the fetch's URL identity, so later
+			// revalidations can re-send conditional headers for this record.
+			// Only legacy raw-body caches retain their original setter
+			// contract. A 304 keeps the previous generation: the record is
+			// still current, never republished.
+			if isRetainedWriter && !c.indexNotModified {
+				if err := retainedWriter.SetHelmIndexRetainedRecord(repoKey, c.fetchedIndexRecord(data)); err != nil {
+					log.WithError(err).Debug("failed to publish retained helm index record")
+				}
+			} else if isRecorder && !c.indexNotModified {
+				etag, modified := responseValidatorHeaders(c.lastValidators)
+				if err := recorder.SetHelmIndexRecord(repoKey, data, etag, modified); err != nil {
+					log.WithError(err).Debug("failed to publish helm index record")
+				}
+			} else if !isReader && !isRecorder && !isValidators && !c.indexNotModified {
+				if err := c.indexCache.SetHelmIndex(repoKey, data); err != nil {
+					log.WithError(err).Debug("failed to publish legacy helm index body")
+				}
+			}
+			if !isReader {
+				etag, modified := responseValidatorHeaders(c.lastValidators)
+				// Bind fallback validators only when the cache actually holds these bytes.
+				var cached []byte
+				if err := c.indexCache.GetHelmIndex(repoKey, &cached); err == nil && bytes.Equal(cached, data) {
+					sharedInMemoryValidators.setForResponse(repoKey, data, etag, modified, c.responseURLIdentity)
+				}
+			}
+		}
 	}
 
 	return index, nil
+}
+
+func (c *nativeHelmChart) fetchedIndexRecord(data []byte) *HelmIndexRecord {
+	etag, modified := responseValidatorHeaders(c.lastValidators)
+	return &HelmIndexRecord{Body: data, ETag: etag, LastModified: modified, URLIdentity: c.responseURLIdentity, StoredAt: time.Now().UTC().Format(time.RFC3339Nano)}
 }
 
 func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
@@ -385,6 +549,12 @@ func (c *nativeHelmChart) TestHelmOCI(ctx context.Context) (bool, error) {
 }
 
 func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64) ([]byte, error) {
+	c.indexNotModified = false
+	if !c.cacheReadAttempted {
+		c.cacheObservation = indexRecordObservation{}
+	}
+	c.responseURLIdentity = ""
+	c.lastValidators = nil
 	indexURL, err := getIndexURL(c.repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("error getting index URL: %w", err)
@@ -397,14 +567,67 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 
 	// Set User-Agent header to comply with robot policies
 	req.Header.Set("User-Agent", c.getUserAgent())
+	// Every fetch here requires origin validation. Without this directive a
+	// proxy could satisfy even a forced, unconditional GET from its own cache.
+	req.Header.Set("Cache-Control", "no-cache")
 
-	helmPassword, err := c.creds.GetPassword()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get password for helm registry: %w", err)
-	}
-	if c.creds.GetUsername() != "" || helmPassword != "" {
+	if c.creds.GetUsername() != "" || func() string { p, _ := c.creds.GetPassword(); return p }() != "" {
 		// only basic supported
-		req.SetBasicAuth(c.creds.GetUsername(), helmPassword)
+		req.SetBasicAuth(c.creds.GetUsername(), func() string { p, _ := c.creds.GetPassword(); return p }())
+	}
+
+	// Conditional GET: when validators (ETag / Last-Modified) from the
+	// previous successful fetch are known, revalidate instead of re-downloading.
+	// A 304 response lets us keep the cached body; validation failures remain
+	// errors. Cache keys use the scope of THIS operation's snapshot: the
+	// request authenticates with the snapshot's token, so it must read and
+	// publish under the snapshot's identity.
+	repoKey, err := c.cacheRepoKey(ctx)
+	if err != nil {
+		return nil, err
+	}
+	var cachedBody []byte
+	var cachedRecordETag, cachedRecordLastModified, cachedURLIdentity string
+	var retainedRecord, atomicReader bool
+	if c.indexCache != nil {
+		// Read the COMPLETE record in one call when the cache supports it:
+		// reading body and validators separately lets a concurrent replica
+		// publication slip a new validator in between, so a 304 would pair
+		// the new validator with the previous body.
+		if reader, ok := c.indexCache.(indexCacheRecordReader); ok {
+			atomicReader = true
+			if !c.cacheReadAttempted {
+				c.cacheObservation = observeIndexRecord(ctx, reader, repoKey)
+			}
+			if rec := c.cacheObservation.record; rec != nil && len(rec.Body) > 0 {
+				cachedBody = rec.Body
+				cachedRecordETag, cachedRecordLastModified, cachedURLIdentity = rec.ETag, rec.LastModified, rec.URLIdentity
+				retainedRecord = true
+			}
+		}
+		if !retainedRecord && !atomicReader {
+			if err := c.indexCache.GetHelmIndex(repoKey, &cachedBody); err != nil {
+				cachedBody = nil
+			}
+			cachedBody = bytes.Clone(cachedBody)
+		}
+		if len(cachedBody) > 0 && (int64(len(cachedBody)) > maxIndexSize || (c.requireCompleteIndex || c.scopedByCreds || atomicReader) && validateIndexBody(cachedBody) != nil) {
+			cachedBody = nil
+			retainedRecord = false
+			cachedRecordETag, cachedRecordLastModified = "", ""
+			cachedURLIdentity = ""
+		}
+
+		if len(cachedBody) > 0 {
+			etag, lastModified := cachedRecordETag, cachedRecordLastModified
+			if !retainedRecord {
+				// Split body/validator reads cannot establish a generation.
+				// Reuse only validators bound to these exact bytes by a
+				// successful publication in this process.
+				etag, lastModified, cachedURLIdentity = sharedInMemoryValidators.getForResponse(repoKey, cachedBody)
+			}
+			cachedRecordETag, cachedRecordLastModified = etag, lastModified
+		}
 	}
 
 	tlsConf, err := newTLSConfig(c.creds)
@@ -418,17 +641,142 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 		DisableKeepAlives: true,
 		ForceAttemptHTTP2: true,
 	}
-	client := http.Client{Transport: tr}
+	allowConditional := true
+	applyCondition := func(request *http.Request) error {
+		request.Header.Del("If-None-Match")
+		request.Header.Del("If-Modified-Since")
+		if allowConditional && len(cachedBody) > 0 && cachedURLIdentity != "" {
+			identity, err := c.indexURLIdentityContext(request.Context(), request.URL.String())
+			if err != nil {
+				return err
+			}
+			if identity == cachedURLIdentity {
+				applyConditionalHeaders(request, cachedRecordETag, cachedRecordLastModified)
+			}
+		}
+		return nil
+	}
+	if err := applyCondition(req); err != nil {
+		return nil, err
+	}
+	cacheableVariant := true
+	client := http.Client{Transport: tr, CheckRedirect: func(request *http.Request, via []*http.Request) error {
+		if len(via) >= 10 {
+			return errors.New("stopped after 10 redirects")
+		}
+		if request.Response != nil && !c.supportsIndexVary(request.Response.Header) {
+			cacheableVariant = false
+		}
+		return applyCondition(request)
+	}}
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("error making HTTP request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 
+	needURLIdentity := c.requireCompleteIndex || c.indexCache != nil
+	if needURLIdentity {
+		c.responseURLIdentity, err = c.indexURLIdentityContext(ctx, resp.Request.URL.String())
+		if err != nil {
+			return nil, err
+		}
+		if !cacheableVariant || !c.supportsIndexVary(resp.Header) {
+			c.responseURLIdentity = "unmatched-vary"
+		}
+	}
+	sentValidator := resp.Request.Header.Get("If-None-Match") != "" || resp.Request.Header.Get("If-Modified-Since") != ""
+	if resp.StatusCode == http.StatusNotModified && len(cachedBody) > 0 && sentValidator && c.responseURLIdentity == cachedURLIdentity && matchingNotModifiedETag(cachedRecordETag, singleResponseValidator(resp.Header, "ETag")) {
+		c.indexNotModified = true
+		log.Info("helm index not modified (HTTP 304), using cached body")
+		// Keep the request's validators when a 304 omits them. The owner can
+		// renew this generation atomically after the HTTP read completes.
+		if c.lastValidators == nil {
+			c.lastValidators = http.Header{}
+		}
+		if cachedRecordETag != "" {
+			c.lastValidators.Set("ETag", cachedRecordETag)
+		}
+		if cachedRecordLastModified != "" {
+			c.lastValidators.Set("Last-Modified", cachedRecordLastModified)
+		}
+		for _, name := range []string{"ETag", "Last-Modified"} {
+			if value := singleResponseValidator(resp.Header, name); value != "" {
+				c.lastValidators.Set(name, value)
+			}
+		}
+
+		// The fetch owner publishes the validated snapshot once.
+		return cachedBody, nil
+	}
+	if resp.StatusCode == http.StatusNotModified {
+		// A 304 requires both a usable body and a condition actually sent.
+		log.Debug("unusable helm index 304, retrying without validators")
+		allowConditional = false
+		clearValidators := req.Clone(ctx)
+		clearValidators.Header.Del("If-None-Match")
+		clearValidators.Header.Del("If-Modified-Since")
+		resp2, err := client.Do(clearValidators)
+		if err != nil {
+			return nil, fmt.Errorf("error making HTTP request: %w", err)
+		}
+		defer func() { _ = resp2.Body.Close() }()
+		if resp2.StatusCode == http.StatusOK {
+			data, err := c.readIndexResponse(resp2.Body, maxIndexSize)
+			if err != nil {
+				return nil, fmt.Errorf("error reading index response body: %w", err)
+			}
+			c.lastValidators = resp2.Header
+			if needURLIdentity {
+				c.responseURLIdentity, err = c.indexURLIdentityContext(ctx, resp2.Request.URL.String())
+				if err != nil {
+					return nil, err
+				}
+				if !cacheableVariant || !c.supportsIndexVary(resp2.Header) {
+					c.responseURLIdentity = "unmatched-vary"
+				}
+			}
+			return data, nil
+		}
+		return nil, errors.New("failed to get index: " + resp2.Status)
+	}
+
 	if resp.StatusCode != http.StatusOK {
 		return nil, errors.New("failed to get index: " + resp.Status)
 	}
-	return io.ReadAll(io.LimitReader(resp.Body, maxIndexSize))
+
+	data, err := c.readIndexResponse(resp.Body, maxIndexSize)
+	if err != nil {
+		return nil, fmt.Errorf("error reading index response body: %w", err)
+	}
+	c.lastValidators = resp.Header
+	// Validators are published by the CALLER together with the body: storing
+	// them here (before the body is in the cache) would let a later 304 pair
+	// a new validator with the previous body.
+	return data, nil
+}
+
+// Cache records and Helm snapshots must contain complete original responses.
+// Keep the legacy uncached parser's size-limited behavior for existing callers.
+func (c *nativeHelmChart) readIndexResponse(body io.Reader, maximum int64) ([]byte, error) {
+	strict := c.requireCompleteIndex || c.indexCache != nil
+	limit := maximum
+	if strict && maximum < 1<<63-1 {
+		limit++
+	}
+	data, err := io.ReadAll(io.LimitReader(body, limit))
+	if err != nil {
+		return nil, err
+	}
+	if strict && int64(len(data)) > maximum {
+		return nil, fmt.Errorf("helm repository index exceeds maximum size of %d bytes", maximum)
+	}
+	if c.requireCompleteIndex || c.scopedByCreds {
+		if err := validateIndexBody(data); err != nil {
+			return nil, err
+		}
+	}
+	return data, nil
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
@@ -507,12 +855,33 @@ func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache boo
 	}
 
 	tagsURL := strings.Replace(fmt.Sprintf("%s/%s", c.repoURL, chart), "https://", "", 1)
-	indexLock.Lock(tagsURL)
-	defer indexLock.Unlock(tagsURL)
+	operation, err := c.withResolvedCredentials(ctx)
+	if err != nil {
+		return nil, err
+	}
+	c = operation
+	tagsKey, err := c.cacheTagsKey(ctx, tagsURL)
+	if err != nil {
+		return nil, err
+	}
+
+	unlock, err := indexClientLocks.acquire(ctx, "tags\x00"+tagsKey)
+	if err != nil {
+		return nil, err
+	}
+	defer unlock()
 
 	var data []byte
 	if !noCache && c.indexCache != nil {
-		if err := c.indexCache.GetHelmIndex(tagsURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
+		// OCI tag lists keep their own keyspace and expiration policy: they
+		// are read via GetOCITags when the cache provides it, never inheriting
+		// the HTTP index's freshness window.
+		if tagsCache, ok := c.indexCache.(ociTagsCache); ok {
+			err = tagsCache.GetOCITags(tagsKey, &data)
+		} else {
+			err = c.indexCache.GetHelmIndex(tagsKey, &data)
+		}
+		if err != nil && !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("Failed to load index cache for repo: %s: %v", tagsURL, err)
 		}
 	}
@@ -596,7 +965,11 @@ func (c *nativeHelmChart) GetTags(ctx context.Context, chart string, noCache boo
 			if err != nil {
 				return nil, fmt.Errorf("failed to encode tags: %w", err)
 			}
-			if err := c.indexCache.SetHelmIndex(tagsURL, cacheData); err != nil {
+			if tagsCache, ok := c.indexCache.(ociTagsCache); ok {
+				if err := tagsCache.SetOCITags(tagsKey, cacheData); err != nil {
+					log.Warnf("Failed to store tags list cache for repo: %s: %v", tagsURL, err)
+				}
+			} else if err := c.indexCache.SetHelmIndex(tagsKey, cacheData); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %v", tagsURL, err)
 			}
 		}
