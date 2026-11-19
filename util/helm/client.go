@@ -806,9 +806,17 @@ func newTLSConfig(creds Creds) (*tls.Config, error) {
 			return nil, fmt.Errorf("error reading CA file %s: %w", creds.GetCAPath(), err)
 		}
 	}
+	if len(caData) == 0 && creds.GetCAPath() != "" {
+		// "Custom CA configured but empty" is a misconfiguration: falling
+		// back to system trust would broaden trust beyond the operator's
+		// intent. Fail closed instead.
+		return nil, fmt.Errorf("configured CA file %s is empty", creds.GetCAPath())
+	}
 	if len(caData) > 0 {
 		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caData)
+		if !caCertPool.AppendCertsFromPEM(caData) {
+			return nil, fmt.Errorf("CA file %s contains no valid certificates", creds.GetCAPath())
+		}
 		tlsConfig.RootCAs = caCertPool
 	}
 
