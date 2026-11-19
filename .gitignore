@@ -35,6 +35,4 @@ cmd/argocd-server/argocd-server
 
 # ignore generated `.argocd-helm-dep-up` marker file; this should not be committed to git
 reposerver/repository/testdata/**/.argocd-helm-dep-up
-# ignore temp copies created by reposerver tests (os.MkdirTemp("./testdata", "app-parameters"))
-reposerver/repository/testdata/app-parameters[0-9]*
 .claude
