@@ -43,6 +43,14 @@ type Creds interface {
 	GetInsecureSkipVerify() bool
 }
 
+// CACredentials is implemented by credentials that carry already-resolved CA
+// bytes (a snapshot). TLS must verify against those captured bytes rather
+// than rereading the path, so a rotated CA file cannot silently differ from
+// the identity the credential cache fingerprint was derived from.
+type CACredentials interface {
+	GetCAData() []byte
+}
+
 var _ Creds = HelmCreds{}
 
 type HelmCreds struct {
@@ -320,6 +328,10 @@ func (c credsSnapshot) GetUsername() string {
 
 func (c credsSnapshot) GetPassword() (string, error) {
 	return c.password, nil
+}
+
+func (c credsSnapshot) GetCAData() []byte {
+	return c.caData
 }
 
 func (c credsSnapshot) GetCAPath() string {

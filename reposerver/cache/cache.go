@@ -291,7 +291,26 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 	if err := c.cache.SetItem(helmIndexRefsKey(repo), record.Body, &cacheutil.CacheActionOpts{Expiration: c.helmIndexCacheExpiration}); err != nil {
 		return err
 	}
-	return c.cache.SetItem(helmIndexRecordKey(repo), record, &cacheutil.CacheActionOpts{Expiration: c.helmIndexCacheExpiration})
+	// The record must OUTLIVE the freshness window: once a record is stale it
+	// is revalidated by a conditional GET, which needs the stored body and
+	// validators. TTL equal to freshness would delete exactly when
+	// revalidation starts, turning every post-expiry check into a full 200.
+	return c.cache.SetItem(helmIndexRecordKey(repo), record, &cacheutil.CacheActionOpts{Expiration: helmIndexRecordRetention(c.helmIndexCacheExpiration)})
+}
+
+// helmIndexRecordRetention is how long a versioned record stays in Redis
+// after publication: the freshness window plus one window of revalidation
+// grace, floored at one hour so very short windows still get a usable
+// revalidation period.
+func helmIndexRecordRetention(freshness time.Duration) time.Duration {
+	if freshness <= 0 {
+		freshness = helm.DefaultIndexCacheExpiration
+	}
+	retention := 2 * freshness
+	if retention < time.Hour {
+		retention = time.Hour
+	}
+	return retention
 }
 
 func (c *Cache) GetHelmIndexRetainedRecord(repo string) (*HelmIndexRecord, error) {

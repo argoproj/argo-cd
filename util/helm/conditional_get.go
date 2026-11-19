@@ -166,12 +166,50 @@ type indexRecordObservation struct {
 // request deadline so one slow cache read cannot consume the whole budget.
 // The PR1 record reader has no context-aware variant; the bounded read is
 // enforced by the caller's context.
+// indexCacheReadBudget bounds one retained-record read so a slow backend
+// releases the per-key index lock instead of stalling the request past its
+// usable budget. Requests whose remaining time is shorter keep their own
+// deadline.
+const indexCacheReadBudget = 2 * time.Second
+
 func observeIndexRecord(ctx context.Context, reader indexCacheRecordReader, repo string) indexRecordObservation {
-	record, err := reader.GetHelmIndexRetainedRecord(repo)
-	if err != nil {
+	budget := indexCacheReadBudget
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining < budget {
+			budget = remaining
+		}
+	}
+	readCtx, cancel := context.WithTimeout(ctx, budget)
+	defer cancel()
+
+	if contextual, ok := reader.(indexCacheContextedReader); ok {
+		record, err := contextual.GetHelmIndexRetainedRecordContext(readCtx, repo)
+		if err != nil {
+			return indexRecordObservation{}
+		}
+		return indexRecordObservation{record: record}
+	}
+
+	// Caches without a context-aware read still get the budget: abandon the
+	// read when the budget expires (the underlying read finishes on its own;
+	// its result is simply dropped).
+	type outcome struct {
+		record *HelmIndexRecord
+	}
+	done := make(chan outcome, 1)
+	go func() {
+		record, err := reader.GetHelmIndexRetainedRecord(repo)
+		if err != nil {
+			record = nil
+		}
+		done <- outcome{record: record}
+	}()
+	select {
+	case res := <-done:
+		return indexRecordObservation{record: res.record}
+	case <-readCtx.Done():
 		return indexRecordObservation{}
 	}
-	return indexRecordObservation{record: record}
 }
 
 // IndexURLIdentity binds the default request profile and effective URL without

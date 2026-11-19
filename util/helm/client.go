@@ -791,11 +791,22 @@ func (c *nativeHelmChart) readIndexResponse(body io.Reader, maximum int64) ([]by
 func newTLSConfig(creds Creds) (*tls.Config, error) {
 	tlsConfig := &tls.Config{InsecureSkipVerify: creds.GetInsecureSkipVerify()}
 
-	if creds.GetCAPath() != "" {
-		caData, err := os.ReadFile(creds.GetCAPath())
+	// Prefer CA bytes already resolved on a credential snapshot: the cache
+	// fingerprint captured those exact bytes, so TLS must verify against
+	// them — rereading the path could rotate the CA under the cached
+	// identity.
+	var caData []byte
+	if caCreds, ok := creds.(CACredentials); ok {
+		caData = caCreds.GetCAData()
+	}
+	if len(caData) == 0 && creds.GetCAPath() != "" {
+		var err error
+		caData, err = os.ReadFile(creds.GetCAPath())
 		if err != nil {
 			return nil, fmt.Errorf("error reading CA file %s: %w", creds.GetCAPath(), err)
 		}
+	}
+	if len(caData) > 0 {
 		caCertPool := x509.NewCertPool()
 		caCertPool.AppendCertsFromPEM(caData)
 		tlsConfig.RootCAs = caCertPool
