@@ -20,6 +20,8 @@ jest.mock('./ui-banner/ui-banner', () => ({
 describe('App layout', () => {
     let app: typeof import('./app');
 
+    const matchMedia = window.matchMedia;
+
     beforeAll(() => {
         // jsdom lacks matchMedia; the theme hooks read it for the 'auto' theme.
         window.matchMedia = jest.fn().mockReturnValue({matches: false, addEventListener: jest.fn(), removeEventListener: jest.fn()});
@@ -31,6 +33,11 @@ describe('App layout', () => {
     });
 
     afterEach(cleanup);
+
+    afterAll(() => {
+        jest.restoreAllMocks();
+        window.matchMedia = matchMedia;
+    });
 
     it('keeps the sidebar and banner mounted across sections and updates the active item', async () => {
         app.history.replace('/applications');

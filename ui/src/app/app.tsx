@@ -169,6 +169,7 @@ export class App extends React.Component<
     private routes: Routes;
     private popupPropsSubscription: Subscription;
     private unauthorizedSubscription: Subscription;
+    private systemLevelListener = this.onAddSystemLevelExtension.bind(this);
 
     constructor(props: {}) {
         super(props);
@@ -189,7 +190,7 @@ export class App extends React.Component<
         this.routes = routes;
         this.popupPropsSubscription = null;
         this.unauthorizedSubscription = null;
-        services.extensions.addEventListener('systemLevel', this.onAddSystemLevelExtension.bind(this));
+        services.extensions.addEventListener('systemLevel', this.systemLevelListener);
     }
 
     public componentDidMount() {
@@ -260,6 +261,7 @@ export class App extends React.Component<
     }
 
     public componentWillUnmount() {
+        services.extensions.removeEventListener('systemLevel', this.systemLevelListener);
         if (this.popupPropsSubscription) {
             this.popupPropsSubscription.unsubscribe();
         }
