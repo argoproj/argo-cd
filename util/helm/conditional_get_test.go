@@ -95,6 +95,16 @@ func TestSingleResponseValidator(t *testing.T) {
 	header.Add("ETag", `"a"`)
 	header.Add("ETag", `"b"`)
 	assert.Equal(t, "invalid-multiple-ETag", singleResponseValidator(header, "ETag"))
+
+	// Map-style assignment under a canonically-cased key must also be
+	// detected: Go only exposes it through the canonical key.
+	header = http.Header{}
+	header[http.CanonicalHeaderKey("ETag")] = []string{`"a"`, `"b"`}
+	assert.Equal(t, "invalid-multiple-ETag", singleResponseValidator(header, "ETag"))
+
+	header = http.Header{}
+	header[http.CanonicalHeaderKey("ETag")] = []string{`"a"`}
+	assert.Equal(t, `"a"`, singleResponseValidator(header, "ETag"))
 }
 
 func TestSupportsIndexVary(t *testing.T) {
