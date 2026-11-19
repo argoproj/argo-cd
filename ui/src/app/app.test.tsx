@@ -54,4 +54,16 @@ describe('App layout', () => {
         // A remounted sidebar would refetch the version (default staleTime 0).
         expect(services.version.version).toHaveBeenCalledTimes(versionCalls);
     });
+
+    it('renders a system-level extension registered after startup inside the layout', async () => {
+        app.history.replace('/applications');
+        render(<app.App />);
+        expect(await screen.findByText('applications page')).toBeInTheDocument();
+
+        act(() => (window as any).extensionsAPI.registerSystemLevelExtension(() => <div>extension page</div>, 'My Extension', '/my-extension', 'fa-star'));
+        act(() => app.history.push('/my-extension'));
+
+        expect(await screen.findByText('extension page')).toBeInTheDocument();
+        expect(screen.getByRole('link', {name: 'My Extension'})).toHaveAttribute('aria-current', 'page');
+    });
 });

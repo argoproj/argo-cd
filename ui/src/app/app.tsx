@@ -363,20 +363,20 @@ export class App extends React.Component<
                                                     render={() => (
                                                         <AppLayout navItems={this.navItems} onVersionClick={() => this.setState({showVersionPanel: true})}>
                                                             <Switch>
-                                                                {layoutPaths.map(path => (
-                                                                    <Route
-                                                                        key={path}
-                                                                        path={path}
-                                                                        render={routeProps => {
-                                                                            const Component = this.routes[path].component;
-                                                                            return (
+                                                                {layoutPaths.map(path => {
+                                                                    const Component = this.routes[path].component;
+                                                                    return (
+                                                                        <Route
+                                                                            key={path}
+                                                                            path={path}
+                                                                            render={routeProps => (
                                                                                 <PageSuspense>
                                                                                     <Component {...routeProps} />
                                                                                 </PageSuspense>
-                                                                            );
-                                                                        }}
-                                                                    />
-                                                                ))}
+                                                                            )}
+                                                                        />
+                                                                    );
+                                                                })}
                                                             </Switch>
                                                         </AppLayout>
                                                     )}
