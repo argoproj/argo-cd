@@ -114,6 +114,7 @@ func (e *legacyEngine) sync() (err error) {
 	namespacedResources := make(map[schema.GroupKind]bool)
 	defer c.namespacedResources.Store(&namespacedResources)
 	c.parentUIDToChildren = make(map[types.UID]map[kube.ResourceKey]struct{})
+	c.customParentToChildren = make(map[kube.ResourceKey]map[kube.ResourceKey]struct{})
 	syncLock.Unlock()
 	config := c.config
 	version, err := c.kubectl.GetServerVersion(config)

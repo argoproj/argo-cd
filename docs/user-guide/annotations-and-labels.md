@@ -23,6 +23,10 @@ label. For example `#sync-wave` for `argocd.argoproj.io/sync-wave`, or `#notice-
 | [`argocd.argoproj.io/installation-id`](#installation-id)                                         | any                         | Identifies the Argo CD instance managing the resource.                       |
 | [`argocd.argoproj.io/managed-by-url`](#managed-by-url)                                           | Application                 | URL of the Argo CD instance managing the Application.                        |
 | [`argocd.argoproj.io/manifest-generate-paths`](#manifest-generate-paths)                         | Application                 | Limits which repository paths trigger a refresh.                             |
+| [`argocd.argoproj.io/parentApiVersion`](#parent-api-version)                                      | any                         | API version of an additional custom parent (Alpha).                         |
+| [`argocd.argoproj.io/parentKind`](#parent-kind)                                                  | any                         | Kind of an additional custom parent (Alpha).                                |
+| [`argocd.argoproj.io/parentName`](#parent-name)                                                  | any                         | Name of an additional custom parent (Alpha).                                |
+| [`argocd.argoproj.io/parentNamespace`](#parent-namespace)                                        | any                         | Namespace of an additional custom parent (Alpha).                           |
 | [`argocd.argoproj.io/refresh`](#refresh)                                                         | Application                 | Requests a refresh of an Application.                                        |
 | [`argocd.argoproj.io/refresh-timestamp`](#refresh-timestamp)                                     | Application                 | Identifies a particular refresh request. Not set manually.                   |
 | [`argocd.argoproj.io/skip-reconcile`](#skip-reconcile)                                           | Application, Cluster Secret | Skips reconciliation.                                                        |
@@ -172,6 +176,39 @@ applications managed by a different Argo CD instance. See
 Used to avoid unnecessary Application refreshes, especially in mono-repos. On Applications with
 `spec.sourceHydrator`, also controls whether dry-source commits trigger hydration; see
 [source hydrator docs](source-hydrator.md#manifest-generate-paths) for git note implications.
+
+### `argocd.argoproj.io/parentApiVersion` { #parent-api-version }
+
+- **Target resource(s):** any
+- **Possible values:** a Kubernetes API version, such as `v1` or `example.com/v1`
+
+Sets the API version of an additional display parent (Alpha). Must be combined with
+`parentKind` and `parentName`. See [custom parent/child relationships](resource_tracking.md#custom-parentchild-relationships-alpha).
+
+### `argocd.argoproj.io/parentKind` { #parent-kind }
+
+- **Target resource(s):** any
+- **Possible values:** a Kubernetes resource kind
+
+Sets the kind of an additional display parent (Alpha), together with `parentApiVersion`
+and `parentName`. Existing Kubernetes owner references remain in effect.
+
+### `argocd.argoproj.io/parentName` { #parent-name }
+
+- **Target resource(s):** any
+- **Possible values:** the parent resource's name
+
+Sets the name of an additional display parent (Alpha), together with `parentApiVersion`
+and `parentKind`. These annotations do not grant sync or prune ownership.
+
+### `argocd.argoproj.io/parentNamespace` { #parent-namespace }
+
+- **Target resource(s):** any
+- **Possible values:** a namespace name, or `""` for a cluster-scoped parent
+
+Sets the namespace of an additional display parent (Alpha). Omit it to use the child's
+namespace. See [custom parent/child relationships](resource_tracking.md#custom-parentchild-relationships-alpha)
+for a complete example and watch restrictions.
 
 ### `argocd.argoproj.io/refresh` { #refresh }
 
