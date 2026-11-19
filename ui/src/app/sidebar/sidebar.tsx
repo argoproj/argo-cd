@@ -33,7 +33,11 @@ export const useSidebarTarget = () => {
 
 export const Sidebar = (props: SidebarProps) => {
     const context = React.useContext(Context);
-    const {data: version, isPending, isFetching} = useQuery({
+    const {
+        data: version,
+        isPending,
+        isFetching
+    } = useQuery({
         ...versionQueries.get(),
         initialData: () => services.version.getCachedVersion?.() ?? undefined
     });
