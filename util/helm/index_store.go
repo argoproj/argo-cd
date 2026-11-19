@@ -511,10 +511,6 @@ func (v retainedIndexView) GetHelmIndexValidators(string) (string, string, error
 }
 func (v retainedIndexView) SetHelmIndexValidators(string, string, string) error { return nil }
 
-func (s *IndexStore) retainedRecord(identity string) (*HelmIndexRecord, bool) {
-	return s.observeRetainedRecord(context.Background(), identity, nil)
-}
-
 func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string, rejectedDigest *string) (*HelmIndexRecord, bool) {
 	var newest *HelmIndexRecord
 	var persistedStoredAt string
