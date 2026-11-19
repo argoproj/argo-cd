@@ -199,11 +199,20 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 		prepared = append(prepared, preparedIndex{url: repo.Repo, name: repo.Name, identity: identity, body: data})
 		if h.cmd.persistentIndexStore.FilterEnabled {
 			// Private snapshot only: disk/shared records keep the full index.
-			names, err := dependencyNamesByRepository(ctx, h.cmd.WorkDir, h.repos)
+			// Group dependency names under the SAME scoped identity the store
+			// lookup uses — dependencyNamesByRepository is credential-blind,
+			// so its unscoped keys must be translated here; matching raw
+			// unscoped identities against scoped ones silently disabled the
+			// whole filter.
+			allNames, err := dependencyNamesByRepository(ctx, h.cmd.WorkDir, h.repos)
 			if err != nil {
 				return fmt.Errorf("collect helm dependencies for %s: %w", repo.Repo, err)
 			}
-			if wanted := names[identity]; len(wanted) > 0 {
+			unscopedIdentity, err := scopedIndexIdentityContext(ctx, repo.Repo, "", h.cmd.proxy, h.cmd.noProxy)
+			if err != nil {
+				return fmt.Errorf("resolve dependency repository identity for %s: %w", repo.Repo, err)
+			}
+			if wanted := allNames[unscopedIdentity]; len(wanted) > 0 {
 				filtered, replaced, err := dependencyIndexes.snapshot(data, wanted)
 				if err != nil {
 					return fmt.Errorf("filter helm index for %s: %w", repo.Repo, err)
@@ -257,12 +266,36 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 	_, err := h.cmd.dependencyBuild(ctx, h.insecure, plainHTTP, useStore)
 	filteredSnapshot := useStore && h.cmd.persistentIndexStore.FilterEnabled
 	if err != nil && filteredSnapshot && isIndexSnapshotError(err) {
-		// The filtered private snapshot may itself be the problem (projection
-		// dropped a version Helm selects differently). One fallback restores
-		// the FULL original into the private home and retries the build.
-		log.WithError(err).Warn("retrying Helm dependency build with the full index after filtered snapshot miss")
+		// A filtered snapshot can miss for two different reasons: the
+		// projection dropped a version Helm selects differently (snapshot
+		// error), or the snapshot was rendered from a STALE index while the
+		// origin published a new one (version-lookup error). The first needs
+		// only the full original; the second needs revalidation, otherwise
+		// the fallback would retry the same stale bytes forever. Revalidate
+		// each miss against the origin and publish the fresh body BEFORE
+		// restoring full indexes, so the retry cannot repeat the stale miss.
+		revalidated := make(map[string][]byte)
+		if isIndexVersionLookupError(err) {
+			for _, index := range prepared {
+				if fetched[index.identity] || revalidated[index.identity] != nil || !missingDependencyVersion(h.cmd.WorkDir, index.url, aliases, index.body) {
+					continue
+				}
+				body, _, refreshErr := h.cmd.persistentIndexStore.revalidate(ctx, index.identity, clients[index.identity], true)
+				if refreshErr != nil {
+					return fmt.Errorf("revalidate Helm index after filtered snapshot version miss (%w): %w", err, refreshErr)
+				}
+				revalidated[index.identity] = body
+			}
+		}
 		for _, index := range prepared {
-			if installErr := h.cmd.installIndexes(index.url, index.body, index.name, true); installErr != nil {
+			// Publish the revalidated body when available; the stale snapshot
+			// bytes (index.body) are only a last resort for identities the
+			// revalidation pass could not refresh.
+			body := revalidated[index.identity]
+			if body == nil {
+				body = index.body
+			}
+			if installErr := h.cmd.installIndexes(index.url, body, index.name, true); installErr != nil {
 				return fmt.Errorf("restore full Helm index after filtered snapshot failure (%w): %w", err, installErr)
 			}
 		}

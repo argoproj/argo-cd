@@ -290,6 +290,15 @@ func (s *IndexStore) publishRecord(repoURL string, rec *indexRecord) error {
 
 	file := s.cacheFileName(repoURL)
 
+	// Reserve the record slot BEFORE preparing the replacement: once the new
+	// body is ready, publication must be rename-only. Invalidating this late
+	// (after CreateTemp) would let a temp-file failure leave the build that
+	// fetched record B holding fresh bytes while record A stays installed —
+	// the next ordinary build would silently roll back to A.
+	if err := writeIndexRecordState(file, ""); err != nil {
+		return fmt.Errorf("invalidate previous helm index record: %w", err)
+	}
+
 	tmp, err := os.CreateTemp(s.dir, filepath.Base(file)+".tmp-*")
 	if err != nil {
 		return fmt.Errorf("failed to create temp file for helm index cache: %w", err)
@@ -311,9 +320,6 @@ func (s *IndexStore) publishRecord(repoURL string, rec *indexRecord) error {
 	}
 	if err := os.Chtimes(tmpName, validatedAt, validatedAt); err != nil {
 		return err
-	}
-	if err := writeIndexRecordState(file, ""); err != nil {
-		return fmt.Errorf("invalidate previous helm index record: %w", err)
 	}
 	if err := s.renameRecord(tmpName, file); err != nil {
 		return fmt.Errorf("failed to install helm index cache file: %w", err)

@@ -108,7 +108,10 @@ func (c *indexSnapshotCache) projection(data []byte) (*indexProjection, error) {
 		return nil, errors.New("index exceeds snapshot cache budget")
 	}
 	digest := sha256.Sum256(data)
-	if err, failed := c.failures[digest]; failed {
+	c.mu.Lock()
+	err, failed := c.failures[digest]
+	c.mu.Unlock()
+	if failed {
 		return nil, err
 	}
 	result := c.get(digest)
@@ -126,7 +129,6 @@ func (c *indexSnapshotCache) projection(data []byte) (*indexProjection, error) {
 				entry = &indexProjectionResult{err: errors.New("projected index exceeds snapshot cache budget"), size: 128}
 			}
 			c.mu.Lock()
-			defer c.mu.Unlock()
 			if entry.err != nil {
 				c.failures[digest] = entry.err
 			} else if entry.size <= c.limit {
@@ -136,6 +138,7 @@ func (c *indexSnapshotCache) projection(data []byte) (*indexProjection, error) {
 				c.entries.Add(digest, entry)
 				c.used += entry.size
 			}
+			c.mu.Unlock()
 			return entry, nil
 		})
 		result = value.(*indexProjectionResult)
