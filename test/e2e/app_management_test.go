@@ -308,8 +308,9 @@ func TestGetAppResource(t *testing.T) {
 func TestAppEvents(t *testing.T) {
 	ctx := Given(t)
 
+	// guestbook-logs runs one replica, so the deployment controller records a ScalingReplicaSet event for the Deployment
 	ctx.
-		Path(guestbookPath).
+		Path("guestbook-logs").
 		When().
 		CreateApp().
 		Sync().
