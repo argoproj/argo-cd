@@ -1,4 +1,4 @@
-const pattern = /^(.*):((?:[a-zA-Z0-9._-]|\$(?:\w+|\{[^}]*\}))*)$/;
+const pattern = /^(.*):((?:[a-zA-Z0-9._-]|\$(?:\w|\{[^}]*\}))*)$/;
 
 export interface Image {
     name: string;

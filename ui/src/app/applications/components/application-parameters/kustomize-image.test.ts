@@ -1,4 +1,7 @@
 import {format, parse} from './kustomize-image';
+import {execFileSync} from 'child_process';
+import {readFileSync} from 'fs';
+import {ModuleKind, transpileModule} from 'typescript';
 
 test('parse image version override', () => {
     const image = parse('foo/bar:v1.0.0');
@@ -49,4 +52,12 @@ test.each([
     expect(image.newTag).toBe(newTag);
     expect(format(image)).toBe(value);
     expect(format({...image, newTag: '2'})).toBe(newName ? `${name}=${newName}:2` : `${name}:2`);
+});
+
+test.each(['nginx:' + '$AA'.repeat(32) + '!', 'nginx:$' + 'a0$'.repeat(32) + '!'])('bounds parsing time for malformed repeated variables in %s', value => {
+    const source = readFileSync(require.resolve('./kustomize-image'), 'utf8');
+    const compiled = transpileModule(source, {compilerOptions: {module: ModuleKind.CommonJS}}).outputText;
+    const script = `(function(exports) { ${compiled}\nprocess.stdout.write(JSON.stringify(exports.parse(${JSON.stringify(value)}))); })({});`;
+    const output = execFileSync(process.execPath, ['-e', script], {encoding: 'utf8', timeout: 2000, killSignal: 'SIGKILL'});
+    expect(JSON.parse(output)).toEqual({name: value});
 });
