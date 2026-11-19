@@ -44,12 +44,12 @@ spec:
 status:
   conditions:
     - lastTransitionTime: "2021-11-12T18:40:00Z"
-      message: Successfully generated parameters for all Applications
+      message: All applications have been generated successfully
       reason: ApplicationSetUpToDate
       status: "False"
       type: ErrorOccurred
     - lastTransitionTime: "2021-11-12T18:40:00Z"
-      message: Successfully generated parameters for all Applications
+      message: All parameters have been generated successfully
       reason: ParametersGenerated
       status: "True"
       type: ParametersGenerated

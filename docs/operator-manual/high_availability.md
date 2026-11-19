@@ -38,6 +38,37 @@ the appropriate tool.
   and might fail. To avoid failed syncs use the `ARGOCD_GIT_ATTEMPTS_COUNT` environment variable to retry failed
   requests.
 
+* For repositories with very large ref advertisements, enable `--git-ls-remote-optimized` to resolve `HEAD`, branches,
+  and tags with protocol v2 server-side narrowing. For each optimized cache refresh, one cache-lock owner runs
+  `git -c protocol.version=2 ls-remote --heads --tags` and a targeted
+  `git -c protocol.version=2 fetch --dry-run --porcelain --no-tags --depth=1 --filter=tree:0 <repository> HEAD` from a
+  temporary bare repository.
+  The results are stored together, so concurrent `HEAD` requests share the same two-query cache fill. The dry-run fetch
+  uses a bounded set of `HEAD`-related ref prefixes with protocol v2 servers. Because Git still transfers a pack during
+  a dry-run, `--depth=1` prevents full-history transfer and `--filter=tree:0` omits trees and blobs when the server
+  supports object filtering. The temporary repository is removed after the query. If either optimized query fails,
+  Argo CD uses the default go-git resolver as a last resort. This fallback can require another full remote listing, so
+  disable the optimization if native queries fail persistently. Unsupported refs, including GitHub pull request refs such
+  as `refs/pull/<pr-number>/head` and GitLab merge request refs such as `refs/merge-requests/<mr-number>/head`, continue
+  to use the default resolver directly. See
+  [Use Fully Qualified Git References](#use-fully-qualified-git-references) for related `targetRevision` guidance.
+
+  > [!WARNING]
+  > `--filter=tree:0` limits object transfer only when the Git server supports partial-fetch object filtering. On
+  > self-hosted servers, enable [`uploadpack.allowFilter`](https://git-scm.com/docs/git-config#Documentation/git-config.txt-uploadpackallowFilter)
+  > and ensure `tree` filters are allowed before enabling this optimization. Otherwise, Git ignores the filter and the
+  > targeted `HEAD` query may transfer the complete tip tree on every revision-cache refresh. Argo CD logs a warning
+  > when Git reports that the filter was ignored.
+
+  > [!NOTE]
+  > `--git-ls-remote-optimized` is a global repo-server flag. Configure it consistently across all repo-server replicas.
+  > During a rolling update, the optimized and default resolvers use separate cache entries, so mutable refs might briefly
+  > resolve from snapshots captured at different times.
+
+  > [!NOTE]
+  > The heads/tags query and targeted `HEAD` query run concurrently, and each receives the configured Git request timeout.
+  > The optimized cache refresh can therefore wait up to one Git request timeout before falling back to the default resolver.
+
 * `argocd-repo-server` Every 3m (by default) Argo CD checks for changes to the app manifests. Argo CD assumes by default
   that manifests only change when the repo changes, so it caches the generated manifests (for 24h by default). With
   Kustomize remote bases, or in case a Helm chart gets changed without bumping its version number, the expected
@@ -112,6 +143,24 @@ get the actual cluster state.
   > [!NOTE]
   > Restart the argocd-application-controller to apply this change. You can do so by running
   > `kubectl rollout restart -n argocd statefulset argocd-application-controller`
+
+* Every full reconciliation stamps `status.reconciledAt` on the Application, so a large fleet writes to the API server
+  once per app per reconciliation even when nothing about the app has changed. Set
+  `controller.reconciled.at.heartbeat` in the `argocd-cmd-params-cm` ConfigMap (a
+  [duration string](https://pkg.go.dev/time#ParseDuration), e.g. `10m`) to bound how stale that one field may become
+  instead: a reconciliation that changes nothing else then writes nothing at all, and at N apps with a reconciliation
+  timeout of R the writes drop from N/R to roughly N/heartbeat. The heartbeat must be longer than R to reduce writes.
+  The controller still tracks the real reconcile time in memory, so refresh scheduling is unaffected, and
+  `reconciledAt` is always written on a requested refresh or when it would otherwise trail the last sync, keeping
+  `argocd app wait`, notifications and progressive sync accurate. The default, `0`, writes the field on every
+  reconciliation.
+
+    > [!NOTE]
+    > The trade-off is visibility: while a heartbeat is configured, the `reconciledAt` field you see on an Application
+    > may lag behind the last reconciliation by up to that duration. The controller also stores the time in Redis, so
+    > apps that move between shards keep it. After a restart, apps without a time cached in Redis from within the last R
+    > have their first refresh spread randomly over R, as in steady state. After that first R, if Redis is unavailable,
+    > apps that move between shards and whose `reconciledAt` is older than R are refreshed at once.
 
 * If the controller is managing too many clusters and uses too much memory then you can shard clusters across multiple
   controller replicas. To enable sharding, increase the number of replicas in `argocd-application-controller`
@@ -365,12 +414,11 @@ Similarly, applications referencing an external Helm values file will not get th
 unrelated change happens in the external source.
 
 > [!NOTE]
-> The Git-history comparison described above is skipped for repositories configured with shallow cloning (`depth` greater
-> than `0`). In that case, Argo CD may not have enough history to compare the previous synced revision with the new
-> revision, so it treats the application as potentially changed and proceeds with normal refresh and manifest generation.
-> This does not affect webhook payload filtering, which uses the changed files reported by the webhook event. The
-> annotation can also still be used to calculate a common root path and reduce the repository content sent to a Config
-> Management Plugin sidecar when `--plugin-use-manifest-generate-paths` is enabled.
+> The comparison also works with shallow cloning (`depth` greater than `0`). Argo CD fetches the previously synced commit
+> at the configured depth and compares it directly with the new commit. This requires the Git server to allow fetching
+> commits by SHA (for self-hosted servers, `uploadpack.allowReachableSHA1InWant` or `uploadpack.allowAnySHA1InWant`).
+> If that fetch fails, Argo CD treats the application as changed and regenerates manifests, retrying the fetch on each
+> refresh.
 
 For webhooks, the comparison is done using the files specified in the webhook event payload instead.
 
@@ -498,12 +546,45 @@ When disabled, the webhook handler will only trigger reconciliation for applicat
 will skip all Redis cache operations for unaffected applications. This is the recommended setting for large monorepos
 with plain YAML manifests.
 
-**Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: true` on the repository via the
-ArgoCD CLI or UI:
+**Per-repository setting (recommended)**: set `webhookManifestCacheWarmDisabled: "true"` in the repository Secret.
+If you manage repositories [declaratively](declarative-setup.md#repositories), add the key to the Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://github.com/org/repo.git
+  webhookManifestCacheWarmDisabled: "true"
+```
+
+To change an existing repository Secret in place, patch it:
 
 ```bash
-argocd repo edit https://github.com/org/repo.git --webhook-manifest-cache-warm-disabled
+kubectl -n argocd patch secret my-repo --type merge -p '{"stringData":{"webhookManifestCacheWarmDisabled":"true"}}'
 ```
+
+The option can also be set with the CLI when adding a repository:
+
+```bash
+argocd repo add https://github.com/org/repo.git --webhook-manifest-cache-warm-disabled
+```
+
+> [!WARNING]
+> There is no `argocd repo edit` command. To change an existing repository with the CLI, you must run
+> `argocd repo add --upsert` and pass **all** of the repository's settings again, including its credentials. `--upsert`
+> replaces the stored repository configuration, so any credentials or options you leave out are removed.
+>
+> ```bash
+> argocd repo add https://github.com/org/repo.git --upsert \
+>   --username <username> --password <password> \
+>   --webhook-manifest-cache-warm-disabled
+> ```
 
 **Global setting**: to disable cache warming for all repositories, set the following environment variable on
 `argocd-server`:
@@ -789,9 +870,3 @@ type: Opaque
 > You can use the `argocd repo add <repo-url> --depth` command to add a repository with shallow cloning enabled.
 
 When shallow cloning, the repository is cloned with a depth of 1, which means only the required commit is cloned as opposed to the full history. This approach makes sense when the repository has a large history.
-
-> [!NOTE]
-> Shallow cloning disables the non-webhook Git-history comparison optimization provided by the
-> `argocd.argoproj.io/manifest-generate-paths` annotation. If you rely on that annotation to avoid unnecessary refreshes
-> without webhooks, use a full clone (`depth: "0"` or omit `depth`) for that repository. Webhook payload filtering and
-> Config Management Plugin sidecar path narrowing can still use the annotation with shallow clones.

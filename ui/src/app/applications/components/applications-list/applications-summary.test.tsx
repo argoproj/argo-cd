@@ -3,6 +3,7 @@ import * as React from 'react';
 
 import {ClusterCtx} from '../../../shared/components';
 import * as models from '../../../shared/models';
+import {computeAppsListStats} from './applications-list-stats';
 import {ApplicationsSummary} from './applications-summary';
 
 jest.mock('react-svg-piechart', () => ({default: () => null}));
@@ -21,7 +22,7 @@ const application = (destination: models.ApplicationDestination) =>
 const renderSummary = (clusters: Promise<models.Cluster[]>, applications: models.Application[]) =>
     render(
         <ClusterCtx.Provider value={clusters}>
-            <ApplicationsSummary applications={applications} />
+            <ApplicationsSummary stats={computeAppsListStats(applications)} />
         </ClusterCtx.Provider>
     );
 

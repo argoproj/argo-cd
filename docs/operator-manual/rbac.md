@@ -78,6 +78,7 @@ Below is a table that summarizes all possible resources and which actions are va
 | **clusters**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
 | **projects**        | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
 | **repositories**    | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
+| **write-repositories** | ✅  |   ✅   |   ✅   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
 | **accounts**        | ✅  |   ❌   |   ✅   |   ❌   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
 | **certificates**    | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |
 | **gpgkeys**         | ✅  |   ✅   |   ❌   |   ✅   |  ❌  |    ❌    |   ❌   |    ❌    |   ❌   |

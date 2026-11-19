@@ -109,9 +109,9 @@ Proposed changes don't expand the scope of the application CRD and don't introdu
 ### Risks and Mitigations
 
 The execution of a synchronization operation is carried out in phases, which involve a series of Kubernetes API calls and typically take up to a few seconds.
-There is no easy way to terminate the operation during the phase. So the operation might take few seconds longer than the specified timeout. It does not seems
-reasonable to implement a more complex logic to terminate the operation during the phase. So it is proposed to just document that the operation might be terminated
-few seconds after the timeout is reached.
+There is no easy way to terminate the operation in the middle of a phase, so the operation might take a few seconds longer than the specified timeout. It does not seem
+reasonable to implement more complex logic to terminate the operation mid-phase, so the proposal is to document that the operation might be terminated
+a few seconds after the timeout is reached.
 
 ### Upgrade / Downgrade Strategy
 
@@ -119,7 +119,7 @@ The proposed changes don't require any special upgrade/downgrade strategy. The n
 
 ## Drawbacks
 
-Slight increase of the application syncrhonization logic complexity.
+Slightly increases the complexity of the application synchronization logic.
 
 ## Alternatives
 

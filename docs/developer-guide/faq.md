@@ -4,7 +4,7 @@
 
 ### Can I discuss my contribution ideas somewhere?
 
-Sure thing! You can either open an Enhancement Proposal in our GitHub issue tracker or you can [join us on Slack](https://argoproj.github.io/community/join-slack) in channel #argo-contributors to discuss your ideas and get guidance for submitting a PR.
+Sure thing! You can either open an Enhancement Proposal in our GitHub issue tracker or you can [join us on Slack](https://argoproj.github.io/community/join-slack) in channel `#argo-cd-contributors` to discuss your ideas and get guidance for submitting a PR.
 
 > [!NOTE]
 > Regular [contributor meetings](https://argo-cd.readthedocs.io/en/latest/developer-guide/code-contributions/#regular-contributor-meeting) are held weekly. Please follow the link for more details.
