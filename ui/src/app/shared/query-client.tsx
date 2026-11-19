@@ -32,11 +32,7 @@ export function loadFailed(retry: () => void) {
     return (
         <p style={{padding: '0.5em', textAlign: 'center'}}>
             Failed to load data, please{' '}
-            <button
-                type='button'
-                className='query-retry'
-                style={{background: 'none', border: 0, padding: 0, font: 'inherit', color: 'inherit', textDecoration: 'underline', cursor: 'pointer'}}
-                onClick={() => retry()}>
+            <button type='button' className='query-retry' onClick={() => retry()}>
                 try again
             </button>
             .
