@@ -37,8 +37,13 @@ i.utils-health-status-icon {
     display: inline;
     border-radius: 5px;
     vertical-align: middle;
-    padding: 2px;
-    border: 1px solid $argo-color-gray-5;
+    // Draw the ring with an outline instead of a border + padding. A border and
+    // padding grow the icon's box, pushing it out of vertical alignment with the
+    // adjacent status icons that have no ring (e.g. the "Sync OK" check rendering
+    // lower than the "Synced" check). An outline is painted outside the box and
+    // never affects layout.
+    outline: 1px solid $argo-color-gray-5;
+    outline-offset: 2px;
     &:hover {
         background-color: $argo-color-gray-4;
     }
