@@ -3139,7 +3139,7 @@ func (s *Server) ServerSideDiff(ctx context.Context, q *application.ApplicationS
 		WithManager(argocommon.ArgoCDSSAManager).
 		WithServerSideDiff(true).
 		WithServerSideDryRunner(dryRunner).
-		WithOpenAPISchemaResolver(s.kubectl.NewOpenAPISchemaResolver(clusterConfig)).
+		WithOpenAPISchemaResolver(s.kubectl.NewOpenAPISchemaResolver(clusterConfig, nil)).
 		WithIgnoreMutationWebhook(!resourceutil.HasAnnotationOption(a, argocommon.AnnotationCompareOptions, "IncludeMutationWebhook=true")).
 		Build()
 	if err != nil {

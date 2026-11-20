@@ -44,12 +44,36 @@ type OpenAPIClient interface {
 	discovery.OpenAPIV3SchemaInterface
 }
 
+// OpenAPISchemaCache keeps a cluster's parsed v3 group version documents across resolvers. An
+// entry is reused while the cluster serves its group version under the same hash.
+type OpenAPISchemaCache struct {
+	mu            sync.Mutex
+	groupVersions map[schema.GroupVersion]cachedGroupVersion
+}
+
+type cachedGroupVersion struct {
+	url    string // the document's ServerRelativeURL, which includes its hash
+	schema *groupVersionSchema
+}
+
+func NewOpenAPISchemaCache() *OpenAPISchemaCache {
+	return &OpenAPISchemaCache{groupVersions: map[schema.GroupVersion]cachedGroupVersion{}}
+}
+
 // NewOpenAPISchemaResolver returns a resolver that fetches schemas using config. Nothing is fetched
 // until a schema is requested.
 func NewOpenAPISchemaResolver(config *rest.Config, log logr.Logger) OpenAPISchemaResolver {
-	return newOpenAPISchemaResolver(func() (OpenAPIClient, error) {
+	return NewCachedOpenAPISchemaResolver(config, log, nil)
+}
+
+// NewCachedOpenAPISchemaResolver is NewOpenAPISchemaResolver that reuses v3 documents from cache,
+// which may be nil. It still fetches the v3 index once, to learn the current hashes.
+func NewCachedOpenAPISchemaResolver(config *rest.Config, log logr.Logger, cache *OpenAPISchemaCache) OpenAPISchemaResolver {
+	r := newOpenAPISchemaResolver(func() (OpenAPIClient, error) {
 		return discovery.NewDiscoveryClientForConfig(config)
 	}, log)
+	r.cache = cache
+	return r
 }
 
 // NewOpenAPISchemaResolverFromClient returns a resolver that fetches schemas using client.
@@ -72,14 +96,19 @@ type openAPISchemaResolver struct {
 	// groupVersions caches loaded v3 documents. A nil value means the group version isn't served.
 	groupVersions map[schema.GroupVersion]*groupVersionSchema
 	// v2 is set instead of v3Paths when the server does not serve OpenAPI v3.
-	v2 *openAPIV2Schema
+	v2    *openAPIV2Schema
+	cache *OpenAPISchemaCache
 }
 
 type groupVersionSchema struct {
 	schemas map[string]*spec.Schema
 	// models maps each GVK to the name of its schema.
 	models map[schema.GroupVersionKind]string
-	parser *typed.Parser
+
+	// The parser is built on first use; a cached document is shared between resolvers.
+	parserOnce sync.Once
+	parser     *typed.Parser
+	parserErr  error
 }
 
 type openAPIV2Schema struct {
@@ -104,12 +133,16 @@ func (r *openAPISchemaResolver) Type(gvk schema.GroupVersionKind) (*typed.Parsea
 	if !ok {
 		return nil, nil
 	}
-	if gv.parser == nil {
+	gv.parserOnce.Do(func() {
 		s, err := schemaconv.ToSchemaFromOpenAPI(gv.schemas, false)
 		if err != nil {
-			return nil, fmt.Errorf("failed to convert OpenAPI schema of %s: %w", gvk.GroupVersion(), err)
+			gv.parserErr = fmt.Errorf("failed to convert OpenAPI schema of %s: %w", gvk.GroupVersion(), err)
+			return
 		}
 		gv.parser = &typed.Parser{Schema: smdschema.Schema{Types: s.Types}}
+	})
+	if gv.parserErr != nil {
+		return nil, gv.parserErr
 	}
 	pt := gv.parser.Type(name)
 	return &pt, nil
@@ -252,6 +285,16 @@ func (r *openAPISchemaResolver) loadGroupVersion(gv schema.GroupVersion) (*group
 		r.groupVersions[gv] = nil
 		return nil, nil
 	}
+	url := path.ServerRelativeURL()
+	if r.cache != nil {
+		r.cache.mu.Lock()
+		cached, ok := r.cache.groupVersions[gv]
+		r.cache.mu.Unlock()
+		if ok && cached.url == url {
+			r.groupVersions[gv] = cached.schema
+			return cached.schema, nil
+		}
+	}
 	data, err := path.Schema(runtime.ContentTypeJSON)
 	if err != nil {
 		return nil, fmt.Errorf("error getting OpenAPI v3 document: %w", err)
@@ -270,6 +313,11 @@ func (r *openAPISchemaResolver) loadGroupVersion(gv schema.GroupVersion) (*group
 		r.log.Info("Duplicate GVKs detected in OpenAPI schema. This could cause inaccurate diffs.", "gvks", duplicates)
 	}
 	r.groupVersions[gv] = s
+	if r.cache != nil {
+		r.cache.mu.Lock()
+		r.cache.groupVersions[gv] = cachedGroupVersion{url: url, schema: s}
+		r.cache.mu.Unlock()
+	}
 	return s, nil
 }
 

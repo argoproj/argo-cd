@@ -54,11 +54,12 @@ type fakeAPIServer struct {
 	*httptest.Server
 	mu       sync.Mutex
 	requests []string
+	hash     string
 }
 
 func newFakeAPIServer(t *testing.T, v3 map[string][]byte, v2 *openapi_v2.Document, gvStatus int) *fakeAPIServer {
 	t.Helper()
-	s := &fakeAPIServer{}
+	s := &fakeAPIServer{hash: "123"}
 	s.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		s.mu.Lock()
 		s.requests = append(s.requests, r.URL.Path)
@@ -74,9 +75,11 @@ func newFakeAPIServer(t *testing.T, v3 map[string][]byte, v2 *openapi_v2.Documen
 			_, _ = w.Write(data)
 		case r.URL.Path == "/openapi/v3" && v3 != nil:
 			paths := map[string]any{}
+			s.mu.Lock()
 			for path := range v3 {
-				paths[path] = map[string]string{"serverRelativeURL": "/openapi/v3/" + path + "?hash=123"}
+				paths[path] = map[string]string{"serverRelativeURL": "/openapi/v3/" + path + "?hash=" + s.hash}
 			}
+			s.mu.Unlock()
 			_ = json.NewEncoder(w).Encode(map[string]any{"paths": paths})
 		case strings.HasPrefix(r.URL.Path, "/openapi/v3/") && v3 != nil:
 			if gvStatus != http.StatusOK {
@@ -135,6 +138,32 @@ func TestOpenAPISchemaResolver_FetchesOnlyRequestedGroupVersions(t *testing.T) {
 	_, err = kube.NewOpenAPISchemaResolver(&rest.Config{Host: server.URL}, logr.Discard()).Type(deploymentGVK)
 	require.NoError(t, err)
 	assert.Len(t, server.Requests(), 5)
+}
+
+func TestOpenAPISchemaResolver_Cache(t *testing.T) {
+	t.Parallel()
+	server := newFakeAPIServer(t, embeddedV3Docs(t), nil, http.StatusOK)
+	cache := kube.NewOpenAPISchemaCache()
+	resolve := func() {
+		t.Helper()
+		pt, err := kube.NewCachedOpenAPISchemaResolver(&rest.Config{Host: server.URL}, logr.Discard(), cache).Type(deploymentGVK)
+		require.NoError(t, err)
+		require.NotNil(t, pt)
+		assert.True(t, pt.IsValid())
+	}
+
+	resolve()
+	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1"}, server.Requests())
+
+	// A new resolver only fetches the index while the hash is unchanged.
+	resolve()
+	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3"}, server.Requests())
+
+	server.mu.Lock()
+	server.hash = "456"
+	server.mu.Unlock()
+	resolve()
+	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3", "/openapi/v3", "/openapi/v3/apis/apps/v1"}, server.Requests())
 }
 
 func TestOpenAPISchemaResolver_UnknownGVK(t *testing.T) {

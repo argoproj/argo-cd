@@ -33,7 +33,7 @@ type OnKubectlRunFunc func(command string) (CleanupFunc, error)
 type Kubectl interface {
 	ManageResources(config *rest.Config) (ResourceOperations, func(), error)
 	ManageServerSideDiffDryRuns(config *rest.Config) (diff.KubeApplier, func(), error)
-	NewOpenAPISchemaResolver(config *rest.Config) OpenAPISchemaResolver
+	NewOpenAPISchemaResolver(config *rest.Config, cache *OpenAPISchemaCache) OpenAPISchemaResolver
 	ConvertToVersion(obj *unstructured.Unstructured, group, version string) (*unstructured.Unstructured, error)
 	DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error
 	GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error)
@@ -126,8 +126,8 @@ func isSupportedVerb(apiResource *metav1.APIResource, verb string) bool {
 }
 
 // NewOpenAPISchemaResolver returns a resolver that lazily fetches OpenAPI schemas from the cluster.
-func (k *KubectlCmd) NewOpenAPISchemaResolver(config *rest.Config) OpenAPISchemaResolver {
-	return NewOpenAPISchemaResolver(config, k.Log)
+func (k *KubectlCmd) NewOpenAPISchemaResolver(config *rest.Config, cache *OpenAPISchemaCache) OpenAPISchemaResolver {
+	return NewCachedOpenAPISchemaResolver(config, k.Log, cache)
 }
 
 // loadOpenAPISchemaV2 parses the whole OpenAPI v2 document once and builds both the

@@ -191,6 +191,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 	s := &store{
 		settings:           Settings{ResourceHealthOverride: &noopSettings{}, ResourcesFilter: &noopSettings{}},
 		apisMeta:           make(map[schema.GroupKind]*apiMeta),
+		openAPISchemaCache: kube.NewOpenAPISchemaCache(),
 		listPageSize:       defaultListPageSize,
 		listPageBufferSize: defaultListPageBufferSize,
 		listSemaphore:      semaphore.NewWeighted(defaultListSemaphoreWeight),
@@ -247,6 +248,8 @@ type store struct {
 	// published one.
 	serverVersion atomic.Pointer[string]
 	apiResources  atomic.Pointer[[]kube.APIResourceInfo]
+	// openAPISchemaCache shares parsed OpenAPI documents between the resolvers of this cluster.
+	openAPISchemaCache *kube.OpenAPISchemaCache
 	// namespacedResources maps each watched GroupKind to whether it is namespaced.
 	// IsNamespaced reads it without c.lock, so writers publish a complete map
 	// and never edit a published one.
@@ -432,7 +435,7 @@ func (c *store) NewOpenAPISchemaResolver() kube.OpenAPISchemaResolver {
 	c.lock.RLock()
 	config := c.config
 	c.lock.RUnlock()
-	return c.kubectl.NewOpenAPISchemaResolver(config)
+	return c.kubectl.NewOpenAPISchemaResolver(config, c.openAPISchemaCache)
 }
 
 // appendAPIResource publishes a copy of apiResources with info added, unless

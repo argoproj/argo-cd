@@ -115,7 +115,7 @@ func (k *MockKubectlCmd) GetServerVersion(_ *rest.Config) (string, error) {
 	return k.Version, nil
 }
 
-func (k *MockKubectlCmd) NewOpenAPISchemaResolver(config *rest.Config) kube.OpenAPISchemaResolver {
+func (k *MockKubectlCmd) NewOpenAPISchemaResolver(config *rest.Config, _ *kube.OpenAPISchemaCache) kube.OpenAPISchemaResolver {
 	if k.openAPISchemaResolverFunc != nil {
 		return (*k.openAPISchemaResolverFunc)(config)
 	}
