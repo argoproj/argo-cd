@@ -2574,6 +2574,30 @@ spec:
               key: timeout.reconciliation
               name: argocd-cm
               optional: true
+        - name: ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: reposerver.helm.index.cache.enabled
+              optional: true
+        - name: ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_EXPIRATION
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: reposerver.helm.index.cache.expiration
+              optional: true
+        - name: ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_DIR
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: reposerver.helm.index.cache.dir
+              optional: true
+        - name: ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_FILTER_ENABLED
+          valueFrom:
+            configMapKeyRef:
+              name: argocd-cmd-params-cm
+              key: reposerver.helm.index.cache.filter.enabled
+              optional: true
         - name: ARGOCD_REPO_SERVER_LOGFORMAT
           valueFrom:
             configMapKeyRef:
