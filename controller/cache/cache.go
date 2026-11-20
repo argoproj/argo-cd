@@ -88,7 +88,7 @@ var (
 	clusterCacheResyncDuration = 12 * time.Hour
 
 	// clusterCacheWatchResyncDuration controls the maximum duration that group/kind watches are allowed to run
-	// for before relisting & restarting the watch
+	// for before they are restarted from their last resource version
 	clusterCacheWatchResyncDuration = 10 * time.Minute
 
 	// clusterSyncRetryTimeoutDuration controls the sync retry duration when cluster sync error happens

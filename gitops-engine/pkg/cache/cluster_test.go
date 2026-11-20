@@ -3511,3 +3511,50 @@ func TestAPIResourceLabelSelectorIsAppliedToList(t *testing.T) {
 	assert.Len(t, resources, 1)
 	assert.Contains(t, resources, kube.NewResourceKey("", "Pod", "default", "matching"))
 }
+
+// watchResumeCluster returns a synced cluster whose pod watches are fake watchers, with counters of
+// pod list and watch calls.
+func watchResumeCluster(t *testing.T, opts ...UpdateSettingsFunc) (cluster *clusterCache, lists, watches *atomic.Int32, current func() *watch.FakeWatcher) {
+	t.Helper()
+	cluster = newClusterWithOptions(t, opts, &corev1.Pod{APIVersion: "v1", Kind: "Pod", Name: "pod", Namespace: "default", ResourceVersion: "10"})
+	t.Cleanup(func() { cluster.Invalidate() })
+	client := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
+	lists, watches = &atomic.Int32{}, &atomic.Int32{}
+	var latest atomic.Pointer[watch.FakeWatcher]
+	client.PrependReactor("list", "pods", func(testcore.Action) (bool, runtime.Object, error) {
+		lists.Add(1)
+		return false, nil, nil
+	})
+	client.PrependWatchReactor("pods", func(testcore.Action) (bool, watch.Interface, error) {
+		watches.Add(1)
+		w := watch.NewFake()
+		latest.Store(w)
+		return true, w, nil
+	})
+	require.NoError(t, cluster.EnsureSynced())
+	require.Eventually(t, func() bool { return watches.Load() == 1 }, 5*time.Second, 10*time.Millisecond)
+	return cluster, lists, watches, latest.Load
+}
+
+func TestWatchEvents_ResyncTimeoutDoesNotRelist(t *testing.T) {
+	t.Parallel()
+	_, lists, watches, current := watchResumeCluster(t, SetWatchResyncTimeout(time.Second))
+	require.Equal(t, int32(1), lists.Load())
+
+	// Several resync timeouts pass without a relist.
+	time.Sleep(2500 * time.Millisecond)
+	assert.Equal(t, int32(1), lists.Load())
+
+	// The server ending the watch resumes it without a relist.
+	current().Stop()
+	require.Eventually(t, func() bool { return watches.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
+	assert.Equal(t, int32(1), lists.Load())
+}
+
+func TestWatchEvents_GoneRelists(t *testing.T) {
+	t.Parallel()
+	_, lists, _, current := watchResumeCluster(t)
+
+	current().Error(&apierrors.NewResourceExpired("too old resource version").ErrStatus)
+	require.Eventually(t, func() bool { return lists.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
+}
