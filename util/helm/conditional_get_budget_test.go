@@ -51,12 +51,12 @@ func (b *blockingIndexCache) releaseAll() {
 	}
 }
 
-func (b *blockingIndexCache) SetHelmIndexRecord(_ string, indexData []byte, etag string, lastModified string) error {
+func (b *blockingIndexCache) SetHelmIndexRecord(_, _ string, _, _ string) error {
 	b.setCount.Add(1)
 	return nil
 }
 
-func (b *blockingIndexCache) SetHelmIndexRetainedRecord(_ string, record *HelmIndexRecord) error {
+func (b *blockingIndexCache) SetHelmIndexRetainedRecord(_ string, _ *HelmIndexRecord) error {
 	b.setCount.Add(1)
 	return nil
 }
@@ -105,9 +105,10 @@ func TestIndexCacheReadBudgetReservesOriginTime(t *testing.T) {
 	}
 
 	run := func(t *testing.T, alwaysFresh bool) {
+		t.Helper()
 		cache := newBlockingIndexCache()
 		if !alwaysFresh {
-			cache.SetHelmIndexRetainedRecord("prefilled", stored)
+			require.NoError(t, cache.SetHelmIndexRetainedRecord("prefilled", stored))
 		}
 		server, requests := newBlockingTestOrigin(t, body)
 
