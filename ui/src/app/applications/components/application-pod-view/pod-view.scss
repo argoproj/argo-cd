@@ -82,10 +82,10 @@ $pod-age-icon-clr: #ffce25;
             color: $argo-color-gray-6;
             max-height: 100px;
             overflow: auto;
-             &__item {
+            &__item {
                 line-height: 20px;
                 display: flex;
-         
+
                 &__name {
                     max-width: 60%;
                     overflow: hidden;
@@ -267,4 +267,27 @@ $pod-age-icon-clr: #ffce25;
 
 .tippy-content {
     text-align: left;
+}
+
+.pod-view__node__pod-summary {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 4px;
+
+    &__item {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+
+    &__icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 3px;
+        color: white;
+    }
 }
