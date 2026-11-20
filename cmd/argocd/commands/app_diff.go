@@ -640,6 +640,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		sourcePositions           []int64
 		sourceNames               []string
 		ignoreNormalizerOpts      normalizers.IgnoreNormalizerOpts
+		quiet                     bool
 	)
 	shortDesc := "Perform a diff against the target and live state."
 	command := &cobra.Command{
@@ -782,6 +783,9 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 
 			foundDiffs := len(results) > 0
+			if !foundDiffs && !quiet {
+				fmt.Fprintf(os.Stderr, "Application '%s' has no differences from the live state.\n", appName)
+			}
 			if foundDiffs && exitCode {
 				os.Exit(diffExitCode)
 			}
@@ -802,6 +806,7 @@ func NewApplicationDiffCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringArrayVar(&revisions, "revisions", []string{}, "Show manifests at specific revisions for source position in source-positions")
 	command.Flags().Int64SliceVar(&sourcePositions, "source-positions", []int64{}, "List of source positions. Default is empty array. Counting start at 1.")
 	command.Flags().StringArrayVar(&sourceNames, "source-names", []string{}, "List of source names. Default is an empty array.")
+	command.Flags().BoolVar(&quiet, "quiet", false, "Suppress informational messages when no differences are found")
 	command.Flags().DurationVar(&ignoreNormalizerOpts.JQExecutionTimeout, "ignore-normalizer-jq-execution-timeout", normalizers.DefaultJQExecutionTimeout, "Set ignore normalizer JQ execution timeout")
 	return command
 }
