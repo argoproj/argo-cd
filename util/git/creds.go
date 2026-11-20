@@ -1294,3 +1294,12 @@ func credentialTypeFromJSON(jsonData []byte) google.CredentialsType {
 		return google.ServiceAccount
 	}
 }
+
+// newGitRequestContext returns a context bounded by timeout. Match http.Client
+// semantics: a zero timeout means no timeout.
+func newGitRequestContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout == 0 {
+		return context.WithCancel(context.Background())
+	}
+	return context.WithTimeout(context.Background(), timeout)
+}
