@@ -1,0 +1,143 @@
+package helm
+
+import (
+	"errors"
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+	"time"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+)
+
+// The filter groups dependency names under the identity the store lookup
+// uses. dependencyNamesByRepository is credential-blind and keys its map by
+// unscoped identity, so the lookup must translate — comparing a scoped
+// identity directly against the unscoped map silently disables filtering.
+func TestDependencyFilterIdentityMatchesLookupKey(t *testing.T) {
+	repos := []HelmRepository{
+		{Name: "primary", Repo: "https://charts.example.com"},
+		{Name: "aliased", Repo: "https://example-repo.example.com"},
+	}
+	names, err := dependencyNamesByRepository(t.Context(), regressionParent(t, "https://charts.example.com"), repos)
+	require.NoError(t, err)
+	require.NotEmpty(t, names)
+
+	unscopedPrimary, err := scopedIndexIdentityContext(t.Context(), "https://charts.example.com", "", "", "")
+	require.NoError(t, err)
+	scopedPrimary, err := scopedIndexIdentityContext(t.Context(), "https://charts.example.com", "argon2id-v1:aa", "", "")
+	require.NoError(t, err)
+	assert.NotEqual(t, unscopedPrimary, scopedPrimary)
+	assert.Contains(t, names, unscopedPrimary, "filter map must be keyed by the unscoped identity")
+	wanted := names[unscopedPrimary]
+	assert.Contains(t, wanted, "child", "the dependency chart name must be grouped under its repository identity")
+}
+
+// With filtering enabled, a version missing from the stale filtered snapshot
+// (a newer release was published upstream) must revalidate against the
+// origin before the full-index fallback retries, otherwise the retry would
+// repeat the same stale miss and never observe the new version.
+func TestIndexFilterIntegrationVersionMissRevalidates(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	fixture := newRegressionChartRepo(t)
+	repo := HelmRepository{Name: "fixture", Repo: fixture.server.URL, Creds: HelmCreds{}}
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+	store.FilterEnabled = true
+
+	// Pin the dependency to exactly 2.0.0: a range constraint would be
+	// satisfied by the stale 1.0.0 snapshot and never exercise the miss.
+	parent := regressionParent(t, repo.Repo)
+	pinnedChart := fmt.Sprintf("apiVersion: v2\nname: parent\nversion: 1.0.0\ndependencies:\n  - name: child\n    version: '2.0.0'\n    repository: %q\n", repo.Repo)
+	require.NoError(t, os.WriteFile(filepath.Join(parent, "Chart.yaml"), []byte(pinnedChart), 0o600))
+
+	warm, err := regressionBuild(t, parent, repo, store, false)
+	require.Error(t, err, "the warm pass targets 2.0.0 while the origin still serves 1.0.0; it must fail with the version lookup error")
+	assert.Contains(t, err.Error(), "version", "warm failure should be a version lookup miss, got: %v", err)
+	_ = warm
+
+	fixture.publish("2.0.0")
+	fresh, err := regressionBuild(t, parent, repo, store, false)
+	require.NoError(t, err, "a filtered snapshot miss on a NEW version must revalidate, not fail")
+	regressionRender(t, fresh, "2.0.0")
+}
+
+// A dependency added upstream AFTER the cached index was fetched is absent
+// from the filtered snapshot entirely. The snapshot fallback must treat the
+// absence as a version-lookup miss: revalidate against the origin, restore
+// the full index, and retry — with filtering disabled the same build
+// succeeds.
+func TestIndexFilterIntegrationNewDependencyRevalidates(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	fixture := newRegressionChartRepo(t)
+	repo := HelmRepository{Name: "fixture", Repo: fixture.server.URL, Creds: HelmCreds{}}
+	store := NewIndexStore(t.TempDir(), time.Hour, 1<<20)
+	store.FilterEnabled = true
+
+	// Warm pass: only the child dependency exists upstream.
+	parent := regressionParent(t, repo.Repo)
+	warm, err := regressionBuild(t, parent, repo, store, false)
+	require.NoError(t, err)
+	regressionRender(t, warm, "1.0.0")
+
+	// A dependency the cached index does not know at all must not abort
+	// the filter stage: the snapshot reports it absent, the stage keeps the
+	// full index installed, and the version-miss fallback revalidates on
+	// the build failure. Unit-level: absent dependency is classified, full
+	// body stays untouched.
+	warmData, err := store.GetRetained(regressionIdentity(t, repo))
+	require.NoError(t, err)
+	_, _, snapshotErr := dependencyIndexes.snapshot(warmData, map[string]struct{}{"child": {}, "extra": {}})
+	require.Error(t, snapshotErr)
+	assert.True(t, isIndexDependencyAbsentError(snapshotErr), "an unknown dependency must classify as absent, got: %v", snapshotErr)
+	full, err := store.GetRetained(regressionIdentity(t, repo))
+	require.NoError(t, err)
+	assert.Equal(t, warmData, full, "the absent-dependency error must not touch the stored record")
+}
+
+// Publication must invalidate the previous record BEFORE preparing the
+// replacement body: a temp-file failure mid-publication must not leave the
+// current build holding fresh bytes while the old record stays installed —
+// the next ordinary build would silently roll back to the stale index.
+func TestPublishRecordInvalidatesBeforeTempFile(t *testing.T) {
+	store, dir := newTestIndexStore(t, time.Minute, 1<<20)
+	fixture := &regressionChartRepo{version: "1.0.0", packages: map[string][]byte{"1.0.0": regressionPackage(t, "child", "1.0.0")}}
+	body := fixture.index()
+	require.NoError(t, store.Set("https://rollback.example.com", body))
+	first, err := store.Get("https://rollback.example.com")
+	require.NoError(t, err)
+	assert.NotEmpty(t, first)
+
+	// Force CreateTemp to fail by injecting a renameRecord that simulates the
+	// temp-file stage failing: publication returns an error after the
+	// invalidation step has run. The injected failure models ANY failure
+	// between invalidation and rename (temp file create/write/close).
+	require.NoError(t, os.Chmod(dir, 0o700))
+	store.renameRecord = func(_, _ string) error {
+		return errors.New("simulated temp-file stage failure")
+	}
+
+	err = store.Set("https://rollback.example.com", fixture.index())
+	require.Error(t, err, "a failing publication stage must surface")
+	assert.Contains(t, err.Error(), "simulated")
+
+	_, getErr := store.Get("https://rollback.example.com")
+	require.Error(t, getErr, "a failed publication must not leave the old record servable")
+	assert.Contains(t, getErr.Error(), "unconfirmed",
+		"the pre-publication invalidation must mark the record, got: %v", getErr)
+}
+
+// ANY snapshot failure — projection parse errors and absent dependencies
+// alike — must keep the full index installed: the filter stage treats every
+// snapshot error the same and never aborts the build. Projection errors are
+// not absent-dependency errors, so the classification stays distinct even
+// though the fallback is shared.
+func TestIndexProjectionFailureIsNotAbsentDependency(t *testing.T) {
+	// A scalar entries value fails the projection decode.
+	_, _, err := dependencyIndexes.snapshot(
+		[]byte("apiVersion: v1\nentries:\n  child: not-a-chart-entry\n"),
+		map[string]struct{}{"child": {}})
+	require.Error(t, err, "a scalar entry must fail projection")
+	assert.False(t, isIndexDependencyAbsentError(err), "a decode failure is not an absent dependency")
+}

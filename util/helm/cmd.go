@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -24,13 +25,20 @@ import (
 
 // A thin wrapper around the "helm" command, adding logging and error translation.
 type Cmd struct {
-	helmHome        string
-	WorkDir         string
-	IsLocal         bool
-	IsHelmOci       bool
-	proxy           string
-	noProxy         string
-	runWithRedactor func(cmd *exec.Cmd, redactor func(text string) string) (string, error)
+	helmHome string
+	// persistentIndexStore, when non-nil, holds a persistent, expiring copy of
+	// every repository index needed by the build. It replaces helm's own
+	// repository refresh for dependency builds: validated original bytes are
+	// installed into the isolated Helm cache home and --skip-refresh makes
+	// helm resolve versions from those snapshots instead of re-downloading
+	// every repository's index.yaml.
+	persistentIndexStore *IndexStore
+	WorkDir              string
+	IsLocal              bool
+	IsHelmOci            bool
+	proxy                string
+	noProxy              string
+	runWithRedactor      func(cmd *exec.Cmd, redactor func(text string) string) (string, error)
 }
 
 func NewCmd(workDir string, version string, proxy string, noProxy string) (*Cmd, error) {
@@ -72,12 +80,28 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 	cmd.Dir = c.WorkDir
 	cmd.Env = os.Environ()
 	cmd.Stdin = stdin
-	if !c.IsLocal {
+	if !c.IsLocal || c.persistentIndexStore != nil {
 		cmd.Env = append(cmd.Env,
 			fmt.Sprintf("XDG_CACHE_HOME=%s/cache", c.helmHome),
 			fmt.Sprintf("XDG_CONFIG_HOME=%s/config", c.helmHome),
 			fmt.Sprintf("XDG_DATA_HOME=%s/data", c.helmHome),
 			fmt.Sprintf("HELM_CONFIG_HOME=%s/config", c.helmHome))
+		if c.persistentIndexStore != nil {
+			plugins, err := c.trustedPluginsDirectory()
+			if err != nil {
+				return "", "", err
+			}
+			cmd.Env = append(cmd.Env, "HELM_PLUGINS="+plugins)
+			// Explicit Helm variables take precedence over XDG. Override inherited
+			// values too, using the same paths into which we prewarm snapshots.
+			cmd.Env = append(cmd.Env,
+				fmt.Sprintf("HELM_CONFIG_HOME=%s/config/helm", c.helmHome),
+				fmt.Sprintf("HELM_CACHE_HOME=%s/cache/helm", c.helmHome),
+				fmt.Sprintf("HELM_DATA_HOME=%s/data/helm", c.helmHome),
+				fmt.Sprintf("HELM_REPOSITORY_CONFIG=%s/config/helm/repositories.yaml", c.helmHome),
+				fmt.Sprintf("HELM_REPOSITORY_CACHE=%s/cache/helm/repository", c.helmHome),
+				fmt.Sprintf("HELM_REGISTRY_CONFIG=%s/config/helm/registry/config.json", c.helmHome))
+		}
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy, c.noProxy)
@@ -348,7 +372,7 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	return out, nil
 }
 
-func (c *Cmd) dependencyBuild(insecure bool, plainHTTP bool) (string, error) {
+func (c *Cmd) dependencyBuild(ctx context.Context, insecure bool, plainHTTP bool, skipRefresh bool) (string, error) {
 	args := []string{"dependency", "build"}
 	if insecure {
 		args = append(args, "--insecure-skip-tls-verify")
@@ -356,7 +380,15 @@ func (c *Cmd) dependencyBuild(insecure bool, plainHTTP bool) (string, error) {
 	if plainHTTP {
 		args = append(args, "--plain-http")
 	}
-	out, _, err := c.run(context.Background(), args...)
+	// skipRefresh is only set when the ephemeral helm cache home has been
+	// pre-populated with recently downloaded repository indexes for every
+	// dependency repository (see DependencyBuild). Skipping helm's repo
+	// refresh then makes the build resolve dependency versions from those
+	// local indexes instead of re-downloading every repository's index.yaml.
+	if skipRefresh {
+		args = append(args, "--skip-refresh")
+	}
+	out, _, err := c.run(ctx, args...)
 	if err != nil {
 		return "", fmt.Errorf("failed to build dependencies: %w", err)
 	}
@@ -525,4 +557,44 @@ func (c *Cmd) getHelmRegistry(repo string) (string, error) {
 	}
 
 	return uri.Host, nil
+}
+
+// Resolve before changing data/config homes so installed getters remain
+// discoverable. This follows Helm's HELM_PLUGINS, data-home and XDG precedence.
+func helmPluginsDirectory() string {
+	if plugins, configured := os.LookupEnv("HELM_PLUGINS"); configured {
+		return plugins
+	}
+	if data := os.Getenv("HELM_DATA_HOME"); data != "" {
+		return filepath.Join(data, "plugins")
+	}
+	data := os.Getenv("XDG_DATA_HOME")
+	if data == "" {
+		home, _ := os.UserHomeDir()
+		switch runtime.GOOS {
+		case "darwin":
+			data = filepath.Join(home, "Library")
+		case "windows":
+			data = os.Getenv("APPDATA")
+		default:
+			data = filepath.Join(home, ".local", "share")
+		}
+	}
+	return filepath.Join(data, "helm", "plugins")
+}
+
+// Helm scans the working directory for getters when its plugin path is empty
+// or relative. Only an operator-selected absolute path may escape our home.
+func (c Cmd) trustedPluginsDirectory() (string, error) {
+	if plugins := helmPluginsDirectory(); filepath.IsAbs(plugins) {
+		return plugins, nil
+	}
+	plugins, err := filepath.Abs(filepath.Join(c.helmHome, "plugins"))
+	if err != nil {
+		return "", fmt.Errorf("resolve private helm plugin directory: %w", err)
+	}
+	if err := os.MkdirAll(plugins, 0o700); err != nil {
+		return "", fmt.Errorf("create private helm plugin directory: %w", err)
+	}
+	return plugins, nil
 }
