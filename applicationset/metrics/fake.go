@@ -20,11 +20,29 @@ func NewFakeAppsetMetrics() *ApplicationsetMetrics {
 		Help: "Counts application refresh triggered by AppSet for progressive sync",
 	}, []string{"namespace", "name"})
 
+	rolloutDurationHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "argocd_appset_progressive_sync_rollout_duration_seconds",
+			Help: "Duration of a full progressive sync rollout across all steps in seconds.",
+		},
+		[]string{"namespace", "name"},
+	)
+
+	stepCompletionDurationHistogram := prometheus.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name: "argocd_appset_progressive_sync_step_duration_seconds",
+			Help: "Duration of a step to complete - all applications within this step are healthy",
+		},
+		[]string{"namespace", "name", "step"},
+	)
+
 	return &ApplicationsetMetrics{
 		reconcileHistogram:                                reconcileHistogram,
 		progressiveSyncAppStatusGauge:                     prometheus.NewGaugeVec(prometheus.GaugeOpts{Name: "argocd_appset_progressive_sync_app_status"}, progressiveSyncStepLabels),
 		progressiveSyncAppSyncCounter:                     prometheus.NewCounterVec(prometheus.CounterOpts{Name: "argocd_appset_progressive_sync_syncs_triggered_total"}, []string{"namespace", "name", "step"}),
 		progressiveSyncTriggerSyncAfterDetectionHistogram: prometheus.NewHistogramVec(prometheus.HistogramOpts{Name: "argocd_appset_progressive_sync_detection_to_trigger_seconds"}, []string{"namespace", "name"}),
 		progressiveSyncAppRefreshTriggeredCounter:         refreshCounter,
+		progressiveSyncRolloutDurationHistogram:           rolloutDurationHistogram,
+		progressiveSyncStepCompletionDurationHistogram:    stepCompletionDurationHistogram,
 	}
 }
