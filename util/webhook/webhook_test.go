@@ -1296,6 +1296,25 @@ func Test_affectedRevisionInfo_bitbucket_changed_files(t *testing.T) {
 				shaAfter:  "ghijkl",
 			},
 		},
+		{
+			// https://github.com/argoproj/argo-cd/security/advisories/GHSA-q4f6-wc8m-r246
+			// The API base URL must not come from the payload, or stored repository
+			// credentials are sent to whatever host the payload names.
+			"bitbucket payload with a foreign self link still calls the Bitbucket Cloud API",
+			false,
+			"main",
+			func() bitbucket.RepoPushPayload {
+				pl := bitbucketPushPayload("main", "test-owner", "test-repo")
+				pl.Repository.Links.Self.Href = "https://attacker.example/2.0/repositories/test-owner/test-repo"
+				return pl
+			}(),
+			true,
+			[]string{"guestbook/guestbook-ui-deployment.yaml"},
+			changeInfo{
+				shaBefore: "abcdef",
+				shaAfter:  "ghijkl",
+			},
+		},
 	}
 	for _, testCase := range tests {
 		t.Run(testCase.name, func(t *testing.T) {
