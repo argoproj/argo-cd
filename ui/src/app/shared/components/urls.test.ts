@@ -191,3 +191,40 @@ test('Azure DevOps branch, tag and file revisions', () => {
     expect(revisionUrl(repo, 'HEAD', false)).toBe(repo);
     expect(revisionUrl(repo, '', false)).toBe(repo);
 });
+
+test('Azure DevOps uppercase SSH hostnames', () => {
+    const urls = [
+        'git@SSH.DEV.AZURE.COM:v3/MyOrg/MyProject/MyRepo',
+        'git@VS-SSH.VISUALSTUDIO.COM:v3/MyOrg/MyProject/MyRepo'
+    ];
+    const expected = 'https://dev.azure.com/MyOrg/MyProject/_git/MyRepo';
+
+    for (const url of urls) {
+        expect(repoUrl(url)).toBe(expected);
+        expect(revisionUrl(url, 'main', false)).toBe(`${expected}?version=GBmain`);
+    }
+});
+
+test('Azure DevOps repository without explicit project', () => {
+    const url = 'https://dev.azure.com/example-org/_git/example-repo';
+    const expected = 'https://dev.azure.com/example-org/_git/example-repo';
+
+    expect(repoUrl(url)).toBe(expected);
+    expect(revisionUrl(url, 'main', false)).toBe(`${expected}?version=GBmain`);
+});
+
+test('Azure DevOps incomplete repository URLs are not clickable', () => {
+    const urls = [
+        'https://dev.azure.com/_git/example-repo',
+        'https://dev.azure.com/example-org/example-project/_git/',
+        'https://dev.azure.com/example-org/example-project/_git',
+        'git@ssh.dev.azure.com:v3/example-org/example-project',
+        'git@ssh.dev.azure.com:v3/example-org/example-project/',
+        'git@vs-ssh.visualstudio.com:v3/example-org/example-project'
+    ];
+
+    for (const url of urls) {
+        expect(repoUrl(url)).toBe(null);
+        expect(revisionUrl(url, 'main', false)).toBe(null);
+    }
+});

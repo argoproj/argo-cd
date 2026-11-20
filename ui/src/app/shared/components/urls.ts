@@ -18,6 +18,10 @@ function isGitlab(parsed: GitUrl): boolean {
     return parsed.resource.startsWith('gitlab.');
 }
 
+function normalizeAzureDevOpsSshUrl(url: string): string {
+    return url.replace(/^git@ssh\.dev\.azure\.com:/i, 'git@ssh.dev.azure.com:').replace(/^git@vs-ssh\.visualstudio\.com:/i, 'git@vs-ssh.visualstudio.com:');
+}
+
 function isAzureDevOps(parsed: GitUrl): boolean {
     return (
         parsed.resource === 'dev.azure.com' ||
@@ -31,10 +35,14 @@ function supportedSource(parsed: GitUrl): boolean {
     return parsed.resource.startsWith('github') || parsed.source === 'bitbucket.org' || isBitbucketServer(parsed) || isGitlab(parsed) || isAzureDevOps(parsed);
 }
 
-function azureDevOpsRepoUrl(parsed: GitUrl): string {
+function azureDevOpsRepoUrl(parsed: GitUrl): string | null {
     const isLegacyHttps = parsed.resource !== 'vs-ssh.visualstudio.com' && /^[^.]+\.visualstudio\.com$/.test(parsed.resource);
     const organization = isLegacyHttps ? parsed.resource.split('.')[0] : parsed.organization || parsed.owner;
     const project = isLegacyHttps || Boolean(parsed.organization) ? `/${encodeURIComponent(parsed.owner)}` : '';
+
+    if (!organization || !parsed.owner || !parsed.name || parsed.name === '_git' || parsed.name.includes('/')) {
+        return null;
+    }
 
     return `https://dev.azure.com/${encodeURIComponent(organization)}${project}/_git/${encodeURIComponent(parsed.name)}`;
 }
@@ -59,7 +67,7 @@ function protocol(proto: string): string {
 
 export function repoUrl(url: string): string {
     try {
-        const parsed = GitUrlParse(url);
+        const parsed = GitUrlParse(normalizeAzureDevOpsSshUrl(url));
 
         if (!supportedSource(parsed)) {
             return null;
@@ -67,7 +75,7 @@ export function repoUrl(url: string): string {
 
         if (isAzureDevOps(parsed)) {
             const browseUrl = azureDevOpsRepoUrl(parsed);
-            return isValidURL(browseUrl) ? browseUrl : null;
+            return browseUrl && isValidURL(browseUrl) ? browseUrl : null;
         }
 
         // Self-hosted Bitbucket Server has a different browse URL structure
@@ -93,7 +101,7 @@ export function repoUrl(url: string): string {
 export function revisionUrl(url: string, revision: string, forPath: boolean): string {
     let parsed;
     try {
-        parsed = GitUrlParse(url);
+        parsed = GitUrlParse(normalizeAzureDevOpsSshUrl(url));
     } catch {
         return null;
     }
@@ -104,6 +112,9 @@ export function revisionUrl(url: string, revision: string, forPath: boolean): st
 
     if (isAzureDevOps(parsed)) {
         const base = azureDevOpsRepoUrl(parsed);
+        if (!base || !isValidURL(base)) {
+            return null;
+        }
 
         if (isSHA(revision) && !forPath) {
             return `${base}/commit/${revision}`;
@@ -118,6 +129,7 @@ export function revisionUrl(url: string, revision: string, forPath: boolean): st
             return `${base}?version=GT${encodeURIComponent(revision.slice('refs/tags/'.length))}`;
         }
 
+        // Unqualified revisions cannot be distinguished from branch names without Git ref metadata.
         const branch = revision.startsWith('refs/heads/') ? revision.slice('refs/heads/'.length) : revision;
         return `${base}?version=GB${encodeURIComponent(branch)}`;
     }
