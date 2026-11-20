@@ -6,17 +6,12 @@ import {services} from '../../../shared/services';
 import {Context} from '../../../shared/context';
 import {ApplicationParameters} from './application-parameters';
 
-jest.mock('../../../shared/services', () => ({
-    services: {
-        repos: {
-            appDetails: jest.fn()
-        },
-        viewPreferences: {
-            getPreferences: jest.fn().mockResolvedValue({pageSizes: {'5': 10}, sortOptions: {}}),
-            updatePreferences: jest.fn()
-        }
-    }
-}));
+jest.mock('../../../shared/services', () => {
+    const {ViewPreferencesService} = jest.requireActual('../../../shared/services/view-preferences-service');
+    return {services: {repos: {appDetails: jest.fn()}, viewPreferences: new ViewPreferencesService()}};
+});
+
+beforeAll(() => services.viewPreferences.init());
 
 jest.mock('lodash-es', () => ({
     cloneDeep: (value: unknown) => JSON.parse(JSON.stringify(value))

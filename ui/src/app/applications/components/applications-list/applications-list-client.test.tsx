@@ -2,7 +2,7 @@ import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {act, render, renderHook, screen, waitFor} from '@testing-library/react';
 import '@testing-library/jest-dom';
 import * as React from 'react';
-import {of, Subject} from 'rxjs';
+import {Subject} from 'rxjs';
 
 import {AnnotationRefreshKey, Application, ApplicationWatchEvent} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
@@ -194,7 +194,8 @@ test('does not resume the watch from the stale list when the reload after being 
 });
 
 test('AppsListPaginate pages through the rows on the client', () => {
-    jest.spyOn(services.viewPreferences, 'getPreferences').mockReturnValue(of({pageSizes: {'applications-list': 2}} as any));
+    services.viewPreferences.init();
+    services.viewPreferences.updatePreferences({pageSizes: {'applications-list': 2}});
     const list = {rows: [app('a'), app('b'), app('c')]} as AppsListSourceResult;
     render(
         <AppsListPaginate list={list} page={1} preferencesKey='applications-list' onPageChange={jest.fn()}>
