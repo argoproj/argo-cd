@@ -39,6 +39,7 @@ argocd admin cluster namespaces disable-namespaced-mode PATTERN [flags]
 
 ```
       --argocd-context string           The name of the Argo-CD server context to use
+      --auth-refresh-timeout duration   Maximum time to wait when refreshing an expired auth token with the stored refresh token (default 30s)
       --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file

@@ -426,6 +426,64 @@ func TestNewClient_SendsHeadersWhenRefreshingExpiredToken(t *testing.T) {
 	assert.Equal(t, "secret", receivedHeader.Load())
 }
 
+func TestNewClient_RefreshingExpiredTokenTimesOut(t *testing.T) {
+	t.Parallel()
+
+	// Accept every request and never answer, like a stalled OIDC provider.
+	release := make(chan struct{})
+	server := httptest.NewServer(http.HandlerFunc(func(_ http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+		case <-release:
+		}
+	}))
+	// Cleanups run last-in first-out: release the handler before Close waits
+	// for it.
+	t.Cleanup(server.Close)
+	t.Cleanup(func() { close(release) })
+
+	expiredToken, err := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(time.Now().Add(-time.Hour)),
+	}).SignedString([]byte("test"))
+	require.NoError(t, err)
+
+	serverAddr := server.URL[7:] // Remove "http://"
+	configPath := filepath.Join(t.TempDir(), "config")
+	require.NoError(t, localconfig.WriteLocalConfig(localconfig.LocalConfig{
+		CurrentContext: serverAddr,
+		Contexts:       []localconfig.ContextRef{{Name: serverAddr, Server: serverAddr, User: serverAddr}},
+		Servers:        []localconfig.Server{{Server: serverAddr, PlainText: true, GRPCWeb: true}},
+		Users:          []localconfig.User{{Name: serverAddr, AuthToken: expiredToken, RefreshToken: "refresh-token"}},
+	}, configPath))
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := NewClient(&ClientOptions{ConfigPath: configPath, AuthRefreshTimeout: 100 * time.Millisecond})
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		require.ErrorContains(t, err, "timed out after 100ms refreshing the auth token")
+		require.ErrorContains(t, err, "--auth-refresh-timeout")
+	case <-time.After(10 * time.Second):
+		t.Fatal("NewClient did not return: refreshing the expired auth token has no deadline")
+	}
+}
+
+func TestNewClient_RejectsNegativeAuthRefreshTimeout(t *testing.T) {
+	t.Parallel()
+
+	_, err := NewClient(&ClientOptions{
+		ServerAddr:         "localhost:1234",
+		PlainText:          true,
+		GRPCWeb:            true,
+		AuthRefreshTimeout: -time.Second,
+	})
+
+	require.ErrorContains(t, err, "--auth-refresh-timeout must not be negative")
+}
+
 func TestNewClient_ReturnsErrorForMalformedHeader(t *testing.T) {
 	_, err := NewClient(&ClientOptions{
 		ServerAddr: "localhost:1234",

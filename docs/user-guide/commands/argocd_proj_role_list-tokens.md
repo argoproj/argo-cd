@@ -29,6 +29,7 @@ fa9d3517-c52d-434c-9bff-215b38508842    2023-10-08T11:08:18+01:00    Never
 
 ```
       --argocd-context string           The name of the Argo-CD server context to use
+      --auth-refresh-timeout duration   Maximum time to wait when refreshing an expired auth token with the stored refresh token (default 30s)
       --auth-token string               Authentication token; set this or the ARGOCD_AUTH_TOKEN environment variable
       --client-crt string               Client certificate file
       --client-crt-key string           Client certificate key file
