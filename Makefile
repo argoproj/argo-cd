@@ -364,7 +364,7 @@ controller:
 build-ui:
 	DOCKER_BUILDKIT=1 $(DOCKER) build -t argocd-ui --platform=$(TARGET_ARCH) --target argocd-ui .
 	find ./ui/dist -type f -not -name gitkeep -not -name .gitkeep -delete
-	$(DOCKER) run $(PODMAN_ARGS) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app:Z --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
+	$(DOCKER) run -u $(CONTAINER_UID):$(CONTAINER_GID) $(PODMAN_ARGS) -v ${CURRENT_DIR}/ui/dist/app:/tmp/app:Z --rm -t argocd-ui sh -c 'cp -r ./dist/app/* /tmp/app/'
 
 .PHONY: image
 ifeq ($(DEV_IMAGE), true)
