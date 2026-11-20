@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"maps"
 	"path"
-	"sort"
+	"slices"
 	"strconv"
 	"strings"
 
@@ -49,7 +49,11 @@ type repoSource interface {
 	resolveSourceIntegrity(ctx context.Context, appSet *argoprojiov1alpha1.ApplicationSet, client client.Client) (*argoprojiov1alpha1.SourceIntegrity, error)
 
 	listDirectories(ctx context.Context, repoURL, revision, project string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) ([]string, error)
-	getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error)
+
+	// getFiles returns the files matching includePatterns minus those matching
+	// excludePatterns. Both filters are applied by the repo-server, so the artifact is
+	// resolved once per generation rather than once per pattern.
+	getFiles(ctx context.Context, repoURL, revision, project string, includePatterns, excludePatterns []string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error)
 }
 
 // repoSourceCallParams bundles parameters for generateRepoSourceDirectoryParams and generateRepoSourceFileParams.
@@ -323,7 +327,6 @@ func generateRepoSourceDirectoryParams(ctx context.Context, params repoSourceCal
 
 // generateRepoSourceFileParams fetches files from src and parses each as YAML/JSON to produce parameter maps.
 func generateRepoSourceFileParams(ctx context.Context, params repoSourceCallParams) ([]map[string]any, error) {
-	fileContentMap := make(map[string][]byte)
 	var includePatterns []string
 	var excludePatterns []string
 
@@ -335,29 +338,21 @@ func generateRepoSourceFileParams(ctx context.Context, params repoSourceCallPara
 		}
 	}
 
-	for _, includePattern := range includePatterns {
-		retrievedFiles, err := params.src.getFiles(ctx, params.spec.URL, params.spec.Revision, params.project, includePattern, params.noRevisionCache, params.sourceIntegrity)
-		if err != nil {
-			return nil, err
-		}
-		maps.Copy(fileContentMap, retrievedFiles)
+	// Exclude patterns only subtract from what the includes matched, so with no include
+	// pattern there is nothing to fetch.
+	if len(includePatterns) == 0 {
+		return nil, nil
 	}
 
-	for _, excludePattern := range excludePatterns {
-		matchingFiles, err := params.src.getFiles(ctx, params.spec.URL, params.spec.Revision, params.project, excludePattern, params.noRevisionCache, params.sourceIntegrity)
-		if err != nil {
-			return nil, err
-		}
-		for absPath := range matchingFiles {
-			delete(fileContentMap, absPath)
-		}
+	// One call for the whole pattern set: the repo-server resolves the repo or OCI
+	// artifact once and applies the include/exclude filters there, so excluded files
+	// are never read or sent over the wire.
+	fileContentMap, err := params.src.getFiles(ctx, params.spec.URL, params.spec.Revision, params.project, includePatterns, excludePatterns, params.noRevisionCache, params.sourceIntegrity)
+	if err != nil {
+		return nil, err
 	}
 
-	var filePaths []string
-	for p := range fileContentMap {
-		filePaths = append(filePaths, p)
-	}
-	sort.Strings(filePaths)
+	filePaths := slices.Sorted(maps.Keys(fileContentMap))
 
 	var allParams []map[string]any
 	for _, filePath := range filePaths {

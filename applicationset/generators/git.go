@@ -114,6 +114,6 @@ func (g *GitGenerator) listDirectories(ctx context.Context, repoURL, revision, p
 	return g.repos.GetDirectories(ctx, repoURL, revision, project, noRevisionCache, sourceIntegrity)
 }
 
-func (g *GitGenerator) getFiles(ctx context.Context, repoURL, revision, project, pattern string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error) {
-	return g.repos.GetFiles(ctx, repoURL, revision, project, pattern, noRevisionCache, sourceIntegrity)
+func (g *GitGenerator) getFiles(ctx context.Context, repoURL, revision, project string, includePatterns, excludePatterns []string, noRevisionCache bool, sourceIntegrity *argoprojiov1alpha1.SourceIntegrity) (map[string][]byte, error) {
+	return g.repos.GetFiles(ctx, repoURL, revision, project, includePatterns, excludePatterns, noRevisionCache, sourceIntegrity)
 }

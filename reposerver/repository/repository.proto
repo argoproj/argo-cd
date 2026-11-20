@@ -249,6 +249,8 @@ message GitFilesRequest {
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
     bool submoduleEnabled = 2;
     string revision = 3;
+    // path is a single file glob pattern to match. Kept for clients that predate
+    // includePatterns; ignored when includePatterns is set.
     string path = 4;
     bool NewGitFileGlobbingEnabled = 5;
     bool noRevisionCache = 6;
@@ -256,6 +258,10 @@ message GitFilesRequest {
     bool verifyCommit = 7; // TODO: Remove deprecated https://github.com/argoproj/argo-cd/issues/27695
     // Source integrity constrains to verify the sources before use
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrity sourceIntegrity = 8;
+    // includePatterns are file glob patterns to match. The results are the union of all matches.
+    repeated string includePatterns = 9;
+    // excludePatterns are file glob patterns whose matches are removed from the includePatterns result.
+    repeated string excludePatterns = 10;
 }
 
 message GitFilesResponse {
@@ -282,9 +288,15 @@ message GitDirectoriesResponse {
 message OciFilesRequest {
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
-    // glob is the file glob pattern used to match files within the OCI artifact.
+    // glob is a single file glob pattern used to match files within the OCI artifact.
+    // Kept for clients that predate includePatterns; ignored when includePatterns is set.
     string glob = 3;
     bool noRevisionCache = 4;
+    // includePatterns are file glob patterns to match within the OCI artifact. The
+    // results are the union of all matches.
+    repeated string includePatterns = 5;
+    // excludePatterns are file glob patterns whose matches are removed from the includePatterns result.
+    repeated string excludePatterns = 6;
 }
 
 message OciFilesResponse {
