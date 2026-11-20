@@ -35,16 +35,40 @@ function supportedSource(parsed: GitUrl): boolean {
     return parsed.resource.startsWith('github') || parsed.source === 'bitbucket.org' || isBitbucketServer(parsed) || isGitlab(parsed) || isAzureDevOps(parsed);
 }
 
-function azureDevOpsRepoUrl(parsed: GitUrl): string | null {
+function azureDevOpsRepoUrl(parsed: GitUrl, url: string): string | null {
     const isLegacyHttps = parsed.resource !== 'vs-ssh.visualstudio.com' && /^[^.]+\.visualstudio\.com$/.test(parsed.resource);
     const organization = isLegacyHttps ? parsed.resource.split('.')[0] : parsed.organization || parsed.owner;
-    const project = isLegacyHttps || Boolean(parsed.organization) ? `/${encodeURIComponent(parsed.owner)}` : '';
+    let project = isLegacyHttps || Boolean(parsed.organization) ? `/${encodeURIComponent(parsed.owner)}` : '';
+    let name = parsed.name;
 
-    if (!organization || !parsed.owner || !parsed.name || parsed.name === '_git' || parsed.name.includes('/')) {
+    if (isLegacyHttps) {
+        try {
+            const segments = new URL(url).pathname.split('/').filter(Boolean).map(decodeURIComponent);
+            const gitIndex = segments.indexOf('_git');
+            if (gitIndex < 0 || gitIndex !== segments.length - 2) {
+                return null;
+            }
+
+            const scope = segments.slice(0, gitIndex);
+            if (scope[0] === 'DefaultCollection') {
+                scope.shift();
+            }
+            if (scope.length > 2) {
+                return null;
+            }
+
+            project = scope.length ? `/${encodeURIComponent(scope[0])}` : '';
+            name = segments[gitIndex + 1];
+        } catch {
+            return null;
+        }
+    }
+
+    if (!organization || !name || name === '_git' || name.includes('/') || (!isLegacyHttps && !parsed.owner)) {
         return null;
     }
 
-    return `https://dev.azure.com/${encodeURIComponent(organization)}${project}/_git/${encodeURIComponent(parsed.name)}`;
+    return `https://dev.azure.com/${encodeURIComponent(organization)}${project}/_git/${encodeURIComponent(name)}`;
 }
 
 // Bitbucket Server browse URLs differ from clone URLs:
@@ -74,7 +98,7 @@ export function repoUrl(url: string): string {
         }
 
         if (isAzureDevOps(parsed)) {
-            const browseUrl = azureDevOpsRepoUrl(parsed);
+            const browseUrl = azureDevOpsRepoUrl(parsed, url);
             return browseUrl && isValidURL(browseUrl) ? browseUrl : null;
         }
 
@@ -111,7 +135,7 @@ export function revisionUrl(url: string, revision: string, forPath: boolean): st
     }
 
     if (isAzureDevOps(parsed)) {
-        const base = azureDevOpsRepoUrl(parsed);
+        const base = azureDevOpsRepoUrl(parsed, url);
         if (!base || !isValidURL(base)) {
             return null;
         }

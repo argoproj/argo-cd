@@ -228,3 +228,19 @@ test('Azure DevOps incomplete repository URLs are not clickable', () => {
         expect(revisionUrl(url, 'main', false)).toBe(null);
     }
 });
+
+test('Azure DevOps legacy HTTPS project and team paths', () => {
+    const cases = [
+        ['https://example.visualstudio.com/_git/Repo', 'https://dev.azure.com/example/_git/Repo'],
+        ['https://example.visualstudio.com/DefaultCollection/_git/Repo', 'https://dev.azure.com/example/_git/Repo'],
+        ['https://example.visualstudio.com/Project/_git/Repo', 'https://dev.azure.com/example/Project/_git/Repo'],
+        ['https://example.visualstudio.com/Project/Team/_git/Repo', 'https://dev.azure.com/example/Project/_git/Repo'],
+        ['https://example.visualstudio.com/DefaultCollection/Project/_git/Repo', 'https://dev.azure.com/example/Project/_git/Repo'],
+        ['https://example.visualstudio.com/DefaultCollection/Project/Team/_git/Repo', 'https://dev.azure.com/example/Project/_git/Repo']
+    ];
+
+    for (const [url, expected] of cases) {
+        expect(repoUrl(url)).toBe(expected);
+        expect(revisionUrl(url, 'main', false)).toBe(`${expected}?version=GBmain`);
+    }
+});
