@@ -2,6 +2,8 @@ package kube
 
 import (
 	"encoding/json"
+	"encoding/json/jsontext"
+	jsonv2 "encoding/json/v2"
 	"fmt"
 	"sort"
 	"strings"
@@ -17,7 +19,6 @@ import (
 	"k8s.io/client-go/openapi"
 	"k8s.io/client-go/rest"
 	"k8s.io/kube-openapi/pkg/schemaconv"
-	"k8s.io/kube-openapi/pkg/spec3"
 	"k8s.io/kube-openapi/pkg/validation/spec"
 	kubectlopenapi "k8s.io/kubectl/pkg/util/openapi"
 	smdschema "sigs.k8s.io/structured-merge-diff/v6/schema"
@@ -44,21 +45,16 @@ type OpenAPIClient interface {
 	discovery.OpenAPIV3SchemaInterface
 }
 
-// OpenAPISchemaCache keeps the structured merge diff types of a cluster's v3 group version
-// documents across resolvers, but not the documents, which are several times larger. An entry is
-// reused while the cluster serves its group version under the same hash.
+// OpenAPISchemaCache keeps the structured merge diff types built for a cluster's kinds across
+// resolvers, but not the documents they were built from. A group version's types are reused while
+// the cluster serves it under the same hash.
 type OpenAPISchemaCache struct {
 	mu            sync.Mutex
-	groupVersions map[schema.GroupVersion]cachedGroupVersion
-}
-
-type cachedGroupVersion struct {
-	url    string              // the document's ServerRelativeURL, which includes its hash
-	schema *groupVersionSchema // without schemas
+	groupVersions map[schema.GroupVersion]*groupVersionTypes
 }
 
 func NewOpenAPISchemaCache() *OpenAPISchemaCache {
-	return &OpenAPISchemaCache{groupVersions: map[schema.GroupVersion]cachedGroupVersion{}}
+	return &OpenAPISchemaCache{groupVersions: map[schema.GroupVersion]*groupVersionTypes{}}
 }
 
 // NewOpenAPISchemaResolver returns a resolver that fetches schemas using config. Nothing is fetched
@@ -102,15 +98,26 @@ type openAPISchemaResolver struct {
 	cache *OpenAPISchemaCache
 }
 
-type groupVersionSchema struct {
-	schemas map[string]*spec.Schema // nil if taken from the cache
+// groupVersionTypes is what resolvers share through the cache: a group version's GVK index and the
+// types built so far.
+type groupVersionTypes struct {
+	url string // the document's ServerRelativeURL, which includes its hash
 	// models maps each GVK to the name of its schema.
 	models map[schema.GroupVersionKind]string
 
-	// The parser is built on first use; a cached document is shared between resolvers.
-	parserOnce sync.Once
-	parser     *typed.Parser
-	parserErr  error
+	mu sync.Mutex
+	// parsers maps schema names to a parser built from that schema and the schemas it refers to.
+	parsers map[string]*typed.Parser
+}
+
+// groupVersionSchema is a group version as loaded by one resolver.
+type groupVersionSchema struct {
+	path  openapi.GroupVersion
+	types *groupVersionTypes
+	// raw holds the document's schemas undecoded. It is nil until needed if types came from the cache.
+	raw map[string]jsontext.Value
+	// closures holds, for each schema name, that schema and every schema it refers to, decoded.
+	closures map[string]map[string]*spec.Schema
 }
 
 type openAPIV2Schema struct {
@@ -121,7 +128,7 @@ type openAPIV2Schema struct {
 func (r *openAPISchemaResolver) Type(gvk schema.GroupVersionKind) (*typed.ParseableType, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	gv, err := r.load(gvk, false)
+	gv, err := r.load(gvk.GroupVersion())
 	if err != nil {
 		return nil, err
 	}
@@ -131,13 +138,26 @@ func (r *openAPISchemaResolver) Type(gvk schema.GroupVersionKind) (*typed.Parsea
 	if gv == nil {
 		return nil, nil
 	}
-	name, ok := gv.models[gvk]
+	name, ok := gv.types.models[gvk]
 	if !ok {
 		return nil, nil
 	}
-	parser, err := gv.typeParser(gvk.GroupVersion())
-	if err != nil {
-		return nil, err
+	gv.types.mu.Lock()
+	parser := gv.types.parsers[name]
+	gv.types.mu.Unlock()
+	if parser == nil {
+		schemas, err := r.closure(gv, name)
+		if err != nil {
+			return nil, err
+		}
+		converted, err := schemaconv.ToSchemaFromOpenAPI(schemas, false)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert OpenAPI schema of %s: %w", gvk, err)
+		}
+		parser = &typed.Parser{Schema: smdschema.Schema{Types: converted.Types}}
+		gv.types.mu.Lock()
+		gv.types.parsers[name] = parser
+		gv.types.mu.Unlock()
 	}
 	pt := parser.Type(name)
 	return &pt, nil
@@ -146,7 +166,7 @@ func (r *openAPISchemaResolver) Type(gvk schema.GroupVersionKind) (*typed.Parsea
 func (r *openAPISchemaResolver) LookupPatchMeta(gvk schema.GroupVersionKind) (strategicpatch.LookupPatchMeta, error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	gv, err := r.load(gvk, true)
+	gv, err := r.load(gvk.GroupVersion())
 	if err != nil {
 		return nil, err
 	}
@@ -160,11 +180,84 @@ func (r *openAPISchemaResolver) LookupPatchMeta(gvk schema.GroupVersionKind) (st
 	if gv == nil {
 		return nil, nil
 	}
-	name, ok := gv.models[gvk]
+	name, ok := gv.types.models[gvk]
 	if !ok {
 		return nil, nil
 	}
-	return patchMetaV3{schemas: gv.schemas, schema: gv.schemas[name]}, nil
+	schemas, err := r.closure(gv, name)
+	if err != nil {
+		return nil, err
+	}
+	return patchMetaV3{schemas: schemas, schema: schemas[name]}, nil
+}
+
+// closure decodes name's schema and every schema it refers to, fetching the document if needed.
+func (r *openAPISchemaResolver) closure(gv *groupVersionSchema, name string) (map[string]*spec.Schema, error) {
+	if schemas, ok := gv.closures[name]; ok {
+		return schemas, nil
+	}
+	if gv.raw == nil {
+		raw, err := fetchSchemas(gv.path)
+		if err != nil {
+			return nil, err
+		}
+		gv.raw = raw
+	}
+	schemas := map[string]*spec.Schema{}
+	todo := []string{name}
+	for len(todo) > 0 {
+		next := todo[len(todo)-1]
+		todo = todo[:len(todo)-1]
+		if _, ok := schemas[next]; ok {
+			continue
+		}
+		raw, ok := gv.raw[next]
+		if !ok {
+			continue
+		}
+		s := &spec.Schema{}
+		if err := json.Unmarshal(raw, s); err != nil {
+			return nil, fmt.Errorf("error parsing OpenAPI v3 schema %s: %w", next, err)
+		}
+		schemas[next] = s
+		todo = appendRefs(todo, s)
+	}
+	gv.closures[name] = schemas
+	return schemas, nil
+}
+
+// appendRefs appends the names of the component schemas that s refers to.
+func appendRefs(names []string, s *spec.Schema) []string {
+	if s == nil {
+		return names
+	}
+	if ref := s.Ref.String(); ref != "" {
+		names = append(names, strings.TrimPrefix(ref, "#/components/schemas/"))
+	}
+	for _, list := range [][]spec.Schema{s.AllOf, s.AnyOf, s.OneOf} {
+		for i := range list {
+			names = appendRefs(names, &list[i])
+		}
+	}
+	names = appendRefs(names, s.Not)
+	for _, schemas := range []map[string]spec.Schema{s.Properties, s.PatternProperties, s.Definitions} {
+		for _, p := range schemas {
+			names = appendRefs(names, &p)
+		}
+	}
+	if s.AdditionalProperties != nil {
+		names = appendRefs(names, s.AdditionalProperties.Schema)
+	}
+	if s.AdditionalItems != nil {
+		names = appendRefs(names, s.AdditionalItems.Schema)
+	}
+	if s.Items != nil {
+		names = appendRefs(names, s.Items.Schema)
+		for i := range s.Items.Schemas {
+			names = appendRefs(names, &s.Items.Schemas[i])
+		}
+	}
+	return names
 }
 
 // patchMetaV3 is strategicpatch.PatchMetaFromOpenAPIV3 that also traverses additionalProperties and
@@ -236,41 +329,28 @@ func (m patchMetaV3) lookup(key string, slice bool) (strategicpatch.LookupPatchM
 	return patchMetaV3{schemas: m.schemas, schema: field}, meta, nil
 }
 
-func (s *groupVersionSchema) typeParser(gv schema.GroupVersion) (*typed.Parser, error) {
-	s.parserOnce.Do(func() {
-		converted, err := schemaconv.ToSchemaFromOpenAPI(s.schemas, false)
-		if err != nil {
-			s.parserErr = fmt.Errorf("failed to convert OpenAPI schema of %s: %w", gv, err)
-			return
-		}
-		s.parser = &typed.Parser{Schema: smdschema.Schema{Types: converted.Types}}
-	})
-	return s.parser, s.parserErr
-}
-
 func preservesUnknownFields(s *spec.Schema) bool {
 	preserve, _ := s.Extensions.GetBool("x-kubernetes-preserve-unknown-fields")
 	return preserve
 }
 
-// load returns the v3 document of gvk's group version, loading it if needed; withSchemas loads the
-// document even if the cache has its types. It returns nil if the group version isn't served, or if
-// the server only serves OpenAPI v2, in which case r.v2 is set.
-func (r *openAPISchemaResolver) load(gvk schema.GroupVersionKind, withSchemas bool) (*groupVersionSchema, error) {
+// load returns gv, loading its GVK index if needed. It returns nil if gv isn't served, or if the
+// server only serves OpenAPI v2, in which case r.v2 is set.
+func (r *openAPISchemaResolver) load(gv schema.GroupVersion) (*groupVersionSchema, error) {
 	if r.v2 != nil {
 		return nil, nil
 	}
-	if gv, ok := r.groupVersions[gvk.GroupVersion()]; ok && (gv == nil || gv.schemas != nil || !withSchemas) {
-		return gv, nil
+	if s, ok := r.groupVersions[gv]; ok {
+		return s, nil
 	}
-	gv, err := r.loadGroupVersion(gvk.GroupVersion(), withSchemas)
+	s, err := r.loadGroupVersion(gv)
 	if err != nil {
-		return nil, fmt.Errorf("failed to load OpenAPI schema for %s: %w", gvk.GroupVersion(), err)
+		return nil, fmt.Errorf("failed to load OpenAPI schema for %s: %w", gv, err)
 	}
-	return gv, nil
+	return s, nil
 }
 
-func (r *openAPISchemaResolver) loadGroupVersion(gv schema.GroupVersion, withSchemas bool) (*groupVersionSchema, error) {
+func (r *openAPISchemaResolver) loadGroupVersion(gv schema.GroupVersion) (*groupVersionSchema, error) {
 	if r.client == nil {
 		client, err := r.newClient()
 		if err != nil {
@@ -294,43 +374,54 @@ func (r *openAPISchemaResolver) loadGroupVersion(gv schema.GroupVersion, withSch
 		return nil, nil
 	}
 	url := path.ServerRelativeURL()
-	if r.cache != nil && !withSchemas {
+	s := &groupVersionSchema{path: path, closures: map[string]map[string]*spec.Schema{}}
+	if r.cache != nil {
 		r.cache.mu.Lock()
-		cached, ok := r.cache.groupVersions[gv]
+		cached := r.cache.groupVersions[gv]
 		r.cache.mu.Unlock()
-		if ok && cached.url == url {
-			r.groupVersions[gv] = cached.schema
-			return cached.schema, nil
+		if cached != nil && cached.url == url {
+			s.types = cached
+			r.groupVersions[gv] = s
+			return s, nil
 		}
 	}
+	raw, err := fetchSchemas(path)
+	if err != nil {
+		return nil, err
+	}
+	models, duplicates := indexModelsByGVK(raw)
+	if len(duplicates) > 0 {
+		r.log.Info("Duplicate GVKs detected in OpenAPI schema. This could cause inaccurate diffs.", "gvks", duplicates)
+	}
+	s.raw = raw
+	s.types = &groupVersionTypes{url: url, models: models, parsers: map[string]*typed.Parser{}}
+	if r.cache != nil {
+		r.cache.mu.Lock()
+		r.cache.groupVersions[gv] = s.types
+		r.cache.mu.Unlock()
+	}
+	r.groupVersions[gv] = s
+	return s, nil
+}
+
+// fetchSchemas fetches a v3 document and returns its component schemas without decoding them.
+func fetchSchemas(path openapi.GroupVersion) (map[string]jsontext.Value, error) {
 	data, err := path.Schema(runtime.ContentTypeJSON)
 	if err != nil {
 		return nil, fmt.Errorf("error getting OpenAPI v3 document: %w", err)
 	}
-	var doc spec3.OpenAPI
-	if err := json.Unmarshal(data, &doc); err != nil {
+	var doc struct {
+		Components struct {
+			Schemas map[string]jsontext.Value `json:"schemas"`
+		} `json:"components"`
+	}
+	if err := jsonv2.Unmarshal(data, &doc); err != nil {
 		return nil, fmt.Errorf("error parsing OpenAPI v3 document: %w", err)
 	}
-	s := &groupVersionSchema{models: map[schema.GroupVersionKind]string{}}
-	if doc.Components != nil {
-		s.schemas = doc.Components.Schemas
+	if doc.Components.Schemas == nil {
+		return map[string]jsontext.Value{}, nil
 	}
-	var duplicates []schema.GroupVersionKind
-	s.models, duplicates = indexModelsByGVK(s.schemas)
-	if len(duplicates) > 0 {
-		r.log.Info("Duplicate GVKs detected in OpenAPI schema. This could cause inaccurate diffs.", "gvks", duplicates)
-	}
-	r.groupVersions[gv] = s
-	if r.cache != nil {
-		if _, err := s.typeParser(gv); err == nil {
-			types := &groupVersionSchema{models: s.models, parser: s.parser}
-			types.parserOnce.Do(func() {})
-			r.cache.mu.Lock()
-			r.cache.groupVersions[gv] = cachedGroupVersion{url: url, schema: types}
-			r.cache.mu.Unlock()
-		}
-	}
-	return s, nil
+	return doc.Components.Schemas, nil
 }
 
 func (r *openAPISchemaResolver) loadV2() error {
@@ -352,7 +443,7 @@ func openAPIV3Path(gv schema.GroupVersion) string {
 // indexModelsByGVK maps each GVK to the name of the schema that declares it. Like newUniqueModels,
 // it walks schemas in name order and skips a schema if any of its GVKs was already declared, and
 // returns the GVKs of the skipped schemas.
-func indexModelsByGVK(schemas map[string]*spec.Schema) (map[schema.GroupVersionKind]string, []schema.GroupVersionKind) {
+func indexModelsByGVK(schemas map[string]jsontext.Value) (map[schema.GroupVersionKind]string, []schema.GroupVersionKind) {
 	names := make([]string, 0, len(schemas))
 	for name := range schemas {
 		names = append(names, name)
@@ -381,22 +472,25 @@ func indexModelsByGVK(schemas map[string]*spec.Schema) (map[schema.GroupVersionK
 	return models, duplicates
 }
 
-// specGroupVersionKinds returns the GVKs of the x-kubernetes-group-version-kind extension, skipping
-// entries without a kind like parseGroupVersionKind does.
-func specGroupVersionKinds(s *spec.Schema) []schema.GroupVersionKind {
-	if s == nil {
-		return nil
+// specGroupVersionKinds decodes only the x-kubernetes-group-version-kind extension of a schema,
+// skipping entries without a kind like parseGroupVersionKind does.
+func specGroupVersionKinds(raw jsontext.Value) []schema.GroupVersionKind {
+	var ext struct {
+		GVKs []struct {
+			Group   string `json:"group"`
+			Version string `json:"version"`
+			Kind    string `json:"kind"`
+		} `json:"x-kubernetes-group-version-kind"`
 	}
-	var list []map[string]string
-	if err := s.Extensions.GetObject(groupVersionKindExtensionKey, &list); err != nil {
+	if err := jsonv2.Unmarshal(raw, &ext); err != nil {
 		return nil
 	}
 	var gvks []schema.GroupVersionKind
-	for _, item := range list {
-		if item["kind"] == "" {
+	for _, item := range ext.GVKs {
+		if item.Kind == "" {
 			continue
 		}
-		gvks = append(gvks, schema.GroupVersionKind{Group: item["group"], Version: item["version"], Kind: item["kind"]})
+		gvks = append(gvks, schema.GroupVersionKind{Group: item.Group, Version: item.Version, Kind: item.Kind})
 	}
 	return gvks
 }
