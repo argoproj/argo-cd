@@ -3,6 +3,7 @@ package repository
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -105,6 +106,9 @@ type Service struct {
 	newGitClient              func(rawRepoURL string, root string, creds git.Creds, insecure bool, enableLfs bool, proxy string, noProxy string, opts ...git.ClientOpts) (git.Client, error)
 	newHelmClient             func(repoURL string, creds helm.Creds, enableOci bool, proxy string, noProxy string, opts ...helm.ClientOpts) helm.Client
 	initConstants             RepoServerInitConstants
+	// helmIndexStore is the persistent on-disk cache of Helm repository index
+	// files used by helm binary invocations (dependency builds). Nil disables it.
+	helmIndexStore *helm.IndexStore
 	// stores cached symlink validation results
 	symlinksState *gocache.Cache
 	// now is usually just time.Now, but may be replaced by unit tests for testing purposes
@@ -134,6 +138,12 @@ type RepoServerInitConstants struct {
 	GitLsRemoteOptimizedEnabled                  bool
 	HelmUserAgent                                string
 	HelmChartCacheExpiration                     time.Duration // Cache expiration for repo
+	// HelmIndexCacheEnabled enables dependency reuse with independent Helm index freshness.
+	HelmIndexCacheEnabled bool
+	// HelmIndexCacheFilterEnabled enables dependency-only private Helm indexes.
+	HelmIndexCacheFilterEnabled bool
+	// HelmIndexCacheDir overrides the default cache directory when dependency reuse is enabled.
+	HelmIndexCacheDir string
 }
 
 var (
@@ -151,6 +161,21 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 	gitRandomizedPaths := utilio.NewRandomizedTempPaths(rootDir)
 	helmRandomizedPaths := utilio.NewRandomizedTempPaths(rootDir)
 	ociRandomizedPaths := utilio.NewRandomizedTempPaths(rootDir)
+	var helmIndexStore *helm.IndexStore
+	if initConstants.HelmIndexCacheEnabled {
+		if initConstants.HelmIndexCacheDir == "" {
+			initConstants.HelmIndexCacheDir = helm.DefaultIndexCacheDir()
+		}
+		freshness := helm.DefaultIndexCacheExpiration
+		var recordCache helm.IndexRecordCache
+		if cache != nil {
+			freshness = cache.GetHelmIndexCacheExpiration()
+			recordCache = cache
+		}
+		helmIndexStore = helm.NewIndexStore(initConstants.HelmIndexCacheDir, freshness, initConstants.HelmRegistryMaxIndexSize, recordCache)
+		helmIndexStore.FilterEnabled = initConstants.HelmIndexCacheFilterEnabled
+		log.WithField("dir", initConstants.HelmIndexCacheDir).Infof("Helm dependency index cache enabled, freshness %s", freshness)
+	}
 	return &Service{
 		parallelismLimitSemaphore: parallelismLimitSemaphore,
 		repoLock:                  repoLock,
@@ -175,6 +200,7 @@ func NewService(metricsServer *metrics.MetricsServer, cache *cache.Cache, initCo
 		gitRepoPaths:       gitRandomizedPaths,
 		chartPaths:         helmRandomizedPaths,
 		ociPaths:           ociRandomizedPaths,
+		helmIndexStore:     helmIndexStore,
 		gitRepoInitializer: directoryPermissionInitializer,
 		rootDir:            rootDir,
 		symlinksState:      gocache.New(12*time.Hour, time.Hour),
@@ -218,7 +244,7 @@ func (s *Service) Init() error {
 
 // ListOCITags List a subset of the refs (currently, branches and tags) of a git repo
 func (s *Service) ListOCITags(ctx context.Context, q *apiclient.ListRefsRequest) (*apiclient.Refs, error) {
-	ociClient, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
+	ociClient, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts(q.Repo.GetOCICreds())...)
 	if err != nil {
 		return nil, fmt.Errorf("error creating oci client: %w", err)
 	}
@@ -993,7 +1019,7 @@ func (s *Service) runManifestGenAsync(ctx context.Context, repoRoot, commitSHA, 
 			}
 		}
 
-		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths))
+		manifestGenResult, err = GenerateManifests(ctx, opContext.appPath, repoRoot, commitSHA, q, false, s.gitCredsStore, s.initConstants.MaxCombinedDirectoryManifestsSize, s.gitRepoPaths, WithCMPTarDoneChannel(ch.tarDoneCh), WithCMPTarExcludedGlobs(s.initConstants.CMPTarExcludedGlobs), WithCMPUseManifestGeneratePaths(s.initConstants.CMPUseManifestGeneratePaths), WithHelmIndexStore(s.helmIndexStore))
 	}
 	refSourceCommitSHAs := make(map[string]string)
 	if len(repoRefs) > 0 {
@@ -1227,6 +1253,9 @@ func getHelmRepos(appPath string, repositories []*v1alpha1.Repository, helmRepoC
 }
 
 type dependencies struct {
+	APIVersion   string         `json:"apiVersion"`
+	Name         string         `json:"name"`
+	Version      string         `json:"version"`
 	Dependencies []repositories `yaml:"dependencies"`
 }
 
@@ -1236,14 +1265,27 @@ type repositories struct {
 
 func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 	repos := make([]*v1alpha1.Repository, 0)
-	f, err := os.ReadFile(filepath.Join(appPath, "Chart.yaml"))
-	if err != nil {
+	f, err := helm.ReadChartMetadata(appPath, "Chart.yaml")
+	chartMissing := os.IsNotExist(err)
+	if err != nil && !chartMissing {
 		return nil, fmt.Errorf("error reading helm chart from %s: %w", filepath.Join(appPath, "Chart.yaml"), err)
 	}
 
 	d := &dependencies{}
 	if err = yaml.Unmarshal(f, d); err != nil {
 		return nil, fmt.Errorf("error unmarshalling the helm chart while getting helm dependency repos: %w", err)
+	}
+
+	legacy, err := helm.ReadChartMetadata(appPath, "requirements.yaml")
+	if err == nil {
+		if err := yaml.Unmarshal(legacy, d); err != nil {
+			return nil, fmt.Errorf("read legacy Helm dependency repositories: %w", err)
+		}
+	} else if !os.IsNotExist(err) {
+		return nil, err
+	}
+	if chartMissing && (d.Name == "" || d.Version == "") {
+		return nil, fmt.Errorf("no usable Helm chart metadata in %s", appPath)
 	}
 
 	for _, r := range d.Dependencies {
@@ -1255,7 +1297,7 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 			repos = append(repos, &v1alpha1.Repository{
 				Name: after,
 			})
-		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "https" || u.Scheme == "oci") {
+		} else if u, err := url.Parse(r.Repository); err == nil && (u.Scheme == "http" || u.Scheme == "https" || u.Scheme == "oci") {
 			repo := &v1alpha1.Repository{
 				// trimming oci:// prefix since it is currently not supported by Argo CD (OCI repos just have no scheme)
 				Repo:      strings.TrimPrefix(r.Repository, "oci://"),
@@ -1270,7 +1312,10 @@ func getHelmDependencyRepos(appPath string) ([]*v1alpha1.Repository, error) {
 }
 
 func sanitizeRepoName(repoName string) string {
-	return strings.ReplaceAll(repoName, "/", "-")
+	if strings.HasPrefix(repoName, "oci://") {
+		return strings.ReplaceAll(repoName, "/", "-")
+	}
+	return fmt.Sprintf("helm-%x", sha256.Sum256([]byte(repoName)))
 }
 
 // runHelmBuild executes `helm dependency build` in a given path and ensures that it is executed only once
@@ -1318,7 +1363,7 @@ func parseKubeVersion(version string) (string, error) {
 	return kubeVersion.String(), nil
 }
 
-func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths) ([]*unstructured.Unstructured, string, error) {
+func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1alpha1.Env, q *apiclient.ManifestRequest, isLocal bool, gitRepoPaths utilio.TempPaths, helmIndexStore *helm.IndexStore) ([]*unstructured.Unstructured, string, error) {
 	// We use the app name as Helm's release name property, which must not
 	// contain any underscore characters and must not exceed 53 characters.
 	// We are not interested in the fully qualified application name while
@@ -1429,7 +1474,11 @@ func helmTemplate(ctx context.Context, appPath string, repoRoot string, env *v1a
 		return nil, "", fmt.Errorf("error getting helm repos: %w", err)
 	}
 
-	h, err := helm.NewHelmApp(appPath, helmRepos, isLocal, version, proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure)
+	// Only hard refresh bypasses Helm index freshness. Normal/webhook refreshes
+	// set NoRevisionCache to resolve the latest Git commit, while dependency
+	// indexes still reuse fresh records and conditionally revalidate expired ones.
+	forceHelmRefresh := q.NoCache
+	h, err := helm.NewHelmAppWithIndexStore(appPath, helmRepos, isLocal, version, proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure, helmIndexStore, forceHelmRefresh)
 	if err != nil {
 		return nil, "", fmt.Errorf("error initializing helm app object: %w", err)
 	}
@@ -1736,6 +1785,7 @@ type (
 		cmpTarDoneCh                chan<- bool
 		cmpTarExcludedGlobs         []string
 		cmpUseManifestGeneratePaths bool
+		helmIndexStore              *helm.IndexStore
 	}
 )
 
@@ -1772,6 +1822,16 @@ func WithCMPUseManifestGeneratePaths(enabled bool) GenerateManifestOpt {
 	}
 }
 
+// WithHelmIndexStore attaches a persistent, on-disk cache of Helm repository
+// index files (see helm.IndexStore). When set, helm dependency builds resolve
+// chart versions from the cached indexes instead of re-downloading every
+// repository's index.yaml.
+func WithHelmIndexStore(indexStore *helm.IndexStore) GenerateManifestOpt {
+	return func(o *generateManifestOpt) {
+		o.helmIndexStore = indexStore
+	}
+}
+
 // GenerateManifests generates manifests from a path. Overrides are applied as a side effect on the given ApplicationSource.
 func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, q *apiclient.ManifestRequest, isLocal bool, gitCredsStore git.CredsStore, maxCombinedManifestQuantity resource.Quantity, gitRepoPaths utilio.TempPaths, opts ...GenerateManifestOpt) (_ *apiclient.ManifestResponse, retErr error) {
 	ctx, span := tracer.Start(ctx, "reposerver.GenerateManifests")
@@ -1799,7 +1859,7 @@ func GenerateManifests(ctx context.Context, appPath, repoRoot, revision string, 
 	switch appSourceType {
 	case v1alpha1.ApplicationSourceTypeHelm:
 		var command string
-		targetObjs, command, err = helmTemplate(ctx, appPath, repoRoot, env, q, isLocal, gitRepoPaths)
+		targetObjs, command, err = helmTemplate(ctx, appPath, repoRoot, env, q, isLocal, gitRepoPaths, opt.helmIndexStore)
 		commands = append(commands, command)
 	case v1alpha1.ApplicationSourceTypeKustomize:
 		var kustomizeBinary string
@@ -2655,7 +2715,7 @@ func (s *Service) populateHelmAppDetails(ctx context.Context, res *apiclient.Rep
 	if err != nil {
 		return err
 	}
-	h, err := helm.NewHelmApp(appPath, helmRepos, false, version, q.Repo.Proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure)
+	h, err := helm.NewHelmAppWithIndexStore(appPath, helmRepos, false, version, q.Repo.Proxy, q.Repo.NoProxy, passCredentials, q.Repo.Insecure, s.helmIndexStore, q.NoCache)
 	if err != nil {
 		return err
 	}
@@ -2953,7 +3013,7 @@ func (s *Service) GetOCIMetadata(ctx context.Context, q *apiclient.RepoServerRev
 		log.Warnf("oci metadata cache error %s/%s: %v", q.Repo.Repo, q.Revision, err)
 	}
 
-	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
+	client, err := s.newOCIClient(q.Repo.Repo, q.Repo.GetOCICreds(), q.Repo.Proxy, q.Repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts(q.Repo.GetOCICreds())...)
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize oci client: %w", err)
 	}
@@ -3052,7 +3112,7 @@ func (s *Service) newClientResolveRevision(repo *v1alpha1.Repository, revision s
 }
 
 func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, noRevisionCache bool) (oci.Client, string, error) {
-	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts()...)
+	ociClient, err := s.newOCIClient(repo.Repo, repo.GetOCICreds(), repo.Proxy, repo.NoProxy, s.initConstants.OCIMediaTypes, s.ociClientStandardOpts(repo.GetOCICreds())...)
 	if err != nil {
 		return nil, "", fmt.Errorf("failed to initialize oci client: %w", err)
 	}
@@ -3067,7 +3127,7 @@ func (s *Service) newOCIClientResolveRevision(ctx context.Context, repo *v1alpha
 
 func (s *Service) newHelmClientResolveRevision(ctx context.Context, repo *v1alpha1.Repository, revision string, chart string, noRevisionCache bool) (helm.Client, string, error) {
 	enableOCI := repo.EnableOCI || helm.IsHelmOciRepo(repo.Repo)
-	opts := []helm.ClientOpts{helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths)}
+	opts := []helm.ClientOpts{helm.WithIndexCacheScopedByCreds(s.cache), helm.WithChartPaths(s.chartPaths)}
 	if repo.InsecureOCIForceHttp {
 		opts = append(opts, helm.WithPlainHTTP())
 	}
@@ -3241,7 +3301,7 @@ func checkoutRevision(ctx context.Context, gitClient git.Client, revision string
 }
 
 func (s *Service) GetHelmCharts(ctx context.Context, q *apiclient.HelmChartsRequest) (*apiclient.HelmChartsResponse, error) {
-	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI, q.Repo.Proxy, q.Repo.NoProxy, helm.WithIndexCache(s.cache), helm.WithChartPaths(s.chartPaths)).GetIndex(ctx, true, s.initConstants.HelmRegistryMaxIndexSize)
+	index, err := s.newHelmClient(q.Repo.Repo, q.Repo.GetHelmCreds(), q.Repo.EnableOCI, q.Repo.Proxy, q.Repo.NoProxy, helm.WithIndexCacheScopedByCreds(s.cache), helm.WithChartPaths(s.chartPaths)).GetIndex(ctx, true, s.initConstants.HelmRegistryMaxIndexSize)
 	if err != nil {
 		return nil, err
 	}
@@ -3286,7 +3346,12 @@ func (s *Service) TestRepository(ctx context.Context, q *apiclient.TestRepositor
 				_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, clientOpts...).TestHelmOCI(ctx)
 				return err
 			}
-			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy).GetIndex(ctx, false, s.initConstants.HelmRegistryMaxIndexSize)
+			// The index fetch is intentionally always fresh (deliberate
+			// freshness, see issue #30949 discussion): the shared cache is
+			// attached so the fresh body and its validators are published
+			// for other callers, but noCache=true keeps the read on-network.
+			clientOpts := []helm.ClientOpts{helm.WithIndexCacheScopedByCreds(s.cache)}
+			_, err := helm.NewClient(repo.Repo, repo.GetHelmCreds(), repo.EnableOCI, repo.Proxy, repo.NoProxy, clientOpts...).GetIndex(ctx, true, s.initConstants.HelmRegistryMaxIndexSize)
 			return err
 		},
 	}
@@ -3898,9 +3963,9 @@ func (s *Service) GetOciDirectories(ctx context.Context, request *apiclient.OciD
 	}, nil
 }
 
-func (s *Service) ociClientStandardOpts() []oci.ClientOpts {
+func (s *Service) ociClientStandardOpts(creds oci.Creds) []oci.ClientOpts {
 	return []oci.ClientOpts{
-		oci.WithIndexCache(s.cache),
+		oci.WithIndexCacheScopedByCreds(s.cache, creds),
 		oci.WithImagePaths(s.ociPaths),
 		oci.WithManifestMaxExtractedSize(s.initConstants.OCIManifestMaxExtractedSize),
 		oci.WithDisableManifestMaxExtractedSize(s.initConstants.DisableOCIManifestMaxExtractedSize),

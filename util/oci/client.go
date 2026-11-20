@@ -16,6 +16,7 @@ import (
 	"path"
 	"path/filepath"
 	"slices"
+	"strconv"
 	"strings"
 	"time"
 
@@ -29,6 +30,7 @@ import (
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/cache"
+	cryptoutil "github.com/argoproj/argo-cd/v3/util/crypto"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
@@ -95,6 +97,7 @@ type Creds struct {
 	KeyData            []byte
 	InsecureSkipVerify bool
 	InsecureHTTPOnly   bool
+	caData             []byte // immutable CA snapshot shared by TLS and cache identity
 }
 
 type ClientOpts func(c *nativeOCIClient)
@@ -103,6 +106,102 @@ func WithIndexCache(indexCache tagsCache) ClientOpts {
 	return func(c *nativeOCIClient) {
 		c.tagsCache = indexCache
 	}
+}
+
+// WithIndexCacheScopedByCreds attaches the tags cache and automatically
+// scopes its keys to the client's credential view: a fetch made with private
+// credentials can never publish tag metadata that an anonymous (or
+// differently-credentialed) reader would consume. The scope is a memory-hard
+// fingerprint of the credential/TLS context; plaintext secrets never enter
+// keys. Without this option the bare repo URL is used (legacy behavior).
+func WithIndexCacheScopedByCreds(indexCache tagsCache, creds Creds) ClientOpts {
+	return func(c *nativeOCIClient) {
+		effective := creds
+		if c.credentialSnapshot != nil {
+			effective = *c.credentialSnapshot
+		}
+		c.tagsCacheCredentials = &effective
+		if c.tagsCacheTransport == nil {
+			c.tagsCacheTransport = []string{
+				c.proxy, c.noProxy, os.Getenv("HTTP_PROXY"), os.Getenv("http_proxy"),
+				os.Getenv("HTTPS_PROXY"), os.Getenv("https_proxy"), os.Getenv("NO_PROXY"), os.Getenv("no_proxy"), os.Getenv("REQUEST_METHOD"),
+			}
+		}
+		c.tagsCache = indexCache
+	}
+}
+
+type nativeOCIClient struct {
+	EventHandlers
+
+	repoURL                         string
+	repo                            oras.ReadOnlyTarget
+	tagsFunc                        func(context.Context, string) ([]string, error)
+	repoLock                        sync.KeyLock
+	tagsCache                       tagsCache
+	tagsCacheCredentials            *Creds
+	tagsCacheTransport              []string
+	credentialSnapshot              *Creds
+	proxy, noProxy                  string
+	repoCachePaths                  utilio.TempPaths
+	allowedMediaTypes               []string
+	manifestMaxExtractedSize        int64
+	disableManifestMaxExtractedSize bool
+	pingFunc                        func(ctx context.Context) error
+}
+
+// cacheRepoKey returns the tags-cache key for this client's credential view.
+func (c *nativeOCIClient) cacheRepoKey(ctx context.Context) (string, error) {
+	if c.tagsCacheCredentials == nil {
+		return c.repoURL, nil
+	}
+	scope, err := credsScopeContext(ctx, *c.tagsCacheCredentials)
+	if err != nil {
+		return "", err
+	}
+	scope, err = cryptoutil.CredentialScopeContext(ctx, "oci-tags-transport-v1", append([]string{scope}, c.tagsCacheTransport...)...)
+	if err != nil {
+		return "", err
+	}
+	return c.repoURL + "\x00" + scope, nil
+}
+
+// credsScope returns a versioned, memory-hard fingerprint of the effective
+// authentication and TLS context, without truncating its 256-bit output.
+func credsScope(creds Creds) string {
+	scope, _ := credsScopeContext(context.Background(), creds)
+	return scope
+}
+
+func credsScopeContext(ctx context.Context, creds Creds) (string, error) {
+	creds, err := snapshotCredentials(creds)
+	if err != nil {
+		return "", err
+	}
+	return cryptoutil.CredentialScopeContext(ctx, "oci-credentials-v2",
+		creds.Username,
+		creds.Password,
+		creds.CAPath,
+		string(creds.caData),
+		string(creds.CertData),
+		string(creds.KeyData),
+		strconv.FormatBool(creds.InsecureSkipVerify),
+		strconv.FormatBool(creds.InsecureHTTPOnly),
+	)
+}
+
+func snapshotCredentials(creds Creds) (Creds, error) {
+	creds.CertData = slices.Clone(creds.CertData)
+	creds.KeyData = slices.Clone(creds.KeyData)
+	creds.caData = slices.Clone(creds.caData)
+	if creds.CAPath != "" && creds.caData == nil && !creds.InsecureHTTPOnly {
+		data, err := os.ReadFile(creds.CAPath)
+		if err != nil {
+			return Creds{}, err
+		}
+		creds.caData = data
+	}
+	return creds, nil
 }
 
 func WithImagePaths(repoCachePaths utilio.TempPaths) ClientOpts {
@@ -128,6 +227,16 @@ func NewClient(repoURL string, creds Creds, proxy, noProxy string, layerMediaTyp
 }
 
 func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxyURL, noProxy string, layerMediaTypes []string, opts ...ClientOpts) (Client, error) {
+	var err error
+	creds, err = snapshotCredentials(creds)
+	if err != nil {
+		return nil, fmt.Errorf("read OCI trust context: %w", err)
+	}
+	// Options use the same CA generation that constructed this transport.
+	opts = append([]ClientOpts{func(c *nativeOCIClient) {
+		c.credentialSnapshot = &creds
+		c.proxy, c.noProxy = proxyURL, noProxy
+	}}, opts...)
 	ociRepo := strings.TrimPrefix(repoURL, "oci://")
 	repo, err := remote.NewRepository(ociRepo)
 	if err != nil {
@@ -218,20 +327,6 @@ type EventHandlers struct {
 }
 
 // nativeOCIClient implements Client interface using oras-go
-type nativeOCIClient struct {
-	EventHandlers
-
-	repoURL                         string
-	repo                            oras.ReadOnlyTarget
-	tagsFunc                        func(context.Context, string) ([]string, error)
-	repoLock                        sync.KeyLock
-	tagsCache                       tagsCache
-	repoCachePaths                  utilio.TempPaths
-	allowedMediaTypes               []string
-	manifestMaxExtractedSize        int64
-	disableManifestMaxExtractedSize bool
-	pingFunc                        func(ctx context.Context) error
-}
 
 // TestRepo verifies that the remote OCI repo can be connected to.
 func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
@@ -429,12 +524,16 @@ func (c *nativeOCIClient) GetTags(ctx context.Context, noCache bool) ([]string, 
 }
 
 func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, error) {
+	cacheKey, err := c.cacheRepoKey(ctx)
+	if err != nil {
+		return nil, err
+	}
 	indexLock.Lock(c.repoURL)
 	defer indexLock.Unlock(c.repoURL)
 
 	var data []byte
 	if !noCache && c.tagsCache != nil {
-		if err := c.tagsCache.GetOCITags(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
+		if err := c.tagsCache.GetOCITags(cacheKey, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
 			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoURL, err)
 		}
 	}
@@ -462,7 +561,7 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 			if err != nil {
 				return nil, fmt.Errorf("failed to encode tags: %w", err)
 			}
-			if err := c.tagsCache.SetOCITags(c.repoURL, cacheData); err != nil {
+			if err := c.tagsCache.SetOCITags(cacheKey, cacheData); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %s", c.repoURL, err)
 			}
 		}
@@ -484,15 +583,16 @@ func (c *nativeOCIClient) resolveDigest(ctx context.Context, revision string) (s
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
+	var err error
+	creds, err = snapshotCredentials(creds)
+	if err != nil {
+		return nil, err
+	}
 	tlsConfig := &tls.Config{InsecureSkipVerify: creds.InsecureSkipVerify}
 
 	if creds.CAPath != "" {
-		caData, err := os.ReadFile(creds.CAPath)
-		if err != nil {
-			return nil, err
-		}
 		caCertPool := x509.NewCertPool()
-		caCertPool.AppendCertsFromPEM(caData)
+		caCertPool.AppendCertsFromPEM(creds.caData)
 		tlsConfig.RootCAs = caCertPool
 	}
 

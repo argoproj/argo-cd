@@ -71,6 +71,13 @@ func (i *InMemoryCache) HasSame(key string, obj any) (bool, error) {
 	return bytes.Equal(buf.Bytes(), existingBuf.Bytes()), nil
 }
 
+func (i *InMemoryCache) GetContext(ctx context.Context, key string, obj any) error {
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	return i.Get(key, obj)
+}
+
 func (i *InMemoryCache) Get(key string, obj any) error {
 	bufIf, found := i.memCache.Get(key)
 	if !found {

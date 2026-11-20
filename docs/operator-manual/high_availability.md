@@ -103,6 +103,308 @@ the appropriate tool.
 * `ARGOCD_ENABLE_GRPC_TIME_HISTOGRAM` - Is an environment variable that enables collecting RPC performance metrics.
   Enable it if you need to troubleshoot performance issues. Note: This metric is expensive to both query and store!
 
+#### Helm dependency index cache
+
+Enable HTTP(S) repository index reuse across dependency builds with
+`--helm-index-cache-enabled` or `ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_ENABLED=true`.
+Dependency reuse is disabled by default. With the standard installation, set
+`reposerver.helm.index.cache.enabled` in `argocd-cmd-params-cm` and restart repo-server:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+data:
+  reposerver.helm.index.cache.enabled: "true"
+```
+
+The directory defaults to `helm-index-cache` under the system temporary directory, normally
+`/tmp/helm-index-cache`, using the existing writable `/tmp` volume. On Unix, a custom `TMPDIR`
+changes that default. No directory override is needed to enable reuse. To select another
+writable Argo-managed directory, use `--helm-index-cache-dir`,
+`ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_DIR`, or `reposerver.helm.index.cache.dir` in the ConfigMap.
+An unset or empty directory selects the default; setting a directory alone does not enable reuse.
+
+HTTP Helm index freshness uses `--helm-index-cache-expiration` (default `60s`),
+`ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_EXPIRATION`, or
+`reposerver.helm.index.cache.expiration` in `argocd-cmd-params-cm`. It is independent of
+`--revision-cache-expiration`, `ARGOCD_RECONCILIATION_TIMEOUT`, OCI tag-cache freshness and
+`--repo-cache-expiration`. Setting Helm index expiration to zero revalidates on every use.
+
+Choose the freshness window for your repository:
+
+| Expiration | Suggested use |
+| --- | --- |
+| `60s` (default) | General starting point balancing freshness and revalidation work. |
+| `30s` | Repositories with reliable ETags that remain stable while content is unchanged, when faster pickup of new chart versions is needed. Unchanged indexes can return `304`. |
+| `3m` or longer | Busy virtual repositories whose ETag changes frequently. Each changed index requires a full `200` response, so a longer window avoids repeated large transfers and processing. |
+
+Expiry is demand-driven: the next eligible dependency build revalidates an expired index.
+This setting does not poll repositories, trigger manifest generation, override `Chart.lock`
+or pinned versions, or wait before applying changed Git/Application values. Always-fresh
+Go-client operations continue contacting the origin regardless of this freshness window.
+A `200` or `304` publishes only with the ownership token acquired before its origin request.
+Overlapping fetches cannot preempt a live claim. Successful publication consumes it;
+failure or cancellation releases only the matching token, with a bounded cleanup timeout.
+Claims expire after 30 seconds unless a live fetch renews them every 10 seconds.
+Transient renewal errors permit another bounded attempt; a confirmed lost token stops renewal.
+Abandoned claims therefore recover without waiting for a long lease after Redis recovers.
+Acquisition retries can confirm their own token but cannot replace a later owner's token.
+Maintenance publication, expiry or eviction invalidates a claim. Missing tokens cannot
+authorize publication, even if every index key was evicted in the meantime.
+Publication atomically commits small metadata containing validators, validation time,
+generation and a SHA-256 reference to the body. Each identity uses one separate body key;
+readers verify that bytes match the published digest, and body writes require that digest
+to remain current. Delayed transfers cannot overwrite a different current body. Losing the
+small metadata keys does not accumulate large orphan bodies across subsequent generations.
+The body and its digest marker are written atomically. Metadata extends the body's retention
+only when that marker identifies the same bytes; a pending replacement does not extend the old body.
+Warm builds read only small shared metadata when their generation still matches. When another
+replica revalidates the same bytes, its confirmed metadata can reuse the matching local body
+by digest, including when large shared-body transfers time out. A different digest requires
+a usable shared body or origin validation.
+Local records persist checksums binding the body, validators and freshness metadata,
+verified before their validators can authorize a `304`. A record known to be superseded
+is retired before another shared lookup or origin request, so a later timeout cannot restore it.
+Eligibility is bound to the record checksum in a small sidecar and invalidated before
+unlinking a rejected record. Other stores and restarted processes check this state under the
+same stable lock, so an unlink failure cannot revive the old record. Missing, partial or mismatching
+state prevents disk reuse; verified shared indexes and successful origin responses remain usable.
+Disk records from older versions without this state require shared confirmation or an origin fetch.
+The directory uses at most 256 permanent lock stripes plus temporary record lock files.
+Normal operations share the stripe and lock only their own record, so a slow origin does not
+block an unrelated repository that hashes to the same stripe. Exclusive stripe ownership
+allows safe reclamation of record lock files. Per-record eligibility files are reclaimed
+with retired records. Dependency-cache operations, including failed fetches and disk writes,
+scan for expired entries and orphan locks at most once per minute after releasing the record lock.
+Encoded disk reads are bounded before JSON and base64 decoding, including after lowering the index-size limit.
+The same computed hash supplies YAML-validation memoization and comparison with shared metadata.
+Legacy disk files without a checksum require a verified shared body or full origin response
+before their freshness and validators are trusted. Local records contain the complete original index and are rewritten
+after successful revalidation, including `304` responses.
+
+Expired indexes and validators remain available for another `max(24h, freshness)`;
+normal reads and snapshot copies never extend either deadline. Successful origin responses
+advance validation time. A retained index is never served after an origin validation error.
+Copying a fresh Redis hit to disk preserves its timestamp and never writes it back to Redis.
+If shared metadata publication loses ownership, errors, or cannot be confirmed, that response does
+not renew the disk record either. Its in-flight build may finish using its validated snapshot;
+the next store lookup selects the valid shared publication, even when its publishing pod's clock
+is behind the local pod. Timestamps govern freshness and retention, rather than publication order.
+This also applies to cold fetches and executed hard refreshes. During a Redis outage or with
+a shared adapter without atomic publication, expired disk records stay expired and builds may
+revalidate more often. After a failed body transfer, a bounded metadata read must confirm that
+the same generation remains current before the validated response can warm the local store.
+The live response remains usable even when this confirmation fails. Cold readers treat the missing
+body as a miss and validate at the origin; they never substitute an older shared body.
+A missing or changed body reference prevents disk warming and invalidates an existing local
+copy of the rejected bytes. A missing reference can result from eviction; a changed reference
+indicates another publication. An unconfirmed body-transfer error also prevents local warming.
+A store without a shared cache continues renewing its disk records normally.
+
+Redis record reads receive at most five seconds and one quarter of the remaining request
+deadline. All versioned and legacy lookups share this single budget. Acquiring ownership
+receives at most one second and one quarter of the remaining deadline; publishing metadata
+and sharing its body together receive at most five seconds and one quarter of the remaining
+deadline. Managed Redis clients enforce these deadlines for socket I/O, leaving time for
+origin requests and Helm. A read timeout does not prevent an origin response from publishing
+if ownership can still be acquired and metadata publication confirmed.
+Body sharing reserves part of its remaining budget for generation confirmation after an error.
+If a metadata commit's reply is lost, a bounded lookup confirms its generation, body digest,
+validators and validation time before body sharing or disk warming. Absent or different metadata
+leaves publication unconfirmed. Cold credential, transport, response-URL and Redis key derivation
+respect request cancellation while queued or running; cancellation does not start overlapping
+memory-hard workers. Uncached HTTP fetches skip response-URL fingerprinting.
+An expired record is observed again after acquiring publication ownership, so a maintenance
+write between the initial read and the claim cannot be overwritten by a `304` for older bytes.
+Custom cache adapters without context support retain their own read-timeout policy; Redis
+clients supplied by integrations must enable `ContextTimeoutEnabled` to participate in bounded reads.
+They must also leave socket deadline enforcement enabled. Maintenance writes are not replayed after
+an ambiguous reply; they use the same bounded generation confirmation before sharing a body.
+
+Each Helm invocation still has private config, cache, data, credentials and certificate files.
+The effective installed plugin directory remains available through `HELM_PLUGINS`, preserving
+getters used by chart archive URLs even when their repository index uses HTTP.
+An explicitly empty or relative plugin path, including a relative default when `HOME` is
+missing, selects a private absolute empty directory. Helm therefore cannot discover getters
+in the chart checkout. Configure an absolute plugin directory to use installed getters.
+Argo copies the original validated index bytes into that home and uses `--skip-refresh` only
+after every required HTTP repository is ready. OS file locks coordinate builds and cleanup
+between processes sharing a local directory. Lock waits respect request cancellation;
+context-free maintenance waits are limited to 30 seconds. A crashed process releases its locks,
+and startup/publication cleanup removes orphaned record temporary files with the cache's
+64-character lowercase hexadecimal record names. Other filenames are left alone. Permanent
+stripe files remain on disk; temporary record locks are removed only while their stripe is exclusive.
+
+> [!NOTE]
+> Use a pod-local filesystem with working advisory locks and atomic rename, such as an
+> `emptyDir` volume. Each replica normally has its own directory. Shared network filesystems
+> are not supported by this optimization. Losing the directory only makes the next build cold.
+> Account for retained index bodies, metadata and per-identity lock files when sizing the volume.
+
+> [!WARNING]
+> Indexes can contain private chart metadata. Use a dedicated directory writable only by
+> repo-server; newly created cache directories have mode `0700` and records/locks `0600`.
+> Repository passwords and client keys stay in the temporary Helm home. Cache-directory initialization and locking failures
+> return an actionable error; set `reposerver.helm.index.cache.enabled: "false"` to use the original path. A publication
+> failure after successful HTTP validation does not discard the valid response.
+
+A warm dependency build makes no index request. An expired index is conditionally revalidated
+when validators are available. Normal and webhook refreshes (`NoRevisionCache`) resolve the
+latest Git revision while preserving index freshness: fresh records make no index request and
+expired records are conditionally revalidated. Hard refresh (`NoCache`) fetches unconditionally
+**when a dependency build actually executes**.
+Existing dependency markers, downloaded charts and `Chart.lock` still govern whether a build
+runs and which versions it uses. Enabling the cache does not force a rebuild or unlock versions.
+If a warm index cannot resolve a requested dependency version, the build conditionally revalidates
+only the affected HTTP repository, ignoring freshness for that lookup, then retries once with its
+complete index. Resolvable warm dependencies still make zero index requests. Archive download and
+authentication failures do not trigger this retry; hard refresh remains an unconditional fetch.
+Unsupported getter schemes retain Helm's original registration and refresh path for the whole build.
+The same fallback applies when an effective HTTP dependency has no configured repository to prewarm,
+after applying legacy `requirements.yaml` overrides.
+Builds with colliding configured/generated repository cache names, or OCI dependencies using an
+inherited `HELM_REGISTRY_CONFIG`, also retain Helm's original path before any snapshot is installed.
+The optimized path rejects aliases using different credentials for URLs Helm considers equal,
+including cleaned paths. Helm's archive lookup cannot preserve those distinct views. Configure distinct
+repository URLs for those views. Aliases sharing the same credential view remain supported.
+
+Shared records require a complete, size-bounded index with `apiVersion: v1`. Invalid or truncated
+responses are never published.
+Successful body validation is remembered in a bounded process-local cache of 256 SHA-256
+digests. Disk bodies are hashed on read; shared bytes identical to a validated local body
+avoid a second hash. Unchanged bodies avoid repeated YAML parsing, and changed bodies are validated normally. This cache retains no index bodies and does not
+extend freshness or retention. Valid shared publications still take precedence after validation.
+
+Go-client chart listing and connectivity tests contact the origin on every call, independently
+of dependency-cache enablement. Revision resolution preserves its existing policy: an exact
+version skips index lookup; a version range may use a fresh Redis index when
+`noRevisionCache=false`, and forces origin revalidation when `noRevisionCache=true`. A `304` response avoids transferring the index
+body; it still counts as a GET. Chart extraction through `helm pull --repo` can make its own index
+request on archive misses. Archive downloads and checkout-triggered builds are unchanged.
+
+Go-client index requests send `Cache-Control: no-cache` so compliant intermediary caches validate
+with the origin before replying. Update detection still depends on accurate origin validators:
+an incorrect `304`, a reused ETag, or an unchanged modification timestamp can hide a change.
+OCI repositories use registry tags, manifests and blobs instead of `index.yaml`; this index cache
+does not cache OCI content or change OCI tag-cache freshness. Mixed HTTP/OCI builds retain
+registry authentication and pulls while reusing only the HTTP index.
+Helm OCI tag lists use the revision-cache expiration, independently of HTTP index expiration.
+
+During a rolling upgrade, ownership-aware versioned Redis records use a separate namespace
+from older versioned writers and coexist with legacy raw-index keys;
+old readers never receive a record envelope in a raw key. Older replicas may continue making full
+index downloads. Raw legacy entries remain available for origin validation, but their unknown
+age cannot establish freshness under a reader's configured expiration. Legacy split-validator
+getters and setters use the same separate key and cannot change body-bound record metadata.
+Rollback does not require deleting Redis records. To disable dependency reuse,
+set `reposerver.helm.index.cache.enabled: "false"` and restart repo-server; remove its volume contents only after every
+process using that directory has stopped.
+
+Credential-scoped keys use a versioned Argon2id fingerprint with 19 MiB of memory and two passes.
+The derivation is deterministic across processes so they can reuse the same records. Its salt
+separates cache-identity domains; it is not a random salt for authentication password storage.
+A bounded process-local cache avoids repeating the derivation for warm credential views and
+retains only keyed lookup tags and derived fingerprints, not plaintext credentials. Cold
+derivations are serialized to bound additional derivation memory. Fingerprint-version changes
+make previous entries cold; those records expire through their normal retention policies.
+Helm OCI tag-cache identities include effective Docker-store credentials when those credentials
+authenticate registry requests, while preserving an explicitly selected cache scope.
+Docker Hub aliases use the registry's effective hostname for authentication. If a Docker
+credential helper fails, the request bypasses shared metadata: public access can still succeed,
+and an authentication challenge reports the credential lookup error.
+If the optional Docker configuration cannot be loaded, shared metadata is also bypassed,
+while anonymous bearer-token authentication remains available for public registries.
+Optional Docker helper prelookups get at most one second and one quarter of the remaining request
+deadline. A lookup timeout bypasses shared metadata and leaves time for anonymous registry access.
+OCI tag-cache identities also include repository proxy settings and inherited proxy policy.
+Helm OCI tag keys distinguish HTTP from HTTPS and use a separate format namespace from native
+OCI tag entries. Credential-helper execution is limited to four concurrent processes, shared by
+optional prelookups and authentication challenges; waiting for a slot uses the same lookup deadline.
+After a prelookup timeout, a registry challenge
+can retry the helper for at most 30 seconds and three quarters of the remaining request deadline.
+Another helper timeout leaves time for anonymous bearer authentication; shared caching stays disabled.
+Malformed HTTP index responses are decoded before publication and cannot renew cached validators.
+YAML schema decoding follows the pinned Helm loader's strict policy; JSON retains Helm's permissive
+unknown-field handling.
+Repository index URLs preserve significant repeated slashes, matching Helm's URL resolution.
+Chart metadata selection honors root `.helmignore` rules and bounds reads to Helm's 100 MiB
+chart budget; oversized metadata disables optional prewarming and is left to Helm's loader.
+HTTP Helm operations and native OCI clients snapshot custom CA file contents for both
+the TLS transport and cache identity, so rotating that file creates a new cache view.
+Prewarmed Helm subprocesses receive the same frozen CA contents in their private configuration.
+An explicitly configured empty CA file is rejected before index prewarming, since Helm would
+otherwise fall back to system roots. An unset CA continues using the normal system trust policy.
+
+Atomic shared records keep index bytes and validators together. Cache implementations that only
+support separate body and validator reads use process-local validators bound to the body's
+SHA-256 digest. Their first revalidation after restart may download the complete index;
+subsequent requests can use conditional GETs without pairing validators with different bytes.
+This fallback retains at most 256 repository/credential scopes; eviction requires an unconditional fetch.
+Adapters exposing record or validator metadata require ownership-aware atomic publication;
+they never fall back to unguarded body or validator writes. Legacy adapters exposing only raw
+body reads and writes retain their original contract. A cache without atomic
+publication support cannot confirm a new shared or disk deadline, which can cause extra origin
+requests. A `304` without a sent validator is unusable and retries once unconditionally;
+another `304` fails instead of renewing unvalidated cached bytes.
+Invalid entity tags, including a bare `*` or multiple ETag field lines, cannot supply `If-None-Match`; a valid Last-Modified
+date can be used instead, otherwise the request is unconditional.
+A `304` with an ETag that cannot identify the retained body also requires that retry,
+including a new strong ETag after date-based validation. Matching strong/weak validators
+and usable responses omitting the ETag retain conditional revalidation. See
+[RFC 9111 section 4.3.4](https://www.rfc-editor.org/rfc/rfc9111.html#section-4.3.4).
+
+Fresh indexes and validators are bound to the request's User-Agent, as well as the credential
+view. A changed User-Agent or a record without this provenance requires a full response.
+Other supported `Vary` fields have fixed request values; an unsupported field or `Vary: *`
+disables reuse of that response. Different User-Agents may replace each other's shared record,
+requiring additional full fetches while preserving the selected representation.
+Validators are also bound to a fingerprint of the effective response URL, including its query.
+Conditions follow only that resource through redirects. A stable redirect can revalidate with
+`304`; a changed target or a legacy record without URL provenance requires a body response.
+The fingerprint keeps URL credentials and query secrets out of the record metadata.
+
+Measure index GETs, `200`/`304` statuses, transferred bytes, dependency-build duration and origin
+errors separately on a canary. Verify cold, warm, expired and executed hard-refresh builds against
+a comparable workload. Request reduction across replicas and the fleet's target reduction require
+measurement; per-process or per-directory single-flight does not coordinate separate pods.
+
+##### Dependency-only Helm indexes
+
+Index filtering is a separate opt-in, disabled by default. With dependency reuse enabled,
+set `reposerver.helm.index.cache.filter.enabled: "true"` in `argocd-cmd-params-cm`, use
+`--helm-index-cache-filter-enabled`, or set
+`ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_FILTER_ENABLED=true`, then restart repo-server.
+The persistent disk and Redis records still contain the complete original index. Only each
+build's private Helm snapshot is reduced to the original names in `dependencies[].name`,
+including every direct dependency sharing that repository and all its indexed versions.
+Chart aliases do not replace chart names when selecting entries. Legacy `requirements.yaml`
+dependencies are also supported.
+
+Reduced snapshots use Helm's JSON index format, preserving chart metadata and archive URLs.
+Index generations are projected once into a process-local cache bounded to 64 MiB of retained
+fragments and 128 generations. Large indexes, ambiguous structural field casing, or unsupported
+conversions use complete indexes.
+An index lookup/load failure retries the build once with complete original indexes, without
+fetching the index again. Origin validation and archive authentication/network failures retain
+their normal error behavior. OCI, file and vendored dependencies are not filtered.
+
+To force the complete-index backup while keeping dependency reuse enabled, set
+`reposerver.helm.index.cache.filter.enabled: "false"` and restart repo-server. For example:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cmd-params-cm
+  namespace: argocd
+data:
+  reposerver.helm.index.cache.enabled: "true"
+  reposerver.helm.index.cache.filter.enabled: "false"
+```
+
 ### argocd-application-controller
 
 **settings:**

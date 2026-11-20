@@ -312,6 +312,20 @@ data:
   reposerver.tls.curvepreferences: ""
   # Path to the client CA certificate file for mTLS. if the file is not found or empty, mTLS is disabled.
   reposerver.client.ca.path: ""
+  # Enable dependency index reuse. Disabled by default, independently of the directory setting.
+  reposerver.helm.index.cache.enabled: "false"
+  # HTTP Helm index freshness, independent of Git revision and OCI tag caches (default 60s).
+  # Use 30s for reliable ETags and faster version pickup; 3m or longer for frequently changing virtual indexes.
+  # Zero revalidates on every use. Revalidation is demand-driven, not background polling.
+  reposerver.helm.index.cache.expiration: "60s"
+  # Opt in to dependency-only private indexes; false keeps complete original indexes.
+  # Requires index reuse above. Index lookup/load failures retry once with complete indexes.
+  reposerver.helm.index.cache.filter.enabled: "false"
+  # Writable cache directory. Defaults to the system temporary directory plus /helm-index-cache.
+  # The usual default is shown below; omit or leave empty to respect a custom TMPDIR.
+  # Indexes retain validators for at least 24 hours beyond freshness.
+  reposerver.helm.index.cache.dir: "/tmp/helm-index-cache"
+
   # Cache expiration for repo state, incl. app lists, app details, manifest generation, revision meta-data (default 24h0m0s)
   reposerver.repo.cache.expiration: "24h0m0s"
   # Cache expiration default (default 24h0m0s)

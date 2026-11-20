@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
@@ -291,4 +292,78 @@ func (creds AzureWorkloadIdentityCreds) challengeAzureContainerRegistry(ctx cont
 	}
 
 	return tokenParams, nil
+}
+
+// credsSnapshot is a resolved, immutable view of a Creds provider: all
+// getters are evaluated exactly once at creation time. Dynamic credential
+// providers (e.g. AzureWorkloadIdentityCreds, whose GetPassword returns a
+// rotating access token) must be resolved ONCE per operation so that every
+// consumer — HTTP basic-auth, OCI login, cache-scope fingerprints — sees the
+// SAME resolved values. Otherwise a rotation between two GetPassword calls
+// pairs a cache key derived from token A with a request (or stored index)
+// authenticated with token B.
+type credsSnapshot struct {
+	username           string
+	password           string
+	caPath             string
+	caData             []byte
+	certData           []byte
+	keyData            []byte
+	insecureSkipVerify bool
+}
+
+var _ Creds = credsSnapshot{}
+
+func (c credsSnapshot) GetUsername() string {
+	return c.username
+}
+
+func (c credsSnapshot) GetPassword() (string, error) {
+	return c.password, nil
+}
+
+func (c credsSnapshot) GetCAPath() string {
+	return c.caPath
+}
+
+func (c credsSnapshot) GetCertData() []byte {
+	return c.certData
+}
+
+func (c credsSnapshot) GetKeyData() []byte {
+	return c.keyData
+}
+
+func (c credsSnapshot) GetInsecureSkipVerify() bool {
+	return c.insecureSkipVerify
+}
+
+// snapshotCreds resolves all getters of a Creds provider exactly once,
+// propagating lookup errors (a rotating token provider can fail transiently;
+// the caller must not silently fall back to anonymous credentials).
+func snapshotCreds(creds Creds) (credsSnapshot, error) {
+	if snapshot, ok := creds.(credsSnapshot); ok {
+		return snapshot, nil
+	}
+	password, err := creds.GetPassword()
+	if err != nil {
+		return credsSnapshot{}, fmt.Errorf("failed to resolve helm credentials: %w", err)
+	}
+	caPath := creds.GetCAPath()
+	var caData []byte
+	if caPath != "" {
+		caData, err = os.ReadFile(caPath)
+		if err != nil {
+			return credsSnapshot{}, fmt.Errorf("failed to read helm CA file: %w", err)
+		}
+	}
+	return credsSnapshot{
+		username:           creds.GetUsername(),
+		password:           password,
+		caPath:             caPath,
+		caData:             caData,
+		certData:           append([]byte(nil), creds.GetCertData()...),
+		keyData:            append([]byte(nil), creds.GetKeyData()...),
+		insecureSkipVerify: creds.GetInsecureSkipVerify(),
+	}, nil
 }

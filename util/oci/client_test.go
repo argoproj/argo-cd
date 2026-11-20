@@ -6,7 +6,9 @@ import (
 	"compress/gzip"
 	"context"
 	"crypto/tls"
+	"crypto/x509"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"io"
 	"net/http"
@@ -28,9 +30,12 @@ import (
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
+	"oras.land/oras-go/v2/registry/remote"
+	"oras.land/oras-go/v2/registry/remote/auth"
 
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
+	utilstls "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 type layerConf struct {
@@ -1035,4 +1040,85 @@ func Test_getOCIManifest(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "error decoding oci manifest")
 	})
+}
+
+func TestCredentialScopeIsolatesViews(t *testing.T) {
+	first := credsScope(Creds{Username: "reader", Password: "one"})
+	require.Equal(t, first, credsScope(Creds{Username: "reader", Password: "one"}))
+	require.NotEqual(t, first, credsScope(Creds{Username: "reader", Password: "two"}))
+	require.Len(t, strings.TrimPrefix(first, "argon2id-v1:"), 64)
+	require.NotEqual(t, credsScope(Creds{Username: "a\x00b", Password: "c"}), credsScope(Creds{Username: "a", Password: "b\x00c"}))
+	require.NotEqual(t, first, credsScope(Creds{Username: "reader", Password: "one", InsecureHTTPOnly: true}))
+}
+
+func TestTagCacheScopeIncludesProxyRoutes(t *testing.T) {
+	creds := Creds{Username: "reader", Password: "secret"}
+	key := func(proxy, noProxy string) string {
+		t.Helper()
+		client, err := NewClient("oci://registry.example/charts", creds, proxy, noProxy, nil, WithIndexCacheScopedByCreds(&fakeTagsCache{}, creds))
+		require.NoError(t, err)
+		key, err := client.(*nativeOCIClient).cacheRepoKey(t.Context())
+		require.NoError(t, err)
+		return key
+	}
+	first := key("http://user:proxy-secret@first.example", "")
+	require.Equal(t, first, key("http://user:proxy-secret@first.example", ""))
+	require.NotEqual(t, first, key("http://second.example", ""))
+	require.NotEqual(t, first, key("http://user:proxy-secret@first.example", "registry.example"))
+	require.NotContains(t, first, "proxy-secret")
+}
+
+func TestTagCacheScopeRespectsOperationCancellation(t *testing.T) {
+	creds := Creds{Username: "canceled-scope", Password: "fixture"}
+	client, err := NewClient("oci://registry.example/charts", creds, "", "", nil, WithIndexCacheScopedByCreds(&fakeTagsCache{data: []byte(`["1.0.0"]`)}, creds))
+	require.NoError(t, err)
+	ctx, cancel := context.WithCancel(t.Context())
+	cancel()
+	_, err = client.(*nativeOCIClient).getTags(ctx, false)
+	require.ErrorIs(t, err, context.Canceled)
+}
+
+func TestCredentialSnapshotKeepsCertificateGeneration(t *testing.T) {
+	creds := Creds{CertData: []byte("certificate"), KeyData: []byte("key"), caData: []byte("authority")}
+	snapshot, err := snapshotCredentials(creds)
+	require.NoError(t, err)
+	scope := credsScope(snapshot)
+	creds.CertData[0], creds.KeyData[0], creds.caData[0] = 'X', 'X', 'X'
+	require.Equal(t, scope, credsScope(snapshot), "deferred scope derivation must retain the transport's credential generation")
+}
+
+func TestCredentialScopeObservesCAFileRotation(t *testing.T) {
+	first, err := utilstls.GenerateHealthCheckClientCert()
+	require.NoError(t, err)
+	second, err := utilstls.GenerateHealthCheckClientCert()
+	require.NoError(t, err)
+	ca := filepath.Join(t.TempDir(), "ca.pem")
+	oldPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: first.Certificate[0]})
+	newPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: second.Certificate[0]})
+	require.NoError(t, os.WriteFile(ca, oldPEM, 0o600))
+	creds := Creds{CAPath: ca}
+	one := credsScope(creds)
+	require.NotEmpty(t, one)
+	client, err := NewClient("oci://example.com/charts", creds, "", "", nil, WithIndexCacheScopedByCreds(&fakeTagsCache{}, creds))
+	require.NoError(t, err)
+	original := client.(*nativeOCIClient).credentialSnapshot
+	originalKey, err := client.(*nativeOCIClient).cacheRepoKey(t.Context())
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(ca, newPEM, 0o600))
+	two := credsScope(creds)
+	require.NotEmpty(t, two)
+	require.NotEqual(t, one, two)
+	require.Equal(t, two, credsScope(creds), "unchanged CA contents must keep stable cache identities")
+	require.Equal(t, one, credsScope(*original), "existing transport and identity must keep the same immutable CA snapshot")
+	native := client.(*nativeOCIClient)
+	WithIndexCacheScopedByCreds(&fakeTagsCache{}, creds)(native)
+	key, err := native.cacheRepoKey(t.Context())
+	require.NoError(t, err)
+	require.Equal(t, originalKey, key, "the actual cache key must use the transport's original CA snapshot")
+	transport := client.(*nativeOCIClient).repo.(*remote.Repository).Client.(*auth.Client).Client.Transport.(*http.Transport)
+	pool := x509.NewCertPool()
+	require.True(t, pool.AppendCertsFromPEM(oldPEM))
+	require.True(t, transport.TLSClientConfig.RootCAs.Equal(pool))
+	require.NoError(t, os.Remove(ca))
+	require.Empty(t, credsScope(creds), "an unreadable trust context must not identify reusable cache data")
 }

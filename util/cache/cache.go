@@ -49,12 +49,13 @@ func NewCache(client CacheClient) *Cache {
 
 func buildRedisClient(redisAddress, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config) *redis.Client {
 	opts := &redis.Options{
-		Addr:       redisAddress,
-		Password:   password,
-		DB:         redisDB,
-		MaxRetries: maxRetries,
-		TLSConfig:  tlsConfig,
-		Username:   username,
+		Addr:                  redisAddress,
+		ContextTimeoutEnabled: true,
+		Password:              password,
+		DB:                    redisDB,
+		MaxRetries:            maxRetries,
+		TLSConfig:             tlsConfig,
+		Username:              username,
 	}
 
 	client := redis.NewClient(opts)
@@ -68,15 +69,16 @@ func buildRedisClient(redisAddress, password, username string, redisDB, maxRetri
 
 func buildFailoverRedisClient(sentinelMaster, sentinelUsername, sentinelPassword, password, username string, redisDB, maxRetries int, tlsConfig *tls.Config, sentinelAddresses []string) *redis.Client {
 	opts := &redis.FailoverOptions{
-		MasterName:       sentinelMaster,
-		SentinelAddrs:    sentinelAddresses,
-		DB:               redisDB,
-		Password:         password,
-		MaxRetries:       maxRetries,
-		TLSConfig:        tlsConfig,
-		Username:         username,
-		SentinelUsername: sentinelUsername,
-		SentinelPassword: sentinelPassword,
+		MasterName:            sentinelMaster,
+		ContextTimeoutEnabled: true,
+		SentinelAddrs:         sentinelAddresses,
+		DB:                    redisDB,
+		Password:              password,
+		MaxRetries:            maxRetries,
+		TLSConfig:             tlsConfig,
+		Username:              username,
+		SentinelUsername:      sentinelUsername,
+		SentinelPassword:      sentinelPassword,
 	}
 
 	client := redis.NewFailoverClient(opts)
@@ -380,6 +382,23 @@ func (c *Cache) GetItem(key string, item any) error {
 	}
 	client := c.GetClient()
 	return client.Get(key, item)
+}
+
+// GetItemContext requires a client that can enforce cancellation for its I/O.
+// Unsupported clients fail instead of silently performing an unbounded read.
+func (c *Cache) GetItemContext(ctx context.Context, key string, item any) error {
+	if item == nil {
+		return errors.New("cannot get a nil cache item")
+	}
+	if err := ctx.Err(); err != nil {
+		return err
+	}
+	if client, ok := c.GetClient().(interface {
+		GetContext(context.Context, string, any) error
+	}); ok {
+		return client.GetContext(ctx, c.generateFullKey(key), item)
+	}
+	return errors.New("cache client does not support context-aware reads")
 }
 
 // localCacheClient is implemented by clients that keep a local copy of external cache entries.

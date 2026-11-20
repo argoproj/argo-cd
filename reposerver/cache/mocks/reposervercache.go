@@ -61,7 +61,7 @@ func NewInMemoryRedis() (*redis.Client, func()) {
 	if err != nil {
 		panic(err)
 	}
-	return redis.NewClient(&redis.Options{Addr: mr.Addr()}), mr.Close
+	return redis.NewClient(&redis.Options{Addr: mr.Addr(), ContextTimeoutEnabled: true}), mr.Close
 }
 
 func NewMockRepoCache(cacheOpts *MockCacheOptions) *MockRepoCache {
