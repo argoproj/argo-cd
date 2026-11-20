@@ -1,18 +1,19 @@
 package controller
 
 import (
+	"encoding/json"
 	"os"
 	"strconv"
 	"testing"
 
 	openapi_v2 "github.com/google/gnostic-models/openapiv2"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
@@ -32,27 +33,40 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
-type fakeDiscovery struct {
-	schema *openapi_v2.Document
-}
-
-func (f *fakeDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
-	return f.schema, nil
-}
-
-func loadCRDSchema(t *testing.T, path string) *openapi_v2.Document {
+// forEachSchemaResolver runs test with a resolver serving the definitions of the OpenAPI v2
+// document at path, once through the v2 fallback and once as an OpenAPI v3 group version document.
+func forEachSchemaResolver(t *testing.T, path string, test func(t *testing.T, resolver kube.OpenAPISchemaResolver)) {
 	t.Helper()
 
 	data, err := os.ReadFile(path)
 	require.NoError(t, err)
-
 	jsonData, err := yaml.YAMLToJSON(data)
 	require.NoError(t, err)
-
-	doc, err := openapi_v2.ParseDocument(jsonData)
+	v2, err := openapi_v2.ParseDocument(jsonData)
 	require.NoError(t, err)
 
-	return doc
+	var swagger struct {
+		Definitions map[string]map[string]any `json:"definitions"`
+	}
+	require.NoError(t, json.Unmarshal(jsonData, &swagger))
+	v3 := map[string][]byte{}
+	for _, def := range swagger.Definitions {
+		gvks, _ := def["x-kubernetes-group-version-kind"].([]any)
+		for _, item := range gvks {
+			gvk := item.(map[string]any)
+			path := "apis/" + gvk["group"].(string) + "/" + gvk["version"].(string)
+			v3[path], err = json.Marshal(map[string]any{"openapi": "3.0.0", "components": map[string]any{"schemas": swagger.Definitions}})
+			require.NoError(t, err)
+		}
+	}
+	require.NotEmpty(t, v3)
+
+	t.Run("v2", func(t *testing.T) {
+		test(t, (&kubetest.FakeOpenAPIClient{V2: v2}).NewOpenAPISchemaResolver())
+	})
+	t.Run("v3", func(t *testing.T) {
+		test(t, (&kubetest.FakeOpenAPIClient{V3: v3}).NewOpenAPISchemaResolver())
+	})
 }
 
 func TestPersistRevisionHistory(t *testing.T) {
@@ -574,46 +588,44 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	}
 
 	t.Run("will properly ignore nested fields within arrays", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
-		// given
-		ignores := []v1alpha1.ResourceIgnoreDifferences{
-			{
-				Group:             "projectcontour.io",
-				Kind:              "HTTPProxy",
-				JQPathExpressions: []string{".spec.routes[]"},
-				// JSONPointers: []string{"/spec/routes"},
-			},
-		}
-		f := setupHTTPProxy(t, ignores)
-		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
-		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
-		// when
-		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		forEachSchemaResolver(t, "testdata/schemas/httpproxy_openapi_v2.yaml", func(t *testing.T, oapiResources kube.OpenAPISchemaResolver) {
+			t.Helper()
+			// given
+			ignores := []v1alpha1.ResourceIgnoreDifferences{
+				{
+					Group:             "projectcontour.io",
+					Kind:              "HTTPProxy",
+					JQPathExpressions: []string{".spec.routes[]"},
+					// JSONPointers: []string{"/spec/routes"},
+				},
+			}
+			f := setupHTTPProxy(t, ignores)
+			target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+			f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+			// when
+			patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
 
-		// then
-		require.NoError(t, err)
-		require.Len(t, f.comparisonResult.reconciliationResult.Live, 1)
-		require.Len(t, f.comparisonResult.reconciliationResult.Target, 1)
-		require.Len(t, patchedTargets, 1)
+			// then
+			require.NoError(t, err)
+			require.Len(t, f.comparisonResult.reconciliationResult.Live, 1)
+			require.Len(t, f.comparisonResult.reconciliationResult.Target, 1)
+			require.Len(t, patchedTargets, 1)
 
-		// live should have 1 entry
-		require.Len(t, dig(f.comparisonResult.reconciliationResult.Live[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"), 1)
-		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "sample-header", dig(f.comparisonResult.reconciliationResult.Live[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"))
+			// live should have 1 entry
+			require.Len(t, dig(f.comparisonResult.reconciliationResult.Live[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"), 1)
+			// assert some arbitrary field to show `entries[0]` is not an empty object
+			require.Equal(t, "sample-header", dig(f.comparisonResult.reconciliationResult.Live[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeader", "headerName"))
 
-		// target has 2 entries
-		require.Len(t, dig(f.comparisonResult.reconciliationResult.Target[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"), 2)
-		// assert some arbitrary field to show `entries[0]` is not an empty object
-		require.Equal(t, "sample-header", dig(f.comparisonResult.reconciliationResult.Target[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"))
+			// target has 2 entries
+			require.Len(t, dig(f.comparisonResult.reconciliationResult.Target[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries"), 2)
+			// assert some arbitrary field to show `entries[0]` is not an empty object
+			require.Equal(t, "sample-header", dig(f.comparisonResult.reconciliationResult.Target[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0, "requestHeaderValueMatch", "headers", 0, "name"))
 
-		// It should be *1* entries in the array
-		require.Len(t, dig(patchedTargets[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"), 1)
-		// and it should NOT equal an empty object
-		require.Len(t, dig(patchedTargets[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0), 1)
+			// It should be *1* entries in the array
+			require.Len(t, dig(patchedTargets[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors"), 1)
+			// and it should NOT equal an empty object
+			require.Len(t, dig(patchedTargets[0].Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries", 0), 1)
+		})
 	})
 	t.Run("will correctly set array entries if new entries have been added", func(t *testing.T) {
 		// given
@@ -739,46 +751,44 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	})
 
 	t.Run("patches ignored differences in individual array elements of HTTPProxy CRD", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
+		forEachSchemaResolver(t, "testdata/schemas/httpproxy_openapi_v2.yaml", func(t *testing.T, oapiResources kube.OpenAPISchemaResolver) {
+			t.Helper()
 
-		ignores := []v1alpha1.ResourceIgnoreDifferences{
-			{
-				Group:             "projectcontour.io",
-				Kind:              "HTTPProxy",
-				JQPathExpressions: []string{".spec.routes[].rateLimitPolicy.global.descriptors[].entries[]"},
-			},
-		}
+			ignores := []v1alpha1.ResourceIgnoreDifferences{
+				{
+					Group:             "projectcontour.io",
+					Kind:              "HTTPProxy",
+					JQPathExpressions: []string{".spec.routes[].rateLimitPolicy.global.descriptors[].entries[]"},
+				},
+			}
 
-		f := setupHTTPProxy(t, ignores)
+			f := setupHTTPProxy(t, ignores)
 
-		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
-		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+			target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
+			f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
-		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
-		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+			live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
+			f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
 
-		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
-		require.NoError(t, err)
-		require.Len(t, patchedTargets, 1)
-		patched := patchedTargets[0]
+			patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+			require.NoError(t, err)
+			require.Len(t, patchedTargets, 1)
+			patched := patchedTargets[0]
 
-		// verify descriptors array in patched target
-		descriptors := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors").([]any)
-		require.Len(t, descriptors, 1) // Only the descriptors with ignored entries should remain
+			// verify descriptors array in patched target
+			descriptors := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors").([]any)
+			require.Len(t, descriptors, 1) // Only the descriptors with ignored entries should remain
 
-		// verify individual entries array inside the descriptor
-		entriesArr := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries").([]any)
-		require.Len(t, entriesArr, 1) // Only the ignored entry should be patched
+			// verify individual entries array inside the descriptor
+			entriesArr := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries").([]any)
+			require.Len(t, entriesArr, 1) // Only the ignored entry should be patched
 
-		// verify the content of the entry is preserved correctly
-		entry := entriesArr[0].(map[string]any)
-		requestHeader := entry["requestHeader"].(map[string]any)
-		assert.Equal(t, "sample-header", requestHeader["headerName"])
-		assert.Equal(t, "sample-key", requestHeader["descriptorKey"])
+			// verify the content of the entry is preserved correctly
+			entry := entriesArr[0].(map[string]any)
+			requestHeader := entry["requestHeader"].(map[string]any)
+			assert.Equal(t, "sample-header", requestHeader["headerName"])
+			assert.Equal(t, "sample-key", requestHeader["descriptorKey"])
+		})
 	})
 }
 
@@ -807,104 +817,100 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 	}
 
 	t.Run("sample-app", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/schemas/simple-app.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
+		forEachSchemaResolver(t, "testdata/schemas/simple-app.yaml", func(t *testing.T, oapiResources kube.OpenAPISchemaResolver) {
+			t.Helper()
 
-		ignores := []v1alpha1.ResourceIgnoreDifferences{
-			{
-				Group:             "example.com",
-				Kind:              "SimpleApp",
-				JQPathExpressions: []string{".spec.servers[1].enabled", ".spec.servers[0].port"},
-			},
-		}
+			ignores := []v1alpha1.ResourceIgnoreDifferences{
+				{
+					Group:             "example.com",
+					Kind:              "SimpleApp",
+					JQPathExpressions: []string{".spec.servers[1].enabled", ".spec.servers[0].port"},
+				},
+			}
 
-		f := setupHTTPProxy(t, ignores)
+			f := setupHTTPProxy(t, ignores)
 
-		target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
-		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+			target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
+			f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
-		live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
-		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+			live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
+			f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
 
-		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
-		require.NoError(t, err)
-		require.Len(t, patchedTargets, 1)
+			patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+			require.NoError(t, err)
+			require.Len(t, patchedTargets, 1)
 
-		patched := patchedTargets[0]
-		require.NotNil(t, patched)
+			patched := patchedTargets[0]
+			require.NotNil(t, patched)
 
-		// 'spec.servers' array has length 2
-		servers := dig(patched.Object, "spec", "servers").([]any)
-		require.Len(t, servers, 2)
+			// 'spec.servers' array has length 2
+			servers := dig(patched.Object, "spec", "servers").([]any)
+			require.Len(t, servers, 2)
 
-		// first server's 'name' is 'server1'
-		name1 := dig(patched.Object, "spec", "servers", 0, "name").(string)
-		assert.Equal(t, "server1", name1)
+			// first server's 'name' is 'server1'
+			name1 := dig(patched.Object, "spec", "servers", 0, "name").(string)
+			assert.Equal(t, "server1", name1)
 
-		assert.Equal(t, int64(8081), dig(patched.Object, "spec", "servers", 0, "port").(int64))
-		assert.Equal(t, int64(9090), dig(patched.Object, "spec", "servers", 1, "port").(int64))
+			assert.Equal(t, int64(8081), dig(patched.Object, "spec", "servers", 0, "port").(int64))
+			assert.Equal(t, int64(9090), dig(patched.Object, "spec", "servers", 1, "port").(int64))
 
-		// first server's 'enabled' should be true
-		enabled1 := dig(patched.Object, "spec", "servers", 0, "enabled").(bool)
-		assert.True(t, enabled1)
+			// first server's 'enabled' should be true
+			enabled1 := dig(patched.Object, "spec", "servers", 0, "enabled").(bool)
+			assert.True(t, enabled1)
 
-		// second server's 'name' should be 'server2'
-		name2 := dig(patched.Object, "spec", "servers", 1, "name").(string)
-		assert.Equal(t, "server2", name2)
+			// second server's 'name' should be 'server2'
+			name2 := dig(patched.Object, "spec", "servers", 1, "name").(string)
+			assert.Equal(t, "server2", name2)
 
-		// second server's 'enabled' should be true (respected from live due to ignoreDifferences)
-		enabled2 := dig(patched.Object, "spec", "servers", 1, "enabled").(bool)
-		assert.True(t, enabled2)
+			// second server's 'enabled' should be true (respected from live due to ignoreDifferences)
+			enabled2 := dig(patched.Object, "spec", "servers", 1, "enabled").(bool)
+			assert.True(t, enabled2)
+		})
 	})
 	t.Run("rollout-obj", func(t *testing.T) {
 		// Load Rollout CRD schema like SimpleApp
-		doc := loadCRDSchema(t, "testdata/schemas/rollout-schema.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
+		forEachSchemaResolver(t, "testdata/schemas/rollout-schema.yaml", func(t *testing.T, oapiResources kube.OpenAPISchemaResolver) {
+			t.Helper()
 
-		ignores := []v1alpha1.ResourceIgnoreDifferences{
-			{
-				Group:             "argoproj.io",
-				Kind:              "Rollout",
-				JQPathExpressions: []string{`.spec.template.spec.containers[] | select(.name == "init") | .image`},
-			},
-		}
+			ignores := []v1alpha1.ResourceIgnoreDifferences{
+				{
+					Group:             "argoproj.io",
+					Kind:              "Rollout",
+					JQPathExpressions: []string{`.spec.template.spec.containers[] | select(.name == "init") | .image`},
+				},
+			}
 
-		f := setupHTTPProxy(t, ignores)
+			f := setupHTTPProxy(t, ignores)
 
-		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
-		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
-		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
-		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
+			live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
+			target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
+			f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
+			f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
-		targets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
-		require.NoError(t, err)
-		require.Len(t, targets, 1)
+			targets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+			require.NoError(t, err)
+			require.Len(t, targets, 1)
 
-		patched := targets[0]
-		require.NotNil(t, patched)
+			patched := targets[0]
+			require.NotNil(t, patched)
 
-		containers := dig(patched.Object, "spec", "template", "spec", "containers").([]any)
-		require.Len(t, containers, 2)
+			containers := dig(patched.Object, "spec", "template", "spec", "containers").([]any)
+			require.Len(t, containers, 2)
 
-		initContainer := containers[0].(map[string]any)
-		mainContainer := containers[1].(map[string]any)
+			initContainer := containers[0].(map[string]any)
+			mainContainer := containers[1].(map[string]any)
 
-		// Assert init container image is preserved (ignoreDifferences works)
-		initImage := dig(initContainer, "image").(string)
-		assert.Equal(t, "init-container:v1", initImage)
+			// Assert init container image is preserved (ignoreDifferences works)
+			initImage := dig(initContainer, "image").(string)
+			assert.Equal(t, "init-container:v1", initImage)
 
-		// Assert main container fields as expected
-		mainName := dig(mainContainer, "name").(string)
-		assert.Equal(t, "main", mainName)
+			// Assert main container fields as expected
+			mainName := dig(mainContainer, "name").(string)
+			assert.Equal(t, "main", mainName)
 
-		mainImage := dig(mainContainer, "image").(string)
-		assert.Equal(t, "main-container:v1", mainImage)
+			mainImage := dig(mainContainer, "image").(string)
+			assert.Equal(t, "main-container:v1", mainImage)
+		})
 	})
 
 	t.Run("app-of-apps-child-application-chart-version-update-panic", func(t *testing.T) {
@@ -918,64 +924,216 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 		// The panic occurs when the OpenAPI schema from the Application CRD is used
 		// to perform strategic merge patch operations on array fields with incomplete merge directives
 
-		doc := loadCRDSchema(t, "testdata/schemas/application-openapi-v2.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
+		forEachSchemaResolver(t, "testdata/schemas/application-openapi-v2.yaml", func(t *testing.T, oapiResources kube.OpenAPISchemaResolver) {
+			t.Helper()
 
-		// Set up ignoreDifferences with RespectIgnoreDifferences enabled
-		// This is typical for app-of-apps to ignore certain fields
-		ignores := []v1alpha1.ResourceIgnoreDifferences{
-			{
-				Group:             "argoproj.io",
-				Kind:              "Application",
-				JQPathExpressions: []string{".spec.syncPolicy.automated"},
-			},
-		}
+			// Set up ignoreDifferences with RespectIgnoreDifferences enabled
+			// This is typical for app-of-apps to ignore certain fields
+			ignores := []v1alpha1.ResourceIgnoreDifferences{
+				{
+					Group:             "argoproj.io",
+					Kind:              "Application",
+					JQPathExpressions: []string{".spec.syncPolicy.automated"},
+				},
+			}
 
+			dc, err := diff.NewDiffConfigBuilder().
+				WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+				WithNoCache().
+				Build()
+			require.NoError(t, err)
+
+			// Load live child Application (current state with chart version 0.45.28)
+			live := test.YamlToUnstructured(testdata.LiveChildApplicationYaml)
+
+			// Load target child Application (desired state with chart version 0.45.29)
+			target := test.YamlToUnstructured(testdata.TargetChildApplicationYaml)
+
+			comparisonResult := &comparisonResult{
+				reconciliationResult: sync.ReconciliationResult{
+					Live:   []*unstructured.Unstructured{live},
+					Target: []*unstructured.Unstructured{target},
+				},
+				diffConfig: dc,
+			}
+
+			// This should NOT panic - it should handle the case gracefully
+			// Without the fix, this panics with: "runtime error: invalid memory address or nil pointer dereference"
+			// at k8s.io/apimachinery/pkg/util/strategicpatch.handleSliceDiff:306
+			// when processing array fields in the Application spec (like syncOptions)
+			patchedTargets, err := normalizeTargetResources(oapiResources, comparisonResult)
+
+			// We expect either success or a graceful error, but NOT a panic
+			if err != nil {
+				// If there's an error, it should be a descriptive error, not a panic
+				t.Logf("Got error (non-panic): %v", err)
+			} else {
+				// If successful, verify we got a result
+				require.Len(t, patchedTargets, 1)
+				patched := patchedTargets[0]
+				require.NotNil(t, patched)
+
+				// Verify the chart version was updated
+				targetRevision, ok, err := unstructured.NestedString(patched.Object, "spec", "source", "targetRevision")
+				require.NoError(t, err)
+				require.True(t, ok)
+				assert.Equal(t, "0.45.28", targetRevision, "Should have the updated chart version from target")
+			}
+		})
+	})
+}
+
+const simpleAppLive = `
+apiVersion: example.com/v1
+kind: SimpleApp
+metadata:
+  name: app
+  namespace: default
+  labels: {team: live-team, app: simple}
+  finalizers: [live-finalizer]
+spec:
+  replicas: 3
+  labels: {tier: live}
+  config: {nested: {value: live}, other: live}
+  servers:
+  - {name: a, port: 80, enabled: true}
+  - {name: b, port: 81, enabled: false}
+  tags: [live]
+status:
+  phase: Running
+`
+
+const simpleAppTarget = `
+apiVersion: example.com/v1
+kind: SimpleApp
+metadata:
+  name: app
+  namespace: default
+  labels: {team: target-team, app: simple}
+spec:
+  replicas: 1
+  labels: {tier: target}
+  config: {nested: {value: target}, other: target}
+  servers:
+  - {name: a, port: 8080, enabled: false}
+  - {name: b, port: 8081, enabled: true}
+  - {name: c, port: 8082, enabled: true}
+  tags: [target]
+`
+
+// TestNormalizeTargetResourcesCRDSchema runs normalizeTargetResources for a CRD with the OpenAPI
+// documents a v1.34 API server serves for it, and checks that the v3 group version document and
+// the v2 document give the same result.
+func TestNormalizeTargetResourcesCRDSchema(t *testing.T) {
+	v2JSON, err := os.ReadFile("testdata/schemas/simpleapp-openapi-v2.json")
+	require.NoError(t, err)
+	v2, err := openapi_v2.ParseDocument(v2JSON)
+	require.NoError(t, err)
+	v3, err := os.ReadFile("testdata/schemas/simpleapp-openapi-v3.json")
+	require.NoError(t, err)
+	resolvers := map[string]kube.OpenAPISchemaResolver{
+		"v2": (&kubetest.FakeOpenAPIClient{V2: v2}).NewOpenAPISchemaResolver(),
+		"v3": (&kubetest.FakeOpenAPIClient{V3: map[string][]byte{"apis/example.com/v1": v3}}).NewOpenAPISchemaResolver(),
+	}
+
+	normalize := func(t *testing.T, resolver kube.OpenAPISchemaResolver, ignores []v1alpha1.ResourceIgnoreDifferences) *unstructured.Unstructured {
+		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
 			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
-
-		// Load live child Application (current state with chart version 0.45.28)
-		live := test.YamlToUnstructured(testdata.LiveChildApplicationYaml)
-
-		// Load target child Application (desired state with chart version 0.45.29)
-		target := test.YamlToUnstructured(testdata.TargetChildApplicationYaml)
-
-		comparisonResult := &comparisonResult{
+		targets, err := normalizeTargetResources(resolver, &comparisonResult{
 			reconciliationResult: sync.ReconciliationResult{
-				Live:   []*unstructured.Unstructured{live},
-				Target: []*unstructured.Unstructured{target},
+				Live:   []*unstructured.Unstructured{test.YamlToUnstructured(simpleAppLive)},
+				Target: []*unstructured.Unstructured{test.YamlToUnstructured(simpleAppTarget)},
 			},
 			diffConfig: dc,
-		}
+		})
+		require.NoError(t, err)
+		require.Len(t, targets, 1)
+		return targets[0]
+	}
 
-		// This should NOT panic - it should handle the case gracefully
-		// Without the fix, this panics with: "runtime error: invalid memory address or nil pointer dereference"
-		// at k8s.io/apimachinery/pkg/util/strategicpatch.handleSliceDiff:306
-		// when processing array fields in the Application spec (like syncOptions)
-		patchedTargets, err := normalizeTargetResources(oapiResources, comparisonResult)
-
-		// We expect either success or a graceful error, but NOT a panic
-		if err != nil {
-			// If there's an error, it should be a descriptive error, not a panic
-			t.Logf("Got error (non-panic): %v", err)
-		} else {
-			// If successful, verify we got a result
-			require.Len(t, patchedTargets, 1)
-			patched := patchedTargets[0]
-			require.NotNil(t, patched)
-
-			// Verify the chart version was updated
-			targetRevision, ok, err := unstructured.NestedString(patched.Object, "spec", "source", "targetRevision")
+	cases := []struct {
+		name    string
+		ignore  v1alpha1.ResourceIgnoreDifferences
+		asserts func(t *testing.T, patched *unstructured.Unstructured)
+	}{{
+		// CRD schemas have no patch merge keys, so the whole list is taken from live.
+		name:   "list map entry field",
+		ignore: v1alpha1.ResourceIgnoreDifferences{JQPathExpressions: []string{`.spec.servers[] | select(.name == "b") | .enabled`}},
+		asserts: func(t *testing.T, patched *unstructured.Unstructured) {
+			t.Helper()
+			servers, _, err := unstructured.NestedSlice(patched.Object, "spec", "servers")
 			require.NoError(t, err)
-			require.True(t, ok)
-			assert.Equal(t, "0.45.28", targetRevision, "Should have the updated chart version from target")
-		}
+			assert.Equal(t, []any{
+				map[string]any{"name": "a", "port": int64(80), "enabled": true},
+				map[string]any{"name": "b", "port": int64(81), "enabled": false},
+			}, servers)
+			replicas, _, err := unstructured.NestedInt64(patched.Object, "spec", "replicas")
+			require.NoError(t, err)
+			assert.Equal(t, int64(1), replicas)
+		},
+	}, {
+		name:   "metadata fields",
+		ignore: v1alpha1.ResourceIgnoreDifferences{JSONPointers: []string{"/metadata/labels/team", "/metadata/finalizers"}},
+		asserts: func(t *testing.T, patched *unstructured.Unstructured) {
+			t.Helper()
+			assert.Equal(t, map[string]string{"team": "live-team", "app": "simple"}, patched.GetLabels())
+			assert.Equal(t, []string{"live-finalizer"}, patched.GetFinalizers())
+		},
+	}, {
+		name:   "preserve unknown fields and maps",
+		ignore: v1alpha1.ResourceIgnoreDifferences{JSONPointers: []string{"/spec/config/nested", "/spec/labels/tier", "/spec/replicas", "/spec/tags"}},
+		asserts: func(t *testing.T, patched *unstructured.Unstructured) {
+			t.Helper()
+			config, _, err := unstructured.NestedMap(patched.Object, "spec", "config")
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{"nested": map[string]any{"value": "live"}, "other": "target"}, config)
+			labels, _, err := unstructured.NestedStringMap(patched.Object, "spec", "labels")
+			require.NoError(t, err)
+			assert.Equal(t, map[string]string{"tier": "live"}, labels)
+			replicas, _, err := unstructured.NestedInt64(patched.Object, "spec", "replicas")
+			require.NoError(t, err)
+			assert.Equal(t, int64(3), replicas)
+			tags, _, err := unstructured.NestedStringSlice(patched.Object, "spec", "tags")
+			require.NoError(t, err)
+			assert.Equal(t, []string{"live"}, tags)
+			_, found, err := unstructured.NestedMap(patched.Object, "status")
+			require.NoError(t, err)
+			assert.False(t, found)
+		},
+	}}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			c.ignore.Group = "example.com"
+			c.ignore.Kind = "SimpleApp"
+			ignores := []v1alpha1.ResourceIgnoreDifferences{c.ignore}
+			results := map[string]*unstructured.Unstructured{}
+			for name, resolver := range resolvers {
+				results[name] = normalize(t, resolver, ignores)
+				c.asserts(t, results[name])
+			}
+			assert.Equal(t, results["v2"].Object, results["v3"].Object)
+		})
+	}
+
+	t.Run("schema fetch failure fails normalization", func(t *testing.T) {
+		dc, err := diff.NewDiffConfigBuilder().
+			WithDiffSettings([]v1alpha1.ResourceIgnoreDifferences{{Group: "example.com", Kind: "SimpleApp", JSONPointers: []string{"/spec/replicas"}}}, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithNoCache().
+			Build()
+		require.NoError(t, err)
+		_, err = normalizeTargetResources((&kubetest.FakeOpenAPIClient{Err: assert.AnError}).NewOpenAPISchemaResolver(), &comparisonResult{
+			reconciliationResult: sync.ReconciliationResult{
+				Live:   []*unstructured.Unstructured{test.YamlToUnstructured(simpleAppLive)},
+				Target: []*unstructured.Unstructured{test.YamlToUnstructured(simpleAppTarget)},
+			},
+			diffConfig: dc,
+		})
+		require.ErrorContains(t, err, "failed to get patch metadata of SimpleApp/app")
+		require.ErrorIs(t, err, assert.AnError)
 	})
 }
 

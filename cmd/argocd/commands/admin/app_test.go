@@ -96,7 +96,7 @@ func TestGetReconcileResults_Refresh(t *testing.T) {
 	kubeClientset := kubefake.NewClientset(deployment, argoCM, argoCDSecret)
 	clusterCache := &clustermocks.ClusterCache{}
 	clusterCache.EXPECT().IsNamespaced(mock.Anything).Return(true, nil)
-	clusterCache.EXPECT().GetGVKParser().Return(nil)
+	clusterCache.EXPECT().NewOpenAPISchemaResolver().Return(nil)
 	repoServerClient := &mocks.RepoServerServiceClient{}
 	repoServerClient.EXPECT().GenerateManifest(mock.Anything, mock.Anything).Return(&argocdclient.ManifestResponse{
 		Manifests: []string{test.DeploymentManifest},

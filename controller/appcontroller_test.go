@@ -104,6 +104,8 @@ type fakeData struct {
 	// (as with --reconciled-at-redis). It must be set here rather than assigned after
 	// newFakeController returns, because the app informer's event handlers read it.
 	reconciledAtCache *appstatecache.Cache
+	// openAPISchemaResolver is returned by the cluster cache's NewOpenAPISchemaResolver.
+	openAPISchemaResolver kube.OpenAPISchemaResolver
 }
 
 type MockKubectl struct {
@@ -290,7 +292,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 	defer cancelApp()
 	clusterCacheMock := &mocks.ClusterCache{}
 	clusterCacheMock.EXPECT().IsNamespaced(mock.Anything).Return(true, nil)
-	clusterCacheMock.EXPECT().GetGVKParser().Return(nil)
+	clusterCacheMock.EXPECT().NewOpenAPISchemaResolver().Return(data.openAPISchemaResolver)
 
 	mockStateCache := &mockstatecache.LiveStateCache{}
 	ctrl.appStateManager.(*appStateManager).liveStateCache = mockStateCache

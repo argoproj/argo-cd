@@ -18,6 +18,7 @@ import (
 	"k8s.io/kube-openapi/pkg/util/proto"
 	"k8s.io/kubectl/pkg/util/openapi"
 
+	"github.com/go-logr/logr"
 	"github.com/stretchr/testify/assert"
 	"k8s.io/klog/v2/textlogger"
 
@@ -82,7 +83,7 @@ func TestConvertToVersion(t *testing.T) {
 		require.NoError(t, err)
 		models, err := proto.NewOpenAPIData(doc)
 		require.NoError(t, err)
-		_, err = kubectl.newGVKParser(models)
+		_, err = newGVKParser(models, logr.Discard())
 		require.NoError(t, err)
 	})
 }
@@ -242,7 +243,7 @@ func (c *weakOpenAPIClient) OpenAPISchema() (*openapi_v2.Document, error) {
 func TestLoadOpenAPISchema(t *testing.T) {
 	t.Parallel()
 
-	resources, gvkParser, err := kubectlCmd().loadOpenAPISchema(&fakeOpenAPIClient{})
+	resources, gvkParser, err := loadOpenAPISchemaV2(&fakeOpenAPIClient{}, logr.Discard())
 	require.NoError(t, err)
 	require.NotNil(t, resources)
 	assert.NotNil(t, gvkParser)
@@ -301,7 +302,7 @@ func TestLoadOpenAPISchema_DoesNotRetainDocument(t *testing.T) {
 	t.Run("loadOpenAPISchema does not retain the document", func(t *testing.T) {
 		t.Parallel()
 		client := &weakOpenAPIClient{}
-		resources, gvkParser, err := kubectlCmd().loadOpenAPISchema(client)
+		resources, gvkParser, err := loadOpenAPISchemaV2(client, logr.Discard())
 		require.NoError(t, err)
 		runtime.GC()
 		assert.Nil(t, client.doc.Value())

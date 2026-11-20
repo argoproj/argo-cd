@@ -15,6 +15,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	. "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/testing"
 	"github.com/sirupsen/logrus"
 	logrustest "github.com/sirupsen/logrus/hooks/test"
@@ -310,6 +311,74 @@ func TestCompareAppStateServerSideDiffApplierError(t *testing.T) {
 	}
 	assert.True(t, unknownErr, "expected an UnknownError condition for the applier failure, got %v", app.Status.Conditions)
 	assert.True(t, comparisonErr, "expected a ComparisonError condition, got %v", app.Status.Conditions)
+}
+
+// TestCompareAppStateSchemaResolver verifies that CRD schemas are resolved through the cluster
+// cache resolver and that a schema fetch failure is reported without making the app look synced.
+func TestCompareAppStateSchemaResolver(t *testing.T) {
+	t.Parallel()
+	widget := func(replicas int64, managedFields bool) *unstructured.Unstructured {
+		obj := &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "example.com/v1",
+			"kind":       "Widget",
+			"metadata":   map[string]any{"name": "w", "namespace": test.FakeDestNamespace},
+			"spec":       map[string]any{"replicas": replicas},
+		}}
+		if managedFields {
+			obj.SetManagedFields([]metav1.ManagedFieldsEntry{{
+				Manager:    "autoscaler",
+				Operation:  metav1.ManagedFieldsOperationUpdate,
+				APIVersion: "example.com/v1",
+				FieldsType: "FieldsV1",
+				FieldsV1:   metav1.NewFieldsV1(`{"f:spec":{"f:replicas":{}}}`),
+			}})
+		}
+		return obj
+	}
+	compare := func(t *testing.T, client *kubetest.FakeOpenAPIClient) (*comparisonResult, *v1alpha1.Application) {
+		t.Helper()
+		app := newFakeApp()
+		app.Spec.IgnoreDifferences = []v1alpha1.ResourceIgnoreDifferences{{Group: "example.com", Kind: "Widget", ManagedFieldsManagers: []string{"autoscaler"}}}
+		live := widget(5, true)
+		data := fakeData{
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{toJSON(t, widget(1, false))},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs:       map[kube.ResourceKey]*unstructured.Unstructured{kube.GetResourceKey(live): live},
+			openAPISchemaResolver: client.NewOpenAPISchemaResolver(),
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		require.NotNil(t, compRes)
+		return compRes, app
+	}
+
+	t.Run("resolves the CRD schema on demand", func(t *testing.T) {
+		t.Parallel()
+		client := &kubetest.FakeOpenAPIClient{V3: map[string][]byte{"apis/example.com/v1": []byte(`{"openapi": "3.0.0", "components": {"schemas": {"com.example.v1.Widget": {
+			"type": "object",
+			"x-kubernetes-group-version-kind": [{"group": "example.com", "version": "v1", "kind": "Widget"}],
+			"properties": {"apiVersion": {"type": "string"}, "kind": {"type": "string"}, "metadata": {"type": "object"}, "spec": {"type": "object", "properties": {"replicas": {"type": "integer"}}}}
+		}}}}`)}}
+		compRes, app := compare(t, client)
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status, "replicas are owned by the trusted manager")
+		assert.Empty(t, app.Status.Conditions)
+		assert.Equal(t, int32(1), client.V3GVRequests.Load())
+	})
+
+	t.Run("schema fetch failure", func(t *testing.T) {
+		t.Parallel()
+		compRes, app := compare(t, &kubetest.FakeOpenAPIClient{Err: errors.New("connection refused")})
+		assert.Equal(t, v1alpha1.SyncStatusCodeUnknown, compRes.syncStatus.Status)
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, v1alpha1.ApplicationConditionComparisonError, app.Status.Conditions[0].Type)
+		assert.Contains(t, app.Status.Conditions[0].Message, "error resolving schema of Widget/w: failed to load OpenAPI schema for example.com/v1")
+		assert.Contains(t, app.Status.Conditions[0].Message, "connection refused")
+	})
 }
 
 // TestCompareAppStateRepoError tests the case when CompareAppState notices a repo error

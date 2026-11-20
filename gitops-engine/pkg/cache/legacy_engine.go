@@ -61,7 +61,7 @@ func (e *legacyEngine) ensureSynced() error {
 
 // sync retrieves the current state of the cluster and stores relevant information in the store fields.
 //
-// First we get some metadata from the cluster, like the server version, OpenAPI document, and the list of all API
+// First we get some metadata from the cluster, like the server version and the list of all API
 // resources.
 //
 // Then we get a list of the preferred versions of all API resources which are to be monitored (it's possible to exclude
@@ -126,17 +126,6 @@ func (e *legacyEngine) sync() (err error) {
 		return fmt.Errorf("failed to get api resources: %w", err)
 	}
 	c.apiResources.Store(&apiResources)
-
-	openAPISchema, gvkParser, err := c.kubectl.LoadOpenAPISchema(config)
-	if err != nil {
-		return fmt.Errorf("failed to load open api schema while syncing cluster cache: %w", err)
-	}
-
-	if gvkParser != nil {
-		c.gvkParser.Store(gvkParser)
-	}
-
-	c.openAPISchema.Store(&openAPISchema)
 
 	apis, err := c.kubectl.GetAPIResources(c.config, true, c.settings.ResourcesFilter)
 	if err != nil {

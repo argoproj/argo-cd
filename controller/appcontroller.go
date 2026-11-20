@@ -877,7 +877,7 @@ func (ctrl *ApplicationController) hideSecretData(ctx context.Context, destClust
 					WithTracking(appLabelKey, trackingMethod).
 					WithNoCache().
 					WithLogger(logutils.NewLogrusLogger(logutils.NewWithCurrentConfig())).
-					WithGVKParser(clusterCache.GetGVKParser()).
+					WithOpenAPISchemaResolver(clusterCache.NewOpenAPISchemaResolver()).
 					Build()
 				if err != nil {
 					return nil, fmt.Errorf("appcontroller error building diff config: %w", err)

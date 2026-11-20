@@ -960,11 +960,11 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		diffConfigBuilder.WithIgnoreMutationWebhook(false)
 	}
 
-	gvkParser, err := m.getGVKParser(destCluster)
+	schemaResolver, err := m.getOpenAPISchemaResolver(destCluster)
 	if err != nil {
 		conditions = append(conditions, v1alpha1.ApplicationCondition{Type: v1alpha1.ApplicationConditionUnknownError, Message: err.Error(), LastTransitionTime: &now})
 	}
-	diffConfigBuilder.WithGVKParser(gvkParser)
+	diffConfigBuilder.WithOpenAPISchemaResolver(schemaResolver)
 	diffConfigBuilder.WithManager(common.ArgoCDSSAManager)
 
 	diffConfigBuilder.WithServerSideDiff(serverSideDiff)
