@@ -18,6 +18,7 @@ All resources, including `Application` and `AppProject` specs, have to be instal
 | [`argocd-rbac-cm.yaml`](argocd-rbac-cm-yaml.md)                       | argocd-rbac-cm                                                                     | ConfigMap | RBAC Configuration                                                                   |
 | [`argocd-tls-certs-cm.yaml`](argocd-tls-certs-cm-yaml.md)             | argocd-tls-certs-cm                                                                | ConfigMap | Custom TLS certificates for connecting Git repositories via HTTPS (v1.2 and later)   |
 | [`argocd-ssh-known-hosts-cm.yaml`](argocd-ssh-known-hosts-cm-yaml.md) | argocd-ssh-known-hosts-cm                                                          | ConfigMap | SSH known hosts data for connecting Git repositories via SSH (v1.2 and later)        |
+| [`argocd-default-cluster-ca-cm.yaml`](argocd-default-cluster-ca-cm-yaml.md)         | argocd-default-cluster-ca-cm                                                               | ConfigMap | Default CA bundle for connecting to the Kubernetes API server of clusters (v3.7 and later) |
 
 For each specific kind of ConfigMap and Secret resource, there is only a single supported resource name (as listed in the above table) - if you need to merge things you need to do it before creating them.
 
@@ -456,6 +457,9 @@ You can manage the TLS certificates used to verify the authenticity of your repo
 
 If there are no dedicated certificates configured for a repository server, the system's default trust store is used for validating the server's repository. This should be good enough for most (if not all) public Git repository services such as GitLab, GitHub and Bitbucket as well as most privately hosted sites which use certificates from well-known CAs, including Let's Encrypt certificates.
 
+`argocd-tls-certs-cm` only applies to repository connections. To trust a custom CA for the Kubernetes API server of
+managed clusters, see [Default CA bundle for cluster connections](#default-ca-bundle-for-cluster-connections).
+
 An example ConfigMap object:
 
 ```yaml
@@ -629,6 +633,9 @@ proxyUrl: string
 tlsClientConfig:
     # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
     caData: string
+    # Which CAs are trusted when caData is empty and insecure is not set: bundle, system or bundle-and-system.
+    # See "Default CA bundle for cluster connections" below.
+    caTrust: string
     # Base64 encoded PEM-encoded bytes (typically read from a client certificate file).
     certData: string
     # Server should be accessed without verifying the TLS certificate
@@ -678,6 +685,122 @@ stringData:
       }
     }
 ```
+
+### Default CA bundle for cluster connections
+
+Organizations whose clusters all present API server certificates signed by the same internal CA would otherwise have
+to copy the same CA chain into the `tlsClientConfig.caData` of every cluster secret. Instead, a default CA bundle for
+cluster API server connections can be provided once in a ConfigMap named `argocd-default-cluster-ca-cm`, under the
+`ca.crt` key, as one or more PEM encoded certificates:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-default-cluster-ca-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/part-of: argocd
+data:
+  ca.crt: |
+    -----BEGIN CERTIFICATE-----
+    <root CA certificate>
+    -----END CERTIFICATE-----
+    -----BEGIN CERTIFICATE-----
+    <intermediate CA certificate>
+    -----END CERTIFICATE-----
+```
+
+Which CAs a cluster trusts is decided in this order:
+
+- The [in-cluster](#clusters) endpoint is never affected. It always uses the service account CA of the cluster Argo CD
+  runs in.
+- A cluster secret with `tlsClientConfig.insecure: true` skips TLS verification and ignores the default bundle, even
+  when it has no `caData`.
+- A cluster secret that defines its own `tlsClientConfig.caData` trusts only that CA. The default bundle is ignored, so
+  clusters that manage their own trust chain are fully isolated from the default bundle. Note that `argocd cluster add`
+  copies the CA of the kubeconfig context into `caData`, so clusters registered that way keep using their own CA. To
+  rely on the default bundle instead, omit `caData` when creating the cluster secret declaratively, or remove it from
+  an existing secret.
+- Every other cluster uses the optional `tlsClientConfig.caTrust` field of its secret, described below.
+
+The `tlsClientConfig.caTrust` field accepts these values:
+
+| Value               | CAs the cluster trusts                                                                                                         |
+|---------------------|--------------------------------------------------------------------------------------------------------------------------------|
+| unset (default)     | Only the default bundle, if `argocd-default-cluster-ca-cm` has one. If it has none, the system roots, which is the behavior of previous versions. |
+| `bundle`            | Only the default bundle. If `argocd-default-cluster-ca-cm` has no bundle, connecting to the cluster fails with an error instead of falling back to the system roots. |
+| `system`            | Only the system roots. The default bundle is ignored, so changes to `argocd-default-cluster-ca-cm` do not affect the cluster.        |
+| `bundle-and-system` | Both the system roots and the default bundle. With an empty bundle, the system roots.                                          |
+
+Any other value is rejected by the API server with an invalid argument error when the cluster is created or updated.
+For a cluster secret applied declaratively, connecting to the cluster fails with an error naming the invalid value.
+The `argocd` CLI has no flag for `caTrust`, so set it in the cluster secret.
+
+For example, a cluster whose API server certificate is issued by a publicly trusted CA can keep trusting the system
+roots after a default bundle is configured:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: mycluster-secret
+  labels:
+    argocd.argoproj.io/secret-type: cluster
+type: Opaque
+stringData:
+  name: mycluster.example.com
+  server: https://mycluster.example.com
+  config: |
+    {
+      "bearerToken": "<authentication token>",
+      "tlsClientConfig": {
+        "caTrust": "system"
+      }
+    }
+```
+
+> [!WARNING]
+> With `caTrust` unset, a cluster without `caData` stops trusting the system roots as soon as
+> `argocd-default-cluster-ca-cm` has a bundle. Clusters whose API server certificate is issued by a publicly trusted
+> CA (for example managed cloud clusters) lose their connection unless they set `caTrust: system` or
+> `caTrust: bundle-and-system` before the ConfigMap is filled in.
+
+A cluster with `caTrust: bundle-and-system` and a non-empty bundle trusts the bundle together with the system roots,
+which are read once per process the same way Go reads them on Linux. That is the file named by the `SSL_CERT_FILE`
+environment variable or, if it is not set, the CA bundle of the operating system of the Argo CD image
+(`/etc/ssl/certs/ca-certificates.crt` in the official image), plus the certificates in the directories named by
+`SSL_CERT_DIR` or, if it is not set, in `/etc/ssl/certs` and `/etc/pki/tls/certs`. The kubeconfig that
+`argocd admin cluster kubeconfig` writes for a cluster relying on the bundle contains the CAs that cluster trusts.
+
+`caTrust: bundle-and-system` cannot be combined with an `execProviderConfig` that sets `provideClusterInfo: true`
+while the bundle is not empty. With `provideClusterInfo`, the CAs the cluster trusts are passed to the exec plugin in
+an environment variable, and the system roots alone exceed the size Linux allows for one. For such a cluster, syncs,
+server-side diff, the web terminal and `argocd admin cluster kubeconfig` fail with an error naming this combination.
+Use `caTrust: bundle`, or set `caData` on the cluster.
+
+The bundle only applies to connections to the Kubernetes API server of managed clusters. It does not affect
+repository connections (Git, Helm, OCI), which are configured through
+[`argocd-tls-certs-cm`](#repositories-using-self-signed-tls-certificates-or-are-signed-by-custom-ca), and it does not
+affect the [in-cluster](#clusters) endpoint, which always uses the service account CA of the cluster Argo CD runs in.
+
+Changes to the ConfigMap are picked up at runtime: the application controller and API server reload the bundle and
+rebuild the connections of the clusters that rely on it, so the CA can be rotated by updating the single ConfigMap.
+If `ca.crt` is missing or blank, there is no bundle. If it is not blank but does not contain a valid PEM certificate,
+the bundle is treated as absent and a warning is logged. This also applies during a rotation: updating the ConfigMap
+with a malformed value removes the bundle for the clusters relying on it until the value is corrected, so check the
+application controller logs after rotating. Removing `ca.crt`, leaving it blank or deleting the ConfigMap also
+removes the bundle, but without a warning.
+
+This check only confirms that `ca.crt` contains at least one certificate that can be parsed. It does not check expiry
+dates, or whether the bundle contains the CA that issued the API server certificate of a cluster. Other blocks in the
+value that fail to parse are skipped without a warning, as long as one certificate is valid. A bundle that passes the
+check can still fail to verify a cluster, and those failures show up as `x509` errors in the application conditions
+and in the connection state of the cluster once Argo CD connects to it.
+
+> [!NOTE]
+> The ConfigMap must carry the `app.kubernetes.io/part-of: argocd` label, like the other Argo CD ConfigMaps, to be
+> picked up. An empty `argocd-default-cluster-ca-cm` is created by the default installation manifests.
 
 ### Skipping Cluster Reconciliation
 
