@@ -344,6 +344,11 @@ In addition to the flattened key/value pairs from the configuration file, the fo
 - `{{.path.revision}}`: The `revision` of the Git repository configured in the generator.
 
 > [!NOTE]
+> When Go templating is disabled, a configuration file that already defines `path.repoURL` or `path.revision`
+> (for example, `path: {repoURL: ...}`) keeps its own value, and the ApplicationSet controller logs a warning.
+> Rename the key in the file to use the value from the generator.
+
+> [!NOTE]
 > The right-most *directory* name always becomes `{{.path.basename}}`. For example, from `- path: /one/two/three/four/config.json`, `{{.path.basename}}` 
 > will be `four`. The filename can always be accessed using `{{.path.filename}}`. 
 

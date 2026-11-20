@@ -343,6 +343,61 @@ foo:
 				},
 			},
 		},
+		{
+			// Before path.repoURL and path.revision existed, a file containing them under
+			// "path" was flattened to the same keys. Those values must not be overwritten.
+			name: "repository parameters defined in the file content are kept",
+			args: args{
+				filePath: "path/dir/file_name.yaml",
+				fileContent: []byte(`
+path:
+  repoURL: file-repo-url
+  revision: file-revision
+`),
+				values: map[string]string{},
+				repo:   repo,
+			},
+			want: []map[string]any{
+				{
+					"path":                    "path/dir",
+					"path.basename":           "dir",
+					"path.filename":           "file_name.yaml",
+					"path.basenameNormalized": "dir",
+					"path.filenameNormalized": "file-name.yaml",
+					"path.repoURL":            "file-repo-url",
+					"path.revision":           "file-revision",
+					"path[0]":                 "path",
+					"path[1]":                 "dir",
+				},
+			},
+		},
+		{
+			name: "prefixed repository parameters defined in the file content are kept",
+			args: args{
+				filePath: "path/dir/file_name.yaml",
+				fileContent: []byte(`
+myRepo:
+  path:
+    revision: file-revision
+`),
+				values:          map[string]string{},
+				pathParamPrefix: "myRepo",
+				repo:            repo,
+			},
+			want: []map[string]any{
+				{
+					"myRepo.path":                    "path/dir",
+					"myRepo.path.basename":           "dir",
+					"myRepo.path.filename":           "file_name.yaml",
+					"myRepo.path.basenameNormalized": "dir",
+					"myRepo.path.filenameNormalized": "file-name.yaml",
+					"myRepo.path.repoURL":            "https://github.com/example/repo.git",
+					"myRepo.path.revision":           "file-revision",
+					"myRepo.path[0]":                 "path",
+					"myRepo.path[1]":                 "dir",
+				},
+			},
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

@@ -256,8 +256,8 @@ func parseFileParams(
 			params[pathParamName+".basenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName].(string)))
 			params[pathParamName+".filenameNormalized"] = utils.SanitizeName(path.Base(params[pathParamName+".filename"].(string)))
 			if repo != nil {
-				params[pathParamName+".repoURL"] = repo.RepoURL
-				params[pathParamName+".revision"] = repo.Revision
+				setRepoParamUnlessDefinedInFile(params, pathParamName+".repoURL", repo.RepoURL, filePath)
+				setRepoParamUnlessDefinedInFile(params, pathParamName+".revision", repo.Revision, filePath)
 			}
 			for k, v := range strings.Split(params[pathParamName].(string), "/") {
 				if v != "" {
@@ -275,6 +275,21 @@ func parseFileParams(
 	}
 
 	return res, nil
+}
+
+// setRepoParamUnlessDefinedInFile sets a repository parameter in flat (non-Go-template) mode
+// without overwriting a value of the same name that came from the file content. Before
+// path.repoURL and path.revision existed, a file containing `path: {repoURL: ...}` was
+// flattened to the same key, and ApplicationSets referencing it must keep their value.
+func setRepoParamUnlessDefinedInFile(params map[string]any, key, value, filePath string) {
+	if existing, ok := params[key]; ok {
+		log.WithFields(log.Fields{
+			"file":      filePath,
+			"parameter": key,
+		}).Warnf("file defines the generator parameter %q; keeping the file's value %q instead of %q", key, existing, value)
+		return
+	}
+	params[key] = value
 }
 
 // resolveProjectName resolves a project name whether templated or not
