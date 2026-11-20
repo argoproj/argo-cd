@@ -63,6 +63,84 @@ when a request already carries a sampling decision in its trace context, that de
 trace started by the application controller is therefore recorded in full or not at all across the
 repo server and plugins. Set the same ratio on every component to get a consistent rate.
 
+### Application controller span attributes
+
+`controller.Refresh` and `controller.Operation` each describe one workqueue processing attempt.
+An operation that waits, resumes, or retries can produce multiple traces. Comparison and sync spans
+record the work performed within an attempt. These attributes add metadata to the existing spans;
+they do not change queue behavior or trace parentage.
+
+| Attribute | Spans | Meaning |
+| --- | --- | --- |
+| `argocd.app.sync.status` | Refresh, CompareAppState | Final sync status observed by the comparison, or an explicit status snapshot when Refresh returns before comparison. |
+| `argocd.app.health.status` | Refresh, CompareAppState | Health status observed by the same result or explicit snapshot. |
+| `argocd.resolved_revision` | Refresh, CompareAppState, SyncAppState | Resolved revision for a single-source Application. |
+| `argocd.resolved_revisions` | Refresh, CompareAppState, SyncAppState | Ordered string array of resolved revisions for a multi-source Application. |
+| `argocd.operation.phase` | Operation | Operation phase retained by Kubernetes after the attempt, including retry handling or a size-limit fallback. Omitted when persistence fails and the retained phase is unknown. |
+| `argocd.operation.attempt.phase` | Operation | Phase observed after sync work, before retry handling can reset it to `Running`. Absent for a retry-backoff dequeue that performs no sync work. |
+| `argocd.operation.retry_count` | Operation | Retry count at the end of the attempt. |
+| `argocd.operation.initiated_by.automated` | Operation | Whether the operation was initiated automatically. |
+| `argocd.sync.dry_run` | Operation, SyncAppState | Whether the sync is a dry run. |
+| `argocd.sync.prune` | Operation, SyncAppState | Whether pruning is enabled for the sync. |
+| `argocd.refresh.type` | Refresh | Requested refresh type, such as `normal` or `hard`. |
+| `argocd.refresh.comparison_level` | Refresh | `nothing`, `recent`, `latest`, or `latest_force_resolve`; `unknown` for an unrecognized level. |
+| `argocd.reconciliation.cause` | Refresh, Operation | Bounded explanation available from controller state when the attempt starts. |
+| `argocd.reconciliation.outcome` | Refresh, Operation | Bounded result of the attempt, described below. |
+| `argocd.reconciliation.status_changed` | Refresh | Whether the sync and health snapshots changed, including revision and comparison inputs. Reconciliation timestamps do not count as changes. False when the attempt reports an error. |
+
+Resolved revision attributes are emitted only after every source resolves successfully. Requested refs
+such as `main` or `HEAD`, and partially resolved source sets, are not labeled as resolved aggregate
+revisions. If comparison fails before producing a result, Refresh does not export the previous
+Application status as the failed comparison's result.
+
+#### Causes and outcomes
+
+Refresh causes are `explicit_request`, `source_changed`, `refresh_expired`,
+`hard_refresh_expired`, `destination_changed`, `managed_namespace_metadata_changed`,
+`ignore_differences_changed`, and `controller_request`. The last value is coarse: the refresh queue
+does not retain the specific event that requested the work.
+
+Operation causes are `auto_sync`, `manual`, `resume`, `retry`, `termination`, and `unknown`.
+Causes describe available controller state; they do not establish the identity of a triggering event.
+
+Refresh outcomes are `state_changed`, `no_change`, and `error`. A state change does not imply that
+the Application is healthy or that an operation has finished. Operation outcomes are `succeeded`,
+`progressing`, `retry_wait`, `terminating`, `error`, and `unknown`.
+
+The persisted phase, attempt phase, outcome, and span status answer different questions:
+
+| Scenario | Persisted phase | Attempt phase | Outcome | OTel status |
+| --- | --- | --- | --- | --- |
+| Failed sync scheduled for retry | `Running` | `Failed` or `Error` | `error` | `Error` |
+| Waiting for retry backoff | `Running` | Absent | `retry_wait` | `Unset` |
+| Running sync observes a concurrent termination | `Terminating` | `Running` | `terminating` | `Unset` |
+| Successful sync requires a size-limit fallback | `Terminating` | `Succeeded` | `terminating` | `Error` |
+
+The attempt phase, retry count, and sync flags describe the attempted work, including when a reduced
+fallback is persisted. `Unset` means the span was not marked as a controller error; it does not report
+Application health.
+
+#### Error status
+
+An observed `OutOfSync` or `Degraded` Application is not by itself a controller execution error.
+Comparison, cache, and application-status or operation-state persistence failures set the relevant
+span's OpenTelemetry status to `Error`. Failed sync attempts also set error status, including attempts
+scheduled for retry.
+
+An application-status write failure also marks the parent `controller.Refresh` as an error, with
+`argocd.reconciliation.outcome=error` and `argocd.reconciliation.status_changed=false`. This includes
+size-limit failures where a reduced error condition is persisted instead of the requested status.
+
+Failure to initiate auto-sync marks both `controller.autoSync` and its `controller.Refresh` parent as
+errors. Historical failed-sync conditions and intentional policy skips are observations of controller
+state and do not, by themselves, mark the current attempt as an error.
+
+Refresh and sync panics are recorded before the span ends, preserving the controller's existing
+recovery behavior. `SyncAppState` re-panics after finalizing its span.
+
+These are Argo CD attributes, not standardized OpenTelemetry GitOps semantic conventions. Arbitrary
+Application annotations, labels, operation info, and initiator usernames are not added to these spans.
+
 ## Pushing metrics via OTLP
 
 Every component keeps serving its metrics at `/metrics` for scraping. For environments without a
