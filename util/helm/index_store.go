@@ -829,16 +829,3 @@ func (s *IndexStore) evictExpiredFile(file string) {
 		_ = os.Remove(file + ".state")
 	}
 }
-
-// observeIndexReadContext bounds one shared-cache read by the request's
-// remaining time (capped at the 2s index-read budget), so a slow shared
-// backend cannot stall the record-path lock past its usable budget.
-func observeIndexReadContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	budget := indexCacheReadBudget
-	if deadline, ok := ctx.Deadline(); ok {
-		if remaining := time.Until(deadline); remaining < budget {
-			budget = remaining
-		}
-	}
-	return context.WithTimeout(ctx, budget)
-}
