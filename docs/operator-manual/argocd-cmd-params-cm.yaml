@@ -145,6 +145,7 @@ data:
   controller.cluster.cache.events.processing.interval: "100ms"
   # QPS (Queries Per Second) limit for K8s API client requests (default "50")
   # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
+  # Set to "-1" to disable client-side rate limiting and rely on API Priority and Fairness instead
   controller.k8s.client.qps: "50"
   # Burst value for K8s API client requests (default "100", which is 2x QPS)
   # Can also be set via ARGOCD_K8S_CLIENT_BURST environment variable
@@ -265,6 +266,7 @@ data:
   server.profile.enabled: "false"
   # QPS (Queries Per Second) limit for K8s API client requests (default "50")
   # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
+  # Set to "-1" to disable client-side rate limiting and rely on API Priority and Fairness instead
   server.k8s.client.qps: "50"
   # Burst value for K8s API client requests (default "100", which is 2x QPS)
   # Can also be set via ARGOCD_K8S_CLIENT_BURST environment variable
@@ -475,6 +477,7 @@ data:
   applicationsetcontroller.wq.cooldown.ns: "0"
   # QPS (Queries Per Second) limit for K8s API client requests (default "50")
   # Can also be set via ARGOCD_K8S_CLIENT_QPS environment variable
+  # Set to "-1" to disable client-side rate limiting and rely on API Priority and Fairness instead
   applicationsetcontroller.k8s.client.qps: "50"
   # Burst value for K8s API client requests (default "100", which is 2x QPS)
   # Can also be set via ARGOCD_K8S_CLIENT_BURST environment variable
