@@ -383,6 +383,24 @@ func TestAllowedSCMProviderPullRequest(t *testing.T) {
 				},
 			},
 		},
+		{
+			// https://github.com/argoproj/argo-cd/security/advisories/GHSA-8f76-vwjj-hxgq
+			name: "Error Bitbucket Cloud",
+			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
+				Bitbucket: &argoprojiov1alpha1.PullRequestGeneratorBitbucket{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+		},
+		{
+			// https://github.com/argoproj/argo-cd/security/advisories/GHSA-8f76-vwjj-hxgq
+			name: "Error AzureDevOps",
+			providerConfig: &argoprojiov1alpha1.PullRequestGenerator{
+				AzureDevOps: &argoprojiov1alpha1.PullRequestGeneratorAzureDevOps{
+					API: "https://myservice.mynamespace.svc.cluster.local",
+				},
+			},
+		},
 	}
 
 	for _, testCase := range cases {
