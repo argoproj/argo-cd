@@ -2643,6 +2643,33 @@ func TestRequireOverridePrivilegeForRevisionSyncParseError(t *testing.T) {
 		"when user set the flag to unparseable value in argocd-cm config map, RequireOverridePrivilegeForRevisionSync() must return an error")
 }
 
+func TestGetSyncRetryLimitNoConfigMap(t *testing.T) {
+	settingsManager := NewSettingsManager(t.Context(), fake.NewClientset(), "default")
+	assert.Equal(t, int64(5), settingsManager.GetSyncRetryLimit())
+}
+
+func TestGetSyncRetryLimit(t *testing.T) {
+	tests := []struct {
+		name  string
+		data  map[string]string
+		limit int64
+	}{
+		{name: "Not set", data: map[string]string{}, limit: 5},
+		{name: "Empty", data: map[string]string{"application.sync.retry.limit": ""}, limit: 5},
+		{name: "Configured", data: map[string]string{"application.sync.retry.limit": "10"}, limit: 10},
+		{name: "No retries", data: map[string]string{"application.sync.retry.limit": "0"}, limit: 0},
+		{name: "Unlimited retries", data: map[string]string{"application.sync.retry.limit": "-1"}, limit: -1},
+		{name: "Not a number", data: map[string]string{"application.sync.retry.limit": "ten"}, limit: 5},
+		{name: "Not an integer", data: map[string]string{"application.sync.retry.limit": "2.5"}, limit: 5},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, settingsManager := fixtures(t.Context(), tt.data)
+			assert.Equal(t, tt.limit, settingsManager.GetSyncRetryLimit())
+		})
+	}
+}
+
 func TestSettingsManager_GetHideSecretAnnotations(t *testing.T) {
 	tests := []struct {
 		name   string

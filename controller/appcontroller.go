@@ -3035,7 +3035,7 @@ func (ctrl *ApplicationController) autoSync(ctx context.Context, app *appv1.Appl
 			Revisions:   syncStatus.Revisions,
 		},
 		InitiatedBy: appv1.OperationInitiator{Automated: true},
-		Retry:       appv1.RetryStrategy{Limit: 5},
+		Retry:       appv1.RetryStrategy{Limit: ctrl.settingsMgr.GetSyncRetryLimit()},
 	}
 	if app.Spec.SyncPolicy.Retry != nil {
 		op.Retry = *app.Spec.SyncPolicy.Retry

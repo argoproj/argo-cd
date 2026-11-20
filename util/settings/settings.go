@@ -602,6 +602,8 @@ const (
 	impersonationEnforcedKey = "application.sync.impersonation.enforced"
 	// requireOverridePrivilegeForRevisionSyncKey is the key to configure whether giving an external revision during sync is considered an override
 	requireOverridePrivilegeForRevisionSyncKey = "application.sync.requireOverridePrivilegeForRevisionSync"
+	// syncRetryLimitKey is the key to configure the retry limit of automated syncs for Applications without a retry strategy
+	syncRetryLimitKey = "application.sync.retry.limit"
 )
 
 const (
@@ -610,6 +612,9 @@ const (
 
 	// default webhook refresh jitter threshold
 	defaultWebhookRefreshJitterThreshold = 10
+
+	// default retry limit of automated syncs for Applications without a retry strategy
+	defaultSyncRetryLimit = int64(5)
 
 	// application sync with impersonation feature is disabled by default.
 	defaultImpersonationEnabledFlag = false
@@ -2897,6 +2902,27 @@ func (mgr *SettingsManager) GetMaxWebhookPayloadSize() int64 {
 	}
 
 	return maxPayloadSizeMB * 1024 * 1024
+}
+
+// GetSyncRetryLimit returns the retry limit of automated syncs for Applications without a retry strategy. As in a
+// retry strategy, 0 means no retries and a negative limit means unlimited retries.
+func (mgr *SettingsManager) GetSyncRetryLimit() int64 {
+	argoCDCM, err := mgr.getConfigMap()
+	if err != nil {
+		return defaultSyncRetryLimit
+	}
+
+	if argoCDCM.Data[syncRetryLimitKey] == "" {
+		return defaultSyncRetryLimit
+	}
+
+	limit, err := strconv.ParseInt(argoCDCM.Data[syncRetryLimitKey], 10, 64)
+	if err != nil {
+		log.Warnf("Failed to parse '%s' key: %v", syncRetryLimitKey, err)
+		return defaultSyncRetryLimit
+	}
+
+	return limit
 }
 
 func (mgr *SettingsManager) GetWebhookRefreshJitter() time.Duration {
