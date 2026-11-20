@@ -49,6 +49,18 @@ metadata:
 > Hook completion is derived from resource health, so honoring the annotation would mark the hook
 > successful while the Pod is still running.
 
+### HorizontalPodAutoscaler
+* An `AbleToScale` condition with reason `FailedGetScale` or `FailedUpdateScale`, or a `ScalingActive` condition with reason `FailedComputeMetricsReplicas` or `InvalidSelector`, makes the HPA "Degraded".
+* A `ScalingActive` condition with reason `FailedGetResourceMetric`, `FailedGetObjectMetric`, `FailedGetPodsMetric` or `FailedGetExternalMetric` leaves the HPA "Progressing" while the condition's `lastTransitionTime` is less than 2 minutes old. After that, or if the condition has no `lastTransitionTime`, the HPA is "Degraded". The HPA controller sets these conditions briefly during normal rollouts, while new pods have no usable metrics yet.
+* Otherwise, the HPA is "Healthy" if an `AbleToScale` or `ScalingLimited` condition has status `True`, and "Progressing" (`Waiting to Autoscale`) if not.
+
+> [!NOTE]
+> Application health is re-evaluated when the resource changes or the application is refreshed. A lasting metric
+> failure can therefore turn the application "Degraded" up to one reconciliation later than 2 minutes.
+> The HPA's own node in the resource tree is only re-evaluated when the HPA object changes, and the HPA controller
+> doesn't rewrite an HPA whose status hasn't changed. During a lasting failure, that node can keep showing
+> "Progressing" while the application shows "Degraded".
+
 ### Argocd App
 
 The health assessment of `argoproj.io/Application` CRD has been removed in argocd 1.8 (see [#3781](https://github.com/argoproj/argo-cd/issues/3781) for more information).

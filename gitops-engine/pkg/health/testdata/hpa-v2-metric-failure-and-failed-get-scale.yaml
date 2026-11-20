@@ -1,0 +1,38 @@
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: sample
+  namespace: argocd
+spec:
+  maxReplicas: 2
+  minReplicas: 1
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: sample
+  metrics:
+  - type: Resource
+    resource:
+      name: cpu
+      target:
+        type: Utilization
+        averageUtilization: 80
+status:
+  conditions:
+  - lastTransitionTime: "2026-11-17T20:00:00Z"
+    message: the HPA controller was unable to get the target's current scale
+    reason: FailedGetScale
+    status: "False"
+    type: AbleToScale
+  - lastTransitionTime: "2026-11-17T20:00:00Z"
+    message: 'the HPA was unable to compute the replica count: failed to get cpu utilization: did not receive metrics for targeted pods (pods might be unready)'
+    reason: FailedGetResourceMetric
+    status: "False"
+    type: ScalingActive
+  - lastTransitionTime: "2026-11-17T20:00:00Z"
+    message: the desired count is within the acceptable range
+    reason: DesiredWithinRange
+    status: "False"
+    type: ScalingLimited
+  currentReplicas: 1
+  desiredReplicas: 1
