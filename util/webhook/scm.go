@@ -1,9 +1,12 @@
 package webhook
 
 import (
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -12,6 +15,7 @@ import (
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	"github.com/go-playground/webhooks/v6/gogs"
+	scmmanager "github.com/scm-manager/goscm/argocd"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/util/guard"
@@ -43,6 +47,7 @@ type ParserOptions struct {
 	GitLabEvents          []gitlab.Event
 	BitbucketEvents       []bitbucket.Event
 	BitbucketServerEvents []bitbucketserver.Event
+	SCMManagerEvents      []scmmanager.Event
 	Harbor                bool
 	GHCR                  bool
 	DockerHub             bool
@@ -96,6 +101,13 @@ func NewParsers(set *settings.ArgoCDSettings, opts ParserOptions) []Extractor {
 			parsers = append(parsers, &bitbucketServerParser{webhook: hook, events: opts.BitbucketServerEvents})
 		}
 	}
+	if len(opts.SCMManagerEvents) > 0 {
+		if hook, err := scmmanager.New(scmmanager.Options.Secret(set.WebhookScmmSecret)); err != nil {
+			log.Warnf("Unable to init the SCM-Manager webhook: %v", err)
+		} else {
+			parsers = append(parsers, &scmManagerParser{webhook: hook, events: opts.SCMManagerEvents, verifySignature: set.WebhookScmmSecret != ""})
+		}
+	}
 
 	// OCI Registries parsers
 	if opts.Harbor {
@@ -138,7 +150,7 @@ func HandleRequest(w http.ResponseWriter, r *http.Request, parsers []Extractor, 
 	}
 	if err != nil {
 		if errors.Is(err, ErrHMACVerificationFailed) || errors.Is(err, ErrSecretVerificationFailed) {
-			log.WithField(common.SecurityField, common.SecurityHigh).Info("Registry webhook authentication failed")
+			log.WithField(common.SecurityField, common.SecurityHigh).Info("Webhook authentication failed")
 			http.Error(w, "Unauthorized", http.StatusUnauthorized)
 			return
 		}
@@ -197,7 +209,37 @@ func isParsingPayloadError(err error) bool {
 		errors.Is(err, gogs.ErrParsingPayload) ||
 		errors.Is(err, bitbucket.ErrParsingPayload) ||
 		errors.Is(err, bitbucketserver.ErrParsingPayload) ||
-		errors.Is(err, azuredevops.ErrParsingPayload)
+		errors.Is(err, azuredevops.ErrParsingPayload) ||
+		errors.Is(err, scmmanager.ErrParsingPayload)
+}
+
+type scmManagerParser struct {
+	webhook         *scmmanager.ArgoCDWebhook
+	events          []scmmanager.Event
+	verifySignature bool
+}
+
+func (p *scmManagerParser) CanHandle(r *http.Request) bool {
+	return r.Header.Get("X-SCM-Event") != ""
+}
+
+func (p *scmManagerParser) Parse(r *http.Request) (any, error) {
+	if p.verifySignature {
+		signature, ok := strings.CutPrefix(r.Header.Get("X-SCM-Signature"), "sha1=")
+		if !ok || len(signature) != hex.EncodedLen(sha1.Size) {
+			return nil, ErrSecretVerificationFailed
+		}
+		if _, err := hex.DecodeString(signature); err != nil {
+			return nil, ErrSecretVerificationFailed
+		}
+	}
+	payload, err := p.webhook.Parse(r, p.events...)
+	if errors.Is(err, scmmanager.ErrSecretVerification) ||
+		errors.Is(err, scmmanager.ErrMissingScmSignatureHeader) ||
+		errors.Is(err, scmmanager.ErrHMACVerificationFailed) {
+		return nil, ErrSecretVerificationFailed
+	}
+	return payload, err
 }
 
 type azureDevOpsParser struct {

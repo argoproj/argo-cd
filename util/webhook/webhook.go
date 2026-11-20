@@ -29,6 +29,7 @@ import (
 	"github.com/go-playground/webhooks/v6/gogs"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+	scmmanager "github.com/scm-manager/goscm/argocd"
 	log "github.com/sirupsen/logrus"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -118,9 +119,10 @@ func ArgoCDParserOptions() ParserOptions {
 			bitbucketserver.RepositoryReferenceChangedEvent,
 			bitbucketserver.DiagnosticsPingEvent,
 		},
-		Harbor:    true,
-		GHCR:      true,
-		DockerHub: true,
+		SCMManagerEvents: []scmmanager.Event{scmmanager.PushEvent},
+		Harbor:           true,
+		GHCR:             true,
+		DockerHub:        true,
 	}
 }
 

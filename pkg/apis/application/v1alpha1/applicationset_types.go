@@ -483,6 +483,7 @@ type SCMProviderGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values        map[string]string                  `json:"values,omitempty" protobuf:"bytes,11,name=values"`
 	AWSCodeCommit *SCMProviderGeneratorAWSCodeCommit `json:"awsCodeCommit,omitempty" protobuf:"bytes,12,opt,name=awsCodeCommit"`
+	ScmManager    *SCMProviderGeneratorScmManager    `json:"scmManager,omitempty" protobuf:"bytes,13,opt,name=scmManager"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
@@ -498,6 +499,8 @@ func (g *SCMProviderGenerator) CustomApiUrl() string { //nolint:revive //FIXME(v
 		return g.BitbucketServer.API
 	case g.AzureDevOps != nil:
 		return g.AzureDevOps.API
+	case g.ScmManager != nil:
+		return g.ScmManager.API
 	}
 	return ""
 }
@@ -516,6 +519,20 @@ type SCMProviderGeneratorGitea struct {
 	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
 	// Exclude repositories that are archived.
 	ExcludeArchivedRepos bool `json:"excludeArchivedRepos,omitempty" protobuf:"varint,6,opt,name=excludeArchivedRepos"`
+}
+
+// SCMProviderGeneratorScmManager defines a connection info specific to Scm-Manager.
+type SCMProviderGeneratorScmManager struct {
+	// The SCM-Manager URL to talk to. For example https://scm-manager.org/scm.
+	API string `json:"api" protobuf:"bytes,1,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,2,opt,name=tokenRef"`
+	// Scan all branches instead of just the default branch.
+	AllBranches bool `json:"allBranches,omitempty" protobuf:"varint,3,opt,name=allBranches"`
+	// Allow self-signed TLS / Certificates; default: false
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,4,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,5,opt,name=caRef"`
 }
 
 // SCMProviderGeneratorGithub defines connection info specific to GitHub.
@@ -659,7 +676,8 @@ type PullRequestGenerator struct {
 	// Values contains key/value pairs which are passed directly as parameters to the template
 	Values map[string]string `json:"values,omitempty" protobuf:"bytes,10,name=values"`
 	// ContinueOnRepoNotFoundError is a flag to continue the ApplicationSet Pull Request generator parameters generation even if the repository is not found.
-	ContinueOnRepoNotFoundError bool `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,11,opt,name=continueOnRepoNotFoundError"`
+	ContinueOnRepoNotFoundError bool                            `json:"continueOnRepoNotFoundError,omitempty" protobuf:"varint,11,opt,name=continueOnRepoNotFoundError"`
+	ScmManager                  *PullRequestGeneratorScmManager `json:"scmManager,omitempty" protobuf:"bytes,13,opt,name=scmManager"`
 	// If you add a new SCM provider, update CustomApiUrl below.
 }
 
@@ -682,6 +700,9 @@ func (p *PullRequestGenerator) CustomApiUrl() string { //nolint:revive //FIXME(v
 	if p.AzureDevOps != nil {
 		return p.AzureDevOps.API
 	}
+	if p.ScmManager != nil {
+		return p.ScmManager.API
+	}
 	return ""
 }
 
@@ -701,6 +722,22 @@ type PullRequestGeneratorGitea struct {
 	Labels []string `json:"labels,omitempty" protobuf:"bytes,6,rep,name=labels"`
 	// ExcludedLabels is used to exclude PRs with these labels
 	ExcludedLabels []string `json:"excludedLabels,omitempty" protobuf:"bytes,7,rep,name=excludedLabels"`
+}
+
+// PullRequestGenerator defines connection info specific to SCM-Manager.
+type PullRequestGeneratorScmManager struct {
+	// SCM-Manager namespace. Required.
+	Namespace string `json:"namespace" protobuf:"bytes,1,opt,name=namespace"`
+	// SCM-Manager repo name to scan. Required.
+	Name string `json:"name" protobuf:"bytes,2,opt,name=name"`
+	// SCM-Manager Instance URL with context path. Required
+	API string `json:"api" protobuf:"bytes,3,opt,name=api"`
+	// Authentication token reference.
+	TokenRef *SecretRef `json:"tokenRef,omitempty" protobuf:"bytes,4,opt,name=tokenRef"`
+	// Allow insecure tls, for self-signed certificates; default: false.
+	Insecure bool `json:"insecure,omitempty" protobuf:"varint,5,opt,name=insecure"`
+	// ConfigMap key holding the trusted certificates
+	CARef *ConfigMapKeyRef `json:"caRef,omitempty" protobuf:"bytes,6,opt,name=caRef"`
 }
 
 // PullRequestGeneratorAzureDevOps defines connection info specific to AzureDevOps.

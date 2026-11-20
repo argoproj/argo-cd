@@ -221,6 +221,23 @@ func TestAzureDevOpsCommitEvent(t *testing.T) {
 	hook.Reset()
 }
 
+func TestScmmWebhook(t *testing.T) {
+	hook := test.NewGlobal()
+	h := NewMockHandler(nil, []string{})
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", http.NoBody)
+	req.Header.Set("X-SCM-Event", "Push")
+	eventJSON, err := os.ReadFile("testdata/scmm-webhook-data.json")
+	require.NoError(t, err)
+	req.Body = io.NopCloser(bytes.NewReader(eventJSON))
+	w := httptest.NewRecorder()
+	h.Handler(w, req)
+	h.Shutdown()
+	assert.Equal(t, http.StatusOK, w.Code)
+	expectedLogResult := "Received push event repo: https://scm-manager.org/scm/scm-manager/argocd-test, revision: develop, touchedHead: true"
+	assertLogContains(t, hook, expectedLogResult)
+	hook.Reset()
+}
+
 // TestGitHubCommitEvent_AppsInOtherNamespaces makes sure that webhooks properly find apps in the configured set of
 // allowed namespaces when Apps are allowed in any namespace
 func TestGitHubCommitEvent_AppsInOtherNamespaces(t *testing.T) {

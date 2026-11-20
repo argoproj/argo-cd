@@ -24,6 +24,7 @@ import (
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
+	scmmanager "github.com/scm-manager/goscm/argocd"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -51,6 +52,7 @@ type prGeneratorInfo struct {
 	Azuredevops *prGeneratorAzuredevopsInfo
 	Github      *prGeneratorGithubInfo
 	Gitlab      *prGeneratorGitlabInfo
+	SCMManager  *prGeneratorSCMManagerInfo
 }
 
 type prGeneratorAzuredevopsInfo struct {
@@ -70,6 +72,12 @@ type prGeneratorGitlabInfo struct {
 	APIHostname string
 }
 
+type prGeneratorSCMManagerInfo struct {
+	Host      string
+	Namespace string
+	Name      string
+}
+
 type ociGeneratorInfo struct {
 	RegistryURL string
 	Tag         string
@@ -84,9 +92,10 @@ func appSetParserOptions() webhook.ParserOptions {
 			azuredevops.GitPullRequestUpdatedEventType,
 			azuredevops.GitPullRequestMergedEventType,
 		},
-		GitHubEvents: []github.Event{github.PushEvent, github.PullRequestEvent, github.PingEvent},
-		GitLabEvents: []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents},
-		GHCR:         true,
+		GitHubEvents:     []github.Event{github.PushEvent, github.PullRequestEvent, github.PingEvent},
+		GitLabEvents:     []gitlab.Event{gitlab.PushEvents, gitlab.TagEvents, gitlab.MergeRequestEvents, gitlab.SystemHookEvents},
+		SCMManagerEvents: []scmmanager.Event{scmmanager.PushEvent, scmmanager.PullRequestEvent},
+		GHCR:             true,
 	}
 }
 
@@ -225,6 +234,20 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 			Repo:    repo,
 			Project: project,
 		}
+	case scmmanager.PullRequestEventPayload:
+		if !isAllowedScmManagerPullRequestAction(payload.Action) {
+			return nil
+		}
+
+		repoUrl := payload.Repository.SourceUrl
+		namespace := payload.Repository.Namespace
+		name := payload.Repository.Name
+
+		info.SCMManager = &prGeneratorSCMManagerInfo{
+			Host:      repoUrl,
+			Namespace: namespace,
+			Name:      name,
+		}
 	default:
 		return nil
 	}
@@ -271,6 +294,17 @@ var azuredevopsAllowedPullRequestActions = []string{
 	"git.pullrequest.created",
 	"git.pullrequest.merged",
 	"git.pullrequest.updated",
+}
+
+var scmManagerAllowedPullRequestActions = []string{
+	"opened",
+	"rejected",
+	"merged",
+	"changed",
+}
+
+func isAllowedScmManagerPullRequestAction(action string) bool {
+	return slices.Contains(scmManagerAllowedPullRequestActions, action)
 }
 
 func shouldRefreshGitGenerator(gen *v1alpha1.GitGenerator, info *gitGeneratorInfo) bool {
@@ -364,6 +398,30 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 			return false
 		}
 		if gen.AzureDevOps.Repo != info.Azuredevops.Repo {
+			return false
+		}
+		return true
+	}
+
+	if gen.ScmManager != nil && info.SCMManager != nil {
+		apiUrl, err := url.Parse(gen.ScmManager.API)
+		if err != nil {
+			log.Errorf("Failed to parse SCM-Manager URL by application '%s'", gen.ScmManager.API)
+			return false
+		}
+		infoUrl, err := url.Parse(info.SCMManager.Host)
+		if err != nil {
+			log.Errorf("Failed to parse SCM-Manager URL by request '%s'", info.SCMManager.Host)
+			return false
+		}
+		if apiUrl.Hostname() != infoUrl.Hostname() {
+			log.Debugf("Hostname '%s' does not match '%s'", apiUrl.Hostname(), infoUrl.Hostname())
+			return false
+		}
+		if gen.ScmManager.Namespace != info.SCMManager.Namespace {
+			return false
+		}
+		if gen.ScmManager.Name != info.SCMManager.Name {
 			return false
 		}
 		return true

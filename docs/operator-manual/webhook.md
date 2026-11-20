@@ -43,6 +43,16 @@ To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` 
 Azure DevOps optionally supports securing the webhook using basic authentication. To use it, specify the username and password in the webhook configuration and configure the same username/password in `argocd-secret` Kubernetes secret in
 `webhook.azuredevops.username` and `webhook.azuredevops.password` keys.
 
+### SCM-Manager
+
+![Add Webhook](../assets/scm-webhook-config.png "Add Webhook")
+Install the ArgoCD plugin from the SCM-Manager plugin center and add an ArgoCD webhook under **Administration > Webhooks**. Use your Argo CD server URL ending in `/api/webhook`.
+
+For native SCM-Manager events (`X-SCM-Event`), set a shared secret in the plugin and store the same value under `webhook.scmmanager.secret` in `argocd-secret`. The sender supplies the signature in `X-SCM-Signature`.
+
+> [!NOTE]
+> A plugin that sends GitHub-compatible push events (`X-GitHub-Event`) uses the GitHub event handler. Use a plugin version that emits native SCM-Manager events to use this secret and receive pull request events.
+
 ## 2. Configure Argo CD With The WebHook Secret (Optional)
 
 Configuring a webhook shared secret is optional, since Argo CD will still refresh applications
@@ -61,6 +71,7 @@ provider's webhook secret configured in step 1.
 | BitBucket       | `webhook.bitbucket.uuid`         |
 | BitBucketServer | `webhook.bitbucketserver.secret` |
 | Gogs            | `webhook.gogs.secret`            |
+| SCM-Manager     | `webhook.scmmanager.secret`      |
 | Azure DevOps    | `webhook.azuredevops.username`   |
 |                 | `webhook.azuredevops.password`   |
 | Harbor          | `webhook.harbor.secret`          |
