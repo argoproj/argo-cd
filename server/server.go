@@ -69,6 +69,7 @@ import (
 	"k8s.io/apimachinery/pkg/util/wait"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
@@ -246,6 +247,7 @@ type ArgoCDServerOpts struct {
 	DynamicClientset        dynamic.Interface
 	KubeControllerClientset client.Client
 	KubeClientset           kubernetes.Interface
+	ControlPlaneConfig      *rest.Config
 	AppClientset            appclientset.Interface
 	RepoClientset           repoapiclient.Clientset
 	Cache                   *servercache.Cache
@@ -1102,6 +1104,7 @@ func newArgoCDServiceSet(a *ArgoCDServer) *ArgoCDServiceSet {
 	applicationService, appResourceTreeFn := application.NewServer(
 		a.Namespace,
 		a.KubeClientset,
+		a.ControlPlaneConfig,
 		a.AppClientset,
 		a.appLister,
 		a.appInformer,
