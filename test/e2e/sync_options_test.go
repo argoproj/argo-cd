@@ -174,6 +174,56 @@ func TestSyncWithApplyOutOfSyncOnly(t *testing.T) {
 		Expect(ResourceResultIs(ResourceResult{Group: "apps", Version: "v1", Kind: "Deployment", Namespace: ns, Name: "guestbook-ui", Message: "deployment.apps/guestbook-ui configured", SyncPhase: SyncPhaseSync, HookPhase: OperationRunning, Status: ResultCodeSynced, Images: []string{"quay.io/argoprojlabs/argocd-e2e-container:0.2"}}))
 }
 
+// TestSyncWithRespectIgnoreDifferencesFlag verifies that `argocd app sync --respect-ignore-differences`
+// adds RespectIgnoreDifferences=true to the sync operation, so that a field matched by the
+// application's ignoreDifferences keeps its live value during the sync.
+func TestSyncWithRespectIgnoreDifferencesFlag(t *testing.T) {
+	ctx := Given(t)
+	ctx.
+		Path(guestbookPath).
+		When().
+		CreateFromFile(func(app *Application) {
+			app.Spec.IgnoreDifferences = []ResourceIgnoreDifferences{{
+				Group:        "apps",
+				Kind:         "Deployment",
+				JSONPointers: []string{"/spec/replicas"},
+			}}
+		}).
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// change the ignored field in Git; the app stays in sync because the field is ignored
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 2 }]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// with the flag, the sync keeps the live value of the ignored field
+		When().
+		Sync("--respect-ignore-differences").
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		And(func(app *Application) {
+			require.NotNil(t, app.Status.OperationState)
+			require.NotNil(t, app.Status.OperationState.Operation.Sync)
+			assert.Contains(t, app.Status.OperationState.Operation.Sync.SyncOptions, "RespectIgnoreDifferences=true")
+			deployment, err := KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, int32(0), *deployment.Spec.Replicas)
+		}).
+		// without the flag, the sync applies the value from Git
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		And(func(_ *Application) {
+			deployment, err := KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.Equal(t, int32(2), *deployment.Spec.Replicas)
+		})
+}
+
 func TestSyncWithSkipHook(t *testing.T) {
 	SkipOnEnv(t, "OPENSHIFT")
 	Given(t).
