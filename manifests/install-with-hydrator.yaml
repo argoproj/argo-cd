@@ -36220,26 +36220,26 @@ spec:
         - name: ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_ENABLED
           valueFrom:
             configMapKeyRef:
-              name: argocd-cmd-params-cm
               key: reposerver.helm.index.cache.enabled
+              name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_EXPIRATION
           valueFrom:
             configMapKeyRef:
-              name: argocd-cmd-params-cm
               key: reposerver.helm.index.cache.expiration
+              name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_DIR
           valueFrom:
             configMapKeyRef:
-              name: argocd-cmd-params-cm
               key: reposerver.helm.index.cache.dir
+              name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_HELM_INDEX_CACHE_FILTER_ENABLED
           valueFrom:
             configMapKeyRef:
-              name: argocd-cmd-params-cm
               key: reposerver.helm.index.cache.filter.enabled
+              name: argocd-cmd-params-cm
               optional: true
         - name: ARGOCD_REPO_SERVER_LOGFORMAT
           valueFrom:
