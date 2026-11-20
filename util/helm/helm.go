@@ -8,12 +8,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/util/config"
+	cryptoutil "github.com/argoproj/argo-cd/v3/util/crypto"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	pathutil "github.com/argoproj/argo-cd/v3/util/io/path"
 )
@@ -206,4 +208,71 @@ func flatVals(input any, output map[string]string, prefixes ...string) {
 	default:
 		output[strings.Join(prefixes, ".")] = fmt.Sprintf("%v", i)
 	}
+}
+
+func scopedIndexIdentityContext(ctx context.Context, repoURL, scope, proxy, noProxy string) (string, error) {
+	u, err := url.Parse(repoURL)
+	if err != nil {
+		identity, err := cryptoutil.CredentialScopeContext(ctx, "helm-invalid-repository", repoURL, scope, proxy, noProxy)
+		return "invalid:" + identity, err
+	}
+	userinfo := ""
+	if u.User != nil {
+		userinfo = u.User.String()
+		u.User = nil
+	}
+	query := u.RawQuery
+	u.RawQuery = ""
+	u.Fragment = ""
+	if u.Scheme == "http" || u.Scheme == "https" {
+		u.Host = strings.ToLower(u.Host)
+		if u.RawPath == "" {
+			u.Path = strings.TrimSuffix(u.Path, "/")
+		}
+	}
+	if proxy != "" || noProxy != "" || userinfo != "" || query != "" {
+		scope, err = cryptoutil.CredentialScopeContext(ctx, "helm-repository-transport", scope, proxy, noProxy, userinfo, query)
+		if err != nil {
+			return "", err
+		}
+	}
+	return u.String() + "\x00" + scope, nil
+}
+
+// credsScope returns a memory-hard fingerprint of the effective authentication and
+// TLS transport context of a credential view. It scopes index-cache keys so
+// that a fetch made with private credentials cannot publish cache entries
+// that an anonymous (or differently-credentialed) reader would consume.
+// Plaintext secrets never enter the fingerprint output.
+func credsScope(creds Creds) string {
+	scope, _ := credsScopeContext(context.Background(), creds)
+	return scope
+}
+
+func credsScopeContext(ctx context.Context, creds Creds) (string, error) {
+	// Resolve through the snapshot so the fingerprint uses the SAME resolved
+	// values as the HTTP request of the same operation — a rotating provider
+	// (Azure workload identity) must not produce a scope from token A while
+	// the request authenticates with token B. On resolution failure, fall
+	// back to the getters' best effort (auth paths propagate the error; the
+	// scope only degrades to a still-deterministic fingerprint).
+	snap, err := snapshotCreds(creds)
+	if err == nil {
+		creds = snap
+	}
+	password, _ := creds.GetPassword()
+	// Include inherited proxy policy because shared Redis and disk
+	// records can outlive a process or be read by differently configured pods.
+	caData := ""
+	if snapshot, ok := creds.(credsSnapshot); ok {
+		caData = string(snapshot.caData)
+	}
+	return cryptoutil.CredentialScopeContext(ctx, "helm-credentials-v2",
+		creds.GetUsername(), password, creds.GetCAPath(), string(creds.GetCertData()), string(creds.GetKeyData()),
+		caData,
+		strconv.FormatBool(creds.GetInsecureSkipVerify()),
+		os.Getenv("HTTP_PROXY"), os.Getenv("http_proxy"),
+		os.Getenv("HTTPS_PROXY"), os.Getenv("https_proxy"),
+		os.Getenv("NO_PROXY"), os.Getenv("no_proxy"), os.Getenv("REQUEST_METHOD"),
+	)
 }
