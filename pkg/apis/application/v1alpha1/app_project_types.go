@@ -479,6 +479,35 @@ func (proj AppProject) IsSourcePermitted(src ApplicationSource) bool {
 	return anySourceMatched
 }
 
+// IsCredentialPermittedForAnySource checks whether a credential template URL is a prefix of any
+// permitted source repo. Credential URLs are prefix-based by design (e.g. "reg.example.com"
+// provides auth for "reg.example.com/org/chart"), so a credential should be permitted if any
+// sourceRepo falls under its URL prefix.
+func (proj AppProject) IsCredentialPermittedForAnySource(credURL string) bool {
+	credNormalized := git.NormalizeGitURL(credURL)
+	if credNormalized == "" {
+		return false
+	}
+
+	for _, repoURL := range proj.Spec.SourceRepos {
+		if repoURL == "*" {
+			return true
+		}
+		if isDenyPattern(repoURL) {
+			continue
+		}
+		normalized := git.NormalizeGitURL(repoURL)
+		// Strip oci:// scheme for comparison since credential URLs are typically stored without it
+		normalizedNoScheme := strings.TrimPrefix(normalized, "oci://")
+		credNoScheme := strings.TrimPrefix(credNormalized, "oci://")
+		// Check if the sourceRepo URL starts with the credential URL prefix
+		if strings.HasPrefix(normalizedNoScheme, credNoScheme+"/") || normalizedNoScheme == credNoScheme {
+			return true
+		}
+	}
+	return false
+}
+
 // IsDestinationPermitted validates if the provided application's destination is one of the allowed destinations for the project
 func (proj AppProject) IsDestinationPermitted(destCluster *Cluster, destNamespace string, projectClusters func(project string) ([]*Cluster, error)) (bool, error) {
 	if destCluster == nil {
