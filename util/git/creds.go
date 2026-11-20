@@ -55,8 +55,10 @@ var (
 	azureTokenCache *gocache.Cache
 
 	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
-	githubInstallationIdCache      *gocache.Cache
-	githubInstallationIdCacheMutex sync.RWMutex // For bulk API call coordination
+	githubInstallationIdCache *gocache.Cache
+	// For bulk API call coordination. Maps a lookup key to a chan struct{} with a buffer of 1, used as a lock that
+	// can be abandoned when the caller's context ends.
+	githubInstallationIdLocks sync.Map
 	// In memory cache for storing Azure Service Principal tokens
 	azureServicePrincipalTokenCache *gocache.Cache
 
@@ -644,14 +646,15 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 // getAccessToken fetches GitHub token using the app id, install id, and private key.
 // the token is then cached for re-use.
 func (g GitHubAppCreds) getAccessToken() (string, error) {
-	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
-	defer cancel()
-
 	itr, err := g.getInstallationTransport()
 	if err != nil {
 		return "", fmt.Errorf("failed to create GitHub app installation transport: %w", err)
 	}
+
+	// Create the token context only after installation discovery, so time spent
+	// waiting for discovery does not shorten the token request's timeout.
+	ctx, cancel := newGitRequestContext(gitClientTimeout)
+	defer cancel()
 
 	return itr.Token(ctx)
 }
@@ -693,7 +696,7 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", SanitizeRepoURL(g.repoURL))
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
+		ctx, cancel := newGitRequestContext(gitClientTimeout)
 		defer cancel()
 
 		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)
@@ -809,9 +812,14 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 	var allInstallations []*github.Installation
 	opts := &github.ListOptions{PerPage: 100}
 
-	// Lock for the entire loop to avoid multiple concurrent API calls on startup
-	githubInstallationIdCacheMutex.Lock()
-	defer githubInstallationIdCacheMutex.Unlock()
+	// Lock for the entire loop to avoid multiple concurrent API calls for the same app and host on startup
+	lock, _ := githubInstallationIdLocks.LoadOrStore(fmt.Sprintf("%s:%d", domain, appId), make(chan struct{}, 1))
+	select {
+	case lock.(chan struct{}) <- struct{}{}:
+		defer func() { <-lock.(chan struct{}) }()
+	case <-ctx.Done():
+		return 0, fmt.Errorf("failed to list installations: %w", ctx.Err())
+	}
 
 	// Check cache again inside the write lock in case another goroutine already fetched it
 	if id, found := githubInstallationIdCache.Get(cacheKey); found {
@@ -1285,4 +1293,13 @@ func credentialTypeFromJSON(jsonData []byte) google.CredentialsType {
 	default:
 		return google.ServiceAccount
 	}
+}
+
+// newGitRequestContext returns a context bounded by timeout. Match http.Client
+// semantics: a zero timeout means no timeout.
+func newGitRequestContext(timeout time.Duration) (context.Context, context.CancelFunc) {
+	if timeout == 0 {
+		return context.WithCancel(context.Background())
+	}
+	return context.WithTimeout(context.Background(), timeout)
 }
