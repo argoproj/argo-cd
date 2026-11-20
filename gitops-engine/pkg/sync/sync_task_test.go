@@ -55,6 +55,41 @@ func Test_syncTask_deleteOnPhaseCompletion(t *testing.T) {
 	assert.True(t, (&syncTask{operationState: common.OperationFailed, liveObj: testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", "HookFailed")}).deleteOnPhaseCompletion())
 }
 
+// Test_syncTask_deleteOnPhaseResult verifies that the delete policies are driven by the
+// outcome of the hook itself and not by the outcome of the sync operation it belongs to.
+func Test_syncTask_deleteOnPhaseResult(t *testing.T) {
+	hookWithPolicy := func(policy common.HookDeletePolicy) *unstructured.Unstructured {
+		return testingutils.Annotate(testingutils.Annotate(testingutils.NewPod(), "argocd.argoproj.io/hook", "Sync"), "argocd.argoproj.io/hook-delete-policy", string(policy))
+	}
+	tests := []struct {
+		name           string
+		policy         common.HookDeletePolicy
+		operationState common.OperationPhase
+		want           bool
+	}{
+		{"HookSucceeded policy, hook succeeded", common.HookDeletePolicyHookSucceeded, common.OperationSucceeded, true},
+		{"HookSucceeded policy, hook failed", common.HookDeletePolicyHookSucceeded, common.OperationFailed, false},
+		{"HookSucceeded policy, hook still running", common.HookDeletePolicyHookSucceeded, common.OperationRunning, false},
+		{"HookSucceeded policy, hook not started", common.HookDeletePolicyHookSucceeded, "", false},
+		{"HookFailed policy, hook failed", common.HookDeletePolicyHookFailed, common.OperationFailed, true},
+		{"HookFailed policy, hook errored", common.HookDeletePolicyHookFailed, common.OperationError, true},
+		{"HookFailed policy, hook succeeded", common.HookDeletePolicyHookFailed, common.OperationSucceeded, false},
+		{"HookFailed policy, hook still running", common.HookDeletePolicyHookFailed, common.OperationRunning, false},
+		{"HookFailed policy, hook not started", common.HookDeletePolicyHookFailed, "", false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			task := &syncTask{operationState: tt.operationState, liveObj: hookWithPolicy(tt.policy)}
+			if tt.policy == common.HookDeletePolicyHookSucceeded {
+				assert.Equal(t, tt.want, task.deleteOnPhaseSuccessful())
+			} else {
+				assert.Equal(t, tt.want, task.deleteOnPhaseFailed())
+			}
+			assert.Equal(t, tt.want, task.deleteOnPhaseCompletion())
+		})
+	}
+}
+
 func Test_syncTask_deleteBeforeCreation(t *testing.T) {
 	assert.False(t, (&syncTask{liveObj: testingutils.NewPod()}).deleteBeforeCreation())
 	// must be hook
