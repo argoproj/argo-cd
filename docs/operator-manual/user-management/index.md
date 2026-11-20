@@ -950,6 +950,39 @@ Disabling certificate verification might make sense if:
 If either of those two applies, then you can disable OIDC provider certificate verification by setting
 `oidc.tls.insecure.skip.verify` to `"true"` in the `argocd-cm` ConfigMap.
 
+### Groups claim from the UserInfo endpoint
+
+When `enableUserInfoGroups` is `true`, Argo CD copies the claims listed in the `scopes` setting of `argocd-rbac-cm`
+(`groups` by default) from the UserInfo response into the user's claims. If your provider returns groups in a different
+claim, such as `memberof`, set it in `scopes`:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-rbac-cm
+  namespace: argocd
+  labels:
+    app.kubernetes.io/name: argocd-rbac-cm
+    app.kubernetes.io/part-of: argocd
+data:
+  scopes: '[memberof]'
+```
+
+UserInfo is authoritative for these claims: a claim listed in `scopes` that is missing from the UserInfo response is
+cleared, even if the ID token still contains it. Make sure your provider returns every claim listed in `scopes`
+(for example `email`) in the UserInfo response.
+
+> [!NOTE]
+> The UserInfo response is cached, so removing a user from a group does not take effect until the cached response
+> expires or the user logs in again. The cached response expires with the `exp` claim of the UserInfo response or, if
+> the response has no `exp` claim, with the ID token. `userInfoCacheExpiration` can only shorten this when the UserInfo
+> response includes an `exp` claim. UserInfo responses often omit it, and in that case a removed membership stays in
+> effect until the ID token expires or the user logs in again.
+
+Claim names are case-sensitive, and the identity claims `iss`, `sub`, `aud`, `exp`, `iat`, `nbf`, `jti` and
+`federated_claims` are never overwritten. See [RBAC Configuration](../rbac.md#using-ssousersgroups) for more on `scopes`.
+
 ## Dex Storage Backend
 
 By default, Dex stores session state (auth requests, refresh tokens, signingkeys) in memory. This means state does not persist across `argocd-dex-server` pod restarts, and it is not safe to run multiple Dex replicas since each replica would have its own independent state.
