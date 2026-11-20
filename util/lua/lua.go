@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 	"reflect"
 	"slices"
 	"strings"
@@ -576,7 +576,9 @@ func getWildcardHealthOverrideLua(overrides map[string]appv1.ResourceOverride, g
 }
 
 func (vm VM) getPredefinedLuaScripts(objKey string, scriptFile string) (string, error) {
-	data, err := resource_customizations.Embedded.ReadFile(filepath.Join(objKey, scriptFile))
+	// embed.FS paths always use forward slashes, so use path rather than filepath:
+	// on Windows filepath.Join would produce backslashes and no script would be found
+	data, err := resource_customizations.Embedded.ReadFile(path.Join(objKey, scriptFile))
 	if err != nil {
 		if os.IsNotExist(err) {
 			return "", errScriptDoesNotExist
@@ -601,22 +603,22 @@ func getGlobHealthScriptPaths() ([]string, error) {
 	globHealthScriptPathsOnce.Do(func() {
 		// Walk through the embedded filesystem and get the directory names of all directories containing a health.lua.
 		var patterns []string
-		err = fs.WalkDir(resource_customizations.Embedded, ".", func(path string, d fs.DirEntry, err error) error {
+		err = fs.WalkDir(resource_customizations.Embedded, ".", func(p string, d fs.DirEntry, err error) error {
 			if err != nil {
-				return fmt.Errorf("error walking path %q: %w", path, err)
+				return fmt.Errorf("error walking path %q: %w", p, err)
 			}
 
 			// Skip non-directories at the top level
-			if d.IsDir() && filepath.Dir(path) == "." {
+			if d.IsDir() && path.Dir(p) == "." {
 				return nil
 			}
 
 			// Check if the directory contains a health.lua file
-			if filepath.Base(path) != healthScriptFile {
+			if path.Base(p) != healthScriptFile {
 				return nil
 			}
 
-			groupKindPath := filepath.Dir(path)
+			groupKindPath := path.Dir(p)
 			// Check if the path contains a wildcard. If it doesn't, skip it.
 			if !strings.Contains(groupKindPath, "_") {
 				return nil
@@ -659,9 +661,9 @@ func getWildcardBuiltInHealthOverrideLua(objKey string) (string, error) {
 		}
 
 		var script []byte
-		script, err = resource_customizations.Embedded.ReadFile(filepath.Join(g, healthScriptFile))
+		script, err = resource_customizations.Embedded.ReadFile(path.Join(g, healthScriptFile))
 		if err != nil {
-			return "", fmt.Errorf("error reading %q file in embedded filesystem: %w", filepath.Join(objKey, healthScriptFile), err)
+			return "", fmt.Errorf("error reading %q file in embedded filesystem: %w", path.Join(objKey, healthScriptFile), err)
 		}
 		return string(script), nil
 	}
