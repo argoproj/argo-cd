@@ -74,6 +74,11 @@ function processPath(path: string) {
     return '';
 }
 
+// An image string without a tag, digest or new name is just the bare image name and carries no override
+function isImageOverride(item: string | null | undefined): boolean {
+    return item !== null && item !== undefined && /[:=@]/.test(item);
+}
+
 function getParamsEditableItems(
     app: models.Application,
     title: string,
@@ -365,14 +370,11 @@ export const ApplicationParameters = (props: {
                             function isDefined(item: any) {
                                 return item !== null && item !== undefined;
                             }
-                            function isDefinedWithVersion(item: any) {
-                                return item !== null && item !== undefined && item.match(/:/);
-                            }
                             if (updatedSrc && updatedSrc.helm?.parameters) {
                                 updatedSrc.helm.parameters = updatedSrc.helm.parameters.filter(isDefined);
                             }
                             if (updatedSrc && updatedSrc.kustomize?.images) {
-                                updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isDefinedWithVersion);
+                                updatedSrc.kustomize.images = updatedSrc.kustomize.images.filter(isImageOverride);
                             }
 
                             let params = isMulti ? input.spec?.sources[ind]?.plugin?.parameters : input.spec?.source?.plugin?.parameters;
@@ -520,15 +522,12 @@ export const ApplicationParameters = (props: {
                         function isDefined(item: any) {
                             return item !== null && item !== undefined;
                         }
-                        function isDefinedWithVersion(item: any) {
-                            return item !== null && item !== undefined && item.match(/:/);
-                        }
 
                         if (appSrc.helm && appSrc.helm.parameters) {
                             appSrc.helm.parameters = appSrc.helm.parameters.filter(isDefined);
                         }
                         if (appSrc.kustomize && appSrc.kustomize.images) {
-                            appSrc.kustomize.images = appSrc.kustomize.images.filter(isDefinedWithVersion);
+                            appSrc.kustomize.images = appSrc.kustomize.images.filter(isImageOverride);
                         }
 
                         let params = input.spec?.sources[ind]?.plugin?.parameters;
