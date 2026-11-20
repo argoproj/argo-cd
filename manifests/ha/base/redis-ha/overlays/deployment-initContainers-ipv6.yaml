@@ -1,0 +1,26 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: argocd-redis-ha-haproxy
+spec:
+  template:
+    spec:
+      initContainers:
+      # HAProxy binds to IPv4 only (haproxy.IPv6.enabled is false in chart/values.yaml) because a [::] bind fails on
+      # nodes where IPv6 is disabled. When the pod's primary IP is IPv6, rewrite the binds to [::] so HAProxy is
+      # reachable, and passes its probes, on IPv6-only and IPv6-primary dual-stack clusters.
+      - name: config-init
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        command:
+        - sh
+        - -c
+        args:
+        - |
+          sh /readonly/haproxy_init.sh || exit 1
+          case "${POD_IP}" in
+            *:*) sed -i -E 's/^([[:space:]]*bind[[:space:]]+):([0-9]+)/\1[::]:\2 v4v6/' /data/haproxy.cfg ;;
+          esac

@@ -8,7 +8,10 @@ run Argo CD in a highly available manner. This runs more containers, and runs Re
 
 > [!NOTE]
 > The HA installation will require at least three different nodes due to pod anti-affinity rule in the
-> specs. Additionally, IPv6 only clusters are not supported.
+> specs.
+
+Redis and Sentinel listen on IPv4 and, when available, on IPv6. HAProxy also listens on IPv6 when its pod's primary
+IP is IPv6, so the HA manifests work on IPv4-only, dual-stack and IPv6-only clusters.
 
 ## Scaling Up
 
