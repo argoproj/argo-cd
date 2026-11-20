@@ -53,6 +53,7 @@ var (
 	helmIndexCacheEnabledDefault                 = env.ParseBoolFromEnv(common.EnvHelmIndexCacheEnabled, false)
 	helmIndexCacheFilterEnabledDefault           = env.ParseBoolFromEnv(common.EnvHelmIndexCacheFilterEnabled, false)
 	helmIndexCacheDirDefault                     = env.StringFromEnv(common.EnvHelmIndexCacheDir, "")
+	helmIndexCacheExpirationDefault              = env.ParseDurationFromEnv(common.EnvHelmIndexCacheExpiration, helm.DefaultIndexCacheExpiration, 0, math.MaxInt64)
 )
 
 func NewCommand() *cobra.Command {
@@ -296,7 +297,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringVar(&streamedManifestMaxExtractedSize, "streamed-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_STREAMED_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of streamed manifest archives when extracted")
 	command.Flags().StringVar(&helmManifestMaxExtractedSize, "helm-manifest-max-extracted-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_EXTRACTED_SIZE", "1G"), "Maximum size of helm manifest archives when extracted")
 	command.Flags().StringVar(&helmRegistryMaxIndexSize, "helm-registry-max-index-size", env.StringFromEnv("ARGOCD_REPO_SERVER_HELM_MANIFEST_MAX_INDEX_SIZE", "1G"), "Maximum size of registry index file")
-	command.Flags().DurationVar(&helmIndexCacheExpiration, "helm-index-cache-expiration", helm.DefaultIndexCacheExpiration, "Freshness window for cached HTTP helm repository indexes; records older than this are revalidated with the origin via conditional GET before reuse. 0 revalidates on every use; negative values fall back to the default")
+	command.Flags().DurationVar(&helmIndexCacheExpiration, "helm-index-cache-expiration", helmIndexCacheExpirationDefault, "Freshness window for cached HTTP helm repository indexes; records older than this are revalidated with the origin via conditional GET before reuse. 0 revalidates on every use; negative values fall back to the default")
 	command.Flags().BoolVar(&helmIndexCacheEnabled, "helm-index-cache-enabled", helmIndexCacheEnabledDefault, "Cache and reuse validated helm repository indexes for helm dependency builds in a persistent on-disk store; replaces helm's repository refresh with validated originals (requires --helm-index-cache-dir for a custom location; falls back to a temp dir by default)")
 	command.Flags().BoolVar(&helmIndexCacheFilterEnabled, "helm-index-cache-filter-enabled", helmIndexCacheFilterEnabledDefault, "Serve helm dependency builds from dependency-only snapshots of cached indexes; requires --helm-index-cache-enabled")
 	command.Flags().StringVar(&helmIndexCacheDir, "helm-index-cache-dir", helmIndexCacheDirDefault, "Directory for the on-disk helm index cache used with --helm-index-cache-enabled; defaults to a temporary directory when unset")
