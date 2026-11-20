@@ -331,3 +331,17 @@ func matchingNotModifiedETag(cached, received string) bool {
 	}
 	return cached == received && !strings.HasPrefix(cached, "W/")
 }
+
+// observeIndexReadContext bounds a cache read by the shared read budget,
+// shrinking to the remaining request deadline when that is shorter. The raw
+// CacheClient interface has no ctx-aware Get, so callers pair this budget
+// with an abandon-style select around the read.
+func observeIndexReadContext(ctx context.Context) (context.Context, context.CancelFunc) {
+	budget := indexCacheReadBudget
+	if deadline, ok := ctx.Deadline(); ok {
+		if remaining := time.Until(deadline); remaining < budget {
+			budget = remaining
+		}
+	}
+	return context.WithTimeout(ctx, budget)
+}
