@@ -568,19 +568,11 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 // last-applied-configuration annotation in the diff.
 // Inputs are assumed to be stripped of type information
 func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, error) {
-	// All three inputs feed the merge patch, so the metadata that must never
-	// participate in a diff has to be removed from each of them. Stripping only
-	// live would let config's copy of these fields leak into predictedLive.
 	orig = orig.DeepCopy()
 	removeNamespaceAnnotation(orig)
-	removeServerPopulatedMetadata(orig)
 
 	config = config.DeepCopy()
 	removeNamespaceAnnotation(config)
-	removeServerPopulatedMetadata(config)
-
-	live = live.DeepCopy()
-	removeServerPopulatedMetadata(live)
 
 	// 1. calculate a 3-way merge patch
 	patchBytes, newVersionedObject, err := threeWayMergePatch(orig, config, live)
@@ -619,14 +611,8 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 // that the diff is more relevant.
 // It mutates the given object in place; the caller owns making a copy first.
 func removeNamespaceAnnotation(un *unstructured.Unstructured) {
-	if un == nil {
-		return
-	}
 	if metadataIf, ok := un.Object["metadata"]; ok {
-		metadata, ok := metadataIf.(map[string]any)
-		if !ok {
-			return
-		}
+		metadata := metadataIf.(map[string]any)
 		delete(metadata, "namespace")
 		if annotationsIf, ok := metadata["annotations"]; ok {
 			shouldDelete := false
@@ -646,45 +632,12 @@ func removeNamespaceAnnotation(un *unstructured.Unstructured) {
 }
 
 // removeServerPopulatedMetadata removes the metadata that is populated by the API server
-// and must never participate in a diff. It is applied to every object taking part in a
-// comparison so that a field present on only one of them cannot surface as a difference.
-//
-// The annotations map is dropped once the last-applied-configuration annotation has been
-// removed from it and nothing else remains. Removing only the key would leave
-// "annotations": {} behind, and buildDiffResult compares the sides byte-for-byte, where an
-// empty map is not equal to an absent one.
+// from an object taking part in a server-side diff. It mutates the given object in place.
 func removeServerPopulatedMetadata(un *unstructured.Unstructured) {
-	if un == nil {
-		return
-	}
-
-	metadata, ok := un.Object["metadata"].(map[string]any)
-	if !ok {
-		return
-	}
 	unstructured.RemoveNestedField(un.Object, "metadata", "managedFields")
 	unstructured.RemoveNestedField(un.Object, "metadata", "resourceVersion")
 	unstructured.RemoveNestedField(un.Object, "metadata", "generation")
-
-	annotationsIf, ok := metadata["annotations"]
-	if !ok {
-		return
-	}
-	annotations, ok := annotationsIf.(map[string]any)
-	if !ok {
-		// A nil annotations map carries no annotations, so drop it to keep every
-		// side of the comparison symmetric. Any other non-map value is malformed
-		// user input rather than an empty annotation set: it is left in place so
-		// that the diff keeps exposing it, matching removeNamespaceAnnotation.
-		if annotationsIf == nil {
-			delete(metadata, "annotations")
-		}
-		return
-	}
-	delete(annotations, AnnotationLastAppliedConfig)
-	if len(annotations) == 0 {
-		delete(metadata, "annotations")
-	}
+	unstructured.RemoveNestedField(un.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
 }
 
 // StatefulSet requires special handling since it embeds PersistentVolumeClaim resource.
