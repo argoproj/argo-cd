@@ -498,6 +498,58 @@ func TestRepositoryServer(t *testing.T) {
 		assert.Equal(t, "test", repo.Repo)
 	})
 
+	// https://github.com/argoproj/argo-cd/security/advisories/GHSA-mfgm-4p7x-3ccr
+	t.Run("Test_CreateRepositoryWithUpsertRequiresUpdatePermission", func(t *testing.T) {
+		repoServerClient := &mocks.RepoServerServiceClient{}
+		repoServerClient.EXPECT().TestRepository(mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: repoServerClient}
+		createOnlyEnforcer := newEnforcer(kubeclientset)
+		require.NoError(t, createOnlyEnforcer.SetUserPolicy("p, role:createrepos, repositories, create, *, allow"))
+		createOnlyEnforcer.SetDefaultRole("role:createrepos")
+
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetRepository(mock.Anything, "test", "").Return(&appsv1.Repository{
+			Repo:     "test",
+			Username: "original",
+		}, nil)
+		db.EXPECT().CreateRepository(mock.Anything, mock.Anything).Return(nil, status.Errorf(codes.AlreadyExists, "repository already exists"))
+
+		s := NewServer(&repoServerClientset, db, createOnlyEnforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, false)
+		_, err := s.CreateRepository(t.Context(), &repository.RepoCreateRequest{
+			Repo:   &appsv1.Repository{Repo: "test", Username: "attacker"},
+			Upsert: true,
+		})
+
+		require.Equal(t, codes.PermissionDenied, status.Code(err))
+		db.AssertNotCalled(t, "UpdateRepository", mock.Anything, mock.Anything)
+	})
+
+	// https://github.com/argoproj/argo-cd/security/advisories/GHSA-mfgm-4p7x-3ccr
+	t.Run("Test_CreateWriteRepositoryWithUpsertRequiresUpdatePermission", func(t *testing.T) {
+		repoServerClient := &mocks.RepoServerServiceClient{}
+		repoServerClient.EXPECT().TestRepository(mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: repoServerClient}
+		createOnlyEnforcer := newEnforcer(kubeclientset)
+		require.NoError(t, createOnlyEnforcer.SetUserPolicy("p, role:createrepos, write-repositories, create, *, allow"))
+		createOnlyEnforcer.SetDefaultRole("role:createrepos")
+
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().GetWriteRepository(mock.Anything, "test", "").Return(&appsv1.Repository{
+			Repo:     "test",
+			Username: "original",
+		}, nil)
+		db.EXPECT().CreateWriteRepository(mock.Anything, mock.Anything).Return(nil, status.Errorf(codes.AlreadyExists, "repository already exists"))
+
+		s := NewServer(&repoServerClientset, db, createOnlyEnforcer, newFixtures().Cache, appLister, projInformer, testNamespace, settingsMgr, true)
+		_, err := s.CreateWriteRepository(t.Context(), &repository.RepoCreateRequest{
+			Repo:   &appsv1.Repository{Repo: "test", Username: "attacker", Password: "secret"},
+			Upsert: true,
+		})
+
+		require.Equal(t, codes.PermissionDenied, status.Code(err))
+		db.AssertNotCalled(t, "UpdateWriteRepository", mock.Anything, mock.Anything)
+	})
+
 	t.Run("Test_ListRepositories", func(t *testing.T) {
 		repoServerClient := &mocks.RepoServerServiceClient{}
 		repoServerClient.EXPECT().TestRepository(mock.Anything, mock.Anything).Return(&apiclient.TestRepositoryResponse{}, nil)
