@@ -27,6 +27,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/git"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/rbac"
+	"github.com/argoproj/argo-cd/v3/util/security"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -344,10 +345,17 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	}
 	appName, appNs := argo.ParseFromQualifiedName(q.AppName, s.settings.GetNamespace())
 	app, err := s.appLister.Applications(appNs).Get(appName)
-	appRBACObj := createRBACObject(q.AppProject, q.AppName)
+	// Normalize the RBAC object so that it matches the format used by the application API.
+	appRBACObj := security.RBACName(s.settings.GetNamespace(), q.AppProject, appNs, appName)
+	if err == nil {
+		appRBACObj = app.RBACName(s.settings.GetNamespace())
+	}
 	// ensure caller has read privileges to app
 	if err := s.enf.EnforceErr(claims, rbac.ResourceApplications, rbac.ActionGet, appRBACObj); err != nil {
 		return nil, err
+	}
+	if err != nil && !apierrors.IsNotFound(err) {
+		return nil, fmt.Errorf("error getting application: %w", err)
 	}
 	if apierrors.IsNotFound(err) {
 		// app doesn't exist since it still is being formulated. verify they can create the app
@@ -357,7 +365,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		}
 	} else {
 		// if we get here we are returning repo details of an existing app
-		if q.AppProject != app.Spec.Project {
+		if q.AppProject != app.Spec.GetProject() {
 			return nil, common.PermissionDeniedAPIError
 		}
 		// verify caller is not making a request with arbitrary source values which were not in our history
@@ -403,7 +411,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 		Repos:            helmRepos,
 		KustomizeOptions: kustomizeSettings,
 		HelmOptions:      helmOptions,
-		AppName:          q.AppName,
+		AppName:          argo.AppInstanceName(appName, appNs, s.settings.GetNamespace()),
 		RefSources:       refSources,
 	})
 }
@@ -833,11 +841,12 @@ func isSourceInHistory(app *v1alpha1.Application, source v1alpha1.ApplicationSou
 		// multi source revision
 		if len(h.Sources) > 0 {
 			if h.ID == int64(versionId) {
-				if h.Revisions == nil {
+				if index < 0 || int(index) >= len(h.Sources) || int(index) >= len(h.Revisions) {
 					continue
 				}
-				h.Sources[index].TargetRevision = h.Revisions[index]
-				if source.Equals(&h.Sources[index]) {
+				historySource := h.Sources[index]
+				historySource.TargetRevision = h.Revisions[index]
+				if source.Equals(&historySource) {
 					return true
 				}
 			}
