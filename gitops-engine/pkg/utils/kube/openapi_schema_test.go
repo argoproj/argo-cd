@@ -270,3 +270,61 @@ func TestOpenAPISchemaResolver_Concurrent(t *testing.T) {
 	}
 	assert.Equal(t, int32(1), client.V3GVRequests.Load())
 }
+
+func TestOpenAPISchemaResolver_PatchMetaUndeclaredFields(t *testing.T) {
+	t.Parallel()
+	doc := `{
+  "openapi": "3.0.0",
+  "components": {"schemas": {
+    "com.example.v1.Widget": {
+      "type": "object",
+      "x-kubernetes-group-version-kind": [{"group": "example.com", "version": "v1", "kind": "Widget"}],
+      "properties": {"spec": {"type": "object", "properties": {
+        "strict": {"type": "object", "properties": {"a": {"type": "string"}}},
+        "preserved": {"type": "object", "x-kubernetes-preserve-unknown-fields": true, "properties": {"a": {"type": "string"}}},
+        "byName": {"type": "object", "additionalProperties": {"type": "object", "properties": {
+          "items": {"type": "array", "x-kubernetes-patch-merge-key": "name", "x-kubernetes-patch-strategy": "merge", "items": {"type": "object"}}
+        }}}
+      }}}
+    }
+  }}
+}`
+	resolver := (&kubetest.FakeOpenAPIClient{V3: map[string][]byte{"apis/example.com/v1": []byte(doc)}}).NewOpenAPISchemaResolver()
+	root, err := resolver.LookupPatchMeta(schema.GroupVersionKind{Group: "example.com", Version: "v1", Kind: "Widget"})
+	require.NoError(t, err)
+	spec, _, err := root.LookupPatchMetadataForStruct("spec")
+	require.NoError(t, err)
+
+	t.Run("undeclared field of a strict object", func(t *testing.T) {
+		t.Parallel()
+		strict, _, err := spec.LookupPatchMetadataForStruct("strict")
+		require.NoError(t, err)
+		_, _, err = strict.LookupPatchMetadataForStruct("b")
+		require.ErrorContains(t, err, `unable to find api field "b"`)
+	})
+
+	t.Run("undeclared fields of a preserve unknown fields object", func(t *testing.T) {
+		t.Parallel()
+		preserved, _, err := spec.LookupPatchMetadataForStruct("preserved")
+		require.NoError(t, err)
+		nested, meta, err := preserved.LookupPatchMetadataForStruct("b")
+		require.NoError(t, err)
+		assert.Empty(t, meta.GetPatchStrategies())
+		_, meta, err = nested.LookupPatchMetadataForSlice("list")
+		require.NoError(t, err)
+		assert.Empty(t, meta.GetPatchMergeKey())
+		assert.Equal(t, "Struct", nested.Name())
+	})
+
+	t.Run("additionalProperties", func(t *testing.T) {
+		t.Parallel()
+		byName, _, err := spec.LookupPatchMetadataForStruct("byName")
+		require.NoError(t, err)
+		value, _, err := byName.LookupPatchMetadataForStruct("any-key")
+		require.NoError(t, err)
+		_, meta, err := value.LookupPatchMetadataForSlice("items")
+		require.NoError(t, err)
+		assert.Equal(t, "name", meta.GetPatchMergeKey())
+		assert.Equal(t, []string{"merge"}, meta.GetPatchStrategies())
+	})
+}

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sort"
+	"strings"
 	"sync"
 
 	"github.com/go-logr/logr"
@@ -135,7 +136,81 @@ func (r *openAPISchemaResolver) LookupPatchMeta(gvk schema.GroupVersionKind) (st
 	if !ok {
 		return nil, nil
 	}
-	return strategicpatch.PatchMetaFromOpenAPIV3{Schema: gv.schemas[name], SchemaList: gv.schemas}, nil
+	return patchMetaV3{schemas: gv.schemas, schema: gv.schemas[name]}, nil
+}
+
+// patchMetaV3 is strategicpatch.PatchMetaFromOpenAPIV3 that also traverses additionalProperties and
+// fields that allow unknown keys, such as x-kubernetes-preserve-unknown-fields. Like the v2 Arbitrary
+// schema, it returns unspecified metadata below the latter.
+type patchMetaV3 struct {
+	schemas map[string]*spec.Schema
+	// schema is nil if the patch metadata is unspecified.
+	schema *spec.Schema
+}
+
+func (m patchMetaV3) LookupPatchMetadataForStruct(key string) (strategicpatch.LookupPatchMeta, strategicpatch.PatchMeta, error) {
+	return m.lookup(key, false)
+}
+
+func (m patchMetaV3) LookupPatchMetadataForSlice(key string) (strategicpatch.LookupPatchMeta, strategicpatch.PatchMeta, error) {
+	return m.lookup(key, true)
+}
+
+func (m patchMetaV3) Name() string {
+	if m.schema != nil && len(m.schema.Type) > 0 {
+		return strings.Join(m.schema.Type, "")
+	}
+	return "Struct"
+}
+
+func (m patchMetaV3) lookup(key string, slice bool) (strategicpatch.LookupPatchMeta, strategicpatch.PatchMeta, error) {
+	unspecified := patchMetaV3{schemas: m.schemas}
+	if m.schema == nil {
+		return unspecified, strategicpatch.PatchMeta{}, nil
+	}
+	var field *spec.Schema
+	additional := m.schema.AdditionalProperties
+	property, declared := m.schema.Properties[key]
+	switch {
+	case declared:
+		field = &property
+	case additional != nil && additional.Schema != nil:
+		field = additional.Schema
+	case len(m.schema.Properties) == 0 || (additional != nil && additional.Allows) || preservesUnknownFields(m.schema):
+		return unspecified, strategicpatch.PatchMeta{}, nil
+	default:
+		return nil, strategicpatch.PatchMeta{}, fmt.Errorf("unable to find api field %q", key)
+	}
+
+	var meta strategicpatch.PatchMeta
+	if mergeKey, ok := field.Extensions.GetString("x-kubernetes-patch-merge-key"); ok {
+		meta.SetPatchMergeKey(mergeKey)
+	}
+	if strategy, ok := field.Extensions.GetString("x-kubernetes-patch-strategy"); ok {
+		meta.SetPatchStrategies(strings.Split(strategy, ","))
+	}
+	if slice && field.Items != nil {
+		if field.Items.Schema == nil {
+			return unspecified, meta, nil
+		}
+		field = field.Items.Schema
+	}
+	if len(field.AllOf) > 0 {
+		field = &field.AllOf[0]
+	}
+	if ref := field.Ref.String(); ref != "" {
+		resolved, ok := m.schemas[strings.TrimPrefix(ref, "#/components/schemas/")]
+		if !ok {
+			return nil, meta, fmt.Errorf("unable to resolve %s in OpenAPI V3", ref)
+		}
+		field = resolved
+	}
+	return patchMetaV3{schemas: m.schemas, schema: field}, meta, nil
+}
+
+func preservesUnknownFields(s *spec.Schema) bool {
+	preserve, _ := s.Extensions.GetBool("x-kubernetes-preserve-unknown-fields")
+	return preserve
 }
 
 // load returns the v3 document of gvk's group version, loading it if needed. It returns nil if the
