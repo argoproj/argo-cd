@@ -154,8 +154,7 @@ func TestNoReturnHealthStatusStatus(t *testing.T) {
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, validReturnNothingHealthStatusStatus)
 	require.NoError(t, err)
-	expectedStatus := &health.HealthStatus{}
-	assert.Equal(t, expectedStatus, status)
+	assert.Nil(t, status)
 }
 
 const validNilHealthStatusStatus = `local healthStatus = {}
@@ -168,8 +167,7 @@ func TestNilHealthStatusStatus(t *testing.T) {
 	vm := VM{}
 	status, err := vm.ExecuteHealthLua(testObj, validNilHealthStatusStatus)
 	require.NoError(t, err)
-	expectedStatus := &health.HealthStatus{}
-	assert.Equal(t, expectedStatus, status)
+	assert.Nil(t, status)
 }
 
 const validEmptyArrayHealthStatusStatus = `local healthStatus = {}
@@ -1128,6 +1126,7 @@ func Test_getHealthScriptPaths(t *testing.T) {
 		"_.services.k8s.aws/_",
 		"_.upbound.io/_",
 		"grafana-org-operator.kubitus-project.gitlab.io/_",
+		"kro.run/_",
 		"microgateway.airlock.com/_",
 		"operator.victoriametrics.com/_",
 	}, paths)

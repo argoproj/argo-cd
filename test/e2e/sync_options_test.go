@@ -229,6 +229,45 @@ func TestSyncWithForceReplace(t *testing.T) {
 		Expect(HealthIs(health.HealthStatusHealthy))
 }
 
+// TestSyncWithForceAndServerSideApply verifies that a force sync of an application
+// that uses ServerSideApply=true succeeds. kubectl rejects --force together with
+// --server-side, so before the fix every resource failed in the apply phase with
+// "error validating options: --force cannot be used with --server-side".
+func TestSyncWithForceAndServerSideApply(t *testing.T) {
+	ctx := Given(t)
+
+	ctx.
+		Path(guestbookPath).
+		Force().
+		When().
+		CreateApp("--sync-option", "ServerSideApply=true").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		Expect(ResourceSyncStatusIs("Deployment", "guestbook-ui", SyncStatusCodeSynced)).
+		Expect(ResourceSyncStatusIs("Service", "guestbook-ui", SyncStatusCodeSynced)).
+		And(func(_ *Application) {
+			// the resources were applied server-side, not client-side
+			deploy, err := KubeClientset.AppsV1().Deployments(ctx.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
+			require.NoError(t, err)
+			assert.NotContains(t, deploy.Annotations, "kubectl.kubernetes.io/last-applied-configuration")
+		}).
+		// a force sync of an already existing resource must succeed as well
+		When().
+		PatchFile("guestbook-ui-deployment.yaml", `[{ "op": "replace", "path": "/spec/replicas", "value": 2 }]`).
+		Refresh(RefreshTypeNormal).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync)).
+		When().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
 // Given application is set with --sync-option CreateNamespace=true and --sync-option ServerSideApply=true
 //
 //		application --dest-namespace exists

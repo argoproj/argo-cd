@@ -44,11 +44,4 @@
         align-items: center;
         margin-left: auto;
     }
-
-    &__padder {
-        height: 50px;
-        @include breakpoint(medium down) {
-            height: 150px;
-        }
-    }
 }

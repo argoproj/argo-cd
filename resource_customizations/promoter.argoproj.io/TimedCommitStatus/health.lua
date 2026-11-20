@@ -1,17 +1,18 @@
 -- CRD spec: https://gitops-promoter.readthedocs.io/en/latest/crd-specs/#timedcommitstatus
 
+-- TimedCommitStatus (gitops-promoter v1alpha1): per-environment wait before reporting success.
+-- status.environments[].phase is pending or success (see API).
+
+if obj.metadata and obj.metadata.deletionTimestamp then
+    local hs = {}
+    hs.status = "Progressing"
+    hs.deletionMessage = "TimedCommitStatus is being deleted"
+    return hs
+end
 local hs = {}
 hs.status = "Progressing"
 hs.message = "Initializing timed commit gate"
 
--- TimedCommitStatus (gitops-promoter v1alpha1): per-environment wait before reporting success.
--- status.environments[].phase is pending or success (see API).
-
-if obj.metadata.deletionTimestamp then
-    hs.status = "Progressing"
-    hs.message = "TimedCommitStatus is being deleted"
-    return hs
-end
 
 if not obj.status then
     return hs

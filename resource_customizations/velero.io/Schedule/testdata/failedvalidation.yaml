@@ -1,0 +1,14 @@
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: daily-backup
+  namespace: velero
+spec:
+  schedule: not-a-cron
+  template:
+    includedNamespaces:
+    - '*'
+status:
+  phase: FailedValidation
+  validationErrors:
+  - "invalid schedule: expected exactly 5 fields, found 1: [not-a-cron]"

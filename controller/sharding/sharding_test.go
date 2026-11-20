@@ -493,10 +493,8 @@ func Test_generateDefaultShardMappingCM_NoPredefinedShard(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedShadingCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDAppControllerShardConfigMapName,
-			Namespace: "test",
-		},
+		Name:      common.ArgoCDAppControllerShardConfigMapName,
+		Namespace: "test",
 		Data: map[string]string{
 			"shardControllerMapping": string(expectedMappingCM),
 		},
@@ -528,10 +526,8 @@ func Test_generateDefaultShardMappingCM_PredefinedShard(t *testing.T) {
 	require.NoError(t, err)
 
 	expectedShadingCM := &corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.ArgoCDAppControllerShardConfigMapName,
-			Namespace: "test",
-		},
+		Name:      common.ArgoCDAppControllerShardConfigMapName,
+		Namespace: "test",
 		Data: map[string]string{
 			"shardControllerMapping": string(expectedMappingCM),
 		},
@@ -790,20 +786,16 @@ func Test_getOrUpdateShardNumberForController(t *testing.T) {
 
 func TestGetClusterSharding(t *testing.T) {
 	deployment := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      common.DefaultApplicationControllerName,
-			Namespace: "argocd",
-		},
+		Name:      common.DefaultApplicationControllerName,
+		Namespace: "argocd",
 		Spec: appsv1.DeploymentSpec{
 			Replicas: new(int32(1)),
 		},
 	}
 
 	deploymentMultiReplicas := &appsv1.Deployment{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-application-controller-multi-replicas",
-			Namespace: "argocd",
-		},
+		Name:      "argocd-application-controller-multi-replicas",
+		Namespace: "argocd",
 		Spec: appsv1.DeploymentSpec{
 			Replicas: new(int32(3)),
 		},

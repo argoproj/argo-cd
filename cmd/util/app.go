@@ -18,7 +18,6 @@ import (
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application"
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -59,6 +58,10 @@ type AppOptions struct {
 	syncPolicy                      string
 	syncOptions                     []string
 	autoPrune                       bool
+	syncPrune                       bool
+	syncDryRun                      bool
+	syncApplyOnly                   bool
+	syncForce                       bool
 	selfHeal                        bool
 	allowEmpty                      bool
 	namePrefix                      string
@@ -140,6 +143,10 @@ func AddAppFlags(command *cobra.Command, opts *AppOptions) {
 	command.Flags().StringVar(&opts.syncPolicy, "sync-policy", "", "Set the sync policy (one of: manual (aliases of manual: none), automated (aliases of automated: auto, automatic))")
 	command.Flags().StringArrayVar(&opts.syncOptions, "sync-option", []string{}, "Add or remove a sync option, e.g add `Prune=false`. Remove using `!` prefix, e.g. `!Prune=false`")
 	command.Flags().BoolVar(&opts.autoPrune, "auto-prune", false, "Set automatic pruning for automated sync policy")
+	command.Flags().BoolVar(&opts.syncPrune, "sync-prune", true, "Prune resources by default on manual sync (sets syncPolicy.manualDefaults.prune)")
+	command.Flags().BoolVar(&opts.syncDryRun, "sync-dry-run", false, "Dry-run by default on manual sync (sets syncPolicy.manualDefaults.dryRun)")
+	command.Flags().BoolVar(&opts.syncApplyOnly, "sync-apply-only", false, "Apply-only by default on manual sync (sets syncPolicy.manualDefaults.applyOnly)")
+	command.Flags().BoolVar(&opts.syncForce, "sync-force", false, "Force by default on manual sync (sets syncPolicy.manualDefaults.force)")
 	command.Flags().BoolVar(&opts.selfHeal, "self-heal", false, "Set self healing for automated sync policy")
 	command.Flags().BoolVar(&opts.allowEmpty, "allow-empty", false, "Set allow zero live resources for automated sync policy")
 	command.Flags().StringVar(&opts.namePrefix, "nameprefix", "", "Kustomize nameprefix")
@@ -306,6 +313,29 @@ func SetAppSpecOptions(flags *pflag.FlagSet, spec *argoappv1.ApplicationSpec, ap
 		}
 		if flags.Changed("allow-empty") {
 			spec.SyncPolicy.Automated.AllowEmpty = &appOpts.allowEmpty
+		}
+	}
+	if flags.Changed("sync-prune") || flags.Changed("sync-dry-run") || flags.Changed("sync-apply-only") || flags.Changed("sync-force") {
+		if spec.SyncPolicy == nil {
+			spec.SyncPolicy = &argoappv1.SyncPolicy{}
+		}
+		if spec.SyncPolicy.ManualDefaults == nil {
+			// Creating manualDefaults for a non-prune field must not opt into
+			// GetPrune()'s true-when-nil default; keep legacy prune=false until
+			// --sync-prune is set explicitly.
+			spec.SyncPolicy.ManualDefaults = argoappv1.NewSyncPolicyManualDefaults()
+		}
+		if flags.Changed("sync-prune") {
+			spec.SyncPolicy.ManualDefaults.Prune = &appOpts.syncPrune
+		}
+		if flags.Changed("sync-dry-run") {
+			spec.SyncPolicy.ManualDefaults.DryRun = &appOpts.syncDryRun
+		}
+		if flags.Changed("sync-apply-only") {
+			spec.SyncPolicy.ManualDefaults.ApplyOnly = &appOpts.syncApplyOnly
+		}
+		if flags.Changed("sync-force") {
+			spec.SyncPolicy.ManualDefaults.Force = &appOpts.syncForce
 		}
 	}
 	return visited
@@ -618,15 +648,11 @@ func constructAppsBaseOnName(appName string, labels, annotations, args []string,
 	}
 	appName, appNs := argo.ParseFromQualifiedName(appName, "")
 	app = &argoappv1.Application{
-		TypeMeta: metav1.TypeMeta{
-			Kind:       application.ApplicationKind,
-			APIVersion: application.Group + "/v1alpha1",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      appName,
-			Namespace: appNs,
-		},
-		Spec: argoappv1.ApplicationSpec{},
+		Kind:       application.ApplicationKind,
+		APIVersion: application.Group + "/v1alpha1",
+		Name:       appName,
+		Namespace:  appNs,
+		Spec:       argoappv1.ApplicationSpec{},
 	}
 	SetAppSpecOptions(flags, &app.Spec, &appOpts, 0)
 	SetParameterOverrides(app, appOpts.Parameters, 0)

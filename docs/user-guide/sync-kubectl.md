@@ -134,11 +134,13 @@ operation:
 In an operation, you can also pass sync-options. Each of these options is passed as "name=value" pairs. For example:
 
 ```yaml
-operations:
+operation:
   sync:
     syncOptions:
       - Validate=false
       - Prune=false
 ```
+
+Argo CD does not copy the sync options from the Application's `spec.syncPolicy.syncOptions` into an operation that you create with kubectl. Application-level options that the sync reads from the operation, such as `ServerSideApply=true` and `RespectIgnoreDifferences=true`, only take effect if you list them under `operation.sync.syncOptions`. Sync options set on individual resources with the `argocd.argoproj.io/sync-options` annotation still apply. Automated syncs, by contrast, copy `spec.syncPolicy.syncOptions` into the operation they create.
 
 For more information about sync options, please refer to [sync-options](https://argo-cd.readthedocs.io/en/stable/user-guide/sync-options/)

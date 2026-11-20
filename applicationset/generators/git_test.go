@@ -15,309 +15,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-func Test_generateParamsFromGitFile(t *testing.T) {
-	defaultContent := []byte(`
-foo:
-  bar: baz
-`)
-	type args struct {
-		filePath          string
-		repoURL           string
-		revision          string
-		fileContent       []byte
-		values            map[string]string
-		useGoTemplate     bool
-		goTemplateOptions []string
-		pathParamPrefix   string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    []map[string]any
-		wantErr bool
-	}{
-		{
-			name: "empty file returns path parameters",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				repoURL:       "https://github.com/example/repo.git",
-				revision:      "main",
-				fileContent:   []byte(""),
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			want: []map[string]any{
-				{
-					"path":                    "path/dir",
-					"path.basename":           "dir",
-					"path.filename":           "file_name.yaml",
-					"path.basenameNormalized": "dir",
-					"path.filenameNormalized": "file-name.yaml",
-					"path.repoURL":            "https://github.com/example/repo.git",
-					"path.revision":           "main",
-					"path[0]":                 "path",
-					"path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "invalid json/yaml file returns error",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				fileContent:   []byte("this is not json or yaml"),
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			wantErr: true,
-		},
-		{
-			name: "file parameters are added to params",
-			args: args{
-				filePath:      "path/dir/file_name.yaml",
-				repoURL:       "https://github.com/example/repo.git",
-				revision:      "main",
-				fileContent:   defaultContent,
-				values:        map[string]string{},
-				useGoTemplate: false,
-			},
-			want: []map[string]any{
-				{
-					"foo.bar":                 "baz",
-					"path":                    "path/dir",
-					"path.basename":           "dir",
-					"path.filename":           "file_name.yaml",
-					"path.basenameNormalized": "dir",
-					"path.filenameNormalized": "file-name.yaml",
-					"path.repoURL":            "https://github.com/example/repo.git",
-					"path.revision":           "main",
-					"path[0]":                 "path",
-					"path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "path parameter are prefixed",
-			args: args{
-				filePath:        "path/dir/file_name.yaml",
-				repoURL:         "https://github.com/example/repo.git",
-				revision:        "main",
-				fileContent:     defaultContent,
-				values:          map[string]string{},
-				useGoTemplate:   false,
-				pathParamPrefix: "myRepo",
-			},
-			want: []map[string]any{
-				{
-					"foo.bar":                        "baz",
-					"myRepo.path":                    "path/dir",
-					"myRepo.path.basename":           "dir",
-					"myRepo.path.filename":           "file_name.yaml",
-					"myRepo.path.basenameNormalized": "dir",
-					"myRepo.path.filenameNormalized": "file-name.yaml",
-					"myRepo.path.repoURL":            "https://github.com/example/repo.git",
-					"myRepo.path.revision":           "main",
-					"myRepo.path[0]":                 "path",
-					"myRepo.path[1]":                 "dir",
-				},
-			},
-		},
-		{
-			name: "file parameters are added to params with go template",
-			args: args{
-				filePath:    "path/dir/file_name.yaml",
-				repoURL:     "https://github.com/example/repo.git",
-				revision:    "main",
-				fileContent: defaultContent,
-				values: map[string]string{
-					"somekey": "{{.path.basename}}",
-				},
-				useGoTemplate: true,
-			},
-			want: []map[string]any{
-				{
-					"values": map[string]string{
-						"somekey": "dir",
-					},
-					"foo": map[string]any{
-						"bar": "baz",
-					},
-					"path": map[string]any{
-						"path":               "path/dir",
-						"basename":           "dir",
-						"filename":           "file_name.yaml",
-						"basenameNormalized": "dir",
-						"filenameNormalized": "file-name.yaml",
-						"repoURL":            "https://github.com/example/repo.git",
-						"revision":           "main",
-						"segments": []string{
-							"path",
-							"dir",
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "path parameter are prefixed with go template",
-			args: args{
-				filePath:        "path/dir/file_name.yaml",
-				repoURL:         "https://github.com/example/repo.git",
-				revision:        "main",
-				fileContent:     defaultContent,
-				values:          map[string]string{},
-				useGoTemplate:   true,
-				pathParamPrefix: "myRepo",
-			},
-			want: []map[string]any{
-				{
-					"foo": map[string]any{
-						"bar": "baz",
-					},
-					"myRepo": map[string]any{
-						"path": map[string]any{
-							"path":               "path/dir",
-							"basename":           "dir",
-							"filename":           "file_name.yaml",
-							"basenameNormalized": "dir",
-							"filenameNormalized": "file-name.yaml",
-							"repoURL":            "https://github.com/example/repo.git",
-							"revision":           "main",
-							"segments": []string{
-								"path",
-								"dir",
-							},
-						},
-					},
-				},
-			},
-		},
-		{
-			name: "path parameter are prefixed with go template and values",
-			args: args{
-				filePath:    "path/dir/file_name.yaml",
-				repoURL:     "https://github.com/example/repo.git",
-				revision:    "main",
-				fileContent: defaultContent,
-				values: map[string]string{
-					"somekey": "{{.myRepo.path.basename}}",
-				},
-				useGoTemplate:   true,
-				pathParamPrefix: "myRepo",
-			},
-			want: []map[string]any{
-				{
-					"foo": map[string]any{
-						"bar": "baz",
-					},
-					"myRepo": map[string]any{
-						"path": map[string]any{
-							"path":               "path/dir",
-							"basename":           "dir",
-							"filename":           "file_name.yaml",
-							"basenameNormalized": "dir",
-							"filenameNormalized": "file-name.yaml",
-							"repoURL":            "https://github.com/example/repo.git",
-							"revision":           "main",
-							"segments": []string{
-								"path",
-								"dir",
-							},
-						},
-					},
-					"values": map[string]string{
-						"somekey": "dir",
-					},
-				},
-			},
-		},
-		{
-			// Regression test: a user's own `values` entries named "repoURL"/"revision" must
-			// keep working unchanged, since they live under the separate "values.*" namespace
-			// and are never merged into "path.*". This guards against the new path.repoURL/
-			// path.revision fields silently breaking existing ApplicationSets.
-			name: "user-defined values named repoURL/revision are not clobbered by the new path fields",
-			args: args{
-				filePath:    "path/dir/file_name.yaml",
-				repoURL:     "https://github.com/example/repo.git",
-				revision:    "main",
-				fileContent: defaultContent,
-				values: map[string]string{
-					"repoURL":  "user-supplied-repo-url",
-					"revision": "user-supplied-revision",
-				},
-				useGoTemplate: false,
-			},
-			want: []map[string]any{
-				{
-					"foo.bar":                 "baz",
-					"path":                    "path/dir",
-					"path.basename":           "dir",
-					"path.filename":           "file_name.yaml",
-					"path.basenameNormalized": "dir",
-					"path.filenameNormalized": "file-name.yaml",
-					"path.repoURL":            "https://github.com/example/repo.git",
-					"path.revision":           "main",
-					"path[0]":                 "path",
-					"path[1]":                 "dir",
-					"values.repoURL":          "user-supplied-repo-url",
-					"values.revision":         "user-supplied-revision",
-				},
-			},
-		},
-		{
-			// Same regression test as above, but for go template mode, where user values land
-			// under the separate params["values"] map instead of params["path"].
-			name: "user-defined values named repoURL/revision are not clobbered by the new path fields with go template",
-			args: args{
-				filePath:    "path/dir/file_name.yaml",
-				repoURL:     "https://github.com/example/repo.git",
-				revision:    "main",
-				fileContent: defaultContent,
-				values: map[string]string{
-					"repoURL":  "user-supplied-repo-url",
-					"revision": "user-supplied-revision",
-				},
-				useGoTemplate: true,
-			},
-			want: []map[string]any{
-				{
-					"values": map[string]string{
-						"repoURL":  "user-supplied-repo-url",
-						"revision": "user-supplied-revision",
-					},
-					"foo": map[string]any{
-						"bar": "baz",
-					},
-					"path": map[string]any{
-						"path":               "path/dir",
-						"basename":           "dir",
-						"filename":           "file_name.yaml",
-						"basenameNormalized": "dir",
-						"filenameNormalized": "file-name.yaml",
-						"repoURL":            "https://github.com/example/repo.git",
-						"revision":           "main",
-						"segments": []string{
-							"path",
-							"dir",
-						},
-					},
-				},
-			},
-		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			params, err := (*GitGenerator)(nil).generateParamsFromGitFile(tt.args.filePath, tt.args.repoURL, tt.args.revision, tt.args.fileContent, tt.args.values, tt.args.useGoTemplate, tt.args.goTemplateOptions, tt.args.pathParamPrefix)
-			if tt.wantErr {
-				assert.Error(t, err, "GitGenerator.generateParamsFromGitFile()")
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tt.want, params)
-			}
-		})
-	}
-}
-
 func TestGitGenerateParamsFromDirectories(t *testing.T) {
 	t.Parallel()
 
@@ -449,7 +146,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
+			expectedError: errors.New("error generating params from git: error getting directories from git: error"),
 		},
 	}
 
@@ -465,9 +162,7 @@ func TestGitGenerateParamsFromDirectories(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -778,7 +473,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 			repoApps:      []string{},
 			repoError:     errors.New("error"),
 			expected:      []map[string]any{},
-			expectedError: errors.New("error generating params from git: error getting directories from repo: error"),
+			expectedError: errors.New("error generating params from git: error getting directories from git: error"),
 		},
 	}
 
@@ -794,9 +489,7 @@ func TestGitGenerateParamsFromDirectoriesGoTemplate(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -1189,9 +882,7 @@ cluster:
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1543,9 +1234,7 @@ env: testing
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -1890,9 +1579,7 @@ env: testing
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{{
 						Git: &v1alpha1.GitGenerator{
@@ -2125,9 +1812,7 @@ func TestGitGeneratorParamsFromFilesWithExcludeOptionGoTemplate(t *testing.T) {
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{
@@ -2496,9 +2181,7 @@ cluster:
 
 			gitGenerator := NewGitGenerator(argoCDServiceMock, "")
 			applicationSetInfo := v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name: "set",
-				},
+				Name: "set",
 				Spec: v1alpha1.ApplicationSetSpec{
 					GoTemplate: true,
 					Generators: []v1alpha1.ApplicationSetGenerator{{

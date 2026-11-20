@@ -14,8 +14,11 @@ rules:
   # Evaluated and necessary for the cherry-pick automation workflow, which must
   # react to pull_request_target events to cherry-pick merged PRs across
   # release branches using a GitHub App token.
+  # auto-assign-pr-author.yaml needs a write token on fork PRs to set the
+  # assignee; it never checks out or runs PR code.
   dangerous-triggers:
     ignore:
+      - auto-assign-pr-author.yaml
       - cherry-pick.yml
   # Dependabot cooldown is not yet configured for this repository.
   dependabot-cooldown:

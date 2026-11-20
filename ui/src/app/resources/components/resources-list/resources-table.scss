@@ -9,6 +9,15 @@ $resources-table-menu-width: 2.75rem;
 
 // Reuse application details resource list presentation (icon column, row layout).
 .application-details.resources-table {
+    .resources-table__virtual-row {
+        box-sizing: border-box;
+        padding: 4px 0;
+
+        > .argo-table-list__row {
+            margin: 0;
+        }
+    }
+
     height: auto;
     width: 100%;
 

@@ -55,7 +55,10 @@ type ResourceOperations interface {
 // KubectlOptionsRunner defines the operations to run kubectl commands based on provided options
 type KubectlOptionsRunner interface {
 	Apply(opts *apply.ApplyOptions) error
-	Create(opts *create.CreateOptions, fact cmdutil.Factory, cmd *cobra.Command) error
+	// Since k8s client 0.37.0 the underlying function [k8s.io/kubectl/pkg/cmd/create.CreateOptions.RunCreate] does
+	// not accept cmd parameter, so the third argument of Create() is not used any more by the Gitops Engine built-in
+	// implementation of the [KubectlOptionsRunner] interface and will be removed in the next major version
+	Create(opts *create.CreateOptions, fact cmdutil.Factory, ignoredCmd *cobra.Command) error
 	Replace(opts *replace.ReplaceOptions, fact cmdutil.Factory) error
 	AuthReconcile(opts *auth.ReconcileOptions) error
 }
@@ -76,13 +79,13 @@ func (f *realKubectlOptionsRunner) Apply(opts *apply.ApplyOptions) error {
 }
 
 // Create will perform https://kubernetes.io/docs/reference/kubectl/generated/kubectl_create/
-func (f *realKubectlOptionsRunner) Create(opts *create.CreateOptions, fact cmdutil.Factory, cmd *cobra.Command) error {
+func (f *realKubectlOptionsRunner) Create(opts *create.CreateOptions, fact cmdutil.Factory, _ *cobra.Command) error {
 	cleanup, err := f.processKubectlRun("create")
 	if err != nil {
 		return err
 	}
 	defer cleanup()
-	return opts.RunCreate(fact, cmd)
+	return opts.RunCreate(fact)
 }
 
 // Replace will perform https://kubernetes.io/docs/reference/kubectl/generated/kubectl_replace/
@@ -111,7 +114,24 @@ func (f *realKubectlOptionsRunner) AuthReconcile(opts *auth.ReconcileOptions) (r
 			retErr = fmt.Errorf("error running kubectl auth reconcile: %v", r)
 		}
 	}()
+	// TODO(#29484): Remove this wrapper after the upstream kubectl panic fix is available in Argo CD.
+	opts.Visitor = panicRecoveringVisitor{Visitor: opts.Visitor}
 	return opts.RunReconcile()
+}
+
+type panicRecoveringVisitor struct {
+	resource.Visitor
+}
+
+func (v panicRecoveringVisitor) Visit(fn resource.VisitorFunc) error {
+	return v.Visitor.Visit(func(info *resource.Info, err error) (retErr error) {
+		defer func() {
+			if r := recover(); r != nil {
+				retErr = fmt.Errorf("error running kubectl auth reconcile: %v", r)
+			}
+		}()
+		return fn(info, err)
+	})
 }
 
 func (f *realKubectlOptionsRunner) processKubectlRun(cmd string) (CleanupFunc, error) {
@@ -326,6 +346,11 @@ func (k *kubectlResourceOperations) CreateResource(ctx context.Context, obj *uns
 		if err != nil {
 			return err
 		}
+		if validate {
+			createOptions.ValidationDirective = metav1.FieldValidationStrict
+		} else {
+			createOptions.ValidationDirective = metav1.FieldValidationIgnore
+		}
 		command := &cobra.Command{}
 		saveConfig := false
 		command.Flags().BoolVar(&saveConfig, "save-config", false, "")
@@ -465,7 +490,9 @@ func (k *kubectlResourceOperations) newApplyOptions(ioStreams genericiooptions.I
 
 	o.Namespace = obj.GetNamespace()
 	o.DeleteOptions.Filenames = []string{fileName}
-	o.DeleteOptions.ForceDeletion = force
+	// kubectl rejects --force together with --server-side; conflicts are already
+	// forced via --force-conflicts, so the force flag has no meaning under SSA.
+	o.DeleteOptions.ForceDeletion = force && !serverSideApply
 	o.ForceConflicts = serverSideApply
 
 	o.ToPrinter = func(operation string) (printers.ResourcePrinter, error) {

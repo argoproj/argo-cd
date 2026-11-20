@@ -1,24 +1,46 @@
 import {FormField, NotificationType, SlidingPanel} from 'argo-ui';
+import {useQuery} from '@tanstack/react-query';
 import * as React from 'react';
 import {Form, FormApi, Text} from 'argo-ui';
 
-import {DataLoader, EmptyState, ErrorNotification, IconColumn, Page, Paginate, SearchBar} from '../../../shared/components';
+import {EmptyState, ErrorNotification, IconColumn, Page, Paginate, SearchBar} from '../../../shared/components';
 import {Context} from '../../../shared/context';
 import {Project} from '../../../shared/models';
 import {services} from '../../../shared/services';
-import {useQuery} from '../../../shared/hooks/query';
+import {projectQueries} from '../../../shared/queries';
+import {loadFailed, loading} from '../../../shared/query-client';
+import {useSearchParams} from '../../../shared/hooks/query';
 import {useListSort} from '../../../shared/hooks/use-list-sort';
 import {FlexTopBar} from '../../../shared/components';
 
 export function ProjectsList() {
     const formApiRef = React.useRef<FormApi | null>(null);
     const ctx = React.useContext(Context);
-    const query = useQuery();
+    const query = useSearchParams();
     const searchText = query.get('search') || '';
     const [page, setPage] = React.useState(0);
 
     type SortKey = 'name' | 'description';
     const {sortKey, requestSort, sortIcon, compareString} = useListSort<SortKey>('name');
+
+    const {data: projects, isError, refetch} = useQuery(projectQueries.list());
+    const filteredProjects = (projects || [])
+        .filter(
+            proj =>
+                searchText === '' ||
+                proj.metadata.name.toLowerCase().includes(searchText.toLowerCase()) ||
+                (proj.spec.description && proj.spec.description.toLowerCase().includes(searchText.toLowerCase()))
+        )
+        .sort((a, b) => {
+            switch (sortKey) {
+                case 'name':
+                    return compareString(a.metadata.name, b.metadata.name);
+                case 'description':
+                    return compareString(a.spec.description, b.spec.description);
+                default:
+                    return 0;
+            }
+        });
 
     return (
         <Page
@@ -46,75 +68,57 @@ export function ProjectsList() {
                 }}
             />
             <div className='projects argo-container'>
-                <DataLoader load={() => services.projects.list()}>
-                    {projects => {
-                        const filteredProjects = projects
-                            .filter(
-                                proj =>
-                                    searchText === '' ||
-                                    proj.metadata.name.toLowerCase().includes(searchText.toLowerCase()) ||
-                                    (proj.spec.description && proj.spec.description.toLowerCase().includes(searchText.toLowerCase()))
-                            )
-                            .sort((a, b) => {
-                                switch (sortKey) {
-                                    case 'name':
-                                        return compareString(a.metadata.name, b.metadata.name);
-                                    case 'description':
-                                        return compareString(a.spec.description, b.spec.description);
-                                    default:
-                                        return 0;
-                                }
-                            });
-
-                        return (
-                            <>
-                                {filteredProjects.length > 0 ? (
-                                    <Paginate page={page} data={filteredProjects} onPageChange={setPage} preferencesKey='projects-list'>
-                                        {projectsToDisplay => (
-                                            <div className='argo-table-list argo-table-list--clickable'>
-                                                <div className='argo-table-list__head'>
-                                                    <div className='row'>
-                                                        <IconColumn />
-                                                        <div className='columns small-3 sortable' onClick={() => requestSort('name')}>
-                                                            NAME
-                                                            {sortIcon('name')}
-                                                        </div>
-                                                        <div className='columns small-6 sortable' onClick={() => requestSort('description')}>
-                                                            DESCRIPTION
-                                                            {sortIcon('description')}
-                                                        </div>
-                                                    </div>
+                {isError ? (
+                    loadFailed(refetch)
+                ) : !projects ? (
+                    loading
+                ) : (
+                    <>
+                        {filteredProjects.length > 0 ? (
+                            <Paginate page={page} data={filteredProjects} onPageChange={setPage} preferencesKey='projects-list'>
+                                {projectsToDisplay => (
+                                    <div className='argo-table-list argo-table-list--clickable'>
+                                        <div className='argo-table-list__head'>
+                                            <div className='row'>
+                                                <IconColumn />
+                                                <div className='columns small-3 sortable' onClick={() => requestSort('name')}>
+                                                    NAME
+                                                    {sortIcon('name')}
                                                 </div>
-                                                {projectsToDisplay.map(proj => (
-                                                    <div className='argo-table-list__row' key={proj.metadata.name} onClick={() => ctx.navigation.goto(`./${proj.metadata.name}`)}>
-                                                        <div className='row'>
-                                                            <IconColumn icon='fa fa-object-group' />
-                                                            <div className='columns small-3'>{proj.metadata.name}</div>
-                                                            <div className='columns small-6'>{proj.spec.description}</div>
-                                                        </div>
-                                                    </div>
-                                                ))}
+                                                <div className='columns small-6 sortable' onClick={() => requestSort('description')}>
+                                                    DESCRIPTION
+                                                    {sortIcon('description')}
+                                                </div>
                                             </div>
-                                        )}
-                                    </Paginate>
-                                ) : projects.length === 0 ? (
-                                    <EmptyState icon='fa fa-object-group'>
-                                        <h4>No projects yet</h4>
-                                        <h5>Create new projects to group your applications</h5>
-                                        <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', {add: true}, {replace: true})}>
-                                            New project
-                                        </button>
-                                    </EmptyState>
-                                ) : (
-                                    <EmptyState icon='fa fa-object-group'>
-                                        <h4>No projects matched your search</h4>
-                                        <h5>Try adjusting your search query</h5>
-                                    </EmptyState>
+                                        </div>
+                                        {projectsToDisplay.map(proj => (
+                                            <div className='argo-table-list__row' key={proj.metadata.name} onClick={() => ctx.navigation.goto(`./${proj.metadata.name}`)}>
+                                                <div className='row'>
+                                                    <IconColumn icon='fa fa-object-group' />
+                                                    <div className='columns small-3'>{proj.metadata.name}</div>
+                                                    <div className='columns small-6'>{proj.spec.description}</div>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
                                 )}
-                            </>
-                        );
-                    }}
-                </DataLoader>
+                            </Paginate>
+                        ) : projects.length === 0 ? (
+                            <EmptyState icon='fa fa-object-group'>
+                                <h4>No projects yet</h4>
+                                <h5>Create new projects to group your applications</h5>
+                                <button className='argo-button argo-button--base' onClick={() => ctx.navigation.goto('.', {add: true}, {replace: true})}>
+                                    New project
+                                </button>
+                            </EmptyState>
+                        ) : (
+                            <EmptyState icon='fa fa-object-group'>
+                                <h4>No projects matched your search</h4>
+                                <h5>Try adjusting your search query</h5>
+                            </EmptyState>
+                        )}
+                    </>
+                )}
             </div>
             <SlidingPanel
                 isShown={query.get('add') === 'true'}

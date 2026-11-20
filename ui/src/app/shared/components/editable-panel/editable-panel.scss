@@ -1,11 +1,27 @@
 @import 'node_modules/argo-ui/src/styles/config';
 @import 'node_modules/argo-ui/src/styles/theme';
+@import '../../../settings/components/settings-overview/settings-overview';
 
 .editable-panel {
     position: relative;
 
     input {
         z-index: 10;
+    }
+
+    &__hint {
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: inherit;
+        font-size: smaller;
+        cursor: help;
+
+        &:focus-visible {
+            // Override the global argo-ui outline reset for keyboard navigation.
+            outline: 2px solid $argo-color-teal-6 !important;
+            outline-offset: 2px;
+        }
     }
 
     &__buttons {
