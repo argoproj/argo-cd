@@ -1298,3 +1298,141 @@ func TestCreateReadAndWriteRepoCredsSecretForSameURL(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, common.LabelValueSecretTypeRepoCredsWrite, writeSecret.Labels[common.LabelKeySecretType])
 }
+
+func TestRepository_AWSCodeCommit_SecretConversion(t *testing.T) {
+	backend := &secretsRepositoryBackend{writeCreds: false}
+
+	// 1. repositoryToSecret
+	repo := &appsv1.Repository{
+		Repo:                     "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+		EnableAWSCodeCommitSigV4: true,
+		AWSCodeCommitRoleARN:     "arn:aws:iam::123456789012:role/my-role",
+	}
+	sec := backend.repositoryToSecret(repo, &corev1.Secret{})
+	assert.Equal(t, []byte("true"), sec.Data["enableAWSCodeCommitSigV4"])
+	assert.Equal(t, []byte("arn:aws:iam::123456789012:role/my-role"), sec.Data["awsCodeCommitRoleARN"])
+
+	// 2. secretToRepository
+	convertedRepo, err := secretToRepository(sec)
+	require.NoError(t, err)
+	assert.True(t, convertedRepo.EnableAWSCodeCommitSigV4)
+	assert.Equal(t, "arn:aws:iam::123456789012:role/my-role", convertedRepo.AWSCodeCommitRoleARN)
+
+	// 3. secretToRepository with lowercase Arn fallback
+	secFallback := &corev1.Secret{
+		Data: map[string][]byte{
+			"url":                      []byte("https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo"),
+			"enableAWSCodeCommitSigV4": []byte("true"),
+			"awsCodeCommitRoleArn":     []byte("arn:aws:iam::123456789012:role/my-role-fallback"),
+		},
+	}
+	convertedRepoFallback, err := secretToRepository(secFallback)
+	require.NoError(t, err)
+	assert.True(t, convertedRepoFallback.EnableAWSCodeCommitSigV4)
+	assert.Equal(t, "arn:aws:iam::123456789012:role/my-role-fallback", convertedRepoFallback.AWSCodeCommitRoleARN)
+
+	// 4. Updating repository with legacy key removes legacy and sets canonical
+	secExistingLegacy := &corev1.Secret{
+		Data: map[string][]byte{
+			"awsCodeCommitRoleArn": []byte("arn:aws:iam::123456789012:role/old-role"),
+		},
+	}
+	repoUpdate := &appsv1.Repository{
+		AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/new-role",
+	}
+	secUpdated := backend.repositoryToSecret(repoUpdate, secExistingLegacy)
+	assert.Equal(t, []byte("arn:aws:iam::123456789012:role/new-role"), secUpdated.Data["awsCodeCommitRoleARN"])
+	assert.NotContains(t, secUpdated.Data, "awsCodeCommitRoleArn")
+
+	// 5. Clearing repository role ARN removes both canonical and legacy keys
+	secExistingBoth := &corev1.Secret{
+		Data: map[string][]byte{
+			"awsCodeCommitRoleARN": []byte("arn:aws:iam::123456789012:role/canonical"),
+			"awsCodeCommitRoleArn": []byte("arn:aws:iam::123456789012:role/legacy"),
+		},
+	}
+	repoCleared := &appsv1.Repository{
+		AWSCodeCommitRoleARN: "",
+	}
+	secCleared := backend.repositoryToSecret(repoCleared, secExistingBoth)
+	assert.NotContains(t, secCleared.Data, "awsCodeCommitRoleARN")
+	assert.NotContains(t, secCleared.Data, "awsCodeCommitRoleArn")
+
+	// 6. Invalid boolean handling in secretToRepository
+	secInvalidBool := &corev1.Secret{
+		Data: map[string][]byte{
+			"enableAWSCodeCommitSigV4": []byte("invalid-boolean"),
+		},
+	}
+	_, err = secretToRepository(secInvalidBool)
+	require.Error(t, err)
+}
+
+func TestRepoCreds_AWSCodeCommit_SecretConversion(t *testing.T) {
+	backend := &secretsRepositoryBackend{writeCreds: false}
+
+	// 1. repoCredsToSecret
+	creds := &appsv1.RepoCreds{
+		URL:                      "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+		EnableAWSCodeCommitSigV4: true,
+		AWSCodeCommitRoleARN:     "arn:aws:iam::123456789012:role/my-role",
+	}
+	sec := backend.repoCredsToSecret(creds, &corev1.Secret{})
+	assert.Equal(t, []byte("true"), sec.Data["enableAWSCodeCommitSigV4"])
+	assert.Equal(t, []byte("arn:aws:iam::123456789012:role/my-role"), sec.Data["awsCodeCommitRoleARN"])
+
+	// 2. secretToRepoCred
+	convertedCreds, err := backend.secretToRepoCred(sec)
+	require.NoError(t, err)
+	assert.True(t, convertedCreds.EnableAWSCodeCommitSigV4)
+	assert.Equal(t, "arn:aws:iam::123456789012:role/my-role", convertedCreds.AWSCodeCommitRoleARN)
+
+	// 3. secretToRepoCred with lowercase Arn fallback
+	secFallback := &corev1.Secret{
+		Data: map[string][]byte{
+			"url":                      []byte("https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo"),
+			"enableAWSCodeCommitSigV4": []byte("true"),
+			"awsCodeCommitRoleArn":     []byte("arn:aws:iam::123456789012:role/my-role-fallback"),
+		},
+	}
+	convertedCredsFallback, err := backend.secretToRepoCred(secFallback)
+	require.NoError(t, err)
+	assert.True(t, convertedCredsFallback.EnableAWSCodeCommitSigV4)
+	assert.Equal(t, "arn:aws:iam::123456789012:role/my-role-fallback", convertedCredsFallback.AWSCodeCommitRoleARN)
+
+	// 4. Updating repoCreds with legacy key removes legacy and sets canonical
+	secExistingLegacy := &corev1.Secret{
+		Data: map[string][]byte{
+			"awsCodeCommitRoleArn": []byte("arn:aws:iam::123456789012:role/old-role"),
+		},
+	}
+	credsUpdate := &appsv1.RepoCreds{
+		AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/new-role",
+	}
+	secUpdated := backend.repoCredsToSecret(credsUpdate, secExistingLegacy)
+	assert.Equal(t, []byte("arn:aws:iam::123456789012:role/new-role"), secUpdated.Data["awsCodeCommitRoleARN"])
+	assert.NotContains(t, secUpdated.Data, "awsCodeCommitRoleArn")
+
+	// 5. Clearing repoCreds role ARN removes both canonical and legacy keys
+	secExistingBoth := &corev1.Secret{
+		Data: map[string][]byte{
+			"awsCodeCommitRoleARN": []byte("arn:aws:iam::123456789012:role/canonical"),
+			"awsCodeCommitRoleArn": []byte("arn:aws:iam::123456789012:role/legacy"),
+		},
+	}
+	credsCleared := &appsv1.RepoCreds{
+		AWSCodeCommitRoleARN: "",
+	}
+	secCleared := backend.repoCredsToSecret(credsCleared, secExistingBoth)
+	assert.NotContains(t, secCleared.Data, "awsCodeCommitRoleARN")
+	assert.NotContains(t, secCleared.Data, "awsCodeCommitRoleArn")
+
+	// 6. Invalid boolean handling in secretToRepoCred
+	secInvalidBool := &corev1.Secret{
+		Data: map[string][]byte{
+			"enableAWSCodeCommitSigV4": []byte("invalid-boolean"),
+		},
+	}
+	_, err = backend.secretToRepoCred(secInvalidBool)
+	require.Error(t, err)
+}

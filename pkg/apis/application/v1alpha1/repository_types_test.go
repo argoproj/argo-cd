@@ -97,6 +97,22 @@ func TestGetGitCreds(t *testing.T) {
 			expected: git.NewAzureServicePrincipalCreds("tenant-id", "client-id", "client-secret", nil),
 		},
 		{
+			name: "AWS CodeCommit SigV4 credentials",
+			repo: &Repository{
+				Repo:                     "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+				EnableAWSCodeCommitSigV4: true,
+			},
+			expected: git.NewAWSCodeCommitCreds(nil, "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo", ""),
+		},
+		{
+			name: "AWS CodeCommit SigV4 credentials with Role ARN",
+			repo: &Repository{
+				Repo:                 "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+				AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role",
+			},
+			expected: git.NewAWSCodeCommitCreds(nil, "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo", "arn:aws:iam::123456789012:role/my-role"),
+		},
+		{
 			name:     "No credentials",
 			repo:     &Repository{},
 			expected: git.NopCreds{},
@@ -165,6 +181,8 @@ func TestSanitizedRepository(t *testing.T) {
 		AzureServicePrincipalClientId:     "client-id",
 		AzureServicePrincipalClientSecret: "client-secret",
 		AzureServicePrincipalTenantId:     "tenant-id",
+		EnableAWSCodeCommitSigV4:          true,
+		AWSCodeCommitRoleARN:              "arn:aws:iam::123456789012:role/my-role",
 		Depth:                             1,
 	}
 
@@ -189,6 +207,8 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Equal(t, repo.UseAzureWorkloadIdentity, sanitized.UseAzureWorkloadIdentity)
 	assert.Equal(t, repo.AzureServicePrincipalClientId, sanitized.AzureServicePrincipalClientId)
 	assert.Equal(t, repo.AzureServicePrincipalTenantId, sanitized.AzureServicePrincipalTenantId)
+	assert.Equal(t, repo.EnableAWSCodeCommitSigV4, sanitized.EnableAWSCodeCommitSigV4)
+	assert.Equal(t, repo.AWSCodeCommitRoleARN, sanitized.AWSCodeCommitRoleARN)
 	assert.Equal(t, repo.Depth, sanitized.Depth)
 
 	// Sensitive fields must be stripped
@@ -211,6 +231,29 @@ func TestSanitizedRepositoryPreservesDepthZero(t *testing.T) {
 
 	sanitized := repo.Sanitized()
 	assert.Equal(t, int64(0), sanitized.Depth)
+}
+
+func TestGetGitCreds_AWSCodeCommit_Precedence(t *testing.T) {
+	// Static password must take precedence over AWSCodeCommitSigV4
+	repoWithPassword := &Repository{
+		Repo:                     "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+		Username:                 "user",
+		Password:                 "static-pass",
+		EnableAWSCodeCommitSigV4: true,
+	}
+	creds := repoWithPassword.GetGitCreds(nil)
+	_, isHTTPS := creds.(git.HTTPSCreds)
+	assert.True(t, isHTTPS, "expected HTTPSCreds when password is provided")
+
+	// SSH key must take precedence over AWSCodeCommitSigV4
+	repoWithSSH := &Repository{
+		Repo:                     "https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo",
+		SSHPrivateKey:            "ssh-key",
+		EnableAWSCodeCommitSigV4: true,
+	}
+	credsSSH := repoWithSSH.GetGitCreds(nil)
+	_, isSSH := credsSSH.(git.SSHCreds)
+	assert.True(t, isSSH, "expected SSHCreds when SSH key is provided")
 }
 
 func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {

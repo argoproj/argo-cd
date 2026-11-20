@@ -1942,6 +1942,16 @@ func TestRepository_HasCredentials(t *testing.T) {
 			repo: Repository{InsecureIgnoreHostKey: true},
 			want: false,
 		},
+		{
+			name: "TestHasEnableAWSCodeCommitSigV4",
+			repo: Repository{EnableAWSCodeCommitSigV4: true},
+			want: true,
+		},
+		{
+			name: "TestHasAWSCodeCommitRoleARN",
+			repo: Repository{AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role"},
+			want: true,
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2055,6 +2065,10 @@ func TestRepository_CopyCredentialsFromRepo(t *testing.T) {
 		{"SourceEnableLFS", &Repository{}, &Repository{EnableLFS: true}, Repository{EnableLFS: false}},
 		{"SourceTLSClientCertData", &Repository{}, &Repository{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
 		{"SourceTLSClientCertKey", &Repository{}, &Repository{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
+		{"EnableAWSCodeCommitSigV4", &Repository{EnableAWSCodeCommitSigV4: true}, &Repository{}, Repository{EnableAWSCodeCommitSigV4: true}},
+		{"AWSCodeCommitRoleARN", &Repository{AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role"}, &Repository{}, Repository{AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role"}},
+		{"SourceEnableAWSCodeCommitSigV4", &Repository{}, &Repository{EnableAWSCodeCommitSigV4: true}, Repository{EnableAWSCodeCommitSigV4: true}},
+		{"SourceAWSCodeCommitRoleARN", &Repository{}, &Repository{AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role"}, Repository{AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -2090,6 +2104,10 @@ func TestRepository_CopyCredentialsFrom(t *testing.T) {
 		{"SourceTLSClientCertData", &Repository{}, &RepoCreds{TLSClientCertData: "foo"}, Repository{TLSClientCertData: "foo"}},
 		{"SourceTLSClientCertKey", &Repository{}, &RepoCreds{TLSClientCertKey: "foo"}, Repository{TLSClientCertKey: "foo"}},
 		{"SourceContainsProxy", &Repository{}, &RepoCreds{Proxy: "http://proxy.argoproj.io:3128", NoProxy: ".example.com"}, Repository{Proxy: "http://proxy.argoproj.io:3128", NoProxy: ".example.com"}},
+		{"EnableAWSCodeCommitSigV4", &Repository{EnableAWSCodeCommitSigV4: true}, &RepoCreds{}, Repository{EnableAWSCodeCommitSigV4: true}},
+		{"AWSCodeCommitRoleARN", &Repository{AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role"}, &RepoCreds{}, Repository{AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role"}},
+		{"SourceEnableAWSCodeCommitSigV4", &Repository{}, &RepoCreds{EnableAWSCodeCommitSigV4: true}, Repository{EnableAWSCodeCommitSigV4: true}},
+		{"SourceAWSCodeCommitRoleARN", &Repository{}, &RepoCreds{AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role"}, Repository{AWSCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role"}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

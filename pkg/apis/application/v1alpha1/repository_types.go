@@ -65,6 +65,10 @@ type RepoCreds struct {
 	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty" protobuf:"bytes,31,opt,name=azureServicePrincipalTenantId"`
 	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
 	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty" protobuf:"bytes,32,opt,name=azureActiveDirectoryEndpoint"`
+	// EnableAWSCodeCommitSigV4 specifies whether to use AWS SigV4 (IAM) authentication for CodeCommit Git repositories
+	EnableAWSCodeCommitSigV4 bool `json:"enableAWSCodeCommitSigV4,omitempty" protobuf:"varint,33,opt,name=enableAWSCodeCommitSigV4"`
+	// AWSCodeCommitRoleARN specifies the optional AWS IAM Role ARN to assume for CodeCommit Git authentication
+	AWSCodeCommitRoleARN string `json:"awsCodeCommitRoleARN,omitempty" protobuf:"bytes,34,opt,name=awsCodeCommitRoleARN"`
 }
 
 // Repository is a repository holding application configurations
@@ -136,6 +140,10 @@ type Repository struct {
 	AzureServicePrincipalTenantId string `json:"azureServicePrincipalTenantId,omitempty" protobuf:"bytes,31,opt,name=azureServicePrincipalTenantId"`
 	// AzureActiveDirectoryEndpoint specifies the Azure Active Directory endpoint used for Service Principal authentication. If empty will default to https://login.microsoftonline.com
 	AzureActiveDirectoryEndpoint string `json:"azureActiveDirectoryEndpoint,omitempty" protobuf:"bytes,32,opt,name=azureActiveDirectoryEndpoint"`
+	// EnableAWSCodeCommitSigV4 specifies whether to use AWS SigV4 (IAM) authentication for CodeCommit Git repositories
+	EnableAWSCodeCommitSigV4 bool `json:"enableAWSCodeCommitSigV4,omitempty" protobuf:"varint,33,opt,name=enableAWSCodeCommitSigV4"`
+	// AWSCodeCommitRoleARN specifies the optional AWS IAM Role ARN to assume for CodeCommit Git authentication
+	AWSCodeCommitRoleARN string `json:"awsCodeCommitRoleARN,omitempty" protobuf:"bytes,34,opt,name=awsCodeCommitRoleARN"`
 }
 
 // IsInsecure returns true if the repository has been configured to skip server verification or set to HTTP only
@@ -150,7 +158,7 @@ func (repo *Repository) IsLFSEnabled() bool {
 
 // HasCredentials returns true when the repository has been configured with any credentials
 func (repo *Repository) HasCredentials() bool {
-	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity || repo.AzureServicePrincipalClientSecret != ""
+	return repo.Username != "" || repo.Password != "" || repo.BearerToken != "" || repo.SSHPrivateKey != "" || repo.TLSClientCertData != "" || repo.GithubAppPrivateKey != "" || repo.UseAzureWorkloadIdentity || repo.AzureServicePrincipalClientSecret != "" || repo.EnableAWSCodeCommitSigV4 || repo.AWSCodeCommitRoleARN != ""
 }
 
 // CopyCredentialsFromRepo copies all credential information from source repository to receiving repository
@@ -200,6 +208,12 @@ func (repo *Repository) CopyCredentialsFromRepo(source *Repository) {
 		}
 		if repo.AzureActiveDirectoryEndpoint == "" {
 			repo.AzureActiveDirectoryEndpoint = source.AzureActiveDirectoryEndpoint
+		}
+		if !repo.EnableAWSCodeCommitSigV4 {
+			repo.EnableAWSCodeCommitSigV4 = source.EnableAWSCodeCommitSigV4
+		}
+		if repo.AWSCodeCommitRoleARN == "" {
+			repo.AWSCodeCommitRoleARN = source.AWSCodeCommitRoleARN
 		}
 		repo.InsecureOCIForceHttp = source.InsecureOCIForceHttp
 		repo.ForceHttpBasicAuth = source.ForceHttpBasicAuth
@@ -255,6 +269,12 @@ func (repo *Repository) CopyCredentialsFrom(source *RepoCreds) {
 		if repo.AzureActiveDirectoryEndpoint == "" {
 			repo.AzureActiveDirectoryEndpoint = source.AzureActiveDirectoryEndpoint
 		}
+		if !repo.EnableAWSCodeCommitSigV4 {
+			repo.EnableAWSCodeCommitSigV4 = source.EnableAWSCodeCommitSigV4
+		}
+		if repo.AWSCodeCommitRoleARN == "" {
+			repo.AWSCodeCommitRoleARN = source.AWSCodeCommitRoleARN
+		}
 		if repo.Proxy == "" {
 			repo.Proxy = source.Proxy
 		}
@@ -299,6 +319,9 @@ func (repo *Repository) GetGitCreds(store git.CredsStore) git.Creds {
 			WithProxy(repo.Proxy).
 			WithNoProxy(repo.NoProxy)
 		return creds
+	}
+	if repo.EnableAWSCodeCommitSigV4 || repo.AWSCodeCommitRoleARN != "" {
+		return git.NewAWSCodeCommitCreds(store, repo.Repo, repo.AWSCodeCommitRoleARN)
 	}
 	return git.NopCreds{}
 }
@@ -418,6 +441,8 @@ func (repo *Repository) Sanitized() *Repository {
 		AzureActiveDirectoryEndpoint:  repo.AzureActiveDirectoryEndpoint,
 		AzureServicePrincipalClientId: repo.AzureServicePrincipalClientId,
 		AzureServicePrincipalTenantId: repo.AzureServicePrincipalTenantId,
+		EnableAWSCodeCommitSigV4:      repo.EnableAWSCodeCommitSigV4,
+		AWSCodeCommitRoleARN:          repo.AWSCodeCommitRoleARN,
 		Depth:                         repo.Depth,
 	}
 }

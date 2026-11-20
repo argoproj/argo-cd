@@ -99,3 +99,15 @@ stringData:
   type: oci
   url: oci://my.registry.com/namespace/service
   insecureOCIForceHttp: "true" # Connect over plain HTTP, without TLS. Defaults to "false"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: aws-codecommit-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  url: https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo
+  enableAWSCodeCommitSigV4: "true"
+  # awsCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-role" # Optional IAM role ARN to assume

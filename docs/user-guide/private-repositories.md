@@ -272,6 +272,49 @@ Using the UI:
 
 3. Click `Connect` to test the connection and have the repository added
 
+### AWS CodeCommit using AWS SigV4 (IAM)
+
+Repositories hosted on AWS CodeCommit can be accessed using AWS IAM authentication with SigV4 signatures. This allows Argo CD to authenticate dynamically using ambient AWS credentials (such as EKS Pod Identity, IAM Roles for Service Accounts (IRSA), or EC2 instance profiles) without managing static long-term credentials or Git credentials.
+
+> [!NOTE]
+> Ensure the `argocd-repo-server` pod has an AWS IAM role associated with the required CodeCommit permissions (such as `codecommit:GitPull`).
+
+To configure access using a Kubernetes Secret:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: codecommit-repo
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  type: git
+  url: https://git-codecommit.us-east-1.amazonaws.com/v1/repos/my-repo
+  enableAWSCodeCommitSigV4: "true"
+  # Optional: specify an IAM role ARN to assume for repository access
+  # awsCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-codecommit-reader-role"
+```
+
+Using a credential template for all repositories in an AWS CodeCommit region:
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: codecommit-repo-creds
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repo-creds
+stringData:
+  type: git
+  url: https://git-codecommit.us-east-1.amazonaws.com
+  enableAWSCodeCommitSigV4: "true"
+  # Optional: specify an IAM role ARN to assume
+  # awsCodeCommitRoleARN: "arn:aws:iam::123456789012:role/my-codecommit-reader-role"
+```
+
 ## Credential templates
 
 You can also set up credentials to serve as templates for connecting repositories, without having to repeat credential configuration. For example, if you setup credential templates for the URL prefix `https://github.com/argoproj`, these credentials will be used for all repositories with this URL as prefix (e.g. `https://github.com/argoproj/argocd-example-apps`) that do not have their own credentials configured.
