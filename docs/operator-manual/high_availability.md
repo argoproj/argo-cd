@@ -1,10 +1,13 @@
 # High Availability
 
+!!! note
+    Argo CD uses Valkey (a Redis-compatible cache) for high availability deployments. While the cache technology is Valkey, Kubernetes resource names retain the `argocd-redis` prefix for backward compatibility.
+
 Argo CD is largely stateless. All data is persisted as Kubernetes objects, which in turn is stored in Kubernetes' etcd.
-Redis is only used as a disposable cache and can be safely rebuilt without service disruption.
+Valkey is only used as a disposable cache and can be safely rebuilt without service disruption.
 
 A set of [HA manifests](https://github.com/argoproj/argo-cd/tree/stable/manifests/ha) are provided for users who wish to
-run Argo CD in a highly available manner. This runs more containers, and runs Redis in HA mode.
+run Argo CD in a highly available manner. This runs more containers, and runs Valkey in HA mode.
 
 > [!NOTE]
 > The HA installation will require at least three different nodes due to pod anti-affinity rule in the
