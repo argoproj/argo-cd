@@ -21,6 +21,7 @@ var kindToCRDPath = map[string]string{
 	application.ApplicationFullName:    "manifests/crds/application-crd.yaml",
 	application.AppProjectFullName:     "manifests/crds/appproject-crd.yaml",
 	application.ApplicationSetFullName: "manifests/crds/applicationset-crd.yaml",
+	application.SyncWindowFullName:     "manifests/crds/syncwindow-crd.yaml",
 }
 
 func getCustomResourceDefinitions(ctx context.Context) map[string]*apiextensionsv1.CustomResourceDefinition {

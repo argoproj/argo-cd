@@ -300,7 +300,7 @@ func parentChildDetails(ctx context.Context, appIf application.ApplicationServic
 	return mapUIDToNode, mapParentToChild, parentNode
 }
 
-func printHeader(ctx context.Context, acdClient argocdclient.Client, app *argoappv1.Application, windows *argoappv1.SyncWindows, showOperation bool, showParams bool, sourcePosition int) {
+func printHeader(ctx context.Context, acdClient argocdclient.Client, app *argoappv1.Application, windows *application.ApplicationSyncWindowsResponse, showOperation bool, showParams bool, sourcePosition int) {
 	appURL := getAppURL(ctx, acdClient, app.Name)
 	printAppSummaryTable(app, appURL, windows)
 
@@ -465,19 +465,22 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 				}
 			}
 
-			pConn, projIf := headless.NewClientOrDie(clientOpts, c).NewProjectClientOrDieWithContext(ctx)
-			defer utilio.Close(pConn)
-			proj, err := projIf.Get(ctx, &projectpkg.ProjectQuery{Name: app.Spec.Project})
-			errors.CheckError(err)
-
-			windows := proj.Spec.SyncWindows.Matches(app)
+			getWindows := func() *application.ApplicationSyncWindowsResponse {
+				windows, err := appIf.GetApplicationSyncWindows(ctx, &application.ApplicationSyncWindowsQuery{
+					Name:         &appName,
+					AppNamespace: &appNs,
+					Project:      &app.Spec.Project,
+				})
+				errors.CheckError(err)
+				return windows
+			}
 
 			switch output {
 			case "yaml", "json":
 				err := PrintResource(app, output)
 				errors.CheckError(err)
 			case "wide", "":
-				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
+				printHeader(ctx, acdClient, app, getWindows(), showOperation, showParams, sourcePosition)
 				if len(app.Status.Resources) > 0 {
 					fmt.Println()
 					w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
@@ -485,14 +488,14 @@ func NewApplicationGetCommand(clientOpts *argocdclient.ClientOptions) *cobra.Com
 					_ = w.Flush()
 				}
 			case "tree":
-				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
+				printHeader(ctx, acdClient, app, getWindows(), showOperation, showParams, sourcePosition)
 				mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 				if len(mapUIDToNode) > 0 {
 					fmt.Println()
 					printTreeView(mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState)
 				}
 			case "tree=detailed":
-				printHeader(ctx, acdClient, app, windows, showOperation, showParams, sourcePosition)
+				printHeader(ctx, acdClient, app, getWindows(), showOperation, showParams, sourcePosition)
 				mapUIDToNode, mapParentToChild, parentNode, mapNodeNameToResourceState := resourceParentChild(ctx, acdClient, appName, appNs)
 				if len(mapUIDToNode) > 0 {
 					fmt.Println()
@@ -652,7 +655,8 @@ func NewApplicationLogsCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	return command
 }
 
-func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *argoappv1.SyncWindows) {
+// windows is the server-evaluated sync window state, including resolved SyncWindow refs.
+func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *application.ApplicationSyncWindowsResponse) {
 	fmt.Printf(printOpFmtStr, "Name:", app.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", app.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServer(app))
@@ -667,40 +671,32 @@ func printAppSummaryTable(app *argoappv1.Application, appURL string, windows *ar
 		printAppSourceDetails(&source)
 	}
 	var wds []string
-	var status string
-	var allow, deny, inactiveAllows bool
-	if windows.HasWindows() {
-		active, err := windows.Active()
-		if err == nil && active.HasWindows() {
-			for _, w := range *active {
-				if w.Kind == "deny" {
-					deny = true
-				} else {
-					allow = true
-				}
-			}
-		}
-		inactiveAllowWindows, err := windows.InactiveAllows()
-		if err == nil && inactiveAllowWindows.HasWindows() {
-			inactiveAllows = true
-		}
-
-		if deny || !deny && !allow && inactiveAllows {
-			s, err := windows.CanSync(true, nil)
-			if err == nil && s {
-				status = "Manual Allowed"
+	status := "Sync Allowed"
+	if len(windows.GetAssignedWindows()) > 0 {
+		var deny bool
+		var activeAllows, assignedAllows int
+		for _, w := range windows.GetActiveWindows() {
+			if w.GetKind() == "deny" {
+				deny = true
 			} else {
-				status = "Sync Denied"
+				activeAllows++
 			}
-		} else {
-			status = "Sync Allowed"
 		}
-		for _, w := range *windows {
-			s := w.Kind + ":" + w.Schedule + ":" + w.Duration
-			wds = append(wds, s)
+		for _, w := range windows.GetAssignedWindows() {
+			if w.GetKind() != "deny" {
+				assignedAllows++
+			}
+			wds = append(wds, w.GetKind()+":"+w.GetSchedule()+":"+w.GetDuration())
 		}
-	} else {
-		status = "Sync Allowed"
+		inactiveAllows := assignedAllows > activeAllows
+
+		// CanSync is the server's two-tier manual-sync verdict.
+		switch {
+		case !windows.GetCanSync():
+			status = "Sync Denied"
+		case deny || activeAllows == 0 && inactiveAllows:
+			status = "Manual Allowed"
+		}
 	}
 	fmt.Printf(printOpFmtStr, "SyncWindow:", status)
 	if len(wds) > 0 {

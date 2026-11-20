@@ -1834,6 +1834,9 @@ func Test_mergeVirtualProject(t *testing.T) {
 					Applications: []string{"test"},
 				},
 			},
+			SyncWindowRefs: []argoappv1.SyncWindowProjectRef{
+				{Ref: argoappv1.SyncWindowRef{Name: "project-window"}},
+			},
 		},
 	}
 
@@ -1861,6 +1864,9 @@ func Test_mergeVirtualProject(t *testing.T) {
 					Namespaces:   []string{"*"},
 					Applications: []string{"*"},
 				},
+			},
+			SyncWindowRefs: []argoappv1.SyncWindowProjectRef{
+				{Ref: argoappv1.SyncWindowRef{Name: "global-window"}},
 			},
 		},
 	}
@@ -1902,6 +1908,10 @@ func Test_mergeVirtualProject(t *testing.T) {
 					Namespaces:   []string{"*"},
 					Applications: []string{"*"},
 				},
+			},
+			SyncWindowRefs: []argoappv1.SyncWindowProjectRef{
+				{Ref: argoappv1.SyncWindowRef{Name: "project-window"}},
+				{Ref: argoappv1.SyncWindowRef{Name: "global-window"}},
 			},
 		},
 	}
