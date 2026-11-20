@@ -9334,6 +9334,8 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      useAzureWorkloadIdentity:
+                                        type: boolean
                                     required:
                                     - organization
                                     - project
@@ -18127,6 +18129,8 @@ spec:
                                         - key
                                         - secretName
                                         type: object
+                                      useAzureWorkloadIdentity:
+                                        type: boolean
                                     required:
                                     - organization
                                     - project
@@ -23213,6 +23217,8 @@ spec:
                               - key
                               - secretName
                               type: object
+                            useAzureWorkloadIdentity:
+                              type: boolean
                           required:
                           - organization
                           - project

@@ -20,6 +20,10 @@ func NewWorkloadIdentityTokenProvider() TokenProvider {
 	panic(CGOError)
 }
 
+func NewStrictWorkloadIdentityTokenProvider() TokenProvider {
+	panic(CGOError)
+}
+
 func (c WorkloadIdentityTokenProvider) GetToken(scope string) (*Token, error) {
 	return nil, errors.New(CGOError)
 }

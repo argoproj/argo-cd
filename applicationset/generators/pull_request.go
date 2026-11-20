@@ -5,6 +5,8 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
+	"strings"
+	"sync"
 	"time"
 
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -16,6 +18,7 @@ import (
 	pullrequest "github.com/argoproj/argo-cd/v3/applicationset/services/pull_request"
 	"github.com/argoproj/argo-cd/v3/applicationset/utils"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/util/workloadidentity"
 )
 
 const (
@@ -25,13 +28,21 @@ const (
 type PullRequestGenerator struct {
 	client                    client.Client
 	selectServiceProviderFunc func(context.Context, *argoprojiov1alpha1.PullRequestGenerator, *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error)
+	// newAzureTokenProvider creates the token provider used when an Azure DevOps generator sets
+	// useAzureWorkloadIdentity. It can be replaced in tests.
+	newAzureTokenProvider func() workloadidentity.TokenProvider
+	// azureTokenProvider is created on first use and then shared by all reconciliations, so that tokens are
+	// cached by the provider between reconciliations.
+	azureTokenProvider     workloadidentity.TokenProvider
+	azureTokenProviderOnce sync.Once
 	SCMConfig
 }
 
 func NewPullRequestGenerator(client client.Client, scmConfig SCMConfig) Generator {
 	g := &PullRequestGenerator{
-		client:    client,
-		SCMConfig: scmConfig,
+		client:                client,
+		SCMConfig:             scmConfig,
+		newAzureTokenProvider: workloadidentity.NewStrictWorkloadIdentityTokenProvider,
 	}
 	g.selectServiceProviderFunc = g.selectServiceProvider
 	return g
@@ -207,6 +218,18 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 	}
 	if generatorConfig.AzureDevOps != nil {
 		providerConfig := generatorConfig.AzureDevOps
+		if providerConfig.UseAzureWorkloadIdentity {
+			if providerConfig.TokenRef != nil {
+				return nil, errors.New("azureDevOps pull request generator: tokenRef and useAzureWorkloadIdentity are mutually exclusive")
+			}
+			// The workload identity token is a credential of the controller, not of the ApplicationSet author, so it
+			// must not be sent to an arbitrary host. A custom api URL is only accepted when the administrator has
+			// explicitly allowed it; ScmProviderAllowed above already enforces the list when it is not empty.
+			if !isDefaultAzureDevOpsAPI(providerConfig.API) && len(g.allowedSCMProviders) == 0 {
+				return nil, fmt.Errorf("azureDevOps pull request generator: useAzureWorkloadIdentity with a custom api URL (%q) requires the URL to be listed in the allowed SCM providers", providerConfig.API)
+			}
+			return pullrequest.NewAzureDevOpsServiceWithWorkloadIdentity(g.getAzureTokenProvider(), providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels, providerConfig.ExcludedLabels)
+		}
 		token, err := utils.GetSecretRef(ctx, g.client, providerConfig.TokenRef, applicationSetInfo.Namespace, g.tokenRefStrictMode)
 		if err != nil {
 			return nil, fmt.Errorf("error fetching Secret token: %w", err)
@@ -214,6 +237,19 @@ func (g *PullRequestGenerator) selectServiceProvider(ctx context.Context, genera
 		return pullrequest.NewAzureDevOpsService(token, providerConfig.API, providerConfig.Organization, providerConfig.Project, providerConfig.Repo, providerConfig.Labels, providerConfig.ExcludedLabels)
 	}
 	return nil, errors.New("no Pull Request provider implementation configured")
+}
+
+// getAzureTokenProvider returns the Azure Workload Identity token provider, creating it on first use.
+func (g *PullRequestGenerator) getAzureTokenProvider() workloadidentity.TokenProvider {
+	g.azureTokenProviderOnce.Do(func() {
+		g.azureTokenProvider = g.newAzureTokenProvider()
+	})
+	return g.azureTokenProvider
+}
+
+// isDefaultAzureDevOpsAPI reports whether api is empty or the public Azure DevOps service URL.
+func isDefaultAzureDevOpsAPI(api string) bool {
+	return api == "" || strings.EqualFold(strings.TrimSuffix(api, "/"), pullrequest.AZURE_DEVOPS_DEFAULT_URL)
 }
 
 func (g *PullRequestGenerator) github(ctx context.Context, cfg *argoprojiov1alpha1.PullRequestGeneratorGithub, applicationSetInfo *argoprojiov1alpha1.ApplicationSet) (pullrequest.PullRequestService, error) {
