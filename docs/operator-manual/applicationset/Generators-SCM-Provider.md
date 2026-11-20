@@ -467,9 +467,9 @@ by whichever condition comes last, so the other half is evaluated against the wr
 A corrected evaluation is available, which checks each filter as a whole and OR's the results. It
 can be enabled in any of these ways:
 
-1. Pass `--enable-new-scm-provider-filtering` to the ApplicationSet controller args.
-1. Set `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_NEW_SCM_PROVIDER_FILTERING=true` in the ApplicationSet controller environment variables.
-1. Set `applicationsetcontroller.enable.new.scm.provider.filtering: "true"` in the `argocd-cmd-params-cm` ConfigMap.
+1. Pass `--enable-scm-provider-filter-or-semantics` to the ApplicationSet controller args.
+1. Set `ARGOCD_APPLICATIONSET_CONTROLLER_ENABLE_SCM_PROVIDER_FILTER_OR_SEMANTICS=true` in the ApplicationSet controller environment variables.
+1. Set `applicationsetcontroller.enable.scm.provider.filter.or.semantics: "true"` in the `argocd-cmd-params-cm` ConfigMap.
 
 > [!WARNING]
 > Enabling this changes which repositories and branches an existing `ApplicationSet` selects, so it
@@ -479,7 +479,7 @@ can be enabled in any of these ways:
 > reports the generated Applications without applying them.
 
 > [!NOTE]
-> Set the same value on `argocd-server` (`--appset-enable-new-scm-provider-filtering`, or the same
+> Set the same value on `argocd-server` (`--appset-enable-scm-provider-filter-or-semantics`, or the same
 > environment variable and ConfigMap key), otherwise `argocd appset generate` and the UI preview will
 > not agree with what the controller produces. The default manifests wire the ConfigMap key into both
 > components, so setting the ConfigMap key covers this.

@@ -434,7 +434,7 @@ func TestFilterComboRepoOrBranch(t *testing.T) {
 }
 
 // TestLegacyFilterEvaluation pins the pre-fix behaviour that is still the
-// default, so that flipping `--enable-new-scm-provider-filtering` is a
+// default, so that flipping `--enable-scm-provider-filter-or-semantics` is a
 // deliberate, reviewable change rather than an accident. Every case below is a
 // combination the corrected evaluation reports differently; the paired
 // expectations are what make the flag's effect explicit.
@@ -450,7 +450,7 @@ func TestLegacyFilterEvaluation(t *testing.T) {
 		filters []argoprojiov1alpha1.SCMProviderGeneratorFilter
 		// legacy is what the default evaluation returns, as "repo/branch".
 		legacy []string
-		// fixed is what --enable-new-scm-provider-filtering returns.
+		// fixed is what --enable-scm-provider-filter-or-semantics returns.
 		fixed []string
 	}{
 		{
@@ -514,20 +514,20 @@ func TestLegacyFilterEvaluation(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			t.Parallel()
 			for _, tc := range []struct {
-				enableNewFiltering bool
-				want               []string
+				enableFilterORSemantics bool
+				want                    []string
 			}{
 				{false, c.legacy},
 				{true, c.fixed},
 			} {
 				provider := &MockProvider{Repos: c.repos}
-				repos, err := ListRepos(t.Context(), provider, c.filters, "", tc.enableNewFiltering)
+				repos, err := ListRepos(t.Context(), provider, c.filters, "", tc.enableFilterORSemantics)
 				require.NoError(t, err)
 				got := make([]string, 0, len(repos))
 				for _, r := range repos {
 					got = append(got, r.Repository+"/"+r.Branch)
 				}
-				assert.Equal(t, tc.want, got, "enableNewFiltering=%v", tc.enableNewFiltering)
+				assert.Equal(t, tc.want, got, "enableFilterORSemantics=%v", tc.enableFilterORSemantics)
 			}
 		})
 	}

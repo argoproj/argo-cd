@@ -426,7 +426,7 @@ data:
   # Multiple filters are OR'd as documented, instead of repo-level and branch-level filters being
   # AND'd together. Enabling this may change which Applications an existing ApplicationSet generates.
   # See https://argo-cd.readthedocs.io/en/stable/operator-manual/applicationset/Generators-SCM-Provider/#enabling-the-corrected-filter-evaluation
-  applicationsetcontroller.enable.new.scm.provider.filtering: "false"
+  applicationsetcontroller.enable.scm.provider.filter.or.semantics: "false"
   # Print debug logs. Takes precedence over loglevel
   applicationsetcontroller.debug: "false"
   # Set the logging format. One of: json|text (default "json")

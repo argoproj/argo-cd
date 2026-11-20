@@ -116,15 +116,15 @@ func matchBranchFilter(ctx context.Context, provider SCMProviderService, repo *R
 //   - No filters at all: every repo/branch is kept.
 //
 // Those are the documented semantics, but they are only implemented when
-// enableNewFiltering is true. The legacy evaluation, still the default, splits
+// enableFilterORSemantics is true. The legacy evaluation, still the default, splits
 // filters into repo-level and branch-level groups and evaluates the groups
 // independently, which accidentally AND's unrelated filters together. It is kept
 // so that upgrading Argo CD does not silently change or delete which Applications an
 // existing ApplicationSet generates. Operators opt in with
-// `--enable-new-scm-provider-filtering` on the applicationset controller.
+// `--enable-scm-provider-filter-or-semantics` on the applicationset controller.
 //
-// See listReposNewFiltering and listReposLegacyFiltering.
-func ListRepos(ctx context.Context, provider SCMProviderService, filters []argoprojiov1alpha1.SCMProviderGeneratorFilter, cloneProtocol string, enableNewFiltering bool) ([]*Repository, error) {
+// See listReposFilterORSemantics and listReposLegacyFiltering.
+func ListRepos(ctx context.Context, provider SCMProviderService, filters []argoprojiov1alpha1.SCMProviderGeneratorFilter, cloneProtocol string, enableFilterORSemantics bool) ([]*Repository, error) {
 	compiledFilters, err := compileFilters(filters)
 	if err != nil {
 		return nil, err
@@ -133,13 +133,13 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 	if err != nil {
 		return nil, err
 	}
-	if enableNewFiltering {
-		return listReposNewFiltering(ctx, provider, repos, compiledFilters)
+	if enableFilterORSemantics {
+		return listReposFilterORSemantics(ctx, provider, repos, compiledFilters)
 	}
 	return listReposLegacyFiltering(ctx, provider, repos, compiledFilters)
 }
 
-// listReposNewFiltering implements the documented filter semantics.
+// listReposFilterORSemantics implements the documented filter semantics.
 //
 // A single filter may mix repo-level conditions (repositoryMatch, labelMatch)
 // with branch-level conditions (branchMatch, pathsExist, pathsDoNotExist). Both
@@ -167,7 +167,7 @@ func ListRepos(ctx context.Context, provider SCMProviderService, filters []argop
 //     least one filter. This pass re-checks the repo-level conditions, so
 //     correctness never depends on the pre-filter, the pre-filter is only an
 //     optimization.
-func listReposNewFiltering(ctx context.Context, provider SCMProviderService, repos []*Repository, compiledFilters []*Filter) ([]*Repository, error) {
+func listReposFilterORSemantics(ctx context.Context, provider SCMProviderService, repos []*Repository, compiledFilters []*Filter) ([]*Repository, error) {
 	// OPTIMIZATION: pre-filter repos by their repo-level conditions so
 	// we don't fetch branches for repos that cannot satisfy any filter. A repo is
 	// a candidate if it matches the repo-level conditions of at least one filter
@@ -234,12 +234,12 @@ func listReposNewFiltering(ctx context.Context, provider SCMProviderService, rep
 }
 
 // listReposLegacyFiltering is the pre-fix evaluation, kept behind the default of
-// `--enable-new-scm-provider-filtering=false` so that upgrading does not change
+// `--enable-scm-provider-filter-or-semantics=false` so that upgrading does not change
 // which Applications an existing ApplicationSet generates.
 //
 // It classifies each filter as repo-level or branch-level (see
 // compileFilters/FilterType) and evaluates the two groups independently. That is
-// wrong in two ways, both of which listReposNewFiltering fixes:
+// wrong in two ways, both of which listReposFilterORSemantics fixes:
 //
 //  1. A filter mixing repo-level and branch-level conditions is classified by
 //     whichever condition was assigned last, so half of it is evaluated against

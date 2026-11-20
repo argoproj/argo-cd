@@ -205,7 +205,7 @@ func newTestAppSetServerWithEnforcerConfigure(t *testing.T, f func(*rbac.Enforce
 		[]string{testNamespace, "external-namespace"},
 		true,
 		true,
-		false, // enableNewSCMProviderFiltering
+		false, // enableSCMProviderFilterORSemantics
 		"",
 		[]string{},
 		true,
