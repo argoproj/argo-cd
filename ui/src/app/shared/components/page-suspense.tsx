@@ -1,9 +1,7 @@
 import {Spinner} from './spinner';
 import * as React from 'react';
 
-// Suspends only the lazily loaded page, not the layout around it. When a Suspense boundary above the
-// layout shows its fallback, React hides the layout and its DataLoader unsubscribes from the view
-// preferences without subscribing again, so the sidebar and layout stop following preference changes.
+// Suspends only the lazily loaded page, so the layout around it stays visible while a page chunk loads.
 export const PageSuspense = ({children}: {children: React.ReactNode}) => (
     <React.Suspense
         fallback={

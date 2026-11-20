@@ -90,7 +90,10 @@ export const userQueries = {
 };
 
 export const settingsQueries = {
-    get: () => queryOptions({queryKey: ['settings'], queryFn: () => services.authService.settings()})
+    get: () => queryOptions({queryKey: ['settings'], queryFn: () => services.authService.settings()}),
+    // Own key because meta is per query and the last rendered observer's options win: on the shared key, another
+    // reader would undo the banner's silent polling, and the banner would silence that reader's failures.
+    banner: () => queryOptions({queryKey: ['settings', 'banner'], queryFn: () => services.authService.settings(), meta: {silent: true}})
 };
 
 export const notificationQueries = {
