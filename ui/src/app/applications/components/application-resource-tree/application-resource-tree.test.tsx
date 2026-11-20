@@ -1,4 +1,4 @@
-import {compareNodes, describeNode, getEffectiveParentKey, ResourceTreeNode} from './application-resource-tree';
+import {compareNodes, describeNode, getEffectiveParentKey, ResourceTreeNode, walkResourceTree} from './application-resource-tree';
 
 function node(kind: string, name: string, parent?: ResourceTreeNode): ResourceTreeNode {
     return {
@@ -11,6 +11,50 @@ function node(kind: string, name: string, parent?: ResourceTreeNode): ResourceTr
         parentRefs: parent ? [{group: parent.group, kind: parent.kind, name: parent.name, namespace: parent.namespace, uid: parent.uid}] : []
     } as ResourceTreeNode;
 }
+
+test('walkResourceTree.keepsCrossNamespaceAndClusterScopedEdges', () => {
+    const parent = node('ConfigMap', 'parent');
+    const child = {...node('ConfigMap', 'child', parent), namespace: 'other'};
+    const clusterChild = {...node('ConfigMap', 'cluster-child', child), namespace: ''};
+    const children = new Map([
+        [parent.uid, [child]],
+        [child.uid, [clusterChild]]
+    ]);
+    const nodes: string[] = [];
+    const edges: string[] = [];
+    walkResourceTree(
+        parent,
+        children,
+        n => nodes.push(n.uid),
+        (p, c) => edges.push(`${p.uid}->${c.uid}`)
+    );
+    expect(nodes).toEqual([parent.uid, child.uid, clusterChild.uid]);
+    expect(edges).toEqual([`${parent.uid}->${child.uid}`, `${child.uid}->${clusterChild.uid}`]);
+});
+
+test('walkResourceTree.boundsCyclesBelowTheRootAndKeepsSharedChildEdges', () => {
+    const root = node('ConfigMap', 'root');
+    const a = node('ConfigMap', 'a', root);
+    const b = node('ConfigMap', 'b', a);
+    const shared = node('ConfigMap', 'shared', a);
+    const children = new Map([
+        [root.uid, [a]],
+        [a.uid, [b, shared]],
+        [b.uid, [a, shared]],
+        [shared.uid, [root]]
+    ]);
+    const nodes: string[] = [];
+    const edges: string[] = [];
+    walkResourceTree(
+        root,
+        children,
+        n => nodes.push(n.uid),
+        (p, c) => edges.push(`${p.uid}->${c.uid}`)
+    );
+    expect(nodes.sort()).toEqual([root.uid, a.uid, b.uid, shared.uid].sort());
+    expect(edges).toEqual(expect.arrayContaining([`${a.uid}->${shared.uid}`, `${b.uid}->${shared.uid}`, `${b.uid}->${a.uid}`]));
+    expect(edges).not.toContain(`${shared.uid}->${root.uid}`);
+});
 
 // Mirrors the tree's compact-view rule: a Pod is grouped when it has a parent and is not managed.
 const groupedUnlessManaged =

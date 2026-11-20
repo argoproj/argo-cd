@@ -1,5 +1,49 @@
 # Resource Tracking
 
+## Custom parent/child relationships (Alpha)
+
+Current Status: Alpha (Since v3.7.0)
+
+Argo CD normally discovers resource relationships through Kubernetes `ownerReferences`.
+For operators that do not set owner references, add these annotations to the **child**
+resource to include it in its parent's resource tree:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: operator-generated-config
+  namespace: workloads
+  annotations:
+    argocd.argoproj.io/parentApiVersion: example.com/v1
+    argocd.argoproj.io/parentKind: ExampleOperator
+    argocd.argoproj.io/parentName: my-operator
+    argocd.argoproj.io/parentNamespace: operators
+data:
+  mode: example
+```
+
+`parentApiVersion`, `parentKind`, and `parentName` are required together.
+`parentNamespace` defaults to the child's namespace when omitted. Set it to `""`
+for a cluster-scoped parent. Cross-namespace relationships and relationships
+between namespaced and cluster-scoped resources are supported within the same cluster.
+Configure the operator to annotate generated resources; annotating the parent does
+not automatically annotate its children or infer relationships from operator-specific labels.
+
+Custom parents supplement, rather than replace, native owner references. Both
+resources must be watched by Argo CD: resource exclusions, namespace restrictions,
+and cluster credentials still apply. A missing parent does not pull resources
+into the tree. A parent created later, or recreated with a new UID, is resolved
+by API group, kind, namespace, and name. Removing or changing the annotations
+updates the relationship. Incomplete references, malformed API versions, and
+self-references are ignored and logged; cycles are traversed at most once per resource.
+
+> [!NOTE]
+> These annotations configure discovery and display only. They do not create
+> Kubernetes owner references, change garbage collection, order synchronization,
+> or make a child managed or eligible for pruning. Application tracking remains
+> independent, and a resource's explicit application tracking takes precedence.
+
 ## Tracking Kubernetes resources by annotation
 
 Argo CD can be instructed to use the following methods for tracking:
