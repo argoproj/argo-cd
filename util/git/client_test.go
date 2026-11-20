@@ -538,7 +538,22 @@ func Test_IsAnnotatedTag(t *testing.T) {
 	assert.False(t, atag)
 }
 
-func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
+// A git command stopped by ARGOCD_EXEC_TIMEOUT must not leave index.lock
+// behind. util/exec reads the timeout at startup, so the test re-runs itself in
+// a child process.
+func Test_nativeGitClient_Checkout_timeoutDoesNotLeaveIndexLock(t *testing.T) {
+	if os.Getenv("ARGOCD_TEST_CHECKOUT_TIMEOUT_CHILD") != "1" {
+		cmd := exec.CommandContext(t.Context(), os.Args[0], "-test.run=^Test_nativeGitClient_Checkout_timeoutDoesNotLeaveIndexLock$", "-test.count=1")
+		cmd.Env = append(os.Environ(),
+			"ARGOCD_TEST_CHECKOUT_TIMEOUT_CHILD=1",
+			"ARGOCD_EXEC_TIMEOUT=2s",
+			"ARGOCD_EXEC_FATAL_TIMEOUT=5s",
+		)
+		out, err := cmd.CombinedOutput()
+		require.NoError(t, err, string(out))
+		return
+	}
+
 	client, err := NewClientExt("file://"+t.TempDir(), t.TempDir(), NopCreds{}, true, false, "", "")
 	require.NoError(t, err)
 	require.NoError(t, client.Init())
@@ -560,11 +575,9 @@ func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 	require.NoError(t, os.WriteFile(filepath.Join(root, ".git", "info", "attributes"), []byte("* filter=slow\n"), 0o644))
 	require.NoError(t, runCmd(t.Context(), root, "git", "config", "filter.slow.smudge", fmt.Sprintf("exec 2>/dev/null; touch '%s'; sleep 30; cat", marker)))
 
-	ctx, cancel := context.WithCancel(t.Context())
-	defer cancel()
 	checkoutErr := make(chan error, 1)
 	go func() {
-		_, err := client.Checkout(ctx, strings.TrimSpace(string(firstSHA)), false, false)
+		_, err := client.Checkout(t.Context(), strings.TrimSpace(string(firstSHA)), false, false)
 		checkoutErr <- err
 	}()
 
@@ -574,15 +587,13 @@ func Test_nativeGitClient_Checkout_cancelDoesNotLeaveIndexLock(t *testing.T) {
 	}, 10*time.Second, 10*time.Millisecond, "checkout never reached the smudge filter")
 	require.FileExists(t, indexLock)
 
-	cancel()
-
 	select {
 	case err := <-checkoutErr:
-		require.Error(t, err)
-	case <-time.After(5 * time.Second):
-		t.Fatal("checkout did not return after cancellation")
+		require.ErrorContains(t, err, "timeout after")
+	case <-time.After(15 * time.Second):
+		t.Fatal("checkout was not stopped by the exec timeout")
 	}
-	require.NoFileExists(t, indexLock, "cancelled git left a stale index.lock behind")
+	require.NoFileExists(t, indexLock, "timed out git left a stale index.lock behind")
 }
 
 // newSlowFetchRemote returns a file:// remote with one commit, whose upload-pack
@@ -672,16 +683,28 @@ func Test_nativeGitClient_Fetch_cancelledFetchIsBoundedByExecTimeout(t *testing.
 	}
 }
 
-func Test_nativeGitClient_Fetch_doesNotStartWhenCancelled(t *testing.T) {
-	client, revision, marker := newSlowFetchRemote(t, 0)
+// Git commands ignore the caller's cancellation, so a request that was
+// cancelled while it waited for the repository lock still completes its git
+// work.
+func Test_nativeGitClient_cancelledContextIsIgnored(t *testing.T) {
+	client, revision, _ := newSlowFetchRemote(t, 0)
 
 	ctx, cancel := context.WithCancel(t.Context())
 	cancel()
 
-	err := client.Fetch(ctx, "", 0)
-	require.ErrorIs(t, err, context.Canceled)
-	assert.NoFileExists(t, marker, "fetch must not contact the remote for a cancelled request")
-	assert.False(t, client.IsRevisionPresent(t.Context(), revision))
+	require.NoError(t, client.Fetch(ctx, "", 0))
+	assert.True(t, client.IsRevisionPresent(ctx, revision))
+	_, err := client.Checkout(ctx, revision, false, true)
+	require.NoError(t, err)
+	sha, err := client.CommitSHA(ctx)
+	require.NoError(t, err)
+	assert.Equal(t, revision, sha)
+	_, err = client.RevisionMetadata(ctx, revision)
+	require.NoError(t, err)
+	_, err = client.LsFiles(ctx, "*", true)
+	require.NoError(t, err)
+	_, err = client.ChangedFiles(ctx, revision, revision)
+	require.NoError(t, err)
 }
 
 func Test_gitCancelGracePeriod(t *testing.T) {
