@@ -1,5 +1,35 @@
 @import 'node_modules/argo-ui/src/styles/config';
 
+.application-sync-panel__kinds {
+    clear: both;
+    margin: 0.5em 0;
+}
+
+.application-sync-panel__kind {
+    margin: 0 0.4em 0.4em 0;
+    padding: 0.1em 0.7em;
+    border: 1px solid $argo-color-gray-5;
+    border-radius: 1em;
+    background: transparent;
+    color: inherit;
+    font-size: 0.85em;
+    cursor: pointer;
+
+    &:hover {
+        border-color: $argo-color-teal-5;
+    }
+
+    &--active {
+        background: $argo-color-teal-5;
+        border-color: $argo-color-teal-5;
+        color: $white-color;
+    }
+
+    &--clear {
+        border-style: dashed;
+    }
+}
+
 .application-sync-panel__resource {
     margin-top: 0.5em;
     white-space: nowrap;
