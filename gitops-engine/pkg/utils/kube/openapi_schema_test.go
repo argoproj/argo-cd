@@ -159,11 +159,22 @@ func TestOpenAPISchemaResolver_Cache(t *testing.T) {
 	resolve()
 	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3"}, server.Requests())
 
+	// The cache keeps types only, so patch metadata needs the document.
+	resolver := kube.NewCachedOpenAPISchemaResolver(&rest.Config{Host: server.URL}, logr.Discard(), cache)
+	_, err := resolver.Type(deploymentGVK)
+	require.NoError(t, err)
+	meta, err := resolver.LookupPatchMeta(deploymentGVK)
+	require.NoError(t, err)
+	require.NotNil(t, meta)
+	_, err = resolver.Type(statefulSetGVK)
+	require.NoError(t, err)
+	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3", "/openapi/v3", "/openapi/v3/apis/apps/v1"}, server.Requests())
+
 	server.mu.Lock()
 	server.hash = "456"
 	server.mu.Unlock()
 	resolve()
-	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3", "/openapi/v3", "/openapi/v3/apis/apps/v1"}, server.Requests())
+	assert.Equal(t, []string{"/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3", "/openapi/v3", "/openapi/v3/apis/apps/v1", "/openapi/v3", "/openapi/v3/apis/apps/v1"}, server.Requests())
 }
 
 func TestOpenAPISchemaResolver_UnknownGVK(t *testing.T) {
