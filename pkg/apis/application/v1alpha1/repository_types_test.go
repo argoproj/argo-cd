@@ -237,6 +237,65 @@ func TestGetGitCreds_GitHubApp_OrgExtractionFails(t *testing.T) {
 	assert.Contains(t, err.Error(), "invalid-url-format")
 }
 
+func TestNormalizeOCIURL(t *testing.T) {
+	tests := []struct {
+		name     string
+		url      string
+		expected string
+	}{
+		{name: "already normalized", url: "oci://registry-1.docker.io/envoyproxy/gateway", expected: "oci://registry-1.docker.io/envoyproxy/gateway"},
+		{name: "uppercase host is lowercased", url: "oci://REGISTRY-1.DOCKER.IO/envoyproxy/gateway", expected: "oci://registry-1.docker.io/envoyproxy/gateway"},
+		{name: "uppercase scheme is not OCI and is unchanged", url: "OCI://registry-1.docker.io/envoyproxy/gateway", expected: "OCI://registry-1.docker.io/envoyproxy/gateway"},
+		{name: "path case is preserved", url: "oci://registry.example.com/EnvoyProxy/Gateway", expected: "oci://registry.example.com/EnvoyProxy/Gateway"},
+		{name: "host with port", url: "oci://Registry.Example.com:5000/chart", expected: "oci://registry.example.com:5000/chart"},
+		{name: "host only", url: "oci://Registry.Example.com", expected: "oci://registry.example.com"},
+		{name: "non-OCI URL is unchanged", url: "https://github.com/argoproj/argo-cd.git", expected: "https://github.com/argoproj/argo-cd.git"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, NormalizeOCIURL(tt.url))
+		})
+	}
+}
+
+func TestIsOCIURL(t *testing.T) {
+	// Only the exact "oci://" prefix is OCI: the webhook handlers and Helm dependency credential
+	// matching compare the prefix verbatim, so accepting variants here would silently miss them.
+	tests := []struct {
+		name     string
+		url      string
+		expected bool
+	}{
+		{name: "canonical oci url", url: "oci://registry.example.com/chart", expected: true},
+		{name: "uppercase scheme", url: "OCI://registry.example.com/chart", expected: false},
+		{name: "leading whitespace", url: " oci://registry.example.com/chart", expected: false},
+		{name: "scheme only", url: "oci://", expected: true},
+		{name: "git https url", url: "https://github.com/argoproj/argo-cd.git", expected: false},
+		{name: "empty string", url: "", expected: false},
+		{name: "too short", url: "oci:", expected: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, IsOCIURL(tt.url))
+			// Consistency guard: whenever NormalizeOCIURL rewrites the URL (i.e. treats it
+			// as OCI), IsOCIURL must agree.
+			if NormalizeOCIURL(tt.url) != tt.url {
+				assert.True(t, IsOCIURL(tt.url), "NormalizeOCIURL normalized %q but IsOCIURL returned false", tt.url)
+			}
+		})
+	}
+}
+
+func TestNormalizeRepoURL(t *testing.T) {
+	ociRepo := Repository{Repo: "oci://REGISTRY.EXAMPLE.COM/My-Chart.git"}
+	// Host is lowercased, but the path is preserved as-is: OCI repository names are
+	// case-sensitive and a trailing ".git" is a valid part of an OCI repository name.
+	assert.Equal(t, "oci://registry.example.com/My-Chart.git", ociRepo.NormalizeRepoURL())
+
+	gitRepo := Repository{Repo: "https://github.com/argoproj/argo-cd.git"}
+	assert.Equal(t, git.NormalizeGitURL(gitRepo.Repo), gitRepo.NormalizeRepoURL())
+}
+
 func TestRepository_Normalize(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -277,6 +336,11 @@ func TestRepository_Normalize(t *testing.T) {
 			name:     "Explicit oci type is preserved on OCI URL",
 			repo:     Repository{Repo: "oci://example.com/foo", Type: "oci"},
 			wantType: "oci",
+		},
+		{
+			name:     "Non-canonical OCI scheme with empty type defaults to git",
+			repo:     Repository{Repo: "OCI://example.com/foo"},
+			wantType: "git",
 		},
 	}
 	for _, tt := range tests {

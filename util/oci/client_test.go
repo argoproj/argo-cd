@@ -691,6 +691,9 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 			if tt.expectedError != nil {
 				// The digest depends on the Go version's gzip output, so it is substituted rather than hardcoded.
 				require.EqualError(t, err, strings.ReplaceAll(tt.expectedError.Error(), "{{digest}}", sha))
+				if path != "" {
+					require.NoDirExists(t, path, "partially extracted directory must be removed on failure")
+				}
 				return
 			}
 
