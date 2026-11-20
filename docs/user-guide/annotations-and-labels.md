@@ -25,6 +25,7 @@ label. For example `#sync-wave` for `argocd.argoproj.io/sync-wave`, or `#notice-
 | [`argocd.argoproj.io/manifest-generate-paths`](#manifest-generate-paths)                         | Application                 | Limits which repository paths trigger a refresh.                             |
 | [`argocd.argoproj.io/refresh`](#refresh)                                                         | Application                 | Requests a refresh of an Application.                                        |
 | [`argocd.argoproj.io/refresh-timestamp`](#refresh-timestamp)                                     | Application                 | Identifies a particular refresh request. Not set manually.                   |
+| [`argocd.argoproj.io/self-signed`](#self-signed)                                                 | `argocd-server-tls` Secret  | Marks a TLS certificate as self-signed and managed by Argo CD.               |
 | [`argocd.argoproj.io/skip-reconcile`](#skip-reconcile)                                           | Application, Cluster Secret | Skips reconciliation.                                                        |
 | [`argocd.argoproj.io/sync-options`](#sync-options)                                               | any                         | Settings that determine how resources are synced.                            |
 | [`argocd.argoproj.io/sync-wave`](#sync-wave)                                                     | any                         | Orders resources within a sync.                                              |
@@ -192,6 +193,16 @@ Set together with [`refresh`](#refresh) to identify a particular refresh request
 application controller detect that a new refresh request arrived while the current one was still
 being processed, so that request isn't dropped. Removed together with `refresh` once consumed. Not
 meant to be set manually.
+
+### `argocd.argoproj.io/self-signed` { #self-signed }
+
+- **Target resource(s):** the `argocd-server-tls` Secret
+- **Possible values:** `"true"`
+
+Marks the `argocd-server-tls` Secret as holding a self-signed certificate generated and managed by
+Argo CD. When present, Argo CD may overwrite and renew the certificate; when absent, the Secret is
+treated as operator-managed (for example, issued by `cert-manager`) and is never overwritten. See
+[TLS configuration docs](../operator-manual/tls.md).
 
 ### `argocd.argoproj.io/skip-reconcile` { #skip-reconcile }
 
