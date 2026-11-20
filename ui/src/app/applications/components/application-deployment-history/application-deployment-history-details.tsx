@@ -9,6 +9,7 @@ import {Repo, Revision} from '../../../shared/components';
 import {services} from '../../../shared/services';
 import {ApplicationParameters} from '../application-parameters/application-parameters';
 import {appQualifiedName} from '../../../shared/components/app-utils';
+import {AuthSettingsCtx} from '../../../shared/context';
 import {RevisionMetadataRows} from './revision-metadata-rows';
 
 type props = {
@@ -25,6 +26,8 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
         return {...info, nextDeployedAt, durationMs: runEnd.diff(moment(info.deployedAt)) / 1000};
     });
 
+    const authSettingsCtx = React.useContext(AuthSettingsCtx);
+    const appName = appQualifiedName(app, authSettingsCtx?.appsInAnyNamespaceEnabled);
     const [showParameterDetails, setShowParameterDetails] = React.useState(Boolean);
     const [showSourceDetails, setShowSourceDetails] = React.useState([]);
     const updateMap = (i: number) => {
@@ -112,7 +115,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                                 input={{
                                     ...recentDeployments[index].source,
                                     targetRevision: recentDeployments[index].revision,
-                                    appName: appQualifiedName(app, !!app.metadata.namespace)
+                                    appName
                                 }}
                                 load={src => services.repos.appDetails(src, src.appName, app.spec.project, 0, recentDeployments[index].id)}>
                                 {(details: models.RepoAppDetails) => (
@@ -171,7 +174,7 @@ export const ApplicationDeploymentHistoryDetails = ({app, info, index}: props) =
                                             targetRevision: recentDeployments[index].revisions[i],
                                             index: i,
                                             versionId: recentDeployments[index].id,
-                                            appName: appQualifiedName(app, !!app.metadata.namespace)
+                                            appName
                                         }}
                                         load={src => services.repos.appDetails(src, src.appName, app.spec.project, i, recentDeployments[index].id)}>
                                         {(details: models.RepoAppDetails) => (

@@ -778,6 +778,35 @@ func TestRepositoryServerGetAppDetails(t *testing.T) {
 		assert.Nil(t, resp)
 		require.ErrorContains(t, err, "permission denied: applications, create, default/guestbook")
 	})
+	t.Run("Test_ExistingAppWithEmptyProjectUsesDefaultProject", func(t *testing.T) {
+		// An app without spec.project belongs to the "default" project, so the RBAC object and project check must use it.
+		repoServerClient := &mocks.RepoServerServiceClient{}
+		repoServerClientset := mocks.Clientset{RepoServerServiceClient: repoServerClient}
+		enforcer := newEnforcer(kubeclientset)
+		require.NoError(t, enforcer.SetUserPolicy("p, role:guestbook, repositories, get, *, allow\np, role:guestbook, applications, get, default/guestbook, allow"))
+		enforcer.SetDefaultRole("role:guestbook")
+
+		url := "https://test"
+		db := &dbmocks.ArgoDB{}
+		db.EXPECT().ListHelmRepositories(mock.Anything).Return(nil, nil)
+		db.EXPECT().GetRepository(mock.Anything, url, "default").Return(&appsv1.Repository{Repo: url}, nil)
+		db.EXPECT().GetProjectRepositories("default").Return(nil, nil)
+		db.EXPECT().GetProjectClusters(mock.Anything, "default").Return(nil, nil)
+		expectedResp := apiclient.RepoAppDetailsResponse{Type: "Helm"}
+		repoServerClient.EXPECT().GetAppDetails(mock.Anything, mock.Anything).Return(&expectedResp, nil)
+		app := guestbookApp.DeepCopy()
+		app.Spec.Project = ""
+		appLister, projLister := newAppAndProjLister(defaultProj, app)
+
+		s := NewServer(&repoServerClientset, db, enforcer, newFixtures().Cache, appLister, projLister, testNamespace, settingsMgr, false)
+		resp, err := s.GetAppDetails(t.Context(), &repository.RepoAppDetailsQuery{
+			Source:     app.Spec.GetSourcePtrByIndex(0),
+			AppName:    "guestbook",
+			AppProject: "default",
+		})
+		require.NoError(t, err)
+		assert.Equal(t, expectedResp, *resp)
+	})
 	t.Run("Test_QualifiedAppNameUsesNormalizedRBACObject", func(t *testing.T) {
 		tests := []struct {
 			name         string

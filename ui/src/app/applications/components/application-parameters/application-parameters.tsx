@@ -37,7 +37,7 @@ import {ApplicationParametersSource} from './application-parameters-source';
 import {isRefOnlySource} from '../shared/app-source-edit';
 
 import './application-parameters.scss';
-import {AppContext} from '../../../shared/context';
+import {AppContext, AuthSettingsCtx} from '../../../shared/context';
 import {SourcePanel} from './source-panel';
 
 const TextWithMetadataField = ReactFormField((props: {metadata: {value: string}; fieldApi: FieldApi; className: string}) => {
@@ -159,6 +159,8 @@ export const ApplicationParameters = (props: {
     multiSourceIndex?: number;
 }) => {
     const app = cloneDeep(props.application);
+    const authSettingsCtx = React.useContext(AuthSettingsCtx);
+    const appName = appQualifiedName(app, authSettingsCtx?.appsInAnyNamespaceEnabled);
     const source = getAppDefaultSource(app); // For source field
     const appSources = app?.spec.sources;
     const [removedOverrides, setRemovedOverrides] = React.useState(new Array<boolean>());
@@ -281,7 +283,7 @@ export const ApplicationParameters = (props: {
             // For single source field, details page where we have to do the load to retrieve repo details
             // Input changes frequently due to updates higher in the tree, do not show loading state when reloading
             return (
-                <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application)}>
+                <DataLoader noLoaderOnInputChange={true} input={app} load={application => getSingleSource(application, appName)}>
                     {(details: models.RepoAppDetails) => {
                         const attr = gatherDetails(0, details, [], source, app, setRemovedOverrides, removedOverrides, appParamsDeletedState, setAppParamsDeletedState, false);
                         return getEditablePanel(attr, details);
@@ -339,7 +341,7 @@ export const ApplicationParameters = (props: {
                         <DataLoader
                             key={'app_params_source_' + index}
                             input={app.spec.sources[index]}
-                            load={src => getSourceFromAppSources(src, appQualifiedName(app, !!app.metadata.namespace), app.spec.project, index, 0)}>
+                            load={src => getSourceFromAppSources(src, appName, app.spec.project, index, 0)}>
                             {(details: models.RepoAppDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index])}
                         </DataLoader>
                     )}
@@ -1127,12 +1129,10 @@ async function getSourceFromAppSources(aSource: models.ApplicationSource, name: 
 }
 
 // Delete when source field is removed
-async function getSingleSource(app: models.Application) {
+async function getSingleSource(app: models.Application, appName: string) {
     if (app.spec.source || app.spec.sourceHydrator) {
         const source = getAppDrySource(app);
-        const repoDetail = await services.repos
-            .appDetails(source, appQualifiedName(app, !!app.metadata.namespace), app.spec.project, 0, 0)
-            .catch(() => getExplicitSourceDetails(source));
+        const repoDetail = await services.repos.appDetails(source, appName, app.spec.project, 0, 0).catch(() => getExplicitSourceDetails(source));
         return applyExplicitSourceType(source, repoDetail);
     }
     return null;
