@@ -4,10 +4,13 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/go-playground/webhooks/v6/azuredevops"
+	"github.com/go-playground/webhooks/v6/bitbucket"
 	bitbucketserver "github.com/go-playground/webhooks/v6/bitbucket-server"
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
@@ -17,6 +20,134 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
+
+// The tests in this package exercise payload handling with unsigned requests,
+// so they run with unauthenticated events allowed. Tests of the secret
+// requirement turn it back off with t.Setenv.
+func TestMain(m *testing.M) {
+	os.Setenv(EnvWebhookAllowUnauthenticated, "true")
+	os.Exit(m.Run())
+}
+
+func TestNewParsers_RequiresSecret(t *testing.T) {
+	opts := ParserOptions{
+		AzureDevOpsEvents:     []azuredevops.Event{azuredevops.GitPushEventType},
+		GogsEvents:            []gogs.Event{gogs.PushEvent},
+		GitHubEvents:          []github.Event{github.PushEvent},
+		GitLabEvents:          []gitlab.Event{gitlab.PushEvents},
+		BitbucketEvents:       []bitbucket.Event{bitbucket.RepoPushEvent},
+		BitbucketServerEvents: []bitbucketserver.Event{bitbucketserver.RepositoryReferenceChangedEvent},
+		GHCR:                  true,
+	}
+	tests := []struct {
+		name                 string
+		allowUnauthenticated string
+		settings             settings.ArgoCDSettings
+		want                 []string
+	}{
+		{
+			name: "no provider is registered without a secret",
+		},
+		{
+			name:                 "every provider is registered when unauthenticated events are allowed",
+			allowUnauthenticated: "true",
+			want: []string{
+				"*webhook.azureDevOpsParser",
+				"*webhook.gogsParser",
+				"*webhook.githubParser",
+				"*webhook.gitlabParser",
+				"*webhook.bitbucketParser",
+				"*webhook.bitbucketServerParser",
+				"*webhook.GHCRParser",
+			},
+		},
+		{
+			name:     "GitHub secret registers GitHub and GHCR only",
+			settings: settings.ArgoCDSettings{WebhookGitHubSecret: "secret"},
+			want:     []string{"*webhook.githubParser", "*webhook.GHCRParser"},
+		},
+		{
+			name:     "GitLab secret registers GitLab only",
+			settings: settings.ArgoCDSettings{WebhookGitLabSecret: "secret"},
+			want:     []string{"*webhook.gitlabParser"},
+		},
+		{
+			name:     "Gogs secret registers Gogs only",
+			settings: settings.ArgoCDSettings{WebhookGogsSecret: "secret"},
+			want:     []string{"*webhook.gogsParser"},
+		},
+		{
+			name:     "Bitbucket UUID registers Bitbucket only",
+			settings: settings.ArgoCDSettings{WebhookBitbucketUUID: "uuid"},
+			want:     []string{"*webhook.bitbucketParser"},
+		},
+		{
+			name:     "Bitbucket Server secret registers Bitbucket Server only",
+			settings: settings.ArgoCDSettings{WebhookBitbucketServerSecret: "secret"},
+			want:     []string{"*webhook.bitbucketServerParser"},
+		},
+		{
+			name:     "Azure DevOps credentials register Azure DevOps only",
+			settings: settings.ArgoCDSettings{WebhookAzureDevOpsUsername: "user", WebhookAzureDevOpsPassword: "pass"},
+			want:     []string{"*webhook.azureDevOpsParser"},
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(EnvWebhookAllowUnauthenticated, tt.allowUnauthenticated)
+
+			var got []string
+			for _, p := range NewParsers(&tt.settings, opts) {
+				got = append(got, fmt.Sprintf("%T", p))
+			}
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestHandleRequest_ProviderWithoutSecret(t *testing.T) {
+	opts := ParserOptions{
+		GitHubEvents: []github.Event{github.PushEvent},
+		GitLabEvents: []gitlab.Event{gitlab.PushEvents},
+	}
+	// Only GitHub has a secret, so an unsigned GitLab event must not get through.
+	set := &settings.ArgoCDSettings{WebhookGitHubSecret: "secret"}
+	tests := []struct {
+		name                 string
+		allowUnauthenticated string
+		wantStatus           int
+		wantBody             string
+		wantQueued           int
+	}{
+		{
+			name:       "rejected by default",
+			wantStatus: http.StatusBadRequest,
+			wantBody:   "Unknown webhook event",
+		},
+		{
+			name:                 "accepted when unauthenticated events are allowed",
+			allowUnauthenticated: "true",
+			wantStatus:           http.StatusOK,
+			wantQueued:           1,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv(EnvWebhookAllowUnauthenticated, tt.allowUnauthenticated)
+
+			queue := make(chan any, 1)
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/webhook", strings.NewReader(`{}`))
+			req.Header.Set("X-Gitlab-Event", "Push Hook")
+			w := httptest.NewRecorder()
+
+			HandleRequest(w, req, NewParsers(set, opts), 1024*1024, queue)
+
+			assert.Equal(t, tt.wantStatus, w.Code)
+			assert.Equal(t, tt.wantBody, strings.TrimSpace(w.Body.String()))
+			assert.Len(t, queue, tt.wantQueued)
+		})
+	}
+}
 
 func TestNewParsers(t *testing.T) {
 	t.Run("registers only enabled providers in dispatch order", func(t *testing.T) {

@@ -237,11 +237,11 @@ the associated GitHub repository.
 > GitHub does not send `package` webhook events for artifacts with unknown media types. If your OCI artifact uses a
 > custom or non-standard media type, the webhook will not be triggered. See [GitHub documentation on supported package types](https://docs.github.com/en/packages/learn-github-packages/about-permissions-for-github-packages).
 
-#### 2. Configure ApplicationSet with the webhook secret (Optional)
+#### 2. Configure ApplicationSet with the webhook secret
 
 GHCR webhooks use the same secret as GitHub Git webhooks (`webhook.github.secret`) in the `argocd-secret`
-Kubernetes secret. When the secret is set, the ApplicationSet webhook rejects GHCR events without a valid
-signature with `401 Unauthorized`.
+Kubernetes secret. The ApplicationSet webhook rejects GHCR events without a valid signature with
+`401 Unauthorized`, and rejects all GHCR events as unknown webhook events when the secret is not set.
 
 ```yaml
 apiVersion: v1
