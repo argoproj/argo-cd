@@ -20,9 +20,10 @@ export function helpTip(text: string) {
 //<!--!Font Awesome Free 6.7.2 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.-->
 //this will replace all <i> fa-spin </i> icons as they are currently misbehaving with no fix available.
 
-export const SpinningIcon = ({color, qeId}: {color: string; qeId: string}) => {
+export const SpinningIcon = ({color, qeId, title}: {color: string; qeId: string; title?: string}) => {
     return (
         <svg className='icon spin' xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512' style={{color}} qe-id={qeId}>
+            {title && <title>{title}</title>}
             <path
                 fill={color}
                 d='M222.7 32.1c5 16.9-4.6 34.8-21.5 39.8C121.8 95.6 64 169.1 64 256c0 106 86 192 192 192s192-86 192-192c0-86.9-57.8-160.4-137.1-184.1c-16.9-5-26.6-22.9-21.5-39.8s22.9-26.6 39.8-21.5C434.9 42.1 512 140 512 256c0 141.4-114.6 256-256 256S0 397.4 0 256C0 140 77.1 42.1 182.9 10.6c16.9-5 34.8 4.6 39.8 21.5z'
@@ -111,7 +112,7 @@ export const OperationPhaseIcon = ({app, isButton}: {app: appModels.Application;
             break;
     }
     return className.includes('fa-spin') ? (
-        <SpinningIcon color={color} qeId='utils-operations-status-title' />
+        <SpinningIcon color={color} qeId='utils-operations-status-title' title={getOperationStateTitle(app)} />
     ) : (
         <i title={getOperationStateTitle(app)} qe-id='utils-operations-status-title' className={className} style={{color}} />
     );
@@ -155,7 +156,7 @@ export const ComparisonStatusIcon = ({
     }
     return className.includes('fa-spin') ? (
         <React.Fragment>
-            <SpinningIcon color={color} qeId='utils-sync-status-title' /> {label && title}
+            <SpinningIcon color={color} qeId='utils-sync-status-title' title={title} /> {label && title}
         </React.Fragment>
     ) : (
         <React.Fragment>
@@ -164,29 +165,41 @@ export const ComparisonStatusIcon = ({
     );
 };
 
+export const getHealthStatusColor = (status: appModels.HealthStatusCode): string => {
+    switch (status) {
+        case appModels.HealthStatuses.Healthy:
+            return COLORS.health.healthy;
+        case appModels.HealthStatuses.Suspended:
+            return COLORS.health.suspended;
+        case appModels.HealthStatuses.Degraded:
+            return COLORS.health.degraded;
+        case appModels.HealthStatuses.Progressing:
+            return COLORS.health.progressing;
+        case appModels.HealthStatuses.Missing:
+            return COLORS.health.missing;
+        default:
+            return COLORS.health.unknown;
+    }
+};
+
 export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus; noSpin?: boolean}) => {
-    let color = COLORS.health.unknown;
+    const color = getHealthStatusColor(state.status);
     let icon = 'fa-question-circle';
 
     switch (state.status) {
         case appModels.HealthStatuses.Healthy:
-            color = COLORS.health.healthy;
             icon = 'fa-heart';
             break;
         case appModels.HealthStatuses.Suspended:
-            color = COLORS.health.suspended;
             icon = 'fa-pause-circle';
             break;
         case appModels.HealthStatuses.Degraded:
-            color = COLORS.health.degraded;
             icon = 'fa-heart-broken';
             break;
         case appModels.HealthStatuses.Progressing:
-            color = COLORS.health.progressing;
             icon = `fa fa-circle-notch ${noSpin ? '' : 'fa-spin'}`;
             break;
         case appModels.HealthStatuses.Missing:
-            color = COLORS.health.missing;
             icon = 'fa-ghost';
             break;
     }
@@ -195,7 +208,7 @@ export const HealthStatusIcon = ({state, noSpin}: {state: appModels.HealthStatus
         title = `${state.status}: ${state.message}`;
     }
     return icon.includes('fa-spin') ? (
-        <SpinningIcon color={color} qeId='utils-health-status-title' />
+        <SpinningIcon color={color} qeId='utils-health-status-title' title={title} />
     ) : (
         <i qe-id='utils-health-status-title' title={title} className={'fa ' + icon + ' utils-health-status-icon'} style={{color}} />
     );

@@ -191,8 +191,8 @@ export const ApplicationResourceList = (props: ApplicationResourceListProps) => 
                                     <Tooltip content={groupkindjoin}>
                                         <div className='columns small-1 xxxlarge-1'>{groupkindjoin}</div>
                                     </Tooltip>
-                                    <Tooltip content={res.syncWave} enabled={!!res.syncWave}>
-                                        <div className='columns small-1 xxxlarge-1'>{res.syncWave || '-'}</div>
+                                    <Tooltip content={res.syncWave} enabled={res.syncWave != null}>
+                                        <div className='columns small-1 xxxlarge-1'>{res.syncWave ?? '-'}</div>
                                     </Tooltip>
                                     <Tooltip content={res.namespace} enabled={!!res.namespace}>
                                         <div className='columns small-2 xxxlarge-1'>{res.namespace}</div>

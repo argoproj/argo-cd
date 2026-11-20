@@ -44,6 +44,12 @@ var (
 	indexLock  = sync.NewKeyLock()
 )
 
+// maxOCIManifestSize bounds how many bytes we read when decoding an OCI manifest
+// returned by a registry. This matches oras-go's MaxMetadataBytes default (4 MiB)
+// and protects the repo-server from unbounded memory consumption if a registry
+// returns an excessively large manifest.
+const maxOCIManifestSize = 4 * 1024 * 1024 // 4 MiB
+
 const (
 	helmOCIConfigType = "application/vnd.cncf.helm.config.v1+json"
 	helmOCILayerType  = "application/vnd.cncf.helm.chart.content.v1.tar+gzip"
@@ -349,6 +355,10 @@ func (c *nativeOCIClient) CleanCache(revision string) error {
 	if err != nil {
 		return fmt.Errorf("error cleaning oci path for revision %s: %w", revision, err)
 	}
+	// ORAS reopens this archive for each blob during extraction.
+	c.repoLock.Lock(cachePath)
+	defer c.repoLock.Unlock(cachePath)
+
 	return os.RemoveAll(cachePath)
 }
 
@@ -425,7 +435,7 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 	var data []byte
 	if !noCache && c.tagsCache != nil {
 		if err := c.tagsCache.GetOCITags(c.repoURL, &data); err != nil && !errors.Is(err, cache.ErrCacheMiss) {
-			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoLock, err)
+			log.Warnf("Failed to load index cache for repo: %s: %s", c.repoURL, err)
 		}
 	}
 
@@ -448,7 +458,11 @@ func (c *nativeOCIClient) getTags(ctx context.Context, noCache bool) ([]string, 
 		).Info("took to get tags")
 
 		if c.tagsCache != nil {
-			if err := c.tagsCache.SetOCITags(c.repoURL, data); err != nil {
+			cacheData, err := json.Marshal(tags)
+			if err != nil {
+				return nil, fmt.Errorf("failed to encode tags: %w", err)
+			}
+			if err := c.tagsCache.SetOCITags(c.repoURL, cacheData); err != nil {
 				log.Warnf("Failed to store tags list cache for repo: %s: %s", c.repoURL, err)
 			}
 		}
@@ -696,7 +710,10 @@ func getOCIManifest(ctx context.Context, digest string, repo oras.ReadOnlyTarget
 	defer rc.Close()
 
 	manifest := imagev1.Manifest{}
-	decoder := json.NewDecoder(rc)
+	// Limit how much we read while decoding the manifest to protect against a
+	// malicious or misbehaving registry returning an arbitrarily large response,
+	// which would otherwise be buffered into memory and could exhaust the repo-server.
+	decoder := json.NewDecoder(io.LimitReader(rc, maxOCIManifestSize))
 	if err = decoder.Decode(&manifest); err != nil {
 		return nil, fmt.Errorf("error decoding oci manifest for digest %s: %w", digest, err)
 	}
