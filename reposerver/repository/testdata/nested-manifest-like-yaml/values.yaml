@@ -1,0 +1,12 @@
+# Helm values file that embeds Kubernetes-shaped YAML below the root.
+# It is not a manifest itself, so directory rendering should ignore it.
+e2e:
+  enabled: true
+extraManifests:
+  - apiVersion: iam.cnrm.cloud.google.com/v1beta1
+    kind: IAMPartialPolicy
+    metadata:
+      name: example
+    spec:
+      resourceRef:
+        kind: Project

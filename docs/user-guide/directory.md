@@ -190,6 +190,17 @@ spec:
 
 In some cases, repositories may contain YAML files that resemble Kubernetes manifests because they include fields like `apiVersion`, `kind`, and `metadata`, but are not intended to be rendered or applied as actual Kubernetes resources. Examples include Helm `values.yaml` files or configuration snippets used by CI/CD pipelines.
 
+Argo CD ignores YAML files that are not Kubernetes resources. A file is only treated as a broken manifest, and fails manifest generation, if it is not valid YAML and contains `apiVersion:`, `kind:` and `metadata:`, or if one of its documents has both `apiVersion` and `kind` at the root. Kubernetes-shaped YAML nested below the root, such as an `extraManifests` list in a Helm values file, does not cause an error:
+
+```yaml
+# Ignored: apiVersion and kind are not at the root of the document
+extraManifests:
+  - apiVersion: v1
+    kind: ConfigMap
+    metadata:
+      name: example
+```
+
 To prevent Argo CD from attempting to parse these files as manifests (which could result in errors), you can explicitly mark them to be skipped using a special comment directive:
 
 ```yaml
