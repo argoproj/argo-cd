@@ -20,7 +20,6 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
@@ -185,7 +184,7 @@ func serverSideDiff(ctx context.Context, config, live *unstructured.Unstructured
 	}
 
 	if o.ignoreMutationWebhook {
-		predictedLive, err = removeWebhookMutation(predictedLive, live, o.gvkParser, o.manager)
+		predictedLive, err = removeWebhookMutation(predictedLive, live, o.typeResolver, o.manager)
 		if err != nil {
 			return nil, fmt.Errorf("error removing non config mutations for resource %s/%s: %w", config.GetKind(), config.GetName(), err)
 		}
@@ -224,13 +223,19 @@ func serverSideDiff(ctx context.Context, config, live *unstructured.Unstructured
 // It is then merged with the live state and re-assigned to predictedLive. This means that any
 // fields not managed by the specified manager will be reverted with their state from live, including any webhook mutations.
 // If the given predictedLive does not have the managedFields, an error will be returned.
-func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkParser *managedfields.GvkParser, manager string) (*unstructured.Unstructured, error) {
+func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, typeResolver gescheme.TypeResolver, manager string) (*unstructured.Unstructured, error) {
 	plManagedFields := predictedLive.GetManagedFields()
 	if len(plManagedFields) == 0 {
 		return nil, fmt.Errorf("predictedLive for resource %s/%s must have the managedFields", predictedLive.GetKind(), predictedLive.GetName())
 	}
 	gvk := predictedLive.GetObjectKind().GroupVersionKind()
-	pt := gvkParser.Type(gvk)
+	if typeResolver == nil {
+		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind %s: no schema resolver", gvk)
+	}
+	pt, err := typeResolver.Type(gvk)
+	if err != nil {
+		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind %s: %w", gvk, err)
+	}
 	if pt == nil {
 		return nil, fmt.Errorf("unable to resolve parseableType for GroupVersionKind: %s", gvk)
 	}

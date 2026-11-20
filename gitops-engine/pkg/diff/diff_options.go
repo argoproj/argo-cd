@@ -5,9 +5,10 @@ import (
 
 	"github.com/go-logr/logr"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/textlogger"
 	cmdutil "k8s.io/kubectl/pkg/cmd/util"
+
+	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/scheme"
 )
 
 type Option func(*options)
@@ -19,7 +20,7 @@ type options struct {
 	normalizer            Normalizer
 	skipFullNormalize     bool
 	log                   logr.Logger
-	gvkParser             *managedfields.GvkParser
+	typeResolver          scheme.TypeResolver
 	manager               string
 	serverSideDiff        bool
 	serverSideDryRunner   ServerSideDryRunner
@@ -95,9 +96,11 @@ func WithLogr(log logr.Logger) Option {
 	}
 }
 
-func WithGVKParser(parser *managedfields.GvkParser) Option {
+// WithTypeResolver sets the resolver used to build typed values of live and predicted live
+// resources in server-side diffs.
+func WithTypeResolver(resolver scheme.TypeResolver) Option {
 	return func(o *options) {
-		o.gvkParser = parser
+		o.typeResolver = resolver
 	}
 }
 

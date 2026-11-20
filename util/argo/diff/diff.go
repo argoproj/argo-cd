@@ -8,8 +8,6 @@ import (
 	"github.com/go-logr/logr"
 	log "github.com/sirupsen/logrus"
 
-	k8smanagedfields "k8s.io/apimachinery/pkg/util/managedfields"
-
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/managedfields"
@@ -88,9 +86,9 @@ func (b *DiffConfigBuilder) WithLogger(l logr.Logger) *DiffConfigBuilder {
 	return b
 }
 
-// WithGVKParser sets the gvkParser in the diff config.
-func (b *DiffConfigBuilder) WithGVKParser(parser *k8smanagedfields.GvkParser) *DiffConfigBuilder {
-	b.diffConfig.gvkParser = parser
+// WithOpenAPISchemaResolver sets the resolver used to look up resource schemas.
+func (b *DiffConfigBuilder) WithOpenAPISchemaResolver(resolver kube.OpenAPISchemaResolver) *DiffConfigBuilder {
+	b.diffConfig.schemaResolver = resolver
 	return b
 }
 
@@ -151,9 +149,9 @@ type DiffConfig interface {
 	IgnoreAggregatedRoles() bool
 	// Logger used during the diff.
 	Logger() *logr.Logger
-	// GVKParser returns a parser able to build a TypedValue used in
-	// server-side diffs.
-	GVKParser() *k8smanagedfields.GvkParser
+	// OpenAPISchemaResolver returns the resolver used to look up resource
+	// schemas for server-side diffs and managed fields normalization.
+	OpenAPISchemaResolver() kube.OpenAPISchemaResolver
 	// Manager returns the manager that should be used by the diff while
 	// calculating the server-side diff.
 	Manager() string
@@ -177,7 +175,7 @@ type diffConfig struct {
 	cachedDiff            []*v1alpha1.ResourceDiff
 	ignoreAggregatedRoles bool
 	logger                *logr.Logger
-	gvkParser             *k8smanagedfields.GvkParser
+	schemaResolver        kube.OpenAPISchemaResolver
 	manager               string
 	serverSideDiff        bool
 	serverSideDryRunner   diff.ServerSideDryRunner
@@ -221,8 +219,8 @@ func (c *diffConfig) Logger() *logr.Logger {
 	return c.logger
 }
 
-func (c *diffConfig) GVKParser() *k8smanagedfields.GvkParser {
-	return c.gvkParser
+func (c *diffConfig) OpenAPISchemaResolver() kube.OpenAPISchemaResolver {
+	return c.schemaResolver
 }
 
 func (c *diffConfig) Manager() string {
@@ -311,7 +309,7 @@ func StateDiffs(ctx context.Context, lives, configs []*unstructured.Unstructured
 	diffOpts := []diff.Option{
 		diff.WithNormalizer(diffNormalizer),
 		diff.IgnoreAggregatedRoles(diffConfig.IgnoreAggregatedRoles()),
-		diff.WithGVKParser(diffConfig.GVKParser()),
+		diff.WithTypeResolver(diffConfig.OpenAPISchemaResolver()),
 		diff.WithManager(diffConfig.Manager()),
 		diff.WithServerSideDiff(diffConfig.ServerSideDiff()),
 		diff.WithServerSideDryRunner(diffConfig.ServerSideDryRunner()),
@@ -435,8 +433,10 @@ func preDiffNormalize(lives, targets []*unstructured.Unstructured, diffConfig Di
 			idc := NewIgnoreDiffConfig(diffConfig.Ignores(), diffConfig.Overrides())
 			ok, ignoreDiff := idc.HasIgnoreDifference(gvk.Group, gvk.Kind, target.GetName(), target.GetNamespace())
 			if ok && len(ignoreDiff.ManagedFieldsManagers) > 0 {
-				pt := scheme.ResolveParseableType(gvk, diffConfig.GVKParser())
-				var err error
+				pt, err := scheme.ResolveParseableType(gvk, diffConfig.OpenAPISchemaResolver())
+				if err != nil {
+					return nil, fmt.Errorf("error resolving schema of %s/%s: %w", target.GetKind(), target.GetName(), err)
+				}
 				live, target, err = managedfields.Normalize(live, target, ignoreDiff.ManagedFieldsManagers, pt)
 				if err != nil {
 					return nil, err

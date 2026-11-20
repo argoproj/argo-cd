@@ -24,10 +24,8 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/kubernetes/scheme"
 	"k8s.io/client-go/rest"
-	"k8s.io/kubectl/pkg/util/openapi"
 
 	"github.com/argoproj/argo-cd/v3/controller/metrics"
 	"github.com/argoproj/argo-cd/v3/controller/syncid"
@@ -47,20 +45,14 @@ const (
 	EnvVarSyncWaveDelay = "ARGOCD_SYNC_WAVE_DELAY"
 )
 
-func (m *appStateManager) getOpenAPISchema(server *v1alpha1.Cluster) (openapi.Resources, error) {
+// getOpenAPISchemaResolver returns a new resolver that fetches the OpenAPI schemas of the given
+// cluster on demand. Use one per operation.
+func (m *appStateManager) getOpenAPISchemaResolver(server *v1alpha1.Cluster) (kube.OpenAPISchemaResolver, error) {
 	cluster, err := m.liveStateCache.GetClusterCache(server)
 	if err != nil {
 		return nil, err
 	}
-	return cluster.GetOpenAPISchema(), nil
-}
-
-func (m *appStateManager) getGVKParser(server *v1alpha1.Cluster) (*managedfields.GvkParser, error) {
-	cluster, err := m.liveStateCache.GetClusterCache(server)
-	if err != nil {
-		return nil, err
-	}
-	return cluster.GetGVKParser(), nil
+	return cluster.NewOpenAPISchemaResolver(), nil
 }
 
 // getServerSideDiffDryRunApplier will return the kubectl implementation of the KubeApplier
@@ -308,14 +300,18 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 	// resources which in this case applies the live values in the configured
 	// ignore differences fields.
 	if syncOp.SyncOptions.HasOption("RespectIgnoreDifferences=true") {
-		openAPISchema, err := m.getOpenAPISchema(destCluster)
-		if err != nil {
-			state.Phase = common.OperationError
-			state.Message = fmt.Sprintf("failed to load openAPISchema: %v", err)
-			return
+		// Reuse the comparison's resolver so schemas it already fetched aren't fetched again.
+		schemaResolver := compareResult.diffConfig.OpenAPISchemaResolver()
+		if schemaResolver == nil {
+			schemaResolver, err = m.getOpenAPISchemaResolver(destCluster)
+			if err != nil {
+				state.Phase = common.OperationError
+				state.Message = fmt.Sprintf("failed to get OpenAPI schema resolver: %v", err)
+				return
+			}
 		}
 
-		patchedTargets, err := normalizeTargetResources(openAPISchema, compareResult)
+		patchedTargets, err := normalizeTargetResources(schemaResolver, compareResult)
 		if err != nil {
 			state.Phase = common.OperationError
 			state.Message = fmt.Sprintf("Failed to normalize target resources: %s", err)
@@ -496,7 +492,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 //   - applies normalization to the target resources based on the live resources
 //   - copies ignored fields from the matching live resources: apply normalizer to the live resource,
 //     calculates the patch performed by normalizer and applies the patch to the target resource
-func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonResult) ([]*unstructured.Unstructured, error) {
+func normalizeTargetResources(schemaResolver kube.OpenAPISchemaResolver, cr *comparisonResult) ([]*unstructured.Unstructured, error) {
 	// Normalize live and target resources (cleaning or aligning them)
 	normalized, err := diff.Normalize(cr.reconciliationResult.Live, cr.reconciliationResult.Target, cr.diffConfig)
 	if err != nil {
@@ -530,8 +526,10 @@ func normalizeTargetResources(openAPISchema openapi.Resources, cr *comparisonRes
 			if lookupPatchMeta, err = strategicpatch.NewPatchMetaFromStruct(versionedObject); err != nil {
 				return nil, err
 			}
-		} else if crdSchema := openAPISchema.LookupResource(gvk); crdSchema != nil {
-			lookupPatchMeta = strategicpatch.NewPatchMetaFromOpenAPI(crdSchema)
+		} else if schemaResolver != nil {
+			if lookupPatchMeta, err = schemaResolver.LookupPatchMeta(gvk); err != nil {
+				return nil, fmt.Errorf("failed to get patch metadata of %s/%s: %w", gvk.Kind, live.GetName(), err)
+			}
 		}
 
 		// RespectIgnoreDifferences preserves ignored fields by copying their live

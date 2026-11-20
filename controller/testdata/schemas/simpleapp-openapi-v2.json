@@ -1,0 +1,220 @@
+{
+ "definitions": {
+  "com.example.v1.SimpleApp": {
+   "properties": {
+    "apiVersion": {
+     "type": "string"
+    },
+    "kind": {
+     "type": "string"
+    },
+    "metadata": {
+     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta"
+    },
+    "spec": {
+     "properties": {
+      "config": {
+       "x-kubernetes-preserve-unknown-fields": true
+      },
+      "labels": {
+       "additionalProperties": {
+        "type": "string"
+       },
+       "type": "object"
+      },
+      "replicas": {
+       "type": "integer"
+      },
+      "servers": {
+       "items": {
+        "properties": {
+         "enabled": {
+          "type": "boolean"
+         },
+         "name": {
+          "type": "string"
+         },
+         "port": {
+          "type": "integer"
+         }
+        },
+        "required": [
+         "name"
+        ],
+        "type": "object"
+       },
+       "type": "array",
+       "x-kubernetes-list-map-keys": [
+        "name"
+       ],
+       "x-kubernetes-list-type": "map"
+      },
+      "tags": {
+       "items": {
+        "type": "string"
+       },
+       "type": "array"
+      }
+     },
+     "type": "object"
+    },
+    "status": {
+     "x-kubernetes-preserve-unknown-fields": true
+    }
+   },
+   "type": "object",
+   "x-kubernetes-group-version-kind": [
+    {
+     "group": "example.com",
+     "kind": "SimpleApp",
+     "version": "v1"
+    }
+   ]
+  },
+  "io.k8s.apimachinery.pkg.apis.meta.v1.FieldsV1": {
+   "type": "object"
+  },
+  "io.k8s.apimachinery.pkg.apis.meta.v1.ManagedFieldsEntry": {
+   "properties": {
+    "apiVersion": {
+     "type": "string"
+    },
+    "fieldsType": {
+     "type": "string"
+    },
+    "fieldsV1": {
+     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.FieldsV1"
+    },
+    "manager": {
+     "type": "string"
+    },
+    "operation": {
+     "type": "string"
+    },
+    "subresource": {
+     "type": "string"
+    },
+    "time": {
+     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+    }
+   },
+   "type": "object"
+  },
+  "io.k8s.apimachinery.pkg.apis.meta.v1.ObjectMeta": {
+   "properties": {
+    "annotations": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "type": "object"
+    },
+    "creationTimestamp": {
+     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+    },
+    "deletionGracePeriodSeconds": {
+     "format": "int64",
+     "type": "integer"
+    },
+    "deletionTimestamp": {
+     "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.Time"
+    },
+    "finalizers": {
+     "items": {
+      "type": "string"
+     },
+     "type": "array",
+     "x-kubernetes-list-type": "set",
+     "x-kubernetes-patch-strategy": "merge"
+    },
+    "generateName": {
+     "type": "string"
+    },
+    "generation": {
+     "format": "int64",
+     "type": "integer"
+    },
+    "labels": {
+     "additionalProperties": {
+      "type": "string"
+     },
+     "type": "object"
+    },
+    "managedFields": {
+     "items": {
+      "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.ManagedFieldsEntry"
+     },
+     "type": "array",
+     "x-kubernetes-list-type": "atomic"
+    },
+    "name": {
+     "type": "string"
+    },
+    "namespace": {
+     "type": "string"
+    },
+    "ownerReferences": {
+     "items": {
+      "$ref": "#/definitions/io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference"
+     },
+     "type": "array",
+     "x-kubernetes-list-map-keys": [
+      "uid"
+     ],
+     "x-kubernetes-list-type": "map",
+     "x-kubernetes-patch-merge-key": "uid",
+     "x-kubernetes-patch-strategy": "merge"
+    },
+    "resourceVersion": {
+     "type": "string"
+    },
+    "selfLink": {
+     "type": "string"
+    },
+    "uid": {
+     "type": "string"
+    }
+   },
+   "type": "object"
+  },
+  "io.k8s.apimachinery.pkg.apis.meta.v1.OwnerReference": {
+   "properties": {
+    "apiVersion": {
+     "type": "string"
+    },
+    "blockOwnerDeletion": {
+     "type": "boolean"
+    },
+    "controller": {
+     "type": "boolean"
+    },
+    "kind": {
+     "type": "string"
+    },
+    "name": {
+     "type": "string"
+    },
+    "uid": {
+     "type": "string"
+    }
+   },
+   "required": [
+    "apiVersion",
+    "kind",
+    "name",
+    "uid"
+   ],
+   "type": "object",
+   "x-kubernetes-map-type": "atomic"
+  },
+  "io.k8s.apimachinery.pkg.apis.meta.v1.Time": {
+   "format": "date-time",
+   "type": "string"
+  }
+ },
+ "info": {
+  "title": "Kubernetes",
+  "version": "1.34"
+ },
+ "paths": {},
+ "swagger": "2.0"
+}
