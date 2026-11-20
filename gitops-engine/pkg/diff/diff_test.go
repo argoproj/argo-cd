@@ -21,10 +21,12 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/klog/v2/textlogger"
 	openapiproto "k8s.io/kube-openapi/pkg/util/proto"
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
+	"sigs.k8s.io/structured-merge-diff/v6/typed"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff/mocks"
@@ -200,7 +202,7 @@ func TestDiffServerSideApplyAnnotation(t *testing.T) {
 		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), "argocd-controller").
 			Return(testdata.ServicePredictedLiveJSONSSD, nil)
 		opts := []Option{
-			WithGVKParser(buildGVKParser(t)),
+			WithTypeResolver(buildTypeResolver(t)),
 			WithManager("argocd-controller"),
 			WithServerSideDryRunner(dryRunner),
 		}
@@ -847,7 +849,16 @@ func TestUnsortedEndpoints(t *testing.T) {
 	}
 }
 
-func buildGVKParser(t *testing.T) *managedfields.GvkParser {
+// gvkParserTypeResolver adapts a GvkParser to a scheme.TypeResolver.
+type gvkParserTypeResolver struct {
+	parser *managedfields.GvkParser
+}
+
+func (r gvkParserTypeResolver) Type(gvk schema.GroupVersionKind) (*typed.ParseableType, error) {
+	return r.parser.Type(gvk), nil
+}
+
+func buildTypeResolver(t *testing.T) gvkParserTypeResolver {
 	t.Helper()
 	document := &openapi_v2.Document{}
 	require.NoErrorf(t, proto.Unmarshal(testdata.OpenAPIV2Doc, document), "error unmarshaling openapi doc")
@@ -856,19 +867,19 @@ func buildGVKParser(t *testing.T) *managedfields.GvkParser {
 
 	gvkParser, err := managedfields.NewGVKParser(models, false)
 	require.NoErrorf(t, err, "error building gvkParser: %s", err)
-	return gvkParser
+	return gvkParserTypeResolver{parser: gvkParser}
 }
 
 func TestServerSideDiff(t *testing.T) {
 	buildOpts := func(predictedLive string) []Option {
-		gvkParser := buildGVKParser(t)
+		typeResolver := buildTypeResolver(t)
 		manager := "argocd-controller"
 		dryRunner := mocks.NewServerSideDryRunner(t)
 
 		dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
 			Return(predictedLive, nil)
 		opts := []Option{
-			WithGVKParser(gvkParser),
+			WithTypeResolver(typeResolver),
 			WithManager(manager),
 			WithServerSideDryRunner(dryRunner),
 		}
@@ -1551,7 +1562,7 @@ const preserveUnknownFieldsWidgetSwagger = `{
   }
 }`
 
-func buildPreserveUnknownFieldsGVKParser(t *testing.T) *managedfields.GvkParser {
+func buildPreserveUnknownFieldsTypeResolver(t *testing.T) gvkParserTypeResolver {
 	t.Helper()
 	doc, err := openapi_v2.ParseDocument([]byte(preserveUnknownFieldsWidgetSwagger))
 	require.NoError(t, err, "error parsing widget swagger")
@@ -1559,7 +1570,7 @@ func buildPreserveUnknownFieldsGVKParser(t *testing.T) *managedfields.GvkParser 
 	require.NoErrorf(t, err, "error building openapi data: %s", err)
 	gvkParser, err := managedfields.NewGVKParser(models, false)
 	require.NoErrorf(t, err, "error building gvkParser: %s", err)
-	return gvkParser
+	return gvkParserTypeResolver{parser: gvkParser}
 }
 
 // TestServerSideDiffPreservesManagerOwnedFieldUnderWebhookMutation drives the
@@ -1572,7 +1583,7 @@ func buildPreserveUnknownFieldsGVKParser(t *testing.T) *managedfields.GvkParser 
 // against a refactor of removeWebhookMutation silently reintroducing the bug.
 func TestServerSideDiffPreservesManagerOwnedFieldUnderWebhookMutation(t *testing.T) {
 	manager := "argocd-controller"
-	gvkParser := buildPreserveUnknownFieldsGVKParser(t)
+	typeResolver := buildPreserveUnknownFieldsTypeResolver(t)
 
 	live := StrToUnstructured(`
 apiVersion: example.com/v1
@@ -1617,7 +1628,7 @@ spec:
 		Return(predictedLive, nil)
 
 	opts := []Option{
-		WithGVKParser(gvkParser),
+		WithTypeResolver(typeResolver),
 		WithManager(manager),
 		WithServerSideDryRunner(dryRunner),
 	}
@@ -1693,7 +1704,7 @@ spec:
 	dryRunner.EXPECT().Run(mock.Anything, mock.AnythingOfType("*unstructured.Unstructured"), manager).
 		Return(predictedLive, nil)
 	opts := []Option{
-		WithGVKParser(buildPreserveUnknownFieldsGVKParser(t)),
+		WithTypeResolver(buildPreserveUnknownFieldsTypeResolver(t)),
 		WithManager(manager),
 		WithServerSideDryRunner(dryRunner),
 	}
