@@ -31,6 +31,20 @@
        "replicas": {
         "type": "integer"
        },
+       "routes": {
+        "additionalProperties": {
+         "properties": {
+          "host": {
+           "type": "string"
+          },
+          "weight": {
+           "type": "integer"
+          }
+         },
+         "type": "object"
+        },
+        "type": "object"
+       },
        "servers": {
         "items": {
          "properties": {

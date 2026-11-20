@@ -994,7 +994,8 @@ metadata:
 spec:
   replicas: 3
   labels: {tier: live}
-  config: {nested: {value: live}, other: live}
+  config: {nested: {value: live}, other: live, deep: {managed: live, kept: x, list: [{a: live, b: x}]}}
+  routes: {r1: {host: live-host, weight: 1}}
   servers:
   - {name: a, port: 80, enabled: true}
   - {name: b, port: 81, enabled: false}
@@ -1013,7 +1014,8 @@ metadata:
 spec:
   replicas: 1
   labels: {tier: target}
-  config: {nested: {value: target}, other: target}
+  config: {nested: {value: target}, other: target, deep: {managed: target, kept: x, list: [{a: target, b: x}]}}
+  routes: {r1: {host: target-host, weight: 2}}
   servers:
   - {name: a, port: 8080, enabled: false}
   - {name: b, port: 8081, enabled: true}
@@ -1090,7 +1092,11 @@ func TestNormalizeTargetResourcesCRDSchema(t *testing.T) {
 			t.Helper()
 			config, _, err := unstructured.NestedMap(patched.Object, "spec", "config")
 			require.NoError(t, err)
-			assert.Equal(t, map[string]any{"nested": map[string]any{"value": "live"}, "other": "target"}, config)
+			assert.Equal(t, map[string]any{
+				"nested": map[string]any{"value": "live"},
+				"other":  "target",
+				"deep":   map[string]any{"managed": "target", "kept": "x", "list": []any{map[string]any{"a": "target", "b": "x"}}},
+			}, config)
 			labels, _, err := unstructured.NestedStringMap(patched.Object, "spec", "labels")
 			require.NoError(t, err)
 			assert.Equal(t, map[string]string{"tier": "live"}, labels)
@@ -1103,6 +1109,16 @@ func TestNormalizeTargetResourcesCRDSchema(t *testing.T) {
 			_, found, err := unstructured.NestedMap(patched.Object, "status")
 			require.NoError(t, err)
 			assert.False(t, found)
+		},
+	}, {
+		// Patches nested maps and lists of a preserve-unknown field that exist on both sides.
+		name:   "preserve unknown fields nested values",
+		ignore: v1alpha1.ResourceIgnoreDifferences{JSONPointers: []string{"/spec/config/deep/managed", "/spec/config/deep/list/0/a"}},
+		asserts: func(t *testing.T, patched *unstructured.Unstructured) {
+			t.Helper()
+			deep, _, err := unstructured.NestedMap(patched.Object, "spec", "config", "deep")
+			require.NoError(t, err)
+			assert.Equal(t, map[string]any{"managed": "live", "kept": "x", "list": []any{map[string]any{"a": "live", "b": "x"}}}, deep)
 		},
 	}}
 	for _, c := range cases {
@@ -1118,6 +1134,14 @@ func TestNormalizeTargetResourcesCRDSchema(t *testing.T) {
 			assert.Equal(t, results["v2"].Object, results["v3"].Object)
 		})
 	}
+
+	// The v2 resolver can't traverse additionalProperties schemas.
+	t.Run("map of objects", func(t *testing.T) {
+		patched := normalize(t, resolvers["v3"], []v1alpha1.ResourceIgnoreDifferences{{Group: "example.com", Kind: "SimpleApp", JSONPointers: []string{"/spec/routes/r1/weight"}}})
+		routes, _, err := unstructured.NestedMap(patched.Object, "spec", "routes")
+		require.NoError(t, err)
+		assert.Equal(t, map[string]any{"r1": map[string]any{"host": "target-host", "weight": int64(1)}}, routes)
+	})
 
 	t.Run("schema fetch failure fails normalization", func(t *testing.T) {
 		dc, err := diff.NewDiffConfigBuilder().
