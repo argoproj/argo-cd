@@ -50,7 +50,7 @@ function azureDevOpsRepoUrl(parsed: GitUrl, url: string): string | null {
             }
 
             const scope = segments.slice(0, gitIndex);
-            if (scope[0] === 'DefaultCollection') {
+            if (scope[0]?.toLowerCase() === 'defaultcollection') {
                 scope.shift();
             }
             if (scope.length > 2) {

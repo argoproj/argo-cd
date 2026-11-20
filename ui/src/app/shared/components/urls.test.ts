@@ -236,6 +236,7 @@ test('Azure DevOps legacy HTTPS project and team paths', () => {
         ['https://example.visualstudio.com/Project/_git/Repo', 'https://dev.azure.com/example/Project/_git/Repo'],
         ['https://example.visualstudio.com/Project/Team/_git/Repo', 'https://dev.azure.com/example/Project/_git/Repo'],
         ['https://example.visualstudio.com/DefaultCollection/Project/_git/Repo', 'https://dev.azure.com/example/Project/_git/Repo'],
+        ['https://example.visualstudio.com/defaultcollection/Project/_git/Repo', 'https://dev.azure.com/example/Project/_git/Repo'],
         ['https://example.visualstudio.com/DefaultCollection/Project/Team/_git/Repo', 'https://dev.azure.com/example/Project/_git/Repo']
     ];
 
