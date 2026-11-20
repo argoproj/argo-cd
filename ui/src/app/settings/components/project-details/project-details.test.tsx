@@ -59,7 +59,8 @@ describe('ProjectDetails', () => {
 
         expect(screen.getByText('Loading...')).toBeInTheDocument();
         expect(await screen.findByText('my description')).toBeInTheDocument();
-        expect(await screen.findByRole('link', {name: '3'})).toHaveAttribute('href', '/applications?proj=my-proj');
+        const link = await screen.findByRole('link', {name: '3'});
+        expect(new URL(link.getAttribute('href'), 'http://localhost').searchParams.get('q')).toBe('project = "my-proj"');
         expect(services.projects.getDetailed).toHaveBeenCalledWith('my-proj');
         expect(services.applications.list).toHaveBeenCalledWith(['my-proj'], 'application');
     });

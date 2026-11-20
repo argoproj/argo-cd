@@ -1,6 +1,7 @@
 import {Application} from '../../../shared/models';
 import {AppsListPreferences} from '../../../shared/services';
-import {AppsListFacets, AppsListStats} from './applications-list-stats';
+import {AppsListStats} from './applications-list-stats';
+import {ApplicationQueryValueIndex} from './applications-query-completion';
 
 // Contract between the applications list and the hook that loads it (see applications-list-client.tsx,
 // which also provides the paginator for the rows).
@@ -20,12 +21,11 @@ export interface AppsListSourceResult {
     retry: () => void;
     /** The applications matching the filters and search, in the order to render them. */
     rows: Application[];
-    facets: AppsListFacets;
     stats: AppsListStats;
+    /** Completion values from all authorized applications, before query filtering. */
+    queryValues: ApplicationQueryValueIndex;
     /** The user has no applications at all, as opposed to none matching their filters. */
     noApplications: boolean;
-    /** Applications offered by the search bar's autocomplete. */
-    searchSuggestions: Application[];
     /** Marks an application as refreshing until its next update arrives. */
     markRefreshing: (appName: string, appNamespace: string) => void;
 }

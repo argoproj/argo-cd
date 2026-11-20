@@ -1,19 +1,18 @@
 import {ErrorNotification, MockupList, NotificationType, SlidingPanel, Tooltip} from 'argo-ui';
 import * as React from 'react';
-import * as ReactDOM from 'react-dom';
 import {KeybindingProvider} from 'argo-ui/v2';
 import {RouteComponentProps} from 'react-router';
 import {from} from 'rxjs';
 import {mergeMap} from 'rxjs/operators';
-import {ClusterCtx, DataLoader, EmptyState, Page, SearchBar, Spinner, useRefreshClusterList} from '../../../shared/components';
+import {ClusterCtx, DataLoader, EmptyState, Page, Spinner, useRefreshClusterList} from '../../../shared/components';
 import {lazyWithBoundary} from '../../../shared/components/lazy-with-boundary';
-import {AuthSettingsCtx, Consumer, ContextApis} from '../../../shared/context';
-import * as models from '../../../shared/models';
+import {AuthSettingsCtx, Consumer} from '../../../shared/context';
 import {AppsListPreferences, AppsListViewKey, AppsListViewType, HealthStatusBarPreferences, services} from '../../../shared/services';
 import {ApplicationSyncPanel} from '../application-sync-panel/application-sync-panel';
 import {ApplicationsSyncPanel} from '../applications-sync-panel/applications-sync-panel';
 import * as AppUtils from '../utils';
-import {AppFilterProps, ApplicationsFilter} from './applications-filter';
+import {ApplicationsQueryBar} from './applications-query-bar';
+import {applicationQueryParams} from './applications-query-url';
 import {AppsListPaginate, useApplicationsList} from './applications-list-client';
 import {AppsListSourceQuery, AppsListSourceResult} from './applications-list-source';
 import {AppsStatusBar} from './applications-status-bar';
@@ -22,10 +21,8 @@ import {ApplicationTiles} from './applications-tiles';
 import {ApplicationsRefreshPanel} from '../applications-refresh-panel/applications-refresh-panel';
 import {FlexTopBar} from '../../../shared/components';
 import {ViewTypeSwitcher} from './view-type-switcher';
-import {useSidebarTarget} from '../../../sidebar/sidebar';
 import {useLocationSearch, useSearchParams, useObservableQuery} from '../../../shared/hooks/query';
 import {useViewPreferences} from '../../../shared/hooks/use-view-preferences';
-import {isInvalidRegex} from '../../../shared/utils';
 import {loadFailed} from '../../../shared/query-client';
 
 import './applications-list.scss';
@@ -39,101 +36,16 @@ const ApplicationsSummary = lazyWithBoundary(
     'Failed to load applications summary. Please reload and try again.'
 );
 
-// Reads the sidebar flag itself, so toggling the sidebar re-renders only the filter.
-const SidebarFilter = (props: AppFilterProps) => <ApplicationsFilter {...props} collapsed={useViewPreferences(pref => pref.hideSidebar)} />;
-
 const ViewPref = ({children}: {children: (pref: AppsListPreferences & {page: number; search: string}) => React.ReactNode}) => {
     const appList = useViewPreferences(pref => pref.appList);
     const search = useLocationSearch();
     const pref = React.useMemo(() => {
         const params = new URLSearchParams(search);
-        const viewPref: AppsListPreferences = {...appList};
-        if (params.get('proj') != null) {
-            viewPref.projectsFilter = params
-                .get('proj')
-                .split(',')
-                .filter(item => !!item);
-        }
-        if (params.get('sync') != null) {
-            viewPref.syncFilter = params
-                .get('sync')
-                .split(',')
-                .filter(item => !!item);
-        }
-        if (params.get('autoSync') != null) {
-            viewPref.autoSyncFilter = params
-                .get('autoSync')
-                .split(',')
-                .filter(item => !!item);
-        }
-        if (params.get('operation') != null) {
-            viewPref.operationFilter = params
-                .get('operation')
-                .split(',')
-                .filter(item => !!item);
-        }
-        if (params.get('cluster') != null) {
-            viewPref.clustersFilter = params
-                .get('cluster')
-                .split(',')
-                .filter(item => !!item);
-        }
-        if (params.get('showFavorites') != null) {
-            viewPref.showFavorites = params.get('showFavorites') === 'true';
-        }
-        if (params.get('view') != null) {
-            viewPref.view = params.get('view') as AppsListViewType;
-        }
-        if (params.get('labels') != null) {
-            viewPref.labelsFilter = params
-                .get('labels')
-                .split(',')
-                .map(decodeURIComponent)
-                .filter(item => !!item);
-        }
-        if (params.get('health') != null) {
-            viewPref.healthFilter = params
-                .get('health')
-                .split(',')
-                .filter(item => !!item);
-        }
-        if (params.get('hydration') != null) {
-            viewPref.hydrationFilter = params
-                .get('hydration')
-                .split(',')
-                .filter(item => !!item);
-        }
-        if (params.get('namespace') != null) {
-            viewPref.namespacesFilter = params
-                .get('namespace')
-                .split(',')
-                .filter(item => !!item);
-        }
-        if (params.get('targetRevision') != null) {
-            viewPref.targetRevisionFilter = params
-                .get('targetRevision')
-                .split(',')
-                .map(decodeURIComponent)
-                .filter(item => !!item);
-        }
-        if (params.get('annotations') != null) {
-            viewPref.annotationsFilter = params
-                .get('annotations')
-                .split(',')
-                .map(decodeURIComponent)
-                .filter(item => !!item);
-        }
-        if (params.get('repo') != null) {
-            viewPref.reposFilter = params
-                .get('repo')
-                .split(',')
-                .map(decodeURIComponent)
-                .filter(item => !!item);
-        }
         return {
-            ...viewPref,
+            ...appList,
+            view: (params.get('view') || appList.view) as AppsListViewType,
             page: parseInt(params.get('page') || '0', 10),
-            search: params.get('search') || ''
+            search: params.get('q') ?? params.get('search') ?? ''
         };
     }, [appList, search]);
     return <>{children(pref)}</>;
@@ -152,76 +64,14 @@ function tryJsonParse(input: string) {
     }
 }
 
-const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean; ctx: ContextApis; apps: models.Application[]}) => {
-    const {content, searchRegex, ctx, apps} = props;
-    const useAuthSettingsCtx = React.useContext(AuthSettingsCtx);
-
-    const query = new URLSearchParams(window.location.search);
-    const appInput = tryJsonParse(query.get('new'));
-
-    return (
-        <SearchBar
-            value={content || ''}
-            onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
-            placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
-            disableKeyboardShortcuts={!!appInput}
-            regexEnabled={searchRegex}
-            autocomplete={{
-                items: apps.map(app => AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled)),
-                filterSuggestions: true,
-                onSelect: val => {
-                    const selectedApp = apps?.find(app => {
-                        const qualifiedName = AppUtils.appQualifiedName(app, useAuthSettingsCtx?.appsInAnyNamespaceEnabled);
-                        return qualifiedName === val;
-                    });
-                    if (selectedApp) {
-                        ctx.navigation.goto(`/${AppUtils.getAppUrl(selectedApp)}`);
-                    }
-                },
-                renderItem: item => (
-                    <React.Fragment>
-                        <i className='icon argo-icon-application' style={{flexShrink: 0}} />
-                        <span title={item.label} style={{overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap'}}>
-                            {item.label}
-                        </span>
-                    </React.Fragment>
-                )
-            }}
-        />
-    );
-};
-
 interface ApplicationsToolbarProps {
-    applications: models.Application[];
-    pref: AppsListPreferences & {page: number; search: string};
-    ctx: ContextApis;
+    pref: AppsListPreferences;
     healthBarPrefs: HealthStatusBarPreferences;
 }
 
-const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({applications, pref, ctx, healthBarPrefs}) => {
-    const regexInvalid = pref.searchRegex && isInvalidRegex(pref.search);
-
-    const regexToggleClass = `applications-list__regex-toggle argo-button argo-button--base${pref.searchRegex ? '' : '-o'}${
-        regexInvalid ? ' applications-list__regex-toggle--invalid' : ''
-    }`;
-
+const ApplicationsToolbar: React.FC<ApplicationsToolbarProps> = ({pref, healthBarPrefs}) => {
     return (
         <div className='applications-list__toolbar-controls' key='app-list-tools'>
-            <ApplicationsListSearchBar content={pref.search} searchRegex={pref.searchRegex} apps={applications} ctx={ctx} />
-            <Tooltip content={pref.searchRegex ? (regexInvalid ? 'Invalid regex pattern' : 'Regex search enabled, click to switch to plain text') : 'Click to enable regex search'}>
-                <button
-                    type='button'
-                    aria-label='Toggle regex search'
-                    aria-pressed={pref.searchRegex}
-                    className={regexToggleClass}
-                    onClick={() => {
-                        services.viewPreferences.updatePreferences({
-                            appList: {...pref, searchRegex: !pref.searchRegex}
-                        });
-                    }}>
-                    .*
-                </button>
-            </Tooltip>
             <Tooltip content='Toggle Health Status Bar'>
                 <button
                     className={`applications-list__accordion argo-button argo-button--base${healthBarPrefs.showHealthStatusBar ? '-o' : ''}`}
@@ -257,30 +107,6 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const {List, Summary, Tiles} = AppsListViewKey;
     const authSettings = React.useContext(AuthSettingsCtx);
 
-    function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
-        services.viewPreferences.updatePreferences({appList: newPref});
-        const params = {
-            proj: newPref.projectsFilter.join(','),
-            sync: newPref.syncFilter.join(','),
-            autoSync: newPref.autoSyncFilter.join(','),
-            health: newPref.healthFilter.join(','),
-            hydration: newPref.hydrationFilter.join(','),
-            namespace: newPref.namespacesFilter.join(','),
-            targetRevision: newPref.targetRevisionFilter.map(encodeURIComponent).join(','),
-            repo: newPref.reposFilter.map(encodeURIComponent).join(','),
-            cluster: newPref.clustersFilter.join(','),
-            labels: newPref.labelsFilter.map(encodeURIComponent).join(','),
-            annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
-            operation: newPref.operationFilter.join(','),
-            // Keep URL and preferences consistent. When false, remove the param entirely.
-            showFavorites: newPref.showFavorites ? 'true' : null
-        };
-        // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
-        // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
-        // once the cap is hit, so only navigate when the query string actually changes.
-        ctx.navigation.goto('.', params, {replace: true, skipIfUnchanged: true});
-    }
-
     function getPageTitle(view: string) {
         switch (view) {
             case List:
@@ -292,8 +118,6 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
         }
         return '';
     }
-
-    const sidebarTarget = useSidebarTarget();
 
     return (
         <ClusterCtx.Provider value={true}>
@@ -314,7 +138,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                             }
                                         ]
                                     }}>
-                                    <AppsListData pref={pref} appNamespace={query.get('appNamespace')} hydratorEnabled={authSettings?.hydratorEnabled}>
+                                    <AppsListData pref={pref} appNamespace='' hydratorEnabled={authSettings?.hydratorEnabled}>
                                         {list => {
                                             if (list.loading) {
                                                 return (
@@ -342,16 +166,14 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                 }
                                             };
 
-                                            const {rows: filteredApps, facets, stats} = list;
+                                            const {rows: filteredApps, stats} = list;
 
                                             return (
                                                 <React.Fragment>
                                                     <FlexTopBar
                                                         key={`toolbar-${healthBarPrefs.showHealthStatusBar}-${pref.view}`}
                                                         toolbar={{
-                                                            tools: (
-                                                                <ApplicationsToolbar applications={list.searchSuggestions} pref={pref} ctx={ctx} healthBarPrefs={healthBarPrefs} />
-                                                            ),
+                                                            tools: <ApplicationsToolbar pref={pref} healthBarPrefs={healthBarPrefs} />,
                                                             options: <ViewTypeSwitcher pref={pref} ctx={ctx} />,
                                                             actionMenu: {
                                                                 items: [
@@ -376,6 +198,12 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                         }}
                                                     />
                                                     <div className='applications-list'>
+                                                        <ApplicationsQueryBar
+                                                            value={pref.search}
+                                                            total={stats.total}
+                                                            values={list.queryValues}
+                                                            onSearch={value => ctx.navigation.goto('.', applicationQueryParams(value))}
+                                                        />
                                                         {list.noApplications ? (
                                                             <EmptyState icon='argo-icon-application'>
                                                                 <h4>No applications available to you just yet</h4>
@@ -389,16 +217,6 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                             </EmptyState>
                                                         ) : (
                                                             <>
-                                                                {ReactDOM.createPortal(
-                                                                    <SidebarFilter
-                                                                        facets={facets}
-                                                                        onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
-                                                                        pref={pref}
-                                                                        hydratorEnabled={authSettings?.hydratorEnabled}
-                                                                    />,
-                                                                    sidebarTarget?.current
-                                                                )}
-
                                                                 {(pref.view === 'summary' && <ApplicationsSummary stats={stats} />) || (
                                                                     <AppsListPaginate
                                                                         list={list}
@@ -410,16 +228,8 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                             <EmptyState icon='fa fa-search'>
                                                                                 <h4>No matching applications found</h4>
                                                                                 <h5>
-                                                                                    Change filter criteria or&nbsp;
-                                                                                    <a
-                                                                                        onClick={() => {
-                                                                                            // On a copy: pref is memoized and shared with this render's children.
-                                                                                            const cleared = {...pref};
-                                                                                            AppsListPreferences.clearFilters(cleared);
-                                                                                            onAppFilterPrefChanged(ctx, cleared);
-                                                                                        }}>
-                                                                                        clear filters
-                                                                                    </a>
+                                                                                    Change the query or{' '}
+                                                                                    <a onClick={() => ctx.navigation.goto('.', applicationQueryParams(''))}>clear the search</a>
                                                                                 </h5>
                                                                             </EmptyState>
                                                                         )}

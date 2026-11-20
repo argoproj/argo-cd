@@ -58,16 +58,14 @@ beforeEach(() => {
 });
 
 test('loads the list and filters it on the client', async () => {
-    const result = setup({pref: pref({healthFilter: ['Healthy']}), appNamespace: '', hydratorEnabled: false});
+    const result = setup({pref: pref({search: 'health = Healthy'}), appNamespace: '', hydratorEnabled: false});
     expect(result.current.loading).toBe(true);
 
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.rows.map(row => row.metadata.name)).toEqual(['a']);
     expect(result.current.stats.total).toBe(1);
-    // The health group ignores its own filter.
-    expect(result.current.facets.totalByHealthStatus).toEqual({Healthy: 1, Degraded: 1});
-    expect(result.current.searchSuggestions).toHaveLength(2);
     expect(result.current.noApplications).toBe(false);
+    expect(result.current.queryValues.name).toEqual(['a', 'b']);
 });
 
 test('applies watch events from the version the list was read at', async () => {
@@ -83,6 +81,7 @@ test('applies watch events from the version the list was read at', async () => {
 
     await waitFor(() => expect(result.current.rows.map(row => row.metadata.name)).toEqual(['c', 'b']));
     expect(result.current.stats.totalByHealthStatus).toEqual({Healthy: 2});
+    expect(result.current.queryValues.name).toEqual(['b', 'c']);
 });
 
 test('ignores watch events from other namespaces when the list is scoped to one', async () => {
@@ -99,13 +98,30 @@ test('ignores watch events from other namespaces when the list is scoped to one'
     await waitFor(() => expect(result.current.rows.map(row => row.metadata.name)).toEqual(['d', 'a', 'b']));
 });
 
-test('neither lists nor watches when favorites only is on without favorites', async () => {
-    const result = setup({pref: pref({showFavorites: true, favoritesAppList: []}), appNamespace: '', hydratorEnabled: false});
+test('favorite query with no favorites matches nothing without hiding other OR alternatives', async () => {
+    const result = setup({pref: pref({search: 'favorite = true', favoritesAppList: []}), appNamespace: '', hydratorEnabled: false});
     await waitFor(() => expect(result.current.loading).toBe(false));
     expect(result.current.rows).toEqual([]);
     expect(result.current.noApplications).toBe(false);
-    expect(services.applications.list).not.toHaveBeenCalled();
-    expect(services.applications.watch).not.toHaveBeenCalled();
+    expect(services.applications.list).toHaveBeenCalled();
+    expect(services.applications.watch).toHaveBeenCalled();
+});
+
+test('shared OR query ignores saved sidebar filters and updates when statuses change', async () => {
+    const outOfSync = {...app('outofsync'), status: {sync: {status: 'OutOfSync'}, health: {status: 'Healthy'}}} as Application;
+    const both = {...outOfSync, metadata: {name: 'both', namespace: 'argocd'}, status: {...outOfSync.status, health: {status: 'Degraded'}}} as Application;
+    jest.mocked(services.applications.list).mockResolvedValue({items: [app('healthy'), app('degraded', 'Degraded'), outOfSync, both], metadata: {resourceVersion: '1'}} as any);
+    const result = setup({
+        pref: pref({search: 'sync = OutOfSync OR health = Degraded', projectsFilter: ['hidden'], healthFilter: ['Healthy'], showFavorites: true}),
+        appNamespace: '',
+        hydratorEnabled: false
+    });
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.rows.map(row => row.metadata.name)).toEqual(['degraded', 'outofsync', 'both']);
+    expect(jest.mocked(services.applications.list).mock.calls[0][0]).toEqual([]);
+    expect(jest.mocked(services.applications.list).mock.calls[0][2].names).toBeUndefined();
+    act(() => watch.next({type: 'MODIFIED', application: app('degraded')}));
+    await waitFor(() => expect(result.current.rows.map(row => row.metadata.name)).toEqual(['outofsync', 'both']));
 });
 
 test('marks an application as refreshing and requests a refresh', async () => {
