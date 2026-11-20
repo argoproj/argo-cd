@@ -27,4 +27,5 @@ use HTTPS unless `--plaintext` is given, so `HTTPS_PROXY` is normally the variab
 
 Plain gRPC connections, i.e. those made without `--grpc-web`, do not use `HTTP_PROXY`/`HTTPS_PROXY`. They only support
 a SOCKS5 proxy configured through `ALL_PROXY`. If your environment provides an HTTP proxy only, pass `--grpc-web` or
-set `ARGOCD_OPTS="--grpc-web"`.
+set `ARGOCD_OPTS="--grpc-web"`. The connections that `--core` and `--port-forward` make to their own local listener are
+never proxied.
