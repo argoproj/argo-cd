@@ -73,6 +73,21 @@ func TestSourceIntegrity_ConfiguredMethods(t *testing.T) {
 		assert.Equal(t, SourceIntegrityMethodNameGitGPG, methods[0])
 	})
 
+	t.Run("source integrity with Git GPG and Helm provenance", func(t *testing.T) {
+		sourceIntegrity := &SourceIntegrity{
+			Git: &SourceIntegrityGit{Policies: []*SourceIntegrityGitPolicy{{
+				Repos: []SourceIntegrityGitPolicyRepo{{URL: "*"}},
+				GPG:   &SourceIntegrityGitPolicyGPG{Mode: SourceIntegrityGitPolicyGPGModeHead},
+			}}},
+			Helm: &SourceIntegrityHelm{Policies: []*SourceIntegrityHelmPolicy{{
+				Repos:      []SourceIntegrityHelmPolicyRepo{{URL: "*"}},
+				Provenance: &SourceIntegrityHelmPolicyProvenance{},
+			}}},
+		}
+
+		assert.Equal(t, []string{SourceIntegrityMethodNameGitGPG, SourceIntegrityMethodNameHelmProvenance}, sourceIntegrity.ConfiguredMethods())
+	})
+
 	t.Run("source integrity with multiple GPG policies", func(t *testing.T) {
 		policy := &SourceIntegrityGitPolicy{
 			Repos: []SourceIntegrityGitPolicyRepo{

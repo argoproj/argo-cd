@@ -248,8 +248,14 @@ func NewProjectSourceIntegrityGitPoliciesDeleteCommand(clientOpts *argocdclient.
 
 // cleanupSourceIntegrityIfEmpty removes spec.sourceIntegrity from a project if policies are emptied
 func cleanupSourceIntegrityIfEmpty(proj *v1alpha1.AppProject) {
-	if proj.Spec.SourceIntegrity != nil && proj.Spec.SourceIntegrity.Git != nil && len(proj.Spec.SourceIntegrity.Git.Policies) == 0 {
-		proj.Spec.SourceIntegrity.Git = nil
+	si := proj.Spec.SourceIntegrity
+	if si == nil {
+		return
+	}
+	if si.Git != nil && len(si.Git.Policies) == 0 {
+		si.Git = nil
+	}
+	if si.Git == nil && si.Helm == nil {
 		proj.Spec.SourceIntegrity = nil
 	}
 }

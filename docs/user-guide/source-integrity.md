@@ -20,6 +20,7 @@ Each application can be a subject of multiple checks, and the sync will be enabl
 ## Supported methods
 
 - [Git GnuPG verification](./source-integrity-git-gpg.md) verifies that Git commits are GnuPG Signed. This is a modern method of the commit signature verification originally configured in `AppProjects`'s `signatureKeys`.
+- [Helm chart provenance verification](./source-integrity-helm-provenance.md) verifies the signed `.prov` file published with a Helm chart.
 
 ## Multi-source applications
 
