@@ -55,8 +55,11 @@ metadata:
 * Otherwise, the HPA is "Healthy" if an `AbleToScale` or `ScalingLimited` condition has status `True`, and "Progressing" (`Waiting to Autoscale`) if not.
 
 > [!NOTE]
-> Health is re-evaluated when the resource changes or the application is refreshed. A lasting metric failure
-> can therefore show as "Degraded" up to one reconciliation later than 2 minutes.
+> Application health is re-evaluated when the resource changes or the application is refreshed. A lasting metric
+> failure can therefore turn the application "Degraded" up to one reconciliation later than 2 minutes.
+> The HPA's own node in the resource tree is only re-evaluated when the HPA object changes, and the HPA controller
+> doesn't rewrite an HPA whose status hasn't changed. During a lasting failure, that node can keep showing
+> "Progressing" while the application shows "Degraded".
 
 ### Argocd App
 
