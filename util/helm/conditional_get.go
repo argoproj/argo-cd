@@ -158,18 +158,27 @@ type indexRecordObservation struct {
 // enforced by the caller's context.
 // indexCacheReadBudget bounds one retained-record read so a slow backend
 // releases the per-key index lock instead of stalling the request past its
-// usable budget. Requests whose remaining time is shorter keep their own
-// deadline.
+// usable budget. The budget reserves time for the origin request: a request
+// with a deadline spends at most a quarter of its remaining time on the
+// cache read; requests without a deadline keep the fixed 2-second cap.
 const indexCacheReadBudget = 2 * time.Second
 
-func observeIndexRecord(ctx context.Context, reader indexCacheRecordReader, repo string) indexRecordObservation {
+// observeIndexReadContext is the shared budget helper for every optional
+// cache read (retained-record and raw-body alike): min(2s, remaining/4).
+// It never extends the parent deadline; the child expires sooner at most.
+func observeIndexReadContext(ctx context.Context) (context.Context, context.CancelFunc) {
 	budget := indexCacheReadBudget
 	if deadline, ok := ctx.Deadline(); ok {
-		if remaining := time.Until(deadline); remaining < budget {
+		remaining := time.Until(deadline) / 4
+		if remaining < budget {
 			budget = remaining
 		}
 	}
-	readCtx, cancel := context.WithTimeout(ctx, budget)
+	return context.WithTimeout(ctx, budget)
+}
+
+func observeIndexRecord(ctx context.Context, reader indexCacheRecordReader, repo string) indexRecordObservation {
+	readCtx, cancel := observeIndexReadContext(ctx)
 	defer cancel()
 
 	if contextual, ok := reader.(indexCacheContextedReader); ok {
@@ -330,18 +339,4 @@ func matchingNotModifiedETag(cached, received string) bool {
 		return cached != "" && strings.TrimPrefix(cached, "W/") == after
 	}
 	return cached == received && !strings.HasPrefix(cached, "W/")
-}
-
-// observeIndexReadContext bounds a cache read by the shared read budget,
-// shrinking to the remaining request deadline when that is shorter. The raw
-// CacheClient interface has no ctx-aware Get, so callers pair this budget
-// with an abandon-style select around the read.
-func observeIndexReadContext(ctx context.Context) (context.Context, context.CancelFunc) {
-	budget := indexCacheReadBudget
-	if deadline, ok := ctx.Deadline(); ok {
-		if remaining := time.Until(deadline); remaining < budget {
-			budget = remaining
-		}
-	}
-	return context.WithTimeout(ctx, budget)
 }
