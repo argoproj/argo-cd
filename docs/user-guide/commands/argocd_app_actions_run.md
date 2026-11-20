@@ -6,7 +6,7 @@ Runs an available action on resource(s) matching the specified filters.
 
 ### Synopsis
 
-All filters except --kind are optional. Use --all to run the action on all matching resources if more than one resource matches the filters. Actions may only be run on resources that are represented in git and cannot be run on child resources.
+All filters except --kind are optional. Use --all to run the action on all matching resources if more than one resource matches the filters. By default, actions may only be run on resources that are represented in git. Use --include-child-resources to also run them on child resources, such as resources created by a controller.
 
 ```
 argocd app actions run APPNAME ACTION [flags]
@@ -22,13 +22,14 @@ argocd app actions run APPNAME ACTION [flags]
 ### Options
 
 ```
-      --all[=true|false]       Indicates whether to run the action on multiple matching resources
-  -N, --app-namespace string   Namespace of the application
-      --group string           Group of the resource on which the action should be run
-  -h, --help[=true|false]      help for run
-      --kind string            Kind of the resource on which the action should be run
-      --namespace string       Namespace of the resource on which the action should be run
-      --resource-name string   Name of resource on which the action should be run
+      --all[=true|false]                       Indicates whether to run the action on multiple matching resources
+  -N, --app-namespace string                   Namespace of the application
+      --group string                           Group of the resource on which the action should be run
+  -h, --help[=true|false]                      help for run
+      --include-child-resources[=true|false]   Also match child resources that are not represented in git, such as resources created by a controller
+      --kind string                            Kind of the resource on which the action should be run
+      --namespace string                       Namespace of the resource on which the action should be run
+      --resource-name string                   Name of resource on which the action should be run
 ```
 
 ### Options inherited from parent commands
