@@ -1695,6 +1695,17 @@ func TestCreateAppRejectsPathOutsideRepo(t *testing.T) {
 		require.Equal(t, codes.InvalidArgument, status.Code(err))
 	})
 
+	t.Run("hydrator dry source", func(t *testing.T) {
+		appServer := newTestAppServer(t)
+		testApp := newTestApp()
+		testApp.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+			DrySource:  v1alpha1.DrySource{RepoURL: "https://github.com/org/dry-repo", Path: "../other", TargetRevision: "main"},
+			SyncSource: v1alpha1.SyncSource{TargetBranch: "env/dev", Path: "dev"},
+		}
+		_, err := appServer.Create(t.Context(), &application.ApplicationCreateRequest{Application: testApp, Validate: new(false)})
+		require.Equal(t, codes.InvalidArgument, status.Code(err))
+	})
+
 	t.Run("path that stays in the repo", func(t *testing.T) {
 		appServer := newTestAppServer(t)
 		testApp := newTestApp()

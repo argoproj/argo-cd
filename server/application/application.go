@@ -1375,9 +1375,16 @@ func (s *Server) validateAndNormalizeApp(ctx context.Context, app *v1alpha1.Appl
 		}
 	}
 
+	paths := []string{}
 	for _, source := range app.Spec.GetSources() {
-		if p := filepath.Clean(source.Path); p == ".." || strings.HasPrefix(p, ".."+string(filepath.Separator)) {
-			return status.Errorf(codes.InvalidArgument, "application source path %q for %s must not point outside the repository", source.Path, app.Name)
+		paths = append(paths, source.Path)
+	}
+	if app.Spec.SourceHydrator != nil {
+		paths = append(paths, app.Spec.SourceHydrator.DrySource.Path)
+	}
+	for _, path := range paths {
+		if p := filepath.Clean(path); p == ".." || strings.HasPrefix(p, ".."+string(filepath.Separator)) {
+			return status.Errorf(codes.InvalidArgument, "application source path %q for %s must not point outside the repository", path, app.Name)
 		}
 	}
 
