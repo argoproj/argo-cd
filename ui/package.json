@@ -108,7 +108,7 @@
     "react-refresh": "^0.18.0",
     "react-toastify": "11.1.0",
     "sass": "^1.105.0",
-    "sass-loader": "^14.2.1",
+    "sass-loader": "^17.0.1",
     "source-map-loader": "^5.0.0",
     "style-loader": "^4.0.0",
     "ts-jest": "^29.4.12",
