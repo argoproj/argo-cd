@@ -7,6 +7,7 @@ import (
 	"github.com/go-playground/webhooks/v6/github"
 	"github.com/go-playground/webhooks/v6/gitlab"
 	gogsclient "github.com/gogits/go-gogs-client"
+	log "github.com/sirupsen/logrus"
 )
 
 // PushEventInfo is the provider-independent view of a push event that both the
@@ -129,6 +130,7 @@ func bitbucketServerCloneURLs(repo bitbucketserver.Repository) (httpURL string, 
 	for _, l := range clone {
 		link, ok := l.(map[string]any)
 		if !ok {
+			log.Debugf("skipping malformed clone link entry: expected map, got %T", l)
 			continue
 		}
 		href, ok := link["href"].(string)
