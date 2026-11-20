@@ -81,7 +81,7 @@ function loadApplications(projects: string[], appNamespace: string): Observable<
 // Reads the sidebar flag itself, so toggling the sidebar re-renders only the filter.
 const SidebarFilter = (props: React.ComponentProps<typeof ResourcesFilter>) => <ResourcesFilter {...props} collapsed={useViewPreferences(pref => pref.hideSidebar)} />;
 
-const ViewPref = ({
+export const ViewPref = ({
     children
 }: {
     children: (pref: ResourcesListPreferences & {page: number; search: string; sortTitle: string; sortDirection: 'asc' | 'desc'}) => React.ReactNode;
@@ -89,6 +89,7 @@ const ViewPref = ({
     const resourcesList = useViewPreferences(pref => pref.resourcesList);
     const sortOption = useViewPreferences(pref => pref.sortOptions?.[RESOURCES_LIST_SORT_KEY]);
     const sortDirectionPref = useViewPreferences(pref => pref.sortDirections?.[RESOURCES_LIST_SORT_KEY]);
+    const savedSearch = useViewPreferences(pref => pref.resourcesListSearch);
     const search = useLocationSearch();
     const pref = React.useMemo(() => {
         const params = new URLSearchParams(search);
@@ -141,8 +142,8 @@ const ViewPref = ({
         }
         const sortTitle = sortOption || RESOURCE_SORT_OPTIONS[0].title;
         const sortDirection: 'asc' | 'desc' = sortDirectionPref === 'desc' ? 'desc' : 'asc';
-        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') || '', sortTitle, sortDirection};
-    }, [resourcesList, sortOption, sortDirectionPref, search]);
+        return {...viewPref, page: parseInt(params.get('page') || '0', 10), search: params.get('search') ?? savedSearch ?? '', sortTitle, sortDirection};
+    }, [resourcesList, sortOption, sortDirectionPref, search, savedSearch]);
     return <>{children(pref)}</>;
 };
 
@@ -171,7 +172,10 @@ export const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, he
         <div className='applications-list__toolbar-controls' key='resources-list-tools'>
             <SearchBar
                 value={pref.search}
-                onChange={value => ctx.navigation.goto('.', {search: value || null}, {replace: true})}
+                onChange={value => {
+                    services.viewPreferences.updatePreferences({resourcesListSearch: value});
+                    ctx.navigation.goto('.', {search: value}, {replace: true});
+                }}
                 placeholder={pref.searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search resources...'}
                 regexEnabled={pref.searchRegex}
             />
@@ -182,9 +186,7 @@ export const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, he
                     aria-pressed={pref.searchRegex}
                     className={regexToggleClass}
                     onClick={() => {
-                        services.viewPreferences.updatePreferences({
-                            resourcesList: {...pref, searchRegex: !pref.searchRegex}
-                        });
+                        services.viewPreferences.updateResourcesListPreferences({searchRegex: !pref.searchRegex});
                     }}>
                     .*
                 </button>
@@ -195,13 +197,10 @@ export const ResourcesToolbar: React.FC<ResourcesToolbarProps> = ({pref, ctx, he
                     style={{border: 'none'}}
                     onClick={() => {
                         const showHealthStatusBar = !healthBarPrefs.showHealthStatusBar;
-                        services.viewPreferences.updatePreferences({
-                            resourcesList: {
-                                ...pref,
-                                statusBarView: {
-                                    ...healthBarPrefs,
-                                    showHealthStatusBar
-                                }
+                        services.viewPreferences.updateResourcesListPreferences({
+                            statusBarView: {
+                                ...healthBarPrefs,
+                                showHealthStatusBar
                             }
                         });
                     }}>
@@ -219,9 +218,7 @@ const ResourcesViewTypeSwitcher: React.FC<{pref: ResourcesListPreferences & {pag
             title='List'
             onClick={() => {
                 ctx.navigation.goto('.', {view: ResourcesListViewKey.List});
-                services.viewPreferences.updatePreferences({
-                    resourcesList: {...pref, view: ResourcesListViewKey.List}
-                });
+                services.viewPreferences.updateResourcesListPreferences({view: ResourcesListViewKey.List});
             }}
         />
         <i
@@ -229,9 +226,7 @@ const ResourcesViewTypeSwitcher: React.FC<{pref: ResourcesListPreferences & {pag
             title='Summary'
             onClick={() => {
                 ctx.navigation.goto('.', {view: ResourcesListViewKey.Summary});
-                services.viewPreferences.updatePreferences({
-                    resourcesList: {...pref, view: ResourcesListViewKey.Summary}
-                });
+                services.viewPreferences.updateResourcesListPreferences({view: ResourcesListViewKey.Summary});
             }}
         />
     </div>
@@ -242,8 +237,15 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
     useRefreshClusterList();
     const loaderRef = React.useRef<DataLoader | null>(null);
 
-    function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences) {
-        services.viewPreferences.updatePreferences({resourcesList: newPref});
+    function onFilterPrefChanged(ctx: ContextApis, newPref: ResourcesListPreferences, previous: ResourcesListPreferences, clearAll = false) {
+        if (clearAll) {
+            // Clearing is an explicit edit, even when an empty URL filter hides a saved value.
+            const cleared: Partial<ResourcesListPreferences> = {};
+            ResourcesListPreferences.clearFilters(cleared);
+            services.viewPreferences.updateResourcesListPreferences(cleared);
+        } else {
+            services.viewPreferences.updateResourcesListPreferences(newPref, previous);
+        }
         const params = {
             proj: newPref.projectsFilter.join(','),
             sync: newPref.syncFilter.join(','),
@@ -328,7 +330,11 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                         ) : (
                                                             <>
                                                                 {ReactDOM.createPortal(
-                                                                    <SidebarFilter apps={filterResults} onChange={newPrefs => onFilterPrefChanged(ctx, newPrefs)} pref={pref} />,
+                                                                    <SidebarFilter
+                                                                        apps={filterResults}
+                                                                        onChange={(newPrefs, clearAll) => onFilterPrefChanged(ctx, newPrefs, pref, clearAll)}
+                                                                        pref={pref}
+                                                                    />,
                                                                     sidebarTarget?.current
                                                                 )}
                                                                 {(pref.view === ResourcesListViewKey.Summary && <ResourcesSummary resources={filteredResources} />) || (
@@ -355,7 +361,7 @@ export const ResourcesList = (props: RouteComponentProps<{}>) => {
                                                                                                     // On a copy: pref is memoized and shared with this render's children.
                                                                                                     const cleared = {...pref};
                                                                                                     ResourcesListPreferences.clearFilters(cleared);
-                                                                                                    onFilterPrefChanged(ctx, cleared);
+                                                                                                    onFilterPrefChanged(ctx, cleared, pref, true);
                                                                                                 }}>
                                                                                                 clear filters
                                                                                             </a>
