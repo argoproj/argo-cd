@@ -6,6 +6,7 @@ import (
 
 	gitopsCache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	"github.com/stretchr/testify/mock"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 
 	dbmocks "github.com/argoproj/argo-cd/v3/util/db/mocks"
 
@@ -63,6 +64,29 @@ argocd_cluster_connection_status{k8s_version="1.21",server="server1"} 0
 					Server:     "server1",
 					K8SVersion: "1.21",
 					SyncError:  errors.New("error connecting with cluster"),
+				},
+			},
+		},
+		{
+			description:   "reports cached object counts per group and kind",
+			skip:          false,
+			metricLabels:  []string{"non-existing"},
+			clusterLabels: []string{"env"},
+			applications:  []string{fakeApp},
+			responseContains: `
+# TYPE argocd_cluster_cache_resource_objects gauge
+argocd_cluster_cache_resource_objects{group="",kind="Pod",server="server1"} 7
+argocd_cluster_cache_resource_objects{group="apps",kind="ReplicaSet",server="server1"} 3
+`,
+			clustersInfo: []gitopsCache.ClusterInfo{
+				{
+					Server:         "server1",
+					K8SVersion:     "1.21",
+					ResourcesCount: 10,
+					ResourcesCountByGroupKind: map[schema.GroupKind]int{
+						{Kind: "Pod"}:                       7,
+						{Group: "apps", Kind: "ReplicaSet"}: 3,
+					},
 				},
 			},
 		},

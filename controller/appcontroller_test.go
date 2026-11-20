@@ -2130,6 +2130,13 @@ func TestGetResourceTree_HasOrphanedResources(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []v1alpha1.ResourceNode{managedDeploy}, tree.Nodes)
 	assert.Equal(t, []v1alpha1.ResourceNode{orphanedDeploy1, orphanedDeploy2}, tree.OrphanedNodes)
+
+	// Managed and orphaned nodes are both counted in the resource tree nodes metric.
+	req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, metrics.MetricsPath, http.NoBody)
+	require.NoError(t, err)
+	rr := httptest.NewRecorder()
+	ctrl.metricsServer.Handler.ServeHTTP(rr, req)
+	assert.Contains(t, rr.Body.String(), `argocd_app_resource_tree_nodes_total{group="apps",kind="Deployment",server="https://localhost:6443"}`)
 }
 
 func TestSetOperationStateOnDeletedApp(t *testing.T) {

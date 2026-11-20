@@ -27,6 +27,7 @@ package cache
 import (
 	"context"
 	"fmt"
+	"maps"
 	"slices"
 	"sync"
 	"sync/atomic"
@@ -126,6 +127,8 @@ type ClusterInfo struct {
 	SyncError error
 	// APIResources holds list of API resources supported by the cluster
 	APIResources []kube.APIResourceInfo
+	// ResourcesCountByGroupKind holds number of observed Kubernetes resources per group/kind
+	ResourcesCountByGroupKind map[schema.GroupKind]int
 }
 
 // OnEventHandler is a function that handles Kubernetes event
@@ -200,6 +203,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		listSemaphore:      semaphore.NewWeighted(defaultListSemaphoreWeight),
 		resources:          make(map[kube.ResourceKey]*Resource),
 		nsIndex:            make(map[string]map[kube.ResourceKey]*Resource),
+		gkCounts:           make(map[schema.GroupKind]int),
 		config:             config,
 		kubectl: &kube.KubectlCmd{
 			Log:    log,
@@ -278,6 +282,8 @@ type store struct {
 	lock      sync.RWMutex
 	resources map[kube.ResourceKey]*Resource
 	nsIndex   map[string]map[kube.ResourceKey]*Resource
+	// gkCounts holds the number of entries in resources per group/kind
+	gkCounts map[schema.GroupKind]int
 
 	kubectl          kube.Kubectl
 	log              logr.Logger
@@ -579,6 +585,12 @@ func (c *store) setNode(n *Resource) {
 	existing := c.resources[key]
 
 	c.resources[key] = n
+	if existing == nil {
+		if c.gkCounts == nil {
+			c.gkCounts = make(map[schema.GroupKind]int)
+		}
+		c.gkCounts[key.GroupKind()]++
+	}
 	c.updateIndexes(existing, n)
 }
 
@@ -1492,6 +1504,12 @@ func (c *store) onNodeRemoved(key kube.ResourceKey) {
 	existing, ok := c.resources[key]
 	if ok {
 		delete(c.resources, key)
+		gk := key.GroupKind()
+		if c.gkCounts[gk] <= 1 {
+			delete(c.gkCounts, gk)
+		} else {
+			c.gkCounts[gk]--
+		}
 		ns := c.removeIndexes(key, existing)
 		c.dispatchResourceUpdated(nil, existing, ns)
 	}
@@ -1516,6 +1534,8 @@ func (c *store) GetClusterInfo() ClusterInfo {
 		LastCacheSyncTime: c.syncStatus.syncTime,
 		SyncError:         c.syncStatus.syncError,
 		APIResources:      c.GetAPIResources(),
+
+		ResourcesCountByGroupKind: maps.Clone(c.gkCounts),
 	}
 }
 
