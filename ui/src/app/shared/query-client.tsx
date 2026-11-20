@@ -2,7 +2,7 @@ import {QueryCache, QueryClient} from '@tanstack/react-query';
 import {ErrorNotification, NotificationsApi, NotificationType} from 'argo-ui';
 import * as React from 'react';
 
-require('./query-client.scss');
+import './query-client.scss';
 
 declare module '@tanstack/react-query' {
     interface Register {
