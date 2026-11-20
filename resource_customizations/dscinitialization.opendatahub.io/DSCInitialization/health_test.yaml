@@ -1,0 +1,21 @@
+tests:
+- healthStatus:
+    status: Healthy
+    message: "DSCInitialization is ready"
+  inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for DSCInitialization to become ready"
+  inputPath: testdata/progressing.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for DSCInitialization to become ready"
+  inputPath: testdata/progressing_not_ready.yaml
+- healthStatus:
+    status: Degraded
+    message: "failed to configure monitoring"
+  inputPath: testdata/degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for DSCInitialization to become ready"
+  inputPath: testdata/no_status.yaml
