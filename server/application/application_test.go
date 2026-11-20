@@ -5508,6 +5508,179 @@ func TestTerminateOperationWithConflicts(t *testing.T) {
 	assert.GreaterOrEqual(t, updateCallCount, 2, "Update should be called at least twice (once with conflict, once with success)")
 }
 
+// conflictReactors replaces the fake Application clientset's reactors so that Update fails with a conflict for the
+// first `conflicts` calls (or always, if conflicts < 0), and then fails with updateErr (if set) or succeeds.
+type conflictReactors struct {
+	getCalls int
+	// updatedVersions records the resourceVersion of each object passed to Update.
+	updatedVersions []string
+}
+
+func installConflictReactors(t *testing.T, appServer *Server, testApp *v1alpha1.Application, conflicts int, updateErr error) *conflictReactors {
+	t.Helper()
+	r := &conflictReactors{}
+	fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		r.getCalls++
+		fresh := testApp.DeepCopy()
+		// Every Get returns a newer version than the one before.
+		fresh.ResourceVersion = strconv.Itoa(r.getCalls + 1)
+		return true, fresh, nil
+	})
+	fakeAppCs.AddReactor("update", "applications", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		obj := action.(kubetesting.UpdateAction).GetObject().(*v1alpha1.Application)
+		r.updatedVersions = append(r.updatedVersions, obj.ResourceVersion)
+		if conflicts < 0 || len(r.updatedVersions) <= conflicts {
+			return true, nil, apierrors.NewConflict(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, obj.Name, errors.New("the object has been modified"))
+		}
+		if updateErr != nil {
+			return true, nil, updateErr
+		}
+		res := obj.DeepCopy()
+		// An unparsable resourceVersion makes waitSync return quickly instead of waiting for the informer.
+		res.ResourceVersion = ""
+		return true, res, nil
+	})
+	return r
+}
+
+func TestUpdateAppRetryOnConflict(t *testing.T) {
+	newTestAppWithVersion := func() *v1alpha1.Application {
+		a := newTestApp()
+		a.ResourceVersion = "1"
+		a.Labels = map[string]string{"existing": "label"}
+		return a
+	}
+	newDesiredApp := func(base *v1alpha1.Application) *v1alpha1.Application {
+		desired := base.DeepCopy()
+		desired.Spec.Destination.Namespace = "updated-namespace"
+		desired.Labels = map[string]string{"new": "label"}
+		return desired
+	}
+
+	t.Run("no conflict does not refetch", func(t *testing.T) {
+		testApp := newTestAppWithVersion()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, 0, nil)
+
+		res, err := appServer.updateApp(t.Context(), testApp.DeepCopy(), newDesiredApp(testApp), true)
+		require.NoError(t, err)
+		assert.Equal(t, 0, r.getCalls, "the first attempt should use the application passed in by the caller")
+		assert.Equal(t, []string{"1"}, r.updatedVersions)
+		assert.Equal(t, "updated-namespace", res.Spec.Destination.Namespace)
+		assert.Equal(t, map[string]string{"existing": "label", "new": "label"}, res.Labels)
+	})
+
+	t.Run("conflict retries with fresh application", func(t *testing.T) {
+		testApp := newTestAppWithVersion()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, 2, nil)
+
+		res, err := appServer.updateApp(t.Context(), testApp.DeepCopy(), newDesiredApp(testApp), false)
+		require.NoError(t, err)
+		assert.Equal(t, 2, r.getCalls)
+		assert.Equal(t, []string{"1", "2", "3"}, r.updatedVersions, "each retry should update the most recently fetched version")
+		assert.Equal(t, "updated-namespace", res.Spec.Destination.Namespace)
+		assert.Equal(t, map[string]string{"new": "label"}, res.Labels)
+	})
+
+	t.Run("too many conflicts", func(t *testing.T) {
+		testApp := newTestAppWithVersion()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, -1, nil)
+
+		_, err := appServer.updateApp(t.Context(), testApp.DeepCopy(), newDesiredApp(testApp), true)
+		require.Error(t, err)
+		assert.Equal(t, codes.Internal, status.Code(err))
+		assert.Equal(t, "Failed to update application. Too many conflicts", status.Convert(err).Message())
+		assert.Len(t, r.updatedVersions, appUpdateBackoff.Steps)
+	})
+
+	t.Run("non-conflict error is not retried", func(t *testing.T) {
+		testApp := newTestAppWithVersion()
+		appServer := newTestAppServer(t, testApp)
+		forbidden := apierrors.NewForbidden(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, testApp.Name, errors.New("nope"))
+		r := installConflictReactors(t, appServer, testApp, 0, forbidden)
+
+		_, err := appServer.updateApp(t.Context(), testApp.DeepCopy(), newDesiredApp(testApp), true)
+		require.Error(t, err)
+		assert.True(t, apierrors.IsForbidden(err), "the Kubernetes error should remain detectable after wrapping: %v", err)
+		assert.Contains(t, err.Error(), "error updating application")
+		assert.Len(t, r.updatedVersions, 1)
+		assert.Equal(t, 0, r.getCalls)
+	})
+}
+
+func TestTerminateOperationRetryOnConflict(t *testing.T) {
+	newRunningApp := func() *v1alpha1.Application {
+		a := newTestApp()
+		a.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+		a.Status.OperationState = &v1alpha1.OperationState{Operation: *a.Operation, Phase: synccommon.OperationRunning}
+		return a
+	}
+
+	t.Run("conflict retries with fresh application", func(t *testing.T) {
+		testApp := newRunningApp()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, 1, nil)
+
+		_, err := appServer.TerminateOperation(t.Context(), &application.OperationTerminateRequest{Name: new(testApp.Name)})
+		require.NoError(t, err)
+		// The first Get is the initial lookup (resourceVersion 2); the second is the refetch after the conflict.
+		assert.Equal(t, 2, r.getCalls)
+		assert.Equal(t, []string{"2", "3"}, r.updatedVersions)
+	})
+
+	t.Run("too many conflicts", func(t *testing.T) {
+		testApp := newRunningApp()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, -1, nil)
+
+		_, err := appServer.TerminateOperation(t.Context(), &application.OperationTerminateRequest{Name: new(testApp.Name)})
+		require.Error(t, err)
+		assert.Equal(t, codes.Internal, status.Code(err))
+		assert.Equal(t, "Failed to terminate app. Too many conflicts", status.Convert(err).Message())
+		assert.Len(t, r.updatedVersions, appUpdateBackoff.Steps)
+	})
+
+	t.Run("no operation in progress", func(t *testing.T) {
+		testApp := newTestApp()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, 0, nil)
+
+		_, err := appServer.TerminateOperation(t.Context(), &application.OperationTerminateRequest{Name: new(testApp.Name)})
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "Unable to terminate operation. No operation is in progress", status.Convert(err).Message())
+		assert.Empty(t, r.updatedVersions)
+	})
+
+	t.Run("operation finishes while retrying", func(t *testing.T) {
+		testApp := newRunningApp()
+		appServer := newTestAppServer(t, testApp)
+		r := installConflictReactors(t, appServer, testApp, 1, nil)
+		// After the initial lookup, the controller has completed the operation.
+		fakeAppCs := appServer.appclientset.(*deepCopyAppClientset).GetUnderlyingClientSet().(*apps.Clientset)
+		fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+			if r.getCalls == 0 {
+				return false, nil, nil // fall through to the default reactor for the initial lookup
+			}
+			r.getCalls++
+			done := testApp.DeepCopy()
+			done.ResourceVersion = "99"
+			done.Operation = nil
+			return true, done, nil
+		})
+
+		_, err := appServer.TerminateOperation(t.Context(), &application.OperationTerminateRequest{Name: new(testApp.Name)})
+		require.Error(t, err)
+		assert.Equal(t, codes.InvalidArgument, status.Code(err))
+		assert.Equal(t, "Unable to terminate operation. No operation is in progress", status.Convert(err).Message())
+		assert.Len(t, r.updatedVersions, 1)
+	})
+}
+
 func TestGetApplicationClusterConfig(t *testing.T) {
 	t.Run("ImpersonationDisabled", func(t *testing.T) {
 		app := newTestApp()

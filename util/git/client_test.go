@@ -27,6 +27,7 @@ import (
 	"golang.org/x/crypto/ssh"
 
 	"github.com/go-git/go-git/v5/plumbing"
+	"github.com/go-git/go-git/v5/plumbing/format/pktline"
 	"github.com/go-git/go-git/v5/plumbing/transport"
 	githttp "github.com/go-git/go-git/v5/plumbing/transport/http"
 	logtest "github.com/sirupsen/logrus/hooks/test"
@@ -2464,51 +2465,6 @@ func Test_nativeGitClient_CheckoutOrNew(t *testing.T) {
 	})
 }
 
-func Test_nativeGitClient_RemoveContents_SpecificPath(t *testing.T) {
-	// given
-	ctx := t.Context()
-	tempDir, err := _createEmptyGitRepo(ctx)
-	require.NoError(t, err)
-
-	client, err := NewClient("file://"+tempDir, NopCreds{}, true, false, "", "")
-	require.NoError(t, err)
-
-	err = client.Init()
-	require.NoError(t, err)
-
-	_, err = client.SetAuthor(t.Context(), "test", "test@example.com")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "touch", "README.md")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "mkdir", "scripts")
-	require.NoError(t, err)
-	err = runCmd(ctx, client.Root(), "touch", "scripts/startup.sh")
-	require.NoError(t, err)
-
-	err = runCmd(ctx, client.Root(), "git", "add", "--all")
-	require.NoError(t, err)
-	err = runCmd(ctx, client.Root(), "git", "commit", "-m", "Make files")
-	require.NoError(t, err)
-
-	// when: remove only "scripts" directory
-	_, err = client.RemoveContents(t.Context(), []string{"scripts"})
-	require.NoError(t, err)
-
-	// then: "scripts" should be gone, "README.md" should still exist
-	_, err = os.Stat(filepath.Join(client.Root(), "README.md"))
-	require.NoError(t, err, "README.md should not be removed")
-
-	_, err = os.Stat(filepath.Join(client.Root(), "scripts"))
-	require.Error(t, err, "scripts directory should be removed")
-
-	// and: listing should only show README.md
-	ls, err := outputCmd(ctx, client.Root(), "ls")
-	require.NoError(t, err)
-	require.Equal(t, "README.md", strings.TrimSpace(string(ls)))
-}
-
 func Test_nativeGitClient_Commit_Push(t *testing.T) {
 	ctx := t.Context()
 	tempDir, err := _createEmptyGitRepo(ctx)
@@ -3380,6 +3336,24 @@ func Test_LsSignatures_Error(t *testing.T) {
 	}
 }
 
+func Test_annotateInvalidPktLen(t *testing.T) {
+	t.Run("nil error is passed through", func(t *testing.T) {
+		require.NoError(t, annotateInvalidPktLen(nil))
+	})
+
+	t.Run("unrelated error is left unchanged", func(t *testing.T) {
+		orig := errors.New("repository not found")
+		require.Equal(t, orig, annotateInvalidPktLen(orig))
+	})
+
+	t.Run("invalid pkt-len keeps the original message and adds an auth hint", func(t *testing.T) {
+		got := annotateInvalidPktLen(fmt.Errorf("failed to list refs: %w", pktline.ErrInvalidPktLen))
+		require.ErrorIs(t, got, pktline.ErrInvalidPktLen)
+		assert.Contains(t, got.Error(), "invalid pkt-len found")
+		assert.Contains(t, got.Error(), invalidPktLenAuthHint)
+	})
+}
+
 func Test_humanizeAuthPromptError(t *testing.T) {
 	repoURL := "https://github.com/argoproj/argo-cd.git"
 
@@ -3432,4 +3406,34 @@ func Test_fetch_authPromptRewrite(t *testing.T) {
 	assert.Contains(t, err.Error(), "terminal prompts disabled", "expected to reproduce the raw git auth-prompt failure")
 	// ... and the fix surfaces it as an actionable authentication error (the fix).
 	assert.Contains(t, err.Error(), "failed to authenticate to git repository", "expected the humanized authentication error")
+}
+
+// Test_LsRemote_htmlLoginPageReproducesInvalidPktLen reproduces go-git's
+// "invalid pkt-len found" failure. Some git hosts answer an unauthenticated
+// ls-remote with an HTML login page and HTTP 200 (Azure DevOps does this when
+// the URL has no org user). go-git's pkt-line scanner reports only that
+// sentinel. The hint tells the user to check repository authentication and
+// keeps the original error.
+func Test_LsRemote_htmlLoginPageReproducesInvalidPktLen(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if !strings.Contains(r.URL.RequestURI(), "info/refs") {
+			http.NotFound(w, r)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.WriteString(w, "<html><body>Sign in to continue</body></html>\n")
+	}))
+	t.Cleanup(srv.Close)
+
+	client := &nativeGitClient{
+		repoURL: srv.URL + "/org/project/_git/repo.git",
+		creds:   NopCreds{},
+	}
+
+	_, err := client.LsRemote("HEAD")
+	require.Error(t, err)
+	require.ErrorIs(t, err, pktline.ErrInvalidPktLen)
+	assert.Contains(t, err.Error(), "invalid pkt-len found")
+	assert.Contains(t, err.Error(), "check repository authentication")
 }

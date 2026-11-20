@@ -14,6 +14,7 @@ jobs:
     name: Label stale issues and PRs
     runs-on: ubuntu-24.04
     permissions:
+      actions: write # to persist state between runs
       issues: write # to label stale issues
       pull-requests: write # to label stale PRs
     steps:

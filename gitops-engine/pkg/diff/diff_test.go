@@ -2236,6 +2236,32 @@ metadata:
 	assert.False(t, ok)
 }
 
+// Field names match case-sensitively, like the API server, so a mis-cased field is unknown and
+// remarshal falls back to the unstructured object instead of normalizing it away.
+func TestRemarshalMisCasedField(t *testing.T) {
+	manifest := []byte(`
+apiVersion: v1
+kind: ServiceAccount
+ImagePullSecrets: []
+metadata:
+  name: my-sa
+`)
+	var un unstructured.Unstructured
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
+	newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
+	_, ok := newUn.Object["ImagePullSecrets"]
+	assert.True(t, ok)
+}
+
+func BenchmarkRemarshal(b *testing.B) {
+	un := unmarshalFile("testdata/deployment-live.json")
+	opts := applyOptions(diffOptionsForTest())
+	b.ReportAllocs()
+	for b.Loop() {
+		remarshal(un, opts)
+	}
+}
+
 func TestRemarshalStatefulSetCreationTimestamp(t *testing.T) {
 	manifest := []byte(`
 apiVersion: apps/v1

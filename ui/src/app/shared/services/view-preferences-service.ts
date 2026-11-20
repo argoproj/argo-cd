@@ -271,6 +271,10 @@ export class ViewPreferencesService {
         return this.preferencesSubj;
     }
 
+    public getCurrentPreferences(): ViewPreferences {
+        return this.preferencesSubj.getValue();
+    }
+
     public updatePreferences(change: Partial<ViewPreferences>) {
         const current = this.preferencesSubj.getValue();
         const nextPref = Object.assign({}, current, change, {version: minVer});
