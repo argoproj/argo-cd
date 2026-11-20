@@ -2,6 +2,7 @@ import * as React from 'react';
 import {renderToStaticMarkup} from 'react-dom/server.node';
 import {
     Application,
+    Automated,
     Cluster,
     HealthStatus,
     HealthStatuses,
@@ -34,7 +35,8 @@ import {
     nameConfirmationError,
     OperationState,
     ResourceResultIcon,
-    toggleFavorite
+    toggleFavorite,
+    updatedAutomatedSyncPolicy
 } from './utils';
 
 const zero = new Date(0).toISOString();
@@ -1373,5 +1375,36 @@ describe('getClusterOptions', () => {
     it('does not reorder the input', () => {
         getClusterOptions(clusters, 'name');
         expect(clusters.map(cluster => cluster.name)).toEqual(['zeta-prod', 'alpha-dev', 'mike-staging']);
+    });
+});
+
+describe('updatedAutomatedSyncPolicy', () => {
+    it('keeps fields the editor does not own', () => {
+        const current = {prune: true, selfHeal: false, enabled: true, rollbackAware: true} as Automated;
+        expect(updatedAutomatedSyncPolicy(current, {enabled: false})).toEqual({prune: true, selfHeal: false, enabled: false, rollbackAware: true});
+    });
+
+    it('keeps rollbackAware when prune and selfHeal are rewritten', () => {
+        const current = {prune: false, selfHeal: false, enabled: true, rollbackAware: true} as Automated;
+        expect(updatedAutomatedSyncPolicy(current, {prune: true, selfHeal: true, enabled: true})).toEqual({
+            prune: true,
+            selfHeal: true,
+            enabled: true,
+            rollbackAware: true
+        });
+    });
+
+    it('keeps rollbackAware when it is turned off explicitly', () => {
+        const current = {prune: false, selfHeal: false, enabled: true, rollbackAware: false} as Automated;
+        expect(updatedAutomatedSyncPolicy(current, {enabled: false})).toEqual({prune: false, selfHeal: false, enabled: false, rollbackAware: false});
+    });
+
+    it('defaults prune and selfHeal to false when there is no policy yet', () => {
+        expect(updatedAutomatedSyncPolicy(undefined, {enabled: true})).toEqual({prune: false, selfHeal: false, enabled: true});
+    });
+
+    it('treats an absent enabled as on', () => {
+        const current = {prune: true, selfHeal: true} as Automated;
+        expect(updatedAutomatedSyncPolicy(current, {})).toEqual({prune: true, selfHeal: true, enabled: true});
     });
 });

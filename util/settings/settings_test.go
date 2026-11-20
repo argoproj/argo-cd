@@ -320,6 +320,41 @@ func TestGetServerRBACRollbackEnforceEnable(t *testing.T) {
 	})
 }
 
+func TestGetRollbackAwareAutoSyncEnabled(t *testing.T) {
+	t.Run("defaults to false when key absent", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), nil)
+		enabled, err := settingsManager.GetRollbackAwareAutoSyncEnabled()
+		require.NoError(t, err)
+		assert.False(t, enabled)
+	})
+
+	t.Run("returns true when set to true", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"application.rollbackAwareAutoSyncEnabled": "true",
+		})
+		enabled, err := settingsManager.GetRollbackAwareAutoSyncEnabled()
+		require.NoError(t, err)
+		assert.True(t, enabled)
+	})
+
+	t.Run("returns false when explicitly set to false", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"application.rollbackAwareAutoSyncEnabled": "false",
+		})
+		enabled, err := settingsManager.GetRollbackAwareAutoSyncEnabled()
+		require.NoError(t, err)
+		assert.False(t, enabled)
+	})
+
+	t.Run("returns error when value is not a bool", func(t *testing.T) {
+		_, settingsManager := fixtures(t.Context(), map[string]string{
+			"application.rollbackAwareAutoSyncEnabled": "yes please",
+		})
+		_, err := settingsManager.GetRollbackAwareAutoSyncEnabled()
+		require.Error(t, err)
+	})
+}
+
 func TestGetIsIgnoreResourceUpdatesEnabled(t *testing.T) {
 	_, settingsManager := fixtures(t.Context(), nil)
 	ignoreResourceUpdatesEnabled, err := settingsManager.GetIsIgnoreResourceUpdatesEnabled()

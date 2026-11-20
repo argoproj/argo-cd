@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/ptypes/empty"
+	log "github.com/sirupsen/logrus"
 	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -95,6 +96,12 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		return nil, err
 	}
 
+	rollbackAwareAutoSyncEnabled, err := s.mgr.GetRollbackAwareAutoSyncEnabled()
+	if err != nil {
+		log.WithError(err).Warn("Could not read application.rollbackAwareAutoSyncEnabled, falling back to false")
+		rollbackAwareAutoSyncEnabled = false
+	}
+
 	set := settingspkg.Settings{
 		URL:                argoCDSettings.URL,
 		AdditionalURLs:     argoCDSettings.AdditionalURLs,
@@ -113,18 +120,19 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 			ChatText:   help.ChatText,
 			BinaryUrls: help.BinaryURLs,
 		},
-		UserLoginsDisabled:        userLoginsDisabled,
-		KustomizeVersions:         kustomizeVersions,
-		UiCssURL:                  argoCDSettings.UiCssURL,
-		UiLoginButtonText:         argoCDSettings.UiLoginButtonText,
-		TrackingMethod:            trackingMethod,
-		InstallationID:            installationID,
-		ExecEnabled:               argoCDSettings.ExecEnabled,
-		AppsInAnyNamespaceEnabled: s.appsInAnyNamespaceEnabled,
-		ImpersonationEnabled:      argoCDSettings.ImpersonationEnabled,
-		HydratorEnabled:           s.hydratorEnabled,
-		SyncWithReplaceAllowed:    s.syncWithReplaceAllowed,
-		ResourceViewEnabled:       argoCDSettings.ResourceViewEnabled,
+		UserLoginsDisabled:           userLoginsDisabled,
+		KustomizeVersions:            kustomizeVersions,
+		UiCssURL:                     argoCDSettings.UiCssURL,
+		UiLoginButtonText:            argoCDSettings.UiLoginButtonText,
+		TrackingMethod:               trackingMethod,
+		InstallationID:               installationID,
+		ExecEnabled:                  argoCDSettings.ExecEnabled,
+		AppsInAnyNamespaceEnabled:    s.appsInAnyNamespaceEnabled,
+		ImpersonationEnabled:         argoCDSettings.ImpersonationEnabled,
+		HydratorEnabled:              s.hydratorEnabled,
+		SyncWithReplaceAllowed:       s.syncWithReplaceAllowed,
+		ResourceViewEnabled:          argoCDSettings.ResourceViewEnabled,
+		RollbackAwareAutoSyncEnabled: rollbackAwareAutoSyncEnabled,
 	}
 
 	if sessionmgr.LoggedIn(ctx) || s.disableAuth {
