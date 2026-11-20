@@ -142,6 +142,8 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 		return ctrl.Result{}, client.IgnoreNotFound(err)
 	}
 
+	observedGeneration := applicationSetInfo.Generation
+
 	defer func() {
 		r.Metrics.ObserveReconcile(&applicationSetInfo, time.Since(startTime))
 	}()
@@ -213,6 +215,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				},
 			}, parametersGenerated,
+			observedGeneration,
 		)
 		// In order for the controller SDK to respect RequeueAfter, the error must be nil
 		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
@@ -242,6 +245,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				},
 			}, parametersGenerated,
+			observedGeneration,
 		)
 		return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 	}
@@ -275,13 +279,13 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 							Reason:  argov1alpha1.ApplicationSetReasonApplicationSetRolloutError,
 							Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 						},
-					}, parametersGenerated,
+					}, parametersGenerated, observedGeneration,
 				)
 				return ctrl.Result{RequeueAfter: ReconcileRequeueOnValidationError}, nil
 			}
 
 			timeBeforePerformProgressiveSync = time.Now()
-			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications, r.RefreshGracePeriodSeconds)
+			appSyncMap, err = r.ProgressiveSyncManager.PerformProgressiveSyncs(ctx, logCtx, applicationSetInfo, currentApplications, generatedApplications, r.RefreshGracePeriodSeconds, observedGeneration)
 			if err != nil {
 				return ctrl.Result{}, fmt.Errorf("failed to perform progressive sync reconciliation for application set: %w", err)
 			}
@@ -324,7 +328,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Reason:  argov1alpha1.ApplicationSetReasonApplicationValidationError,
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				},
-			}, parametersGenerated,
+			}, parametersGenerated, observedGeneration,
 		)
 	}
 
@@ -363,7 +367,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						Reason:  argov1alpha1.ApplicationSetReasonUpdateApplicationError,
 						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 					},
-				}, parametersGenerated,
+				}, parametersGenerated, observedGeneration,
 			)
 			return ctrl.Result{}, err
 		}
@@ -380,7 +384,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						Reason:  argov1alpha1.ApplicationSetReasonCreateApplicationError,
 						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 					},
-				}, parametersGenerated,
+				}, parametersGenerated, observedGeneration,
 			)
 			return ctrl.Result{}, err
 		}
@@ -400,7 +404,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						Reason:  argov1alpha1.ApplicationSetReasonDeleteApplicationError,
 						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 					},
-				}, parametersGenerated,
+				}, parametersGenerated, observedGeneration,
 			)
 			return ctrl.Result{}, err
 		}
@@ -436,7 +440,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 						Reason:  argov1alpha1.ApplicationSetReasonRefreshApplicationError,
 						Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 					},
-				}, parametersGenerated,
+				}, parametersGenerated, observedGeneration,
 			)
 			return ctrl.Result{}, err
 		}
@@ -455,7 +459,7 @@ func (r *ApplicationSetReconciler) Reconcile(ctx context.Context, req ctrl.Reque
 					Reason:  argov1alpha1.ApplicationSetReasonApplicationSetUpToDate,
 					Status:  argov1alpha1.ApplicationSetConditionStatusTrue,
 				},
-			}, parametersGenerated,
+			}, parametersGenerated, observedGeneration,
 		); err != nil {
 			return ctrl.Result{}, err
 		}
@@ -491,7 +495,7 @@ func getParametersGeneratedCondition(parametersGenerated bool, message string) a
 	return parametersGeneratedCondition
 }
 
-func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, conditions []argov1alpha1.ApplicationSetCondition, parametersGenerated bool) error {
+func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, conditions []argov1alpha1.ApplicationSetCondition, parametersGenerated bool, observedGeneration int64) error {
 	// Initialize the default condition types that this method evaluates
 	evaluatedTypes := map[argov1alpha1.ApplicationSetConditionType]bool{
 		argov1alpha1.ApplicationSetConditionParametersGenerated:  true,
@@ -560,8 +564,14 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 		}
 	}
 
+	// Add observedGeneration to each condition
+	for i := range newConditions {
+		newConditions[i].ObservedGeneration = observedGeneration
+	}
+
 	// Update the applicationSet conditions
 	previousConditions := applicationSet.Status.Conditions
+
 	applicationSet.Status.SetConditions(newConditions, evaluatedTypes)
 
 	// Try to not call get/update if nothing has changed
@@ -569,7 +579,11 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 	if !needToUpdateConditions {
 		for i, c := range applicationSet.Status.Conditions {
 			previous := previousConditions[i]
-			if c.Type != previous.Type || c.Reason != previous.Reason || c.Status != previous.Status || c.Message != previous.Message {
+			if c.Type != previous.Type ||
+				c.Reason != previous.Reason ||
+				c.Status != previous.Status ||
+				c.Message != previous.Message ||
+				c.ObservedGeneration != previous.ObservedGeneration {
 				needToUpdateConditions = true
 				break
 			}
@@ -608,7 +622,7 @@ func (r *ApplicationSetReconciler) setApplicationSetStatusCondition(ctx context.
 
 // validateGeneratedApplications uses the Argo CD validation functions to verify the correctness of the
 // generated applications.
-func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSetInfo argov1alpha1.ApplicationSet) (map[string]error, error) {
+func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Context, desiredApplications []argov1alpha1.Application, applicationSet argov1alpha1.ApplicationSet) (map[string]error, error) {
 	errorsByApp := map[string]error{}
 	namesSet := map[string]bool{}
 	for i := range desiredApplications {
@@ -618,11 +632,11 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 		// assign a random name that subsequent reconciles could never match back to the desired app.
 		// A missing name commonly happens when the name is only set via a templatePatch that renders empty.
 		if app.Name == "" {
-			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)", applicationSetInfo.Name)
+			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains an application with no name; a name must be set in the template's metadata.name or via a templatePatch (generateName is not supported)", applicationSet.Name)
 			continue
 		}
 		if namesSet[app.Name] {
-			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSetInfo.Name, app.Name)
+			errorsByApp[app.QualifiedName()] = fmt.Errorf("ApplicationSet %s contains applications with duplicate name: %s", applicationSet.Name, app.Name)
 			continue
 		}
 		namesSet[app.Name] = true
@@ -645,9 +659,9 @@ func (r *ApplicationSetReconciler) validateGeneratedApplications(ctx context.Con
 	return errorsByApp, nil
 }
 
-func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1alpha1.ApplicationSet) time.Duration {
+func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSet *argov1alpha1.ApplicationSet) time.Duration {
 	var res time.Duration
-	for _, requestedGenerator := range applicationSetInfo.Spec.Generators {
+	for _, requestedGenerator := range applicationSet.Spec.Generators {
 		relevantGenerators := generators.GetRelevantGenerators(&requestedGenerator, r.Generators)
 
 		for _, g := range relevantGenerators {
@@ -659,8 +673,8 @@ func (r *ApplicationSetReconciler) getMinRequeueAfter(applicationSetInfo *argov1
 		}
 	}
 
-	if r.EnableProgressiveSyncs && r.RefreshGracePeriodSeconds > 0 && progressivesync.RollingSyncStrategyEnabled(applicationSetInfo) {
-		if latest := progressivesync.GetLatestWaitingTransitionTimeOfAppset(applicationSetInfo); latest != nil {
+	if r.EnableProgressiveSyncs && r.RefreshGracePeriodSeconds > 0 && progressivesync.RollingSyncStrategyEnabled(applicationSet) {
+		if latest := progressivesync.GetLatestWaitingTransitionTimeOfAppset(applicationSet); latest != nil {
 			remaining := time.Duration(r.RefreshGracePeriodSeconds)*time.Second - time.Since(latest.Time)
 			if remaining <= 0 {
 				remaining = time.Second // grace period already elapsed; force a near-immediate recheck rather than falling through to no-requeue

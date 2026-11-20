@@ -30,7 +30,7 @@ func (testDeps) SetAppSetApplicationStatus(_ context.Context, _ *log.Entry, _ *v
 	return nil
 }
 
-func (testDeps) SetApplicationSetStatusCondition(_ context.Context, _ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetCondition, _ bool) error {
+func (testDeps) SetApplicationSetStatusCondition(_ context.Context, _ *v1alpha1.ApplicationSet, _ []v1alpha1.ApplicationSetCondition, _ bool, _ int64) error {
 	return nil
 }
 

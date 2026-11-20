@@ -32,6 +32,8 @@ func randStr(t *testing.T) string {
 }
 
 func TestSimpleGitDirectoryGenerator(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
+
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
 			Kind:       application.ApplicationKind,
@@ -126,7 +128,7 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedAppsNewMetadata)).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -134,6 +136,8 @@ func TestSimpleGitDirectoryGenerator(t *testing.T) {
 }
 
 func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
+
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
 			Kind:       application.ApplicationKind,
@@ -229,7 +233,7 @@ func TestSimpleGitDirectoryGeneratorGoTemplate(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedAppsNewMetadata)).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -429,6 +433,8 @@ func TestSimpleGitDirectoryGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 }
 
 func TestSimpleGitFilesGenerator(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
+
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
 			Kind:       application.ApplicationKind,
@@ -523,7 +529,7 @@ func TestSimpleGitFilesGenerator(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedAppsNewMetadata)).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
@@ -721,6 +727,8 @@ func TestSimpleGitFilesGeneratorGPGEnabledWithoutKnownKeys(t *testing.T) {
 }
 
 func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
+	expectedConditions := GenerateSuccessfulApplicationSetConditions(Params{ObservedGeneration: 3})
+
 	generateExpectedApp := func(name string) v1alpha1.Application {
 		return v1alpha1.Application{
 			Kind:       application.ApplicationKind,
@@ -816,7 +824,7 @@ func TestSimpleGitFilesGeneratorGoTemplate(t *testing.T) {
 		}).Then().Expect(ApplicationsExist(expectedAppsNewMetadata)).
 
 		// verify the ApplicationSet status conditions were set correctly
-		Expect(ApplicationSetHasConditions(ExpectedConditions)).
+		Expect(ApplicationSetHasConditions(expectedConditions)).
 
 		// Delete the ApplicationSet, and verify it deletes the Applications
 		When().
