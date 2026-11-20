@@ -11,3 +11,15 @@ tests:
     status: Healthy
     message: 'Route is healthy'
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Healthy
+    message: 'Route is healthy'
+  inputPath: testdata/healthy_multiple_admitted_conditions.yaml
+- healthStatus:
+    status: Degraded
+    message: 'Route is degraded'
+  inputPath: testdata/degraded_one_router_rejected.yaml
+- healthStatus:
+    status: Progressing
+    message: 'Route is still getting admitted'
+  inputPath: testdata/progressing_no_conditions.yaml
