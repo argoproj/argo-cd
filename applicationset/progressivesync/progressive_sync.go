@@ -53,12 +53,12 @@ type Dependencies interface {
 		applicationStatuses []argov1alpha1.ApplicationSetApplicationStatus,
 	) error
 
-	// SetApplicationSetStatusCondition persists ApplicationSet conditions
 	SetApplicationSetStatusCondition(
 		ctx context.Context,
 		applicationSet *argov1alpha1.ApplicationSet,
 		conditions []argov1alpha1.ApplicationSetCondition,
 		parametersGenerated bool,
+		observedGeneration int64,
 	) error
 
 	// RecordProgressiveSyncTriggered increments the sync counter for the given appset and step
@@ -114,7 +114,7 @@ func (m *Manager) applicationGoneFromAPIServer(ctx context.Context, namespace, n
 	}
 }
 
-func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, refreshGracePeriodSeconds int) (map[string]bool, error) {
+func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry, appset argov1alpha1.ApplicationSet, applications []argov1alpha1.Application, desiredApplications []argov1alpha1.Application, refreshGracePeriodSeconds int, observedGeneration int64) (map[string]bool, error) {
 	// Initialize validation tracking
 	m.validationIssues = &ValidationIssues{}
 
@@ -162,7 +162,7 @@ func (m *Manager) PerformProgressiveSyncs(ctx context.Context, logCtx *log.Entry
 	progressingCondition := m.getProgressingCondition(&appset)
 	invalidConfigCondition := m.getInvalidRolloutConfig(&appset)
 	conditions := []*argov1alpha1.ApplicationSetCondition{invalidConfigCondition, progressingCondition}
-	_ = m.updateApplicationSetApplicationStatusConditions(ctx, &appset, conditions)
+	_ = m.updateApplicationSetApplicationStatusConditions(ctx, &appset, conditions, observedGeneration)
 
 	return appsToSync, nil
 }
@@ -971,7 +971,7 @@ func (m *Manager) getInvalidRolloutConfig(applicationSet *argov1alpha1.Applicati
 	}
 }
 
-func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, conditions []*argov1alpha1.ApplicationSetCondition) []argov1alpha1.ApplicationSetCondition {
+func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Context, applicationSet *argov1alpha1.ApplicationSet, conditions []*argov1alpha1.ApplicationSetCondition, observedGeneration int64) []argov1alpha1.ApplicationSetCondition {
 	// filter out nil conditions
 	var filteredConditions []argov1alpha1.ApplicationSetCondition
 	for _, condition := range conditions {
@@ -984,6 +984,7 @@ func (m *Manager) updateApplicationSetApplicationStatusConditions(ctx context.Co
 			applicationSet,
 			filteredConditions,
 			true,
+			observedGeneration,
 		)
 	}
 

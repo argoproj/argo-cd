@@ -6,7 +6,9 @@ import (
 	"io"
 	"os"
 	"reflect"
+	"strings"
 	"text/tabwriter"
+	"time"
 
 	k8swatch "k8s.io/apimachinery/pkg/watch"
 
@@ -20,7 +22,7 @@ import (
 	cmdutil "github.com/argoproj/argo-cd/v3/cmd/util"
 	argocdclient "github.com/argoproj/argo-cd/v3/pkg/apiclient"
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/applicationset"
-	arogappsetv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	argoappsetv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/errors"
@@ -294,7 +296,7 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 			resp, err := appIf.Generate(ctx, &req)
 			errors.CheckError(err)
 
-			var appsList []arogappsetv1.Application
+			var appsList []argoappsetv1.Application
 			for i := range resp.Applications {
 				appsList = append(appsList, *resp.Applications[i])
 			}
@@ -305,8 +307,8 @@ func NewApplicationSetGenerateCommand(clientOpts *argocdclient.ClientOptions) *c
 				for i := range appsList {
 					app := appsList[i]
 					// backfill api version and kind because k8s client always return empty values for these fields
-					app.APIVersion = arogappsetv1.ApplicationSchemaGroupVersionKind.GroupVersion().String()
-					app.Kind = arogappsetv1.ApplicationSchemaGroupVersionKind.Kind
+					app.APIVersion = argoappsetv1.ApplicationSchemaGroupVersionKind.GroupVersion().String()
+					app.Kind = argoappsetv1.ApplicationSchemaGroupVersionKind.Kind
 					resources = append(resources, app)
 				}
 
@@ -458,14 +460,14 @@ func NewApplicationSetDeleteCommand(clientOpts *argocdclient.ClientOptions) *cob
 }
 
 // Print simple list of application names
-func printApplicationSetNames(apps []arogappsetv1.ApplicationSet) {
+func printApplicationSetNames(apps []argoappsetv1.ApplicationSet) {
 	for _, app := range apps {
 		fmt.Println(app.QualifiedName())
 	}
 }
 
 // Print table of application data
-func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string) {
+func printApplicationSetTable(apps []argoappsetv1.ApplicationSet, output *string) {
 	w := tabwriter.NewWriter(os.Stdout, 0, 0, 2, ' ', 0)
 	var fmtStr string
 	headers := []any{"NAME", "PROJECT", "SYNCPOLICY", "HEALTH", "CONDITIONS"}
@@ -477,18 +479,12 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 	}
 	_, _ = fmt.Fprintf(w, fmtStr, headers...)
 	for _, app := range apps {
-		conditions := make([]arogappsetv1.ApplicationSetCondition, 0)
-		for _, condition := range app.Status.Conditions {
-			if condition.Status == arogappsetv1.ApplicationSetConditionStatusTrue {
-				conditions = append(conditions, condition)
-			}
-		}
 		vals := []any{
 			app.QualifiedName(),
 			app.Spec.Template.Spec.Project,
 			app.Spec.SyncPolicy,
 			app.Status.Health.Status,
-			conditions,
+			FormatConditions(app.Status.Conditions),
 		}
 		if *output == "wide" {
 			vals = append(vals, app.Spec.Template.Spec.GetSource().RepoURL, app.Spec.Template.Spec.GetSource().Path, app.Spec.Template.Spec.GetSource().TargetRevision)
@@ -498,7 +494,30 @@ func printApplicationSetTable(apps []arogappsetv1.ApplicationSet, output *string
 	_ = w.Flush()
 }
 
-func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
+func FormatConditions(conditions []argoappsetv1.ApplicationSetCondition) string {
+	fmtStr := "{%s %s %s %s %s %d}"
+	res := make([]string, 0)
+	for _, condition := range conditions {
+		if condition.Status == argoappsetv1.ApplicationSetConditionStatusTrue {
+			lastTransitionTime := "<nil>"
+			if condition.LastTransitionTime != nil {
+				lastTransitionTime = condition.LastTransitionTime.UTC().Format(time.RFC3339)
+			}
+
+			res = append(res, fmt.Sprintf(fmtStr,
+				condition.Type,
+				condition.Message,
+				lastTransitionTime,
+				condition.Status,
+				condition.Reason,
+				condition.ObservedGeneration,
+			))
+		}
+	}
+	return "[" + strings.Join(res, ", ") + "]"
+}
+
+func getServerForAppSet(appSet *argoappsetv1.ApplicationSet) string {
 	if appSet.Spec.Template.Spec.Destination.Server == "" {
 		return appSet.Spec.Template.Spec.Destination.Name
 	}
@@ -506,7 +525,7 @@ func getServerForAppSet(appSet *arogappsetv1.ApplicationSet) string {
 	return appSet.Spec.Template.Spec.Destination.Server
 }
 
-func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
+func printAppSetSummaryTable(appSet *argoappsetv1.ApplicationSet) {
 	fmt.Printf(printOpFmtStr, "Name:", appSet.QualifiedName())
 	fmt.Printf(printOpFmtStr, "Project:", appSet.Spec.Template.Spec.GetProject())
 	fmt.Printf(printOpFmtStr, "Server:", getServerForAppSet(appSet))
@@ -544,17 +563,17 @@ func printAppSetSummaryTable(appSet *arogappsetv1.ApplicationSet) {
 	fmt.Printf(printOpFmtStr, "SyncPolicy:", syncPolicyStr)
 }
 
-func printAppSetConditions(w io.Writer, appSet *arogappsetv1.ApplicationSet) {
+func printAppSetConditions(w io.Writer, appSet *argoappsetv1.ApplicationSet) {
 	_, _ = fmt.Fprint(w, "CONDITION\tSTATUS\tMESSAGE\tLAST TRANSITION\n")
 	for _, item := range appSet.Status.Conditions {
 		_, _ = fmt.Fprintf(w, "%s\t%s\t%s\t%s\n", item.Type, item.Status, item.Message, item.LastTransitionTime)
 	}
 }
 
-func isApplicationSetResourcesUpToDate(appSet *arogappsetv1.ApplicationSet) bool {
+func isApplicationSetResourcesUpToDate(appSet *argoappsetv1.ApplicationSet) bool {
 	for _, c := range appSet.Status.Conditions {
-		if c.Type == arogappsetv1.ApplicationSetConditionResourcesUpToDate {
-			return c.Status == arogappsetv1.ApplicationSetConditionStatusTrue
+		if c.Type == argoappsetv1.ApplicationSetConditionResourcesUpToDate {
+			return c.Status == argoappsetv1.ApplicationSetConditionStatusTrue
 		}
 	}
 	return false
@@ -576,7 +595,7 @@ func waitForApplicationSetResourcesUpToDate(ctx context.Context, acdClient argoc
 	return fmt.Errorf("watch stream closed for ApplicationSet %q before reaching ResourcesUpToDate", appSetName)
 }
 
-func hasAppSetChanged(appReq, appRes *arogappsetv1.ApplicationSet, upsert bool) bool {
+func hasAppSetChanged(appReq, appRes *argoappsetv1.ApplicationSet, upsert bool) bool {
 	// upsert==false, no change occurred from create command
 	if !upsert {
 		return false
