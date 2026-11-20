@@ -286,6 +286,15 @@ describe.each([false, true])('ApplicationParameters repository details failure (
         expect(screen.getByText('replicas')).toBeInTheDocument();
     });
 
+    (multiSource ? test : test.skip)('places the multi-source warning after the source title', async () => {
+        appDetails.mockRejectedValue(new Error('repository unavailable'));
+        renderSource({chart: 'web-app'});
+
+        const alert = await screen.findByRole('alert');
+        const title = screen.getByText(/^Source 1: TYPE=Helm/);
+        expect(title.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
     test('warns and keeps configured Plugin settings', async () => {
         appDetails.mockRejectedValue(new Error('repository unavailable'));
         renderSource({path: 'manifests', plugin: {name: 'my-plugin', env: [{name: 'FOO', value: 'bar'}]}});

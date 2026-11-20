@@ -347,12 +347,7 @@ export const ApplicationParameters = (props: {
                             key={'app_params_source_' + index}
                             input={app.spec.sources[index]}
                             load={src => getSourceFromAppSources(src, app.metadata.name, app.spec.project, index, 0)}>
-                            {({details, error}: SourceDetails) => (
-                                <>
-                                    <SourceDetailsWarning error={error} />
-                                    {getEditablePanelForOneSource(details, index, app.spec.sources[index])}
-                                </>
-                            )}
+                            {({details, error}: SourceDetails) => getEditablePanelForOneSource(details, index, app.spec.sources[index], error)}
                         </DataLoader>
                     )}
                 </div>
@@ -454,7 +449,7 @@ export const ApplicationParameters = (props: {
         );
     }
 
-    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource): any {
+    function getEditablePanelForOneSource(repoAppDetails: models.RepoAppDetails | undefined, ind: number, src: models.ApplicationSource, detailsError?: Error): any {
         let floatingTitle: string;
         const lowerPanelAttributes: EditablePanelItem[] = [];
         const upperPanelAttributes: EditablePanelItem[] = [];
@@ -524,6 +519,7 @@ export const ApplicationParameters = (props: {
         return (
             <ApplicationParametersSource
                 index={ind}
+                banner={<SourceDetailsWarning error={detailsError} />}
                 saveTop={props.save}
                 saveBottom={
                     props.save &&
