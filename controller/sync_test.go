@@ -1,14 +1,8 @@
 package controller
 
 import (
-	"os"
 	"strconv"
 	"testing"
-
-	openapi_v2 "github.com/google/gnostic-models/openapiv2"
-	"k8s.io/kubectl/pkg/util/openapi"
-
-	"sigs.k8s.io/yaml"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
@@ -20,6 +14,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/util/managedfields"
 	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/v3/common"
@@ -31,29 +26,6 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
-
-type fakeDiscovery struct {
-	schema *openapi_v2.Document
-}
-
-func (f *fakeDiscovery) OpenAPISchema() (*openapi_v2.Document, error) {
-	return f.schema, nil
-}
-
-func loadCRDSchema(t *testing.T, path string) *openapi_v2.Document {
-	t.Helper()
-
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-
-	jsonData, err := yaml.YAMLToJSON(data)
-	require.NoError(t, err)
-
-	doc, err := openapi_v2.ParseDocument(jsonData)
-	require.NoError(t, err)
-
-	return doc
-}
 
 func TestPersistRevisionHistory(t *testing.T) {
 	app := newFakeApp()
@@ -400,6 +372,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
 			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithGVKParser(builtinGVKParser(t)).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -426,7 +399,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -449,7 +422,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 			live.Object, "Running", "status", "operationState", "phase"))
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then: live status must not be merged into the target that gets applied,
 		// otherwise the SSA sync manager co-owns and freezes operationState.phase.
@@ -464,7 +437,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, []v1alpha1.ResourceIgnoreDifferences{})
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -484,7 +457,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		unstructured.RemoveNestedField(live.Object, "metadata", "annotations", "iksm-version")
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -509,7 +482,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f := setup(t, ignores)
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -537,7 +510,7 @@ func TestNormalizeTargetResources(t *testing.T) {
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -553,10 +526,11 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	type fixture struct {
 		comparisonResult *comparisonResult
 	}
-	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences, parser *managedfields.GvkParser) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
 			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithGVKParser(parser).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -574,11 +548,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	}
 
 	t.Run("will properly ignore nested fields within arrays", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
+		parser := gvkParserFromSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
 		// given
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -588,11 +558,11 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				// JSONPointers: []string{"/spec/routes"},
 			},
 		}
-		f := setupHTTPProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores, parser)
 		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 		// when
-		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		patchedTargets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -624,14 +594,14 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				JQPathExpressions: []string{".spec.template.spec.containers[].env[] | select(.name == \"SOME_ENV_VAR\")"},
 			},
 		}
-		f := setupHTTPProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores, builtinGVKParser(t))
 		live := test.YamlToUnstructured(testdata.LiveDeploymentEnvVarsYaml)
 		target := test.YamlToUnstructured(testdata.TargetDeploymentEnvVarsYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -676,14 +646,14 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 				JQPathExpressions: []string{".spec.template.spec.containers[].image"},
 			},
 		}
-		f := setupHTTPProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores, builtinGVKParser(t))
 		live := test.YamlToUnstructured(testdata.MinimalImageReplicaDeploymentYaml)
 		target := test.YamlToUnstructured(testdata.AdditionalImageReplicaDeploymentYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
 		// when
-		targets, err := normalizeTargetResources(nil, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 
 		// then
 		require.NoError(t, err)
@@ -739,11 +709,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 	})
 
 	t.Run("patches ignored differences in individual array elements of HTTPProxy CRD", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
+		parser := gvkParserFromSchema(t, "testdata/schemas/httpproxy_openapi_v2.yaml")
 
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -753,7 +719,7 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 			},
 		}
 
-		f := setupHTTPProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores, parser)
 
 		target := test.YamlToUnstructured(testdata.TargetHTTPProxy)
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
@@ -761,18 +727,24 @@ func TestNormalizeTargetResourcesWithList(t *testing.T) {
 		live := test.YamlToUnstructured(testdata.LiveHTTPProxy)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
 
-		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		patchedTargets, err := normalizeTargetResources(f.comparisonResult)
 		require.NoError(t, err)
 		require.Len(t, patchedTargets, 1)
 		patched := patchedTargets[0]
 
-		// verify descriptors array in patched target
+		// verify descriptors array in patched target. Git declares two
+		// descriptors; only their entries are ignored, so both descriptors are
+		// asserted. The ignored live entry is carried into the first descriptor
+		// (the schema's merge key for descriptors is the ignored `entries` list
+		// itself, so items are matched by position) and the second descriptor
+		// keeps no entries, exactly as the normalized diff compares them.
 		descriptors := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors").([]any)
-		require.Len(t, descriptors, 1) // Only the descriptors with ignored entries should remain
+		require.Len(t, descriptors, 2)
+		require.Empty(t, dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 1, "entries"))
 
-		// verify individual entries array inside the descriptor
+		// verify individual entries array inside the first descriptor
 		entriesArr := dig(patched.Object, "spec", "routes", 0, "rateLimitPolicy", "global", "descriptors", 0, "entries").([]any)
-		require.Len(t, entriesArr, 1) // Only the ignored entry should be patched
+		require.Len(t, entriesArr, 1) // Only the ignored live entry is carried
 
 		// verify the content of the entry is preserved correctly
 		entry := entriesArr[0].(map[string]any)
@@ -786,10 +758,11 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 	type fixture struct {
 		comparisonResult *comparisonResult
 	}
-	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences) *fixture {
+	setupHTTPProxy := func(t *testing.T, ignores []v1alpha1.ResourceIgnoreDifferences, parser *managedfields.GvkParser) *fixture {
 		t.Helper()
 		dc, err := diff.NewDiffConfigBuilder().
 			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithGVKParser(parser).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -807,11 +780,7 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 	}
 
 	t.Run("sample-app", func(t *testing.T) {
-		doc := loadCRDSchema(t, "testdata/schemas/simple-app.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
+		parser := gvkParserFromSchema(t, "testdata/schemas/simple-app.yaml")
 
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -821,7 +790,7 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 			},
 		}
 
-		f := setupHTTPProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores, parser)
 
 		target := test.YamlToUnstructured(testdata.SimpleAppTargetYaml)
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
@@ -829,7 +798,7 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 		live := test.YamlToUnstructured(testdata.SimpleAppLiveYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
 
-		patchedTargets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		patchedTargets, err := normalizeTargetResources(f.comparisonResult)
 		require.NoError(t, err)
 		require.Len(t, patchedTargets, 1)
 
@@ -861,11 +830,7 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 	})
 	t.Run("rollout-obj", func(t *testing.T) {
 		// Load Rollout CRD schema like SimpleApp
-		doc := loadCRDSchema(t, "testdata/schemas/rollout-schema.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
+		parser := gvkParserFromSchema(t, "testdata/schemas/rollout-schema.yaml")
 
 		ignores := []v1alpha1.ResourceIgnoreDifferences{
 			{
@@ -875,14 +840,14 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 			},
 		}
 
-		f := setupHTTPProxy(t, ignores)
+		f := setupHTTPProxy(t, ignores, parser)
 
 		live := test.YamlToUnstructured(testdata.LiveRolloutYaml)
 		target := test.YamlToUnstructured(testdata.TargetRolloutYaml)
 		f.comparisonResult.reconciliationResult.Live = []*unstructured.Unstructured{live}
 		f.comparisonResult.reconciliationResult.Target = []*unstructured.Unstructured{target}
 
-		targets, err := normalizeTargetResources(oapiResources, f.comparisonResult)
+		targets, err := normalizeTargetResources(f.comparisonResult)
 		require.NoError(t, err)
 		require.Len(t, targets, 1)
 
@@ -918,11 +883,7 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 		// The panic occurs when the OpenAPI schema from the Application CRD is used
 		// to perform strategic merge patch operations on array fields with incomplete merge directives
 
-		doc := loadCRDSchema(t, "testdata/schemas/application-openapi-v2.yaml")
-		disco := &fakeDiscovery{schema: doc}
-		oapiGetter := openapi.NewOpenAPIGetter(disco)
-		oapiResources, err := openapi.NewOpenAPIParser(oapiGetter).Parse()
-		require.NoError(t, err)
+		parser := gvkParserFromSchema(t, "testdata/schemas/application-openapi-v2.yaml")
 
 		// Set up ignoreDifferences with RespectIgnoreDifferences enabled
 		// This is typical for app-of-apps to ignore certain fields
@@ -936,6 +897,7 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 
 		dc, err := diff.NewDiffConfigBuilder().
 			WithDiffSettings(ignores, nil, true, normalizers.IgnoreNormalizerOpts{}).
+			WithGVKParser(parser).
 			WithNoCache().
 			Build()
 		require.NoError(t, err)
@@ -958,7 +920,7 @@ func TestNormalizeTargetResourcesCRDs(t *testing.T) {
 		// Without the fix, this panics with: "runtime error: invalid memory address or nil pointer dereference"
 		// at k8s.io/apimachinery/pkg/util/strategicpatch.handleSliceDiff:306
 		// when processing array fields in the Application spec (like syncOptions)
-		patchedTargets, err := normalizeTargetResources(oapiResources, comparisonResult)
+		patchedTargets, err := normalizeTargetResources(comparisonResult)
 
 		// We expect either success or a graceful error, but NOT a panic
 		if err != nil {
@@ -1015,7 +977,7 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 			},
 		})
 
-		targets, err := normalizeTargetResources(nil, cr)
+		targets, err := normalizeTargetResources(cr)
 		require.NoError(t, err)
 		require.Len(t, targets, 1)
 
@@ -1055,7 +1017,7 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 		}
 		require.NoError(t, unstructured.SetNestedSlice(target.Object, matchExpr, "spec", "selector", "matchExpressions"))
 
-		targets, err := normalizeTargetResources(nil, cr)
+		targets, err := normalizeTargetResources(cr)
 		require.NoError(t, err)
 		require.Len(t, targets, 1)
 
@@ -1091,7 +1053,7 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 		matchLabels["track"] = "stable"
 		require.NoError(t, unstructured.SetNestedStringMap(live.Object, matchLabels, "spec", "selector", "matchLabels"))
 
-		targets, err := normalizeTargetResources(nil, cr)
+		targets, err := normalizeTargetResources(cr)
 		require.NoError(t, err)
 		require.Len(t, targets, 1)
 
@@ -1114,7 +1076,7 @@ func TestNormalizeTargetResourcesPDBSelector(t *testing.T) {
 			},
 		})
 
-		targets, err := normalizeTargetResources(nil, cr)
+		targets, err := normalizeTargetResources(cr)
 		require.NoError(t, err)
 		require.Len(t, targets, 1)
 
