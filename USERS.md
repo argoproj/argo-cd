@@ -128,6 +128,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Energisme](https://energisme.com/)
 1. [enigmo](https://enigmo.co.jp/)
 1. [Envoy](https://envoy.com/)
+1. [Ericsson](https://www.ericsson.com/)
 1. [eSave](https://esave.es/)
 1. [Eskimi](https://eskimi.com/)
 1. [Etherflow](https://etherflow.io)
