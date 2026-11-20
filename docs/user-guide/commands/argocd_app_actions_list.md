@@ -18,13 +18,14 @@ argocd app actions list APPNAME [flags]
 ### Options
 
 ```
-  -N, --app-namespace string   Namespace of the application
-      --group string           Group
-  -h, --help[=true|false]      help for list
-      --kind string            Kind
-      --namespace string       Namespace
-  -o, --out string             Output format. One of: yaml, json
-      --resource-name string   Name of resource
+  -N, --app-namespace string                   Namespace of the application
+      --group string                           Group
+  -h, --help[=true|false]                      help for list
+      --include-child-resources[=true|false]   Also match child resources that are not represented in git, such as resources created by a controller
+      --kind string                            Kind
+      --namespace string                       Namespace
+  -o, --out string                             Output format. One of: yaml, json
+      --resource-name string                   Name of resource
 ```
 
 ### Options inherited from parent commands
