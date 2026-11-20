@@ -133,7 +133,11 @@ func IsHTTPURL(url string) bool {
 
 // TestRepo tests if a repo exists and is accessible with the given credentials
 func TestRepo(repo string, creds Creds, insecure bool, enableLfs bool, proxy string, noProxy string) error {
-	client, err := NewClient(repo, creds, insecure, enableLfs, proxy, noProxy)
+	if NormalizeGitURL(repo) == "" {
+		return fmt.Errorf("unable to initialize git client: repository %q cannot be initialized: %w", SanitizeRepoURL(repo), ErrInvalidRepoURL)
+	}
+	// ls-remote doesn't need a local checkout, so the client has no root directory.
+	client, err := NewClientExt(repo, "", creds, insecure, enableLfs, proxy, noProxy)
 	if err != nil {
 		return fmt.Errorf("unable to initialize git client: %w", err)
 	}
