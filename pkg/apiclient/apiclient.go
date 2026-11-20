@@ -130,12 +130,16 @@ type Client interface {
 
 // ClientOptions hold address, security, and other settings for the API client.
 type ClientOptions struct {
-	ServerAddr           string
-	PlainText            bool
-	Insecure             bool
-	CertFile             string
-	ClientCertFile       string
-	ClientCertKeyFile    string
+	ServerAddr        string
+	PlainText         bool
+	Insecure          bool
+	CertFile          string
+	ClientCertFile    string
+	ClientCertKeyFile string
+	// ClientCertData and ClientCertKeyData hold a PEM encoded client certificate and its private key.
+	// They are used when the certificate is not available as a file, e.g. when it is inlined in the local config.
+	ClientCertData       []byte
+	ClientCertKeyData    []byte
 	AuthToken            string
 	ConfigPath           string
 	Context              string
@@ -175,6 +179,39 @@ type client struct {
 	proxyServer     *grpc.Server
 	proxyUsersCount int
 	httpClient      *http.Client
+	// tlsTransport is the underlying *http.Transport used for non-plaintext
+	// connections. When HttpRetryMax > 0, httpClient wraps a retryablehttp
+	// RoundTripper (which does not implement CloseIdleConnections), so we keep
+	// a direct reference to close idle connections in the grpc-web proxy.
+	tlsTransport *http.Transport
+}
+
+// retryWaitMax bounds the per-attempt backoff for the retryable HTTP client so
+// retries cannot stack unbounded latency ahead of command-level timeouts.
+const retryWaitMax = 10 * time.Second
+
+// retryWithStatusError wraps ErrorPropagatedRetryPolicy so that an exhausted
+// retry against a persistent 429 still surfaces the status in the returned
+// error. ErrorPropagatedRetryPolicy reports 5xx with a status-bearing error but
+// reports 429 with a nil error, which would otherwise strip the status from the
+// final "giving up after N attempt(s)" message.
+func retryWithStatusError(ctx context.Context, resp *http.Response, err error) (bool, error) {
+	shouldRetry, policyErr := retryablehttp.ErrorPropagatedRetryPolicy(ctx, resp, err)
+	if shouldRetry && policyErr == nil && resp != nil && resp.StatusCode == http.StatusTooManyRequests {
+		return shouldRetry, fmt.Errorf("unexpected HTTP status %s", resp.Status)
+	}
+	return shouldRetry, policyErr
+}
+
+// cappedBackoff wraps DefaultBackoff to enforce retryWaitMax even when the
+// server supplies a Retry-After header, which DefaultBackoff would otherwise
+// honor verbatim.
+func cappedBackoff(minWait, maxWait time.Duration, attemptNum int, resp *http.Response) time.Duration {
+	wait := retryablehttp.DefaultBackoff(minWait, maxWait, attemptNum, resp)
+	if wait > maxWait {
+		return maxWait
+	}
+	return wait
 }
 
 // NewClient creates a new API client from a set of config options.
@@ -204,22 +241,9 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 					return nil, err
 				}
 			}
-			if configCtx.Server.ClientCertificateData != "" && configCtx.Server.ClientCertificateKeyData != "" {
-				clientCertData, err := base64.StdEncoding.DecodeString(configCtx.Server.ClientCertificateData)
-				if err != nil {
-					return nil, err
-				}
-				clientCertKeyData, err := base64.StdEncoding.DecodeString(configCtx.Server.ClientCertificateKeyData)
-				if err != nil {
-					return nil, err
-				}
-				clientCert, err := tls.X509KeyPair(clientCertData, clientCertKeyData)
-				if err != nil {
-					return nil, err
-				}
-				c.ClientCert = &clientCert
-			} else if configCtx.Server.ClientCertificateData != "" || configCtx.Server.ClientCertificateKeyData != "" {
-				return nil, errors.New("ClientCertificateData and ClientCertificateKeyData must always be specified together")
+			c.ClientCert, err = clientCertFromContext(&configCtx.Server)
+			if err != nil {
+				return nil, err
 			}
 			c.PlainText = configCtx.Server.PlainText
 			c.Insecure = configCtx.Server.Insecure
@@ -271,14 +295,23 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 		c.CertPEMData = b
 	}
 	// Override client certificate data if specified from CLI flag
-	if opts.ClientCertFile != "" && opts.ClientCertKeyFile != "" {
+	switch {
+	case opts.ClientCertFile != "" && opts.ClientCertKeyFile != "":
 		clientCert, err := tls.LoadX509KeyPair(opts.ClientCertFile, opts.ClientCertKeyFile)
 		if err != nil {
 			return nil, err
 		}
 		c.ClientCert = &clientCert
-	} else if opts.ClientCertFile != "" || opts.ClientCertKeyFile != "" {
+	case opts.ClientCertFile != "" || opts.ClientCertKeyFile != "":
 		return nil, errors.New("--client-crt and --client-crt-key must always be specified together")
+	case len(opts.ClientCertData) > 0 && len(opts.ClientCertKeyData) > 0:
+		clientCert, err := tls.X509KeyPair(opts.ClientCertData, opts.ClientCertKeyData)
+		if err != nil {
+			return nil, err
+		}
+		c.ClientCert = &clientCert
+	case len(opts.ClientCertData) > 0 || len(opts.ClientCertKeyData) > 0:
+		return nil, errors.New("ClientCertData and ClientCertKeyData must always be specified together")
 	}
 	// Override insecure/plaintext options if specified from CLI
 	if opts.PlainText {
@@ -293,22 +326,62 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 	if opts.GRPCWebRootPath != "" {
 		c.GRPCWebRootPath = opts.GRPCWebRootPath
 	}
-
-	if opts.HttpRetryMax > 0 {
-		retryClient := retryablehttp.NewClient()
-		retryClient.RetryMax = opts.HttpRetryMax
-		c.httpClient = retryClient.StandardClient()
-	} else {
-		c.httpClient = &http.Client{}
+	if _, err := parseHeaders(opts.Headers); err != nil {
+		return nil, err
 	}
+	c.Headers = opts.Headers
 
+	// Keep a typed reference to the TLS transport (not http.RoundTripper) so the
+	// grpc-web proxy can close idle connections on it directly: when retries are
+	// enabled, httpClient wraps a retryablehttp RoundTripper that does not
+	// implement CloseIdleConnections.
 	if !c.PlainText {
 		tlsConfig, err := c.tlsConfig()
 		if err != nil {
 			return nil, err
 		}
-		c.httpClient.Transport = &http.Transport{
+		c.tlsTransport = &http.Transport{
 			TLSClientConfig: tlsConfig,
+			// Honor HTTP_PROXY/HTTPS_PROXY/NO_PROXY, like http.DefaultTransport
+			// (which is used in the --plaintext case) and HTTPClient() already do.
+			Proxy: http.ProxyFromEnvironment,
+		}
+	}
+
+	if opts.HttpRetryMax > 0 {
+		retryClient := retryablehttp.NewClient()
+		retryClient.RetryMax = opts.HttpRetryMax
+		// retryablehttp.NewClient() installs a default logger that writes a line
+		// to stderr for every request, even successful non-retried ones. The
+		// plain http.Client path below is silent, so disable the logger to keep
+		// behavior consistent and avoid per-request noise on the CLI.
+		retryClient.Logger = nil
+		// Propagate the final status when retries are exhausted so the error still
+		// carries the underlying cause (e.g. "unexpected HTTP status 502"). The
+		// default policy discards it, turning a persistent 5xx into a bare
+		// "giving up after N attempt(s)". ErrorPropagatedRetryPolicy covers 5xx but
+		// not 429 (which it reports with a nil error), so wrap it to attach the
+		// status for 429 too.
+		retryClient.CheckRetry = retryWithStatusError
+		// Cap the backoff so retries can't stack unbounded latency ahead of
+		// command-level timeouts (e.g. app sync/wait). DefaultBackoff honors a
+		// server Retry-After header verbatim, bypassing RetryWaitMax, so wrap it
+		// to enforce the cap regardless of Retry-After.
+		retryClient.RetryWaitMax = retryWaitMax
+		retryClient.Backoff = cappedBackoff
+		// Apply the TLS transport to the retryable client's inner HTTP client
+		// before wrapping it. StandardClient() returns an *http.Client whose
+		// Transport is the retry RoundTripper, so overwriting Transport after
+		// the fact (as the non-plaintext branch used to do) would silently
+		// discard the retry behavior on TLS connections.
+		if c.tlsTransport != nil {
+			retryClient.HTTPClient.Transport = c.tlsTransport
+		}
+		c.httpClient = retryClient.StandardClient()
+	} else {
+		c.httpClient = &http.Client{}
+		if c.tlsTransport != nil {
+			c.httpClient.Transport = c.tlsTransport
 		}
 	}
 	if !c.GRPCWeb {
@@ -342,9 +415,22 @@ func NewClientWithContext(ctx context.Context, opts *ClientOptions) (Client, err
 			return nil, err
 		}
 	}
-	c.Headers = opts.Headers
 
 	return &c, nil
+}
+
+// clientCertFromContext returns the client certificate configured for a local config context, or nil
+// if none is configured.
+func clientCertFromContext(server *localconfig.Server) (*tls.Certificate, error) {
+	certPEM, keyPEM, err := server.ClientCertPEM()
+	if err != nil || certPEM == nil {
+		return nil, err
+	}
+	clientCert, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		return nil, err
+	}
+	return &clientCert, nil
 }
 
 // OIDCConfig returns OAuth2 client config and a OpenID Provider based on Argo CD settings

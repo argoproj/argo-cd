@@ -78,6 +78,7 @@ func NewClusterCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clientc
 	command.AddCommand(NewClusterListCommand(clientOpts))
 	command.AddCommand(NewClusterRemoveCommand(clientOpts, pathOpts))
 	command.AddCommand(NewClusterRotateAuthCommand(clientOpts))
+	command.AddCommand(NewClusterInvalidateCacheCommand(clientOpts))
 	command.AddCommand(NewClusterSetCommand(clientOpts))
 	return command
 }
@@ -147,7 +148,7 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 						if len(clusterOpts.Namespaces) > 0 {
 							accessLevel = "namespace"
 						}
-						message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context `%s` with full %s level privileges. Do you want to continue [y/N]? ", contextName, accessLevel)
+						message := fmt.Sprintf("WARNING: This will create a service account `argocd-manager` on the cluster referenced by context %#q with full %s level privileges. Do you want to continue [y/N]? ", contextName, accessLevel)
 						if !cli.AskToProceed(message) {
 							os.Exit(1)
 						}
@@ -168,6 +169,8 @@ func NewClusterAddCommand(clientOpts *argocdclient.ClientOptions, pathOpts *clie
 				contextName = clusterOpts.Name
 			}
 			clst := cmdutil.NewCluster(contextName, clusterOpts.Namespaces, clusterOpts.ClusterResources, conf, managerBearerToken, awsAuthConf, execProviderConf, labelsMap, annotationsMap)
+			// Override K8s client QPS and Burst if specified via CLI flags
+			cmdutil.ApplyRateLimitOverrides(&clusterOpts, clst)
 			// If --server-proxy-url was explicitly provided, override the proxy that the ArgoCD server will use to
 			// reach this cluster.  An explicit empty string means "no proxy", which is the common case when the local
 			// machine needs a proxy but the two clusters can reach each other directly.
@@ -414,6 +417,12 @@ func printClusterDetails(clusters []argoappv1.Cluster) {
 		fmt.Printf("  AWS authentication:    %v\n", cluster.Config.AWSAuthConfig != nil)
 		fmt.Printf("\nDisable compression: %v\n", cluster.Config.DisableCompression)
 		fmt.Printf("\nUse proxy: %v\n", cluster.Config.ProxyUrl != "")
+		if cluster.Config.QPS > 0 {
+			fmt.Printf("\nK8s client QPS:        %v\n", cluster.Config.QPS)
+		}
+		if cluster.Config.Burst > 0 {
+			fmt.Printf("K8s client Burst:      %v\n", cluster.Config.Burst)
+		}
 		fmt.Println()
 	}
 }
@@ -594,4 +603,37 @@ argocd cluster rotate-auth cluster-name`,
 		}),
 	}
 	return command
+}
+
+// NewClusterInvalidateCacheCommand returns a new instance of an `argocd cluster invalidate-cache` command
+func NewClusterInvalidateCacheCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	command := &cobra.Command{
+		Use:   "invalidate-cache SERVER/NAME",
+		Short: "Request invalidation of the cache of a cluster",
+		Long:  "Request invalidation of the cache of a cluster. The API server records the request and returns immediately; the application controller invalidates and rebuilds the cache asynchronously. Clusters whose cache has never been synced are skipped.",
+		Example: `argocd cluster invalidate-cache https://12.34.567.89
+argocd cluster invalidate-cache cluster-name`,
+		Run: cli.WithSignalContext(func(c *cobra.Command, args []string, _ context.CancelFunc) {
+			ctx := c.Context()
+
+			if len(args) != 1 {
+				c.HelpFunc()(c, args)
+				os.Exit(1)
+			}
+			conn, clusterIf := headless.NewClientOrDie(clientOpts, c).NewClusterClientOrDieWithContext(ctx)
+			defer utilio.Close(conn)
+
+			cluster := args[0]
+			errors.CheckError(invalidateClusterCache(ctx, clusterIf, cluster))
+
+			fmt.Printf("Cluster '%s' cache invalidation requested\n", cluster)
+		}),
+	}
+	return command
+}
+
+// invalidateClusterCache requests invalidation of the cache of the cluster matching the given selector
+func invalidateClusterCache(ctx context.Context, clusterIf clusterpkg.ClusterServiceClient, clusterSelector string) error {
+	_, err := clusterIf.InvalidateCache(ctx, getQueryBySelector(clusterSelector))
+	return err
 }

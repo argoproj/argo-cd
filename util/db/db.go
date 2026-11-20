@@ -147,7 +147,7 @@ func (db *db) GetApplicationControllerReplicas() int {
 	if err != nil {
 		appControllerDeployment = nil
 		if !apierrors.IsNotFound(err) {
-			log.Warnf("error retrieveing Argo CD controller deployment: %s", err)
+			log.Warnf("error retrieving Argo CD controller deployment: %s", err)
 		}
 	}
 	if appControllerDeployment != nil && appControllerDeployment.Spec.Replicas != nil {

@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"testing"
 	"time"
@@ -44,9 +45,9 @@ func newSecretManagedResource(name string, targetData, liveData map[string][]byt
 			return nil
 		}
 		return kube.MustToUnstructured(&corev1.Secret{
-			TypeMeta:   metav1.TypeMeta{APIVersion: "v1", Kind: kube.SecretKind},
-			ObjectMeta: metav1.ObjectMeta{Name: name, Namespace: "default"},
-			Data:       data,
+			APIVersion: "v1", Kind: kube.SecretKind,
+			Name: name, Namespace: "default",
+			Data: data,
 		})
 	}
 	return managedResource{
@@ -259,6 +260,56 @@ func TestCompareAppStateEmpty(t *testing.T) {
 	assert.Empty(t, compRes.resources)
 	assert.Empty(t, compRes.managedResources)
 	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStateServerSideDiffApplierError verifies that when the server-side diff dry run
+// applier can't be created, CompareAppState doesn't panic and reports the failure as conditions.
+func TestCompareAppStateServerSideDiffApplierError(t *testing.T) {
+	t.Parallel()
+
+	app := newFakeApp()
+	app.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true"})
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		// Impersonation is enabled, but defaultProj has no destinationServiceAccounts, so creating
+		// the server-side diff dry run applier fails.
+		configMapData: map[string]string{
+			"application.sync.impersonation.enabled": "true",
+		},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+	revisions := []string{""}
+
+	var compRes *comparisonResult
+	var err error
+	require.NotPanics(t, func() {
+		compRes, err = ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+	})
+	require.NoError(t, err)
+	require.NotNil(t, compRes)
+
+	var unknownErr, comparisonErr bool
+	for _, c := range app.Status.Conditions {
+		switch c.Type {
+		case v1alpha1.ApplicationConditionUnknownError:
+			if strings.Contains(c.Message, "no matching service account found") {
+				unknownErr = true
+			}
+		case v1alpha1.ApplicationConditionComparisonError:
+			if strings.Contains(c.Message, "Failed to compare desired state to live state") {
+				comparisonErr = true
+			}
+		}
+	}
+	assert.True(t, unknownErr, "expected an UnknownError condition for the applier failure, got %v", app.Status.Conditions)
+	assert.True(t, comparisonErr, "expected a ComparisonError condition, got %v", app.Status.Conditions)
 }
 
 // TestCompareAppStateRepoError tests the case when CompareAppState notices a repo error
@@ -517,6 +568,74 @@ func TestCompareAppStateMissing(t *testing.T) {
 	assert.Len(t, compRes.resources, 1)
 	assert.Len(t, compRes.managedResources, 1)
 	assert.Empty(t, app.Status.Conditions)
+}
+
+// TestCompareAppStateResourceSelector tests that a managed resource filtered out by a configured
+// resource selector is reported with an ExcludedResourceWarning, as it will never have a live state
+func TestCompareAppStateResourceSelector(t *testing.T) {
+	labeledPodManifest := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","labels":{"app":"my-app"}}}`
+
+	compare := func(t *testing.T, manifest string, selector string) (*comparisonResult, *v1alpha1.Application) {
+		t.Helper()
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{manifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			configMapData: map[string]string{
+				"resource.selectors": fmt.Sprintf("- kinds: [\"Pod\"]\n  selector: %q\n", selector),
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		return compRes, app
+	}
+
+	t.Run("resource not matching the selector is reported", func(t *testing.T) {
+		// PodManifest has no labels, so it does not match
+		compRes, app := compare(t, PodManifest, "app=my-app")
+
+		require.Len(t, app.Status.Conditions, 1)
+		assert.Equal(t, v1alpha1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
+		assert.Contains(t, app.Status.Conditions[0].Message, `Resource /Pod my-pod does not match the resource selector "app=my-app" in the settings`)
+		// the resource stays managed, it is only unwatched
+		assert.Len(t, compRes.resources, 1)
+		assert.Len(t, compRes.managedResources, 1)
+	})
+
+	t.Run("resource matching the selector is not reported", func(t *testing.T) {
+		compRes, app := compare(t, labeledPodManifest, "app=my-app")
+
+		assert.Empty(t, app.Status.Conditions)
+		assert.Len(t, compRes.resources, 1)
+	})
+
+	t.Run("selector of another kind is ignored", func(t *testing.T) {
+		app := newFakeApp()
+		data := fakeData{
+			apps: []runtime.Object{app},
+			manifestResponse: &apiclient.ManifestResponse{
+				Manifests: []string{PodManifest},
+				Namespace: test.FakeDestNamespace,
+				Server:    test.FakeClusterURL,
+				Revision:  "abc123",
+			},
+			managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+			configMapData: map[string]string{
+				"resource.selectors": "- kinds: [\"Service\"]\n  selector: \"app=my-app\"\n",
+			},
+		}
+		ctrl := newFakeController(t.Context(), &data, nil)
+		_, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, []v1alpha1.ApplicationSource{app.Spec.GetSource()}, false, false, nil, false)
+		require.NoError(t, err)
+		assert.Empty(t, app.Status.Conditions)
+	})
 }
 
 // TestCompareAppStateExtra tests when there is an extra object in live but not defined in git
@@ -975,10 +1094,8 @@ func TestCompareAppStateManagedNamespaceMetadataWithLiveNsDoesNotGetPruned(t *te
 }
 
 var defaultProj = v1alpha1.AppProject{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "default",
-		Namespace: test.FakeArgoCDNamespace,
-	},
+	Name:      "default",
+	Namespace: test.FakeArgoCDNamespace,
 	Spec: v1alpha1.AppProjectSpec{
 		SourceRepos: []string{"*"},
 		Destinations: []v1alpha1.ApplicationDestination{
@@ -1022,14 +1139,10 @@ func TestCompareAppStateWithManifestGeneratePath(t *testing.T) {
 func TestSetHealth(t *testing.T) {
 	app := newFakeApp()
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -1058,14 +1171,10 @@ func TestPreserveStatusTimestamp(t *testing.T) {
 	timestamp := metav1.Now()
 	app := newFakeAppWithHealthAndTime(health.HealthStatusHealthy, timestamp)
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -1094,14 +1203,10 @@ func TestSetHealthSelfReferencedApp(t *testing.T) {
 	app := newFakeApp()
 	unstructuredApp := kube.MustToUnstructured(app)
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "apps/v1",
-			Kind:       "Deployment",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "demo",
-			Namespace: "default",
-		},
+		APIVersion: "apps/v1",
+		Kind:       "Deployment",
+		Name:       "demo",
+		Namespace:  "default",
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
 		apps: []runtime.Object{app, &defaultProj},
@@ -1294,10 +1399,8 @@ func Test_appStateManager_persistRevisionHistory(t *testing.T) {
 }
 
 var projWithSourceIntegrity = v1alpha1.AppProject{
-	ObjectMeta: metav1.ObjectMeta{
-		Name:      "default",
-		Namespace: test.FakeArgoCDNamespace,
-	},
+	Name:      "default",
+	Namespace: test.FakeArgoCDNamespace,
 	Spec: v1alpha1.AppProjectSpec{
 		SourceRepos: []string{"*"},
 		Destinations: []v1alpha1.ApplicationDestination{
@@ -1507,94 +1610,66 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	t.Parallel()
 
 	managedObj := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap1",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap1",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
 		},
 	})
 	managedObjWithLabel := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap1",
-			Namespace: "default",
-			Labels: map[string]string{
-				common.LabelKeyAppInstance: "guestbook",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap1",
+		Namespace:  "default",
+		Labels: map[string]string{
+			common.LabelKeyAppInstance: "guestbook",
 		},
 	})
 	unmanagedObjWrongName := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:default/configmap1",
 		},
 	})
 	unmanagedObjWrongKind := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/Service:default/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/Service:default/configmap2",
 		},
 	})
 	unmanagedObjWrongGroup := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:apps/ConfigMap:default/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:apps/ConfigMap:default/configmap2",
 		},
 	})
 	unmanagedObjWrongNamespace := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "configmap2",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:fakens/configmap2",
-			},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
+		Name:       "configmap2",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:/ConfigMap:fakens/configmap2",
 		},
 	})
 	managedWrongAPIGroup := kube.MustToUnstructured(&networkingv1.Ingress{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "networking.k8s.io/v1",
-			Kind:       "Ingress",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "some-ingress",
-			Namespace: "default",
-			Annotations: map[string]string{
-				common.AnnotationKeyAppInstance: "guestbook:extensions/Ingress:default/some-ingress",
-			},
+		APIVersion: "networking.k8s.io/v1",
+		Kind:       "Ingress",
+		Name:       "some-ingress",
+		Namespace:  "default",
+		Annotations: map[string]string{
+			common.AnnotationKeyAppInstance: "guestbook:extensions/Ingress:default/some-ingress",
 		},
 	})
 	ctrl := newFakeController(t.Context(), &fakeData{
@@ -1682,6 +1757,7 @@ func TestIsLiveResourceManaged(t *testing.T) {
 	})
 }
 
+// TestUseDiffCache checks when CompareAppState may reuse the cached diff instead of re-diffing every resource.
 func TestUseDiffCache(t *testing.T) {
 	t.Parallel()
 	type fixture struct {
@@ -1691,6 +1767,8 @@ func TestUseDiffCache(t *testing.T) {
 		sources              []v1alpha1.ApplicationSource
 		app                  *v1alpha1.Application
 		manifestRevisions    []string
+		pathsUnchanged       bool
+		targetsDiffer        bool
 		statusRefreshTimeout time.Duration
 		expectedUseCache     bool
 		serverSideDiff       bool
@@ -1722,10 +1800,8 @@ func TestUseDiffCache(t *testing.T) {
 
 	app := func(namespace string, revision string, refresh bool, a *v1alpha1.Application) *v1alpha1.Application {
 		app := &v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "httpbin",
-				Namespace: namespace,
-			},
+			Name:      "httpbin",
+			Namespace: namespace,
 			Spec: v1alpha1.ApplicationSpec{
 				Source: new(source()),
 				Destination: v1alpha1.ApplicationDestination{
@@ -1889,6 +1965,36 @@ func TestUseDiffCache(t *testing.T) {
 			serverSideDiff:       true,
 		},
 		{
+			testName:      "will return false if the last sync status is Unknown",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: func() *v1alpha1.Application {
+				a := app("httpbin", "rev1", false, nil)
+				a.Status.Sync.Status = v1alpha1.SyncStatusCodeUnknown
+				return a
+			}(),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       false,
+		},
+		{
+			testName:      "will return false if the last sync status is Unknown and server-side diff",
+			noCache:       false,
+			manifestInfos: manifestInfos("rev1"),
+			sources:       sources(),
+			app: func() *v1alpha1.Application {
+				a := app("httpbin", "rev1", false, nil)
+				a.Status.Sync.Status = v1alpha1.SyncStatusCodeUnknown
+				return a
+			}(),
+			manifestRevisions:    []string{"rev1"},
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       true,
+		},
+		{
 			testName:             "will return false if there is a new revision",
 			noCache:              false,
 			manifestInfos:        manifestInfos("rev1"),
@@ -1898,6 +2004,55 @@ func TestUseDiffCache(t *testing.T) {
 			statusRefreshTimeout: time.Hour * 24,
 			expectedUseCache:     false,
 			serverSideDiff:       false,
+		},
+		{
+			testName:             "will return true if there is a new revision without changes in the manifest-generate-paths",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev2"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev2"},
+			pathsUnchanged:       true,
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     true,
+			serverSideDiff:       true,
+		},
+		{
+			testName:             "will return false if there is a new revision without changes in the manifest-generate-paths but the targets differ from the cached diff",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev2"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev2"},
+			pathsUnchanged:       true,
+			targetsDiffer:        true,
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       true,
+		},
+		{
+			testName:             "will return false if there is a new revision without changes in the manifest-generate-paths and client-side diff",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev2"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", false, nil),
+			manifestRevisions:    []string{"rev2"},
+			pathsUnchanged:       true,
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       false,
+		},
+		{
+			testName:             "will return false if there is a new revision without changes in the manifest-generate-paths but a refresh is requested",
+			noCache:              false,
+			manifestInfos:        manifestInfos("rev2"),
+			sources:              sources(),
+			app:                  app("httpbin", "rev1", true, nil),
+			manifestRevisions:    []string{"rev2"},
+			pathsUnchanged:       true,
+			statusRefreshTimeout: time.Hour * 24,
+			expectedUseCache:     false,
+			serverSideDiff:       true,
 		},
 		{
 			testName:      "will return false if app spec repo changed",
@@ -1974,11 +2129,191 @@ func TestUseDiffCache(t *testing.T) {
 			logger, _ := logrustest.NewNullLogger()
 			log := logrus.NewEntry(logger)
 			// When
-			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.statusRefreshTimeout, tc.serverSideDiff, log)
+			targetsMatchCache := func() bool { return !tc.targetsDiffer }
+			useDiffCache := useDiffCache(tc.noCache, tc.manifestInfos, tc.sources, tc.app, tc.manifestRevisions, tc.pathsUnchanged, targetsMatchCache, tc.statusRefreshTimeout, tc.serverSideDiff, log)
 			// Then
 			assert.Equal(t, tc.expectedUseCache, useDiffCache)
 		})
 	}
+}
+
+// TestUseDiffCacheChecksTargetsLast checks that useDiffCache only loads the cached diff after its cheaper checks pass.
+func TestUseDiffCacheChecksTargetsLast(t *testing.T) {
+	t.Parallel()
+	logger, _ := logrustest.NewNullLogger()
+	log := logrus.NewEntry(logger)
+	source := v1alpha1.ApplicationSource{RepoURL: "https://github.com/a/b", Path: "app"}
+	app := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{Source: &source},
+		Status: v1alpha1.ApplicationStatus{
+			Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced, Revision: "rev1", ComparedTo: v1alpha1.ComparedTo{Source: source}},
+		},
+	}
+	manifestInfos := []*apiclient.ManifestResponse{{Revision: "rev2"}}
+	sources := []v1alpha1.ApplicationSource{source}
+	calls := 0
+	targetsMatchCache := func() bool {
+		calls++
+		return true
+	}
+
+	assert.False(t, useDiffCache(true, manifestInfos, sources, app, []string{"rev2"}, true, targetsMatchCache, time.Hour, true, log))
+	refreshing := app.DeepCopy()
+	refreshing.Annotations = map[string]string{v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal)}
+	assert.False(t, useDiffCache(false, manifestInfos, sources, refreshing, []string{"rev2"}, true, targetsMatchCache, time.Hour, true, log))
+	assert.Equal(t, 0, calls, "the cached diff should not be loaded when a cheaper check fails")
+
+	assert.True(t, useDiffCache(false, manifestInfos, sources, app, []string{"rev2"}, true, targetsMatchCache, time.Hour, true, log))
+	assert.Equal(t, 1, calls)
+}
+
+// TestGitPathsCheckedForAllSources checks which sources can rely on the manifest-generate-paths check.
+func TestGitPathsCheckedForAllSources(t *testing.T) {
+	t.Parallel()
+	assert.True(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://github.com/a/b", Path: "chart"}, {RepoURL: "https://github.com/a/c", Ref: "values"}}))
+	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://github.com/a/b", Path: "chart", Ref: "values"}}))
+	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "https://charts.example.com", Chart: "app", TargetRevision: "1.*"}}))
+	assert.False(t, gitPathsCheckedForAllSources([]v1alpha1.ApplicationSource{{RepoURL: "oci://registry.example.com/charts", Path: "."}}))
+}
+
+// TestTargetsMatchCachedDiff checks the target comparison used before reusing a cached diff across a revision change.
+func TestTargetsMatchCachedDiff(t *testing.T) {
+	t.Parallel()
+	svc := func(port int64) *unstructured.Unstructured {
+		return &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1", "kind": "Service",
+			"metadata": map[string]any{"name": "svc", "namespace": "ns"},
+			"spec":     map[string]any{"ports": []any{map[string]any{"port": port}}},
+		}}
+	}
+	cached := func(target *unstructured.Unstructured) []*v1alpha1.ResourceDiff {
+		data, err := json.Marshal(target)
+		require.NoError(t, err)
+		return []*v1alpha1.ResourceDiff{{Kind: "Service", Namespace: "ns", Name: "svc", TargetState: string(data)}}
+	}
+	live := svc(80)
+
+	assert.True(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{svc(80)}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{svc(81)}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(nil, []*unstructured.Unstructured{svc(80)}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{nil}, []*unstructured.Unstructured{live}))
+	assert.False(t, targetsMatchCachedDiff(cached(svc(80)), []*unstructured.Unstructured{svc(80)}, nil))
+	assert.True(t, targetsMatchCachedDiff(nil, []*unstructured.Unstructured{nil}, []*unstructured.Unstructured{nil}))
+
+	secret := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1", "kind": "Secret",
+		"metadata": map[string]any{"name": "s", "namespace": "ns"},
+	}}
+	data, err := json.Marshal(secret)
+	require.NoError(t, err)
+	secretCache := []*v1alpha1.ResourceDiff{{Kind: "Secret", Namespace: "ns", Name: "s", TargetState: string(data)}}
+	assert.False(t, targetsMatchCachedDiff(secretCache, []*unstructured.Unstructured{secret}, []*unstructured.Unstructured{secret}))
+}
+
+// TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged checks that CompareAppState keeps the diff cache across a revision change only with server-side diff, and only when the manifest-generate-paths, the targets and the live resourceVersions are unchanged.
+func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *testing.T) {
+	t.Parallel()
+	newCM := func(value string) *unstructured.Unstructured {
+		return &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "v1", "kind": "ConfigMap",
+			"metadata": map[string]any{"name": "cm", "namespace": test.FakeDestNamespace},
+			"data":     map[string]any{"key": value},
+		}}
+	}
+	live := newCM("live")
+	target := newCM("target")
+	targetJSON, err := json.Marshal(target)
+	require.NoError(t, err)
+
+	run := func(t *testing.T, serverSideDiff, pathsChanged bool, cachedTarget func(compared *unstructured.Unstructured) string, cachedResourceVersion func(live string) string) *comparisonResult {
+		t.Helper()
+		app := newFakeApp()
+		app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+		// CompareAppState consumes the map the fake cache returns, so refill it before each compare.
+		liveObjs := map[kube.ResourceKey]*unstructured.Unstructured{}
+		manifest := &apiclient.ManifestResponse{
+			Manifests: []string{string(targetJSON)},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "def456",
+		}
+		ctrl := newFakeController(t.Context(), &fakeData{
+			manifestResponses:              []*apiclient.ManifestResponse{manifest, manifest},
+			managedLiveObjs:                liveObjs,
+			updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{Changes: pathsChanged, Revision: "def456"},
+		}, nil)
+		sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+
+		// The real diff is OutOfSync because live and target data differ.
+		app.Status.Sync = v1alpha1.SyncStatus{Revision: "abc123"}
+		liveObjs[kube.GetResourceKey(live)] = live
+		first, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, sources, true, false, nil, false)
+		require.NoError(t, err)
+		require.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, first.syncStatus.Status)
+		require.Len(t, first.managedResources, 1)
+
+		// Cache a Synced diff, then compare again at a new revision with unchanged paths.
+		liveJSON, err := json.Marshal(live)
+		require.NoError(t, err)
+		require.NoError(t, ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), []*v1alpha1.ResourceDiff{{
+			Kind: "ConfigMap", Namespace: test.FakeDestNamespace, Name: "cm", ResourceVersion: cachedResourceVersion(first.managedResources[0].ResourceVersion),
+			TargetState:         cachedTarget(first.managedResources[0].Target),
+			NormalizedLiveState: string(liveJSON),
+			PredictedLiveState:  string(liveJSON),
+			Modified:            false,
+		}}))
+		app.Status.Sync = v1alpha1.SyncStatus{
+			Revision:   "abc123",
+			ComparedTo: v1alpha1.ComparedTo{Source: app.Spec.GetSource(), Destination: app.Spec.Destination},
+		}
+		now := metav1.Now()
+		app.Status.ReconciledAt = &now
+		if serverSideDiff {
+			// The fake controller cannot dry-run, so only enable server-side diff for the cached compare.
+			app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: ".", common.AnnotationCompareOptions: "ServerSideDiff=true"})
+		}
+		liveObjs[kube.GetResourceKey(live)] = live
+		second, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, sources, false, false, nil, false)
+		require.NoError(t, err)
+		return second
+	}
+
+	sameTarget := func(compared *unstructured.Unstructured) string {
+		data, err := json.Marshal(compared)
+		require.NoError(t, err)
+		return string(data)
+	}
+	sameResourceVersion := func(live string) string { return live }
+
+	t.Run("targets match the cached diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, true, false, sameTarget, sameResourceVersion)
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, res.syncStatus.Status, "the cached diff should be reused")
+	})
+
+	t.Run("targets differ from the cached diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, true, false, func(*unstructured.Unstructured) string { return "{}" }, sameResourceVersion)
+		assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, res.syncStatus.Status, "the diff should be recomputed")
+	})
+
+	t.Run("live resourceVersion changed since the cached diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, true, false, sameTarget, func(live string) string { return live + "-old" })
+		assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, res.syncStatus.Status, "the changed resource should be re-diffed")
+	})
+
+	t.Run("manifest-generate-paths changed", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, true, true, sameTarget, sameResourceVersion)
+		assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, res.syncStatus.Status, "the diff should be recomputed")
+	})
+
+	t.Run("client-side diff", func(t *testing.T) {
+		t.Parallel()
+		res := run(t, false, false, sameTarget, sameResourceVersion)
+		assert.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, res.syncStatus.Status, "the diff should be recomputed")
+	})
 }
 
 func TestCompareAppStateDefaultRevisionUpdated(t *testing.T) {
@@ -2029,10 +2364,8 @@ func TestCompareAppStateRevisionUpdatedWithHelmSource(t *testing.T) {
 
 func Test_NormalizeTargetObjects_ClusterScopeTracking(t *testing.T) {
 	obj := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "test",
-			Namespace: "test",
-		},
+		Name:      "test",
+		Namespace: "test",
 	})
 	c := &cachemocks.ClusterCache{}
 	c.EXPECT().IsNamespaced(mock.Anything).Return(false, nil)
@@ -2052,37 +2385,25 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 	// Create three cluster-scoped objects with the same Group/Kind/Name
 	// Using cluster-scoped to work with resourceInfoProviderStub
 	obj1 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"get"}, Resources: []string{"pods"}},
 		},
 	})
 	obj2 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"list"}, Resources: []string{"pods"}},
 		},
 	})
 	obj3 := kube.MustToUnstructured(&rbacv1.ClusterRole{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "rbac.authorization.k8s.io/v1",
-			Kind:       "ClusterRole",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: "my-cluster-role",
-		},
+		APIVersion: "rbac.authorization.k8s.io/v1",
+		Kind:       "ClusterRole",
+		Name:       "my-cluster-role",
 		Rules: []rbacv1.PolicyRule{
 			{Verbs: []string{"watch"}, Resources: []string{"pods"}},
 		},
@@ -2119,24 +2440,16 @@ func Test_NormalizeTargetObjects_Deduplication(t *testing.T) {
 func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 	// Create two objects with the same generateName
 	obj1 := kube.MustToUnstructured(&corev1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-pod-",
-			Namespace:    "default",
-		},
+		APIVersion:   "v1",
+		Kind:         "Pod",
+		GenerateName: "test-pod-",
+		Namespace:    "default",
 	})
 	obj2 := kube.MustToUnstructured(&corev1.Pod{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "Pod",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			GenerateName: "test-pod-",
-			Namespace:    "default",
-		},
+		APIVersion:   "v1",
+		Kind:         "Pod",
+		GenerateName: "test-pod-",
+		Namespace:    "default",
 	})
 
 	result, conditions, err := NormalizeTargetObjects(
@@ -2157,10 +2470,8 @@ func Test_NormalizeTargetObjects_GenerateName(t *testing.T) {
 func Test_NormalizeTargetObjects_NamespacedResourceWithTracking(t *testing.T) {
 	// Create a namespaced resource without namespace set
 	obj := kube.MustToUnstructured(&corev1.ConfigMap{
-		TypeMeta: metav1.TypeMeta{
-			APIVersion: "v1",
-			Kind:       "ConfigMap",
-		},
+		APIVersion: "v1",
+		Kind:       "ConfigMap",
 		ObjectMeta: metav1.ObjectMeta{
 			Name: "my-config",
 			// No namespace specified
@@ -2235,6 +2546,54 @@ func TestCompareAppState_CallUpdateRevisionForPaths_ForOCI(t *testing.T) {
 	sources = append(sources, source)
 
 	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"123456"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
+	require.NoError(t, err)
+	require.False(t, revisionsMayHaveChanges)
+}
+
+func TestGetRepoObjs_CallUpdateRevisionForPaths_ForShallowClone(t *testing.T) {
+	app := newFakeApp()
+	// Enable the manifest-generate-paths annotation and set a synced revision
+	app.SetAnnotations(map[string]string{v1alpha1.AnnotationKeyManifestGeneratePaths: "."})
+	app.Status.Sync = v1alpha1.SyncStatus{
+		Revision: "abc123",
+		Status:   v1alpha1.SyncStatusCodeSynced,
+	}
+
+	repoSecret := &corev1.Secret{
+		Name:      "shallow-repo",
+		Namespace: test.FakeArgoCDNamespace,
+		Labels:    map[string]string{common.LabelKeySecretType: common.LabelValueSecretTypeRepository},
+		Data: map[string][]byte{
+			"type":  []byte("git"),
+			"url":   []byte(app.Spec.GetSource().RepoURL),
+			"depth": []byte("1"),
+		},
+	}
+
+	data := fakeData{
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "def456",
+		},
+		updateRevisionForPathsResponse: &apiclient.UpdateRevisionForPathsResponse{
+			Changes:  false,
+			Revision: "def456",
+		},
+		additionalObjs: []runtime.Object{repoSecret},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+
+	repo, err := ctrl.db.GetRepository(t.Context(), app.Spec.GetSource().RepoURL, defaultProj.Name)
+	require.NoError(t, err)
+	require.Equal(t, int64(1), repo.Depth)
+
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+
+	// A shallow clone must not disable the manifest-generate-paths check: with no changes in the
+	// annotated paths, the new revision must not be reported as possibly changed.
+	_, _, revisionsMayHaveChanges, err := ctrl.appStateManager.GetRepoObjs(t.Context(), app, sources, "abc123", []string{"def456"}, false, false, defaultProj.EffectiveSourceIntegrity(), &defaultProj, false)
 	require.NoError(t, err)
 	require.False(t, revisionsMayHaveChanges)
 }
@@ -2789,4 +3148,156 @@ func Test_EvaluateAppRevisionsChanges(t *testing.T) {
 			assert.Equal(t, tc.expectedResolvedRevisions, resolvedRevisions)
 		})
 	}
+}
+
+func TestShouldUseServerSideDiff(t *testing.T) {
+	appWith := func(compareOptions string, syncOptions ...string) *v1alpha1.Application {
+		app := &v1alpha1.Application{}
+		if compareOptions != "" {
+			app.Annotations = map[string]string{common.AnnotationCompareOptions: compareOptions}
+		}
+		if syncOptions != nil {
+			app.Spec.SyncPolicy = &v1alpha1.SyncPolicy{SyncOptions: syncOptions}
+		}
+		return app
+	}
+
+	testCases := []struct {
+		name               string
+		app                *v1alpha1.Application
+		controllerLevelSSD bool
+		expected           bool
+	}{
+		{
+			name:               "no controller flag, no annotation, no sync option -> false",
+			app:                appWith(""),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "controller level enabled -> true",
+			app:                appWith(""),
+			controllerLevelSSD: true,
+			expected:           true,
+		},
+		{
+			name:               "ServerSideDiff=true annotation -> true",
+			app:                appWith("ServerSideDiff=true"),
+			controllerLevelSSD: false,
+			expected:           true,
+		},
+		{
+			name:               "ServerSideApply=true sync option -> true",
+			app:                appWith("", "ServerSideApply=true"),
+			controllerLevelSSD: false,
+			expected:           true,
+		},
+		{
+			name:               "other sync options only -> false",
+			app:                appWith("", "Validate=false", "Prune=false"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides controller level flag -> false",
+			app:                appWith("ServerSideDiff=false"),
+			controllerLevelSSD: true,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides ServerSideApply=true sync option -> false",
+			app:                appWith("ServerSideDiff=false", "ServerSideApply=true"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "ServerSideDiff=false annotation overrides ServerSideDiff=true annotation -> false",
+			app:                appWith("ServerSideDiff=false,ServerSideDiff=true"),
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+		{
+			name:               "nil SyncPolicy is handled gracefully -> false",
+			app:                &v1alpha1.Application{},
+			controllerLevelSSD: false,
+			expected:           false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			assert.Equal(t, tc.expected, shouldUseServerSideDiff(tc.app, tc.controllerLevelSSD))
+		})
+	}
+}
+
+// TestTargetsMatchCachedDiffAfterSetAppManagedResources checks that the targets match a diff the controller cached itself.
+func TestTargetsMatchCachedDiffAfterSetAppManagedResources(t *testing.T) {
+	t.Parallel()
+	app := newFakeApp()
+	cm := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "v1", "kind": "ConfigMap",
+		"metadata": map[string]any{"name": "cm", "namespace": test.FakeDestNamespace},
+		"data":     map[string]any{"key": "target"},
+	}}
+	cmJSON, err := json.Marshal(cm)
+	require.NoError(t, err)
+	live := cm.DeepCopy()
+	live.Object["data"] = map[string]any{"key": "live"}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:              []runtime.Object{app, &defaultProj},
+		manifestResponses: []*apiclient.ManifestResponse{{Manifests: []string{string(cmJSON)}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "abc123"}},
+		managedLiveObjs:   map[kube.ResourceKey]*unstructured.Unstructured{kube.GetResourceKey(live): live},
+	}, nil)
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+
+	compRes, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, []string{""}, sources, true, false, nil, false)
+	require.NoError(t, err)
+	_, err = ctrl.setAppManagedResources(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes)
+	require.NoError(t, err)
+
+	var cachedDiff []*v1alpha1.ResourceDiff
+	require.NoError(t, ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &cachedDiff))
+	require.Len(t, cachedDiff, 1)
+	assert.True(t, targetsMatchCachedDiff(cachedDiff, compRes.reconciliationResult.Target, compRes.reconciliationResult.Live))
+}
+
+// TestCompareAppStateServerSideDiffStaleCacheAfterFailedCompare checks that a failed server-side diff leaves no cached result that reports Synced on the next compare.
+func TestCompareAppStateServerSideDiffStaleCacheAfterFailedCompare(t *testing.T) {
+	app := newFakeApp()
+	app.Annotations = map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true,IncludeMutationWebhook=true"}
+	sources := []v1alpha1.ApplicationSource{app.Spec.GetSource()}
+	app.Status.Sync = v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced, Revision: "rev1", ComparedTo: app.Spec.BuildComparedToStatus(sources)}
+	liveCM := Unstructured(fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cm","namespace":%q},"data":{"value":"a"}}`, test.FakeDestNamespace))
+	targetManifest := fmt.Sprintf(`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"test-cm","namespace":%q},"data":{"value":"b"}}`, test.FakeDestNamespace)
+	manifestResp := &apiclient.ManifestResponse{Manifests: []string{targetManifest}, Namespace: test.FakeDestNamespace, Server: test.FakeClusterURL, Revision: "rev2"}
+	cmKey := kube.NewResourceKey("", "ConfigMap", test.FakeDestNamespace, "test-cm")
+	data := fakeData{
+		apps:              []runtime.Object{app, &defaultProj},
+		manifestResponses: []*apiclient.ManifestResponse{manifestResp, manifestResp, manifestResp},
+		managedLiveObjs:   map[kube.ResourceKey]*unstructured.Unstructured{cmKey: liveCM},
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	revisions := []string{""}
+
+	compRes1, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, compRes1.syncStatus.Status)
+	assert.NotEmpty(t, app.Status.GetConditions(map[v1alpha1.ApplicationConditionType]bool{v1alpha1.ApplicationConditionComparisonError: true}))
+
+	app.Status.Sync = *compRes1.syncStatus
+	_, err = ctrl.setAppManagedResources(t.Context(), &v1alpha1.Cluster{Server: "test", Name: "test"}, app, compRes1)
+	require.NoError(t, err)
+	data.managedLiveObjs[cmKey] = liveCM
+
+	compRes2, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, false, false, nil, false)
+	require.NoError(t, err)
+	assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, compRes2.syncStatus.Status)
+
+	t.Run("NegativeControlNoCache", func(t *testing.T) {
+		data.managedLiveObjs[cmKey] = liveCM
+		compResControl, err := ctrl.appStateManager.CompareAppState(t.Context(), app, &defaultProj, revisions, sources, true, false, nil, false)
+		require.NoError(t, err)
+		assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, compResControl.syncStatus.Status)
+	})
 }

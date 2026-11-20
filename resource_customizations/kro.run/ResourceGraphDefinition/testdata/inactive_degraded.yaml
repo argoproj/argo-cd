@@ -1,0 +1,24 @@
+apiVersion: kro.run/v1alpha1
+kind: ResourceGraphDefinition
+metadata:
+  name: broken-app
+  generation: 1
+spec:
+  schema:
+    apiVersion: v1alpha1
+    kind: BrokenApp
+status:
+  state: Inactive
+  conditions:
+    - type: Ready
+      status: "False"
+      reason: GraphRejected
+      message: "graph was rejected: validation failed"
+      lastTransitionTime: "2025-08-08T00:05:00Z"
+      observedGeneration: 1
+    - type: GraphAccepted
+      status: "False"
+      reason: Rejected
+      message: "graph was rejected: validation failed"
+      lastTransitionTime: "2025-08-08T00:05:00Z"
+      observedGeneration: 1

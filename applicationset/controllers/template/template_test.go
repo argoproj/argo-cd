@@ -10,7 +10,6 @@ import (
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
@@ -76,14 +75,10 @@ func TestGenerateApplications(t *testing.T) {
 	} {
 		cc := c
 		app := v1alpha1.Application{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "test",
-				Namespace: "namespace",
-			},
-			TypeMeta: metav1.TypeMeta{
-				Kind:       application.ApplicationKind,
-				APIVersion: "argoproj.io/v1alpha1",
-			},
+			Name:       "test",
+			Namespace:  "namespace",
+			Kind:       application.ApplicationKind,
+			APIVersion: "argoproj.io/v1alpha1",
 		}
 
 		t.Run(cc.name, func(t *testing.T) {
@@ -122,10 +117,8 @@ func TestGenerateApplications(t *testing.T) {
 			renderer := rendererMock
 
 			got, reason, err := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
+				Name:      "name",
+				Namespace: "namespace",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{generator},
 					Template:   cc.template,
@@ -190,12 +183,10 @@ func TestMergeTemplateApplications(t *testing.T) {
 			},
 			expectedApps: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "test",
-						Namespace: "test",
-						Labels:    map[string]string{"foo": "bar"},
-					},
-					Spec: v1alpha1.ApplicationSpec{},
+					Name:      "test",
+					Namespace: "test",
+					Labels:    map[string]string{"foo": "bar"},
+					Spec:      v1alpha1.ApplicationSpec{},
 				},
 			},
 		},
@@ -226,10 +217,8 @@ func TestMergeTemplateApplications(t *testing.T) {
 			renderer := rendererMock
 
 			got, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
-				ObjectMeta: metav1.ObjectMeta{
-					Name:      "name",
-					Namespace: "namespace",
-				},
+				Name:      "name",
+				Namespace: "namespace",
 				Spec: v1alpha1.ApplicationSetSpec{
 					Generators: []v1alpha1.ApplicationSetGenerator{generator},
 					Template:   cc.template,
@@ -293,14 +282,12 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 			},
 			expectedApp: []v1alpha1.Application{
 				{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "AppSet-branch1-1",
-						Labels: map[string]string{
-							"app1":         "label1",
-							"branch-test1": "AppSet-feat-a-really-long-pull-request-name-to-test-argo",
-							"branch-test2": "AppSet-feat-areallylongpullrequestnametotestargoslugific",
-							"branch-test3": "AppSet-feat",
-						},
+					Name: "AppSet-branch1-1",
+					Labels: map[string]string{
+						"app1":         "label1",
+						"branch-test1": "AppSet-feat-a-really-long-pull-request-name-to-test-argo",
+						"branch-test2": "AppSet-feat-areallylongpullrequestnametotestargoslugific",
+						"branch-test3": "AppSet-feat",
 					},
 					Spec: v1alpha1.ApplicationSpec{
 						Source: &v1alpha1.ApplicationSource{
@@ -351,6 +338,79 @@ func TestGenerateAppsUsingPullRequestGenerator(t *testing.T) {
 			assert.Equal(t, cases.expectedApp[0].Spec.Source.TargetRevision, gotApp[0].Spec.Source.TargetRevision)
 			assert.Equal(t, cases.expectedApp[0].Spec.Destination.Namespace, gotApp[0].Spec.Destination.Namespace)
 			assert.True(t, maps.Equal(cases.expectedApp[0].Labels, gotApp[0].Labels))
+		})
+	}
+}
+
+// Test nested template rendering in application set templates, where the output of one template function
+// is used as input for another template function in the same application set template
+func TestNestedAppTemplateRendering(t *testing.T) {
+	for _, cases := range []struct {
+		name        string
+		params      []map[string]any
+		template    v1alpha1.ApplicationSetTemplate
+		expectedApp []v1alpha1.Application
+	}{
+		{
+			name: "Generate an application with nested template rendering",
+			params: []map[string]any{
+				{
+					"nestedValue":    "Nested",
+					"nestedTemplate": "Hello from {{ .nestedValue }}",
+				},
+			},
+			template: v1alpha1.ApplicationSetTemplate{
+				ApplicationSetTemplateMeta: v1alpha1.ApplicationSetTemplateMeta{
+					Name: "AppSet-{{.nestedValue}}",
+					Annotations: map[string]string{
+						"template1": "{{ tpl .nestedTemplate . }}",
+					},
+				},
+				Spec: v1alpha1.ApplicationSpec{},
+			},
+			expectedApp: []v1alpha1.Application{
+				{
+					Name: "AppSet-Nested",
+					Annotations: map[string]string{
+						"template1": "Hello from Nested",
+					},
+					Spec: v1alpha1.ApplicationSpec{},
+				},
+			},
+		},
+	} {
+		t.Run(cases.name, func(t *testing.T) {
+			generatorMock := &genmock.Generator{}
+			generator := v1alpha1.ApplicationSetGenerator{
+				Git: &v1alpha1.GitGenerator{},
+			}
+
+			generatorMock.EXPECT().GenerateParams(&generator, mock.AnythingOfType("*v1alpha1.ApplicationSet"), mock.Anything).
+				Return(cases.params, nil)
+
+			generatorMock.EXPECT().GetTemplate(&generator).
+				Return(&cases.template)
+
+			generators := map[string]generators.Generator{
+				"Git": generatorMock,
+			}
+			renderer := &utils.Render{}
+
+			gotApp, _, _ := GenerateApplications(log.NewEntry(log.StandardLogger()), v1alpha1.ApplicationSet{
+				Spec: v1alpha1.ApplicationSetSpec{
+					GoTemplate: true,
+					Generators: []v1alpha1.ApplicationSetGenerator{{
+						Git: &v1alpha1.GitGenerator{},
+					}},
+					Template: cases.template,
+				},
+			},
+				generators,
+				renderer,
+				nil,
+			)
+			assert.Equal(t, cases.expectedApp[0].Name, gotApp[0].Name)
+			assert.Equal(t, cases.expectedApp[0].Annotations["template1"], gotApp[0].Annotations["template1"])
 		})
 	}
 }

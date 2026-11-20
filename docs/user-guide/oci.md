@@ -59,6 +59,8 @@ if there is a need to have credentials for a OCI repository, a repository creden
   argocd repo add oci://registry-1.docker.io/bitnamicharts/nginx --type oci --name stable --username test --password test 
 ```
 
+A registry served over plain HTTP must be added as a repository as well, even when it needs no credentials, with `--insecure-oci-force-http` (`insecureOCIForceHttp: "true"` in the repository secret); otherwise Argo CD connects with TLS and the connection fails. See [Repositories](../operator-manual/declarative-setup.md#repositories) for the secret format.
+
 In the case of Helm repositories there is another way to use OCI credentials with Helm
 ```shell
   # Add a private HTTPS OCI Helm repository named 'stable'

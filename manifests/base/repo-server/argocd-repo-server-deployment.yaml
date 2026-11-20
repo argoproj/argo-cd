@@ -101,6 +101,12 @@ spec:
                   name: argocd-cmd-params-cm
                   key: reposerver.tls.ciphers
                   optional: true
+          - name: ARGOCD_TLS_CURVE_PREFERENCES
+            valueFrom:
+                configMapKeyRef:
+                  name: argocd-cmd-params-cm
+                  key: reposerver.tls.curvepreferences
+                  optional: true
           - name: ARGOCD_REPO_SERVER_CLIENT_CA_PATH
             valueFrom:
               configMapKeyRef:
@@ -186,6 +192,18 @@ spec:
               configMapKeyRef:
                 name: argocd-cmd-params-cm
                 key: otlp.sample.ratio
+                optional: true
+          - name: ARGOCD_REPO_SERVER_OTLP_METRICS_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: otlp.metrics.enabled
+                optional: true
+          - name: ARGOCD_REPO_SERVER_OTLP_METRICS_INTERVAL
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: otlp.metrics.interval
                 optional: true
           - name: ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE
             valueFrom:
@@ -275,6 +293,12 @@ spec:
             valueFrom:
               configMapKeyRef:
                 key: reposerver.git.request.timeout
+                name: argocd-cmd-params-cm
+                optional: true
+          - name: ARGOCD_GIT_LS_REMOTE_OPTIMIZED_ENABLED
+            valueFrom:
+              configMapKeyRef:
+                key: reposerver.git.lsremote.optimized.enabled
                 name: argocd-cmd-params-cm
                 optional: true
           - name: ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG

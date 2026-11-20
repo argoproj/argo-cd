@@ -34,7 +34,7 @@ slack:
           {{end}}
           ]
         }]
-teams:
+teams-workflows:
     themeColor: "#000080"
     title: New version of an application {{.app.metadata.name}} is up and running.
     facts: |

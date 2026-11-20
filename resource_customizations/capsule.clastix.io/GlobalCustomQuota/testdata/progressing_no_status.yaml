@@ -1,0 +1,5 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: GlobalCustomQuota
+metadata:
+  name: global-custom-quota
+spec: {}

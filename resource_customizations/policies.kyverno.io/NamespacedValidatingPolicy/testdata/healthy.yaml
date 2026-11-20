@@ -1,0 +1,14 @@
+apiVersion: policies.kyverno.io/v1alpha1
+kind: NamespacedValidatingPolicy
+metadata:
+  name: sample-namespaced-validating-policy
+  namespace: test-namespace
+spec: {}
+status:
+  conditionStatus:
+    ready: true
+    conditions:
+    - lastTransitionTime: "2025-01-01T00:00:00Z"
+      message: webhook configured
+      status: "True"
+      type: WebhookConfigured

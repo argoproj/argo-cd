@@ -4,6 +4,10 @@ tests:
       message: "All components are operational"
     inputPath: testdata/healthy.yaml
   - healthStatus:
+      status: Healthy
+      message: "Resource was not picked by any parent object"
+    inputPath: testdata/ignored.yaml
+  - healthStatus:
       status: Progressing
       message: "Reconciliation in progress"
     inputPath: testdata/progressing.yaml

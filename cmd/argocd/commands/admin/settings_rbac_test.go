@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes/fake"
 	restclient "k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
@@ -103,6 +102,14 @@ func Test_validateRBACResourceAction(t *testing.T) {
 			},
 			valid: false,
 		},
+		{
+			name: "Test valid action for write-repositories",
+			args: args{
+				resource: rbac.ResourceWriteRepositories,
+				action:   rbac.ActionGet,
+			},
+			valid: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -113,6 +120,30 @@ func Test_validateRBACResourceAction(t *testing.T) {
 			} else {
 				assert.Error(t, result)
 			}
+		})
+	}
+}
+
+func Test_validRBACResourcesActionsCoversAllResources(t *testing.T) {
+	for _, resource := range rbac.Resources {
+		assert.Contains(t, validRBACResourcesActions, resource, "RBAC resource %q is missing from validRBACResourcesActions", resource)
+	}
+}
+
+func Test_checkPolicyWriteRepositoriesWildcard(t *testing.T) {
+	policy := "p, role:writer, write-repositories, get, */*, allow"
+	tests := []struct {
+		name        string
+		subResource string
+	}{
+		{name: "empty", subResource: ""},
+		{name: "star", subResource: "*"},
+		{name: "star/star", subResource: "*/*"},
+		{name: "project/repo", subResource: "my-proj/https://github.com/org/repo"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.True(t, checkPolicy("role:writer", "get", "write-repositories", tt.subResource, "", policy, "", "", true))
 		})
 	}
 }
@@ -143,10 +174,8 @@ func Test_PolicyFromK8s(t *testing.T) {
 
 	require.NoError(t, err)
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-rbac-cm",
-			Namespace: "argocd",
-		},
+		Name:      "argocd-rbac-cm",
+		Namespace: "argocd",
 		Data: map[string]string{
 			"policy.csv":     string(data),
 			"policy.default": "role:unknown",
@@ -234,10 +263,8 @@ p, role:user, exec, create, .*/.*, allow
 `
 
 	kubeclientset := fake.NewClientset(&corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-rbac-cm",
-			Namespace: "argocd",
-		},
+		Name:      "argocd-rbac-cm",
+		Namespace: "argocd",
 		Data: map[string]string{
 			"policy.csv":       policy,
 			"policy.default":   "role:unknown",

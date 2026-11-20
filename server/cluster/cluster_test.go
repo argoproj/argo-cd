@@ -436,15 +436,13 @@ func TestUpdateCluster_FieldsPathSet(t *testing.T) {
 func TestDeleteClusterByName(t *testing.T) {
 	testNamespace := "default"
 	clientset := getClientset(nil, testNamespace, &corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "my-cluster-secret",
-			Namespace: testNamespace,
-			Labels: map[string]string{
-				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-			},
-			Annotations: map[string]string{
-				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-			},
+		Name:      "my-cluster-secret",
+		Namespace: testNamespace,
+		Labels: map[string]string{
+			common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+		},
+		Annotations: map[string]string{
+			common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 		},
 		Data: map[string][]byte{
 			"name":   []byte("my-cluster-name"),
@@ -486,15 +484,13 @@ func TestRotateAuth(t *testing.T) {
 
 	clientset := getClientset(nil, testNamespace,
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "my-cluster-secret",
-				Namespace: testNamespace,
-				Labels: map[string]string{
-					common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
-				},
-				Annotations: map[string]string{
-					common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
-				},
+			Name:      "my-cluster-secret",
+			Namespace: testNamespace,
+			Labels: map[string]string{
+				common.LabelKeySecretType: common.LabelValueSecretTypeCluster,
+			},
+			Annotations: map[string]string{
+				common.AnnotationKeyManagedBy: common.AnnotationValueManagedByArgoCD,
 			},
 			Data: map[string][]byte{
 				"name":   []byte("my-cluster-name"),
@@ -503,24 +499,18 @@ func TestRotateAuth(t *testing.T) {
 			},
 		},
 		&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: "kube-system",
-			},
+			Name: "kube-system",
 		},
 		&corev1.Secret{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-manager-token-tj79r",
-				Namespace: "kube-system",
-			},
+			Name:      "argocd-manager-token-tj79r",
+			Namespace: "kube-system",
 			Data: map[string][]byte{
 				"token": []byte(token),
 			},
 		},
 		&corev1.ServiceAccount{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "argocd-manager",
-				Namespace: "kube-system",
-			},
+			Name:      "argocd-manager",
+			Namespace: "kube-system",
 			Secrets: []corev1.ObjectReference{
 				{
 					Kind: "Secret",
@@ -562,22 +552,18 @@ func TestRotateAuth(t *testing.T) {
 
 func getClientset(config map[string]string, ns string, objects ...runtime.Object) *fake.Clientset {
 	secret := corev1.Secret{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-secret",
-			Namespace: ns,
-		},
+		Name:      "argocd-secret",
+		Namespace: ns,
 		Data: map[string][]byte{
 			"admin.password":   []byte("test"),
 			"server.secretkey": []byte("test"),
 		},
 	}
 	cm := corev1.ConfigMap{
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      "argocd-cm",
-			Namespace: ns,
-			Labels: map[string]string{
-				"app.kubernetes.io/part-of": "argocd",
-			},
+		Name:      "argocd-cm",
+		Namespace: ns,
+		Labels: map[string]string{
+			"app.kubernetes.io/part-of": "argocd",
 		},
 		Data: config,
 	}

@@ -1,0 +1,14 @@
+apiVersion: capsule.clastix.io/v1beta2
+kind: GlobalCustomQuota
+metadata:
+  name: global-custom-quota
+  generation: 2
+spec: {}
+status:
+  observedGeneration: 1
+  conditions:
+    - type: Ready
+      status: "True"
+      lastTransitionTime: "2024-01-01T00:00:00Z"
+      message: Usage has been successfully calculated across all selected namespaces
+      reason: Ready

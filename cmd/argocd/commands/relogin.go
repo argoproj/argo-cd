@@ -27,6 +27,7 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 		callback         string
 		ssoPort          int
 		ssoLaunchBrowser bool
+		noBrowser        bool
 	)
 	command := &cobra.Command{
 		Use:   "relogin",
@@ -65,6 +66,12 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				PlainText:         configCtx.Server.PlainText,
 				Headers:           clientOpts.Headers,
 			}
+			// Fall back to the client certificate persisted for the context, since reloginOpts
+			// deliberately does not read the local config.
+			if reloginOpts.ClientCertFile == "" && reloginOpts.ClientCertKeyFile == "" {
+				reloginOpts.ClientCertData, reloginOpts.ClientCertKeyData, err = configCtx.Server.ClientCertPEM()
+				errors.CheckError(err)
+			}
 			acdClient := headless.NewClientOrDie(&reloginOpts, c)
 			claims, err := configCtx.User.Claims()
 			errors.CheckError(err)
@@ -82,7 +89,11 @@ func NewReloginCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 				errors.CheckError(err)
 				oauth2conf, provider, err := acdClient.OIDCConfig(ctx, acdSet)
 				errors.CheckError(err)
-				tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
+				if !noBrowser {
+					tokenString, refreshToken = oauth2Login(ctx, callback, ssoPort, acdSet.GetOIDCConfig(), oauth2conf, provider, ssoLaunchBrowser, acdSet.GetDexConfig().GetDexAuthConnectorID())
+				} else {
+					tokenString, refreshToken = oauth2LoginNoBrowser(ctx, acdSet.GetOIDCConfig(), oauth2conf, httpClient)
+				}
 			}
 
 			localCfg.UpsertUser(localconfig.User{
@@ -111,5 +122,6 @@ argocd login cd.argoproj.io --core
 	command.Flags().IntVar(&ssoPort, "sso-port", DefaultSSOLocalPort, "Port to run local OAuth2 login application")
 	command.Flags().StringVar(&callback, "callback", "", "Host and Port for the callback URL")
 	command.Flags().BoolVar(&ssoLaunchBrowser, "sso-launch-browser", true, "Automatically launch the default browser when performing SSO login")
+	command.Flags().BoolVar(&noBrowser, "no-browser", false, "Perform SSO relogin without a browser using the device code flow")
 	return command
 }
