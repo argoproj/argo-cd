@@ -35161,8 +35161,10 @@ spec:
           name: tmp
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+          readOnly: true
         - mountPath: /app/config/reposerver/mtls
           name: argocd-repo-server-mtls
+          readOnly: true
         - mountPath: /home/argocd/params
           name: argocd-cmd-params-cm
       nodeSelector:
@@ -35830,8 +35832,10 @@ spec:
           name: gpg-keyring
         - mountPath: /app/config/reposerver/tls
           name: argocd-repo-server-tls
+          readOnly: true
         - mountPath: /app/config/reposerver/mtls
           name: argocd-repo-server-mtls
+          readOnly: true
         - mountPath: /tmp
           name: tmp
         - mountPath: /helm-working-dir
@@ -36370,8 +36374,10 @@ spec:
         volumeMounts:
         - mountPath: /app/config/controller/tls
           name: argocd-repo-server-tls
+          readOnly: true
         - mountPath: /app/config/reposerver/mtls
           name: argocd-repo-server-mtls
+          readOnly: true
         - mountPath: /home/argocd
           name: argocd-home
         - mountPath: /home/argocd/params

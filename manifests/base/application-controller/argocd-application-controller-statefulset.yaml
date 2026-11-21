@@ -446,8 +446,10 @@ spec:
         volumeMounts:
         - name: argocd-repo-server-tls
           mountPath: /app/config/controller/tls
+          readOnly: true
         - name: argocd-repo-server-mtls
           mountPath: /app/config/reposerver/mtls
+          readOnly: true
         - name: argocd-home
           mountPath: /home/argocd
         - name: argocd-cmd-params-cm
