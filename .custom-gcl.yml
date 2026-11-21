@@ -1,0 +1,9 @@
+# Custom golangci-lint build with module plugins. golangci-lint-action detects
+# this file automatically; keep version in sync with .github/workflows/ci-build.yaml.
+version: v2.15.0
+name: custom-gcl
+destination: ./dist
+plugins:
+  - module: github.com/kojah/gohawk
+    import: github.com/kojah/gohawk/plugin/golangci
+    version: v0.7.1
