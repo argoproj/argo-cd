@@ -1,0 +1,43 @@
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  creationTimestamp: "2026-10-29T17:50:31Z"
+  generation: 2
+  name: app-db-immutable
+  namespace: demo
+  resourceVersion: "779"
+  uid: 7313bf81-588b-409f-a086-ab8117bcf80b
+spec:
+  data:
+  - remoteRef:
+      conversionStrategy: Default
+      decodingStrategy: None
+      key: /app/db
+      metadataPolicy: None
+    secretKey: password
+  - remoteRef:
+      conversionStrategy: Default
+      decodingStrategy: None
+      key: /app/api
+      metadataPolicy: None
+    secretKey: apiToken
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: fake
+  target:
+    creationPolicy: Owner
+    deletionPolicy: Retain
+    immutable: true
+    name: app-db-immutable
+status:
+  binding:
+    name: app-db-immutable
+  conditions:
+  - lastTransitionTime: "2026-10-29T17:50:31Z"
+    message: Secret was synced
+    reason: SecretSynced
+    status: "True"
+    type: Ready
+  refreshTime: "2026-10-29T17:50:31Z"
+  syncedResourceVersion: 1-2f2c636d06132f67992c15a1daeb0a5f
