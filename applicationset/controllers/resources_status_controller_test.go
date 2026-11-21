@@ -1,18 +1,26 @@
 package controllers
 
 import (
+	"context"
+	"errors"
+	"net/http"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
+	"k8s.io/client-go/rest"
 	"k8s.io/utils/ptr"
 	ctrl "sigs.k8s.io/controller-runtime"
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 
@@ -131,14 +139,18 @@ func TestReconcileResourcesStatus(t *testing.T) {
 			},
 		}
 	}
-	newReconciler := func(objs ...crtclient.Object) *ApplicationSetReconciler {
+	newReconcilerWithFuncs := func(funcs interceptor.Funcs, objs ...crtclient.Object) *ApplicationSetReconciler {
 		c := fake.NewClientBuilder().
 			WithScheme(scheme).
 			WithObjects(objs...).
 			WithStatusSubresource(&v1alpha1.ApplicationSet{}).
 			WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).
+			WithInterceptorFuncs(funcs).
 			Build()
 		return &ApplicationSetReconciler{Client: c, Scheme: scheme}
+	}
+	newReconciler := func(objs ...crtclient.Object) *ApplicationSetReconciler {
+		return newReconcilerWithFuncs(interceptor.Funcs{}, objs...)
 	}
 	req := ctrl.Request{Namespace: namespace, Name: "set"}
 
@@ -181,4 +193,64 @@ func TestReconcileResourcesStatus(t *testing.T) {
 		require.NoError(t, r.Get(t.Context(), req.NamespacedName, &got))
 		assert.Equal(t, newAppSet().Status.Resources, got.Status.Resources)
 	})
+
+	t.Run("returns an error when the application set cannot be read", func(t *testing.T) {
+		r := newReconcilerWithFuncs(interceptor.Funcs{
+			Get: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.ObjectKey, _ crtclient.Object, _ ...crtclient.GetOption) error {
+				return errors.New("get failed")
+			},
+		}, newAppSet())
+
+		_, err := r.reconcileResourcesStatus(t.Context(), req)
+		require.ErrorContains(t, err, "get failed")
+	})
+
+	t.Run("returns an error when the applications cannot be listed", func(t *testing.T) {
+		r := newReconcilerWithFuncs(interceptor.Funcs{
+			List: func(_ context.Context, _ crtclient.WithWatch, _ crtclient.ObjectList, _ ...crtclient.ListOption) error {
+				return errors.New("list failed")
+			},
+		}, newAppSet())
+
+		_, err := r.reconcileResourcesStatus(t.Context(), req)
+		require.ErrorContains(t, err, "list failed")
+	})
+
+	t.Run("returns an error when the status cannot be written", func(t *testing.T) {
+		r := newReconcilerWithFuncs(interceptor.Funcs{
+			SubResourceUpdate: func(_ context.Context, _ crtclient.Client, _ string, _ crtclient.Object, _ ...crtclient.SubResourceUpdateOption) error {
+				return errors.New("update failed")
+			},
+		}, newAppSet(), healthyApp("app", "set"))
+
+		_, err := r.reconcileResourcesStatus(t.Context(), req)
+		require.ErrorContains(t, err, "update failed")
+	})
+}
+
+func TestSetupWithManagerRegistersResourcesStatusController(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	// nothing is started and the mapper is static, so the manager never connects to this address
+	mgr, err := ctrl.NewManager(&rest.Config{Host: "http://127.0.0.1:1"}, ctrl.Options{
+		Scheme:  scheme,
+		Metrics: metricsserver.Options{BindAddress: "0"},
+		MapperProvider: func(_ *rest.Config, _ *http.Client) (meta.RESTMapper, error) {
+			mapper := meta.NewDefaultRESTMapper(nil)
+			mapper.Add(v1alpha1.SchemeGroupVersion.WithKind("Application"), meta.RESTScopeNamespace)
+			mapper.Add(v1alpha1.SchemeGroupVersion.WithKind("ApplicationSet"), meta.RESTScopeNamespace)
+			mapper.Add(corev1.SchemeGroupVersion.WithKind("Secret"), meta.RESTScopeNamespace)
+			return mapper, nil
+		},
+	})
+	require.NoError(t, err)
+
+	r := &ApplicationSetReconciler{Client: mgr.GetClient(), Scheme: scheme}
+	require.NoError(t, r.SetupWithManager(mgr, false, 1, nil))
+
+	// controller names are unique per manager, so a second registration fails if the first one happened
+	require.ErrorContains(t, r.setupResourcesStatusController(mgr), resourcesStatusControllerName)
 }
