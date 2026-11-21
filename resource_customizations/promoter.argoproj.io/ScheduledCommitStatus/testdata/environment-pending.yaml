@@ -1,0 +1,22 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ScheduledCommitStatus
+metadata:
+  name: webservice-tier-1
+  namespace: gitops-promoter
+  generation: 1
+spec:
+  key: promotion-window
+  promotionStrategyRef:
+    name: webservice-tier-1
+status:
+  conditions:
+    - type: Ready
+      status: "True"
+      reason: Reconciled
+      message: All environments evaluated
+      observedGeneration: 1
+  environments:
+    - branch: environment/development
+      phase: success
+    - branch: environment/staging
+      phase: pending

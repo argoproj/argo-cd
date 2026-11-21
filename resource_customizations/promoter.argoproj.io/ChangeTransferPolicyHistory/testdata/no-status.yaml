@@ -1,0 +1,9 @@
+apiVersion: promoter.argoproj.io/v1alpha1
+kind: ChangeTransferPolicyHistory
+metadata:
+  name: example-promotion-strategy-environment-dev-history
+  namespace: gitops-promoter
+spec:
+  gitRepositoryRef:
+    name: example-git-repository
+  activeBranch: environment/dev
