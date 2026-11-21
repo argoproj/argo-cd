@@ -19,7 +19,9 @@ import (
 	crtclient "sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
+	"sigs.k8s.io/controller-runtime/pkg/config"
 	"sigs.k8s.io/controller-runtime/pkg/event"
+	"sigs.k8s.io/controller-runtime/pkg/manager"
 	metricsserver "sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
@@ -228,17 +230,34 @@ func TestReconcileResourcesStatus(t *testing.T) {
 	})
 }
 
+// recordingManager counts the controllers added to it and can fail the registration.
+type recordingManager struct {
+	ctrl.Manager
+	added  int
+	addErr error
+}
+
+func (m *recordingManager) Add(r manager.Runnable) error {
+	if m.addErr != nil {
+		return m.addErr
+	}
+	m.added++
+	return m.Manager.Add(r)
+}
+
 func TestSetupWithManagerRegistersResourcesStatusController(t *testing.T) {
 	scheme := runtime.NewScheme()
 	require.NoError(t, v1alpha1.AddToScheme(scheme))
-
 	require.NoError(t, corev1.AddToScheme(scheme))
 
 	// nothing is started and the mapper is static, so the managers never connect to this address
-	newManager := func() ctrl.Manager {
+	newManager := func(t *testing.T) *recordingManager {
+		t.Helper()
 		mgr, err := ctrl.NewManager(&rest.Config{Host: "http://127.0.0.1:1"}, ctrl.Options{
 			Scheme:  scheme,
 			Metrics: metricsserver.Options{BindAddress: "0"},
+			// controller names are unique per process, which would fail every setup after the first
+			Controller: config.Controller{SkipNameValidation: ptr.To(true)},
 			MapperProvider: func(_ *rest.Config, _ *http.Client) (meta.RESTMapper, error) {
 				mapper := meta.NewDefaultRESTMapper(nil)
 				mapper.Add(v1alpha1.SchemeGroupVersion.WithKind("Application"), meta.RESTScopeNamespace)
@@ -248,14 +267,27 @@ func TestSetupWithManagerRegistersResourcesStatusController(t *testing.T) {
 			},
 		})
 		require.NoError(t, err)
-		return mgr
+		return &recordingManager{Manager: mgr}
 	}
 
-	mgr := newManager()
-	r := &ApplicationSetReconciler{Client: mgr.GetClient(), Scheme: scheme}
-	require.NoError(t, r.SetupWithManager(mgr, false, 1, nil))
+	t.Run("registers it next to the main controller without progressive syncs", func(t *testing.T) {
+		mgr := newManager(t)
+		r := &ApplicationSetReconciler{Client: mgr.GetClient(), Scheme: scheme}
+		require.NoError(t, r.SetupWithManager(mgr, false, 1, nil))
+		assert.Equal(t, 2, mgr.added)
+	})
 
-	// controller names are unique per process, so registering the same name again fails if the first call registered it
-	require.ErrorContains(t, r.setupResourcesStatusController(mgr), resourcesStatusControllerName)
-	require.ErrorContains(t, r.SetupWithManager(newManager(), false, 1, nil), "error setting up resources status controller")
+	t.Run("does not register it with progressive syncs", func(t *testing.T) {
+		mgr := newManager(t)
+		r := &ApplicationSetReconciler{Client: mgr.GetClient(), Scheme: scheme}
+		require.NoError(t, r.SetupWithManager(mgr, true, 1, nil))
+		assert.Equal(t, 1, mgr.added)
+	})
+
+	t.Run("returns an error when it cannot be registered", func(t *testing.T) {
+		mgr := newManager(t)
+		mgr.addErr = errors.New("add failed")
+		r := &ApplicationSetReconciler{Client: mgr.GetClient(), Scheme: scheme}
+		require.ErrorContains(t, r.SetupWithManager(mgr, false, 1, nil), "error setting up resources status controller")
+	})
 }
