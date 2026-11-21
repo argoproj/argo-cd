@@ -1,21 +1,33 @@
 package application
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"net/netip"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
+	"k8s.io/client-go/tools/remotecommand"
+	cmdutil "k8s.io/kubectl/pkg/cmd/util"
 
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	applisters "github.com/argoproj/argo-cd/v3/pkg/client/listers/application/v1alpha1"
+	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/argo"
+	"github.com/argoproj/argo-cd/v3/util/assets"
+	"github.com/argoproj/argo-cd/v3/util/rbac"
 	"github.com/argoproj/argo-cd/v3/util/security"
 )
 
@@ -359,4 +371,113 @@ func TestTerminalHandler_sourceIPFields(t *testing.T) {
 		}}
 		assert.Equal(t, log.Fields{"source.ip": "203.0.113.7", "forwarded.for": "203.0.113.7"}, handler.sourceIPFields(request))
 	})
+}
+
+func TestGetApplicationClusterRawConfig(t *testing.T) {
+	configureEnforcer := func(enf *rbac.Enforcer) {
+		_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
+		enf.SetDefaultRole("role:admin")
+	}
+	newHandler := func(t *testing.T, objects ...runtime.Object) *terminalHandler {
+		t.Helper()
+		appServer := newTestAppServerWithEnforcerConfigure(t, configureEnforcer,
+			map[string]string{"application.sync.impersonation.enabled": "true"}, objects...)
+		return &terminalHandler{
+			projLister:  applisters.NewAppProjectLister(appServer.projInformer.GetIndexer()),
+			db:          appServer.db,
+			settingsMgr: appServer.settingsMgr,
+			namespace:   appServer.ns,
+		}
+	}
+
+	t.Run("impersonates matching service account", func(t *testing.T) {
+		project := &appv1.AppProject{
+			Name: "terminal-project", Namespace: testNamespace,
+			Spec: appv1.AppProjectSpec{
+				SourceRepos:  []string{"*"},
+				Destinations: []appv1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+				DestinationServiceAccounts: []appv1.ApplicationDestinationServiceAccount{{
+					Server:                "https://cluster-api.example.com",
+					Namespace:             test.FakeDestNamespace,
+					DefaultServiceAccount: "terminal-sa",
+				}},
+			},
+		}
+		app := newTestApp(func(app *appv1.Application) {
+			app.Spec.Project = project.Name
+		})
+		handler := newHandler(t, app, project)
+
+		config, err := handler.getApplicationClusterRawConfig(t.Context(), app)
+		require.NoError(t, err)
+		assert.Equal(t, "system:serviceaccount:"+test.FakeDestNamespace+":terminal-sa", config.Impersonate.UserName)
+	})
+
+	t.Run("fails closed without matching service account", func(t *testing.T) {
+		app := newTestApp()
+		handler := newHandler(t, app)
+
+		config, err := handler.getApplicationClusterRawConfig(t.Context(), app)
+		assert.Nil(t, config)
+		assert.ErrorContains(t, err, "no matching service account found")
+	})
+
+	t.Run("does not require a project when impersonation is disabled", func(t *testing.T) {
+		app := newTestApp()
+		appServer := newTestAppServerWithEnforcerConfigure(t, configureEnforcer, nil, app)
+		handler := &terminalHandler{
+			db:          appServer.db,
+			settingsMgr: appServer.settingsMgr,
+			namespace:   appServer.ns,
+		}
+
+		config, err := handler.getApplicationClusterRawConfig(t.Context(), app)
+		require.NoError(t, err)
+		assert.Empty(t, config.Impersonate.UserName)
+	})
+}
+
+type terminalTestPty struct {
+	bytes.Buffer
+}
+
+func (*terminalTestPty) Next() *remotecommand.TerminalSize {
+	return nil
+}
+
+func TestTerminalKubernetesRequestsUseImpersonation(t *testing.T) {
+	const userName = "system:serviceaccount:workloads:terminal-sa"
+	t.Setenv(string(cmdutil.RemoteCommandWebsockets), "true")
+
+	var lock sync.Mutex
+	headers := map[string]string{}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		key := "pod-get"
+		if strings.HasSuffix(r.URL.Path, "/exec") {
+			key = r.Method
+		}
+		lock.Lock()
+		headers[key] = r.Header.Get("Impersonate-User")
+		lock.Unlock()
+		http.Error(w, "upgrade rejected", http.StatusBadRequest)
+	}))
+	t.Cleanup(server.Close)
+
+	config := &rest.Config{
+		Host:        server.URL,
+		Impersonate: rest.ImpersonationConfig{UserName: userName},
+	}
+	client, err := kubernetes.NewForConfig(config)
+	require.NoError(t, err)
+	_, err = client.CoreV1().Pods("workloads").Get(t.Context(), "pod", metav1.GetOptions{})
+	require.Error(t, err)
+
+	err = startProcess(t.Context(), client, config, "workloads", "pod", "container", []string{"sh"}, &terminalTestPty{})
+	require.Error(t, err)
+
+	lock.Lock()
+	defer lock.Unlock()
+	assert.Equal(t, userName, headers["pod-get"])
+	assert.Equal(t, userName, headers[http.MethodGet])
+	assert.Equal(t, userName, headers[http.MethodPost])
 }

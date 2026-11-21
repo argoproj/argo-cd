@@ -2,6 +2,7 @@ package application
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"net/netip"
@@ -33,8 +34,10 @@ import (
 
 type terminalHandler struct {
 	appLister         applisters.ApplicationLister
+	projLister        applisters.AppProjectLister
 	db                db.ArgoDB
-	appResourceTreeFn func(ctx context.Context, app *appv1.Application) (*appv1.ApplicationTree, error)
+	settingsMgr       *settings.SettingsManager
+	appResourceTreeFn AppResourceTreeFn
 	allowedShells     []string
 	namespace         string
 	enabledNamespaces []string
@@ -53,10 +56,12 @@ type TerminalOptions struct {
 }
 
 // NewHandler returns a new terminal handler.
-func NewHandler(appLister applisters.ApplicationLister, namespace string, enabledNamespaces []string, db db.ArgoDB, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
+func NewHandler(appLister applisters.ApplicationLister, projLister applisters.AppProjectLister, namespace string, enabledNamespaces []string, db db.ArgoDB, settingsMgr *settings.SettingsManager, appResourceTree AppResourceTreeFn, allowedShells []string, sessionManager *util_session.SessionManager, terminalOptions *TerminalOptions) *terminalHandler {
 	return &terminalHandler{
 		appLister:         appLister,
+		projLister:        projLister,
 		db:                db,
+		settingsMgr:       settingsMgr,
 		appResourceTreeFn: appResourceTree,
 		allowedShells:     allowedShells,
 		namespace:         namespace,
@@ -67,15 +72,20 @@ func NewHandler(appLister applisters.ApplicationLister, namespace string, enable
 }
 
 func (s *terminalHandler) getApplicationClusterRawConfig(ctx context.Context, a *appv1.Application) (*rest.Config, error) {
-	destCluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
+	cluster, err := argo.GetDestinationCluster(ctx, a.Spec.Destination, s.db)
 	if err != nil {
+		return nil, fmt.Errorf("error validating destination: %w", err)
+	}
+	config, err := cluster.RawRestConfig()
+	if err != nil {
+		return nil, fmt.Errorf("error getting raw cluster REST config: %w", err)
+	}
+	if err := applyApplicationImpersonation(s.settingsMgr, config, cluster, a, func() (*appv1.AppProject, error) {
+		return argo.GetAppProject(ctx, a, s.projLister, s.namespace, s.settingsMgr, s.db)
+	}); err != nil {
 		return nil, err
 	}
-	rawConfig, err := destCluster.RawRestConfig()
-	if err != nil {
-		return nil, err
-	}
-	return rawConfig, nil
+	return config, nil
 }
 
 // sourceIPFields returns the client address fields for the session logs. The terminal is not served
