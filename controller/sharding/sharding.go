@@ -8,7 +8,6 @@ import (
 	"hash/fnv"
 	"math"
 	"os"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -49,6 +48,12 @@ type (
 	ClusterFilterFunction func(c *v1alpha1.Cluster) bool
 	clusterAccessor       func() []*v1alpha1.Cluster
 	appAccessor           func() []*v1alpha1.Application
+	// generationAccessor returns a counter that is bumped once per redistribution
+	// (see ClusterSharding.updateDistribution). Distribution functions that derive
+	// the whole cluster->shard mapping from the cluster and application sets cache
+	// that mapping per generation, so one redistribution computes it once instead
+	// of once per cluster. A nil accessor disables the cache.
+	generationAccessor func() uint64
 )
 
 // shardApplicationControllerMapping stores the mapping of Shard Number to Application Controller in ConfigMap.
@@ -81,17 +86,17 @@ func GetClusterFilter(_ db.ArgoDB, distributionFunction DistributionFunction, re
 }
 
 // GetDistributionFunction returns which DistributionFunction should be used based on the passed algorithm and
-// the current data.
-func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardingAlgorithm string, replicasCount int) DistributionFunction {
+// the current data. generation may be nil; see generationAccessor.
+func GetDistributionFunction(clusters clusterAccessor, apps appAccessor, shardingAlgorithm string, replicasCount int, generation generationAccessor) DistributionFunction {
 	log.Debugf("Using filter function:  %s", shardingAlgorithm)
 	distributionFunction := LegacyDistributionFunction(replicasCount)
 	switch shardingAlgorithm {
 	case common.RoundRobinShardingAlgorithm:
-		distributionFunction = RoundRobinDistributionFunction(clusters, replicasCount)
+		distributionFunction = roundRobinDistributionFunction(clusters, replicasCount, generation)
 	case common.LegacyShardingAlgorithm:
 		distributionFunction = LegacyDistributionFunction(replicasCount)
 	case common.ConsistentHashingWithBoundedLoadsAlgorithm:
-		distributionFunction = ConsistentHashingWithBoundedLoadsDistributionFunction(clusters, apps, replicasCount)
+		distributionFunction = consistentHashingWithBoundedLoadsDistributionFunction(clusters, apps, replicasCount, generation)
 	default:
 		log.Warnf("distribution type %s is not supported, defaulting to %s", shardingAlgorithm, common.DefaultShardingAlgorithm)
 	}
@@ -139,6 +144,13 @@ func LegacyDistributionFunction(replicas int) DistributionFunction {
 // in the cluster list
 
 func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) DistributionFunction {
+	return roundRobinDistributionFunction(clusters, replicas, nil)
+}
+
+func roundRobinDistributionFunction(clusters clusterAccessor, replicas int, generation generationAccessor) DistributionFunction {
+	getClusterIndexByClusterID := memoizeByGeneration(generation, func() map[string]int {
+		return createClusterIndexByClusterIdMap(clusters)
+	})
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
 			if c == nil { // in-cluster does not necessarily have a secret assigned. So we are receiving a nil cluster here.
@@ -149,8 +161,7 @@ func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) Dist
 			if c.Shard != nil && int(*c.Shard) < replicas {
 				return int(*c.Shard)
 			}
-			clusterIndexdByClusterIdMap := createClusterIndexByClusterIdMap(clusters)
-			clusterIndex, ok := clusterIndexdByClusterIdMap[c.ID]
+			clusterIndex, ok := getClusterIndexByClusterID()[c.ID]
 			if !ok {
 				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
 				return -1
@@ -169,6 +180,13 @@ func RoundRobinDistributionFunction(clusters clusterAccessor, replicas int) Dist
 // This function ensures an almost homogenous distribution: each shards got assigned the fairly similar number of
 // clusters +/-10% , but with it is resilient to sharding and/or number of clusters changes.
 func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAccessor, apps appAccessor, replicas int) DistributionFunction {
+	return consistentHashingWithBoundedLoadsDistributionFunction(clusters, apps, replicas, nil)
+}
+
+func consistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAccessor, apps appAccessor, replicas int, generation generationAccessor) DistributionFunction {
+	getShardIndexedByCluster := memoizeByGeneration(generation, func() map[string]int {
+		return createConsistentHashingWithBoundLoads(replicas, clusters, apps)
+	})
 	return func(c *v1alpha1.Cluster) int {
 		if replicas > 0 {
 			if c == nil { // in-cluster does not necessarily have a secret assigned. So we are receiving a nil cluster here.
@@ -182,12 +200,7 @@ func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAcces
 			}
 			// if the cluster is not in the clusters list anymore, we should unassign it from any shard, so we
 			// return the reserved value of -1
-			if !slices.Contains(clusters(), c) {
-				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
-				return -1
-			}
-			shardIndexedByCluster := createConsistentHashingWithBoundLoads(replicas, clusters, apps)
-			shard, ok := shardIndexedByCluster[c.ID]
+			shard, ok := getShardIndexedByCluster()[c.ID]
 			if !ok {
 				log.Warnf("Cluster with id=%s not found in cluster map.", c.ID)
 				return -1
@@ -197,6 +210,34 @@ func ConsistentHashingWithBoundedLoadsDistributionFunction(clusters clusterAcces
 		}
 		log.Warnf("The number of replicas (%d) is lower than 1", replicas)
 		return -1
+	}
+}
+
+// memoizeByGeneration returns compute wrapped so that it only runs again when the
+// generation changes. Building the full mapping costs O(clusters + apps) plus the
+// hash ring, and a redistribution asks for one cluster at a time, so without this
+// cache a redistribution is quadratic in the number of clusters. With a nil
+// generation, compute runs on every call.
+//
+// The returned function writes the cached value on every generation change and is
+// not safe for concurrent use: callers must hold the write lock that guards the
+// generation (ClusterSharding.updateDistribution does).
+func memoizeByGeneration[T any](generation generationAccessor, compute func() T) func() T {
+	if generation == nil {
+		return compute
+	}
+	var (
+		cached    T
+		cachedGen uint64
+		valid     bool
+	)
+	return func() T {
+		if gen := generation(); !valid || gen != cachedGen {
+			cached = compute()
+			cachedGen = gen
+			valid = true
+		}
+		return cached
 	}
 }
 
