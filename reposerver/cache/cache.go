@@ -184,6 +184,10 @@ func helmIndexRefsKey(repo string) string {
 	return "helm-index|" + repo
 }
 
+func helmIndexValidatorsKey(repo string) string {
+	return "helm-index-validators|" + repo
+}
+
 func ociTagsKey(repo string) string {
 	return "oci-tags|" + repo
 }
@@ -203,6 +207,34 @@ func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 // GetHelmIndex retrieves helm repository index.yaml content from cache
 func (c *Cache) GetHelmIndex(repo string, indexData *[]byte) error {
 	return c.cache.GetItem(helmIndexRefsKey(repo), indexData)
+}
+
+// HelmIndexValidators holds HTTP revalidation headers (ETag, Last-Modified) for a cached Helm index
+type HelmIndexValidators struct {
+	ETag         string `json:"etag"`
+	LastModified string `json:"lastModified"`
+}
+
+// SetHelmIndexValidators stores HTTP validators (ETag, Last-Modified) for a helm repository index
+func (c *Cache) SetHelmIndexValidators(repo string, etag string, lastModified string) error {
+	validators := HelmIndexValidators{
+		ETag:         etag,
+		LastModified: lastModified,
+	}
+	return c.cache.SetItem(
+		helmIndexValidatorsKey(repo),
+		validators,
+		&cacheutil.CacheActionOpts{Expiration: c.revisionCacheExpiration})
+}
+
+// GetHelmIndexValidators retrieves HTTP validators (ETag, Last-Modified) for a helm repository index
+func (c *Cache) GetHelmIndexValidators(repo string) (string, string, error) {
+	var validators HelmIndexValidators
+	err := c.cache.GetItem(helmIndexValidatorsKey(repo), &validators)
+	if err != nil {
+		return "", "", err
+	}
+	return validators.ETag, validators.LastModified, nil
 }
 
 // SetOCITags stores oci image tags to cache

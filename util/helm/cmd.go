@@ -348,8 +348,11 @@ func (c *Cmd) PullOCI(repo string, chart string, version string, destination str
 	return out, nil
 }
 
-func (c *Cmd) dependencyBuild(insecure bool, plainHTTP bool) (string, error) {
+func (c *Cmd) dependencyBuild(insecure bool, plainHTTP bool, skipRefresh bool) (string, error) {
 	args := []string{"dependency", "build"}
+	if skipRefresh {
+		args = append(args, "--skip-refresh")
+	}
 	if insecure {
 		args = append(args, "--insecure-skip-tls-verify")
 	}
