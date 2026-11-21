@@ -12,10 +12,12 @@ import (
 
 	"github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	"github.com/argoproj/argo-cd/v3/commitserver/metrics"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/gpgsign"
 	"github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
+	"github.com/argoproj/argo-cd/v3/util/oci"
 )
 
 const (
@@ -36,6 +38,9 @@ type Service struct {
 	// concurrent requests for the same branch don't race each other. Keyed by
 	// repo URL + target branch.
 	branchLock sync.KeyLock
+	// newOCIPusher creates the client used to push hydrated manifests when the
+	// repository is an OCI repository.
+	newOCIPusher func(repo *v1alpha1.Repository) (oci.Pusher, error)
 }
 
 // NewService returns a new instance of the commit service. When signingConfig
@@ -46,6 +51,7 @@ func NewService(gitCredsStore git.CredsStore, metricsServer *metrics.Server, sig
 		repoClientFactory: NewRepoClientFactory(gitCredsStore, metricsServer),
 		signingConfig:     signingConfig,
 		branchLock:        sync.NewKeyLock(),
+		newOCIPusher:      newOCIPusher,
 	}
 }
 
@@ -58,7 +64,9 @@ type CommitNote struct {
 
 // CommitHydratedManifests handles a commit request. It clones the repository, checks out the sync branch, checks out
 // the target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and
-// pushes the changes. It returns the hydrated revision SHA and an error if one occurred.
+// pushes the changes. When the repository is an OCI repository, it pushes the manifests as an artifact to the target
+// tag instead. It returns the hydrated revision SHA (the manifest digest for an OCI repository) and an error if one
+// occurred.
 func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.CommitHydratedManifestsRequest) (*apiclient.CommitHydratedManifestsResponse, error) {
 	// This method is intentionally short. It's a wrapper around handleCommitRequest that adds metrics and logging.
 	// Keep logic here minimal and put most of the logic in handleCommitRequest.
@@ -109,6 +117,10 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 
 	if r.Repo.Repo == "" {
 		return "", "", errors.New("repo URL is required")
+	}
+	if isOCIRepo(r.Repo.Repo) {
+		sha, err := s.handleOCICommitRequest(ctx, logCtx, r)
+		return "", sha, err
 	}
 	if r.TargetBranch == "" {
 		return "", "", errors.New("target branch is required")

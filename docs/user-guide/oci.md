@@ -131,6 +131,10 @@ Then, you can push the archive to your OCI registry using ORAS:
 oras push <registry-url>/guestbook:latest archive.tar.gz:application/vnd.oci.image.layer.v1.tar+gzip
 ```
 
+Argo CD can also create the OCI artifact for you. The [Source Hydrator](source-hydrator.md#hydrating-to-an-oci-registry)
+can render manifests from a Git repository, push them to an OCI repository, and sync the Application from the pushed
+artifact.
+
 ## OCI Metadata Annotations
 
 Argo CD can display standard OCI metadata annotations, providing additional context and information about your OCI 

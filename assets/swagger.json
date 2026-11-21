@@ -8890,8 +8890,8 @@
           "$ref": "#/definitions/v1Time"
         },
         "hydratedSHA": {
-          "type": "string",
-          "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
+          "description": "HydratedSHA holds the resolved revision of the hydrated source as of the most recent reconciliation. It is a\ncommit sha when the hydrated manifests are stored in Git, and a manifest digest when they are stored in an OCI\nrepository.",
+          "type": "string"
         },
         "message": {
           "type": "string",
@@ -11003,8 +11003,8 @@
           "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
         },
         "hydratedSHA": {
-          "type": "string",
-          "title": "HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation"
+          "description": "HydratedSHA holds the resolved revision of the hydrated source as of the most recent reconciliation. It is a\ncommit sha when the hydrated manifests are stored in Git, and a manifest digest when they are stored in an OCI\nrepository.",
+          "type": "string"
         },
         "sourceHydrator": {
           "$ref": "#/definitions/v1alpha1SourceHydrator"
@@ -11200,19 +11200,23 @@
       }
     },
     "v1alpha1SyncSource": {
-      "description": "SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed\nto be the same as the associated DrySource config in the SourceHydrator.",
+      "description": "SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed\nto be the same as the associated DrySource config in the SourceHydrator.\n\n+kubebuilder:validation:XValidation:rule=\"(has(self.repoURL) && self.repoURL.startsWith('oci://')) || size(self.path) >= 2 || (self.path != '.' && self.path != '/')\",message=\"path must not point to the root of the repository unless repoURL is an OCI repository\"",
       "type": "object",
       "properties": {
         "path": {
-          "description": "Path is a directory path within the git repository where hydrated manifests should be committed to and synced\nfrom. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which\nhydrated manifests will be synced.\n\n+kubebuilder:validation:Required\n+kubebuilder:validation:MinLength=1\n+kubebuilder:validation:Pattern=`^.{2,}|[^./]$`",
+          "description": "Path is a directory path within the repository where hydrated manifests should be written to and synced from.\nFor a Git repository the Path should never point to the root of the repo. For an OCI repository the Path is\nrelative to the root of the artifact and may point to the root. If hydrateTo is set, this is just the path from\nwhich hydrated manifests will be synced.\n\n+kubebuilder:validation:Required\n+kubebuilder:validation:MinLength=1",
           "type": "string"
         },
         "repoURL": {
-          "description": "RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to\nthe DrySource.RepoURL.",
+          "description": "RepoURL is the URL to the repository that contains the hydrated manifests. It is either a Git repository or an\nOCI repository (oci://). If not set, defaults to the DrySource.RepoURL.",
           "type": "string"
         },
         "targetBranch": {
-          "description": "TargetBranch is the branch from which hydrated manifests will be synced.\nIf HydrateTo is not set, this is also the branch to which hydrated manifests are committed.",
+          "description": "TargetBranch is the branch from which hydrated manifests will be synced.\nIf HydrateTo is not set, this is also the branch to which hydrated manifests are committed.\nRequired when the hydrated manifests are stored in a Git repository. Must not be set when RepoURL is an OCI\nrepository; use TargetRevision instead.",
+          "type": "string"
+        },
+        "targetRevision": {
+          "description": "TargetRevision is the tag to which hydrated manifests are pushed and from which they are synced when RepoURL is\nan OCI repository. The tag is created if it does not exist. Must not be set when the hydrated manifests are\nstored in a Git repository; use TargetBranch instead.",
           "type": "string"
         }
       }

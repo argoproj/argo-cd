@@ -146,9 +146,10 @@ the push secret example above).
 > `hydrateTo` inherits its repository and path from `syncSource`. When `syncSource.repoURL` points to a separate
 > repository, staged manifests are pushed to that repository as well.
 
-When using source hydration, the `syncSource.path` field is required and must always point to a non-root
-directory in the repository. Setting the path to the repository root (for example `"."` or `""`) is not
+When using source hydration with a Git repository, the `syncSource.path` field is required and must always point to a
+non-root directory in the repository. Setting the path to the repository root (for example `"."` or `""`) is not
 supported. This ensures that hydration is always scoped to a dedicated subdirectory, which avoids unintentionally overwriting or removing files that may exist in the repository root.
+The root is only allowed when [hydrating to an OCI registry](#hydrating-to-an-oci-registry).
 
 During each hydration run, Argo CD overwrites the files it generates (such as `manifest.yaml`) in the application's configured path, but it does **not** delete other files already present in that path. Stale files from a previous hydration that are not overwritten will remain in the output directory. 
 
@@ -180,6 +181,180 @@ If an application’s path changes, the old directory is not removed automatical
 
 If there are multiple repository-write Secrets available for a repo, the source hydrator will non-deterministically
 select one of the matching Secrets and log a warning saying "Found multiple credentials for repoURL".
+
+## Hydrating to an OCI Registry
+
+*Current Status: Alpha (Since v3.7)*
+
+Instead of committing hydrated manifests to a Git branch, the source hydrator can publish them as an
+[OCI artifact](oci.md) and sync the Application from that artifact. The dry source remains a Git repository.
+
+Set `syncSource.repoURL` to an `oci://` URL and `syncSource.targetRevision` to the tag to push to:
+
+```yaml
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: my-app
+  namespace: argocd
+spec:
+  project: default
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: guestbook
+  sourceHydrator:
+    drySource:
+      repoURL: https://github.com/argoproj/argocd-example-apps.git
+      targetRevision: HEAD
+      path: guestbook
+    syncSource:
+      repoURL: oci://myreg.io/myorg/argo-cd-example
+      targetRevision: dev
+      path: .
+```
+
+With this configuration, Argo CD renders the manifests from the dry source, pushes them to
+`myreg.io/myorg/argo-cd-example:dev`, and syncs the Application from that tag. If the tag does not exist, it is
+created. The digest of the pushed artifact is recorded in `status.sourceHydrator.currentOperation.hydratedSHA`.
+
+The tag plays the role of a Git branch and the digest plays the role of a commit SHA: the tag moves every time the
+hydrated manifests change, while each digest keeps referring to the same content.
+
+The following rules apply when `syncSource.repoURL` is an OCI repository:
+
+* `syncSource.targetRevision` is required and must be a tag. Digests and semver constraints (for example `1.x`) are
+  not supported, because the hydrator needs a single, unambiguous tag to push to.
+* `syncSource.targetBranch` must not be set. It only applies to Git repositories, where `syncSource.targetRevision`
+  must not be set.
+* `syncSource.path` is relative to the root of the artifact and may be the root (`.`).
+* `hydrateTo` is not supported.
+
+With the CLI, use the `--sync-source-repo` and `--sync-source-revision` flags:
+
+```bash
+argocd app create my-app \
+  --dest-server https://kubernetes.default.svc \
+  --dest-namespace guestbook \
+  --dry-source-repo https://github.com/argoproj/argocd-example-apps.git \
+  --dry-source-revision HEAD \
+  --dry-source-path guestbook \
+  --sync-source-repo oci://myreg.io/myorg/argo-cd-example \
+  --sync-source-revision dev \
+  --sync-source-path .
+```
+
+### Credentials
+
+OCI repositories use the same push and pull secrets as Git repositories. The push secret is used by the commit server
+to push the artifact, and the pull secret is used by the repo server to sync from it. Both must have `type` set to
+`oci`.
+
+```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-oci-push-secret
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository-write
+type: Opaque
+stringData:
+  url: "oci://myreg.io/myorg/argo-cd-example"
+  type: "oci"
+  username: "<a user with push access>"
+  password: "<the password or token of that user>"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: my-oci-pull-secret
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+type: Opaque
+stringData:
+  url: "oci://myreg.io/myorg/argo-cd-example"
+  type: "oci"
+  username: "<a user with pull access>"
+  password: "<the password or token of that user>"
+```
+
+The secrets support the same options as the secrets of [regular OCI sources](oci.md), such as `insecure` and
+`insecureOCIForceHttp`. Both the dry Git repository and the OCI repository must be permitted in the application's
+AppProject (`spec.sourceRepos`).
+
+### Artifact Contents
+
+The artifact contains the same files the hydrator commits to a Git branch, except for `.gitattributes`: a
+`manifest.yaml`, a `hydrator.metadata` and a `README.md` file in the path of each Application, and a `hydrator.metadata`
+file at the root describing the dry commit. When an Application is hydrated to the root, the two `hydrator.metadata`
+files are one and the same file.
+
+The files are stored in a single layer with the media type `application/vnd.oci.image.layer.v1.tar+gzip`, which is one
+of the media types the repo server accepts by default. The artifact type is
+`application/vnd.argoproj.argocd.hydrated-manifests.v1`.
+
+The OCI manifest carries the following annotations:
+
+| Annotation                                     | Value                                                  |
+|------------------------------------------------|--------------------------------------------------------|
+| `org.opencontainers.image.revision`            | The commit SHA of the dry source the manifests were rendered from |
+| `org.opencontainers.image.source`              | The URL of the dry source repository                   |
+| `org.opencontainers.image.created`             | The date of the dry commit                             |
+| `org.opencontainers.image.authors`             | The author of the dry commit                           |
+| `io.argoproj.argocd.hydrator.manifests-digest` | A digest of the hydrated manifests in the artifact     |
+
+To inspect the hydrated manifests, pull the artifact with [ORAS](https://oras.land/):
+
+```bash
+oras pull myreg.io/myorg/argo-cd-example:dev
+```
+
+### Sharing a Tag Between Applications
+
+Pushing to a tag replaces the whole artifact. Unlike with a Git branch, Argo CD therefore cannot add the manifests of
+one Application to a tag without knowing the manifests of every other Application stored in it.
+
+Applications which have the same `drySource.repoURL` and `drySource.targetRevision` are hydrated together and can share
+a tag, as long as each of them uses a different `syncSource.path`. Adding an Application to a tag, or changing the
+source hydrator configuration of one of its Applications, pushes the artifact again. The artifact contains the paths of
+the Applications which hydrated to the tag when it was last pushed; the path of a removed Application is dropped with
+the next push.
+
+The following configurations are rejected, and the hydration fails with an error on the affected Applications:
+
+* Applications with a different dry source repository or revision hydrating to the same tag of the same OCI
+  repository. Use a different tag or a different repository for each dry source.
+* An Application hydrating to the root (`.`) of a tag which is shared with another Application.
+
+### Unchanged Manifests
+
+When a new dry commit renders the same manifests as the artifact the tag already points to, nothing is pushed and the
+tag keeps its digest. This mirrors the Git behaviour of not creating a commit when the manifests are unchanged.
+
+> [!NOTE]
+> Because nothing is pushed, the annotations and the `hydrator.metadata` files of the artifact keep referring to the
+> dry commit which last changed the manifests. The Application status always reports the latest hydrated dry commit in
+> `status.sourceHydrator.currentOperation.drySHA`.
+
+### OCI Limitations
+
+* The registry must allow overwriting tags. Registries or repositories configured with immutable tags cannot be used
+  as a hydration destination.
+* A tag does not keep a history. To deploy a previous version, or to pin a deployment to an immutable version,
+  reference the digest in a [regular OCI source](oci.md) instead of using the source hydrator. Whether artifacts which
+  are no longer tagged stay available depends on the retention policy of the registry.
+* [Signing hydrated commits](#signing-hydrated-commits) does not apply to OCI artifacts. The artifact is pushed
+  unsigned, and the commit server logs a warning if commit signing is enabled.
+* There is no equivalent of the [Git notes](#git-note-based-hydration-state-tracking) the hydrator uses to track the
+  hydration state in Git.
+* A registry accepts whichever push to a tag arrives last. Pushes are only serialized within one commit server replica
+  and one application controller shard. If the Applications of a tag are spread over controller shards, or over Argo
+  CD instances, two hydrations of different dry commits can race, and the tag can be left holding the older manifests
+  until its next hydration. Each tag should be hydrated by a single Argo CD instance.
+* In an ApplicationSet template, `syncSource.path` can only be the root if the template's `syncSource.repoURL` starts
+  with a literal `oci://`, for example `oci://myreg.io/myorg/{{.name}}`. The template is validated before it is
+  rendered, so a `repoURL` which is entirely a template expression is not recognized as an OCI repository.
 
 ## Source Configuration Options
 
@@ -292,6 +467,10 @@ spec:
 The source hydrator can be used to push hydrated manifests to a "staging" branch instead of the `syncSource` branch.
 This provides a way to prevent the hydrated manifests from being applied to the cluster until some prerequisite
 conditions are met (in effect, providing a way to handle environment promotion via Pull Requests).
+
+> [!NOTE]
+> `hydrateTo` is only supported when the hydrated manifests are stored in a Git repository. It cannot be combined with
+> [hydrating to an OCI registry](#hydrating-to-an-oci-registry).
 
 To use the source hydrator to push to a "staging" branch, set the `spec.sourceHydrator.hydrateTo` field of the
 Application. For example:
@@ -644,13 +823,14 @@ The annotation's path filtering applies to the dry source. The sync source is al
 
 ### Repository support
 
-The source hydrator currently supports only Git repositories. `drySource.repoURL` must reference a Git
-repository. The effective sync repository must also be Git: `syncSource.repoURL` may reference a different
-Git repository or be omitted to inherit `drySource.repoURL`. 
+The dry source must be a Git repository: `drySource.repoURL` must reference a Git repository.
 
-OCI repositories (`oci://...`) are supported as [regular Application sources](oci.md), but cannot currently
-be used as a `drySource` or hydration destination. An OCI dry source may be accepted and resolved to a digest,
-but hydration will fail when Argo CD attempts to retrieve Git revision metadata.
+The hydrated manifests can be stored in a Git repository or in an OCI repository. `syncSource.repoURL` may reference a
+different Git repository, an OCI repository (`oci://...`, see
+[Hydrating to an OCI Registry](#hydrating-to-an-oci-registry)), or be omitted to inherit `drySource.repoURL`.
+
+OCI repositories cannot currently be used as a `drySource`. An OCI dry source may be accepted and resolved to a
+digest, but hydration will fail when Argo CD attempts to retrieve Git revision metadata.
 
 ### Git note attestation and manifest-generate-paths
 

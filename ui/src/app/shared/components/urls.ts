@@ -19,6 +19,10 @@ function isGitlab(parsed: GitUrl): boolean {
 }
 
 function supportedSource(parsed: GitUrl): boolean {
+    // An OCI registry has no Git web UI to link to, whatever its host is named.
+    if (parsed.protocol === 'oci') {
+        return false;
+    }
     return parsed.resource.startsWith('github') || parsed.source === 'bitbucket.org' || isBitbucketServer(parsed) || isGitlab(parsed);
 }
 

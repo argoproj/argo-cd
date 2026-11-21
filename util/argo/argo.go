@@ -31,6 +31,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/db"
 	"github.com/argoproj/argo-cd/v3/util/git"
 	"github.com/argoproj/argo-cd/v3/util/glob"
+	utilhydrator "github.com/argoproj/argo-cd/v3/util/hydrator"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
@@ -719,22 +720,10 @@ func validateSourcePermissions(source argoappv1.ApplicationSource, hasMultipleSo
 
 func validateSourceHydrator(hydrator *argoappv1.SourceHydrator) []argoappv1.ApplicationCondition {
 	var conditions []argoappv1.ApplicationCondition
-	if hydrator.DrySource.RepoURL == "" {
+	for _, problem := range utilhydrator.ValidateSourceHydrator(hydrator) {
 		conditions = append(conditions, argoappv1.ApplicationCondition{
 			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "spec.sourceHydrator.drySource.repoURL is required",
-		})
-	}
-	if hydrator.SyncSource.TargetBranch == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "spec.sourceHydrator.syncSource.targetBranch is required",
-		})
-	}
-	if hydrator.HydrateTo != nil && hydrator.HydrateTo.TargetBranch == "" {
-		conditions = append(conditions, argoappv1.ApplicationCondition{
-			Type:    argoappv1.ApplicationConditionInvalidSpecError,
-			Message: "when spec.sourceHydrator.hydrateTo is set, spec.sourceHydrator.hydrateTo.targetBranch is required",
+			Message: problem,
 		})
 	}
 	return conditions

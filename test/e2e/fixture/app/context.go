@@ -62,6 +62,8 @@ type Context struct {
 	drySourcePath            string
 	syncSourceBranch         string
 	syncSourcePath           string
+	syncSourceRepo           string
+	syncSourceRevision       string
 	hydrateToBranch          string
 }
 
@@ -181,6 +183,11 @@ func (c *Context) SubmoduleHTTPSRepoURLAdded(withCreds bool) *Context {
 
 func (c *Context) WriteCredentials(insecure bool) *Context {
 	repos.AddWriteCredentials(c.T(), c.GetName(), insecure, c.repoURLType)
+	return c
+}
+
+func (c *Context) OCIWriteCredentials(imagePath string) *Context {
+	repos.AddOCIWriteCredentials(c.T(), c.GetName(), imagePath)
 	return c
 }
 
@@ -308,6 +315,16 @@ func (c *Context) SyncSourceBranch(branch string) *Context {
 
 func (c *Context) SyncSourcePath(path string) *Context {
 	c.syncSourcePath = path
+	return c
+}
+
+func (c *Context) SyncSourceRepo(repoURL string) *Context {
+	c.syncSourceRepo = repoURL
+	return c
+}
+
+func (c *Context) SyncSourceRevision(revision string) *Context {
+	c.syncSourceRevision = revision
 	return c
 }
 

@@ -2550,6 +2550,13 @@ func (s *Server) resolveRevision(ctx context.Context, app *v1alpha1.Application,
 		return "", "", nil
 	}
 
+	// An application which uses the source hydrator is synced from its sync source. The index of a single source is
+	// -1, which would select the dry source: the revision of the sync source would then be resolved as if the sync
+	// source was the same kind of repository as the dry source.
+	if app.Spec.SourceHydrator != nil {
+		sourceIndex = 0
+	}
+
 	ambiguousRevision := getAmbiguousRevision(app, syncReq, sourceIndex)
 
 	repoURL := app.Spec.GetSource().RepoURL

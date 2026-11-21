@@ -4510,6 +4510,33 @@ func TestServer_ResolveSourceRevisions_SingleSource(t *testing.T) {
 	assert.Equal(t, []string(nil), displayRevisions)
 }
 
+func TestServer_ResolveSourceRevisions_SourceHydratorOCISyncSource(t *testing.T) {
+	s := newTestAppServer(t)
+	repoServerClient := mocks.NewRepoServerServiceClient(t)
+	repoServerClient.EXPECT().ResolveRevision(mock.Anything, mock.MatchedBy(func(q *apiclient.ResolveRevisionRequest) bool {
+		// The repo-server resolves the revision with the kind of client the source at this index needs. For an
+		// application using the source hydrator, a negative index is the dry source, which is a git repository.
+		source := q.App.Spec.GetSourcePtrByIndex(int(q.SourceIndex))
+		return source.IsOCI() && q.AmbiguousRevision == "dev"
+	})).Return(&apiclient.ResolveRevisionResponse{Revision: "sha256:abc", AmbiguousRevision: "dev (sha256:abc)"}, nil).Once()
+	s.repoClientset = &mocks.Clientset{RepoServerServiceClient: repoServerClient}
+
+	a := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource:  v1alpha1.DrySource{RepoURL: "https://github.com/example/repo.git", TargetRevision: "HEAD", Path: "app"},
+				SyncSource: v1alpha1.SyncSource{RepoURL: "oci://example.com/hydrated", TargetRevision: "dev", Path: "."},
+			},
+		},
+	}
+
+	revision, displayRevision, _, _, err := s.resolveSourceRevisions(t.Context(), a, &application.ApplicationSyncRequest{})
+
+	require.NoError(t, err)
+	assert.Equal(t, "sha256:abc", revision)
+	assert.Equal(t, "dev (sha256:abc)", displayRevision)
+}
+
 func Test_RevisionMetadata(t *testing.T) {
 	t.Parallel()
 

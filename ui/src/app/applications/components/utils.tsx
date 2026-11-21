@@ -950,6 +950,12 @@ export function hydrationStatusMessage(app: appModels.Application) {
     const dryCommit = app.status.sourceHydrator.currentOperation.drySHA;
     const hydrateToSource = getAppHydrateToSource(sourceHydrator);
     const hydratedCommit = app.status.sourceHydrator.currentOperation.hydratedSHA || '';
+    let hydratedLabel = hydrateToSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')';
+    if (isHydratorSyncSourceOCI(sourceHydrator)) {
+        // The first 7 characters of an OCI digest are only "sha256:", so shorten it like a synced OCI revision.
+        const digest = getSyncRevisionLabelSuffix(hydrateToSource.repoURL, hydrateToSource.targetRevision, hydratedCommit);
+        hydratedLabel = hydrateToSource.targetRevision + (digest && ' (' + digest + ')');
+    }
 
     switch (app.status.sourceHydrator.currentOperation.phase) {
         case appModels.HydrateOperationPhases.Hydrated:
@@ -962,7 +968,7 @@ export function hydrationStatusMessage(app: appModels.Application) {
                     <br />
                     to{' '}
                     <Revision repoUrl={hydrateToSource.repoURL} revision={hydratedCommit}>
-                        {hydrateToSource.targetRevision + ' (' + hydratedCommit.substr(0, 7) + ')'}
+                        {hydratedLabel}
                     </Revision>
                 </span>
             );
@@ -1438,21 +1444,41 @@ export function getHydratorSyncSourceRepoURL(sourceHydrator?: appModels.SourceHy
     return sourceHydrator?.syncSource?.repoURL || sourceHydrator?.drySource?.repoURL || '';
 }
 
+// Whether hydrated manifests are pushed to and synced from an OCI repository instead of a Git repository.
+export function isHydratorSyncSourceOCI(sourceHydrator?: appModels.SourceHydrator): boolean {
+    return getHydratorSyncSourceRepoURL(sourceHydrator).startsWith('oci://');
+}
+
 export function getAppHydratorSyncSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
+    const syncSource = sourceHydrator?.syncSource;
     return {
         repoURL: getHydratorSyncSourceRepoURL(sourceHydrator),
-        targetRevision: sourceHydrator?.syncSource?.targetBranch || '',
-        path: sourceHydrator?.syncSource?.path || ''
+        targetRevision: (isHydratorSyncSourceOCI(sourceHydrator) ? syncSource?.targetRevision : syncSource?.targetBranch) || '',
+        path: syncSource?.path || ''
     };
 }
 
-// Destination of a hydration push: hydrateTo.targetBranch when set, otherwise the sync source branch.
+// Destination of a hydration push: hydrateTo.targetBranch when set, otherwise the sync source branch (or tag, for OCI).
 export function getAppHydrateToSource(sourceHydrator?: appModels.SourceHydrator): appModels.ApplicationSource {
     const syncSource = getAppHydratorSyncSource(sourceHydrator);
     return {
         ...syncSource,
         targetRevision: sourceHydrator?.hydrateTo?.targetBranch || syncSource.targetRevision
     };
+}
+
+// Removes, in place, the fields that the API rejects for this kind of sync source: an OCI sync source takes a tag in
+// syncSource.targetRevision and no hydrateTo, a Git sync source takes a branch in syncSource.targetBranch.
+export function removeInapplicableHydratorSyncFields(sourceHydrator?: appModels.SourceHydrator) {
+    if (!sourceHydrator) {
+        return;
+    }
+    if (isHydratorSyncSourceOCI(sourceHydrator)) {
+        delete sourceHydrator.syncSource?.targetBranch;
+        delete sourceHydrator.hydrateTo;
+    } else {
+        delete sourceHydrator.syncSource?.targetRevision;
+    }
 }
 
 // getAppAllSources gets all app sources as an array. For single source apps, returns [source].
