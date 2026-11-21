@@ -1,0 +1,28 @@
+apiVersion: resources.signoz.io/v1alpha1
+kind: ProviderConfig
+metadata:
+  name: signoz
+  namespace: monitoring
+  generation: 1
+spec:
+  auth:
+    header:
+      name: SIGNOZ-API-KEY
+      valueFrom:
+        secretKeyRef:
+          key: token
+          name: signoz-api
+  endpoint:
+    value: https://signoz.example.com
+status:
+  conditions:
+  - lastTransitionTime: '2026-11-19T08:53:32Z'
+    message: Endpoint and credential resolved
+    observedGeneration: 1
+    reason: Resolved
+    status: 'True'
+    type: Ready
+  observedGeneration: 1
+  observedRefVersions:
+    Secret:
+      monitoring/signoz-api: '1084'
