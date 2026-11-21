@@ -15,24 +15,32 @@ import (
 
 // resetGlobCacheForTest clears the cached glob patterns for testing.
 func resetGlobCacheForTest() {
-	globCacheLock.Lock()
-	defer globCacheLock.Unlock()
-	globCache.Clear()
+	globCache.lock.Lock()
+	defer globCache.lock.Unlock()
+	globCache.entries.Clear()
+	globCache.size = 0
 }
 
 // isPatternCached returns true if the pattern (with optional separators) is cached.
 func isPatternCached(pattern string, separators ...rune) bool {
-	globCacheLock.Lock()
-	defer globCacheLock.Unlock()
-	_, ok := globCache.Get(cacheKey(pattern, separators...))
+	_, ok := globCache.get(cacheKey(pattern, separators...))
 	return ok
 }
 
-// globCacheLen returns the number of cached patterns.
+// globCacheLen returns the number of cached patterns. It counts the entries rather than
+// reading the cache's own size, so that tests also catch the two disagreeing.
 func globCacheLen() int {
-	globCacheLock.Lock()
-	defer globCacheLock.Unlock()
-	return globCache.Len()
+	globCache.lock.Lock()
+	defer globCache.lock.Unlock()
+	entries := 0
+	globCache.entries.Range(func(_, _ any) bool {
+		entries++
+		return true
+	})
+	if entries != globCache.size {
+		panic(fmt.Sprintf("glob cache holds %d entries but its size is %d", entries, globCache.size))
+	}
+	return entries
 }
 
 func matchWithCompiler(pattern, text string, compiler compileFn, separators ...rune) bool {
@@ -196,25 +204,37 @@ func Test_GlobCachingConcurrent(t *testing.T) {
 	require.Equal(t, int32(1), atomic.LoadInt32(compileCount), "glob should compile once for the cached pattern")
 }
 
-func Test_GlobCacheLRUEviction(t *testing.T) {
+func Test_GlobCacheEmptiesWhenFull(t *testing.T) {
 	// Clear cache before test
 	resetGlobCacheForTest()
 
-	// Fill cache beyond DefaultGlobCacheSize
-	for i := range DefaultGlobCacheSize + 100 {
+	// Fill the cache up to DefaultGlobCacheSize
+	for i := range DefaultGlobCacheSize {
+		pattern := fmt.Sprintf("pattern-%d-*", i)
+		Match(pattern, "pattern-0-test")
+	}
+	require.Equal(t, DefaultGlobCacheSize, globCacheLen(), "cache should hold DefaultGlobCacheSize patterns")
+
+	// A hit on a full cache leaves it as it is
+	oldest := fmt.Sprintf("pattern-%d-*", 0)
+	require.True(t, Match(oldest, "pattern-0-test"))
+	require.Equal(t, DefaultGlobCacheSize, globCacheLen(), "a cache hit should not change the cache")
+
+	// Go beyond DefaultGlobCacheSize
+	for i := DefaultGlobCacheSize; i < DefaultGlobCacheSize+100; i++ {
 		pattern := fmt.Sprintf("pattern-%d-*", i)
 		Match(pattern, "pattern-0-test")
 	}
 
-	// Cache size should be limited to DefaultGlobCacheSize
-	require.Equal(t, DefaultGlobCacheSize, globCacheLen(), "cache size should be limited to DefaultGlobCacheSize")
-
-	// The oldest patterns should be evicted
-	oldest := fmt.Sprintf("pattern-%d-*", 0)
-	require.False(t, isPatternCached(oldest), "oldest pattern should be evicted")
-
-	// The most recently used patterns should still be cached
+	// The cache was emptied when the first pattern beyond its size was added
+	require.Equal(t, 100, globCacheLen(), "cache should only hold the patterns added since it was full")
+	require.False(t, isPatternCached(oldest), "patterns cached before the cache was full should be dropped")
 	require.True(t, isPatternCached(fmt.Sprintf("pattern-%d-*", DefaultGlobCacheSize+99)), "most recent pattern should be cached")
+
+	// A dropped pattern still matches, and is cached again
+	require.True(t, Match(oldest, "pattern-0-test"))
+	require.True(t, isPatternCached(oldest), "a dropped pattern should be cached again when it is used")
+	require.Equal(t, 101, globCacheLen())
 }
 
 func Test_GlobCacheKeyIncludesSeparators(t *testing.T) {
@@ -277,10 +297,91 @@ func Test_SetCacheSize(t *testing.T) {
 		Match(fmt.Sprintf("setsize-%d-*", i), "setsize-0-test")
 	}
 
-	require.Equal(t, customSize, globCacheLen(), "cache size should respect the custom size set via SetCacheSize")
+	// The cache was emptied when the pattern after the first customSize was added, leaving the last 3.
+	require.Equal(t, 3, globCacheLen(), "cache size should respect the custom size set via SetCacheSize")
 
-	require.False(t, isPatternCached("setsize-0-*"), "oldest pattern should be evicted with custom cache size")
+	require.False(t, isPatternCached("setsize-0-*"), "oldest pattern should be dropped with custom cache size")
 	require.True(t, isPatternCached(fmt.Sprintf("setsize-%d-*", customSize+2)), "most recent pattern should be cached")
+}
+
+func Test_SetCacheSize_ClearsCache(t *testing.T) {
+	resetGlobCacheForTest()
+	defer SetCacheSize(DefaultGlobCacheSize)
+
+	Match("setsize-clear-*", "setsize-clear-test")
+	require.True(t, isPatternCached("setsize-clear-*"))
+
+	SetCacheSize(5)
+
+	require.False(t, isPatternCached("setsize-clear-*"), "SetCacheSize should drop the cached patterns")
+	require.Equal(t, 0, globCacheLen())
+}
+
+func Test_SetCacheSize_ZeroIsUnlimited(t *testing.T) {
+	resetGlobCacheForTest()
+
+	SetCacheSize(0)
+	defer SetCacheSize(DefaultGlobCacheSize)
+
+	for i := range DefaultGlobCacheSize + 100 {
+		Match(fmt.Sprintf("unlimited-%d-*", i), "unlimited-0-test")
+	}
+
+	require.Equal(t, DefaultGlobCacheSize+100, globCacheLen(), "a cache size of zero should not limit the cache")
+	require.True(t, isPatternCached("unlimited-0-*"))
+}
+
+func Test_SetCacheSize_NegativeDisablesCaching(t *testing.T) {
+	resetGlobCacheForTest()
+
+	SetCacheSize(-1)
+	defer SetCacheSize(DefaultGlobCacheSize)
+
+	require.True(t, Match("disabled-*", "disabled-test"))
+	require.False(t, Match("disabled-*", "other-test"))
+
+	require.False(t, isPatternCached("disabled-*"), "a negative cache size should disable caching")
+	require.Equal(t, 0, globCacheLen())
+}
+
+func Test_GlobCacheConcurrentHitsMissesAndResets(t *testing.T) {
+	resetGlobCacheForTest()
+
+	// A cache smaller than the pattern set makes hits, misses and resets all happen concurrently.
+	customSize := 5
+	SetCacheSize(customSize)
+	defer SetCacheSize(DefaultGlobCacheSize)
+
+	var wg sync.WaitGroup
+	numGoroutines := 16
+	errChan := make(chan error, numGoroutines)
+
+	for g := range numGoroutines {
+		wg.Go(func() {
+			for i := range 500 {
+				n := (g + i) % 10
+				pattern := fmt.Sprintf("team-%d/*", n)
+				if !Match(pattern, fmt.Sprintf("team-%d/app", n)) {
+					errChan <- fmt.Errorf("expected %s to match its own team", pattern)
+					return
+				}
+				if Match(pattern, fmt.Sprintf("team-%d/app", n+1)) {
+					errChan <- fmt.Errorf("expected %s not to match another team", pattern)
+					return
+				}
+			}
+		})
+	}
+
+	wg.Wait()
+	close(errChan)
+
+	// Check for any errors from goroutines
+	for err := range errChan {
+		t.Error(err)
+	}
+
+	require.LessOrEqual(t, globCacheLen(), customSize, "cache should never grow beyond its size")
 }
 
 // BenchmarkMatch_WithCache benchmarks Match with caching (cache hit)
@@ -336,4 +437,42 @@ func BenchmarkMatch_RBACSimulation(b *testing.B) {
 			Match(pattern, text)
 		}
 	}
+}
+
+// BenchmarkMatch_WithCache_Parallel benchmarks cache hits for one pattern from concurrent callers, as when the API
+// server enforces RBAC for many requests at once.
+func BenchmarkMatch_WithCache_Parallel(b *testing.B) {
+	pattern := "proj:*/app-*"
+	text := "proj:myproject/app-frontend"
+
+	// Warm up the cache
+	Match(pattern, text)
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			Match(pattern, text)
+		}
+	})
+}
+
+// BenchmarkMatch_RBACSimulation_Parallel is BenchmarkMatch_RBACSimulation with concurrent callers.
+func BenchmarkMatch_RBACSimulation_Parallel(b *testing.B) {
+	patterns := make([]string, 50)
+	for i := range 50 {
+		patterns[i] = fmt.Sprintf("proj:team-%d/*", i)
+	}
+	text := "proj:team-25/my-app"
+
+	// Warm up the cache
+	for _, pattern := range patterns {
+		Match(pattern, text)
+	}
+
+	b.RunParallel(func(pb *testing.PB) {
+		for pb.Next() {
+			for _, pattern := range patterns {
+				Match(pattern, text)
+			}
+		}
+	})
 }
