@@ -348,7 +348,10 @@ func (e *legacyEngine) loadInitialState(ctx context.Context, api kube.APIResourc
 
 func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string) {
 	c := e.c
-	timeoutSeconds := int64(c.watchResyncTimeout.Seconds())
+	var timeoutSeconds *int64
+	if seconds := int64(c.watchResyncTimeout.Seconds()); seconds > 0 {
+		timeoutSeconds = &seconds
+	}
 	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), c.log, func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -364,13 +367,20 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			}
 		}
 
-		w, err := watchutil.NewRetryWatcherWithContext(ctx, resourceVersion, &cache.ListWatch{
+		watchCtx, cancelWatch := context.WithCancel(ctx)
+		defer cancelWatch()
+		w, err := watchutil.NewRetryWatcherWithContext(watchCtx, resourceVersion, &cache.ListWatch{
 			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
 				options.LabelSelector = api.LabelSelector
-				options.TimeoutSeconds = &timeoutSeconds
+				options.TimeoutSeconds = timeoutSeconds
 				res, err := resClient.Watch(ctx, options)
 				if apierrors.IsNotFound(err) {
 					e.stopWatching(api.GroupKind, ns)
+				}
+				// The retry watcher retries a failed request with the same resource version
+				// forever, so stop it to relist when that version is too old.
+				if apierrors.IsResourceExpired(err) || apierrors.IsGone(err) {
+					cancelWatch()
 				}
 				//nolint:wrapcheck // wrap outside the retry
 				return res, err
@@ -388,32 +398,23 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			case <-ctx.Done():
 				return nil
 
-			// re-synchronize API state and restart watch if retry watcher failed to continue watching using provided resource version
+			// The retry watcher only stops when it can't resume, so relist.
 			case <-w.Done():
-				// The underlying retry watcher has stopped, possibly due to specifying an RV in
-				// the watch request that is stale (error code 410). This forces us to relist
-				// objects from the kube-apiserver to get a fresher RV and we invoke that relist
-				// by resetting the locally stored RV.
 				resourceVersion = ""
 				return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
 
 			case event, ok := <-w.ResultChan():
 				if !ok {
+					resourceVersion = ""
 					return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
 				}
 
 				obj, ok := event.Object.(*unstructured.Unstructured)
 				if !ok {
-					// We failed to cast the object received in the watch event to something
-					// that contains a resource version field. Because of that, we don't know
-					// from what RV we should reinitialize the watch connection, so in order to
-					// avoid any inconsistencies due to accidental skipping of a potential RV,
-					// we reset the locally stored RV to forcefully invoke the list API call to
-					// get it from the kube-apiserver.
+					// An error event, such as 410 Gone: relist.
 					resourceVersion = ""
 					return fmt.Errorf("failed to convert to *unstructured.Unstructured: %v", event.Object)
 				}
-				resourceVersion = obj.GetResourceVersion()
 
 				e.recordEvent(event.Type, obj)
 				if kube.IsCRD(obj) {
@@ -421,6 +422,8 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				} else if kube.IsAPIService(obj) {
 					c.handleAPIServiceEvent(e, event.Type, obj)
 				}
+				// Only after it's applied, so a recovered panic replays the event.
+				resourceVersion = obj.GetResourceVersion()
 			}
 		}
 	})

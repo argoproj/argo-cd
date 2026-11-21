@@ -3558,3 +3558,49 @@ func TestWatchEvents_GoneRelists(t *testing.T) {
 	current().Error(&apierrors.NewResourceExpired("too old resource version").ErrStatus)
 	require.Eventually(t, func() bool { return lists.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
 }
+
+func TestWatchEvents_ExpiredWatchRequestRelists(t *testing.T) {
+	t.Parallel()
+	cluster, lists, _, current := watchResumeCluster(t)
+	client := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
+	var expired atomic.Bool
+	expired.Store(true)
+	client.PrependWatchReactor("pods", func(testcore.Action) (bool, watch.Interface, error) {
+		if expired.CompareAndSwap(true, false) {
+			return true, nil, apierrors.NewResourceExpired("too old resource version")
+		}
+		return false, nil, nil
+	})
+
+	current().Stop()
+	require.Eventually(t, func() bool { return lists.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
+}
+
+func TestWatchEvents_RecoveredPanicReplaysEvent(t *testing.T) {
+	t.Parallel()
+	cluster, _, watches, current := watchResumeCluster(t)
+	var panicked atomic.Bool
+	cluster.OnEvent(func(watch.EventType, *unstructured.Unstructured) {
+		if panicked.CompareAndSwap(false, true) {
+			panic("handler failed")
+		}
+	})
+	client := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
+
+	pod := &unstructured.Unstructured{}
+	pod.SetAPIVersion("v1")
+	pod.SetKind("Pod")
+	pod.SetName("pod")
+	pod.SetNamespace("default")
+	pod.SetResourceVersion("200")
+	current().Modify(pod)
+
+	require.Eventually(t, func() bool { return watches.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
+	var resumedFrom string
+	for _, action := range client.Actions() {
+		if w, ok := action.(testcore.WatchActionImpl); ok && w.GetResource().Resource == "pods" {
+			resumedFrom = w.WatchRestrictions.ResourceVersion
+		}
+	}
+	assert.NotEqual(t, "200", resumedFrom, "the watch must resume before the event the panic interrupted")
+}
