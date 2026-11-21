@@ -1,5 +1,7 @@
 import * as React from 'react';
 import {render, screen} from '@testing-library/react';
+// Types only — jest.setup.js registers the matchers at runtime, but tsconfig's `types` pins jest+node.
+import '@testing-library/jest-dom';
 import {ResourceIcon} from './resource-icon';
 
 // Mock the resourceIcons and resourceCustomizations
