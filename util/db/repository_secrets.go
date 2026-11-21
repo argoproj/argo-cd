@@ -571,9 +571,29 @@ func (s *secretsRepositoryBackend) getRepositorySecret(repoURL, project string, 
 		return nil, fmt.Errorf("failed to list repository secrets: %w", err)
 	}
 
+	// Prefer an EXACT URL match first, so that when both a slash and a no-slash
+	// variant of a secret exist the exact one wins deterministically. Only fall back
+	// to the slash-tolerant match (see #9857) when no exact match is present.
+	matches := func(secret *corev1.Secret, exact bool) bool {
+		if exact {
+			return git.SameURL(string(secret.Data["url"]), repoURL)
+		}
+		return git.SameURL(strings.TrimSuffix(string(secret.Data["url"]), "/"), strings.TrimSuffix(repoURL, "/"))
+	}
+
+	hasExact := false
+	for _, secret := range secrets {
+		projectSecret := string(secret.Data["project"])
+		eligible := project == projectSecret || (projectSecret == "" && allowFallback)
+		if eligible && matches(secret, true) {
+			hasExact = true
+			break
+		}
+	}
+
 	var foundSecret *corev1.Secret
 	for _, secret := range secrets {
-		if !git.SameURL(string(secret.Data["url"]), repoURL) {
+		if !matches(secret, hasExact) {
 			continue
 		}
 
