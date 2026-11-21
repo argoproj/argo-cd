@@ -746,6 +746,14 @@ func populatePodInfo(un *unstructured.Unstructured, res *ResourceInfo) {
 	if restarts > 0 {
 		res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Restart Count", Value: strconv.Itoa(restarts)})
 	}
+	// Flag running Argo-attached debug containers (by name prefix) so the UI can show the indicator.
+	// Out-of-band ephemeral containers (e.g. `kubectl debug`) don't count, nor do finished sessions.
+	for _, ec := range pod.Status.EphemeralContainerStatuses {
+		if strings.HasPrefix(ec.Name, common.DebugContainerNamePrefix) && ec.State.Running != nil {
+			res.Info = append(res.Info, v1alpha1.InfoItem{Name: "Debug", Value: "Attached"})
+			break
+		}
+	}
 
 	// Requests are relevant even for pods in the init phase or pending state (e.g., due to insufficient resources),
 	// as they help with diagnosing scheduling and startup issues.

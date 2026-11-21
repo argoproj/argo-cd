@@ -5757,6 +5757,9 @@
         "controllerNamespace": {
           "type": "string"
         },
+        "debugEnabled": {
+          "type": "boolean"
+        },
         "dexConfig": {
           "$ref": "#/definitions/clusterDexConfig"
         },

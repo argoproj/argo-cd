@@ -435,6 +435,13 @@ data:
   # exec.shells restricts which shells are allowed for `exec`, and in which order they are attempted
   exec.shells: "bash,sh,powershell,cmd"
 
+  # exec.debug.enabled indicates whether the UI debug (ephemeral container) feature is enabled. It is disabled by default.
+  exec.debug.enabled: "false"
+
+  # exec.debug.images is the comma-separated allowlist of images that can be attached as debug containers.
+  # It has no default and must be set when exec.debug.enabled is "true".
+  exec.debug.images: "docker.io/library/busybox:1.36,docker.io/nicolaka/netshoot:v0.13"
+
   # oidc.tls.insecure.skip.verify determines whether certificate verification is skipped when verifying tokens with the
   # configured OIDC provider (either external or the bundled Dex instance). Setting this to "true" will cause JWT
   # token verification to pass despite the OIDC provider having an invalid certificate. Only set to "true" if you
