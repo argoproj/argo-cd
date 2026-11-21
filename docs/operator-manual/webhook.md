@@ -48,9 +48,9 @@ Azure DevOps secures the webhook using basic authentication. Specify the usernam
 ## 2. Configure Argo CD With The WebHook Secret
 
 Argo CD only accepts webhook events from a provider that has a webhook secret configured. Events
-for a provider with no secret are rejected as an unknown webhook event (`400 Bad Request`), so an
-event must pass the provider's verification to trigger a refresh. BitBucket Cloud events are only
-checked against the webhook UUID, not a signature, so treat that UUID as a secret.
+for a provider with no secret are rejected with `400 Bad Request`, so an event must pass the
+provider's verification to trigger a refresh. BitBucket Cloud events are only checked against the
+webhook UUID, not a signature, so treat that UUID as a secret.
 
 > [!NOTE]
 > To accept unauthenticated events from providers that have no secret configured, set the
@@ -58,7 +58,8 @@ checked against the webhook UUID, not a signature, so treat that UUID as a secre
 > `argocd-applicationset-controller` for the
 > [ApplicationSet webhook](applicationset/Generators-Git.md#webhook-configuration). A provider that
 > has a secret configured still verifies its events. This does not apply to the Harbor and Docker Hub
-> webhooks, which always require a secret. If Argo CD is publicly accessible, anyone can then send
+> webhooks, which always require a secret, or to a GitLab webhook that sends a secret token, which is
+> rejected unless the same token is configured. If Argo CD is publicly accessible, anyone can then send
 > forged events, so this is not recommended.
 
 In the `argocd-secret` Kubernetes secret, configure one of the following keys with the Git

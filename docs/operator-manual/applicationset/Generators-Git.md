@@ -542,7 +542,8 @@ data:
 ### 2. Configure ApplicationSet with the webhook secret
 
 The ApplicationSet webhook only accepts events from a provider that has a webhook secret configured.
-Events for a provider with no secret are rejected as an unknown webhook event (`400 Bad Request`).
+Events for a provider with no secret are rejected with `400 Bad Request`. The ApplicationSet
+controller reads the webhook secret when it starts, so restart the controller after changing it.
 To accept unauthenticated events instead, see
 [Configure Argo CD With The WebHook Secret](../webhook.md#2-configure-argo-cd-with-the-webhook-secret).
 
