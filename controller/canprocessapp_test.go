@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	log "github.com/sirupsen/logrus"
 	logtest "github.com/sirupsen/logrus/hooks/test"
@@ -18,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/types"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator"
 	"github.com/argoproj/argo-cd/v3/controller/sharding"
 	appv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
@@ -72,13 +74,14 @@ func newShardedController(ctx context.Context, tb testing.TB, shard, replicas in
 		configMapData["cluster.inClusterEnabled"] = "false"
 	}
 
+	clusterSharding := sharding.NewClusterSharding(nil, shard, replicas, common.DefaultShardingAlgorithm)
 	ctrl := newFakeController(ctx, &fakeData{
-		apps:           apps,
-		additionalObjs: additionalObjs,
-		configMapData:  configMapData,
+		apps:            apps,
+		additionalObjs:  additionalObjs,
+		configMapData:   configMapData,
+		clusterSharding: clusterSharding,
 	}, nil)
 
-	ctrl.clusterSharding = sharding.NewClusterSharding(nil, shard, replicas, common.DefaultShardingAlgorithm)
 	clusterList, err := ctrl.db.ListClusters(ctx)
 	require.NoError(tb, err)
 	ctrl.clusterSharding.Init(clusterList, &appv1.ApplicationList{})
@@ -95,6 +98,108 @@ func appWithDestination(name string, dest appv1.ApplicationDestination) *appv1.A
 			Source:      &appv1.ApplicationSource{RepoURL: "https://github.com/argoproj/argocd-example-apps.git", Path: "some/path"},
 		},
 	}
+}
+
+func TestHydrationGroupIsQueuedOnExactlyOneShard(t *testing.T) {
+	shard0, shard1 := 0, 1
+	clusters := []testCluster{
+		{secretName: "cluster-a", clusterName: "cluster-a", server: "https://cluster-a", shard: &shard0},
+		{secretName: "cluster-b", clusterName: "cluster-b", server: "https://cluster-b", shard: &shard1},
+	}
+
+	newHydratorApp := func(name, clusterName, path string) *appv1.Application {
+		app := appWithDestination(name, appv1.ApplicationDestination{Name: clusterName, Namespace: "default"})
+		app.Spec.Source = nil
+		app.Spec.SourceHydrator = &appv1.SourceHydrator{
+			DrySource: appv1.DrySource{
+				RepoURL:        "https://example.com/dry.git",
+				TargetRevision: "main",
+				Path:           "base",
+			},
+			SyncSource: appv1.SyncSource{
+				RepoURL:      "https://example.com/hydrated.git",
+				TargetBranch: "env/test",
+				Path:         path,
+			},
+		}
+		return app
+	}
+
+	apps := []*appv1.Application{
+		newHydratorApp("app-a", "cluster-a", "app-a"),
+		newHydratorApp("app-b", "cluster-b", "app-b"),
+	}
+	runtimeApps := []runtime.Object{apps[0], apps[1]}
+	controllers := []*ApplicationController{
+		newShardedController(t.Context(), t, shard0, 2, true, clusters, runtimeApps),
+		newShardedController(t.Context(), t, shard1, 2, true, clusters, runtimeApps),
+	}
+	for _, ctrl := range controllers {
+		// The fake controller disables hydration because most controller tests do not need it.
+		// A non-nil hydrator is sufficient here: the event handler only enqueues app names.
+		ctrl.hydrator = &hydrator.Hydrator{}
+		handler := ctrl.applicationEventHandlerFuncs()
+		for _, app := range apps {
+			handler.UpdateFunc(app.DeepCopy(), app.DeepCopy())
+		}
+	}
+
+	activeShards := 0
+	totalQueuedApps := 0
+	require.Eventually(t, func() bool {
+		totalQueuedApps = 0
+		for _, ctrl := range controllers {
+			totalQueuedApps += ctrl.appHydrateQueue.Len()
+		}
+		return totalQueuedApps == len(apps)
+	}, 5*time.Second, 10*time.Millisecond, "every app in the cross-shard hydration group must be queued")
+
+	for _, ctrl := range controllers {
+		if ctrl.appHydrateQueue.Len() > 0 {
+			activeShards++
+		}
+	}
+
+	require.Equal(t, 1, activeShards, "one shard must take responsibility for the complete hydration group")
+}
+
+func TestHydrationAppAddIsQueuedOnHydrationOwner(t *testing.T) {
+	shard0, shard1 := 0, 1
+	clusters := []testCluster{
+		{secretName: "cluster-a", clusterName: "cluster-a", server: "https://cluster-a", shard: &shard0},
+		{secretName: "cluster-b", clusterName: "cluster-b", server: "https://cluster-b", shard: &shard1},
+	}
+	app := appWithDestination("app", appv1.ApplicationDestination{Name: "cluster-b", Namespace: "default"})
+	app.Spec.Source = nil
+	app.Spec.SourceHydrator = &appv1.SourceHydrator{
+		DrySource: appv1.DrySource{
+			RepoURL:        "https://example.com/dry.git",
+			TargetRevision: "main",
+			Path:           "base",
+		},
+		SyncSource: appv1.SyncSource{
+			RepoURL:      "https://example.com/hydrated.git",
+			TargetBranch: "env/test",
+			Path:         "app",
+		},
+	}
+
+	controllers := []*ApplicationController{
+		newShardedController(t.Context(), t, shard0, 2, true, clusters, []runtime.Object{app}),
+		newShardedController(t.Context(), t, shard1, 2, true, clusters, []runtime.Object{app}),
+	}
+	for _, ctrl := range controllers {
+		ctrl.hydrator = &hydrator.Hydrator{}
+		ctrl.applicationEventHandlerFuncs().AddFunc(app.DeepCopy())
+	}
+
+	require.Eventually(t, func() bool {
+		queued := 0
+		for _, ctrl := range controllers {
+			queued += ctrl.appHydrateQueue.Len()
+		}
+		return queued == 1
+	}, 5*time.Second, 10*time.Millisecond, "new hydration apps must be queued on exactly one owner")
 }
 
 // canProcessWant is the answer canProcessAppWithDestination is expected to give. server is only
