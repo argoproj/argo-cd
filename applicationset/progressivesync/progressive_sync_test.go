@@ -7,10 +7,6 @@ import (
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	synccommon "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/sync/common"
-	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
-
-	"sigs.k8s.io/controller-runtime/pkg/client/fake"
-
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -19,9 +15,11 @@ import (
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/client/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appfake "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 )
 
 // testDeps is a no-op Dependencies: these tests assert on the statuses returned by
