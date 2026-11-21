@@ -5,6 +5,7 @@ This repository (argoproj/argo-cd) enforces strict contribution guidelines. If y
 
 ## 1. Zero-Spam & PR Authorization Policy
 * **Require an Issue:** DO NOT create a Pull Request unless there is an existing, open, and approved GitHub Issue that explicitly requests this work.
+  Approved enhancements carry the `triage/accepted` label. Link the issue in the PR description (e.g. `Closes #12345`); PRs without an accepted linked issue are automatically converted to drafts. See `docs/developer-guide/submit-your-pr.md#linking-your-pr-to-an-issue`.
 * **No Duplicate PRs:** Before opening a PR, search for existing open PRs against the same issue. If one already addresses it, do not open another — review or comment on the existing PR instead. Exceptions: the existing PR is stale/abandoned, has unresolved merge conflicts, or is otherwise faulty (wrong approach, failing CI with no author response). Say which exception applies in the PR description and link the PR you are superseding.
 * **No "Drive-By" Refactoring:** Do not submit unsolicited PRs that only contain minor stylistic changes, variable renames, or typo fixes across the codebase unless tied to an approved `chore` issue.
 * **No Hallucinated URLs:** Do not include fabricated links, hallucinated documentation, or fake GitHub usernames in the PR description or code comments. Please double-check any link, quote or code block that is included into the PR.

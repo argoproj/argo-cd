@@ -70,7 +70,10 @@ We aim to triage at least 10 proposals a week. Depending on our available time, 
 
 When a proposal is considered _Accepted_, it was decided that this enhancement would be valuable to the community at large and fits into the overall strategic roadmap of the project.
 
-Implementation of the issue may be started, either by the proposal's creator or another community member (including maintainers of the project).
+Accepted proposals are labeled `triage/accepted`. Implementation of the issue may be started, either by the proposal's creator or another community member (including maintainers of the project).
+
+> [!IMPORTANT]
+> Pull requests that implement an enhancement which does not have the `triage/accepted` label yet are automatically converted to drafts. See [Linking your PR to an issue](submit-your-pr.md#linking-your-pr-to-an-issue).
 
 The issue should be refined enough by now to contain any concerns and guidelines to be taken into consideration during implementation.
 
