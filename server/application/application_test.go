@@ -4071,16 +4071,16 @@ func TestIsApplicationPermitted(t *testing.T) {
 	t.Run("Application name not in names filter", func(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		names := map[string]bool{"some-other-app": true}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, names, *testApp)
+		q := &application.ApplicationQuery{Names: []string{"some-other-app"}}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, q, *testApp)
 		assert.False(t, permitted)
 	})
 
 	t.Run("Application name in names filter", func(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		names := map[string]bool{testApp.Name: true}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, names, *testApp)
+		q := &application.ApplicationQuery{Names: []string{testApp.Name}}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, q, *testApp)
 		assert.True(t, permitted)
 	})
 

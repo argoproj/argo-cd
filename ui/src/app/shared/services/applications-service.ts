@@ -14,11 +14,42 @@ interface QueryOptions {
     selector?: string;
     appNamespace?: string;
     names?: string[];
+    repos?: string[];
+    clusters?: string[];
+    namespaces?: string[];
+    labels?: string[];
+    autoSyncs?: string[];
+    syncStatuses?: string[];
+    healthStatuses?: string[];
+    search?: string;
+    searchRegex?: boolean;
+    offset?: number;
+    limit?: number;
+    sortBy?: string;
 }
 
-function optionsToSearch(options?: QueryOptions): {fields?: string; selector: string; appNamespace: string; names?: string[]} {
+type SearchParams = {
+    fields?: string;
+    selector: string;
+    appNamespace: string;
+    names?: string[];
+    repos?: string[];
+    clusters?: string[];
+    namespaces?: string[];
+    labels?: string[];
+    autoSyncs?: string[];
+    syncStatuses?: string[];
+    healthStatuses?: string[];
+    search?: string;
+    searchRegex?: boolean;
+    offset?: number;
+    limit?: number;
+    sortBy?: string;
+};
+
+function optionsToSearch(options?: QueryOptions): SearchParams {
     if (options) {
-        const result: {fields?: string; selector: string; appNamespace: string; names?: string[]} = {
+        const result: SearchParams = {
             selector: options.selector || '',
             appNamespace: options.appNamespace || ''
         };
@@ -27,6 +58,42 @@ function optionsToSearch(options?: QueryOptions): {fields?: string; selector: st
         }
         if (options.names) {
             result.names = options.names;
+        }
+        if (options.repos) {
+            result.repos = options.repos;
+        }
+        if (options.clusters) {
+            result.clusters = options.clusters;
+        }
+        if (options.namespaces) {
+            result.namespaces = options.namespaces;
+        }
+        if (options.labels) {
+            result.labels = options.labels;
+        }
+        if (options.autoSyncs) {
+            result.autoSyncs = options.autoSyncs;
+        }
+        if (options.syncStatuses) {
+            result.syncStatuses = options.syncStatuses;
+        }
+        if (options.healthStatuses) {
+            result.healthStatuses = options.healthStatuses;
+        }
+        if (options.search) {
+            result.search = options.search;
+        }
+        if (options.searchRegex) {
+            result.searchRegex = options.searchRegex;
+        }
+        if (options.offset !== undefined) {
+            result.offset = options.offset;
+        }
+        if (options.limit !== undefined) {
+            result.limit = options.limit;
+        }
+        if (options.sortBy) {
+            result.sortBy = options.sortBy;
         }
         return result;
     }
@@ -290,6 +357,28 @@ export class ApplicationsService {
                 query?.projects?.forEach(project => search.append('projects', project));
             }
             searchOptions.names?.forEach(name => search.append('names', name));
+            searchOptions.repos?.forEach(repo => search.append('repos', repo));
+            searchOptions.clusters?.forEach(cluster => search.append('clusters', cluster));
+            searchOptions.namespaces?.forEach(ns => search.append('namespaces', ns));
+            searchOptions.labels?.forEach(label => search.append('labels', label));
+            searchOptions.autoSyncs?.forEach(v => search.append('autoSyncs', v));
+            searchOptions.syncStatuses?.forEach(v => search.append('syncStatuses', v));
+            searchOptions.healthStatuses?.forEach(v => search.append('healthStatuses', v));
+            if (searchOptions.search) {
+                search.set('search', searchOptions.search);
+            }
+            if (searchOptions.searchRegex) {
+                search.set('searchRegex', 'true');
+            }
+            if (searchOptions.offset !== undefined) {
+                search.set('offset', String(searchOptions.offset));
+            }
+            if (searchOptions.limit !== undefined) {
+                search.set('limit', String(searchOptions.limit));
+            }
+            if (searchOptions.sortBy) {
+                search.set('sortBy', searchOptions.sortBy);
+            }
         }
         const searchStr = search.toString();
         const url = `/stream${endpoint}${(searchStr && '?' + searchStr) || ''}`;

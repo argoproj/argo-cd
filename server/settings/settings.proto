@@ -49,6 +49,10 @@ message Settings {
     bool syncWithReplaceAllowed = 29;
     string uiLoginButtonText = 30;
     bool resourceViewEnabled = 31;
+    // Feature flag: when true the UI uses server-side search/pagination for the applications list.
+    bool serverSidePaginationEnabled = 32;
+    // Default batch/page size used by the UI when server-side pagination is enabled.
+    int64 applicationPageSize = 33;
 }
 
 message GoogleAnalyticsConfig {

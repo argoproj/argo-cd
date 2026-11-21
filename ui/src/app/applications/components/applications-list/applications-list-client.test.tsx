@@ -4,9 +4,15 @@ import '@testing-library/jest-dom';
 import * as React from 'react';
 import {of, Subject} from 'rxjs';
 
-import {AnnotationRefreshKey, Application, ApplicationWatchEvent} from '../../../shared/models';
+import {AuthSettingsCtx} from '../../../shared/context';
+import {AnnotationRefreshKey, Application, ApplicationWatchEvent, AuthSettings} from '../../../shared/models';
 import {AppsListPreferences, services} from '../../../shared/services';
-import {AppsListPaginate, useApplicationsList} from './applications-list-client';
+import {
+    AppsListPaginate,
+    resolveApplicationPageSize,
+    sortTitleToServer,
+    useApplicationsList
+} from './applications-list-client';
 import {AppsListSourceQuery, AppsListSourceResult} from './applications-list-source';
 
 jest.mock('../../../shared/services', () => {
@@ -55,6 +61,9 @@ beforeEach(() => {
     watch = new Subject<ApplicationWatchEvent>();
     jest.mocked(services.applications.watch).mockReturnValue(watch);
     jest.mocked(services.applications.list).mockResolvedValue({items: [app('a'), app('b', 'Degraded')], metadata: {resourceVersion: '5'}} as any);
+    jest.spyOn(services.viewPreferences, 'init').mockImplementation(() => undefined);
+    jest.spyOn(services.viewPreferences, 'getPreferences').mockReturnValue(of({pageSizes: {}, sortOptions: {}} as any));
+    jest.spyOn(services.viewPreferences, 'getCurrentPreferences').mockReturnValue({pageSizes: {}, sortOptions: {}} as any);
 });
 
 test('loads the list and filters it on the client', async () => {
@@ -202,4 +211,93 @@ test('AppsListPaginate pages through the rows on the client', () => {
         </AppsListPaginate>
     );
     expect(screen.getByText('c')).toBeInTheDocument();
+});
+
+test('resolveApplicationPageSize maps all/-1 to the server default', () => {
+    expect(resolveApplicationPageSize(-1, 50)).toBe(50);
+    expect(resolveApplicationPageSize(undefined, 50)).toBe(50);
+    expect(resolveApplicationPageSize(20, 50)).toBe(20);
+});
+
+test('sortTitleToServer maps toolbar titles', () => {
+    expect(sortTitleToServer('Name')).toBe('name');
+    expect(sortTitleToServer('Created At')).toBe('createdAt');
+    expect(sortTitleToServer('Synchronized')).toBe('synchronizedAt');
+});
+
+test('AppsListPaginate under SSP uses stats.total for page controls', () => {
+    jest.spyOn(services.viewPreferences, 'getPreferences').mockReturnValue(of({pageSizes: {'applications-list': 2}} as any));
+    jest.spyOn(services.viewPreferences, 'getCurrentPreferences').mockReturnValue({pageSizes: {'applications-list': 2}} as any);
+    const list = {rows: [app('a'), app('b')], stats: {total: 5}} as AppsListSourceResult;
+    render(
+        <AuthSettingsCtx.Provider value={{serverSidePaginationEnabled: true, applicationPageSize: 50} as AuthSettings}>
+            <AppsListPaginate list={list} page={0} preferencesKey='applications-list' onPageChange={jest.fn()}>
+                {rows => <p>{rows.map(row => row.metadata.name).join(',')}</p>}
+            </AppsListPaginate>
+        </AuthSettingsCtx.Provider>
+    );
+    expect(screen.getByText('a,b')).toBeInTheDocument();
+    expect(screen.getAllByText('Next').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Items per page: 2').length).toBeGreaterThan(0);
+});
+
+test('SSP list sends search/sort/limit and omits search from watch', async () => {
+    jest.spyOn(services.viewPreferences, 'getPreferences').mockReturnValue(
+        of({pageSizes: {'applications-list': 10}, sortOptions: {'applications-list': 'Created At'}} as any)
+    );
+    jest.spyOn(services.viewPreferences, 'getCurrentPreferences').mockReturnValue({
+        pageSizes: {'applications-list': 10},
+        sortOptions: {'applications-list': 'Created At'}
+    } as any);
+    jest.mocked(services.applications.list).mockResolvedValue({
+        items: [app('a')],
+        metadata: {resourceVersion: '5'},
+        stats: {total: 1, repos: ['https://example.com/repo']}
+    } as any);
+
+    const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const wrapper = ({children}: {children: React.ReactNode}) => (
+        <AuthSettingsCtx.Provider value={{serverSidePaginationEnabled: true, applicationPageSize: 50} as AuthSettings}>
+            <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        </AuthSettingsCtx.Provider>
+    );
+    const {result} = renderHook(
+        () => useApplicationsList({pref: pref({search: 'fake', page: 1}), appNamespace: '', hydratorEnabled: false}),
+        {wrapper}
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(services.applications.list).toHaveBeenCalled();
+    const listOpts = jest.mocked(services.applications.list).mock.calls[0][2] as any;
+    expect(listOpts.search).toBe('fake');
+    expect(listOpts.limit).toBe(10);
+    expect(listOpts.offset).toBe(10);
+    expect(listOpts.sortBy).toBe('createdAt');
+
+    await waitFor(() => expect(services.applications.watch).toHaveBeenCalled());
+    const watchOpts = jest.mocked(services.applications.watch).mock.calls[0][2] as any;
+    expect(watchOpts.search).toBeUndefined();
+    expect(watchOpts.offset).toBeUndefined();
+    expect(watchOpts.limit).toBeUndefined();
+});
+
+test('SSP empty search result does not show create-first empty state', async () => {
+    jest.mocked(services.applications.list).mockResolvedValue({
+        items: [],
+        metadata: {resourceVersion: '5'},
+        stats: {total: 0}
+    } as any);
+
+    const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const wrapper = ({children}: {children: React.ReactNode}) => (
+        <AuthSettingsCtx.Provider value={{serverSidePaginationEnabled: true, applicationPageSize: 50} as AuthSettings}>
+            <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        </AuthSettingsCtx.Provider>
+    );
+    const {result} = renderHook(
+        () => useApplicationsList({pref: pref({search: 'no-such-app-xyz-99999'}), appNamespace: '', hydratorEnabled: false}),
+        {wrapper}
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.rows).toHaveLength(0);
+    expect(result.current.noApplications).toBe(false);
 });

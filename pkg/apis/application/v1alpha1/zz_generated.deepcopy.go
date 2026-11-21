@@ -332,6 +332,10 @@ func (in *ApplicationList) DeepCopyInto(out *ApplicationList) {
 			(*in)[i].DeepCopyInto(&(*out)[i])
 		}
 	}
+	if in.Stats != nil {
+		in, out := &in.Stats, &out.Stats
+		*out = (*in).DeepCopy()
+	}
 	return
 }
 
