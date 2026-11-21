@@ -3129,6 +3129,29 @@ func Test_getPotentiallyValidManifests(t *testing.T) {
 // extension gate behaves as disableExtensionFilter is toggled. When false (the default), only
 // standard manifest extensions are considered (unchanged behavior). When true, the built-in
 // extension check is bypassed and include/exclude become the only filters.
+func Test_getPotentiallyValidManifestFile_slashNormalizedInclude(t *testing.T) {
+	// Include/exclude patterns are documented with '/', while filepath.Rel uses
+	// the OS separator. ToSlash keeps subdirectory patterns working on Windows
+	// local generation (see #30800).
+	appDir := t.TempDir()
+	sub := filepath.Join(appDir, "env-usw2")
+	require.NoError(t, os.MkdirAll(sub, 0o755))
+	filePath := filepath.Join(sub, "configmap.yaml")
+	require.NoError(t, os.WriteFile(filePath, []byte("apiVersion: v1\nkind: ConfigMap\n"), 0o644))
+	info, err := os.Stat(filePath)
+	require.NoError(t, err)
+
+	realFileInfo, ignoreMessage, err := getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "env-usw2/*", "", false)
+	require.NoError(t, err)
+	require.Empty(t, ignoreMessage)
+	require.NotNil(t, realFileInfo)
+
+	realFileInfo, ignoreMessage, err = getPotentiallyValidManifestFile(filePath, info, appDir, appDir, "", "env-usw2/*", false)
+	require.NoError(t, err)
+	require.Empty(t, ignoreMessage)
+	require.Nil(t, realFileInfo)
+}
+
 func Test_getPotentiallyValidManifestFile_disableExtensionFilter(t *testing.T) {
 	testCases := []struct {
 		name                   string
