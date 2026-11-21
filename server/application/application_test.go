@@ -3131,6 +3131,58 @@ func TestGetManifests_SourceHydrator(t *testing.T) {
 	mockRepoServiceClient.AssertExpectations(t)
 }
 
+func TestRevisionMetadata_SourceHydratorDrySource(t *testing.T) {
+	testApp := newTestApp()
+	testApp.Spec.Source = nil
+	testApp.Spec.SourceHydrator = &v1alpha1.SourceHydrator{
+		DrySource: v1alpha1.DrySource{
+			RepoURL:        "https://github.com/org/dry-repo",
+			Path:           "manifests/dry",
+			TargetRevision: "main",
+		},
+		SyncSource: v1alpha1.SyncSource{
+			RepoURL:      "https://github.com/org/sync-repo",
+			TargetBranch: "env/prod",
+			Path:         "manifests/sync",
+		},
+	}
+	testApp.Status.History = []v1alpha1.RevisionHistory{{
+		ID:       1,
+		Source:   testApp.Spec.SourceHydrator.GetSyncSource(),
+		Revision: "sync-sha",
+	}}
+
+	for _, versionId := range []*int32{nil, new(int32(1))} {
+		appServer := newTestAppServer(t, testApp)
+		mockRepoServiceClient := mocks.RepoServerServiceClient{}
+		mockRepoServiceClient.On("GetRevisionMetadata", mock.Anything, mock.MatchedBy(func(req *apiclient.RepoServerRevisionMetadataRequest) bool {
+			return req.Repo.Repo == "https://github.com/org/dry-repo" && req.Revision == "dry-sha"
+		})).Return(&v1alpha1.RevisionMetadata{}, nil)
+		appServer.repoClientset = &mocks.Clientset{RepoServerServiceClient: &mockRepoServiceClient}
+
+		_, err := appServer.RevisionMetadata(t.Context(), &application.RevisionMetadataQuery{
+			Name:        &testApp.Name,
+			Revision:    new("dry-sha"),
+			SourceIndex: new(int32(-1)),
+			VersionId:   versionId,
+		})
+		require.NoError(t, err)
+		mockRepoServiceClient.AssertExpectations(t)
+	}
+}
+
+func TestRevisionMetadata_NegativeSourceIndexWithoutHydrator(t *testing.T) {
+	testApp := newTestApp()
+	appServer := newTestAppServer(t, testApp)
+
+	_, err := appServer.RevisionMetadata(t.Context(), &application.RevisionMetadataQuery{
+		Name:        &testApp.Name,
+		Revision:    new("HEAD"),
+		SourceIndex: new(int32(-1)),
+	})
+	require.ErrorContains(t, err, "source index -1 is only valid for applications using the source hydrator")
+}
+
 func TestRollbackApp(t *testing.T) {
 	testApp := newTestApp()
 	testApp.Status.History = []v1alpha1.RevisionHistory{{
