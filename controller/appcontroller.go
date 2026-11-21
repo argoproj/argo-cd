@@ -526,8 +526,21 @@ func (ctrl *ApplicationController) setAppManagedResources(ctx context.Context, d
 	if err != nil {
 		return nil, fmt.Errorf("error setting app resource tree: %w", err)
 	}
+	// The strategy-scoped key makes cross-strategy reuse structurally impossible
+	// for the comparison path (#30969); the unscoped instance-name key stays in
+	// sync for legacy readers that do not know the strategy (the server API's
+	// managed-resources endpoints and the resource-tree fallback). When
+	// diffConfig is nil, the strategy that produced this result is unknown (the
+	// server-side applier failed to build and a fallback result was produced), so
+	// no strategy-scoped entry may be published.
+	if comparisonResult.diffConfig != nil {
+		err = ctrl.cache.SetAppManagedResources(diffCacheKey(a, ctrl.namespace, comparisonResult.diffConfig.ServerSideDiff()), managedResources)
+		ts.AddCheckpoint("set_app_managed_resources_ms")
+		if err != nil {
+			return nil, fmt.Errorf("error setting app managed resources: %w", err)
+		}
+	}
 	err = ctrl.cache.SetAppManagedResources(a.InstanceName(ctrl.namespace), managedResources)
-	ts.AddCheckpoint("set_app_managed_resources_ms")
 	if err != nil {
 		return nil, fmt.Errorf("error setting app managed resources: %w", err)
 	}
@@ -1540,6 +1553,11 @@ func (ctrl *ApplicationController) finalizeApplicationDeletion(ctx context.Conte
 		if err := ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), nil); err != nil {
 			return err
 		}
+		for _, ssd := range []bool{true, false} {
+			if err := ctrl.cache.SetAppManagedResources(diffCacheKey(app, ctrl.namespace, ssd), nil); err != nil {
+				return err
+			}
+		}
 
 		if err := ctrl.cache.SetAppResourcesTree(app.InstanceName(ctrl.namespace), nil); err != nil {
 			return err
@@ -2239,6 +2257,11 @@ func (ctrl *ApplicationController) processAppRefreshQueueItem() (processNext boo
 		}
 		if err := ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), nil); err != nil {
 			logCtx.WithError(err).Warn("failed to set app managed resources tree")
+		}
+		for _, ssd := range []bool{true, false} {
+			if err := ctrl.cache.SetAppManagedResources(diffCacheKey(app, ctrl.namespace, ssd), nil); err != nil {
+				logCtx.WithError(err).Warn("failed to set app managed resources tree")
+			}
 		}
 		ts.AddCheckpoint("process_refresh_app_conditions_errors_ms")
 		return processNext

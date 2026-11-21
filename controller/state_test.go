@@ -29,6 +29,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	toolscache "k8s.io/client-go/tools/cache"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/testdata"
@@ -2255,7 +2256,7 @@ func TestCompareAppStateReusesDiffCacheWhenManifestGeneratePathsUnchanged(t *tes
 		// Cache a Synced diff, then compare again at a new revision with unchanged paths.
 		liveJSON, err := json.Marshal(live)
 		require.NoError(t, err)
-		require.NoError(t, ctrl.cache.SetAppManagedResources(app.InstanceName(ctrl.namespace), []*v1alpha1.ResourceDiff{{
+		require.NoError(t, ctrl.cache.SetAppManagedResources(diffCacheKey(app, ctrl.namespace, serverSideDiff), []*v1alpha1.ResourceDiff{{
 			Kind: "ConfigMap", Namespace: test.FakeDestNamespace, Name: "cm", ResourceVersion: cachedResourceVersion(first.managedResources[0].ResourceVersion),
 			TargetState:         cachedTarget(first.managedResources[0].Target),
 			NormalizedLiveState: string(liveJSON),
@@ -3257,7 +3258,7 @@ func TestTargetsMatchCachedDiffAfterSetAppManagedResources(t *testing.T) {
 	require.NoError(t, err)
 
 	var cachedDiff []*v1alpha1.ResourceDiff
-	require.NoError(t, ctrl.cache.GetAppManagedResources(app.InstanceName(ctrl.namespace), &cachedDiff))
+	require.NoError(t, ctrl.cache.GetAppManagedResources(diffCacheKey(app, ctrl.namespace, false), &cachedDiff))
 	require.Len(t, cachedDiff, 1)
 	assert.True(t, targetsMatchCachedDiff(cachedDiff, compRes.reconciliationResult.Target, compRes.reconciliationResult.Live))
 }
@@ -3300,4 +3301,286 @@ func TestCompareAppStateServerSideDiffStaleCacheAfterFailedCompare(t *testing.T)
 		require.NoError(t, err)
 		assert.NotEqual(t, v1alpha1.SyncStatusCodeSynced, compResControl.syncStatus.Status)
 	})
+}
+
+// Regression test for #30969: the app-managed-resources diff cache did not
+// record which diff strategy produced the cached results, so enabling
+// Server-Side Diff after a client-side comparison reused the client-side
+// result without a server-side dry-run. The diff-cache key now encodes the
+// strategy (both the read in compareAppState and the write after
+// reconciliation), which makes reusing a result across strategies
+// structurally impossible.
+func TestCompareAppStateDiffStrategyScopedCache(t *testing.T) {
+	app := newFakeApp()
+	proj := &v1alpha1.AppProject{
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+	data := fakeData{
+		apps: []runtime.Object{app, proj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{
+				`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"cm","namespace":"default"},"data":{"k":"v"}}`,
+			},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+	}
+	ctrl := newFakeController(t.Context(), &data, nil)
+	mgr, ok := ctrl.appStateManager.(*appStateManager)
+	require.True(t, ok)
+	key, _ := toolscache.MetaNamespaceKeyFunc(app)
+	ssdFalseKey := app.InstanceName(test.FakeArgoCDNamespace) + ";ssd=false"
+
+	// reconciliation refresh with a client-side diff (no SSD annotation):
+	// the results must be cached under the strategy-scoped key
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	clientSideEntry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(ssdFalseKey, &clientSideEntry))
+	require.NotEmpty(t, clientSideEntry, "the client-side compare must populate the ssd=false cache entry")
+
+	// legacy readers (the server API's managed-resources endpoints and the
+	// resource-tree fallback) read the unscoped instance-name key, so it must
+	// stay populated with the latest diff
+	baseEntry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(app.InstanceName(test.FakeArgoCDNamespace), &baseEntry))
+	require.NotEmpty(t, baseEntry, "the unscoped instance-name key must stay populated for legacy readers")
+}
+
+// shared setup for the diff-cache flow tests: one client-side-capable fixture
+// with count manifest responses so the flow can be driven count times; the
+// automated sync policy is stripped so a second reconciliation is not diverted
+// into the operation-processing path
+func diffCacheFlowFixture(t *testing.T, count int, app *v1alpha1.Application, configMapData map[string]string) (*ApplicationController, *appStateManager) {
+	t.Helper()
+	app.Spec.SyncPolicy = nil
+	proj := &v1alpha1.AppProject{
+		Name:      "default",
+		Namespace: test.FakeArgoCDNamespace,
+		Spec: v1alpha1.AppProjectSpec{
+			SourceRepos:  []string{"*"},
+			Destinations: []v1alpha1.ApplicationDestination{{Server: "*", Namespace: "*"}},
+		},
+	}
+	manifestResponse := &apiclient.ManifestResponse{
+		Manifests: []string{
+			`{"apiVersion":"v1","kind":"ConfigMap","metadata":{"name":"cm","namespace":"default"},"data":{"k":"v"}}`,
+		},
+		Namespace: test.FakeDestNamespace,
+		Server:    test.FakeClusterURL,
+		Revision:  "abc123",
+	}
+	data := fakeData{
+		apps:             []runtime.Object{app, proj},
+		manifestResponse: manifestResponse,
+		managedLiveObjs:  make(map[kube.ResourceKey]*unstructured.Unstructured),
+		configMapData:    configMapData,
+	}
+	if count > 1 {
+		data.manifestResponse = nil
+		data.manifestResponses = make([]*apiclient.ManifestResponse, count)
+		for i := range count {
+			data.manifestResponses[i] = manifestResponse
+		}
+	}
+	// a 1ns status refresh timeout soft-expires every comparison, so each drive
+	// below performs a full comparison (CompareWithLatest, no force-resolve)
+	ctrl := newFakeControllerWithResync(t.Context(), &data, time.Nanosecond, nil, nil)
+	mgr, ok := ctrl.appStateManager.(*appStateManager)
+	require.True(t, ok)
+	return ctrl, mgr
+}
+
+func driveReconciliation(ctrl *ApplicationController, app *v1alpha1.Application) {
+	key, _ := toolscache.MetaNamespaceKeyFunc(app)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+}
+
+// appStatusFromInformer returns the sync status of the app copy the controller
+// persists to (the informer cache), not the test's local object
+func appStatusFromInformer(t *testing.T, ctrl *ApplicationController, app *v1alpha1.Application) v1alpha1.SyncStatusCode {
+	t.Helper()
+	key, err := toolscache.MetaNamespaceKeyFunc(app)
+	require.NoError(t, err)
+	obj, found, err := ctrl.appInformer.GetIndexer().GetByKey(key)
+	require.NoError(t, err)
+	require.True(t, found, "the app must exist in the informer cache")
+	return obj.(*v1alpha1.Application).Status.Sync.Status
+}
+
+// Regression test for the nil-diffConfig write path: when the server-side diff
+// applier cannot be built, the diff config builder's Build() fails (the dry-run
+// runner is required for SSD) and the comparison result's strategy is UNKNOWN.
+// Publishing that fallback result under the ssd=false scoped key would let a
+// later client-side comparison reuse a result no client-side diff produced
+// (CodeRabbit finding), so only the canonical unscoped entry may be written.
+func TestCompareAppStateUnknownStrategySkipsScopedCacheWrite(t *testing.T) {
+	app := newFakeApp()
+	app.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true"})
+	// impersonation enabled + enforced (default) with no matching destination
+	// service account fails the SSD dry-run applier acquisition
+	ctrl, mgr := diffCacheFlowFixture(t, 1, app, map[string]string{
+		"application.sync.impersonation.enabled": "true",
+	})
+
+	driveReconciliation(ctrl, app)
+
+	for _, ssd := range []bool{true, false} {
+		// the key format is pinned literally so a degenerate diffCacheKey cannot
+		// silently pass these assertions
+		key := app.InstanceName(test.FakeArgoCDNamespace) + ";ssd=" + map[bool]string{true: "true", false: "false"}[ssd]
+		entry := make([]*v1alpha1.ResourceDiff, 0)
+		require.Error(t, mgr.cache.GetAppManagedResources(key, &entry),
+			"an unknown-strategy result must not be published under a strategy-scoped key")
+	}
+	baseEntry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(app.InstanceName(test.FakeArgoCDNamespace), &baseEntry))
+	require.NotEmpty(t, baseEntry, "the unscoped instance-name key must stay populated for legacy readers")
+}
+
+// The comparison must reuse an eligible cached diff when the diff strategy is
+// unchanged. The reuse window exercised here is the designed one: a server-side
+// diff comparison is exempt from the soft-expiry refusal in useDiffCache, so a
+// soft-expired SSD comparison with unchanged revisions and spec reuses the
+// ssd=true entry — including its recorded Modified result, which drives the
+// sync status.
+func TestCompareAppStateDiffCacheReusedWhenStrategyUnchanged(t *testing.T) {
+	app := newFakeApp()
+	app.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true"})
+	ctrl, mgr := diffCacheFlowFixture(t, 2, app, nil)
+
+	driveReconciliation(ctrl, app)
+
+	ssdTrueKey := app.InstanceName(test.FakeArgoCDNamespace) + ";ssd=true"
+	entry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(ssdTrueKey, &entry))
+	require.NotEmpty(t, entry, "the first comparison must populate the ssd=true entry")
+	require.True(t, entry[0].Modified, "the fresh comparison must find the resource modified")
+	// poison the cached result: the targets stay identical, but the recorded
+	// outcome claims the resource is in sync
+	entry[0].Modified = false
+	require.NoError(t, mgr.cache.SetAppManagedResources(ssdTrueKey, entry))
+
+	driveReconciliation(ctrl, app)
+
+	// the cached diff result flows into the re-published entry when reused;
+	// the fake harness has no live objects, so the app itself stays OutOfSync
+	// regardless of reuse (a missing live object always forces OutOfSync)
+	reusedEntry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(ssdTrueKey, &reusedEntry))
+	require.NotEmpty(t, reusedEntry)
+	require.False(t, reusedEntry[0].Modified,
+		"an eligible cached diff must be reused when the strategy is unchanged")
+	require.NotEqual(t, v1alpha1.SyncStatusCodeSynced, appStatusFromInformer(t, ctrl, app),
+		"the harness cannot report Synced without live objects")
+}
+
+// The diff-cache READ is strategy-scoped: a result cached under the pre-#30969
+// unscoped key must never be reused by a comparison running under a specific
+// strategy. Seeds the unscoped key with an entry the reuse gate would accept
+// (its targets match the reconciliation) whose recorded outcome claims Synced;
+// the ssd=true comparison must ignore it and recompute OutOfSync.
+func TestCompareAppStateDiffCacheReadIsStrategyScoped(t *testing.T) {
+	app := newFakeApp()
+	app.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true"})
+	ctrl, mgr := diffCacheFlowFixture(t, 2, app, nil)
+	instanceKey := app.InstanceName(test.FakeArgoCDNamespace)
+
+	driveReconciliation(ctrl, app)
+
+	entry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(app.InstanceName(test.FakeArgoCDNamespace)+";ssd=true", &entry))
+	require.NotEmpty(t, entry)
+	require.True(t, entry[0].Modified)
+	// simulate the pre-#30969 cache: an eligible-looking poisoned result exists
+	// only under the unscoped key
+	entry[0].Modified = false
+	require.NoError(t, mgr.cache.SetAppManagedResources(instanceKey, entry))
+	require.NoError(t, mgr.cache.SetAppManagedResources(app.InstanceName(test.FakeArgoCDNamespace)+";ssd=true", nil))
+
+	driveReconciliation(ctrl, app)
+
+	require.Equal(t, v1alpha1.SyncStatusCodeOutOfSync, appStatusFromInformer(t, ctrl, app),
+		"the comparison must not reuse the unscoped cache entry")
+	freshEntry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(app.InstanceName(test.FakeArgoCDNamespace)+";ssd=true", &freshEntry))
+	require.NotEmpty(t, freshEntry)
+	require.True(t, freshEntry[0].Modified, "the fresh comparison must recompute the modified flag")
+}
+
+// After a strategy flip the comparison must recompute under the NEW strategy
+// and must not reuse the other strategy's entry, even when it looks eligible:
+// the flipped-away entry may predate ignore-rule or spec changes that were
+// reconciled under the strategy that remained active.
+
+// Client-side -> SSD: a poisoned ssd=false entry (targets match, Modified
+// recorded false) stays untouched while the SSD comparison recomputes its own
+// ssd=true entry.
+func TestCompareAppStateStrategyFlipClientSideToSSDRecomputes(t *testing.T) {
+	app := newFakeApp()
+	ctrl, mgr := diffCacheFlowFixture(t, 2, app, nil)
+	instanceKey := app.InstanceName(test.FakeArgoCDNamespace)
+
+	driveReconciliation(ctrl, app)
+
+	entry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(instanceKey+";ssd=false", &entry))
+	require.NotEmpty(t, entry)
+	require.True(t, entry[0].Modified)
+	entry[0].Modified = false
+	require.NoError(t, mgr.cache.SetAppManagedResources(instanceKey+";ssd=false", entry))
+
+	// flip the strategy via the annotation and make it visible to the next
+	// reconciliation through the informer copy
+	app.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true"})
+	require.NoError(t, ctrl.appInformer.GetIndexer().Update(app))
+
+	driveReconciliation(ctrl, app)
+
+	ssdTrueEntry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(instanceKey+";ssd=true", &ssdTrueEntry))
+	require.NotEmpty(t, ssdTrueEntry, "the SSD comparison must publish its own entry")
+	require.True(t, ssdTrueEntry[0].Modified, "the SSD comparison must recompute, not reuse the flipped-away strategy's result")
+	require.False(t, entry[0].Modified, "the poisoned ssd=false entry must stay untouched by the SSD comparison")
+	require.NotEqual(t, v1alpha1.SyncStatusCodeSynced, appStatusFromInformer(t, ctrl, app))
+}
+
+// SSD -> client-side: a poisoned ssd=true entry is not reused by the
+// client-side comparison (soft-expiry refuses client-side reuse), which
+// recomputes its own ssd=false entry.
+func TestCompareAppStateStrategyFlipSSDToClientSideRecomputes(t *testing.T) {
+	app := newFakeApp()
+	app.SetAnnotations(map[string]string{common.AnnotationCompareOptions: "ServerSideDiff=true"})
+	ctrl, mgr := diffCacheFlowFixture(t, 2, app, nil)
+	instanceKey := app.InstanceName(test.FakeArgoCDNamespace)
+
+	driveReconciliation(ctrl, app)
+
+	entry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(instanceKey+";ssd=true", &entry))
+	require.NotEmpty(t, entry)
+	require.True(t, entry[0].Modified)
+	entry[0].Modified = false
+	require.NoError(t, mgr.cache.SetAppManagedResources(instanceKey+";ssd=true", entry))
+
+	app.SetAnnotations(map[string]string{})
+	require.NoError(t, ctrl.appInformer.GetIndexer().Update(app))
+
+	driveReconciliation(ctrl, app)
+
+	ssdFalseEntry := make([]*v1alpha1.ResourceDiff, 0)
+	require.NoError(t, mgr.cache.GetAppManagedResources(instanceKey+";ssd=false", &ssdFalseEntry))
+	require.NotEmpty(t, ssdFalseEntry, "the client-side comparison must publish its own entry")
+	require.True(t, ssdFalseEntry[0].Modified, "the client-side comparison must recompute, not reuse the flipped-away strategy's result")
+	require.False(t, entry[0].Modified, "the poisoned ssd=true entry must stay untouched by the client-side comparison")
+	require.NotEqual(t, v1alpha1.SyncStatusCodeSynced, appStatusFromInformer(t, ctrl, app))
 }
