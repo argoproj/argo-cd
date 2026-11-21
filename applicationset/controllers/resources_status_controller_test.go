@@ -234,23 +234,28 @@ func TestSetupWithManagerRegistersResourcesStatusController(t *testing.T) {
 
 	require.NoError(t, corev1.AddToScheme(scheme))
 
-	// nothing is started and the mapper is static, so the manager never connects to this address
-	mgr, err := ctrl.NewManager(&rest.Config{Host: "http://127.0.0.1:1"}, ctrl.Options{
-		Scheme:  scheme,
-		Metrics: metricsserver.Options{BindAddress: "0"},
-		MapperProvider: func(_ *rest.Config, _ *http.Client) (meta.RESTMapper, error) {
-			mapper := meta.NewDefaultRESTMapper(nil)
-			mapper.Add(v1alpha1.SchemeGroupVersion.WithKind("Application"), meta.RESTScopeNamespace)
-			mapper.Add(v1alpha1.SchemeGroupVersion.WithKind("ApplicationSet"), meta.RESTScopeNamespace)
-			mapper.Add(corev1.SchemeGroupVersion.WithKind("Secret"), meta.RESTScopeNamespace)
-			return mapper, nil
-		},
-	})
-	require.NoError(t, err)
+	// nothing is started and the mapper is static, so the managers never connect to this address
+	newManager := func() ctrl.Manager {
+		mgr, err := ctrl.NewManager(&rest.Config{Host: "http://127.0.0.1:1"}, ctrl.Options{
+			Scheme:  scheme,
+			Metrics: metricsserver.Options{BindAddress: "0"},
+			MapperProvider: func(_ *rest.Config, _ *http.Client) (meta.RESTMapper, error) {
+				mapper := meta.NewDefaultRESTMapper(nil)
+				mapper.Add(v1alpha1.SchemeGroupVersion.WithKind("Application"), meta.RESTScopeNamespace)
+				mapper.Add(v1alpha1.SchemeGroupVersion.WithKind("ApplicationSet"), meta.RESTScopeNamespace)
+				mapper.Add(corev1.SchemeGroupVersion.WithKind("Secret"), meta.RESTScopeNamespace)
+				return mapper, nil
+			},
+		})
+		require.NoError(t, err)
+		return mgr
+	}
 
+	mgr := newManager()
 	r := &ApplicationSetReconciler{Client: mgr.GetClient(), Scheme: scheme}
 	require.NoError(t, r.SetupWithManager(mgr, false, 1, nil))
 
-	// controller names are unique per manager, so a second registration fails if the first one happened
+	// controller names are unique per process, so registering the same name again fails if the first call registered it
 	require.ErrorContains(t, r.setupResourcesStatusController(mgr), resourcesStatusControllerName)
+	require.ErrorContains(t, r.SetupWithManager(newManager(), false, 1, nil), "error setting up resources status controller")
 }
