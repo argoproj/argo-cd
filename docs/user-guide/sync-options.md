@@ -34,6 +34,32 @@ The sync-status panel shows that pruning was skipped, and why:
 
 The app will be out of sync if Argo CD expects a resource to be pruned. You may wish to use this along with [compare options](compare-options.md).
 
+## Per-Resource Prune Override
+
+If pruning is disabled at the application or operation level, you can still allow specific resources to be pruned by setting `Prune=true` on those resources:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: my-config
+  annotations:
+    argocd.argoproj.io/sync-options: Prune=true
+data:
+  key: value
+```
+
+A resource with this option is pruned when it is removed from Git, even if `spec.syncPolicy.automated.prune` is `false` or a manual sync is run without pruning.
+When automated sync is enabled with pruning disabled, Argo CD also triggers an automated sync if the only pending changes are resources with `Prune=true` that need to be pruned.
+As with automated pruning, automated sync does not prune these resources when there are no target resources, unless `spec.syncPolicy.automated.allowEmpty` is `true`.
+See [Automatic Pruning with Allow-Empty](auto_sync.md#automatic-pruning-with-allow-empty-v18).
+
+This option is useful when pruning is generally disabled but you need a targeted opt-in for specific resources.
+
+> [!NOTE]
+> `Prune=true` is read from the live resource in the cluster.
+> Make sure the annotation is applied to the live resource before you remove the resource from Git; otherwise Argo CD does not see the opt-in.
+
 ## Resource Pruning With Confirmation
 
 Resources such as Namespaces are critical and should not be pruned without confirmation. You can set the `Prune=confirm`

@@ -1300,6 +1300,60 @@ func TestPruneConfirmAppLevel(t *testing.T) {
 	assert.Equal(t, "pruned", resources[0].Message)
 }
 
+// TestPruneTrueOverridesPruneDisabled verifies that a resource with the Prune=true sync option is pruned
+// when pruning is disabled for the sync
+func TestPruneTrueOverridesPruneDisabled(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil, WithOperationSettings(true, false, false, false))
+	pod := testingutils.NewPod()
+	pod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=true"})
+	pod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{pod},
+		Target: []*unstructured.Unstructured{nil},
+	})
+
+	syncCtx.Sync(context.Background())
+	phase, _, resources := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	require.Len(t, resources, 1)
+	assert.Equal(t, synccommon.ResultCodePruned, resources[0].Status)
+	assert.Equal(t, "pruned (dry run)", resources[0].Message)
+}
+
+// TestPruneTrueNotBlockedByPruneConfirmWhenPruneDisabled verifies that when pruning is disabled for the sync,
+// a Prune=confirm resource that is skipped does not wait for confirmation and block Prune=true resources
+func TestPruneTrueNotBlockedByPruneConfirmWhenPruneDisabled(t *testing.T) {
+	syncCtx := newTestSyncCtx(nil, WithOperationSettings(false, false, false, false))
+	prunePod := testingutils.NewPod()
+	prunePod.SetName("prune-pod")
+	prunePod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=true"})
+	prunePod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	confirmPod := testingutils.NewPod()
+	confirmPod.SetName("confirm-pod")
+	confirmPod.SetAnnotations(map[string]string{synccommon.AnnotationSyncOptions: "Prune=confirm"})
+	confirmPod.SetNamespace(testingutils.FakeArgoCDNamespace)
+	syncCtx.resources = groupResources(ReconciliationResult{
+		Live:   []*unstructured.Unstructured{prunePod, confirmPod},
+		Target: []*unstructured.Unstructured{nil, nil},
+	})
+
+	// confirm-pod is not pruned because pruning is disabled, so it must not wait for confirmation
+	syncCtx.Sync(context.Background())
+	phase, _, resources := syncCtx.GetState()
+
+	assert.Equal(t, synccommon.OperationSucceeded, phase)
+	require.Len(t, resources, 2)
+	results := map[string]synccommon.ResourceSyncResult{}
+	for _, r := range resources {
+		results[r.ResourceKey.Name] = r
+	}
+	assert.Equal(t, synccommon.ResultCodePruned, results["prune-pod"].Status)
+	assert.Equal(t, "pruned", results["prune-pod"].Message)
+	assert.Equal(t, synccommon.ResultCodePruneSkipped, results["confirm-pod"].Status)
+	assert.Equal(t, "ignored (requires pruning)", results["confirm-pod"].Message)
+}
+
 // // make sure Validate=false means we don't validate
 func TestSyncOptionValidate(t *testing.T) {
 	tests := []struct {
