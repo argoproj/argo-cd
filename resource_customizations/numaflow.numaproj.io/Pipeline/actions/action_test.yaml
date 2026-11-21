@@ -11,6 +11,9 @@ actionTests:
 - action: force-promote
   inputPath: testdata/pipeline.yaml
   expectedOutputPath: testdata/pipeline-force-promote.yaml
+- action: force-promote-chain
+  inputPath: testdata/pipeline-chain-failed.yaml
+  expectedOutputPath: testdata/pipeline-force-promote-chain.yaml
 - action: delete
   inputPath: testdata/pipeline-recyclable.yaml
   expectedOutputPath: testdata/pipeline-delete.yaml
@@ -33,6 +36,10 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
       - name: delete
         disabled: true
         iconClass: 'fa-solid fa-fw fa-trash'
@@ -54,6 +61,10 @@ discoveryTests:
         disabled: true
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
       - name: delete
         disabled: false
         iconClass: 'fa-solid fa-fw fa-trash'
@@ -75,6 +86,10 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
       - name: delete
         disabled: true
         iconClass: 'fa-solid fa-fw fa-trash'
@@ -96,6 +111,60 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+      - name: delete
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-trash'
+        displayName: 'Delete'
+  - inputPath: testdata/pipeline-chain-failed.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-pause'
+      - name: unpause-gradual
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (gradual)'
+      - name: unpause-fast
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (fast)'
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+        displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
+      - name: delete
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-trash'
+        displayName: 'Delete'
+  - inputPath: testdata/pipeline-force-promote-chain.yaml
+    result:
+      - name: pause
+        disabled: false
+        iconClass: 'fa-solid fa-fw fa-pause'
+      - name: unpause-gradual
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (gradual)'
+      - name: unpause-fast
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-play'
+        displayName: 'Unpause (fast)'
+      - name: force-promote
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward'
+        displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
       - name: delete
         disabled: true
         iconClass: 'fa-solid fa-fw fa-trash'
@@ -117,6 +186,10 @@ discoveryTests:
         disabled: false
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
       - name: delete
         disabled: true
         iconClass: 'fa-solid fa-fw fa-trash'
@@ -138,6 +211,10 @@ discoveryTests:
         disabled: true
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
       - name: delete
         disabled: false
         iconClass: 'fa-solid fa-fw fa-trash'
@@ -159,6 +236,10 @@ discoveryTests:
         disabled: true
         iconClass: 'fa-solid fa-fw fa-forward'
         displayName: 'Force Promote'
+      - name: force-promote-chain
+        disabled: true
+        iconClass: 'fa-solid fa-fw fa-forward-fast'
+        displayName: 'Force Promote Chain'
       - name: delete
         disabled: false
         iconClass: 'fa-solid fa-fw fa-trash'
