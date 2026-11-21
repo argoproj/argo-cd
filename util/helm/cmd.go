@@ -11,6 +11,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 
 	log "github.com/sirupsen/logrus"
@@ -81,6 +82,7 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 	}
 
 	cmd.Env = proxy.UpsertEnv(cmd, c.proxy, c.noProxy)
+	cmd.Env = injectSSLCertDir(cmd.Env)
 	fullCommand := executil.GetCommandArgsToLog(cmd)
 
 	out, err := c.runWithRedactor(cmd, redactor)
@@ -88,6 +90,31 @@ func (c Cmd) runWithStdin(ctx context.Context, stdin io.Reader, args ...string) 
 		return out, fullCommand, fmt.Errorf("failed running helm: %w", err)
 	}
 	return out, fullCommand, nil
+}
+
+// injectSSLCertDir prepends the ArgoCD TLS certificate directory to SSL_CERT_DIR
+// in the subprocess environment so that helm trusts custom CAs from argocd-tls-certs-cm.
+func injectSSLCertDir(env []string) []string {
+	dir := os.Getenv(common.EnvVarTLSDataPath)
+	if dir == "" {
+		dir = common.DefaultPathTLSConfig
+	}
+	if _, err := os.Stat(dir); err != nil {
+		return env
+	}
+	const key = "SSL_CERT_DIR"
+	for i, e := range env {
+		if !strings.HasPrefix(e, key+"=") {
+			continue
+		}
+		existing := strings.TrimPrefix(e, key+"=")
+		if slices.Contains(filepath.SplitList(existing), dir) {
+			return env
+		}
+		env[i] = key + "=" + dir + ":" + existing
+		return env
+	}
+	return append(env, key+"="+dir)
 }
 
 func (c *Cmd) RegistryLogin(ctx context.Context, repo string, creds Creds, plainHTTP bool) (string, error) {
