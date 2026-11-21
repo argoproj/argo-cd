@@ -14,6 +14,7 @@ import (
 
 	"github.com/argoproj/pkg/v2/stats"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/util/validation"
 	ctrl "sigs.k8s.io/controller-runtime"
 
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
@@ -141,22 +142,19 @@ func NewCommand() *cobra.Command {
 				os.Exit(1)
 			}
 
-			// By default, watch all namespaces
-			var watchedNamespace string
-			// If the applicationset-namespaces contains only one namespace it corresponds to the current namespace
-			if len(applicationSetNamespaces) == 1 {
-				watchedNamespace = applicationSetNamespaces[0]
-			} else if enableScmProviders && len(allowedScmProviders) == 0 {
+			if len(applicationSetNamespaces) > 1 && enableScmProviders && len(allowedScmProviders) == 0 {
 				log.Error("When enabling applicationset in any namespace using applicationset-namespaces, you must either set --enable-scm-providers=false or specify --allowed-scm-providers")
 				os.Exit(1)
 			}
 
+			// Restrict the cache (ApplicationSets, Applications and Secrets) to the namespaces managed by
+			// this controller so that cluster-wide read access is not required. Globs/regexes cannot be
+			// expressed as informer namespaces, so in that case we fall back to a cluster-wide cache.
 			cacheOpt := ctrlcache.Options{SyncPeriod: &cacheSyncPeriod}
-
-			if watchedNamespace != "" {
-				cacheOpt.DefaultNamespaces = map[string]ctrlcache.Config{
-					watchedNamespace: {},
-				}
+			if nsConfig, err := namespaceCacheConfig(applicationSetNamespaces); err == nil {
+				cacheOpt.DefaultNamespaces = nsConfig
+			} else {
+				log.Warnf("%v; falling back to a cluster-wide cache", err)
 			}
 
 			cfg := ctrl.GetConfigOrDie()
@@ -367,4 +365,17 @@ func startWebhookServer(webhookHandler *webhook.WebhookHandler, webhookAddr stri
 			os.Exit(1)
 		}
 	}()
+}
+
+// namespaceCacheConfig builds the controller-runtime cache namespace config for the given namespaces.
+// Any entry that is not a valid namespace name is treated as a glob/regex pattern and returned as an error.
+func namespaceCacheConfig(namespaces []string) (map[string]ctrlcache.Config, error) {
+	cfg := make(map[string]ctrlcache.Config, len(namespaces))
+	for _, ns := range namespaces {
+		if len(validation.IsDNS1123Label(ns)) > 0 {
+			return nil, fmt.Errorf("--applicationset-namespaces entry %q is not a literal namespace name", ns)
+		}
+		cfg[ns] = ctrlcache.Config{}
+	}
+	return cfg, nil
 }
