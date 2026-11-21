@@ -187,7 +187,11 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		_, err = ctrl.kubectl.CreateResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
-				logCtx.Warnf("Hook resource %s already exists, skipping", key)
+				// The hook exists in the cluster but not yet in the live cache
+				// (e.g. it was just recreated). Its health is unknown, so treat
+				// it as still running instead of reporting the hooks as done.
+				logCtx.Warnf("Hook resource %s already exists but is not in the cache yet, waiting", key)
+				createdCnt++
 				continue
 			}
 			return false, err

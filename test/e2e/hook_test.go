@@ -96,6 +96,9 @@ func TestPreDeleteHookFailureAndRetry(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// The controller adds the pre-delete finalizer asynchronously. Deleting
+		// before it lands removes the app at once and the hook never runs.
+		Expect(App(func(app *Application) bool { return app.HasPreDeleteFinalizer() })).
 		When().
 		Delete(false). // Non-blocking delete
 		Then().
@@ -137,6 +140,8 @@ func TestPreDeleteHookProjectRestriction(t *testing.T) {
 		Sync().
 		Then().
 		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		// See TestPreDeleteHookFailureAndRetry: wait for the finalizer before deleting.
+		Expect(App(func(app *Application) bool { return app.HasPreDeleteFinalizer() })).
 		When().
 		// Non-blocking delete: with the hard-fail enforcement the pre-delete
 		// finalizer remains and the app reports a deletion error.

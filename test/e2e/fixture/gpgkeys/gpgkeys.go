@@ -3,8 +3,10 @@ package gpgkeys
 import (
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -25,6 +27,7 @@ func AddGPGPublicKey(t *testing.T) {
 		require.NoError(t, err)
 		err = os.WriteFile(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir(), fixture.GpgGoodKeyID), keyData, 0o644)
 		require.NoError(t, err)
+		waitForKeyring(t, true)
 	} else {
 		fixture.RestartRepoServer(t)
 	}
@@ -36,7 +39,21 @@ func DeleteGPGPublicKey(t *testing.T) {
 	errors.NewHandler(t).FailOnErr(fixture.RunCli(args...))
 	if fixture.IsLocal() {
 		require.NoError(t, os.Remove(fmt.Sprintf("%s/app/config/gpg/source/%s", fixture.TmpDir(), fixture.GpgGoodKeyID)))
+		waitForKeyring(t, false)
 	} else {
 		fixture.RestartRepoServer(t)
 	}
+}
+
+// waitForKeyring waits until the repo-server has synced its keyring with the
+// key source directory. The repo-server watches that directory and imports or
+// removes keys asynchronously, so a sync started right after the file changes
+// can still verify against the old keyring.
+func waitForKeyring(t *testing.T, present bool) {
+	t.Helper()
+	home := fixture.TmpDir() + "/app/config/gpg/keys"
+	require.Eventually(t, func() bool {
+		err := exec.CommandContext(t.Context(), "gpg", "--homedir", home, "--batch", "--list-keys", fixture.GpgGoodKeyID).Run()
+		return (err == nil) == present
+	}, 30*time.Second, 100*time.Millisecond, "repo-server keyring did not sync key %s (want present=%v)", fixture.GpgGoodKeyID, present)
 }
