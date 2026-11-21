@@ -18,6 +18,7 @@ package v1alpha1
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
@@ -318,8 +319,36 @@ func ToNestedMatrixGenerator(j *apiextensionsv1.JSON) (*NestedMatrixGenerator, e
 	if err != nil {
 		return nil, err
 	}
+	if err := validateNestedGeneratorDepth(j.Raw); err != nil {
+		return nil, err
+	}
 
 	return &nestedMatrixGenerator, nil
+}
+
+// Check combination fields that the terminal generator type would discard.
+func validateNestedGeneratorDepth(raw []byte) error {
+	var nested struct {
+		Generators []struct {
+			Matrix *json.RawMessage `json:"matrix"`
+			Merge  *json.RawMessage `json:"merge"`
+		} `json:"generators"`
+	}
+	if err := json.Unmarshal(raw, &nested); err != nil {
+		return err
+	}
+	for i, generator := range nested.Generators {
+		kind := ""
+		if generator.Matrix != nil {
+			kind = "matrix"
+		} else if generator.Merge != nil {
+			kind = "merge"
+		}
+		if kind != "" {
+			return fmt.Errorf("combination-type generators can only be nested once: found %s at generators[%d]", kind, i)
+		}
+	}
+	return nil
 }
 
 // ToMatrixGenerator converts a NestedMatrixGenerator to a MatrixGenerator. This conversion is for convenience, allowing
@@ -369,6 +398,9 @@ func ToNestedMergeGenerator(j *apiextensionsv1.JSON) (*NestedMergeGenerator, err
 	nestedMergeGenerator := NestedMergeGenerator{}
 	err := json.Unmarshal(j.Raw, &nestedMergeGenerator)
 	if err != nil {
+		return nil, err
+	}
+	if err := validateNestedGeneratorDepth(j.Raw); err != nil {
 		return nil, err
 	}
 
