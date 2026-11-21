@@ -1,0 +1,29 @@
+apiVersion: gateway.networking.k8s.io/v1
+kind: BackendTLSPolicy
+metadata:
+  name: example-backendtlspolicy
+  namespace: default
+  generation: 1
+spec:
+  targetRefs:
+  - group: ''
+    kind: Service
+    name: example-service
+  validation:
+    hostname: example.com
+    wellKnownCACertificates: System
+status:
+  ancestors:
+  # A controller rejected the policy but recorded no message, and its ancestorRef
+  # has no name. The health check must build its message nil-safely instead of
+  # crashing on the string concatenation.
+  - ancestorRef:
+      group: ''
+      kind: Service
+    conditions:
+    - lastTransitionTime: '2026-04-16T12:20:11Z'
+      observedGeneration: 1
+      reason: NoValidCACertificate
+      status: 'False'
+      type: Accepted
+    controllerName: example.com/gatewayclass-controller
