@@ -15,7 +15,10 @@ func (db *db) ListHelmRepositories(ctx context.Context) ([]*v1alpha1.Repository,
 		return nil, fmt.Errorf("failed to list Helm repositories: %w", err)
 	}
 	result = append(result, v1alpha1.Repositories(repos).Filter(func(r *v1alpha1.Repository) bool {
-		return r.Type == "helm" && r.Name != ""
+		// A classic Helm repository needs a name for `helm repo add`. An OCI registry is logged in to
+		// by hostname, so it is listed without one; otherwise its credentials are never used for chart
+		// dependencies.
+		return r.Type == "helm" && (r.Name != "" || r.EnableOCI)
 	})...)
 	return result, nil
 }
