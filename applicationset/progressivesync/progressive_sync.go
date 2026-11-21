@@ -514,7 +514,7 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			// This does not mean we should always sync the app. The app may not be OutOfSync
 			// and may not require a sync if it does not have differences.
 			if appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
-				if app.Status.Health.Status == health.HealthStatusHealthy {
+				if app.Status.Health.Status == health.HealthStatusHealthy && isApplicationOperationCompleted(&app) {
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource has synced, updating status to Healthy"
@@ -555,9 +555,9 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 			}
 
 			if currentAppStatus.Status == argov1alpha1.ProgressiveSyncProgressing {
-				// If the status has reached progressing, we know a sync has been triggered. No matter the result of that operation,
-				// we want an the app to reach the Healthy state for the current revision.
-				if appHealthStatus == health.HealthStatusHealthy && appSyncStatus == argov1alpha1.SyncStatusCodeSynced {
+				// Wait for both any in-flight sync operation and the application's health and sync state
+				// before marking the step Healthy so hooks keep blocking subsequent steps.
+				if appHealthStatus == health.HealthStatusHealthy && appSyncStatus == argov1alpha1.SyncStatusCodeSynced && isApplicationOperationCompleted(&app) {
 					newAppStatus.LastTransitionTime = &now
 					newAppStatus.Status = argov1alpha1.ProgressiveSyncHealthy
 					newAppStatus.Message = "Application resource became Healthy, updating status from Progressing to Healthy"
@@ -582,6 +582,10 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 	}
 
 	return appStatuses, nil
+}
+
+func isApplicationOperationCompleted(app *argov1alpha1.Application) bool {
+	return app.Operation == nil && (app.Status.OperationState == nil || app.Status.OperationState.Phase.Completed())
 }
 
 // getAppsToSync returns a Map of Applications that should be synced in this progressive sync wave
