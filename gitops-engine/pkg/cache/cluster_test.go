@@ -3526,9 +3526,9 @@ func watchResumeCluster(t *testing.T, opts ...UpdateSettingsFunc) (cluster *clus
 		return false, nil, nil
 	})
 	client.PrependWatchReactor("pods", func(testcore.Action) (bool, watch.Interface, error) {
-		watches.Add(1)
 		w := watch.NewFake()
 		latest.Store(w)
+		watches.Add(1)
 		return true, w, nil
 	})
 	require.NoError(t, cluster.EnsureSynced())
