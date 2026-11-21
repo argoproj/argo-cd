@@ -198,11 +198,18 @@ func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gi
 	opt := &gitlab.ListBranchesOptions{
 		ListOptions: snippetsListOptions.ListOptions,
 	}
+	// GitLab treats a request with no page parameter as page 1, but opt.Page starts out at 0.
+	// We track the real page number ourselves so the error message below is accurate.
+	page := int64(1)
 	for {
 		gitlabBranches, resp, err := g.client.Branches.ListBranches(repo.RepositoryId, opt)
-		// 404s are not an error here, just a normal false.
 		if resp != nil && resp.StatusCode == http.StatusNotFound {
-			return []gitlab.Branch{}, nil
+			// A 404 here does not reliably mean the project has no branches. GitLab also
+			// returns 404 when the token has lost access to the project, and that can happen
+			// on the very first page just as easily as on a later one. Treating any of these
+			// as a successful empty or partial result would let the reconciler prune every
+			// Application it can no longer see, so we always report it as an error instead.
+			return nil, fmt.Errorf("received 404 requesting page %d after collecting %d branches for %s/%s", page, len(branches), repo.Organization, repo.Repository)
 		}
 		if err != nil {
 			return nil, err
@@ -215,6 +222,7 @@ func (g *GitlabProvider) listBranches(_ context.Context, repo *Repository) ([]gi
 			break
 		}
 		opt.Page = resp.NextPage
+		page = resp.NextPage
 	}
 	return branches, nil
 }
