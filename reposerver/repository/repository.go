@@ -3135,9 +3135,18 @@ func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, re
 	closer := s.gitRepoInitializer(gitClient.Root())
 	err := checkoutRevision(ctx, gitClient, revision, submoduleEnabled, depth, clean)
 	if err != nil {
-		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
+		s.metricsServer.IncGitFetchFail(gitClient.Root(), revision, gitFetchFailReason(ctx))
 	}
 	return closer, err
+}
+
+// gitFetchFailReason tells a caller that gave up apart from a real git or
+// remote failure.
+func gitFetchFailReason(ctx context.Context) string {
+	if ctx.Err() != nil {
+		return metrics.GitFetchFailReasonCancelled
+	}
+	return metrics.GitFetchFailReasonError
 }
 
 // fetch is a convenience function to fetch revisions
@@ -3145,8 +3154,9 @@ func (s *Service) checkoutRevision(ctx context.Context, gitClient git.Client, re
 func (s *Service) fetch(ctx context.Context, gitClient git.Client, targetRevisions []string, depth int64) error {
 	err := fetch(ctx, gitClient, targetRevisions, depth)
 	if err != nil {
+		reason := gitFetchFailReason(ctx)
 		for _, revision := range targetRevisions {
-			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision)
+			s.metricsServer.IncGitFetchFail(gitClient.Root(), revision, reason)
 		}
 	}
 	return err

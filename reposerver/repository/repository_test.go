@@ -3733,6 +3733,53 @@ func TestCheckoutRevisionNotPresentCallFetch(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func gitFetchFailReasons(t *testing.T, ms *metrics.MetricsServer) map[string]float64 {
+	t.Helper()
+	families, err := ms.PrometheusRegistry.Gather()
+	require.NoError(t, err)
+	reasons := map[string]float64{}
+	for _, f := range families {
+		if f.GetName() != "argocd_git_fetch_fail_total" {
+			continue
+		}
+		for _, m := range f.GetMetric() {
+			for _, l := range m.GetLabel() {
+				if l.GetName() == "reason" {
+					reasons[l.GetValue()] += m.GetCounter().GetValue()
+				}
+			}
+		}
+	}
+	return reasons
+}
+
+func TestCheckoutRevisionFetchFailReason(t *testing.T) {
+	t.Run("cancelled request", func(t *testing.T) {
+		remote := filepath.Join(t.TempDir(), "remote")
+		rev := initGitRepo(t, newGitRepoOptions{path: remote, createPath: true, addEmptyCommit: true})
+		ms := metrics.NewMetricsServer()
+		s := NewService(ms, nil, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, t.TempDir())
+		gitClient, err := git.NewClientExt("file://"+remote, t.TempDir(), &git.NopCreds{}, true, false, "", "")
+		require.NoError(t, err)
+
+		ctx, cancel := context.WithCancel(t.Context())
+		cancel()
+		_, err = s.checkoutRevision(ctx, gitClient, rev, false, 0, false)
+		require.Error(t, err)
+		assert.Equal(t, map[string]float64{metrics.GitFetchFailReasonCancelled: 1}, gitFetchFailReasons(t, ms))
+	})
+	t.Run("git error", func(t *testing.T) {
+		ms := metrics.NewMetricsServer()
+		s := NewService(ms, nil, RepoServerInitConstants{ParallelismLimit: 1}, &git.NoopCredsStore{}, t.TempDir())
+		gitClient, err := git.NewClientExt("file://"+filepath.Join(t.TempDir(), "missing"), t.TempDir(), &git.NopCreds{}, true, false, "", "")
+		require.NoError(t, err)
+
+		_, err = s.checkoutRevision(t.Context(), gitClient, "0123456789012345678901234567890123456789", false, 0, false)
+		require.Error(t, err)
+		assert.Equal(t, map[string]float64{metrics.GitFetchFailReasonError: 1}, gitFetchFailReasons(t, ms))
+	})
+}
+
 func TestFetch(t *testing.T) {
 	revision1 := "0123456789012345678901234567890123456789"
 	revision2 := "abcdefabcdefabcdefabcdefabcdefabcdefabcd"
