@@ -1036,3 +1036,19 @@ func Test_getOCIManifest(t *testing.T) {
 		assert.Contains(t, err.Error(), "error decoding oci manifest")
 	})
 }
+
+func TestNewTLSConfigMinVersion(t *testing.T) {
+	t.Run("default min version is TLS 1.2", func(t *testing.T) {
+		t.Setenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION", "")
+		cfg, err := newTLSConfig(Creds{})
+		require.NoError(t, err)
+		assert.Equal(t, uint16(tls.VersionTLS12), cfg.MinVersion)
+	})
+
+	t.Run("respects TLS 1.3 setting", func(t *testing.T) {
+		t.Setenv("ARGOCD_OUTBOUND_TLS_MIN_VERSION", "1.3")
+		cfg, err := newTLSConfig(Creds{})
+		require.NoError(t, err)
+		assert.Equal(t, uint16(tls.VersionTLS13), cfg.MinVersion)
+	})
+}

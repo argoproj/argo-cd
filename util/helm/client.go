@@ -32,6 +32,7 @@ import (
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+	argocdtls "github.com/argoproj/argo-cd/v3/util/tls"
 )
 
 var (
@@ -432,7 +433,10 @@ func (c *nativeHelmChart) loadRepoIndex(ctx context.Context, maxIndexSize int64)
 }
 
 func newTLSConfig(creds Creds) (*tls.Config, error) {
-	tlsConfig := &tls.Config{InsecureSkipVerify: creds.GetInsecureSkipVerify()}
+	tlsConfig := &tls.Config{
+		InsecureSkipVerify: creds.GetInsecureSkipVerify(),
+		MinVersion:         argocdtls.GetOutboundTLSMinVersion(),
+	}
 
 	if creds.GetCAPath() != "" {
 		caData, err := os.ReadFile(creds.GetCAPath())

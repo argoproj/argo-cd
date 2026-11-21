@@ -48,6 +48,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/env"
 	executil "github.com/argoproj/argo-cd/v3/util/exec"
 	"github.com/argoproj/argo-cd/v3/util/proxy"
+	argocdtls "github.com/argoproj/argo-cd/v3/util/tls"
 	"github.com/argoproj/argo-cd/v3/util/versions"
 )
 
@@ -405,6 +406,7 @@ func GetRepoHTTPClient(repoURL string, insecure bool, creds Creds, proxyURL stri
 	transport.Proxy = proxyFunc
 	transport.TLSClientConfig = &tls.Config{
 		GetClientCertificate: clientCertFunc,
+		MinVersion:           argocdtls.GetOutboundTLSMinVersion(),
 	}
 	transport.DisableKeepAlives = true
 	customHTTPClient.Transport = transport
