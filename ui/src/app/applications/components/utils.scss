@@ -36,7 +36,11 @@ i.utils-health-status-icon {
 .status-button {
     display: inline;
     border-radius: 5px;
-    vertical-align: middle;
+    // Keep the ring as a border + padding so it stays inside the element's box,
+    // occupying reserved space; an outline (drawn outside the box) gets clipped and
+    // overlaps neighbours near a container edge. Omit `vertical-align: middle`: that
+    // is what pushed the ringed icon below the baseline shared by the adjacent
+    // ringless status icons (e.g. "Sync OK" sitting lower than "Synced", #31081).
     padding: 2px;
     border: 1px solid $argo-color-gray-5;
     &:hover {
