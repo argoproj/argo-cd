@@ -2,6 +2,8 @@ package rbac
 
 import (
 	"context"
+	"errors"
+	"maps"
 	"strings"
 	"sync"
 	"testing"
@@ -523,46 +525,279 @@ func TestLoadPolicyLine(t *testing.T) {
 	t.Run("Valid permission line", func(t *testing.T) {
 		policy := `p, role:Myrole, applications, *, myproj/*, allow`
 		model := newBuiltInModel()
-		require.NoError(t, loadPolicyLine(policy, model))
+		require.NoError(t, loadPolicyLine(policy, model, false))
 	})
 	t.Run("Valid grant line", func(t *testing.T) {
 		policy := `g, your-github-org:your-team, role:org-admin`
 		model := newBuiltInModel()
-		require.NoError(t, loadPolicyLine(policy, model))
+		require.NoError(t, loadPolicyLine(policy, model, false))
 	})
 	t.Run("Empty policy line", func(t *testing.T) {
 		policy := ""
 		model := newBuiltInModel()
-		require.NoError(t, loadPolicyLine(policy, model))
+		require.NoError(t, loadPolicyLine(policy, model, false))
 	})
 	t.Run("Comment policy line", func(t *testing.T) {
 		policy := "# Some comment"
 		model := newBuiltInModel()
-		require.NoError(t, loadPolicyLine(policy, model))
+		require.NoError(t, loadPolicyLine(policy, model, false))
 	})
 	t.Run("Invalid policy line: single token", func(t *testing.T) {
 		policy := "p"
 		model := newBuiltInModel()
-		require.Error(t, loadPolicyLine(policy, model))
+		require.Error(t, loadPolicyLine(policy, model, false))
 	})
 	t.Run("Invalid policy line: plain text", func(t *testing.T) {
 		policy := "Some comment"
 		model := newBuiltInModel()
-		require.Error(t, loadPolicyLine(policy, model))
+		require.Error(t, loadPolicyLine(policy, model, false))
 	})
 	t.Run("Invalid policy line", func(t *testing.T) {
 		policy := "agh, foo, bar"
 		model := newBuiltInModel()
-		require.Error(t, loadPolicyLine(policy, model))
+		require.Error(t, loadPolicyLine(policy, model, false))
 	})
 	t.Run("Invalid policy line missing comma", func(t *testing.T) {
 		policy := "p, role:Myrole, applications, *, myproj/* allow"
 		model := newBuiltInModel()
-		require.Error(t, loadPolicyLine(policy, model))
+		require.Error(t, loadPolicyLine(policy, model, false))
 	})
 	t.Run("Invalid policy line missing policy type", func(t *testing.T) {
 		policy := ", role:Myrole, applications, *, myproj/*, allow"
 		model := newBuiltInModel()
-		require.Error(t, loadPolicyLine(policy, model))
+		require.Error(t, loadPolicyLine(policy, model, false))
+	})
+	t.Run("Subjects keep their case by default", func(t *testing.T) {
+		model := newBuiltInModel()
+		require.NoError(t, loadPolicyLine(`p, role:Myrole, applications, *, MyProj/*, allow`, model, false))
+		require.NoError(t, loadPolicyLine(`g, User.Name@example.org, role:Myrole`, model, false))
+		assert.Equal(t, []string{"role:Myrole", "applications", "*", "MyProj/*", "allow"}, model["p"]["p"].Policy[0])
+		assert.Equal(t, []string{"User.Name@example.org", "role:Myrole"}, model["g"]["g"].Policy[0])
+	})
+	t.Run("Subjects are lowercased when case-insensitive subjects are enabled", func(t *testing.T) {
+		model := newBuiltInModel()
+		require.NoError(t, loadPolicyLine(`p, role:Myrole, applications, *, MyProj/*, allow`, model, true))
+		require.NoError(t, loadPolicyLine(`g, User.Name@example.org, role:Myrole`, model, true))
+		// only the subject is folded, resource, action and object keep their case
+		assert.Equal(t, []string{"role:myrole", "applications", "*", "MyProj/*", "allow"}, model["p"]["p"].Policy[0])
+		assert.Equal(t, []string{"user.name@example.org", "role:myrole"}, model["g"]["g"].Policy[0])
+	})
+}
+
+func TestFoldSubject(t *testing.T) {
+	tests := []struct {
+		in   string
+		want string
+	}{
+		{in: "", want: ""},
+		{in: "user.name@example.org", want: "user.name@example.org"},
+		{in: "User.Name@Example.ORG", want: "user.name@example.org"},
+		{in: "role:Admin", want: "role:admin"},
+		{in: "My-Org:Team_1", want: "my-org:team_1"},
+		// non-ASCII letters are left alone, even where Unicode case mapping would change them
+		{in: "J\u00fcrgen.M\u00dcller@example.org", want: "j\u00fcrgen.m\u00dcller@example.org"},
+		// the Kelvin sign (U+212A) must not become an ASCII 'k'
+		{in: "\u212Aevin@example.org", want: "\u212Aevin@example.org"},
+		// U+0130 (capital I with dot) must not become an ASCII 'i'
+		{in: "\u0130smail@example.org", want: "\u0130smail@example.org"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.in, func(t *testing.T) {
+			assert.Equal(t, tt.want, foldSubject(tt.in))
+		})
+	}
+}
+
+func TestParseCaseInsensitiveSubjects(t *testing.T) {
+	tests := []struct {
+		value string
+		want  bool
+	}{
+		{value: "", want: false},
+		{value: "true", want: true},
+		{value: "True", want: true},
+		{value: " true\n", want: true},
+		{value: "1", want: true},
+		{value: "false", want: false},
+		{value: "0", want: false},
+		{value: "yes", want: false},
+		{value: "garbage", want: false},
+	}
+	for _, tt := range tests {
+		t.Run("value "+tt.value, func(t *testing.T) {
+			assert.Equal(t, tt.want, ParseCaseInsensitiveSubjects(tt.value))
+		})
+	}
+}
+
+func TestCaseInsensitiveSubjects(t *testing.T) {
+	const userPolicy = `
+p, role:Deployer, applications, sync, Default/*, allow
+g, user.name@example.org, role:admin
+g, Team.Lead@Example.org, role:Deployer
+`
+	newEnforcerWithPolicy := func(t *testing.T, cmData map[string]string) *Enforcer {
+		t.Helper()
+		kubeclientset := fake.NewClientset()
+		enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+		cm := fakeConfigMap()
+		maps.Copy(cm.Data, cmData)
+		cm.Data[ConfigMapPolicyCSVKey] = userPolicy
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+		require.NoError(t, enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV))
+		return enf
+	}
+
+	t.Run("subjects are case-sensitive by default", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, nil)
+		assert.True(t, enf.Enforce("user.name@example.org", "applications", "get", "foo/bar"))
+		assert.False(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
+		assert.True(t, enf.Enforce("Team.Lead@Example.org", "applications", "sync", "Default/app"))
+		assert.False(t, enf.Enforce("team.lead@example.org", "applications", "sync", "Default/app"))
+	})
+
+	t.Run("invalid config map value keeps subjects case-sensitive", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{ConfigMapCaseInsensitiveSubjectsKey: "yes"})
+		assert.False(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
+	})
+
+	t.Run("mixed-case request subject matches lowercase policy subject", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{ConfigMapCaseInsensitiveSubjectsKey: "true"})
+		assert.True(t, enf.Enforce("user.name@example.org", "applications", "get", "foo/bar"))
+		assert.True(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
+		assert.True(t, enf.Enforce("USER.NAME@EXAMPLE.ORG", "applications", "delete", "foo/bar"))
+		assert.False(t, enf.Enforce("other.user@example.org", "applications", "get", "foo/bar"))
+	})
+
+	t.Run("lowercase request subject matches mixed-case policy subject and role", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{ConfigMapCaseInsensitiveSubjectsKey: "true"})
+		assert.True(t, enf.Enforce("team.lead@example.org", "applications", "sync", "Default/app"))
+		assert.True(t, enf.Enforce("Team.Lead@Example.org", "applications", "sync", "Default/app"))
+		assert.True(t, enf.Enforce("role:deployer", "applications", "sync", "Default/app"))
+	})
+
+	t.Run("non-ASCII look-alike characters never match ASCII subjects", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{ConfigMapCaseInsensitiveSubjectsKey: "true"})
+		require.NoError(t, enf.SetUserPolicy("g, kevin@example.org, role:admin\ng, M\u00fcller@example.org, role:admin"))
+		assert.True(t, enf.Enforce("Kevin@example.org", "applications", "get", "foo/bar"))
+		// Kelvin sign instead of 'k': strings.ToLower would map it to 'k' and grant admin
+		assert.False(t, enf.Enforce("\u212Aevin@example.org", "applications", "get", "foo/bar"))
+		// non-ASCII letters are compared exactly, only the ASCII letters are folded
+		assert.True(t, enf.Enforce("m\u00fcller@example.org", "applications", "get", "foo/bar"))
+		assert.False(t, enf.Enforce("M\u00dcLLER@example.org", "applications", "get", "foo/bar"))
+	})
+
+	t.Run("resources, actions and objects stay case-sensitive", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{ConfigMapCaseInsensitiveSubjectsKey: "true"})
+		assert.False(t, enf.Enforce("team.lead@example.org", "applications", "sync", "default/app"))
+		assert.False(t, enf.Enforce("team.lead@example.org", "Applications", "sync", "Default/app"))
+		assert.False(t, enf.Enforce("team.lead@example.org", "applications", "Sync", "Default/app"))
+	})
+
+	t.Run("default role is folded", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{
+			ConfigMapCaseInsensitiveSubjectsKey: "true",
+			ConfigMapPolicyDefaultKey:           "role:ReadOnly",
+		})
+		assert.True(t, enf.Enforce("nobody", "applications", "get", "foo/bar"))
+		assert.False(t, enf.Enforce("nobody", "applications", "delete", "foo/bar"))
+	})
+
+	t.Run("runtime project policy is folded", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{ConfigMapCaseInsensitiveSubjectsKey: "true"})
+		projPolicy := "p, proj:my-proj:Maintainer, applications, get, my-proj/*, allow\ng, Proj.Member@Example.org, proj:my-proj:Maintainer"
+		assert.True(t, enf.EnforceRuntimePolicy("my-proj", projPolicy, "proj.member@example.org", "applications", "get", "my-proj/app"))
+		assert.True(t, enf.EnforceRuntimePolicy("my-proj", projPolicy, "PROJ.MEMBER@EXAMPLE.ORG", "applications", "get", "my-proj/app"))
+		assert.True(t, enf.EnforceRuntimePolicy("my-proj", projPolicy, "proj:my-proj:maintainer", "applications", "get", "my-proj/app"))
+		assert.False(t, enf.EnforceRuntimePolicy("my-proj", projPolicy, "proj.member@example.org", "applications", "get", "other-proj/app"))
+	})
+
+	t.Run("switching the option off via config map restores case-sensitive matching", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{ConfigMapCaseInsensitiveSubjectsKey: "true"})
+		assert.True(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
+
+		cm := fakeConfigMap()
+		cm.Data[ConfigMapPolicyCSVKey] = userPolicy
+		cm.Data[ConfigMapCaseInsensitiveSubjectsKey] = "false"
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+		assert.False(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
+		assert.True(t, enf.Enforce("user.name@example.org", "applications", "get", "foo/bar"))
+	})
+
+	t.Run("a rejected config map update does not change the setting", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, nil)
+		assert.False(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
+
+		cm := fakeConfigMap()
+		cm.Data[ConfigMapPolicyCSVKey] = userPolicy
+		cm.Data[ConfigMapCaseInsensitiveSubjectsKey] = "true"
+		failingUpdate := func(_ *corev1.ConfigMap) error { return errors.New("invalid scopes") }
+		require.Error(t, enf.syncUpdate(cm, failingUpdate))
+
+		// the old policy is still loaded, so it must still be matched case-sensitively
+		assert.False(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
+		assert.True(t, enf.Enforce("user.name@example.org", "applications", "get", "foo/bar"))
+		assert.Equal(t, "User.Name@example.org", enf.NormalizeSubject(enf.CreateEnforcerWithRuntimePolicy("", ""), "User.Name@example.org"))
+
+		// the same update applied successfully switches the setting on
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+		assert.True(t, enf.Enforce("User.Name@example.org", "applications", "get", "foo/bar"))
+	})
+
+	t.Run("NormalizeSubject follows the setting the enforcer was created with", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, nil)
+		caseSensitiveEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+		assert.Equal(t, "User.Name@example.org", enf.NormalizeSubject(caseSensitiveEnf, "User.Name@example.org"))
+
+		enf.SetCaseInsensitiveSubjects(true)
+		caseInsensitiveEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+		assert.Equal(t, "user.name@example.org", enf.NormalizeSubject(caseInsensitiveEnf, "User.Name@example.org"))
+		// an enforcer obtained before the change keeps its own setting
+		assert.Equal(t, "User.Name@example.org", enf.NormalizeSubject(caseSensitiveEnf, "User.Name@example.org"))
+	})
+
+	t.Run("an enforcer not created by this package falls back to the current setting", func(t *testing.T) {
+		enf := newEnforcerWithPolicy(t, map[string]string{ConfigMapCaseInsensitiveSubjectsKey: "true"})
+		// a raw casbin enforcer with policies that were lowercased when they were loaded
+		raw, err := newEnforcerSafe(globMatchFunc, newBuiltInModel(), newAdapter("", "", "p, User.Name@example.org, applications, get, foo/bar, allow", true))
+		require.NoError(t, err)
+
+		assert.Equal(t, "user.name@example.org", enf.NormalizeSubject(raw, "User.Name@example.org"))
+		assert.True(t, enf.EnforceWithCustomEnforcer(raw, "USER.NAME@EXAMPLE.ORG", "applications", "get", "foo/bar"))
+
+		enf.SetCaseInsensitiveSubjects(false)
+		assert.Equal(t, "User.Name@example.org", enf.NormalizeSubject(raw, "User.Name@example.org"))
+		assert.False(t, enf.EnforceWithCustomEnforcer(raw, "USER.NAME@EXAMPLE.ORG", "applications", "get", "foo/bar"))
+	})
+
+	t.Run("an enforcer keeps the setting its policies were loaded with", func(t *testing.T) {
+		// A deny for the exact spelling must win no matter which setting is active. If the request
+		// subject were lowercased against policies that were loaded case-sensitively, only the
+		// allow would match and the deny would be bypassed.
+		kubeclientset := fake.NewClientset()
+		enf := NewEnforcer(kubeclientset, fakeNamespace, fakeConfigMapName, nil)
+		cm := fakeConfigMap()
+		cm.Data[ConfigMapPolicyCSVKey] = "p, alice, applications, delete, foo/bar, allow\np, Alice, applications, delete, foo/bar, deny"
+		require.NoError(t, enf.syncUpdate(cm, noOpUpdate))
+
+		caseSensitiveEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+		assert.False(t, enf.EnforceWithCustomEnforcer(caseSensitiveEnf, "Alice", "applications", "delete", "foo/bar"))
+		assert.True(t, enf.EnforceWithCustomEnforcer(caseSensitiveEnf, "alice", "applications", "delete", "foo/bar"))
+
+		// the setting flips while the old enforcer is still in use
+		enf.SetCaseInsensitiveSubjects(true)
+		assert.False(t, enf.EnforceWithCustomEnforcer(caseSensitiveEnf, "Alice", "applications", "delete", "foo/bar"))
+		assert.True(t, enf.EnforceWithCustomEnforcer(caseSensitiveEnf, "alice", "applications", "delete", "foo/bar"))
+
+		// a fresh enforcer folds both policies onto the same subject, so the deny applies to every spelling
+		caseInsensitiveEnf := enf.CreateEnforcerWithRuntimePolicy("", "")
+		assert.False(t, enf.EnforceWithCustomEnforcer(caseInsensitiveEnf, "Alice", "applications", "delete", "foo/bar"))
+		assert.False(t, enf.EnforceWithCustomEnforcer(caseInsensitiveEnf, "alice", "applications", "delete", "foo/bar"))
+		assert.False(t, enf.Enforce("ALICE", "applications", "delete", "foo/bar"))
+
+		// and the other way round: an enforcer created with the setting on keeps folding after it is switched off
+		enf.SetCaseInsensitiveSubjects(false)
+		assert.False(t, enf.EnforceWithCustomEnforcer(caseInsensitiveEnf, "alice", "applications", "delete", "foo/bar"))
+		assert.True(t, enf.Enforce("alice", "applications", "delete", "foo/bar"))
 	})
 }
