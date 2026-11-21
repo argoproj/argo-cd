@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
@@ -14,6 +15,7 @@ import (
 	"github.com/go-playground/webhooks/v6/gogs"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/guard"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 
@@ -48,12 +50,29 @@ type ParserOptions struct {
 	DockerHub             bool
 }
 
+// EnvWebhookAllowUnauthenticated makes providers with no webhook secret
+// configured accept unauthenticated events instead of rejecting them.
+const EnvWebhookAllowUnauthenticated = "ARGOCD_WEBHOOK_ALLOW_UNAUTHENTICATED"
+
 // NewParsers builds the parsers enabled in opts, configured with the webhook
-// secrets in set. Order matters: requests are dispatched to the first parser
-// whose CanHandle matches.
+// secrets in set. A provider with no secret configured is not registered, so
+// its requests are rejected as unknown webhook events, unless
+// EnvWebhookAllowUnauthenticated is set. Order matters: requests are dispatched
+// to the first parser whose CanHandle matches.
 func NewParsers(set *settings.ArgoCDSettings, opts ParserOptions) []Extractor {
+	allowUnauthenticated := env.ParseBoolFromEnv(EnvWebhookAllowUnauthenticated, false)
+	var rejected []string
+	// authenticated reports whether a provider may be registered, recording the ones that may not.
+	authenticated := func(provider string, secretConfigured bool) bool {
+		if secretConfigured || allowUnauthenticated {
+			return true
+		}
+		rejected = append(rejected, provider)
+		return false
+	}
+
 	var parsers []Extractor
-	if len(opts.AzureDevOpsEvents) > 0 {
+	if len(opts.AzureDevOpsEvents) > 0 && authenticated("Azure DevOps", set.GetWebhookAzureDevOpsUsername() != "" || set.GetWebhookAzureDevOpsPassword() != "") {
 		if hook, err := azuredevops.New(azuredevops.Options.BasicAuth(set.GetWebhookAzureDevOpsUsername(), set.GetWebhookAzureDevOpsPassword())); err != nil {
 			log.Warnf("Unable to init the Azure DevOps webhook: %v", err)
 		} else {
@@ -61,35 +80,35 @@ func NewParsers(set *settings.ArgoCDSettings, opts ParserOptions) []Extractor {
 		}
 	}
 	// Gogs needs to be checked before GitHub since it carries both Gogs and incompatible GitHub headers
-	if len(opts.GogsEvents) > 0 {
+	if len(opts.GogsEvents) > 0 && authenticated("Gogs", set.GetWebhookGogsSecret() != "") {
 		if hook, err := gogs.New(gogs.Options.Secret(set.GetWebhookGogsSecret())); err != nil {
 			log.Warnf("Unable to init the Gogs webhook: %v", err)
 		} else {
 			parsers = append(parsers, &gogsParser{webhook: hook, events: opts.GogsEvents})
 		}
 	}
-	if len(opts.GitHubEvents) > 0 {
+	if len(opts.GitHubEvents) > 0 && authenticated("GitHub", set.GetWebhookGitHubSecret() != "") {
 		if hook, err := github.New(github.Options.Secret(set.GetWebhookGitHubSecret())); err != nil {
 			log.Warnf("Unable to init the GitHub webhook: %v", err)
 		} else {
 			parsers = append(parsers, &githubParser{webhook: hook, events: opts.GitHubEvents})
 		}
 	}
-	if len(opts.GitLabEvents) > 0 {
+	if len(opts.GitLabEvents) > 0 && authenticated("GitLab", set.GetWebhookGitLabSecret() != "") {
 		if hook, err := gitlab.New(gitlab.Options.Secret(set.GetWebhookGitLabSecret())); err != nil {
 			log.Warnf("Unable to init the GitLab webhook: %v", err)
 		} else {
 			parsers = append(parsers, &gitlabParser{webhook: hook, events: opts.GitLabEvents})
 		}
 	}
-	if len(opts.BitbucketEvents) > 0 {
+	if len(opts.BitbucketEvents) > 0 && authenticated("Bitbucket", set.GetWebhookBitbucketUUID() != "") {
 		if hook, err := bitbucket.New(bitbucket.Options.UUID(set.GetWebhookBitbucketUUID())); err != nil {
 			log.Warnf("Unable to init the Bitbucket webhook: %v", err)
 		} else {
 			parsers = append(parsers, &bitbucketParser{webhook: hook, events: opts.BitbucketEvents})
 		}
 	}
-	if len(opts.BitbucketServerEvents) > 0 {
+	if len(opts.BitbucketServerEvents) > 0 && authenticated("Bitbucket Server", set.GetWebhookBitbucketServerSecret() != "") {
 		if hook, err := bitbucketserver.New(bitbucketserver.Options.Secret(set.GetWebhookBitbucketServerSecret())); err != nil {
 			log.Warnf("Unable to init the Bitbucket Server webhook: %v", err)
 		} else {
@@ -101,13 +120,16 @@ func NewParsers(set *settings.ArgoCDSettings, opts ParserOptions) []Extractor {
 	if opts.Harbor {
 		parsers = append(parsers, newHarborParser(set.GetWebhookHarborSecret()))
 	}
-	if opts.GHCR {
+	if opts.GHCR && authenticated("GHCR", set.GetWebhookGitHubSecret() != "") {
 		parsers = append(parsers, NewGHCRParser(set.GetWebhookGitHubSecret()))
 	}
 	if opts.DockerHub {
 		parsers = append(parsers, newDockerHubParser(set.GetWebhookDockerHubSecret()))
 	}
 
+	if len(rejected) > 0 {
+		log.Warnf("No webhook secret is configured for %s; their webhook events are rejected. Configure a secret, or set %s=true to accept unauthenticated events", strings.Join(rejected, ", "), EnvWebhookAllowUnauthenticated)
+	}
 	return parsers
 }
 
