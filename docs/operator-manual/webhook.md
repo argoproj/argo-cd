@@ -25,7 +25,9 @@ Application Sets use a separate webhook configuration for generating application
 In your Git provider, navigate to the settings page where webhooks can be configured. The payload
 URL configured in the Git provider should use the `/api/webhook` endpoint of your Argo CD instance
 (e.g. `https://argocd.example.com/api/webhook`). Input an arbitrary value in the secret. This value
-will be used when configuring the webhook in the next step.
+will be used when configuring the webhook in the next step. BitBucket Cloud has no secret field:
+use the UUID it assigns to the webhook instead, see
+[Special handling for BitBucket Cloud](#special-handling-for-bitbucket-cloud).
 
 To prevent DDoS attacks with unauthenticated webhook events (the `/api/webhook` endpoint currently lacks rate limiting protection), it is recommended to limit the payload size. You can achieve this by configuring the `argocd-cm` ConfigMap with the `webhook.maxPayloadSizeMB` attribute. The default value is 50MB. The same setting also limits the payload size of the [ApplicationSet webhook](applicationset/Generators-Git.md#webhook-configuration).
 
@@ -46,8 +48,9 @@ Azure DevOps secures the webhook using basic authentication. Specify the usernam
 ## 2. Configure Argo CD With The WebHook Secret
 
 Argo CD only accepts webhook events from a provider that has a webhook secret configured. Events
-for a provider with no secret are rejected as an unknown webhook event (`400 Bad Request`), so
-anyone who can reach `/api/webhook` cannot trigger refreshes with forged events.
+for a provider with no secret are rejected as an unknown webhook event (`400 Bad Request`), so an
+event must pass the provider's verification to trigger a refresh. BitBucket Cloud events are only
+checked against the webhook UUID, not a signature, so treat that UUID as a secret.
 
 > [!NOTE]
 > To accept unauthenticated events from providers that have no secret configured, set the

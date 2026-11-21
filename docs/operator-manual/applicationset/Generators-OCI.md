@@ -241,7 +241,8 @@ the associated GitHub repository.
 
 GHCR webhooks use the same secret as GitHub Git webhooks (`webhook.github.secret`) in the `argocd-secret`
 Kubernetes secret. The ApplicationSet webhook rejects GHCR events without a valid signature with
-`401 Unauthorized`, and rejects all GHCR events as unknown webhook events when the secret is not set.
+`401 Unauthorized`. When the secret is not set it rejects all GHCR events as unknown webhook events,
+unless [unauthenticated events are allowed](../webhook.md#2-configure-argo-cd-with-the-webhook-secret).
 
 ```yaml
 apiVersion: v1
