@@ -1,10 +1,19 @@
 package webhook
 
 import (
+	"bytes"
+	"crypto/hmac"
+	"crypto/sha256"
+	"crypto/subtle"
+	"encoding/base64"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"strconv"
+	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-playground/webhooks/v6/azuredevops"
 	"github.com/go-playground/webhooks/v6/bitbucket"
@@ -14,10 +23,18 @@ import (
 	"github.com/go-playground/webhooks/v6/gogs"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/util/guard"
 	"github.com/argoproj/argo-cd/v3/util/settings"
+)
 
-	"github.com/argoproj/argo-cd/v3/common"
+var (
+	ErrSignedWebhookVerificationFailed = errors.New("GitLab signed webhook verification failed")
+	ErrMissingSignatureHeader          = errors.New("missing webhook-signature header")
+	ErrMissingWebhookIDHeader          = errors.New("missing webhook-id header")
+	ErrMissingWebhookTimestampHeader   = errors.New("missing webhook-timestamp header")
+	ErrInvalidWebhookTimestamp         = errors.New("invalid webhook-timestamp header")
+	ErrStaleWebhookTimestamp           = errors.New("stale webhook timestamp")
 )
 
 // Extractor dispatches a webhook request to the matching provider.
@@ -76,10 +93,23 @@ func NewParsers(set *settings.ArgoCDSettings, opts ParserOptions) []Extractor {
 		}
 	}
 	if len(opts.GitLabEvents) > 0 {
-		if hook, err := gitlab.New(gitlab.Options.Secret(set.GetWebhookGitLabSecret())); err != nil {
+		if hook, err := gitlab.New(); err != nil {
 			log.Warnf("Unable to init the GitLab webhook: %v", err)
 		} else {
-			parsers = append(parsers, &gitlabParser{webhook: hook, events: opts.GitLabEvents})
+			var secret, signingSecret string
+			var tolerance time.Duration
+			if set != nil {
+				secret = set.GetWebhookGitLabSecret()
+				signingSecret = set.GetWebhookGitLabSigningSecret()
+				tolerance = set.GetWebhookGitLabTimestampTolerance()
+			}
+			parsers = append(parsers, &gitlabParser{
+				webhook:       hook,
+				events:        opts.GitLabEvents,
+				secret:        secret,
+				signingSecret: signingSecret,
+				tolerance:     tolerance,
+			})
 		}
 	}
 	if len(opts.BitbucketEvents) > 0 {
@@ -257,8 +287,11 @@ func (p *githubParser) Parse(r *http.Request) (any, error) {
 }
 
 type gitlabParser struct {
-	webhook *gitlab.Webhook
-	events  []gitlab.Event
+	webhook       *gitlab.Webhook
+	events        []gitlab.Event
+	secret        string
+	signingSecret string
+	tolerance     time.Duration
 }
 
 func (p *gitlabParser) CanHandle(r *http.Request) bool {
@@ -266,11 +299,126 @@ func (p *gitlabParser) CanHandle(r *http.Request) bool {
 }
 
 func (p *gitlabParser) Parse(r *http.Request) (any, error) {
-	payload, err := p.webhook.Parse(r, p.events...)
-	if errors.Is(err, gitlab.ErrGitLabTokenVerificationFailed) {
-		log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
+	body, err := io.ReadAll(r.Body)
+	if err != nil {
+		return nil, fmt.Errorf("failed to read request body: %w", err)
 	}
-	return payload, err
+	r.Body = io.NopCloser(bytes.NewReader(body))
+
+	if p.signingSecret != "" {
+		sigHeader := getHeader(r.Header, "webhook-signature", "Webhook-Signature")
+		if sigHeader != "" {
+			if err := p.verifySignature(r.Header, body); err != nil {
+				log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab signed webhook verification failed: %v", err)
+				return nil, err
+			}
+		} else {
+			// If signing secret is enabled and signature header is missing, check if legacy secret can authenticate.
+			// Only allow fallback to legacy secret if it is configured and does not start with whsec_.
+			hasLegacySecret := p.secret != "" && !strings.HasPrefix(p.secret, "whsec_")
+			if !hasLegacySecret {
+				log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab signed webhook verification failed: %v", ErrMissingSignatureHeader)
+				return nil, ErrMissingSignatureHeader
+			}
+			token := r.Header.Get("X-Gitlab-Token")
+			if subtle.ConstantTimeCompare([]byte(token), []byte(p.secret)) != 1 {
+				log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
+				return nil, gitlab.ErrGitLabTokenVerificationFailed
+			}
+		}
+	} else if p.secret != "" {
+		token := r.Header.Get("X-Gitlab-Token")
+		if subtle.ConstantTimeCompare([]byte(token), []byte(p.secret)) != 1 {
+			log.WithField(common.SecurityField, common.SecurityHigh).Infof("GitLab webhook token verification failed")
+			return nil, gitlab.ErrGitLabTokenVerificationFailed
+		}
+	}
+
+	return p.webhook.Parse(r, p.events...)
+}
+
+func (p *gitlabParser) verifySignature(h http.Header, body []byte) error {
+	msgID := getHeader(h, "webhook-id", "Webhook-Id")
+	if msgID == "" {
+		return ErrMissingWebhookIDHeader
+	}
+	msgTimestamp := getHeader(h, "webhook-timestamp", "Webhook-Timestamp")
+	if msgTimestamp == "" {
+		return ErrMissingWebhookTimestampHeader
+	}
+	sigHeader := getHeader(h, "webhook-signature", "Webhook-Signature")
+	if sigHeader == "" {
+		return ErrMissingSignatureHeader
+	}
+
+	ts, err := strconv.ParseInt(msgTimestamp, 10, 64)
+	if err != nil {
+		return ErrInvalidWebhookTimestamp
+	}
+	webhookTime := time.Unix(ts, 0)
+	tolerance := p.tolerance
+	if tolerance <= 0 {
+		tolerance = settings.DefaultWebhookGitLabTimestampTolerance
+	}
+	diff := time.Since(webhookTime)
+	if diff < 0 {
+		diff = -diff
+	}
+	if diff > tolerance {
+		return ErrStaleWebhookTimestamp
+	}
+
+	key := parseSigningSecret(p.signingSecret)
+
+	mac := hmac.New(sha256.New, key)
+	mac.Write([]byte(msgID))
+	mac.Write([]byte("."))
+	mac.Write([]byte(msgTimestamp))
+	mac.Write([]byte("."))
+	mac.Write(body)
+	expectedMAC := mac.Sum(nil)
+
+	for sig := range strings.FieldsSeq(sigHeader) {
+		parts := strings.SplitN(sig, ",", 2)
+		if len(parts) == 2 && parts[0] == "v1" {
+			sigBytes, err := base64.StdEncoding.DecodeString(parts[1])
+			if err != nil {
+				continue
+			}
+			if hmac.Equal(sigBytes, expectedMAC) {
+				return nil
+			}
+		}
+	}
+
+	return ErrSignedWebhookVerificationFailed
+}
+
+func parseSigningSecret(secret string) []byte {
+	trimmed := strings.TrimPrefix(secret, "whsec_")
+	if key, err := base64.StdEncoding.DecodeString(trimmed); err == nil {
+		return key
+	}
+	if urlKey, err := base64.URLEncoding.DecodeString(trimmed); err == nil {
+		return urlKey
+	}
+	return []byte(trimmed)
+}
+
+func getHeader(h http.Header, keys ...string) string {
+	for _, k := range keys {
+		if v := h.Get(k); v != "" {
+			return v
+		}
+	}
+	for _, k := range keys {
+		for headerKey, vals := range h {
+			if strings.EqualFold(headerKey, k) && len(vals) > 0 {
+				return vals[0]
+			}
+		}
+	}
+	return ""
 }
 
 type bitbucketParser struct {
