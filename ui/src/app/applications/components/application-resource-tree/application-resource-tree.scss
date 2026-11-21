@@ -417,6 +417,15 @@
             border-color: $argo-color-teal-5;
             cursor: pointer;
             text-transform: none;
+            // A long ApplicationSet name would push the tag row past the card.
+            // Cap and truncate only this label; its full name stays in the title.
+            // The other tags and the labels container are left as they were.
+            display: inline-block;
+            max-width: 150px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            vertical-align: bottom;
 
             &:hover {
                 background-color: $argo-color-teal-3;
