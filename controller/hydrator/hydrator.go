@@ -241,7 +241,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 	// Hydrate all the apps. ProcessHydrationQueueItem is a workqueue entry point with no inbound
 	// request context, so context.Background() is the root of this operation's context tree.
 	ctx := context.Background()
-	drySHA, hydratedSHA, appErrors, err := h.hydrate(ctx, logCtx, apps, projects)
+	drySHA, hydratedSHA, hydratedDrySHAs, appErrors, err := h.hydrate(ctx, logCtx, apps, projects)
 	if err != nil {
 		// If there is a single error, it affects each applications
 		for i := range apps {
@@ -292,6 +292,7 @@ func (h *Hydrator) ProcessHydrationQueueItem(hydrationKey types.HydrationQueueKe
 			DrySHA:         drySHA,
 			HydratedSHA:    hydratedSHA,
 			SourceHydrator: app.Status.SourceHydrator.CurrentOperation.SourceHydrator,
+			HydratedDrySHA: hydratedDrySHAs[app.Spec.SourceHydrator.SyncSource.Path],
 		}
 		h.dependencies.PersistHydrationStatus(origApp, &app.Status.SourceHydrator)
 		h.dependencies.RemoveHydrationAnnotations(origApp)
@@ -427,10 +428,10 @@ func (h *Hydrator) validateApplications(apps []*appv1.Application) (map[string]*
 	return projects, errors
 }
 
-func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1.Application, projects map[string]*appv1.AppProject) (string, string, map[string]error, error) {
+func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1.Application, projects map[string]*appv1.AppProject) (string, string, map[string]string, map[string]error, error) {
 	errors := make(map[string]error)
 	if len(apps) == 0 {
-		return "", "", nil, nil
+		return "", "", nil, nil, nil
 	}
 
 	// These values are the same for all apps being hydrated together, so just get them from the first app.
@@ -448,7 +449,7 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	targetRevision, pathDetails, err := h.getManifests(ctx, apps[0], "", projects[apps[0].Spec.Project])
 	if err != nil {
 		errors[apps[0].QualifiedName()] = fmt.Errorf("failed to get manifests: %w", err)
-		return "", "", errors, nil
+		return "", "", nil, errors, nil
 	}
 	paths := []*commitclient.PathDetails{pathDetails}
 	logCtx = logCtx.WithFields(log.Fields{"drySha": targetRevision})
@@ -456,7 +457,13 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	// We only inspect one app. If apps have been added/removed, that will be handled on the next DRY commit.
 	if apps[0].Status.SourceHydrator.LastSuccessfulOperation != nil && targetRevision == apps[0].Status.SourceHydrator.LastSuccessfulOperation.DrySHA {
 		logCtx.Debug("Skipping hydration since the DRY commit was already hydrated")
-		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, nil, nil
+		hydratedDrySHAs := make(map[string]string, len(apps))
+		for _, app := range apps {
+			if op := app.Status.SourceHydrator.LastSuccessfulOperation; op != nil {
+				hydratedDrySHAs[app.Spec.SourceHydrator.SyncSource.Path] = op.HydratedDrySHA
+			}
+		}
+		return targetRevision, apps[0].Status.SourceHydrator.LastSuccessfulOperation.HydratedSHA, hydratedDrySHAs, nil, nil
 	}
 
 	// NB: use a distinct name for the errgroup-derived context. errgroup cancels it as soon as
@@ -483,7 +490,7 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 		})
 	}
 	if err := eg.Wait(); err != nil {
-		return targetRevision, "", errors, nil
+		return targetRevision, "", nil, errors, nil
 	}
 
 	// If all the apps are under the same project, use that project. Otherwise, use an empty string to indicate that we
@@ -499,12 +506,12 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	// Get the commit metadata for the target revision.
 	revisionMetadata, err := h.getRevisionMetadata(ctx, drySourceRepoURL, project, targetRevision)
 	if err != nil {
-		return targetRevision, "", errors, fmt.Errorf("failed to get revision metadata for %q: %w", targetRevision, err)
+		return targetRevision, "", nil, errors, fmt.Errorf("failed to get revision metadata for %q: %w", targetRevision, err)
 	}
 
 	repo, err := h.dependencies.GetWriteCredentials(ctx, destinationRepoURL, project)
 	if err != nil {
-		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator credentials: %w", err)
+		return targetRevision, "", nil, errors, fmt.Errorf("failed to get hydrator credentials: %w", err)
 	}
 	if repo == nil {
 		// Try without credentials.
@@ -516,27 +523,27 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 	// get the commit message template
 	commitMessageTemplate, err := h.dependencies.GetHydratorCommitMessageTemplate()
 	if err != nil {
-		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated commit message template: %w", err)
+		return targetRevision, "", nil, errors, fmt.Errorf("failed to get hydrated commit message template: %w", err)
 	}
 	commitMessage, errMsg := getTemplatedCommitMessage(drySourceRepoURL, targetRevision, commitMessageTemplate, revisionMetadata)
 	if errMsg != nil {
-		return targetRevision, "", errors, fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
+		return targetRevision, "", nil, errors, fmt.Errorf("failed to get hydrator commit templated message: %w", errMsg)
 	}
 
 	// get the readme message template
 	readmeTemplate, err := h.dependencies.GetHydratorReadmeMessageTemplate()
 	if err != nil {
-		return targetRevision, "", errors, fmt.Errorf("failed to get hydrated readme message template: %w", err)
+		return targetRevision, "", nil, errors, fmt.Errorf("failed to get hydrated readme message template: %w", err)
 	}
 
 	// get commit author configuration from argocd-cm
 	authorName, err := h.dependencies.GetCommitAuthorName()
 	if err != nil {
-		return targetRevision, "", errors, fmt.Errorf("failed to get commit author name: %w", err)
+		return targetRevision, "", nil, errors, fmt.Errorf("failed to get commit author name: %w", err)
 	}
 	authorEmail, err := h.dependencies.GetCommitAuthorEmail()
 	if err != nil {
-		return targetRevision, "", errors, fmt.Errorf("failed to get commit author email: %w", err)
+		return targetRevision, "", nil, errors, fmt.Errorf("failed to get commit author email: %w", err)
 	}
 
 	manifestsRequest := commitclient.CommitHydratedManifestsRequest{
@@ -554,14 +561,14 @@ func (h *Hydrator) hydrate(ctx context.Context, logCtx *log.Entry, apps []*appv1
 
 	closer, commitService, err := h.commitClientset.NewCommitServerClient()
 	if err != nil {
-		return targetRevision, "", errors, fmt.Errorf("failed to create commit service: %w", err)
+		return targetRevision, "", nil, errors, fmt.Errorf("failed to create commit service: %w", err)
 	}
 	defer utilio.Close(closer)
 	resp, err := commitService.CommitHydratedManifests(ctx, &manifestsRequest)
 	if err != nil {
-		return targetRevision, "", errors, fmt.Errorf("failed to commit hydrated manifests: %w", err)
+		return targetRevision, "", nil, errors, fmt.Errorf("failed to commit hydrated manifests: %w", err)
 	}
-	return targetRevision, resp.HydratedSha, errors, nil
+	return targetRevision, resp.HydratedSha, resp.HydratedDryShas, errors, nil
 }
 
 // getManifests gets the manifests for the given application and target revision. It returns the resolved revision

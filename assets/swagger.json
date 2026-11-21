@@ -6344,6 +6344,10 @@
         "sourceType": {
           "type": "string"
         },
+        "syncedDrySHA": {
+          "description": "SyncedDrySHA is the dry source revision recorded in the rendered application directory's hydrator.metadata.",
+          "type": "string"
+        },
         "verifyResult": {
           "description": "Deprecated: Use sourceIntegrityResult for more detailed information. verifyResult will be removed with the next major version.",
           "type": "string"
@@ -10903,6 +10907,10 @@
         },
         "lastSuccessfulOperation": {
           "$ref": "#/definitions/v1alpha1SuccessfulHydrateOperation"
+        },
+        "syncedDrySHA": {
+          "description": "SyncedDrySHA holds the dry source revision recorded in the application directory's hydrator.metadata at the synced revision.",
+          "type": "string"
         }
       }
     },
@@ -11001,6 +11009,10 @@
         "drySHA": {
           "type": "string",
           "title": "DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation"
+        },
+        "hydratedDrySHA": {
+          "description": "HydratedDrySHA holds the dry source revision recorded in the application directory's hydrator.metadata in the\nhydrated commit. It is older than DrySHA when the application's manifests did not change.",
+          "type": "string"
         },
         "hydratedSHA": {
           "type": "string",

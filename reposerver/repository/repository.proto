@@ -104,6 +104,8 @@ message ManifestResponse {
     // Commands is the list of commands used to hydrate the manifests
     repeated string commands = 8;
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityCheckResult sourceIntegrityResult = 9;
+    // SyncedDrySHA is the dry source revision recorded in the rendered application directory's hydrator.metadata.
+    string syncedDrySHA = 10;
 }
 
 message ListRefsRequest {

@@ -85,7 +85,7 @@ func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.Comm
 
 	logCtx := log.WithFields(log.Fields{"branch": r.TargetBranch, "drySHA": r.DrySha})
 
-	out, sha, err := s.handleCommitRequest(ctx, logCtx, r)
+	out, sha, hydratedDryShas, err := s.handleCommitRequest(ctx, logCtx, r)
 	if err != nil {
 		logCtx.WithError(err).WithField("output", out).Error("failed to handle commit request")
 
@@ -95,26 +95,28 @@ func (s *Service) CommitHydratedManifests(ctx context.Context, r *apiclient.Comm
 
 	logCtx.Info("Successfully handled commit request")
 	return &apiclient.CommitHydratedManifestsResponse{
-		HydratedSha: sha,
+		HydratedSha:     sha,
+		HydratedDryShas: hydratedDryShas,
 	}, nil
 }
 
 // handleCommitRequest handles the commit request. It clones the repository, checks out the sync branch, checks out the
 // target branch, clears the repository contents, writes the manifests to the repository, commits the changes, and pushes
-// the changes. It returns the output of the git commands and an error if one occurred.
-func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, error) {
+// the changes. It returns the output of the git commands, the hydrated SHA, the dry SHA recorded for each requested
+// path in the hydrated commit, and an error if one occurred.
+func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r *apiclient.CommitHydratedManifestsRequest) (string, string, map[string]string, error) {
 	if r.Repo == nil {
-		return "", "", errors.New("repo is required")
+		return "", "", nil, errors.New("repo is required")
 	}
 
 	if r.Repo.Repo == "" {
-		return "", "", errors.New("repo URL is required")
+		return "", "", nil, errors.New("repo URL is required")
 	}
 	if r.TargetBranch == "" {
-		return "", "", errors.New("target branch is required")
+		return "", "", nil, errors.New("target branch is required")
 	}
 	if r.SyncBranch == "" {
-		return "", "", errors.New("sync branch is required")
+		return "", "", nil, errors.New("sync branch is required")
 	}
 
 	// Serialize same-branch requests so they don't clone the same base and then
@@ -130,13 +132,13 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	logCtx.Debug("Initiating git client")
 	gitClient, dirPath, cleanup, err := s.initGitClient(ctx, logCtx, r)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to init git client: %w", err)
+		return "", "", nil, fmt.Errorf("failed to init git client: %w", err)
 	}
 	defer cleanup()
 
 	root, err := os.OpenRoot(dirPath)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to open root dir: %w", err)
+		return "", "", nil, fmt.Errorf("failed to open root dir: %w", err)
 	}
 	defer io.Close(root)
 
@@ -144,19 +146,21 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	var out string
 	out, err = gitClient.CheckoutOrOrphan(ctx, r.SyncBranch, false)
 	if err != nil {
-		return out, "", fmt.Errorf("failed to checkout sync branch: %w", err)
+		return out, "", nil, fmt.Errorf("failed to checkout sync branch: %w", err)
 	}
 
 	logCtx.Debugf("Checking out target branch %s", r.TargetBranch)
 	out, err = gitClient.CheckoutOrNew(ctx, r.TargetBranch, r.SyncBranch, false)
 	if err != nil {
-		return out, "", fmt.Errorf("failed to checkout target branch: %w", err)
+		return out, "", nil, fmt.Errorf("failed to checkout target branch: %w", err)
 	}
 
 	hydratedSha, err := gitClient.CommitSHA(ctx)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
+		return "", "", nil, fmt.Errorf("failed to get commit SHA: %w", err)
 	}
+	// Read before WriteForPaths overwrites metadata in the worktree.
+	headDryShas := getDryShasForPaths(root, r.Paths)
 
 	/* git note changes
 	1. Get the git note
@@ -168,18 +172,18 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 	*/
 	isHydrated, err := IsHydrated(ctx, gitClient, r.DrySha, hydratedSha)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get notes from git %w", err)
+		return "", "", nil, fmt.Errorf("failed to get notes from git %w", err)
 	}
 	// short-circuit if already hydrated
 	if isHydrated {
 		logCtx.Debugf("this dry sha %s is already hydrated", r.DrySha)
-		return "", hydratedSha, nil
+		return "", hydratedSha, headDryShas, nil
 	}
 
 	logCtx.Debug("Writing manifests")
 	shouldCommit, err := WriteForPaths(ctx, root, r.Repo.Repo, r.DrySha, r.DryCommitMetadata, r.Paths, gitClient, r.ReadmeMessage)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to write manifests: %w", err)
+		return "", "", nil, fmt.Errorf("failed to write manifests: %w", err)
 	}
 	if !shouldCommit {
 		// Manifests did not change, so we don't need to create a new commit.
@@ -187,10 +191,12 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		logCtx.Debug("Adding commit note")
 		err = AddNote(ctx, gitClient, r.DrySha, hydratedSha)
 		if err != nil {
-			return "", "", fmt.Errorf("failed to add commit note: %w", err)
+			return "", "", nil, fmt.Errorf("failed to add commit note: %w", err)
 		}
-		return "", hydratedSha, nil
+		return "", hydratedSha, headDryShas, nil
 	}
+	// Unchanged paths keep their previous metadata, so the worktree now matches the commit being made.
+	commitDryShas := getDryShasForPaths(root, r.Paths)
 	logCtx.Debug("Committing changes")
 	signingKeyID := ""
 	if s.signingConfig != nil {
@@ -201,13 +207,13 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		if s.signingConfig != nil {
 			s.metricsServer.IncSigningFailure(r.Repo.Repo, metrics.SigningFailureReasonCommit)
 		}
-		return out, "", fmt.Errorf("failed to commit: %w", err)
+		return out, "", nil, fmt.Errorf("failed to commit: %w", err)
 	}
 
 	logCtx.Debug("Getting commit SHA")
 	sha, err := gitClient.CommitSHA(ctx)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to get commit SHA: %w", err)
+		return "", "", nil, fmt.Errorf("failed to get commit SHA: %w", err)
 	}
 
 	if s.signingConfig != nil {
@@ -220,31 +226,31 @@ func (s *Service) handleCommitRequest(ctx context.Context, logCtx *log.Entry, r 
 		status, keyID, sigErr := gitClient.CommitSignatureStatus(ctx, sha)
 		if sigErr != nil {
 			s.metricsServer.IncSigningFailure(r.Repo.Repo, metrics.SigningFailureReasonVerify)
-			return out, "", fmt.Errorf("failed to verify signature of hydrated commit: %w", sigErr)
+			return out, "", nil, fmt.Errorf("failed to verify signature of hydrated commit: %w", sigErr)
 		}
 		if status != git.SignatureStatusGood && status != git.SignatureStatusGoodUnknownTrust {
 			s.metricsServer.IncSigningFailure(r.Repo.Repo, metrics.SigningFailureReasonBadStatus)
-			return out, "", fmt.Errorf("hydrated commit signature status %q is not acceptable (want %q or %q)", status, git.SignatureStatusGood, git.SignatureStatusGoodUnknownTrust)
+			return out, "", nil, fmt.Errorf("hydrated commit signature status %q is not acceptable (want %q or %q)", status, git.SignatureStatusGood, git.SignatureStatusGoodUnknownTrust)
 		}
 		if !s.signingConfig.MatchesSigningKey(keyID) {
 			s.metricsServer.IncSigningFailure(r.Repo.Repo, metrics.SigningFailureReasonWrongKey)
-			return out, "", fmt.Errorf("hydrated commit signed by key %q, expected one of %v", keyID, s.signingConfig.SigningKeyIDs)
+			return out, "", nil, fmt.Errorf("hydrated commit signed by key %q, expected one of %v", keyID, s.signingConfig.SigningKeyIDs)
 		}
 		logCtx.WithField("signingKey", keyID).Debug("Hydrated commit signature verified")
 	}
 
 	logCtx.Debug("Pushing changes")
 	if out, err = gitClient.Push(r.TargetBranch); err != nil {
-		return out, "", fmt.Errorf("failed to push: %w", err)
+		return out, "", nil, fmt.Errorf("failed to push: %w", err)
 	}
 
 	// add the commit note
 	logCtx.Debug("Adding commit note")
 	err = AddNote(ctx, gitClient, r.DrySha, sha)
 	if err != nil {
-		return "", "", fmt.Errorf("failed to add commit note: %w", err)
+		return "", "", nil, fmt.Errorf("failed to add commit note: %w", err)
 	}
-	return "", sha, nil
+	return "", sha, commitDryShas, nil
 }
 
 // initGitClient initializes a git client for the given repository and returns the client, the path to the directory where
