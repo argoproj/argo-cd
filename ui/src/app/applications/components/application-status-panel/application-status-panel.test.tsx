@@ -1,5 +1,6 @@
 import * as React from 'react';
 import {act, fireEvent, render, screen, waitFor} from '@testing-library/react';
+import {NEVER, Observable, Subject} from 'rxjs';
 import * as models from '../../../shared/models';
 import {COLORS} from '../../../shared/components/colors';
 import {Context} from '../../../shared/context';
@@ -18,7 +19,8 @@ jest.mock('../../../shared/services', () => ({
                     message: 'Test commit message'
                 })
             ),
-            listApplicationSets: jest.fn(() => Promise.resolve({items: []}))
+            listApplicationSets: jest.fn(() => Promise.resolve({items: []})),
+            watch: jest.fn(() => NEVER)
         },
         extensions: {
             getStatusPanelExtensions: jest.fn(() => [])
@@ -135,17 +137,79 @@ describe('ApplicationStatusPanel', () => {
         const {rerender} = render(<ApplicationStatusPanel application={appV1} collapsed={false} />);
         await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1));
 
-        // collapsing mounts the visible compact progressive sync loader (one call); its
-        // input is the stable owner ref name, so app updates do not refetch anything
+        // collapsing mounts the visible compact progressive sync loader, but it shares the
+        // full panel's existing ApplicationSet watch, so no new fetch is triggered; its
+        // input is the stable owner ref name, so app updates do not refetch anything either
         rerender(<ApplicationStatusPanel application={appV1} collapsed={true} />);
-        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2));
         rerender(<ApplicationStatusPanel application={appV2} collapsed={true} />);
         await waitFor(() => expect(screen.getAllByText('Degraded').length).toBeGreaterThan(0));
-        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2);
+        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1);
 
-        // expanding unmounts the compact loader and refreshes the full-panel one once
+        // expanding unmounts the compact loader; the full-panel loader stays mounted and
+        // keeps the shared ApplicationSet watch, so re-expanding does not refetch the ApplicationSet
         rerender(<ApplicationStatusPanel application={appV2} collapsed={false} />);
-        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(3));
+        await waitFor(() => expect(screen.getAllByText('Degraded').length).toBeGreaterThan(0));
+        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1);
+    });
+
+    it('shares a single ApplicationSet watch between the collapsed summary and the hidden full panel', async () => {
+        (services.applications.listApplicationSets as jest.Mock).mockClear();
+        (services.applications.watch as jest.Mock).mockClear();
+        const withOwner = {
+            ...application,
+            metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name: 'demo-appset'}]}
+        } as unknown as models.Application;
+
+        // expand so the full panel mounts and opens the ApplicationSet watch
+        const {rerender} = render(<ApplicationStatusPanel application={withOwner} collapsed={false} />);
+        await waitFor(() => expect(services.applications.watch).toHaveBeenCalledTimes(1));
+
+        // collapse: the compact summary and the still-mounted full panel both render
+        // ProgressiveSyncStatus, but they share one underlying watch rather than opening a second
+        rerender(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
+        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1));
+        expect(services.applications.watch).toHaveBeenCalledTimes(1);
+    });
+
+    it('closes the ApplicationSet stream while the tab is hidden and reopens it on return', async () => {
+        const withOwner = {
+            ...application,
+            metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name: 'demo-appset'}]}
+        } as unknown as models.Application;
+
+        // count live stream connections by tracking subscribe/teardown on the watch observable
+        let activeConnections = 0;
+        (services.applications.watch as jest.Mock).mockImplementation(
+            () =>
+                new Observable(() => {
+                    activeConnections++;
+                    return () => {
+                        activeConnections--;
+                    };
+                })
+        );
+
+        try {
+            render(<ApplicationStatusPanel application={withOwner} collapsed={false} />);
+            await waitFor(() => expect(activeConnections).toBe(1));
+
+            // hiding the tab tears the stream down so background tabs do not hold connections
+            Object.defineProperty(document, 'hidden', {configurable: true, get: () => true});
+            act(() => {
+                document.dispatchEvent(new Event('visibilitychange'));
+            });
+            await waitFor(() => expect(activeConnections).toBe(0));
+
+            // returning to the tab reopens the stream
+            Object.defineProperty(document, 'hidden', {configurable: true, get: () => false});
+            act(() => {
+                document.dispatchEvent(new Event('visibilitychange'));
+            });
+            await waitFor(() => expect(activeConnections).toBe(1));
+        } finally {
+            Object.defineProperty(document, 'hidden', {configurable: true, get: () => false});
+            (services.applications.watch as jest.Mock).mockImplementation(() => NEVER);
+        }
     });
 
     it('refreshes the sync window state on re-expand even when the application is unchanged', async () => {
@@ -232,14 +296,38 @@ describe('ApplicationStatusPanel', () => {
         const {rerender} = render(<ApplicationStatusPanel application={withOwner} collapsed={false} />);
         await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1));
 
-        // ownership transitions only mount/unmount the visible compact loader; the
-        // hidden full-panel loader stays frozen (it would add further calls otherwise)
+        // ownership transitions only mount/unmount the visible compact loader; the hidden
+        // full-panel loader stays frozen on the original owner and keeps the shared watch
+        // alive, so the compact loader reuses it on each remount without a new fetch
         rerender(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
-        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2));
         rerender(<ApplicationStatusPanel application={application} collapsed={true} />);
-        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(2);
         rerender(<ApplicationStatusPanel application={withOwner} collapsed={true} />);
-        await waitFor(() => expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(3));
+        expect(services.applications.listApplicationSets).toHaveBeenCalledTimes(1);
+    });
+
+    it('updates the progressive sync step when the ApplicationSet changes without the application changing', async () => {
+        const psApp = {
+            ...application,
+            metadata: {...application.metadata, ownerReferences: [{kind: 'ApplicationSet', name: 'ps-appset'}]}
+        } as unknown as models.Application;
+        const rollingSyncAppSet = (step: string) =>
+            ({
+                metadata: {name: 'ps-appset', namespace: 'argocd'},
+                spec: {strategy: {type: 'RollingSync'}},
+                status: {applicationStatus: [{application: 'test-app', status: 'Progressing', step}]}
+            }) as unknown as models.ApplicationSet;
+
+        (services.applications.listApplicationSets as jest.Mock).mockResolvedValueOnce({items: [rollingSyncAppSet('1')], metadata: {resourceVersion: '1'}});
+        const appSetWatch$ = new Subject<models.ApplicationWatchEvent>();
+        (services.applications.watch as jest.Mock).mockReturnValueOnce(appSetWatch$);
+
+        render(<ApplicationStatusPanel application={psApp} collapsed={false} />);
+        await waitFor(() => expect(screen.getByText('Step: 1')).toBeInTheDocument());
+
+        // The ApplicationSet advances a step; the application object is untouched.
+        appSetWatch$.next({type: 'MODIFIED', application: rollingSyncAppSet('2') as unknown as models.Application});
+        await waitFor(() => expect(screen.getByText('Step: 2')).toBeInTheDocument());
+        expect(screen.queryByText('Step: 1')).toBeNull();
     });
 
     it('does not remount the hydrator metadata loader on live hydrator transitions while collapsed', async () => {
