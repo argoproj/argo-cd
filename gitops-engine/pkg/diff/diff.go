@@ -195,16 +195,10 @@ func serverSideDiff(ctx context.Context, config, live *unstructured.Unstructured
 	predictedLive = remarshal(predictedLive, o)
 
 	Normalize(predictedLive, opts...)
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "managedFields")
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "resourceVersion")
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "generation")
-	unstructured.RemoveNestedField(predictedLive.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	removeServerPopulatedMetadata(predictedLive)
 
 	Normalize(live, opts...)
-	unstructured.RemoveNestedField(live.Object, "metadata", "managedFields")
-	unstructured.RemoveNestedField(live.Object, "metadata", "resourceVersion")
-	unstructured.RemoveNestedField(live.Object, "metadata", "generation")
-	unstructured.RemoveNestedField(live.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
+	removeServerPopulatedMetadata(live)
 
 	predictedLiveBytes, err := json.Marshal(predictedLive)
 	if err != nil {
@@ -297,7 +291,6 @@ func removeWebhookMutation(predictedLive, live *unstructured.Unstructured, gvkPa
 
 	// Apply the predicted live state to the live state to get a diff without mutation webhook fields
 	typedPredictedLive, err = typedLive.Merge(typedPredictedLive)
-
 	if err != nil {
 		return nil, fmt.Errorf("error applying predicted live to live state: %w", err)
 	}
@@ -430,7 +423,9 @@ func buildDiffResult(predictedBytes []byte, liveBytes []byte) *DiffResult {
 // TwoWayDiff performs a three-way diff and uses specified config as a recently applied config
 func TwoWayDiff(config, live *unstructured.Unstructured) (*DiffResult, error) {
 	if live != nil && config != nil {
-		return ThreeWayDiff(config, config.DeepCopy(), live)
+		// ThreeWayDiff copies each of its inputs before mutating them, so the
+		// same config can be passed as both the last-applied and desired state.
+		return ThreeWayDiff(config, config, live)
 	}
 	return handleResourceCreateOrDeleteDiff(config, live)
 }
@@ -573,8 +568,11 @@ func applyPatch(liveBytes []byte, patchBytes []byte, newVersionedObject func() (
 // last-applied-configuration annotation in the diff.
 // Inputs are assumed to be stripped of type information
 func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, error) {
-	orig = removeNamespaceAnnotation(orig)
-	config = removeNamespaceAnnotation(config)
+	orig = orig.DeepCopy()
+	removeNamespaceAnnotation(orig)
+
+	config = config.DeepCopy()
+	removeNamespaceAnnotation(config)
 
 	// 1. calculate a 3-way merge patch
 	patchBytes, newVersionedObject, err := threeWayMergePatch(orig, config, live)
@@ -611,9 +609,9 @@ func ThreeWayDiff(orig, config, live *unstructured.Unstructured) (*DiffResult, e
 // The namespace field is present in live (namespaced) objects, but not necessarily present in
 // config or last-applied. This results in a diff which we don't care about. We delete the two so
 // that the diff is more relevant.
-func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Unstructured {
-	orig = orig.DeepCopy()
-	if metadataIf, ok := orig.Object["metadata"]; ok {
+// It mutates the given object in place; the caller owns making a copy first.
+func removeNamespaceAnnotation(un *unstructured.Unstructured) {
+	if metadataIf, ok := un.Object["metadata"]; ok {
 		metadata := metadataIf.(map[string]any)
 		delete(metadata, "namespace")
 		if annotationsIf, ok := metadata["annotations"]; ok {
@@ -631,7 +629,15 @@ func removeNamespaceAnnotation(orig *unstructured.Unstructured) *unstructured.Un
 			}
 		}
 	}
-	return orig
+}
+
+// removeServerPopulatedMetadata removes the metadata that is populated by the API server
+// from an object taking part in a server-side diff. It mutates the given object in place.
+func removeServerPopulatedMetadata(un *unstructured.Unstructured) {
+	unstructured.RemoveNestedField(un.Object, "metadata", "managedFields")
+	unstructured.RemoveNestedField(un.Object, "metadata", "resourceVersion")
+	unstructured.RemoveNestedField(un.Object, "metadata", "generation")
+	unstructured.RemoveNestedField(un.Object, "metadata", "annotations", AnnotationLastAppliedConfig)
 }
 
 // StatefulSet requires special handling since it embeds PersistentVolumeClaim resource.
