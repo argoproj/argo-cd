@@ -3538,8 +3538,14 @@ func watchResumeCluster(t *testing.T, opts ...UpdateSettingsFunc) (cluster *clus
 
 func TestWatchEvents_ResyncTimeoutDoesNotRelist(t *testing.T) {
 	t.Parallel()
-	_, lists, watches, current := watchResumeCluster(t, SetWatchResyncTimeout(time.Second))
+	cluster, lists, watches, current := watchResumeCluster(t, SetWatchResyncTimeout(time.Second))
 	require.Equal(t, int32(1), lists.Load())
+	for _, action := range cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient).Actions() {
+		if w, ok := action.(testcore.WatchActionImpl); ok && w.GetResource().Resource == "pods" {
+			require.NotNil(t, w.ListOptions.TimeoutSeconds)
+			assert.Equal(t, int64(1), *w.ListOptions.TimeoutSeconds)
+		}
+	}
 
 	// Several resync timeouts pass without a relist.
 	time.Sleep(2500 * time.Millisecond)
@@ -3576,16 +3582,15 @@ func TestWatchEvents_ExpiredWatchRequestRelists(t *testing.T) {
 	require.Eventually(t, func() bool { return lists.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
 }
 
-func TestWatchEvents_RecoveredPanicReplaysEvent(t *testing.T) {
+func TestWatchEvents_RecoveredPanicRelists(t *testing.T) {
 	t.Parallel()
-	cluster, _, watches, current := watchResumeCluster(t)
+	cluster, lists, _, current := watchResumeCluster(t)
 	var panicked atomic.Bool
 	cluster.OnEvent(func(watch.EventType, *unstructured.Unstructured) {
 		if panicked.CompareAndSwap(false, true) {
 			panic("handler failed")
 		}
 	})
-	client := cluster.kubectl.(*kubetest.MockKubectlCmd).DynamicClient.(*fake.FakeDynamicClient)
 
 	pod := &unstructured.Unstructured{}
 	pod.SetAPIVersion("v1")
@@ -3595,12 +3600,6 @@ func TestWatchEvents_RecoveredPanicReplaysEvent(t *testing.T) {
 	pod.SetResourceVersion("200")
 	current().Modify(pod)
 
-	require.Eventually(t, func() bool { return watches.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
-	var resumedFrom string
-	for _, action := range client.Actions() {
-		if w, ok := action.(testcore.WatchActionImpl); ok && w.GetResource().Resource == "pods" {
-			resumedFrom = w.WatchRestrictions.ResourceVersion
-		}
-	}
-	assert.NotEqual(t, "200", resumedFrom, "the watch must resume before the event the panic interrupted")
+	// The event may be half applied, so relist rather than resume or replay it.
+	require.Eventually(t, func() bool { return lists.Load() == 2 }, 5*time.Second, 10*time.Millisecond)
 }

@@ -390,7 +390,12 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			return fmt.Errorf("failed to create resource watcher: %w", err)
 		}
 
-		defer w.Stop()
+		// Relist after any exit: the retry watcher only stops when it can't resume, and a
+		// recovered panic may have left an event half applied.
+		defer func() {
+			w.Stop()
+			resourceVersion = ""
+		}()
 
 		for {
 			select {
@@ -398,21 +403,17 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 			case <-ctx.Done():
 				return nil
 
-			// The retry watcher only stops when it can't resume, so relist.
+			// re-synchronize API state and restart watch if retry watcher failed to continue watching using provided resource version
 			case <-w.Done():
-				resourceVersion = ""
 				return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
 
 			case event, ok := <-w.ResultChan():
 				if !ok {
-					resourceVersion = ""
 					return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
 				}
 
 				obj, ok := event.Object.(*unstructured.Unstructured)
 				if !ok {
-					// An error event, such as 410 Gone: relist.
-					resourceVersion = ""
 					return fmt.Errorf("failed to convert to *unstructured.Unstructured: %v", event.Object)
 				}
 
@@ -422,8 +423,6 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 				} else if kube.IsAPIService(obj) {
 					c.handleAPIServiceEvent(e, event.Type, obj)
 				}
-				// Only after it's applied, so a recovered panic replays the event.
-				resourceVersion = obj.GetResourceVersion()
 			}
 		}
 	})
