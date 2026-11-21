@@ -55,6 +55,7 @@ func TestWriteForPaths(t *testing.T) {
 
 	repoURL := "https://github.com/example/repo"
 	drySha := "abc123"
+	targetBranch := "environment/dev-next"
 	paths := []*apiclient.PathDetails{
 		{
 			Path: "path1",
@@ -103,7 +104,7 @@ Argocd-reference-commit-sha: abc123
 	mockGitClient := gitmocks.NewClient(t)
 	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Times(len(paths))
 
-	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, targetBranch, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 	require.True(t, shouldCommit)
 
@@ -123,6 +124,7 @@ Argocd-reference-commit-sha: abc123
 	assert.Equal(t, "Signed-off-by: Test User <test@example.com>\n", topMetadata.Body)
 	assert.Equal(t, metadata.Date.Format(time.RFC3339), topMetadata.Date)
 	assert.Equal(t, metadata.References, topMetadata.References)
+	assert.Equal(t, targetBranch, topMetadata.TargetBranch)
 
 	for _, p := range paths {
 		fullHydratePath := filepath.Join(root.Name(), p.Path)
@@ -139,6 +141,7 @@ Argocd-reference-commit-sha: abc123
 		err = json.Unmarshal(metadataBytes, &readMetadata)
 		require.NoError(t, err)
 		assert.Equal(t, repoURL, readMetadata.RepoURL)
+		assert.Equal(t, targetBranch, readMetadata.TargetBranch)
 		// Check if each path contains a README.md file and contains the repo URL
 		readmePath := path.Join(fullHydratePath, "README.md")
 		readmeBytes, err := os.ReadFile(readmePath)
@@ -151,6 +154,30 @@ Argocd-reference-commit-sha: abc123
 		require.NoError(t, err)
 		assert.Contains(t, string(manifestBytes), "kind")
 	}
+}
+
+func TestWriteForPaths_ReadmeTemplateTargetBranch(t *testing.T) {
+	t.Parallel()
+	root := tempRoot(t)
+
+	paths := []*apiclient.PathDetails{
+		{
+			Path: "path1",
+			Manifests: []*apiclient.HydratedManifestDetails{
+				{ManifestJSON: `{"kind":"Pod","apiVersion":"v1"}`},
+			},
+		},
+	}
+	mockGitClient := gitmocks.NewClient(t)
+	mockGitClient.EXPECT().HasFileChanged(mock.Anything, mock.Anything).Return(true, nil).Once()
+
+	shouldCommit, err := WriteForPaths(t.Context(), root, "https://github.com/example/repo", "abc123", "environment/dev-next", nil, paths, mockGitClient, "Hydrated to {{ .TargetBranch }}")
+	require.NoError(t, err)
+	require.True(t, shouldCommit)
+
+	readmeBytes, err := os.ReadFile(filepath.Join(root.Name(), "path1", "README.md"))
+	require.NoError(t, err)
+	assert.Equal(t, "Hydrated to environment/dev-next", string(readmeBytes))
 }
 
 func TestWriteForPaths_WithOneManifestMatchesExisting(t *testing.T) {
@@ -209,7 +236,7 @@ Argocd-reference-commit-sha: abc123
 	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path2/manifest.yaml").Return(true, nil).Once()
 	mockGitClient.EXPECT().HasFileChanged(mock.Anything, "path3/nested/manifest.yaml").Return(false, nil).Once()
 
-	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit, err := WriteForPaths(t.Context(), root, repoURL, drySha, "", metadata, paths, mockGitClient, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 	require.True(t, shouldCommit)
 
@@ -515,7 +542,7 @@ func TestWriteForPaths_NoOpScenario(t *testing.T) {
 	mockGitClient1 := gitmocks.NewClient(t)
 	mockGitClient1.EXPECT().HasFileChanged(mock.Anything, "guestbook/manifest.yaml").Return(true, nil).Once()
 
-	shouldCommit1, err := WriteForPaths(t.Context(), root, repoURL, drySha1, metadata1, paths, mockGitClient1, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit1, err := WriteForPaths(t.Context(), root, repoURL, drySha1, "", metadata1, paths, mockGitClient1, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 	require.True(t, shouldCommit1, "First hydration should commit because manifests are new")
 
@@ -532,7 +559,7 @@ func TestWriteForPaths_NoOpScenario(t *testing.T) {
 	mockGitClient2 := gitmocks.NewClient(t)
 	mockGitClient2.EXPECT().HasFileChanged(mock.Anything, "guestbook/manifest.yaml").Return(false, nil).Once()
 
-	shouldCommit2, err := WriteForPaths(t.Context(), root, repoURL, drySha2, metadata2, paths, mockGitClient2, settings.DefaultManifestHydrationReadmeTemplate)
+	shouldCommit2, err := WriteForPaths(t.Context(), root, repoURL, drySha2, "", metadata2, paths, mockGitClient2, settings.DefaultManifestHydrationReadmeTemplate)
 	require.NoError(t, err)
 	require.False(t, shouldCommit2, "Second hydration should NOT commit because manifests didn't change")
 

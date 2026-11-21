@@ -403,6 +403,7 @@ The commit metadata will appear in the hydrated commit's root `hydrator.metadata
   "body": "Signed-off-by: CI <ci@example.com>\n",
   "drySha": "6cb951525937865dced818bbdd78c89b2d2b3045",
   "repoURL": "https://git.example.com/owner/manifests-repo",
+  "targetBranch": "environment/dev-next",
   "references": [
     {
       "commit": {
@@ -430,11 +431,22 @@ specified more than once, the last one will be used.
 
 All trailers are optional. If a trailer is not specified, the corresponding field in the metadata will be omitted.
 
+The `targetBranch` field is the branch the hydrated manifests were pushed to: `spec.sourceHydrator.hydrateTo.targetBranch`
+if it is set, otherwise `spec.sourceHydrator.syncSource.targetBranch`. It is also written to the `hydrator.metadata`
+file in each application path.
+
+The `hydrator.metadata` file in an application path describes the hydration that last changed that path's manifests,
+so a path whose manifests did not change keeps its earlier `drySha` and `targetBranch`. When `hydrateTo` is set,
+`targetBranch` is the `hydrateTo` branch, and it keeps that value after the content is merged into the sync branch.
+
 ## Commit Message Template
 
 The commit message is generated using a [Go text/template](https://pkg.go.dev/text/template), optionally configured by the user via the argocd-cm ConfigMap. The template is rendered using the values from `hydrator.metadata`. The template can be multi-line, allowing users to define a subject line, body and optional trailers. To define the commit message template, you need to set the `sourceHydrator.commitMessageTemplate` field in argocd-cm ConfigMap.
 
 The template can invoke functions from the [Sprig function library](https://github.com/Masterminds/sprig).
+
+Fields are accessed by their JSON names under `.metadata`, for example `{{ .metadata.drySha }}` or
+`{{ .metadata.targetBranch }}`.
 
 ```yaml
 apiVersion: v1
@@ -466,6 +478,9 @@ The hydration README is generated using a [Go text/template](https://pkg.go.dev/
 To define the README template, set the `sourceHydrator.readmeMessageTemplate` field in the `argocd-cm` ConfigMap.
 
 The template may also use functions from the [Sprig function library](https://github.com/Masterminds/sprig).
+
+Unlike the commit message template, the README template accesses fields by their Go names at the top level:
+`{{ .RepoURL }}`, `{{ .DrySHA }}`, `{{ .Commands }}`, and `{{ .TargetBranch }}`.
 
 ```yaml
 apiVersion: v1

@@ -24,11 +24,14 @@ type HydratorCommitMetadata struct {
 	// Known Argocd- trailers with valid values are removed, but all other trailers are kept.
 	Body       string                    `json:"body,omitempty"`
 	References []appv1.RevisionReference `json:"references,omitempty"`
+	// TargetBranch is the branch the hydrated manifests are pushed to. It is spec.sourceHydrator.hydrateTo.targetBranch
+	// if set, otherwise spec.sourceHydrator.syncSource.targetBranch.
+	TargetBranch string `json:"targetBranch,omitempty"`
 }
 
-// GetCommitMetadata takes repo, drySha and commitMetadata and returns a HydratorCommitMetadata which is a
+// GetCommitMetadata takes repo, drySha, targetBranch and commitMetadata and returns a HydratorCommitMetadata which is a
 // common contract controller and commitServer
-func GetCommitMetadata(repoUrl, drySha string, dryCommitMetadata *appv1.RevisionMetadata) (HydratorCommitMetadata, error) { //nolint:revive //FIXME(var-naming)
+func GetCommitMetadata(repoUrl, drySha, targetBranch string, dryCommitMetadata *appv1.RevisionMetadata) (HydratorCommitMetadata, error) { //nolint:revive //FIXME(var-naming)
 	author := ""
 	message := ""
 	date := ""
@@ -47,13 +50,14 @@ func GetCommitMetadata(repoUrl, drySha string, dryCommitMetadata *appv1.Revision
 	_, bodyMinusTrailers := git.GetReferences(log.WithFields(log.Fields{"repo": repoUrl, "revision": drySha}), body)
 
 	hydratorCommitMetadata := HydratorCommitMetadata{
-		RepoURL:    repoUrl,
-		DrySHA:     drySha,
-		Author:     author,
-		Subject:    subject,
-		Body:       bodyMinusTrailers,
-		Date:       date,
-		References: references,
+		RepoURL:      repoUrl,
+		DrySHA:       drySha,
+		Author:       author,
+		Subject:      subject,
+		Body:         bodyMinusTrailers,
+		Date:         date,
+		References:   references,
+		TargetBranch: targetBranch,
 	}
 
 	return hydratorCommitMetadata, nil

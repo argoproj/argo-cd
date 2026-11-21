@@ -379,6 +379,7 @@ func TestHydrator_getTemplatedCommitMessage(t *testing.T) {
 	type args struct {
 		repoURL           string
 		revision          string
+		targetBranch      string
 		dryCommitMetadata *v1alpha1.RevisionMetadata
 		template          string
 	}
@@ -429,10 +430,23 @@ Co-authored-by: test test@test.com
 			},
 			want: "",
 		},
+		{
+			name: "test template with target branch",
+			args: args{
+				repoURL:      "https://github.com/test/argocd-example-apps",
+				revision:     "3ff41cc5247197a6caf50216c4c76cc29d78a97d",
+				targetBranch: "environment/dev-next",
+				dryCommitMetadata: &v1alpha1.RevisionMetadata{
+					Message: "test subject",
+				},
+				template: "{{ .metadata.drySha | trunc 7 }}: {{ .metadata.subject }}\n\nTarget-branch: {{ .metadata.targetBranch }}",
+			},
+			want: "3ff41cc: test subject\n\nTarget-branch: environment/dev-next",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getTemplatedCommitMessage(tt.args.repoURL, tt.args.revision, tt.args.template, tt.args.dryCommitMetadata)
+			got, err := getTemplatedCommitMessage(tt.args.repoURL, tt.args.revision, tt.args.targetBranch, tt.args.template, tt.args.dryCommitMetadata)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Hydrator.getHydratorCommitMessage() error = %v, wantErr %v", err, tt.wantErr)
 				return
