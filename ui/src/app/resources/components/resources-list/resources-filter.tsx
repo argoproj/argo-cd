@@ -7,6 +7,7 @@ import {getResourceClusterLabel} from '../../../shared/utils';
 import {resourceHealthStatus} from '../utils';
 import {Filter, FiltersGroup} from '../../../applications/components/filter/filter';
 import {ComparisonStatusIcon, HealthStatusIcon} from '../../../applications/components/utils';
+import {resources} from '../../../applications/components/resources';
 
 /** Sentinel namespace filter value for resources without a namespace (cluster-scoped). */
 export const CLUSTER_SCOPED_NAMESPACE_FILTER = '<cluster-scoped>';
@@ -209,7 +210,16 @@ const ApiGroupFilter = (props: ResourcesFilterProps) => {
 
 const KindFilter = (props: ResourcesFilterProps) => {
     const kindOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.kind).filter(item => !!item))), props.pref.kindFilter);
-    return <Filter label='KINDS' selected={props.pref.kindFilter} setSelected={s => props.onChange({...props.pref, kindFilter: s})} field={true} options={kindOptions} />;
+    return (
+        <Filter
+            label='KINDS'
+            selected={props.pref.kindFilter}
+            setSelected={s => props.onChange({...props.pref, kindFilter: s})}
+            field={true}
+            options={kindOptions}
+            abbreviations={resources}
+        />
+    );
 };
 
 export const ResourcesFilter = (props: ResourcesFilterProps) => {
