@@ -3,6 +3,17 @@ kind: Bucket
 metadata:
   name: test-s3-bucket
   namespace: default
+  # Ready=True is from an earlier reconcile. argocd-controller owns spec with a
+  # write still inside the grace window, so the resource is not Healthy yet.
+  managedFields:
+  - manager: argocd-controller
+    operation: Apply
+    apiVersion: s3.services.k8s.aws/v1alpha1
+    time: "2099-01-01T00:00:00Z"
+    fieldsType: FieldsV1
+    fieldsV1:
+      'f:spec':
+        'f:name': {}
 spec:
   name: test-s3-bucket
 status:
@@ -10,3 +21,14 @@ status:
     arn: arn:aws:s3:::test-s3-bucket
     ownerAccountID: "111111111111"
     region: us-west-2
+  conditions:
+  - lastTransitionTime: "2020-01-01T00:00:00Z"
+    message: Resource synced successfully
+    reason: ""
+    status: "True"
+    type: ACK.ResourceSynced
+  - lastTransitionTime: "2020-01-01T00:00:00Z"
+    message: Resource synced successfully
+    reason: ""
+    status: "True"
+    type: Ready
