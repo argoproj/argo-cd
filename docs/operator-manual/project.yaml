@@ -130,3 +130,10 @@ spec:
             mode: strict
             keys:
               - "D56C4FCA57A46444"
+    helm:
+      policies:
+        - repos:
+            - url: "https://charts.example.com/*"
+          provenance:
+            keys:
+              - "4AEE18F83AFDEB23"

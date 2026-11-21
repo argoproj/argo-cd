@@ -10908,9 +10908,13 @@
     },
     "v1alpha1SourceIntegrity": {
       "type": "object",
+      "title": "+kubebuilder:validation:XValidation:rule=\"has(self.git) || has(self.helm)\",message=\"sourceIntegrity must specify at least one of git or helm\"",
       "properties": {
         "git": {
           "$ref": "#/definitions/v1alpha1SourceIntegrityGit"
+        },
+        "helm": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityHelm"
         }
       }
     },
@@ -10990,6 +10994,54 @@
       "properties": {
         "url": {
           "description": "URL specifier, glob.",
+          "type": "string"
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityHelm": {
+      "description": "SourceIntegrityHelm holds policies for Helm chart provenance verification.",
+      "type": "object",
+      "properties": {
+        "policies": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SourceIntegrityHelmPolicy"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityHelmPolicy": {
+      "description": "SourceIntegrityHelmPolicy applies Provenance to Helm repositories matching Repos.",
+      "type": "object",
+      "properties": {
+        "provenance": {
+          "$ref": "#/definitions/v1alpha1SourceIntegrityHelmPolicyProvenance"
+        },
+        "repos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1SourceIntegrityHelmPolicyRepo"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityHelmPolicyProvenance": {
+      "description": "SourceIntegrityHelmPolicyProvenance requires the chart's .prov file to be signed by one of Keys\nand to carry the chart's digest. An empty Keys list rejects every chart.",
+      "type": "object",
+      "properties": {
+        "keys": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "v1alpha1SourceIntegrityHelmPolicyRepo": {
+      "description": "SourceIntegrityHelmPolicyRepo is a glob matched against the Helm repoURL; a leading ! excludes.",
+      "type": "object",
+      "properties": {
+        "url": {
           "type": "string"
         }
       }

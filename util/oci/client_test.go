@@ -29,6 +29,7 @@ import (
 	"oras.land/oras-go/v2/content"
 	"oras.land/oras-go/v2/content/memory"
 
+	"github.com/argoproj/argo-cd/v3/util/helm"
 	utilio "github.com/argoproj/argo-cd/v3/util/io"
 	"github.com/argoproj/argo-cd/v3/util/io/files"
 )
@@ -182,6 +183,7 @@ func Test_nativeOCIClient_CleanCacheWaitsForExtraction(t *testing.T) {
 
 func Test_nativeOCIClient_Extract(t *testing.T) {
 	cacheDir := utilio.NewRandomizedTempPaths(t.TempDir())
+	var provChartDigest string
 
 	type fields struct {
 		repoURL           string
@@ -343,6 +345,10 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					contents, err := io.ReadAll(f)
 					require.NoError(t, err)
 					require.Equal(t, "some content", string(contents))
+
+					chartDigest, _, err := helm.ChartProvenance(path)
+					require.NoError(t, err)
+					assert.Empty(t, chartDigest, "not a Helm chart")
 				},
 				manifestMaxExtractedSize:        1000,
 				disableManifestMaxExtractedSize: false,
@@ -430,6 +436,7 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 
 					// Create provenance layer
 					provenanceBlob := []byte("provenance data")
+					provChartDigest = digest.FromBytes(chartBlob).String()
 
 					return generateManifestWithConfig(t, store, "application/vnd.cncf.helm.config.v1+json",
 						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", chartBlob), chartBlob},
@@ -447,6 +454,45 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 					contents, err := io.ReadAll(chartYaml)
 					require.NoError(t, err)
 					require.Equal(t, "helm chart content", string(contents))
+
+					chartDigest, provPath, err := helm.ChartProvenance(path)
+					require.NoError(t, err)
+					assert.Equal(t, provChartDigest, chartDigest)
+					prov, err := os.ReadFile(provPath)
+					require.NoError(t, err)
+					assert.Equal(t, "provenance data", string(prov))
+				},
+				manifestMaxExtractedSize:        10000,
+				disableManifestMaxExtractedSize: false,
+			},
+		},
+		{
+			name: "helm chart with several provenance layers is extracted without provenance",
+			fields: fields{
+				allowedMediaTypes: []string{"application/vnd.cncf.helm.chart.content.v1.tar+gzip"},
+			},
+			args: args{
+				digestFunc: func(store *memory.Store) string {
+					parent := filepath.Join(t.TempDir(), "parent")
+					chartPath := filepath.Join(parent, "mychart")
+					require.NoError(t, os.MkdirAll(chartPath, 0o755))
+					addFileToDirectory(t, chartPath, "Chart.yaml", "helm chart content")
+					var chartBlob bytes.Buffer
+					_, err := files.Tgz(parent, nil, nil, &chartBlob)
+					require.NoError(t, err)
+
+					prov1, prov2, prov3 := []byte("provenance one"), []byte("provenance two"), []byte("provenance three")
+					return generateManifestWithConfig(t, store, "application/vnd.cncf.helm.config.v1+json",
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.content.v1.tar+gzip", chartBlob.Bytes()), chartBlob.Bytes()},
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.provenance.v1.prov", prov1), prov1},
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.provenance.v1.prov", prov2), prov2},
+						layerConf{content.NewDescriptorFromBytes("application/vnd.cncf.helm.chart.provenance.v1.prov", prov3), prov3})
+				},
+				postValidationFunc: func(_, path string, _ Client, _ fields, _ args) {
+					chartDigest, provPath, err := helm.ChartProvenance(path)
+					require.NoError(t, err)
+					assert.NotEmpty(t, chartDigest)
+					assert.NoFileExists(t, provPath, "neither provenance layer is trusted")
 				},
 				manifestMaxExtractedSize:        10000,
 				disableManifestMaxExtractedSize: false,
@@ -708,9 +754,11 @@ func Test_nativeOCIClient_Extract(t *testing.T) {
 
 			require.NoError(t, gotCloser.Close())
 
-			exists, err = fileExists(path)
-			require.False(t, exists)
-			require.NoError(t, err)
+			for _, p := range []string{path, path + helm.ChartDigestSuffix, path + helm.ProvenanceSuffix} {
+				exists, err = fileExists(p)
+				require.False(t, exists, p)
+				require.NoError(t, err)
+			}
 		})
 	}
 }
