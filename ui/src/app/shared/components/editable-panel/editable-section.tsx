@@ -51,7 +51,7 @@ function EditableSection<T extends {} = {}>({
 }: EditableSectionProps<T>) {
     const [isEditing, setIsEditing] = useState<boolean>(!!noReadonlyMode);
     const [isSaving, setIsSaving] = useState<boolean>(false);
-    const {formApiRef, onFormDidUpdate} = useAutoSaveForm(values, noReadonlyMode, save);
+    const {formApiRef, onFormDidUpdate} = useAutoSaveForm(values, noReadonlyMode, save, validate);
 
     const onFormSubmit = useCallback<<K extends T>(data: K) => Promise<void>>(
         async input => {
