@@ -17,6 +17,7 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+	"unicode"
 
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/text"
 	"github.com/google/shlex"
@@ -417,4 +418,15 @@ func (b *boundedFloat64Value) String() string { return strconv.FormatFloat(*b.va
 func BoundedFloat64Var(fs *pflag.FlagSet, p *float64, name string, value, minimum, maximum float64, usage string) {
 	*p = value
 	fs.Var(&boundedFloat64Value{val: p, min: minimum, max: maximum}, name, usage)
+}
+
+// StripNonPrintableRunes drops non-printable runes (e.g. control chars)
+// to prevent untrusted data from poisoning terminal output.
+func StripNonPrintableRunes(s string) string {
+	return strings.Map(func(r rune) rune {
+		if unicode.IsPrint(r) {
+			return r
+		}
+		return -1
+	}, s)
 }
