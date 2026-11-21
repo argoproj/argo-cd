@@ -6,6 +6,8 @@ import {Key, KeybindingContext} from 'argo-ui/v2';
 import {isInvalidRegex} from '../../utils';
 import './search-bar.scss';
 
+const SEARCH_DEBOUNCE_MS = 250;
+
 interface SearchBarProps {
     value: string;
     onChange: (value: string) => void;
@@ -32,18 +34,43 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
     const [localValue, setLocalValue] = React.useState(value);
     const [prevValue, setPrevValue] = React.useState(value);
 
-    // Sync local value with prop value when it changes externally
+    const debounceTimer = React.useRef<ReturnType<typeof setTimeout>>(null);
+    const [lastEmitted, setLastEmitted] = React.useState<string | null>(null);
+    const [externalChanges, setExternalChanges] = React.useState(0);
+
+    // Sync local value with prop value when it changes externally. Echoes of a value we emitted
+    // ourselves are ignored, otherwise a slow parent update would overwrite newer keystrokes.
     if (value !== prevValue) {
         setPrevValue(value);
-        setLocalValue(value);
+        setLastEmitted(null);
+        if (value !== lastEmitted) {
+            setLocalValue(value);
+            setExternalChanges(count => count + 1);
+        }
     }
 
+    // A genuine external change supersedes any pending keystroke, so drop the stale callback.
+    React.useEffect(() => clearTimeout(debounceTimer.current), [externalChanges]);
+
+    React.useEffect(() => () => clearTimeout(debounceTimer.current), []);
+
+    // Keep typing responsive: update the input immediately, but notify the parent (which may
+    // re-filter and re-render a large list) only once the user pauses. Clearing is immediate.
     const handleChange = (newValue: string) => {
         setLocalValue(newValue);
-        onChange(newValue);
+        clearTimeout(debounceTimer.current);
+        const emit = () => {
+            setLastEmitted(newValue);
+            onChange(newValue);
+        };
+        if (newValue === '') {
+            emit();
+        } else {
+            debounceTimer.current = setTimeout(emit, SEARCH_DEBOUNCE_MS);
+        }
     };
 
-    const regexInvalid = regexEnabled && isInvalidRegex(value);
+    const regexInvalid = regexEnabled && isInvalidRegex(localValue);
 
     const inputClassName = classNames('search-bar__input', {
         'search-bar__input--regex': regexEnabled && !regexInvalid,
@@ -106,11 +133,11 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
         let effectiveFilter = autocomplete.filterSuggestions ?? true;
         if (regexEnabled) {
             effectiveFilter = false;
-            if (value) {
+            if (localValue) {
                 if (regexInvalid) {
                     effectiveItems = [];
                 } else {
-                    const re = new RegExp(value);
+                    const re = new RegExp(localValue);
                     effectiveItems = normalizedItems.filter(item => re.test(item.value));
                 }
             }
@@ -142,14 +169,14 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
                             placeholder={placeholder}
                         />
                         <div className='keyboard-hint'>/</div>
-                        {value && <i className='fa fa-times' onClick={() => handleChange('')} style={{cursor: 'pointer', marginLeft: '5px'}} />}
+                        {localValue && <i className='fa fa-times' onClick={() => handleChange('')} style={{cursor: 'pointer', marginLeft: '5px'}} />}
                     </div>
                 )}
                 wrapperProps={{className: 'search-bar__wrapper', style: {flexGrow: 0}}}
                 renderItem={autocomplete.renderItem || (item => item.label)}
                 onSelect={val => autocomplete.onSelect(val)}
                 onChange={e => handleChange(e.target.value)}
-                value={value}
+                value={localValue}
                 items={effectiveItems}
             />
         );
