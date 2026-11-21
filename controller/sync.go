@@ -191,7 +191,7 @@ func (m *appStateManager) SyncAppState(ctx context.Context, app *v1alpha1.Applic
 	// A terminate request must not be blocked by a sync window. Otherwise an operation that is
 	// no longer allowed to sync by its window can never be terminated and stays in the
 	// terminating phase forever.
-	if isBlocked, err := syncWindowPreventsSync(app, project); isBlocked && state.Phase != common.OperationTerminating {
+	if isBlocked, err := syncWindowPreventsSync(app, state, project); isBlocked && state.Phase != common.OperationTerminating {
 		// If the operation is currently running, simply let the user know the sync is blocked by a current sync window
 		if state.Phase == common.OperationRunning {
 			state.Message = "Sync operation blocked by sync window"
@@ -727,16 +727,18 @@ func delayBetweenSyncWaves(_ common.SyncPhase, _ int, finalWave bool) error {
 	return nil
 }
 
-func syncWindowPreventsSync(app *v1alpha1.Application, proj *v1alpha1.AppProject) (bool, error) {
+// syncWindowPreventsSync reports whether the sync window blocks the operation
+// in state. The manual/automated decision and the operation start time MUST come
+// from state (the operation being processed): the in-memory app.Status.OperationState
+// still holds the PREVIOUS operation when a newly queued one starts, because
+// setOperationState only patches the API server without mutating the app object.
+func syncWindowPreventsSync(app *v1alpha1.Application, state *v1alpha1.OperationState, proj *v1alpha1.AppProject) (bool, error) {
 	window := proj.Spec.SyncWindows.Matches(app)
-	isManual := false
+	isManual := !state.Operation.InitiatedBy.Automated
 	var operationStartTime *time.Time
-	if app.Status.OperationState != nil {
-		isManual = !app.Status.OperationState.Operation.InitiatedBy.Automated
-		if !app.Status.OperationState.StartedAt.IsZero() {
-			t := app.Status.OperationState.StartedAt.Time
-			operationStartTime = &t
-		}
+	if !state.StartedAt.IsZero() {
+		t := state.StartedAt.Time
+		operationStartTime = &t
 	}
 	canSync, err := window.CanSync(isManual, operationStartTime)
 	if err != nil {
