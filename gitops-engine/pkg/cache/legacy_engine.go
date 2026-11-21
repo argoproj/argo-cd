@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"maps"
+	"math/rand/v2"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -348,10 +349,6 @@ func (e *legacyEngine) loadInitialState(ctx context.Context, api kube.APIResourc
 
 func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo, resClient dynamic.ResourceInterface, ns string, resourceVersion string) {
 	c := e.c
-	var timeoutSeconds *int64
-	if seconds := int64(c.watchResyncTimeout.Seconds()); seconds > 0 {
-		timeoutSeconds = &seconds
-	}
 	kube.RetryUntilSucceed(ctx, watchResourcesRetryTimeout, fmt.Sprintf("watch %s on %s", api.GroupKind, c.config.Host), c.log, func() (err error) {
 		defer func() {
 			if r := recover(); r != nil {
@@ -372,7 +369,12 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 		w, err := watchutil.NewRetryWatcherWithContext(watchCtx, resourceVersion, &cache.ListWatch{
 			WatchFuncWithContext: func(ctx context.Context, options metav1.ListOptions) (watch.Interface, error) {
 				options.LabelSelector = api.LabelSelector
-				options.TimeoutSeconds = timeoutSeconds
+				// Jittered like client-go's Reflector, so watches started together don't all
+				// reconnect at once.
+				if seconds := c.watchResyncTimeout.Seconds(); seconds >= 1 {
+					timeoutSeconds := int64(seconds * (1 + rand.Float64()))
+					options.TimeoutSeconds = &timeoutSeconds
+				}
 				res, err := resClient.Watch(ctx, options)
 				if apierrors.IsNotFound(err) {
 					e.stopWatching(api.GroupKind, ns)
@@ -412,6 +414,9 @@ func (e *legacyEngine) watchEvents(ctx context.Context, api kube.APIResourceInfo
 					return fmt.Errorf("watch %s on %s has closed", api.GroupKind, c.config.Host)
 				}
 
+				if event.Type == watch.Error {
+					return fmt.Errorf("watch %s on %s failed, relisting: %w", api.GroupKind, c.config.Host, apierrors.FromObject(event.Object))
+				}
 				obj, ok := event.Object.(*unstructured.Unstructured)
 				if !ok {
 					return fmt.Errorf("failed to convert to *unstructured.Unstructured: %v", event.Object)
