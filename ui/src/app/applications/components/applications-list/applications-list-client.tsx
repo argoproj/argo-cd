@@ -1,17 +1,16 @@
-import {hashKey, queryOptions, useQueryClient} from '@tanstack/react-query';
+import {queryOptions, useQueryClient} from '@tanstack/react-query';
 import * as React from 'react';
 import {filter} from 'rxjs/operators';
 
 import {Paginate, PaginateProps} from '../../../shared/components';
 import {useWatchedList} from '../../../shared/hooks/use-watched-list';
 import * as models from '../../../shared/models';
-import {AppsListPreferences, services} from '../../../shared/services';
+import {services} from '../../../shared/services';
 import * as AppUtils from '../utils';
-import {FilteredApp, getAppFilterResults} from './applications-filter';
-import {showCreateFirstAppState} from './applications-list-empty-state';
-import {createMatcher} from './applications-list-search';
+import {compileApplicationQuery} from './applications-query';
+import {indexApplicationQueryValues} from './applications-query-completion';
 import {AppsListSourceQuery, AppsListSourceResult} from './applications-list-source';
-import {computeAppsListFacets, computeAppsListStats} from './applications-list-stats';
+import {computeAppsListStats} from './applications-list-stats';
 
 // Loads every application the user can see, keeps it current through the watch stream, and filters on
 // the client.
@@ -46,47 +45,26 @@ const APP_LIST_FIELDS = ['metadata.resourceVersion', ...APP_FIELDS.map(field => 
 const APP_WATCH_FIELDS = ['result.type', ...APP_FIELDS.map(field => `result.application.${field}`)];
 
 // Sits under applicationQueries.list's prefix, so invalidating every application list also refreshes this one.
-export const listViewQuery = (projects: string[], appNamespace: string, names?: string[]) =>
+export const listViewQuery = (appNamespace: string) =>
     queryOptions({
-        queryKey: ['applications', 'list', 'view', {projects, appNamespace, names}],
-        queryFn: () => {
-            // Favorites-only mode with no favorites selected: an empty (but defined) names array means
-            // "match nothing". The server treats an empty filter as "no filter", so short-circuit here to
-            // avoid fetching and continuously watching every application only to hide them client-side.
-            if (names && names.length === 0) {
-                return Promise.resolve({items: [], metadata: {}} as models.ApplicationList);
-            }
-            return services.applications.list(projects, 'application', {appNamespace, fields: APP_LIST_FIELDS, names}) as Promise<models.ApplicationList>;
-        }
+        queryKey: ['applications', 'list', 'view', {appNamespace}],
+        queryFn: () => services.applications.list([], 'application', {appNamespace, fields: APP_LIST_FIELDS}) as Promise<models.ApplicationList>
     });
 
-function filterApplications(applications: models.Application[], pref: AppsListPreferences, search: string, searchRegex: boolean, hydratorEnabled: boolean) {
-    const processedApps = applications.map(app => ({...app, isAppOfAppsPattern: app.status.summary?.isAppOfApps === true}));
-    const filterResults: FilteredApp[] = getAppFilterResults(processedApps, pref, hydratorEnabled);
-    const matchesSearch = createMatcher(search, searchRegex);
-    return {
-        filterResults,
-        filteredApps: filterResults.filter(app => matchesSearch(app.metadata.name, app.metadata.namespace) && Object.values(app.filterResult).every(val => val))
-    };
-}
-
-export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsListSourceQuery): AppsListSourceResult {
+export function useApplicationsList({pref, appNamespace}: AppsListSourceQuery): AppsListSourceResult {
     const queryClient = useQueryClient();
-    // The favorites list is only part of the query while the favorites filter is on, so starring an
-    // application with the filter off must not restart the list and watch.
-    const names = pref.showFavorites ? pref.favoritesAppList || [] : undefined;
-    // Preferences arrive as fresh objects on every emission, so pin the query to its key's content.
-    const keyHash = hashKey([pref.projectsFilter, appNamespace, names]);
-    const options = React.useMemo(() => listViewQuery(pref.projectsFilter, appNamespace, names), [keyHash]); // eslint-disable-line react-hooks/exhaustive-deps
+    // Load the whole authorized scope. A project or favorite clause can be inside OR, so narrowing
+    // the server request by local preferences would silently remove valid matches from shared queries.
+    const options = React.useMemo(() => listViewQuery(appNamespace), [appNamespace]);
     const {queryKey} = options;
     const watch = React.useCallback(
         (resourceVersion: string) =>
             services.applications
-                .watch('application', {projects: pref.projectsFilter, appNamespace, resourceVersion}, {fields: APP_WATCH_FIELDS, names})
+                .watch('application', {projects: [], appNamespace, resourceVersion}, {fields: APP_WATCH_FIELDS})
                 // The list is scoped to appNamespace, but the server only applies it to a watch for a single
                 // application, so drop other namespaces' events rather than adding them to the list.
                 .pipe(filter(change => !appNamespace || change.application.metadata.namespace === appNamespace)),
-        [keyHash] // eslint-disable-line react-hooks/exhaustive-deps
+        [appNamespace]
     );
     const query = useWatchedList(options, watch);
     const {refetch} = query;
@@ -115,17 +93,17 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
     );
 
     const applications = query.data?.items;
+    const queryValues = React.useMemo(() => indexApplicationQueryValues(applications || []), [applications]);
+    const applicationQuery = React.useMemo(() => compileApplicationQuery(pref.search, {favorites: pref.favoritesAppList}), [pref.search, pref.favoritesAppList]);
     const derived = React.useMemo(() => {
         const apps = applications || [];
-        const {filteredApps, filterResults} = filterApplications(apps, pref, pref.search, pref.searchRegex, hydratorEnabled);
+        const filteredApps = apps.filter(applicationQuery.matches).map(app => ({...app, isAppOfAppsPattern: app.status.summary?.isAppOfApps === true}));
         return {
             rows: filteredApps,
-            facets: computeAppsListFacets(filterResults),
             stats: computeAppsListStats(filteredApps),
-            noApplications: showCreateFirstAppState(apps, pref),
-            searchSuggestions: apps
+            noApplications: apps.length === 0
         };
-    }, [applications, pref, hydratorEnabled]);
+    }, [applications, applicationQuery]);
 
     return {
         loading: !applications && !query.isError,
@@ -134,6 +112,7 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
         failed: query.isError,
         retry: () => refetch(),
         markRefreshing,
+        queryValues,
         ...derived
     };
 }

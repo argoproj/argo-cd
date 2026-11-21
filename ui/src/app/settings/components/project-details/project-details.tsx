@@ -154,7 +154,7 @@ const ProjectLinks = ({name}: {name: string}) => {
 
 const ProjectApplicationsCount = ({name, objectListKind}: {name: string; objectListKind: string}) => {
     const {data} = useQuery(applicationQueries.list([name], objectListKind));
-    return data ? <Link to={'/applications?proj=' + name}>{data.items.length}</Link> : null;
+    return data ? <Link to={`/applications?${new URLSearchParams({q: `project = ${JSON.stringify(name)}`})}`}>{data.items.length}</Link> : null;
 };
 
 const SyncWindowsTable = ({proj, ctx}: {proj: Project; ctx: ContextApis}) => {

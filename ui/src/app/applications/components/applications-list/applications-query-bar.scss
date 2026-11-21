@@ -1,0 +1,94 @@
+@import 'node_modules/argo-ui/src/styles/config';
+@import 'node_modules/argo-ui/src/styles/theme';
+@import '../../../shared/components/search-bar/search-bar';
+
+.applications-query {
+    margin: 0 0 1.5em;
+
+    label {
+        margin-bottom: 8px;
+        @include themify($themes) {
+            color: themed('text-1');
+        }
+    }
+
+    &__row {
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .applications-query__input {
+        flex: 1 1 360px;
+        min-width: 0;
+        width: auto;
+
+        @media screen and (max-width: 1024px) {
+            flex-basis: 100%;
+        }
+
+        input {
+            flex: 1;
+            min-width: 0;
+            margin: 0;
+            padding-left: 8px;
+            font-size: 14px;
+        }
+
+        &--invalid {
+            border-color: $argo-failed-color;
+        }
+    }
+
+    &__error {
+        color: $argo-failed-color;
+        margin-top: 8px;
+    }
+
+    &__suggestions {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        right: 0;
+        z-index: 20;
+        max-height: 260px;
+        overflow-y: auto;
+        border-radius: 4px;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, .2);
+        @include themify($themes) {
+            background: themed('background-2');
+            border: 1px solid themed('border');
+        }
+
+        .select__option {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            padding: 7px 12px;
+            font-size: 14px;
+            @include themify($themes) {
+                color: themed('text-1');
+                &:hover,
+                &.selected {
+                    background: themed('light-argo-gray-2');
+                }
+            }
+        }
+    }
+
+    &__suggestion-description {
+        font-size: 12px;
+        @include themify($themes) {
+            color: themed('text-2');
+        }
+    }
+
+    &__status {
+        margin-top: 8px;
+        font-size: 13px;
+        @include themify($themes) {
+            color: themed('text-2');
+        }
+    }
+}
