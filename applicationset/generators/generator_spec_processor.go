@@ -3,6 +3,7 @@ package generators
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 
 	"github.com/jeremywohl/flatten"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -131,6 +132,13 @@ func flattenParameters(in map[string]any) (map[string]string, error) {
 
 	out := make(map[string]string, len(flat))
 	for k, v := range flat {
+		// %v renders float64 with %g, so JSON/YAML numbers >= 1e6 or < 1e-4
+		// come out in scientific notation and never match selectors written
+		// with the plain digits; format floats as plain decimals instead
+		if f, ok := v.(float64); ok {
+			out[k] = strconv.FormatFloat(f, 'f', -1, 64)
+			continue
+		}
 		out[k] = fmt.Sprintf("%v", v)
 	}
 

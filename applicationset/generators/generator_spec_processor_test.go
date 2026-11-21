@@ -140,6 +140,16 @@ func TestMatchValuesGoTemplate(t *testing.T) {
 			},
 			expected: []map[string]any{{"cluster": "cluster", "url": "url", "values": []any{"bar"}}},
 		},
+		{
+			name:     "large numeric param should match selector on plain digits",
+			elements: []apiextensionsv1.JSON{{Raw: []byte(`{"cluster": "cluster","buildId": 1762000000}`)}},
+			selector: &metav1.LabelSelector{
+				MatchLabels: map[string]string{
+					"buildId": "1762000000",
+				},
+			},
+			expected: []map[string]any{{"cluster": "cluster", "buildId": float64(1762000000)}},
+		},
 	}
 
 	for _, testCase := range testCases {
@@ -933,4 +943,27 @@ func TestInterpolateGeneratorValuesHandling(t *testing.T) {
 			assert.Equal(t, tt.want.Git.Template, got.Git.Template)
 		})
 	}
+}
+
+func TestFlattenParametersNumberFormatting(t *testing.T) {
+	out, err := flattenParameters(map[string]any{
+		"small":  float64(42),
+		"big":    float64(1000000),
+		"epoch":  float64(1762000000),
+		"tiny":   float64(0.00001),
+		"int":    int64(1762000000),
+		"string": "1762000000",
+		"nested": map[string]any{"big": float64(2000000)},
+	})
+	require.NoError(t, err)
+
+	assert.Equal(t, map[string]string{
+		"small":      "42",
+		"big":        "1000000",
+		"epoch":      "1762000000",
+		"tiny":       "0.00001",
+		"int":        "1762000000",
+		"string":     "1762000000",
+		"nested.big": "2000000",
+	}, out)
 }
