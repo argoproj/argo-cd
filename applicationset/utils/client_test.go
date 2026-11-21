@@ -194,7 +194,7 @@ func TestExecAndSyncCacheNotFoundSkipsNonApplication(t *testing.T) {
 	t.Parallel()
 	c, store := newClient(t)
 	notFound := apierrors.NewNotFound(schema.GroupResource{}, "x")
-	got := c.execAndSyncCache(t.Context(), func() error { return notFound }, &corev1.ConfigMap{Name: "x", Namespace: "argocd"}, false)
+	got := c.execAndSyncCache(t.Context(), func() error { return notFound }, &corev1.ConfigMap{Name: "x", Namespace: "argocd"}, syncRefresh)
 	require.Error(t, got)
 	require.True(t, apierrors.IsNotFound(got))
 	require.Empty(t, store.List())
@@ -208,7 +208,7 @@ func TestExecAndSyncCacheNotFoundHandlesGetStoreError(t *testing.T) {
 	app := &application.Application{Name: "test", Namespace: "argocd"}
 	notFound := apierrors.NewNotFound(schema.GroupResource{}, "test")
 	require.NotPanics(t, func() {
-		_ = c.execAndSyncCache(t.Context(), func() error { return notFound }, app, false)
+		_ = c.execAndSyncCache(t.Context(), func() error { return notFound }, app, syncRefresh)
 	})
 }
 
@@ -226,7 +226,7 @@ func TestExecAndSyncCacheNotFoundHandlesDeleteError(t *testing.T) {
 	app := &application.Application{Name: "test", Namespace: "argocd"}
 	notFound := apierrors.NewNotFound(schema.GroupResource{}, "test")
 	require.NotPanics(t, func() {
-		_ = c.execAndSyncCache(t.Context(), func() error { return notFound }, app, false)
+		_ = c.execAndSyncCache(t.Context(), func() error { return notFound }, app, syncRefresh)
 	})
 }
 
@@ -248,4 +248,95 @@ func TestDeleteKeepsCacheEntryWhileFinalizersPending(t *testing.T) {
 	require.NoError(t, c.Delete(t.Context(), app))
 
 	require.Len(t, store.List(), 1, "an Application held by finalizers is still terminating and must stay in the cache")
+}
+
+// TestUpdateDoesNotResurrectDeletedCacheEntry covers the resurrection race from issue #30848: a
+// successful Update whose response is synced into the informer store after the informer already
+// processed the object's DELETED event must not re-add the entry. Otherwise cache-backed reads
+// keep returning a ghost object that no longer exists on the API server, and no further watch
+// event will ever remove it.
+func TestUpdateDoesNotResurrectDeletedCacheEntry(t *testing.T) {
+	t.Parallel()
+	app := &application.Application{
+		Name:      "test",
+		Namespace: "argocd",
+		Labels:    map[string]string{"foo": "bar"},
+	}
+	c, store := newClient(t, withObjects(app))
+
+	// The informer processed the DELETED event (entry gone from the store), but the object still
+	// exists on the API server, so the Update below succeeds.
+	require.NoError(t, store.Delete(app))
+
+	updated := app.DeepCopy()
+	updated.Labels["foo"] = "bar-UPDATED"
+	require.NoError(t, c.Update(t.Context(), updated))
+
+	require.Empty(t, store.List(), "a successful Update must not re-add an entry the informer already deleted")
+}
+
+// TestPatchDoesNotResurrectDeletedCacheEntry is the Patch variant of the race above.
+func TestPatchDoesNotResurrectDeletedCacheEntry(t *testing.T) {
+	t.Parallel()
+	app := &application.Application{
+		Name:      "test",
+		Namespace: "argocd",
+		Labels:    map[string]string{"foo": "bar"},
+	}
+	c, store := newClient(t, withObjects(app))
+
+	require.NoError(t, store.Delete(app))
+
+	patched := app.DeepCopy()
+	patched.Labels["foo"] = "bar-PATCHED"
+	require.NoError(t, c.Patch(t.Context(), patched, client.MergeFrom(app)))
+
+	require.Empty(t, store.List(), "a successful Patch must not re-add an entry the informer already deleted")
+}
+
+// TestPatchStillRefreshesExistingCacheEntry guards the normal path: when the entry is still in the
+// store, a successful Patch refreshes it.
+func TestPatchStillRefreshesExistingCacheEntry(t *testing.T) {
+	t.Parallel()
+	app := &application.Application{
+		Name:      "test",
+		Namespace: "argocd",
+		Labels:    map[string]string{"foo": "bar"},
+	}
+	c, store := newClient(t, withObjects(app))
+
+	patched := app.DeepCopy()
+	patched.Labels["foo"] = "bar-PATCHED"
+	require.NoError(t, c.Patch(t.Context(), patched, client.MergeFrom(app)))
+
+	got, exists, err := store.GetByKey("test")
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Equal(t, "bar-PATCHED", got.(*application.Application).Labels["foo"])
+}
+
+func TestEvictFromCache(t *testing.T) {
+	t.Parallel()
+	app := &application.Application{
+		Name:      "test",
+		Namespace: "argocd",
+	}
+	c, store := newClient(t, withObjects(app))
+	require.NotEmpty(t, store.List())
+
+	c.EvictFromCache(t.Context(), app)
+
+	require.Empty(t, store.List(), "EvictFromCache should remove the entry from the informer store")
+}
+
+func TestUncachedReader(t *testing.T) {
+	t.Parallel()
+	c, _ := newClient(t)
+	require.Nil(t, c.UncachedReader())
+
+	apiReader := fake.NewClientBuilder().Build()
+	cWithReader := NewCacheSyncingClient(c.Client, &fakeMultiNamespaceCache{}, apiReader)
+	verifier, ok := cWithReader.(interface{ UncachedReader() client.Reader })
+	require.True(t, ok)
+	require.Equal(t, client.Reader(apiReader), verifier.UncachedReader())
 }

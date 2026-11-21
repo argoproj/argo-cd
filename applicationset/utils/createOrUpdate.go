@@ -138,12 +138,12 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 		return controllerutil.OperationResultNone, fmt.Errorf("failed to apply ignore differences: %w", err)
 	}
 
-	// Note: if the informer cache holds a stale entry for an application that no longer exists on
-	// the API server, DeepEqual may match against that stale entry and we skip Patch here. The
-	// eviction in cacheSyncingClient only runs on NotFound from a write operation, so this edge
-	// case is not covered and relies on Kubernetes propagating the delete event to the informer.
+	// The informer cache can hold a stale entry for an Application that was deleted out-of-band
+	// (e.g. a write response synced into the store after the informer already processed the
+	// DELETED event). A cache hit is only a hint: before skipping the write, confirm the object
+	// still exists on the API server and recreate it if it does not (issue #30848).
 	if appEquality.DeepEqual(normalizedLive, obj) {
-		return controllerutil.OperationResultNone, nil
+		return skipUnchangedOrRecreate(ctx, logCtx, c, key, obj)
 	}
 
 	patch := client.MergeFrom(normalizedLive)
@@ -168,6 +168,65 @@ func LogPatch(logCtx *log.Entry, patch client.Patch, obj *argov1alpha1.Applicati
 		logCtx.Errorf("failed to unmarshal patch: %v", err)
 	}
 	logCtx.WithField("patch", patchObj).Debug("patching application")
+}
+
+// cacheStaleVerifier is implemented by clients built with NewCacheSyncingClient that can ask the
+// API server directly (bypassing the informer cache) whether an object the cache still reports
+// actually exists, and evict the stale cache entry when it does not.
+type cacheStaleVerifier interface {
+	UncachedReader() client.Reader
+	EvictFromCache(ctx context.Context, obj client.Object)
+}
+
+// skipUnchangedOrRecreate handles the case where the informer cache reports the Application as
+// already matching the desired state. Normally that means there is nothing to write. But the cache
+// entry may be stale: the Application could have been deleted out-of-band while the informer store
+// kept (or resurrected) an entry for it, in which case skipping the write would leave the
+// Application missing forever, because no write is ever attempted and the NotFound-based eviction
+// in cacheSyncingClient never runs. When the client can read the API server directly, confirm the
+// object still exists there; on NotFound, evict the stale cache entry and recreate the Application.
+func skipUnchangedOrRecreate(ctx context.Context, logCtx *log.Entry, c client.Client, key client.ObjectKey, obj *argov1alpha1.Application) (controllerutil.OperationResult, error) {
+	verifier, ok := c.(cacheStaleVerifier)
+	if !ok {
+		return controllerutil.OperationResultNone, nil
+	}
+	reader := verifier.UncachedReader()
+	if reader == nil {
+		return controllerutil.OperationResultNone, nil
+	}
+	probe := &argov1alpha1.Application{}
+	err := reader.Get(ctx, key, probe)
+	switch {
+	case err == nil:
+		// The API server confirms the Application exists: the cache entry is fine, nothing to do.
+		return controllerutil.OperationResultNone, nil
+	case errors.IsNotFound(err):
+		logCtx.Infof("Application %s is present in the informer cache but no longer exists on the API server (stale cache entry), recreating it", key)
+		verifier.EvictFromCache(ctx, obj)
+		// obj was populated from the stale cache entry; strip the server-managed fields so the
+		// object can be created again.
+		resetServerManagedFields(obj)
+		if err := c.Create(ctx, obj); err != nil {
+			return controllerutil.OperationResultNone, err
+		}
+		return controllerutil.OperationResultCreated, nil
+	default:
+		// A transient API error must not fail the whole reconcile; fall back to trusting the cache.
+		logCtx.WithError(err).Warnf("failed to verify Application %s against the API server, assuming the informer cache entry is correct", key)
+		return controllerutil.OperationResultNone, nil
+	}
+}
+
+// resetServerManagedFields clears the fields the API server sets itself, so an object read from
+// the (possibly stale) informer cache can be sent as a Create.
+func resetServerManagedFields(obj client.Object) {
+	obj.SetResourceVersion("")
+	obj.SetUID("")
+	obj.SetGeneration(0)
+	obj.SetCreationTimestamp(metav1.Time{})
+	obj.SetDeletionTimestamp(nil)
+	obj.SetDeletionGracePeriodSeconds(nil)
+	obj.SetManagedFields(nil)
 }
 
 // mutate wraps a MutateFn and applies validation to its result
