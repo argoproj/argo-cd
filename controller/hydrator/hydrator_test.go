@@ -21,6 +21,7 @@ import (
 
 	commitclient "github.com/argoproj/argo-cd/v3/commitserver/apiclient"
 	commitservermocks "github.com/argoproj/argo-cd/v3/commitserver/apiclient/mocks"
+	"github.com/argoproj/argo-cd/v3/common"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/mocks"
 	"github.com/argoproj/argo-cd/v3/controller/hydrator/types"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -48,6 +49,7 @@ func Test_appNeedsHydration(t *testing.T) {
 		expectedNeedsHydration bool
 		expectedMessage        string
 		expectedResolvedRev    string
+		hydrationFormat        string
 	}{
 		{
 			name:                   "source hydrator not configured",
@@ -55,6 +57,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: false,
 			expectedMessage:        "source hydrator not configured",
 			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "no previous hydrate operation",
@@ -64,6 +67,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: true,
 			expectedMessage:        "no previous hydrate operation",
 			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "operation already in progress",
@@ -74,6 +78,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: false,
 			expectedMessage:        "hydration operation already in progress",
 			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "hard hydrate requested",
@@ -85,6 +90,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: true,
 			expectedMessage:        "hard hydrate requested",
 			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "normal hydrate requested with changes",
@@ -105,6 +111,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: true,
 			expectedMessage:        "new revision may have changes",
 			expectedResolvedRev:    "new-sha",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "normal hydrate requested without changes",
@@ -125,6 +132,65 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: false,
 			expectedMessage:        "hydration not needed",
 			expectedResolvedRev:    "same-sha",
+			hydrationFormat:        common.HydrationFormatSimple,
+		},
+		{
+			name: "hydration format differs (initial)",
+			app: &v1alpha1.Application{
+				Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"},
+				Spec:        v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation:        &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated, SourceHydrator: v1alpha1.SourceHydrator{}},
+					LastComparedDryRevision: "same-sha",
+					LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{},
+				}},
+			},
+			expectedNeedsHydration: true,
+			expectedMessage:        "hydrator hydrationFormat ('simple') and LastSuccessfulOperation.HydrationFormat('') differ",
+			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
+		},
+		{
+			name: "hydration format differs (switch from simple to split)",
+			app: &v1alpha1.Application{
+				Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"},
+				Spec:        v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation:        &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated, SourceHydrator: v1alpha1.SourceHydrator{}},
+					LastComparedDryRevision: "same-sha",
+					LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
+						HydrationFormat: common.HydrationFormatSimple,
+					},
+				}},
+			},
+			expectedNeedsHydration: true,
+			expectedMessage:        "hydrator hydrationFormat ('split') and LastSuccessfulOperation.HydrationFormat('simple') differ",
+			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSplit,
+		},
+		{
+			name: "hydration format is the same and no revision changes",
+			app: &v1alpha1.Application{
+				Annotations: map[string]string{v1alpha1.AnnotationKeyHydrate: "normal"},
+				Spec:        v1alpha1.ApplicationSpec{SourceHydrator: &v1alpha1.SourceHydrator{}},
+				Status: v1alpha1.ApplicationStatus{SourceHydrator: v1alpha1.SourceHydratorStatus{
+					CurrentOperation:        &v1alpha1.HydrateOperation{Phase: v1alpha1.HydrateOperationPhaseHydrated, SourceHydrator: v1alpha1.SourceHydrator{}},
+					LastComparedDryRevision: "same-sha",
+					LastSuccessfulOperation: &v1alpha1.SuccessfulHydrateOperation{
+						HydrationFormat: common.HydrationFormatSplit,
+					},
+				}},
+			},
+			setupMocks: func(d *mocks.Dependencies, app *v1alpha1.Application) {
+				proj := newTestProject()
+				d.EXPECT().GetProcessableAppProj(app).Return(proj, nil)
+				drySource := app.Spec.SourceHydrator.GetDrySource()
+				d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, app, drySource, drySource.TargetRevision, proj, mock.Anything).Return(false, "same-sha", nil)
+			},
+			expectedNeedsHydration: false,
+			expectedMessage:        "hydration not needed",
+			expectedResolvedRev:    "same-sha",
+			hydrationFormat:        common.HydrationFormatSplit,
 		},
 		{
 			name: "spec.sourceHydrator differs",
@@ -137,6 +203,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: true,
 			expectedMessage:        "spec.sourceHydrator differs",
 			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "hydration failed more than two minutes ago",
@@ -147,6 +214,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: true,
 			expectedMessage:        "previous hydrate operation failed more than 2 minutes ago",
 			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "failed within cooldown, empty baseline",
@@ -164,6 +232,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: false,
 			expectedMessage:        "previous hydrate operation failed",
 			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "failed within cooldown, nil finishedAt, empty baseline",
@@ -180,6 +249,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: false,
 			expectedMessage:        "previous hydrate operation failed",
 			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "failed within cooldown, normal hydrate requested",
@@ -198,6 +268,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: true,
 			expectedMessage:        "retrying previous failed hydration",
 			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "failed within cooldown, dry baseline, new commit",
@@ -223,6 +294,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: true,
 			expectedMessage:        "new revision may have changes",
 			expectedResolvedRev:    "new-sha",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "new revision detected",
@@ -245,6 +317,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: true,
 			expectedMessage:        "new revision may have changes",
 			expectedResolvedRev:    "new-sha",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "no revision change",
@@ -267,6 +340,7 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: false,
 			expectedMessage:        "hydration not needed",
 			expectedResolvedRev:    "same-sha",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 		{
 			name: "evaluate error",
@@ -289,13 +363,16 @@ func Test_appNeedsHydration(t *testing.T) {
 			expectedNeedsHydration: false,
 			expectedMessage:        "cannot determine if hydration is needed",
 			expectedResolvedRev:    "",
+			hydrationFormat:        common.HydrationFormatSimple,
 		},
 	}
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			h := &Hydrator{}
+			h := &Hydrator{
+				hydrationFormat: tc.hydrationFormat,
+			}
 			if tc.setupMocks != nil {
 				d := mocks.NewDependencies(t)
 				tc.setupMocks(d, tc.app)

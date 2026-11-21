@@ -447,6 +447,11 @@ func (s SourceHydrator) GetSyncSource() ApplicationSource {
 		RepoURL:        repoURL,
 		Path:           s.SyncSource.Path,
 		TargetRevision: s.SyncSource.TargetBranch,
+		// Directory is only added here and not part of the CRD so ArgoCD looks for
+		// manifests recursively (needed when using 'split' hydration-format)
+		Directory: &ApplicationSourceDirectory{
+			Recurse: true,
+		},
 	}
 }
 
@@ -1288,6 +1293,8 @@ type HydrateOperation struct {
 	HydratedSHA string `json:"hydratedSHA,omitempty" protobuf:"bytes,6,opt,name=hydratedSHA"`
 	// SourceHydrator holds the hydrator config used for the hydrate operation
 	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,7,opt,name=sourceHydrator"`
+	// HydrationFormat holds the format which was used for the hydrate operation
+	HydrationFormat string `json:"hydrationFormat,omitempty" protobuf:"bytes,8,opt,name=hydrationFormat"`
 }
 
 // SuccessfulHydrateOperation contains information about the most recent successful hydrate operation
@@ -1298,6 +1305,8 @@ type SuccessfulHydrateOperation struct {
 	HydratedSHA string `json:"hydratedSHA,omitempty" protobuf:"bytes,6,opt,name=hydratedSHA"`
 	// SourceHydrator holds the hydrator config used for the hydrate operation
 	SourceHydrator SourceHydrator `json:"sourceHydrator,omitempty" protobuf:"bytes,7,opt,name=sourceHydrator"`
+	// HydrationFormat holds the format which was used for the hydrate operation
+	HydrationFormat string `json:"hydrationFormat,omitempty" protobuf:"bytes,8,opt,name=hydrationFormat"`
 }
 
 // HydrateOperationPhase indicates the status of a hydrate operation
