@@ -704,6 +704,13 @@ func (r *ApplicationSetReconciler) SetupWithManager(mgr ctrl.Manager, enableProg
 	appOwnsHandler := getApplicationOwnsHandler(enableProgressiveSyncs)
 	appSetOwnsHandler := getApplicationSetOwnsHandler(enableProgressiveSyncs)
 
+	// with progressive syncs the main controller already requeues on application health and sync changes
+	if !enableProgressiveSyncs {
+		if err := r.setupResourcesStatusController(mgr); err != nil {
+			return fmt.Errorf("error setting up resources status controller: %w", err)
+		}
+	}
+
 	return ctrl.NewControllerManagedBy(mgr).WithOptions(controller.Options{
 		MaxConcurrentReconciles: maxConcurrentReconciliations,
 		RateLimiter:             ratelimiter.NewCustomAppControllerRateLimiter[ctrl.Request](resolveRateLimiterConfig(rateLimiterCfg)),
