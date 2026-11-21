@@ -3200,6 +3200,13 @@ func checkoutRevision(ctx context.Context, gitClient git.Client, revision string
 		return status.Errorf(codes.Internal, "Failed to initialize git repo: %v", err)
 	}
 
+	if depth == 0 {
+		err = gitClient.EnsureNotShallow(ctx)
+		if err != nil {
+			return status.Errorf(codes.Internal, "Failed to ensure repo is not shallow: %v", err)
+		}
+	}
+
 	revisionPresent := gitClient.IsRevisionPresent(ctx, revision)
 
 	log.WithFields(map[string]any{
