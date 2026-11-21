@@ -8,7 +8,7 @@ import * as moment from 'moment';
 import * as models from '../../../shared/models';
 import {isValidManagedByURL, MANAGED_BY_URL_INVALID_TEXT, MANAGED_BY_URL_INVALID_COLOR} from '../../../shared/utils';
 
-import {EmptyState} from '../../../shared/components';
+import {EmptyState, formatTimestamp} from '../../../shared/components';
 import {AppContext, Consumer} from '../../../shared/context';
 import {ApplicationURLs} from '../application-urls';
 import {ResourceIcon} from '../resource-icon';
@@ -729,7 +729,7 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                                                         <Moment fromNow={true} ago={true}>
                                                             {pod.createdAt}
                                                         </Moment>
-                                                        <span> ago ({<Moment local={true}>{pod.createdAt}</Moment>})</span>
+                                                        <span> ago ({formatTimestamp(pod.createdAt)})</span>
                                                     </span>
                                                 )}
                                             </div>
@@ -1143,7 +1143,9 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
     const podCount = nodes.filter(node => node.kind === 'Pod').length;
     const showPodGroupByStatus = props.tree.nodes.filter((rNode: ResourceTreeNode) => rNode.kind === 'Pod').length >= props.podGroupCount;
 
-    React.useEffect(() => {
+    // Show the pod grouping help tip (or switch to compact nodes) only when the pod count changes. The callbacks
+    // are recreated on every render and update view preferences, so they must not re-trigger the effect.
+    const onPodCountChange = React.useEffectEvent(() => {
         if (podCount > podGroupCount) {
             const userMsg = getUsrMsgKeyToDisplay(appNode.name, 'groupNodes', userMsgs);
             updateUsrHelpTipMsgs(userMsg);
@@ -1151,6 +1153,10 @@ export const ApplicationResourceTree = (props: ApplicationResourceTreeProps) => 
                 setShowCompactNodes(true);
             }
         }
+    });
+
+    React.useEffect(() => {
+        onPodCountChange();
     }, [podCount]);
 
     function filterGraph(
