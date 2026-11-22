@@ -135,6 +135,19 @@ func (q *recordingOperationQueue) AddAfter(item string, d time.Duration) {
 	q.calls = append(q.calls, operationRequeue{item: item, delay: d})
 }
 
+func withAPIServerPatchErrors(cs *appclientset.Clientset) *appclientset.Clientset {
+	objectReactor := cs.ReactionChain[0]
+	cs.PrependReactor("*", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		handled, obj, err := objectReactor.React(action)
+		var status apierrors.APIStatus
+		if action.GetVerb() == "patch" && err != nil && !errors.As(err, &status) {
+			err = apierrors.NewGenericServerResponse(http.StatusUnprocessableEntity, "patch", schema.GroupResource{}, "", err.Error(), 0, false)
+		}
+		return handled, obj, err
+	})
+	return cs
+}
+
 func newFakeController(ctx context.Context, data *fakeData, repoErr error) *ApplicationController {
 	return newFakeControllerWithResync(ctx, data, time.Minute, repoErr, nil)
 }
@@ -232,7 +245,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		test.FakeArgoCDNamespace,
 		settingsMgr,
 		kubeClient,
-		appclientset.NewSimpleClientset(data.apps...),
+		withAPIServerPatchErrors(appclientset.NewSimpleClientset(data.apps...)),
 		mockRepoClientset,
 		mockCommitClientset,
 		appstatecache.NewCache(
@@ -3489,6 +3502,58 @@ func TestSetOperationStateIfPhase(t *testing.T) {
 			require.NotNil(t, patchedApp.Status.OperationState)
 			assert.Equal(t, tt.wantPhase, patchedApp.Status.OperationState.Phase)
 			assert.Contains(t, patchedApp.Status.OperationState.Message, tt.wantMessage)
+		})
+	}
+}
+
+func TestSetOperationStateIfPhase_ReadsAppOnlyAfterFailedPhaseTest(t *testing.T) {
+	tests := []struct {
+		name        string
+		storedPhase synccommon.OperationPhase
+		serverError bool
+		wantGets    int
+		wantPhase   synccommon.OperationPhase
+	}{
+		{name: "server error retries without reading the app", storedPhase: synccommon.OperationRunning, serverError: true, wantGets: 0, wantPhase: synccommon.OperationRunning},
+		{name: "failed phase test reads the app", storedPhase: synccommon.OperationTerminating, wantGets: 1, wantPhase: synccommon.OperationTerminating},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+			app.Status.OperationState.Operation = *app.Operation
+			app.Status.OperationState.Phase = synccommon.OperationRunning
+			stored := app.DeepCopy()
+			stored.Status.OperationState.Phase = tt.storedPhase
+
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{stored}}, nil)
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			patches := 0
+			fakeAppCs.PrependReactor("patch", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+				patches++
+				if tt.serverError && patches == 1 {
+					return true, nil, apierrors.NewInternalError(errors.New("etcd unavailable"))
+				}
+				return false, nil, nil
+			})
+			gets := 0
+			fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+				gets++
+				return false, nil, nil
+			})
+
+			state := app.Status.OperationState.DeepCopy()
+			state.Message = "waiting for completion of hook /Pod/hook"
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			ctrl.setOperationStateIfPhase(ctx, app, state, synccommon.OperationRunning)
+
+			assert.Equal(t, tt.wantGets, gets)
+			assert.Equal(t, 2, patches)
+			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, patchedApp.Status.OperationState)
+			assert.Equal(t, tt.wantPhase, patchedApp.Status.OperationState.Phase)
 		})
 	}
 }

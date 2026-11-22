@@ -1879,7 +1879,7 @@ func (ctrl *ApplicationController) setOperationStateIfPhase(ctx context.Context,
 				nonRetryableError = err
 				return nil
 			}
-			if expectedPhase != "" {
+			if expectedPhase != "" && apierrors.IsInvalid(err) {
 				if freshApp, getErr := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(ctx, app.Name, metav1.GetOptions{}); getErr == nil {
 					expectedPhase = keepTerminating(freshApp, state)
 					if patchJSON, marshalErr = operationStatePatch(state, expectedPhase); marshalErr != nil {
