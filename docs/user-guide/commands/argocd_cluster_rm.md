@@ -19,6 +19,7 @@ argocd cluster rm cluster-name
 
 ```
   -h, --help[=true|false]   help for rm
+      --kubeconfig string   use a particular kubeconfig file
   -y, --yes[=true|false]    Turn off prompting to confirm remove of cluster resources
 ```
 

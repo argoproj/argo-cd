@@ -304,3 +304,20 @@ func Test_invalidateClusterCache(t *testing.T) {
 		require.ErrorIs(t, invalidateClusterCache(t.Context(), clusterIf, "my-cluster"), expectedErr)
 	})
 }
+
+func TestNewClusterRemoveCommand_KubeconfigFlagRegistered(t *testing.T) {
+	pathOpts := clientcmd.NewDefaultPathOptions()
+	cmd := NewClusterRemoveCommand(&argocdclient.ClientOptions{}, pathOpts)
+
+	flag := cmd.Flags().Lookup("kubeconfig")
+	require.NotNil(t, flag, "--kubeconfig flag should be registered on cluster rm")
+	assert.Contains(t, flag.Usage, "kubeconfig")
+
+	err := cmd.Flags().Set("kubeconfig", "./testdata/config")
+	require.NoError(t, err)
+	assert.Equal(t, "./testdata/config", pathOpts.LoadingRules.ExplicitPath)
+
+	conf, err := getRestConfig(pathOpts, "argocd2.example.com:443")
+	require.NoError(t, err)
+	require.Equal(t, &rest.Config{Host: "argocd2.example.com:443"}, conf)
+}
