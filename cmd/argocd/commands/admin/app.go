@@ -110,6 +110,9 @@ func NewGenAppSpecCommand() *cobra.Command {
 		Run: func(c *cobra.Command, args []string) {
 			apps, err := cmdutil.ConstructApps(fileURL, appName, labels, annotations, args, appOpts, c.Flags())
 			errors.CheckError(err)
+			if len(apps) == 0 {
+				errors.CheckError(stderrors.New("failed to generate spec, no application found"))
+			}
 			if len(apps) > 1 {
 				errors.CheckError(stderrors.New("failed to generate spec, more than one application is not supported"))
 			}

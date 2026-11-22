@@ -54,6 +54,9 @@ func collectLogs(callback func()) string {
 }
 
 func setSettingsMeta(obj metav1.Object) {
+	if obj == nil || reflect.ValueOf(obj).IsNil() {
+		return
+	}
 	obj.SetNamespace("default")
 	labels := obj.GetLabels()
 	if labels == nil {
@@ -87,6 +90,11 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		if err != nil {
 			return nil, err
 		}
+		if argocdCM == nil {
+			argocdCM = &corev1.ConfigMap{
+				Name: common.ArgoCDConfigMapName,
+			}
+		}
 	}
 	setSettingsMeta(argocdCM)
 
@@ -100,6 +108,11 @@ func (opts *settingsOpts) createSettingsManager(ctx context.Context) (*settings.
 		err = yaml.Unmarshal(data, &argocdSecret)
 		if err != nil {
 			return nil, err
+		}
+		if argocdSecret == nil {
+			argocdSecret = &corev1.Secret{
+				Name: common.ArgoCDSecretName,
+			}
 		}
 		setSettingsMeta(argocdSecret)
 	case opts.loadClusterSettings:
