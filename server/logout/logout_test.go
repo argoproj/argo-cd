@@ -776,7 +776,7 @@ func TestHandlerSetsSSOAutoLoginPausedCookie(t *testing.T) {
 				return
 			}
 			require.NotNil(t, paused)
-			require.Equal(t, "true", paused.Value)
+			require.Equal(t, "/"+baseHRef, paused.Value)
 			require.Equal(t, "/"+baseHRef, paused.Path)
 			require.False(t, paused.HttpOnly)
 			require.Equal(t, http.SameSiteLaxMode, paused.SameSite)

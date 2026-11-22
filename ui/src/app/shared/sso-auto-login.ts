@@ -56,11 +56,12 @@ export function resumeAutoLoginForSession(userInfo: UserInfo | null, sessionChec
 }
 
 function adoptLogoutPause() {
-    if (!document.cookie.split(';').some(cookie => cookie.trim().startsWith(`${logoutPauseCookieName}=`))) {
+    const cookiePath = `/${baseHRef().replace(/^\/+|\/+$/g, '')}`;
+    if (!document.cookie.split(';').some(cookie => cookie.trim() === `${logoutPauseCookieName}=${cookiePath}`)) {
         return;
     }
     pauseAutoLogin();
-    document.cookie = `${logoutPauseCookieName}=; path=/${baseHRef().replace(/^\/+|\/+$/g, '')}; max-age=0`;
+    document.cookie = `${logoutPauseCookieName}=; path=${cookiePath}; max-age=0`;
 }
 
 function isAutoLoginPaused(): boolean {

@@ -101,7 +101,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	if argoCDSettings.SSOAutoLogin {
 		pausedCookie := http.Cookie{
 			Name:     common.SSOAutoLoginPausedCookieName,
-			Value:    "true",
+			Value:    cookiePath,
 			Path:     cookiePath,
 			SameSite: http.SameSiteLaxMode,
 		}

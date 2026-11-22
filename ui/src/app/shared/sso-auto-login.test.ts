@@ -78,7 +78,7 @@ describe('shouldAutoLogin', () => {
         });
 
         test('pauses and clears the logout cookie', () => {
-            document.cookie = 'argocd.sso.autoLoginPaused=true; path=/';
+            document.cookie = 'argocd.sso.autoLoginPaused=/; path=/';
             expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
             expect(document.cookie).not.toContain('argocd.sso.autoLoginPaused');
             expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/')).not.toBeNull();
@@ -89,14 +89,28 @@ describe('shouldAutoLogin', () => {
             base.setAttribute('href', '/argocd/');
             document.head.appendChild(base);
             window.history.replaceState(null, '', '/argocd/login');
-            document.cookie = 'argocd.sso.autoLoginPaused=true; path=/argocd';
+            document.cookie = 'argocd.sso.autoLoginPaused=/argocd; path=/argocd';
             expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
             expect(document.cookie).not.toContain('argocd.sso.autoLoginPaused');
             expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/argocd/')).not.toBeNull();
         });
 
+        test('ignores the logout cookie of an Argo CD instance at a parent path', () => {
+            const base = document.createElement('base');
+            base.setAttribute('href', '/prod/');
+            document.head.appendChild(base);
+            window.history.replaceState(null, '', '/prod/login');
+            document.cookie = 'argocd.sso.autoLoginPaused=/; path=/';
+            try {
+                expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(true);
+                expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/prod/')).toBeNull();
+            } finally {
+                document.cookie = 'argocd.sso.autoLoginPaused=; path=/; max-age=0';
+            }
+        });
+
         test('resumes after the next SSO login', () => {
-            document.cookie = 'argocd.sso.autoLoginPaused=true; path=/';
+            document.cookie = 'argocd.sso.autoLoginPaused=/; path=/';
             expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
             resumeAutoLoginForSession(session(), Date.now() + 1);
             expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(true);
