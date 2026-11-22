@@ -1,6 +1,9 @@
 package helm
 
 import (
+	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"sync"
 	"testing"
 	"time"
@@ -20,6 +23,7 @@ type countingMetaCache struct {
 	metaLive  bool
 	fullReads int64
 	metaReads int64
+	metaBlock chan struct{} // non-nil blocks GetHelmIndexMeta until closed
 }
 
 func newCountingMetaCache() *countingMetaCache {
@@ -51,6 +55,9 @@ func (c *countingMetaCache) SetHelmIndexRetainedRecord(_ string, record *HelmInd
 
 func (c *countingMetaCache) GetHelmIndexMeta(string) (*HelmIndexMeta, error) {
 	c.metaReads++
+	if c.metaBlock != nil {
+		<-c.metaBlock
+	}
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if !c.metaLive || c.meta == nil {
@@ -143,6 +150,60 @@ func TestMetaFastPathFallsBackOnDigestMismatch(t *testing.T) {
 	assert.EqualValues(t, 1, cache.fullReads, "digest mismatch must fall back to the full record")
 }
 
+// TestStaleMetaPolicy documents the explicit freshness contract for partial
+// publication: when the shared record holds body B but the meta entry still
+// describes body A (old writer, failed meta write), a reader holding local A
+// serves A from the matching meta. The divergence window is bounded by the
+// freshness window — every successful publication rewrites meta together
+// with the record (one retry on transient failure), and readers whose local
+// body does NOT match meta take the full-record fallback and see B
+// immediately.
+func TestStaleMetaPolicy(t *testing.T) {
+	store, cache, client, repoURL := metaTestSetup(t)
+
+	// Simulate partial publication: record advances to B, meta still A.
+	bodyB := sampleIndexData("demo")
+	cache.mu.Lock()
+	cache.record = &HelmIndexRecord{
+		Body:        bodyB,
+		BodyDigest:  sha256Hex(bodyB),
+		ETag:        `"etag-b"`,
+		URLIdentity: cache.record.URLIdentity, // same request identity
+		StoredAt:    time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	cache.mu.Unlock()
+
+	// Reader whose local body matches meta A: serves A from the matching
+	// meta (explicit policy; no full read).
+	body, _, err := store.revalidate(t.Context(), repoURL, client, false)
+	require.NoError(t, err)
+	assert.NotEmpty(t, body)
+	assert.EqualValues(t, 0, cache.fullReads, "matching meta authorizes the verified local body")
+
+	// A reader whose local body matches NEITHER A nor B takes the full
+	// fallback and observes the new record B. Both meta (still describing A
+	// for the first reader) and record B live in the same shared cache; the
+	// second reader's local body is unrelated, so its meta digest check
+	// fails and the full record (B) is read instead.
+	otherStore, otherCache, otherClient, otherURL := metaTestSetup(t)
+	cache.mu.Lock()
+	otherCache.publish(cache.record)  // shared record now B
+	otherCache.meta = &HelmIndexMeta{ // stale meta describing a third body
+		BodyDigest: sha256Hex(sampleIndexData("unrelated")),
+		StoredAt:   time.Now().UTC().Format(time.RFC3339Nano),
+	}
+	cache.mu.Unlock()
+	sharedBodyB, _, otherErr := otherStore.revalidate(t.Context(), otherURL, otherClient, false)
+	require.NoError(t, otherErr)
+	assert.NotEmpty(t, sharedBodyB)
+	assert.EqualValues(t, 1, otherCache.fullReads, "meta miss must fall back to the full record")
+}
+
+func sha256Hex(body []byte) string {
+	sum := sha256.Sum256(body)
+	return hex.EncodeToString(sum[:])
+}
+
 func TestMetaFastPathNeverMixesValidators(t *testing.T) {
 	store, cache, client, repoURL := metaTestSetup(t)
 
@@ -161,4 +222,37 @@ func TestMetaFastPathNeverMixesValidators(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, `"shared-etag"`, etag, "validators must come from the matching meta")
 	assert.Equal(t, "Wed, 01 Jan 2025 00:00:00 GMT", modified)
+}
+
+// TestMetaFastPathRespectsCancellationBudget reproduces the deadline
+// regression: a metadata read that ignores the request budget blocked a warm
+// operation past a 250 ms deadline. The read must be bounded by the shared
+// budget (min(2s, remaining/4)) and release the request to the origin path.
+func TestMetaFastPathRespectsCancellationBudget(t *testing.T) {
+	store, cache, client, repoURL := metaTestSetup(t)
+
+	// Block the meta read indefinitely (simulates a stalled backend).
+	blocked := make(chan struct{})
+	cache.metaBlock = blocked
+	t.Cleanup(func() { close(blocked) })
+
+	start := time.Now()
+	// 250ms deadline: the shared budget (min(2s, remaining/4)) must bound the
+	// meta read to ~62ms and let revalidate proceed (fallback path) before
+	// the caller's deadline expires.
+	ctx, cancel := context.WithTimeout(t.Context(), 250*time.Millisecond)
+	defer cancel()
+	done := make(chan error, 1)
+	go func() {
+		_, _, err := store.revalidate(ctx, repoURL, client, false)
+		done <- err
+	}()
+	select {
+	case err := <-done:
+		require.NoError(t, err)
+	case <-time.After(2 * time.Second):
+		require.FailNow(t, "revalidate blocked on the metadata read past the shared budget")
+	}
+	elapsed := time.Since(start)
+	assert.Less(t, elapsed, 1500*time.Millisecond, "metadata read must be bounded, took %v", elapsed)
 }

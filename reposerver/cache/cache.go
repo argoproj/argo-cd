@@ -319,10 +319,20 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 	}
 	// Publish the small metadata projection last. Readers that already hold a
 	// verified body use it to skip the full-record transfer; a missing or
-	// stale meta entry only costs the fallback read. Best-effort: a failed
-	// meta write never invalidates the record just published.
+	// stale meta entry only costs the fallback read. Best-effort with one
+	// retry: a failed meta write never invalidates the record just published,
+	// but a persistent failure would leave readers on their current body for
+	// up to one freshness window, so the write is attempted twice.
 	meta := helmIndexMeta{BodyDigest: record.BodyDigest, ETag: record.ETag, LastModified: record.LastModified, URLIdentity: record.URLIdentity, Generation: record.Generation, StoredAt: record.StoredAt}
-	return c.cache.SetItem(helmIndexMetaKey(repo), meta, &cacheutil.CacheActionOpts{Expiration: helmIndexRecordRetention(c.helmIndexCacheExpiration)})
+	metaOpts := &cacheutil.CacheActionOpts{Expiration: helmIndexRecordRetention(c.helmIndexCacheExpiration)}
+	if err := c.cache.SetItem(helmIndexMetaKey(repo), meta, metaOpts); err != nil {
+		// One immediate retry shrinks the stale-meta divergence window when
+		// the first write hit a transient backend failure.
+		if retryErr := c.cache.SetItem(helmIndexMetaKey(repo), meta, metaOpts); retryErr != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // helmIndexRecordRetention is how long a versioned record stays in Redis
@@ -352,6 +362,30 @@ func (c *Cache) GetHelmIndexMeta(repo string) (*helm.HelmIndexMeta, error) {
 		return nil, cacheutil.ErrCacheMiss
 	}
 	return &meta, nil
+}
+
+// GetHelmIndexMetaContext is the deadline-aware variant: the read is
+// abandoned once the caller's budget expires, keeping the request free to
+// reach the origin. Satisfies helm.IndexMetaCacheContext.
+func (c *Cache) GetHelmIndexMetaContext(ctx context.Context, repo string) (*helm.HelmIndexMeta, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	type result struct {
+		meta *helm.HelmIndexMeta
+		err  error
+	}
+	done := make(chan result, 1)
+	go func() {
+		meta, err := c.GetHelmIndexMeta(repo)
+		done <- result{meta, err}
+	}()
+	select {
+	case res := <-done:
+		return res.meta, res.err
+	case <-ctx.Done():
+		return nil, ctx.Err()
+	}
 }
 
 // GetHelmIndexRetainedRecordContext honors the caller's context while the

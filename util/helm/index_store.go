@@ -50,6 +50,13 @@ type IndexMetaCache interface {
 	GetHelmIndexMeta(repo string) (*HelmIndexMeta, error)
 }
 
+// IndexMetaCacheContext is the optional deadline-aware variant of
+// IndexMetaCache. Implementations bound the underlying read by the caller's
+// remaining budget (min(2s, remaining/4)) and release it on cancellation.
+type IndexMetaCacheContext interface {
+	GetHelmIndexMetaContext(ctx context.Context, repo string) (*HelmIndexMeta, error)
+}
+
 // HelmIndexMeta is the metadata-only projection of HelmIndexRecord (no body).
 // BodyDigest identifies the body stored under the record key.
 type HelmIndexMeta struct {
@@ -573,13 +580,33 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string,
 		// skip the full-record transfer entirely. Any inconsistency, miss or
 		// legacy shape falls through to the full read below.
 		if s.metaCache != nil && newest != nil && !needsLocalDigest && newest.BodyDigest != "" {
-			// The exported meta reader has no ctx variant (like the full
-			// record reader on legacy caches); the reposerver implementation
-			// bounds the underlying read itself. Budget helper kept for
-			// parity with the fallback path once ctx propagation lands.
-			meta, err := s.metaCache.GetHelmIndexMeta(identity)
+			// Bound the metadata read by the same shared budget as every
+			// other optional cache read (min(2s, remaining/4)): a slow meta
+			// backend must release the request in time to reach the origin.
+			// Context-aware caches honor cancellation directly; others run
+			// behind the abandon-style budget select.
+			metaReadContext, metaCancel := observeIndexReadContext(ctx)
+			var meta *HelmIndexMeta
+			var metaErr error
+			if ctxReader, ok := s.metaCache.(IndexMetaCacheContext); ok {
+				meta, metaErr = ctxReader.GetHelmIndexMetaContext(metaReadContext, identity)
+			} else {
+				done := metaReadContext.Done()
+				result := make(chan struct{})
+				go func() {
+					defer close(result)
+					m, e := s.metaCache.GetHelmIndexMeta(identity)
+					meta, metaErr = m, e
+				}()
+				select {
+				case <-result:
+				case <-done:
+					metaErr = metaReadContext.Err()
+				}
+			}
+			metaCancel()
 			switch {
-			case err == nil && meta.BodyDigest == newest.BodyDigest:
+			case metaErr == nil && meta != nil && meta.BodyDigest == newest.BodyDigest:
 				// The shared generation matches the verified local bytes.
 				// Take validators and publication time from the meta entry;
 				// never mix validation state across bodies.
