@@ -49,7 +49,7 @@ export function resumeAutoLoginForSession(userInfo: UserInfo | null, sessionChec
     }
 }
 
-function autoLoginPaused(): boolean {
+function isAutoLoginPaused(): boolean {
     try {
         return window.localStorage.getItem(pausedStorageKey()) !== null;
     } catch {
@@ -65,7 +65,7 @@ export function shouldAutoLogin(authSettings: AuthSettings | null, search: URLSe
     if (search.get('has_sso_error') === 'true' || search.get(ssoAutoLoginParam) === 'false') {
         return false;
     }
-    return !autoLoginPaused();
+    return !isAutoLoginPaused();
 }
 
 /** Sends the browser to the given SSO login URL. */
