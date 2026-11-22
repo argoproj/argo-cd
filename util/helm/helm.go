@@ -294,7 +294,12 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 			if fetched[index.identity] || revalidated[index.identity] != nil || !missingDependencyVersion(h.cmd.WorkDir, index.url, aliases, index.body) {
 				continue
 			}
-			body, _, refreshErr := h.cmd.persistentIndexStore.revalidate(ctx, index.identity, clients[index.identity], true)
+			// Bound the recovery fetch by the same 30-second budget as the
+			// main path: a stalled origin must not hold the repository lock
+			// for the whole RPC timeout just because this is a retry.
+			fetchContext, cancelFetch := indexFetchContext(ctx)
+			body, _, refreshErr := h.cmd.persistentIndexStore.revalidate(fetchContext, index.identity, clients[index.identity], true)
+			cancelFetch()
 			if refreshErr != nil {
 				return fmt.Errorf("revalidate Helm index after filtered snapshot version miss (%w): %w", err, refreshErr)
 			}
@@ -323,7 +328,12 @@ func (h *helm) DependencyBuild(ctx context.Context) error {
 			if fetched[index.identity] || refreshed[index.identity] != nil || !missingDependencyVersion(h.cmd.WorkDir, index.url, aliases, index.body) {
 				continue
 			}
-			body, _, refreshErr := h.cmd.persistentIndexStore.revalidate(ctx, index.identity, clients[index.identity], true)
+			// Bound the recovery fetch by the same 30-second budget as the
+			// main path: a stalled origin must not hold the repository lock
+			// for the whole RPC timeout just because this is a retry.
+			fetchContext, cancelFetch := indexFetchContext(ctx)
+			body, _, refreshErr := h.cmd.persistentIndexStore.revalidate(fetchContext, index.identity, clients[index.identity], true)
+			cancelFetch()
 			if refreshErr != nil {
 				return fmt.Errorf("revalidate Helm index after version lookup miss: %w", refreshErr)
 			}
