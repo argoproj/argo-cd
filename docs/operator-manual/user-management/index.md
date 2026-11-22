@@ -189,9 +189,10 @@ The login page does not redirect automatically in the following cases:
 * Dex failed with a server error during the previous SSO attempt. The login page shows the error instead of redirecting
   again, to avoid a redirect loop when Dex is not available. With an OIDC provider configured directly, a failed
   login stops on an error page and does not return to the login page.
-* The user logged out from the Argo CD UI, or last logged in with a local account such as `admin`. Without this, a user
-  whose session with the identity provider is still active would be signed straight back in, and a local account user
-  whose session expired would be moved to their SSO identity. Auto-login resumes in that browser after the next SSO login.
+* The user logged out, either from the Argo CD UI or by opening `/auth/logout`, or last logged in with a local account
+  such as `admin`. Without this, a user whose session with the identity provider is still active would be signed straight
+  back in, and a local account user whose session expired would be moved to their SSO identity. Auto-login resumes in that
+  browser after the next SSO login.
 * The browser blocks local storage. Argo CD needs it to remember logouts and local account logins, so it does not redirect
   without it.
 * The login page URL contains `sso_auto_login=false`, for example `https://argocd.example.com/login?sso_auto_login=false`.

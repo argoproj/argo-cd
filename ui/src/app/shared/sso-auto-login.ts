@@ -1,7 +1,13 @@
 import {AuthSettings, UserInfo} from './models';
 
+const logoutPauseCookieName = 'argocd.sso.autoLoginPaused';
+
+function baseHRef(): string {
+    return document.querySelector('head > base')?.getAttribute('href') || '/';
+}
+
 function pausedStorageKey(): string {
-    return `argocd.sso.autoLoginPaused:${document.querySelector('head > base')?.getAttribute('href') || '/'}`;
+    return `argocd.sso.autoLoginPaused:${baseHRef()}`;
 }
 
 /** Query parameter that keeps the login page from redirecting to SSO when set to "false". */
@@ -49,7 +55,16 @@ export function resumeAutoLoginForSession(userInfo: UserInfo | null, sessionChec
     }
 }
 
+function adoptLogoutPause() {
+    if (!document.cookie.split(';').some(cookie => cookie.trim().startsWith(`${logoutPauseCookieName}=`))) {
+        return;
+    }
+    pauseAutoLogin();
+    document.cookie = `${logoutPauseCookieName}=; path=/${baseHRef().replace(/^\/+|\/+$/g, '')}; max-age=0`;
+}
+
 function isAutoLoginPaused(): boolean {
+    adoptLogoutPause();
     try {
         return window.localStorage.getItem(pausedStorageKey()) !== null;
     } catch {

@@ -71,6 +71,38 @@ describe('shouldAutoLogin', () => {
         expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
     });
 
+    describe('after a logout handled by the server', () => {
+        afterEach(() => {
+            document.head.querySelector('base')?.remove();
+            window.history.replaceState(null, '', '/');
+        });
+
+        test('pauses and clears the logout cookie', () => {
+            document.cookie = 'argocd.sso.autoLoginPaused=true; path=/';
+            expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
+            expect(document.cookie).not.toContain('argocd.sso.autoLoginPaused');
+            expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/')).not.toBeNull();
+        });
+
+        test('clears the logout cookie under the base href', () => {
+            const base = document.createElement('base');
+            base.setAttribute('href', '/argocd/');
+            document.head.appendChild(base);
+            window.history.replaceState(null, '', '/argocd/login');
+            document.cookie = 'argocd.sso.autoLoginPaused=true; path=/argocd';
+            expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
+            expect(document.cookie).not.toContain('argocd.sso.autoLoginPaused');
+            expect(window.localStorage.getItem('argocd.sso.autoLoginPaused:/argocd/')).not.toBeNull();
+        });
+
+        test('resumes after the next SSO login', () => {
+            document.cookie = 'argocd.sso.autoLoginPaused=true; path=/';
+            expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
+            resumeAutoLoginForSession(session(), Date.now() + 1);
+            expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(true);
+        });
+    });
+
     test('does not redirect when storage is unavailable', () => {
         const getItem = jest.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
             throw new Error('blocked');
