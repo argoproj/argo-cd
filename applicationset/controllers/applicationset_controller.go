@@ -824,7 +824,7 @@ func (r *ApplicationSetReconciler) createOrUpdateInCluster(ctx context.Context, 
 				found.Finalizers = generatedApp.Finalizers
 
 				return controllerutil.SetControllerReference(&applicationSet, found, r.Scheme)
-			})
+			}, generatedApp.Operation != nil)
 			if err != nil {
 				appLog.WithError(err).WithField("action", action).Errorf("failed to %s Application", action)
 				// If the context was canceled or its deadline exceeded, return the error so it propagates through g.Wait().

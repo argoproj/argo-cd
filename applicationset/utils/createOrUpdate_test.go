@@ -22,7 +22,6 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	application "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/argo"
 	"github.com/argoproj/argo-cd/v3/util/argo/normalizers"
 )
@@ -299,7 +298,7 @@ func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImages(t *testing.T) {
 	op, err := CreateOrUpdate(t.Context(), log.NewEntry(log.New()), c, diffConfig, obj, func() error {
 		obj.Spec = generated.Spec
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 
 	require.Equal(t, controllerutil.OperationResultNone, op,
@@ -363,7 +362,7 @@ func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImagesMultiSource(t *testing
 	op, err := CreateOrUpdate(t.Context(), log.NewEntry(log.New()), c, diffConfig, obj, func() error {
 		obj.Spec = generated.Spec
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 
 	require.Equal(t, controllerutil.OperationResultNone, op,
@@ -391,18 +390,18 @@ func (c *informerBackedClient) Get(_ context.Context, key client.ObjectKey, obj 
 	if !exists {
 		return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, key.Name)
 	}
-	app, ok := item.(*application.Application)
+	app, ok := item.(*v1alpha1.Application)
 	if !ok {
 		return fmt.Errorf("informer store holds unexpected type %T", item)
 	}
-	app.DeepCopyInto(obj.(*application.Application))
+	app.DeepCopyInto(obj.(*v1alpha1.Application))
 	return nil
 }
 
 func mustScheme(t *testing.T) *runtime.Scheme {
 	t.Helper()
 	scheme := runtime.NewScheme()
-	require.NoError(t, application.AddToScheme(scheme))
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
 	return scheme
 }
 
@@ -433,11 +432,11 @@ func newCacheSyncingClient(t *testing.T, apiClient client.Client, cachedObjects 
 	return c, store
 }
 
-func staleCacheGhostApp() *application.Application {
-	app := &application.Application{
-		Spec: application.ApplicationSpec{
+func staleCacheGhostApp() *v1alpha1.Application {
+	app := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
 			Project:    "project",
-			SyncPolicy: &application.SyncPolicy{},
+			SyncPolicy: &v1alpha1.SyncPolicy{},
 		},
 	}
 	app.Name = "app1"
@@ -446,8 +445,8 @@ func staleCacheGhostApp() *application.Application {
 	return app
 }
 
-func desiredApp() *application.Application {
-	app := &application.Application{}
+func desiredApp() *v1alpha1.Application {
+	app := &v1alpha1.Application{}
 	app.Name = "app1"
 	app.Namespace = "argocd"
 	return app
@@ -469,14 +468,14 @@ func TestCreateOrUpdateRecreatesAppDeletedOutOfBand(t *testing.T) {
 
 	desired := desiredApp()
 	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
-		desired.Spec = application.ApplicationSpec{Project: "project"}
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 	require.Equal(t, controllerutil.OperationResultCreated, action, "the stale cache entry must trigger recreation, not a silent skip")
 
 	// The Application exists again on the API server.
-	got := &application.Application{}
+	got := &v1alpha1.Application{}
 	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
 	require.Equal(t, "project", got.Spec.Project)
 
@@ -485,7 +484,7 @@ func TestCreateOrUpdateRecreatesAppDeletedOutOfBand(t *testing.T) {
 	item, exists, err := store.GetByKey("argocd/app1")
 	require.NoError(t, err)
 	require.True(t, exists)
-	require.Equal(t, "project", item.(*application.Application).Spec.Project)
+	require.Equal(t, "project", item.(*v1alpha1.Application).Spec.Project)
 }
 
 // TestCreateOrUpdateSkipsUnchangedAppConfirmedByAPI guards the normal path: when the informer
@@ -520,14 +519,14 @@ func TestCreateOrUpdateSkipsUnchangedAppConfirmedByAPI(t *testing.T) {
 
 	desired := desiredApp()
 	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
-		desired.Spec = application.ApplicationSpec{Project: "project"}
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 	require.Equal(t, controllerutil.OperationResultNone, action)
 	require.Zero(t, writes, "an unchanged Application confirmed on the API server must not be written")
 
-	got := &application.Application{}
+	got := &v1alpha1.Application{}
 	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
 	require.Equal(t, "5", got.ResourceVersion, "no write should have bumped the resource version")
 }
@@ -550,14 +549,14 @@ func TestCreateOrUpdateProbeErrorFallsBackToCache(t *testing.T) {
 
 	desired := desiredApp()
 	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
-		desired.Spec = application.ApplicationSpec{Project: "project"}
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 	require.Equal(t, controllerutil.OperationResultNone, action)
 
 	// Nothing was created behind the API client's back.
-	require.Error(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, &application.Application{}))
+	require.Error(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, &v1alpha1.Application{}))
 }
 
 // TestCreateOrUpdateWithoutVerifierKeepsOldBehavior: a plain client (no uncached reader, e.g. in
@@ -573,9 +572,9 @@ func TestCreateOrUpdateWithoutVerifierKeepsOldBehavior(t *testing.T) {
 
 	desired := desiredApp()
 	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
-		desired.Spec = application.ApplicationSpec{Project: "project"}
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 	require.Equal(t, controllerutil.OperationResultNone, action)
 }
@@ -588,20 +587,20 @@ func TestCreateOrUpdateRecreateDropsInheritedCachedOperation(t *testing.T) {
 	ctx := t.Context()
 
 	ghost := staleCacheGhostApp()
-	ghost.Operation = &application.Operation{Sync: &application.SyncOperation{}}
+	ghost.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
 	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).Build()
 	c, _ := newCacheSyncingClient(t, apiClient, ghost)
 
 	desired := desiredApp()
 	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
-		desired.Spec = application.ApplicationSpec{Project: "project"}
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
 		// the template does NOT request an Operation
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 	require.Equal(t, controllerutil.OperationResultCreated, action)
 
-	got := &application.Application{}
+	got := &v1alpha1.Application{}
 	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
 	require.Nil(t, got.Operation, "an Operation inherited from the stale cache entry must not be persisted on the recreated Application")
 }
@@ -618,14 +617,14 @@ func TestCreateOrUpdateRecreateKeepsTemplateOperation(t *testing.T) {
 
 	desired := desiredApp()
 	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
-		desired.Spec = application.ApplicationSpec{Project: "project"}
-		desired.Operation = &application.Operation{Sync: &application.SyncOperation{}}
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
+		desired.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
 		return nil
-	})
+	}, true)
 	require.NoError(t, err)
 	require.Equal(t, controllerutil.OperationResultCreated, action)
 
-	got := &application.Application{}
+	got := &v1alpha1.Application{}
 	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
 	require.NotNil(t, got.Operation, "a template-requested Operation must survive recreation")
 }
@@ -639,7 +638,7 @@ func TestCreateOrUpdateRecreateKeepsIgnoredTargetRevision(t *testing.T) {
 	ctx := t.Context()
 
 	ghost := staleCacheGhostApp()
-	ghost.Spec.Source = &application.ApplicationSource{RepoURL: "https://example.com/repo.git", TargetRevision: "old"}
+	ghost.Spec.Source = &v1alpha1.ApplicationSource{RepoURL: "https://example.com/repo.git", TargetRevision: "old"}
 	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).Build()
 	c, _ := newCacheSyncingClient(t, apiClient, ghost)
 
@@ -649,16 +648,46 @@ func TestCreateOrUpdateRecreateKeepsIgnoredTargetRevision(t *testing.T) {
 
 	desired := desiredApp()
 	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, diffConfig, desired, func() error {
-		desired.Spec = application.ApplicationSpec{
+		desired.Spec = v1alpha1.ApplicationSpec{
 			Project: "project",
-			Source:  &application.ApplicationSource{RepoURL: "https://example.com/repo.git", TargetRevision: "main"},
+			Source:  &v1alpha1.ApplicationSource{RepoURL: "https://example.com/repo.git", TargetRevision: "main"},
 		}
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 	require.Equal(t, controllerutil.OperationResultCreated, action)
 
-	got := &application.Application{}
+	got := &v1alpha1.Application{}
 	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
 	require.Equal(t, "main", got.Spec.Source.TargetRevision, "ignored fields must survive recreation")
+}
+
+// TestCreateOrUpdateRecreateKeepsEqualRequestedOperation guards the recreation path against
+// value-based Operation detection: when the template explicitly requests an Operation that is
+// equal to the one on the stale cache entry, the explicit request signal (not value inequality)
+// must keep the Operation on the recreated Application.
+func TestCreateOrUpdateRecreateKeepsEqualRequestedOperation(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	ghost := staleCacheGhostApp()
+	ghost.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "r1"}}
+	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).Build()
+	c, _ := newCacheSyncingClient(t, apiClient, ghost)
+
+	desired := desiredApp()
+	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
+		// the template requests an Operation equal (by value) to the cached one, but as a
+		// distinct object: an explicit request, not an inherited value
+		desired.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "r1"}}
+		return nil
+	}, true)
+	require.NoError(t, err)
+	require.Equal(t, controllerutil.OperationResultCreated, action)
+
+	got := &v1alpha1.Application{}
+	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
+	require.NotNil(t, got.Operation, "an explicitly requested Operation must survive recreation even when it equals the cached one")
+	require.Equal(t, "r1", got.Operation.Sync.Revision)
 }

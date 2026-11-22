@@ -10,6 +10,7 @@ import (
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/apimachinery/pkg/types"
 	k8scache "k8s.io/client-go/tools/cache"
 	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
@@ -339,4 +340,50 @@ func TestUncachedReader(t *testing.T) {
 	verifier, ok := cWithReader.(interface{ UncachedReader() client.Reader })
 	require.True(t, ok)
 	require.Equal(t, client.Reader(apiReader), verifier.UncachedReader())
+}
+
+// TestEvictFromCacheKeepsReplacementEntry: between the uncached probe that confirmed the object
+// is gone and the eviction, the informer may have stored a replacement object for the same key.
+// Eviction must remove only the stale entry (matched by UID), not the replacement.
+func TestEvictFromCacheKeepsReplacementEntry(t *testing.T) {
+	t.Parallel()
+	stale := &application.Application{Name: "test", Namespace: "argocd", ResourceVersion: "7"}
+	stale.UID = "uid-stale"
+	c, store := newClient(t, withObjects(stale))
+
+	replacement := &application.Application{Name: "test", Namespace: "argocd", ResourceVersion: "8"}
+	replacement.UID = "uid-new"
+	require.NoError(t, store.Update(replacement))
+
+	c.EvictFromCache(t.Context(), stale)
+
+	got, exists, err := store.Get(stale)
+	require.NoError(t, err)
+	require.True(t, exists, "the replacement entry must not be evicted")
+	require.Equal(t, types.UID("uid-new"), got.(*application.Application).UID)
+}
+
+// TestCreateAlreadyExistsSyncsCache: when a Create loses an AlreadyExists race, the existing
+// object must be synced into the informer store so cache-backed reads stop reporting it missing.
+func TestCreateAlreadyExistsSyncsCache(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, application.AddToScheme(scheme))
+
+	existing := &application.Application{Name: "test", Namespace: "argocd", Labels: map[string]string{"a": "b"}}
+	existing.UID = "uid-live"
+	apiClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
+
+	c, store := newClient(t)
+	c.Client = apiClient
+	c.apiReader = apiClient // the informer store starts empty: the informer has not seen the object yet
+
+	err := c.Create(t.Context(), &application.Application{Name: "test", Namespace: "argocd"})
+	require.True(t, apierrors.IsAlreadyExists(err), "expected AlreadyExists, got %v", err)
+
+	got, exists, err := store.GetByKey("test")
+	require.NoError(t, err)
+	require.True(t, exists, "the existing object must be synced into the informer store after AlreadyExists")
+	require.Equal(t, types.UID("uid-live"), got.(*application.Application).UID)
+	require.Equal(t, "b", got.(*application.Application).Labels["a"])
 }

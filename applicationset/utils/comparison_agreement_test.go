@@ -70,7 +70,7 @@ func TestSpecComparisonAgreesWithWritePath(t *testing.T) {
 	op, err := CreateOrUpdate(t.Context(), log.NewEntry(log.New()), c, diffConfig, obj, func() error {
 		obj.Spec = generated.Spec
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 
 	writePathWouldPatch := op == controllerutil.OperationResultUpdated

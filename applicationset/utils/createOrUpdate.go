@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	stderrors "errors"
 	"fmt"
-	"reflect"
 
 	log "github.com/sirupsen/logrus"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -105,30 +104,22 @@ func SpecsEquivalent(diffConfig argodiff.DiffConfig, live, desired *argov1alpha1
 //
 // The MutateFn is called regardless of creating or updating an object.
 //
+// operationRequested tells whether the caller's template explicitly requested an Operation for
+// this reconciliation (e.g. the ApplicationSet template set .operation). It is an explicit
+// signal rather than a value comparison: an Operation that merely equals the one on a stale
+// cache entry still counts as requested when the template asked for it. Only a requested
+// Operation may be carried into a recreated Application; an Operation merely inherited from a
+// stale cache entry must be dropped.
+//
 // It returns the executed operation and an error.
-func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, diffConfig argodiff.DiffConfig, obj *argov1alpha1.Application, f controllerutil.MutateFn) (controllerutil.OperationResult, error) {
+func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, diffConfig argodiff.DiffConfig, obj *argov1alpha1.Application, f controllerutil.MutateFn, operationRequested bool) (controllerutil.OperationResult, error) {
 	key := client.ObjectKeyFromObject(obj)
-
-	// Track whether the MutateFn sets an Operation that differs from what the (possibly stale)
-	// cache held: only such a template-requested Operation may be carried into a recreated
-	// Application. An Operation merely inherited from a stale cache entry must be dropped.
-	operationRequested := false
-	wrappedMutate := func() error {
-		before := obj.Operation
-		if err := f(); err != nil {
-			return err
-		}
-		if obj.Operation != nil && !reflect.DeepEqual(before, obj.Operation) {
-			operationRequested = true
-		}
-		return nil
-	}
 
 	if err := c.Get(ctx, key, obj); err != nil {
 		if !errors.IsNotFound(err) {
 			return controllerutil.OperationResultNone, err
 		}
-		if err := mutate(wrappedMutate, key, obj); err != nil {
+		if err := mutate(f, key, obj); err != nil {
 			return controllerutil.OperationResultNone, err
 		}
 		if err := c.Create(ctx, obj); err != nil {
@@ -140,7 +131,7 @@ func CreateOrUpdate(ctx context.Context, logCtx *log.Entry, c client.Client, dif
 	normalizedLive := obj.DeepCopy()
 
 	// Mutate the live object to match the desired state.
-	if err := mutate(wrappedMutate, key, obj); err != nil {
+	if err := mutate(f, key, obj); err != nil {
 		return controllerutil.OperationResultNone, err
 	}
 
