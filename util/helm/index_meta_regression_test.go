@@ -78,17 +78,6 @@ func (c *countingMetaCache) swapMetaDigest(digest string) {
 	c.meta = &HelmIndexMeta{BodyDigest: digest, ETag: c.meta.ETag, LastModified: c.meta.LastModified, URLIdentity: c.meta.URLIdentity, Generation: c.meta.Generation, StoredAt: c.meta.StoredAt}
 }
 
-func newMetaTestIndex(t *testing.T, store *IndexStore, cache *countingMetaCache, _ string) {
-	t.Helper()
-	body := sampleIndexData("demo")
-	require.NoError(t, store.Set("https://charts.example.com", body))
-	cache.publish(&HelmIndexRecord{
-		Body:       body,
-		BodyDigest: store.digestOf(t, "https://charts.example.com"),
-		StoredAt:   time.Now().UTC().Format(time.RFC3339Nano),
-	})
-}
-
 func (s *IndexStore) digestOf(t *testing.T, repoURL string) string {
 	t.Helper()
 	record, err := s.readRecord(repoURL, false)
