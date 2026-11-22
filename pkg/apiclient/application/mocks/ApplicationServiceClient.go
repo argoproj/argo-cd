@@ -53,13 +53,15 @@ func (_m *ApplicationServiceClient) EXPECT() *ApplicationServiceClient_Expecter 
 
 // Create provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Create(ctx context.Context, in *application.ApplicationCreateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
@@ -110,9 +112,11 @@ func (_c *ApplicationServiceClient_Create_Call) Run(run func(ctx context.Context
 			arg1 = args[1].(*application.ApplicationCreateRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -136,13 +140,15 @@ func (_c *ApplicationServiceClient_Create_Call) RunAndReturn(run func(ctx contex
 
 // Delete provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Delete(ctx context.Context, in *application.ApplicationDeleteRequest, opts ...grpc.CallOption) (*application.ApplicationResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
@@ -193,9 +199,11 @@ func (_c *ApplicationServiceClient_Delete_Call) Run(run func(ctx context.Context
 			arg1 = args[1].(*application.ApplicationDeleteRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -219,13 +227,15 @@ func (_c *ApplicationServiceClient_Delete_Call) RunAndReturn(run func(ctx contex
 
 // DeleteResource provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) DeleteResource(ctx context.Context, in *application.ApplicationResourceDeleteRequest, opts ...grpc.CallOption) (*application.ApplicationResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for DeleteResource")
@@ -276,9 +286,11 @@ func (_c *ApplicationServiceClient_DeleteResource_Call) Run(run func(ctx context
 			arg1 = args[1].(*application.ApplicationResourceDeleteRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -302,13 +314,15 @@ func (_c *ApplicationServiceClient_DeleteResource_Call) RunAndReturn(run func(ct
 
 // Get provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Get(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
@@ -359,9 +373,11 @@ func (_c *ApplicationServiceClient_Get_Call) Run(run func(ctx context.Context, i
 			arg1 = args[1].(*application.ApplicationQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -385,13 +401,15 @@ func (_c *ApplicationServiceClient_Get_Call) RunAndReturn(run func(ctx context.C
 
 // GetApplicationSyncWindows provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) GetApplicationSyncWindows(ctx context.Context, in *application.ApplicationSyncWindowsQuery, opts ...grpc.CallOption) (*application.ApplicationSyncWindowsResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetApplicationSyncWindows")
@@ -442,9 +460,11 @@ func (_c *ApplicationServiceClient_GetApplicationSyncWindows_Call) Run(run func(
 			arg1 = args[1].(*application.ApplicationSyncWindowsQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -468,13 +488,15 @@ func (_c *ApplicationServiceClient_GetApplicationSyncWindows_Call) RunAndReturn(
 
 // GetManifests provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) GetManifests(ctx context.Context, in *application.ApplicationManifestQuery, opts ...grpc.CallOption) (*apiclient.ManifestResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetManifests")
@@ -525,9 +547,11 @@ func (_c *ApplicationServiceClient_GetManifests_Call) Run(run func(ctx context.C
 			arg1 = args[1].(*application.ApplicationManifestQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -551,13 +575,15 @@ func (_c *ApplicationServiceClient_GetManifests_Call) RunAndReturn(run func(ctx 
 
 // GetManifestsWithFiles provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) GetManifestsWithFiles(ctx context.Context, opts ...grpc.CallOption) (application.ApplicationService_GetManifestsWithFilesClient, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, opts)
-	} else {
-		tmpRet = _mock.Called(ctx)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetManifestsWithFiles")
@@ -603,9 +629,11 @@ func (_c *ApplicationServiceClient_GetManifestsWithFiles_Call) Run(run func(ctx 
 			arg0 = args[0].(context.Context)
 		}
 		var arg1 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 1 {
-			variadicArgs = args[1].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-1)
+		for i, a := range args[1:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg1 = variadicArgs
 		run(
@@ -628,13 +656,15 @@ func (_c *ApplicationServiceClient_GetManifestsWithFiles_Call) RunAndReturn(run 
 
 // GetOCIMetadata provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) GetOCIMetadata(ctx context.Context, in *application.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.OCIMetadata, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetOCIMetadata")
@@ -685,9 +715,11 @@ func (_c *ApplicationServiceClient_GetOCIMetadata_Call) Run(run func(ctx context
 			arg1 = args[1].(*application.RevisionMetadataQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -711,13 +743,15 @@ func (_c *ApplicationServiceClient_GetOCIMetadata_Call) RunAndReturn(run func(ct
 
 // GetResource provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) GetResource(ctx context.Context, in *application.ApplicationResourceRequest, opts ...grpc.CallOption) (*application.ApplicationResourceResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for GetResource")
@@ -768,9 +802,11 @@ func (_c *ApplicationServiceClient_GetResource_Call) Run(run func(ctx context.Co
 			arg1 = args[1].(*application.ApplicationResourceRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -794,13 +830,15 @@ func (_c *ApplicationServiceClient_GetResource_Call) RunAndReturn(run func(ctx c
 
 // List provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) List(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationList, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -851,9 +889,11 @@ func (_c *ApplicationServiceClient_List_Call) Run(run func(ctx context.Context, 
 			arg1 = args[1].(*application.ApplicationQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -877,13 +917,15 @@ func (_c *ApplicationServiceClient_List_Call) RunAndReturn(run func(ctx context.
 
 // ListLinks provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ListLinks(ctx context.Context, in *application.ListAppLinksRequest, opts ...grpc.CallOption) (*application.LinksResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListLinks")
@@ -934,9 +976,11 @@ func (_c *ApplicationServiceClient_ListLinks_Call) Run(run func(ctx context.Cont
 			arg1 = args[1].(*application.ListAppLinksRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -960,13 +1004,15 @@ func (_c *ApplicationServiceClient_ListLinks_Call) RunAndReturn(run func(ctx con
 
 // ListResourceActions provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ListResourceActions(ctx context.Context, in *application.ApplicationResourceRequest, opts ...grpc.CallOption) (*application.ResourceActionsListResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListResourceActions")
@@ -1017,9 +1063,11 @@ func (_c *ApplicationServiceClient_ListResourceActions_Call) Run(run func(ctx co
 			arg1 = args[1].(*application.ApplicationResourceRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1043,13 +1091,15 @@ func (_c *ApplicationServiceClient_ListResourceActions_Call) RunAndReturn(run fu
 
 // ListResourceEvents provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ListResourceEvents(ctx context.Context, in *application.ApplicationResourceEventsQuery, opts ...grpc.CallOption) (*events.EventList, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListResourceEvents")
@@ -1100,9 +1150,11 @@ func (_c *ApplicationServiceClient_ListResourceEvents_Call) Run(run func(ctx con
 			arg1 = args[1].(*application.ApplicationResourceEventsQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1126,13 +1178,15 @@ func (_c *ApplicationServiceClient_ListResourceEvents_Call) RunAndReturn(run fun
 
 // ListResourceLinks provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ListResourceLinks(ctx context.Context, in *application.ApplicationResourceRequest, opts ...grpc.CallOption) (*application.LinksResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ListResourceLinks")
@@ -1183,9 +1237,11 @@ func (_c *ApplicationServiceClient_ListResourceLinks_Call) Run(run func(ctx cont
 			arg1 = args[1].(*application.ApplicationResourceRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1209,13 +1265,15 @@ func (_c *ApplicationServiceClient_ListResourceLinks_Call) RunAndReturn(run func
 
 // ManagedResources provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ManagedResources(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption) (*application.ManagedResourcesResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ManagedResources")
@@ -1266,9 +1324,11 @@ func (_c *ApplicationServiceClient_ManagedResources_Call) Run(run func(ctx conte
 			arg1 = args[1].(*application.ResourcesQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1292,13 +1352,15 @@ func (_c *ApplicationServiceClient_ManagedResources_Call) RunAndReturn(run func(
 
 // Patch provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Patch(ctx context.Context, in *application.ApplicationPatchRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Patch")
@@ -1349,9 +1411,11 @@ func (_c *ApplicationServiceClient_Patch_Call) Run(run func(ctx context.Context,
 			arg1 = args[1].(*application.ApplicationPatchRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1375,13 +1439,15 @@ func (_c *ApplicationServiceClient_Patch_Call) RunAndReturn(run func(ctx context
 
 // PatchResource provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) PatchResource(ctx context.Context, in *application.ApplicationResourcePatchRequest, opts ...grpc.CallOption) (*application.ApplicationResourceResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PatchResource")
@@ -1432,9 +1498,11 @@ func (_c *ApplicationServiceClient_PatchResource_Call) Run(run func(ctx context.
 			arg1 = args[1].(*application.ApplicationResourcePatchRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1458,13 +1526,15 @@ func (_c *ApplicationServiceClient_PatchResource_Call) RunAndReturn(run func(ctx
 
 // PodLogs provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) PodLogs(ctx context.Context, in *application.ApplicationPodLogsQuery, opts ...grpc.CallOption) (application.ApplicationService_PodLogsClient, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for PodLogs")
@@ -1515,9 +1585,11 @@ func (_c *ApplicationServiceClient_PodLogs_Call) Run(run func(ctx context.Contex
 			arg1 = args[1].(*application.ApplicationPodLogsQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1541,13 +1613,15 @@ func (_c *ApplicationServiceClient_PodLogs_Call) RunAndReturn(run func(ctx conte
 
 // ResourceTree provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ResourceTree(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption) (*v1alpha1.ApplicationTree, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ResourceTree")
@@ -1598,9 +1672,11 @@ func (_c *ApplicationServiceClient_ResourceTree_Call) Run(run func(ctx context.C
 			arg1 = args[1].(*application.ResourcesQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1624,13 +1700,15 @@ func (_c *ApplicationServiceClient_ResourceTree_Call) RunAndReturn(run func(ctx 
 
 // RevisionChartDetails provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) RevisionChartDetails(ctx context.Context, in *application.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.ChartDetails, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RevisionChartDetails")
@@ -1681,9 +1759,11 @@ func (_c *ApplicationServiceClient_RevisionChartDetails_Call) Run(run func(ctx c
 			arg1 = args[1].(*application.RevisionMetadataQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1707,13 +1787,15 @@ func (_c *ApplicationServiceClient_RevisionChartDetails_Call) RunAndReturn(run f
 
 // RevisionMetadata provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) RevisionMetadata(ctx context.Context, in *application.RevisionMetadataQuery, opts ...grpc.CallOption) (*v1alpha1.RevisionMetadata, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RevisionMetadata")
@@ -1764,9 +1846,11 @@ func (_c *ApplicationServiceClient_RevisionMetadata_Call) Run(run func(ctx conte
 			arg1 = args[1].(*application.RevisionMetadataQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1790,13 +1874,15 @@ func (_c *ApplicationServiceClient_RevisionMetadata_Call) RunAndReturn(run func(
 
 // Rollback provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Rollback(ctx context.Context, in *application.ApplicationRollbackRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Rollback")
@@ -1847,9 +1933,11 @@ func (_c *ApplicationServiceClient_Rollback_Call) Run(run func(ctx context.Conte
 			arg1 = args[1].(*application.ApplicationRollbackRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1873,13 +1961,15 @@ func (_c *ApplicationServiceClient_Rollback_Call) RunAndReturn(run func(ctx cont
 
 // RunResourceAction provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) RunResourceAction(ctx context.Context, in *application.ResourceActionRunRequest, opts ...grpc.CallOption) (*application.ApplicationResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RunResourceAction")
@@ -1930,9 +2020,11 @@ func (_c *ApplicationServiceClient_RunResourceAction_Call) Run(run func(ctx cont
 			arg1 = args[1].(*application.ResourceActionRunRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -1956,13 +2048,15 @@ func (_c *ApplicationServiceClient_RunResourceAction_Call) RunAndReturn(run func
 
 // RunResourceActionV2 provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) RunResourceActionV2(ctx context.Context, in *application.ResourceActionRunRequestV2, opts ...grpc.CallOption) (*application.ApplicationResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RunResourceActionV2")
@@ -2013,9 +2107,11 @@ func (_c *ApplicationServiceClient_RunResourceActionV2_Call) Run(run func(ctx co
 			arg1 = args[1].(*application.ResourceActionRunRequestV2)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -2039,13 +2135,15 @@ func (_c *ApplicationServiceClient_RunResourceActionV2_Call) RunAndReturn(run fu
 
 // ServerSideDiff provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) ServerSideDiff(ctx context.Context, in *application.ApplicationServerSideDiffQuery, opts ...grpc.CallOption) (*application.ApplicationServerSideDiffResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for ServerSideDiff")
@@ -2096,9 +2194,11 @@ func (_c *ApplicationServiceClient_ServerSideDiff_Call) Run(run func(ctx context
 			arg1 = args[1].(*application.ApplicationServerSideDiffQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -2122,13 +2222,15 @@ func (_c *ApplicationServiceClient_ServerSideDiff_Call) RunAndReturn(run func(ct
 
 // Sync provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Sync(ctx context.Context, in *application.ApplicationSyncRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Sync")
@@ -2179,9 +2281,11 @@ func (_c *ApplicationServiceClient_Sync_Call) Run(run func(ctx context.Context, 
 			arg1 = args[1].(*application.ApplicationSyncRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -2205,13 +2309,15 @@ func (_c *ApplicationServiceClient_Sync_Call) RunAndReturn(run func(ctx context.
 
 // TerminateOperation provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) TerminateOperation(ctx context.Context, in *application.OperationTerminateRequest, opts ...grpc.CallOption) (*application.OperationTerminateResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for TerminateOperation")
@@ -2262,9 +2368,11 @@ func (_c *ApplicationServiceClient_TerminateOperation_Call) Run(run func(ctx con
 			arg1 = args[1].(*application.OperationTerminateRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -2288,13 +2396,15 @@ func (_c *ApplicationServiceClient_TerminateOperation_Call) RunAndReturn(run fun
 
 // Update provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Update(ctx context.Context, in *application.ApplicationUpdateRequest, opts ...grpc.CallOption) (*v1alpha1.Application, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Update")
@@ -2345,9 +2455,11 @@ func (_c *ApplicationServiceClient_Update_Call) Run(run func(ctx context.Context
 			arg1 = args[1].(*application.ApplicationUpdateRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -2371,13 +2483,15 @@ func (_c *ApplicationServiceClient_Update_Call) RunAndReturn(run func(ctx contex
 
 // UpdateSpec provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) UpdateSpec(ctx context.Context, in *application.ApplicationUpdateSpecRequest, opts ...grpc.CallOption) (*v1alpha1.ApplicationSpec, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for UpdateSpec")
@@ -2428,9 +2542,11 @@ func (_c *ApplicationServiceClient_UpdateSpec_Call) Run(run func(ctx context.Con
 			arg1 = args[1].(*application.ApplicationUpdateSpecRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -2454,13 +2570,15 @@ func (_c *ApplicationServiceClient_UpdateSpec_Call) RunAndReturn(run func(ctx co
 
 // Watch provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) Watch(ctx context.Context, in *application.ApplicationQuery, opts ...grpc.CallOption) (application.ApplicationService_WatchClient, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Watch")
@@ -2511,9 +2629,11 @@ func (_c *ApplicationServiceClient_Watch_Call) Run(run func(ctx context.Context,
 			arg1 = args[1].(*application.ApplicationQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -2537,13 +2657,15 @@ func (_c *ApplicationServiceClient_Watch_Call) RunAndReturn(run func(ctx context
 
 // WatchResourceTree provides a mock function for the type ApplicationServiceClient
 func (_mock *ApplicationServiceClient) WatchResourceTree(ctx context.Context, in *application.ResourcesQuery, opts ...grpc.CallOption) (application.ApplicationService_WatchResourceTreeClient, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for WatchResourceTree")
@@ -2594,9 +2716,11 @@ func (_c *ApplicationServiceClient_WatchResourceTree_Call) Run(run func(ctx cont
 			arg1 = args[1].(*application.ResourcesQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(

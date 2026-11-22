@@ -54,6 +54,9 @@ packages:
       Dependencies: {}
       RepoGetter: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/application:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       ApplicationServiceClient: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/cluster:
@@ -64,6 +67,9 @@ packages:
       ClusterServiceClient: {}
       ClusterServiceServer: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/gpgkey:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       GPGKeyServiceClient: {}
   github.com/argoproj/argo-cd/v3/pkg/apiclient/project:
@@ -93,6 +99,9 @@ packages:
       RepoServerServiceClient: {}
       RepoServerService_GenerateManifestWithFilesClient: {}
   github.com/argoproj/argo-cd/v3/server/broadcast:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       Broadcaster: {}
   github.com/argoproj/argo-cd/v3/server/extension:

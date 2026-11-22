@@ -51,13 +51,15 @@ func (_m *GPGKeyServiceClient) EXPECT() *GPGKeyServiceClient_Expecter {
 
 // Create provides a mock function for the type GPGKeyServiceClient
 func (_mock *GPGKeyServiceClient) Create(ctx context.Context, in *gpgkey.GnuPGPublicKeyCreateRequest, opts ...grpc.CallOption) (*gpgkey.GnuPGPublicKeyCreateResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Create")
@@ -108,9 +110,11 @@ func (_c *GPGKeyServiceClient_Create_Call) Run(run func(ctx context.Context, in 
 			arg1 = args[1].(*gpgkey.GnuPGPublicKeyCreateRequest)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -134,13 +138,15 @@ func (_c *GPGKeyServiceClient_Create_Call) RunAndReturn(run func(ctx context.Con
 
 // Delete provides a mock function for the type GPGKeyServiceClient
 func (_mock *GPGKeyServiceClient) Delete(ctx context.Context, in *gpgkey.GnuPGPublicKeyQuery, opts ...grpc.CallOption) (*gpgkey.GnuPGPublicKeyResponse, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Delete")
@@ -191,9 +197,11 @@ func (_c *GPGKeyServiceClient_Delete_Call) Run(run func(ctx context.Context, in 
 			arg1 = args[1].(*gpgkey.GnuPGPublicKeyQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -217,13 +225,15 @@ func (_c *GPGKeyServiceClient_Delete_Call) RunAndReturn(run func(ctx context.Con
 
 // Get provides a mock function for the type GPGKeyServiceClient
 func (_mock *GPGKeyServiceClient) Get(ctx context.Context, in *gpgkey.GnuPGPublicKeyQuery, opts ...grpc.CallOption) (*v1alpha1.GnuPGPublicKey, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Get")
@@ -274,9 +284,11 @@ func (_c *GPGKeyServiceClient_Get_Call) Run(run func(ctx context.Context, in *gp
 			arg1 = args[1].(*gpgkey.GnuPGPublicKeyQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(
@@ -300,13 +312,15 @@ func (_c *GPGKeyServiceClient_Get_Call) RunAndReturn(run func(ctx context.Contex
 
 // List provides a mock function for the type GPGKeyServiceClient
 func (_mock *GPGKeyServiceClient) List(ctx context.Context, in *gpgkey.GnuPGPublicKeyQuery, opts ...grpc.CallOption) (*v1alpha1.GnuPGPublicKeyList, error) {
-	var tmpRet mock.Arguments
-	if len(opts) > 0 {
-		tmpRet = _mock.Called(ctx, in, opts)
-	} else {
-		tmpRet = _mock.Called(ctx, in)
+	// grpc.CallOption
+	_va := make([]any, len(opts))
+	for _i := range opts {
+		_va[_i] = opts[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ctx, in)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for List")
@@ -357,9 +371,11 @@ func (_c *GPGKeyServiceClient_List_Call) Run(run func(ctx context.Context, in *g
 			arg1 = args[1].(*gpgkey.GnuPGPublicKeyQuery)
 		}
 		var arg2 []grpc.CallOption
-		var variadicArgs []grpc.CallOption
-		if len(args) > 2 {
-			variadicArgs = args[2].([]grpc.CallOption)
+		variadicArgs := make([]grpc.CallOption, len(args)-2)
+		for i, a := range args[2:] {
+			if a != nil {
+				variadicArgs[i] = a.(grpc.CallOption)
+			}
 		}
 		arg2 = variadicArgs
 		run(

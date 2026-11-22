@@ -178,13 +178,15 @@ func (_c *Broadcaster_OnUpdate_Call[E]) RunAndReturn(run func(anyMoqParam any, a
 
 // Subscribe provides a mock function for the type Broadcaster
 func (_mock *Broadcaster[E]) Subscribe(ch chan *E, filters ...func(event *E) bool) func() {
-	var tmpRet mock.Arguments
-	if len(filters) > 0 {
-		tmpRet = _mock.Called(ch, filters)
-	} else {
-		tmpRet = _mock.Called(ch)
+	// func(event *E) bool
+	_va := make([]any, len(filters))
+	for _i := range filters {
+		_va[_i] = filters[_i]
 	}
-	ret := tmpRet
+	var _ca []any
+	_ca = append(_ca, ch)
+	_ca = append(_ca, _va...)
+	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
 		panic("no return value specified for Subscribe")
@@ -221,9 +223,11 @@ func (_c *Broadcaster_Subscribe_Call[E]) Run(run func(ch chan *E, filters ...fun
 			arg0 = args[0].(chan *E)
 		}
 		var arg1 []func(event *E) bool
-		var variadicArgs []func(event *E) bool
-		if len(args) > 1 {
-			variadicArgs = args[1].([]func(event *E) bool)
+		variadicArgs := make([]func(event *E) bool, len(args)-1)
+		for i, a := range args[1:] {
+			if a != nil {
+				variadicArgs[i] = a.(func(event *E) bool)
+			}
 		}
 		arg1 = variadicArgs
 		run(
