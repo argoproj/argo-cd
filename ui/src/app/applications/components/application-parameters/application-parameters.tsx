@@ -27,6 +27,7 @@ import {services} from '../../../shared/services';
 import {ImageTagFieldEditor} from './kustomize';
 import * as kustomize from './kustomize-image';
 import {VarsInputField} from './vars-input-field';
+import {ARGO_WARNING_COLOR} from '../../../shared/components/colors';
 import {concatMaps} from '../../../shared/utils';
 import {deleteSourceAction, getAppDefaultSource, getAppDrySource, helpTip} from '../utils';
 import * as jsYaml from 'js-yaml';
@@ -1154,7 +1155,7 @@ async function getSingleSource(app: models.Application): Promise<SourceDetails> 
 const SourceDetailsWarning = ({error}: {error?: Error}) =>
     error ? (
         <p role='alert'>
-            <i className='fa fa-exclamation-triangle' style={{color: '#f4c030'}} />{' '}
+            <i className='fa fa-exclamation-triangle' style={{color: ARGO_WARNING_COLOR}} />{' '}
             <ErrorNotification title='Unable to load repository details. The source settings shown may be incomplete' e={error} />
         </p>
     ) : null;
