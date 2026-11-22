@@ -709,3 +709,17 @@ func TestHTTPTemplateAuthenticator_RequestErrorOmitsToken(t *testing.T) {
 	require.Error(t, err)
 	assert.NotContains(t, err.Error(), "secret-jwt")
 }
+
+func TestHTTPTemplateAuthenticator_HTTPRepoURLUsesHTTP(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{"access_token": "tok"}))
+	}))
+	defer server.Close()
+
+	a := NewHTTPTemplateAuthenticator()
+	config := &Config{PathTemplate: "/token", Username: "user"}
+	creds, err := a.Authenticate(t.Context(), &Token{Type: TokenTypeBearer, Token: "id-token"}, server.URL+"/charts", config)
+	require.NoError(t, err)
+	assert.Equal(t, "tok", creds.Password)
+}

@@ -116,9 +116,9 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 	if config.AuthHost != "" {
 		host = config.AuthHost
 	}
-	// PlainHTTP describes the registry, never a separate auth host.
+	// Plain HTTP describes the registry, never a separate auth host.
 	scheme := "https"
-	if config.PlainHTTP && config.AuthHost == "" {
+	if config.AuthHost == "" && (config.PlainHTTP || strings.HasPrefix(repoURL, "http://")) {
 		scheme = "http"
 	}
 	fullURL := fmt.Sprintf("%s://%s%s", scheme, host, path)

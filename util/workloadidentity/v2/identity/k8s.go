@@ -180,7 +180,7 @@ func (p *K8sProvider) rejectAPIServerToken(ctx context.Context, token, audience 
 			Warn("K8s provider: could not verify the token is rejected by the Kubernetes API server")
 		return nil
 	}
-	return fmt.Errorf("token for service account %s with audience %q is accepted by the Kubernetes API server; refusing to send it to a repository", p.saName, audience)
+	return fmt.Errorf("token for service account %s with audience %q is accepted by the Kubernetes API server; refusing to use it for workload identity", p.saName, audience)
 }
 
 // Ensure K8sProvider implements Provider
