@@ -2,6 +2,7 @@ package repository
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -544,7 +545,7 @@ func TestParseRepoURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			registry, repoPath, err := parseRepoURL(tt.repoURL)
+			registry, repoPath, _, err := parseRepoURL(tt.repoURL)
 			if tt.expectErr {
 				require.Error(t, err)
 			} else {
@@ -710,16 +711,43 @@ func TestHTTPTemplateAuthenticator_RequestErrorOmitsToken(t *testing.T) {
 	assert.NotContains(t, err.Error(), "secret-jwt")
 }
 
-func TestHTTPTemplateAuthenticator_HTTPRepoURLUsesHTTP(t *testing.T) {
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{"access_token": "tok"}))
-	}))
-	defer server.Close()
+type schemeRecorder struct{ scheme string }
 
-	a := NewHTTPTemplateAuthenticator()
-	config := &Config{PathTemplate: "/token", Username: "user"}
-	creds, err := a.Authenticate(t.Context(), &Token{Type: TokenTypeBearer, Token: "id-token"}, server.URL+"/charts", config)
-	require.NoError(t, err)
-	assert.Equal(t, "tok", creds.Password)
+func (r *schemeRecorder) RoundTrip(req *http.Request) (*http.Response, error) {
+	r.scheme = req.URL.Scheme
+	return &http.Response{
+		StatusCode: http.StatusOK,
+		Header:     http.Header{"Content-Type": []string{"application/json"}},
+		Body:       io.NopCloser(strings.NewReader(`{"access_token":"tok"}`)),
+	}, nil
+}
+
+func TestHTTPTemplateAuthenticator_Scheme(t *testing.T) {
+	tests := []struct {
+		name      string
+		repoURL   string
+		plainHTTP bool
+		authHost  string
+		want      string
+	}{
+		{name: "http repo", repoURL: "http://charts.example.com/charts", want: "http"},
+		{name: "uppercase http repo", repoURL: "HTTP://charts.example.com/charts", want: "http"},
+		{name: "https repo ignores PlainHTTP", repoURL: "https://charts.example.com/charts", plainHTTP: true, want: "https"},
+		{name: "oci repo", repoURL: "oci://registry.example.com/repo", want: "https"},
+		{name: "oci repo with PlainHTTP", repoURL: "oci://registry.example.com/repo", plainHTTP: true, want: "http"},
+		{name: "helm oci repo", repoURL: "registry.example.com:5000/repo", want: "https"},
+		{name: "helm oci repo with PlainHTTP", repoURL: "registry.example.com:5000/repo", plainHTTP: true, want: "http"},
+		{name: "http repo with auth host", repoURL: "http://charts.example.com/charts", authHost: "sts.example.com", want: "https"},
+		{name: "oci PlainHTTP with auth host", repoURL: "oci://registry.example.com/repo", plainHTTP: true, authHost: "sts.example.com", want: "https"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := &schemeRecorder{}
+			a := &HTTPTemplateAuthenticator{HTTPClient: &http.Client{Transport: rec}}
+			config := &Config{PathTemplate: "/token", Username: "user", PlainHTTP: tt.plainHTTP, AuthHost: tt.authHost}
+			_, err := a.Authenticate(t.Context(), &Token{Type: TokenTypeBearer, Token: "id-token"}, tt.repoURL, config)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, rec.scheme)
+		})
+	}
 }

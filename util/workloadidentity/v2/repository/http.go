@@ -91,7 +91,7 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 	}
 
 	// Parse repo URL to extract registry and path
-	registry, repoPath, err := parseRepoURL(repoURL)
+	registry, repoPath, repoScheme, err := parseRepoURL(repoURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse repo URL: %w", err)
 	}
@@ -116,9 +116,11 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 	if config.AuthHost != "" {
 		host = config.AuthHost
 	}
-	// Plain HTTP describes the registry, never a separate auth host.
+	// Follow the repo URL's protocol. Native OCI (oci://) and Helm OCI
+	// (enableOCI, no scheme) URLs don't name one: HTTPS unless
+	// insecureOCIForceHttp is set. A separate auth host is always HTTPS.
 	scheme := "https"
-	if config.AuthHost == "" && (config.PlainHTTP || strings.HasPrefix(repoURL, "http://")) {
+	if config.AuthHost == "" && (repoScheme == "http" || (repoScheme != "https" && config.PlainHTTP)) {
 		scheme = "http"
 	}
 	fullURL := fmt.Sprintf("%s://%s%s", scheme, host, path)
@@ -322,7 +324,7 @@ func extractStringField(data map[string]any, fieldName string) (string, error) {
 // e.g., "oci://quay.io/myorg/myrepo" -> ("quay.io", "myorg/myrepo", nil)
 // Scheme-less URLs (e.g. "myregistry.azurecr.io/myrepo", the standard form for
 // Helm OCI repositories) are supported.
-func parseRepoURL(repoURL string) (registry, repoPath string, err error) {
+func parseRepoURL(repoURL string) (registry, repoPath, scheme string, err error) {
 	u, err := url.Parse(repoURL)
 	if err != nil || u.Host == "" {
 		// Scheme-less URLs parse with an empty Host (the whole string lands in
@@ -330,16 +332,15 @@ func parseRepoURL(repoURL string) (registry, repoPath string, err error) {
 		// synthetic scheme.
 		u, err = url.Parse("oci://" + repoURL)
 		if err != nil {
-			return "", "", fmt.Errorf("invalid URL %q: %w", repoURL, err)
+			return "", "", "", fmt.Errorf("invalid URL %q: %w", repoURL, err)
 		}
 	}
 	if u.Host == "" {
-		return "", "", fmt.Errorf("could not determine registry host from URL %q", repoURL)
+		return "", "", "", fmt.Errorf("could not determine registry host from URL %q", repoURL)
 	}
 
-	registry = u.Host
-	repoPath = strings.TrimPrefix(u.Path, "/")
-	return registry, repoPath, nil
+	// url.Parse lowercases the scheme.
+	return u.Host, strings.TrimPrefix(u.Path, "/"), u.Scheme, nil
 }
 
 func (a *HTTPTemplateAuthenticator) getHTTPClient(insecure bool) *http.Client {

@@ -70,6 +70,12 @@ The template fields drive the generic HTTP authenticator and are only needed
 for endpoints without built-in support; the cloud providers below work with
 `workloadIdentityProvider` alone.
 
+The templated exchange uses the repository URL's protocol: `http://` and
+`https://` URLs keep theirs. OCI URLs that name no HTTP protocol, native OCI
+(`oci://`) and Helm OCI (`enableOCI: "true"` with a scheme-less URL), use HTTPS
+unless `insecureOCIForceHttp` is set. A `workloadIdentityAuthHost` is always
+contacted over HTTPS. `insecure` only skips TLS certificate verification.
+
 ## Project service accounts
 
 For each project that uses workload identity, create a service account named

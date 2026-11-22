@@ -29,8 +29,11 @@ type Config struct {
 	// Insecure skips TLS certificate verification
 	Insecure bool
 
-	// PlainHTTP sends the auth request over HTTP instead of HTTPS
-	// (from the repository's insecureOCIForceHttp).
+	// PlainHTTP sends the auth request for an OCI repo URL without an HTTP
+	// scheme (native oci://, or scheme-less Helm OCI) over HTTP (from the
+	// repository's insecureOCIForceHttp).
+	// http:// and https:// repo URLs use their own protocol; AuthHost is
+	// always HTTPS.
 	PlainHTTP bool
 
 	// AuthHost overrides the registry host for the auth request URL.
