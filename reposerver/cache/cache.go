@@ -226,6 +226,25 @@ func helmIndexRecordKey(repo string) string {
 	return prefix + "record"
 }
 
+// helmIndexMetaKey names a small metadata-only copy of the record (no body).
+// It lets readers with a verified local body confirm the shared generation
+// and refresh validators without transferring the full index on every build.
+// Absence of this key always falls back to the full-record read, so it is
+// safe with legacy writers and partial publications.
+func helmIndexMetaKey(repo string) string {
+	prefix, _ := helmIndexKeyPrefix(context.Background(), repo)
+	return prefix + "meta"
+}
+
+// helmIndexMeta is the metadata-only projection of HelmIndexRecord stored at
+// helmIndexMetaKey. Body is never populated here; BodyDigest identifies the
+// body stored under the record key. The JSON tags mirror the shared record's
+// so the same payload shape round-trips through the cache client.
+type helmIndexMeta = helm.HelmIndexMeta
+
+// HelmIndexMeta is the exported metadata-only projection of a helm index
+// record (no body), defined in util/helm beside the record type.
+
 type HelmIndexRecord = helm.HelmIndexRecord
 
 // SetHelmIndex stores helm repository index.yaml content to cache
@@ -295,7 +314,18 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 	// is revalidated by a conditional GET, which needs the stored body and
 	// validators. TTL equal to freshness would delete exactly when
 	// revalidation starts, turning every post-expiry check into a full 200.
-	return c.cache.SetItem(helmIndexRecordKey(repo), record, &cacheutil.CacheActionOpts{Expiration: helmIndexRecordRetention(c.helmIndexCacheExpiration)})
+	if err := c.cache.SetItem(helmIndexRecordKey(repo), record, &cacheutil.CacheActionOpts{Expiration: helmIndexRecordRetention(c.helmIndexCacheExpiration)}); err != nil {
+		return err
+	}
+	// Publish the small metadata projection last. Readers that already hold a
+	// verified body use it to skip the full-record transfer; a missing or
+	// stale meta entry only costs the fallback read. Best-effort: a failed
+	// meta write never invalidates the record just published.
+	meta := helmIndexMeta{BodyDigest: record.BodyDigest, ETag: record.ETag, LastModified: record.LastModified, URLIdentity: record.URLIdentity, Generation: record.Generation, StoredAt: record.StoredAt}
+	if err := c.cache.SetItem(helmIndexMetaKey(repo), meta, &cacheutil.CacheActionOpts{Expiration: helmIndexRecordRetention(c.helmIndexCacheExpiration)}); err != nil {
+		return err
+	}
+	return nil
 }
 
 // helmIndexRecordRetention is how long a versioned record stays in Redis
@@ -311,6 +341,20 @@ func helmIndexRecordRetention(freshness time.Duration) time.Duration {
 
 func (c *Cache) GetHelmIndexRetainedRecord(repo string) (*HelmIndexRecord, error) {
 	return c.GetHelmIndexRetainedRecordContext(context.Background(), repo)
+}
+
+// GetHelmIndexMeta fetches the small metadata-only projection published by
+// SetHelmIndexRetainedRecord. A miss returns ErrCacheMiss and callers must
+// fall back to the full-record read. Satisfies helm.IndexMetaCache.
+func (c *Cache) GetHelmIndexMeta(repo string) (*helm.HelmIndexMeta, error) {
+	var meta helmIndexMeta
+	if err := c.cache.GetItem(helmIndexMetaKey(repo), &meta); err != nil {
+		return nil, err
+	}
+	if meta.BodyDigest == "" {
+		return nil, cacheutil.ErrCacheMiss
+	}
+	return &meta, nil
 }
 
 // GetHelmIndexRetainedRecordContext honors the caller's context while the

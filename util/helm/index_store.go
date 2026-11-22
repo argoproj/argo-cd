@@ -41,6 +41,26 @@ type IndexRecordCache interface {
 	SetHelmIndexRetainedRecord(string, *HelmIndexRecord) error
 }
 
+// IndexMetaCache is an optional small-record reader: the metadata-only
+// projection of a shared record (no body). A matching meta entry lets a
+// reader that already holds a verified local body skip the full-record
+// transfer. Implementations must publish meta and record together or not
+// at all; a missing meta entry always falls back to the full read.
+type IndexMetaCache interface {
+	GetHelmIndexMeta(repo string) (*HelmIndexMeta, error)
+}
+
+// HelmIndexMeta is the metadata-only projection of HelmIndexRecord (no body).
+// BodyDigest identifies the body stored under the record key.
+type HelmIndexMeta struct {
+	BodyDigest   string `json:"bodyDigest,omitempty"`
+	ETag         string `json:"etag,omitempty"`
+	LastModified string `json:"lastModified,omitempty"`
+	URLIdentity  string `json:"urlIdentity,omitempty"`
+	Generation   string `json:"generation,omitempty"`
+	StoredAt     string `json:"storedAt,omitempty"`
+}
+
 type IndexStore struct {
 	// An unconfirmed invalidation disables this store as a further safeguard.
 	// The lock file carries eligibility across stores and process lifetimes.
@@ -50,6 +70,10 @@ type IndexStore struct {
 	// false retains complete original indexes and disables snapshot retries.
 	FilterEnabled bool
 	cache         IndexRecordCache
+	// metaCache is an optional IndexMetaCache view of cache. It enables the
+	// metadata-first fast path: a verified local body matching shared meta
+	// avoids the full-record Redis read.Nil when cache does not implement it.
+	metaCache IndexMetaCache
 	// dir is the persistent cache directory (empty disables the store).
 	dir string
 	// expiration is how long a cached index file may be served as fresh.
@@ -83,6 +107,9 @@ func NewIndexStore(dir string, expiration time.Duration, indexCacheMaxSize int64
 	store := &IndexStore{dir: dir, expiration: expiration, lock: acquireIndexLock, removeRecord: os.Remove, renameRecord: os.Rename, indexCacheMaxSize: indexCacheMaxSize}
 	if len(caches) > 0 {
 		store.cache = caches[0]
+		if meta, ok := caches[0].(IndexMetaCache); ok {
+			store.metaCache = meta
+		}
 	}
 	// Init-time sweep: evict entries orphaned by previous process lifetimes
 	// (credential rotation, renamed repos) that no read will ever touch.
@@ -540,6 +567,33 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string,
 		}
 	}
 	if s.cache != nil {
+		// Metadata-first fast path: when the local body is digest-verified and
+		// the shared meta entry describes the same bytes, adopt the shared
+		// validators and freshness directly from the small meta record and
+		// skip the full-record transfer entirely. Any inconsistency, miss or
+		// legacy shape falls through to the full read below.
+		if s.metaCache != nil && newest != nil && !needsLocalDigest && newest.BodyDigest != "" {
+			// The exported meta reader has no ctx variant (like the full
+			// record reader on legacy caches); the reposerver implementation
+			// bounds the underlying read itself. Budget helper kept for
+			// parity with the fallback path once ctx propagation lands.
+			meta, err := s.metaCache.GetHelmIndexMeta(identity)
+			switch {
+			case err == nil && meta.BodyDigest == newest.BodyDigest:
+				// The shared generation matches the verified local bytes.
+				// Take validators and publication time from the meta entry;
+				// never mix validation state across bodies.
+				sharedFresh := &HelmIndexRecord{BodyDigest: meta.BodyDigest, Body: newest.Body, ETag: meta.ETag, LastModified: meta.LastModified, URLIdentity: meta.URLIdentity, Generation: meta.Generation, StoredAt: meta.StoredAt}
+				if _, err := time.Parse(time.RFC3339Nano, sharedFresh.StoredAt); err == nil {
+					fromShared = newest.ETag != meta.ETag || newest.LastModified != meta.LastModified || newest.URLIdentity != meta.URLIdentity || newest.Generation != meta.Generation || persistedStoredAt != meta.StoredAt
+					newest = sharedFresh
+					return newest, fromShared
+				}
+				// Malformed timestamp: safe fallback to the full read.
+			default:
+				// Meta miss, unsupported shape or different digest: fall back.
+			}
+		}
 		// Disk-only slice: bounded shared read (no fenced claim tokens yet).
 		readContext, cancel := observeIndexReadContext(ctx)
 		defer cancel()

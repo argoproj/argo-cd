@@ -631,8 +631,9 @@ func TestSetHelmIndex(t *testing.T) {
 		err := fixtures.cache.SetHelmIndex("test-repo", []byte("test-data"))
 		require.NoError(t, err)
 		// PR1 dual write: the atomic versioned record plus the legacy
-		// body-mirror key (one Set each).
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 3})
+		// body-mirror key, plus the metadata-only projection that lets
+		// verified local bodies skip the full-record transfer (one Set each).
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 4})
 	})
 	t.Run("SetHelmIndex with nil", func(t *testing.T) {
 		t.Parallel()
