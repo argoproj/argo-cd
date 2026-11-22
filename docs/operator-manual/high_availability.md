@@ -214,6 +214,40 @@ version skips index lookup; a version range may use a fresh Redis index when
 body; it still counts as a GET. Chart extraction through `helm pull --repo` can make its own index
 request on archive misses. Archive downloads and checkout-triggered builds are unchanged.
 
+#### Dependency-build timing guarantees
+
+The freshness window shapes *when a dependency build is allowed to reuse a cached index*, not
+when Argo CD reacts to repository changes. The guarantees below are verified in code and by
+executed integration scenarios (see `util/helm/index_lab_ab_test.go`):
+
+* **Warm builds make no index request.** A dependency build whose index is still within the
+  freshness window serves the validated cached copy without contacting the chart origin
+  (measured: second build in the same chart directory → zero origin requests).
+* **Manifests may outlive index freshness.** The manifest cache key does not include index
+  freshness, so manifests generated earlier can be reused after the index expired, as long as
+  the Git revision and the other cache inputs are unchanged.
+* **A commit within the freshness window can render on the previous index.** Freshness is only
+  checked when an operation is eligible to revalidate (a dependency build that executes). A
+  chart commit inside the window does not interrupt an in-flight render, and the rendered
+  result may remain in the manifest cache beyond the index TTL.
+* **New dependency versions are picked up only when a build runs on a current-enough index.**
+  A version range resolves from the index the build observes; if that index is fresh, the new
+  version is not seen until the index is revalidated after expiry (or a hard refresh runs).
+* **Hard refresh bypasses the manifest cache and fetches unconditionally — when a dependency
+  build actually executes.** It does not force a rebuild of manifests for charts whose inputs
+  did not change.
+* **`Chart.lock` pins versions through Git.** The lockfile in the checkout governs which
+  dependency version is used, independently of index freshness (measured: lockfile written at
+  `1.0.0` still resolves `1.0.0` after `2.0.0` is published and the index expires).
+* **Manifest-cache invalidation is unchanged.** Manifests are invalidated by Git revision,
+  source integrity, and application values exactly as before; the index cache adds no
+  additional invalidation trigger.
+
+Do not expect the cache to deliver "a chart version becomes visible within one freshness
+window": visibility requires a build to execute after the index has become current. Size the
+freshness window against how quickly your workloads need new chart versions after their Git
+dependencies move.
+
 Go-client index requests send `Cache-Control: no-cache` so compliant intermediary caches validate
 with the origin before replying. Update detection still depends on accurate origin validators:
 an incorrect `304`, a reused ETag, or an unchanged modification timestamp can hide a change.
