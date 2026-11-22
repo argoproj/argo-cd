@@ -1,6 +1,7 @@
 package commands
 
 import (
+	"bytes"
 	"io"
 	"testing"
 	"time"
@@ -100,6 +101,26 @@ func TestNewCommand_InvalidClusterCacheFlag(t *testing.T) {
 
 	require.ErrorContains(t, err, "invalid cluster cache configuration")
 	require.ErrorContains(t, err, "attempt limit must be at least 1")
+}
+
+func TestNewCommand_UsagePrintedForFlagErrorsOnly(t *testing.T) {
+	run := func(arg string) (string, error) {
+		var out bytes.Buffer
+		cmd := NewCommand()
+		cmd.SetArgs([]string{arg})
+		cmd.SetOut(&out)
+		cmd.SetErr(&out)
+		err := cmd.Execute()
+		return out.String(), err
+	}
+
+	out, err := run("--no-such-flag=x")
+	require.Error(t, err)
+	assert.Contains(t, out, "Usage:")
+
+	out, err = run("--cluster-cache-attempt-limit=0")
+	require.ErrorContains(t, err, "invalid cluster cache configuration")
+	assert.NotContains(t, out, "Usage:")
 }
 
 func TestAddClusterCacheFlags_BindsEachFlagToItsField(t *testing.T) {
