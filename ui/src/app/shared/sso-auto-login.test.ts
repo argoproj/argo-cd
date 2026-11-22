@@ -109,6 +109,21 @@ describe('shouldAutoLogin', () => {
             }
         });
 
+        test('keeps the logout cookie when the pause cannot be stored', () => {
+            const setItem = jest.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+                throw new Error('quota exceeded');
+            });
+            document.cookie = 'argocd.sso.autoLoginPaused=/; path=/';
+            try {
+                expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
+                expect(document.cookie).toContain('argocd.sso.autoLoginPaused=/');
+                expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);
+            } finally {
+                setItem.mockRestore();
+                document.cookie = 'argocd.sso.autoLoginPaused=; path=/; max-age=0';
+            }
+        });
+
         test('resumes after the next SSO login', () => {
             document.cookie = 'argocd.sso.autoLoginPaused=/; path=/';
             expect(shouldAutoLogin(oidcSettings(), new URLSearchParams())).toBe(false);

@@ -182,7 +182,7 @@ data:
 The setting only takes effect when an OIDC provider or at least one Dex connector is configured. If more than one Dex
 connector is configured and `dex.auth.connectorId` is not set, users land on the Dex connector selection page. If
 anonymous access is enabled with `users.anonymous.enabled`, visitors who open the UI are not redirected and browse as the
-anonymous user. Clicking **Log in** takes them to the SSO provider.
+anonymous user. Clicking **Log in** takes them to the SSO provider, unless one of the cases below applies.
 
 The login page does not redirect automatically in the following cases:
 

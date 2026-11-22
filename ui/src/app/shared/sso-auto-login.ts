@@ -26,12 +26,14 @@ export function isExternalIssuer(userInfo: UserInfo | null | undefined): boolean
 /**
  * Stops the login page of this Argo CD instance from redirecting to SSO in this browser, after a logout or a local
  * account login, so the user is neither signed straight back in nor moved off their local account when the session expires.
+ * Returns false when the pause could not be stored.
  */
-export function pauseAutoLogin() {
+export function pauseAutoLogin(): boolean {
     try {
         window.localStorage.setItem(pausedStorageKey(), String(Date.now()));
+        return true;
     } catch {
-        return;
+        return false;
     }
 }
 
@@ -55,17 +57,14 @@ export function resumeAutoLoginForSession(userInfo: UserInfo | null, sessionChec
     }
 }
 
-function adoptLogoutPause() {
-    const cookiePath = `/${baseHRef().replace(/^\/+|\/+$/g, '')}`;
-    if (!document.cookie.split(';').some(cookie => cookie.trim() === `${logoutPauseCookieName}=${cookiePath}`)) {
-        return;
-    }
-    pauseAutoLogin();
-    document.cookie = `${logoutPauseCookieName}=; path=${cookiePath}; max-age=0`;
-}
-
 function isAutoLoginPaused(): boolean {
-    adoptLogoutPause();
+    const cookiePath = `/${baseHRef().replace(/^\/+|\/+$/g, '')}`;
+    if (document.cookie.split(';').some(cookie => cookie.trim() === `${logoutPauseCookieName}=${cookiePath}`)) {
+        if (!pauseAutoLogin()) {
+            return true;
+        }
+        document.cookie = `${logoutPauseCookieName}=; path=${cookiePath}; max-age=0`;
+    }
     try {
         return window.localStorage.getItem(pausedStorageKey()) !== null;
     } catch {
