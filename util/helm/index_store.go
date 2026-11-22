@@ -592,14 +592,21 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string,
 				meta, metaErr = ctxReader.GetHelmIndexMetaContext(metaReadContext, identity)
 			} else {
 				done := metaReadContext.Done()
-				result := make(chan struct{})
+				type metaResult struct {
+					meta *HelmIndexMeta
+					err  error
+				}
+				// Buffered channel: the abandoned worker delivers exactly
+				// once and never writes the caller's variables after a
+				// timeout, so a late result cannot race the request.
+				results := make(chan metaResult, 1)
 				go func() {
-					defer close(result)
 					m, e := s.metaCache.GetHelmIndexMeta(identity)
-					meta, metaErr = m, e
+					results <- metaResult{m, e}
 				}()
 				select {
-				case <-result:
+				case res := <-results:
+					meta, metaErr = res.meta, res.err
 				case <-done:
 					metaErr = metaReadContext.Err()
 				}
@@ -609,14 +616,17 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string,
 			case metaErr == nil && meta != nil && meta.BodyDigest == newest.BodyDigest:
 				// The shared generation matches the verified local bytes.
 				// Take validators and publication time from the meta entry;
-				// never mix validation state across bodies.
+				// never mix validation state across bodies. The meta
+				// timestamp must still be within the freshness window: an
+				// expired meta (stale publication) must not authorize the
+				// local body, and the full-record fallback decides instead.
 				sharedFresh := &HelmIndexRecord{BodyDigest: meta.BodyDigest, Body: newest.Body, ETag: meta.ETag, LastModified: meta.LastModified, URLIdentity: meta.URLIdentity, Generation: meta.Generation, StoredAt: meta.StoredAt}
-				if _, err := time.Parse(time.RFC3339Nano, sharedFresh.StoredAt); err == nil {
+				if validatedAt, err := time.Parse(time.RFC3339Nano, sharedFresh.StoredAt); err == nil && time.Since(validatedAt) <= s.expiration {
 					fromShared = newest.ETag != meta.ETag || newest.LastModified != meta.LastModified || newest.URLIdentity != meta.URLIdentity || newest.Generation != meta.Generation || persistedStoredAt != meta.StoredAt
 					newest = sharedFresh
 					return newest, fromShared
 				}
-				// Malformed timestamp: safe fallback to the full read.
+				// Malformed or expired timestamp: safe fallback to the full read.
 			default:
 				// Meta miss, unsupported shape or different digest: fall back.
 			}

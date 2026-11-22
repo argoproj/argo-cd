@@ -150,8 +150,11 @@ func TestMetaFastPathFallsBackOnDigestMismatch(t *testing.T) {
 func TestStaleMetaPolicy(t *testing.T) {
 	store, cache, client, repoURL := metaTestSetup(t)
 
-	// Simulate partial publication: record advances to B, meta still A.
-	bodyB := sampleIndexData("demo")
+	// Simulate partial publication: record advances to B (genuinely
+	// different bytes), meta still describes A.
+	bodyA := sampleIndexData("demo")
+	bodyB := sampleIndexData("other")
+	require.NotEqual(t, string(bodyA), string(bodyB), "bodies must differ")
 	cache.mu.Lock()
 	cache.record = &HelmIndexRecord{
 		Body:        bodyB,
@@ -163,29 +166,46 @@ func TestStaleMetaPolicy(t *testing.T) {
 	cache.mu.Unlock()
 
 	// Reader whose local body matches meta A: serves A from the matching
-	// meta (explicit policy; no full read).
+	// meta (explicit policy; no full read) — while meta A is still fresh.
 	body, _, err := store.revalidate(t.Context(), repoURL, client, false)
 	require.NoError(t, err)
-	assert.NotEmpty(t, body)
+	assert.Equal(t, string(bodyA), string(body), "matching meta authorizes the verified local body")
 	assert.EqualValues(t, 0, cache.fullReads, "matching meta authorizes the verified local body")
 
+	// After meta A's freshness expires, the same reader may no longer serve
+	// A on meta authority: the fresh check rejects the aged StoredAt and the
+	// full-record fallback runs, observing B.
+	cache.mu.Lock()
+	agedMeta := *cache.meta
+	agedMeta.StoredAt = time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339Nano)
+	cache.meta = &agedMeta
+	cache.mu.Unlock()
+	agedBody, _, err := store.revalidate(t.Context(), repoURL, client, false)
+	require.NoError(t, err)
+	assert.Equal(t, string(bodyB), string(agedBody), "expired meta must not serve the old body; the full record (B) wins")
+	assert.EqualValues(t, 1, cache.fullReads, "expired meta forces the full-record fallback")
+
 	// A reader whose local body matches NEITHER A nor B takes the full
-	// fallback and observes the new record B. Both meta (still describing A
-	// for the first reader) and record B live in the same shared cache; the
-	// second reader's local body is unrelated, so its meta digest check
-	// fails and the full record (B) is read instead.
+	// fallback and observes the new record B even while meta is fresh. B is
+	// republished with a fresh timestamp so it is newer than this reader's
+	// local record — otherwise the never-regress guard correctly keeps the
+	// locally newer record.
 	otherStore, otherCache, otherClient, otherURL := metaTestSetup(t)
 	cache.mu.Lock()
-	otherCache.publish(cache.record)  // shared record now B
-	otherCache.meta = &HelmIndexMeta{ // stale meta describing a third body
+	refreshedB := *cache.record
+	refreshedB.StoredAt = time.Now().UTC().Format(time.RFC3339Nano)
+	cache.mu.Unlock()
+	otherCache.mu.Lock()
+	otherCache.record = &refreshedB   // shared record now B, newer than local
+	otherCache.meta = &HelmIndexMeta{ // meta describing a third body
 		BodyDigest: sha256Hex(sampleIndexData("unrelated")),
 		StoredAt:   time.Now().UTC().Format(time.RFC3339Nano),
 	}
-	cache.mu.Unlock()
+	otherCache.mu.Unlock()
 	sharedBodyB, _, otherErr := otherStore.revalidate(t.Context(), otherURL, otherClient, false)
 	require.NoError(t, otherErr)
-	assert.NotEmpty(t, sharedBodyB)
-	assert.EqualValues(t, 1, otherCache.fullReads, "meta miss must fall back to the full record")
+	assert.Equal(t, string(bodyB), string(sharedBodyB))
+	assert.EqualValues(t, 1, otherCache.fullReads, "non-matching meta must fall back to the full record")
 }
 
 func sha256Hex(body []byte) string {
