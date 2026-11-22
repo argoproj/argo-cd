@@ -187,7 +187,7 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		_, err = ctrl.kubectl.CreateResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
-				pending, getErr := existingHookPending(ctx, ctrl.kubectl, config, obj, resourceTracking, appLabelKey, app.InstanceName(ctrl.namespace), trackingMethod, installationID)
+				pending, getErr := existingHookPending(ctx, ctrl.kubectl, config, obj, hookType, resourceTracking, appLabelKey, app.InstanceName(ctrl.namespace), trackingMethod, installationID)
 				if getErr != nil {
 					return false, getErr
 				}
@@ -372,10 +372,11 @@ func (ctrl *ApplicationController) cleanupPostDeleteHooks(ctx context.Context, l
 
 // existingHookPending reports whether a hook that CreateResource said already exists
 // should be treated as still running. That is the case when the live object is
-// tracked by this app (it is ours, just not in the cache yet) or when it vanished
-// in the meantime (the next reconcile recreates it). An object that this app does
-// not track is not ours to wait for: waiting on it would block deletion forever.
-func existingHookPending(ctx context.Context, kubectl kube.Kubectl, config *rest.Config, obj *unstructured.Unstructured, rt argoutil.ResourceTracking, appLabelKey, appName string, trackingMethod appv1.TrackingMethod, installationID string) (bool, error) {
+// tracked by this app and is a hook of hookType (it is ours, just not in the cache
+// yet), or when it vanished in the meantime (the next reconcile recreates it). Any
+// other object is not a hook to wait for: waiting on it would block deletion
+// forever. For example, a resource synced before Git added the hook annotation.
+func existingHookPending(ctx context.Context, kubectl kube.Kubectl, config *rest.Config, obj *unstructured.Unstructured, hookType HookType, rt argoutil.ResourceTracking, appLabelKey, appName string, trackingMethod appv1.TrackingMethod, installationID string) (bool, error) {
 	live, err := kubectl.GetResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
 	if err != nil {
 		if apierrors.IsNotFound(err) {
@@ -386,5 +387,5 @@ func existingHookPending(ctx context.Context, kubectl kube.Kubectl, config *rest
 	if live == nil {
 		return true, nil
 	}
-	return rt.GetAppName(live, appLabelKey, trackingMethod, installationID) == appName, nil
+	return isHookOfType(live, hookType) && rt.GetAppName(live, appLabelKey, trackingMethod, installationID) == appName, nil
 }

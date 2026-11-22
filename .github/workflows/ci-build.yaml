@@ -726,14 +726,19 @@ jobs:
           egress-policy: audit
       - name: Start pulling Docker images in the background
         run: |
-          nohup bash -c '
-            set -e
-            # renovate: datasource=github-releases depName=dexidp/dex
-            docker pull ghcr.io/dexidp/dex:v2.46.1
-            docker pull argoproj/argo-cd-ci-builder:v1.0.0
-            # renovate: datasource=docker packageName=docker.io/library/redis
-            docker pull redis:8.10.3-alpine
-          ' > /tmp/docker-pull.log 2>&1 && echo 0 > /tmp/docker-pull.rc || echo 1 > /tmp/docker-pull.rc &
+          # Write the status to a temp file, then rename it, so the waiting step
+          # never reads an empty status file.
+          {
+            nohup bash -c '
+              set -e
+              # renovate: datasource=github-releases depName=dexidp/dex
+              docker pull ghcr.io/dexidp/dex:v2.46.1
+              docker pull argoproj/argo-cd-ci-builder:v1.0.0
+              # renovate: datasource=docker packageName=docker.io/library/redis
+              docker pull redis:8.10.3-alpine
+            ' > /tmp/docker-pull.log 2>&1 && rc=0 || rc=1
+            echo "$rc" > /tmp/docker-pull.rc.tmp && mv /tmp/docker-pull.rc.tmp /tmp/docker-pull.rc
+          } &
       - name: Free Disk Space (Ubuntu)
         # The upstream repository runs this job on the Oracle runners selected above, which
         # start with well over 200 GB free. Removing ~20 GB of unused toolchains there costs

@@ -502,6 +502,7 @@ func TestExistingHookPending(t *testing.T) {
 		obj.SetGroupVersionKind(schema.GroupVersionKind{Group: "batch", Version: "v1", Kind: "Job"})
 		obj.SetName("my-hook")
 		obj.SetNamespace("default")
+		obj.SetAnnotations(map[string]string{"argocd.argoproj.io/hook": "PreDelete"})
 		return obj
 	}
 	rt := argoutil.NewResourceTracking()
@@ -521,6 +522,16 @@ func TestExistingHookPending(t *testing.T) {
 				return obj, nil
 			},
 			expected: true,
+		},
+		{
+			name: "tracked by this app but not a hook yet - do not wait",
+			live: func() (*unstructured.Unstructured, error) {
+				obj := newHook()
+				obj.SetAnnotations(nil)
+				obj.SetLabels(map[string]string{appLabelKey: "my-app"})
+				return obj, nil
+			},
+			expected: false,
 		},
 		{
 			name: "not tracked by this app - not ours, do not wait",
@@ -559,7 +570,7 @@ func TestExistingHookPending(t *testing.T) {
 			kubectl := (&kubetest.MockKubectlCmd{}).WithGetResourceFunc(func(context.Context, *rest.Config, schema.GroupVersionKind, string, string) (*unstructured.Unstructured, error) {
 				return tt.live()
 			})
-			pending, err := existingHookPending(t.Context(), kubectl, nil, newHook(), rt, appLabelKey, "my-app", appv1.TrackingMethodLabel, "")
+			pending, err := existingHookPending(t.Context(), kubectl, nil, newHook(), PreDeleteHookType, rt, appLabelKey, "my-app", appv1.TrackingMethodLabel, "")
 			if tt.wantErr {
 				require.Error(t, err)
 				return
