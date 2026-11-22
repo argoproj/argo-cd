@@ -1,6 +1,7 @@
 package git
 
 import (
+	"context"
 	_ "embed"
 	"encoding/base64"
 	"encoding/json"
@@ -9,14 +10,17 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path"
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/kballard/go-shellquote"
 	gocache "github.com/patrickmn/go-cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -272,15 +276,44 @@ func Test_SSHCreds_Environ_WithProxy(t *testing.T) {
 			hostsPath := cert.GetSSHKnownHostsDataPath()
 			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
 		}
-		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
+
+		proxyScript := proxyScriptFromSSHCommand(t, env[1])
+		assert.FileExists(t, proxyScript)
+
+		scriptBytes, err := os.ReadFile(proxyScript)
+		require.NoError(t, err)
+		assert.Contains(t, string(scriptBytes), "127.0.0.1:1080")
+		assert.Contains(t, string(scriptBytes), "connect-proxy")
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
+
 		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
+		assert.NoFileExists(t, proxyScript)
 	}
+}
+
+func proxyScriptFromSSHCommand(t *testing.T, gitSSHCommandEnv string) string {
+	t.Helper()
+	args, err := shellquote.Split(strings.TrimPrefix(gitSSHCommandEnv, "GIT_SSH_COMMAND="))
+	require.NoError(t, err)
+	for _, arg := range args {
+		proxyCommand, ok := strings.CutPrefix(arg, "ProxyCommand=")
+		if !ok {
+			continue
+		}
+		fields, err := shellquote.Split(proxyCommand)
+		require.NoError(t, err)
+		require.Len(t, fields, 4, "ProxyCommand must be a single argument")
+		assert.Equal(t, "/bin/sh", fields[0])
+		assert.Equal(t, []string{"%h", "%p"}, fields[2:])
+		return fields[1]
+	}
+	require.FailNow(t, "GIT_SSH_COMMAND has no ProxyCommand", gitSSHCommandEnv)
+	return ""
 }
 
 func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
@@ -300,40 +333,78 @@ func Test_SSHCreds_Environ_WithProxyUserNamePassword(t *testing.T) {
 		assert.Equal(t, "SOCKS5_USER=user", env[2], "SOCKS5 user env var must be set")
 		assert.Equal(t, "SOCKS5_PASSWD=password", env[3], "SOCKS5 password env var must be set")
 
-		if insecureIgnoreHostKey {
-			assert.Contains(t, env[1], "-o StrictHostKeyChecking=no")
-			assert.Contains(t, env[1], "-o UserKnownHostsFile=/dev/null")
-		} else {
-			assert.Contains(t, env[1], "-o StrictHostKeyChecking=yes")
-			hostsPath := cert.GetSSHKnownHostsDataPath()
-			assert.Contains(t, env[1], "-o UserKnownHostsFile="+hostsPath)
-		}
-		assert.Contains(t, env[1], "-o ProxyCommand='connect-proxy -S 127.0.0.1:1080 -5 %h %p'")
+		proxyScript := proxyScriptFromSSHCommand(t, env[1])
+		assert.FileExists(t, proxyScript)
+
+		scriptBytes, err := os.ReadFile(proxyScript)
+		require.NoError(t, err)
+		assert.Contains(t, string(scriptBytes), "127.0.0.1:1080")
 
 		envRegex := regexp.MustCompile("-i ([^ ]+)")
 		assert.Regexp(t, envRegex, env[1])
 		privateKeyFile := envRegex.FindStringSubmatch(env[1])[1]
 		assert.FileExists(t, privateKeyFile)
+
 		utilio.Close(closer)
 		assert.NoFileExists(t, privateKeyFile)
+		assert.NoFileExists(t, proxyScript)
 	}
+}
+
+func Test_SSHCreds_Environ_ProxyCommandPassesTargetToConnectProxy(t *testing.T) {
+	if _, err := exec.LookPath("ssh"); err != nil {
+		t.Skip("ssh is not installed")
+	}
+	if _, err := exec.LookPath("git"); err != nil {
+		t.Skip("git is not installed")
+	}
+
+	binDir := t.TempDir()
+	argsFile := path.Join(t.TempDir(), "connect-proxy-args")
+	fakeConnectProxy := "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$CONNECT_PROXY_ARGS_FILE\"\nexit 1\n"
+	require.NoError(t, os.WriteFile(path.Join(binDir, "connect-proxy"), []byte(fakeConnectProxy), 0o755))
+
+	closer, env, err := NewSSHCreds("sshPrivateKey", "", true, "socks5://127.0.0.1:1080").Environ()
+	require.NoError(t, err)
+	defer utilio.Close(closer)
+
+	proxyScript := proxyScriptFromSSHCommand(t, env[0])
+	info, err := os.Stat(proxyScript)
+	require.NoError(t, err)
+	assert.Equal(t, os.FileMode(0o600), info.Mode().Perm(), "the proxy script must run without the exec bit, /dev/shm is often mounted noexec")
+
+	ctx, cancel := context.WithTimeout(t.Context(), 30*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, "git", "ls-remote", "ssh://git@git.example.com:2222/org/repo.git")
+	cmd.WaitDelay = 5 * time.Second
+	cmd.Env = append(os.Environ(), env...)
+	cmd.Env = append(cmd.Env,
+		"PATH="+binDir+string(os.PathListSeparator)+os.Getenv("PATH"),
+		"CONNECT_PROXY_ARGS_FILE="+argsFile,
+		"GIT_TERMINAL_PROMPT=0",
+	)
+	out, err := cmd.CombinedOutput()
+	require.Error(t, err, "the fake connect-proxy always fails")
+
+	args, readErr := os.ReadFile(argsFile)
+	require.NoError(t, readErr, "connect-proxy was never invoked: %s", out)
+	assert.Equal(t, []string{"-5", "-S", "127.0.0.1:1080", "git.example.com", "2222"}, strings.Fields(string(args)))
 }
 
 func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 	// Previously, if the proxy URL was invalid, a temporary file would be left in /dev/shm. This ensures the file is cleaned up in this case.
 
-	// argoio.TempDir will be /dev/shm or "" (on an OS without /dev/shm).
-	// In this case os.CreateTemp(), which is used by creds.Environ(),
-	// will use os.TempDir for the temporary directory.
-	// Reproducing this logic here:
-	argoioTempDir := argoio.TempDir
-	if argoioTempDir == "" {
-		argoioTempDir = os.TempDir()
-	}
+	origArgoioTempDir := argoio.TempDir
+	t.Cleanup(func() { argoio.TempDir = origArgoioTempDir })
 
-	// countDev returns the number of files in the temporary directory
-	countFilesInDevShm := func() int {
-		entries, err := os.ReadDir(argoioTempDir)
+	// Redirect argoio.TempDir to a test-private directory. Production uses /dev/shm
+	// or the OS temp dir, which other processes (and parallel tests) can modify,
+	// so counting entries there before/after creds.Environ() would be flaky.
+	argoio.TempDir = t.TempDir()
+
+	// countFilesInArgoioTempDir returns the number of files in the argoio.TempDir
+	countFilesInArgoioTempDir := func() int {
+		entries, err := os.ReadDir(argoio.TempDir)
 		require.NoError(t, err)
 
 		return len(entries)
@@ -345,15 +416,108 @@ func Test_SSHCreds_Environ_TempFileCleanupOnInvalidProxyURL(t *testing.T) {
 		err := os.WriteFile(caFile, []byte(""), os.FileMode(0o600))
 		require.NoError(t, err)
 		creds := NewSSHCreds("sshPrivateKey", caFile, insecureIgnoreHostKey, ":invalid-proxy-url")
+		require.Empty(t, creds.proxy, "invalid proxy must not be stored on the creds struct")
 
-		filesInDevShmBeforeInvocation := countFilesInDevShm()
+		filesBeforeWithEmptyProxy := countFilesInArgoioTempDir()
+
+		closer, env, err := creds.Environ()
+		require.NoError(t, err)
+		if closer != nil {
+			require.NoError(t, closer.Close())
+		}
+		for _, e := range env {
+			require.NotContains(t, e, "ProxyCommand", "no ProxyCommand must be set for a rejected proxy")
+		}
+
+		filesAfterWithEmptyProxy := countFilesInArgoioTempDir()
+
+		assert.Equal(t, filesBeforeWithEmptyProxy, filesAfterWithEmptyProxy, "no temporary files should leak if the proxy url is empty")
+
+		// NewSSHCreds clears invalid proxies, override so Environ() hits the validation path
+		creds.proxy = ":invalid-proxy-url"
+
+		filesBeforeWithInvalidProxy := countFilesInArgoioTempDir()
 
 		_, _, err = creds.Environ()
 		require.Error(t, err)
+		require.ErrorContains(t, err, "unsafe proxy URL rejected")
 
-		filesInDevShmAfterInvocation := countFilesInDevShm()
+		filesAfterWithInvalidProxy := countFilesInArgoioTempDir()
+		assert.Equal(t, filesBeforeWithInvalidProxy, filesAfterWithInvalidProxy, "no temporary files should leak if the proxy url is invalid")
+	}
+}
 
-		assert.Equal(t, filesInDevShmBeforeInvocation, filesInDevShmAfterInvocation, "no temporary files should leak if the proxy url cannot be parsed")
+func TestValidateProxyURL_RejectsUnsafeHostnames(t *testing.T) {
+	t.Parallel()
+	malicious := []struct {
+		name string
+		url  string
+	}{
+		{"single quote and command substitution", "socks5://evil'$(id>/tmp/x)'host:1080"},
+		{"semicolon", "socks5://host;id:1080"},
+		{"pipe", "socks5://host|id:1080"},
+		{"ampersand", "socks5://host&id:1080"},
+		{"dollar sign", "socks5://host$(x):1080"},
+		{"backtick", "socks5://host`x`:1080"},
+		{"redirect gt", "socks5://host>x:1080"},
+		{"redirect lt", "socks5://host<x:1080"},
+		{"whitespace in host", "socks5://ho st:1080"},
+		{"newline in port", "socks5://host:\n1080"},
+		{"port zero", "socks5://host:0"},
+		{"port too high", "socks5://host:65536"},
+		{"empty host", "socks5://:1080"},
+		{"wrong scheme http", "http://host:1080"},
+		{"wrong scheme https", "https://host:1080"},
+		{"wrong scheme socks4", "socks4://host:1080"},
+	}
+	for _, tc := range malicious {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateProxyURL(tc.url)
+			require.Error(t, err, "expected rejection of: %s", tc.url)
+		})
+	}
+}
+
+func TestValidateProxyURL_AcceptsValidURLs(t *testing.T) {
+	t.Parallel()
+	valid := []struct {
+		name string
+		url  string
+	}{
+		{"IPv4", "socks5://127.0.0.1:1080"},
+		{"hostname", "socks5://proxy.example.com:1080"},
+		{"IPv6 bracketed", "socks5://[::1]:1080"},
+		{"IPv6 full address", "socks5h://proxy.internal:9050"},
+		{"port 1", "socks5://proxy.example.com:1"},
+		{"port 65535", "socks5://proxy.example.com:65535"},
+	}
+	for _, tc := range valid {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			err := validateProxyURL(tc.url)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestSSHCreds_Environ_RejectsMaliciousProxyURL(t *testing.T) {
+	t.Parallel()
+	// Verify that the malicious PoC proxy URL from the advisory is rejected
+	// at construction time (NewSSHCreds), so it never flows into Environ(),
+	// GIT_SSH_COMMAND, or any persisted creds state.
+	creds := NewSSHCreds("sshPrivateKey", "", false,
+		"socks5://evil'$(id>/tmp/PWNED)'host:1080")
+	require.Empty(t, creds.proxy, "malicious proxy must not be stored on the creds struct")
+
+	closer, env, err := creds.Environ()
+	require.NoError(t, err)
+	if closer != nil {
+		defer closer.Close()
+	}
+	for _, e := range env {
+		assert.NotContains(t, e, "ProxyCommand", "no ProxyCommand must be set for a rejected proxy")
+		assert.NotContains(t, e, "PWNED", "no part of the malicious proxy must leak into the environment")
 	}
 }
 
@@ -568,13 +732,13 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 	t.Run("discovers installation ID from GitHub API", func(t *testing.T) {
 		// Setup: mock GitHub API server
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// GitHub Enterprise expects paths like /api/v3/app/installations
+			// GitHub Enterprise expects paths like /api/v3/orgs/test-org/installation
 			// go-github's WithEnterpriseURLs adds this prefix automatically
-			if strings.HasSuffix(r.URL.Path, "/app/installations") {
+			if strings.HasSuffix(r.URL.Path, "/orgs/test-org/installation") {
 				w.WriteHeader(http.StatusOK)
 				//nolint:errcheck
-				json.NewEncoder(w).Encode([]map[string]any{
-					{"id": 98765, "account": map[string]any{"login": "test-org"}},
+				json.NewEncoder(w).Encode(map[string]any{
+					"id": 98765, "account": map[string]any{"login": "test-org"},
 				})
 				return
 			}
@@ -603,15 +767,13 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 
 	t.Run("returns correct installation ID when app is installed on multiple orgs", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasSuffix(r.URL.Path, "/app/installations") {
-				w.WriteHeader(http.StatusOK)
-				//nolint:errcheck
-				json.NewEncoder(w).Encode([]map[string]any{
-					{"id": 11111, "account": map[string]any{"login": "org-alpha"}},
-					{"id": 22222, "account": map[string]any{"login": "target-org"}},
-					{"id": 33333, "account": map[string]any{"login": "org-gamma"}},
-				})
-				return
+			for org, id := range map[string]int{"org-alpha": 11111, "target-org": 22222, "org-gamma": 33333} {
+				if strings.HasSuffix(r.URL.Path, "/orgs/"+org+"/installation") {
+					w.WriteHeader(http.StatusOK)
+					//nolint:errcheck
+					json.NewEncoder(w).Encode(map[string]any{"id": id, "account": map[string]any{"login": org}})
+					return
+				}
 			}
 			w.WriteHeader(http.StatusNotFound)
 		}))
@@ -628,6 +790,126 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		actualId, err := DiscoverGitHubAppInstallationID(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "target-org")
 		require.NoError(t, err)
 		assert.Equal(t, int64(22222), actualId, "should return the installation ID for the requested org, not the last one in the list")
+	})
+
+	t.Run("falls back to the user installation when the owner is not an org", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/users/test-user/installation") {
+				w.WriteHeader(http.StatusOK)
+				//nolint:errcheck
+				json.NewEncoder(w).Encode(map[string]any{"id": 44444, "account": map[string]any{"login": "test-user"}})
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+		t.Cleanup(func() {
+			domain, _ := domainFromBaseURL(server.URL)
+			githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-user", domain, 12345))
+		})
+
+		actualId, err := DiscoverGitHubAppInstallationID(t.Context(), 12345, fakeGitHubAppPrivateKey, server.URL, "test-user")
+		require.NoError(t, err)
+		assert.Equal(t, int64(44444), actualId)
+	})
+
+	t.Run("returns not found when installed on neither an org nor a user", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		_, err := DiscoverGitHubAppInstallationID(t.Context(), 12345, fakeGitHubAppPrivateKey, server.URL, "missing-org")
+		require.ErrorContains(t, err, "installation not found for org: missing-org")
+	})
+
+	t.Run("does not fall back to the user installation on other errors", func(t *testing.T) {
+		var mu sync.Mutex
+		var paths []string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			paths = append(paths, r.URL.Path)
+			mu.Unlock()
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		defer server.Close()
+
+		_, err := DiscoverGitHubAppInstallationID(t.Context(), 12345, fakeGitHubAppPrivateKey, server.URL, "test-org")
+		require.ErrorContains(t, err, "403")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, []string{"/api/v3/orgs/test-org/installation"}, paths)
+	})
+}
+
+func TestDiscoverGitHubAppInstallationID_Locking(t *testing.T) {
+	newServer := func(started chan<- struct{}, block <-chan struct{}) *httptest.Server {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasSuffix(r.URL.Path, "/orgs/test-org/installation") {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			if started != nil {
+				close(started)
+			}
+			<-block
+			w.WriteHeader(http.StatusOK)
+			//nolint:errcheck
+			json.NewEncoder(w).Encode(map[string]any{
+				"id": 98765, "account": map[string]any{"login": "test-org"},
+			})
+		}))
+		t.Cleanup(server.Close)
+		return server
+	}
+	// Both servers listen on 127.0.0.1, so lookups against either one share a host in the lock key.
+	started := make(chan struct{})
+	release := make(chan struct{})
+	blockedServer := newServer(started, release)
+	unblocked := make(chan struct{})
+	close(unblocked)
+	server := newServer(nil, unblocked)
+	t.Cleanup(func() {
+		close(release)
+		domain, _ := domainFromBaseURL(server.URL)
+		githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 20001))
+		githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 20002))
+	})
+
+	// Hold the lock for app 20001 until the test ends.
+	go func() {
+		_, _ = DiscoverGitHubAppInstallationID(t.Context(), 20001, fakeGitHubAppPrivateKey, blockedServer.URL, "test-org")
+	}()
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("blocked lookup did not start")
+	}
+
+	discover := func(t *testing.T, ctx context.Context, appID int64) error {
+		t.Helper()
+		done := make(chan error, 1)
+		go func() {
+			_, err := DiscoverGitHubAppInstallationID(ctx, appID, fakeGitHubAppPrivateKey, server.URL, "test-org")
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			return err
+		case <-time.After(2 * time.Second):
+			t.Fatal("lookup did not return")
+			return nil
+		}
+	}
+
+	t.Run("lookup for another app is not blocked", func(t *testing.T) {
+		require.NoError(t, discover(t, t.Context(), 20002))
+	})
+
+	t.Run("lookup waiting for the same app gives up when its context ends", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		defer cancel()
+		require.ErrorIs(t, discover(t, ctx, 20001), context.DeadlineExceeded)
 	})
 }
 
@@ -957,6 +1239,89 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		require.NoError(t, err, "should succeed when response arrives within timeout")
 		require.Equal(t, "ghs_slow_ok", token)
 	})
+
+	t.Run("zero gitClientTimeout means no timeout for token requests", func(t *testing.T) {
+		gitClientTimeout = 0
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/access_tokens") {
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_no_timeout"))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL)
+		token, err := creds.getAccessToken()
+
+		require.NoError(t, err, "a zero timeout should mean no timeout, not an already-expired context")
+		require.Equal(t, "ghs_no_timeout", token)
+	})
+}
+
+func TestGitHubAppGetInstallationTransport_DiscoveryHonorsGitClientTimeout(t *testing.T) {
+	// These tests mutate gitClientTimeout so they must NOT run in parallel
+	// with each other.
+	previousTimeout := gitClientTimeout
+	t.Cleanup(func() {
+		gitClientTimeout = previousTimeout
+	})
+
+	newSlowDiscoveryServer := func(t *testing.T, delay time.Duration) *httptest.Server {
+		t.Helper()
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/orgs/test-org/installation") {
+				time.Sleep(delay)
+				w.WriteHeader(http.StatusOK)
+				//nolint:errcheck
+				json.NewEncoder(w).Encode(map[string]any{
+					"id": 98765, "account": map[string]any{"login": "test-org"},
+				})
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		t.Cleanup(server.Close)
+		t.Cleanup(func() {
+			domain, _ := domainFromBaseURL(server.URL)
+			githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 12345))
+		})
+		return server
+	}
+
+	t.Run("discovery times out after gitClientTimeout", func(t *testing.T) {
+		gitClientTimeout = 100 * time.Millisecond
+		server := newSlowDiscoveryServer(t, 1*time.Second)
+
+		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+		_, err := creds.getInstallationTransport()
+
+		require.ErrorIs(t, err, context.DeadlineExceeded)
+	})
+
+	t.Run("discovery within gitClientTimeout succeeds", func(t *testing.T) {
+		gitClientTimeout = 5 * time.Second
+		server := newSlowDiscoveryServer(t, 300*time.Millisecond)
+
+		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+		itr, err := creds.getInstallationTransport()
+
+		require.NoError(t, err)
+		require.NotNil(t, itr)
+	})
+
+	t.Run("zero gitClientTimeout means no timeout", func(t *testing.T) {
+		gitClientTimeout = 0
+		server := newSlowDiscoveryServer(t, 100*time.Millisecond)
+
+		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+		itr, err := creds.getInstallationTransport()
+
+		require.NoError(t, err)
+		require.NotNil(t, itr)
+	})
 }
 
 // ---------------------------------------------------------------------------
@@ -1110,4 +1475,22 @@ func TestCredentialTypeFromJSON(t *testing.T) {
 			assert.Equal(t, tt.expected, actual)
 		})
 	}
+}
+
+func Test_SSHCreds_Environ_ClosesProxyScriptOnWriteError(t *testing.T) {
+	var f *os.File
+	orig := createTemp
+	t.Cleanup(func() { createTemp = orig })
+	// A read-only file makes the proxy script write fail.
+	createTemp = func(_, _ string) (*os.File, error) {
+		p := path.Join(t.TempDir(), "ro")
+		require.NoError(t, os.WriteFile(p, nil, 0o600))
+		var err error
+		f, err = os.Open(p)
+		return f, err
+	}
+
+	_, _, err := NewSSHCreds("sshPrivateKey", "", false, "socks5://127.0.0.1:1080").Environ()
+	require.ErrorContains(t, err, "failed to write proxy command script")
+	require.ErrorIs(t, f.Close(), os.ErrClosed)
 }

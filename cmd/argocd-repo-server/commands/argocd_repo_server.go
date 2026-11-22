@@ -32,6 +32,7 @@ import (
 	"github.com/argoproj/argo-cd/v3/util/cli"
 	"github.com/argoproj/argo-cd/v3/util/env"
 	"github.com/argoproj/argo-cd/v3/util/errors"
+	utilgrpc "github.com/argoproj/argo-cd/v3/util/grpc"
 	"github.com/argoproj/argo-cd/v3/util/healthz"
 	"github.com/argoproj/argo-cd/v3/util/profile"
 	"github.com/argoproj/argo-cd/v3/util/sourceintegrity"
@@ -61,6 +62,8 @@ func NewCommand() *cobra.Command {
 		otlpInsecure                       bool
 		otlpHeaders                        map[string]string
 		otlpAttrs                          []string
+		otlpMetricsEnabled                 bool
+		otlpMetricsInterval                time.Duration
 		otlpSampleRatio                    float64
 		cacheSrc                           func() (*reposervercache.Cache, error)
 		tlsConfigCustomizer                tls.ConfigCustomizer
@@ -80,6 +83,7 @@ func NewCommand() *cobra.Command {
 		cmpUseManifestGeneratePaths        bool
 		ociMediaTypes                      []string
 		enableBuiltinGitConfig             bool
+		gitLsRemoteOptimizedEnabled        bool
 		clientCAPath                       string
 		disableTLS                         bool
 	)
@@ -162,6 +166,7 @@ func NewCommand() *cobra.Command {
 				CMPUseManifestGeneratePaths:                  cmpUseManifestGeneratePaths,
 				OCIMediaTypes:                                ociMediaTypes,
 				EnableBuiltinGitConfig:                       enableBuiltinGitConfig,
+				GitLsRemoteOptimizedEnabled:                  gitLsRemoteOptimizedEnabled,
 				HelmUserAgent:                                helmUserAgent,
 				HelmChartCacheExpiration:                     repoCacheExpiration,
 			}, askPassServer, clientCAPath, disableTLS)
@@ -175,6 +180,16 @@ func NewCommand() *cobra.Command {
 					log.Fatalf("failed to initialize tracing: %v", err)
 				}
 				defer closer()
+
+				if otlpMetricsEnabled {
+					metricsCloser, err := traceutil.InitMeter(ctx, "argocd-repo-server", otlpAddress, otlpInsecure, otlpHeaders, otlpAttrs, otlpMetricsInterval, metricsServer.PrometheusRegistry)
+					if err != nil {
+						log.Fatalf("failed to initialize metrics: %v", err)
+					}
+					defer metricsCloser()
+				}
+			} else if otlpMetricsEnabled {
+				log.Warn("--otlp-metrics-enabled is set but --otlp-address is empty, no metrics will be pushed")
 			}
 
 			grpc := server.CreateGRPC()
@@ -190,7 +205,7 @@ func NewCommand() *cobra.Command {
 					// connect to itself to make sure the repo server is able to serve the connection
 					// used by liveness probe to auto-restart repo server
 					// see https://github.com/argoproj/argo-cd/issues/5110 for more information
-					conn, err := apiclient.NewConnection(fmt.Sprintf("localhost:%d", listenPort), 60, healthCheckTLSConfig)
+					conn, err := apiclient.NewConnection(utilgrpc.SelfHealthCheckTarget(listenHost, listenPort), 60, healthCheckTLSConfig)
 					if err != nil {
 						return err
 					}
@@ -259,6 +274,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&otlpInsecure, "otlp-insecure", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_OTLP_INSECURE", true), "OpenTelemetry collector insecure mode")
 	command.Flags().StringToStringVar(&otlpHeaders, "otlp-headers", env.ParseStringToStringFromEnv("ARGOCD_REPO_SERVER_OTLP_HEADERS", map[string]string{}, ","), "List of OpenTelemetry collector extra headers sent with traces, headers are comma-separated key-value pairs(e.g. key1=value1,key2=value2)")
 	command.Flags().StringSliceVar(&otlpAttrs, "otlp-attrs", env.StringsFromEnv("ARGOCD_REPO_SERVER_OTLP_ATTRS", []string{}, ","), "List of OpenTelemetry collector extra attrs when send traces, each attribute is separated by a colon(e.g. key:value)")
+	command.Flags().BoolVar(&otlpMetricsEnabled, "otlp-metrics-enabled", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_OTLP_METRICS_ENABLED", false), "Push the Prometheus metrics to the OpenTelemetry collector at --otlp-address")
+	command.Flags().DurationVar(&otlpMetricsInterval, "otlp-metrics-interval", env.ParseDurationFromEnv("ARGOCD_REPO_SERVER_OTLP_METRICS_INTERVAL", 30*time.Second, time.Second, math.MaxInt64), "Interval at which Prometheus metrics are pushed to the OpenTelemetry collector")
 	cli.BoundedFloat64Var(command.Flags(), &otlpSampleRatio, "otlp-sample-ratio", env.ParseFloat64FromEnv("ARGOCD_REPO_SERVER_OTLP_SAMPLE_RATIO", 1.0, 0.0, 1.0), 0.0, 1.0, "Fraction of traces to sample, from 0.0 (none) to 1.0 (all). Parent-based, so downstream services honor the upstream sampling decision")
 	command.Flags().StringVar(&maxCombinedDirectoryManifestsSize, "max-combined-directory-manifests-size", env.StringFromEnv("ARGOCD_REPO_SERVER_MAX_COMBINED_DIRECTORY_MANIFESTS_SIZE", "10M"), "Max combined size of manifest files in a directory-type Application")
 	command.Flags().StringArrayVar(&cmpTarExcludedGlobs, "plugin-tar-exclude", env.StringsFromEnv("ARGOCD_REPO_SERVER_PLUGIN_TAR_EXCLUSIONS", []string{}, ";"), "Globs to filter when sending tarballs to plugins.")
@@ -274,6 +291,7 @@ func NewCommand() *cobra.Command {
 	command.Flags().BoolVar(&cmpUseManifestGeneratePaths, "plugin-use-manifest-generate-paths", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_PLUGIN_USE_MANIFEST_GENERATE_PATHS", false), "Pass the resources described in argocd.argoproj.io/manifest-generate-paths value to the cmpserver to generate the application manifests.")
 	command.Flags().StringSliceVar(&ociMediaTypes, "oci-layer-media-types", env.StringsFromEnv("ARGOCD_REPO_SERVER_OCI_LAYER_MEDIA_TYPES", []string{"application/vnd.oci.image.layer.v1.tar", "application/vnd.oci.image.layer.v1.tar+gzip", "application/vnd.cncf.helm.chart.content.v1.tar+gzip"}, ","), "Comma separated list of allowed media types for OCI media types. This only accounts for media types within layers.")
 	command.Flags().BoolVar(&enableBuiltinGitConfig, "enable-builtin-git-config", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_ENABLE_BUILTIN_GIT_CONFIG", true), "Enable builtin git configuration options that are required for correct argocd-repo-server operation.")
+	command.Flags().BoolVar(&gitLsRemoteOptimizedEnabled, "git-ls-remote-optimized", env.ParseBoolFromEnv("ARGOCD_GIT_LS_REMOTE_OPTIMIZED_ENABLED", false), "Enable native Git protocol v2 ref resolution with server-side HEAD, branch, and tag narrowing.")
 	command.Flags().BoolVar(&disableTLS, "disable-tls", env.ParseBoolFromEnv("ARGOCD_REPO_SERVER_DISABLE_TLS", false), "Disable TLS for the repo-server gRPC endpoint")
 	command.Flags().StringVar(&clientCAPath, "client-ca-path", env.StringFromEnv("ARGOCD_REPO_SERVER_CLIENT_CA_PATH", "/app/config/reposerver/mtls/client-ca.crt"), "Path to the client CA certificate file for mTLS. Defaults to the auto-mounted Secret path; mTLS is skipped if the file does not exist.")
 

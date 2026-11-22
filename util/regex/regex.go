@@ -1,12 +1,12 @@
 package regex
 
 import (
-	"github.com/dlclark/regexp2"
+	"github.com/dlclark/regexp2/v2"
 	log "github.com/sirupsen/logrus"
 )
 
 func Match(pattern, text string) bool {
-	compiledRegex, err := regexp2.Compile(pattern, 0)
+	compiledRegex, err := regexp2.Compile(pattern)
 	if err != nil {
 		log.Warnf("failed to compile pattern %s due to error %v", pattern, err)
 		return false

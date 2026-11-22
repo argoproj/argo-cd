@@ -1,10 +1,11 @@
 import * as React from 'react';
 import {useState} from 'react';
+import {useQuery} from '@tanstack/react-query';
 import {FormApi} from 'argo-ui';
 
-import {AutocompleteField, DataLoader, DropDownMenu, FormField} from 'argo-ui';
+import {AutocompleteField, DropDownMenu, FormField} from 'argo-ui';
 import {RevisionHelpIcon} from '../../../shared/components';
-import {services} from '../../../shared/services';
+import {repoQueries} from '../../../shared/queries';
 import './revision-form-field.scss';
 
 interface RevisionFormFieldProps {
@@ -26,6 +27,16 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
     };
 
     const selectedFilter = props.revisionType || filterType;
+    // Every form that renders this field edits an Application, so its project is in the form values.
+    const appProject: string | undefined = props.formApi.getFormState().values?.spec?.project;
+    const isOci = props.repoType === 'oci';
+    const refs = useQuery({...repoQueries.refs(props.repoURL, appProject), enabled: !!props.repoURL && !isOci});
+    const ociTags = useQuery({...repoQueries.ociTags(props.repoURL, appProject), enabled: !!props.repoURL && isOci});
+    let revisions: string[] = [];
+    if (props.repoURL) {
+        const available = isOci ? ociTags.data?.tags : selectedFilter === 'Branches' ? refs.data?.branches : refs.data?.tags;
+        revisions = ['HEAD'].concat(available || []);
+    }
     const rowClass = props.hideLabel ? '' : ' argo-form-row';
     const rowPaddingRight = !props.revisionType ? '45px' : undefined;
     const wrapperClassName = [props.compact ? '' : 'row' + rowClass, 'revision-form-field'].filter(Boolean).join(' ');
@@ -36,39 +47,16 @@ export function RevisionFormField(props: RevisionFormFieldProps) {
     return (
         <div className={wrapperClassName} style={wrapperStyle}>
             <div className='revision-form-field__main'>
-                <DataLoader
-                    input={{repoURL: props.repoURL, filterType: selectedFilter}}
-                    load={async (src: any): Promise<string[]> => {
-                        if (props.repoType === 'oci' && src.repoURL) {
-                            return services.repos
-                                .ociTags(src.repoURL)
-                                .then(revisionsRes => ['HEAD'].concat(revisionsRes.tags || []))
-                                .catch((): string[] => []);
-                        } else if (src.repoURL) {
-                            return services.repos
-                                .revisions(src.repoURL)
-                                .then(revisionsRes =>
-                                    ['HEAD']
-                                        .concat(selectedFilter === 'Branches' ? revisionsRes.branches || [] : [])
-                                        .concat(selectedFilter === 'Tags' ? revisionsRes.tags || [] : [])
-                                )
-                                .catch((): string[] => []);
-                        }
-                        return [];
-                    }}>
-                    {(revisions: string[]) => (
-                        <FormField
-                            formApi={props.formApi}
-                            label={props.hideLabel ? undefined : 'Revision'}
-                            field={props.fieldValue ? props.fieldValue : 'spec.source.targetRevision'}
-                            component={AutocompleteField}
-                            componentProps={{
-                                items: revisions,
-                                filterSuggestions: true
-                            }}
-                        />
-                    )}
-                </DataLoader>
+                <FormField
+                    formApi={props.formApi}
+                    label={props.hideLabel ? undefined : 'Revision'}
+                    field={props.fieldValue ? props.fieldValue : 'spec.source.targetRevision'}
+                    component={AutocompleteField}
+                    componentProps={{
+                        items: revisions,
+                        filterSuggestions: true
+                    }}
+                />
             </div>
             <div className='revision-form-field__dropdown'>
                 {props.repoType !== 'oci' && !props.revisionType && (

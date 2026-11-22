@@ -19,7 +19,7 @@
     }
 
     &__header-title {
-        @include themify($themes){
+        @include themify($themes) {
             color: themed('text-2');
         }
         display: inline;
@@ -70,4 +70,15 @@
 
 .tabs .fa-stack[data-count='!']:after {
     background: $argo-status-warning-color;
+}
+
+// Align the tab icon and its label on the same vertical center.
+.tabs .tabs__nav-wrapper a {
+    display: inline-flex;
+    align-items: center;
+    line-height: 1;
+
+    i {
+        line-height: 1;
+    }
 }

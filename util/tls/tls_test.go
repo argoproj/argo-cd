@@ -334,7 +334,7 @@ func TestGetTLSConfigCustomizer(t *testing.T) {
 		cfunc(&config)
 		assert.Equal(t, config.MinVersion, uint16(tls.VersionTLS12))
 		assert.Equal(t, config.MaxVersion, uint16(tls.VersionTLS13))
-		assert.Equal(t, config.CurvePreferences, []tls.CurveID([]tls.CurveID(nil)))
+		assert.Equal(t, config.CurvePreferences, []tls.CurveID(nil))
 	})
 
 	t.Run("Valid TLS customization - No cipher customization for TLSv1.3 only with default ciphers and single curve preference", func(t *testing.T) {

@@ -13,6 +13,7 @@ import (
 	"net/http/httptest"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -445,7 +446,7 @@ userInfoPath: /`,
 				if tc.userInfoCacheClaims != nil {
 					cacheClaims, err := json.Marshal(tc.userInfoCacheClaims)
 					require.NoError(t, err)
-					encCacheClaims, err := crypto.Encrypt([]byte(cacheClaims), encryptionKey)
+					encCacheClaims, err := crypto.Encrypt(cacheClaims, encryptionKey)
 					require.NoError(t, err, "failed encrypting cache Claims")
 					err = userInfoCache.Set(&cache.Item{
 						Key:    oidc.FormatUserInfoResponseCacheKey("randomUser"),
@@ -632,7 +633,7 @@ func TestLoginRateLimiter(t *testing.T) {
 	mgr := newSessionManager(settingsMgr, getProjLister(), storage)
 
 	t.Run("Test login delay valid user", func(t *testing.T) {
-		for i := 0; i < getMaxLoginFailures(); i++ {
+		for range getMaxLoginFailures() {
 			err := mgr.VerifyUsernamePassword("admin", "wrong")
 			require.Error(t, err)
 		}
@@ -652,7 +653,7 @@ func TestLoginRateLimiter(t *testing.T) {
 	})
 
 	t.Run("Test login delay invalid user", func(t *testing.T) {
-		for i := 0; i < getMaxLoginFailures(); i++ {
+		for range getMaxLoginFailures() {
 			err := mgr.VerifyUsernamePassword("invalid", "wrong")
 			require.Error(t, err)
 		}
@@ -671,6 +672,42 @@ func TestMaxUsernameLength(t *testing.T) {
 	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
 	err := mgr.VerifyUsernamePassword(username.String(), "password")
 	assert.ErrorContains(t, err, fmt.Sprintf(usernameTooLongError, maxUsernameLength))
+}
+
+// TestLoginFailureCountConcurrentBurst locks the TOCTOU race in VerifyUsernamePassword:
+// getFailureCount / exceededFailedLoginAttempts run before password verification and
+// updateFailureCount, so concurrent wrong-password attempts for the same user can all
+// observe FailCount < max and each increment the counter (and each run bcrypt).
+func TestLoginFailureCountConcurrentBurst(t *testing.T) {
+	const maxFails = 5
+	const concurrentAttempts = 40
+
+	t.Setenv(envLoginMaxFailCount, strconv.Itoa(maxFails))
+
+	settingsMgr := settings.NewSettingsManager(t.Context(), getKubeClient(t, "password", true), "argocd")
+	mgr := newSessionManager(settingsMgr, getProjLister(), NewUserStateStorage(nil))
+
+	var start sync.WaitGroup
+	start.Add(1)
+	var wg sync.WaitGroup
+
+	for range concurrentAttempts {
+		wg.Go(func() {
+			start.Wait()
+			// Wrong password: a correct limiter allows at most maxFails increments;
+			// excess attempts must be rejected before password verification / increment.
+			err := mgr.VerifyUsernamePassword("admin", "wrong-password")
+			require.Error(t, err)
+		})
+	}
+	start.Done()
+	wg.Wait()
+
+	failures := mgr.GetLoginFailures()
+	attempt := failures["admin"]
+	assert.LessOrEqual(t, attempt.FailCount, maxFails,
+		"FailCount=%d after %d concurrent wrong-password logins; expected <= %d (rate limit must serialize check+increment per user)",
+		attempt.FailCount, concurrentAttempts, maxFails)
 }
 
 func TestMaxCacheSize(t *testing.T) {
