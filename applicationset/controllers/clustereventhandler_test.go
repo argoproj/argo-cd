@@ -86,6 +86,68 @@ func TestClusterEventHandler(t *testing.T) {
 			}},
 		},
 		{
+			name: "a cluster decision resource generator should produce a request",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					Name:      "my-app-set",
+					Namespace: "argocd",
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
+							{
+								ClusterDecisionResource: &argov1alpha1.DuckTypeGenerator{},
+							},
+						},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "argocd",
+					Name:      "my-secret",
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+					},
+				},
+			},
+			expectedRequests: []reconcile.Request{{
+				Namespace: "argocd", Name: "my-app-set",
+			}},
+		},
+		{
+			name: "a matrix generator with a cluster decision resource generator should produce a request",
+			items: []argov1alpha1.ApplicationSet{
+				{
+					Name:      "my-app-set",
+					Namespace: "argocd",
+					Spec: argov1alpha1.ApplicationSetSpec{
+						Generators: []argov1alpha1.ApplicationSetGenerator{
+							{
+								Matrix: &argov1alpha1.MatrixGenerator{
+									Generators: []argov1alpha1.ApplicationSetNestedGenerator{
+										{
+											ClusterDecisionResource: &argov1alpha1.DuckTypeGenerator{},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+			secret: corev1.Secret{
+				ObjectMeta: metav1.ObjectMeta{
+					Namespace: "argocd",
+					Name:      "my-secret",
+					Labels: map[string]string{
+						argocommon.LabelKeySecretType: argocommon.LabelValueSecretTypeCluster,
+					},
+				},
+			},
+			expectedRequests: []reconcile.Request{{
+				Namespace: "argocd", Name: "my-app-set",
+			}},
+		},
+		{
 			name: "multiple cluster generators should produce multiple requests",
 			items: []argov1alpha1.ApplicationSet{
 				{
@@ -569,6 +631,18 @@ func TestNestedGeneratorHasClusterGenerator_NestedClusterGenerator(t *testing.T)
 	t.Parallel()
 	nested := argov1alpha1.ApplicationSetNestedGenerator{
 		Clusters: &argov1alpha1.ClusterGenerator{},
+	}
+
+	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)
+
+	require.NoError(t, err)
+	assert.True(t, hasClusterGenerator)
+}
+
+func TestNestedGeneratorHasClusterGenerator_NestedClusterDecisionResourceGenerator(t *testing.T) {
+	t.Parallel()
+	nested := argov1alpha1.ApplicationSetNestedGenerator{
+		ClusterDecisionResource: &argov1alpha1.DuckTypeGenerator{},
 	}
 
 	hasClusterGenerator, err := nestedGeneratorHasClusterGenerator(nested)

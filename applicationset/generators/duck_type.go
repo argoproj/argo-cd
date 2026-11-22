@@ -222,11 +222,12 @@ func findCluster(clustersFromArgoCD []utils.ClusterSpecifier, cluster any, match
 }
 
 func addClusterMetadataParams(appSet *argoprojiov1alpha1.ApplicationSet, params map[string]any, cluster *utils.ClusterSpecifier) {
+	annotations := clusterAnnotationParams(cluster.Annotations)
 	if appSet.Spec.GoTemplate {
 		metadata := map[string]any{}
 
 		if len(cluster.Annotations) > 0 {
-			metadata["annotations"] = cluster.Annotations
+			metadata["annotations"] = annotations
 		}
 		if len(cluster.Labels) > 0 {
 			metadata["labels"] = cluster.Labels
@@ -234,7 +235,7 @@ func addClusterMetadataParams(appSet *argoprojiov1alpha1.ApplicationSet, params 
 
 		params["metadata"] = metadata
 	} else {
-		for key, value := range cluster.Annotations {
+		for key, value := range annotations {
 			params["metadata.annotations."+key] = value
 		}
 

@@ -15,6 +15,8 @@ import (
 	kubefake "k8s.io/client-go/kubernetes/fake"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
+	"github.com/argoproj/argo-cd/v3/applicationset/utils"
+	"github.com/argoproj/argo-cd/v3/common"
 	argoprojiov1alpha1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -635,4 +637,49 @@ func TestGenerateParamsForDuckTypeGoTemplate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAddClusterMetadataParamsExcludesReservedAnnotations(t *testing.T) {
+	t.Parallel()
+
+	cluster := &utils.ClusterSpecifier{
+		Name:   "production-01",
+		Server: "https://production-01.example.com",
+		Labels: map[string]string{"environment": "production"},
+		Annotations: map[string]string{
+			"foo.argoproj.io":                                "production",
+			argoprojiov1alpha1.AnnotationKeyRefresh:          string(argoprojiov1alpha1.RefreshTypeNormal),
+			argoprojiov1alpha1.AnnotationKeyRefreshTimestamp: "2026-01-01T00:00:00Z",
+			argoprojiov1alpha1.AnnotationKeyHydrate:          string(argoprojiov1alpha1.RefreshTypeNormal),
+			argoprojiov1alpha1.AnnotationKeyHydrateTimestamp: "2026-01-01T00:00:00Z",
+			common.AnnotationKeyAppInstance:                  "argocd:argoproj.io/Secret:argocd/production-01",
+			common.AnnotationInstallationID:                  "my-install",
+			corev1.LastAppliedConfigAnnotation:               "{}",
+		},
+	}
+
+	t.Run("fasttemplate", func(t *testing.T) {
+		t.Parallel()
+		params := map[string]any{}
+		addClusterMetadataParams(&argoprojiov1alpha1.ApplicationSet{}, params, cluster)
+
+		assert.Equal(t, map[string]any{
+			"metadata.annotations.foo.argoproj.io": "production",
+			"metadata.labels.environment":          "production",
+		}, params)
+	})
+
+	t.Run("goTemplate", func(t *testing.T) {
+		t.Parallel()
+		params := map[string]any{}
+		appSet := &argoprojiov1alpha1.ApplicationSet{Spec: argoprojiov1alpha1.ApplicationSetSpec{GoTemplate: true}}
+		addClusterMetadataParams(appSet, params, cluster)
+
+		assert.Equal(t, map[string]any{
+			"metadata": map[string]any{
+				"annotations": map[string]string{"foo.argoproj.io": "production"},
+				"labels":      map[string]string{"environment": "production"},
+			},
+		}, params)
+	})
 }
