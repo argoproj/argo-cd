@@ -322,10 +322,7 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 	// stale meta entry only costs the fallback read. Best-effort: a failed
 	// meta write never invalidates the record just published.
 	meta := helmIndexMeta{BodyDigest: record.BodyDigest, ETag: record.ETag, LastModified: record.LastModified, URLIdentity: record.URLIdentity, Generation: record.Generation, StoredAt: record.StoredAt}
-	if err := c.cache.SetItem(helmIndexMetaKey(repo), meta, &cacheutil.CacheActionOpts{Expiration: helmIndexRecordRetention(c.helmIndexCacheExpiration)}); err != nil {
-		return err
-	}
-	return nil
+	return c.cache.SetItem(helmIndexMetaKey(repo), meta, &cacheutil.CacheActionOpts{Expiration: helmIndexRecordRetention(c.helmIndexCacheExpiration)})
 }
 
 // helmIndexRecordRetention is how long a versioned record stays in Redis

@@ -5,9 +5,10 @@ import (
 	"testing"
 	"time"
 
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 )
 
 // countingMetaCache wraps an in-memory record store and counts how often the
@@ -70,7 +71,7 @@ func (c *countingMetaCache) swapMetaDigest(digest string) {
 	c.meta = &HelmIndexMeta{BodyDigest: digest, ETag: c.meta.ETag, LastModified: c.meta.LastModified, URLIdentity: c.meta.URLIdentity, Generation: c.meta.Generation, StoredAt: c.meta.StoredAt}
 }
 
-func newMetaTestIndex(t *testing.T, store *IndexStore, cache *countingMetaCache, version string) {
+func newMetaTestIndex(t *testing.T, store *IndexStore, cache *countingMetaCache, _ string) {
 	t.Helper()
 	body := sampleIndexData("demo")
 	require.NoError(t, store.Set("https://charts.example.com", body))
