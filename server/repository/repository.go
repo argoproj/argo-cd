@@ -345,12 +345,7 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 	}
 	appName, appNs := argo.ParseFromQualifiedName(q.AppName, s.settings.GetNamespace())
 	app, err := s.appLister.Applications(appNs).Get(appName)
-	// Normalize the RBAC object so that it matches the format used by the application API.
 	appRBACObj := security.RBACName(s.settings.GetNamespace(), q.AppProject, appNs, appName)
-	if err == nil {
-		appRBACObj = app.RBACName(s.settings.GetNamespace())
-	}
-	// ensure caller has read privileges to app
 	if err := s.enf.EnforceErr(claims, rbac.ResourceApplications, rbac.ActionGet, appRBACObj); err != nil {
 		return nil, err
 	}
@@ -364,7 +359,6 @@ func (s *Server) GetAppDetails(ctx context.Context, q *repositorypkg.RepoAppDeta
 			return nil, err
 		}
 	} else {
-		// if we get here we are returning repo details of an existing app
 		if q.AppProject != app.Spec.GetProject() {
 			return nil, common.PermissionDeniedAPIError
 		}
