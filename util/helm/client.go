@@ -461,7 +461,22 @@ func (c *nativeHelmChart) GetIndex(ctx context.Context, noCache bool, maxIndexSi
 		if data != nil {
 			var identity string
 			reader, isReader := c.indexCache.(indexCacheRecordReader)
-			if isReader {
+			if freshReader, ok := c.indexCache.(indexCacheFreshRecordReader); ok && isReader {
+				// Freshness and request identity must come from ONE record:
+				// reading them separately lets an overlapping writer renew
+				// freshness between the reads and authorize a body whose own
+				// validation time had expired. The fresh-record read returns
+				// the record only while that same record is fresh.
+				c.cacheObservation = observeFreshIndexRecord(ctx, freshReader, repoKey)
+				c.cacheReadAttempted = true
+				if record := c.cacheObservation.record; record != nil && bytes.Equal(data, record.Body) {
+					identity = record.URLIdentity
+				} else {
+					// The served body is not the fresh record's body: refuse
+					// to attribute it.
+					data = nil
+				}
+			} else if isReader {
 				c.cacheObservation = observeIndexRecord(ctx, reader, repoKey)
 				c.cacheReadAttempted = true
 				if record := c.cacheObservation.record; record != nil && bytes.Equal(data, record.Body) {

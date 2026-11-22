@@ -112,8 +112,22 @@ func parseIndexBody(data []byte) error {
 		if err := decoder.Decode(&document); err != nil {
 			return fmt.Errorf("helm index is not valid YAML: %w", err)
 		}
-		if err := decoder.Decode(&document); !errors.Is(err, io.EOF) {
-			return errors.New("helm index must contain exactly one YAML document")
+		// Empty trailing documents are harmless: the pinned Helm decoder
+		// also stops at the first document, empty or not. Only a trailing
+		// document with actual content is corruption worth rejecting.
+		for {
+			err := decoder.Decode(&document)
+			if errors.Is(err, io.EOF) {
+				break
+			}
+			if err != nil {
+				return fmt.Errorf("helm index is not valid YAML: %w", err)
+			}
+			// yamlv3 reports document nodes with an empty tag; look at the
+			// child instead. An empty document decodes to a null scalar.
+			if len(document.Content) > 0 && document.Content[0].Tag != "!!null" {
+				return errors.New("helm index must contain exactly one YAML document")
+			}
 		}
 	}
 	var env struct {
