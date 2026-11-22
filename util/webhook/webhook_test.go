@@ -688,6 +688,8 @@ func Test_GetWebURLRegex(t *testing.T) {
 		{true, "https://user@example.com/org/repo", "ssh://example.com/org/repo", "https+username should match ssh"},
 
 		{false, "", "", "empty URLs should not panic"},
+		// https://github.com/argoproj/argo-cd/security/advisories/GHSA-h67h-99w8-xf8r
+		{false, "http://my.domain.com", "https://example.com/org/repo", "URL with a host but no path should not panic"},
 	}
 
 	for _, testCase := range tests {

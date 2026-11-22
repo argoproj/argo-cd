@@ -11,13 +11,14 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
-	clustercache "github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube/kubetest"
 	"github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"k8s.io/apimachinery/pkg/api/resource"
@@ -96,6 +97,13 @@ type fakeData struct {
 	// persistResourceHealth controls whether managed resource health is stored
 	// inline on the Application. When nil it defaults to true.
 	persistResourceHealth *bool
+	// reconciledAtHeartbeat bounds how stale the persisted status.reconciledAt may
+	// become. Zero writes it on every full reconciliation.
+	reconciledAtHeartbeat time.Duration
+	// reconciledAtCache, when set, is passed to the controller as its separate reconciledAt cache
+	// (as with --reconciled-at-redis). It must be set here rather than assigned after
+	// newFakeController returns, because the app informer's event handlers read it.
+	reconciledAtCache *appstatecache.Cache
 }
 
 type MockKubectl struct {
@@ -239,10 +247,12 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 			cacheutil.NewCache(cacheutil.NewInMemoryCache(1*time.Minute)),
 			1*time.Minute,
 		),
+		data.reconciledAtCache,
 		kubectl,
 		appResyncPeriod,
 		time.Hour,
 		time.Second,
+		data.reconciledAtHeartbeat,
 		time.Minute,
 		nil,
 		0,
@@ -293,7 +303,6 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		response[k] = v.ResourceNode
 	}
 	mockStateCache.EXPECT().GetNamespaceTopLevelResources(mock.Anything, mock.Anything).Return(response, nil)
-	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.Anything).Return(nil)
 	mockStateCache.EXPECT().GetClusterCache(mock.Anything).Return(clusterCacheMock, nil)
 	mockStateCache.EXPECT().IterateHierarchyV2(mock.Anything, mock.Anything, mock.Anything).Run(func(_ *v1alpha1.Cluster, keys []kube.ResourceKey, action func(_ v1alpha1.ResourceNode, _ string) bool) {
 		for _, key := range keys {
@@ -2691,6 +2700,800 @@ func TestUpdateReconciledAt(t *testing.T) {
 	})
 }
 
+// Expiry must be judged on what the controller did, not on what it last wrote
+// down, or a skipped write leaves the app looking perpetually expired.
+// After a restart the persisted reconciledAt can be up to a heartbeat old;
+// first-pass expiry must be spread over the resync period, not hit the whole
+// fleet at once.
+func TestStatusWithEffectiveReconciledAtJitteredFirstPass(t *testing.T) {
+	const resync = 3 * time.Minute
+	persisted := metav1.NewTime(time.Now().Add(-20 * time.Minute))
+	newCtrl := func(startedAt time.Time) *ApplicationController {
+		return &ApplicationController{
+			lastReconciledAt:      map[string]time.Time{},
+			reconciledAtCache:     appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+			reconciledAtHeartbeat: 30 * time.Minute,
+			statusRefreshTimeout:  resync,
+			startedAt:             startedAt,
+		}
+	}
+
+	t.Run("seeds within the resync period before start, stable across calls", func(t *testing.T) {
+		ctrl := newCtrl(time.Now())
+		expired := 0
+		for i := range 200 {
+			app := &v1alpha1.Application{}
+			app.Name, app.Namespace = fmt.Sprintf("app-%d", i), "argocd"
+			app.Status.ReconciledAt = &persisted
+
+			got := ctrl.statusWithEffectiveReconciledAt(app)
+			require.NotNil(t, got.ReconciledAt)
+			assert.False(t, got.ReconciledAt.Before(&metav1.Time{Time: ctrl.startedAt.Add(-resync)}))
+			assert.False(t, got.ReconciledAt.After(ctrl.startedAt))
+			again := ctrl.statusWithEffectiveReconciledAt(app)
+			assert.Equal(t, got.ReconciledAt.Time, again.ReconciledAt.Time, "seed must not be redrawn per check")
+
+			if soft, _ := comparisonExpiry(got, resync, 0); soft {
+				expired++
+			}
+		}
+		assert.Less(t, expired, 200, "the fleet must not all expire at once on startup")
+	})
+
+	t.Run("never-reconciled app is not seeded", func(t *testing.T) {
+		ctrl := newCtrl(time.Now())
+		app := &v1alpha1.Application{}
+		app.Name, app.Namespace = "new", "argocd"
+		assert.Nil(t, ctrl.statusWithEffectiveReconciledAt(app).ReconciledAt)
+	})
+
+	t.Run("no seeding once the first resync period has passed", func(t *testing.T) {
+		ctrl := newCtrl(time.Now().Add(-2 * resync))
+		app := &v1alpha1.Application{}
+		app.Name, app.Namespace = "app", "argocd"
+		app.Status.ReconciledAt = &persisted
+		got := ctrl.statusWithEffectiveReconciledAt(app)
+		assert.Equal(t, persisted.Time, got.ReconciledAt.Time)
+		assert.Contains(t, ctrl.lastReconciledAt, app.QualifiedName(), "a miss is recorded so the cache isn't asked on every check")
+	})
+
+	t.Run("cached value wins over seeding, also after the first resync period", func(t *testing.T) {
+		for _, startedAt := range []time.Time{time.Now(), time.Now().Add(-2 * resync)} {
+			ctrl := newCtrl(startedAt)
+			app := &v1alpha1.Application{}
+			app.Name, app.Namespace = "app", "argocd"
+			app.Status.ReconciledAt = &persisted
+			cached := time.Now().Add(-time.Minute).Truncate(time.Second)
+			require.NoError(t, ctrl.reconciledAtCache.SetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached))
+
+			got := ctrl.statusWithEffectiveReconciledAt(app)
+			assert.True(t, cached.Equal(got.ReconciledAt.Time))
+		}
+	})
+
+	t.Run("cached value from before the first resync period is still jittered", func(t *testing.T) {
+		ctrl := newCtrl(time.Now())
+		app := &v1alpha1.Application{}
+		app.Name, app.Namespace = "app", "argocd"
+		app.Status.ReconciledAt = &persisted
+		cached := time.Now().Add(-10 * time.Minute)
+		require.NoError(t, ctrl.reconciledAtCache.SetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached))
+
+		got := ctrl.statusWithEffectiveReconciledAt(app)
+		assert.False(t, got.ReconciledAt.Before(&metav1.Time{Time: ctrl.startedAt.Add(-resync)}))
+	})
+
+	t.Run("reshard back reads the value another replica cached", func(t *testing.T) {
+		shared := cacheutil.NewInMemoryCache(time.Hour)
+		replica := func() *ApplicationController {
+			ctrl := newCtrl(time.Now().Add(-2 * resync))
+			ctrl.reconciledAtCache = appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewTwoLevelClient(shared, time.Hour)), time.Hour)
+			ctrl.cache = ctrl.reconciledAtCache
+			return ctrl
+		}
+		a, b := replica(), replica()
+		app := &v1alpha1.Application{}
+		app.Name, app.Namespace = "app", "argocd"
+		app.Status.ReconciledAt = &persisted
+		t1 := time.Now().Add(-10 * time.Minute).Truncate(time.Second)
+		t2 := time.Now().Add(-time.Minute).Truncate(time.Second)
+
+		require.NoError(t, a.reconciledAtCache.SetAppReconciledAt(app.InstanceName(a.namespace), &t1))
+		a.noteReconciled(app.QualifiedName(), t1)
+		a.invalidateAppLocalCache(app)
+		require.NoError(t, b.reconciledAtCache.SetAppReconciledAt(app.InstanceName(b.namespace), &t2))
+
+		got := a.statusWithEffectiveReconciledAt(app)
+		assert.True(t, t2.Equal(got.ReconciledAt.Time), "got %v", got.ReconciledAt.Time)
+	})
+}
+
+func TestStatusWithEffectiveReconciledAt(t *testing.T) {
+	now := time.Now().UTC()
+	app := &v1alpha1.Application{}
+	app.Name, app.Namespace = "app", "argocd"
+
+	t.Run("no in-memory record leaves status untouched", func(t *testing.T) {
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
+		persisted := metav1.NewTime(now.Add(-time.Hour))
+		app.Status.ReconciledAt = &persisted
+		got := ctrl.statusWithEffectiveReconciledAt(app)
+		require.NotNil(t, got.ReconciledAt)
+		assert.Equal(t, persisted.Time, got.ReconciledAt.Time)
+	})
+
+	t.Run("in-memory record wins when newer than persisted", func(t *testing.T) {
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
+		persisted := metav1.NewTime(now.Add(-time.Hour))
+		app.Status.ReconciledAt = &persisted
+		ctrl.noteReconciled(app.QualifiedName(), now)
+
+		got := ctrl.statusWithEffectiveReconciledAt(app)
+		require.NotNil(t, got.ReconciledAt)
+		assert.Equal(t, now.Unix(), got.ReconciledAt.Unix(),
+			"expiry must be judged against the in-memory reconcile time")
+
+		// The app object itself must not be mutated as a side effect.
+		assert.Equal(t, persisted.Time, app.Status.ReconciledAt.Time)
+
+		// With a 2m refresh timeout it must no longer look expired.
+		soft, _ := comparisonExpiry(got, 2*time.Minute, 0)
+		assert.False(t, soft, "app reconciled just now must not be soft-expired")
+	})
+
+	t.Run("stale in-memory record does not mask a newer persisted value", func(t *testing.T) {
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
+		persisted := metav1.NewTime(now)
+		app.Status.ReconciledAt = &persisted
+		ctrl.noteReconciled(app.QualifiedName(), now.Add(-time.Hour))
+		got := ctrl.statusWithEffectiveReconciledAt(app)
+		assert.Equal(t, now.Unix(), got.ReconciledAt.Unix())
+	})
+
+	t.Run("forgetReconciled drops the entry", func(t *testing.T) {
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
+		ctrl.noteReconciled("argocd/app", now)
+		ctrl.forgetReconciled("argocd/app")
+		assert.Empty(t, ctrl.lastReconciledAt)
+	})
+
+	// With the heartbeat off, a failed status write must still soft-expire on the
+	// next resync, so the in-memory record must not be kept or consulted.
+	t.Run("heartbeat disabled ignores the in-memory record entirely", func(t *testing.T) {
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}}
+		persisted := metav1.NewTime(now.Add(-time.Hour))
+		app.Status.ReconciledAt = &persisted
+		ctrl.noteReconciled(app.QualifiedName(), now)
+
+		assert.Empty(t, ctrl.lastReconciledAt, "nothing reads the map when the heartbeat is off")
+		got := ctrl.statusWithEffectiveReconciledAt(app)
+		require.NotNil(t, got.ReconciledAt)
+		assert.Equal(t, persisted.Time, got.ReconciledAt.Time)
+		soft, _ := comparisonExpiry(got, 2*time.Minute, 0)
+		assert.True(t, soft, "an app whose persisted reconciledAt is an hour old must still soft-expire")
+	})
+}
+
+func TestShouldPersistReconciledAt(t *testing.T) {
+	now := time.Now().UTC()
+
+	finished := func(at time.Time) *v1alpha1.OperationState {
+		return &v1alpha1.OperationState{Phase: synccommon.OperationSucceeded, FinishedAt: ptrTime(at)}
+	}
+
+	testCases := map[string]struct {
+		heartbeat time.Duration
+		persisted *metav1.Time
+		opState   *v1alpha1.OperationState
+		expected  bool
+	}{
+		"never reconciled is always persisted": {
+			heartbeat: 10 * time.Minute, persisted: nil, expected: true,
+		},
+		"fresh value is not rewritten": {
+			heartbeat: 10 * time.Minute,
+			persisted: ptrTime(now.Add(-1 * time.Minute)),
+			expected:  false,
+		},
+		"value older than the heartbeat is refreshed": {
+			heartbeat: 10 * time.Minute,
+			persisted: ptrTime(now.Add(-11 * time.Minute)),
+			expected:  true,
+		},
+		"heartbeat disabled preserves historical always-write behaviour": {
+			heartbeat: 0,
+			persisted: ptrTime(now.Add(-1 * time.Second)),
+			expected:  true,
+		},
+		// `argocd app wait`, notifications and progressive sync read
+		// "reconciledAt after finishedAt" as "the post-sync reconcile ran".
+		"value trailing the last operation is refreshed": {
+			heartbeat: 10 * time.Minute,
+			persisted: ptrTime(now.Add(-1 * time.Minute)),
+			opState:   finished(now.Add(-2 * time.Second)),
+			expected:  true,
+		},
+		"value already past the last operation is not rewritten": {
+			heartbeat: 10 * time.Minute,
+			persisted: ptrTime(now.Add(-1 * time.Minute)),
+			opState:   finished(now.Add(-5 * time.Minute)),
+			expected:  false,
+		},
+		"a running operation does not force a write": {
+			heartbeat: 10 * time.Minute,
+			persisted: ptrTime(now.Add(-1 * time.Minute)),
+			opState:   &v1alpha1.OperationState{Phase: synccommon.OperationRunning},
+			expected:  false,
+		},
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			ctrl := &ApplicationController{reconciledAtHeartbeat: tc.heartbeat}
+			status := v1alpha1.ApplicationStatus{ReconciledAt: tc.persisted, OperationState: tc.opState}
+			assert.Equal(t, tc.expected, ctrl.shouldPersistReconciledAt(status, now))
+		})
+	}
+}
+
+func ptrTime(t time.Time) *metav1.Time {
+	mt := metav1.NewTime(t)
+	return &mt
+}
+
+// The point of the change: with a heartbeat configured, a full reconciliation
+// that changes nothing else must not write status at all.
+func TestReconciledAtHeartbeatSuppressesNoOpWrite(t *testing.T) {
+	app := newFakeApp()
+	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Second))
+	healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+	// Seed the state a completed reconciliation leaves behind, so this pass has
+	// nothing to report. Anything missing here shows up in the patch below.
+	app.Status = v1alpha1.ApplicationStatus{
+		ReconciledAt:        &reconciledAt,
+		ControllerNamespace: test.FakeArgoCDNamespace,
+		Health: v1alpha1.AppHealthStatus{
+			Status:             health.HealthStatusHealthy,
+			LastTransitionTime: &healthAt,
+		},
+		Sync: v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeSynced,
+			Revision: "abc123",
+			ComparedTo: v1alpha1.ComparedTo{
+				Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
+			},
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs: make(map[kube.ResourceKey]*unstructured.Unstructured),
+		// Opt in: reconciledAt need only be refreshed every 10 minutes.
+		reconciledAtHeartbeat: 10 * time.Minute,
+	}, nil)
+
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	receivedPatch := map[string]any{}
+	patched := false
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			patched = true
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	_, present, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
+	require.NoError(t, err)
+	assert.False(t, present, "reconciledAt must not be rewritten while within the heartbeat window")
+	assert.False(t, patched, "a no-op reconciliation must not patch the Application at all, got: %v", receivedPatch)
+
+	// The reconcile must still be recorded, or the app looks perpetually expired.
+	ctrl.lastReconciledAtMutex.RLock()
+	_, noted := ctrl.lastReconciledAt[app.QualifiedName()]
+	ctrl.lastReconciledAtMutex.RUnlock()
+	assert.True(t, noted, "reconcile time must be tracked in memory")
+}
+
+// The counterweight: however fresh the persisted value is, it must be rewritten
+// while it trails finishedAt, or `argocd app wait`, notifications and
+// progressive sync stall for a whole heartbeat window after every sync.
+func TestReconciledAtPersistedAfterOperation(t *testing.T) {
+	app := newFakeApp()
+	// The post-sync reconcile runs seconds after the sync, so on staleness grounds
+	// alone this write would be skipped.
+	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Minute))
+	finishedAt := metav1.NewTime(time.Now().Add(-2 * time.Second))
+	healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+	app.Status = v1alpha1.ApplicationStatus{
+		ReconciledAt:        &reconciledAt,
+		ControllerNamespace: test.FakeArgoCDNamespace,
+		OperationState: &v1alpha1.OperationState{
+			Phase:      synccommon.OperationSucceeded,
+			FinishedAt: &finishedAt,
+		},
+		Health: v1alpha1.AppHealthStatus{
+			Status:             health.HealthStatusHealthy,
+			LastTransitionTime: &healthAt,
+		},
+		Sync: v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeSynced,
+			Revision: "abc123",
+			ComparedTo: v1alpha1.ComparedTo{
+				Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
+			},
+		},
+	}
+
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs:       make(map[kube.ResourceKey]*unstructured.Unstructured),
+		reconciledAtHeartbeat: 10 * time.Minute,
+	}, nil)
+
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	receivedPatch := map[string]any{}
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	patchedReconciledAt, present, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
+	require.NoError(t, err)
+	require.True(t, present, "reconciledAt must be written while it trails finishedAt, got patch: %v", receivedPatch)
+	parsed, err := time.Parse(time.RFC3339, patchedReconciledAt)
+	require.NoError(t, err)
+	assert.True(t, parsed.After(finishedAt.Time),
+		"persisted reconciledAt %v must overtake finishedAt %v", parsed, finishedAt.Time)
+}
+
+// Progressive sync annotates apps for refresh and waits for reconciledAt to pass
+// the step transition, so a requested refresh must write it despite the heartbeat.
+func TestReconciledAtPersistedOnRequestedRefresh(t *testing.T) {
+	app := newFakeApp()
+	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Minute))
+	healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+	app.Status = v1alpha1.ApplicationStatus{
+		ReconciledAt:        &reconciledAt,
+		ControllerNamespace: test.FakeArgoCDNamespace,
+		Health: v1alpha1.AppHealthStatus{
+			Status:             health.HealthStatusHealthy,
+			LastTransitionTime: &healthAt,
+		},
+		Sync: v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeSynced,
+			Revision: "abc123",
+			ComparedTo: v1alpha1.ComparedTo{
+				Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
+			},
+		},
+	}
+	app.Annotations = map[string]string{v1alpha1.AnnotationKeyRefresh: string(v1alpha1.RefreshTypeNormal)}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs:       make(map[kube.ResourceKey]*unstructured.Unstructured),
+		reconciledAtHeartbeat: 10 * time.Minute,
+	}, nil)
+
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	var reconciledAtWritten bool
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok && patchAction.GetPatchType() == "application/merge-patch+json" {
+			receivedPatch := map[string]any{}
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+			_, present, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
+			require.NoError(t, err)
+			reconciledAtWritten = reconciledAtWritten || present
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	assert.True(t, reconciledAtWritten, "a requested refresh must persist reconciledAt")
+}
+
+// A failed status write must not be masked by the in-memory time, or it is not
+// retried until the next resync period.
+func TestFailedStatusWriteForgetsReconciled(t *testing.T) {
+	for _, patchErr := range []error{errors.New("api unavailable"), apierrors.NewNotFound(schema.GroupResource{}, "my-app")} {
+		t.Run(patchErr.Error(), func(t *testing.T) {
+			app := newFakeApp()
+			reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Minute))
+			healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+			app.Status = v1alpha1.ApplicationStatus{
+				ReconciledAt:        &reconciledAt,
+				ControllerNamespace: test.FakeArgoCDNamespace,
+				Health: v1alpha1.AppHealthStatus{
+					Status:             health.HealthStatusHealthy,
+					LastTransitionTime: &healthAt,
+				},
+				Sync: v1alpha1.SyncStatus{
+					Status:   v1alpha1.SyncStatusCodeSynced,
+					Revision: "abc123",
+					ComparedTo: v1alpha1.ComparedTo{
+						Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+						IgnoreDifferences: app.Spec.IgnoreDifferences,
+					},
+				},
+			}
+			// Force a non-empty status patch.
+			app.Status.Health.Status = health.HealthStatusProgressing
+			ctrl := newFakeController(t.Context(), &fakeData{
+				apps: []runtime.Object{app, &defaultProj},
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{},
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  "abc123",
+				},
+				managedLiveObjs:       make(map[kube.ResourceKey]*unstructured.Unstructured),
+				reconciledAtHeartbeat: 10 * time.Minute,
+			}, nil)
+
+			key, _ := cache.MetaNamespaceKeyFunc(app)
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			fakeAppCs.ReactionChain = nil
+			fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+				return true, nil, patchErr
+			})
+
+			ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
+			ctrl.appRefreshQueue.AddRateLimited(key)
+			ctrl.processAppRefreshQueueItem()
+
+			ctrl.lastReconciledAtMutex.RLock()
+			noted, ok := ctrl.lastReconciledAt[app.QualifiedName()]
+			ctrl.lastReconciledAtMutex.RUnlock()
+			if apierrors.IsNotFound(patchErr) {
+				// Nothing would remove a deleted app's entry.
+				assert.False(t, ok)
+				return
+			}
+			assert.True(t, reconciledAt.Time.Equal(noted), "a failed status write must fall back to the persisted reconcile time")
+			var cached time.Time
+			require.ErrorIs(t, ctrl.reconciledAtCache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached), appstatecache.ErrCacheMiss, "and must not be cached")
+		})
+	}
+}
+
+// A write that happens anyway must carry reconciledAt: holding it back saves nothing.
+func TestReconciledAtStampedWhenStatusPatchedAnyway(t *testing.T) {
+	app := newFakeApp()
+	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Minute))
+	healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+	app.Status = v1alpha1.ApplicationStatus{
+		ReconciledAt:        &reconciledAt,
+		ControllerNamespace: test.FakeArgoCDNamespace,
+		Health: v1alpha1.AppHealthStatus{
+			Status:             health.HealthStatusHealthy,
+			LastTransitionTime: &healthAt,
+		},
+		Sync: v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeSynced,
+			Revision: "abc123",
+			ComparedTo: v1alpha1.ComparedTo{
+				Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
+			},
+		},
+	}
+	// Force a non-empty status patch.
+	app.Status.Health.Status = health.HealthStatusProgressing
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs:       make(map[kube.ResourceKey]*unstructured.Unstructured),
+		reconciledAtHeartbeat: 10 * time.Minute,
+		// As with --reconciled-at-redis.
+		reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+	}, nil)
+
+	key, _ := cache.MetaNamespaceKeyFunc(app)
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	receivedPatch := map[string]any{}
+	fakeAppCs.AddReactor("patch", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		if patchAction, ok := action.(kubetesting.PatchAction); ok {
+			require.NoError(t, json.Unmarshal(patchAction.GetPatch(), &receivedPatch))
+		}
+		return true, &v1alpha1.Application{}, nil
+	})
+
+	ctrl.requestAppRefresh(app.Name, CompareWithLatest.Pointer(), nil)
+	ctrl.appRefreshQueue.AddRateLimited(key)
+	ctrl.processAppRefreshQueueItem()
+
+	_, healthPatched, err := unstructured.NestedString(receivedPatch, "status", "health", "status")
+	require.NoError(t, err)
+	require.True(t, healthPatched, "the health change must be written, got: %v", receivedPatch)
+	_, present, err := unstructured.NestedString(receivedPatch, "status", "reconciledAt")
+	require.NoError(t, err)
+	assert.True(t, present, "reconciledAt must ride along on a write that happens anyway")
+	assert.Eventually(t, func() bool {
+		var cached time.Time
+		return ctrl.reconciledAtCache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached) == nil
+	}, 5*time.Second, 10*time.Millisecond, "a successful write must cache reconciledAt")
+	var cached time.Time
+	require.ErrorIs(t, ctrl.cache.GetAppReconciledAt(app.InstanceName(ctrl.namespace), &cached), appstatecache.ErrCacheMiss, "and only in the reconciledAt cache")
+}
+
+// The hydrator shares persistAppStatus; its failed writes say nothing about the
+// last reconcile and must not drop the in-memory time.
+func TestFailedHydrationStatusWriteKeepsReconciled(t *testing.T) {
+	app := newFakeApp()
+	reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Minute))
+	healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+	app.Status = v1alpha1.ApplicationStatus{
+		ReconciledAt:        &reconciledAt,
+		ControllerNamespace: test.FakeArgoCDNamespace,
+		Health: v1alpha1.AppHealthStatus{
+			Status:             health.HealthStatusHealthy,
+			LastTransitionTime: &healthAt,
+		},
+		Sync: v1alpha1.SyncStatus{
+			Status:   v1alpha1.SyncStatusCodeSynced,
+			Revision: "abc123",
+			ComparedTo: v1alpha1.ComparedTo{
+				Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+				IgnoreDifferences: app.Spec.IgnoreDifferences,
+			},
+		},
+	}
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps: []runtime.Object{app, &defaultProj},
+		manifestResponse: &apiclient.ManifestResponse{
+			Manifests: []string{},
+			Namespace: test.FakeDestNamespace,
+			Server:    test.FakeClusterURL,
+			Revision:  "abc123",
+		},
+		managedLiveObjs:       make(map[kube.ResourceKey]*unstructured.Unstructured),
+		reconciledAtHeartbeat: 10 * time.Minute,
+	}, nil)
+
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+		return true, nil, errors.New("api unavailable")
+	})
+	ctrl.noteReconciled(app.QualifiedName(), time.Now())
+
+	ctrl.PersistHydrationStatus(app, &v1alpha1.SourceHydratorStatus{CurrentOperation: &v1alpha1.HydrateOperation{Message: "hydrating"}})
+
+	ctrl.lastReconciledAtMutex.RLock()
+	_, noted := ctrl.lastReconciledAt[app.QualifiedName()]
+	ctrl.lastReconciledAtMutex.RUnlock()
+	assert.True(t, noted, "a failed hydrator write must keep the in-memory reconcile time")
+}
+
+// Resource-event reconciles must keep using the diff cache while only the
+// persisted reconciledAt is stale.
+func TestDiffCacheUsesEffectiveReconciledAt(t *testing.T) {
+	prevLevel := logrus.GetLevel()
+	logrus.SetLevel(logrus.DebugLevel)
+	t.Cleanup(func() { logrus.SetLevel(prevLevel) })
+
+	for _, tc := range []struct {
+		name        string
+		inMemory    bool
+		wantExpired bool
+	}{
+		{name: "fresh in-memory time keeps the diff cache", inMemory: true, wantExpired: false},
+		{name: "no in-memory time falls back to the persisted value", inMemory: false, wantExpired: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			hook := logtest.NewGlobal()
+			defer hook.Reset()
+			app := newFakeApp()
+			reconciledAt := metav1.NewTime(time.Now().Add(-1 * time.Minute))
+			healthAt := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+			app.Status = v1alpha1.ApplicationStatus{
+				ReconciledAt:        &reconciledAt,
+				ControllerNamespace: test.FakeArgoCDNamespace,
+				Health: v1alpha1.AppHealthStatus{
+					Status:             health.HealthStatusHealthy,
+					LastTransitionTime: &healthAt,
+				},
+				Sync: v1alpha1.SyncStatus{
+					Status:   v1alpha1.SyncStatusCodeSynced,
+					Revision: "abc123",
+					ComparedTo: v1alpha1.ComparedTo{
+						Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+						IgnoreDifferences: app.Spec.IgnoreDifferences,
+					},
+				},
+			}
+			// Past the soft resync, short of the hard one (which would bypass the cache anyway).
+			stale := metav1.NewTime(time.Now().Add(-30 * time.Minute))
+			app.Status.ReconciledAt = &stale
+			ctrl := newFakeController(t.Context(), &fakeData{
+				apps: []runtime.Object{app, &defaultProj},
+				manifestResponse: &apiclient.ManifestResponse{
+					Manifests: []string{},
+					Namespace: test.FakeDestNamespace,
+					Server:    test.FakeClusterURL,
+					Revision:  "abc123",
+				},
+				managedLiveObjs:       make(map[kube.ResourceKey]*unstructured.Unstructured),
+				reconciledAtHeartbeat: 10 * time.Minute,
+			}, nil)
+			// Past the first resync period, so no first-pass seeding.
+			ctrl.startedAt = time.Now().Add(-1 * time.Hour)
+			if tc.inMemory {
+				ctrl.noteReconciled(app.QualifiedName(), time.Now())
+			}
+
+			key, _ := cache.MetaNamespaceKeyFunc(app)
+			ctrl.requestAppRefresh(app.QualifiedName(), CompareWithRecent.Pointer(), nil)
+			ctrl.appRefreshQueue.AddRateLimited(key)
+			ctrl.processAppRefreshQueueItem()
+
+			expired := false
+			for _, entry := range hook.AllEntries() {
+				if entry.Message == "app.status.expired" {
+					expired = true
+				}
+			}
+			assert.Equal(t, tc.wantExpired, expired)
+		})
+	}
+}
+
+func TestNeedRefreshAppStatusFreshInMemoryStalePersisted(t *testing.T) {
+	app := newFakeApp()
+	persisted := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+	app.Status.ReconciledAt = &persisted
+	app.Status.Sync = v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{
+		Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+		IgnoreDifferences: app.Spec.IgnoreDifferences,
+	}}
+	ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: time.Hour, refreshRequestedApps: map[string]CompareWith{}, refreshRequestedAppsMutex: &sync.Mutex{}}
+	ctrl.noteReconciled(app.QualifiedName(), time.Now())
+
+	needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 10*time.Minute, time.Hour)
+	assert.False(t, needRefresh, "a fresh in-memory reconcile must not be overridden by a stale persisted value")
+}
+
+// The log must report the time the decision was made against, plus the value in
+// the CR when the heartbeat has let the two drift apart.
+func TestNeedRefreshAppStatusLogsEffectiveReconciledAt(t *testing.T) {
+	newApp := func() *v1alpha1.Application {
+		app := newFakeApp()
+		persisted := metav1.NewTime(time.Now().Add(-1 * time.Hour))
+		app.Status.ReconciledAt = &persisted
+		app.Status.Sync = v1alpha1.SyncStatus{ComparedTo: v1alpha1.ComparedTo{
+			Source: app.Spec.GetSource(), Destination: app.Spec.Destination,
+			IgnoreDifferences: app.Spec.IgnoreDifferences,
+		}}
+		return app
+	}
+	inMemory := time.Now().Add(-30 * time.Minute)
+
+	t.Run("heartbeat configured reports both times", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		defer hook.Reset()
+		app := newApp()
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}, reconciledAtCache: appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute), reconciledAtHeartbeat: 10 * time.Minute}
+		ctrl.noteReconciled(app.QualifiedName(), inMemory)
+
+		needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 10*time.Minute, time.Hour)
+		require.True(t, needRefresh)
+
+		entry := hook.LastEntry()
+		require.NotNil(t, entry)
+		effective := metav1.NewTime(inMemory)
+		assert.Contains(t, entry.Message, effective.String(),
+			"the log must show the time the expiry decision was made against")
+		assert.Contains(t, entry.Message, "persisted: "+app.Status.ReconciledAt.String(),
+			"the lagging persisted value must be shown alongside it")
+	})
+
+	t.Run("heartbeat disabled reports the persisted time alone", func(t *testing.T) {
+		hook := logtest.NewGlobal()
+		defer hook.Reset()
+		app := newApp()
+		ctrl := &ApplicationController{lastReconciledAt: map[string]time.Time{}}
+
+		needRefresh, _, _ := ctrl.needRefreshAppStatus(app, 10*time.Minute, time.Hour)
+		require.True(t, needRefresh)
+
+		entry := hook.LastEntry()
+		require.NotNil(t, entry)
+		assert.Contains(t, entry.Message, app.Status.ReconciledAt.String())
+		assert.NotContains(t, entry.Message, "persisted:", "there is nothing to disambiguate")
+	})
+}
+
+// An app can be resharded away or have reconciliation disabled without a delete
+// event, so every path must drop its in-memory reconcile time.
+func TestForgetReconciledWhenAppLeavesThisReplica(t *testing.T) {
+	app := newFakeApp()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		apps:                  []runtime.Object{app, &defaultProj},
+		managedLiveObjs:       map[kube.ResourceKey]*unstructured.Unstructured{},
+		reconciledAtHeartbeat: 10 * time.Minute,
+	}, nil)
+	handlers := ctrl.applicationEventHandlerFuncs()
+
+	noted := func() bool {
+		ctrl.lastReconciledAtMutex.RLock()
+		defer ctrl.lastReconciledAtMutex.RUnlock()
+		_, ok := ctrl.lastReconciledAt[app.QualifiedName()]
+		return ok
+	}
+
+	// An app this replica no longer owns: events keep arriving, canProcessApp
+	// rejects it.
+	unowned := app.DeepCopy()
+	unowned.Annotations = map[string]string{common.AnnotationKeyAppSkipReconcile: "true"}
+	require.False(t, ctrl.canProcessApp(unowned))
+
+	t.Run("on update", func(t *testing.T) {
+		ctrl.noteReconciled(app.QualifiedName(), time.Now())
+		require.True(t, noted())
+		handlers.UpdateFunc(app, unowned)
+		assert.False(t, noted(), "an app this replica no longer processes must not be retained")
+	})
+
+	t.Run("on delete", func(t *testing.T) {
+		ctrl.noteReconciled(app.QualifiedName(), time.Now())
+		require.True(t, noted())
+		handlers.DeleteFunc(unowned)
+		assert.False(t, noted(), "the delete handler must forget the app before the ownership check")
+	})
+
+	t.Run("on delete of an owned app", func(t *testing.T) {
+		ctrl.noteReconciled(app.QualifiedName(), time.Now())
+		require.True(t, noted())
+		handlers.DeleteFunc(app)
+		assert.False(t, noted())
+	})
+}
+
 func TestUpdateHealthStatus(t *testing.T) {
 	deployment := kube.MustToUnstructured(&appsv1.Deployment{
 		APIVersion: "apps/v1",
@@ -3016,8 +3819,9 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+		nil,
 		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
-		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
+		time.Minute, time.Hour, time.Second, 0, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
@@ -3079,8 +3883,9 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		appclientset.NewSimpleClientset(app, proj),
 		mockRepoClientset, mockCommitClientset,
 		appstatecache.NewCache(cacheutil.NewCache(cacheutil.NewInMemoryCache(time.Minute)), time.Minute),
+		nil,
 		&MockKubectl{Kubectl: &kubetest.MockKubectlCmd{}},
-		time.Minute, time.Hour, time.Second, time.Minute, nil, 0, 10*time.Second,
+		time.Minute, time.Hour, time.Second, 0, time.Minute, nil, 0, 10*time.Second,
 		common.DefaultPortArgoCDMetrics, 0,
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
@@ -3849,70 +4654,102 @@ func TestApplicationController_PersistAppStatus_FallbackPatchAlsoFails(t *testin
 	assert.Equal(t, 2, patchCalls, "fallback patch should be attempted exactly once after initial size-limit failure")
 }
 
+// mockHostsCache serves livePods and index from GetClusterHosts, counting calls.
+func mockHostsCache(livePods map[kube.ResourceKey]statecache.PodInfo, index *statecache.ClusterHosts) (*mockstatecache.LiveStateCache, *atomic.Int32) {
+	calls := &atomic.Int32{}
+	stateCache := &mockstatecache.LiveStateCache{}
+	stateCache.EXPECT().GetClusterHosts(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ *v1alpha1.Cluster, _ []kube.ResourceKey) (map[kube.ResourceKey]statecache.PodInfo, *statecache.ClusterHosts, error) {
+			calls.Add(1)
+			return livePods, index, nil
+		}).Maybe()
+	return stateCache, calls
+}
+
 func TestGetAppHosts(t *testing.T) {
-	app := newFakeApp()
-	data := &fakeData{
-		apps: []runtime.Object{app, &defaultProj},
-		manifestResponse: &apiclient.ManifestResponse{
-			Manifests: []string{},
-			Namespace: test.FakeDestNamespace,
-			Server:    test.FakeClusterURL,
-			Revision:  "abc123",
-		},
-		configMapData: map[string]string{
-			"application.allowedNodeLabels": "label1,label2",
-		},
+	cpu := func(q string) corev1.ResourceList {
+		return corev1.ResourceList{corev1.ResourceCPU: resource.MustParse(q)}
 	}
-	ctrl := newFakeController(t.Context(), data, nil)
-	mockStateCache := &mockstatecache.LiveStateCache{}
-	mockStateCache.EXPECT().IterateResources(mock.Anything, mock.MatchedBy(func(callback func(res *clustercache.Resource, info *statecache.ResourceInfo)) bool {
-		// node resource
-		callback(&clustercache.Resource{
-			Ref: corev1.ObjectReference{Name: "minikube", Kind: "Node", APIVersion: "v1"},
-		}, &statecache.ResourceInfo{NodeInfo: &statecache.NodeInfo{
+	app := newFakeApp()
+	cluster := &v1alpha1.Cluster{Server: "test", Name: "test"}
+	pod1 := kube.NewResourceKey("", kube.PodKind, "default", "pod1")
+	pod2 := kube.NewResourceKey("", kube.PodKind, "default", "pod2")
+	appNodes := []v1alpha1.ResourceNode{{Name: "pod1", Namespace: "default", Kind: kube.PodKind}}
+	index := &statecache.ClusterHosts{
+		Nodes: map[string]statecache.NodeInfo{"minikube": {
 			Name:       "minikube",
 			SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
-			Capacity:   map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("5")},
-			Labels:     map[string]string{"label1": "value1", "label2": "value2"},
-		}})
-
-		// app pod
-		callback(&clustercache.Resource{
-			Ref: corev1.ObjectReference{Name: "pod1", Kind: kube.PodKind, APIVersion: "v1", Namespace: "default"},
-		}, &statecache.ResourceInfo{PodInfo: &statecache.PodInfo{
-			NodeName:         "minikube",
-			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("1")},
-		}})
-		// neighbor pod
-		callback(&clustercache.Resource{
-			Ref: corev1.ObjectReference{Name: "pod2", Kind: kube.PodKind, APIVersion: "v1", Namespace: "default"},
-		}, &statecache.ResourceInfo{PodInfo: &statecache.PodInfo{
-			NodeName:         "minikube",
-			ResourceRequests: map[corev1.ResourceName]resource.Quantity{corev1.ResourceCPU: resource.MustParse("2")},
-		}})
-		return true
-	})).Return(nil).Maybe()
-	ctrl.stateCache = mockStateCache
-
-	hosts, err := ctrl.getAppHosts(&v1alpha1.Cluster{Server: "test", Name: "test"}, app, []v1alpha1.ResourceNode{{
-		Name: "pod1", Namespace: "default", Kind: kube.PodKind,
-		Info: []v1alpha1.InfoItem{{
-			Name:  "Host",
-			Value: "Minikube",
+			Capacity:   cpu("5"),
+			Labels:     map[string]string{"label1": "value1", "label2": "value2", "label3": "value3"},
 		}},
-	}})
-
-	require.NoError(t, err)
-	assert.Equal(t, []v1alpha1.HostInfo{{
-		Name:       "minikube",
-		SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
-		ResourcesInfo: []v1alpha1.HostResourceInfo{
-			{
-				ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000,
-			},
+		Pods: map[kube.ResourceKey]statecache.PodInfo{
+			pod1: {NodeName: "minikube", ResourceRequests: cpu("1")},
+			pod2: {NodeName: "minikube", ResourceRequests: cpu("2")},
 		},
-		Labels: map[string]string{"label1": "value1", "label2": "value2"},
-	}}, hosts)
+		RequestsByNode: map[string]map[corev1.ResourceName]int64{"minikube": {corev1.ResourceCPU: 3000}},
+	}
+	newCtrl := func(t *testing.T) *ApplicationController {
+		t.Helper()
+		return newFakeController(t.Context(), &fakeData{
+			apps:          []runtime.Object{app, &defaultProj},
+			configMapData: map[string]string{"application.allowedNodeLabels": "label1,label2"},
+		}, nil)
+	}
+
+	t.Run("splits node requests between the app and its neighbors", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		ctrl.stateCache, _ = mockHostsCache(map[kube.ResourceKey]statecache.PodInfo{pod1: index.Pods[pod1]}, index)
+		hosts, err := ctrl.getAppHosts(cluster, app, appNodes)
+		require.NoError(t, err)
+		assert.Equal(t, []v1alpha1.HostInfo{{
+			Name:       "minikube",
+			SystemInfo: corev1.NodeSystemInfo{OSImage: "debian"},
+			ResourcesInfo: []v1alpha1.HostResourceInfo{{
+				ResourceName: corev1.ResourceCPU, Capacity: 5000, RequestedByApp: 1000, RequestedByNeighbors: 2000,
+			}},
+			Labels: map[string]string{"label1": "value1", "label2": "value2"},
+		}}, hosts)
+	})
+
+	t.Run("uses the app's live pods over the index's copy", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		ctrl.stateCache, _ = mockHostsCache(map[kube.ResourceKey]statecache.PodInfo{
+			pod1: {NodeName: "minikube", ResourceRequests: cpu("3")},
+		}, index)
+		hosts, err := ctrl.getAppHosts(cluster, app, appNodes)
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, int64(3000), hosts[0].ResourcesInfo[0].RequestedByApp)
+		// The index still holds the old request; neighbors must not absorb the change.
+		assert.Equal(t, int64(2000), hosts[0].ResourcesInfo[0].RequestedByNeighbors)
+	})
+
+	t.Run("subtracts a pod listed twice once", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		ctrl.stateCache, _ = mockHostsCache(map[kube.ResourceKey]statecache.PodInfo{pod1: index.Pods[pod1]}, index)
+		hosts, err := ctrl.getAppHosts(cluster, app, append(appNodes, appNodes...))
+		require.NoError(t, err)
+		require.Len(t, hosts, 1)
+		assert.Equal(t, int64(2000), hosts[0].ResourcesInfo[0].RequestedByNeighbors)
+	})
+
+	t.Run("skips the cache for apps without pods", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		var calls *atomic.Int32
+		ctrl.stateCache, calls = mockHostsCache(nil, index)
+		hosts, err := ctrl.getAppHosts(cluster, app, nil)
+		require.NoError(t, err)
+		assert.Empty(t, hosts)
+		assert.Equal(t, int32(0), calls.Load())
+	})
+
+	t.Run("has no hosts while the app's pods are unscheduled", func(t *testing.T) {
+		ctrl := newCtrl(t)
+		ctrl.stateCache, _ = mockHostsCache(map[kube.ResourceKey]statecache.PodInfo{pod1: {}}, nil)
+		hosts, err := ctrl.getAppHosts(cluster, app, appNodes)
+		require.NoError(t, err)
+		assert.Empty(t, hosts)
+	})
 }
 
 func TestMetricsExpiration(t *testing.T) {

@@ -67,27 +67,18 @@ func (rt *resourceTracking) getAppInstanceValue(un *unstructured.Unstructured, i
 
 // GetAppName retrieve application name base on tracking method
 func (rt *resourceTracking) GetAppName(un *unstructured.Unstructured, key string, trackingMethod v1alpha1.TrackingMethod, instanceID string) string {
-	retrieveAppInstanceValue := func() string {
-		value := rt.getAppInstanceValue(un, instanceID)
-		if value != nil {
-			return value.ApplicationName
-		}
-		return ""
-	}
-	switch trackingMethod {
-	case v1alpha1.TrackingMethodLabel:
+	if trackingMethod == v1alpha1.TrackingMethodLabel {
 		label, err := kube.GetAppInstanceLabel(un, key)
 		if err != nil {
 			return ""
 		}
 		return label
-	case v1alpha1.TrackingMethodAnnotationAndLabel:
-		return retrieveAppInstanceValue()
-	case v1alpha1.TrackingMethodAnnotation:
-		return retrieveAppInstanceValue()
-	default:
-		return retrieveAppInstanceValue()
 	}
+	value := rt.getAppInstanceValue(un, instanceID)
+	if value != nil {
+		return value.ApplicationName
+	}
+	return ""
 }
 
 // GetAppInstance returns the representation of the app instance annotation.
@@ -177,14 +168,12 @@ func (rt *resourceTracking) SetAppInstance(un *unstructured.Unstructured, key, v
 			return fmt.Errorf("failed to set app instance label: %w", err)
 		}
 		return nil
-	case v1alpha1.TrackingMethodAnnotation:
-		return setAppInstanceAnnotation()
 	case v1alpha1.TrackingMethodAnnotationAndLabel:
 		if err := setAppInstanceAnnotation(); err != nil {
 			return err
 		}
 		return setAppInstanceLabel(val)
-	default:
+	default: // v1alpha1.TrackingMethodAnnotation, or no method set
 		return setAppInstanceAnnotation()
 	}
 }
