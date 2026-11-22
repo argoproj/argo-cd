@@ -98,14 +98,31 @@ describe('useStatusPanelCollapsed', () => {
         expect(services.viewPreferences.updatePreferences).not.toHaveBeenCalled();
     });
 
-    it('clears a persisted hide preference when expanding on a short window', () => {
+    it('keeps a persisted hide preference when expanding on a short window', () => {
         mockMatchMedia(true);
         const {result} = renderHook(() => useStatusPanelCollapsed(hiddenPref));
         expect(result.current.collapsed).toBe(true);
 
         act(() => result.current.onToggle());
         expect(result.current.collapsed).toBe(false);
-        expect(services.viewPreferences.updatePreferences).toHaveBeenCalledWith({appDetails: {...hiddenPref, hideStatusPanel: false}});
+        expect(services.viewPreferences.updatePreferences).not.toHaveBeenCalled();
+    });
+
+    it('clears a short-window expand override when the hide preference becomes true', () => {
+        mockMatchMedia(true);
+        const {result, rerender} = renderHook(({pref}) => useStatusPanelCollapsed(pref), {initialProps: {pref: tallPref}});
+
+        act(() => result.current.onToggle());
+        expect(result.current.collapsed).toBe(false);
+
+        act(() => {
+            rerender({pref: hiddenPref});
+        });
+        expect(result.current.collapsed).toBe(true);
+
+        act(() => result.current.onToggle());
+        expect(result.current.collapsed).toBe(false);
+        expect(services.viewPreferences.updatePreferences).not.toHaveBeenCalled();
     });
 
     it('auto-collapses when a tall window becomes short and expands again when it becomes tall', () => {

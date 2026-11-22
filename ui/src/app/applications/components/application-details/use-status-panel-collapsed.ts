@@ -12,6 +12,7 @@ import {AppDetailsPreferences, services} from '../../../shared/services';
 export function useStatusPanelCollapsed(pref: AppDetailsPreferences): {collapsed: boolean; onToggle: () => void} {
     const isShortWindow = useShortWindow();
     const [expandedOnShortWindow, setExpandedOnShortWindow] = React.useState(false);
+    const [prevHideStatusPanel, setPrevHideStatusPanel] = React.useState(pref.hideStatusPanel);
 
     // Drop a short-window expand override as soon as the window is tall again, so a later
     // shrink auto-collapses. Adjusting state during render is the recommended pattern here.
@@ -19,14 +20,20 @@ export function useStatusPanelCollapsed(pref: AppDetailsPreferences): {collapsed
         setExpandedOnShortWindow(false);
     }
 
+    // An explicit hide preference set in another window ends the local short-window expansion.
+    // Track the previous value so a local expand is still possible while the preference stays hidden.
+    if (pref.hideStatusPanel !== prevHideStatusPanel) {
+        setPrevHideStatusPanel(pref.hideStatusPanel);
+        if (pref.hideStatusPanel) {
+            setExpandedOnShortWindow(false);
+        }
+    }
+
     const collapsed = !expandedOnShortWindow && (!!pref.hideStatusPanel || isShortWindow);
 
     const onToggle = React.useCallback(() => {
         if (isShortWindow) {
             if (collapsed) {
-                if (pref.hideStatusPanel) {
-                    services.viewPreferences.updatePreferences({appDetails: {...pref, hideStatusPanel: false}});
-                }
                 setExpandedOnShortWindow(true);
             } else {
                 setExpandedOnShortWindow(false);
