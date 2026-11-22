@@ -114,6 +114,82 @@ func (_c *LiveStateCache_GetClusterCache_Call) RunAndReturn(run func(server *v1a
 	return _c
 }
 
+// GetClusterHosts provides a mock function for the type LiveStateCache
+func (_mock *LiveStateCache) GetClusterHosts(server *v1alpha1.Cluster, pods []kube.ResourceKey) (map[kube.ResourceKey]cache0.PodInfo, *cache0.ClusterHosts, error) {
+	ret := _mock.Called(server, pods)
+
+	if len(ret) == 0 {
+		panic("no return value specified for GetClusterHosts")
+	}
+
+	var r0 map[kube.ResourceKey]cache0.PodInfo
+	var r1 *cache0.ClusterHosts
+	var r2 error
+	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.Cluster, []kube.ResourceKey) (map[kube.ResourceKey]cache0.PodInfo, *cache0.ClusterHosts, error)); ok {
+		return returnFunc(server, pods)
+	}
+	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.Cluster, []kube.ResourceKey) map[kube.ResourceKey]cache0.PodInfo); ok {
+		r0 = returnFunc(server, pods)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(map[kube.ResourceKey]cache0.PodInfo)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(*v1alpha1.Cluster, []kube.ResourceKey) *cache0.ClusterHosts); ok {
+		r1 = returnFunc(server, pods)
+	} else {
+		if ret.Get(1) != nil {
+			r1 = ret.Get(1).(*cache0.ClusterHosts)
+		}
+	}
+	if returnFunc, ok := ret.Get(2).(func(*v1alpha1.Cluster, []kube.ResourceKey) error); ok {
+		r2 = returnFunc(server, pods)
+	} else {
+		r2 = ret.Error(2)
+	}
+	return r0, r1, r2
+}
+
+// LiveStateCache_GetClusterHosts_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'GetClusterHosts'
+type LiveStateCache_GetClusterHosts_Call struct {
+	*mock.Call
+}
+
+// GetClusterHosts is a helper method to define mock.On call
+//   - server *v1alpha1.Cluster
+//   - pods []kube.ResourceKey
+func (_e *LiveStateCache_Expecter) GetClusterHosts(server any, pods any) *LiveStateCache_GetClusterHosts_Call {
+	return &LiveStateCache_GetClusterHosts_Call{Call: _e.mock.On("GetClusterHosts", server, pods)}
+}
+
+func (_c *LiveStateCache_GetClusterHosts_Call) Run(run func(server *v1alpha1.Cluster, pods []kube.ResourceKey)) *LiveStateCache_GetClusterHosts_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 *v1alpha1.Cluster
+		if args[0] != nil {
+			arg0 = args[0].(*v1alpha1.Cluster)
+		}
+		var arg1 []kube.ResourceKey
+		if args[1] != nil {
+			arg1 = args[1].([]kube.ResourceKey)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *LiveStateCache_GetClusterHosts_Call) Return(resourceKeyToPodInfo map[kube.ResourceKey]cache0.PodInfo, clusterHosts *cache0.ClusterHosts, err error) *LiveStateCache_GetClusterHosts_Call {
+	_c.Call.Return(resourceKeyToPodInfo, clusterHosts, err)
+	return _c
+}
+
+func (_c *LiveStateCache_GetClusterHosts_Call) RunAndReturn(run func(server *v1alpha1.Cluster, pods []kube.ResourceKey) (map[kube.ResourceKey]cache0.PodInfo, *cache0.ClusterHosts, error)) *LiveStateCache_GetClusterHosts_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // GetClustersInfo provides a mock function for the type LiveStateCache
 func (_mock *LiveStateCache) GetClustersInfo() []cache.ClusterInfo {
 	ret := _mock.Called()
@@ -539,63 +615,6 @@ func (_c *LiveStateCache_IterateHierarchyV2_Call) Return(err error) *LiveStateCa
 }
 
 func (_c *LiveStateCache_IterateHierarchyV2_Call) RunAndReturn(run func(server *v1alpha1.Cluster, keys []kube.ResourceKey, action func(child v1alpha1.ResourceNode, appName string) bool) error) *LiveStateCache_IterateHierarchyV2_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// IterateResources provides a mock function for the type LiveStateCache
-func (_mock *LiveStateCache) IterateResources(server *v1alpha1.Cluster, callback func(res *cache.Resource, info *cache0.ResourceInfo)) error {
-	ret := _mock.Called(server, callback)
-
-	if len(ret) == 0 {
-		panic("no return value specified for IterateResources")
-	}
-
-	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(*v1alpha1.Cluster, func(res *cache.Resource, info *cache0.ResourceInfo)) error); ok {
-		r0 = returnFunc(server, callback)
-	} else {
-		r0 = ret.Error(0)
-	}
-	return r0
-}
-
-// LiveStateCache_IterateResources_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IterateResources'
-type LiveStateCache_IterateResources_Call struct {
-	*mock.Call
-}
-
-// IterateResources is a helper method to define mock.On call
-//   - server *v1alpha1.Cluster
-//   - callback func(res *cache.Resource, info *cache0.ResourceInfo)
-func (_e *LiveStateCache_Expecter) IterateResources(server any, callback any) *LiveStateCache_IterateResources_Call {
-	return &LiveStateCache_IterateResources_Call{Call: _e.mock.On("IterateResources", server, callback)}
-}
-
-func (_c *LiveStateCache_IterateResources_Call) Run(run func(server *v1alpha1.Cluster, callback func(res *cache.Resource, info *cache0.ResourceInfo))) *LiveStateCache_IterateResources_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 *v1alpha1.Cluster
-		if args[0] != nil {
-			arg0 = args[0].(*v1alpha1.Cluster)
-		}
-		var arg1 func(res *cache.Resource, info *cache0.ResourceInfo)
-		if args[1] != nil {
-			arg1 = args[1].(func(res *cache.Resource, info *cache0.ResourceInfo))
-		}
-		run(
-			arg0,
-			arg1,
-		)
-	})
-	return _c
-}
-
-func (_c *LiveStateCache_IterateResources_Call) Return(err error) *LiveStateCache_IterateResources_Call {
-	_c.Call.Return(err)
-	return _c
-}
-
-func (_c *LiveStateCache_IterateResources_Call) RunAndReturn(run func(server *v1alpha1.Cluster, callback func(res *cache.Resource, info *cache0.ResourceInfo)) error) *LiveStateCache_IterateResources_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -194,8 +194,8 @@ type LiveStateCache interface {
 	IterateHierarchyV2(server *appv1.Cluster, keys []kube.ResourceKey, action func(child appv1.ResourceNode, appName string) bool) error
 	// Returns state of live nodes which correspond for target nodes of specified application.
 	GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1.Application, targetObjs []*unstructured.Unstructured) (map[kube.ResourceKey]*unstructured.Unstructured, error)
-	// IterateResources iterates all resource stored in cache
-	IterateResources(server *appv1.Cluster, callback func(res *clustercache.Resource, info *ResourceInfo)) error
+	// Returns the live PodInfo of pods and, if any is scheduled, the cluster's Node/Pod index
+	GetClusterHosts(server *appv1.Cluster, pods []kube.ResourceKey) (map[kube.ResourceKey]PodInfo, *ClusterHosts, error)
 	// Returns all top level resources (resources without owner references) of a specified namespace
 	GetNamespaceTopLevelResources(server *appv1.Cluster, namespace string) (map[kube.ResourceKey]appv1.ResourceNode, error)
 	// Starts watching resources of each controlled cluster.
@@ -209,6 +209,27 @@ type LiveStateCache interface {
 }
 
 type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref corev1.ObjectReference)
+
+// ManagedCRDIndex is the name of the application informer index that maps a CustomResourceDefinition name to the
+// applications that list it among their managed resources.
+const ManagedCRDIndex = "managedCRD"
+
+// ManagedCRDIndexFunc indexes an application by the names of the CustomResourceDefinitions among its managed resources.
+// When an update to a CustomResourceDefinition resolves to no application, the cache uses this index to find the
+// applications to refresh.
+func ManagedCRDIndexFunc(obj any) ([]string, error) {
+	app, ok := obj.(*appv1.Application)
+	if !ok {
+		return nil, nil
+	}
+	var crds []string
+	for _, res := range app.Status.Resources {
+		if kube.IsCRDGroupVersionKind(schema.GroupVersionKind{Group: res.Group, Kind: res.Kind}) {
+			crds = append(crds, res.Name)
+		}
+	}
+	return crds, nil
+}
 
 type PodInfo struct {
 	NodeName         string
@@ -252,6 +273,7 @@ func NewLiveStateCache(
 		appInformer:        appInformer,
 		db:                 db,
 		clusters:           make(map[string]clustercache.ClusterCache),
+		hosts:              make(map[string]*clusterHostsEntry),
 		onObjectUpdated:    onObjectUpdated,
 		settingsMgr:        settingsMgr,
 		metricsServer:      metricsServer,
@@ -291,6 +313,9 @@ type liveStateCache struct {
 	clusters      map[string]clustercache.ClusterCache
 	cacheSettings cacheSettings
 	lock          sync.RWMutex
+
+	// hosts holds each cluster's index for GetClusterHosts, alongside clusters.
+	hosts map[string]*clusterHostsEntry
 }
 
 func (c *liveStateCache) loadCacheSettings() (*cacheSettings, error) {
@@ -662,48 +687,8 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	clusterCache = clustercache.NewClusterCache(clusterCacheConfig, clusterCacheOpts...)
 
 	_ = clusterCache.OnResourceUpdated(func(newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
-		toNotify := make(map[string]bool)
-		var ref corev1.ObjectReference
-		if newRes != nil {
-			ref = newRes.Ref
-		} else {
-			ref = oldRes.Ref
-		}
-
-		c.lock.RLock()
-		cacheSettings := c.cacheSettings
-		c.lock.RUnlock()
-
-		if cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
-			// Additional check for debug level so we don't need to evaluate the
-			// format string in case of non-debug scenarios
-			if log.GetLevel() >= log.DebugLevel {
-				namespace := ref.Namespace
-				if ref.Namespace == "" {
-					namespace = "(cluster-scoped)"
-				}
-				log.WithFields(log.Fields{
-					"server":      cluster.Server,
-					"namespace":   namespace,
-					"name":        ref.Name,
-					"api-version": ref.APIVersion,
-					"kind":        ref.Kind,
-				}).Debug("Ignoring change of object because none of the watched resource fields have changed")
-			}
-			return
-		}
-
-		for _, r := range []*clustercache.Resource{newRes, oldRes} {
-			if r == nil {
-				continue
-			}
-			app := getApp(r, namespaceResources)
-			if app == "" || skipAppRequeuing(r.ResourceKey()) {
-				continue
-			}
-			toNotify[app] = isRootAppNode(r) || toNotify[app]
-		}
-		c.onObjectUpdated(toNotify, ref)
+		c.dropHostsOnNodeAdded(cluster.Server, newRes, oldRes)
+		c.handleResourceUpdated(cluster.Server, newRes, oldRes, namespaceResources)
 	})
 
 	_ = clusterCache.OnEvent(func(_ watch.EventType, un *unstructured.Unstructured) {
@@ -716,6 +701,7 @@ func (c *liveStateCache) getCluster(cluster *appv1.Cluster) (clustercache.Cluste
 	})
 
 	c.clusters[cluster.Server] = clusterCache
+	c.hosts[cluster.Server] = &clusterHostsEntry{}
 
 	return clusterCache, nil
 }
@@ -747,6 +733,11 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings) {
 			clustercache.SetManifestCompressionType(cacheSettings.manifestCompressionType),
 		)
 	}
+	c.lock.Lock()
+	for server := range c.hosts {
+		c.hosts[server] = &clusterHostsEntry{}
+	}
+	c.lock.Unlock()
 	log.Info("live state cache invalidated")
 }
 
@@ -765,20 +756,6 @@ func (c *liveStateCache) IterateHierarchyV2(server *appv1.Cluster, keys []kube.R
 	}
 	clusterInfo.IterateHierarchyV2(keys, func(resource *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) bool {
 		return action(asResourceNode(resource, namespaceResources), getApp(resource, namespaceResources))
-	})
-	return nil
-}
-
-func (c *liveStateCache) IterateResources(server *appv1.Cluster, callback func(res *clustercache.Resource, info *ResourceInfo)) error {
-	clusterInfo, err := c.getSyncedCluster(server)
-	if err != nil {
-		return err
-	}
-	_ = clusterInfo.FindResources("", func(r *clustercache.Resource) bool {
-		if info, ok := r.Info.(*ResourceInfo); ok {
-			callback(r, info)
-		}
-		return false
 	})
 	return nil
 }
@@ -807,8 +784,10 @@ func (c *liveStateCache) GetManagedLiveObjs(destCluster *appv1.Cluster, a *appv1
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster info for %q: %w", destCluster.Server, err)
 	}
+	// isManaged runs for every cached resource under the cache lock.
+	instanceName := a.InstanceName(c.settingsMgr.GetNamespace())
 	return clusterInfo.GetManagedLiveObjs(targetObjs, func(r *clustercache.Resource) bool {
-		return resInfo(r).AppName == a.InstanceName(c.settingsMgr.GetNamespace())
+		return resInfo(r).AppName == instanceName
 	})
 }
 
@@ -818,6 +797,88 @@ func (c *liveStateCache) GetVersionsInfo(server *appv1.Cluster) (string, []kube.
 		return "", nil, fmt.Errorf("failed to get cluster info for %q: %w", server.Server, err)
 	}
 	return clusterInfo.GetServerVersion(), clusterInfo.GetAPIResources(), nil
+}
+
+func (c *liveStateCache) handleResourceUpdated(server string, newRes *clustercache.Resource, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) {
+	var ref corev1.ObjectReference
+	if newRes != nil {
+		ref = newRes.Ref
+	} else {
+		ref = oldRes.Ref
+	}
+
+	c.lock.RLock()
+	cacheSettings := c.cacheSettings
+	c.lock.RUnlock()
+
+	if cacheSettings.ignoreResourceUpdatesEnabled && oldRes != nil && newRes != nil && skipResourceUpdate(resInfo(oldRes), resInfo(newRes)) {
+		// Additional check for debug level so we don't need to evaluate the
+		// format string in case of non-debug scenarios
+		if log.GetLevel() >= log.DebugLevel {
+			namespace := ref.Namespace
+			if ref.Namespace == "" {
+				namespace = "(cluster-scoped)"
+			}
+			log.WithFields(log.Fields{
+				"server":      server,
+				"namespace":   namespace,
+				"name":        ref.Name,
+				"api-version": ref.APIVersion,
+				"kind":        ref.Kind,
+			}).Debug("Ignoring change of object because none of the watched resource fields have changed")
+		}
+		return
+	}
+
+	c.onObjectUpdated(c.appsToNotify(server, ref, newRes, oldRes, namespaceResources), ref)
+}
+
+func (c *liveStateCache) appsToNotify(server string, ref corev1.ObjectReference, newRes, oldRes *clustercache.Resource, namespaceResources map[kube.ResourceKey]*clustercache.Resource) map[string]bool {
+	toNotify := make(map[string]bool)
+	for _, r := range []*clustercache.Resource{newRes, oldRes} {
+		if r == nil {
+			continue
+		}
+		app := getApp(r, namespaceResources)
+		if app == "" || skipAppRequeuing(r.ResourceKey()) {
+			continue
+		}
+		toNotify[app] = isRootAppNode(r) || toNotify[app]
+	}
+	if len(toNotify) == 0 && kube.IsCRDGroupVersionKind(ref.GroupVersionKind()) {
+		for _, app := range c.appsManagingCRD(server, ref.Name) {
+			toNotify[app] = true
+		}
+	}
+	return toNotify
+}
+
+func (c *liveStateCache) appsManagingCRD(server string, crdName string) []string {
+	if c.appInformer == nil {
+		return nil
+	}
+	objs, err := c.appInformer.GetIndexer().ByIndex(ManagedCRDIndex, crdName)
+	if err != nil {
+		log.Warnf("Failed to look up applications managing CRD %q: %v", crdName, err)
+		return nil
+	}
+	server = strings.TrimRight(server, "/")
+	var apps []string
+	for _, obj := range objs {
+		app, ok := obj.(*appv1.Application)
+		if !ok {
+			continue
+		}
+		destServer, err := argo.GetDestinationServer(context.Background(), app.Spec.Destination, c.db)
+		if err != nil {
+			log.Debugf("Failed to get destination server of application %q: %v", app.QualifiedName(), err)
+			continue
+		}
+		if destServer == server {
+			apps = append(apps, app.QualifiedName())
+		}
+	}
+	return apps
 }
 
 func (c *liveStateCache) isClusterHasApps(apps []any, cluster *appv1.Cluster) bool {
@@ -931,6 +992,7 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 			cluster.Invalidate()
 			c.lock.Lock()
 			delete(c.clusters, newCluster.Server)
+			delete(c.hosts, newCluster.Server)
 			c.lock.Unlock()
 			return
 		}
@@ -959,6 +1021,11 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 
 		if len(updateSettings) > 0 || forceInvalidate {
 			cluster.Invalidate(updateSettings...)
+			c.lock.Lock()
+			if _, ok := c.hosts[newCluster.Server]; ok {
+				c.hosts[newCluster.Server] = &clusterHostsEntry{}
+			}
+			c.lock.Unlock()
 			go func() {
 				// warm up cluster cache
 				_ = cluster.EnsureSynced()
@@ -976,6 +1043,7 @@ func (c *liveStateCache) handleDeleteEvent(clusterServer string) {
 		cluster.Invalidate()
 		c.lock.Lock()
 		delete(c.clusters, clusterServer)
+		delete(c.hosts, clusterServer)
 		c.lock.Unlock()
 	}
 }
