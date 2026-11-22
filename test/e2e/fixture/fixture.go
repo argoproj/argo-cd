@@ -865,23 +865,39 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			return deleteLabeledAndWait(t, schema.GroupVersionResource{Group: "apiregistration.k8s.io", Version: "v1", Resource: "apiservices"}, false)
 		},
 		func() error {
-			oldIssuer := ""
+			oldLoginTarget := ""
+			restarts := false
 			err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
-				oldIssuer = oidcIssuer(cm.Data["oidc.config"])
+				oldLoginTarget = ssoLoginTarget(cm.Data)
+				for _, k := range apiServerRestartKeys {
+					restarts = restarts || cm.Data[k] != ""
+				}
 				cm.Data = map[string]string{}
 				return nil
 			})
 			if err != nil {
 				return err
 			}
-			if oldIssuer != "" && IsLocal() {
-				// Removing oidc.config makes the API server restart itself. Wait for that
-				// before any request, or it fails with "connection refused".
-				WaitForAPIServerLoginIssuer(t, oldIssuer, false)
+			if oldLoginTarget != "" && IsLocal() {
+				// Removing the SSO config makes the API server restart itself. Wait for
+				// that before any request, or it fails with "connection refused".
+				if err := WaitForAPIServerLoginIssuer(t, oldLoginTarget, false); err != nil {
+					return err
+				}
 			}
 			// The admin login runs here, after the wait, and not in parallel with it.
-			if loginErr := LoginAs(adminUsername); loginErr != nil {
-				return loginErr
+			// A restart with no SSO redirect to watch (for example, only url changed)
+			// can still be underway, so retry the login until it gets through.
+			loginTimeout := time.Duration(0)
+			if restarts && IsLocal() {
+				loginTimeout = 2 * time.Minute
+			}
+			var loginErr error
+			if pollErr := pollUntil(t, loginTimeout, func() (bool, error) {
+				loginErr = LoginAs(adminUsername)
+				return loginErr == nil, nil
+			}, "admin login failed"); pollErr != nil {
+				return fmt.Errorf("%w: %w", pollErr, loginErr)
 			}
 			err = updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
@@ -1408,14 +1424,31 @@ func oidcIssuer(oidcConfig string) string {
 	return cfg.Issuer
 }
 
+// ssoLoginTarget returns where /auth/login redirects for the given argocd-cm data: the
+// OIDC issuer, or the url for Dex (which is served under it). "" means no redirect.
+func ssoLoginTarget(data map[string]string) string {
+	if issuer := oidcIssuer(data["oidc.config"]); issuer != "" {
+		return issuer
+	}
+	if data["dex.config"] != "" && data["url"] != "" {
+		return data["url"]
+	}
+	return ""
+}
+
+// apiServerRestartKeys are the argocd-cm keys whose change makes the API server
+// restart itself in-process (see server.watchSettings).
+var apiServerRestartKeys = []string{"url", "additionalUrls", "oidc.config", "dex.config"}
+
 // WaitForAPIServerLoginIssuer waits until the API server answers /auth/login and its
-// redirect does (want=true) or does not (want=false) point at issuer.
+// redirect does (want=true) or does not (want=false) point at loginTarget.
 //
 // The API server builds its SSO login handler from the settings it started with. It
-// restarts itself in-process when oidc.config or url in argocd-cm changes. In local mode
-// nothing else signals that restart, so this tells a test that the running server uses
-// the new config. Requests made during the restart fail with "connection refused".
-func WaitForAPIServerLoginIssuer(t *testing.T, issuer string, want bool) {
+// restarts itself in-process when oidc.config, dex.config or url in argocd-cm changes.
+// In local mode nothing else signals that restart, so this tells a test that the
+// running server uses the new config. Requests made during the restart fail with
+// "connection refused".
+func WaitForAPIServerLoginIssuer(t *testing.T, loginTarget string, want bool) error {
 	t.Helper()
 	scheme := "https"
 	if IsPlainText() {
@@ -1431,18 +1464,40 @@ func WaitForAPIServerLoginIssuer(t *testing.T, issuer string, want bool) {
 		},
 	}
 	loginURL := scheme + "://" + GetApiServerAddress() + common.LoginEndpoint
-	require.Eventually(t, func() bool {
+	// A poll loop that returns an error, not require.Eventually: this also runs inside
+	// RunFunctionsInParallelAndCheckErrors goroutines, where t.FailNow must not be called.
+	return pollUntil(t, 2*time.Minute, func() (bool, error) {
 		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, loginURL, http.NoBody)
 		if err != nil {
-			return false
+			return false, err
 		}
 		resp, err := client.Do(req)
 		if err != nil {
-			return false
+			return false, nil
 		}
 		_ = resp.Body.Close()
-		return strings.HasPrefix(resp.Header.Get("Location"), issuer) == want
-	}, 2*time.Minute, 200*time.Millisecond, "API server did not restart with the new OIDC config")
+		return strings.HasPrefix(resp.Header.Get("Location"), loginTarget) == want, nil
+	}, "API server did not restart with the new SSO config")
+}
+
+// pollUntil calls cond every 200ms until it reports true or returns an error, for at
+// most timeout. It is safe to call from goroutines other than the test's own.
+func pollUntil(t *testing.T, timeout time.Duration, cond func() (bool, error), msg string) error {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		ok, err := cond()
+		if err != nil {
+			return err
+		}
+		if ok {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("%s after %s", msg, timeout)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
 }
 
 // RestartAPIServer performs a restart of the API server deployemt and waits

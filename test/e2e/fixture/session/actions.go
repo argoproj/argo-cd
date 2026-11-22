@@ -126,7 +126,7 @@ func (a *Actions) WithDirectOIDC() *Actions {
 	fixture.RestartAPIServer(a.context.T())
 	if fixture.IsLocal() {
 		// The local API server restarts itself on the oidc.config change.
-		fixture.WaitForAPIServerLoginIssuer(a.context.T(), m.Issuer(), true)
+		require.NoError(a.context.T(), fixture.WaitForAPIServerLoginIssuer(a.context.T(), m.Issuer(), true))
 	}
 	return a
 }

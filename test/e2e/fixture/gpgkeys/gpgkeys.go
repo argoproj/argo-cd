@@ -48,12 +48,14 @@ func DeleteGPGPublicKey(t *testing.T) {
 // waitForKeyring waits until the repo-server has synced its keyring with the
 // key source directory. The repo-server watches that directory and imports or
 // removes keys asynchronously, so a sync started right after the file changes
-// can still verify against the old keyring.
+// can still verify against the old keyring. The gpg call is read-only: it takes no
+// locks, skips the trustdb check and starts no agent, so it cannot block the
+// repo-server's own import or delete.
 func waitForKeyring(t *testing.T, present bool) {
 	t.Helper()
 	home := fixture.TmpDir() + "/app/config/gpg/keys"
 	require.Eventually(t, func() bool {
-		err := exec.CommandContext(t.Context(), "gpg", "--homedir", home, "--batch", "--list-keys", fixture.GpgGoodKeyID).Run()
+		err := exec.CommandContext(t.Context(), "gpg", "--homedir", home, "--batch", "--lock-never", "--no-auto-check-trustdb", "--no-autostart", "--list-keys", fixture.GpgGoodKeyID).Run()
 		return (err == nil) == present
 	}, 30*time.Second, 100*time.Millisecond, "repo-server keyring did not sync key %s (want present=%v)", fixture.GpgGoodKeyID, present)
 }

@@ -187,11 +187,18 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		_, err = ctrl.kubectl.CreateResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
-				// The hook exists in the cluster but not yet in the live cache
-				// (e.g. it was just recreated). Its health is unknown, so treat
-				// it as still running instead of reporting the hooks as done.
-				logCtx.Warnf("Hook resource %s already exists but is not in the cache yet, waiting", key)
-				createdCnt++
+				pending, getErr := existingHookPending(ctx, ctrl.kubectl, config, obj, resourceTracking, appLabelKey, app.InstanceName(ctrl.namespace), trackingMethod, installationID)
+				if getErr != nil {
+					return false, getErr
+				}
+				if pending {
+					// The hook is ours but not yet in the live cache (e.g. it was just
+					// recreated). Its health is unknown, so treat it as still running.
+					logCtx.Warnf("Hook resource %s already exists but is not in the cache yet, waiting", key)
+					createdCnt++
+				} else {
+					logCtx.Warnf("Hook resource %s already exists and is not tracked by this app, skipping", key)
+				}
 				continue
 			}
 			return false, err
@@ -361,4 +368,23 @@ func (ctrl *ApplicationController) executePostDeleteHooks(ctx context.Context, a
 
 func (ctrl *ApplicationController) cleanupPostDeleteHooks(ctx context.Context, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	return ctrl.cleanupHooks(ctx, PostDeleteHookType, liveObjs, config, logCtx)
+}
+
+// existingHookPending reports whether a hook that CreateResource said already exists
+// should be treated as still running. That is the case when the live object is
+// tracked by this app (it is ours, just not in the cache yet) or when it vanished
+// in the meantime (the next reconcile recreates it). An object that this app does
+// not track is not ours to wait for: waiting on it would block deletion forever.
+func existingHookPending(ctx context.Context, kubectl kube.Kubectl, config *rest.Config, obj *unstructured.Unstructured, rt argoutil.ResourceTracking, appLabelKey, appName string, trackingMethod appv1.TrackingMethod, installationID string) (bool, error) {
+	live, err := kubectl.GetResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
+	if err != nil {
+		if apierrors.IsNotFound(err) {
+			return true, nil
+		}
+		return false, fmt.Errorf("failed to get existing hook %s: %w", kube.GetResourceKey(obj), err)
+	}
+	if live == nil {
+		return true, nil
+	}
+	return rt.GetAppName(live, appLabelKey, trackingMethod, installationID) == appName, nil
 }
