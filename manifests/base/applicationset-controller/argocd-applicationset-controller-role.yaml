@@ -56,6 +56,20 @@ rules:
       - get
       - list
       - watch
+  # Workload identity: mint tokens for argocd-project-<project> service accounts
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts
+      - pods
+    verbs:
+      - get
+  - apiGroups:
+      - ""
+    resources:
+      - serviceaccounts/token
+    verbs:
+      - create
   # argocd-applicationset-controller leader election rules
   # Create with resourceNames fails, so use a separate rule for the lease creation
   - apiGroups:

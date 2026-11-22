@@ -1,12 +1,16 @@
 package db
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/v3/common"
 	appsv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -404,4 +408,49 @@ func Test_GetProjectRepositories(t *testing.T) {
 	require.NoError(t, err)
 	assert.Len(t, repos, 1)
 	assert.Equal(t, "git@github.com:argoproj/argo-cd", repos[0].Repo)
+}
+
+// k8s without a pathTemplate passes the K8s JWT through instead of failing in
+// the HTTP template authenticator.
+func TestEnrichWorkloadIdentity_K8sWithoutPathTemplateUsesPassthrough(t *testing.T) {
+	t.Setenv("HOSTNAME", "")
+	// Real clientset against a stub API server: the fake one has no RESTClient
+	// for the SelfSubjectReview check.
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /api/v1/namespaces/"+testNamespace+"/serviceaccounts/argocd-project-default/token", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_, _ = w.Write([]byte(`{"apiVersion":"authentication.k8s.io/v1","kind":"TokenRequest","status":{"token":"k8s-jwt"}}`))
+	})
+	mux.HandleFunc("POST /apis/authentication.k8s.io/v1/selfsubjectreviews", func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusUnauthorized)
+		_, _ = w.Write([]byte(`{"apiVersion":"v1","kind":"Status","status":"Failure","reason":"Unauthorized","code":401}`))
+	})
+	server := httptest.NewServer(mux)
+	defer server.Close()
+	clientset, err := kubernetes.NewForConfig(&rest.Config{Host: server.URL})
+	require.NoError(t, err)
+	d := &db{ns: testNamespace, kubeclientset: clientset}
+	repo := &appsv1.Repository{
+		// Unique URL: resolved credentials live in a process-wide cache.
+		Repo:                     "oci://zot.example.com/" + t.Name(),
+		Project:                  "default",
+		WorkloadIdentityProvider: "k8s",
+		WorkloadIdentityUsername: "robot",
+	}
+
+	require.NoError(t, d.enrichWorkloadIdentity(t.Context(), repo))
+	assert.Equal(t, "robot", repo.Username)
+	assert.Equal(t, "k8s-jwt", repo.Password)
+
+	// A partial exchange config must not fall back to sending the raw JWT.
+	partial := &appsv1.Repository{
+		Repo:                     "oci://ghcr.io/" + t.Name(),
+		Project:                  "default",
+		WorkloadIdentityProvider: "k8s",
+		WorkloadIdentityUsername: "robot",
+		WorkloadIdentityAuthHost: "octo-sts.dev",
+	}
+	require.ErrorContains(t, d.enrichWorkloadIdentity(t.Context(), partial), "pathTemplate is required")
 }

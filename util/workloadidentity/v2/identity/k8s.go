@@ -8,9 +8,11 @@ import (
 	log "github.com/sirupsen/logrus"
 	authv1 "k8s.io/api/authentication/v1"
 	corev1 "k8s.io/api/core/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	typedCoreV1 "k8s.io/client-go/kubernetes/typed/core/v1"
+	"k8s.io/client-go/rest"
 
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/repository"
 )
@@ -28,6 +30,7 @@ type K8sProvider struct {
 	namespace       string
 	serviceAccounts typedCoreV1.ServiceAccountInterface
 	pods            typedCoreV1.PodInterface
+	authn           rest.Interface
 	cachedSA        *corev1.ServiceAccount
 }
 
@@ -43,6 +46,7 @@ func NewK8sProvider(clientset kubernetes.Interface, namespace, saName string) *K
 		namespace:       namespace,
 		serviceAccounts: coreV1.ServiceAccounts(namespace),
 		pods:            coreV1.Pods(namespace),
+		authn:           clientset.AuthenticationV1().RESTClient(),
 	}
 }
 
@@ -110,6 +114,9 @@ func (p *K8sProvider) GetToken(ctx context.Context, audience, _ string) (*reposi
 	if err != nil {
 		return nil, fmt.Errorf("failed to create token for service account %s: %w", p.saName, err)
 	}
+	if err := p.rejectAPIServerToken(ctx, resp.Status.Token, audience); err != nil {
+		return nil, err
+	}
 
 	token := &repository.Token{
 		Type:  repository.TokenTypeBearer,
@@ -122,7 +129,7 @@ func (p *K8sProvider) GetToken(ctx context.Context, audience, _ string) (*reposi
 }
 
 // boundPodRef returns a BoundObjectReference for the pod we're running in,
-// or (nil, nil) if we can't determine the pod name from the environment.
+// or (nil, nil) if the pod is unknown or runs as a different service account.
 func (p *K8sProvider) boundPodRef(ctx context.Context) (*authv1.BoundObjectReference, error) {
 	podName := os.Getenv("HOSTNAME")
 	if podName == "" {
@@ -133,6 +140,10 @@ func (p *K8sProvider) boundPodRef(ctx context.Context) (*authv1.BoundObjectRefer
 	if err != nil {
 		return nil, fmt.Errorf("failed to get pod %s: %w", podName, err)
 	}
+	// kube-apiserver refuses to bind a token to a pod running as a different SA.
+	if pod.Spec.ServiceAccountName != p.saName {
+		return nil, nil
+	}
 
 	return &authv1.BoundObjectReference{
 		Kind:       "Pod",
@@ -140,6 +151,36 @@ func (p *K8sProvider) boundPodRef(ctx context.Context) (*authv1.BoundObjectRefer
 		Name:       pod.Name,
 		UID:        pod.UID,
 	}, nil
+}
+
+// rejectAPIServerToken fails if kube-apiserver accepts the token. Repository
+// config picks both the audience and where the token is sent, so an
+// API-valid token would hand this SA's cluster permissions (the controller's,
+// for global repos) to that endpoint. The review authenticates as the token
+// itself, so it needs no RBAC and works in namespaced installs.
+func (p *K8sProvider) rejectAPIServerToken(ctx context.Context, token, audience string) error {
+	review := &authv1.SelfSubjectReview{}
+	// client-go auth round trippers leave an explicit Authorization header alone.
+	err := p.authn.Post().Resource("selfsubjectreviews").
+		SetHeader("Authorization", "Bearer "+token).
+		Body(&authv1.SelfSubjectReview{}).
+		Do(ctx).
+		Into(review)
+	switch {
+	case apierrors.IsUnauthorized(err):
+		return nil
+	case apierrors.IsForbidden(err):
+		// Authenticated, just not allowed to review itself.
+	case err != nil:
+		return fmt.Errorf("failed to check whether the Kubernetes API server accepts the token: %w", err)
+	case review.Status.UserInfo.Username != "system:serviceaccount:"+p.namespace+":"+p.saName:
+		// Client-cert credentials (out-of-cluster dev) authenticate before the
+		// bearer token, so the review says nothing about the token.
+		log.WithField("username", review.Status.UserInfo.Username).
+			Warn("K8s provider: could not verify the token is rejected by the Kubernetes API server")
+		return nil
+	}
+	return fmt.Errorf("token for service account %s with audience %q is accepted by the Kubernetes API server; refusing to send it to a repository", p.saName, audience)
 }
 
 // Ensure K8sProvider implements Provider

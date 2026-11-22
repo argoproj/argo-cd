@@ -149,6 +149,7 @@ func TestCredentialCacheKey(t *testing.T) {
 		"username field": func(r *v1alpha1.Repository) { r.WorkloadIdentityResponseUsernameField = "username" },
 		"params":         func(r *v1alpha1.Repository) { r.WorkloadIdentityParams["a"] = "changed" },
 		"insecure":       func(r *v1alpha1.Repository) { r.Insecure = true },
+		"plain http":     func(r *v1alpha1.Repository) { r.InsecureOCIForceHttp = true },
 	}
 	for name, mutate := range mutations {
 		t.Run(name, func(t *testing.T) {

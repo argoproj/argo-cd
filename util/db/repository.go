@@ -98,7 +98,7 @@ func (db *db) GetRepository(ctx context.Context, repoURL, project string) (*v1al
 	// Resolve workload identity credentials if enabled
 	if repository.WorkloadIdentityProvider != "" {
 		if err := db.enrichWorkloadIdentity(ctx, repository); err != nil {
-			return repository, fmt.Errorf("unable to resolve workload identity for repository %q: %w", repoURL, err)
+			return repository, fmt.Errorf("unable to resolve workload identity for repository %q: %w", git.SanitizeRepoURL(repoURL), err)
 		}
 	}
 
@@ -479,7 +479,7 @@ func (db *db) enrichWorkloadIdentity(ctx context.Context, repository *v1alpha1.R
 	// Create workload identity resolver
 	resolver := workloadidentity.NewResolver(db.kubeclientset, db.ns)
 
-	// Create workload identity resolver
+	// Create workload identity provider
 	provider, err := workloadidentity.NewIdentityProvider(repository, db.kubeclientset, db.ns)
 	if err != nil {
 		return err
@@ -487,6 +487,16 @@ func (db *db) enrichWorkloadIdentity(ctx context.Context, repository *v1alpha1.R
 
 	// TODO: Add ability to choose authenticator from the repository?
 	authenticator := provider.DefaultRepositoryAuthenticator()
+	// With no exchange configured, hand the K8s JWT straight to registries that
+	// validate it themselves (Harbor robot federation, Zot). Any exchange field
+	// set keeps the HTTP authenticator so a missing pathTemplate still errors.
+	if repository.WorkloadIdentityProvider == "k8s" && repository.WorkloadIdentityPathTemplate == "" &&
+		repository.WorkloadIdentityAuthHost == "" && repository.WorkloadIdentityMethod == "" &&
+		repository.WorkloadIdentityBodyTemplate == "" && repository.WorkloadIdentityAuthType == "" &&
+		repository.WorkloadIdentityResponseTokenField == "" && repository.WorkloadIdentityResponseUsernameField == "" &&
+		len(repository.WorkloadIdentityParams) == 0 {
+		authenticator = workloadidentity.NewAuthenticator("passthrough")
+	}
 
 	// Resolve credentials from service account
 	// The resolver will:

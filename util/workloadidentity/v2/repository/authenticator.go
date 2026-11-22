@@ -29,6 +29,10 @@ type Config struct {
 	// Insecure skips TLS certificate verification
 	Insecure bool
 
+	// PlainHTTP sends the auth request over HTTP instead of HTTPS
+	// (from the repository's insecureOCIForceHttp).
+	PlainHTTP bool
+
 	// AuthHost overrides the registry host for the auth request URL.
 	// Use this when the auth endpoint is on a different host than the registry.
 	// e.g., for octo-sts: registry is ghcr.io but auth is at octo-sts.dev

@@ -142,6 +142,7 @@ func (r *Resolver) ResolveCredentials(ctx context.Context, idProvider identity.P
 	creds, err := repoAuth.Authenticate(ctx, idToken, repo.Repo, &repository.Config{
 		Username:              repo.WorkloadIdentityUsername,
 		Insecure:              repo.Insecure,
+		PlainHTTP:             repo.InsecureOCIForceHttp,
 		AuthHost:              repo.WorkloadIdentityAuthHost,
 		Method:                repo.WorkloadIdentityMethod,
 		PathTemplate:          repo.WorkloadIdentityPathTemplate,

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -51,8 +52,8 @@ func TestHTTPTemplateAuthenticator_OctoSTS_Style(t *testing.T) {
 		Params: map[string]string{
 			"policy": "argocd",
 		},
-		Username: "x-access-token",
-		Insecure: true,
+		Username:  "x-access-token",
+		PlainHTTP: true,
 	}
 
 	creds, err := a.Authenticate(t.Context(), token, "oci://"+host+"/myorg/myrepo", config)
@@ -105,7 +106,7 @@ func TestHTTPTemplateAuthenticator_ACR_Style(t *testing.T) {
 		AuthType:           "none",
 		ResponseTokenField: "refresh_token",
 		Username:           "00000000-0000-0000-0000-000000000000",
-		Insecure:           true,
+		PlainHTTP:          true,
 	}
 
 	creds, err := a.Authenticate(t.Context(), token, "oci://"+host+"/myrepo", config)
@@ -162,7 +163,7 @@ func TestHTTPTemplateAuthenticator_JFrog_Style(t *testing.T) {
 		Params: map[string]string{
 			"provider": "my-oidc-provider",
 		},
-		Insecure: true,
+		PlainHTTP: true,
 	}
 
 	creds, err := a.Authenticate(t.Context(), token, "oci://"+host+"/myrepo", config)
@@ -194,7 +195,7 @@ func TestHTTPTemplateAuthenticator_ResponseUsernameFieldMissing(t *testing.T) {
 		PathTemplate:          "/access/api/v1/oidc/token",
 		AuthType:              "none",
 		ResponseUsernameField: "username",
-		Insecure:              true,
+		PlainHTTP:             true,
 	}
 
 	_, err := a.Authenticate(t.Context(), token, "oci://"+host+"/myrepo", config)
@@ -242,7 +243,7 @@ func TestHTTPTemplateAuthenticator_Quay_Style(t *testing.T) {
 		Params: map[string]string{
 			"scope": "repository:myorg/myrepo:pull",
 		},
-		Insecure: true,
+		PlainHTTP: true,
 	}
 
 	creds, err := a.Authenticate(t.Context(), token, "oci://"+host+"/myorg/myrepo", config)
@@ -255,7 +256,7 @@ func TestHTTPTemplateAuthenticator_Quay_Style(t *testing.T) {
 
 func TestHTTPTemplateAuthenticator_AuthHostOverride(t *testing.T) {
 	// Simulates octo-sts: auth endpoint is on different host than registry
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, http.MethodGet, r.Method)
 		assert.Equal(t, "Bearer k8s-sa-token", r.Header.Get("Authorization"))
 
@@ -270,7 +271,7 @@ func TestHTTPTemplateAuthenticator_AuthHostOverride(t *testing.T) {
 	defer server.Close()
 
 	// Auth host is the test server, but registry is ghcr.io
-	authHost := server.URL[7:] // strip "http://"
+	authHost := strings.TrimPrefix(server.URL, "https://")
 
 	a := NewHTTPTemplateAuthenticator()
 	token := &Token{
@@ -288,6 +289,8 @@ func TestHTTPTemplateAuthenticator_AuthHostOverride(t *testing.T) {
 		},
 		Username: "x-access-token",
 		Insecure: true,
+		// Registry-side setting: must not downgrade the separate auth host.
+		PlainHTTP: true,
 	}
 
 	// Repo URL points to ghcr.io, but auth request goes to authHost (test server)
@@ -319,7 +322,7 @@ func TestHTTPTemplateAuthenticator_DefaultMethod(t *testing.T) {
 	config := &Config{
 		PathTemplate: "/auth",
 		// Method not set - should default to GET
-		Insecure: true,
+		PlainHTTP: true,
 	}
 
 	creds, err := a.Authenticate(t.Context(), token, "oci://"+host+"/repo", config)
@@ -389,7 +392,7 @@ func TestHTTPTemplateAuthenticator_ServerError(t *testing.T) {
 
 	config := &Config{
 		PathTemplate: "/auth",
-		Insecure:     true,
+		PlainHTTP:    true,
 	}
 
 	_, err := a.Authenticate(t.Context(), token, "oci://"+host+"/repo", config)
@@ -414,7 +417,7 @@ func TestHTTPTemplateAuthenticator_NoTokenInResponse(t *testing.T) {
 
 	config := &Config{
 		PathTemplate: "/auth",
-		Insecure:     true,
+		PlainHTTP:    true,
 	}
 
 	_, err := a.Authenticate(t.Context(), token, "oci://"+host+"/repo", config)
@@ -662,7 +665,7 @@ func TestHTTPTemplateAuthenticator_ExpiresIn(t *testing.T) {
 			config := &Config{
 				PathTemplate: "/token",
 				Username:     "user",
-				Insecure:     true,
+				PlainHTTP:    true,
 			}
 
 			before := time.Now()
@@ -677,4 +680,32 @@ func TestHTTPTemplateAuthenticator_ExpiresIn(t *testing.T) {
 			assert.WithinDuration(t, before.Add(tt.wantTTL), *creds.ExpiresAt, 10*time.Second)
 		})
 	}
+}
+
+// Insecure must only skip TLS verification, never downgrade to plain HTTP.
+func TestHTTPTemplateAuthenticator_InsecureKeepsHTTPS(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		require.NoError(t, json.NewEncoder(w).Encode(map[string]string{"access_token": "tok"}))
+	}))
+	defer server.Close()
+	host := strings.TrimPrefix(server.URL, "https://")
+
+	a := NewHTTPTemplateAuthenticator()
+	config := &Config{PathTemplate: "/token", Username: "user", Insecure: true}
+	creds, err := a.Authenticate(t.Context(), &Token{Type: TokenTypeBearer, Token: "id-token"}, "oci://"+host+"/repo", config)
+	require.NoError(t, err)
+	assert.Equal(t, "tok", creds.Password)
+}
+
+func TestHTTPTemplateAuthenticator_RequestErrorOmitsToken(t *testing.T) {
+	server := httptest.NewServer(http.NotFoundHandler())
+	host := strings.TrimPrefix(server.URL, "http://")
+	server.Close() // connection refused
+
+	a := NewHTTPTemplateAuthenticator()
+	config := &Config{PathTemplate: "/sts/exchange?token={{ .token }}", AuthType: "none", Username: "user", PlainHTTP: true}
+	_, err := a.Authenticate(t.Context(), &Token{Type: TokenTypeBearer, Token: "secret-jwt"}, "oci://"+host+"/repo", config)
+	require.Error(t, err)
+	assert.NotContains(t, err.Error(), "secret-jwt")
 }

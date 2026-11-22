@@ -410,6 +410,7 @@ func TestResolveCredentials_PassesConfigToAuthenticator(t *testing.T) {
 		WorkloadIdentityProvider:           "aws",
 		WorkloadIdentityUsername:           "custom-user",
 		Insecure:                           true,
+		InsecureOCIForceHttp:               true,
 		WorkloadIdentityAuthHost:           "auth.example.com",
 		WorkloadIdentityMethod:             "POST",
 		WorkloadIdentityPathTemplate:       "/api/token",
@@ -425,6 +426,7 @@ func TestResolveCredentials_PassesConfigToAuthenticator(t *testing.T) {
 	require.NotNil(t, capturedConfig)
 	assert.Equal(t, "custom-user", capturedConfig.Username)
 	assert.True(t, capturedConfig.Insecure)
+	assert.True(t, capturedConfig.PlainHTTP)
 	assert.Equal(t, "auth.example.com", capturedConfig.AuthHost)
 	assert.Equal(t, "POST", capturedConfig.Method)
 	assert.Equal(t, "/api/token", capturedConfig.PathTemplate)

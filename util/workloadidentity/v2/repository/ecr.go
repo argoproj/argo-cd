@@ -66,7 +66,7 @@ func (a *ECRAuthenticator) Authenticate(ctx context.Context, token *Token, _ str
 		return nil, fmt.Errorf("failed to get ECR authorization token: %w", err)
 	}
 
-	if len(authResult.AuthorizationData) == 0 {
+	if len(authResult.AuthorizationData) == 0 || authResult.AuthorizationData[0].AuthorizationToken == nil {
 		return nil, errors.New("no ECR authorization data returned")
 	}
 

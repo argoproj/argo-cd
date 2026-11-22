@@ -126,6 +126,7 @@ func credentialCacheKey(repo *v1alpha1.Repository) string {
 		repo.WorkloadIdentityResponseTokenField,
 		repo.WorkloadIdentityResponseUsernameField,
 		strconv.FormatBool(repo.Insecure),
+		strconv.FormatBool(repo.InsecureOCIForceHttp),
 	}
 	for _, k := range slices.Sorted(maps.Keys(repo.WorkloadIdentityParams)) {
 		parts = append(parts, k, repo.WorkloadIdentityParams[k])

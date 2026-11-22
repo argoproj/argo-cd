@@ -78,6 +78,14 @@ func TestECRAuthenticator_Errors(t *testing.T) {
 		require.ErrorContains(t, err, "no ECR authorization data")
 	})
 
+	t.Run("nil authorization token", func(t *testing.T) {
+		a := newTestECRAuthenticator(&stubECRClient{output: &ecr.GetAuthorizationTokenOutput{
+			AuthorizationData: []types.AuthorizationData{{}},
+		}})
+		_, err := a.Authenticate(t.Context(), awsToken(), "repo", nil)
+		require.ErrorContains(t, err, "no ECR authorization data")
+	})
+
 	t.Run("malformed token", func(t *testing.T) {
 		encoded := base64.StdEncoding.EncodeToString([]byte("no-colon"))
 		a := newTestECRAuthenticator(&stubECRClient{

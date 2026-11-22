@@ -105,12 +105,6 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 	// Add custom params
 	maps.Copy(vars, config.Params)
 
-	// Determine scheme
-	scheme := "https"
-	if config.Insecure {
-		scheme = "http"
-	}
-
 	// Build the full URL
 	path, err := substituteTemplate(config.PathTemplate, vars)
 	if err != nil {
@@ -121,6 +115,11 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 	host := registry
 	if config.AuthHost != "" {
 		host = config.AuthHost
+	}
+	// PlainHTTP describes the registry, never a separate auth host.
+	scheme := "https"
+	if config.PlainHTTP && config.AuthHost == "" {
+		scheme = "http"
 	}
 	fullURL := fmt.Sprintf("%s://%s%s", scheme, host, path)
 
@@ -189,7 +188,11 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 	client := a.getHTTPClient(config.Insecure)
 	resp, err := client.Do(req)
 	if err != nil {
-		return nil, fmt.Errorf("request failed: %w", err)
+		// url.Error embeds the full URL, which may carry the token via pathTemplate.
+		if urlErr, ok := errors.AsType[*url.Error](err); ok {
+			err = urlErr.Err
+		}
+		return nil, fmt.Errorf("request to %s failed: %w", host, err)
 	}
 	defer resp.Body.Close()
 
@@ -343,11 +346,12 @@ func (a *HTTPTemplateAuthenticator) getHTTPClient(insecure bool) *http.Client {
 	if a.HTTPClient != nil {
 		return a.HTTPClient
 	}
-	client := &http.Client{}
+	client := &http.Client{Timeout: 30 * time.Second}
 	if insecure {
-		client.Transport = &http.Transport{
-			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
-		}
+		// Clone to keep proxy settings and dial timeouts.
+		transport := http.DefaultTransport.(*http.Transport).Clone()
+		transport.TLSClientConfig = &tls.Config{InsecureSkipVerify: true}
+		client.Transport = transport
 	}
 	return client
 }

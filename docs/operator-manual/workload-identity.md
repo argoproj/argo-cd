@@ -105,7 +105,7 @@ credentials:
 | `aws` | EKS Pod Identity, or STS `AssumeRoleWithWebIdentity` (IRSA) | ECR authorization token |
 | `gcp` | GKE metadata server, or STS federation, then service account impersonation | Access token used directly (`oauth2accesstoken`) |
 | `azure` | Entra ID client-credentials flow with the Kubernetes token as client assertion | ACR refresh token via `/oauth2/exchange`; for `type: git` repositories (Azure DevOps) the access token is used directly |
-| `k8s` | None — the Kubernetes service account token is used as-is | Templated HTTP exchange against the registry (or `workloadIdentityAuthHost`) |
+| `k8s` | None — the Kubernetes service account token is used as-is | Templated HTTP exchange against the registry (or `workloadIdentityAuthHost`); with no exchange fields set, the token itself is the password |
 
 The `k8s` provider covers any service that federates directly with the
 cluster's OIDC issuer. For example, exchanging the Kubernetes token for a
@@ -122,6 +122,28 @@ stringData:
   workloadIdentityParams.policy: argocd
   workloadIdentityUsername: x-access-token
 ```
+
+Registries that validate the Kubernetes token themselves, such as Harbor robot
+account federation or Zot, need no exchange. Leave every exchange field
+(`workloadIdentityPathTemplate`, `workloadIdentityAuthHost`, and so on) unset
+and set `workloadIdentityUsername`; the token is sent as the password:
+
+```yaml
+stringData:
+  url: registry.example.com/myproject
+  type: helm
+  enableOCI: "true"
+  workloadIdentityProvider: k8s
+  workloadIdentityAudience: registry.example.com # the audience the registry expects
+  workloadIdentityUsername: argocd
+```
+
+> [!IMPORTANT]
+> Argo CD refuses to send a token that the Kubernetes API server itself would
+> accept. It checks each minted token with a `SelfSubjectReview` authenticated as
+> that token, so no extra RBAC is needed. Set `workloadIdentityAudience` to a
+> value the target service expects and that is not one of the API server's
+> audiences (`--api-audiences`, which defaults to the service account issuer).
 
 ## Token caching
 
