@@ -203,7 +203,16 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 	} else {
 		switch sync {
 		case syncDelete:
-			err = store.Delete(obj)
+			if gone {
+				// The API server confirmed the object is absent. Evict through the
+				// UID-checked path rather than a plain delete-by-key: between the
+				// uncached probe and this eviction the informer may have stored a
+				// replacement object for the same key, and deleting by key alone
+				// would drop that replacement from the cache.
+				c.EvictFromCache(ctx, obj)
+			} else {
+				err = store.Delete(obj)
+			}
 		case syncAdd:
 			err = store.Update(obj)
 		case syncRefresh:
