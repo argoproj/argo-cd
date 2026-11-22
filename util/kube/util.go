@@ -51,6 +51,8 @@ func (ku *kubeUtil) CreateOrUpdateSecret(ns string, name string, update updateFn
 			Annotations: ku.annotations,
 		}
 		s.Data = make(map[string][]byte)
+	} else if s.Data == nil {
+		s.Data = make(map[string][]byte)
 	}
 
 	err = update(s, create)

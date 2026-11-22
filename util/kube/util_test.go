@@ -107,6 +107,21 @@ func Test_CreateOrUpdateSecretField(t *testing.T) {
 		assert.Contains(t, s.Labels, "label3")
 		assert.Contains(t, s.Annotations, "annotation3")
 	})
+
+	t.Run("Change field in existing secret with nil Data", func(t *testing.T) {
+		nilDataSecret := &corev1.Secret{
+			Name:      "nil-data-secret",
+			Namespace: "test",
+			Data:      nil,
+		}
+		nilClient := fake.NewClientset(nilDataSecret)
+		ku := NewKubeUtil(t.Context(), nilClient)
+		err := ku.CreateOrUpdateSecretField("test", "nil-data-secret", "password", "barfoo")
+		require.NoError(t, err)
+		s, err := getSecret(nilClient, "test", "nil-data-secret")
+		require.NoError(t, err)
+		assert.Equal(t, "barfoo", string(s.Data["password"]))
+	})
 }
 
 func Test_CreateOrUpdateSecretData(t *testing.T) {
@@ -171,5 +186,21 @@ func Test_CreateOrUpdateSecretData(t *testing.T) {
 		require.NoError(t, err)
 		require.Len(t, s.Data, 1)
 		require.Equal(t, "foobarbaz", string(s.Data["password"]))
+	})
+
+	t.Run("Change data in existing secret with nil Data and merge", func(t *testing.T) {
+		nilDataSecret := &corev1.Secret{
+			Name:      "nil-data-secret",
+			Namespace: "test",
+			Data:      nil,
+		}
+		nilClient := fake.NewClientset(nilDataSecret)
+		ku := NewKubeUtil(t.Context(), nilClient)
+		err := ku.CreateOrUpdateSecretData("test", "nil-data-secret", data1, true)
+		require.NoError(t, err)
+		s, err := getSecret(nilClient, "test", "nil-data-secret")
+		require.NoError(t, err)
+		require.Contains(t, s.Data, "password")
+		require.Equal(t, "barfoo", string(s.Data["password"]))
 	})
 }
