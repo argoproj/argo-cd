@@ -5635,6 +5635,30 @@ func (c *informerStoreClient) Get(_ context.Context, key crtclient.ObjectKey, ob
 	return nil
 }
 
+// List serves Application lists from the informer store, like the manager's cache-backed
+// client does in production. The field selector is not evaluated; test stores only hold the
+// Applications under test.
+func (c *informerStoreClient) List(ctx context.Context, list crtclient.ObjectList, opts ...crtclient.ListOption) error {
+	appList, ok := list.(*v1alpha1.ApplicationList)
+	if !ok {
+		return c.Client.List(ctx, list, opts...)
+	}
+	lo := &crtclient.ListOptions{}
+	lo.ApplyOptions(opts)
+	appList.Items = nil
+	for _, item := range c.store.List() {
+		app, ok := item.(*v1alpha1.Application)
+		if !ok {
+			continue
+		}
+		if lo.Namespace != "" && app.Namespace != lo.Namespace {
+			continue
+		}
+		appList.Items = append(appList.Items, *app.DeepCopy())
+	}
+	return nil
+}
+
 // fakeInformerCache mimics controller-runtime's multi-namespace cache so that
 // utils.NewCacheSyncingClient can resolve the informer store for a namespace via reflection.
 type fakeInformerCache struct {
@@ -5728,4 +5752,64 @@ func TestCreateOrUpdateInClusterRecreatesAppDeletedOutOfBandWithStaleCacheEntry(
 	default:
 		t.Fatal("expected a created Application event")
 	}
+}
+
+// TestCreateInClusterRecreatesAppWithStaleCacheEntry covers the create-only/create-delete
+// policy path (issue #30848): the informer cache lists an Application that no longer exists on
+// the API server, so createInCluster must not exclude the desired Application from creation
+// based on that stale entry alone. It verifies the cached match with the uncached reader, evicts
+// the ghost entry, and the Application is recreated.
+func TestCreateInClusterRecreatesAppWithStaleCacheEntry(t *testing.T) {
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+
+	appSet := v1alpha1.ApplicationSet{
+		Name:      "name",
+		Namespace: "namespace",
+	}
+	desiredApps := []v1alpha1.Application{
+		{
+			Name:      "app1",
+			Namespace: "namespace",
+			Spec:      v1alpha1.ApplicationSpec{Project: "project"},
+		},
+	}
+
+	ghost := v1alpha1.Application{
+		Kind:            application.ApplicationKind,
+		APIVersion:      "argoproj.io/v1alpha1",
+		Name:            "app1",
+		Namespace:       "namespace",
+		ResourceVersion: "2",
+		Spec: v1alpha1.ApplicationSpec{
+			Project:    "project",
+			SyncPolicy: &v1alpha1.SyncPolicy{},
+		},
+	}
+	require.NoError(t, controllerutil.SetControllerReference(&appSet, &ghost, scheme))
+
+	// The API server only holds the ApplicationSet: app1 was deleted out-of-band.
+	apiClient := testutil.MakeSaneFakeClient(fake.NewClientBuilder().WithScheme(scheme).WithObjects(&appSet).WithIndex(&v1alpha1.Application{}, ".metadata.controller", appControllerIndexer).Build())
+
+	store := cache.NewStore(cache.MetaNamespaceKeyFunc)
+	require.NoError(t, store.Add(&ghost))
+
+	nsCache := &fakeInformerCache{store: store}
+	topCache := &fakeInformerCache{namespaceToCache: map[string]ctrlcache.Cache{"namespace": nsCache}}
+	cl := utils.NewCacheSyncingClient(&informerStoreClient{Client: apiClient, store: store}, topCache, apiClient)
+
+	r := ApplicationSetReconciler{
+		Client:   cl,
+		Scheme:   scheme,
+		Recorder: record.NewFakeRecorder(10),
+		Metrics:  appsetmetrics.NewFakeAppsetMetrics(),
+	}
+
+	err := r.createInCluster(t.Context(), log.NewEntry(log.StandardLogger()), appSet, desiredApps)
+	require.NoError(t, err)
+
+	// The Application must have been recreated on the API server despite the stale cache entry.
+	got := &v1alpha1.Application{}
+	require.NoError(t, apiClient.Get(t.Context(), crtclient.ObjectKey{Namespace: "namespace", Name: "app1"}, got), "the create-only/create-delete policy must recreate the Application despite the stale informer cache entry")
+	require.Equal(t, "project", got.Spec.Project)
 }

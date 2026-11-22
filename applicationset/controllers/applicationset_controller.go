@@ -870,8 +870,30 @@ func (r *ApplicationSetReconciler) createInCluster(ctx context.Context, logCtx *
 
 	m := make(map[string]bool) // Will holds the app names that are current in the cluster
 
+	// The list above comes from the informer cache, which can hold a stale entry for an
+	// Application deleted out-of-band (issue #30848). Before excluding a desired Application
+	// from creation because its name appears "current", confirm the cached entry against the
+	// API server directly; a confirmed-missing Application is treated as absent (and evicted
+	// from the cache) so this policy recreates it.
+	verifier, _ := r.Client.(utils.CacheStaleVerifier)
 	for _, app := range current {
 		m[app.Name] = true
+		if verifier == nil || verifier.UncachedReader() == nil {
+			continue
+		}
+		probe := &argov1alpha1.Application{}
+		err := verifier.UncachedReader().Get(ctx, client.ObjectKey{Name: app.Name, Namespace: app.Namespace}, probe)
+		switch {
+		case err == nil:
+			// cache entry is backed by a real object
+		case apierrors.IsNotFound(err):
+			logCtx.WithField("application", app.Name).Warn("cached Application no longer exists on the API server (stale cache entry), treating it as missing")
+			delete(m, app.Name)
+			verifier.EvictFromCache(ctx, &app)
+		default:
+			// transient API error: do not fail the reconcile, trust the cache entry
+			logCtx.WithError(err).WithField("application", app.Name).Warn("failed to verify cached Application against the API server, trusting the cache")
+		}
 	}
 
 	// filter applications that are not in m[string]bool (new to the cluster)
