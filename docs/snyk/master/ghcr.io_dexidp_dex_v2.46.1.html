@@ -7,7 +7,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
   <title>Snyk test report</title>
-  <meta name="description" content="53 known vulnerabilities found in 84 vulnerable dependency paths.">
+  <meta name="description" content="60 known vulnerabilities found in 123 vulnerable dependency paths.">
   <base target="_blank">
   <link rel="icon" type="image/png" href="https://res.cloudinary.com/snyk/image/upload/v1468845142/favicon/favicon.png"
     sizes="194x194">
@@ -492,7 +492,7 @@
               <div class="header-wrap">
                   <h1 class="project__header__title">Snyk test report</h1>
     
-                <p class="timestamp">November 15th 2026, 12:21:24 am (UTC+00:00)</p>
+                <p class="timestamp">November 22nd 2026, 12:21:22 am (UTC+00:00)</p>
               </div>
               <div class="source-panel">
                 <span>Scanned the following paths:</span>
@@ -505,8 +505,8 @@
               </div>
     
               <div class="meta-counts">
-                <div class="meta-count"><span>53</span> <span>known vulnerabilities</span></div>
-                <div class="meta-count"><span>84 vulnerable dependency paths</span></div>
+                <div class="meta-count"><span>60</span> <span>known vulnerabilities</span></div>
+                <div class="meta-count"><span>123 vulnerable dependency paths</span></div>
                 <div class="meta-count"><span>1260</span> <span>dependencies</span></div>
               </div><!-- .meta-counts -->
             </div><!-- .layout-container--short -->
@@ -2598,6 +2598,88 @@
         
         </div><!-- .card -->
         <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Allocation of Resources Without Limits or Throttling</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.46.1/hairyhenderson/gomplate/v5 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            go.opentelemetry.io/otel/trace
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v5@* and go.opentelemetry.io/otel/trace@v1.43.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v5@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/trace@v1.43.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/trace@v1.45.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Allocation of Resources Without Limits or Throttling via the <code>truncate</code> function in SDK attribute normalization. When an application records attacker-controlled attribute values with a value-length limit enabled, an attacker can supply strings containing valid U+FFFD runes that <code>truncate</code> fails to count, causing oversized values to be retained and increasing memory use across the span and log pipelines. The same flaw affects auto-instrumentation span attributes in <code>go.opentelemetry.io/otel/trace</code>.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>go.opentelemetry.io/otel/trace</code> to version 1.47.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/open-telemetry/opentelemetry-go/security/advisories/GHSA-q7gw-24fr-5p69">GitHub Advisory</a></li>
+        <li><a href="https://github.com/open-telemetry/opentelemetry-go/commit/017b08c7f1018b619991aaf6b2299d4beb9da1d3">GitHub Commit</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOPENTELEMETRYIOOTELTRACE-22566152">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
             <h2 class="card__title">Memory Allocation with Excessive Size Value</h2>
             <div class="card__section">
         
@@ -2667,6 +2749,97 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOPENTELEMETRYIOOTELPROPAGATION-17054905">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--medium" data-snyk-test="medium">
+            <h2 class="card__title">Asymmetric Resource Consumption (Amplification)</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--medium">
+                        <span class="label__text">medium severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Manifest file: ghcr.io/dexidp/dex:v2.46.1/hairyhenderson/gomplate/v5 <span class="list-paths__item__arrow">›</span> /usr/local/bin/gomplate
+                    </li>
+                    <li class="card__meta__item">
+                        Package Manager: golang
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            go.opentelemetry.io/otel/propagation
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                github.com/hairyhenderson/gomplate/v5@* and go.opentelemetry.io/otel/propagation@v1.43.0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/hairyhenderson/gomplate/v5@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/propagation@v1.43.0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        github.com/dexidp/dex@*
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        go.opentelemetry.io/otel/propagation@v1.45.0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="overview">Overview</h2>
+        <p>Affected versions of this package are vulnerable to Asymmetric Resource Consumption (Amplification) via the <code>parseMember</code> function in the baggage parser. When Baggage propagation is enabled and extraction processes attacker-controlled headers before authentication or on a public route, an attacker can send a valid near-limit W3C baggage header with thousands of short properties; parsing eagerly materializes and copies property objects, causing disproportionate bounded allocations that increase memory use and garbage-collection pressure under repeated or concurrent requests.</p>
+        <p><strong>Notes</strong></p>
+        <ul>
+        <li>At the parsing step, input size bounds the amplification: v1.46.0 and v1.47.0-rc.1 enforce an 8,192-byte raw-input limit and a 64-member limit; earlier releases use a 4,096-byte per-member limit, so the 8,191-byte example does not apply across the full affected range.</li>
+        </ul>
+        <p><strong>Workarounds</strong></p>
+        <ul>
+        <li>Place authentication middleware before <code>otelhttp</code> extraction so unauthenticated requests are rejected before attacker-controlled baggage is parsed.</li>
+        </ul>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>go.opentelemetry.io/otel/propagation</code> to version 1.47.0 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/open-telemetry/opentelemetry-go/security/advisories/GHSA-rrfc-gjm9-cgrj">GitHub Advisory</a></li>
+        <li><a href="https://github.com/open-telemetry/opentelemetry-go/commit/f09d1de32f4ac7e5ef16394533721106b1a57b89">GitHub Commit</a></li>
+        <li><a href="https://github.com/open-telemetry/opentelemetry-go/pull/9024">GitHub PR</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-GOLANG-GOOPENTELEMETRYIOOTELPROPAGATION-22566137">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->
@@ -4470,6 +4643,854 @@
         
             <div class="cta card__cta">
                 <p><a href="https://snyk.io/vuln/SNYK-ALPINE324-ZLIB-22265522">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-88822</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.24
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.46.1 and openssl/libcrypto3@3.5.8-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r31
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r31
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.24</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: QUIC, when performing automated peer detection, may allow
+        uninitialized stack data to leak into the received address which is then used
+        as the destination for outgoing packets.</p>
+        <p>Impact summary: Applications using QUIC&#39;s automated peer detection mechanism
+        may receive an invalid address, leading to connection loss and disclosure of
+        uninitialized stack data to an attacker observing the outgoing network traffic.</p>
+        <p>CWE: CWE-457 (Use of Uninitialized Variable)</p>
+        <p>Description: The OpenSSL QUIC stack contains a feature in which, when using an
+        already connected socket, it will auto-detect the peer address during the SSL
+        handshake.  This feature uses the getpeername() function, passing a buffer of
+        sufficient length to hold any supported address family, but passes a buffer
+        length that is only sized such that larger addresses, such as IPv6, cannot be
+        retrieved. The getpeername() function however, still returns the full address
+        length, which is accepted as the valid input buffer length, leading to the
+        address buffer containing uninitialized stack data instead of the actual peer
+        address. The invalid peer address is then used as destination for the outgoing
+        packets which leads to a connectivity breakage and a leakage of the
+        uninitialized stack data to passive network observers.</p>
+        <p>FIPS impact: no
+        The FIPS modules in 4.0, 3.6, 3.5, 3.4, and 3.0 are not affected by this CVE as
+        the affected protocol is not implemented in the FIPS module.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.24</code> <code>openssl</code> to version 3.5.9-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/1a73dc590cbad62d6f0329ea4779eadaa8d8fd75">https://github.com/openssl/openssl/commit/1a73dc590cbad62d6f0329ea4779eadaa8d8fd75</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/7b4f5344aa0401e7b777640050b5257ed2a70e88">https://github.com/openssl/openssl/commit/7b4f5344aa0401e7b777640050b5257ed2a70e88</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/911eee8eb7550b95a206f1ad8cbdb986098982f3">https://github.com/openssl/openssl/commit/911eee8eb7550b95a206f1ad8cbdb986098982f3</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20261110.txt">https://openssl-library.org/news/secadv/20261110.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE324-OPENSSL-22602641">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-88823</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.24
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.46.1 and openssl/libcrypto3@3.5.8-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r31
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r31
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.24</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: The AES-GCM-SIV implementation treats a zero-length Additional
+        Authenticated Data (AAD) update as a reset of all the AAD supplied so far,
+        instead of leaving the AAD unchanged. An application that supplies its AAD in
+        several fragments, one of which is empty, therefore produces or verifies
+        messages whose authentication tag does not cover the AAD supplied before
+        the empty fragment.</p>
+        <p>Impact summary: Data an application intended to authenticate alongside a
+        message is silently left unauthenticated. An attacker can forge the AAD of such
+        a message.</p>
+        <p>CWE: CWE-325: Missing Cryptographic Step</p>
+        <p>Description: An application passing AAD in multiple chunks of which some have
+        zero length will have the previous AAD chunks effectively unauthenticated. Also,
+        on context re-initialisation, the AAD was not reset, which meant that any AAD
+        accumulated from the previous context usage were also included in the AAD of the
+        new message.</p>
+        <p>The fix makes a zero-length AAD update a no-op and clears any accumulated AAD
+        whenever the context is re-initialised with a key or a nonce.
+        A re-initialisation that only changes parameters keeps the AAD.</p>
+        <p>FIPS impact: no
+        The FIPS modules are not affected, as AES-GCM-SIV is not a FIPS approved
+        algorithm and is implemented only in the default provider, outside the
+        OpenSSL FIPS module boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.24</code> <code>openssl</code> to version 3.5.9-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/159e1de0c448d7b9f09ad768c8e141def4aa1eb4">https://github.com/openssl/openssl/commit/159e1de0c448d7b9f09ad768c8e141def4aa1eb4</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/2f5fc833ff9b5bfe00b32f8b5c74f73c5773c682">https://github.com/openssl/openssl/commit/2f5fc833ff9b5bfe00b32f8b5c74f73c5773c682</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/6747b1a278816dd7db46438040a70b0b5e5e0a90">https://github.com/openssl/openssl/commit/6747b1a278816dd7db46438040a70b0b5e5e0a90</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20261110.txt">https://openssl-library.org/news/secadv/20261110.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE324-OPENSSL-22602642">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-107496</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.24
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.46.1 and openssl/libcrypto3@3.5.8-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r31
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r31
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.24</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Encrypting a CMS message to an EC certificate whose group order
+        is 1 may cause CMS_encrypt() or CMS_encrypt_ex() to loop indefinitely.</p>
+        <p>Impact summary: An attacker able to supply the recipient certificate to an
+        application performing CMS encryption can cause that application to loop
+        indefinitely, consuming CPU and resulting in Denial of Service.</p>
+        <p>CWE: CWE-835: Loop with Unreachable Exit Condition (&#39;Infinite Loop&#39;)</p>
+        <p>Description: CMS_encrypt() and CMS_encrypt_ex() encrypt a message to one or
+        more recipient certificates and, for an EC recipient, generate an ephemeral
+        key in the recipient&#39;s group. If the certificate declares a group order of 1,
+        random scalar generation can only produce zero. The key generation routine
+        then retries without limit while waiting for a nonzero private scalar, so the
+        call never returns.</p>
+        <p>The OpenSSL TLS and QUIC implementations do not use this path. An application
+        is exposed only if it calls CMS_encrypt() or CMS_encrypt_ex() with a recipient
+        certificate whose EC parameters are attacker-controlled. Certificates with
+        normal EC group orders do not trigger the loop.</p>
+        <p>OpenSSL 4.0 and later reject unknown explicit EC groups in default builds.
+        These versions are affected only when configured with the
+        enable-ec_explicit_curves option.</p>
+        <p>The result is a hang that consumes a CPU core until the process is
+        interrupted, a Denial of Service. The severity is Low because the attacker
+        must supply the recipient certificate and the application must choose to
+        encrypt to it; ordinary CMS encryption to trusted recipients is unaffected.</p>
+        <p>The fix makes EC key generation fail when the group has no valid nonzero
+        private scalar, instead of retrying indefinitely.</p>
+        <p>FIPS impact: no
+        The FIPS modules in 4.1, 4.0, 3.5 and 3.0 are not affected. The FIPS provider
+        does not support arbitrary explicit EC domain parameters, so an order-1 group
+        is rejected during key import before the vulnerable key generation path is
+        reached.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.24</code> <code>openssl</code> to version 3.5.9-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/36e15b618decdff1b116eead6747718e6e729ad2">https://github.com/openssl/openssl/commit/36e15b618decdff1b116eead6747718e6e729ad2</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/a0051cfe699bf5a047bc1c4faef65f80f7987366">https://github.com/openssl/openssl/commit/a0051cfe699bf5a047bc1c4faef65f80f7987366</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/a8531368ddb1f86d2a2782a8b693926bb67b59e7">https://github.com/openssl/openssl/commit/a8531368ddb1f86d2a2782a8b693926bb67b59e7</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20261110.txt">https://openssl-library.org/news/secadv/20261110.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE324-OPENSSL-22602643">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-95692</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.24
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.46.1 and openssl/libcrypto3@3.5.8-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r31
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r31
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.24</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: Setting an AES-GCM-SIV IV shorter than the expected nonce
+        length via EVP_CipherInit_ex() may trigger a heap out-of-bounds read.
+        Supplying a longer IV is silently truncated instead of rejected.</p>
+        <p>Impact summary: An application passing a caller-supplied IV of the wrong
+        length may crash or read beyond its buffer. Because trailing IV bytes are
+        ignored, an attacker who knows one message and tag may forge messages under a
+        different IV.</p>
+        <p>CWE: CWE-125: Out-of-bounds Read</p>
+        <p>Description: AES-GCM-SIV copies the caller-supplied IV or nonce into its
+        internal state using a copy whose length is taken from the expected nonce size
+        rather than from the length the caller actually provided. When the caller
+        passes a shorter IV, the copy reads past the end of the caller&#39;s buffer;
+        AddressSanitizer confirms a heap out-of-bounds read reached through
+        EVP_CipherInit_ex() into ossl_aes_gcm_siv_init(). When the caller passes a
+        longer IV, the implementation silently discards the trailing bytes instead of
+        rejecting the length.</p>
+        <p>The truncation breaks the binding between the IV and the computed
+        authentication tag. An attacker who has observed a message and its tag under
+        one IV can produce a message and tag that verify under a different IV whose
+        first bytes match, since the surplus bytes never influence the computation.
+        The message itself is unchanged, so this is a failure of IV commitment rather
+        than a classic existential forgery.</p>
+        <p>Only applications that call EVP_CipherInit_ex() (or the equivalent provider
+        cipher initialization) with an IV length other than the standard 12 bytes for
+        AES-GCM-SIV are affected. The severity is limited because the out-of-bounds
+        read is small and attacker-controlled only in length, and the forgery requires
+        an unusual IV length choice by the application.</p>
+        <p>FIPS impact: no
+        The FIPS modules are not affected by this issue, as AES-GCM-SIV is not an
+        approved algorithm.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.24</code> <code>openssl</code> to version 3.5.9-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/257a3427aa0ef8d9dd2ef5b3e2d1c021a221b116">https://github.com/openssl/openssl/commit/257a3427aa0ef8d9dd2ef5b3e2d1c021a221b116</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/510872388f5d145cf870868b3d288a23822cb776">https://github.com/openssl/openssl/commit/510872388f5d145cf870868b3d288a23822cb776</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/70a47ac78b6f3be1b22fb1551bd0bfcff4f29613">https://github.com/openssl/openssl/commit/70a47ac78b6f3be1b22fb1551bd0bfcff4f29613</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20261110.txt">https://openssl-library.org/news/secadv/20261110.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE324-OPENSSL-22602645">More about this vulnerability</a></p>
+            </div>
+        
+        </div><!-- .card -->
+        <div class="card card--vuln  disclosure--not-new severity--low" data-snyk-test="low">
+            <h2 class="card__title">CVE-2026-95691</h2>
+            <div class="card__section">
+        
+                <div class="card__labels">
+                    <div class="label label--low">
+                        <span class="label__text">low severity</span>
+                    </div>
+                    <div class="label label--exploit">
+                        <span class="label__text">Exploit: Not Defined</span>
+                    </div>
+                </div>
+        
+                <hr/>
+        
+                <ul class="card__meta">
+                    <li class="card__meta__item">
+                        Package Manager: alpine:3.24
+                    </li>
+                    <li class="card__meta__item">
+                            Vulnerable module:
+        
+                            openssl/libcrypto3
+                    </li>
+        
+                    <li class="card__meta__item">Introduced through:
+        
+                                docker-image|ghcr.io/dexidp/dex@v2.46.1 and openssl/libcrypto3@3.5.8-r0
+        
+                    </li>
+                </ul>
+        
+                <hr/>
+        
+        
+                        <h3 class="card__section__title">Detailed paths</h3>
+        
+                    <ul class="card__meta__paths">
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r31
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libcrypto3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        busybox/ssl_client@1.37.0-r31
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                                <li>
+                                <span class="list-paths__item__introduced"><em>Introduced through</em>:
+                                        docker-image|ghcr.io/dexidp/dex@v2.46.1
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/apk-tools@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        apk-tools/libapk@3.0.8-r0
+                                         <span class="list-paths__item__arrow">›</span> 
+                                        openssl/libssl3@3.5.8-r0
+                                        
+                                </span>
+        
+                            </li>
+                    </ul><!-- .list-paths -->
+        
+            </div><!-- .card__section -->
+        
+              <hr/>
+              <!-- Overview -->
+              <h2 id="nvd-description">NVD Description</h2>
+        <p><strong><em>Note:</em></strong> <em>Versions mentioned in the description apply only to the upstream <code>openssl</code> package and not the <code>openssl</code> package as distributed by <code>Alpine</code>.</em>
+        <em>See <code>How to fix?</code> for <code>Alpine:3.24</code> relevant fixed versions and status.</em></p>
+        <p>Issue summary: A retransmitted QUIC CRYPTO frame can release packet storage
+        while the TLS record layer retains a direct pointer into that storage causing
+        use after free.</p>
+        <p>Impact summary: A malicious QUIC server can cause a heap-use-after-free read
+        in the OpenSSL QUIC client. The server can also identify one allocator-adjacent
+        byte through the client&#39;s protected Handshake response.</p>
+        <p>CWE: CWE-416: Use After Free</p>
+        <p>Description: During CRYPTO stream processing, a pointer into the first frame&#39;s
+        memory on the stream is lent to the TLS handshake processing. The memory
+        must remain stable until it is processed and released. However the processing
+        of retransmitted CRYPTO frames could release the memory if the retransmitted
+        frame fully overlapped the existing frame. This then causes use-after-free read
+        when the TLS handshake processing continues.</p>
+        <p>The use-after-free read can lead to a Denial-of-Service of the client
+        application or a minor leak of information about the heap memory contents
+        that might be overwritten with other data, subsequently allocated by
+        the application, to the peer.</p>
+        <p>FIPS impact: no
+        The FIPS module is not affected as the QUIC implementation is outside of
+        the OpenSSL FIPS module boundary.</p>
+        <h2 id="remediation">Remediation</h2>
+        <p>Upgrade <code>Alpine:3.24</code> <code>openssl</code> to version 3.5.9-r1 or higher.</p>
+        <h2 id="references">References</h2>
+        <ul>
+        <li><a href="https://github.com/openssl/openssl/commit/dd90ceb99a3c2ddba336bb4a00be9ebabd84c2a1">https://github.com/openssl/openssl/commit/dd90ceb99a3c2ddba336bb4a00be9ebabd84c2a1</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/ec9d4de9d03989b29db5a3d7efdb4c285deaf386">https://github.com/openssl/openssl/commit/ec9d4de9d03989b29db5a3d7efdb4c285deaf386</a></li>
+        <li><a href="https://github.com/openssl/openssl/commit/f6244675833e097c2429a40d1b206d95385bd42f">https://github.com/openssl/openssl/commit/f6244675833e097c2429a40d1b206d95385bd42f</a></li>
+        <li><a href="https://openssl-library.org/news/secadv/20261110.txt">https://openssl-library.org/news/secadv/20261110.txt</a></li>
+        </ul>
+        
+              <hr/>
+        
+            <div class="cta card__cta">
+                <p><a href="https://snyk.io/vuln/SNYK-ALPINE324-OPENSSL-22602647">More about this vulnerability</a></p>
             </div>
         
         </div><!-- .card -->

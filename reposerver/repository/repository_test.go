@@ -4356,6 +4356,23 @@ func TestGetHelmRepos_OCIHelmDependenciesWithRepo(t *testing.T) {
 	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
 }
 
+// https://github.com/argoproj/argo-cd/security/advisories/GHSA-94mc-2ch7-r5r5
+// Only the repositories a chart's dependencies reference may be added to Helm,
+// so that one broken registered repository can't break other charts' dependency builds.
+func TestGetHelmRepos_ExcludesUnrelatedRepos(t *testing.T) {
+	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{
+		{Repo: "example.com", Username: "test", Password: "test", EnableOCI: true},
+		{Repo: "https://unrelated.example.com/charts", Name: "unrelated", Type: "helm"},
+		{Repo: "https://other-team.example.com/charts", Name: "unrelated", Type: "helm"},
+	}, HelmRepoCreds: []*v1alpha1.RepoCreds{}}
+
+	helmRepos, err := getHelmRepos("./testdata/oci-dependencies", q.Repos, q.HelmRepoCreds)
+	require.NoError(t, err)
+
+	require.Len(t, helmRepos, 1)
+	assert.Equal(t, "example.com/myrepo", helmRepos[0].Repo)
+}
+
 func TestGetHelmRepos_OCIDependenciesWithHelmRepo(t *testing.T) {
 	q := apiclient.ManifestRequest{Repos: []*v1alpha1.Repository{}, HelmRepoCreds: []*v1alpha1.RepoCreds{
 		{URL: "oci://example.com", Username: "test", Password: "test", Type: "oci"},

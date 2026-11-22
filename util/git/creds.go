@@ -55,8 +55,10 @@ var (
 	azureTokenCache *gocache.Cache
 
 	// installationIdCache caches installation IDs for organizations to avoid redundant API calls.
-	githubInstallationIdCache      *gocache.Cache
-	githubInstallationIdCacheMutex sync.RWMutex // For bulk API call coordination
+	githubInstallationIdCache *gocache.Cache
+	// For bulk API call coordination. Maps a lookup key to a chan struct{} with a buffer of 1, used as a lock that
+	// can be abandoned when the caller's context ends.
+	githubInstallationIdLocks sync.Map
 	// In memory cache for storing Azure Service Principal tokens
 	azureServicePrincipalTokenCache *gocache.Cache
 
@@ -648,14 +650,15 @@ func (g GitHubAppCreds) GetUserInfo(ctx context.Context) (string, string, error)
 // getAccessToken fetches GitHub token using the app id, install id, and private key.
 // the token is then cached for re-use.
 func (g GitHubAppCreds) getAccessToken() (string, error) {
-	// Timeout
-	ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
-	defer cancel()
-
 	itr, err := g.getInstallationTransport()
 	if err != nil {
 		return "", fmt.Errorf("failed to create GitHub app installation transport: %w", err)
 	}
+
+	// Create the token context only after installation discovery, so time spent
+	// waiting for discovery does not shorten the token request's timeout.
+	ctx, cancel := newGitRequestContext(gitClientTimeout)
+	defer cancel()
 
 	return itr.Token(ctx)
 }
@@ -697,14 +700,13 @@ func (g GitHubAppCreds) getInstallationTransport() (*ghinstallation.Transport, e
 			return nil, fmt.Errorf("could not extract organization from repository URL %s: the URL does not contain an organization/owner", SanitizeRepoURL(g.repoURL))
 		}
 
-		ctx, cancel := context.WithTimeout(context.Background(), gitClientTimeout)
+		ctx, cancel := newGitRequestContext(gitClientTimeout)
 		defer cancel()
 
 		discoveredID, err := DiscoverGitHubAppInstallationID(ctx, g.appID, g.privateKey, g.baseURL, org)
 		if err != nil {
 			return nil, fmt.Errorf("failed to discover GitHub App installation ID for organization %s: ensure the GitHub App (ID: %d) is installed for this organization: %w", org, g.appID, err)
 		}
-		log.Infof("Auto-discovered GitHub App installation ID %d for org %s", discoveredID, org)
 		installationID = discoveredID
 	}
 
@@ -764,8 +766,8 @@ func (g GitHubAppCreds) GetClientCertKey() string {
 // GitHub App installation discovery cache and helper
 
 // DiscoverGitHubAppInstallationID discovers the GitHub App installation ID for a given organization.
-// It queries the GitHub API to list all installations for the app and returns the installation ID
-// for the matching organization. Results are cached to avoid redundant API calls.
+// It queries the GitHub API for the app's installation on the organization, or on the user account of the same
+// name if the owner is not an organization. Results are cached to avoid redundant API calls.
 // An optional HTTP client can be provided for custom transport (e.g., for metrics tracking).
 func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKey, enterpriseBaseURL, org string, httpClient ...*http.Client) (int64, error) {
 	domain, err := domainFromBaseURL(enterpriseBaseURL)
@@ -809,46 +811,37 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 		}
 	}
 
-	// List all installations and cache them
-	var allInstallations []*github.Installation
-	opts := &github.ListOptions{PerPage: 100}
-
-	// Lock for the entire loop to avoid multiple concurrent API calls on startup
-	githubInstallationIdCacheMutex.Lock()
-	defer githubInstallationIdCacheMutex.Unlock()
+	// Lock to avoid multiple concurrent API calls for the same org on startup
+	lock, _ := githubInstallationIdLocks.LoadOrStore(cacheKey, make(chan struct{}, 1))
+	select {
+	case lock.(chan struct{}) <- struct{}{}:
+		defer func() { <-lock.(chan struct{}) }()
+	case <-ctx.Done():
+		return 0, fmt.Errorf("failed to find installation: %w", ctx.Err())
+	}
 
 	// Check cache again inside the write lock in case another goroutine already fetched it
 	if id, found := githubInstallationIdCache.Get(cacheKey); found {
 		return id.(int64), nil
 	}
 
-	for {
-		installations, resp, err := client.Apps.ListInstallations(ctx, opts)
-		if err != nil {
-			return 0, fmt.Errorf("failed to list installations: %w", err)
-		}
-
-		allInstallations = append(allInstallations, installations...)
-
-		if resp.NextPage == 0 {
-			break
-		}
-		opts.Page = resp.NextPage
-	}
-
-	// Cache each installation under its account's key so multiple orgs do not overwrite each other.
-	for _, installation := range allInstallations {
-		if installation.Account != nil && installation.Account.Login != nil && installation.ID != nil {
-			instKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(*installation.Account.Login), domain, appId)
-			githubInstallationIdCache.Set(instKey, *installation.ID, gocache.DefaultExpiration)
+	start := time.Now()
+	log.Debugf("Looking up GitHub App installation ID for org %s (app %d on %s)", org, appId, domain)
+	installation, resp, err := client.Apps.FindOrganizationInstallation(ctx, org)
+	if resp != nil && resp.StatusCode == http.StatusNotFound {
+		// The owner may be a user account rather than an organization
+		installation, resp, err = client.Apps.FindUserInstallation(ctx, org)
+		if resp != nil && resp.StatusCode == http.StatusNotFound {
+			return 0, fmt.Errorf("installation not found for org: %s", org)
 		}
 	}
-
-	// Return the installation ID for the requested org
-	if id, found := githubInstallationIdCache.Get(cacheKey); found {
-		return id.(int64), nil
+	if err != nil {
+		return 0, fmt.Errorf("failed to find installation after %s: %w", time.Since(start), err)
 	}
-	return 0, fmt.Errorf("installation not found for org: %s", org)
+
+	githubInstallationIdCache.Set(cacheKey, installation.GetID(), gocache.DefaultExpiration)
+	log.Infof("Discovered GitHub App installation ID %d for org %s (app %d on %s) in %s, rate limit remaining: %d", installation.GetID(), org, appId, domain, time.Since(start), resp.Rate.Remaining)
+	return installation.GetID(), nil
 }
 
 // domainFromBaseURL extracts the host (domain) from the given GitHub base URL.
