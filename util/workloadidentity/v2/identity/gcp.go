@@ -89,6 +89,8 @@ const (
 	DefaultGCPIAMCredentialsURL = "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/%s:generateAccessToken"
 	// GCPMetadataTokenURL is the GKE metadata server endpoint for getting the pod's own token
 	GCPMetadataTokenURL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
+	// GCPMetadataEmailURL returns the email of the pod's own GCP service account
+	GCPMetadataEmailURL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
 	// AnnotationGCPWorkloadIdentity is the annotation key for the Workload Identity Federation provider path
 	AnnotationGCPWorkloadIdentity = "iam.gke.io/workload-identity-provider"
 	AnnotationGCPSA               = "iam.gke.io/gcp-service-account"
@@ -157,7 +159,7 @@ func (p *GCPProvider) resolveGCPViaMetadata(ctx context.Context, targetSA string
 	}
 	req.Header.Set("Metadata-Flavor", "Google")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", nil, fmt.Errorf("metadata request failed: %w", err)
 	}
@@ -170,15 +172,50 @@ func (p *GCPProvider) resolveGCPViaMetadata(ctx context.Context, targetSA string
 
 	var tokenResp struct {
 		AccessToken string `json:"access_token"`
+		ExpiresIn   int64  `json:"expires_in"`
 	}
 	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
 		return "", nil, fmt.Errorf("failed to decode metadata response: %w", err)
+	}
+
+	// IAM Credentials refuses to mint a token for the caller's own account, so
+	// when the pod already runs as the target SA its metadata token is the answer.
+	if email, err := metadataEmail(ctx); err != nil {
+		log.Debugf("resolveGCPViaMetadata: could not read pod service account email: %v", err)
+	} else if email == targetSA {
+		var expiresAt *time.Time
+		if tokenResp.ExpiresIn > 0 {
+			expiry := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
+			expiresAt = &expiry
+		}
+		return tokenResp.AccessToken, expiresAt, nil
 	}
 
 	log.Infof("resolveGCPViaMetadata: got token from metadata server, impersonating %s", targetSA)
 
 	// Use this token to impersonate the target service account
 	return p.impersonateServiceAccount(ctx, tokenResp.AccessToken, targetSA)
+}
+
+func metadataEmail(ctx context.Context) (string, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, GCPMetadataEmailURL, http.NoBody)
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Metadata-Flavor", "Google")
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		return "", fmt.Errorf("metadata server returned status %d", resp.StatusCode)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", err
+	}
+	return strings.TrimSpace(string(body)), nil
 }
 
 // resolveGCPViaSTS uses STS token exchange for Workload Identity Federation
@@ -231,7 +268,7 @@ func (p *GCPProvider) exchangeTokenWithSTS(ctx context.Context, k8sToken, audien
 	}
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", fmt.Errorf("request failed: %w", err)
 	}
@@ -272,7 +309,7 @@ func (p *GCPProvider) impersonateServiceAccount(ctx context.Context, federatedTo
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+federatedToken)
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", nil, fmt.Errorf("request failed: %w", err)
 	}

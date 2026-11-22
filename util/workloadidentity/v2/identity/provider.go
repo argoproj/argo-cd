@@ -2,9 +2,15 @@ package identity
 
 import (
 	"context"
+	"net/http"
+	"time"
 
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/repository"
 )
+
+// httpClient bounds cloud token requests, which otherwise hang as long as the
+// caller's context allows.
+var httpClient = &http.Client{Timeout: 30 * time.Second}
 
 // Config holds identity provider configuration
 type Config struct {

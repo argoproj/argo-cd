@@ -167,4 +167,12 @@ func TestCredentialCacheKey(t *testing.T) {
 		b.WorkloadIdentityParams = map[string]string{"scope=read": "true"}
 		assert.NotEqual(t, credentialCacheKey(a), credentialCacheKey(b))
 	})
+
+	t.Run("NUL inside a value must not shift field boundaries", func(t *testing.T) {
+		a := base()
+		a.WorkloadIdentityParams = map[string]string{"a": "b\x00c\x00d"}
+		b := base()
+		b.WorkloadIdentityParams = map[string]string{"a": "b", "c": "d"}
+		assert.NotEqual(t, credentialCacheKey(a), credentialCacheKey(b))
+	})
 }

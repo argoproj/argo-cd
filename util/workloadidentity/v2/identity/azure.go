@@ -86,6 +86,8 @@ const (
 	AnnotationAzureClientID = "azure.workload.identity/client-id"
 	AnnotationAzureTenantID = "azure.workload.identity/tenant-id"
 	DefaultAzureAudience    = "api://AzureADTokenExchange"
+	// azureDevOpsScope is the Azure DevOps resource ID's default scope.
+	azureDevOpsScope = "499b84ac-1321-427f-aa17-267ca6975798/.default"
 )
 
 // AzureProvider exchanges K8s JWTs for Azure credentials via STS
@@ -94,8 +96,14 @@ type AzureProvider struct {
 	k8s  *K8sProvider
 }
 
+// isGitRepo applies Repository.Normalize's default, so a secret without a type
+// still counts as git (Azure DevOps).
+func (p *AzureProvider) isGitRepo() bool {
+	return p.repo.Type == "git" || (p.repo.Type == "" && !strings.HasPrefix(p.repo.Repo, "oci://"))
+}
+
 func (p *AzureProvider) DefaultRepositoryAuthenticator() repository.Authenticator {
-	if p.repo.Type == "git" {
+	if p.isGitRepo() {
 		return repository.NewPassthroughAuthenticator()
 	}
 	return repository.NewACRAuthenticator()
@@ -154,7 +162,13 @@ func (p *AzureProvider) GetToken(ctx context.Context, audience string, tokenURL 
 
 	// Exchange K8s JWT for Azure access token using client credentials flow
 	log.Debug("Azure Workload Identity: requesting access token from Azure AD")
-	azureToken, expiresAt, err := p.getAzureAccessToken(ctx, tokenURL, clientID, k8sToken.Token)
+	// Azure DevOps only accepts tokens for its own resource; the ACR exchange
+	// takes an ARM token.
+	scope := "https://management.azure.com/.default"
+	if p.isGitRepo() {
+		scope = azureDevOpsScope
+	}
+	azureToken, expiresAt, err := p.getAzureAccessToken(ctx, tokenURL, clientID, k8sToken.Token, scope)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"clientID": clientID,
@@ -176,7 +190,7 @@ func (p *AzureProvider) GetToken(ctx context.Context, audience string, tokenURL 
 	}
 
 	// For git repos (Azure DevOps), set the username for passthrough auth
-	if p.repo.Type == "git" {
+	if p.isGitRepo() {
 		token.Username = "oauth"
 	}
 
@@ -185,13 +199,13 @@ func (p *AzureProvider) GetToken(ctx context.Context, audience string, tokenURL 
 
 // getAzureAccessToken exchanges a K8s JWT for an Azure access token and its
 // expiry (derived from the response's expires_in, nil when absent).
-func (p *AzureProvider) getAzureAccessToken(ctx context.Context, tokenURL, clientID, k8sToken string) (string, *time.Time, error) {
+func (p *AzureProvider) getAzureAccessToken(ctx context.Context, tokenURL, clientID, k8sToken, scope string) (string, *time.Time, error) {
 	// Prepare OAuth 2.0 client credentials request with JWT bearer assertion
 	data := url.Values{}
 	data.Set("client_id", clientID)
 	data.Set("client_assertion_type", "urn:ietf:params:oauth:client-assertion-type:jwt-bearer")
 	data.Set("client_assertion", k8sToken)
-	data.Set("scope", "https://management.azure.com/.default")
+	data.Set("scope", scope)
 	data.Set("grant_type", "client_credentials")
 
 	// Create HTTP request
@@ -202,7 +216,7 @@ func (p *AzureProvider) getAzureAccessToken(ctx context.Context, tokenURL, clien
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
 	// Execute request
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return "", nil, fmt.Errorf("failed to execute request: %w", err)
 	}

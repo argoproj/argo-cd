@@ -3,10 +3,10 @@ package v2
 import (
 	"crypto/sha256"
 	"encoding/hex"
+	"fmt"
 	"maps"
 	"slices"
 	"strconv"
-	"strings"
 	"time"
 
 	gocache "github.com/patrickmn/go-cache"
@@ -103,9 +103,9 @@ func (c *CredentialCache) Set(key string, creds *repository.Credentials) {
 }
 
 // credentialCacheKey builds a cache key from every repository field that
-// influences the resolved credentials. Keys and values are hashed as separate
-// NUL-separated parts so adjacent fields cannot collide, and the result is
-// hashed so no sensitive configuration is stored in a decodable form.
+// influences the resolved credentials. Each part is length-prefixed so no
+// value (which may contain any byte) can shift a field boundary, and the result
+// is hashed so no sensitive configuration is stored in a decodable form.
 func credentialCacheKey(repo *v1alpha1.Repository) string {
 	parts := []string{
 		repo.WorkloadIdentityProvider,
@@ -132,6 +132,9 @@ func credentialCacheKey(repo *v1alpha1.Repository) string {
 		parts = append(parts, k, repo.WorkloadIdentityParams[k])
 	}
 
-	sum := sha256.Sum256([]byte(strings.Join(parts, "\x00")))
-	return hex.EncodeToString(sum[:])
+	h := sha256.New()
+	for _, part := range parts {
+		fmt.Fprintf(h, "%d:%s", len(part), part)
+	}
+	return hex.EncodeToString(h.Sum(nil))
 }

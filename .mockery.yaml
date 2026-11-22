@@ -178,9 +178,15 @@ packages:
     interfaces:
       ServiceAccountInterface: {}
   github.com/argoproj/argo-cd/gitops-engine/v3/pkg/cache:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       ClusterCache: {}
   github.com/argoproj/argo-cd/gitops-engine/v3/pkg/diff:
+    config:
+      template-data:
+        unroll-variadic: true
     interfaces:
       ServerSideDryRunner: {}
   github.com/go-logr/logr:

@@ -153,6 +153,8 @@ github.com/aws/aws-sdk-go-v2/service/codecommit v1.44.7 h1:KgWiL36xXTcpfgyA6HE8G
 github.com/aws/aws-sdk-go-v2/service/codecommit v1.44.7/go.mod h1:h3vm5uuJNf5Cq3tsDcZt87GxdrZMIdjXoo/G+1yYyok=
 github.com/aws/aws-sdk-go-v2/service/ecr v1.57.2 h1:rHEW02JFJUV2/ttjzyPIvbD0YraqpyU2w6m6DfQUmdg=
 github.com/aws/aws-sdk-go-v2/service/ecr v1.57.2/go.mod h1:gNS8pNht4VMzPd4UtQUL3NTUQbjEPLLmb9MqmqrqsCM=
+github.com/aws/aws-sdk-go-v2/service/iam v1.68.0 h1:GV2y0HXKY2opPRUvj3qEBahq0YlsAVjcaGqWBnTohDo=
+github.com/aws/aws-sdk-go-v2/service/iam v1.68.0/go.mod h1:mD7Udn/gwt5GfYA31g6LQRdwCRp0M33vQ11b4sVCc38=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.25 h1:rKwkY3Z+fvt2W0msjdNs6uNewPmXzPayQ961oyuWhes=
 github.com/aws/aws-sdk-go-v2/service/internal/accept-encoding v1.13.25/go.mod h1:dBuAadQKd1F4Q4ZOg8gnFmuSHMRE40Pe3IfFwbtC4lE=
 github.com/aws/aws-sdk-go-v2/service/internal/presigned-url v1.14.12 h1:wzAqMZ2O4+ij9HQqIrk+P9PBGacE0wOTuWB7Mo97//I=

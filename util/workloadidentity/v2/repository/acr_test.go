@@ -100,3 +100,25 @@ func TestJWTExpiry(t *testing.T) {
 		assert.Nil(t, jwtExpiry(""))
 	})
 }
+
+func TestACRAuthenticator_HonoursPlainHTTP(t *testing.T) {
+	server := newACRExchangeServer(t, "opaque-refresh-token")
+	defer server.Close()
+
+	var scheme string
+	a := NewACRAuthenticator()
+	a.http.HTTPClient = &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		scheme = req.URL.Scheme
+		return rewriteTransport{server}.RoundTrip(req)
+	})}
+
+	_, err := a.Authenticate(context.Background(),
+		&Token{Type: TokenTypeBearer, Token: "azure-ad-token"},
+		"myregistry.azurecr.io/myrepo", &Config{PlainHTTP: true})
+	require.NoError(t, err)
+	assert.Equal(t, "http", scheme)
+}
+
+type roundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }

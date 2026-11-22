@@ -2,6 +2,7 @@ package v1alpha1
 
 import (
 	"fmt"
+	"maps"
 	"net/url"
 	"strings"
 
@@ -456,6 +457,20 @@ func (repo *Repository) Sanitized() *Repository {
 		AzureServicePrincipalClientId: repo.AzureServicePrincipalClientId,
 		AzureServicePrincipalTenantId: repo.AzureServicePrincipalTenantId,
 		Depth:                         repo.Depth,
+		// Workload identity settings hold no credentials; dropping them would
+		// let a read-modify-write through the API wipe them.
+		WorkloadIdentityProvider:              repo.WorkloadIdentityProvider,
+		WorkloadIdentityTokenURL:              repo.WorkloadIdentityTokenURL,
+		WorkloadIdentityAudience:              repo.WorkloadIdentityAudience,
+		WorkloadIdentityUsername:              repo.WorkloadIdentityUsername,
+		WorkloadIdentityAuthHost:              repo.WorkloadIdentityAuthHost,
+		WorkloadIdentityMethod:                repo.WorkloadIdentityMethod,
+		WorkloadIdentityPathTemplate:          repo.WorkloadIdentityPathTemplate,
+		WorkloadIdentityBodyTemplate:          repo.WorkloadIdentityBodyTemplate,
+		WorkloadIdentityAuthType:              repo.WorkloadIdentityAuthType,
+		WorkloadIdentityParams:                maps.Clone(repo.WorkloadIdentityParams),
+		WorkloadIdentityResponseTokenField:    repo.WorkloadIdentityResponseTokenField,
+		WorkloadIdentityResponseUsernameField: repo.WorkloadIdentityResponseUsernameField,
 	}
 }
 

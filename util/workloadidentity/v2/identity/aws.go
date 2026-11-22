@@ -24,17 +24,23 @@ package identity
 //	    "Statement": [
 //	        {
 //	            "Effect": "Allow",
-//	            "Action": [
-//	                "ecr:GetAuthorizationToken",
-//	                "ecr:BatchCheckLayerAvailability",
-//	                "ecr:GetDownloadUrlForLayer",
-//	                "ecr:BatchGetImage"
-//	            ],
+//	            "Action": "ecr:GetAuthorizationToken",
 //	            "Resource": "*"
+//	        },
+//	        {
+//	            "Effect": "Allow",
+//	            "Action": "iam:GetRole",
+//	            "Resource": "arn:aws:iam::${AWS_ACCOUNT_ID}:role/*argocd-controller"
 //	        }
 //	    ]
 //	}
 //	EOF
+//
+//    Image reads are deliberately absent: within one account, an identity-policy
+//    Allow on them would let every project read every repository regardless of
+//    the repository policy's project condition (step 5). iam:GetRole lets Argo CD
+//    recover the role's path, which assumed-role ARNs drop; without it, a role
+//    with a path fails the chained AssumeRole.
 //	aws iam create-policy --policy-name ArgoCD-ECR-ReadOnly \
 //	    --policy-document file://argocd-ecr-policy.json
 //
@@ -86,9 +92,9 @@ package identity
 //	    --service-account argocd-application-controller \
 //	    --role-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:role/${ROLE_NAME}"
 //
-// 5. Reference the `aws:PrincipalTag/argocd-project` session tag in the resource
-//    policies you actually want scoped per project (ECR repo policy, S3 bucket policy,
-//    KMS key policy, etc.). Example ECR repository policy:
+// 5. Grant image reads only in the resource policies you want scoped per project
+//    (ECR repo policy, S3 bucket policy, KMS key policy, etc.), conditioned on the
+//    `aws:PrincipalTag/argocd-project` session tag. Example ECR repository policy:
 //
 //	{
 //	    "Version": "2012-10-17",
@@ -231,6 +237,8 @@ package identity
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"os"
 	"strings"
@@ -238,6 +246,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/aws/arn"
 	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/service/iam"
 	"github.com/aws/aws-sdk-go-v2/service/sts"
 	ststypes "github.com/aws/aws-sdk-go-v2/service/sts/types"
 	log "github.com/sirupsen/logrus"
@@ -361,8 +370,15 @@ func (p *AWSProvider) getTokenViaPodIdentity(ctx context.Context, region string)
 	if err != nil {
 		return nil, fmt.Errorf("failed to derive role ARN from caller identity: %w", err)
 	}
+	// Assumed-role ARNs drop the role's path; only IAM knows the full ARN.
+	roleName := roleARN[strings.LastIndex(roleARN, "/")+1:]
+	if out, err := iam.NewFromConfig(awsCfg).GetRole(ctx, &iam.GetRoleInput{RoleName: aws.String(roleName)}); err != nil {
+		log.WithError(err).Warn("AWS Pod Identity: iam:GetRole failed; assuming the role has no path")
+	} else {
+		roleARN = aws.ToString(out.Role.Arn)
+	}
 
-	roleSessionName := "argocd-proj-" + project
+	roleSessionName := boundedSessionName("argocd-proj-", project)
 	duration := chainedSessionDuration
 
 	log.WithFields(log.Fields{
@@ -443,6 +459,20 @@ func roleARNFromAssumedRoleARN(input string) (string, error) {
 	}
 }
 
+// boundedSessionName keeps STS's 64-character session-name limit. Long names
+// keep a prefix plus a hash of the full name so they stay distinct; the full
+// project still travels in the session tag.
+func boundedSessionName(prefix, name string) string {
+	const maxLen = 64
+	s := prefix + name
+	if len(s) <= maxLen {
+		return s
+	}
+	sum := sha256.Sum256([]byte(name))
+	suffix := "-" + hex.EncodeToString(sum[:4])
+	return s[:maxLen-len(suffix)] + suffix
+}
+
 // getTokenViaIRSA exchanges a K8s token for AWS credentials via STS AssumeRoleWithWebIdentity.
 // The SDK resolves its own region for STS (from AWS_REGION/AWS_DEFAULT_REGION injected by the
 // EKS webhook). ecrRegion is only used in the returned credentials for ECR GetAuthorizationToken.
@@ -492,7 +522,7 @@ func (p *AWSProvider) getTokenViaIRSA(ctx context.Context, audience string, toke
 	}
 	stsClient := sts.NewFromConfig(awsCfg, stsOpts...)
 
-	roleSessionName := "argocd-" + saName
+	roleSessionName := boundedSessionName("argocd-", saName)
 	durationSeconds := int32(3600)
 	log.WithFields(log.Fields{
 		"roleSessionName": roleSessionName,

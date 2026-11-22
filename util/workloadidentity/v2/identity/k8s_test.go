@@ -20,11 +20,12 @@ const projectSAUser = "system:serviceaccount:argocd:argocd-project-default"
 // fakeAPIServer serves the pod, TokenRequest and SelfSubjectReview calls
 // GetToken makes. A real clientset is needed: the fake one has no RESTClient.
 type fakeAPIServer struct {
-	podSA        string
-	reviewStatus int    // status for SelfSubjectReview
-	reviewUser   string // username returned on 201
-	tokenRequest *authv1.TokenRequest
-	reviewAuth   string
+	podSA         string
+	saAnnotations map[string]string
+	reviewStatus  int    // status for SelfSubjectReview
+	reviewUser    string // username returned on 201
+	tokenRequest  *authv1.TokenRequest
+	reviewAuth    string
 }
 
 func (f *fakeAPIServer) clientset(t *testing.T) kubernetes.Interface {
@@ -35,6 +36,12 @@ func (f *fakeAPIServer) clientset(t *testing.T) kubernetes.Interface {
 			APIVersion: "v1", Kind: "Pod",
 			Name: "argocd-pod", Namespace: "argocd", UID: "pod-uid",
 			Spec: corev1.PodSpec{ServiceAccountName: f.podSA},
+		})
+	})
+	mux.HandleFunc("GET /api/v1/namespaces/argocd/serviceaccounts/argocd-project-default", func(w http.ResponseWriter, _ *http.Request) {
+		writeJSON(t, w, http.StatusOK, &corev1.ServiceAccount{
+			APIVersion: "v1", Kind: "ServiceAccount",
+			Name: "argocd-project-default", Namespace: "argocd", Annotations: f.saAnnotations,
 		})
 	})
 	mux.HandleFunc("POST /api/v1/namespaces/argocd/serviceaccounts/argocd-project-default/token", func(w http.ResponseWriter, r *http.Request) {

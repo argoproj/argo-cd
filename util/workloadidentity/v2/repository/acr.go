@@ -21,7 +21,7 @@ func NewACRAuthenticator() *ACRAuthenticator {
 }
 
 // Authenticate exchanges Azure credentials for ACR authorization tokens
-func (a *ACRAuthenticator) Authenticate(ctx context.Context, token *Token, repoURL string, _ *Config) (*Credentials, error) {
+func (a *ACRAuthenticator) Authenticate(ctx context.Context, token *Token, repoURL string, config *Config) (*Credentials, error) {
 	// ACR token exchange configuration
 	acrConfig := &Config{
 		Method:             "POST",
@@ -30,6 +30,10 @@ func (a *ACRAuthenticator) Authenticate(ctx context.Context, token *Token, repoU
 		AuthType:           "none",
 		ResponseTokenField: "refresh_token",
 		Username:           "00000000-0000-0000-0000-000000000000",
+	}
+	if config != nil {
+		acrConfig.Insecure = config.Insecure
+		acrConfig.PlainHTTP = config.PlainHTTP
 	}
 	creds, err := a.http.Authenticate(ctx, token, repoURL, acrConfig)
 	if err != nil {

@@ -203,12 +203,9 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 		return nil, fmt.Errorf("failed to read response: %w", err)
 	}
 
+	// The body is left out: endpoints may echo the submitted token in errors.
 	if resp.StatusCode != http.StatusOK {
-		log.WithFields(log.Fields{
-			"statusCode": resp.StatusCode,
-			"body":       truncateString(string(respBody), 200),
-		}).Error("HTTPTemplate: request failed")
-		return nil, fmt.Errorf("request failed with status %d: %s", resp.StatusCode, truncateString(string(respBody), 200))
+		return nil, fmt.Errorf("request to %s failed with status %d", host, resp.StatusCode)
 	}
 
 	// Parse the response once; token, username and expiry extraction all read
@@ -248,7 +245,7 @@ func (a *HTTPTemplateAuthenticator) Authenticate(ctx context.Context, token *Tok
 
 // extractExpiry returns the credential expiry derived from an OAuth-style
 // "expires_in" field (seconds from now) in the response, or nil when the
-// response does not carry one. Both numeric and string-encoded values are
+// response does not carry one. Zero or negative means already expired. Both numeric and string-encoded values are
 // accepted since token endpoints are inconsistent about the type.
 func extractExpiry(data map[string]any) *time.Time {
 	var seconds float64
@@ -265,7 +262,8 @@ func extractExpiry(data map[string]any) *time.Time {
 		return nil
 	}
 	if seconds <= 0 {
-		return nil
+		now := time.Now()
+		return &now
 	}
 	expiry := time.Now().Add(time.Duration(seconds * float64(time.Second)))
 	return &expiry
@@ -355,14 +353,6 @@ func (a *HTTPTemplateAuthenticator) getHTTPClient(insecure bool) *http.Client {
 		client.Transport = transport
 	}
 	return client
-}
-
-// truncateString truncates a string to maxLen, adding "..." if truncated
-func truncateString(s string, maxLen int) string {
-	if len(s) <= maxLen {
-		return s
-	}
-	return s[:maxLen] + "..."
 }
 
 // Ensure HTTPTemplateAuthenticator implements Authenticator

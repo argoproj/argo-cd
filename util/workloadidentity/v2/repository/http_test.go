@@ -623,7 +623,8 @@ func TestHTTPTemplateAuthenticator_ExpiresIn(t *testing.T) {
 		name     string
 		response map[string]any
 		// wantTTL is the expected time until expiry; 0 means ExpiresAt must be nil
-		wantTTL time.Duration
+		wantTTL     time.Duration
+		wantExpired bool
 	}{
 		{
 			name:     "numeric expires_in",
@@ -640,12 +641,14 @@ func TestHTTPTemplateAuthenticator_ExpiresIn(t *testing.T) {
 			response: map[string]any{"access_token": "tok"},
 		},
 		{
-			name:     "zero expires_in",
-			response: map[string]any{"access_token": "tok", "expires_in": 0},
+			name:        "zero expires_in",
+			response:    map[string]any{"access_token": "tok", "expires_in": 0},
+			wantExpired: true,
 		},
 		{
-			name:     "negative expires_in",
-			response: map[string]any{"access_token": "tok", "expires_in": -60},
+			name:        "negative expires_in",
+			response:    map[string]any{"access_token": "tok", "expires_in": -60},
+			wantExpired: true,
 		},
 		{
 			name:     "malformed string expires_in",
@@ -673,6 +676,11 @@ func TestHTTPTemplateAuthenticator_ExpiresIn(t *testing.T) {
 			creds, err := a.Authenticate(t.Context(), &Token{Type: TokenTypeBearer, Token: "id-token"}, "oci://"+host+"/repo", config)
 			require.NoError(t, err)
 
+			if tt.wantExpired {
+				require.NotNil(t, creds.ExpiresAt)
+				assert.False(t, creds.ExpiresAt.After(time.Now()))
+				return
+			}
 			if tt.wantTTL == 0 {
 				assert.Nil(t, creds.ExpiresAt)
 				return
@@ -750,4 +758,18 @@ func TestHTTPTemplateAuthenticator_Scheme(t *testing.T) {
 			assert.Equal(t, tt.want, rec.scheme)
 		})
 	}
+}
+
+func TestHTTPTemplateAuthenticator_ErrorOmitsResponseBody(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusBadRequest)
+		_, _ = w.Write([]byte(`{"error":"invalid subject_token: secret-jwt"}`))
+	}))
+	defer server.Close()
+
+	a := NewHTTPTemplateAuthenticator()
+	config := &Config{PathTemplate: "/token", Username: "user"}
+	_, err := a.Authenticate(t.Context(), &Token{Type: TokenTypeBearer, Token: "secret-jwt"}, server.URL+"/charts", config)
+	require.ErrorContains(t, err, "status 400")
+	assert.NotContains(t, err.Error(), "secret-jwt")
 }

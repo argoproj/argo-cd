@@ -202,6 +202,40 @@ func TestSanitizedRepository(t *testing.T) {
 	assert.Empty(t, sanitized.AzureServicePrincipalClientSecret)
 }
 
+func TestSanitizedRepositoryPreservesWorkloadIdentity(t *testing.T) {
+	repo := &Repository{
+		Repo:                                  "oci://registry.example.com/repo",
+		Password:                              "resolved-token",
+		WorkloadIdentityProvider:              "k8s",
+		WorkloadIdentityTokenURL:              "https://sts.example.com",
+		WorkloadIdentityAudience:              "registry.example.com",
+		WorkloadIdentityUsername:              "robot",
+		WorkloadIdentityAuthHost:              "auth.example.com",
+		WorkloadIdentityMethod:                "POST",
+		WorkloadIdentityPathTemplate:          "/token",
+		WorkloadIdentityBodyTemplate:          "grant_type=x",
+		WorkloadIdentityAuthType:              "bearer",
+		WorkloadIdentityParams:                map[string]string{"policy": "argocd"},
+		WorkloadIdentityResponseTokenField:    "access_token",
+		WorkloadIdentityResponseUsernameField: "username",
+	}
+
+	sanitized := repo.Sanitized()
+	assert.Empty(t, sanitized.Password)
+	assert.Equal(t, repo.WorkloadIdentityProvider, sanitized.WorkloadIdentityProvider)
+	assert.Equal(t, repo.WorkloadIdentityTokenURL, sanitized.WorkloadIdentityTokenURL)
+	assert.Equal(t, repo.WorkloadIdentityAudience, sanitized.WorkloadIdentityAudience)
+	assert.Equal(t, repo.WorkloadIdentityUsername, sanitized.WorkloadIdentityUsername)
+	assert.Equal(t, repo.WorkloadIdentityAuthHost, sanitized.WorkloadIdentityAuthHost)
+	assert.Equal(t, repo.WorkloadIdentityMethod, sanitized.WorkloadIdentityMethod)
+	assert.Equal(t, repo.WorkloadIdentityPathTemplate, sanitized.WorkloadIdentityPathTemplate)
+	assert.Equal(t, repo.WorkloadIdentityBodyTemplate, sanitized.WorkloadIdentityBodyTemplate)
+	assert.Equal(t, repo.WorkloadIdentityAuthType, sanitized.WorkloadIdentityAuthType)
+	assert.Equal(t, repo.WorkloadIdentityParams, sanitized.WorkloadIdentityParams)
+	assert.Equal(t, repo.WorkloadIdentityResponseTokenField, sanitized.WorkloadIdentityResponseTokenField)
+	assert.Equal(t, repo.WorkloadIdentityResponseUsernameField, sanitized.WorkloadIdentityResponseUsernameField)
+}
+
 func TestSanitizedRepositoryPreservesDepthZero(t *testing.T) {
 	// Depth of 0 means full clone; verify it's preserved (zero value)
 	repo := &Repository{

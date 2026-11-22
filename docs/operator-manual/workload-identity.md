@@ -95,6 +95,12 @@ cloud provider:
 > own IAM identity is used, and the repository's project is injected as an
 > `argocd-project` session tag on a chained AssumeRole call, which IAM
 > policies can reference via `aws:PrincipalTag/argocd-project`.
+>
+> For that tag to isolate projects, grant ECR image reads only in repository
+> policies conditioned on it. The role's own identity policy should allow just
+> `ecr:GetAuthorizationToken` and `iam:GetRole` on itself (used to recover a
+> role path). An identity-policy Allow on image reads would let every project
+> read every repository in the account.
 
 Repositories without a project fall back to the service account the resolving
 component runs as (for example `argocd-server` or
@@ -118,11 +124,21 @@ cluster's OIDC issuer. For example, exchanging the Kubernetes token for a
 GitHub token via octo-sts:
 
 ```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ghcr-octo-sts
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
 stringData:
   url: ghcr.io/myorg/myrepo
   type: helm
   enableOCI: "true"
+  project: team-a
   workloadIdentityProvider: k8s
+  # Must match the audience your octo-sts trust policy accepts.
+  workloadIdentityAudience: octo-sts.dev
   workloadIdentityAuthHost: octo-sts.dev
   workloadIdentityPathTemplate: "/sts/exchange?scope={{ .repo }}&identity={{ .policy }}"
   workloadIdentityParams.policy: argocd
@@ -135,10 +151,18 @@ account federation or Zot, need no exchange. Leave every exchange field
 and set `workloadIdentityUsername`; the token is sent as the password:
 
 ```yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: registry-passthrough
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
 stringData:
   url: registry.example.com/myproject
   type: helm
   enableOCI: "true"
+  project: team-a
   workloadIdentityProvider: k8s
   workloadIdentityAudience: registry.example.com # the audience the registry expects
   workloadIdentityUsername: argocd
