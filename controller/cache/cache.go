@@ -163,8 +163,8 @@ type ObjectUpdatedHandler = func(managedByApp map[string]bool, ref corev1.Object
 const ManagedCRDIndex = "managedCRD"
 
 // ManagedCRDIndexFunc indexes an application by the names of the CustomResourceDefinitions among its managed resources.
-// CustomResourceDefinitions carry no tracking metadata, so this index is how an update to one is mapped back to the
-// applications that manage it.
+// When an update to a CustomResourceDefinition resolves to no application, the cache uses this index to find the
+// applications to refresh.
 func ManagedCRDIndexFunc(obj any) ([]string, error) {
 	app, ok := obj.(*appv1.Application)
 	if !ok {

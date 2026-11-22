@@ -652,8 +652,8 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
-// TestCRDChangeRefreshesApp verifies that a change to a live CRD managed by an application, which carries no
-// tracking metadata, refreshes the application without waiting for the periodic reconciliation.
+// TestCRDChangeRefreshesApp verifies that a change to a live CRD managed by an application refreshes the application
+// without waiting for the periodic reconciliation.
 func TestCRDChangeRefreshesApp(t *testing.T) {
 	crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
 
