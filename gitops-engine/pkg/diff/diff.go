@@ -16,11 +16,14 @@ import (
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	corev1 "k8s.io/api/core/v1"
+	apiextensionsv1 "k8s.io/apiextensions-apiserver/pkg/apis/apiextensions/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/util/jsonmergepatch"
 	"k8s.io/apimachinery/pkg/util/managedfields"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
 	"k8s.io/apimachinery/pkg/util/strategicpatch"
 	"k8s.io/client-go/kubernetes/scheme"
 	"sigs.k8s.io/structured-merge-diff/v6/fieldpath"
@@ -1066,6 +1069,27 @@ func toString(val any) string {
 	return fmt.Sprintf("%s", val)
 }
 
+// remarshalScheme holds the extra types that remarshal normalizes on top of the client-go scheme.
+// The API server stores a CustomResourceDefinition through its typed struct, so omitempty fields
+// such as an additionalPrinterColumns priority of 0 are dropped from the live object. Without the
+// type the desired CRD keeps them and stays OutOfSync.
+var remarshalScheme = func() *runtime.Scheme {
+	s := runtime.NewScheme()
+	utilruntime.Must(apiextensionsv1.AddToScheme(s))
+	return s
+}()
+
+func newRemarshalObject(gvk schema.GroupVersionKind) (runtime.Object, error) {
+	item, err := scheme.Scheme.New(gvk)
+	if err == nil {
+		return item, nil
+	}
+	if extra, extraErr := remarshalScheme.New(gvk); extraErr == nil {
+		return extra, nil
+	}
+	return nil, err
+}
+
 // remarshal checks resource kind and version and re-marshal using corresponding struct custom marshaller.
 // This ensures that expected resource state is formatter same as actual resource state in kubernetes
 // and allows to find differences between actual and target states more accurately.
@@ -1087,7 +1111,7 @@ func remarshal(obj *unstructured.Unstructured, o options) *unstructured.Unstruct
 	obj = &newUn
 
 	gvk := obj.GroupVersionKind()
-	item, err := scheme.Scheme.New(obj.GroupVersionKind())
+	item, err := newRemarshalObject(gvk)
 	if err != nil {
 		// This is common. the scheme is not registered
 		o.log.V(1).Info(fmt.Sprintf("Could not create new object of type %s: %v", gvk, err))

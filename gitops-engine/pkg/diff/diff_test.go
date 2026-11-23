@@ -2583,3 +2583,184 @@ spec:
 		assert.Contains(t, normalizedLiveStr, "sessionAffinity", "sessionAffinity should still appear in output (no output normalization)")
 	})
 }
+
+// The API server stores a CustomResourceDefinition through its typed struct, so a
+// printer column with priority: 0 (omitempty) comes back without the field. The
+// desired state must be normalized the same way or the CRD is OutOfSync forever (#3889).
+func TestDiffCRDPrinterColumnZeroPriority(t *testing.T) {
+	desired := []byte(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: widgets.example.com
+spec:
+  group: example.com
+  names:
+    kind: Widget
+    plural: widgets
+  scope: Namespaced
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    additionalPrinterColumns:
+    - name: Ready
+      type: string
+      jsonPath: .status.ready
+      priority: 0
+    schema:
+      openAPIV3Schema:
+        type: object
+        x-kubernetes-preserve-unknown-fields: true
+`)
+	live := []byte(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: widgets.example.com
+spec:
+  group: example.com
+  names:
+    kind: Widget
+    plural: widgets
+  scope: Namespaced
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    additionalPrinterColumns:
+    - name: Ready
+      type: string
+      jsonPath: .status.ready
+    schema:
+      openAPIV3Schema:
+        type: object
+        x-kubernetes-preserve-unknown-fields: true
+`)
+	var config, liveObj unstructured.Unstructured
+	require.NoError(t, yaml.Unmarshal(desired, &config))
+	require.NoError(t, yaml.Unmarshal(live, &liveObj))
+
+	res := diff(t, &config, &liveObj, diffOptionsForTest()...)
+	assert.False(t, res.Modified, "priority: 0 is dropped by the API server and must not cause a diff")
+}
+
+func TestDiffCRDPrinterColumnZeroPriorityThreeWay(t *testing.T) {
+	desired := `
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: widgets.example.com
+spec:
+  group: example.com
+  names: {kind: Widget, plural: widgets}
+  scope: Namespaced
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    additionalPrinterColumns:
+    - {name: Ready, type: string, jsonPath: .status.ready, priority: %d}
+    schema:
+      openAPIV3Schema: {type: object, x-kubernetes-preserve-unknown-fields: true}
+`
+	live := `
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: widgets.example.com
+  annotations:
+    kubectl.kubernetes.io/last-applied-configuration: '{"apiVersion":"apiextensions.k8s.io/v1","kind":"CustomResourceDefinition","metadata":{"name":"widgets.example.com"},"spec":{"group":"example.com","names":{"kind":"Widget","plural":"widgets"},"scope":"Namespaced","versions":[{"name":"v1","served":true,"storage":true,"additionalPrinterColumns":[{"name":"Ready","type":"string","jsonPath":".status.ready","priority":0}],"schema":{"openAPIV3Schema":{"type":"object","x-kubernetes-preserve-unknown-fields":true}}}]}}'
+spec:
+  group: example.com
+  names: {kind: Widget, listKind: WidgetList, plural: widgets, singular: widget}
+  scope: Namespaced
+  conversion: {strategy: None}
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    additionalPrinterColumns:
+    - {name: Ready, type: string, jsonPath: .status.ready}
+    schema:
+      openAPIV3Schema: {type: object, x-kubernetes-preserve-unknown-fields: true}
+`
+	parse := func(s string) *unstructured.Unstructured {
+		var un unstructured.Unstructured
+		require.NoError(t, yaml.Unmarshal([]byte(s), &un))
+		return &un
+	}
+	t.Run("zero priority is in sync", func(t *testing.T) {
+		res := diff(t, parse(fmt.Sprintf(desired, 0)), parse(live), diffOptionsForTest()...)
+		assert.False(t, res.Modified)
+	})
+	t.Run("non zero priority is still a diff", func(t *testing.T) {
+		res := diff(t, parse(fmt.Sprintf(desired, 1)), parse(live), diffOptionsForTest()...)
+		assert.True(t, res.Modified)
+	})
+}
+
+// A CRD with a rich schema must survive remarshal without losing set fields.
+func TestRemarshalCRDKeepsSchema(t *testing.T) {
+	manifest := []byte(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: widgets.example.com
+  labels: {app: widgets}
+spec:
+  group: example.com
+  names: {kind: Widget, plural: widgets, shortNames: [wd], categories: [all]}
+  scope: Namespaced
+  conversion:
+    strategy: Webhook
+    webhook:
+      conversionReviewVersions: [v1]
+      clientConfig:
+        caBundle: Cg==
+        service: {name: conv, namespace: default, path: /convert, port: 443}
+  versions:
+  - name: v1
+    served: true
+    storage: true
+    deprecated: false
+    subresources:
+      status: {}
+      scale: {specReplicasPath: .spec.replicas, statusReplicasPath: .status.replicas}
+    additionalPrinterColumns:
+    - {name: Age, type: date, jsonPath: .metadata.creationTimestamp, priority: 1}
+    schema:
+      openAPIV3Schema:
+        type: object
+        required: [spec]
+        properties:
+          spec:
+            type: object
+            x-kubernetes-validations:
+            - {rule: "self.replicas >= 0", message: must be positive}
+            properties:
+              replicas: {type: integer, default: 1, minimum: 0, format: int32}
+              mode: {type: string, enum: [a, b], default: a}
+              port: {x-kubernetes-int-or-string: true, anyOf: [{type: integer}, {type: string}]}
+              labels: {type: object, additionalProperties: {type: string}}
+              items:
+                type: array
+                x-kubernetes-list-type: map
+                x-kubernetes-list-map-keys: [name]
+                items: {type: object, required: [name], properties: {name: {type: string}}}
+              raw: {type: object, x-kubernetes-preserve-unknown-fields: true, x-kubernetes-embedded-resource: true}
+              enabled: {type: boolean, default: false, nullable: true}
+`)
+	var un unstructured.Unstructured
+	require.NoError(t, yaml.Unmarshal(manifest, &un))
+	newUn := remarshal(&un, applyOptions(diffOptionsForTest()))
+
+	// deprecated: false is omitempty in the typed struct, so the API server drops it too.
+	versions := un.Object["spec"].(map[string]any)["versions"].([]any)
+	delete(versions[0].(map[string]any), "deprecated")
+	want, err := json.Marshal(un.Object)
+	require.NoError(t, err)
+	got, err := json.Marshal(newUn.Object)
+	require.NoError(t, err)
+	assert.JSONEq(t, string(want), string(got))
+}
