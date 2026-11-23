@@ -16,6 +16,7 @@
 | argocd-linux_ppc64le     | CLI Binary                    |
 | argocd-linux_s390x       | CLI Binary                    |
 | argocd-windows_amd64     | CLI Binary                    |
+| argocd-windows_arm64     | CLI Binary                    |
 | argocd-cli.intoto.jsonl  | Attestation of CLI binaries   |
 | argocd-sbom.intoto.jsonl | Attestation of SBOM           |
 | cli_checksums.txt        | Checksums of binaries         |
