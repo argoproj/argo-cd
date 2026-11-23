@@ -18,8 +18,15 @@ import (
 )
 
 // NewCacheSyncingClient returns a client that wraps the given client and syncs the cache after each Create, Update, Patch, or Delete operation on Application objects.
-func NewCacheSyncingClient(c client.Client, cache ctrlcache.Cache) client.Client {
+//
+// An optional apiReader (uncached, reads straight from the API server, e.g. mgr.GetAPIReader()) can
+// be passed to let callers verify informer-cache hits against the real cluster state; see
+// UncachedReader.
+func NewCacheSyncingClient(c client.Client, cache ctrlcache.Cache, apiReaders ...client.Reader) client.Client {
 	res := &cacheSyncingClient{Client: c, storesByNs: make(map[string]k8scache.Store)}
+	if len(apiReaders) > 0 {
+		res.apiReader = apiReaders[0]
+	}
 	// The k8s controller runtime's cache does not expose a way to get the underlying store, so we have to use reflection to access it.
 	// This is necessary to keep the cache in sync with the client operations.
 	field := reflect.ValueOf(cache).Elem().FieldByName("namespaceToCache")
@@ -42,10 +49,55 @@ func NewCacheSyncingClient(c client.Client, cache ctrlcache.Cache) client.Client
 
 type cacheSyncingClient struct {
 	client.Client
+	// apiReader reads directly from the API server, bypassing the informer cache. May be nil, in
+	// which case cache entries cannot be verified against the cluster and callers must trust the
+	// cache.
+	apiReader  client.Reader
 	getNSCache func(ctx context.Context, obj client.Object) (ctrlcache.Cache, error)
 
 	storesByNs     map[string]k8scache.Store
 	storesByNsLock sync.RWMutex
+}
+
+// UncachedReader returns the reader that bypasses the informer cache, or nil when none is
+// configured.
+func (c *cacheSyncingClient) UncachedReader() client.Reader {
+	return c.apiReader
+}
+
+// EvictFromCache removes obj from the informer store. It is used to drop a stale entry for an
+// object the API server has confirmed no longer exists, so cache-backed reads stop reporting the
+// ghost object.
+//
+// The store entry is removed only when it is still the same object that was probed stale (matched
+// by UID): between the uncached probe and this eviction the informer may have stored a
+// replacement object for the same key, and deleting by key alone would drop that replacement from
+// the cache, making cache-backed reads report an existing object as missing.
+func (c *cacheSyncingClient) EvictFromCache(ctx context.Context, obj client.Object) {
+	logger := log.WithField("namespace", obj.GetNamespace()).WithField("name", obj.GetName())
+	store, err := c.getStore(ctx, obj)
+	if err != nil {
+		logger.Errorf("failed to get cache store for eviction: %v", err)
+		return
+	}
+	existing, exists, err := store.Get(obj)
+	if err != nil {
+		logger.Errorf("failed to read cache entry for eviction: %v", err)
+		return
+	}
+	if !exists {
+		// Nothing to evict: the entry is already gone.
+		return
+	}
+	if obj.GetUID() != "" {
+		if existingObj, ok := existing.(client.Object); ok && existingObj.GetUID() != obj.GetUID() {
+			logger.Debugf("skipping eviction: store entry is a replacement object (uid %s, probed object had uid %s)", existingObj.GetUID(), obj.GetUID())
+			return
+		}
+	}
+	if err := store.Delete(obj); err != nil {
+		logger.Errorf("failed to evict stale cache entry: %v", err)
+	}
 }
 
 func (c *cacheSyncingClient) getStore(ctx context.Context, obj client.Object) (k8scache.Store, error) {
@@ -86,7 +138,24 @@ func (c *cacheSyncingClient) retrieveStore(ctx context.Context, obj client.Objec
 	return indexInformer.GetStore(), nil
 }
 
-func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() error, obj client.Object, deleteObj bool) error {
+// cacheSyncOp describes how a successful write operation should sync the informer store.
+type cacheSyncOp int
+
+const (
+	// syncRefresh is used for Update/Patch: the store entry is refreshed only if it is still
+	// present. Writing the response back after the informer already processed the object's
+	// DELETED event would resurrect a stale entry for an object that no longer exists on the
+	// API server, and no further watch event would ever remove it: cache-backed reads would
+	// keep seeing the ghost object forever (see issue #30848).
+	syncRefresh cacheSyncOp = iota
+	// syncAdd is used for Create: the store entry is added even when absent, because the
+	// informer has not seen the new object yet.
+	syncAdd
+	// syncDelete evicts the store entry.
+	syncDelete
+)
+
+func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() error, obj client.Object, sync cacheSyncOp) error {
 	// Execute the operation first; on success sync the informer cache. If it returns NotFound, also attempt to evict any stale entry from the cache.
 	var opErr error
 	// gone records that the API server confirmed the object no longer exists.
@@ -98,12 +167,21 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 		// Delete callers already expected deletion, so we swallow the error (idempotent).
 		// Update/Patch callers still need to know the object is gone, so we return NotFound.
 		if !apierrors.IsNotFound(err) {
+			// AlreadyExists on a Create means another actor created the object first. Sync the
+			// existing object into the informer store so cache-backed reads do not keep
+			// reporting it as missing while it really exists on the API server.
+			// Limit the recovery to Application objects: the exported Create
+			// accepts any client.Object, and inserting a non-Application into
+			// the Application informer store would corrupt it.
+			if _, isApp := obj.(*application.Application); isApp && apierrors.IsAlreadyExists(err) && sync == syncAdd {
+				c.syncExistingIntoCache(ctx, obj)
+			}
 			return err
 		}
-		if !deleteObj {
+		if sync != syncDelete {
 			opErr = err
 		}
-		deleteObj = true
+		sync = syncDelete
 		gone = true
 	}
 	// sync cache for applications only
@@ -117,7 +195,7 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 	// prematurely that it is done. Leave the entry and let the informer's own MODIFIED/DELETED
 	// events converge it. A NotFound is different: there the object really is absent, so any
 	// stale entry must still be evicted.
-	if deleteObj && !gone && len(obj.GetFinalizers()) > 0 {
+	if sync == syncDelete && !gone && len(obj.GetFinalizers()) > 0 {
 		return opErr
 	}
 
@@ -126,10 +204,28 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 	if err != nil {
 		logger.Errorf("failed to get cache store: %v", err)
 	} else {
-		if deleteObj {
-			err = store.Delete(obj)
-		} else {
+		switch sync {
+		case syncDelete:
+			if gone {
+				// The API server confirmed the object is absent. Evict through the
+				// UID-checked path rather than a plain delete-by-key: between the
+				// uncached probe and this eviction the informer may have stored a
+				// replacement object for the same key, and deleting by key alone
+				// would drop that replacement from the cache.
+				c.EvictFromCache(ctx, obj)
+			} else {
+				err = store.Delete(obj)
+			}
+		case syncAdd:
 			err = store.Update(obj)
+		case syncRefresh:
+			var exists bool
+			_, exists, err = store.Get(obj)
+			if err == nil && exists {
+				err = store.Update(obj)
+			} else if err == nil {
+				logger.Debugf("skipping cache sync for %s: entry is not in the store (deleted meanwhile)", client.ObjectKeyFromObject(obj))
+			}
 		}
 	}
 	if err != nil {
@@ -138,26 +234,52 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 	return opErr
 }
 
+// syncExistingIntoCache reads the object straight from the API server (bypassing the informer
+// cache) and stores the result in the informer store, so a Create that lost an AlreadyExists
+// race still leaves the cache consistent with the cluster.
+func (c *cacheSyncingClient) syncExistingIntoCache(ctx context.Context, obj client.Object) {
+	if c.apiReader == nil {
+		return
+	}
+	logger := log.WithField("namespace", obj.GetNamespace()).WithField("name", obj.GetName())
+	existing, ok := obj.DeepCopyObject().(client.Object)
+	if !ok {
+		return
+	}
+	if err := c.apiReader.Get(ctx, client.ObjectKeyFromObject(obj), existing); err != nil {
+		logger.WithError(err).Warnf("failed to read existing object from the API server for cache sync")
+		return
+	}
+	store, err := c.getStore(ctx, obj)
+	if err != nil {
+		logger.Errorf("failed to get cache store for existing-object sync: %v", err)
+		return
+	}
+	if err := store.Update(existing); err != nil {
+		logger.Errorf("failed to sync existing object into cache: %v", err)
+	}
+}
+
 func (c *cacheSyncingClient) Create(ctx context.Context, obj client.Object, opts ...client.CreateOption) error {
 	return c.execAndSyncCache(ctx, func() error {
 		return c.Client.Create(ctx, obj, opts...)
-	}, obj, false)
+	}, obj, syncAdd)
 }
 
 func (c *cacheSyncingClient) Update(ctx context.Context, obj client.Object, opts ...client.UpdateOption) error {
 	return c.execAndSyncCache(ctx, func() error {
 		return c.Client.Update(ctx, obj, opts...)
-	}, obj, false)
+	}, obj, syncRefresh)
 }
 
 func (c *cacheSyncingClient) Patch(ctx context.Context, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
 	return c.execAndSyncCache(ctx, func() error {
 		return c.Client.Patch(ctx, obj, patch, opts...)
-	}, obj, false)
+	}, obj, syncRefresh)
 }
 
 func (c *cacheSyncingClient) Delete(ctx context.Context, obj client.Object, opts ...client.DeleteOption) error {
 	return c.execAndSyncCache(ctx, func() error {
 		return c.Client.Delete(ctx, obj, opts...)
-	}, obj, true)
+	}, obj, syncDelete)
 }

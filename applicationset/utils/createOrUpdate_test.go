@@ -1,16 +1,24 @@
 package utils
 
 import (
+	"context"
+	"errors"
+	"fmt"
 	"testing"
 
 	log "github.com/sirupsen/logrus"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.yaml.in/yaml/v3"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
+	k8scache "k8s.io/client-go/tools/cache"
+	ctrlcache "sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/client/fake"
+	"sigs.k8s.io/controller-runtime/pkg/client/interceptor"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
@@ -290,7 +298,7 @@ func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImages(t *testing.T) {
 	op, err := CreateOrUpdate(t.Context(), log.NewEntry(log.New()), c, diffConfig, obj, func() error {
 		obj.Spec = generated.Spec
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 
 	require.Equal(t, controllerutil.OperationResultNone, op,
@@ -354,7 +362,7 @@ func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImagesMultiSource(t *testing
 	op, err := CreateOrUpdate(t.Context(), log.NewEntry(log.New()), c, diffConfig, obj, func() error {
 		obj.Spec = generated.Spec
 		return nil
-	})
+	}, false)
 	require.NoError(t, err)
 
 	require.Equal(t, controllerutil.OperationResultNone, op,
@@ -364,4 +372,322 @@ func TestCreateOrUpdateDoesNotRevertIgnoredKustomizeImagesMultiSource(t *testing
 	require.NoError(t, c.Get(t.Context(), client.ObjectKeyFromObject(live), persisted))
 	require.NotNil(t, persisted.Spec.Sources[1].Kustomize, "the ignored kustomize.images override must survive in the cluster")
 	require.Equal(t, live.Spec.Sources[1].Kustomize.Images, persisted.Spec.Sources[1].Kustomize.Images)
+}
+
+// informerBackedClient simulates the manager's cache-backed client in production: reads are
+// served from the informer store, while writes (and everything else) go to the wrapped API
+// client.
+type informerBackedClient struct {
+	client.Client
+	store k8scache.Store
+}
+
+func (c *informerBackedClient) Get(_ context.Context, key client.ObjectKey, obj client.Object, _ ...client.GetOption) error {
+	item, exists, err := c.store.GetByKey(key.String())
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return apierrors.NewNotFound(schema.GroupResource{Group: "argoproj.io", Resource: "applications"}, key.Name)
+	}
+	app, ok := item.(*v1alpha1.Application)
+	if !ok {
+		return fmt.Errorf("informer store holds unexpected type %T", item)
+	}
+	app.DeepCopyInto(obj.(*v1alpha1.Application))
+	return nil
+}
+
+func mustScheme(t *testing.T) *runtime.Scheme {
+	t.Helper()
+	scheme := runtime.NewScheme()
+	require.NoError(t, v1alpha1.AddToScheme(scheme))
+	return scheme
+}
+
+func mustStoreWith(t *testing.T, objs ...client.Object) k8scache.Store {
+	t.Helper()
+	store := k8scache.NewStore(k8scache.MetaNamespaceKeyFunc)
+	for _, obj := range objs {
+		require.NoError(t, store.Add(obj))
+	}
+	return store
+}
+
+// newCacheSyncingClient builds a cacheSyncingClient whose reads come from an informer store
+// seeded with cachedObjects, whose writes go to apiClient (the fake API server), and whose
+// uncached reader is also apiClient. This reproduces the production wiring
+// (NewCacheSyncingClient(mgr.GetClient(), mgr.GetCache(), mgr.GetAPIReader())).
+func newCacheSyncingClient(t *testing.T, apiClient client.Client, cachedObjects ...client.Object) (*cacheSyncingClient, k8scache.Store) {
+	t.Helper()
+	store := mustStoreWith(t, cachedObjects...)
+	c := &cacheSyncingClient{
+		Client:     &informerBackedClient{Client: apiClient, store: store},
+		apiReader:  apiClient,
+		storesByNs: map[string]k8scache.Store{},
+		getNSCache: func(_ context.Context, _ client.Object) (ctrlcache.Cache, error) {
+			return &fakeMultiNamespaceCache{Store: store}, nil
+		},
+	}
+	return c, store
+}
+
+func staleCacheGhostApp() *v1alpha1.Application {
+	app := &v1alpha1.Application{
+		Spec: v1alpha1.ApplicationSpec{
+			Project:    "project",
+			SyncPolicy: &v1alpha1.SyncPolicy{},
+		},
+	}
+	app.Name = "app1"
+	app.Namespace = "argocd"
+	app.ResourceVersion = "7"
+	return app
+}
+
+func desiredApp() *v1alpha1.Application {
+	app := &v1alpha1.Application{}
+	app.Name = "app1"
+	app.Namespace = "argocd"
+	return app
+}
+
+// TestCreateOrUpdateRecreatesAppDeletedOutOfBand is the regression test for issue #30848: the
+// informer cache still holds an entry for an Application that was deleted directly on the API
+// server, and the cached object matches the desired state, so the DeepEqual check alone would
+// skip the write and the Application would never be recreated. The controller must confirm the
+// cache hit against the API server, evict the stale entry and recreate the Application.
+func TestCreateOrUpdateRecreatesAppDeletedOutOfBand(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	ghost := staleCacheGhostApp()
+	// The API server does NOT contain the Application; only the informer store does.
+	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).Build()
+	c, store := newCacheSyncingClient(t, apiClient, ghost)
+
+	desired := desiredApp()
+	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
+		return nil
+	}, false)
+	require.NoError(t, err)
+	require.Equal(t, controllerutil.OperationResultCreated, action, "the stale cache entry must trigger recreation, not a silent skip")
+
+	// The Application exists again on the API server.
+	got := &v1alpha1.Application{}
+	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
+	require.Equal(t, "project", got.Spec.Project)
+
+	// The informer store was healed: the stale entry was evicted and the recreated Application
+	// synced back in by the Create.
+	item, exists, err := store.GetByKey("argocd/app1")
+	require.NoError(t, err)
+	require.True(t, exists)
+	require.Equal(t, "project", item.(*v1alpha1.Application).Spec.Project)
+}
+
+// TestCreateOrUpdateSkipsUnchangedAppConfirmedByAPI guards the normal path: when the informer
+// cache entry is backed by a real object on the API server, an unchanged Application is skipped
+// without any write.
+func TestCreateOrUpdateSkipsUnchangedAppConfirmedByAPI(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	live := staleCacheGhostApp()
+	live.ResourceVersion = "5"
+
+	var writes int
+	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).WithObjects(live.DeepCopy()).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Create: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.CreateOption) error {
+				writes++
+				return c.Create(ctx, obj, opts...)
+			},
+			Patch: func(ctx context.Context, c client.WithWatch, obj client.Object, patch client.Patch, opts ...client.PatchOption) error {
+				writes++
+				return c.Patch(ctx, obj, patch, opts...)
+			},
+			Update: func(ctx context.Context, c client.WithWatch, obj client.Object, opts ...client.UpdateOption) error {
+				writes++
+				return c.Update(ctx, obj, opts...)
+			},
+		}).Build()
+
+	// Both the informer store and the API server hold the Application.
+	c, _ := newCacheSyncingClient(t, apiClient, live)
+
+	desired := desiredApp()
+	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
+		return nil
+	}, false)
+	require.NoError(t, err)
+	require.Equal(t, controllerutil.OperationResultNone, action)
+	require.Zero(t, writes, "an unchanged Application confirmed on the API server must not be written")
+
+	got := &v1alpha1.Application{}
+	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
+	require.Equal(t, "5", got.ResourceVersion, "no write should have bumped the resource version")
+}
+
+// TestCreateOrUpdateProbeErrorFallsBackToCache ensures a transient error from the uncached read
+// does not fail the reconcile: the controller falls back to trusting the informer cache.
+func TestCreateOrUpdateProbeErrorFallsBackToCache(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	ghost := staleCacheGhostApp()
+	probeErr := errors.New("connection refused")
+	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).
+		WithInterceptorFuncs(interceptor.Funcs{
+			Get: func(_ context.Context, _ client.WithWatch, _ client.ObjectKey, _ client.Object, _ ...client.GetOption) error {
+				return probeErr
+			},
+		}).Build()
+	c, _ := newCacheSyncingClient(t, apiClient, ghost)
+
+	desired := desiredApp()
+	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
+		return nil
+	}, false)
+	require.NoError(t, err)
+	require.Equal(t, controllerutil.OperationResultNone, action)
+
+	// Nothing was created behind the API client's back.
+	require.Error(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, &v1alpha1.Application{}))
+}
+
+// TestCreateOrUpdateWithoutVerifierKeepsOldBehavior: a plain client (no uncached reader, e.g. in
+// tests that use the fake client directly) keeps the previous behavior and skips the write.
+func TestCreateOrUpdateWithoutVerifierKeepsOldBehavior(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	live := staleCacheGhostApp()
+	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).WithObjects(live.DeepCopy()).Build()
+	c, _ := newCacheSyncingClient(t, apiClient, live)
+	c.apiReader = nil // no uncached reader: the cache cannot be verified
+
+	desired := desiredApp()
+	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
+		return nil
+	}, false)
+	require.NoError(t, err)
+	require.Equal(t, controllerutil.OperationResultNone, action)
+}
+
+// TestCreateOrUpdateRecreateDropsInheritedCachedOperation guards the recreation path: an
+// Operation present on the stale cache entry but not requested by the template must not be
+// persisted on the recreated Application, otherwise an old sync request would run again.
+func TestCreateOrUpdateRecreateDropsInheritedCachedOperation(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	ghost := staleCacheGhostApp()
+	ghost.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).Build()
+	c, _ := newCacheSyncingClient(t, apiClient, ghost)
+
+	desired := desiredApp()
+	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
+		// the template does NOT request an Operation
+		return nil
+	}, false)
+	require.NoError(t, err)
+	require.Equal(t, controllerutil.OperationResultCreated, action)
+
+	got := &v1alpha1.Application{}
+	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
+	require.Nil(t, got.Operation, "an Operation inherited from the stale cache entry must not be persisted on the recreated Application")
+}
+
+// TestCreateOrUpdateRecreateKeepsTemplateOperation: when the template explicitly requests an
+// Operation, recreation must carry it over.
+func TestCreateOrUpdateRecreateKeepsTemplateOperation(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	ghost := staleCacheGhostApp()
+	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).Build()
+	c, _ := newCacheSyncingClient(t, apiClient, ghost)
+
+	desired := desiredApp()
+	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
+		desired.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+		return nil
+	}, true)
+	require.NoError(t, err)
+	require.Equal(t, controllerutil.OperationResultCreated, action)
+
+	got := &v1alpha1.Application{}
+	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
+	require.NotNil(t, got.Operation, "a template-requested Operation must survive recreation")
+}
+
+// TestCreateOrUpdateRecreateKeepsIgnoredTargetRevision guards the recreation path against
+// ignore-difference normalization: the Create must be built from the desired state captured
+// before applyIgnoreDifferences removed ignored fields, so e.g. a non-empty targetRevision is
+// not lost on the recreated Application.
+func TestCreateOrUpdateRecreateKeepsIgnoredTargetRevision(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	ghost := staleCacheGhostApp()
+	ghost.Spec.Source = &v1alpha1.ApplicationSource{RepoURL: "https://example.com/repo.git", TargetRevision: "old"}
+	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).Build()
+	c, _ := newCacheSyncingClient(t, apiClient, ghost)
+
+	ignore := v1alpha1.ApplicationSetIgnoreDifferences{{JSONPointers: []string{"/spec/source/targetRevision"}}}
+	diffConfig, err := BuildIgnoreDiffConfig(ignore, normalizers.IgnoreNormalizerOpts{})
+	require.NoError(t, err)
+
+	desired := desiredApp()
+	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, diffConfig, desired, func() error {
+		desired.Spec = v1alpha1.ApplicationSpec{
+			Project: "project",
+			Source:  &v1alpha1.ApplicationSource{RepoURL: "https://example.com/repo.git", TargetRevision: "main"},
+		}
+		return nil
+	}, false)
+	require.NoError(t, err)
+	require.Equal(t, controllerutil.OperationResultCreated, action)
+
+	got := &v1alpha1.Application{}
+	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
+	require.Equal(t, "main", got.Spec.Source.TargetRevision, "ignored fields must survive recreation")
+}
+
+// TestCreateOrUpdateRecreateKeepsEqualRequestedOperation guards the recreation path against
+// value-based Operation detection: when the template explicitly requests an Operation that is
+// equal to the one on the stale cache entry, the explicit request signal (not value inequality)
+// must keep the Operation on the recreated Application.
+func TestCreateOrUpdateRecreateKeepsEqualRequestedOperation(t *testing.T) {
+	t.Parallel()
+	ctx := t.Context()
+
+	ghost := staleCacheGhostApp()
+	ghost.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "r1"}}
+	apiClient := fake.NewClientBuilder().WithScheme(mustScheme(t)).Build()
+	c, _ := newCacheSyncingClient(t, apiClient, ghost)
+
+	desired := desiredApp()
+	action, err := CreateOrUpdate(ctx, log.NewEntry(log.StandardLogger()), c, nil, desired, func() error {
+		desired.Spec = v1alpha1.ApplicationSpec{Project: "project"}
+		// the template requests an Operation equal (by value) to the cached one, but as a
+		// distinct object: an explicit request, not an inherited value
+		desired.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{Revision: "r1"}}
+		return nil
+	}, true)
+	require.NoError(t, err)
+	require.Equal(t, controllerutil.OperationResultCreated, action)
+
+	got := &v1alpha1.Application{}
+	require.NoError(t, apiClient.Get(ctx, client.ObjectKey{Name: "app1", Namespace: "argocd"}, got))
+	require.NotNil(t, got.Operation, "an explicitly requested Operation must survive recreation even when it equals the cached one")
+	require.Equal(t, "r1", got.Operation.Sync.Revision)
 }
