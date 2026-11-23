@@ -43,6 +43,7 @@ type MetricsServer struct {
 	redisRequestHistogram             *prometheus.HistogramVec
 	resourceEventsProcessingHistogram *prometheus.HistogramVec
 	resourceEventsNumberGauge         *prometheus.GaugeVec
+	clusterCacheInformerModeGauge     prometheus.Gauge
 	registry                          *prometheus.Registry
 	hostname                          string
 	cron                              *cron.Cron
@@ -177,6 +178,12 @@ var (
 		Help: "Number of resource events processed in batch",
 	}, []string{"server"})
 
+	// Set once at startup; deliberately not part of the cron reset.
+	clusterCacheInformerModeGauge = prometheus.NewGauge(prometheus.GaugeOpts{
+		Name: "argocd_cluster_cache_informer_mode_enabled",
+		Help: "Whether the cluster cache uses the experimental informer engine (1) or the legacy engine (0)",
+	})
+
 	argoVersion = prometheus.NewGaugeVec(
 		prometheus.GaugeOpts{
 			Name: "argocd_info",
@@ -244,6 +251,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 	registry.MustRegister(redisRequestHistogram)
 	registry.MustRegister(resourceEventsProcessingHistogram)
 	registry.MustRegister(resourceEventsNumberGauge)
+	registry.MustRegister(clusterCacheInformerModeGauge)
 
 	kubectl.RegisterWithClientGo()
 	kubectl.RegisterWithPrometheus(registry)
@@ -266,6 +274,7 @@ func NewMetricsServer(addr string, appLister applister.ApplicationLister, appFil
 		redisRequestHistogram:             redisRequestHistogram,
 		resourceEventsProcessingHistogram: resourceEventsProcessingHistogram,
 		resourceEventsNumberGauge:         resourceEventsNumberGauge,
+		clusterCacheInformerModeGauge:     clusterCacheInformerModeGauge,
 		hostname:                          hostname,
 		// This cron is used to expire the metrics cache.
 		// Currently clearing the metrics cache is logging and deleting from the map
@@ -359,6 +368,15 @@ func (m *MetricsServer) ObserveRedisRequestDuration(duration time.Duration) {
 func (m *MetricsServer) ObserveResourceEventsProcessingDuration(server string, duration time.Duration, processedEventsNumber int) {
 	m.resourceEventsProcessingHistogram.WithLabelValues(server).Observe(duration.Seconds())
 	m.resourceEventsNumberGauge.WithLabelValues(server).Set(float64(processedEventsNumber))
+}
+
+// SetClusterCacheInformerMode records whether the cluster cache uses the informer engine
+func (m *MetricsServer) SetClusterCacheInformerMode(enabled bool) {
+	if enabled {
+		m.clusterCacheInformerModeGauge.Set(1)
+	} else {
+		m.clusterCacheInformerModeGauge.Set(0)
+	}
 }
 
 // IncReconcile increments the reconcile counter for an application
