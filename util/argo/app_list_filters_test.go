@@ -4,15 +4,18 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
 func TestMatchesLabels(t *testing.T) {
 	app := &argoappv1.Application{
-		Labels: map[string]string{
-			"team":  "platform",
-			"empty": "",
+		ObjectMeta: metav1.ObjectMeta{
+			Labels: map[string]string{
+				"team":  "platform",
+				"empty": "",
+			},
 		},
 	}
 

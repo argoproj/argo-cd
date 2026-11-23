@@ -259,10 +259,13 @@ test('AppsListPaginate does not clamp page while placeholder data is shown', () 
     expect(onPageChange).not.toHaveBeenCalled();
 });
 
-test('clusterFilterToServerValue extracts the server URL from display labels', () => {
-    expect(clusterFilterToServerValue('in-cluster (https://kubernetes.default.svc)')).toBe('https://kubernetes.default.svc');
-    expect(clusterFilterToServerValue('https://kubernetes.default.svc')).toBe('https://kubernetes.default.svc');
-    expect(clusterFilterToServerValue('in-cluster')).toBe('in-cluster');
+test('clusterFilterToServerValue returns name and URL alternatives from display labels', () => {
+    expect(clusterFilterToServerValue('in-cluster (https://kubernetes.default.svc)')).toEqual([
+        'in-cluster',
+        'https://kubernetes.default.svc'
+    ]);
+    expect(clusterFilterToServerValue('https://kubernetes.default.svc')).toEqual(['https://kubernetes.default.svc']);
+    expect(clusterFilterToServerValue('in-cluster')).toEqual(['in-cluster']);
 });
 
 test('clampAppsListPage resets to zero when results fit on the first page', () => {

@@ -70,19 +70,19 @@ export function sortTitleToServer(sortTitle?: string): string | undefined {
     return SORT_TITLE_TO_SERVER[sortTitle] || undefined;
 }
 
-/** Converts a cluster display value like "name (https://server)" into the server URL the API matches. */
-export function clusterFilterToServerValue(filterString: string): string {
+/** Converts a cluster display value like "name (https://server)" into name and URL alternatives the API matches. */
+export function clusterFilterToServerValue(filterString: string): string[] {
     const match = filterString.match(/^(.*) [(](http.*)[)]$/);
     if (match?.length === 3) {
-        const [, , url] = match;
-        return url;
+        const [, name, url] = match;
+        return [name, url];
     }
-    return filterString;
+    return [filterString];
 }
 
 function stableFiltersFromPref(pref: AppsListPreferences & {page: number; search: string}) {
     const labels = (pref.labelsFilter || []).map(l => (l.includes('=') ? l : `${l}`));
-    const clusters = pref.clustersFilter?.length ? pref.clustersFilter.map(clusterFilterToServerValue) : undefined;
+    const clusters = pref.clustersFilter?.length ? pref.clustersFilter.flatMap(clusterFilterToServerValue) : undefined;
     return {
         repos: pref.reposFilter?.length ? pref.reposFilter : undefined,
         clusters,

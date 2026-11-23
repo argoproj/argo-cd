@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	applicationpkg "github.com/argoproj/argo-cd/v3/pkg/apiclient/application"
 	applicationmocks "github.com/argoproj/argo-cd/v3/pkg/apiclient/application/mocks"
@@ -17,7 +18,7 @@ func testApps(n int) []argoappv1.Application {
 	apps := make([]argoappv1.Application, n)
 	for i := range apps {
 		apps[i] = argoappv1.Application{
-			Name: fmt.Sprintf("app-%04d", i),
+			ObjectMeta: metav1.ObjectMeta{Name: fmt.Sprintf("app-%04d", i)},
 		}
 	}
 	return apps
@@ -70,9 +71,9 @@ func TestListApplicationsPaged_PaginatedServerMultiplePages(t *testing.T) {
 				q.Offset != nil && *q.Offset == 0
 		})).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: listRV,
-			Items:           page1,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: listRV},
+			Items:    page1,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 	mockClient.EXPECT().
@@ -81,9 +82,9 @@ func TestListApplicationsPaged_PaginatedServerMultiplePages(t *testing.T) {
 				q.Offset != nil && *q.Offset == defaultAppListBatchSize
 		})).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: listRV,
-			Items:           page2,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: listRV},
+			Items:    page2,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 
@@ -106,9 +107,9 @@ func TestListApplicationsPaged_PaginatedServerExactBatchSize(t *testing.T) {
 			return q.Offset != nil && *q.Offset == 0
 		})).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: listRV,
-			Items:           page1,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: listRV},
+			Items:    page1,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 	mockClient.EXPECT().
@@ -116,9 +117,9 @@ func TestListApplicationsPaged_PaginatedServerExactBatchSize(t *testing.T) {
 			return q.Offset != nil && *q.Offset == defaultAppListBatchSize
 		})).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: listRV,
-			Items:           nil,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: listRV},
+			Items:    nil,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 
@@ -147,9 +148,9 @@ func TestListApplicationsPaged_ForwardsSearchOnEachPage(t *testing.T) {
 				q.Projects == nil && q.Project == nil && q.Repo == nil && q.Clusters == nil
 		})).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: listRV,
-			Items:           page1,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: listRV},
+			Items:    page1,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 	mockClient.EXPECT().
@@ -160,9 +161,9 @@ func TestListApplicationsPaged_ForwardsSearchOnEachPage(t *testing.T) {
 				q.Projects == nil && q.Project == nil && q.Repo == nil && q.Clusters == nil
 		})).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: listRV,
-			Items:           page2,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: listRV},
+			Items:    page2,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 
@@ -200,17 +201,17 @@ func TestListApplicationsPaged_ForwardsSupportedFiltersOnEachPage(t *testing.T) 
 	mockClient.EXPECT().
 		List(ctx, mock.MatchedBy(matchesFilters(0))).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: listRV,
-			Items:           page1,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: listRV},
+			Items:    page1,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 	mockClient.EXPECT().
 		List(ctx, mock.MatchedBy(matchesFilters(defaultAppListBatchSize))).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: listRV,
-			Items:           page2,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: listRV},
+			Items:    page2,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 
@@ -239,9 +240,9 @@ func TestListApplicationsPaged_RestartsWhenResourceVersionChanges(t *testing.T) 
 			return q.Offset != nil && *q.Offset == 0
 		})).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: "1",
-			Items:           page1a,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: "1"},
+			Items:    page1a,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 	mockClient.EXPECT().
@@ -249,9 +250,9 @@ func TestListApplicationsPaged_RestartsWhenResourceVersionChanges(t *testing.T) 
 			return q.Offset != nil && *q.Offset == defaultAppListBatchSize
 		})).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: "2",
-			Items:           page2,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: "2"},
+			Items:    page2,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 	// Restarted walk under stable RV 2.
@@ -260,9 +261,9 @@ func TestListApplicationsPaged_RestartsWhenResourceVersionChanges(t *testing.T) 
 			return q.Offset != nil && *q.Offset == 0
 		})).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: "2",
-			Items:           page1b,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: "2"},
+			Items:    page1b,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 	mockClient.EXPECT().
@@ -270,9 +271,9 @@ func TestListApplicationsPaged_RestartsWhenResourceVersionChanges(t *testing.T) 
 			return q.Offset != nil && *q.Offset == defaultAppListBatchSize
 		})).
 		Return(&argoappv1.ApplicationList{
-			ResourceVersion: "2",
-			Items:           page2,
-			Stats:           &argoappv1.ApplicationListStats{Total: total},
+			ListMeta: metav1.ListMeta{ResourceVersion: "2"},
+			Items:    page2,
+			Stats:    &argoappv1.ApplicationListStats{Total: total},
 		}, nil).
 		Once()
 
@@ -302,9 +303,9 @@ func TestListApplicationsPaged_FallsBackWhenRestartsExhausted(t *testing.T) {
 				return q.Offset != nil && *q.Offset == 0 && q.Limit != nil
 			})).
 			Return(&argoappv1.ApplicationList{
-				ResourceVersion: rv0,
-				Items:           page,
-				Stats:           &argoappv1.ApplicationListStats{Total: total},
+				ListMeta: metav1.ListMeta{ResourceVersion: rv0},
+				Items:    page,
+				Stats:    &argoappv1.ApplicationListStats{Total: total},
 			}, nil).
 			Once()
 		mockClient.EXPECT().
@@ -312,9 +313,9 @@ func TestListApplicationsPaged_FallsBackWhenRestartsExhausted(t *testing.T) {
 				return q.Offset != nil && *q.Offset == defaultAppListBatchSize && q.Limit != nil
 			})).
 			Return(&argoappv1.ApplicationList{
-				ResourceVersion: rv1,
-				Items:           page[:3],
-				Stats:           &argoappv1.ApplicationListStats{Total: total},
+				ListMeta: metav1.ListMeta{ResourceVersion: rv1},
+				Items:    page[:3],
+				Stats:    &argoappv1.ApplicationListStats{Total: total},
 			}, nil).
 			Once()
 	}
