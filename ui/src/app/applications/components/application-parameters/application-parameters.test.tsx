@@ -254,3 +254,63 @@ test('multi-source default (no collapse state) renders the expanded panel, not t
     expect(await screen.findByDisplayValue('FOO')).toBeInTheDocument();
     expect(screen.queryByText(/ENV=\[FOO=bar, ENVIRONMENT=prod\]/)).not.toBeInTheDocument();
 });
+
+describe.each([false, true])('ApplicationParameters repository details failure (multi-source: %s)', multiSource => {
+    const appDetails = services.repos.appDetails as jest.Mock;
+    const warning = 'Unable to load repository details. The source settings shown may be incomplete: repository unavailable';
+
+    const renderSource = (source: Partial<models.ApplicationSource>) => {
+        const appSource = {repoURL: 'https://github.com/example/repo', targetRevision: 'main', ...source} as models.ApplicationSource;
+        const app = multiSourceApp();
+        if (multiSource) {
+            app.spec.sources = [appSource];
+        } else {
+            app.spec.source = appSource;
+            delete app.spec.sources;
+        }
+        renderWithContext(<ApplicationParameters application={app} pageNumber={0} setPageNumber={jest.fn()} collapsedSources={[]} handleCollapse={jest.fn()} />);
+    };
+
+    beforeEach(() => {
+        appDetails.mockReset();
+    });
+
+    test('warns and keeps configured Helm settings', async () => {
+        appDetails.mockRejectedValue(new Error('repository unavailable'));
+        renderSource({chart: 'web-app', helm: {valueFiles: ['production.yaml'], parameters: [{name: 'replicas', value: '3'}]}});
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(warning);
+        expect(screen.getByText('HELM')).toBeInTheDocument();
+        expect(screen.queryByText('DIRECTORY')).not.toBeInTheDocument();
+        expect(screen.getByText('production.yaml')).toBeInTheDocument();
+        expect(screen.getByText('replicas')).toBeInTheDocument();
+    });
+
+    (multiSource ? test : test.skip)('places the multi-source warning after the source title', async () => {
+        appDetails.mockRejectedValue(new Error('repository unavailable'));
+        renderSource({chart: 'web-app'});
+
+        const alert = await screen.findByRole('alert');
+        const title = screen.getByText(/^Source 1: TYPE=Helm/);
+        expect(title.compareDocumentPosition(alert) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    test('warns and keeps configured Plugin settings', async () => {
+        appDetails.mockRejectedValue(new Error('repository unavailable'));
+        renderSource({path: 'manifests', plugin: {name: 'my-plugin', env: [{name: 'FOO', value: 'bar'}]}});
+
+        expect(await screen.findByRole('alert')).toHaveTextContent(warning);
+        expect(screen.getByText('PLUGIN')).toBeInTheDocument();
+        expect(screen.queryByText('DIRECTORY')).not.toBeInTheDocument();
+        expect(screen.getByDisplayValue('my-plugin')).toBeInTheDocument();
+        expect(screen.getByDisplayValue('FOO')).toBeInTheDocument();
+    });
+
+    test('shows no warning when the request succeeds', async () => {
+        appDetails.mockResolvedValue({type: 'Helm', helm: {valueFiles: [], parameters: [], fileParameters: []}});
+        renderSource({chart: 'web-app'});
+
+        expect(await screen.findByText('HELM')).toBeInTheDocument();
+        expect(screen.queryByRole('alert')).not.toBeInTheDocument();
+    });
+});

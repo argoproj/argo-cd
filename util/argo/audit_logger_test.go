@@ -111,6 +111,7 @@ func TestLogAppProjEvent(t *testing.T) {
 	assert.Equal(t, "This is a test message", event.Message)
 	assert.Equal(t, "test", event.Reason)
 	assert.Equal(t, "info", event.Type)
+	assert.Equal(t, "admin", event.Annotations["user"])
 }
 
 func TestLogAppEvent(t *testing.T) {
