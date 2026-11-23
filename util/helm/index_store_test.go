@@ -482,35 +482,82 @@ func TestMetaFastPathNeverMixesValidators(t *testing.T) {
 	assert.Equal(t, "Wed, 01 Jan 2025 00:00:00 GMT", modified)
 }
 
-// TestMetaFastPathRespectsCancellationBudget reproduces the deadline
-// regression: a metadata read that ignores the request budget blocked a warm
-// operation past a 250 ms deadline. The read must be bounded by the shared
-// budget (min(2s, remaining/4)) and release the request to the origin path.
+// metaReadCall records when a metadata read started and the deadline it got.
+type metaReadCall struct {
+	at       time.Time
+	deadline time.Time
+	ok       bool
+}
+
+// contextMetaCache is a context-aware metadata reader that records each read's
+// deadline and then blocks until that deadline expires.
+type contextMetaCache struct {
+	*countingMetaCache
+	calls chan metaReadCall
+}
+
+func (c *contextMetaCache) GetHelmIndexMetaContext(ctx context.Context, _ string) (*HelmIndexMeta, error) {
+	deadline, ok := ctx.Deadline()
+	c.calls <- metaReadCall{at: time.Now(), deadline: deadline, ok: ok}
+	<-ctx.Done()
+	return nil, ctx.Err()
+}
+
+// TestMetaFastPathRespectsCancellationBudget pins the metadata read to the
+// shared optional-read budget, min(2s, remaining/4), so a stalled backend
+// releases the request in time to reach the origin.
 func TestMetaFastPathRespectsCancellationBudget(t *testing.T) {
-	store, cache, client, repoURL := metaTestSetup(t)
+	t.Run("ContextAwareCache", func(t *testing.T) {
+		store, cache, client, repoURL := metaTestSetup(t)
+		reader := &contextMetaCache{countingMetaCache: cache, calls: make(chan metaReadCall, 1)}
+		store.metaCache = reader
 
-	// Block the meta read indefinitely (simulates a stalled backend).
-	blocked := make(chan struct{})
-	cache.metaBlock = blocked
-	t.Cleanup(func() { close(blocked) })
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		callerDeadline, _ := ctx.Deadline()
+		done := make(chan error, 1)
+		go func() {
+			_, _, err := store.revalidate(ctx, repoURL, client, false)
+			done <- err
+		}()
+		var call metaReadCall
+		select {
+		case call = <-reader.calls:
+		case <-time.After(2 * time.Second):
+			require.FailNow(t, "metadata read was never attempted")
+		}
+		require.True(t, call.ok, "metadata read must carry a deadline")
+		budget := call.deadline.Sub(call.at)
+		remaining := callerDeadline.Sub(call.at)
+		assert.LessOrEqual(t, budget, remaining/4+5*time.Millisecond,
+			"metadata read budget %v exceeds a quarter of the caller's remaining %v", budget, remaining)
+		require.NoError(t, <-done)
+	})
 
-	start := time.Now()
-	// 250ms deadline: the shared budget (min(2s, remaining/4)) must bound the
-	// meta read to ~62ms and let revalidate proceed (fallback path) before
-	// the caller's deadline expires.
-	ctx, cancel := context.WithTimeout(t.Context(), 250*time.Millisecond)
-	defer cancel()
-	done := make(chan error, 1)
-	go func() {
-		_, _, err := store.revalidate(ctx, repoURL, client, false)
-		done <- err
-	}()
-	select {
-	case err := <-done:
-		require.NoError(t, err)
-	case <-time.After(2 * time.Second):
-		require.FailNow(t, "revalidate blocked on the metadata read past the shared budget")
-	}
-	elapsed := time.Since(start)
-	assert.Less(t, elapsed, 1500*time.Millisecond, "metadata read must be bounded, took %v", elapsed)
+	t.Run("BlockingCache", func(t *testing.T) {
+		store, cache, client, repoURL := metaTestSetup(t)
+		// Block the meta read indefinitely (simulates a stalled backend that
+		// does not honor contexts).
+		blocked := make(chan struct{})
+		cache.metaBlock = blocked
+		t.Cleanup(func() { close(blocked) })
+
+		// 1s deadline: the read is abandoned after ~250ms (remaining/4). A
+		// regression that waits half the deadline (500ms) must fail.
+		ctx, cancel := context.WithTimeout(t.Context(), time.Second)
+		defer cancel()
+		start := time.Now()
+		done := make(chan error, 1)
+		go func() {
+			_, _, err := store.revalidate(ctx, repoURL, client, false)
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			require.NoError(t, err)
+		case <-time.After(2 * time.Second):
+			require.FailNow(t, "revalidate blocked on the metadata read past the shared budget")
+		}
+		assert.Less(t, time.Since(start), 400*time.Millisecond, "metadata read must be abandoned at about a quarter of the deadline")
+	})
 }
