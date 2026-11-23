@@ -9,6 +9,7 @@ import '../../../shared/components/editable-panel/editable-panel.scss';
 
 export interface ApplicationParametersPanelProps<T> {
     floatingTitle?: string | ReactNode;
+    banner?: ReactNode;
     titleTop?: string | ReactNode;
     titleBottom?: string | ReactNode;
     index: number;
@@ -48,6 +49,7 @@ export function ApplicationParametersSource<T = {}>(props: ApplicationParameters
     return (
         <div className={classNames({'editable-panel--disabled': savingTop})}>
             {props.floatingTitle && <div className='white-box--additional-top-space editable-panel__sticky-title'>{props.floatingTitle}</div>}
+            {props.banner}
             <EditableSection
                 uniqueId={'top_' + props.index}
                 title={props.titleTop}
