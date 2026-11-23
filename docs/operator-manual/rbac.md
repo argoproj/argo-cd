@@ -123,7 +123,7 @@ The `applications` resource is an [Application-Specific Policy](#application-spe
 #### `applications,get` permission
 
 > [!WARNING]
-> The [`gpg-inspect-repo` command](../user-guide/commands/argocd_proj_source-integrity_git_gpg-inspect-repo.md)
+> The [`inspect-repo` command](../user-guide/commands/argocd_proj_source-integrity_git_inspect-repo.md)
 > is authorized by `applications, get`. Unlike `argocd app get` (which only shows at most 10 problems,
 > and none when the project uses `none` mode), this command returns the full list of
 > problematic commits for each Git source even when the project uses `none` or `head`.

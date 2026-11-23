@@ -544,7 +544,7 @@ func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.
 
 	var appNamespace string
 	command := &cobra.Command{
-		Use:   "gpg-inspect-repo PROJECT APPNAME",
+		Use:   "inspect-repo PROJECT APPNAME",
 		Short: shortDescription,
 		Long: shortDescription + `
 

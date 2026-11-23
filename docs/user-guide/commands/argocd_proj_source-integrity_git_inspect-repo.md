@@ -1,6 +1,6 @@
-# `argocd proj source-integrity git gpg-inspect-repo` Command Reference
+# `argocd proj source-integrity git inspect-repo` Command Reference
 
-## argocd proj source-integrity git gpg-inspect-repo
+## argocd proj source-integrity git inspect-repo
 
 Inspect the Git/GPG source integrity of an application in a project
 
@@ -22,14 +22,14 @@ Exit codes:
 
 
 ```
-argocd proj source-integrity git gpg-inspect-repo PROJECT APPNAME [flags]
+argocd proj source-integrity git inspect-repo PROJECT APPNAME [flags]
 ```
 
 ### Options
 
 ```
   -N, --app-namespace string   Only inspect application in namespace
-  -h, --help                   help for gpg-inspect-repo
+  -h, --help                   help for inspect-repo
 ```
 
 ### Options inherited from parent commands

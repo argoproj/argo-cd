@@ -652,7 +652,7 @@ func TestProjectSourceIntegrityGpgInspectRepoCommand_WarningsAndReturnCodes(t *t
 	usageMessageParts := []string{
 		"Inspect the Git/GPG source integrity of an application in a project",
 		"Usage:",
-		"gpg-inspect-repo PROJECT APPNAME [flags]",
+		"inspect-repo PROJECT APPNAME [flags]",
 	}
 
 	tests := []struct {

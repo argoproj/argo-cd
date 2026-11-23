@@ -205,10 +205,10 @@ While this can be addressed by re-signing with git rebase, there is a better way
 > [!TIP]
 > To check whether an application would pass **strict** Git/GPG verification, or to prepare a seal commit, inspect it without syncing:
 > ```bash
-> argocd proj source-integrity git gpg-inspect-repo PROJECT APPNAME
+> argocd proj source-integrity git inspect-repo PROJECT APPNAME
 > ```
 > The command simulates strict verification (even when the project uses `head` or `none`), lists problematic commits for each Git source (Helm and OCI sources are skipped), and prints `git` hints for reviewing commits and creating a seal commit.
-> See the [command reference](./commands/argocd_proj_source-integrity_git_gpg-inspect-repo.md).
+> See the [command reference](./commands/argocd_proj_source-integrity_git_inspect-repo.md).
 >
 > On very large repositories the history walk can exceed the default timeouts. Raise `ARGOCD_EXEC_TIMEOUT` on the repo-server, and raise the calling component's repo-server RPC timeout: `server.repo.server.timeout.seconds` for this inspect command, or `controller.repo.server.timeout.seconds` for `strict` verification during reconciliation. See [High Availability](../operator-manual/high_availability.md) for details on configuring timeouts.
 

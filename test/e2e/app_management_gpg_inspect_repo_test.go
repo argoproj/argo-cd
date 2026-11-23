@@ -29,7 +29,7 @@ func appProjectWithGitPolicies(policies ...*SourceIntegrityGitPolicy) AppProject
 
 func runGpgInspectRepo(t *testing.T, project, app string) (stdout string, err error) {
 	t.Helper()
-	return RunCli("proj", "source-integrity", "git", "gpg-inspect-repo", project, app)
+	return RunCli("proj", "source-integrity", "git", "inspect-repo", project, app)
 }
 
 func assertExitStatus(t *testing.T, err error, want int) {
