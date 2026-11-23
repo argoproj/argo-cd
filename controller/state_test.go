@@ -571,7 +571,7 @@ func TestCompareAppStateMissing(t *testing.T) {
 }
 
 // TestCompareAppStateResourceSelector tests that a managed resource filtered out by a configured
-// resource selector is reported with an ExcludedResourceWarning, as it will never have a live state
+// resource selector is excluded from the target state and reported with an ExcludedResourceWarning
 func TestCompareAppStateResourceSelector(t *testing.T) {
 	labeledPodManifest := `{"apiVersion":"v1","kind":"Pod","metadata":{"name":"my-pod","labels":{"app":"my-app"}}}`
 
@@ -597,16 +597,17 @@ func TestCompareAppStateResourceSelector(t *testing.T) {
 		return compRes, app
 	}
 
-	t.Run("resource not matching the selector is reported", func(t *testing.T) {
+	t.Run("resource not matching the selector is excluded", func(t *testing.T) {
 		// PodManifest has no labels, so it does not match
 		compRes, app := compare(t, PodManifest, "app=my-app")
 
 		require.Len(t, app.Status.Conditions, 1)
 		assert.Equal(t, v1alpha1.ApplicationConditionExcludedResourceWarning, app.Status.Conditions[0].Type)
 		assert.Contains(t, app.Status.Conditions[0].Message, `Resource /Pod my-pod does not match the resource selector "app=my-app" in the settings`)
-		// the resource stays managed, it is only unwatched
-		assert.Len(t, compRes.resources, 1)
-		assert.Len(t, compRes.managedResources, 1)
+		// an unwatched target would be OutOfSync forever and loop self-heal (#31038)
+		assert.Equal(t, v1alpha1.SyncStatusCodeSynced, compRes.syncStatus.Status)
+		assert.Empty(t, compRes.resources)
+		assert.Empty(t, compRes.managedResources)
 	})
 
 	t.Run("resource matching the selector is not reported", func(t *testing.T) {

@@ -18,6 +18,7 @@ import (
 	corev1 "k8s.io/api/core/v1"
 	networkingv1 "k8s.io/api/networking/v1"
 	rbacv1 "k8s.io/api/rbac/v1"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/types"
@@ -1666,6 +1667,32 @@ func TestResourceSelector(t *testing.T) {
 		// ... but is still running in the cluster
 		Expect(Pod(isDeploymentPodInCluster)).
 		Expect(HealthIs(health.HealthStatusHealthy))
+}
+
+// TestResourceSelectorExcludesManagedResource makes sure a managed resource that does not match
+// resource.selectors is excluded like resource.exclusions, rather than left OutOfSync forever (#31038).
+func TestResourceSelectorExcludesManagedResource(t *testing.T) {
+	ctx := Given(t)
+	ctx.Path(guestbookPath).
+		ResourceFilter(settings.ResourcesFilter{
+			ResourceSelectors: []settings.FilteredResource{{
+				APIGroups: []string{""},
+				Kinds:     []string{kube.ServiceKind},
+				Selector:  "my-label=whatever",
+			}},
+		}).
+		When().
+		CreateApp().
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(Condition(ApplicationConditionExcludedResourceWarning, `Resource /Service guestbook-ui does not match the resource selector "my-label=whatever" in the settings and is excluded`)).
+		And(func(app *Application) {
+			require.Len(t, app.Status.Resources, 1)
+			_, err := fixture.KubeClientset.CoreV1().Services(ctx.DeploymentNamespace()).Get(t.Context(), "guestbook-ui", metav1.GetOptions{})
+			require.True(t, apierrors.IsNotFound(err), "excluded service must not be applied, got %v", err)
+		})
 }
 
 func TestRevisionHistoryLimit(t *testing.T) {
