@@ -620,13 +620,25 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string,
 				// timestamp must still be within the freshness window: an
 				// expired meta (stale publication) must not authorize the
 				// local body, and the full-record fallback decides instead.
-				sharedFresh := &HelmIndexRecord{BodyDigest: meta.BodyDigest, Body: newest.Body, ETag: meta.ETag, LastModified: meta.LastModified, URLIdentity: meta.URLIdentity, Generation: meta.Generation, StoredAt: meta.StoredAt}
-				if validatedAt, err := time.Parse(time.RFC3339Nano, sharedFresh.StoredAt); err == nil && time.Since(validatedAt) <= s.expiration {
-					fromShared = newest.ETag != meta.ETag || newest.LastModified != meta.LastModified || newest.URLIdentity != meta.URLIdentity || newest.Generation != meta.Generation || persistedStoredAt != meta.StoredAt
-					newest = sharedFresh
-					return newest, fromShared
+				// Meta for the generation this local record was published
+				// from: the local record answers as-is, keeping its effective
+				// freshness (the earlier of mtime and persisted time).
+				if meta.StoredAt == persistedStoredAt {
+					return newest, false
 				}
-				// Malformed or expired timestamp: safe fallback to the full read.
+				// Only a newer, distinct shared validation is adopted from
+				// meta. An older one must not replace newer local validators;
+				// the full read below decides instead, since the shared record
+				// may have moved on to different bytes.
+				if sharedValidationSupersedes(newest, persistedStoredAt, meta.StoredAt) {
+					sharedFresh := &HelmIndexRecord{BodyDigest: meta.BodyDigest, Body: newest.Body, ETag: meta.ETag, LastModified: meta.LastModified, URLIdentity: meta.URLIdentity, Generation: meta.Generation, StoredAt: meta.StoredAt}
+					if validatedAt, err := time.Parse(time.RFC3339Nano, sharedFresh.StoredAt); err == nil && time.Since(validatedAt) <= s.expiration {
+						fromShared = newest.ETag != meta.ETag || newest.LastModified != meta.LastModified || newest.URLIdentity != meta.URLIdentity || newest.Generation != meta.Generation || persistedStoredAt != meta.StoredAt
+						newest = sharedFresh
+						return newest, fromShared
+					}
+				}
+				// Older, malformed or expired meta: safe fallback to the full read.
 			default:
 				// Meta miss, unsupported shape or different digest: fall back.
 			}
@@ -649,6 +661,11 @@ func (s *IndexStore) observeRetainedRecord(ctx context.Context, identity string,
 					if localErr == nil && validatedAt.Before(localAt) {
 						return newest, false
 					}
+				}
+				// Same bytes: only a newer, distinct shared validation may
+				// replace the local validators and freshness.
+				if matchingBody && !needsLocalDigest && !sharedValidationSupersedes(newest, persistedStoredAt, record.StoredAt) {
+					return newest, false
 				}
 				if matchingBody || validateIndexBody(record.Body) == nil {
 					fromShared = needsLocalDigest || !matchingBody || newest.ETag != record.ETag || newest.LastModified != record.LastModified || newest.URLIdentity != record.URLIdentity || newest.Generation != record.Generation || persistedStoredAt != record.StoredAt
@@ -919,4 +936,25 @@ func (s *IndexStore) evictExpiredFile(file string) {
 	if os.Remove(file) == nil {
 		_ = os.Remove(file + ".state")
 	}
+}
+
+// sharedValidationSupersedes reports whether a shared validation of the same
+// index bytes should replace the local one. It must be a different validation
+// (not the generation this local record was published from) and strictly
+// newer than the local effective time, which is the earlier of the file mtime
+// and the persisted validation time. Otherwise adopting it would either drop
+// newer local validators or lift the local record past its effective age.
+func sharedValidationSupersedes(local *HelmIndexRecord, persistedStoredAt, sharedStoredAt string) bool {
+	if sharedStoredAt == "" || sharedStoredAt == persistedStoredAt {
+		return false
+	}
+	localAt, err := time.Parse(time.RFC3339Nano, local.StoredAt)
+	if err != nil {
+		return true
+	}
+	sharedAt, err := time.Parse(time.RFC3339Nano, sharedStoredAt)
+	if err != nil {
+		return false
+	}
+	return sharedAt.After(localAt)
 }

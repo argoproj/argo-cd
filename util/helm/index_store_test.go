@@ -3,6 +3,7 @@ package helm
 import (
 	"context"
 	"crypto/sha256"
+	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -286,6 +287,85 @@ func TestMetaFastPathAvoidsFullRecordRead(t *testing.T) {
 	assert.False(t, refreshed)
 	assert.EqualValues(t, 0, cache.fullReads, "warm build must not read the full shared record")
 	assert.EqualValues(t, 1, cache.metaReads, "warm build reads only the small meta entry")
+}
+
+// sameBodyRecords writes a local record and publishes a shared record for the
+// same body with the given validation times and ETags.
+func sameBodyRecords(t *testing.T, localAt, sharedAt time.Time, localETag, sharedETag string) (*IndexStore, *countingMetaCache, string) {
+	t.Helper()
+	store, cache, _, repoURL := metaTestSetup(t)
+	body := sampleIndexData("demo")
+	digest := store.digestOf(t, repoURL)
+	require.NoError(t, store.publishRecord(repoURL, &indexRecord{APIVersion: "v1", Body: base64.StdEncoding.EncodeToString(body), BodyDigest: digest, ETag: localETag, StoredAt: localAt.Format(time.RFC3339Nano)}))
+	cache.publish(&HelmIndexRecord{Body: body, BodyDigest: digest, ETag: sharedETag, StoredAt: sharedAt.Format(time.RFC3339Nano)})
+	return store, cache, repoURL
+}
+
+// sharedReadPaths covers both ways a shared record is observed: the metadata
+// fast path and the full-record fallback (metadata dropped).
+var sharedReadPaths = []struct {
+	name     string
+	dropMeta bool
+}{{"MetaFastPath", false}, {"FullRecord", true}}
+
+// An older shared validation of the same bytes must not replace newer local
+// validators.
+func TestSameBodyKeepsNewerLocalValidation(t *testing.T) {
+	for _, path := range sharedReadPaths {
+		t.Run(path.name, func(t *testing.T) {
+			now := time.Now().UTC()
+			store, cache, repoURL := sameBodyRecords(t, now.Add(-10*time.Second), now.Add(-30*time.Second), `"new"`, `"old"`)
+			if path.dropMeta {
+				cache.dropMeta()
+			}
+			record, fromShared := store.observeRetainedRecord(t.Context(), repoURL, nil)
+			require.NotNil(t, record)
+			assert.Equal(t, `"new"`, record.ETag)
+			assert.False(t, fromShared)
+		})
+	}
+}
+
+// The shared copy of the generation this local record came from must not lift
+// the local effective time (the earlier of mtime and persisted time).
+func TestSameGenerationKeepsLocalEffectiveFreshness(t *testing.T) {
+	for _, path := range sharedReadPaths {
+		t.Run(path.name, func(t *testing.T) {
+			now := time.Now().UTC()
+			persisted := now.Add(-40 * time.Second)
+			store, cache, repoURL := sameBodyRecords(t, persisted, persisted, `"v1"`, `"v1"`)
+			if path.dropMeta {
+				cache.dropMeta()
+			}
+			mtime := now.Add(-75 * time.Second)
+			require.NoError(t, os.Chtimes(store.cacheFileName(repoURL), mtime, mtime))
+			record, fromShared := store.observeRetainedRecord(t.Context(), repoURL, nil)
+			require.NotNil(t, record)
+			assert.False(t, fromShared)
+			effective, err := time.Parse(time.RFC3339Nano, record.StoredAt)
+			require.NoError(t, err)
+			assert.WithinDuration(t, mtime, effective, time.Second, "effective time must stay at the file mtime")
+			assert.False(t, record.Fresh(time.Minute), "a 75s-old record must stay stale with a 60s window")
+		})
+	}
+}
+
+// A newer, distinct shared validation of the same bytes is still adopted, so
+// replicas share each other's revalidations.
+func TestSameBodyAdoptsNewerSharedValidation(t *testing.T) {
+	for _, path := range sharedReadPaths {
+		t.Run(path.name, func(t *testing.T) {
+			now := time.Now().UTC()
+			store, cache, repoURL := sameBodyRecords(t, now.Add(-40*time.Second), now.Add(-5*time.Second), `"old"`, `"newer"`)
+			if path.dropMeta {
+				cache.dropMeta()
+			}
+			record, fromShared := store.observeRetainedRecord(t.Context(), repoURL, nil)
+			require.NotNil(t, record)
+			assert.Equal(t, `"newer"`, record.ETag)
+			assert.True(t, fromShared)
+		})
+	}
 }
 
 func TestMetaFastPathFallsBackOnMissingMeta(t *testing.T) {
