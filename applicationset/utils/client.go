@@ -170,7 +170,10 @@ func (c *cacheSyncingClient) execAndSyncCache(ctx context.Context, op func() err
 			// AlreadyExists on a Create means another actor created the object first. Sync the
 			// existing object into the informer store so cache-backed reads do not keep
 			// reporting it as missing while it really exists on the API server.
-			if apierrors.IsAlreadyExists(err) && sync == syncAdd {
+			// Limit the recovery to Application objects: the exported Create
+			// accepts any client.Object, and inserting a non-Application into
+			// the Application informer store would corrupt it.
+			if _, isApp := obj.(*application.Application); isApp && apierrors.IsAlreadyExists(err) && sync == syncAdd {
 				c.syncExistingIntoCache(ctx, obj)
 			}
 			return err

@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 	corev1 "k8s.io/api/core/v1"
 	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
 	"k8s.io/apimachinery/pkg/types"
@@ -558,5 +559,61 @@ func TestSyncExistingIntoCacheAfterInformerDelete(t *testing.T) {
 	got, exists, err := store.GetByKey("test")
 	require.NoError(t, err)
 	require.True(t, exists, "the successful API read is ground truth: the entry must end up stored")
+	require.Equal(t, types.UID("uid-live"), got.(*application.Application).UID)
+}
+
+// TestCreateAlreadyExistsNonApplicationIsNotCached: the AlreadyExists cache
+// recovery must stay scoped to Application objects — the exported Create
+// accepts any client.Object, and inserting a non-Application into the
+// Application informer store would corrupt it.
+func TestCreateAlreadyExistsNonApplicationIsNotCached(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, application.AddToScheme(scheme))
+	require.NoError(t, corev1.AddToScheme(scheme))
+
+	cm := &corev1.ConfigMap{}
+	cm.Name = "cm"
+	cm.Namespace = "argocd"
+	apiClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(cm).Build()
+
+	c, store := newClient(t)
+	c.Client = apiClient
+	c.apiReader = apiClient
+
+	err := c.Create(t.Context(), &corev1.ConfigMap{
+		ObjectMeta: metav1.ObjectMeta{Name: "cm", Namespace: "argocd"},
+	})
+	require.True(t, apierrors.IsAlreadyExists(err), "expected AlreadyExists, got %v", err)
+	require.Empty(t, store.List(), "a non-Application object must never enter the Application store")
+}
+
+// TestCreateAlreadyExistsRefreshFailureHealsOnRelist answers the review
+// question "how does the cache recover if the refresh fails and no new
+// informer event occurs": nothing in the client blocks informer writes, so
+// the informer's own relist/resync re-adds the entry; and a later successful
+// refresh heals it too. The store is only ever written by us on success.
+func TestCreateAlreadyExistsRefreshFailureHealsOnRelist(t *testing.T) {
+	t.Parallel()
+	scheme := runtime.NewScheme()
+	require.NoError(t, application.AddToScheme(scheme))
+
+	existing := appWithUID("test", "uid-live")
+	apiClient := fake.NewClientBuilder().WithScheme(scheme).WithObjects(existing).Build()
+
+	c, store := newClient(t)
+	c.Client = apiClient
+	c.apiReader = errGetReader{Reader: apiClient}
+
+	err := c.Create(t.Context(), &application.Application{Name: "test", Namespace: "argocd"})
+	require.True(t, apierrors.IsAlreadyExists(err), "expected AlreadyExists, got %v", err)
+	require.Empty(t, store.List(), "failed refresh leaves the store empty")
+
+	// The informer's relist/resync writes the object through the store
+	// directly; the client never blocks or deletes informer writes.
+	require.NoError(t, store.Add(existing))
+	got, exists, err := store.GetByKey("test")
+	require.NoError(t, err)
+	require.True(t, exists, "the informer relist must heal the empty store")
 	require.Equal(t, types.UID("uid-live"), got.(*application.Application).UID)
 }
