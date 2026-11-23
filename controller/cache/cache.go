@@ -821,7 +821,7 @@ func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) (*rest.Co
 }
 
 func (c *liveStateCache) dropClusterCache(server string, cluster clustercache.ClusterCache, err error) {
-	log.Warnf("Failed to refresh REST config of cluster %s after a default CA bundle change, dropping its cache: %v", server, err)
+	log.Warnf("Failed to refresh REST config of cluster %s, dropping its cache: %v", server, err)
 	cluster.Invalidate()
 	c.lock.Lock()
 	if c.clusters[server] == cluster {
