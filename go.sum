@@ -346,8 +346,8 @@ github.com/go-openapi/jsonreference v1.0.2 h1:oS4et8FOf3p3UQxEo4Xt0esijmBUM+F259
 github.com/go-openapi/jsonreference v1.0.2/go.mod h1:TbUNSOo+fcorZjFaNoiSDSoaNnnZtqJtLGR1PuvE/Cs=
 github.com/go-openapi/loads v0.25.4 h1:J3fMx/KSPZ0u8teIhchvL/XtiMHrnuWlFK40T9+zoKE=
 github.com/go-openapi/loads v0.25.4/go.mod h1:jYqaY2EpIryHT0kHa3LGRcbW52u8gqR8Sq4+uDw2Dcs=
-github.com/go-openapi/runtime/server-middleware v0.33.4 h1:pG+4Po10HYrXhX2z/6zSB3zUoFmP5xOQ36nA2UxC6II=
-github.com/go-openapi/runtime/server-middleware v0.33.4/go.mod h1:dopwrwqIqXe4xWtovDZkkXJzYqKw+Ybmy7G/hIDUWKY=
+github.com/go-openapi/runtime/server-middleware v0.33.5 h1:Kw2mZgKrLrqrq80yP35WPrQMT2oT3zytJRICqprMagY=
+github.com/go-openapi/runtime/server-middleware v0.33.5/go.mod h1:f/7HY8zgRWGpXO+aYTCXBtTTuhB+HUjY8L++uqoS5WU=
 github.com/go-openapi/spec v1.0.1 h1:lj2vdGpNDcVgwRc6qXdw6qt/KQpCtSa9tnUH6vpDPDk=
 github.com/go-openapi/spec v1.0.1/go.mod h1:M//GWQGtDUAjnP37gE6fInLgaczB+FatoipV3H1fYw8=
 github.com/go-openapi/strfmt v0.27.2 h1:SG32SlbwNy92s0KJiVxt2joJeFdqIYHvwrA0OU6HqzQ=
