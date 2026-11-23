@@ -25,6 +25,17 @@ function matchesNamespaceFilter(namespace: string | undefined, namespacesFilter:
     });
 }
 
+/** Sentinel API group filter value for resources in the core API group (empty group). */
+export const CORE_API_GROUP_FILTER = '<core>';
+
+function isCoreApiGroupResource(group: string | undefined): boolean {
+    return !group;
+}
+
+function matchesApiGroupFilter(group: string | undefined, apiGroupFilter: string[]): boolean {
+    return apiGroupFilter.some(g => (g === CORE_API_GROUP_FILTER ? isCoreApiGroupResource(group) : g === group));
+}
+
 export interface FilterResult {
     sync: boolean;
     health: boolean;
@@ -57,7 +68,7 @@ export function getFilterResults(resources: Resource[], pref: ResourcesListPrefe
                         return (inputMatch && inputMatch[0] === app.clusterServer) || (app.clusterName && minimatch(app.clusterName, filterString));
                     }
                 }),
-            apiGroup: pref.apiGroupFilter.length === 0 || pref.apiGroupFilter.includes(app.group),
+            apiGroup: pref.apiGroupFilter.length === 0 || matchesApiGroupFilter(app.group, pref.apiGroupFilter),
             kind: pref.kindFilter.length === 0 || pref.kindFilter.includes(app.kind)
         }
     }));
@@ -196,7 +207,11 @@ const NamespaceFilter = (props: ResourcesFilterProps) => {
 };
 
 const ApiGroupFilter = (props: ResourcesFilterProps) => {
-    const apiGroupOptions = optionsFrom(Array.from(new Set(props.apps.map(app => app.group).filter(item => !!item))), props.pref.apiGroupFilter);
+    const hasCoreGroup = props.apps.some(app => isCoreApiGroupResource(app.group));
+    const apiGroupOptions = [
+        ...(hasCoreGroup && props.pref.apiGroupFilter.indexOf(CORE_API_GROUP_FILTER) === -1 ? [{label: CORE_API_GROUP_FILTER}] : []),
+        ...optionsFrom(Array.from(new Set(props.apps.map(app => app.group).filter(item => !!item))), props.pref.apiGroupFilter)
+    ];
     return (
         <Filter
             label='API GROUPS'
