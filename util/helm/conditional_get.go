@@ -177,6 +177,21 @@ func observeIndexReadContext(ctx context.Context) (context.Context, context.Canc
 	return context.WithTimeout(ctx, budget)
 }
 
+// observeFreshIndexRecord observes the record through a cache that enforces
+// freshness centrally: the returned record is fresh at read time, so the
+// caller may use its body, validators and identity as one consistent
+// generation.
+func observeFreshIndexRecord(ctx context.Context, reader indexCacheFreshRecordReader, repo string) indexRecordObservation {
+	readCtx, cancel := observeIndexReadContext(ctx)
+	defer cancel()
+
+	record, err := reader.GetHelmIndexFreshRecordContext(readCtx, repo)
+	if err != nil {
+		return indexRecordObservation{}
+	}
+	return indexRecordObservation{record: record}
+}
+
 func observeIndexRecord(ctx context.Context, reader indexCacheRecordReader, repo string) indexRecordObservation {
 	readCtx, cancel := observeIndexReadContext(ctx)
 	defer cancel()
@@ -323,6 +338,14 @@ type indexCacheRecordReader interface {
 // per-key index lock on cancellation.
 type indexCacheContextedReader interface {
 	GetHelmIndexRetainedRecordContext(ctx context.Context, repo string) (*HelmIndexRecord, error)
+}
+
+// indexCacheFreshRecordReader is implemented by caches that enforce the
+// freshness window centrally. It returns the record in one shared read only
+// while that same record is fresh, so freshness and request identity can
+// never be attributed to different records.
+type indexCacheFreshRecordReader interface {
+	GetHelmIndexFreshRecordContext(ctx context.Context, repo string) (*HelmIndexRecord, error)
 }
 
 // RFC 9111 section 4.3.4: a new strong ETag cannot identify bytes cached

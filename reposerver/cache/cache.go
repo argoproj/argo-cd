@@ -413,6 +413,22 @@ func (c *Cache) GetHelmIndexRetainedRecordContext(ctx context.Context, repo stri
 	}
 }
 
+// GetHelmIndexFreshRecordContext returns the index record in one shared read,
+// but only while the record is within the freshness window. Freshness and
+// request identity must come from the same record: deriving them from two
+// reads lets an overlapping writer's renewed freshness authorize a body whose
+// own validation time had already expired.
+func (c *Cache) GetHelmIndexFreshRecordContext(ctx context.Context, repo string) (*HelmIndexRecord, error) {
+	record, err := c.GetHelmIndexRetainedRecordContext(ctx, repo)
+	if err != nil {
+		return nil, err
+	}
+	if c.helmIndexCacheExpiration <= 0 || len(record.Body) == 0 || !record.Fresh(c.helmIndexCacheExpiration) {
+		return nil, ErrCacheMiss
+	}
+	return record, nil
+}
+
 func (c *Cache) readHelmIndex(repo string) (*HelmIndexRecord, error) {
 	var record HelmIndexRecord
 	if err := c.cache.GetItem(helmIndexRecordKey(repo), &record); err != nil {
