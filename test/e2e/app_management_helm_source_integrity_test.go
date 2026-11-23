@@ -389,11 +389,7 @@ spec:
 	require.NoError(t, os.WriteFile(tmpFile, []byte(projYAML), 0o600))
 	out, err := fixture.Run("", "kubectl", "apply", "-f", tmpFile)
 	require.Error(t, err)
-	msg := out
-	if err != nil {
-		msg += " " + err.Error()
-	}
-	require.Contains(t, msg, "sourceIntegrity must specify at least one of git or helm")
+	require.Contains(t, out+" "+err.Error(), "sourceIntegrity must specify at least one of git or helm")
 }
 
 func TestMultiSourceGitHelmProvenanceAllPass(t *testing.T) {
