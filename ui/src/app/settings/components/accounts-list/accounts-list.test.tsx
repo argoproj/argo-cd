@@ -1,3 +1,4 @@
+import {createMemoryHistory} from 'history';
 import * as React from 'react';
 import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {act, fireEvent, render, screen} from '@testing-library/react';
@@ -25,7 +26,7 @@ jest.mock('../../../shared/services', () => ({
 const renderList = (client = new QueryClient({defaultOptions: {queries: {retry: false}}})) =>
     render(
         <QueryClientProvider client={client}>
-            <Provider value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {}, history: {location: {search: ''}}} as any}>
+            <Provider value={{notifications: {show: jest.fn()}, navigation: {goto: jest.fn()}, popup: {}, history: createMemoryHistory()} as any}>
                 <MemoryRouter>
                     <AccountsList />
                 </MemoryRouter>
