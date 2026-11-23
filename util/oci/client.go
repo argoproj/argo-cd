@@ -11,7 +11,6 @@ import (
 	"io/fs"
 	"math"
 	"net/http"
-	"net/url"
 	"os"
 	"path"
 	"path/filepath"
@@ -35,8 +34,10 @@ import (
 
 	"oras.land/oras-go/v2"
 	"oras.land/oras-go/v2/content/file"
+	"oras.land/oras-go/v2/errdef"
 	"oras.land/oras-go/v2/registry/remote"
 	"oras.land/oras-go/v2/registry/remote/auth"
+	"oras.land/oras-go/v2/registry/remote/errcode"
 )
 
 var (
@@ -166,17 +167,19 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		}),
 	}
 
-	parsed, err := url.Parse(repoURL)
-	if err != nil {
-		return nil, fmt.Errorf("failed to parse oci repo url: %w", err)
+	reg := &remote.Registry{
+		Client:    repo.Client,
+		Reference: repo.Reference,
+		PlainHTTP: repo.PlainHTTP,
+	}
+	// Registries that don't paginate by default return every tag otherwise.
+	pingRepo := &remote.Repository{
+		Client:          repo.Client,
+		Reference:       repo.Reference,
+		PlainHTTP:       repo.PlainHTTP,
+		TagListPageSize: 1,
 	}
 
-	reg, err := remote.NewRegistry(parsed.Host)
-	if err != nil {
-		return nil, fmt.Errorf("failed to setup registry config: %w", err)
-	}
-	reg.PlainHTTP = repo.PlainHTTP
-	reg.Client = repo.Client
 	return newClientWithLock(ociRepo, repoLock, repo, func(ctx context.Context, last string) ([]string, error) {
 		var t []string
 
@@ -186,16 +189,20 @@ func NewClientWithLock(repoURL string, creds Creds, repoLock sync.KeyLock, proxy
 		})
 
 		return t, err
-	}, reg.Ping, layerMediaTypes, opts...), nil
+	}, reg.Ping, pingRepo.Tags, layerMediaTypes, opts...), nil
 }
 
-func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnlyTarget, tagsFunc func(context.Context, string) ([]string, error), pingFunc func(ctx context.Context) error, layerMediaTypes []string, opts ...ClientOpts) Client {
+// errStopTags ends a tag listing after its first page.
+var errStopTags = errors.New("stop listing tags")
+
+func newClientWithLock(repoURL string, repoLock sync.KeyLock, repo oras.ReadOnlyTarget, tagsFunc func(context.Context, string) ([]string, error), registryPingFunc func(ctx context.Context) error, tagPagesFunc func(ctx context.Context, last string, fn func([]string) error) error, layerMediaTypes []string, opts ...ClientOpts) Client {
 	c := &nativeOCIClient{
 		repoURL:           repoURL,
 		repoLock:          repoLock,
 		repo:              repo,
 		tagsFunc:          tagsFunc,
-		pingFunc:          pingFunc,
+		registryPingFunc:  registryPingFunc,
+		tagPagesFunc:      tagPagesFunc,
 		allowedMediaTypes: layerMediaTypes,
 	}
 	for i := range opts {
@@ -230,7 +237,9 @@ type nativeOCIClient struct {
 	allowedMediaTypes               []string
 	manifestMaxExtractedSize        int64
 	disableManifestMaxExtractedSize bool
-	pingFunc                        func(ctx context.Context) error
+	// registryPingFunc checks the registry root; tagPagesFunc lists tags one per page.
+	registryPingFunc func(ctx context.Context) error
+	tagPagesFunc     func(ctx context.Context, last string, fn func([]string) error) error
 }
 
 // TestRepo verifies that the remote OCI repo can be connected to.
@@ -239,11 +248,28 @@ func (c *nativeOCIClient) TestRepo(ctx context.Context) (bool, error) {
 	defer inc()
 	// Currently doesn't do anything in regard to measuring spans, but keep it consistent with OnTestRepo()
 	fail := c.OnTestRepoFail(c.repoURL)
-	err := c.pingFunc(ctx)
+	err := c.testRepo(ctx)
 	if err != nil {
 		fail()
 	}
 	return err == nil, err
+}
+
+func (c *nativeOCIClient) testRepo(ctx context.Context) error {
+	pingErr := c.registryPingFunc(ctx)
+	// Ping maps a 404 on /v2/ to ErrNotFound instead of an ErrorResponse.
+	errResp, ok := errors.AsType[*errcode.ErrorResponse](pingErr)
+	clientErr := ok && errResp.StatusCode >= 400 && errResp.StatusCode < 500
+	if !clientErr && !errors.Is(pingErr, errdef.ErrNotFound) {
+		return pingErr
+	}
+	// Registries such as quay.io refuse anonymous tokens without a repository scope, even for
+	// public repositories, so retry with a request scoped to the repository.
+	err := c.tagPagesFunc(ctx, "", func([]string) error { return errStopTags })
+	if err == nil || errors.Is(err, errStopTags) {
+		return nil
+	}
+	return fmt.Errorf("%w; repository-scoped request: %w", pingErr, err)
 }
 
 func (c *nativeOCIClient) Extract(ctx context.Context, digest string) (string, utilio.Closer, error) {
