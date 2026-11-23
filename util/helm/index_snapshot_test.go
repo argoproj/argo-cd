@@ -67,6 +67,23 @@ func TestIndexSnapshotCacheFitsBudgetOrErrors(t *testing.T) {
 	require.Error(t, err)
 }
 
+// Failed projections are remembered so they are not re-parsed, but distinct
+// failing generations must not grow the cache without limit.
+func TestIndexSnapshotCacheBoundsFailures(t *testing.T) {
+	cache := newIndexSnapshotCache(1 << 20)
+	first := []byte("apiVersion: v2\nentries: {}\n# generation 0\n")
+	_, err := cache.projection(first)
+	require.Error(t, err)
+	for i := 1; i < maxSnapshotFailures+50; i++ {
+		_, err := cache.projection([]byte(fmt.Sprintf("apiVersion: v2\nentries: {}\n# generation %d\n", i)))
+		require.Error(t, err)
+	}
+	assert.LessOrEqual(t, cache.failures.Len(), maxSnapshotFailures)
+	// The oldest failure was evicted; projecting it again still fails.
+	_, err = cache.projection(first)
+	require.Error(t, err)
+}
+
 func TestIndexSnapshotFilterKeepsAllVersionsOfWantedCharts(t *testing.T) {
 	cache := newIndexSnapshotCache(1 << 20)
 	full := fullIndexFixture()

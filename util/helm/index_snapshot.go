@@ -42,16 +42,23 @@ type indexProjectionResult struct {
 }
 
 type indexSnapshotCache struct {
-	mu       sync.Mutex
-	entries  *lru.Cache
-	pending  singleflight.Group
-	limit    int
-	used     int
-	failures map[[sha256.Size]byte]error
+	mu      sync.Mutex
+	entries *lru.Cache
+	pending singleflight.Group
+	limit   int
+	used    int
+	// failures remembers bodies that cannot be projected so repeated builds
+	// fall back to the full index without re-parsing them. Bounded like the
+	// successful projections, so a stream of distinct failing generations
+	// cannot grow it without limit.
+	failures *lru.Cache
 }
 
+// maxSnapshotFailures bounds the number of remembered projection failures.
+const maxSnapshotFailures = 128
+
 func newIndexSnapshotCache(limit int) *indexSnapshotCache {
-	c := &indexSnapshotCache{entries: lru.New(128), limit: limit, failures: map[[sha256.Size]byte]error{}}
+	c := &indexSnapshotCache{entries: lru.New(128), limit: limit, failures: lru.New(maxSnapshotFailures)}
 	c.entries.OnEvicted = func(_ lru.Key, value any) { c.used -= value.(*indexProjectionResult).size }
 	return c
 }
@@ -109,10 +116,10 @@ func (c *indexSnapshotCache) projection(data []byte) (*indexProjection, error) {
 	}
 	digest := sha256.Sum256(data)
 	c.mu.Lock()
-	err, failed := c.failures[digest]
+	failure, failed := c.failures.Get(digest)
 	c.mu.Unlock()
 	if failed {
-		return nil, err
+		return nil, failure.(error)
 	}
 	result := c.get(digest)
 	if result == nil {
@@ -130,7 +137,7 @@ func (c *indexSnapshotCache) projection(data []byte) (*indexProjection, error) {
 			}
 			c.mu.Lock()
 			if entry.err != nil {
-				c.failures[digest] = entry.err
+				c.failures.Add(digest, entry.err)
 			} else if entry.size <= c.limit {
 				for c.used+entry.size > c.limit {
 					c.entries.RemoveOldest()
