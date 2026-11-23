@@ -934,3 +934,49 @@ func TestInterpolateGeneratorValuesHandling(t *testing.T) {
 		})
 	}
 }
+
+// #17610: inside a matrix, the second generator is interpolated with the first generator's
+// params, but its post selector is parsed and applied from the raw, uninterpolated spec.
+func TestTransformInterpolatesSelectorWithMatrixParams(t *testing.T) {
+	elements := []apiextensionsv1.JSON{
+		{Raw: []byte(`{"app": "a", "enabledIn": {"dev": "true"}}`)},
+		{Raw: []byte(`{"app": "b", "enabledIn": {"dev": "false"}}`)},
+	}
+	// params from the first matrix generator
+	genParams := map[string]any{"env": "dev", "wanted": "true"}
+
+	testCases := []struct {
+		name     string
+		selector *metav1.LabelSelector
+	}{
+		{
+			name: "templated key",
+			selector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{
+				Key: "enabledIn.{{ .env }}", Operator: metav1.LabelSelectorOpIn, Values: []string{"true"},
+			}}},
+		},
+		{
+			name: "templated value",
+			selector: &metav1.LabelSelector{MatchExpressions: []metav1.LabelSelectorRequirement{{
+				Key: "enabledIn.dev", Operator: metav1.LabelSelectorOpIn, Values: []string{"{{ .wanted }}"},
+			}}},
+		},
+		{
+			name:     "templated matchLabels value",
+			selector: &metav1.LabelSelector{MatchLabels: map[string]string{"enabledIn.dev": "{{ .wanted }}"}},
+		},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			appSet := argov1alpha1.ApplicationSet{Spec: argov1alpha1.ApplicationSetSpec{GoTemplate: true}}
+			results, err := Transform(argov1alpha1.ApplicationSetGenerator{
+				Selector: tc.selector,
+				List:     &argov1alpha1.ListGenerator{Elements: elements, Template: emptyTemplate()},
+			}, map[string]Generator{"List": NewListGenerator()}, emptyTemplate(), &appSet, genParams, nil)
+			require.NoError(t, err)
+			require.Len(t, results, 1)
+			require.Len(t, results[0].Params, 1)
+			assert.Equal(t, "a", results[0].Params[0]["app"])
+		})
+	}
+}
