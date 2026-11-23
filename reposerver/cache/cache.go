@@ -202,10 +202,6 @@ func (c *Cache) SetApps(repoURL, revision string, apps map[string]string) error 
 		})
 }
 
-func helmIndexRefsKey(repo string) string {
-	return "helm-index|" + cryptoutil.CredentialScope("helm-index-mirror-v1", repo)
-}
-
 // The v3 record keys isolate credentialed fetches from anonymous ones: the
 // credential-scope fingerprint is part of the key prefix, so a cache entry
 // published with private credentials can never be served to a reader whose
@@ -253,10 +249,7 @@ func (c *Cache) SetHelmIndex(repo string, indexData []byte) error {
 		// Logged as warning upstream
 		return errors.New("helm index data is nil, skipping cache")
 	}
-	if err := c.SetHelmIndexRecord(repo, indexData, "", ""); err != nil {
-		return err
-	}
-	return c.cache.SetItem(helmIndexRefsKey(repo), indexData, &cacheutil.CacheActionOpts{Expiration: c.helmIndexCacheExpiration})
+	return c.SetHelmIndexRecord(repo, indexData, "", "")
 }
 
 // GetHelmIndex retrieves helm repository index.yaml content from cache.
@@ -303,13 +296,9 @@ func (c *Cache) SetHelmIndexRetainedRecord(repo string, record *HelmIndexRecord)
 		digest := sha256.Sum256(record.Body)
 		record.BodyDigest = hex.EncodeToString(digest[:])
 	}
-	// Refresh the legacy body mirror alongside the versioned record: readers
-	// without the record API (older replicas, cross-version upgrades) stay
-	// warm on successful fetches. Legacy readers cannot revalidate, so the
-	// mirror only serves as a starting point for their own fetch flow.
-	if err := c.cache.SetItem(helmIndexRefsKey(repo), record.Body, &cacheutil.CacheActionOpts{Expiration: c.helmIndexCacheExpiration}); err != nil {
-		return err
-	}
+	// There is no legacy body mirror: pre-record replicas read an unscoped
+	// "helm-index|<repo>" key, which must not carry credential-scoped bodies,
+	// so they fetch from the origin on a miss exactly as before.
 	// The record must OUTLIVE the freshness window: once a record is stale it
 	// is revalidated by a conditional GET, which needs the stored body and
 	// validators. TTL equal to freshness would delete exactly when

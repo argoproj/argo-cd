@@ -632,10 +632,9 @@ func TestSetHelmIndex(t *testing.T) {
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
 		err := fixtures.cache.SetHelmIndex("test-repo", []byte("test-data"))
 		require.NoError(t, err)
-		// PR1 dual write: the atomic versioned record plus the legacy
-		// body-mirror key, plus the metadata-only projection that lets
+		// The versioned record plus the metadata-only projection that lets
 		// verified local bodies skip the full-record transfer (one Set each).
-		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 4})
+		fixtures.mockCache.AssertCacheCalledTimes(t, &mocks.CacheCallCounts{ExternalSets: 2})
 	})
 	t.Run("SetHelmIndex with nil", func(t *testing.T) {
 		t.Parallel()
@@ -1026,7 +1025,7 @@ func TestHelmIndexRecord(t *testing.T) {
 		_, err := fixtures.cache.GetHelmIndexRetainedRecord("other-repo")
 		require.ErrorIs(t, err, ErrCacheMiss)
 	})
-	t.Run("SetHelmIndexPublishesRecordAndRefs", func(t *testing.T) {
+	t.Run("SetHelmIndexPublishesRecord", func(t *testing.T) {
 		t.Parallel()
 		fixtures := newFixtures()
 		t.Cleanup(fixtures.mockCache.StopRedisCallback)
@@ -1035,10 +1034,9 @@ func TestHelmIndexRecord(t *testing.T) {
 		var indexData []byte
 		require.NoError(t, fixtures.cache.GetHelmIndex("test-repo", &indexData))
 		assert.Equal(t, []byte("index-body"), indexData)
-		// Legacy refs key is also written for compatibility.
-		var refsData []byte
-		require.NoError(t, fixtures.cache.cache.GetItem(helmIndexRefsKey("test-repo"), &refsData))
-		assert.Equal(t, []byte("index-body"), refsData)
+		// No legacy body mirror is written under the pre-record key.
+		var legacy []byte
+		require.ErrorIs(t, fixtures.cache.cache.GetItem("helm-index|test-repo", &legacy), ErrCacheMiss)
 	})
 	t.Run("ZeroExpirationAlwaysMisses", func(t *testing.T) {
 		t.Parallel()
@@ -1075,16 +1073,6 @@ func TestHelmIndexRecord(t *testing.T) {
 		cache.SetHelmIndexCacheExpiration(-1)
 		assert.Equal(t, helm.DefaultIndexCacheExpiration, cache.GetHelmIndexCacheExpiration())
 	})
-}
-
-// The legacy body mirror must not leak credentialed bodies
-// across credential views — its key carries the credential fingerprint.
-func TestLegacyMirrorKeyIsCredentialScoped(t *testing.T) {
-	assert.NotEqual(t,
-		helmIndexRefsKey("https://charts.example.com"),
-		helmIndexRefsKey("https://charts.example.com\x00authuser"),
-		"mirror keys must differ when the credential view differs")
-	assert.Contains(t, helmIndexRefsKey("https://charts.example.com"), "argon2id-v1:")
 }
 
 func newMiniRedis(t *testing.T) *redis.Client {
