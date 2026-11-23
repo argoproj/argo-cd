@@ -12,9 +12,10 @@ import (
 	"testing"
 	"time"
 
-	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	cacheutil "github.com/argoproj/argo-cd/v3/util/cache"
 )
 
 func newTestIndexStore(t *testing.T, expiration time.Duration, maxSize int64) (*IndexStore, string) {
