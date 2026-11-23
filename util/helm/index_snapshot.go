@@ -1,6 +1,6 @@
 package helm
 
-// Dependency-only index snapshots (PR3 of the #30997 rebuild). When
+// Dependency-only index snapshots. When
 // --helm-index-cache-filter-enabled is set, each private build snapshot of a
 // cached index keeps only the entries for the charts the chart actually
 // depends on, bounded by a process-wide projection cache. The on-disk and

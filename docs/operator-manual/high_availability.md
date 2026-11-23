@@ -218,7 +218,7 @@ request on archive misses. Archive downloads and checkout-triggered builds are u
 
 The freshness window shapes *when a dependency build is allowed to reuse a cached index*, not
 when Argo CD reacts to repository changes. The guarantees below are verified in code and by
-executed integration scenarios (see `util/helm/index_lab_ab_test.go`):
+executed integration tests:
 
 * **Warm builds make no index request.** A dependency build whose index is still within the
   freshness window serves the validated cached copy without contacting the chart origin

@@ -8,11 +8,11 @@ package helm
 // conditional revalidation for another max(24h, freshness). Reads and copies
 // never restart either deadline.
 //
-// Slice 2 (PR2) keeps this store disk-only: when a shared cache is attached it
-// is read through the plain record reader and written best-effort after a
-// validated fetch. The fenced cross-replica publication protocol (generation
-// tokens, leases, split body/reference writes) is a later slice; the OS-level
-// per-record lock below is the actual single-flight guard for local replicas.
+// When a shared cache is attached, a warm build first reads a small metadata
+// record and fetches the full shared record only when the local body does not
+// match it; validated fetches are written to the shared cache best-effort. The
+// OS-level per-record lock below is the single-flight guard for processes that
+// share the cache directory.
 
 import (
 	"bytes"

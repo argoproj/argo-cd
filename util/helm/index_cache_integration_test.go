@@ -1,8 +1,8 @@
 package helm
 
-// Pinned-Helm integration tests for the disk-only dependency index reuse
-// slice (PR2 of the #30997 rebuild). Everything is local: a packaged
-// dependency, a versioned index served by httptest, and request accounting.
+// Pinned-Helm integration tests for dependency index reuse. Everything is
+// local: a packaged dependency, a versioned index served by httptest, and
+// request accounting.
 
 import (
 	"archive/tar"
@@ -299,4 +299,104 @@ func TestIndexCacheIntegrationDisabledPreservesLegacyDownloads(t *testing.T) {
 	requests, archives := fixture.snapshot()
 	assert.Len(t, requests, 4, "disabled behavior still downloads at registration and refresh for each build")
 	assert.Equal(t, 2, archives)
+}
+
+// Dependency-build timing behavior of the index cache, executed against the
+// pinned Helm binary and a live fixture server. These tests call
+// DependencyBuild directly; they cover index reuse, not the repo-server
+// manifest cache or its build marker:
+//
+//  1. A build inside the freshness window reuses the previously fetched
+//     index (zero origin requests).
+//  2. A build inside the freshness window resolves from the previous index,
+//     so a newly published version is not seen yet.
+//  3. A new dependency version is picked up once a build runs after the
+//     index has been revalidated.
+//  4. Chart.lock pins resolve independently of index freshness.
+
+// Scenario 1: build, then immediately build again in the same chart
+// directory: the second build must not touch the origin.
+func TestDependencyTimingWarmBuildReusesIndex(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	fixture := newRegressionChartRepo(t)
+	repo := HelmRepository{Name: "fixture", Repo: fixture.server.URL, Creds: HelmCreds{}}
+	store := NewIndexStore(t.TempDir(), time.Minute, 1<<20, nil)
+	dir := regressionParent(t, fixture.server.URL)
+
+	cold, err := regressionBuild(t, dir, repo, store, false)
+	require.NoError(t, err)
+	regressionRender(t, cold, "1.0.0")
+
+	warm, err := regressionBuild(t, dir, repo, store, false)
+	require.NoError(t, err)
+	regressionRender(t, warm, "1.0.0")
+
+	requests, archives := fixture.snapshot()
+	t.Logf("warm build: index requests=%d archives=%d", len(requests), archives)
+	assert.Len(t, requests, 1, "second build must not touch the origin (marker reuse)")
+}
+
+// scenario 2+3: fresh chart directory (no marker → build executes), index
+// still fresh → cached index served, zero requests. Then publish 2.0.0 and
+// hard-refresh → new version picked up.
+func TestDependencyTimingFreshIndexAndRefresh(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	fixture := newRegressionChartRepo(t)
+	repo := HelmRepository{Name: "fixture", Repo: fixture.server.URL, Creds: HelmCreds{}}
+	store := NewIndexStore(t.TempDir(), time.Minute, 1<<20, nil)
+
+	// Build 1 (cold): one index fetch.
+	dir1 := regressionParent(t, fixture.server.URL)
+	h1, err := regressionBuild(t, dir1, repo, store, false)
+	require.NoError(t, err)
+	regressionRender(t, h1, "1.0.0")
+
+	// Build 2 in a DIFFERENT chart dir (no marker): index is fresh → cached.
+	dir2 := regressionParent(t, fixture.server.URL)
+	h2, err := regressionBuild(t, dir2, repo, store, false)
+	require.NoError(t, err)
+	regressionRender(t, h2, "1.0.0")
+	requests, _ := fixture.snapshot()
+	require.Len(t, requests, 1, "fresh index must be reused without an origin request")
+
+	// Publish 2.0.0, expire the index, rebuild → 200 + new version.
+	fixture.publish("2.0.0")
+	regressionExpire(t, store, regressionIdentity(t, repo))
+	dir3 := regressionParent(t, fixture.server.URL)
+	h3, err := regressionBuild(t, dir3, repo, store, false)
+	require.NoError(t, err)
+	regressionRender(t, h3, "2.0.0")
+	requests, archives := fixture.snapshot()
+	t.Logf("refresh: index requests=%d archives=%d", len(requests), archives)
+	assert.GreaterOrEqual(t, len(requests), 2, "expired index must be refetched after publish")
+}
+
+// scenario 4: Chart.lock pins survive index expiry — a lockfile written at
+// 1.0.0 still resolves 1.0.0 after the index expired AND 2.0.0 was published.
+func TestDependencyTimingLockfilePins(t *testing.T) {
+	regressionRequirePinnedHelm(t)
+	fixture := newRegressionChartRepo(t)
+	repo := HelmRepository{Name: "fixture", Repo: fixture.server.URL, Creds: HelmCreds{}}
+	store := NewIndexStore(t.TempDir(), time.Minute, 1<<20, nil)
+	dir := regressionParent(t, fixture.server.URL)
+
+	h1, err := regressionBuild(t, dir, repo, store, false)
+	require.NoError(t, err)
+	regressionRender(t, h1, "1.0.0")
+
+	fixture.publish("2.0.0")
+	regressionExpire(t, store, regressionIdentity(t, repo))
+
+	h2, err := regressionBuild(t, dir, repo, store, false)
+	require.NoError(t, err)
+	// No marker file exists at this layer (the marker is created by the
+	// repo-server's runHelmBuild, not by the helm client) — so this build
+	// re-resolves from the fresh-enough cached index; the lockfile still
+	// pins 1.0.0 even though 2.0.0 was published and the index expired.
+	regressionRender(t, h2, "1.0.0")
+
+	// Force a full refresh — the lockfile still pins 1.0.0.
+	forceH, err := regressionBuild(t, dir, repo, store, true)
+	require.NoError(t, err)
+	regressionRender(t, forceH, "1.0.0") // lockfile pin respected across index expiry and 2.0.0 publish
 }
