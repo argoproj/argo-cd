@@ -11,6 +11,8 @@ data:
   # unless tlsClientConfig.caTrust says otherwise (system or bundle-and-system). Only applies to cluster
   # connections, not to repositories.
   # One or more PEM encoded certificates, e.g. a root CA followed by intermediate CAs.
+  # Replace the placeholders below with your own certificates. A value without any valid certificate is ignored and
+  # treated as if no bundle was configured.
   ca.crt: |
     -----BEGIN CERTIFICATE-----
     MIID... (PEM encoded root CA certificate)

@@ -740,6 +740,9 @@ data:
     -----END CERTIFICATE-----
 ```
 
+Replace the placeholders with your own certificates. If `ca.crt` does not contain any valid PEM encoded certificate,
+Argo CD logs a warning and treats the bundle as absent.
+
 Which CAs a cluster trusts is decided in this order:
 
 - The [in-cluster](#clusters) endpoint is never affected. It always uses the service account CA of the cluster Argo CD
