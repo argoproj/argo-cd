@@ -18,6 +18,8 @@ function isGitlab(parsed: GitUrl): boolean {
     return parsed.resource.startsWith('gitlab.');
 }
 
+// git-url-parse does not handle uppercase Azure DevOps SSH hostnames correctly.
+// Normalize the hostname before parsing while preserving the original path casing.
 function normalizeAzureDevOpsSshUrl(url: string): string {
     return url.replace(/^git@ssh\.dev\.azure\.com:/i, 'git@ssh.dev.azure.com:').replace(/^git@vs-ssh\.visualstudio\.com:/i, 'git@vs-ssh.visualstudio.com:');
 }
@@ -43,6 +45,8 @@ function azureDevOpsRepoUrl(parsed: GitUrl, url: string): string | null {
 
     if (isLegacyHttps) {
         try {
+            // git-url-parse can misidentify the project in legacy URLs containing
+            // DefaultCollection or team segments, so parse the path directly.
             const segments = new URL(url).pathname.split('/').filter(Boolean).map(decodeURIComponent);
             const gitIndex = segments.indexOf('_git');
             if (gitIndex < 0 || gitIndex !== segments.length - 2) {
