@@ -1,6 +1,7 @@
 package e2e
 
 import (
+	"strings"
 	"testing"
 	"time"
 
@@ -426,6 +427,50 @@ func TestHydratorWithAuthenticatedRepo(t *testing.T) {
 		Then().
 		Expect(OperationPhaseIs(OperationSucceeded)).
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
+}
+
+func TestHydratorWithOCISyncSource(t *testing.T) {
+	// Test that hydrated manifests are pushed to a tag in an OCI repository, creating the tag on the first hydration,
+	// and that the application syncs from the pushed artifact. The hydrated manifests live at the root of the
+	// artifact, which is only allowed for OCI.
+	const imagePath = "hydrated-guestbook"
+	var firstHydratedSHA string
+
+	Given(t).
+		// Read access for the repo-server to sync, write access for the commit-server to push.
+		OCIRepoAdded(imagePath, imagePath).
+		OCIWriteCredentials(imagePath).
+		DrySourcePath("guestbook").
+		DrySourceRevision("HEAD").
+		SyncSourceRepo(fixture.OCIHostURL+"/"+imagePath).
+		SyncSourceRevision("env-test").
+		SyncSourcePath(".").
+		When().
+		CreateApp().
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			firstHydratedSHA = app.Status.SourceHydrator.CurrentOperation.HydratedSHA
+			require.True(t, strings.HasPrefix(firstHydratedSHA, "sha256:"),
+				"Hydrated SHA should be the digest of the pushed artifact, got %q", firstHydratedSHA)
+		}).
+		// A change to the manifests must replace the artifact the tag points to.
+		When().
+		PatchFile("guestbook/guestbook-ui-deployment.yaml", `[{"op": "replace", "path": "/spec/revisionHistoryLimit", "value": 10}]`).
+		Refresh(RefreshTypeNormal).
+		Wait("--hydrated").
+		Sync().
+		Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		And(func(app *Application) {
+			require.NotEqual(t, firstHydratedSHA, app.Status.SourceHydrator.CurrentOperation.HydratedSHA,
+				"Hydrated SHA should change when manifests differ")
+		})
 }
 
 func TestHydratorHydratesAutomatically_NewCommit(t *testing.T) {

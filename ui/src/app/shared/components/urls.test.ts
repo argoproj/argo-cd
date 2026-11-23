@@ -135,3 +135,13 @@ test('bitbucket server (self-hosted, HTTP with explicit port)', () => {
 test('empty url', () => {
     expect(repoUrl('')).toBe(null);
 });
+
+// an OCI registry is not a Git web UI, even when its host is named like one
+test('oci repository on a git hosting domain is not supported', () => {
+    const digest = 'sha256:' + '0123456789abcdef'.repeat(4);
+    for (const url of ['oci://gitlab.example.com:5050/my-org/my-repo', 'oci://github.example.com/my-org/my-repo', 'oci://bitbucket.example.com/my-org/my-repo']) {
+        expect(repoUrl(url)).toBe(null);
+        expect(revisionUrl(url, digest, false)).toBe(null);
+        expect(revisionUrl(url, 'dev', false)).toBe(null);
+    }
+});

@@ -33,7 +33,10 @@ import {
     getAppDefaultSource,
     getAppSpecDefaultSource,
     getClusterOptions,
+    getAppHydratorSyncSource,
     getHydratorSyncSourceRepoURL,
+    isHydratorSyncSourceOCI,
+    removeInapplicableHydratorSyncFields,
     appRBACName
 } from '../utils';
 import {ApplicationRetryOptions} from '../application-retry-options/application-retry-options';
@@ -127,6 +130,14 @@ function processPath(path: string) {
     return '';
 }
 
+// Reports whether the sync source in the form being edited is OCI, so that the source items can follow unsaved edits.
+const SyncSourceKindWatcher: React.FC<{isOCI: boolean; onChange: (isOCI: boolean) => void}> = ({isOCI, onChange}) => {
+    React.useEffect(() => {
+        onChange(isOCI);
+    }, [isOCI, onChange]);
+    return null;
+};
+
 export interface ApplicationSummaryProps {
     app: models.Application;
     updateApp: (app: models.Application, query: {validate?: boolean}) => Promise<any>;
@@ -142,6 +153,9 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const [, setChangeSync] = React.useState(false);
     const [isHydratorEnabled, setIsHydratorEnabled] = React.useState(!!app.spec.sourceHydrator);
     const [savedSyncSource, setSavedSyncSource] = React.useState(app.spec.sourceHydrator?.syncSource || {targetBranch: '', path: ''});
+    // Set only while the source is being edited; otherwise the saved application decides.
+    const [editedSyncSourceIsOCI, setEditedSyncSourceIsOCI] = React.useState<boolean | null>(null);
+    const isOCISyncSource = editedSyncSourceIsOCI ?? isHydratorSyncSourceOCI(app.spec.sourceHydrator);
 
     const notificationSubscriptions = useEditNotificationSubscriptions(app.metadata.annotations || {});
     const updateApp = notificationSubscriptions.withNotificationSubscriptions(props.updateApp);
@@ -151,6 +165,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
         if (hydrateTo && !hydrateTo.targetBranch?.trim() && input.spec.sourceHydrator) {
             delete input.spec.sourceHydrator.hydrateTo;
         }
+        removeInapplicableHydratorSyncFields(input.spec.sourceHydrator);
         return updateApp(input, query);
     };
 
@@ -517,7 +532,7 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     formApi={formApi}
                     fieldValue='spec.sourceHydrator.drySource.targetRevision'
                     repoURL={app.spec.sourceHydrator?.drySource?.repoURL}
-                    repoType={repoType}
+                    repoType='git'
                 />
             )
         },
@@ -540,36 +555,48 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
     const syncSourceItems: EditablePanelItem[] = [
         {
             title: 'REPO URL (OPTIONAL)',
-            hint: 'Git repo for hydrated manifests. Defaults to the dry source repo when unset.',
+            hint: isOCISyncSource ? 'OCI repo for hydrated manifests.' : 'Git repo for hydrated manifests. Defaults to the dry source repo when unset.',
             view: <Repo url={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)} />,
-            edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.syncSource.repoURL' component={Text} />
+            edit: (formApi: FormApi) => (
+                <>
+                    <SyncSourceKindWatcher isOCI={isHydratorSyncSourceOCI(formApi.getFormState().values.spec.sourceHydrator)} onChange={setEditedSyncSourceIsOCI} />
+                    <FormField formApi={formApi} field='spec.sourceHydrator.syncSource.repoURL' component={Text} />
+                </>
+            )
         },
-        {
-            title: 'TARGET BRANCH',
-            hint: 'Branch where hydrated manifests are written and synced from.',
-            view: <Revision repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
-            edit: (formApi: FormApi) => {
-                const spec = formApi.getFormState().values.spec as models.ApplicationSpec;
-                return (
-                    <RevisionFormField
-                        helpIconTop={'0'}
-                        hideLabel={true}
-                        formApi={formApi}
-                        fieldValue='spec.sourceHydrator.syncSource.targetBranch'
-                        repoURL={getHydratorSyncSourceRepoURL(spec.sourceHydrator)}
-                        repoType='git'
-                        revisionType='Branches'
-                    />
-                );
-            }
-        },
+        isOCISyncSource
+            ? {
+                  title: 'TAG',
+                  hint: 'Tag that hydrated manifests are pushed to and synced from.',
+                  view: <Revision repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)} revision={app.spec.sourceHydrator?.syncSource?.targetRevision} />,
+                  edit: (formApi: FormApi) => <FormField formApi={formApi} field='spec.sourceHydrator.syncSource.targetRevision' component={Text} />
+              }
+            : {
+                  title: 'TARGET BRANCH',
+                  hint: 'Branch where hydrated manifests are written and synced from.',
+                  view: <Revision repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)} revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'} />,
+                  edit: (formApi: FormApi) => {
+                      const spec = formApi.getFormState().values.spec as models.ApplicationSpec;
+                      return (
+                          <RevisionFormField
+                              helpIconTop={'0'}
+                              hideLabel={true}
+                              formApi={formApi}
+                              fieldValue='spec.sourceHydrator.syncSource.targetBranch'
+                              repoURL={getHydratorSyncSourceRepoURL(spec.sourceHydrator)}
+                              repoType='git'
+                              revisionType='Branches'
+                          />
+                      );
+                  }
+              },
         {
             title: 'PATH',
-            hint: 'Output directory for hydrated manifests; must be a non-root path.',
+            hint: isOCISyncSource ? 'Output directory for hydrated manifests; may be the root (.).' : 'Output directory for hydrated manifests; must be a non-root path.',
             view: (
                 <Revision
                     repoUrl={getHydratorSyncSourceRepoURL(app.spec.sourceHydrator)}
-                    revision={app.spec.sourceHydrator?.syncSource?.targetBranch || 'HEAD'}
+                    revision={getAppHydratorSyncSource(app.spec.sourceHydrator).targetRevision || 'HEAD'}
                     path={app.spec.sourceHydrator?.syncSource?.path}
                     isForPath={true}>
                     {processPath(app.spec.sourceHydrator?.syncSource?.path)}
@@ -617,10 +644,15 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                   sectionName: 'Sync Source',
                   items: syncSourceItems
               },
-              {
-                  sectionName: 'Hydrate To',
-                  items: hydrateToItems
-              }
+              // Staging through hydrateTo is not supported for an OCI sync source.
+              ...(isOCISyncSource
+                  ? []
+                  : [
+                        {
+                            sectionName: 'Hydrate To',
+                            items: hydrateToItems
+                        }
+                    ])
           ]
         : [...standardSourceItems, ...sourceItems];
 
@@ -823,7 +855,10 @@ export const ApplicationSummary = (props: ApplicationSummaryProps) => {
                     title='SOURCE'
                     items={sourceAttributes}
                     hasMultipleSources={hasMultipleSources}
-                    onModeSwitch={() => notificationSubscriptions.onResetNotificationSubscriptions()}
+                    onModeSwitch={() => {
+                        setEditedSyncSourceIsOCI(null);
+                        notificationSubscriptions.onResetNotificationSubscriptions();
+                    }}
                 />
             )}
             <Consumer>

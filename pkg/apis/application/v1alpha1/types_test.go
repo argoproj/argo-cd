@@ -6409,6 +6409,35 @@ func TestApplicationSpec_GetHydrateToSource_UsesSyncSourceRepo(t *testing.T) {
 	assert.Equal(t, "staging", source.TargetRevision)
 }
 
+func TestSourceHydrator_OCISyncSource(t *testing.T) {
+	spec := ApplicationSpec{
+		SourceHydrator: &SourceHydrator{
+			DrySource: DrySource{
+				RepoURL:        "https://example.com/dry-repo",
+				TargetRevision: "main",
+				Path:           "dry",
+			},
+			SyncSource: SyncSource{
+				RepoURL:        "oci://example.com/hydrated",
+				TargetRevision: "dev",
+				// A branch is not meaningful for an OCI repository and must not leak into the revision.
+				TargetBranch: "ignored",
+				Path:         ".",
+			},
+		},
+	}
+	expected := ApplicationSource{RepoURL: "oci://example.com/hydrated", TargetRevision: "dev", Path: "."}
+
+	assert.True(t, spec.SourceHydrator.IsSyncSourceOCI())
+	assert.Equal(t, expected, spec.SourceHydrator.GetSyncSource())
+	assert.Equal(t, expected, spec.GetHydrateToSource())
+	assert.Equal(t, expected, spec.GetSource())
+
+	spec.SourceHydrator.SyncSource.RepoURL = "https://example.com/sync-repo"
+	assert.False(t, spec.SourceHydrator.IsSyncSourceOCI())
+	assert.Equal(t, "ignored", spec.SourceHydrator.GetSyncSource().TargetRevision)
+}
+
 func TestIgnoreDifferences_Equals(t *testing.T) {
 	tests := []struct {
 		name     string

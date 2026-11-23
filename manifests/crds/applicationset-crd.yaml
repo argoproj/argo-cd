@@ -638,16 +638,23 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
+                                        targetRevision:
+                                          type: string
                                       required:
                                       - path
-                                      - targetBranch
                                       type: object
+                                      x-kubernetes-validations:
+                                      - message: path must not point to the root of
+                                          the repository unless repoURL is an OCI
+                                          repository
+                                        rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                          || size(self.path) >= 2 || (self.path !=
+                                          '.' && self.path != '/')
                                   required:
                                   - drySource
                                   - syncSource
@@ -1569,16 +1576,23 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
+                                        targetRevision:
+                                          type: string
                                       required:
                                       - path
-                                      - targetBranch
                                       type: object
+                                      x-kubernetes-validations:
+                                      - message: path must not point to the root of
+                                          the repository unless repoURL is an OCI
+                                          repository
+                                        rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                          || size(self.path) >= 2 || (self.path !=
+                                          '.' && self.path != '/')
                                   required:
                                   - drySource
                                   - syncSource
@@ -2501,16 +2515,23 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
+                                        targetRevision:
+                                          type: string
                                       required:
                                       - path
-                                      - targetBranch
                                       type: object
+                                      x-kubernetes-validations:
+                                      - message: path must not point to the root of
+                                          the repository unless repoURL is an OCI
+                                          repository
+                                        rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                          || size(self.path) >= 2 || (self.path !=
+                                          '.' && self.path != '/')
                                   required:
                                   - drySource
                                   - syncSource
@@ -3411,16 +3432,23 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
+                                        targetRevision:
+                                          type: string
                                       required:
                                       - path
-                                      - targetBranch
                                       type: object
+                                      x-kubernetes-validations:
+                                      - message: path must not point to the root of
+                                          the repository unless repoURL is an OCI
+                                          repository
+                                        rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                          || size(self.path) >= 2 || (self.path !=
+                                          '.' && self.path != '/')
                                   required:
                                   - drySource
                                   - syncSource
@@ -4346,16 +4374,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -5277,16 +5312,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -6209,16 +6251,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -7119,16 +7168,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -8051,16 +8107,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -8972,16 +9035,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -10133,16 +10203,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -11275,16 +11352,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -12202,16 +12286,23 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
+                                        targetRevision:
+                                          type: string
                                       required:
                                       - path
-                                      - targetBranch
                                       type: object
+                                      x-kubernetes-validations:
+                                      - message: path must not point to the root of
+                                          the repository unless repoURL is an OCI
+                                          repository
+                                        rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                          || size(self.path) >= 2 || (self.path !=
+                                          '.' && self.path != '/')
                                   required:
                                   - drySource
                                   - syncSource
@@ -13139,16 +13230,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -14070,16 +14168,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -15002,16 +15107,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -15912,16 +16024,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -16844,16 +16963,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -17765,16 +17891,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -18926,16 +19059,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -20068,16 +20208,23 @@ spec:
                                                 properties:
                                                   path:
                                                     minLength: 1
-                                                    pattern: ^.{2,}|[^./]$
                                                     type: string
                                                   repoURL:
                                                     type: string
                                                   targetBranch:
                                                     type: string
+                                                  targetRevision:
+                                                    type: string
                                                 required:
                                                 - path
-                                                - targetBranch
                                                 type: object
+                                                x-kubernetes-validations:
+                                                - message: path must not point to
+                                                    the root of the repository unless
+                                                    repoURL is an OCI repository
+                                                  rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                                    || size(self.path) >= 2 || (self.path
+                                                    != '.' && self.path != '/')
                                             required:
                                             - drySource
                                             - syncSource
@@ -20999,16 +21146,23 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
+                                        targetRevision:
+                                          type: string
                                       required:
                                       - path
-                                      - targetBranch
                                       type: object
+                                      x-kubernetes-validations:
+                                      - message: path must not point to the root of
+                                          the repository unless repoURL is an OCI
+                                          repository
+                                        rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                          || size(self.path) >= 2 || (self.path !=
+                                          '.' && self.path != '/')
                                   required:
                                   - drySource
                                   - syncSource
@@ -21930,16 +22084,23 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
+                                        targetRevision:
+                                          type: string
                                       required:
                                       - path
-                                      - targetBranch
                                       type: object
+                                      x-kubernetes-validations:
+                                      - message: path must not point to the root of
+                                          the repository unless repoURL is an OCI
+                                          repository
+                                        rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                          || size(self.path) >= 2 || (self.path !=
+                                          '.' && self.path != '/')
                                   required:
                                   - drySource
                                   - syncSource
@@ -22851,16 +23012,23 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
+                                        targetRevision:
+                                          type: string
                                       required:
                                       - path
-                                      - targetBranch
                                       type: object
+                                      x-kubernetes-validations:
+                                      - message: path must not point to the root of
+                                          the repository unless repoURL is an OCI
+                                          repository
+                                        rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                          || size(self.path) >= 2 || (self.path !=
+                                          '.' && self.path != '/')
                                   required:
                                   - drySource
                                   - syncSource
@@ -24012,16 +24180,23 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
+                                        targetRevision:
+                                          type: string
                                       required:
                                       - path
-                                      - targetBranch
                                       type: object
+                                      x-kubernetes-validations:
+                                      - message: path must not point to the root of
+                                          the repository unless repoURL is an OCI
+                                          repository
+                                        rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                          || size(self.path) >= 2 || (self.path !=
+                                          '.' && self.path != '/')
                                   required:
                                   - drySource
                                   - syncSource
@@ -25154,16 +25329,23 @@ spec:
                                       properties:
                                         path:
                                           minLength: 1
-                                          pattern: ^.{2,}|[^./]$
                                           type: string
                                         repoURL:
                                           type: string
                                         targetBranch:
                                           type: string
+                                        targetRevision:
+                                          type: string
                                       required:
                                       - path
-                                      - targetBranch
                                       type: object
+                                      x-kubernetes-validations:
+                                      - message: path must not point to the root of
+                                          the repository unless repoURL is an OCI
+                                          repository
+                                        rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                          || size(self.path) >= 2 || (self.path !=
+                                          '.' && self.path != '/')
                                   required:
                                   - drySource
                                   - syncSource
@@ -26158,16 +26340,22 @@ spec:
                             properties:
                               path:
                                 minLength: 1
-                                pattern: ^.{2,}|[^./]$
                                 type: string
                               repoURL:
                                 type: string
                               targetBranch:
                                 type: string
+                              targetRevision:
+                                type: string
                             required:
                             - path
-                            - targetBranch
                             type: object
+                            x-kubernetes-validations:
+                            - message: path must not point to the root of the repository
+                                unless repoURL is an OCI repository
+                              rule: (has(self.repoURL) && self.repoURL.startsWith('oci://'))
+                                || size(self.path) >= 2 || (self.path != '.' && self.path
+                                != '/')
                         required:
                         - drySource
                         - syncSource

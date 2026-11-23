@@ -115,6 +115,8 @@ argocd admin app generate-spec APPNAME [flags]
       --sync-retry-refresh[=true|false]                   Indicates if the latest revision should be used on retry instead of the initial one
       --sync-source-branch string                         The branch from which the app will sync
       --sync-source-path string                           The path in the repository from which the app will sync
+      --sync-source-repo string                           Repository URL to which the app is hydrated and from which it will sync, either a Git repository or an OCI repository (oci://). Defaults to the dry source repository
+      --sync-source-revision string                       The tag to which the app is hydrated and from which it will sync when the sync source is an OCI repository
       --tag-prefix string                                 Filter git tags by this prefix before evaluating targetRevision as a semver constraint
       --validate[=true|false]                             Validation of repo and cluster (default true)
       --values stringArray                                Helm values file(s) to use

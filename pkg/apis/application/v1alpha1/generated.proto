@@ -1334,7 +1334,9 @@ message HydrateOperation {
   // DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
   optional string drySHA = 5;
 
-  // HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+  // HydratedSHA holds the resolved revision of the hydrated source as of the most recent reconciliation. It is a
+  // commit sha when the hydrated manifests are stored in Git, and a manifest digest when they are stored in an OCI
+  // repository.
   optional string hydratedSHA = 6;
 
   // SourceHydrator holds the hydrator config used for the hydrate operation
@@ -2814,7 +2816,9 @@ message SuccessfulHydrateOperation {
   // DrySHA holds the resolved revision (sha) of the dry source as of the most recent reconciliation
   optional string drySHA = 5;
 
-  // HydratedSHA holds the resolved revision (sha) of the hydrated source as of the most recent reconciliation
+  // HydratedSHA holds the resolved revision of the hydrated source as of the most recent reconciliation. It is a
+  // commit sha when the hydrated manifests are stored in Git, and a manifest digest when they are stored in an OCI
+  // repository.
   optional string hydratedSHA = 6;
 
   // SourceHydrator holds the hydrator config used for the hydrate operation
@@ -2943,23 +2947,32 @@ message SyncPolicyManualDefaults {
 
 // SyncSource specifies a location from which hydrated manifests may be synced. If RepoURL is not set, it is assumed
 // to be the same as the associated DrySource config in the SourceHydrator.
+//
+// +kubebuilder:validation:XValidation:rule="(has(self.repoURL) && self.repoURL.startsWith('oci://')) || size(self.path) >= 2 || (self.path != '.' && self.path != '/')",message="path must not point to the root of the repository unless repoURL is an OCI repository"
 message SyncSource {
   // TargetBranch is the branch from which hydrated manifests will be synced.
   // If HydrateTo is not set, this is also the branch to which hydrated manifests are committed.
+  // Required when the hydrated manifests are stored in a Git repository. Must not be set when RepoURL is an OCI
+  // repository; use TargetRevision instead.
   optional string targetBranch = 1;
 
-  // Path is a directory path within the git repository where hydrated manifests should be committed to and synced
-  // from. The Path should never point to the root of the repo. If hydrateTo is set, this is just the path from which
-  // hydrated manifests will be synced.
+  // Path is a directory path within the repository where hydrated manifests should be written to and synced from.
+  // For a Git repository the Path should never point to the root of the repo. For an OCI repository the Path is
+  // relative to the root of the artifact and may point to the root. If hydrateTo is set, this is just the path from
+  // which hydrated manifests will be synced.
   //
   // +kubebuilder:validation:Required
   // +kubebuilder:validation:MinLength=1
-  // +kubebuilder:validation:Pattern=`^.{2,}|[^./]$`
   optional string path = 2;
 
-  // RepoURL is the URL to the git repository that contains the hydrated manifests. If not set, defaults to
-  // the DrySource.RepoURL.
+  // RepoURL is the URL to the repository that contains the hydrated manifests. It is either a Git repository or an
+  // OCI repository (oci://). If not set, defaults to the DrySource.RepoURL.
   optional string repoURL = 3;
+
+  // TargetRevision is the tag to which hydrated manifests are pushed and from which they are synced when RepoURL is
+  // an OCI repository. The tag is created if it does not exist. Must not be set when the hydrated manifests are
+  // stored in a Git repository; use TargetBranch instead.
+  optional string targetRevision = 4;
 }
 
 // SyncStatus contains information about the currently observed live and desired states of an application
