@@ -1233,6 +1233,12 @@ func helmTemplate(appPath string, repoRoot string, env *v1alpha1.Env, q *apiclie
 			version = appHelm.Version
 		}
 		if appHelm.ReleaseName != "" {
+			// Validated again at the point of use in helm.Cmd.template(), which is
+			// the authoritative check. Validating here as well lets us report which
+			// field was at fault instead of surfacing a bare helm error.
+			if err := helm.ValidateReleaseName(appHelm.ReleaseName); err != nil {
+				return nil, "", fmt.Errorf("invalid spec.source.helm.releaseName: %w", err)
+			}
 			templateOpts.Name = appHelm.ReleaseName
 		}
 		if appHelm.Namespace != "" {
