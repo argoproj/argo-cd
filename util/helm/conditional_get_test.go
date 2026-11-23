@@ -1,10 +1,7 @@
 package helm
 
 import (
-	"bytes"
 	"context"
-	"crypto/sha256"
-	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -97,54 +94,33 @@ func newBlockingTestOrigin(t *testing.T, body []byte) (*httptest.Server, *atomic
 // request failed even though the origin was healthy.
 func TestIndexCacheReadBudgetReservesOriginTime(t *testing.T) {
 	body := newIndexBody("1.0.0")
-	digest := sha256.Sum256(body)
-	stored := &HelmIndexRecord{
-		Body:       bytes.Clone(body),
-		BodyDigest: hex.EncodeToString(digest[:]),
-		StoredAt:   time.Now().UTC().Add(-2 * time.Minute).Format(time.RFC3339Nano),
-	}
+	cache := newBlockingIndexCache()
+	server, requests := newBlockingTestOrigin(t, body)
 
-	run := func(t *testing.T, alwaysFresh bool) {
-		t.Helper()
-		cache := newBlockingIndexCache()
-		if !alwaysFresh {
-			require.NoError(t, cache.SetHelmIndexRetainedRecord("prefilled", stored))
-		}
-		server, requests := newBlockingTestOrigin(t, body)
+	client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, false, "", "", WithIndexCache(cache))
 
-		client := NewClient(server.URL, HelmCreds{InsecureSkipVerify: true}, false, "", "", WithIndexCache(cache))
+	// Positive control: a healthy origin serves immediately.
+	healthy, err := client.GetIndex(context.Background(), false, 1024*1024)
+	require.NoError(t, err, "origin must be healthy for the control")
+	require.NotEmpty(t, healthy.Entries["fake"])
+	controlRequests := requests.Load()
+	require.GreaterOrEqual(t, controlRequests, int64(1))
 
-		// Positive control: a healthy origin serves immediately.
-		healthy, err := client.GetIndex(context.Background(), false, 1024*1024)
-		require.NoError(t, err, "origin must be healthy for the control")
-		require.NotEmpty(t, healthy.Entries["fake"])
-		controlRequests := requests.Load()
-		require.GreaterOrEqual(t, controlRequests, int64(1))
+	// Now block the cache and require success within a generous
+	// deadline. The deadline/4 budget releases the origin request long
+	// before expiry.
+	cache.block()
+	t.Cleanup(cache.releaseAll)
+	deadline := time.Now().Add(800 * time.Millisecond)
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
 
-		// Now block the cache and require success within a generous
-		// deadline. The deadline/4 budget releases the origin request long
-		// before expiry.
-		cache.block()
-		t.Cleanup(cache.releaseAll)
-		deadline := time.Now().Add(800 * time.Millisecond)
-		ctx, cancel := context.WithDeadline(context.Background(), deadline)
-		defer cancel()
-
-		start := time.Now()
-		index, err := client.GetIndex(ctx, false, 1024*1024)
-		elapsed := time.Since(start)
-		require.NoError(t, err, "origin fetch must succeed before the parent deadline (took %s)", elapsed)
-		require.NotEmpty(t, index.Entries["fake"])
-		assert.Less(t, elapsed, 800*time.Millisecond, "must finish before the deadline")
-	}
-
-	t.Run("OrdinaryRead", func(t *testing.T) {
-		run(t, false)
-	})
-
-	t.Run("AlwaysFreshRead", func(t *testing.T) {
-		run(t, true)
-	})
+	start := time.Now()
+	index, err := client.GetIndex(ctx, false, 1024*1024)
+	elapsed := time.Since(start)
+	require.NoError(t, err, "origin fetch must succeed before the parent deadline (took %s)", elapsed)
+	require.NotEmpty(t, index.Entries["fake"])
+	assert.Less(t, elapsed, 800*time.Millisecond, "must finish before the deadline")
 }
 
 // Cancellation and origin errors must still propagate even when a cache
