@@ -232,10 +232,12 @@ executed integration scenarios (see `util/helm/index_lab_ab_test.go`):
   result may remain in the manifest cache beyond the index TTL.
 * **New dependency versions are picked up only when a build runs on a current-enough index.**
   A version range resolves from the index the build observes; if that index is fresh, the new
-  version is not seen until the index is revalidated after expiry (or a hard refresh runs).
-* **Hard refresh bypasses the manifest cache and fetches unconditionally — when a dependency
-  build actually executes.** It does not force a rebuild of manifests for charts whose inputs
-  did not change.
+  version is not seen until the index is revalidated after expiry (or a hard refresh is
+  requested).
+* **Hard refresh re-renders and revalidates.** It bypasses the manifest cache, so manifests
+  are generated again even when the Git revision and values are unchanged, and the
+  dependency build fetches the index unconditionally. It is the supported way to pick up a
+  newly published in-range dependency version without a Git change.
 * **`Chart.lock` pins versions through Git.** The lockfile in the checkout governs which
   dependency version is used, independently of index freshness (measured: lockfile written at
   `1.0.0` still resolves `1.0.0` after `2.0.0` is published and the index expires).
