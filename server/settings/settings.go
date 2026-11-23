@@ -134,6 +134,10 @@ func (s *Server) Get(ctx context.Context, _ *settingspkg.SettingsQuery) (*settin
 		set.UiBannerPosition = argoCDSettings.UiBannerPosition
 		set.ControllerNamespace = s.mgr.GetNamespace()
 		set.ResourceOverrides = overrides
+		// Version-specific Kustomize binary paths and build options are only exposed to authenticated
+		// callers. The CLI needs them to render manifests locally (e.g. `argocd app diff --local`)
+		// with the same Kustomize version that the repo-server uses for the application.
+		set.KustomizeOptions = kustomizeSettings
 	}
 	if sessionmgr.LoggedIn(ctx) {
 		set.PasswordPattern = argoCDSettings.PasswordPattern

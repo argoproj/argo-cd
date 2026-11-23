@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/kubernetes/fake"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 	"github.com/argoproj/argo-cd/v3/util/settings"
 )
 
@@ -125,6 +126,49 @@ func TestSettingsServer(t *testing.T) {
 		require.NoError(t, err)
 		assert.NotNil(t, resp.ResourceOverrides)
 		assert.NotEmpty(t, resp.ResourceOverrides["*/*"])
+	})
+
+	kustomizeData := map[string]string{
+		"kustomize.buildOptions":        "--global",
+		"kustomize.path.v1.2.3":         "/custom-tools/kustomize_1_2_3",
+		"kustomize.buildOptions.v1.2.3": "--enable-helm",
+	}
+	expectedKustomizeVersions := []v1alpha1.KustomizeVersion{{
+		Name:         "v1.2.3",
+		Path:         "/custom-tools/kustomize_1_2_3",
+		BuildOptions: "--enable-helm",
+	}}
+
+	t.Run("TestGetKustomizeOptionsNotLoggedIn", func(t *testing.T) {
+		t.Parallel()
+		resp, err := newServer(kustomizeData).Get(t.Context(), nil)
+		require.NoError(t, err)
+		require.NotNil(t, resp.KustomizeOptions)
+		assert.Equal(t, "--global", resp.KustomizeOptions.BuildOptions)
+		assert.Empty(t, resp.KustomizeOptions.Versions, "version-specific paths must not be exposed to anonymous callers")
+		assert.Equal(t, []string{"v1.2.3"}, resp.KustomizeVersions)
+	})
+
+	t.Run("TestGetKustomizeOptionsLoggedIn", func(t *testing.T) {
+		t.Parallel()
+		//nolint:staticcheck // it's ok to use built-in type string as key for value for testing purposes
+		loggedInContext := context.WithValue(t.Context(), "claims", &jwt.MapClaims{"iss": "qux", "sub": "foo", "email": "bar", "groups": []string{"baz"}})
+		resp, err := newServer(kustomizeData).Get(loggedInContext, nil)
+		require.NoError(t, err)
+		require.NotNil(t, resp.KustomizeOptions)
+		assert.Equal(t, "--global", resp.KustomizeOptions.BuildOptions)
+		assert.Equal(t, expectedKustomizeVersions, resp.KustomizeOptions.Versions)
+	})
+
+	t.Run("TestGetKustomizeOptionsAuthDisabled", func(t *testing.T) {
+		t.Parallel()
+		_, settingsMgr := fixtures(t.Context(), kustomizeData)
+		authDisabledServer := NewServer(settingsMgr, nil, nil, true, false, false, false)
+		resp, err := authDisabledServer.Get(t.Context(), nil)
+		require.NoError(t, err)
+		require.NotNil(t, resp.KustomizeOptions)
+		assert.Equal(t, "--global", resp.KustomizeOptions.BuildOptions)
+		assert.Equal(t, expectedKustomizeVersions, resp.KustomizeOptions.Versions)
 	})
 }
 
