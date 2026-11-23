@@ -396,6 +396,41 @@ type TemplateOpts struct {
 	SkipTests            bool
 }
 
+// maxHelmReleaseNameLength is the maximum length Helm permits for a release name.
+const maxHelmReleaseNameLength = 53
+
+// helmReleaseNameRegexp mirrors the release name validation Helm itself applies
+// (a DNS-1123 subdomain). Keeping this identical to Helm's own rule means any
+// name Helm would have accepted is still accepted here, so this validation
+// rejects nothing that previously worked.
+var helmReleaseNameRegexp = regexp.MustCompile(`^[a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*$`)
+
+// ValidateReleaseName ensures a Helm release name is well-formed before it is
+// handed to the helm binary.
+//
+// This is a security control, not merely input hygiene. The release name is
+// attacker-controlled via spec.source.helm.releaseName (and via a repository's
+// .argocd-source.yaml). It must never be able to reach a Helm flag that is
+// evaluated as a Go template, because Helm's template engine exposes the sprig
+// function library, including env() and getHostByName(), which would disclose
+// the repo-server's process environment and permit DNS egress.
+//
+// This is enforced at the point of use in template(), so that every caller is
+// covered. It is exported so callers can additionally validate earlier and
+// report which field was at fault.
+func ValidateReleaseName(name string) error {
+	if name == "" {
+		return errors.New("helm release name is empty")
+	}
+	if len(name) > maxHelmReleaseNameLength {
+		return fmt.Errorf("invalid helm release name %q: must be no more than %d characters", name, maxHelmReleaseNameLength)
+	}
+	if !helmReleaseNameRegexp.MatchString(name) {
+		return fmt.Errorf("invalid helm release name %q: must consist of lower case alphanumeric characters, '-' or '.', and must start and end with an alphanumeric character", name)
+	}
+	return nil
+}
+
 func cleanSetParameters(val string) string {
 	// `{}` equal helm list parameters format, so don't escape `,`.
 	if strings.HasPrefix(val, `{`) && strings.HasSuffix(val, `}`) {
@@ -433,7 +468,24 @@ func (c *Cmd) template(chartPath string, opts *TemplateOpts) (string, string, er
 		return "", "", fmt.Errorf("failed to clean up chart lock file: %w", err)
 	}
 
-	args := []string{"template", chartPath, "--name-template", opts.Name}
+	// The release name is passed as the positional NAME argument rather than via
+	// --name-template. Helm evaluates --name-template as a Go template with the
+	// sprig function library loaded, so a user-supplied release name reaching
+	// that flag would be executed rather than used literally. The positional
+	// argument is treated as a literal string.
+	//
+	// An empty name is deliberately not an error. Helm previously accepted
+	// `--name-template ""` and fell back to its own default release name; omitting
+	// the positional argument entirely reproduces exactly that behaviour, so
+	// existing callers that leave Name unset are unaffected.
+	args := []string{"template"}
+	if opts.Name != "" {
+		if err := ValidateReleaseName(opts.Name); err != nil {
+			return "", "", err
+		}
+		args = append(args, opts.Name)
+	}
+	args = append(args, chartPath)
 
 	if opts.Namespace != "" {
 		args = append(args, "--namespace", opts.Namespace)
