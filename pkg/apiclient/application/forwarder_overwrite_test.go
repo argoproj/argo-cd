@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"encoding/json/jsontext"
 	"errors"
 	"io"
 	"net/http"
@@ -23,7 +24,6 @@ import (
 	argohttp "github.com/argoproj/pkg/v2/grpc/http"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
-	"github.com/argoproj/argo-cd/v3/test"
 )
 
 func TestProcessApplicationListField_SyncOperation(t *testing.T) {
@@ -36,12 +36,7 @@ func TestProcessApplicationListField_SyncOperation(t *testing.T) {
 
 	res, err := processApplicationListField(&list, map[string]any{"items.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
-
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
+	item := processedItem(t, res, 0)
 
 	val, ok, err := unstructured.NestedString(item, "operation", "sync", "revision")
 	require.NoError(t, err)
@@ -58,14 +53,9 @@ func TestProcessApplicationListField_SyncOperationMissing(t *testing.T) {
 
 	res, err := processApplicationListField(&list, map[string]any{"items.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
+	item := processedItem(t, res, 0)
 
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
-
-	_, ok, err = unstructured.NestedString(item, "operation")
+	_, ok, err := unstructured.NestedString(item, "operation")
 	require.NoError(t, err)
 	require.False(t, ok)
 }
@@ -87,12 +77,7 @@ func TestProcessApplicationListField_OperationStateOperationSync(t *testing.T) {
 
 	res, err := processApplicationListField(&list, map[string]any{"items.status.operationState.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
-
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
+	item := processedItem(t, res, 0)
 
 	syncMap, ok, err := unstructured.NestedMap(item, "status", "operationState", "operation", "sync")
 	require.NoError(t, err)
@@ -120,12 +105,7 @@ func TestProcessApplicationListField_OperationStateOperationSyncMultiSource(t *t
 
 	res, err := processApplicationListField(&list, map[string]any{"items.status.operationState.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
-
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
+	item := processedItem(t, res, 0)
 
 	syncMap, ok, err := unstructured.NestedMap(item, "status", "operationState", "operation", "sync")
 	require.NoError(t, err)
@@ -145,14 +125,9 @@ func TestProcessApplicationListField_OperationStateOperationSyncMissing(t *testi
 
 	res, err := processApplicationListField(&list, map[string]any{"items.status.operationState.operation.sync": true}, false)
 	require.NoError(t, err)
-	resMap, ok := res.(map[string]any)
-	require.True(t, ok)
+	item := processedItem(t, res, 0)
 
-	items, ok := resMap["items"].([]map[string]any)
-	require.True(t, ok)
-	item := test.ToMap(items[0])
-
-	_, ok, err = unstructured.NestedMap(item, "status")
+	_, ok, err := unstructured.NestedMap(item, "status")
 	require.NoError(t, err)
 	require.False(t, ok)
 }
@@ -460,8 +435,7 @@ func TestStreamApplicationListJSON_MatchesFieldFilter_AllFields(t *testing.T) {
 
 // TestSelectAppFields_OverlappingFields ensures that selecting both a field and
 // its descendants (e.g. "spec" and "spec.destination", as appFields contains on
-// master) keeps only the ancestor, so processAppFields neither fails with
-// "field ... is not a map" nor depends on map iteration order.
+// master) keeps only the ancestor, so "spec" is written once, deterministically.
 func TestSelectAppFields_OverlappingFields(t *testing.T) {
 	// Inject descendant entries unless already present (master defines them).
 	overlapping := map[string]func(app *v1alpha1.Application) any{
@@ -502,10 +476,7 @@ func TestSelectAppFields_OverlappingFields(t *testing.T) {
 			assert.NotEqual(t, "spec.destination", spec.field)
 			assert.NotEqual(t, "spec.project", spec.field)
 		}
-		converted, err := processAppFields(app, specs)
-		require.NoError(t, err)
-		convertedJSON, err := json.Marshal(converted)
-		require.NoError(t, err)
+		convertedJSON := encodeApp(t, app, specs)
 		if firstJSON == nil {
 			firstJSON = convertedJSON
 		} else {
@@ -723,4 +694,25 @@ func TestLogsForwarder_DownloadFileName(t *testing.T) {
 			assert.Equal(t, `attachment;filename="`+tt.expected+`"`, rec.Header().Get("Content-Disposition"))
 		})
 	}
+}
+
+// processedItem decodes item i of a processor result as argoproj/pkg serves it.
+func processedItem(t *testing.T, res any, i int) map[string]any {
+	t.Helper()
+	b, err := json.Marshal(res)
+	require.NoError(t, err)
+	var decoded struct {
+		Items []map[string]any `json:"items"`
+	}
+	require.NoError(t, json.Unmarshal(b, &decoded))
+	require.Greater(t, len(decoded.Items), i)
+	return decoded.Items[i]
+}
+
+func encodeApp(t *testing.T, app *v1alpha1.Application, specs []appFieldSpec) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	enc := jsontext.NewEncoder(&buf, json.DefaultOptionsV1())
+	require.NoError(t, encodeSelectedFields(enc, app, specs))
+	return buf.Bytes()
 }
