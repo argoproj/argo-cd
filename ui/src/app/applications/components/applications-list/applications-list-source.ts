@@ -33,4 +33,6 @@ export interface AppsListSourceResult {
      * path, including when SSP is on but client-only filters forced a fallback.
      */
     serverPaged: boolean;
+    /** True while react-query is showing previous-query data for the current key. */
+    isPlaceholderData: boolean;
 }

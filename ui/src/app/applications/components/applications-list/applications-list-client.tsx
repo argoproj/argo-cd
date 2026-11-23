@@ -22,6 +22,7 @@ import {AppsListFacets, AppsListStats, computeAppsListFacets, computeAppsListSta
 const APP_FIELDS = [
     'metadata.name',
     'metadata.namespace',
+    'metadata.resourceVersion',
     'metadata.annotations',
     'metadata.labels',
     'metadata.creationTimestamp',
@@ -69,11 +70,22 @@ export function sortTitleToServer(sortTitle?: string): string | undefined {
     return SORT_TITLE_TO_SERVER[sortTitle] || undefined;
 }
 
+/** Converts a cluster display value like "name (https://server)" into the server URL the API matches. */
+export function clusterFilterToServerValue(filterString: string): string {
+    const match = filterString.match(/^(.*) [(](http.*)[)]$/);
+    if (match?.length === 3) {
+        const [, , url] = match;
+        return url;
+    }
+    return filterString;
+}
+
 function stableFiltersFromPref(pref: AppsListPreferences & {page: number; search: string}) {
     const labels = (pref.labelsFilter || []).map(l => (l.includes('=') ? l : `${l}`));
+    const clusters = pref.clustersFilter?.length ? pref.clustersFilter.map(clusterFilterToServerValue) : undefined;
     return {
         repos: pref.reposFilter?.length ? pref.reposFilter : undefined,
-        clusters: pref.clustersFilter?.length ? pref.clustersFilter : undefined,
+        clusters,
         namespaces: pref.namespacesFilter?.length ? pref.namespacesFilter : undefined,
         labels: labels.length ? labels : undefined,
         autoSyncs: pref.autoSyncFilter?.length ? pref.autoSyncFilter : undefined,
@@ -293,9 +305,7 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
     const serverSidePaginationEnabled = !!authSettings?.serverSidePaginationEnabled;
     const useServerPaging = serverSidePaginationEnabled && !requiresClientSideAppFilters(pref, hydratorEnabled);
     const {pageSizePref, sortTitle} = useAppsListViewPrefs();
-    const pageSize = useServerPaging
-        ? resolveApplicationPageSize(pageSizePref, authSettings?.applicationPageSize || 250)
-        : Math.max(1, authSettings?.applicationPageSize || 250);
+    const pageSize = useServerPaging ? resolveApplicationPageSize(pageSizePref, authSettings?.applicationPageSize || 250) : Math.max(1, authSettings?.applicationPageSize || 250);
     const sortBy = useServerPaging ? sortTitleToServer(sortTitle) : undefined;
 
     // The favorites list is only part of the query while the favorites filter is on, so starring an
@@ -315,13 +325,14 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
         pref.operationFilter,
         pref.hydrationFilter
     ]);
-    const knownTotalRef = React.useRef<number | undefined>(undefined);
-    const prevListFilterKey = React.useRef(listFilterKey);
-    if (prevListFilterKey.current !== listFilterKey) {
-        knownTotalRef.current = undefined;
-        prevListFilterKey.current = listFilterKey;
+    // Stored as state (not a ref) so render can read it without violating react-hooks/refs.
+    const [knownTotal, setKnownTotal] = React.useState<number | undefined>(undefined);
+    const [prevListFilterKey, setPrevListFilterKey] = React.useState(listFilterKey);
+    if (prevListFilterKey !== listFilterKey) {
+        setPrevListFilterKey(listFilterKey);
+        setKnownTotal(undefined);
     }
-    const requestPage = useServerPaging ? clampAppsListPage(pref.page, knownTotalRef.current, pageSize) : pref.page || 0;
+    const requestPage = useServerPaging ? clampAppsListPage(pref.page, knownTotal, pageSize) : pref.page || 0;
     const listOpts = useServerPaging ? prefToListOpts({...pref, page: requestPage}, pageSize, sortBy) : undefined;
     // Preferences arrive as fresh objects on every emission, so pin the query to its key's content.
     const listKeyHash = hashKey([pref.projectsFilter, appNamespace, names, listOpts]);
@@ -399,8 +410,9 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
 
     const applications = query.data?.items;
     const serverStats = query.data?.stats;
-    if (useServerPaging && serverStats?.total != null) {
-        knownTotalRef.current = serverStats.total;
+    const settledTotal = useServerPaging && !query.isPlaceholderData && serverStats?.total != null ? serverStats.total : undefined;
+    if (settledTotal != null && settledTotal !== knownTotal) {
+        setKnownTotal(settledTotal);
     }
     const derived = React.useMemo(() => {
         const apps = applications || [];
@@ -433,6 +445,7 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
         retry: () => refetch(),
         markRefreshing,
         serverPaged: useServerPaging,
+        isPlaceholderData: query.isPlaceholderData,
         ...derived
     };
 }
@@ -443,16 +456,18 @@ export const AppsListPaginate = ({list, ...props}: {list: AppsListSourceResult} 
     const {pageSizePref} = useAppsListViewPrefs();
     const pageSize = list.serverPaged ? resolveApplicationPageSize(pageSizePref, authSettings?.applicationPageSize || 250) : undefined;
     // Keep the URL page in range once the server total is known so the next List uses the corrected offset.
+    // Skip while showing placeholder data so history navigation keeps the requested page until the
+    // current query's total arrives.
     const totalItems = list.stats?.total;
     React.useEffect(() => {
-        if (!list.serverPaged || pageSize == null || totalItems == null || props.onPageChange == null || props.page == null) {
+        if (!list.serverPaged || list.isPlaceholderData || pageSize == null || totalItems == null || props.onPageChange == null || props.page == null) {
             return;
         }
         const clamped = clampAppsListPage(props.page, totalItems, pageSize);
         if (clamped !== props.page) {
             props.onPageChange(clamped);
         }
-    }, [list.serverPaged, totalItems, pageSize, props.page, props.onPageChange]);
+    }, [list.serverPaged, list.isPlaceholderData, totalItems, pageSize, props.page, props.onPageChange]);
     if (list.serverPaged) {
         return (
             <Paginate

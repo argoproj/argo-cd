@@ -39,19 +39,20 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
     if (value !== prevValue) {
         setPrevValue(value);
         setLocalValue(value);
+    }
+
+    // Clear a pending debounce when the controlled value changes (or on unmount).
+    React.useEffect(() => {
         if (debounceTimer.current !== undefined) {
             window.clearTimeout(debounceTimer.current);
             debounceTimer.current = undefined;
         }
-    }
-
-    React.useEffect(() => {
         return () => {
             if (debounceTimer.current !== undefined) {
                 window.clearTimeout(debounceTimer.current);
             }
         };
-    }, []);
+    }, [value]);
 
     const handleChange = (newValue: string) => {
         setLocalValue(newValue);

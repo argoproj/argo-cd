@@ -303,6 +303,8 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	if err != nil {
 		return nil, fmt.Errorf("error parsing the selector: %w", err)
 	}
+	// Capture RV before reading the lister so the response is not newer than the items.
+	resourceVersion := s.appInformer.LastSyncResourceVersion()
 	var apps []*v1alpha1.Application
 	if q.GetAppNamespace() == "" {
 		apps, err = s.appLister.List(selector)
@@ -350,7 +352,7 @@ func (s *Server) List(ctx context.Context, q *application.ApplicationQuery) (*v1
 	}
 
 	appList := v1alpha1.ApplicationList{
-		ResourceVersion: s.appInformer.LastSyncResourceVersion(),
+		ResourceVersion: resourceVersion,
 		Items:           newItems,
 	}
 	// Facet/stats passes are expensive; only compute them for paginated (SSP) list requests.

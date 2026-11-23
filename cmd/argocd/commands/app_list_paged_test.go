@@ -283,6 +283,54 @@ func TestListApplicationsPaged_RestartsWhenResourceVersionChanges(t *testing.T) 
 	assert.Equal(t, page2[len(page2)-1].Name, got[len(got)-1].Name)
 }
 
+func TestListApplicationsPaged_FallsBackWhenRestartsExhausted(t *testing.T) {
+	ctx := t.Context()
+	page := testApps(int(defaultAppListBatchSize))
+	full := testApps(int(defaultAppListBatchSize) + 3)
+	for i := range full[defaultAppListBatchSize:] {
+		full[int(defaultAppListBatchSize)+i].Name = fmt.Sprintf("full-%04d", int(defaultAppListBatchSize)+i)
+	}
+	total := int64(len(page) + 10)
+
+	mockClient := applicationmocks.NewApplicationServiceClient(t)
+	// maxAppListSnapshotRestarts+1 mismatches: each walk gets page0 then a different RV on page1.
+	for i := 0; i <= maxAppListSnapshotRestarts; i++ {
+		rv0 := fmt.Sprintf("%d-a", i)
+		rv1 := fmt.Sprintf("%d-b", i)
+		mockClient.EXPECT().
+			List(ctx, mock.MatchedBy(func(q *applicationpkg.ApplicationQuery) bool {
+				return q.Offset != nil && *q.Offset == 0 && q.Limit != nil
+			})).
+			Return(&argoappv1.ApplicationList{
+				ResourceVersion: rv0,
+				Items:           page,
+				Stats:           &argoappv1.ApplicationListStats{Total: total},
+			}, nil).
+			Once()
+		mockClient.EXPECT().
+			List(ctx, mock.MatchedBy(func(q *applicationpkg.ApplicationQuery) bool {
+				return q.Offset != nil && *q.Offset == defaultAppListBatchSize && q.Limit != nil
+			})).
+			Return(&argoappv1.ApplicationList{
+				ResourceVersion: rv1,
+				Items:           page[:3],
+				Stats:           &argoappv1.ApplicationListStats{Total: total},
+			}, nil).
+			Once()
+	}
+	// Unpaginated fallback (no limit/offset).
+	mockClient.EXPECT().
+		List(ctx, mock.MatchedBy(func(q *applicationpkg.ApplicationQuery) bool {
+			return q.Limit == nil && q.Offset == nil
+		})).
+		Return(&argoappv1.ApplicationList{Items: full}, nil).
+		Once()
+
+	got, err := listApplicationsPaged(ctx, mockClient, "", "", "", nil, "", "")
+	require.NoError(t, err)
+	assert.Equal(t, full, got)
+}
+
 func TestPaginateApplicationList(t *testing.T) {
 	apps := testApps(5)
 
@@ -296,4 +344,7 @@ func TestPaginateApplicationList(t *testing.T) {
 	assert.Equal(t, apps[2:], paginateApplicationList(apps, 2, -1))
 	assert.Empty(t, paginateApplicationList(apps, 9, 0))
 	assert.Equal(t, apps[:1], paginateApplicationList(apps, -3, 1))
+	// Huge limit is bounded to the remaining items (no overflow past the slice).
+	assert.Equal(t, apps[2:], paginateApplicationList(apps, 2, 1<<62))
+	assert.Empty(t, paginateApplicationList(apps, 5, 1<<62))
 }

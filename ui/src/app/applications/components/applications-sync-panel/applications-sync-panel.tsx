@@ -7,7 +7,7 @@ import * as models from '../../../shared/models';
 import {confirmSyncingAppOfApps} from '../utils';
 import {ApplicationsSyncPanelBody} from './applications-sync-panel-body';
 
-export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: models.Application[]; hide: () => void}) => {
+export const ApplicationsSyncPanel = ({show, apps, hide, serverPaged}: {show: boolean; apps: models.Application[]; hide: () => void; serverPaged?: boolean}) => {
     const [form, setForm] = React.useState<FormApi>(null);
     const [isPending, setPending] = React.useState(false);
     const syncHandler = (currentForm: FormApi, ctx: ContextApis, applications: models.Application[]) => {
@@ -60,7 +60,7 @@ export const ApplicationsSyncPanel = ({show, apps, hide}: {show: boolean; apps: 
                             </button>
                         </div>
                     }>
-                    {show && <ApplicationsSyncPanelBody apps={apps} getApi={setForm} setPending={setPending} />}
+                    {show && <ApplicationsSyncPanelBody apps={apps} getApi={setForm} setPending={setPending} serverPaged={serverPaged} />}
                 </SlidingPanel>
             )}
         </Consumer>

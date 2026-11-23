@@ -15,7 +15,7 @@ interface Progress {
 
 const RefreshTypes = ['normal', 'hard'];
 
-export const ApplicationsRefreshPanelBody = ({apps, getApi}: {apps: models.Application[]; getApi: (api: FormApi) => void}) => {
+export const ApplicationsRefreshPanelBody = ({apps, getApi, serverPaged}: {apps: models.Application[]; getApi: (api: FormApi) => void; serverPaged?: boolean}) => {
     const [progress, setProgress] = React.useState<Progress>(null);
     const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
 
@@ -63,6 +63,7 @@ export const ApplicationsRefreshPanelBody = ({apps, getApi}: {apps: models.Appli
                     {formApi => (
                         <div className='argo-form-row' style={{marginTop: 0}}>
                             <h4>Refresh app(s)</h4>
+                            {serverPaged && <div style={{marginBottom: '1em', fontSize: '12px', color: '#6d7f8b'}}>Actions apply only to applications on the current page.</div>}
                             {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
                             <div style={{marginBottom: '1em'}}>
                                 <label>Refresh Type</label>

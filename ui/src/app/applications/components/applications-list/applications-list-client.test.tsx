@@ -10,6 +10,7 @@ import {AppsListPreferences, services} from '../../../shared/services';
 import {
     AppsListPaginate,
     clampAppsListPage,
+    clusterFilterToServerValue,
     requiresClientSideAppFilters,
     resolveApplicationPageSize,
     sortTitleToServer,
@@ -230,7 +231,7 @@ test('sortTitleToServer maps toolbar titles', () => {
 test('AppsListPaginate under SSP uses stats.total for page controls', () => {
     jest.spyOn(services.viewPreferences, 'getPreferences').mockReturnValue(of({pageSizes: {'applications-list': 2}} as any));
     jest.spyOn(services.viewPreferences, 'getCurrentPreferences').mockReturnValue({pageSizes: {'applications-list': 2}} as any);
-    const list = {rows: [app('a'), app('b')], stats: {total: 5}, serverPaged: true} as AppsListSourceResult;
+    const list = {rows: [app('a'), app('b')], stats: {total: 5}, serverPaged: true, isPlaceholderData: false} as AppsListSourceResult;
     render(
         <AuthSettingsCtx.Provider value={{serverSidePaginationEnabled: true, applicationPageSize: 50} as AuthSettings}>
             <AppsListPaginate list={list} page={0} preferencesKey='applications-list' onPageChange={jest.fn()}>
@@ -241,6 +242,27 @@ test('AppsListPaginate under SSP uses stats.total for page controls', () => {
     expect(screen.getByText('a,b')).toBeInTheDocument();
     expect(screen.getAllByText('Next').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Items per page: 2').length).toBeGreaterThan(0);
+});
+
+test('AppsListPaginate does not clamp page while placeholder data is shown', () => {
+    jest.spyOn(services.viewPreferences, 'getPreferences').mockReturnValue(of({pageSizes: {'applications-list': 2}} as any));
+    jest.spyOn(services.viewPreferences, 'getCurrentPreferences').mockReturnValue({pageSizes: {'applications-list': 2}} as any);
+    const onPageChange = jest.fn();
+    const list = {rows: [app('a'), app('b')], stats: {total: 2}, serverPaged: true, isPlaceholderData: true} as AppsListSourceResult;
+    render(
+        <AuthSettingsCtx.Provider value={{serverSidePaginationEnabled: true, applicationPageSize: 50} as AuthSettings}>
+            <AppsListPaginate list={list} page={3} preferencesKey='applications-list' onPageChange={onPageChange}>
+                {rows => <p>{rows.map(row => row.metadata.name).join(',')}</p>}
+            </AppsListPaginate>
+        </AuthSettingsCtx.Provider>
+    );
+    expect(onPageChange).not.toHaveBeenCalled();
+});
+
+test('clusterFilterToServerValue extracts the server URL from display labels', () => {
+    expect(clusterFilterToServerValue('in-cluster (https://kubernetes.default.svc)')).toBe('https://kubernetes.default.svc');
+    expect(clusterFilterToServerValue('https://kubernetes.default.svc')).toBe('https://kubernetes.default.svc');
+    expect(clusterFilterToServerValue('in-cluster')).toBe('in-cluster');
 });
 
 test('clampAppsListPage resets to zero when results fit on the first page', () => {

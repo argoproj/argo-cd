@@ -1422,6 +1422,8 @@ const maxAppListSnapshotRestarts = 3
 // Project, repo, and cluster filters are forwarded so the server applies them before each page.
 // Successive pages must share the same ListMeta.ResourceVersion; if it changes mid-walk the
 // fetch restarts from offset 0 so concurrent deletes do not skip or duplicate items.
+// After maxAppListSnapshotRestarts exhausted restarts, falls back to one unpaginated List
+// so unlimited listings can still complete under ongoing informer updates.
 func listApplicationsPaged(ctx context.Context, appIf application.ApplicationServiceClient, selector, appNamespace, search string, projects []string, repo, cluster string) ([]argoappv1.Application, error) {
 	var all []argoappv1.Application
 	var next int64
@@ -1453,7 +1455,7 @@ func listApplicationsPaged(ctx context.Context, appIf application.ApplicationSer
 		} else if rv != snapshotRV {
 			restarts++
 			if restarts > maxAppListSnapshotRestarts {
-				return nil, fmt.Errorf("application list changed during pagination (%d restarts); try again", restarts)
+				return listApplicationsUnpaginated(ctx, appIf, selector, appNamespace, search, projects, repo, cluster)
 			}
 			all = nil
 			next = 0
@@ -1467,6 +1469,23 @@ func listApplicationsPaged(ctx context.Context, appIf application.ApplicationSer
 		next += batch
 	}
 	return all, nil
+}
+
+// listApplicationsUnpaginated fetches the full application list in one request (no limit/offset).
+func listApplicationsUnpaginated(ctx context.Context, appIf application.ApplicationServiceClient, selector, appNamespace, search string, projects []string, repo, cluster string) ([]argoappv1.Application, error) {
+	q := &application.ApplicationQuery{
+		Selector:     &selector,
+		AppNamespace: &appNamespace,
+	}
+	if search != "" {
+		q.Search = &search
+	}
+	setSupportedApplicationListFilters(q, projects, repo, cluster)
+	apps, err := appIf.List(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	return apps.Items, nil
 }
 
 // setSupportedApplicationListFilters copies CLI filters that ApplicationQuery applies
@@ -1486,17 +1505,21 @@ func setSupportedApplicationListFilters(q *application.ApplicationQuery, project
 
 // paginateApplicationList applies offset and limit after client-side filters.
 // offset <= 0 starts at 0. limit <= 0 means unlimited from the offset (still honors offset).
-// When limit > 0, the end is min(offset+limit, len).
+// When limit > 0, the end is start+min(limit, remaining) so large limits cannot overflow.
 func paginateApplicationList(apps []argoappv1.Application, offset, limit int64) []argoappv1.Application {
 	if offset <= 0 {
 		offset = 0
 	}
-	start := min(offset, int64(len(apps)))
+	n := int64(len(apps))
+	start := min(offset, n)
 	if limit <= 0 {
 		return apps[start:]
 	}
-	end := min(start+limit, int64(len(apps)))
-	return apps[start:end]
+	if start >= n {
+		return apps[start:start]
+	}
+	remaining := n - start
+	return apps[start : start+min(limit, remaining)]
 }
 
 // NewApplicationListCommand returns a new instance of an `argocd app list` command

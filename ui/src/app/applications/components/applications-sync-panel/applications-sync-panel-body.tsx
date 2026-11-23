@@ -16,7 +16,17 @@ interface Progress {
     title: string;
 }
 
-export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: models.Application[]; getApi: (api: FormApi) => void; setPending: (pending: boolean) => void}) => {
+export const ApplicationsSyncPanelBody = ({
+    apps,
+    getApi,
+    setPending,
+    serverPaged
+}: {
+    apps: models.Application[];
+    getApi: (api: FormApi) => void;
+    setPending: (pending: boolean) => void;
+    serverPaged?: boolean;
+}) => {
     const [progress, setProgress] = React.useState<Progress>(null);
     const getSelectedApps = (params: any) => apps.filter((_, i) => params['app/' + i]);
     return (
@@ -92,6 +102,7 @@ export const ApplicationsSyncPanelBody = ({apps, getApi, setPending}: {apps: mod
                     {formApi => (
                         <div className='argo-form-row' style={{marginTop: 0}}>
                             <h4>Sync app(s)</h4>
+                            {serverPaged && <div style={{marginBottom: '1em', fontSize: '12px', color: '#6d7f8b'}}>Actions apply only to applications on the current page.</div>}
                             {progress !== null && <ProgressPopup onClose={() => setProgress(null)} percentage={progress.percentage} title={progress.title} />}
                             <div style={{marginBottom: '1em'}}>
                                 <FormField formApi={formApi} field='syncFlags' component={ApplicationManualSyncFlags} />

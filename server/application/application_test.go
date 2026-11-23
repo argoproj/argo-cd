@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	stdsync "sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -104,19 +105,37 @@ func (broadcasterMock) OnDelete(any)      {}
 
 // mockApplicationWatchServer captures the applications sent through a Watch stream. The embedded
 // grpc.ServerStream is never used because Watch only calls Context and Send, both overridden here.
+// sent is guarded by mu because Watch runs in a goroutine while tests poll with Eventually.
 type mockApplicationWatchServer struct {
 	googlegrpc.ServerStream
 	ctx  context.Context
+	mu   stdsync.Mutex
 	sent []*v1alpha1.ApplicationWatchEvent
 }
 
 func (m *mockApplicationWatchServer) Send(event *v1alpha1.ApplicationWatchEvent) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.sent = append(m.sent, event)
 	return nil
 }
 
 func (m *mockApplicationWatchServer) Context() context.Context {
 	return m.ctx
+}
+
+func (m *mockApplicationWatchServer) sentLen() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.sent)
+}
+
+func (m *mockApplicationWatchServer) sentEvents() []*v1alpha1.ApplicationWatchEvent {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]*v1alpha1.ApplicationWatchEvent, len(m.sent))
+	copy(out, m.sent)
+	return out
 }
 
 func fakeRepo() *v1alpha1.Repository {
@@ -1417,8 +1436,9 @@ func TestWatchAppsWithNamesFilter(t *testing.T) {
 
 	// The initial send loop always emits the matching application, and the names filter must never
 	// let a non-matching application through.
-	require.NotEmpty(t, ws.sent)
-	for _, event := range ws.sent {
+	sent := ws.sentEvents()
+	require.NotEmpty(t, sent)
+	for _, event := range sent {
 		assert.Equal(t, "match-app", event.Application.Name)
 	}
 }
@@ -1445,8 +1465,9 @@ func TestWatchAppsWithNamespacedNamesFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	// A namespace qualified name must not let the same name in another namespace through.
-	require.NotEmpty(t, ws.sent)
-	for _, event := range ws.sent {
+	sent := ws.sentEvents()
+	require.NotEmpty(t, sent)
+	for _, event := range sent {
 		assert.Equal(t, "argocd-1", event.Application.Namespace)
 	}
 }
@@ -1483,7 +1504,7 @@ func TestWatchResumeWithResourceVersionDoesNotEmitAdded(t *testing.T) {
 	rv := "10"
 	err := appServer.Watch(&application.ApplicationQuery{ResourceVersion: &rv}, ws)
 	require.NoError(t, err)
-	assert.Empty(t, ws.sent, "resume with resourceVersion must not re-emit ADDED for the listed snapshot")
+	assert.Empty(t, ws.sentEvents(), "resume with resourceVersion must not re-emit ADDED for the listed snapshot")
 }
 
 func TestWatchResumeSeedsVisibleSoFilterExitEmitsDeleted(t *testing.T) {
@@ -1516,16 +1537,17 @@ func TestWatchResumeSeedsVisibleSoFilterExitEmitsDeleted(t *testing.T) {
 	}()
 
 	require.Eventually(t, func() bool {
-		return len(ws.sent) >= 1
+		return ws.sentLen() >= 1
 	}, time.Second, 10*time.Millisecond)
 	cancel()
 	<-done
 
-	require.Len(t, ws.sent, 1)
-	assert.Equal(t, string(watch.Deleted), string(ws.sent[0].Type))
-	assert.Equal(t, "watch-app", ws.sent[0].Application.Name)
+	sent := ws.sentEvents()
+	require.Len(t, sent, 1)
+	assert.Equal(t, string(watch.Deleted), string(sent[0].Type))
+	assert.Equal(t, "watch-app", sent[0].Application.Name)
 	// Authorized filter exit keeps the live application payload (Spec present).
-	assert.Equal(t, "default", ws.sent[0].Application.Spec.Project)
+	assert.Equal(t, "default", sent[0].Application.Spec.Project)
 }
 
 // pushBroadcaster lets tests inject watch events after Watch has subscribed.
@@ -1574,7 +1596,7 @@ func TestWatchRBACLossEmitsIdentityOnlyDeleted(t *testing.T) {
 
 	// Initial ADDED seed under role:admin.
 	require.Eventually(t, func() bool {
-		return len(ws.sent) >= 1
+		return ws.sentLen() >= 1
 	}, time.Second, 10*time.Millisecond)
 
 	_ = appServer.enf.SetBuiltinPolicy("")
@@ -1582,13 +1604,14 @@ func TestWatchRBACLossEmitsIdentityOnlyDeleted(t *testing.T) {
 	pusher.ch <- &v1alpha1.ApplicationWatchEvent{Type: watch.Modified, Application: *updated}
 
 	require.Eventually(t, func() bool {
-		return len(ws.sent) >= 2
+		return ws.sentLen() >= 2
 	}, time.Second, 10*time.Millisecond)
 	cancel()
 	<-done
 
-	require.GreaterOrEqual(t, len(ws.sent), 2)
-	deleted := ws.sent[len(ws.sent)-1]
+	sent := ws.sentEvents()
+	require.GreaterOrEqual(t, len(sent), 2)
+	deleted := sent[len(sent)-1]
 	assert.Equal(t, string(watch.Deleted), string(deleted.Type))
 	assert.Equal(t, "secret-app", deleted.Application.Name)
 	assert.Equal(t, testApp.Namespace, deleted.Application.Namespace)

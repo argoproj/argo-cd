@@ -266,9 +266,29 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
     const {List, Summary, Tiles} = AppsListViewKey;
     const authSettings = React.useContext(AuthSettingsCtx);
 
-    function onAppFilterPrefChanged(ctx: ContextApis, newPref: AppsListPreferences) {
+    function sidebarFiltersEqual(a: AppsListPreferences, b: AppsListPreferences): boolean {
+        const same = (x: string[] = [], y: string[] = []) => x.length === y.length && x.every((v, i) => v === y[i]);
+        return (
+            same(a.projectsFilter, b.projectsFilter) &&
+            same(a.syncFilter, b.syncFilter) &&
+            same(a.autoSyncFilter, b.autoSyncFilter) &&
+            same(a.healthFilter, b.healthFilter) &&
+            same(a.hydrationFilter, b.hydrationFilter) &&
+            same(a.namespacesFilter, b.namespacesFilter) &&
+            same(a.targetRevisionFilter, b.targetRevisionFilter) &&
+            same(a.reposFilter, b.reposFilter) &&
+            same(a.clustersFilter, b.clustersFilter) &&
+            same(a.labelsFilter, b.labelsFilter) &&
+            same(a.annotationsFilter, b.annotationsFilter) &&
+            same(a.operationFilter, b.operationFilter) &&
+            !!a.showFavorites === !!b.showFavorites
+        );
+    }
+
+    function onAppFilterPrefChanged(ctx: ContextApis, currentPref: AppsListPreferences, newPref: AppsListPreferences) {
         services.viewPreferences.updatePreferences({appList: newPref});
-        const params = {
+        const filtersChanged = !sidebarFiltersEqual(currentPref, newPref);
+        const params: {[name: string]: string | null} = {
             proj: newPref.projectsFilter.join(','),
             sync: newPref.syncFilter.join(','),
             autoSync: newPref.autoSyncFilter.join(','),
@@ -282,10 +302,13 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
             annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
             operation: newPref.operationFilter.join(','),
             // Keep URL and preferences consistent. When false, remove the param entirely.
-            showFavorites: newPref.showFavorites ? 'true' : null,
-            // Sidebar filter changes must restart from the first page so SSP offset stays valid.
-            page: null as null
+            showFavorites: newPref.showFavorites ? 'true' : null
         };
+        // Only clear page when filters actually change. Mount echoes must preserve ?page=N;
+        // always passing page:null makes skipIfUnchanged treat page removal as a navigation.
+        if (filtersChanged) {
+            params.page = null;
+        }
         // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
         // call per filter with nothing changed. Browsers rate limit history updates and Safari throws
         // once the cap is hit, so only navigate when the query string actually changes.
@@ -403,7 +426,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                 {ReactDOM.createPortal(
                                                                     <SidebarFilter
                                                                         facets={facets}
-                                                                        onChange={newPrefs => onAppFilterPrefChanged(ctx, newPrefs)}
+                                                                        onChange={newPrefs => onAppFilterPrefChanged(ctx, pref, newPrefs)}
                                                                         pref={pref}
                                                                         hydratorEnabled={authSettings?.hydratorEnabled}
                                                                     />,
@@ -427,7 +450,7 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                                                             // On a copy: pref is memoized and shared with this render's children.
                                                                                             const cleared = {...pref};
                                                                                             AppsListPreferences.clearFilters(cleared);
-                                                                                            onAppFilterPrefChanged(ctx, cleared);
+                                                                                            onAppFilterPrefChanged(ctx, pref, cleared);
                                                                                             ctx.navigation.goto('.', {search: null, page: null}, {replace: true});
                                                                                         }}>
                                                                                         clear filters
@@ -497,12 +520,14 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
                                                             show={syncAppsInput}
                                                             hide={() => ctx.navigation.goto('.', {syncApps: null}, {replace: true})}
                                                             apps={filteredApps}
+                                                            serverPaged={list.serverPaged}
                                                         />
                                                         <ApplicationsRefreshPanel
                                                             key='refreshPanel'
                                                             show={refreshAppsInput}
                                                             hide={() => ctx.navigation.goto('.', {refreshApps: null}, {replace: true})}
                                                             apps={filteredApps}
+                                                            serverPaged={list.serverPaged}
                                                         />
                                                     </div>
                                                     <DataLoader
