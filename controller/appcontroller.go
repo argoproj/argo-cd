@@ -2722,6 +2722,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 
 				return cache.MetaNamespaceIndexFunc(obj)
 			},
+			statecache.ManagedCRDIndex: statecache.ManagedCRDIndexFunc,
 			orphanedIndex: func(obj any) (i []string, e error) {
 				app, ok := obj.(*appv1.Application)
 				if !ok {
