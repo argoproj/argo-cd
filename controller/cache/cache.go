@@ -812,8 +812,7 @@ func compareCacheSettings(prev, next cacheSettings) (otherSettingsChanged, caBun
 func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) (*rest.Config, error) {
 	cluster, err := c.db.GetCluster(context.Background(), server)
 	if err != nil {
-		log.Warnf("Failed to get cluster %s to refresh its REST config after a default CA bundle change: %v", server, err)
-		return nil, nil
+		return nil, fmt.Errorf("failed to get cluster: %w", err)
 	}
 	if !cluster.DependsOnDefaultCABundle() {
 		return nil, nil
@@ -822,7 +821,7 @@ func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) (*rest.Co
 }
 
 func (c *liveStateCache) dropClusterCache(server string, cluster clustercache.ClusterCache, err error) {
-	log.Warnf("Failed to build REST config of cluster %s, dropping its cache: %v", server, err)
+	log.Warnf("Failed to refresh REST config of cluster %s after a default CA bundle change, dropping its cache: %v", server, err)
 	cluster.Invalidate()
 	c.lock.Lock()
 	if c.clusters[server] == cluster {
