@@ -775,7 +775,7 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 	}
 	org = strings.ToLower(org)
 	// Check cache first
-	cacheKey := fmt.Sprintf("%s:%s:%d", strings.ToLower(org), domain, appId)
+	cacheKey := fmt.Sprintf("%s:%s:%d", org, domain, appId)
 	if id, found := githubInstallationIdCache.Get(cacheKey); found {
 		return id.(int64), nil
 	}
@@ -820,7 +820,7 @@ func DiscoverGitHubAppInstallationID(ctx context.Context, appId int64, privateKe
 		var res singleflight.Result
 		select {
 		case res = <-githubInstallationIdGroup.DoChan(flightKey, func() (any, error) {
-			id, err := findGitHubAppInstallationID(ctx, client, domain, appId, org)
+			id, err := findGitHubAppInstallationID(ctx, client, cacheKey, domain, appId, org)
 			if err != nil && ctx.Err() != nil {
 				return nil, &sharedLookupContextError{err: err}
 			}
@@ -855,10 +855,9 @@ func (e *sharedLookupContextError) Error() string { return e.err.Error() }
 func (e *sharedLookupContextError) Unwrap() error { return e.err }
 
 // findGitHubAppInstallationID looks up the app's installation on the org, falling back to the user account of the
-// same name, and caches the installation ID.
-func findGitHubAppInstallationID(ctx context.Context, client *github.Client, domain string, appId int64, org string) (int64, error) {
+// same name, and caches the installation ID under cacheKey.
+func findGitHubAppInstallationID(ctx context.Context, client *github.Client, cacheKey, domain string, appId int64, org string) (int64, error) {
 	// Check the cache again in case another caller's lookup finished since the first check
-	cacheKey := fmt.Sprintf("%s:%s:%d", org, domain, appId)
 	if id, found := githubInstallationIdCache.Get(cacheKey); found {
 		return id.(int64), nil
 	}
