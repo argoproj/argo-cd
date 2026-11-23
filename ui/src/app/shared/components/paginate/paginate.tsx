@@ -144,9 +144,36 @@ export interface PaginateProps<T> {
     focusItemKey?: string;
     /** Maps each list item to the same key format as `focusItemKey`. */
     getItemKey?: (item: T) => string;
+    /** When set, overrides the stored page size (use -1 to show all rows, e.g. server-side pages). */
+    pageSizeOverride?: number;
+    /**
+     * When set, pageCount is derived from the server total instead of data.length, and data is
+     * treated as the current page (no client-side slice).
+     */
+    totalItems?: number;
+    /** When true, sort menu still updates preferences but rows are not re-sorted on the client. */
+    serverSorted?: boolean;
+    /** Overrides the default items-per-page choices (e.g. omit -1/"all" under server-side pagination). */
+    pageSizeOptions?: number[];
 }
 
-export function Paginate<T>({page, onPageChange, children, data, emptyState, preferencesKey, header, showHeader, sortOptions, focusItemKey, getItemKey}: PaginateProps<T>) {
+export function Paginate<T>({
+    page,
+    onPageChange,
+    children,
+    data,
+    emptyState,
+    preferencesKey,
+    header,
+    showHeader,
+    sortOptions,
+    focusItemKey,
+    getItemKey,
+    pageSizeOverride,
+    totalItems,
+    serverSorted,
+    pageSizeOptions
+}: PaginateProps<T>) {
     return (
         <DataLoader load={() => services.viewPreferences.getPreferences()}>
             {pref => (
@@ -161,6 +188,10 @@ export function Paginate<T>({page, onPageChange, children, data, emptyState, pre
                     sortOptions={sortOptions}
                     focusItemKey={focusItemKey}
                     getItemKey={getItemKey}
+                    pageSizeOverride={pageSizeOverride}
+                    totalItems={totalItems}
+                    serverSorted={serverSorted}
+                    pageSizeOptions={pageSizeOptions}
                     pref={pref}>
                     {children}
                 </PaginateContent>
@@ -181,16 +212,23 @@ function PaginateContent<T>({
     sortOptions,
     focusItemKey,
     getItemKey,
+    pageSizeOverride,
+    totalItems,
+    serverSorted,
+    pageSizeOptions,
     pref
 }: PaginateProps<T> & {pref: ViewPreferences}) {
-    const pageSize = pref.pageSizes[preferencesKey] || 10;
+    const pageSize = pageSizeOverride !== undefined ? pageSizeOverride : pref.pageSizes[preferencesKey] || 10;
     const sortOption = sortOptions ? (pref.sortOptions && pref.sortOptions[preferencesKey]) || sortOptions[0].title : '';
-    const pageCount = pageSize === -1 ? 1 : Math.ceil(data.length / pageSize);
+    const serverPaged = totalItems !== undefined;
+    const itemCount = serverPaged ? totalItems : data.length;
+    const pageCount = pageSize === -1 ? 1 : Math.max(1, Math.ceil(itemCount / pageSize));
     const currentPage = pageCount <= page ? pageCount - 1 : page;
+    const sizeChoices = pageSizeOptions || [5, 10, 15, 20, -1];
 
     const sortedData = React.useMemo(() => {
         const next = [...data];
-        if (sortOption && sortOptions) {
+        if (!serverSorted && sortOption && sortOptions) {
             const selectedSort = sortOptions.find(o => o.title === sortOption);
             if (selectedSort) {
                 const direction = pref.sortDirections?.[preferencesKey] ?? selectedSort.defaultDirection ?? 'asc';
@@ -201,7 +239,7 @@ function PaginateContent<T>({
             }
         }
         return next;
-    }, [data, sortOption, sortOptions, pref.sortDirections, preferencesKey]);
+    }, [data, sortOption, sortOptions, pref.sortDirections, preferencesKey, serverSorted]);
 
     // Deep-link highlight: when `focusItemKey` is set (e.g. opening an Application from the
     // Resources page with `?highlight=group/kind/namespace/name`), keep the displayed page in
@@ -234,6 +272,10 @@ function PaginateContent<T>({
         if (userPaginatedForKey.current === focusItemKey) {
             return;
         }
+        // Server-paged lists only contain the current page; deep-link page jumps need the full catalog.
+        if (serverPaged) {
+            return;
+        }
         const index = sortedData.findIndex(item => getItemKeyRef.current!(item) === focusItemKey);
         if (index < 0) {
             return;
@@ -246,7 +288,7 @@ function PaginateContent<T>({
         if (targetPage !== currentPageRef.current) {
             onPageChangeRef.current(targetPage);
         }
-    }, [focusItemKey, pageCount, pageSize, sortedData, sortOption]);
+    }, [focusItemKey, pageCount, pageSize, sortedData, sortOption, serverPaged]);
 
     const handlePageChange = React.useCallback(
         (newPage: number) => {
@@ -298,11 +340,12 @@ function PaginateContent<T>({
                                     Items per page: {pageSize === -1 ? 'all' : pageSize} <i className='fa fa-caret-down' />
                                 </a>
                             )}
-                            items={[5, 10, 15, 20, -1].map(count => ({
+                            items={sizeChoices.map(count => ({
                                 title: count === -1 ? 'all' : count.toString(),
                                 action: () => {
                                     pref.pageSizes[preferencesKey] = count;
                                     services.viewPreferences.updatePreferences(pref);
+                                    onPageChange(0);
                                 }
                             }))}
                         />
@@ -313,8 +356,8 @@ function PaginateContent<T>({
         );
     }
 
-    const useVirtualScrolling = pageSize === -1;
-    const paginatedData = useVirtualScrolling ? sortedData : sortedData.slice(pageSize * currentPage, pageSize * (currentPage + 1));
+    const useVirtualScrolling = pageSize === -1 && !serverPaged;
+    const paginatedData = serverPaged || useVirtualScrolling ? sortedData : sortedData.slice(pageSize * currentPage, pageSize * (currentPage + 1));
 
     return (
         <React.Fragment>

@@ -10,6 +10,7 @@ import (
 	"slices"
 	"strconv"
 	"strings"
+	stdsync "sync"
 	"sync/atomic"
 	"testing"
 	"time"
@@ -104,19 +105,37 @@ func (broadcasterMock) OnDelete(any)      {}
 
 // mockApplicationWatchServer captures the applications sent through a Watch stream. The embedded
 // grpc.ServerStream is never used because Watch only calls Context and Send, both overridden here.
+// sent is guarded by mu because Watch runs in a goroutine while tests poll with Eventually.
 type mockApplicationWatchServer struct {
 	googlegrpc.ServerStream
 	ctx  context.Context
+	mu   stdsync.Mutex
 	sent []*v1alpha1.ApplicationWatchEvent
 }
 
 func (m *mockApplicationWatchServer) Send(event *v1alpha1.ApplicationWatchEvent) error {
+	m.mu.Lock()
+	defer m.mu.Unlock()
 	m.sent = append(m.sent, event)
 	return nil
 }
 
 func (m *mockApplicationWatchServer) Context() context.Context {
 	return m.ctx
+}
+
+func (m *mockApplicationWatchServer) sentLen() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.sent)
+}
+
+func (m *mockApplicationWatchServer) sentEvents() []*v1alpha1.ApplicationWatchEvent {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	out := make([]*v1alpha1.ApplicationWatchEvent, len(m.sent))
+	copy(out, m.sent)
+	return out
 }
 
 func fakeRepo() *v1alpha1.Repository {
@@ -1417,8 +1436,9 @@ func TestWatchAppsWithNamesFilter(t *testing.T) {
 
 	// The initial send loop always emits the matching application, and the names filter must never
 	// let a non-matching application through.
-	require.NotEmpty(t, ws.sent)
-	for _, event := range ws.sent {
+	sent := ws.sentEvents()
+	require.NotEmpty(t, sent)
+	for _, event := range sent {
 		assert.Equal(t, "match-app", event.Application.Name)
 	}
 }
@@ -1445,10 +1465,159 @@ func TestWatchAppsWithNamespacedNamesFilter(t *testing.T) {
 	require.NoError(t, err)
 
 	// A namespace qualified name must not let the same name in another namespace through.
-	require.NotEmpty(t, ws.sent)
-	for _, event := range ws.sent {
+	sent := ws.sentEvents()
+	require.NotEmpty(t, sent)
+	for _, event := range sent {
 		assert.Equal(t, "argocd-1", event.Application.Namespace)
 	}
+}
+
+// scriptedBroadcaster delivers a fixed sequence of watch events on Subscribe.
+type scriptedBroadcaster struct {
+	events []*v1alpha1.ApplicationWatchEvent
+}
+
+func (b scriptedBroadcaster) Subscribe(ch chan *v1alpha1.ApplicationWatchEvent, _ ...func(event *v1alpha1.ApplicationWatchEvent) bool) func() {
+	go func() {
+		for _, ev := range b.events {
+			ch <- ev
+		}
+	}()
+	return func() {}
+}
+
+func (scriptedBroadcaster) OnAdd(any, bool)   {}
+func (scriptedBroadcaster) OnUpdate(any, any) {}
+func (scriptedBroadcaster) OnDelete(any)      {}
+
+func TestWatchResumeWithResourceVersionDoesNotEmitAdded(t *testing.T) {
+	testApp := newTestApp(func(app *v1alpha1.Application) {
+		app.ResourceVersion = "5"
+	})
+	appServer := newTestAppServer(t, testApp)
+	// Silence the default mock broadcaster so only the resume seed path is under test.
+	appServer.appBroadcaster = scriptedBroadcaster{}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	ws := &mockApplicationWatchServer{ctx: ctx}
+	rv := "10"
+	err := appServer.Watch(&application.ApplicationQuery{ResourceVersion: &rv}, ws)
+	require.NoError(t, err)
+	assert.Empty(t, ws.sentEvents(), "resume with resourceVersion must not re-emit ADDED for the listed snapshot")
+}
+
+func TestWatchResumeSeedsVisibleSoFilterExitEmitsDeleted(t *testing.T) {
+	testApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "watch-app"
+		app.ResourceVersion = "5"
+		app.Labels = map[string]string{"team": "a"}
+		app.Spec.Project = "default"
+	})
+	updated := testApp.DeepCopy()
+	updated.ResourceVersion = "20"
+	updated.Labels = map[string]string{"team": "b"}
+
+	appServer := newTestAppServer(t, testApp)
+	appServer.appBroadcaster = scriptedBroadcaster{
+		events: []*v1alpha1.ApplicationWatchEvent{{
+			Type:        watch.Modified,
+			Application: *updated,
+		}},
+	}
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ws := &mockApplicationWatchServer{ctx: ctx}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		rv := "10"
+		selector := "team=a"
+		_ = appServer.Watch(&application.ApplicationQuery{ResourceVersion: &rv, Selector: &selector}, ws)
+	}()
+
+	require.Eventually(t, func() bool {
+		return ws.sentLen() >= 1
+	}, time.Second, 10*time.Millisecond)
+	cancel()
+	<-done
+
+	sent := ws.sentEvents()
+	require.Len(t, sent, 1)
+	assert.Equal(t, string(watch.Deleted), string(sent[0].Type))
+	assert.Equal(t, "watch-app", sent[0].Application.Name)
+	// Authorized filter exit keeps the live application payload (Spec present).
+	assert.Equal(t, "default", sent[0].Application.Spec.Project)
+}
+
+// pushBroadcaster lets tests inject watch events after Watch has subscribed.
+type pushBroadcaster struct {
+	ch chan *v1alpha1.ApplicationWatchEvent
+}
+
+func newPushBroadcaster() *pushBroadcaster {
+	return &pushBroadcaster{ch: make(chan *v1alpha1.ApplicationWatchEvent, 8)}
+}
+
+func (b *pushBroadcaster) Subscribe(out chan *v1alpha1.ApplicationWatchEvent, _ ...func(event *v1alpha1.ApplicationWatchEvent) bool) func() {
+	go func() {
+		for ev := range b.ch {
+			out <- ev
+		}
+	}()
+	return func() {}
+}
+
+func (b *pushBroadcaster) OnAdd(any, bool)   {}
+func (b *pushBroadcaster) OnUpdate(any, any) {}
+func (b *pushBroadcaster) OnDelete(any)      {}
+
+func TestWatchRBACLossEmitsIdentityOnlyDeleted(t *testing.T) {
+	testApp := newTestApp(func(app *v1alpha1.Application) {
+		app.Name = "secret-app"
+		app.ResourceVersion = "1"
+		app.Spec.Project = "default"
+		app.Status.Sync.Status = v1alpha1.SyncStatusCodeSynced
+	})
+	updated := testApp.DeepCopy()
+	updated.ResourceVersion = "2"
+
+	appServer := newTestAppServer(t, testApp)
+	pusher := newPushBroadcaster()
+	appServer.appBroadcaster = pusher
+
+	ctx, cancel := context.WithCancel(context.Background())
+	ws := &mockApplicationWatchServer{ctx: ctx}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		_ = appServer.Watch(&application.ApplicationQuery{}, ws)
+	}()
+
+	// Initial ADDED seed under role:admin.
+	require.Eventually(t, func() bool {
+		return ws.sentLen() >= 1
+	}, time.Second, 10*time.Millisecond)
+
+	_ = appServer.enf.SetBuiltinPolicy("")
+	appServer.enf.SetDefaultRole("role:none")
+	pusher.ch <- &v1alpha1.ApplicationWatchEvent{Type: watch.Modified, Application: *updated}
+
+	require.Eventually(t, func() bool {
+		return ws.sentLen() >= 2
+	}, time.Second, 10*time.Millisecond)
+	cancel()
+	<-done
+
+	sent := ws.sentEvents()
+	require.GreaterOrEqual(t, len(sent), 2)
+	deleted := sent[len(sent)-1]
+	assert.Equal(t, string(watch.Deleted), string(deleted.Type))
+	assert.Equal(t, "secret-app", deleted.Application.Name)
+	assert.Equal(t, testApp.Namespace, deleted.Application.Namespace)
+	// Must not leak Spec/Status from the unauthorized live object.
+	assert.Empty(t, deleted.Application.Spec.Project)
+	assert.Empty(t, deleted.Application.Status.Sync.Status)
 }
 
 func TestListApps(t *testing.T) {
@@ -4071,16 +4240,16 @@ func TestIsApplicationPermitted(t *testing.T) {
 	t.Run("Application name not in names filter", func(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		names := map[string]bool{"some-other-app": true}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, names, *testApp)
+		q := &application.ApplicationQuery{Names: []string{"some-other-app"}}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, q, *testApp)
 		assert.False(t, permitted)
 	})
 
 	t.Run("Application name in names filter", func(t *testing.T) {
 		testApp := newTestApp()
 		appServer := newTestAppServer(t, testApp)
-		names := map[string]bool{testApp.Name: true}
-		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, names, *testApp)
+		q := &application.ApplicationQuery{Names: []string{testApp.Name}}
+		permitted := appServer.isApplicationPermitted(labels.Everything(), 0, nil, testApp.Name, testApp.Namespace, nil, q, *testApp)
 		assert.True(t, permitted)
 	})
 
@@ -6119,4 +6288,120 @@ func TestRollbackRBACPermissions_ProjectScoped(t *testing.T) {
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "permission denied")
 	})
+}
+
+func listQueryPtr[T any](v T) *T { return &v }
+
+func TestMatchesApplicationQuerySearch(t *testing.T) {
+	app := &v1alpha1.Application{
+		Name: "guestbook", Namespace: "argocd",
+		Spec: v1alpha1.ApplicationSpec{Project: "default"},
+		Status: v1alpha1.ApplicationStatus{
+			Sync:   v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced},
+			Health: v1alpha1.AppHealthStatus{Status: "Healthy"},
+		},
+	}
+
+	assert.True(t, matchesApplicationQueryQ(app, &application.ApplicationQuery{Search: listQueryPtr("guest")}))
+	assert.False(t, matchesApplicationQueryQ(app, &application.ApplicationQuery{Search: listQueryPtr("other")}))
+	assert.True(t, matchesApplicationQueryQ(app, &application.ApplicationQuery{Search: listQueryPtr("^guest"), SearchRegex: listQueryPtr(true)}))
+	assert.False(t, matchesApplicationQueryQ(app, &application.ApplicationQuery{Search: listQueryPtr("["), SearchRegex: listQueryPtr(true)}))
+	assert.False(t, matchesApplicationQueryQ(app, &application.ApplicationQuery{SyncStatuses: []string{"OutOfSync"}}))
+	assert.True(t, matchesApplicationQueryQ(app, &application.ApplicationQuery{SyncStatuses: []string{"Synced"}}))
+}
+
+func TestPaginateApplications(t *testing.T) {
+	apps := []*v1alpha1.Application{
+		{Name: "a"},
+		{Name: "b"},
+		{Name: "c"},
+	}
+	require.Len(t, paginateApplications(apps, &application.ApplicationQuery{}), 3)
+	page := paginateApplications(apps, &application.ApplicationQuery{Offset: listQueryPtr(int64(1)), Limit: listQueryPtr(int64(1))})
+	require.Len(t, page, 1)
+	assert.Equal(t, "b", page[0].Name)
+
+	// start == len returns an empty page without depending on limit arithmetic.
+	empty := paginateApplications(apps, &application.ApplicationQuery{Offset: listQueryPtr(int64(3)), Limit: listQueryPtr(int64(10))})
+	assert.Empty(t, empty)
+
+	// Huge limit is bounded to the remaining items (no overflow past the slice).
+	tail := paginateApplications(apps, &application.ApplicationQuery{Offset: listQueryPtr(int64(2)), Limit: listQueryPtr(int64(1 << 62))})
+	require.Len(t, tail, 1)
+	assert.Equal(t, "c", tail[0].Name)
+}
+
+func TestSortApplicationsTieBreakers(t *testing.T) {
+	ts := metav1.NewTime(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC))
+	finished := metav1.NewTime(time.Date(2024, 2, 1, 0, 0, 0, 0, time.UTC))
+	apps := []*v1alpha1.Application{
+		{Name: "b", Namespace: "ns-a", CreationTimestamp: ts},
+		{Name: "a", Namespace: "ns-b", CreationTimestamp: ts},
+		{Name: "a", Namespace: "ns-a", CreationTimestamp: ts},
+	}
+	sortApplications(apps, "")
+	assert.Equal(t, []string{"ns-a/a", "ns-a/b", "ns-b/a"}, []string{
+		apps[0].Namespace + "/" + apps[0].Name,
+		apps[1].Namespace + "/" + apps[1].Name,
+		apps[2].Namespace + "/" + apps[2].Name,
+	})
+
+	created := []*v1alpha1.Application{
+		{Name: "b", Namespace: "ns-a", CreationTimestamp: ts},
+		{Name: "a", Namespace: "ns-a", CreationTimestamp: ts},
+	}
+	sortApplications(created, sortCreatedAt)
+	assert.Equal(t, "a", created[0].Name)
+
+	synced := []*v1alpha1.Application{
+		{
+			Name: "b", Namespace: "ns-a",
+			Status: v1alpha1.ApplicationStatus{OperationState: &v1alpha1.OperationState{FinishedAt: &finished}},
+		},
+		{
+			Name: "a", Namespace: "ns-a",
+			Status: v1alpha1.ApplicationStatus{OperationState: &v1alpha1.OperationState{FinishedAt: &finished}},
+		},
+		{Name: "z", Namespace: "ns-b"},
+		{Name: "y", Namespace: "ns-a"},
+	}
+	sortApplications(synced, sortSynchronizedAt)
+	assert.Equal(t, []string{"ns-a/a", "ns-a/b", "ns-a/y", "ns-b/z"}, []string{
+		synced[0].Namespace + "/" + synced[0].Name,
+		synced[1].Namespace + "/" + synced[1].Name,
+		synced[2].Namespace + "/" + synced[2].Name,
+		synced[3].Namespace + "/" + synced[3].Name,
+	})
+}
+
+func TestBuildApplicationListStats(t *testing.T) {
+	apps := []*v1alpha1.Application{
+		{
+			Name: "a", Labels: map[string]string{"env": "prod"},
+			Spec: v1alpha1.ApplicationSpec{
+				Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/example/a"},
+				Destination: v1alpha1.ApplicationDestination{Server: "https://k8s", Namespace: "ns1"},
+				SyncPolicy:  &v1alpha1.SyncPolicy{Automated: &v1alpha1.SyncPolicyAutomated{}},
+			},
+			Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeSynced}, Health: v1alpha1.AppHealthStatus{Status: "Healthy"}},
+		},
+		{
+			Name: "b",
+			Spec: v1alpha1.ApplicationSpec{
+				Source:      &v1alpha1.ApplicationSource{RepoURL: "https://github.com/example/b"},
+				Destination: v1alpha1.ApplicationDestination{Server: "https://k8s", Namespace: "ns2"},
+				SyncPolicy: &v1alpha1.SyncPolicy{
+					Automated: &v1alpha1.SyncPolicyAutomated{Enabled: listQueryPtr(false)},
+				},
+			},
+			Status: v1alpha1.ApplicationStatus{Sync: v1alpha1.SyncStatus{Status: v1alpha1.SyncStatusCodeOutOfSync}, Health: v1alpha1.AppHealthStatus{Status: "Degraded"}},
+		},
+	}
+	stats := buildApplicationListStats(apps, &application.ApplicationQuery{})
+	assert.Equal(t, int64(2), stats.Total)
+	assert.Equal(t, int64(1), stats.TotalBySyncStatus[v1alpha1.SyncStatusCodeSynced])
+	assert.Equal(t, int64(1), stats.TotalBySyncStatus[v1alpha1.SyncStatusCodeOutOfSync])
+	assert.Equal(t, []string{"https://github.com/example/a", "https://github.com/example/b"}, stats.Repos)
+	assert.Equal(t, int64(1), stats.AutoSyncCount["Enabled"])
+	assert.Equal(t, int64(1), stats.AutoSyncCount["Disabled"])
 }

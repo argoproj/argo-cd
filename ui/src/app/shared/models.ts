@@ -16,7 +16,25 @@ interface ItemsList<T> {
 }
 
 export interface AbstractApplicationList extends ItemsList<AbstractApplication> {}
-export interface ApplicationList extends ItemsList<Application> {}
+export interface ApplicationLabelStats {
+    key: string;
+    values: string[];
+}
+
+export interface ApplicationListStats {
+    total?: number;
+    totalBySyncStatus?: {[status: string]: number};
+    totalByHealthStatus?: {[status: string]: number};
+    autoSyncCount?: {[status: string]: number};
+    destinations?: ApplicationDestination[];
+    namespaces?: string[];
+    labels?: ApplicationLabelStats[];
+    repos?: string[];
+}
+
+export interface ApplicationList extends ItemsList<Application> {
+    stats?: ApplicationListStats;
+}
 export interface ApplicationSetList extends ItemsList<ApplicationSet> {}
 
 export interface SyncOperationResource {
@@ -648,6 +666,10 @@ export interface AuthSettings {
     hydratorEnabled: boolean;
     syncWithReplaceAllowed: boolean;
     resourceViewEnabled: boolean;
+    /** When true, the applications list uses server-side search and pagination. */
+    serverSidePaginationEnabled: boolean;
+    /** Default batch size for server-side application list requests. */
+    applicationPageSize: number;
     appLabelKey: string;
     trackingMethod: string;
     additionalUrls: string[];

@@ -63,45 +63,37 @@ APIs will be extended with the optional `minName` and `maxName` fields. The `min
 and the `maxName` field will be used to specify the application name to end at. The fields should be added to the `ApplicationQuery` message
 which is used as a request payload for the Applications List and Watch APIs.
 
+> [!NOTE]
+> Field numbers below supersede the original draft. `names` already occupies field **9**, so pagination/filter fields start at **10**.
+> UI exposure is gated by feature flag `server.enable.server.side.pagination` (default off) with configurable
+> page size `server.application.page.size` (default 250). Search matches application name/namespace
+> (substring; optional `searchRegex`).
+
 ```proto
 message ApplicationQuery { 
-  // ... existing fields
-  // New proto fields for server side pagination
-	// the application name to start from (app with min name is included in response)
-	optional string minName = 9;
-	// the application name to end at (app with max name is included in response)
-	optional string maxName = 10;
-  	// offset
-	optional int64 offset = 18;
-	// limit
-	optional int64 limit = 19;
+  // ... existing fields (names = 9)
+  // New proto fields for server side filtering + pagination
+	repeated string repos = 10;
+	repeated string clusters = 11;
+	repeated string namespaces = 12;
+	repeated string labels = 13;
+	repeated string autoSyncs = 14;
+	repeated string syncStatuses = 15;
+	repeated string healthStatuses = 16;
+	optional string search = 17;
+	optional bool searchRegex = 18;
+	optional int64 offset = 30;
+	optional int64 limit = 31;
+	optional string sortBy = 32;
+	optional string minName = 33;
+	optional string maxName = 34;
 }
 ```
 
 **Server Side Filtering**
 
-In order to support server side pagination the filtering has to be moved to the server side as well. `ApplicationQuery` message needs to be extended with the following fields:
-
-```proto
-message ApplicationQuery { 
-  // ... existing fields
-  // New proto fields for server side filtering
-	// the repos filter
-	repeated string repos = 11;
-	// the clusters filter
-	repeated string clusters = 12;
-	// the namespaces filter
-	repeated string namespaces = 13;
-	// the auth sync filter
-	optional bool autoSyncEnabled = 14;
-	// the sync status filter
-	repeated string syncStatuses = 15;
-	// the health status filter
-	repeated string healthStatuses = 16;
-	// search
-	optional string search = 17;
-}
-```
+In order to support server side pagination the filtering has to be moved to the server side as well.
+The fields above are used by List/Watch. Omit `limit` to receive the full filtered list (backward compatible).
 
 The Argo CD UI should be updated to populate fields in the List and Watch API requests instead of performing filtering on the client side.
 
@@ -170,6 +162,23 @@ contains the proposal to avoid doing it.
 ### Upgrade / Downgrade Strategy
 
 The proposal does not introduce any breaking changes. The API server should gracefully handle requests without pagination fields.
+
+### Enabling the Alpha UI path
+
+API List/Watch accept the new query fields regardless of the flag (omit `limit` = full list).
+The UI progressive-loading path is gated:
+
+```yaml
+# argocd-cmd-params-cm
+data:
+  server.enable.server.side.pagination: "true"
+  server.application.page.size: "250"
+```
+
+Or env on `argocd-server`: `ARGOCD_SERVER_ENABLE_SERVER_SIDE_PAGINATION=true`,
+`ARGOCD_SERVER_APPLICATION_PAGE_SIZE=250`.
+
+Default remains **off** until UI feature parity (facets, autocomplete, favorites, hydrator) is complete.
 
 ## Drawbacks
 

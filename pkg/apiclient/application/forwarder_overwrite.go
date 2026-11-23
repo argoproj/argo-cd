@@ -33,6 +33,7 @@ import (
 var appFields = map[string]func(app *v1alpha1.Application) any{
 	"metadata.name":              func(app *v1alpha1.Application) any { return app.Name },
 	"metadata.namespace":         func(app *v1alpha1.Application) any { return app.Namespace },
+	"metadata.resourceVersion":   func(app *v1alpha1.Application) any { return app.ResourceVersion },
 	"metadata.annotations":       func(app *v1alpha1.Application) any { return app.Annotations },
 	"metadata.labels":            func(app *v1alpha1.Application) any { return app.Labels },
 	"metadata.creationTimestamp": func(app *v1alpha1.Application) any { return app.CreationTimestamp },
@@ -190,37 +191,50 @@ func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, f
 		return err
 	}
 	if appList.Items == nil {
-		if _, err := w.Write([]byte(`,"items":null}`)); err != nil {
+		if _, err := w.Write([]byte(`,"items":null`)); err != nil {
 			return err
 		}
-		return nil
-	}
+	} else {
+		if _, err := w.Write([]byte(`,"items":[`)); err != nil {
+			return err
+		}
 
-	if _, err := w.Write([]byte(`,"items":[`)); err != nil {
-		return err
-	}
-
-	for i := range appList.Items {
-		if i > 0 {
-			if _, err := w.Write([]byte(",")); err != nil {
-				return err
+		for i := range appList.Items {
+			if i > 0 {
+				if _, err := w.Write([]byte(",")); err != nil {
+					return err
+				}
+			}
+			if useFieldFilter {
+				converted, err := processAppFields(&appList.Items[i], specs)
+				if err != nil {
+					return err
+				}
+				if err := enc.Encode(converted); err != nil {
+					return err
+				}
+			} else {
+				if err := enc.Encode(&appList.Items[i]); err != nil {
+					return err
+				}
 			}
 		}
-		if useFieldFilter {
-			converted, err := processAppFields(&appList.Items[i], specs)
-			if err != nil {
-				return err
-			}
-			if err := enc.Encode(converted); err != nil {
-				return err
-			}
-		} else {
-			if err := enc.Encode(&appList.Items[i]); err != nil {
-				return err
-			}
+		if _, err := w.Write([]byte("]")); err != nil {
+			return err
 		}
 	}
-	if _, err := w.Write([]byte("]}")); err != nil {
+
+	// Include stats when the server attached them (paginated / SSP list responses).
+	if appList.Stats != nil {
+		if _, err := w.Write([]byte(`,"stats":`)); err != nil {
+			return err
+		}
+		if err := enc.Encode(appList.Stats); err != nil {
+			return err
+		}
+	}
+
+	if _, err := w.Write([]byte("}")); err != nil {
 		return err
 	}
 	return nil
@@ -274,10 +288,14 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 			}
 			items = append(items, converted)
 		}
-		return map[string]any{
+		out := map[string]any{
 			"items":    items,
 			"metadata": appList.ListMeta,
-		}, nil
+		}
+		if appList.Stats != nil {
+			out["stats"] = appList.Stats
+		}
+		return out, nil
 	}
 	return nil, errors.New("not an application list")
 }

@@ -8,6 +8,16 @@ const pref = (overrides: Partial<AppsListPreferences> = {}) =>
     ({
         projectsFilter: [],
         labelsFilter: [],
+        annotationsFilter: [],
+        healthFilter: [],
+        clustersFilter: [],
+        namespacesFilter: [],
+        reposFilter: [],
+        targetRevisionFilter: [],
+        syncFilter: [],
+        autoSyncFilter: [],
+        operationFilter: [],
+        hydrationFilter: [],
         showFavorites: false,
         favoritesAppList: [],
         ...overrides
@@ -33,5 +43,23 @@ describe('showCreateFirstAppState', () => {
     it('is not shown when a project or label filter could explain the empty list', () => {
         expect(showCreateFirstAppState([], pref({projectsFilter: ['default']}))).toBe(false);
         expect(showCreateFirstAppState([], pref({labelsFilter: ['env=prod']}))).toBe(false);
+    });
+
+    it('is not shown when search could explain the empty list', () => {
+        expect(showCreateFirstAppState([], pref(), 'no-such-app')).toBe(false);
+        expect(showCreateFirstAppState([], pref(), '   ')).toBe(true);
+    });
+
+    it('is not shown when sidebar filters that clearFilters resets could explain the empty list', () => {
+        expect(showCreateFirstAppState([], pref({healthFilter: ['Degraded']}))).toBe(false);
+        expect(showCreateFirstAppState([], pref({syncFilter: ['OutOfSync']}))).toBe(false);
+        expect(showCreateFirstAppState([], pref({reposFilter: ['https://example.com']}))).toBe(false);
+        expect(showCreateFirstAppState([], pref({clustersFilter: ['in-cluster']}))).toBe(false);
+        expect(showCreateFirstAppState([], pref({namespacesFilter: ['default']}))).toBe(false);
+        expect(showCreateFirstAppState([], pref({autoSyncFilter: ['Enabled']}))).toBe(false);
+        expect(showCreateFirstAppState([], pref({annotationsFilter: ['team=platform']}))).toBe(false);
+        expect(showCreateFirstAppState([], pref({operationFilter: ['Sync']}))).toBe(false);
+        expect(showCreateFirstAppState([], pref({hydrationFilter: ['Hydrated']}))).toBe(false);
+        expect(showCreateFirstAppState([], pref({targetRevisionFilter: ['HEAD']}))).toBe(false);
     });
 });

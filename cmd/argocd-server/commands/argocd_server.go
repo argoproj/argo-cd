@@ -56,50 +56,52 @@ var (
 // NewCommand returns a new instance of an argocd command
 func NewCommand() *cobra.Command {
 	var (
-		redisClient              *redis.Client
-		insecure                 bool
-		listenHost               string
-		listenPort               int
-		metricsHost              string
-		metricsPort              int
-		otlpAddress              string
-		otlpInsecure             bool
-		otlpHeaders              map[string]string
-		otlpAttrs                []string
-		otlpMetricsEnabled       bool
-		otlpMetricsInterval      time.Duration
-		otlpSampleRatio          float64
-		glogLevel                int
-		clientConfig             clientcmd.ClientConfig
-		repoServerTimeoutSeconds int
-		baseHRef                 string
-		rootPath                 string
-		repoServerAddress        string
-		dexServerAddress         string
-		disableAuth              bool
-		contentTypes             string
-		enableGZip               bool
-		tlsConfigCustomizerSrc   func() (tls.ConfigCustomizer, error)
-		cacheSrc                 func() (*servercache.Cache, error)
-		repoServerCacheSrc       func() (*reposervercache.Cache, error)
-		frameOptions             string
-		contentSecurityPolicy    string
-		repoServerPlaintext      bool
-		repoServerStrictTLS      bool
-		dexServerPlaintext       bool
-		dexServerStrictTLS       bool
-		staticAssetsDir          string
-		applicationNamespaces    []string
-		enableProxyExtension     bool
-		webhookParallelism       int
-		globCacheSize            int
-		webhookRefreshWorkers    int
-		hydratorEnabled          bool
-		syncWithReplaceAllowed   bool
-		disableSwaggerUI         bool
-		enableSourceIPLogging    bool
-		trustedProxies           []string
-		clientIPHeader           string
+		redisClient                 *redis.Client
+		insecure                    bool
+		listenHost                  string
+		listenPort                  int
+		metricsHost                 string
+		metricsPort                 int
+		otlpAddress                 string
+		otlpInsecure                bool
+		otlpHeaders                 map[string]string
+		otlpAttrs                   []string
+		otlpMetricsEnabled          bool
+		otlpMetricsInterval         time.Duration
+		otlpSampleRatio             float64
+		glogLevel                   int
+		clientConfig                clientcmd.ClientConfig
+		repoServerTimeoutSeconds    int
+		baseHRef                    string
+		rootPath                    string
+		repoServerAddress           string
+		dexServerAddress            string
+		disableAuth                 bool
+		contentTypes                string
+		enableGZip                  bool
+		tlsConfigCustomizerSrc      func() (tls.ConfigCustomizer, error)
+		cacheSrc                    func() (*servercache.Cache, error)
+		repoServerCacheSrc          func() (*reposervercache.Cache, error)
+		frameOptions                string
+		contentSecurityPolicy       string
+		repoServerPlaintext         bool
+		repoServerStrictTLS         bool
+		dexServerPlaintext          bool
+		dexServerStrictTLS          bool
+		staticAssetsDir             string
+		applicationNamespaces       []string
+		enableProxyExtension        bool
+		webhookParallelism          int
+		globCacheSize               int
+		webhookRefreshWorkers       int
+		hydratorEnabled             bool
+		syncWithReplaceAllowed      bool
+		serverSidePaginationEnabled bool
+		applicationPageSize         int64
+		disableSwaggerUI            bool
+		enableSourceIPLogging       bool
+		trustedProxies              []string
+		clientIPHeader              string
 
 		// ApplicationSet
 		enableNewGitFileGlobbing bool
@@ -236,48 +238,50 @@ func NewCommand() *cobra.Command {
 			errors.CheckError(err)
 
 			argoCDOpts := server.ArgoCDServerOpts{
-				Insecure:                insecure,
-				ListenPort:              listenPort,
-				ListenHost:              listenHost,
-				MetricsPort:             metricsPort,
-				MetricsHost:             metricsHost,
-				Namespace:               namespace,
-				BaseHRef:                baseHRef,
-				RootPath:                rootPath,
-				DynamicClientset:        dynamicClient,
-				KubeControllerClientset: controllerClient,
-				KubeClientset:           kubeclientset,
-				AppClientset:            appClientSet,
-				RepoClientset:           repoclientset,
-				DexServerAddr:           dexServerAddress,
-				DexTLSConfig:            dexTLSConfig,
-				DisableAuth:             disableAuth,
-				ContentTypes:            contentTypesList,
-				EnableGZip:              enableGZip,
-				TLSConfigCustomizer:     tlsConfigCustomizer,
-				Cache:                   cache,
-				RepoServerCache:         repoServerCache,
-				XFrameOptions:           frameOptions,
-				ContentSecurityPolicy:   contentSecurityPolicy,
-				RedisClient:             redisClient,
-				StaticAssetsDir:         staticAssetsDir,
-				ApplicationNamespaces:   applicationNamespaces,
-				EnableProxyExtension:    enableProxyExtension,
-				WebhookParallelism:      webhookParallelism,
-				WebhookRefreshWorkers:   webhookRefreshWorkers,
-				EnableK8sEvent:          enableK8sEvent,
-				HydratorEnabled:         hydratorEnabled,
-				SyncWithReplaceAllowed:  syncWithReplaceAllowed,
-				OTLPAddress:             otlpAddress,
-				OTLPInsecure:            otlpInsecure,
-				OTLPHeaders:             otlpHeaders,
-				OTLPAttrs:               otlpAttrs,
-				OTLPMetricsEnabled:      otlpMetricsEnabled,
-				OTLPMetricsInterval:     otlpMetricsInterval,
-				DisableSwaggerUI:        disableSwaggerUI,
-				EnableSourceIPLogging:   enableSourceIPLogging,
-				TrustedProxies:          trustedProxyPrefixes,
-				ClientIPHeader:          clientIPHeader,
+				Insecure:                    insecure,
+				ListenPort:                  listenPort,
+				ListenHost:                  listenHost,
+				MetricsPort:                 metricsPort,
+				MetricsHost:                 metricsHost,
+				Namespace:                   namespace,
+				BaseHRef:                    baseHRef,
+				RootPath:                    rootPath,
+				DynamicClientset:            dynamicClient,
+				KubeControllerClientset:     controllerClient,
+				KubeClientset:               kubeclientset,
+				AppClientset:                appClientSet,
+				RepoClientset:               repoclientset,
+				DexServerAddr:               dexServerAddress,
+				DexTLSConfig:                dexTLSConfig,
+				DisableAuth:                 disableAuth,
+				ContentTypes:                contentTypesList,
+				EnableGZip:                  enableGZip,
+				TLSConfigCustomizer:         tlsConfigCustomizer,
+				Cache:                       cache,
+				RepoServerCache:             repoServerCache,
+				XFrameOptions:               frameOptions,
+				ContentSecurityPolicy:       contentSecurityPolicy,
+				RedisClient:                 redisClient,
+				StaticAssetsDir:             staticAssetsDir,
+				ApplicationNamespaces:       applicationNamespaces,
+				EnableProxyExtension:        enableProxyExtension,
+				WebhookParallelism:          webhookParallelism,
+				WebhookRefreshWorkers:       webhookRefreshWorkers,
+				EnableK8sEvent:              enableK8sEvent,
+				HydratorEnabled:             hydratorEnabled,
+				SyncWithReplaceAllowed:      syncWithReplaceAllowed,
+				ServerSidePaginationEnabled: serverSidePaginationEnabled,
+				ApplicationPageSize:         applicationPageSize,
+				OTLPAddress:                 otlpAddress,
+				OTLPInsecure:                otlpInsecure,
+				OTLPHeaders:                 otlpHeaders,
+				OTLPAttrs:                   otlpAttrs,
+				OTLPMetricsEnabled:          otlpMetricsEnabled,
+				OTLPMetricsInterval:         otlpMetricsInterval,
+				DisableSwaggerUI:            disableSwaggerUI,
+				EnableSourceIPLogging:       enableSourceIPLogging,
+				TrustedProxies:              trustedProxyPrefixes,
+				ClientIPHeader:              clientIPHeader,
 			}
 
 			appsetOpts := server.ApplicationSetOpts{
@@ -369,6 +373,8 @@ func NewCommand() *cobra.Command {
 	command.Flags().StringSliceVar(&enableK8sEvent, "enable-k8s-event", env.StringsFromEnv("ARGOCD_ENABLE_K8S_EVENT", argo.DefaultEnableEventList(), ","), "Enable ArgoCD to use k8s event. For disabling all events, set the value as `none`. (e.g --enable-k8s-event=none), For enabling specific events, set the value as `event reason`. (e.g --enable-k8s-event=StatusRefreshed,ResourceCreated)")
 	command.Flags().BoolVar(&hydratorEnabled, "hydrator-enabled", env.ParseBoolFromEnv("ARGOCD_HYDRATOR_ENABLED", false), "Feature flag to enable Hydrator. Default (\"false\")")
 	command.Flags().BoolVar(&syncWithReplaceAllowed, "sync-with-replace-allowed", env.ParseBoolFromEnv("ARGOCD_SYNC_WITH_REPLACE_ALLOWED", true), "Whether to allow users to select replace for syncs from UI/CLI")
+	command.Flags().BoolVar(&serverSidePaginationEnabled, "enable-server-side-pagination", env.ParseBoolFromEnv("ARGOCD_SERVER_ENABLE_SERVER_SIDE_PAGINATION", false), "Feature flag to enable server-side search and pagination in the applications list UI. Default (\"false\")")
+	command.Flags().Int64Var(&applicationPageSize, "application-page-size", int64(env.ParseNumFromEnv("ARGOCD_SERVER_APPLICATION_PAGE_SIZE", 250, 1, math.MaxInt32)), "Default number of applications loaded per request when server-side pagination is enabled")
 
 	// Flags related to the applicationSet component.
 	command.Flags().StringVar(&scmRootCAPath, "appset-scm-root-ca-path", env.StringFromEnv("ARGOCD_APPLICATIONSET_CONTROLLER_SCM_ROOT_CA_PATH", ""), "Provide Root CA Path for self-signed TLS Certificates")

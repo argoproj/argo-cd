@@ -4,7 +4,7 @@ import {FormApi} from 'argo-ui';
 import * as models from '../../../shared/models';
 import {ApplicationsRefreshPanelBody} from './applications-refresh-panel-body';
 
-export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; apps: models.Application[]; hide: () => void}) => {
+export const ApplicationsRefreshPanel = ({show, apps, hide, serverPaged}: {show: boolean; apps: models.Application[]; hide: () => void; serverPaged?: boolean}) => {
     const [form, setForm] = React.useState<FormApi>(null);
 
     return (
@@ -22,7 +22,7 @@ export const ApplicationsRefreshPanel = ({show, apps, hide}: {show: boolean; app
                     </button>
                 </div>
             }>
-            {show && <ApplicationsRefreshPanelBody apps={apps} getApi={setForm} />}
+            {show && <ApplicationsRefreshPanelBody apps={apps} getApi={setForm} serverPaged={serverPaged} />}
         </SlidingPanel>
     );
 };

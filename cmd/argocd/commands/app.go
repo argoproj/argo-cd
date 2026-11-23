@@ -1408,6 +1408,121 @@ func printApplicationTable(apps []argoappv1.Application, output *string) {
 	_ = w.Flush()
 }
 
+const defaultAppListBatchSize int64 = 500
+
+// Max times listApplicationsPaged will restart from offset 0 after detecting a list
+// ResourceVersion change between pages (concurrent mutations while paging).
+const maxAppListSnapshotRestarts = 3
+
+// listApplicationsPaged lists applications using server-side pagination when supported.
+// Pagination support is detected via ApplicationList.Stats (populated by servers that honor
+// limit), not by response length. That way a non-paginating server that returns exactly
+// defaultAppListBatchSize apps does not cause an infinite fetch loop. If Stats is absent,
+// the response is treated as a full list (legacy server fallback).
+// When search is non-empty it is forwarded on every page request.
+// Project, repo, and cluster filters are forwarded so the server applies them before each page.
+// Successive pages must share the same ListMeta.ResourceVersion; if it changes mid-walk the
+// fetch restarts from offset 0 so concurrent deletes do not skip or duplicate items.
+// After maxAppListSnapshotRestarts exhausted restarts, falls back to one unpaginated List
+// so unlimited listings can still complete under ongoing informer updates.
+func listApplicationsPaged(ctx context.Context, appIf application.ApplicationServiceClient, selector, appNamespace, search string, projects []string, repo, cluster string) ([]argoappv1.Application, error) {
+	var all []argoappv1.Application
+	var next int64
+	var snapshotRV string
+	restarts := 0
+	batch := defaultAppListBatchSize
+	for {
+		q := &application.ApplicationQuery{
+			Selector:     &selector,
+			AppNamespace: &appNamespace,
+			Offset:       &next,
+			Limit:        &batch,
+		}
+		if search != "" {
+			q.Search = &search
+		}
+		setSupportedApplicationListFilters(q, projects, repo, cluster)
+		apps, err := appIf.List(ctx, q)
+		if err != nil {
+			return nil, err
+		}
+		// Legacy servers ignore limit/offset and omit Stats; treat the response as the full list.
+		if apps.Stats == nil {
+			return apps.Items, nil
+		}
+		rv := apps.ResourceVersion
+		if next == 0 {
+			snapshotRV = rv
+		} else if rv != snapshotRV {
+			restarts++
+			if restarts > maxAppListSnapshotRestarts {
+				return listApplicationsUnpaginated(ctx, appIf, selector, appNamespace, search, projects, repo, cluster)
+			}
+			all = nil
+			next = 0
+			snapshotRV = ""
+			continue
+		}
+		all = append(all, apps.Items...)
+		if int64(len(apps.Items)) < batch {
+			break
+		}
+		next += batch
+	}
+	return all, nil
+}
+
+// listApplicationsUnpaginated fetches the full application list in one request (no limit/offset).
+func listApplicationsUnpaginated(ctx context.Context, appIf application.ApplicationServiceClient, selector, appNamespace, search string, projects []string, repo, cluster string) ([]argoappv1.Application, error) {
+	q := &application.ApplicationQuery{
+		Selector:     &selector,
+		AppNamespace: &appNamespace,
+	}
+	if search != "" {
+		q.Search = &search
+	}
+	setSupportedApplicationListFilters(q, projects, repo, cluster)
+	apps, err := appIf.List(ctx, q)
+	if err != nil {
+		return nil, err
+	}
+	return apps.Items, nil
+}
+
+// setSupportedApplicationListFilters copies CLI filters that ApplicationQuery applies
+// before pagination. Path and file have no query field and stay client-side.
+// The legacy singular Project field is left unset so the server uses Projects.
+func setSupportedApplicationListFilters(q *application.ApplicationQuery, projects []string, repo, cluster string) {
+	if len(projects) != 0 {
+		q.Projects = projects
+	}
+	if repo != "" {
+		q.Repo = &repo
+	}
+	if cluster != "" {
+		q.Clusters = []string{cluster}
+	}
+}
+
+// paginateApplicationList applies offset and limit after client-side filters.
+// offset <= 0 starts at 0. limit <= 0 means unlimited from the offset (still honors offset).
+// When limit > 0, the end is start+min(limit, remaining) so large limits cannot overflow.
+func paginateApplicationList(apps []argoappv1.Application, offset, limit int64) []argoappv1.Application {
+	if offset <= 0 {
+		offset = 0
+	}
+	n := int64(len(apps))
+	start := min(offset, n)
+	if limit <= 0 {
+		return apps[start:]
+	}
+	if start >= n {
+		return apps[start:start]
+	}
+	remaining := n - start
+	return apps[start : start+min(limit, remaining)]
+}
+
 // NewApplicationListCommand returns a new instance of an `argocd app list` command
 func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
 	var (
@@ -1419,6 +1534,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 		cluster      string
 		appPath      string
 		files        []string
+		offset       int64
+		limit        int64
+		search       string
 	)
 	command := &cobra.Command{
 		Use:   "list",
@@ -1431,19 +1549,37 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
   argocd app list -l app.kubernetes.io/instance!=my-app
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
-  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'`,
+  argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'
+
+  # Server-side search and pagination (requires API server support)
+  argocd app list --search my-app --limit 50 --offset 0`,
 		Run: cli.WithSignalContext(func(c *cobra.Command, _ []string, _ context.CancelFunc) {
 			ctx := c.Context()
 
 			conn, appIf := headless.NewClientOrDie(clientOpts, c).NewApplicationClientOrDieWithContext(ctx)
 			defer utilio.Close(conn)
-			apps, err := appIf.List(ctx, &application.ApplicationQuery{
-				Selector:     new(selector),
-				AppNamespace: &appNamespace,
-			})
 
-			errors.CheckError(err)
-			appList := apps.Items
+			var appList []argoappv1.Application
+			var err error
+			localPage := appPath != "" || len(files) != 0
+			if limit > 0 && !localPage {
+				q := &application.ApplicationQuery{
+					Selector:     &selector,
+					AppNamespace: &appNamespace,
+					Offset:       &offset,
+					Limit:        &limit,
+				}
+				if search != "" {
+					q.Search = &search
+				}
+				setSupportedApplicationListFilters(q, projects, repo, cluster)
+				apps, listErr := appIf.List(ctx, q)
+				errors.CheckError(listErr)
+				appList = apps.Items
+			} else {
+				appList, err = listApplicationsPaged(ctx, appIf, selector, appNamespace, search, projects, repo, cluster)
+				errors.CheckError(err)
+			}
 
 			if len(projects) != 0 {
 				appList = argo.FilterByProjects(appList, projects)
@@ -1459,6 +1595,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 			}
 			if len(files) != 0 {
 				appList = argo.FilterByFiles(appList, files)
+			}
+			if (limit > 0 && localPage) || (offset > 0 && limit <= 0) {
+				appList = paginateApplicationList(appList, offset, limit)
 			}
 
 			switch output {
@@ -1482,6 +1621,9 @@ func NewApplicationListCommand(clientOpts *argocdclient.ClientOptions) *cobra.Co
 	command.Flags().StringVarP(&cluster, "cluster", "c", "", "List apps by cluster name or url")
 	command.Flags().StringVarP(&appPath, "path", "P", "", "List apps by source path")
 	command.Flags().StringArrayVarP(&files, "file", "f", []string{}, "List apps affected by given file paths (evaluated against source path and manifest-generate-paths annotation)")
+	command.Flags().Int64Var(&offset, "offset", 0, "Server-side list offset (requires API support)")
+	command.Flags().Int64Var(&limit, "limit", 0, "Server-side list limit; when unset the CLI pages in batches of 500")
+	command.Flags().StringVar(&search, "search", "", "Server-side search over application name and namespace")
 	return command
 }
 

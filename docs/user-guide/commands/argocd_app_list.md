@@ -20,6 +20,9 @@ argocd app list [flags]
   argocd app list -l app.kubernetes.io/instance
   argocd app list -l '!app.kubernetes.io/instance'
   argocd app list -l 'app.kubernetes.io/instance notin (my-app,other-app)'
+
+  # Server-side search and pagination (requires API server support)
+  argocd app list --search my-app --limit 50 --offset 0
 ```
 
 ### Options
@@ -29,10 +32,13 @@ argocd app list [flags]
   -c, --cluster string         List apps by cluster name or url
   -f, --file stringArray       List apps affected by given file paths (evaluated against source path and manifest-generate-paths annotation)
   -h, --help[=true|false]      help for list
+      --limit int              Server-side list limit; when unset the CLI pages in batches of 500
+      --offset int             Server-side list offset (requires API support)
   -o, --output string          Output format. One of: wide|name|json|yaml (default "wide")
   -P, --path string            List apps by source path
   -p, --project stringArray    Filter by project name
   -r, --repo string            List apps by source repo URL
+      --search string          Server-side search over application name and namespace
   -l, --selector string        List apps by label. Supports '=', '==', '!=', in, notin, exists & not exists. Matching apps must satisfy all of the specified label constraints.
 ```
 

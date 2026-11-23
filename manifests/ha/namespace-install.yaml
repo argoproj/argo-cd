@@ -3373,6 +3373,18 @@ spec:
               key: server.enable.proxy.extension
               name: argocd-cmd-params-cm
               optional: true
+        - name: ARGOCD_SERVER_ENABLE_SERVER_SIDE_PAGINATION
+          valueFrom:
+            configMapKeyRef:
+              key: server.enable.server.side.pagination
+              name: argocd-cmd-params-cm
+              optional: true
+        - name: ARGOCD_SERVER_APPLICATION_PAGE_SIZE
+          valueFrom:
+            configMapKeyRef:
+              key: server.application.page.size
+              name: argocd-cmd-params-cm
+              optional: true
         - name: ARGOCD_K8SCLIENT_RETRY_MAX
           valueFrom:
             configMapKeyRef:

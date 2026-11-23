@@ -291,6 +291,120 @@
             "description": "the application names to restrict returned list applications (used by the UI favorites filter). An entry may be qualified as 'namespace/name' to match only the application in that namespace.",
             "name": "names",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the repos filter (server-side pagination / filtering).",
+            "name": "repos",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the clusters filter.",
+            "name": "clusters",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the destination namespaces filter.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the labels filter; each entry is key=value.",
+            "name": "labels",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the auto sync filter values (Enabled / Disabled).",
+            "name": "autoSyncs",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the sync status filter.",
+            "name": "syncStatuses",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the health status filter.",
+            "name": "healthStatuses",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "free-text search over application name and namespace (substring; use searchRegex for regex).",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "when true, treat search as a regular expression.",
+            "name": "searchRegex",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "offset into the filtered, sorted list (omit with limit for full list).",
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "maximum number of applications to return (omit for full list).",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "optional sort key: name (default), createdAt, synchronizedAt.",
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application name to start from (inclusive); used as a Watch cursor.",
+            "name": "minName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application name to end at (inclusive); used as a Watch cursor.",
+            "name": "maxName",
+            "in": "query"
           }
         ],
         "responses": {
@@ -689,6 +803,120 @@
             "collectionFormat": "multi",
             "description": "the application names to restrict returned list applications (used by the UI favorites filter). An entry may be qualified as 'namespace/name' to match only the application in that namespace.",
             "name": "names",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the repos filter (server-side pagination / filtering).",
+            "name": "repos",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the clusters filter.",
+            "name": "clusters",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the destination namespaces filter.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the labels filter; each entry is key=value.",
+            "name": "labels",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the auto sync filter values (Enabled / Disabled).",
+            "name": "autoSyncs",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the sync status filter.",
+            "name": "syncStatuses",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the health status filter.",
+            "name": "healthStatuses",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "free-text search over application name and namespace (substring; use searchRegex for regex).",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "when true, treat search as a regular expression.",
+            "name": "searchRegex",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "offset into the filtered, sorted list (omit with limit for full list).",
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "maximum number of applications to return (omit for full list).",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "optional sort key: name (default), createdAt, synchronizedAt.",
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application name to start from (inclusive); used as a Watch cursor.",
+            "name": "minName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application name to end at (inclusive); used as a Watch cursor.",
+            "name": "maxName",
             "in": "query"
           }
         ],
@@ -4337,6 +4565,120 @@
             "description": "the application names to restrict returned list applications (used by the UI favorites filter). An entry may be qualified as 'namespace/name' to match only the application in that namespace.",
             "name": "names",
             "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the repos filter (server-side pagination / filtering).",
+            "name": "repos",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the clusters filter.",
+            "name": "clusters",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the destination namespaces filter.",
+            "name": "namespaces",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the labels filter; each entry is key=value.",
+            "name": "labels",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the auto sync filter values (Enabled / Disabled).",
+            "name": "autoSyncs",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the sync status filter.",
+            "name": "syncStatuses",
+            "in": "query"
+          },
+          {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "collectionFormat": "multi",
+            "description": "the health status filter.",
+            "name": "healthStatuses",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "free-text search over application name and namespace (substring; use searchRegex for regex).",
+            "name": "search",
+            "in": "query"
+          },
+          {
+            "type": "boolean",
+            "description": "when true, treat search as a regular expression.",
+            "name": "searchRegex",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "offset into the filtered, sorted list (omit with limit for full list).",
+            "name": "offset",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "format": "int64",
+            "description": "maximum number of applications to return (omit for full list).",
+            "name": "limit",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "optional sort key: name (default), createdAt, synchronizedAt.",
+            "name": "sortBy",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application name to start from (inclusive); used as a Watch cursor.",
+            "name": "minName",
+            "in": "query"
+          },
+          {
+            "type": "string",
+            "description": "the application name to end at (inclusive); used as a Watch cursor.",
+            "name": "maxName",
+            "in": "query"
           }
         ],
         "responses": {
@@ -5744,6 +6086,11 @@
         "appLabelKey": {
           "type": "string"
         },
+        "applicationPageSize": {
+          "description": "Default batch/page size used by the UI when server-side pagination is enabled.",
+          "type": "integer",
+          "format": "int64"
+        },
         "appsInAnyNamespaceEnabled": {
           "type": "boolean"
         },
@@ -5806,6 +6153,10 @@
           }
         },
         "resourceViewEnabled": {
+          "type": "boolean"
+        },
+        "serverSidePaginationEnabled": {
+          "description": "Feature flag: when true the UI uses server-side search/pagination for the applications list.",
           "type": "boolean"
         },
         "statusBadgeEnabled": {
@@ -7220,6 +7571,21 @@
         }
       }
     },
+    "v1alpha1ApplicationLabelStats": {
+      "description": "ApplicationLabelStats holds a label key and its observed values across a filtered application list.",
+      "type": "object",
+      "properties": {
+        "key": {
+          "type": "string"
+        },
+        "values": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
     "v1alpha1ApplicationList": {
       "type": "object",
       "title": "ApplicationList is list of Application resources\n+k8s:deepcopy-gen:interfaces=k8s.io/apimachinery/pkg/runtime.Object",
@@ -7232,6 +7598,64 @@
         },
         "metadata": {
           "$ref": "#/definitions/v1ListMeta"
+        },
+        "stats": {
+          "$ref": "#/definitions/v1alpha1ApplicationListStats"
+        }
+      }
+    },
+    "v1alpha1ApplicationListStats": {
+      "description": "ApplicationListStats holds aggregate information about applications matching a list query.\nStats are computed over the full filtered set even when the response is paginated.",
+      "type": "object",
+      "properties": {
+        "autoSyncCount": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
+        "destinations": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationDestination"
+          }
+        },
+        "labels": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/v1alpha1ApplicationLabelStats"
+          }
+        },
+        "namespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "repos": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "total": {
+          "type": "integer",
+          "format": "int64"
+        },
+        "totalByHealthStatus": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "int64"
+          }
+        },
+        "totalBySyncStatus": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "string",
+            "format": "int64"
+          }
         }
       }
     },

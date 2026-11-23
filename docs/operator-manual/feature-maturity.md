@@ -68,6 +68,10 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 | [Source Hydrator][11]                     | `ConfigMap/argocd-cmd-params-cm`              | `hydrator.enabled`                                          | Beta   |
 | [Source Hydrator][11]                     | `Deployment/argocd-application-controller`    | `ARGOCD_HYDRATOR_ENABLED`                                   | Beta   |
 | [Source Hydrator][11]                     | `Deployment/argocd-server`                    | `ARGOCD_HYDRATOR_ENABLED`                                   | Beta   |
+| [Server-side applications list][13]       | `ConfigMap/argocd-cmd-params-cm`              | `server.enable.server.side.pagination`                      | Alpha  |
+| [Server-side applications list][13]       | `Deployment/argocd-server`                    | `ARGOCD_SERVER_ENABLE_SERVER_SIDE_PAGINATION`               | Alpha  |
+| [Server-side applications list][13]       | `ConfigMap/argocd-cmd-params-cm`              | `server.application.page.size`                              | Alpha  |
+| [Server-side applications list][13]       | `Deployment/argocd-server`                    | `ARGOCD_SERVER_APPLICATION_PAGE_SIZE`                       | Alpha  |
 
 [2]: applicationset/Progressive-Syncs.md
 [3]: ../developer-guide/extensions/proxy-extensions.md
@@ -79,3 +83,4 @@ to indicate their stability and maturity. These are the statuses of non-stable f
 [10]: app-sync-using-impersonation.md
 [11]: ../user-guide/source-hydrator.md
 [12]: ../user-guide/application-set-ui.md
+[13]: ../proposals/server-side-pagination.md
