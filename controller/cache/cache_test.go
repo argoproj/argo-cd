@@ -164,6 +164,47 @@ func TestHandleModEvent_ConfigError(t *testing.T) {
 	assert.NotContains(t, clustersCache.clusters, "https://mycluster", "a cluster whose new config cannot be built must not keep its old connection")
 }
 
+func TestHandleModEvent_WarmsUpTheCacheOfAClusterWithoutOne(t *testing.T) {
+	t.Parallel()
+	serverCert, err := tls.LoadX509KeyPair("../../test/fixture/certs/argocd-test-server.crt", "../../test/fixture/certs/argocd-test-server.key")
+	require.NoError(t, err)
+	var reached atomic.Bool
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		reached.Store(true)
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	server.TLS = &tls.Config{Certificates: []tls.Certificate{serverCert}}
+	server.StartTLS()
+	t.Cleanup(server.Close)
+
+	cluster := &appv1.Cluster{Server: server.URL, Config: appv1.ClusterConfig{TLSClientConfig: appv1.TLSClientConfig{Insecure: true}}}
+	appInformer := toolscache.NewSharedIndexInformer(&toolscache.ListWatch{}, &appv1.Application{}, 0, toolscache.Indexers{})
+	require.NoError(t, appInformer.GetIndexer().Add(newAppManagingCRD("app", server.URL)))
+	_, settingsMgr := fixtures(t.Context(), nil)
+	db := &dbmocks.ArgoDB{}
+	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
+	db.EXPECT().GetCluster(mock.Anything, server.URL).Return(cluster, nil).Maybe()
+	clustersCache := &liveStateCache{
+		db:              db,
+		appInformer:     appInformer,
+		clusters:        map[string]cache.ClusterCache{},
+		hosts:           map[string]*clusterHostsEntry{},
+		clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
+		settingsMgr:     settingsMgr,
+		metricsServer:   &metrics.MetricsServer{},
+	}
+
+	clustersCache.handleModEvent(&appv1.Cluster{
+		Server: server.URL,
+		Config: appv1.ClusterConfig{TLSClientConfig: appv1.TLSClientConfig{CATrust: "both"}},
+	}, cluster)
+
+	assert.Eventually(t, reached.Load, 10*time.Second, 10*time.Millisecond, "a valid update of a cluster without a cache must warm it up")
+	clustersCache.lock.RLock()
+	defer clustersCache.lock.RUnlock()
+	assert.Contains(t, clustersCache.clusters, server.URL)
+}
+
 func TestHandleModEvent_NoChanges(_ *testing.T) {
 	clusterCache := &mocks.ClusterCache{}
 	clusterCache.EXPECT().Invalidate(mock.Anything).Panic("should not invalidate").Maybe()

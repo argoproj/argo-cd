@@ -1069,17 +1069,20 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 	_, ok := c.clusters[cluster.Server]
 	c.lock.Unlock()
 	if !ok {
-		log.Debugf("Checking if cache %v / cluster %v has appInformer %v", c, cluster, c.appInformer)
-		if c.appInformer == nil {
-			log.Warn("Cannot get a cluster appInformer. Cache may not be started this time")
-			return
-		}
-		if c.isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
-			go func() {
-				// warm up cache for cluster with apps
-				_, _ = c.getSyncedCluster(cluster)
-			}()
-		}
+		c.warmUpClusterCacheIfHasApps(cluster)
+	}
+}
+
+func (c *liveStateCache) warmUpClusterCacheIfHasApps(cluster *appv1.Cluster) {
+	log.Debugf("Checking if cache %v / cluster %v has appInformer %v", c, cluster, c.appInformer)
+	if c.appInformer == nil {
+		log.Warn("Cannot get a cluster appInformer. Cache may not be started this time")
+		return
+	}
+	if c.isClusterHasApps(c.appInformer.GetStore().List(), cluster) {
+		go func() {
+			_, _ = c.getSyncedCluster(cluster)
+		}()
 	}
 }
 
@@ -1132,6 +1135,8 @@ func (c *liveStateCache) handleModEvent(oldCluster *appv1.Cluster, newCluster *a
 				_ = cluster.EnsureSynced()
 			}()
 		}
+	} else if c.canHandleCluster(newCluster) {
+		c.warmUpClusterCacheIfHasApps(newCluster)
 	}
 }
 
