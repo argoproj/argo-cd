@@ -490,10 +490,16 @@ func refreshUntilClusterTrusted(t *testing.T, appCtx *app.Context, trusted bool)
 		require.NoError(c, err)
 		application, err := fixture.AppClientset.ArgoprojV1alpha1().Applications(appCtx.AppNamespace()).Get(t.Context(), appCtx.AppName(), metav1.GetOptions{})
 		require.NoError(c, err)
-		untrusted := slices.ContainsFunc(application.Status.Conditions, func(condition ApplicationCondition) bool {
-			return condition.Type == ApplicationConditionComparisonError && strings.Contains(condition.Message, "tls: failed to verify certificate")
-		})
-		assert.NotEqual(c, trusted, untrusted, "conditions: %v", application.Status.Conditions)
+		if !trusted {
+			assert.True(c, slices.ContainsFunc(application.Status.Conditions, func(condition ApplicationCondition) bool {
+				return condition.Type == ApplicationConditionComparisonError && strings.Contains(condition.Message, "tls: failed to verify certificate")
+			}), "conditions: %v", application.Status.Conditions)
+			return
+		}
+		assert.False(c, slices.ContainsFunc(application.Status.Conditions, func(condition ApplicationCondition) bool {
+			return condition.Type == ApplicationConditionComparisonError
+		}), "conditions: %v", application.Status.Conditions)
+		assert.NotEqual(c, SyncStatusCodeUnknown, application.Status.Sync.Status)
 	}, time.Minute, time.Second)
 }
 
