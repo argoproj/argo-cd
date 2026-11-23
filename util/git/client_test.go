@@ -683,6 +683,28 @@ func Test_nativeGitClient_Fetch_cancelledFetchIsBoundedByExecTimeout(t *testing.
 	}
 }
 
+// ls-remote keeps its own ARGOCD_GIT_REQUEST_TIMEOUT deadline even though git
+// commands ignore the caller's cancellation. Mutates gitClientTimeout, so it
+// must not run in parallel.
+func Test_nativeGitClient_runLsRemote_honoursGitRequestTimeout(t *testing.T) {
+	remote, err := _createEmptyGitRepo(t.Context())
+	require.NoError(t, err)
+	uploadPack := filepath.Join(t.TempDir(), "hanging-upload-pack.sh")
+	require.NoError(t, os.WriteFile(uploadPack, []byte("#!/bin/sh\nexec 2>/dev/null\nsleep 30\n"), 0o755))
+
+	client, err := NewClient("file://"+remote, NopCreds{}, true, false, "", "")
+	require.NoError(t, err)
+
+	orig := gitClientTimeout
+	gitClientTimeout = time.Second
+	t.Cleanup(func() { gitClientTimeout = orig })
+
+	start := time.Now()
+	_, err = client.(*nativeGitClient).runLsRemote("ls-remote", "--upload-pack="+uploadPack, "--heads", "--", "file://"+remote)
+	require.ErrorContains(t, err, "git ls-remote timed out after 1s")
+	assert.Less(t, time.Since(start), 15*time.Second, "ls-remote ran past ARGOCD_GIT_REQUEST_TIMEOUT")
+}
+
 // Git commands ignore the caller's cancellation, so a request that was
 // cancelled while it waited for the repository lock still completes its git
 // work.
