@@ -2,11 +2,11 @@
 
 ## argocd proj source-integrity git inspect-repo
 
-Inspect the Git/GPG source integrity of an application in a project
+Inspect the Git source integrity of an application in a project
 
 ### Synopsis
 
-Inspect the Git/GPG source integrity of an application in a project
+Inspect the Git source integrity of an application in a project
 
 Inspects each Git source of the application without syncing. Verification is always
 evaluated as strict mode, even when the project uses head or none.

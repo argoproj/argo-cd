@@ -828,8 +828,8 @@ func (_c *ApplicationServiceClient_GetResource_Call) RunAndReturn(run func(ctx c
 	return _c
 }
 
-// InspectGitGPGSourceIntegrity provides a mock function for the type ApplicationServiceClient
-func (_mock *ApplicationServiceClient) InspectGitGPGSourceIntegrity(ctx context.Context, in *application.InspectGitGPGSourceIntegrityQuery, opts ...grpc.CallOption) (*application.InspectGitGPGSourceIntegrityListResponse, error) {
+// InspectGitSourceIntegrity provides a mock function for the type ApplicationServiceClient
+func (_mock *ApplicationServiceClient) InspectGitSourceIntegrity(ctx context.Context, in *application.InspectGitSourceIntegrityQuery, opts ...grpc.CallOption) (*application.InspectGitSourceIntegrityListResponse, error) {
 	// grpc.CallOption
 	_va := make([]any, len(opts))
 	for _i := range opts {
@@ -841,22 +841,22 @@ func (_mock *ApplicationServiceClient) InspectGitGPGSourceIntegrity(ctx context.
 	ret := _mock.Called(_ca...)
 
 	if len(ret) == 0 {
-		panic("no return value specified for InspectGitGPGSourceIntegrity")
+		panic("no return value specified for InspectGitSourceIntegrity")
 	}
 
-	var r0 *application.InspectGitGPGSourceIntegrityListResponse
+	var r0 *application.InspectGitSourceIntegrityListResponse
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.InspectGitGPGSourceIntegrityQuery, ...grpc.CallOption) (*application.InspectGitGPGSourceIntegrityListResponse, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.InspectGitSourceIntegrityQuery, ...grpc.CallOption) (*application.InspectGitSourceIntegrityListResponse, error)); ok {
 		return returnFunc(ctx, in, opts...)
 	}
-	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.InspectGitGPGSourceIntegrityQuery, ...grpc.CallOption) *application.InspectGitGPGSourceIntegrityListResponse); ok {
+	if returnFunc, ok := ret.Get(0).(func(context.Context, *application.InspectGitSourceIntegrityQuery, ...grpc.CallOption) *application.InspectGitSourceIntegrityListResponse); ok {
 		r0 = returnFunc(ctx, in, opts...)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*application.InspectGitGPGSourceIntegrityListResponse)
+			r0 = ret.Get(0).(*application.InspectGitSourceIntegrityListResponse)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(context.Context, *application.InspectGitGPGSourceIntegrityQuery, ...grpc.CallOption) error); ok {
+	if returnFunc, ok := ret.Get(1).(func(context.Context, *application.InspectGitSourceIntegrityQuery, ...grpc.CallOption) error); ok {
 		r1 = returnFunc(ctx, in, opts...)
 	} else {
 		r1 = ret.Error(1)
@@ -864,29 +864,29 @@ func (_mock *ApplicationServiceClient) InspectGitGPGSourceIntegrity(ctx context.
 	return r0, r1
 }
 
-// ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InspectGitGPGSourceIntegrity'
-type ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call struct {
+// ApplicationServiceClient_InspectGitSourceIntegrity_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'InspectGitSourceIntegrity'
+type ApplicationServiceClient_InspectGitSourceIntegrity_Call struct {
 	*mock.Call
 }
 
-// InspectGitGPGSourceIntegrity is a helper method to define mock.On call
+// InspectGitSourceIntegrity is a helper method to define mock.On call
 //   - ctx context.Context
-//   - in *application.InspectGitGPGSourceIntegrityQuery
+//   - in *application.InspectGitSourceIntegrityQuery
 //   - opts ...grpc.CallOption
-func (_e *ApplicationServiceClient_Expecter) InspectGitGPGSourceIntegrity(ctx any, in any, opts ...any) *ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call {
-	return &ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call{Call: _e.mock.On("InspectGitGPGSourceIntegrity",
+func (_e *ApplicationServiceClient_Expecter) InspectGitSourceIntegrity(ctx any, in any, opts ...any) *ApplicationServiceClient_InspectGitSourceIntegrity_Call {
+	return &ApplicationServiceClient_InspectGitSourceIntegrity_Call{Call: _e.mock.On("InspectGitSourceIntegrity",
 		append([]any{ctx, in}, opts...)...)}
 }
 
-func (_c *ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call) Run(run func(ctx context.Context, in *application.InspectGitGPGSourceIntegrityQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call {
+func (_c *ApplicationServiceClient_InspectGitSourceIntegrity_Call) Run(run func(ctx context.Context, in *application.InspectGitSourceIntegrityQuery, opts ...grpc.CallOption)) *ApplicationServiceClient_InspectGitSourceIntegrity_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 context.Context
 		if args[0] != nil {
 			arg0 = args[0].(context.Context)
 		}
-		var arg1 *application.InspectGitGPGSourceIntegrityQuery
+		var arg1 *application.InspectGitSourceIntegrityQuery
 		if args[1] != nil {
-			arg1 = args[1].(*application.InspectGitGPGSourceIntegrityQuery)
+			arg1 = args[1].(*application.InspectGitSourceIntegrityQuery)
 		}
 		var arg2 []grpc.CallOption
 		variadicArgs := make([]grpc.CallOption, len(args)-2)
@@ -905,12 +905,12 @@ func (_c *ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call) Run(run fu
 	return _c
 }
 
-func (_c *ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call) Return(inspectGitGPGSourceIntegrityListResponse *application.InspectGitGPGSourceIntegrityListResponse, err error) *ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call {
-	_c.Call.Return(inspectGitGPGSourceIntegrityListResponse, err)
+func (_c *ApplicationServiceClient_InspectGitSourceIntegrity_Call) Return(inspectGitSourceIntegrityListResponse *application.InspectGitSourceIntegrityListResponse, err error) *ApplicationServiceClient_InspectGitSourceIntegrity_Call {
+	_c.Call.Return(inspectGitSourceIntegrityListResponse, err)
 	return _c
 }
 
-func (_c *ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call) RunAndReturn(run func(ctx context.Context, in *application.InspectGitGPGSourceIntegrityQuery, opts ...grpc.CallOption) (*application.InspectGitGPGSourceIntegrityListResponse, error)) *ApplicationServiceClient_InspectGitGPGSourceIntegrity_Call {
+func (_c *ApplicationServiceClient_InspectGitSourceIntegrity_Call) RunAndReturn(run func(ctx context.Context, in *application.InspectGitSourceIntegrityQuery, opts ...grpc.CallOption) (*application.InspectGitSourceIntegrityListResponse, error)) *ApplicationServiceClient_InspectGitSourceIntegrity_Call {
 	_c.Call.Return(run)
 	return _c
 }

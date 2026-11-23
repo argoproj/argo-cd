@@ -7078,24 +7078,26 @@ const (
 	inspectResolvedRevision = "632039659e542ed7de0c170a4fcc1c571b288fc0"
 )
 
-func defaultInspectGPGPolicy() *v1alpha1.SourceIntegrityGitPolicyGPG {
-	return &v1alpha1.SourceIntegrityGitPolicyGPG{
-		Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
-		Keys: []string{"f24e21389b25a3c1"},
+func defaultInspectGitPolicy() *v1alpha1.SourceIntegrityGitPolicy {
+	return &v1alpha1.SourceIntegrityGitPolicy{
+		GPG: &v1alpha1.SourceIntegrityGitPolicyGPG{
+			Mode: v1alpha1.SourceIntegrityGitPolicyGPGModeStrict,
+			Keys: []string{"f24e21389b25a3c1"},
+		},
 	}
 }
 
-func defaultInspectGPGRequest() *apiclient.InspectGitGPGSourceIntegrityRequest {
-	return &apiclient.InspectGitGPGSourceIntegrityRequest{
+func defaultInspectGitRequest() *apiclient.InspectGitSourceIntegrityRequest {
+	return &apiclient.InspectGitSourceIntegrityRequest{
 		Repo: &v1alpha1.Repository{
 			Repo: "https://github.com/argoproj/argo-cd.git",
 		},
 		Revision: inspectTargetRevision,
-		Policy:   defaultInspectGPGPolicy(),
+		Policy:   defaultInspectGitPolicy(),
 	}
 }
 
-func setupInspectGitGPGService(t *testing.T, configure func(*gitmocks.Client)) *Service {
+func setupInspectGitService(t *testing.T, configure func(*gitmocks.Client)) *Service {
 	t.Helper()
 	root := t.TempDir()
 	service, _, _ := newServiceWithOpt(t, func(gitClient *gitmocks.Client, _ *helmmocks.Client, _ *ocimocks.Client, paths *iomocks.TempPaths) {
@@ -7108,18 +7110,18 @@ func setupInspectGitGPGService(t *testing.T, configure func(*gitmocks.Client)) *
 	return service
 }
 
-func expectInspectGitGPGFetchAndCheckout(gitClient *gitmocks.Client) {
+func expectInspectGitFetchAndCheckout(gitClient *gitmocks.Client) {
 	gitClient.EXPECT().Init().Return(nil)
 	gitClient.EXPECT().Fetch(mock.Anything, "", mock.Anything).Return(nil).Once()
 	gitClient.EXPECT().Checkout(mock.Anything, inspectResolvedRevision, mock.Anything, mock.Anything).Return("", nil).Once()
 }
 
-func TestInspectGitGPGSourceIntegrity(t *testing.T) {
+func TestInspectGitSourceIntegrity(t *testing.T) {
 	t.Run("invalid request repo nil", func(t *testing.T) {
-		service := setupInspectGitGPGService(t, func(_ *gitmocks.Client) { /* no-op */ })
-		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), &apiclient.InspectGitGPGSourceIntegrityRequest{
+		service := setupInspectGitService(t, func(_ *gitmocks.Client) { /* no-op */ })
+		_, err := service.InspectGitSourceIntegrity(t.Context(), &apiclient.InspectGitSourceIntegrityRequest{
 			Repo:      nil,
-			Policy:    defaultInspectGPGPolicy(),
+			Policy:    defaultInspectGitPolicy(),
 			Revision:  inspectTargetRevision,
 			TagPrefix: "",
 		})
@@ -7127,8 +7129,8 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		require.ErrorContains(t, err, "must pass a valid repo")
 	})
 	t.Run("invalid request policy nil", func(t *testing.T) {
-		service := setupInspectGitGPGService(t, func(_ *gitmocks.Client) { /* no-op */ })
-		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), &apiclient.InspectGitGPGSourceIntegrityRequest{
+		service := setupInspectGitService(t, func(_ *gitmocks.Client) { /* no-op */ })
+		_, err := service.InspectGitSourceIntegrity(t.Context(), &apiclient.InspectGitSourceIntegrityRequest{
 			Repo: &v1alpha1.Repository{
 				Repo: "https://github.com/argoproj/argo-cd.git",
 			},
@@ -7137,32 +7139,32 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 			TagPrefix: "",
 		})
 		require.Error(t, err)
-		require.ErrorContains(t, err, "must pass a valid git/gpg source integrity policy")
+		require.ErrorContains(t, err, "must pass a valid git source integrity policy")
 	})
 
 	t.Run("all valid has empty commits in resp", func(t *testing.T) {
-		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
-			expectInspectGitGPGFetchAndCheckout(gitClient)
+		service := setupInspectGitService(t, func(gitClient *gitmocks.Client) {
+			expectInspectGitFetchAndCheckout(gitClient)
 			gitClient.EXPECT().
 				LsSignatures(mock.Anything, inspectTargetRevision, true).
 				RunAndReturn(LsSignaturesMockOk)
 		})
 
-		resp, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		resp, err := service.InspectGitSourceIntegrity(t.Context(), defaultInspectGitRequest())
 		require.NoError(t, err)
 		assert.Equal(t, inspectResolvedRevision, resp.ResolvedRevision)
 		assert.Empty(t, resp.Commits)
 	})
 
 	t.Run("all invalid has all in resp", func(t *testing.T) {
-		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
-			expectInspectGitGPGFetchAndCheckout(gitClient)
+		service := setupInspectGitService(t, func(gitClient *gitmocks.Client) {
+			expectInspectGitFetchAndCheckout(gitClient)
 			gitClient.EXPECT().
 				LsSignatures(mock.Anything, inspectTargetRevision, true).
 				RunAndReturn(LsSignaturesMockGitError)
 		})
 
-		resp, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		resp, err := service.InspectGitSourceIntegrity(t.Context(), defaultInspectGitRequest())
 		require.NoError(t, err)
 		require.Len(t, resp.Commits, 2)
 		assert.Equal(t, "171589b8001a0bd78bb311cb03c9d129c6f91de1", resp.Commits[0].Revision)
@@ -7180,8 +7182,8 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 	})
 
 	t.Run("some valid some invalid has only invalid in resp", func(t *testing.T) {
-		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
-			expectInspectGitGPGFetchAndCheckout(gitClient)
+		service := setupInspectGitService(t, func(gitClient *gitmocks.Client) {
+			expectInspectGitFetchAndCheckout(gitClient)
 			gitClient.EXPECT().
 				LsSignatures(mock.Anything, inspectTargetRevision, true).
 				RunAndReturn(func(_ context.Context, _ string, _ bool) ([]git.RevisionSignatureInfo, string, error) {
@@ -7206,7 +7208,7 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 				})
 		})
 
-		resp, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		resp, err := service.InspectGitSourceIntegrity(t.Context(), defaultInspectGitRequest())
 		require.NoError(t, err)
 		require.Len(t, resp.Commits, 1)
 		assert.Equal(t, "111589b8001a0bd78bb311cb03c9d129c6f91de1", resp.Commits[0].Revision)
@@ -7215,24 +7217,24 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 	})
 
 	t.Run("error listing signatures", func(t *testing.T) {
-		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
-			expectInspectGitGPGFetchAndCheckout(gitClient)
+		service := setupInspectGitService(t, func(gitClient *gitmocks.Client) {
+			expectInspectGitFetchAndCheckout(gitClient)
 			gitClient.EXPECT().
 				LsSignatures(mock.Anything, inspectTargetRevision, true).
 				Return(nil, "", errors.New("boom"))
 		})
 
-		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		_, err := service.InspectGitSourceIntegrity(t.Context(), defaultInspectGitRequest())
 		require.ErrorContains(t, err, "error listing signatures:")
 		require.ErrorContains(t, err, "boom")
 	})
 
 	t.Run("error acquiring repo lock", func(t *testing.T) {
-		service := setupInspectGitGPGService(t, func(gitClient *gitmocks.Client) {
+		service := setupInspectGitService(t, func(gitClient *gitmocks.Client) {
 			gitClient.EXPECT().Init().Return(errors.New("init failed"))
 		})
 
-		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		_, err := service.InspectGitSourceIntegrity(t.Context(), defaultInspectGitRequest())
 		require.ErrorContains(t, err, "error acquiring repo lock:")
 		require.ErrorContains(t, err, "init failed")
 	})
@@ -7245,7 +7247,7 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 			gitClient.EXPECT().Root().Return(root)
 		}, root)
 
-		_, err := service.InspectGitGPGSourceIntegrity(t.Context(), defaultInspectGPGRequest())
+		_, err := service.InspectGitSourceIntegrity(t.Context(), defaultInspectGitRequest())
 		require.Error(t, err)
 		require.ErrorContains(t, err, "ls-remote failed")
 	})

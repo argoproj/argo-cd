@@ -1849,7 +1849,7 @@ func filterAppSourcesBySourceIndex(sources []v1alpha1.ApplicationSource, sourceI
 	return sources, nil
 }
 
-func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *application.InspectGitGPGSourceIntegrityQuery) (*application.InspectGitGPGSourceIntegrityListResponse, error) {
+func (s *Server) InspectGitSourceIntegrity(ctx context.Context, q *application.InspectGitSourceIntegrityQuery) (*application.InspectGitSourceIntegrityListResponse, error) {
 	a, proj, err := s.getApplicationEnforceRBACInformer(ctx, rbac.ActionGet, q.GetProject(), q.GetAppNamespace(), q.GetName())
 	if err != nil {
 		return nil, err
@@ -1871,15 +1871,15 @@ func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *applicatio
 		return nil, fmt.Errorf("no git source integrity configured for project %s", proj.Name)
 	}
 
-	items := make([]*application.InspectGitGPGSourceIntegrityResponse, 0, len(sources))
+	items := make([]*application.InspectGitSourceIntegrityResponse, 0, len(sources))
 
 	for _, source := range sources {
-		item := &application.InspectGitGPGSourceIntegrityResponse{
+		item := &application.InspectGitSourceIntegrityResponse{
 			RepoUrl:          &source.RepoURL,
 			ResolvedRevision: &source.TargetRevision,
 			TargetRevision:   &source.TargetRevision,
-			GitGpgPolicy:     nil,
-			Commits:          make([]*application.GitGPGCommitInfo, 0),
+			GitPolicy:        nil,
+			Commits:          make([]*application.GitCommitInfo, 0),
 			ErrorMessage:     nil,
 		}
 
@@ -1888,7 +1888,7 @@ func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *applicatio
 			continue
 		}
 
-		gitGpgPolicy, err := selectGitGPGPolicy(sourceIntegrity, source)
+		gitPolicy, err := selectGitPolicy(sourceIntegrity, source)
 		if err != nil {
 			// cannot select policy, therefore cannot inspect repository
 			// include the problematic source in the output
@@ -1898,27 +1898,27 @@ func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *applicatio
 			continue
 		}
 
-		strictPolicy := gitGpgPolicy.DeepCopy()
-		strictPolicy.Mode = v1alpha1.SourceIntegrityGitPolicyGPGModeStrict // always use strict mode for inspection
+		strictPolicy := gitPolicy.DeepCopy()
+		strictPolicy.GPG.Mode = v1alpha1.SourceIntegrityGitPolicyGPGModeStrict // always use strict mode for inspection
 
 		repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 		if err != nil {
 			return nil, fmt.Errorf("error getting repository by URL for source %s: %w", source.RepoURL, err)
 		}
 
-		resp, err := repoClient.InspectGitGPGSourceIntegrity(ctx, &apiclient.InspectGitGPGSourceIntegrityRequest{
+		resp, err := repoClient.InspectGitSourceIntegrity(ctx, &apiclient.InspectGitSourceIntegrityRequest{
 			Repo:      repo,
 			Revision:  source.TargetRevision,
 			Policy:    strictPolicy,
 			TagPrefix: source.TagPrefix,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to inspect git gpg source integrity for source %s: %w", source.RepoURL, err)
+			return nil, fmt.Errorf("failed to inspect git source integrity for source %s: %w", source.RepoURL, err)
 		}
 
-		commits := make([]*application.GitGPGCommitInfo, 0, len(resp.Commits))
+		commits := make([]*application.GitCommitInfo, 0, len(resp.Commits))
 		for _, commit := range resp.Commits {
-			commits = append(commits, &application.GitGPGCommitInfo{
+			commits = append(commits, &application.GitCommitInfo{
 				Revision:           &commit.Revision,
 				Author:             &commit.Author,
 				Date:               &commit.Date,
@@ -1929,17 +1929,17 @@ func (s *Server) InspectGitGPGSourceIntegrity(ctx context.Context, q *applicatio
 		}
 
 		item.ResolvedRevision = &resp.ResolvedRevision
-		item.GitGpgPolicy = gitGpgPolicy
+		item.GitPolicy = gitPolicy
 		item.Commits = commits
 		item.ErrorMessage = nil
 
 		items = append(items, item)
 	}
 
-	return &application.InspectGitGPGSourceIntegrityListResponse{Items: items}, nil
+	return &application.InspectGitSourceIntegrityListResponse{Items: items}, nil
 }
 
-func selectGitGPGPolicy(sourceIntegrity *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) (*v1alpha1.SourceIntegrityGitPolicyGPG, error) {
+func selectGitPolicy(sourceIntegrity *v1alpha1.SourceIntegrity, source v1alpha1.ApplicationSource) (*v1alpha1.SourceIntegrityGitPolicy, error) {
 	gitPolicies := sourceintegrity.FindMatchingGitPolicies(sourceIntegrity.Git, source.RepoURL)
 	nPolicies := len(gitPolicies)
 	if nPolicies == 0 {
@@ -1954,7 +1954,7 @@ func selectGitGPGPolicy(sourceIntegrity *v1alpha1.SourceIntegrity, source v1alph
 		return nil, fmt.Errorf("the git policy for source %s is not a gpg policy", source.RepoURL)
 	}
 
-	return gitPolicy.GPG, nil
+	return gitPolicy, nil
 }
 
 // getRevisionHistoryByVersionId returns the revision history for a specific version ID.

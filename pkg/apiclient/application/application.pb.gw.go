@@ -648,11 +648,11 @@ func local_request_ApplicationService_GetOCIMetadata_0(ctx context.Context, mars
 }
 
 var (
-	filter_ApplicationService_InspectGitGPGSourceIntegrity_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
+	filter_ApplicationService_InspectGitSourceIntegrity_0 = &utilities.DoubleArray{Encoding: map[string]int{"name": 0}, Base: []int{1, 1, 0}, Check: []int{0, 1, 2}}
 )
 
-func request_ApplicationService_InspectGitGPGSourceIntegrity_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq InspectGitGPGSourceIntegrityQuery
+func request_ApplicationService_InspectGitSourceIntegrity_0(ctx context.Context, marshaler runtime.Marshaler, client ApplicationServiceClient, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq InspectGitSourceIntegrityQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -676,17 +676,17 @@ func request_ApplicationService_InspectGitGPGSourceIntegrity_0(ctx context.Conte
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ApplicationService_InspectGitGPGSourceIntegrity_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ApplicationService_InspectGitSourceIntegrity_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := client.InspectGitGPGSourceIntegrity(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
+	msg, err := client.InspectGitSourceIntegrity(ctx, &protoReq, grpc.Header(&metadata.HeaderMD), grpc.Trailer(&metadata.TrailerMD))
 	return msg, metadata, err
 
 }
 
-func local_request_ApplicationService_InspectGitGPGSourceIntegrity_0(ctx context.Context, marshaler runtime.Marshaler, server ApplicationServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
-	var protoReq InspectGitGPGSourceIntegrityQuery
+func local_request_ApplicationService_InspectGitSourceIntegrity_0(ctx context.Context, marshaler runtime.Marshaler, server ApplicationServiceServer, req *http.Request, pathParams map[string]string) (proto.Message, runtime.ServerMetadata, error) {
+	var protoReq InspectGitSourceIntegrityQuery
 	var metadata runtime.ServerMetadata
 
 	var (
@@ -710,11 +710,11 @@ func local_request_ApplicationService_InspectGitGPGSourceIntegrity_0(ctx context
 	if err := req.ParseForm(); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
-	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ApplicationService_InspectGitGPGSourceIntegrity_0); err != nil {
+	if err := runtime.PopulateQueryParameters(&protoReq, req.Form, filter_ApplicationService_InspectGitSourceIntegrity_0); err != nil {
 		return nil, metadata, status.Errorf(codes.InvalidArgument, "%v", err)
 	}
 
-	msg, err := server.InspectGitGPGSourceIntegrity(ctx, &protoReq)
+	msg, err := server.InspectGitSourceIntegrity(ctx, &protoReq)
 	return msg, metadata, err
 
 }
@@ -2533,7 +2533,7 @@ func RegisterApplicationServiceHandlerServer(ctx context.Context, mux *runtime.S
 
 	})
 
-	mux.Handle("GET", pattern_ApplicationService_InspectGitGPGSourceIntegrity_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_ApplicationService_InspectGitSourceIntegrity_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		var stream runtime.ServerTransportStream
@@ -2544,7 +2544,7 @@ func RegisterApplicationServiceHandlerServer(ctx context.Context, mux *runtime.S
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := local_request_ApplicationService_InspectGitGPGSourceIntegrity_0(rctx, inboundMarshaler, server, req, pathParams)
+		resp, md, err := local_request_ApplicationService_InspectGitSourceIntegrity_0(rctx, inboundMarshaler, server, req, pathParams)
 		md.HeaderMD, md.TrailerMD = metadata.Join(md.HeaderMD, stream.Header()), metadata.Join(md.TrailerMD, stream.Trailer())
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
@@ -2552,7 +2552,7 @@ func RegisterApplicationServiceHandlerServer(ctx context.Context, mux *runtime.S
 			return
 		}
 
-		forward_ApplicationService_InspectGitGPGSourceIntegrity_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ApplicationService_InspectGitSourceIntegrity_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -3242,7 +3242,7 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 
 	})
 
-	mux.Handle("GET", pattern_ApplicationService_InspectGitGPGSourceIntegrity_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
+	mux.Handle("GET", pattern_ApplicationService_InspectGitSourceIntegrity_0, func(w http.ResponseWriter, req *http.Request, pathParams map[string]string) {
 		ctx, cancel := context.WithCancel(req.Context())
 		defer cancel()
 		inboundMarshaler, outboundMarshaler := runtime.MarshalerForRequest(mux, req)
@@ -3251,14 +3251,14 @@ func RegisterApplicationServiceHandlerClient(ctx context.Context, mux *runtime.S
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
-		resp, md, err := request_ApplicationService_InspectGitGPGSourceIntegrity_0(rctx, inboundMarshaler, client, req, pathParams)
+		resp, md, err := request_ApplicationService_InspectGitSourceIntegrity_0(rctx, inboundMarshaler, client, req, pathParams)
 		ctx = runtime.NewServerMetadataContext(ctx, md)
 		if err != nil {
 			runtime.HTTPError(ctx, mux, outboundMarshaler, w, req, err)
 			return
 		}
 
-		forward_ApplicationService_InspectGitGPGSourceIntegrity_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
+		forward_ApplicationService_InspectGitSourceIntegrity_0(ctx, mux, outboundMarshaler, w, req, resp, mux.GetForwardResponseOptions()...)
 
 	})
 
@@ -3744,7 +3744,7 @@ var (
 
 	pattern_ApplicationService_GetOCIMetadata_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 1, 0, 4, 1, 5, 5, 2, 6}, []string{"api", "v1", "applications", "name", "revisions", "revision", "ocimetadata"}, "", runtime.AssumeColonVerbOpt(true)))
 
-	pattern_ApplicationService_InspectGitGPGSourceIntegrity_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5, 2, 6, 2, 7}, []string{"api", "v1", "applications", "name", "source-integrity", "git", "gpg", "inspect"}, "", runtime.AssumeColonVerbOpt(true)))
+	pattern_ApplicationService_InspectGitSourceIntegrity_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4, 2, 5, 2, 6}, []string{"api", "v1", "applications", "name", "source-integrity", "git", "inspect"}, "", runtime.AssumeColonVerbOpt(true)))
 
 	pattern_ApplicationService_GetManifests_0 = runtime.MustPattern(runtime.NewPattern(1, []int{2, 0, 2, 1, 2, 2, 1, 0, 4, 1, 5, 3, 2, 4}, []string{"api", "v1", "applications", "name", "manifests"}, "", runtime.AssumeColonVerbOpt(true)))
 
@@ -3812,7 +3812,7 @@ var (
 
 	forward_ApplicationService_GetOCIMetadata_0 = runtime.ForwardResponseMessage
 
-	forward_ApplicationService_InspectGitGPGSourceIntegrity_0 = runtime.ForwardResponseMessage
+	forward_ApplicationService_InspectGitSourceIntegrity_0 = runtime.ForwardResponseMessage
 
 	forward_ApplicationService_GetManifests_0 = runtime.ForwardResponseMessage
 

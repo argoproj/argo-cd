@@ -87,7 +87,7 @@ func NewProjectSourceIntegrityGitCommand(clientOpts *argocdclient.ClientOptions)
 		},
 	}
 	command.AddCommand(NewProjectSourceIntegrityGitPoliciesCommand(clientOpts))
-	command.AddCommand(NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts))
+	command.AddCommand(NewProjectSourceIntegrityGitInspectRepoCommand(clientOpts))
 	return command
 }
 
@@ -539,8 +539,8 @@ func NewProjectSourceIntegrityGitPoliciesUpdateCommand(clientOpts *argocdclient.
 	return command
 }
 
-func NewProjectSourceIntegrityGitGpgInspectRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
-	const shortDescription = "Inspect the Git/GPG source integrity of an application in a project"
+func NewProjectSourceIntegrityGitInspectRepoCommand(clientOpts *argocdclient.ClientOptions) *cobra.Command {
+	const shortDescription = "Inspect the Git source integrity of an application in a project"
 
 	var appNamespace string
 	command := &cobra.Command{
@@ -577,22 +577,22 @@ Exit codes:
 			projName := args[0]
 			appName, appNs := argo.ParseFromQualifiedName(args[1], appNamespace)
 
-			data, err := applicationClient.InspectGitGPGSourceIntegrity(ctx, &applicationpkg.InspectGitGPGSourceIntegrityQuery{
+			data, err := applicationClient.InspectGitSourceIntegrity(ctx, &applicationpkg.InspectGitSourceIntegrityQuery{
 				Name:         &appName,
 				Project:      &projName,
 				AppNamespace: &appNs,
 			})
 			if err != nil {
-				fmt.Fprintf(c.ErrOrStderr(), "Failed inspecting git gpg source integrity for application %q: %v\n", appName, err)
+				fmt.Fprintf(c.ErrOrStderr(), "Failed inspecting git source integrity for application %q: %v\n", appName, err)
 				os.Exit(1)
 			}
 
 			if len(data.GetItems()) == 0 {
-				fmt.Fprintf(c.ErrOrStderr(), "Git/GPG source integrity is not configured for any source of application %q, check the project and application configuration.\n", appName)
+				fmt.Fprintf(c.ErrOrStderr(), "Git source integrity is not configured for any source of application %q, check the project and application configuration.\n", appName)
 				os.Exit(3)
 			}
 
-			printGitGpgSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
+			printGitSourceIntegrityResponse(c.OutOrStdout(), data.GetItems())
 
 			if hasSourceIntegrityProblems(data.GetItems()) {
 				os.Exit(2)
@@ -605,7 +605,7 @@ Exit codes:
 	return command
 }
 
-func hasSourceIntegrityProblems(items []*applicationpkg.InspectGitGPGSourceIntegrityResponse) bool {
+func hasSourceIntegrityProblems(items []*applicationpkg.InspectGitSourceIntegrityResponse) bool {
 	for _, item := range items {
 		if item.GetErrorMessage() != "" || len(item.GetCommits()) > 0 {
 			return true
@@ -614,23 +614,23 @@ func hasSourceIntegrityProblems(items []*applicationpkg.InspectGitGPGSourceInteg
 	return false
 }
 
-func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitGPGSourceIntegrityResponse) {
+func printGitSourceIntegrityResponse(w io.Writer, items []*applicationpkg.InspectGitSourceIntegrityResponse) {
 	showSealSignHint := false
 
 	for i, item := range items {
-		gpgPolicy := item.GetGitGpgPolicy()
-		isStrictMode := gpgPolicy != nil && gpgPolicy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
+		gitPolicy := item.GetGitPolicy()
+		isStrictMode := gitPolicy != nil && gitPolicy.GPG != nil && gitPolicy.GPG.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
 		if i > 0 {
 			fmt.Fprint(w, "\n--------------------------------\n\n")
 		}
 
-		printGitGpgSourceIntegrityItemHeader(w, item)
+		printGitSourceIntegrityItemHeader(w, item)
 
 		if item.GetErrorMessage() != "" {
 			fmt.Fprintf(w, "\nPROBLEMS: %s\n", item.GetErrorMessage())
 		}
 
-		if gpgPolicy != nil && !isStrictMode {
+		if gitPolicy != nil && !isStrictMode {
 			fmt.Fprintln(w, "\nWARNING: Project does not have strict Git/GPG mode enabled. Strict GPG verification is not actually enforced.")
 		}
 
@@ -680,25 +680,25 @@ func printGitGpgSourceIntegrityResponse(w io.Writer, items []*applicationpkg.Ins
 	}
 }
 
-func printGitGpgSourceIntegrityItemHeader(w io.Writer, item *applicationpkg.InspectGitGPGSourceIntegrityResponse) {
+func printGitSourceIntegrityItemHeader(w io.Writer, item *applicationpkg.InspectGitSourceIntegrityResponse) {
 	fmt.Fprintf(w, "Repo URL: %s\n", item.GetRepoUrl())
 	fmt.Fprintf(w, "Target Revision: %s\n", cli.StripNonPrintableRunes(item.GetTargetRevision()))
 	if item.GetErrorMessage() == "" {
 		fmt.Fprintf(w, "Resolved Revision: %s\n", cli.StripNonPrintableRunes(item.GetResolvedRevision()))
 	}
 
-	gpgPolicy := item.GetGitGpgPolicy()
-	isStrictMode := gpgPolicy != nil && gpgPolicy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
+	gitPolicy := item.GetGitPolicy()
+	isStrictMode := gitPolicy != nil && gitPolicy.GPG != nil && gitPolicy.GPG.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
 
-	if gpgPolicy != nil {
-		fmt.Fprintf(w, "GPG Mode: %s", gpgPolicy.Mode)
+	if gitPolicy != nil && gitPolicy.GPG != nil {
+		fmt.Fprintf(w, "GPG Mode: %s", gitPolicy.GPG.Mode)
 		if !isStrictMode {
 			fmt.Fprint(w, " (SIMULATED STRICT MODE)")
 		}
 		fmt.Fprintln(w)
 
 		fmt.Fprintln(w, "GPG Keys:")
-		for _, key := range gpgPolicy.Keys {
+		for _, key := range gitPolicy.GPG.Keys {
 			fmt.Fprintf(w, "  %s\n", key)
 		}
 	}

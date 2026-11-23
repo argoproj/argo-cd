@@ -337,14 +337,14 @@ message UpdateRevisionForPathsResponse {
 }
 
 
-message InspectGitGPGSourceIntegrityRequest {
+message InspectGitSourceIntegrityRequest {
     github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.Repository repo = 1;
     string revision = 2;
-    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityGitPolicyGPG policy = 3;
+    github.com.argoproj.argo_cd.v3.pkg.apis.application.v1alpha1.SourceIntegrityGitPolicy policy = 3;
     string tagPrefix = 4;
 }
 
-message GitGPGCommitInfo {
+message GitCommitInfo {
     string revision = 1;
     string author = 2;
     string date = 3;
@@ -353,9 +353,9 @@ message GitGPGCommitInfo {
     string verificationResult = 6;
 }
 
-message InspectGitGPGSourceIntegrityResponse {
+message InspectGitSourceIntegrityResponse {
     string resolvedRevision = 1;
-    repeated GitGPGCommitInfo commits = 2;
+    repeated GitCommitInfo commits = 2;
 }
 
 // ManifestService
@@ -433,8 +433,8 @@ service RepoServerService {
     rpc UpdateRevisionForPaths(UpdateRevisionForPathsRequest) returns (UpdateRevisionForPathsResponse) {
     }
 
-    // InspectGitGPGSourceIntegrity resolves a revision and lists git commit GPG signature
+    // InspectGitSourceIntegrity resolves a revision and lists git commit signature
     // information for seal-signing / source-integrity inspection.
-    rpc InspectGitGPGSourceIntegrity(InspectGitGPGSourceIntegrityRequest) returns (InspectGitGPGSourceIntegrityResponse) {
+    rpc InspectGitSourceIntegrity(InspectGitSourceIntegrityRequest) returns (InspectGitSourceIntegrityResponse) {
     }
 }

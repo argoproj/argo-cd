@@ -6166,14 +6166,14 @@ func getGitInspectApplicationSource(repoURL, revision string) v1alpha1.Applicati
 	}
 }
 
-func getInspectGitGPGQuery(app *v1alpha1.Application) *application.InspectGitGPGSourceIntegrityQuery {
-	return &application.InspectGitGPGSourceIntegrityQuery{
+func getInspectGitQuery(app *v1alpha1.Application) *application.InspectGitSourceIntegrityQuery {
+	return &application.InspectGitSourceIntegrityQuery{
 		Name:    &app.Name,
 		Project: &app.Spec.Project,
 	}
 }
 
-func newInspectGitGPGAppServer(t *testing.T, proj *v1alpha1.AppProject, app *v1alpha1.Application, mockRepo apiclient.RepoServerServiceClient) *Server {
+func newInspectGitAppServer(t *testing.T, proj *v1alpha1.AppProject, app *v1alpha1.Application, mockRepo apiclient.RepoServerServiceClient) *Server {
 	t.Helper()
 	app.Spec.Project = proj.Name
 	appServer := newTestAppServer(t, app, proj)
@@ -6183,10 +6183,10 @@ func newInspectGitGPGAppServer(t *testing.T, proj *v1alpha1.AppProject, app *v1a
 	return appServer
 }
 
-func getSampleInspectGitGPGRepoResponse() *apiclient.InspectGitGPGSourceIntegrityResponse {
-	return &apiclient.InspectGitGPGSourceIntegrityResponse{
+func getSampleInspectGitRepoResponse() *apiclient.InspectGitSourceIntegrityResponse {
+	return &apiclient.InspectGitSourceIntegrityResponse{
 		ResolvedRevision: "resolved-sha-123",
-		Commits: []*apiclient.GitGPGCommitInfo{{
+		Commits: []*apiclient.GitCommitInfo{{
 			Revision:           "bad-commit-sha",
 			Author:             "Jane Doe <jdoe@example.com>",
 			Date:               "Fri Oct 31 14:42:39 2025 +0100",
@@ -6197,7 +6197,7 @@ func getSampleInspectGitGPGRepoResponse() *apiclient.InspectGitGPGSourceIntegrit
 	}
 }
 
-func TestInspectGitGPGSourceIntegrity(t *testing.T) {
+func TestInspectGitSourceIntegrity(t *testing.T) {
 	t.Run("rbac permission denied", func(t *testing.T) {
 		f := func(enf *rbac.Enforcer) {
 			_ = enf.SetBuiltinPolicy(assets.BuiltinPolicyCSV)
@@ -6206,7 +6206,7 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		app := newTestApp()
 		appServer := newTestAppServerWithEnforcerConfigure(t, f, nil, app)
 
-		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		_, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 		require.Error(t, err)
 		assert.ErrorContains(t, err, "permission denied")
 	})
@@ -6216,10 +6216,10 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		app := newTestApp(func(a *v1alpha1.Application) {
 			a.Spec.Source.RepoURL = fakeRepoURL
 		})
-		appServer := newInspectGitGPGAppServer(t, proj, app, nil)
+		appServer := newInspectGitAppServer(t, proj, app, nil)
 		appServer.repoClientset = &mocks.FailingRepoClientset{Err: errors.New("boom")}
 
-		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		_, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 		require.ErrorContains(t, err, "error creating repo server client")
 		require.ErrorContains(t, err, "boom")
 	})
@@ -6229,9 +6229,9 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		app := newTestApp(func(a *v1alpha1.Application) {
 			a.Spec.Source.RepoURL = fakeRepoURL
 		})
-		appServer := newInspectGitGPGAppServer(t, proj, app, mocks.NewRepoServerServiceClient(t))
+		appServer := newInspectGitAppServer(t, proj, app, mocks.NewRepoServerServiceClient(t))
 
-		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		_, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 		require.ErrorContains(t, err, "no git source integrity configured for project gpg-proj-no-si")
 	})
 
@@ -6241,9 +6241,9 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		app := newTestApp(func(a *v1alpha1.Application) {
 			a.Spec.Source.RepoURL = fakeRepoURL
 		})
-		appServer := newInspectGitGPGAppServer(t, proj, app, mocks.NewRepoServerServiceClient(t))
+		appServer := newInspectGitAppServer(t, proj, app, mocks.NewRepoServerServiceClient(t))
 
-		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		_, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 		require.ErrorContains(t, err, "no git source integrity configured for project gpg-proj-no-git")
 	})
 
@@ -6281,8 +6281,8 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 
 		for _, tt := range tests {
 			t.Run(tt.name, func(t *testing.T) {
-				appServer := newInspectGitGPGAppServer(t, proj, tt.app, mocks.NewRepoServerServiceClient(t))
-				resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(tt.app))
+				appServer := newInspectGitAppServer(t, proj, tt.app, mocks.NewRepoServerServiceClient(t))
+				resp, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(tt.app))
 				require.NoError(t, err)
 				assert.Empty(t, resp.Items)
 			})
@@ -6326,9 +6326,9 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 				app := newTestApp(func(a *v1alpha1.Application) {
 					a.Spec.Source.RepoURL = tt.repoURL
 				})
-				appServer := newInspectGitGPGAppServer(t, tt.proj, app, mocks.NewRepoServerServiceClient(t))
+				appServer := newInspectGitAppServer(t, tt.proj, app, mocks.NewRepoServerServiceClient(t))
 
-				resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+				resp, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 				require.NoError(t, err)
 				require.Len(t, resp.Items, 1)
 				require.NotNil(t, resp.Items[0].ErrorMessage)
@@ -6343,10 +6343,10 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 			a.Spec.Source.RepoURL = fakeRepoURL
 		})
 		mockRepo := mocks.NewRepoServerServiceClient(t)
-		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+		appServer := newInspectGitAppServer(t, proj, app, mockRepo)
 		appServer.db = &repositoryFailingDB{ArgoDB: appServer.db, err: errors.New("db lookup failed")}
 
-		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		_, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 		require.ErrorContains(t, err, "error getting repository by URL for source")
 		require.ErrorContains(t, err, "db lookup failed")
 	})
@@ -6358,12 +6358,12 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		})
 		mockRepo := mocks.NewRepoServerServiceClient(t)
 		mockRepo.EXPECT().
-			InspectGitGPGSourceIntegrity(mock.Anything, mock.Anything).
+			InspectGitSourceIntegrity(mock.Anything, mock.Anything).
 			Return(nil, errors.New("inspect failed"))
-		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+		appServer := newInspectGitAppServer(t, proj, app, mockRepo)
 
-		_, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
-		require.ErrorContains(t, err, "failed to inspect git gpg source integrity for source")
+		_, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
+		require.ErrorContains(t, err, "failed to inspect git source integrity for source")
 		require.ErrorContains(t, err, "inspect failed")
 	})
 
@@ -6373,21 +6373,22 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 			a.Spec.Source.RepoURL = fakeRepoURL
 			a.Spec.Source.TargetRevision = "HEAD"
 		})
-		repoResp := getSampleInspectGitGPGRepoResponse()
+		repoResp := getSampleInspectGitRepoResponse()
 		mockRepo := mocks.NewRepoServerServiceClient(t)
 		mockRepo.EXPECT().
-			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+			InspectGitSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitSourceIntegrityRequest) bool {
 				return req.Repo.Repo == fakeRepoURL &&
 					req.Revision == "HEAD" &&
 					req.Policy != nil &&
-					req.Policy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict &&
-					len(req.Policy.Keys) == 1 &&
-					req.Policy.Keys[0] == "key1"
+					req.Policy.GPG != nil &&
+					req.Policy.GPG.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict &&
+					len(req.Policy.GPG.Keys) == 1 &&
+					req.Policy.GPG.Keys[0] == "key1"
 			})).
 			Return(repoResp, nil)
-		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+		appServer := newInspectGitAppServer(t, proj, app, mockRepo)
 
-		resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		resp, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 		require.NoError(t, err)
 		require.Len(t, resp.Items, 1)
 		item := resp.Items[0]
@@ -6395,8 +6396,9 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		assert.Equal(t, fakeRepoURL, *item.RepoUrl)
 		assert.Equal(t, "HEAD", *item.TargetRevision)
 		assert.Equal(t, repoResp.ResolvedRevision, *item.ResolvedRevision)
-		require.NotNil(t, item.GitGpgPolicy)
-		assert.Equal(t, v1alpha1.SourceIntegrityGitPolicyGPGModeHead, item.GitGpgPolicy.Mode)
+		require.NotNil(t, item.GitPolicy)
+		require.NotNil(t, item.GitPolicy.GPG)
+		assert.Equal(t, v1alpha1.SourceIntegrityGitPolicyGPGModeHead, item.GitPolicy.GPG.Mode)
 		require.Len(t, item.Commits, 1)
 		assert.Equal(t, repoResp.Commits[0].Revision, *item.Commits[0].Revision)
 		assert.Equal(t, repoResp.Commits[0].Author, *item.Commits[0].Author)
@@ -6420,22 +6422,22 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		})
 		mockRepo := mocks.NewRepoServerServiceClient(t)
 		mockRepo.EXPECT().
-			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+			InspectGitSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitSourceIntegrityRequest) bool {
 				return req.Repo.Repo == fakeRepoURL
 			})).
-			Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha-1"}, nil).
+			Return(&apiclient.InspectGitSourceIntegrityResponse{ResolvedRevision: "sha-1"}, nil).
 			Once()
 		mockRepo.EXPECT().
-			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+			InspectGitSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitSourceIntegrityRequest) bool {
 				return req.Repo.Repo == secondGitRepoURL
 			})).
-			Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha-2"}, nil).
+			Return(&apiclient.InspectGitSourceIntegrityResponse{ResolvedRevision: "sha-2"}, nil).
 			Once()
-		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+		appServer := newInspectGitAppServer(t, proj, app, mockRepo)
 		_, err := appServer.db.CreateRepository(t.Context(), &v1alpha1.Repository{Repo: secondGitRepoURL})
 		require.NoError(t, err)
 
-		resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		resp, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 		require.NoError(t, err)
 		require.Len(t, resp.Items, 2)
 		assert.Nil(t, resp.Items[0].ErrorMessage)
@@ -6456,13 +6458,13 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		})
 		mockRepo := mocks.NewRepoServerServiceClient(t)
 		mockRepo.EXPECT().
-			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+			InspectGitSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitSourceIntegrityRequest) bool {
 				return req.Repo.Repo == fakeRepoURL
 			})).
-			Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha-git"}, nil)
-		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+			Return(&apiclient.InspectGitSourceIntegrityResponse{ResolvedRevision: "sha-git"}, nil)
+		appServer := newInspectGitAppServer(t, proj, app, mockRepo)
 
-		resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		resp, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 		require.NoError(t, err)
 		require.Len(t, resp.Items, 1)
 		assert.Equal(t, fakeRepoURL, *resp.Items[0].RepoUrl)
@@ -6480,13 +6482,13 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		})
 		mockRepo := mocks.NewRepoServerServiceClient(t)
 		mockRepo.EXPECT().
-			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+			InspectGitSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitSourceIntegrityRequest) bool {
 				return req.Repo.Repo == fakeRepoURL
 			})).
-			Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha-ok"}, nil)
-		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+			Return(&apiclient.InspectGitSourceIntegrityResponse{ResolvedRevision: "sha-ok"}, nil)
+		appServer := newInspectGitAppServer(t, proj, app, mockRepo)
 
-		resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+		resp, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 		require.NoError(t, err)
 		require.Len(t, resp.Items, 2)
 		assert.Nil(t, resp.Items[0].ErrorMessage)
@@ -6509,23 +6511,23 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 		})
 		mockRepo := mocks.NewRepoServerServiceClient(t)
 		mockRepo.EXPECT().
-			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+			InspectGitSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitSourceIntegrityRequest) bool {
 				return req.Repo.Repo == fakeRepoURL
 			})).
-			Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha-1"}, nil).
+			Return(&apiclient.InspectGitSourceIntegrityResponse{ResolvedRevision: "sha-1"}, nil).
 			Once()
 		mockRepo.EXPECT().
-			InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
+			InspectGitSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitSourceIntegrityRequest) bool {
 				return req.Repo.Repo == secondGitRepoURL
 			})).
 			Return(nil, errors.New("second source failed")).
 			Once()
-		appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+		appServer := newInspectGitAppServer(t, proj, app, mockRepo)
 		_, err := appServer.db.CreateRepository(t.Context(), &v1alpha1.Repository{Repo: secondGitRepoURL})
 		require.NoError(t, err)
 
-		_, err = appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
-		require.ErrorContains(t, err, "failed to inspect git gpg source integrity for source "+secondGitRepoURL)
+		_, err = appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
+		require.ErrorContains(t, err, "failed to inspect git source integrity for source "+secondGitRepoURL)
 		require.ErrorContains(t, err, "second source failed")
 	})
 
@@ -6542,17 +6544,18 @@ func TestInspectGitGPGSourceIntegrity(t *testing.T) {
 				})
 				mockRepo := mocks.NewRepoServerServiceClient(t)
 				mockRepo.EXPECT().
-					InspectGitGPGSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitGPGSourceIntegrityRequest) bool {
-						return req.Policy != nil && req.Policy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
+					InspectGitSourceIntegrity(mock.Anything, mock.MatchedBy(func(req *apiclient.InspectGitSourceIntegrityRequest) bool {
+						return req.Policy != nil && req.Policy.GPG != nil && req.Policy.GPG.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict
 					})).
-					Return(&apiclient.InspectGitGPGSourceIntegrityResponse{ResolvedRevision: "sha"}, nil)
-				appServer := newInspectGitGPGAppServer(t, proj, app, mockRepo)
+					Return(&apiclient.InspectGitSourceIntegrityResponse{ResolvedRevision: "sha"}, nil)
+				appServer := newInspectGitAppServer(t, proj, app, mockRepo)
 
-				resp, err := appServer.InspectGitGPGSourceIntegrity(t.Context(), getInspectGitGPGQuery(app))
+				resp, err := appServer.InspectGitSourceIntegrity(t.Context(), getInspectGitQuery(app))
 				require.NoError(t, err)
 				require.Len(t, resp.Items, 1)
-				require.NotNil(t, resp.Items[0].GitGpgPolicy)
-				assert.Equal(t, mode, resp.Items[0].GitGpgPolicy.Mode)
+				require.NotNil(t, resp.Items[0].GitPolicy)
+				require.NotNil(t, resp.Items[0].GitPolicy.GPG)
+				assert.Equal(t, mode, resp.Items[0].GitPolicy.GPG.Mode)
 			})
 		}
 	})

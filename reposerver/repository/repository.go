@@ -3908,14 +3908,14 @@ func (s *Service) ociClientStandardOpts() []oci.ClientOpts {
 	}
 }
 
-func (s *Service) InspectGitGPGSourceIntegrity(ctx context.Context, request *apiclient.InspectGitGPGSourceIntegrityRequest) (*apiclient.InspectGitGPGSourceIntegrityResponse, error) {
+func (s *Service) InspectGitSourceIntegrity(ctx context.Context, request *apiclient.InspectGitSourceIntegrityRequest) (*apiclient.InspectGitSourceIntegrityResponse, error) {
 	repo := request.GetRepo()
 	policy := request.GetPolicy()
 	if repo == nil {
 		return nil, status.Error(codes.InvalidArgument, "must pass a valid repo")
 	}
-	if policy == nil {
-		return nil, status.Error(codes.InvalidArgument, "must pass a valid git/gpg source integrity policy")
+	if policy == nil || policy.GPG == nil {
+		return nil, status.Error(codes.InvalidArgument, "must pass a valid git source integrity policy")
 	}
 	gitClient, resolvedRevision, err := s.newClientResolveRevision(repo, request.GetRevision(), git.WithTagPrefix(request.GetTagPrefix()))
 	if err != nil {
@@ -3939,22 +3939,22 @@ func (s *Service) InspectGitGPGSourceIntegrity(ctx context.Context, request *api
 	defer utilio.Close(closer)
 
 	// passing original revision so we can resolve tags
-	signatures, _, err := gitClient.LsSignatures(ctx, revision, policy.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict)
+	signatures, _, err := gitClient.LsSignatures(ctx, revision, policy.GPG.Mode == v1alpha1.SourceIntegrityGitPolicyGPGModeStrict)
 	if err != nil {
 		return nil, fmt.Errorf("error listing signatures: %w", err)
 	}
 
-	commits := make([]*apiclient.GitGPGCommitInfo, 0, len(signatures))
+	commits := make([]*apiclient.GitCommitInfo, 0, len(signatures))
 
 	for _, signature := range signatures {
-		verificationResult, valid := sourceintegrity.VerifyGPGSignatureInfo(policy, signature)
+		verificationResult, valid := sourceintegrity.VerifyGPGSignatureInfo(policy.GPG, signature)
 
 		if valid {
 			// only report problematic signatures
 			continue
 		}
 
-		commits = append(commits, &apiclient.GitGPGCommitInfo{
+		commits = append(commits, &apiclient.GitCommitInfo{
 			Revision:           signature.Revision,
 			Author:             signature.AuthorIdentity,
 			Date:               signature.Date,
@@ -3964,7 +3964,7 @@ func (s *Service) InspectGitGPGSourceIntegrity(ctx context.Context, request *api
 		})
 	}
 
-	return &apiclient.InspectGitGPGSourceIntegrityResponse{
+	return &apiclient.InspectGitSourceIntegrityResponse{
 		ResolvedRevision: resolvedRevision,
 		Commits:          commits,
 	}, nil

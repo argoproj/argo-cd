@@ -2761,7 +2761,7 @@ func (c *fakeAppServiceClient) ServerSideDiff(_ context.Context, _ *applicationp
 	return nil, nil
 }
 
-func (c *fakeAppServiceClient) InspectGitGPGSourceIntegrity(_ context.Context, _ *applicationpkg.InspectGitGPGSourceIntegrityQuery, _ ...grpc.CallOption) (*applicationpkg.InspectGitGPGSourceIntegrityListResponse, error) {
+func (c *fakeAppServiceClient) InspectGitSourceIntegrity(_ context.Context, _ *applicationpkg.InspectGitSourceIntegrityQuery, _ ...grpc.CallOption) (*applicationpkg.InspectGitSourceIntegrityListResponse, error) {
 	return nil, nil
 }
 
