@@ -83,6 +83,8 @@ const (
 	defaultDeploymentInformerResyncDuration = 10 * time.Second
 	// orphanedIndex contains application which monitor orphaned resources by namespace
 	orphanedIndex = "orphaned"
+	// hydrationDestinationIndex contains applications by the repository and branch they hydrate to
+	hydrationDestinationIndex = "hydrationDestination"
 	// appOperationRequeueDelay is the batching window used when a managed resource changes.
 	// The burst of resource change events during a sync is batched by the delaying queue into a
 	// single operation processing per window, batching status and operationState writes.
@@ -3336,6 +3338,7 @@ func (ctrl *ApplicationController) newApplicationInformerAndLister() (cache.Shar
 		cache.Indexers{
 			cache.NamespaceIndex:       cache.MetaNamespaceIndexFunc,
 			statecache.ManagedCRDIndex: statecache.ManagedCRDIndexFunc,
+			hydrationDestinationIndex:  ctrl.hydrationDestinationIndexFunc,
 			orphanedIndex: func(obj any) (i []string, e error) {
 				app, ok := obj.(*appv1.Application)
 				if !ok {

@@ -2202,14 +2202,14 @@ func TestProcessAppHydrateQueueItem_NoteAdvance_StatusUpdatedCorrectly(t *testin
 }
 
 // expectNoteAdvanceGuard mocks canAdvanceHydratorNote's comparison against the last hydrated revision
-// and its hydration-group lookup.
+// and its hydrated-branch lookup.
 func expectNoteAdvanceGuard(d *mocks.Dependencies, app *v1alpha1.Application, proj *v1alpha1.AppProject, resolved string, hasChanges bool) {
 	hydrated := app.Status.SourceHydrator.LastSuccessfulOperation.DrySHA
 	d.EXPECT().EvaluateAppRevisionsChanges(mock.Anything, mock.MatchedBy(func(a *v1alpha1.Application) bool {
 		return a.Status.SourceHydrator.LastComparedDryRevision == hydrated
 	}), app.Spec.SourceHydrator.GetDrySource(), resolved, proj, false).Return(hasChanges, resolved, nil).Once()
 	if !hasChanges {
-		d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app}}, nil).Once()
+		d.EXPECT().GetAppsByHydrationDestination(HydrationDestinationKey(app)).Return([]*v1alpha1.Application{app}, nil).Once()
 	}
 }
 
@@ -2276,7 +2276,7 @@ func TestProcessAppHydrateQueueItem_NoNoteAdvance_WhenHydratedBranchShared(t *te
 		return a.Status.SourceHydrator.LastComparedDryRevision == "hydrated-dry-sha"
 	}), app.Spec.SourceHydrator.GetDrySource(), "new-dry-sha", proj, false).Return(false, "new-dry-sha", nil).Once()
 	sibling := newTestApp("sibling")
-	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app, *sibling}}, nil).Once()
+	d.EXPECT().GetAppsByHydrationDestination(HydrationDestinationKey(app)).Return([]*v1alpha1.Application{app, sibling}, nil).Once()
 
 	h := &Hydrator{dependencies: d, commitClientset: &commitservermocks.Clientset{CommitServiceClient: commitservermocks.NewCommitServiceClient(t)}}
 	h.ProcessAppHydrateQueueItem(app)
@@ -2298,7 +2298,8 @@ func TestProcessAppHydrateQueueItem_NoNoteAdvance_WhenBranchSharedAcrossDrySourc
 	sibling.Spec.SourceHydrator.SyncSource.RepoURL = app.Spec.GetHydrateToSource().RepoURL
 	require.Equal(t, app.Spec.GetHydrateToSource(), sibling.Spec.GetHydrateToSource())
 	require.NotEqual(t, getHydrationQueueKey(app), getHydrationQueueKey(sibling))
-	d.EXPECT().GetProcessableApps().Return(&v1alpha1.ApplicationList{Items: []v1alpha1.Application{*app, *sibling}}, nil).Once()
+	require.Equal(t, HydrationDestinationKey(app), HydrationDestinationKey(sibling), "same index key despite different dry sources")
+	d.EXPECT().GetAppsByHydrationDestination(HydrationDestinationKey(app)).Return([]*v1alpha1.Application{app, sibling}, nil).Once()
 
 	h := &Hydrator{dependencies: d, commitClientset: &commitservermocks.Clientset{CommitServiceClient: commitservermocks.NewCommitServiceClient(t)}}
 	h.ProcessAppHydrateQueueItem(app)

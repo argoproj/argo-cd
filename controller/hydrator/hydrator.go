@@ -49,6 +49,10 @@ type Dependencies interface {
 	// GetProcessableApps returns a list of applications that are processable by the controller.
 	GetProcessableApps() (*appv1.ApplicationList, error)
 
+	// GetAppsByHydrationDestination returns the processable applications that hydrate to the destination with the
+	// given HydrationDestinationKey. It reads from the controller's application cache.
+	GetAppsByHydrationDestination(destinationKey string) ([]*appv1.Application, error)
+
 	// EvaluateAppRevisionsChanges checks if any source revisions have changes without generating manifests.
 	// The returned string is the resolved revision for the given source.
 	EvaluateAppRevisionsChanges(ctx context.Context, app *appv1.Application, source appv1.ApplicationSource, revision string, project *appv1.AppProject, noRevisionCache bool) (bool, string, error)
@@ -187,6 +191,16 @@ func getHydrationQueueKey(app *appv1.Application) types.HydrationQueueKey {
 		DestinationBranch:    hydrateToSource.TargetRevision,
 	}
 	return key
+}
+
+// HydrationDestinationKey identifies the repository and branch an application hydrates to, for indexing
+// applications that write to the same hydrated branch. It is empty for applications without a source hydrator.
+func HydrationDestinationKey(app *appv1.Application) string {
+	if app.Spec.SourceHydrator == nil {
+		return ""
+	}
+	key := getHydrationQueueKey(app)
+	return key.DestinationRepoURL + "\x00" + key.DestinationBranch
 }
 
 // ProcessHydrationQueueItem processes a hydration queue item. It retrieves the relevant applications for the given
@@ -679,18 +693,12 @@ func (h *Hydrator) canAdvanceHydratorNote(ctx context.Context, app *appv1.Applic
 }
 
 func (h *Hydrator) isHydratedBranchShared(app *appv1.Application) (bool, error) {
-	key := getHydrationQueueKey(app)
-	apps, err := h.dependencies.GetProcessableApps()
+	apps, err := h.dependencies.GetAppsByHydrationDestination(HydrationDestinationKey(app))
 	if err != nil {
 		return false, fmt.Errorf("failed to list apps: %w", err)
 	}
-	for i := range apps.Items {
-		other := &apps.Items[i]
-		if other.Spec.SourceHydrator == nil || (other.Name == app.Name && other.Namespace == app.Namespace) {
-			continue
-		}
-		otherKey := getHydrationQueueKey(other)
-		if otherKey.DestinationRepoURL == key.DestinationRepoURL && otherKey.DestinationBranch == key.DestinationBranch {
+	for _, other := range apps {
+		if other.Name != app.Name || other.Namespace != app.Namespace {
 			return true, nil
 		}
 	}

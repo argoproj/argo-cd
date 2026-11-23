@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"slices"
 	"testing"
 	"time"
 
@@ -10,7 +11,9 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/argoproj/argo-cd/v3/common"
+	"github.com/argoproj/argo-cd/v3/controller/hydrator"
 	"github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
+	appclientset "github.com/argoproj/argo-cd/v3/pkg/client/clientset/versioned/fake"
 	"github.com/argoproj/argo-cd/v3/reposerver/apiclient"
 	"github.com/argoproj/argo-cd/v3/test"
 	"github.com/argoproj/argo-cd/v3/util/settings"
@@ -253,4 +256,59 @@ func TestEvaluateAppRevisionsChanges(t *testing.T) {
 	require.NoError(t, err)
 	assert.True(t, hasChanges)
 	assert.Equal(t, "new-sha", resolvedRev)
+}
+
+func hydratorApp(name, namespace, dryRepo, dryRevision, destRepo, destBranch string) *v1alpha1.Application {
+	return &v1alpha1.Application{
+		Name:      name,
+		Namespace: namespace,
+		Spec: v1alpha1.ApplicationSpec{
+			SourceHydrator: &v1alpha1.SourceHydrator{
+				DrySource:  v1alpha1.DrySource{RepoURL: dryRepo, TargetRevision: dryRevision, Path: name},
+				SyncSource: v1alpha1.SyncSource{RepoURL: destRepo, TargetBranch: destBranch, Path: name},
+			},
+		},
+	}
+}
+
+func appNames(apps []*v1alpha1.Application) []string {
+	names := make([]string, 0, len(apps))
+	for _, app := range apps {
+		names = append(names, app.Name)
+	}
+	slices.Sort(names)
+	return names
+}
+
+// GetAppsByHydrationDestination reads the informer index, grouping apps by hydrated repo and branch only.
+func TestGetAppsByHydrationDestination(t *testing.T) {
+	ctrl := newFakeControllerWithResync(t.Context(), &fakeData{}, time.Minute, nil, errors.New("this should not be called"))
+	ns := test.FakeArgoCDNamespace
+	apps := []*v1alpha1.Application{
+		hydratorApp("int", ns, "https://example.com/dry.git", "main", "https://example.com/hydrated.git", "env/int"),
+		hydratorApp("int-other-dry", ns, "https://example.com/other.git", "release", "https://example.com/hydrated.git", "env/int"),
+		hydratorApp("int-url-variant", ns, "https://example.com/dry.git", "main", "https://EXAMPLE.com/hydrated", "env/int"),
+		hydratorApp("stage", ns, "https://example.com/dry.git", "main", "https://example.com/hydrated.git", "env/stage"),
+		hydratorApp("other-ns", "not-allowed", "https://example.com/dry.git", "main", "https://example.com/hydrated.git", "env/int"),
+		{Name: "plain", Namespace: ns, Spec: v1alpha1.ApplicationSpec{Source: &v1alpha1.ApplicationSource{RepoURL: "https://example.com/hydrated.git"}}},
+	}
+	for _, app := range apps {
+		require.NoError(t, ctrl.appInformer.GetIndexer().Add(app))
+	}
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	actionsBefore := len(fakeAppCs.Actions())
+
+	shared, err := ctrl.GetAppsByHydrationDestination(hydrator.HydrationDestinationKey(apps[0]))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"int", "int-other-dry", "int-url-variant"}, appNames(shared),
+		"same destination regardless of dry source or URL spelling; other namespaces and non-hydrator apps excluded")
+
+	alone, err := ctrl.GetAppsByHydrationDestination(hydrator.HydrationDestinationKey(apps[3]))
+	require.NoError(t, err)
+	assert.Equal(t, []string{"stage"}, appNames(alone))
+
+	none, err := ctrl.GetAppsByHydrationDestination("")
+	require.NoError(t, err)
+	assert.Empty(t, none, "apps without a source hydrator are not indexed")
+	assert.Len(t, fakeAppCs.Actions(), actionsBefore, "lookups read the informer cache, not the API server")
 }
