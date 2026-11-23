@@ -1,4 +1,5 @@
 import * as React from 'react';
+import {QueryClient, QueryClientProvider} from '@tanstack/react-query';
 import {act, render, waitFor} from '@testing-library/react';
 import {FormApi} from 'argo-ui';
 
@@ -62,9 +63,11 @@ describe('SourcePanel', () => {
         const app = {metadata: {name: 'guestbook'}, spec: {project: 'team-a', sources: []}} as unknown as models.Application;
         // The parameters section's EditablePanel reads notifications off the app Context.
         render(
-            <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
-                <SourcePanel appCurrent={app} onSubmitFailure={jest.fn()} updateApp={jest.fn()} getFormApi={api => (formApi = api)} />
-            </Context.Provider>
+            <QueryClientProvider client={new QueryClient({defaultOptions: {queries: {retry: false}}})}>
+                <Context.Provider value={{notifications: {show: jest.fn()}} as any}>
+                    <SourcePanel appCurrent={app} onSubmitFailure={jest.fn()} updateApp={jest.fn()} getFormApi={api => (formApi = api)} />
+                </Context.Provider>
+            </QueryClientProvider>
         );
 
         await waitFor(() => expect(formApi).toBeDefined());

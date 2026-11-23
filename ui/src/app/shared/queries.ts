@@ -43,6 +43,20 @@ export const repoQueries = {
                     hydratorEnabled ? services.repos.listWrite() : Promise.resolve([]),
                     hydratorEnabled ? services.repocreds.listWrite() : Promise.resolve([])
                 ])
+        }),
+    // Best-effort, for revision suggestions: a failure shows no error notification, and the revision field still
+    // accepts any value. Keyed without the branches/tags filter, so switching it reuses the result.
+    refs: (repoURL: string, appProject?: string) =>
+        queryOptions({
+            queryKey: ['repos', 'refs', repoURL, appProject ?? ''],
+            queryFn: () => services.repos.revisions(repoURL, appProject),
+            meta: {silent: true}
+        }),
+    ociTags: (repoURL: string, appProject?: string) =>
+        queryOptions({
+            queryKey: ['repos', 'oci-tags', repoURL, appProject ?? ''],
+            queryFn: () => services.repos.ociTags(repoURL, appProject),
+            meta: {silent: true}
         })
 };
 
@@ -70,6 +84,11 @@ export const accountQueries = {
     detail: (name: string) => queryOptions({queryKey: ['accounts', 'detail', name], queryFn: () => services.accounts.get(name)})
 };
 
+export const userQueries = {
+    // Not kept once unused: a login after a 401 doesn't reload the page, so a cached value could show the previous user.
+    info: () => queryOptions({queryKey: ['userinfo'], queryFn: () => services.users.get(), gcTime: 0})
+};
+
 export const settingsQueries = {
     get: () => queryOptions({queryKey: ['settings'], queryFn: () => services.authService.settings()})
 };
@@ -77,6 +96,10 @@ export const settingsQueries = {
 export const notificationQueries = {
     triggers: () => queryOptions({queryKey: ['notifications', 'triggers'], queryFn: () => services.notification.listTriggers()}),
     services: () => queryOptions({queryKey: ['notifications', 'services'], queryFn: () => services.notification.listServices()})
+};
+
+export const versionQueries = {
+    get: () => queryOptions({queryKey: ['version'], queryFn: () => services.version.version(), meta: {silent: true}})
 };
 
 export const helpQueries = {
