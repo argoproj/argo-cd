@@ -689,9 +689,19 @@ function renderPodGroup(
 }
 
 function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, pods: models.Pod[], showPodGroupByStatus: boolean) {
+    const singlePod = showPodGroupByStatus && pods.length === 1 ? pods[0] : undefined;
     return (
         <div className='application-resource-tree__node--lower-section__pod-group__pod-container__pods'>
-            {pods.length !== 0 && showPodGroupByStatus ? (
+            {singlePod && (
+                <button
+                    type='button'
+                    className={`pod-view__node__pod pod-view__node__pod--${singlePod.health.toLowerCase()}`}
+                    title={`View details for ${singlePod.metadata.name} (${singlePod.health})`}
+                    onClick={() => props.onNodeClick?.(singlePod.fullName)}>
+                    <PodHealthIcon state={{status: singlePod.health, message: ''}} />
+                </button>
+            )}
+            {showPodGroupByStatus && pods.length > 1 && (
                 <React.Fragment>
                     <div className={`pod-view__node__pod pod-view__node__pod--${pods[0].health.toLowerCase()}`}>
                         <PodHealthIcon state={{status: pods[0].health, message: ''}} key={pods[0].uid} />
@@ -710,7 +720,8 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                         </a>
                     </div>
                 </React.Fragment>
-            ) : (
+            )}
+            {!showPodGroupByStatus &&
                 pods.map(
                     pod =>
                         props.nodeMenu && (
@@ -762,8 +773,7 @@ function renderPodGroupByStatus(props: ApplicationResourceTreeProps, node: any, 
                                 {() => props.nodeMenu(pod)}
                             </DropDown>
                         )
-                )
-            )}
+                )}
         </div>
     );
 }

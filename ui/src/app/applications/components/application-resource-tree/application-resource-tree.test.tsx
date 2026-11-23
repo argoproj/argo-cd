@@ -1,4 +1,7 @@
-import {compareNodes, describeNode, getEffectiveParentKey, ResourceTreeNode} from './application-resource-tree';
+import * as React from 'react';
+import {fireEvent, render, screen} from '@testing-library/react';
+
+import {ApplicationResourceTree, compareNodes, describeNode, getEffectiveParentKey, ResourceTreeNode} from './application-resource-tree';
 
 function node(kind: string, name: string, parent?: ResourceTreeNode): ResourceTreeNode {
     return {
@@ -50,6 +53,46 @@ test('getEffectiveParentKey.nonPodParentIsKept', () => {
     const rs = node('ReplicaSet', 'web-abc', deploy);
     const byKey = new Map<string, ResourceTreeNode>([deploy, rs].map(n => [n.uid, n]));
     expect(getEffectiveParentKey(rs, byKey, groupedUnlessManaged())).toBe(rs.uid);
+});
+
+test('a single Pod in a health group opens its details and multiple Pods open their group', () => {
+    const replicaSet = node('ReplicaSet', 'web');
+    const progressing = {...node('Pod', 'web-new', replicaSet), health: {status: 'Progressing' as const, message: ''}};
+    const healthy = ['web-1', 'web-2'].map(name => ({...node('Pod', name, replicaSet), health: {status: 'Healthy' as const, message: ''}}));
+    const onNodeClick = jest.fn();
+    const onGroupdNodeClick = jest.fn();
+
+    render(
+        <ApplicationResourceTree
+            app={{kind: 'Application', metadata: {name: 'web', namespace: 'demo'}, spec: {}, status: {sync: {status: 'Synced'}, resources: [], summary: {}}}}
+            tree={{nodes: [replicaSet, progressing, ...healthy], orphanedNodes: [], hosts: []}}
+            showCompactNodes={true}
+            podGroupCount={3}
+            onNodeClick={onNodeClick}
+            onGroupdNodeClick={onGroupdNodeClick}
+            getNodeExpansion={() => true}
+            setNodeExpansion={jest.fn()}
+            setShowCompactNodes={jest.fn()}
+            userMsgs={[]}
+            updateUsrHelpTipMsgs={jest.fn()}
+            useNetworkingHierarchy={false}
+            showOrphanedResources={false}
+            nodeFilter={() => true}
+            onClearFilter={jest.fn()}
+            zoom={1}
+            nameDirection={false}
+            nameWrap={false}
+        />
+    );
+
+    expect(screen.queryByText('Progressing 1 pods')).toBeNull();
+    fireEvent.click(screen.getByRole('button', {name: /web-new/}));
+    expect(onNodeClick).toHaveBeenCalledWith('/Pod/demo/web-new');
+    expect(onGroupdNodeClick).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByText('Healthy 2 pods'));
+    expect(onGroupdNodeClick).toHaveBeenCalledWith(healthy.map(pod => pod.uid));
+    expect(onNodeClick).toHaveBeenCalledTimes(1);
 });
 
 test('describeNode.NoImages', () => {
