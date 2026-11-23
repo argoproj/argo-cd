@@ -102,7 +102,7 @@ type appFieldSpec struct {
 	fn    func(app *v1alpha1.Application) any
 }
 
-// selectAppFields resolves the fields/exclude selection against appFields once
+// selectAppFields resolves the included fields against appFields once
 // per request, so the per-application loop doesn't repeat the map lookups and
 // path splitting for every item.
 //
@@ -111,10 +111,10 @@ type appFieldSpec struct {
 // every descendant, so descendant specs are dropped; otherwise the encoded item
 // would repeat the shared "spec" key. Sorted by path segment, as
 // encodeSelectedFields requires.
-func selectAppFields(fields map[string]any, exclude bool) []appFieldSpec {
+func selectAppFields(fields map[string]any) []appFieldSpec {
 	selected := make(map[string]bool, len(appFields))
 	for field := range appFields {
-		if _, ok := fields["items."+field]; ok != exclude {
+		if _, ok := fields["items."+field]; ok {
 			selected[field] = true
 		}
 	}
@@ -137,26 +137,30 @@ func selectAppFields(fields map[string]any, exclude bool) []appFieldSpec {
 	return specs
 }
 
-// streamApplicationListJSON streams appList to w. The encoder walks the struct,
-// so list-level fields need no listing here; DefaultOptionsV1 keeps
-// json.Marshal semantics.
+// streamApplicationListJSON streams appList to w. Outside exclude mode the
+// encoder walks the struct, so list-level fields need no listing here;
+// DefaultOptionsV1 keeps json.Marshal semantics.
 func streamApplicationListJSON(w io.Writer, appList *v1alpha1.ApplicationList, fields map[string]any, exclude bool) error {
-	if len(fields) == 0 {
+	switch {
+	case len(fields) == 0:
 		return jsonv2.MarshalWrite(w, appList, json.DefaultOptionsV1())
+	case exclude:
+		return writeExcludedList(w, appList, fields)
 	}
-	return writeFilteredList(w, appList, selectAppFields(fields, exclude))
+	return writeFilteredList(w, appList, selectAppFields(fields))
 }
 
 // filteredApplicationList is the event-stream processor's result, encoded like
 // the streaming branch.
 type filteredApplicationList struct {
-	list  *v1alpha1.ApplicationList
-	specs []appFieldSpec
+	list    *v1alpha1.ApplicationList
+	fields  map[string]any
+	exclude bool
 }
 
 func (f filteredApplicationList) MarshalJSON() ([]byte, error) {
 	var buf bytes.Buffer
-	if err := writeFilteredList(&buf, f.list, f.specs); err != nil {
+	if err := streamApplicationListJSON(&buf, f.list, f.fields, f.exclude); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
@@ -171,6 +175,139 @@ func writeFilteredList(w io.Writer, appList *v1alpha1.ApplicationList, specs []a
 		return encodeSelectedFields(enc, app, specs)
 	})
 	return jsonv2.MarshalWrite(w, &filtered, json.DefaultOptionsV1(), jsonv2.WithMarshalers(encodeApp))
+}
+
+// writeExcludedList writes the full list minus the excluded paths, matching the
+// generic argoproj/pkg filter: excluding a path drops everything under it. The
+// appFields fast path can't express this (#31204). Each application is
+// marshaled and filtered on its own, so the list is still streamed. That
+// encodes each app twice (~1.6x a full list at 1k apps); exclude is rare.
+// List-level members are listed by hand and must track ApplicationList.
+func writeExcludedList(w io.Writer, appList *v1alpha1.ApplicationList, fields map[string]any) error {
+	// ancestors holds every proper prefix of an excluded path; values elsewhere
+	// are copied without being walked.
+	ancestors := make(map[string]bool)
+	for field := range fields {
+		for i, c := range field {
+			if c == '.' {
+				ancestors[field[:i]] = true
+			}
+		}
+	}
+	encodeList := jsonv2.MarshalToFunc(func(enc *jsontext.Encoder, list *v1alpha1.ApplicationList) error {
+		if err := enc.WriteToken(jsontext.BeginObject); err != nil {
+			return err
+		}
+		member := func(name string, write func() error) error {
+			if _, ok := fields[name]; ok {
+				return nil
+			}
+			if err := enc.WriteToken(jsontext.String(name)); err != nil {
+				return err
+			}
+			return write()
+		}
+		encode := func(path string, v any) func() error {
+			return func() error { return encodeExcluding(enc, path, v, fields, ancestors) }
+		}
+		// Same members and omitempty handling as the ApplicationList struct tags.
+		if list.Kind != "" {
+			if err := member("kind", encode("kind", list.Kind)); err != nil {
+				return err
+			}
+		}
+		if list.APIVersion != "" {
+			if err := member("apiVersion", encode("apiVersion", list.APIVersion)); err != nil {
+				return err
+			}
+		}
+		if err := member("metadata", encode("metadata", &list.ListMeta)); err != nil {
+			return err
+		}
+		err := member("items", func() error {
+			if list.Items == nil {
+				return enc.WriteToken(jsontext.Null)
+			}
+			if err := enc.WriteToken(jsontext.BeginArray); err != nil {
+				return err
+			}
+			for i := range list.Items {
+				if err := encodeExcluding(enc, "items", &list.Items[i], fields, ancestors); err != nil {
+					return err
+				}
+			}
+			return enc.WriteToken(jsontext.EndArray)
+		})
+		if err != nil {
+			return err
+		}
+		return enc.WriteToken(jsontext.EndObject)
+	})
+	return jsonv2.MarshalWrite(w, appList, json.DefaultOptionsV1(), jsonv2.WithMarshalers(encodeList))
+}
+
+// encodeExcluding writes v, located at path, without the excluded fields.
+func encodeExcluding(enc *jsontext.Encoder, path string, v any, fields map[string]any, ancestors map[string]bool) error {
+	if !ancestors[path] {
+		return jsonv2.MarshalEncode(enc, v)
+	}
+	b, err := jsonv2.Marshal(v, json.DefaultOptionsV1())
+	if err != nil {
+		return err
+	}
+	return copyExcluding(enc, jsontext.NewDecoder(bytes.NewReader(b)), path, fields, ancestors)
+}
+
+// copyExcluding copies one value from dec to enc, skipping object members whose
+// path is in fields. Array elements share their array's path, as in
+// argoproj/pkg.
+func copyExcluding(enc *jsontext.Encoder, dec *jsontext.Decoder, path string, fields map[string]any, ancestors map[string]bool) error {
+	kind := dec.PeekKind()
+	if !ancestors[path] || (kind != '{' && kind != '[') {
+		v, err := dec.ReadValue()
+		if err != nil {
+			return err
+		}
+		return enc.WriteValue(v)
+	}
+	open, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	if err := enc.WriteToken(open); err != nil {
+		return err
+	}
+	closeKind := jsontext.Kind('}')
+	if kind == '[' {
+		closeKind = ']'
+	}
+	for dec.PeekKind() != closeKind {
+		childPath := path
+		if kind == '{' {
+			name, err := dec.ReadToken()
+			if err != nil {
+				return err
+			}
+			childPath = path + "." + name.String()
+			if _, ok := fields[childPath]; ok {
+				if err := dec.SkipValue(); err != nil {
+					return err
+				}
+				continue
+			}
+			if err := enc.WriteToken(name); err != nil {
+				return err
+			}
+		}
+		if err := copyExcluding(enc, dec, childPath, fields, ancestors); err != nil {
+			return err
+		}
+	}
+	closing, err := dec.ReadToken()
+	if err != nil {
+		return err
+	}
+	return enc.WriteToken(closing)
 }
 
 // encodeSelectedFields writes the selected fields as one nested object, opening
@@ -251,7 +388,7 @@ func processApplicationListField(v any, fields map[string]any, exclude bool) (an
 	if !ok {
 		return nil, errors.New("not an application list")
 	}
-	return filteredApplicationList{list: appList, specs: selectAppFields(fields, exclude)}, nil
+	return filteredApplicationList{list: appList, fields: fields, exclude: exclude}, nil
 }
 
 func init() {

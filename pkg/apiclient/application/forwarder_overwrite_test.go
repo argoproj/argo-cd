@@ -471,7 +471,7 @@ func TestSelectAppFields_OverlappingFields(t *testing.T) {
 	// both "spec"-first and descendant-first orderings.
 	var firstJSON []byte
 	for range 50 {
-		specs := selectAppFields(fields, false)
+		specs := selectAppFields(fields)
 		for _, spec := range specs {
 			assert.NotEqual(t, "spec.destination", spec.field)
 			assert.NotEqual(t, "spec.project", spec.field)
@@ -492,38 +492,80 @@ func TestSelectAppFields_OverlappingFields(t *testing.T) {
 	assert.Equal(t, "default", spec["project"])
 }
 
-// TestStreamApplicationListJSON_MatchesFieldFilter_Exclude tests the exclude (negative) field selector.
-func TestStreamApplicationListJSON_MatchesFieldFilter_Exclude(t *testing.T) {
-	list := &v1alpha1.ApplicationList{
-		ResourceVersion: "600",
-		Items: []v1alpha1.Application{
-			{
-				Name: "app1", Namespace: "default",
-				Spec: v1alpha1.ApplicationSpec{Project: "myproject"},
-				Status: v1alpha1.ApplicationStatus{
-					Health: v1alpha1.AppHealthStatus{Status: "Healthy"},
-					Sync:   v1alpha1.SyncStatus{Status: "Synced"},
-				},
-			},
-		},
+// Exclude mode must match the generic argoproj/pkg filter: the full object
+// minus the excluded paths and everything under them (#31204).
+func TestListForwarder_ExcludeMatchesGenericFilter(t *testing.T) {
+	list := benchList(2)
+	list.TypeMeta = metav1.TypeMeta{Kind: "ApplicationList", APIVersion: "argoproj.io/v1alpha1"}
+	list.Items[0].Status.Conditions = []v1alpha1.ApplicationCondition{{Type: v1alpha1.ApplicationConditionComparisonError, Message: "boom"}}
+	list.Items[0].Annotations = map[string]string{"a": "1"}
+
+	tests := []struct {
+		fields  string
+		absent  []string
+		present []string
+	}{
+		{"-items.spec", []string{"spec"}, []string{"metadata.name", "status.conditions", "status.resources"}},
+		{"-items.spec.project", []string{"spec.project"}, []string{"spec.destination", "spec.source"}},
+		{"-items.status.conditions", []string{"status.conditions"}, []string{"spec.project", "status.health"}},
+		{"-items.spec,items.status.resources,items.metadata.annotations", []string{"spec", "status.resources", "metadata.annotations"}, []string{"metadata.name", "status.sync"}},
+		// Paths through arrays don't add a segment.
+		{"-items.status.resources.name", []string{"status.resources.name"}, []string{"status.resources.kind"}},
+		{"-items.unknown", nil, []string{"spec", "status.conditions"}},
+		{"-metadata,kind", nil, nil},
+		{"-items", nil, nil},
 	}
+	for _, tt := range tests {
+		t.Run(tt.fields, func(t *testing.T) {
+			url := "/api/v1/applications?fields=" + tt.fields
+			generic := httptest.NewRecorder()
+			argohttp.UnaryForwarder(t.Context(), runtime.NewServeMux(), nil, generic,
+				httptest.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody), list)
 
-	// Exclude spec
-	fields := map[string]any{"items.spec": true}
+			for _, accept := range []string{"application/json", "text/event-stream"} {
+				t.Run(accept, func(t *testing.T) {
+					req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, url, http.NoBody)
+					req.Header.Set("Accept", accept)
+					rec := httptest.NewRecorder()
+					forward_ApplicationService_List_0(t.Context(), runtime.NewServeMux(), nil, rec, req, list)
+					body := strings.TrimSpace(strings.TrimPrefix(rec.Body.String(), "data: "))
+					assert.JSONEq(t, generic.Body.String(), body)
 
-	batchResult, err := processApplicationListField(list, fields, true)
-	require.NoError(t, err)
-	batchJSON, err := json.Marshal(batchResult)
-	require.NoError(t, err)
+					var got struct {
+						Items []map[string]any `json:"items"`
+					}
+					require.NoError(t, json.Unmarshal([]byte(body), &got))
+					for _, path := range tt.absent {
+						assert.False(t, hasPath(got.Items[0], path), "%s should be excluded", path)
+					}
+					for _, path := range tt.present {
+						assert.True(t, hasPath(got.Items[0], path), "%s should be kept", path)
+					}
+				})
+			}
+		})
+	}
+}
 
-	var buf bytes.Buffer
-	err = streamApplicationListJSON(&buf, list, fields, true)
-	require.NoError(t, err)
-
-	var batchParsed, streamParsed map[string]any
-	require.NoError(t, json.Unmarshal(batchJSON, &batchParsed))
-	require.NoError(t, json.Unmarshal(buf.Bytes(), &streamParsed))
-	assert.Equal(t, batchParsed, streamParsed)
+// hasPath reports whether the dotted path exists in v, descending into the
+// first element of arrays.
+func hasPath(v any, path string) bool {
+	for part := range strings.SplitSeq(path, ".") {
+		if arr, ok := v.([]any); ok {
+			if len(arr) == 0 {
+				return false
+			}
+			v = arr[0]
+		}
+		m, ok := v.(map[string]any)
+		if !ok {
+			return false
+		}
+		if v, ok = m[part]; !ok {
+			return false
+		}
+	}
+	return true
 }
 
 // TestForwarder_HeadersMatchForwardResponseMessage compares the HTTP headers produced by

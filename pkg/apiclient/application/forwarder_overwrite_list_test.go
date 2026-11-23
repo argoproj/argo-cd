@@ -124,14 +124,14 @@ func compactJSON(t *testing.T, write func(io.Writer) error) string {
 }
 
 // legacyListJSON is the previous map-based implementation, kept as a reference.
-func legacyListJSON(t *testing.T, list *v1alpha1.ApplicationList, fields map[string]any, exclude bool) string {
+func legacyListJSON(t *testing.T, list *v1alpha1.ApplicationList, fields map[string]any) string {
 	t.Helper()
 	if len(fields) == 0 {
 		b, err := json.Marshal(list)
 		require.NoError(t, err)
 		return string(b)
 	}
-	specs := selectAppFields(fields, exclude)
+	specs := selectAppFields(fields)
 	var items []map[string]any
 	if list.Items != nil {
 		items = make([]map[string]any, 0, len(list.Items))
@@ -182,42 +182,38 @@ func TestStreamApplicationListJSON_MatchesLegacy(t *testing.T) {
 	withTypeMeta := benchList(3)
 	withTypeMeta.TypeMeta = metav1.TypeMeta{Kind: "ApplicationList", APIVersion: "argoproj.io/v1alpha1"}
 	tests := []struct {
-		name    string
-		list    *v1alpha1.ApplicationList
-		fields  map[string]any
-		exclude bool
+		name   string
+		list   *v1alpha1.ApplicationList
+		fields map[string]any
 	}{
-		{"unfiltered", benchList(3), nil, false},
-		{"unfiltered with type meta", withTypeMeta, nil, false},
-		{"ui field filter", benchList(3), uiListFields, false},
-		{"ui field filter drops type meta", withTypeMeta, uiListFields, false},
-		{"exclude filter", benchList(3), map[string]any{"items.status.resources": true, "items.spec": true}, true},
-		{"nil items", &v1alpha1.ApplicationList{ResourceVersion: "1"}, nil, false},
-		{"nil items filtered", &v1alpha1.ApplicationList{ResourceVersion: "1"}, uiListFields, false},
-		{"empty items", &v1alpha1.ApplicationList{Items: []v1alpha1.Application{}}, nil, false},
-		{"empty items filtered", &v1alpha1.ApplicationList{Items: []v1alpha1.Application{}}, uiListFields, false},
-		{"zero-value app", &v1alpha1.ApplicationList{Items: []v1alpha1.Application{{}}}, nil, false},
+		{"unfiltered", benchList(3), nil},
+		{"unfiltered with type meta", withTypeMeta, nil},
+		{"ui field filter", benchList(3), uiListFields},
+		{"ui field filter drops type meta", withTypeMeta, uiListFields},
+		{"nil items", &v1alpha1.ApplicationList{ResourceVersion: "1"}, nil},
+		{"nil items filtered", &v1alpha1.ApplicationList{ResourceVersion: "1"}, uiListFields},
+		{"empty items", &v1alpha1.ApplicationList{Items: []v1alpha1.Application{}}, nil},
+		{"empty items filtered", &v1alpha1.ApplicationList{Items: []v1alpha1.Application{}}, uiListFields},
+		{"zero-value app", &v1alpha1.ApplicationList{Items: []v1alpha1.Application{{}}}, nil},
 		// Parents whose children are all nil are omitted.
-		{"zero-value app filtered", &v1alpha1.ApplicationList{Items: []v1alpha1.Application{{}}}, uiListFields, false},
-		{"partial app filtered", partialList(), uiListFields, false},
+		{"zero-value app filtered", &v1alpha1.ApplicationList{Items: []v1alpha1.Application{{}}}, uiListFields},
+		{"partial app filtered", partialList(), uiListFields},
 		// Dotted paths that string-sort differently from per-level keys.
 		{"sibling key order", benchList(2), map[string]any{
 			"items.spec.sources": true, "items.spec.source": true, "items.spec.sourceHydrator": true,
 			"items.status.operationState.startedAt": true, "items.status.operationState.operation.sync": true,
 			"items.status.operationState.finishedAt": true, "items.status.operationState.phase": true,
-		}, false},
-		// Every appFields entry; "spec" covers its descendants.
-		{"all fields", benchList(2), map[string]any{"items.unknown": true}, true},
+		}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			streamed := compactJSON(t, func(w io.Writer) error { return streamApplicationListJSON(w, tt.list, tt.fields, tt.exclude) })
-			assertMatchesLegacy(t, legacyListJSON(t, tt.list, tt.fields, tt.exclude), streamed)
+			streamed := compactJSON(t, func(w io.Writer) error { return streamApplicationListJSON(w, tt.list, tt.fields, false) })
+			assertMatchesLegacy(t, legacyListJSON(t, tt.list, tt.fields), streamed)
 			if len(tt.fields) == 0 {
 				return // the event-stream branch only runs the processor when fields are selected
 			}
 			// Both List branches produce identical bytes.
-			assert.Equal(t, streamed, marshalProcessed(t, tt.list, tt.fields, tt.exclude))
+			assert.Equal(t, streamed, marshalProcessed(t, tt.list, tt.fields, false))
 		})
 	}
 }
@@ -258,15 +254,16 @@ func BenchmarkStreamApplicationListJSON(b *testing.B) {
 	for _, n := range []int{100, 1000, 5000} {
 		list := benchList(n)
 		for _, mode := range []struct {
-			name   string
-			fields map[string]any
-		}{{"full", nil}, {"ui-fields", uiListFields}} {
+			name    string
+			fields  map[string]any
+			exclude bool
+		}{{"full", nil, false}, {"ui-fields", uiListFields, false}, {"exclude-resources", map[string]any{"items.status.resources": true}, true}} {
 			b.Run(fmt.Sprintf("apps=%d/mode=%s", n, mode.name), func(b *testing.B) {
 				b.ReportAllocs()
 				var cw chunkWriter
 				for b.Loop() {
 					cw = chunkWriter{}
-					if err := streamApplicationListJSON(&cw, list, mode.fields, false); err != nil {
+					if err := streamApplicationListJSON(&cw, list, mode.fields, mode.exclude); err != nil {
 						b.Fatal(err)
 					}
 				}
