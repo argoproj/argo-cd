@@ -6,6 +6,7 @@ import (
 	"crypto/x509"
 	"encoding/pem"
 	"errors"
+	"maps"
 	"net"
 	"net/http"
 	"net/http/httptest"
@@ -1464,7 +1465,11 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		for server, clusterCache := range clusterCaches {
 			clusters[server] = clusterCache
 		}
-		return db, clusterCaches, liveStateCache{db: db, clusters: clusters}
+		hosts := map[string]*clusterHostsEntry{}
+		for server := range clusterCaches {
+			hosts[server] = &clusterHostsEntry{}
+		}
+		return db, clusterCaches, liveStateCache{db: db, clusters: clusters, hosts: hosts}
 	}
 
 	t.Run("REST config is refreshed only for clusters relying on the default bundle", func(t *testing.T) {
@@ -1505,6 +1510,7 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		db.AssertNumberOfCalls(t, "GetCluster", 7)
 		assert.NotContains(t, clustersCache.clusters, "https://requires-bundle", "a cluster requiring the removed bundle must be rebuilt, not keep trusting it")
 		assert.Len(t, clustersCache.clusters, len(clusterCaches)-1)
+		assert.NotContains(t, clustersCache.hosts, "https://requires-bundle")
 	})
 
 	t.Run("a bundle-only change invalidates just the clusters relying on the bundle", func(t *testing.T) {
@@ -1513,6 +1519,8 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		clusterCaches["https://uses-default-ca"].EXPECT().Invalidate(fiveOpts...).Return().Once()
 		clusterCaches["https://requires-bundle"].EXPECT().Invalidate(fiveOpts...).Return().Once()
 
+		hostsBefore := maps.Clone(clustersCache.hosts)
+
 		clustersCache.invalidateClustersUsingDefaultCABundle(cacheSettings{clusterCABundle: caBundle})
 
 		for _, clusterCache := range clusterCaches {
@@ -1520,6 +1528,13 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		}
 		db.AssertNumberOfCalls(t, "GetCluster", 7)
 		assert.Equal(t, caBundle, clustersCache.cacheSettings.clusterCABundle)
+		for server, entry := range hostsBefore {
+			if server == "https://uses-default-ca" || server == "https://requires-bundle" {
+				assert.NotSame(t, entry, clustersCache.hosts[server], "the hosts index of %s must be reset", server)
+			} else {
+				assert.Same(t, entry, clustersCache.hosts[server], "the hosts index of %s must be kept", server)
+			}
+		}
 	})
 
 	t.Run("a bundle-only change drops the clusters requiring the removed bundle", func(t *testing.T) {
@@ -1536,6 +1551,7 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		db.AssertNumberOfCalls(t, "GetCluster", 7)
 		assert.NotContains(t, clustersCache.clusters, "https://requires-bundle", "a cluster requiring the removed bundle must be rebuilt, not keep trusting it")
 		assert.Len(t, clustersCache.clusters, len(clusterCaches)-1)
+		assert.NotContains(t, clustersCache.hosts, "https://requires-bundle")
 	})
 
 	t.Run("a settings update with only a new bundle invalidates just the clusters relying on it", func(t *testing.T) {
@@ -1757,6 +1773,7 @@ func TestGetCluster_TrustsTheCABundleOfTheCacheSettings(t *testing.T) {
 			db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
 			clustersCache := liveStateCache{
 				clusters:        map[string]cache.ClusterCache{},
+				hosts:           map[string]*clusterHostsEntry{},
 				clusterSharding: sharding.NewClusterSharding(db, 0, 1, common.DefaultShardingAlgorithm),
 				settingsMgr:     settingsMgr,
 				cacheSettings:   cacheSettings{clusterCABundle: tt.currentBundle},

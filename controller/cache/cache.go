@@ -771,6 +771,11 @@ func (c *liveStateCache) invalidateClustersUsingDefaultCABundle(cacheSettings ca
 		}
 		log.Infof("Default cluster CA bundle changed, invalidating cluster %s", server)
 		cluster.Invalidate(cacheSettingsUpdates(cacheSettings, clustercache.SetConfig(restConfig))...)
+		c.lock.Lock()
+		if _, ok := c.hosts[server]; ok {
+			c.hosts[server] = &clusterHostsEntry{}
+		}
+		c.lock.Unlock()
 	}
 }
 
@@ -822,6 +827,7 @@ func (c *liveStateCache) dropClusterCache(server string, cluster clustercache.Cl
 	c.lock.Lock()
 	if c.clusters[server] == cluster {
 		delete(c.clusters, server)
+		delete(c.hosts, server)
 	}
 	c.lock.Unlock()
 }
