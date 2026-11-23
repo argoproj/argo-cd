@@ -111,16 +111,87 @@ type MockKubectl struct {
 
 	DeletedResources []kube.ResourceKey
 	CreatedResources []*unstructured.Unstructured
+	// CreateError, when set, is returned by CreateResource instead of calling
+	// through to the embedded Kubectl. It lets tests reproduce API server
+	// responses such as AlreadyExists.
+	CreateError error
+	// GetResourceResult, when set, is returned by GetResource instead of calling
+	// through to the embedded Kubectl. It lets tests control what the API server
+	// reports for a resource that is not in the cluster cache.
+	GetResourceResult *unstructured.Unstructured
+	// GetResourceError, when set, is returned by GetResource. It takes precedence
+	// over GetResourceResult.
+	GetResourceError error
+}
+
+func (m *MockKubectl) GetResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string) (*unstructured.Unstructured, error) {
+	if m.GetResourceError != nil {
+		return nil, m.GetResourceError
+	}
+	if m.GetResourceResult != nil {
+		return m.GetResourceResult, nil
+	}
+	return m.Kubectl.GetResource(ctx, config, gvk, name, namespace)
 }
 
 func (m *MockKubectl) CreateResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, obj *unstructured.Unstructured, createOptions metav1.CreateOptions, subresources ...string) (*unstructured.Unstructured, error) {
 	m.CreatedResources = append(m.CreatedResources, obj)
+	if m.CreateError != nil {
+		return nil, m.CreateError
+	}
 	return m.Kubectl.CreateResource(ctx, config, gvk, name, namespace, obj, createOptions, subresources...)
 }
 
 func (m *MockKubectl) DeleteResource(ctx context.Context, config *rest.Config, gvk schema.GroupVersionKind, name string, namespace string, deleteOptions metav1.DeleteOptions) error {
 	m.DeletedResources = append(m.DeletedResources, kube.NewResourceKey(gvk.Group, gvk.Kind, namespace, name))
 	return m.Kubectl.DeleteResource(ctx, config, gvk, name, namespace, deleteOptions)
+}
+
+// setFakeAppInstance stamps obj with appName using the same tracking settings the
+// controller is configured with, so tests do not have to assume a tracking method.
+func setFakeAppInstance(t *testing.T, ctrl *ApplicationController, obj *unstructured.Unstructured, appName string) error {
+	t.Helper()
+	appLabelKey, err := ctrl.settingsMgr.GetAppInstanceLabelKey()
+	require.NoError(t, err)
+	trackingMethod, err := ctrl.settingsMgr.GetTrackingMethod()
+	require.NoError(t, err)
+	installationID, err := ctrl.settingsMgr.GetInstallationID()
+	require.NoError(t, err)
+	return argo.NewResourceTracking().SetAppInstance(obj, appLabelKey, appName, test.FakeArgoCDNamespace, v1alpha1.TrackingMethod(trackingMethod), installationID)
+}
+
+// newAlreadyExistsController returns a controller with an empty cluster cache
+// whose API server answers AlreadyExists when the hook in manifest is created.
+func newAlreadyExistsController(t *testing.T, app *v1alpha1.Application, manifest string) *ApplicationController {
+	t.Helper()
+	ctrl := newFakeController(t.Context(), &fakeData{
+		manifestResponses: []*apiclient.ManifestResponse{{Manifests: []string{manifest}}},
+		apps:              []runtime.Object{app, &defaultProj},
+		managedLiveObjs:   map[kube.ResourceKey]*unstructured.Unstructured{},
+	}, nil)
+	ctrl.kubectl.(*MockKubectl).CreateError = apierrors.NewAlreadyExists(schema.GroupResource{}, "hook")
+	return ctrl
+}
+
+// finalizeAndCheckPatched runs finalizeApplicationDeletion and reports whether
+// the application was patched, which is how a deletion finalizer is removed.
+func finalizeAndCheckPatched(t *testing.T, ctrl *ApplicationController, app *v1alpha1.Application) (bool, error) {
+	t.Helper()
+	patched := false
+	fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+	defaultReactor := fakeAppCs.ReactionChain[0]
+	fakeAppCs.ReactionChain = nil
+	fakeAppCs.AddReactor("get", "*", func(action kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		return defaultReactor.React(action)
+	})
+	fakeAppCs.AddReactor("patch", "*", func(_ kubetesting.Action) (handled bool, ret runtime.Object, err error) {
+		patched = true
+		return true, &v1alpha1.Application{}, nil
+	})
+	err := ctrl.finalizeApplicationDeletion(t.Context(), app, func(_ string) ([]*v1alpha1.Cluster, error) {
+		return []*v1alpha1.Cluster{}, nil
+	})
+	return patched, err
 }
 
 // recordingOperationQueue embeds a real rate-limiting queue but records every
@@ -141,6 +212,19 @@ func (q *recordingOperationQueue) AddAfter(item string, d time.Duration) {
 	q.mu.Lock()
 	defer q.mu.Unlock()
 	q.calls = append(q.calls, operationRequeue{item: item, delay: d})
+}
+
+func withAPIServerPatchErrors(cs *appclientset.Clientset) *appclientset.Clientset {
+	objectReactor := cs.ReactionChain[0]
+	cs.PrependReactor("*", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		handled, obj, err := objectReactor.React(action)
+		var status apierrors.APIStatus
+		if action.GetVerb() == "patch" && err != nil && !errors.As(err, &status) {
+			err = apierrors.NewGenericServerResponse(http.StatusUnprocessableEntity, "patch", schema.GroupResource{}, "", err.Error(), 0, false)
+		}
+		return handled, obj, err
+	})
+	return cs
 }
 
 func newFakeController(ctx context.Context, data *fakeData, repoErr error) *ApplicationController {
@@ -240,7 +324,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		test.FakeArgoCDNamespace,
 		settingsMgr,
 		kubeClient,
-		appclientset.NewSimpleClientset(data.apps...),
+		withAPIServerPatchErrors(appclientset.NewSimpleClientset(data.apps...)),
 		mockRepoClientset,
 		mockCommitClientset,
 		appstatecache.NewCache(
@@ -273,6 +357,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
 		false,
+		statecache.ClusterCacheConfigFromEnv(),
 	)
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
@@ -1478,6 +1563,182 @@ func TestFinalizeAppDeletion(t *testing.T) {
 		require.Len(t, ctrl.kubectl.(*MockKubectl).CreatedResources, 1)
 		require.Equal(t, "post-delete-hook", ctrl.kubectl.(*MockKubectl).CreatedResources[0].GetName())
 	})
+
+	// The cases below reproduce a hook that an earlier finalization pass created
+	// but the cluster cache has not observed (or never will): creating it again
+	// returns AlreadyExists, and the controller has to read it back.
+	deleteHookPhases := []struct {
+		hookType     HookType
+		manifest     string
+		newHook      func() map[string]any
+		running      func(*unstructured.Unstructured)
+		succeeded    func(*unstructured.Unstructured)
+		failed       func(*unstructured.Unstructured)
+		setFinalizer func(*v1alpha1.Application)
+	}{
+		{
+			hookType: PreDeleteHookType,
+			manifest: fakePreDeleteHook,
+			newHook:  newFakePreDeleteHook,
+			running: func(u *unstructured.Unstructured) { // just created, not scheduled yet
+				require.NoError(t, unstructured.SetNestedField(u.Object, "Pending", "status", "phase"))
+			},
+			succeeded: func(u *unstructured.Unstructured) {
+				require.NoError(t, unstructured.SetNestedField(u.Object, "Succeeded", "status", "phase"))
+			},
+			failed: func(u *unstructured.Unstructured) {
+				require.NoError(t, unstructured.SetNestedField(u.Object, "Failed", "status", "phase"))
+			},
+			setFinalizer: func(a *v1alpha1.Application) { a.SetPreDeleteFinalizer() },
+		},
+		{
+			hookType: PostDeleteHookType,
+			manifest: fakePostDeleteHook,
+			newHook:  newFakePostDeleteHook,
+			running:  func(*unstructured.Unstructured) {}, // a Job without conditions is progressing
+			succeeded: func(u *unstructured.Unstructured) {
+				require.NoError(t, unstructured.SetNestedField(u.Object, []any{map[string]any{"type": "Complete", "status": "True"}}, "status", "conditions"))
+			},
+			failed: func(u *unstructured.Unstructured) {
+				require.NoError(t, unstructured.SetNestedField(u.Object, []any{map[string]any{"type": "Failed", "status": "True"}}, "status", "conditions"))
+			},
+			setFinalizer: func(a *v1alpha1.Application) { a.SetPostDeleteFinalizer() },
+		},
+	}
+
+	for _, phase := range deleteHookPhases {
+		newApp := func() *v1alpha1.Application {
+			app := newFakeApp()
+			phase.setFinalizer(app)
+			app.Spec.Destination.Namespace = test.FakeArgoCDNamespace
+			return app
+		}
+
+		t.Run(string(phase.hookType)+"_HookAlreadyExistsIsJudgedByItsLiveState", func(t *testing.T) {
+			tests := []struct {
+				name        string
+				state       func(*unstructured.Unstructured)
+				expectPatch bool
+				expectErr   string
+			}{
+				// Still running: the finalizer stays, so cascade deletion does not
+				// remove the hook before it finishes. Before the fix the phase was
+				// reported complete here.
+				{name: "running", state: phase.running},
+				// Finished: deletion proceeds even though the cache never saw it.
+				{name: "succeeded", state: phase.succeeded, expectPatch: true},
+				// Failed: deleted for a retry, like a failed hook from the cache.
+				{name: "failed", state: phase.failed, expectErr: string(phase.hookType) + " hook(s) failed"},
+			}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					app := newApp()
+					ctrl := newAlreadyExistsController(t, app, phase.manifest)
+					existing := &unstructured.Unstructured{Object: phase.newHook()}
+					require.NoError(t, setFakeAppInstance(t, ctrl, existing, app.InstanceName(test.FakeArgoCDNamespace)))
+					tt.state(existing)
+					ctrl.kubectl.(*MockKubectl).GetResourceResult = existing
+
+					patched, err := finalizeAndCheckPatched(t, ctrl, app)
+					if tt.expectErr != "" {
+						require.ErrorContains(t, err, tt.expectErr)
+						assert.Contains(t, ctrl.kubectl.(*MockKubectl).DeletedResources, kube.GetResourceKey(existing))
+					} else {
+						require.NoError(t, err)
+					}
+					assert.Equal(t, tt.expectPatch, patched)
+				})
+			}
+		})
+
+		t.Run(string(phase.hookType)+"_HookNameTakenBySomethingElseDoesNotBlockDeletion", func(t *testing.T) {
+			// None of these will ever run as this application's hook, and none
+			// show up in its cluster cache, so waiting would block deletion
+			// forever. They are skipped and deletion proceeds.
+			otherPhase := PostDeleteHookType
+			if phase.hookType == PostDeleteHookType {
+				otherPhase = PreDeleteHookType
+			}
+			tests := []struct {
+				name     string
+				existing func(t *testing.T, ctrl *ApplicationController, app *v1alpha1.Application) *unstructured.Unstructured
+			}{
+				{
+					name: "another application's resource",
+					existing: func(t *testing.T, ctrl *ApplicationController, _ *v1alpha1.Application) *unstructured.Unstructured {
+						t.Helper()
+						u := &unstructured.Unstructured{Object: phase.newHook()}
+						require.NoError(t, setFakeAppInstance(t, ctrl, u, "some-other-app"))
+						return u
+					},
+				},
+				{
+					name: "untracked resource",
+					existing: func(*testing.T, *ApplicationController, *v1alpha1.Application) *unstructured.Unstructured {
+						u := &unstructured.Unstructured{Object: phase.newHook()}
+						u.SetLabels(nil)
+						return u
+					},
+				},
+				{
+					// e.g. a resource turned into a hook in Git whose old object
+					// was never pruned.
+					name: "this application's resource, but not a hook of this phase",
+					existing: func(t *testing.T, ctrl *ApplicationController, app *v1alpha1.Application) *unstructured.Unstructured {
+						t.Helper()
+						u := &unstructured.Unstructured{Object: phase.newHook()}
+						require.NoError(t, setFakeAppInstance(t, ctrl, u, app.InstanceName(test.FakeArgoCDNamespace)))
+						annotations := u.GetAnnotations() // keep the tracking annotation, if any
+						annotations["argocd.argoproj.io/hook"] = string(otherPhase)
+						u.SetAnnotations(annotations)
+						return u
+					},
+				},
+			}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					app := newApp()
+					ctrl := newAlreadyExistsController(t, app, phase.manifest)
+					ctrl.kubectl.(*MockKubectl).GetResourceResult = tt.existing(t, ctrl, app)
+
+					patched, err := finalizeAndCheckPatched(t, ctrl, app)
+					require.NoError(t, err)
+					assert.True(t, patched, "deletion must not wait on a resource that is not this application's hook")
+				})
+			}
+		})
+
+		t.Run(string(phase.hookType)+"_HookAlreadyExistsLookupWithoutAnObject", func(t *testing.T) {
+			tests := []struct {
+				name      string
+				getErr    error
+				expectErr string
+			}{
+				// Deleted between the create attempt and the lookup: the hook has
+				// not run, so keep waiting and recreate it on the next pass.
+				{name: "not found", getErr: apierrors.NewNotFound(schema.GroupResource{Group: "batch", Resource: "jobs"}, "hook")},
+				// Nothing to inspect: no evidence the hook ran, keep waiting.
+				{name: "no object returned"},
+				// The state is unknown: fail the phase rather than guess.
+				{name: "lookup fails", getErr: errors.New("connection refused"), expectErr: "failed to get existing " + string(phase.hookType) + " hook"},
+			}
+			for _, tt := range tests {
+				t.Run(tt.name, func(t *testing.T) {
+					app := newApp()
+					ctrl := newAlreadyExistsController(t, app, phase.manifest)
+					ctrl.kubectl.(*MockKubectl).GetResourceError = tt.getErr
+
+					patched, err := finalizeAndCheckPatched(t, ctrl, app)
+					if tt.expectErr != "" {
+						require.ErrorContains(t, err, tt.expectErr)
+					} else {
+						require.NoError(t, err)
+					}
+					assert.False(t, patched, "finalizer must stay while there is no evidence the hook ran")
+				})
+			}
+		})
+	}
 
 	t.Run("PostDelete_HookIsCreatedForLongAppName", func(t *testing.T) {
 		// Post-delete counterpart of PreDelete_HookIsCreatedForLongAppName; see
@@ -3826,6 +4087,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		statecache.ClusterCacheConfigFromEnv(),
 	)
 	require.NoError(t, err)
 
@@ -3890,6 +4152,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		statecache.ClusterCacheConfigFromEnv(),
 	)
 	require.NoError(t, err)
 
@@ -4181,6 +4444,189 @@ func TestProcessRequestedAppOperation_HasRetriesTerminatedWithSizeLimitCause(t *
 	require.NotNil(t, patchedApp.Status.OperationState)
 	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
 	assert.Equal(t, "Operation terminated, triggered by "+sizeLimitMessage, patchedApp.Status.OperationState.Message)
+}
+
+type phaseSyncStateManager struct {
+	AppStateManager
+	phase synccommon.OperationPhase
+}
+
+func (m *phaseSyncStateManager) SyncAppState(_ context.Context, _ *v1alpha1.Application, _ *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+	state.Phase = m.phase
+	state.Message = "waiting for completion of hook /Pod/hook"
+}
+
+func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
+	tests := []struct {
+		name         string
+		syncPhase    synccommon.OperationPhase
+		retryLimit   int64
+		retryStarts  bool
+		newOperation bool
+		failFirstGet bool
+	}{
+		{name: "terminated while syncing", syncPhase: synccommon.OperationRunning},
+		{name: "terminated before a retry is scheduled", syncPhase: synccommon.OperationFailed, retryLimit: 1},
+		{name: "terminated before a retry starts", syncPhase: synccommon.OperationRunning, retryLimit: 1, retryStarts: true},
+		{name: "terminated before a new operation starts", syncPhase: synccommon.OperationRunning, newOperation: true},
+		{name: "terminated while syncing and the first read fails", syncPhase: synccommon.OperationRunning, failFirstGet: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.Project = "default"
+			app.Operation = &v1alpha1.Operation{
+				Sync:  &v1alpha1.SyncOperation{},
+				Retry: v1alpha1.RetryStrategy{Limit: tt.retryLimit},
+			}
+			if !tt.newOperation {
+				app.Status.OperationState.Operation = *app.Operation
+				app.Status.OperationState.Phase = synccommon.OperationRunning
+				if !tt.retryStarts {
+					app.Status.OperationState.FinishedAt = nil
+				}
+			}
+
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+			ctrl.appStateManager = &phaseSyncStateManager{AppStateManager: ctrl.appStateManager, phase: tt.syncPhase}
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			gvr := v1alpha1.SchemeGroupVersion.WithResource("applications")
+			terminate := func() error {
+				obj, err := fakeAppCs.Tracker().Get(gvr, app.Namespace, app.Name)
+				if err != nil {
+					return err
+				}
+				stored := obj.(*v1alpha1.Application).DeepCopy()
+				stored.Status.OperationState.Phase = synccommon.OperationTerminating
+				return fakeAppCs.Tracker().Update(gvr, stored, app.Namespace)
+			}
+			require.NoError(t, terminate())
+			if tt.failFirstGet {
+				failed := false
+				fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+					if failed {
+						return false, nil, nil
+					}
+					failed = true
+					return true, nil, errors.New("connection refused")
+				})
+			}
+
+			ctrl.processRequestedAppOperation(app)
+
+			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, patchedApp.Status.OperationState)
+			assert.Equal(t, synccommon.OperationTerminating, patchedApp.Status.OperationState.Phase)
+			assert.Equal(t, "operation is terminating", patchedApp.Status.OperationState.Message)
+			assert.Nil(t, patchedApp.Status.OperationState.FinishedAt)
+			assert.Equal(t, *app.Operation, patchedApp.Status.OperationState.Operation)
+		})
+	}
+}
+
+func TestSetOperationStateIfPhase(t *testing.T) {
+	tests := []struct {
+		name          string
+		informerPhase synccommon.OperationPhase
+		storedPhase   synccommon.OperationPhase
+		tooLargePatch int
+		wantPhase     synccommon.OperationPhase
+		wantMessage   string
+	}{
+		{name: "writes when the stored phase matches", storedPhase: synccommon.OperationRunning, wantPhase: synccommon.OperationRunning, wantMessage: "waiting for completion of hook /Pod/hook"},
+		{name: "writes when the stored operation state is empty", wantPhase: synccommon.OperationRunning, wantMessage: "waiting for completion of hook /Pod/hook"},
+		{name: "keeps Terminating when the retried write is too large", storedPhase: synccommon.OperationTerminating, tooLargePatch: 2, wantPhase: synccommon.OperationTerminating, wantMessage: operationStateSizeLimitMessagePrefix},
+		{name: "ends as Error when the write is still too large after terminating", informerPhase: synccommon.OperationTerminating, storedPhase: synccommon.OperationTerminating, tooLargePatch: 1, wantPhase: synccommon.OperationError, wantMessage: operationStateSizeLimitMessagePrefix},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Operation = &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{},
+			}
+			app.Status.OperationState.Operation = *app.Operation
+			app.Status.OperationState.Phase = synccommon.OperationRunning
+			if tt.informerPhase != "" {
+				app.Status.OperationState.Phase = tt.informerPhase
+			}
+			stored := app.DeepCopy()
+			if tt.storedPhase == "" {
+				stored.Status.OperationState = nil
+			} else {
+				stored.Status.OperationState.Phase = tt.storedPhase
+			}
+			patches := 0
+			ctrl := newFakeControllerWithFailingPatch(t, &fakeData{apps: []runtime.Object{stored}}, func(_ kubetesting.PatchAction) bool {
+				patches++
+				return patches == tt.tooLargePatch
+			})
+
+			state := app.Status.OperationState.DeepCopy()
+			state.Message = "waiting for completion of hook /Pod/hook"
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			ctrl.setOperationStateIfPhase(ctx, app, state, app.Status.OperationState.Phase)
+
+			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, patchedApp.Status.OperationState)
+			assert.Equal(t, tt.wantPhase, patchedApp.Status.OperationState.Phase)
+			assert.Contains(t, patchedApp.Status.OperationState.Message, tt.wantMessage)
+		})
+	}
+}
+
+func TestSetOperationStateIfPhase_ReadsAppOnlyAfterFailedPhaseTest(t *testing.T) {
+	tests := []struct {
+		name        string
+		storedPhase synccommon.OperationPhase
+		serverError bool
+		wantGets    int
+		wantPhase   synccommon.OperationPhase
+	}{
+		{name: "server error retries without reading the app", storedPhase: synccommon.OperationRunning, serverError: true, wantGets: 0, wantPhase: synccommon.OperationRunning},
+		{name: "failed phase test reads the app", storedPhase: synccommon.OperationTerminating, wantGets: 1, wantPhase: synccommon.OperationTerminating},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+			app.Status.OperationState.Operation = *app.Operation
+			app.Status.OperationState.Phase = synccommon.OperationRunning
+			stored := app.DeepCopy()
+			stored.Status.OperationState.Phase = tt.storedPhase
+
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{stored}}, nil)
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			patches := 0
+			fakeAppCs.PrependReactor("patch", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+				patches++
+				if tt.serverError && patches == 1 {
+					return true, nil, apierrors.NewInternalError(errors.New("etcd unavailable"))
+				}
+				return false, nil, nil
+			})
+			gets := 0
+			fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+				gets++
+				return false, nil, nil
+			})
+
+			state := app.Status.OperationState.DeepCopy()
+			state.Message = "waiting for completion of hook /Pod/hook"
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			ctrl.setOperationStateIfPhase(ctx, app, state, synccommon.OperationRunning)
+
+			assert.Equal(t, tt.wantGets, gets)
+			assert.Equal(t, 2, patches)
+			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, patchedApp.Status.OperationState)
+			assert.Equal(t, tt.wantPhase, patchedApp.Status.OperationState.Phase)
+		})
+	}
 }
 
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
@@ -6560,4 +7006,19 @@ func TestFinalizeApplicationDeletion_EvictsApplicationGoneFromAPIServer(t *testi
 	_, exists, err := ctrl.appInformer.GetStore().Get(phantom)
 	require.NoError(t, err)
 	assert.False(t, exists)
+}
+
+func TestNewApplicationController_InvalidClusterCacheConfig(t *testing.T) {
+	ctrl, err := NewApplicationController(
+		test.FakeArgoCDNamespace, nil, nil, nil, nil, nil, nil, nil, nil,
+		time.Minute, time.Hour, time.Second, 0, time.Minute, nil, 0, 10*time.Second,
+		common.DefaultPortArgoCDMetrics, 0,
+		[]string{}, []string{}, false, []string{},
+		0, true, nil, nil, nil, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		statecache.ClusterCacheConfig{},
+	)
+
+	require.ErrorContains(t, err, "invalid cluster cache configuration")
+	assert.Nil(t, ctrl)
 }
