@@ -1074,7 +1074,7 @@ func (c *liveStateCache) handleAddEvent(cluster *appv1.Cluster) {
 }
 
 func (c *liveStateCache) warmUpClusterCacheIfHasApps(cluster *appv1.Cluster) {
-	log.Debugf("Checking if cache %v / cluster %v has appInformer %v", c, cluster, c.appInformer)
+	log.Debugf("Checking if cluster %s has apps, appInformer set: %t", cluster.Server, c.appInformer != nil)
 	if c.appInformer == nil {
 		log.Warn("Cannot get a cluster appInformer. Cache may not be started this time")
 		return

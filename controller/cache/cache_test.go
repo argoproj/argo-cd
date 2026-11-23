@@ -34,6 +34,7 @@ import (
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/health"
 	"github.com/argoproj/argo-cd/gitops-engine/v3/pkg/utils/kube"
 	log "github.com/sirupsen/logrus"
+	logtest "github.com/sirupsen/logrus/hooks/test"
 	"github.com/stretchr/testify/mock"
 	"k8s.io/client-go/kubernetes/fake"
 	"k8s.io/client-go/rest"
@@ -203,6 +204,36 @@ func TestHandleModEvent_WarmsUpTheCacheOfAClusterWithoutOne(t *testing.T) {
 	clustersCache.lock.RLock()
 	defer clustersCache.lock.RUnlock()
 	assert.Contains(t, clustersCache.clusters, server.URL)
+}
+
+func TestWarmUpClusterCacheIfHasApps_DoesNotLogClusterCredentials(t *testing.T) {
+	hooks := log.StandardLogger().ReplaceHooks(make(log.LevelHooks))
+	t.Cleanup(func() { log.StandardLogger().ReplaceHooks(hooks) })
+	hook := logtest.NewGlobal()
+	level := log.GetLevel()
+	log.SetLevel(log.DebugLevel)
+	t.Cleanup(func() { log.SetLevel(level) })
+
+	clustersCache := &liveStateCache{clusters: map[string]cache.ClusterCache{}, hosts: map[string]*clusterHostsEntry{}}
+	clustersCache.warmUpClusterCacheIfHasApps(&appv1.Cluster{
+		Server: "https://example.com",
+		Config: appv1.ClusterConfig{
+			Password:        "secret-password",
+			BearerToken:     "secret-token",
+			TLSClientConfig: appv1.TLSClientConfig{KeyData: []byte("secret-key")},
+		},
+	})
+
+	var messages []string
+	for _, entry := range hook.AllEntries() {
+		if entry.Level == log.DebugLevel && strings.HasPrefix(entry.Message, "Checking if ") {
+			messages = append(messages, entry.Message)
+		}
+	}
+	require.Len(t, messages, 1)
+	assert.Contains(t, messages[0], "https://example.com")
+	assert.NotContains(t, messages[0], "secret")
+	assert.NotContains(t, messages[0], "map[")
 }
 
 func TestHandleModEvent_NoChanges(_ *testing.T) {
