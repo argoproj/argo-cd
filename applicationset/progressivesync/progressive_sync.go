@@ -596,10 +596,14 @@ func (m *Manager) UpdateApplicationSetApplicationStatus(ctx context.Context, log
 	}
 
 	if hasNewWaiting {
-		// Reset on every new rollout (not just the first) so subsequent rollouts are measured.
-		if applicationSet.Status.RolloutStartedAt == nil || (applicationSet.Status.RolloutFinishedAt != nil && now.After(applicationSet.Status.RolloutFinishedAt.Time)) {
+		// Reset when there is no prior rollout, or when the previous rollout has already completed
+		// (RolloutFinishedAt is at or after RolloutStartedAt). Comparing against RolloutFinishedAt
+		// directly, rather than against "now", avoids clobbering the start time of a rollout that is
+		// still in progress when more apps transition to Waiting mid-rollout.
+		if applicationSet.Status.RolloutStartedAt == nil ||
+			(applicationSet.Status.RolloutFinishedAt != nil && !applicationSet.Status.RolloutStartedAt.After(applicationSet.Status.RolloutFinishedAt.Time)) {
 			if setErr := m.setRolloutStartedAt(ctx, applicationSet, now.Time); setErr != nil {
-				logCtx.WithError(setErr).Warn("Failed to set rollout startedAt in status")
+				return nil, fmt.Errorf("failed to set rollout startedAt in status: %w", setErr)
 			}
 		}
 	}
@@ -930,14 +934,20 @@ func (m *Manager) UpdateApplicationSetApplicationStatusProgress(ctx context.Cont
 			stepStarts := getStepStartTimesFromStatus(applicationSet)
 			needsUpdate := false
 			for step := range newPendingSteps {
-				if existingTime, exists := stepStarts[step]; !exists || now.After(existingTime.Time) {
+				existingTime, exists := stepStarts[step]
+				finishedAt, finished := applicationSet.Status.StepFinishedAt[step]
+				// Only begin a new measured interval for this step when it has no prior start time,
+				// or when its prior interval has already completed (finishedAt at or after the
+				// existing start time). Otherwise a later Pending batch within the same still-running
+				// step would clobber the step's original start time.
+				if !exists || (finished && !existingTime.After(finishedAt.Time)) {
 					stepStarts[step] = now
 					needsUpdate = true
 				}
 			}
 			if needsUpdate {
 				if setErr := m.setStepStartTimesInStatus(ctx, applicationSet, stepStarts); setErr != nil {
-					logCtx.WithError(setErr).Warn("Failed to set step start times in status")
+					return nil, fmt.Errorf("failed to set step start times in status: %w", setErr)
 				}
 			}
 		}
