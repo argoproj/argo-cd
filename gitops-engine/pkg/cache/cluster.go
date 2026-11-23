@@ -221,6 +221,7 @@ func NewClusterCache(config *rest.Config, opts ...UpdateSettingsFunc) *clusterCa
 		listRetryFunc:           ListRetryFuncNever,
 		manifestStorageType:     ManifestStorageJSON,
 		manifestCompressionType: ManifestCompressionGZipBestSpeed,
+		watchRetryUseBackoff:    false,
 		parentUIDToChildren:     make(map[types.UID]map[kube.ResourceKey]struct{}),
 	}
 	cache := &clusterCache{
@@ -273,6 +274,9 @@ type store struct {
 	listRetryLimit      int32
 	listRetryUseBackoff bool
 	listRetryFunc       ListRetryFunc
+
+	// retry options for watch operations
+	watchRetryUseBackoff bool
 
 	// lock is a rw lock which protects the fields of clusterInfo
 	lock      sync.RWMutex
