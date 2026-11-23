@@ -25,6 +25,7 @@ Currently, the following organizations are **officially** using Argo CD:
 1. [Allianz Direct](https://www.allianzdirect.de/)
 1. [AlphaSense](https://www.alpha-sense.com/)
 1. [Amadeus IT Group](https://amadeus.com/)
+1. [Amavie](https://amavie.ai/)
 1. [Ambassador Labs](https://www.getambassador.io/)
 1. [Ancestry](https://www.ancestry.com/)
 1. [Andgo Systems](https://www.andgosystems.com/)
