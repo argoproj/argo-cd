@@ -95,6 +95,15 @@ func hasGitOpsEngineSyncPhaseHook(obj *unstructured.Unstructured) bool {
 	return false
 }
 
+// isAppHook reports whether live is a hookType hook of app. Tracking alone is not
+// enough: a resource tracked to the application but not annotated as a hook of
+// this phase (for example one turned into a hook in Git whose old object was
+// never pruned) will never run as this hook.
+func (ctrl *ApplicationController) isAppHook(live *unstructured.Unstructured, hookType HookType, app *appv1.Application, appLabelKey string, trackingMethod appv1.TrackingMethod, installationID string, resourceTracking argoutil.ResourceTracking) bool {
+	return isHookOfType(live, hookType) &&
+		resourceTracking.GetAppName(live, appLabelKey, trackingMethod, installationID) == app.InstanceName(ctrl.namespace)
+}
+
 // executeHooks is a generic function to execute hooks of a specified type
 func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType HookType, app *appv1.Application, proj *appv1.AppProject, destCluster *appv1.Cluster, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (completed bool, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.executeHooks")
@@ -170,8 +179,11 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		expectedHook[kube.GetResourceKey(obj)] = obj
 	}
 
-	// Create hooks that don't exist yet
-	createdCnt := 0
+	// Create hooks that don't exist yet.
+	// pendingCnt counts hooks whose state is unknown: created in this pass, or
+	// expected but gone by the time they were read back. The phase must not be
+	// reported as complete while any are pending.
+	pendingCnt := 0
 	for key, obj := range expectedHook {
 		// Apply app instance tracking metadata so the hook can be tracked and cleaned up.
 		// Use the same code path as regular sync resources so the configured
@@ -187,27 +199,41 @@ func (ctrl *ApplicationController) executeHooks(ctx context.Context, hookType Ho
 		_, err = ctrl.kubectl.CreateResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace(), obj, metav1.CreateOptions{})
 		if err != nil {
 			if apierrors.IsAlreadyExists(err) {
-				pending, getErr := existingHookPending(ctx, ctrl.kubectl, config, obj, hookType, resourceTracking, appLabelKey, app.InstanceName(ctrl.namespace), trackingMethod, installationID)
-				if getErr != nil {
-					return false, getErr
+				// The cluster cache can lag behind a hook created by an earlier
+				// pass, or never see it at all. Read the object back instead:
+				// reporting the phase as complete here would let the caller
+				// remove the finalizer and cascade-delete the hook before it runs.
+				live, getErr := ctrl.kubectl.GetResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
+				if apierrors.IsNotFound(getErr) {
+					live, getErr = nil, nil
 				}
-				if pending {
-					// The hook is ours but not yet in the live cache (e.g. it was just
-					// recreated). Its health is unknown, so treat it as still running.
-					logCtx.Warnf("Hook resource %s already exists but is not in the cache yet, waiting", key)
-					createdCnt++
-				} else {
-					logCtx.Warnf("Hook resource %s already exists and is not tracked by this app, skipping", key)
+				switch {
+				case getErr != nil:
+					return false, fmt.Errorf("failed to get existing %s hook %s: %w", hookType, key, getErr)
+				case live == nil:
+					// Gone since the create attempt, so it has not run. Wait and
+					// recreate it on the next pass.
+					logCtx.Infof("Hook resource %s disappeared after AlreadyExists, retrying", key)
+					pendingCnt++
+				case ctrl.isAppHook(live, hookType, app, appLabelKey, trackingMethod, installationID, resourceTracking):
+					// Our hook: let the health check below decide, using the
+					// object read from the API server.
+					runningHooks[key] = live
+				default:
+					// Another application's resource, an untracked one, or not a
+					// hook of this phase. It never runs as this hook, so waiting
+					// for it would block deletion forever. Skip it, as before.
+					logCtx.Warnf("Hook resource %s already exists but is not a %s hook of this application, skipping", key, hookType)
 				}
 				continue
 			}
 			return false, err
 		}
-		createdCnt++
+		pendingCnt++
 	}
 
-	if createdCnt > 0 {
-		logCtx.Infof("Created %d %s hooks", createdCnt, hookType)
+	if pendingCnt > 0 {
+		logCtx.Infof("Waiting for %d %s hooks to be observed", pendingCnt, hookType)
 		return false, nil
 	}
 
@@ -368,24 +394,4 @@ func (ctrl *ApplicationController) executePostDeleteHooks(ctx context.Context, a
 
 func (ctrl *ApplicationController) cleanupPostDeleteHooks(ctx context.Context, liveObjs map[kube.ResourceKey]*unstructured.Unstructured, config *rest.Config, logCtx *log.Entry) (bool, error) {
 	return ctrl.cleanupHooks(ctx, PostDeleteHookType, liveObjs, config, logCtx)
-}
-
-// existingHookPending reports whether a hook that CreateResource said already exists
-// should be treated as still running. That is the case when the live object is
-// tracked by this app and is a hook of hookType (it is ours, just not in the cache
-// yet), or when it vanished in the meantime (the next reconcile recreates it). Any
-// other object is not a hook to wait for: waiting on it would block deletion
-// forever. For example, a resource synced before Git added the hook annotation.
-func existingHookPending(ctx context.Context, kubectl kube.Kubectl, config *rest.Config, obj *unstructured.Unstructured, hookType HookType, rt argoutil.ResourceTracking, appLabelKey, appName string, trackingMethod appv1.TrackingMethod, installationID string) (bool, error) {
-	live, err := kubectl.GetResource(ctx, config, obj.GroupVersionKind(), obj.GetName(), obj.GetNamespace())
-	if err != nil {
-		if apierrors.IsNotFound(err) {
-			return true, nil
-		}
-		return false, fmt.Errorf("failed to get existing hook %s: %w", kube.GetResourceKey(obj), err)
-	}
-	if live == nil {
-		return true, nil
-	}
-	return isHookOfType(live, hookType) && rt.GetAppName(live, appLabelKey, trackingMethod, installationID) == appName, nil
 }
