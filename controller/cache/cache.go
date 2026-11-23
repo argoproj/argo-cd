@@ -735,7 +735,7 @@ func (c *liveStateCache) invalidate(cacheSettings cacheSettings, refreshRESTConf
 	for server, clust := range clusters {
 		var extraUpdates []clustercache.UpdateSettingsFunc
 		if refreshRESTConfigs {
-			restConfig, err := c.restConfigUsingDefaultCABundle(server)
+			restConfig, err := c.restConfigUsingDefaultCABundle(server, cacheSettings.clusterCABundle)
 			if err != nil {
 				c.dropClusterCache(server, clust, err)
 				continue
@@ -761,7 +761,7 @@ func (c *liveStateCache) invalidateClustersUsingDefaultCABundle(cacheSettings ca
 	c.lock.Unlock()
 
 	for server, cluster := range clusters {
-		restConfig, err := c.restConfigUsingDefaultCABundle(server)
+		restConfig, err := c.restConfigUsingDefaultCABundle(server, cacheSettings.clusterCABundle)
 		if err != nil {
 			c.dropClusterCache(server, cluster, err)
 			continue
@@ -809,7 +809,7 @@ func compareCacheSettings(prev, next cacheSettings) (otherSettingsChanged, caBun
 	return !reflect.DeepEqual(prev, next), caBundleChanged
 }
 
-func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) (*rest.Config, error) {
+func (c *liveStateCache) restConfigUsingDefaultCABundle(server string, caBundle []byte) (*rest.Config, error) {
 	cluster, err := c.db.GetCluster(context.Background(), server)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get cluster: %w", err)
@@ -817,7 +817,7 @@ func (c *liveStateCache) restConfigUsingDefaultCABundle(server string) (*rest.Co
 	if !cluster.DependsOnDefaultCABundle() {
 		return nil, nil
 	}
-	return clusterCacheRESTConfig(cluster)
+	return clusterCacheRESTConfig(clusterWithCABundle(cluster, caBundle))
 }
 
 func (c *liveStateCache) dropClusterCache(server string, cluster clustercache.ClusterCache, err error) {

@@ -1636,7 +1636,7 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		t.Parallel()
 		_, _, clustersCache := newFixture(caBundle)
 
-		restConfig, err := clustersCache.restConfigUsingDefaultCABundle("https://uses-default-ca")
+		restConfig, err := clustersCache.restConfigUsingDefaultCABundle("https://uses-default-ca", caBundle)
 		require.NoError(t, err)
 		require.NotNil(t, restConfig)
 		tlsConfig, err := utilnet.TLSClientConfig(restConfig.Transport)
@@ -1651,11 +1651,29 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		assert.Equal(t, rest.NoWarnings{}, restConfig.WarningHandler, "the rebuilt REST config must keep suppressing API warnings")
 	})
 
+	t.Run("the rebuilt REST config trusts the bundle of the settings update, not the one read with the cluster", func(t *testing.T) {
+		t.Parallel()
+		_, _, clustersCache := newFixture(ownCA)
+
+		restConfig, err := clustersCache.restConfigUsingDefaultCABundle("https://uses-default-ca", caBundle)
+		require.NoError(t, err)
+		require.NotNil(t, restConfig)
+		tlsConfig, err := utilnet.TLSClientConfig(restConfig.Transport)
+		require.NoError(t, err)
+		require.NotNil(t, tlsConfig)
+		settingsPool := x509.NewCertPool()
+		require.True(t, settingsPool.AppendCertsFromPEM(caBundle))
+		clusterPool := x509.NewCertPool()
+		require.True(t, clusterPool.AppendCertsFromPEM(ownCA))
+		assert.True(t, tlsConfig.RootCAs.Equal(settingsPool), "the rebuilt REST config must trust the bundle of the settings update")
+		assert.False(t, tlsConfig.RootCAs.Equal(clusterPool), "the rebuilt REST config must not trust the bundle read with the cluster")
+	})
+
 	t.Run("the REST config rebuilt after removing the bundle falls back to system roots", func(t *testing.T) {
 		t.Parallel()
 		_, _, clustersCache := newFixture(nil)
 
-		restConfig, err := clustersCache.restConfigUsingDefaultCABundle("https://uses-default-ca")
+		restConfig, err := clustersCache.restConfigUsingDefaultCABundle("https://uses-default-ca", nil)
 		require.NoError(t, err)
 		require.NotNil(t, restConfig)
 		tlsConfig, err := utilnet.TLSClientConfig(restConfig.Transport)
@@ -1670,7 +1688,7 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		_, _, clustersCache := newFixture(caBundle)
 
 		for _, server := range []string{"https://has-own-ca", "https://insecure", "https://trusts-system", appv1.KubernetesInternalAPIServerAddr} {
-			restConfig, err := clustersCache.restConfigUsingDefaultCABundle(server)
+			restConfig, err := clustersCache.restConfigUsingDefaultCABundle(server, caBundle)
 			require.NoError(t, err, server)
 			assert.Nil(t, restConfig, server)
 		}
@@ -1680,7 +1698,7 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		t.Parallel()
 		_, _, clustersCache := newFixture(caBundle)
 
-		restConfig, err := clustersCache.restConfigUsingDefaultCABundle("https://unknown")
+		restConfig, err := clustersCache.restConfigUsingDefaultCABundle("https://unknown", caBundle)
 		require.ErrorContains(t, err, "failed to get cluster")
 		assert.Nil(t, restConfig)
 	})
@@ -1689,7 +1707,7 @@ func TestInvalidate_DefaultCABundleChange(t *testing.T) {
 		t.Parallel()
 		_, _, clustersCache := newFixture(nil)
 
-		restConfig, err := clustersCache.restConfigUsingDefaultCABundle("https://requires-bundle")
+		restConfig, err := clustersCache.restConfigUsingDefaultCABundle("https://requires-bundle", nil)
 		require.ErrorContains(t, err, `caTrust is "bundle"`)
 		assert.Nil(t, restConfig)
 	})
