@@ -3,9 +3,11 @@ package fixture
 import (
 	"bufio"
 	"context"
+	"crypto/tls"
 	stderrors "errors"
 	"fmt"
 	"math"
+	"net/http"
 	"os"
 	"path"
 	"path/filepath"
@@ -24,6 +26,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/status"
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	"k8s.io/apimachinery/pkg/api/meta"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -175,6 +178,10 @@ func getKubeConfig(configPath string, overrides clientcmd.ConfigOverrides) *rest
 
 	restConfig, err := clientConfig.ClientConfig()
 	errors.CheckError(err)
+	// client-go defaults to 5 QPS / burst 10. Every test's cleanup issues ~15 calls
+	// in parallel, so the default limiter added seconds of client-side waiting per test.
+	restConfig.QPS = 100
+	restConfig.Burst = 200
 	return restConfig
 }
 
@@ -691,14 +698,13 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 	start := time.Now()
 	policy := metav1.DeletePropagationBackground
 
-	deleteNamespaces := func(namespaces []corev1.Namespace, wait bool) error {
-		args := []string{"delete", "ns", "--ignore-not-found=true", fmt.Sprintf("--wait=%t", wait)}
+	deleteNamespaces := func(namespaces []corev1.Namespace) error {
+		// Direct API calls: forking kubectl costs ~1s of process start and discovery per call.
 		for _, namespace := range namespaces {
-			args = append(args, namespace.Name)
-		}
-		_, err := Run("", "kubectl", args...)
-		if err != nil {
-			return err
+			err := KubeClientset.CoreV1().Namespaces().Delete(t.Context(), namespace.Name, metav1.DeleteOptions{PropagationPolicy: &policy})
+			if err != nil && !apierrors.IsNotFound(err) {
+				return err
+			}
 		}
 		return nil
 	}
@@ -822,7 +828,7 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				return err
 			}
 			if len(namespaces.Items) > 0 {
-				err = deleteNamespaces(namespaces.Items, false)
+				err = deleteNamespaces(namespaces.Items)
 				if err != nil {
 					return err
 				}
@@ -850,23 +856,48 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			return nil
 		},
 		func() error {
-			// delete old CRDs which were created by tests, doesn't seem to have kube api to get items
-			_, err := Run("", "kubectl", "delete", "crd", "-l", TestingLabel+"=true", "--wait=true", "--timeout=60s")
-			return err
+			// delete old CRDs which were created by tests and wait for them to disappear
+			return deleteLabeledAndWait(t, schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}, true)
 		},
 		func() error {
 			// delete old aggregated APIServices created by tests. A dangling APIService
 			// backed by a deleted extension apiserver degrades cluster discovery.
-			_, err := Run("", "kubectl", "delete", "apiservice", "-l", TestingLabel+"=true", "--wait=false")
-			return err
+			return deleteLabeledAndWait(t, schema.GroupVersionResource{Group: "apiregistration.k8s.io", Version: "v1", Resource: "apiservices"}, false)
 		},
 		func() error {
+			oldLoginTarget := ""
+			restarts := false
 			err := updateSettingConfigMap(func(cm *corev1.ConfigMap) error {
+				oldLoginTarget = ssoLoginTarget(cm.Data)
+				for _, k := range apiServerRestartKeys {
+					restarts = restarts || cm.Data[k] != ""
+				}
 				cm.Data = map[string]string{}
 				return nil
 			})
 			if err != nil {
 				return err
+			}
+			if oldLoginTarget != "" && IsLocal() {
+				// Removing the SSO config makes the API server restart itself. Wait for
+				// that before any request, or it fails with "connection refused".
+				if err := WaitForAPIServerLoginIssuer(t, oldLoginTarget, false); err != nil {
+					return err
+				}
+			}
+			// The admin login runs here, after the wait, and not in parallel with it.
+			// A restart with no SSO redirect to watch (for example, only url changed)
+			// can still be underway, so retry the login until it gets through.
+			loginTimeout := time.Duration(0)
+			if restarts && IsLocal() {
+				loginTimeout = 2 * time.Minute
+			}
+			var loginErr error
+			if pollErr := pollUntil(t, loginTimeout, func() (bool, error) {
+				loginErr = LoginAs(adminUsername)
+				return loginErr == nil, nil
+			}, "admin login failed"); pollErr != nil {
+				return fmt.Errorf("%w: %w", pollErr, loginErr)
 			}
 			err = updateNotificationsConfigMap(func(cm *corev1.ConfigMap) error {
 				cm.Data = map[string]string{}
@@ -886,10 +917,6 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 				cm.Data = map[string]string{}
 				return nil
 			})
-		},
-		func() error {
-			// We can switch user and as result in previous state we will have non-admin user, this case should be reset
-			return LoginAs(adminUsername)
 		},
 		func() error {
 			// If /tmp/argocd-e2e-env exists restart app controller with no environment variables
@@ -1034,7 +1061,10 @@ func EnsureCleanState(t *testing.T, opts ...TestOption) *TestState {
 			if err != nil {
 				return err
 			}
-			_, err = Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit")
+			// The test ID keeps this commit's SHA unique. Two tests starting in the same
+			// second otherwise produce the same SHA, and the repo-server then skips the
+			// fetch and never sees refs (such as tags) the new test adds.
+			_, err = Run(repoDirectory(), "git", "commit", "-q", "-m", "initial commit for "+state.id)
 			if err != nil {
 				return err
 			}
@@ -1383,6 +1413,93 @@ func RestartRepoServer(t *testing.T) {
 	}
 }
 
+// oidcIssuer returns the issuer from an oidc.config value, or "" when there is none.
+func oidcIssuer(oidcConfig string) string {
+	var cfg struct {
+		Issuer string `json:"issuer"`
+	}
+	if yaml.Unmarshal([]byte(oidcConfig), &cfg) != nil {
+		return ""
+	}
+	return cfg.Issuer
+}
+
+// ssoLoginTarget returns where /auth/login redirects for the given argocd-cm data: the
+// OIDC issuer, or the url for Dex (which is served under it). "" means no redirect.
+func ssoLoginTarget(data map[string]string) string {
+	if issuer := oidcIssuer(data["oidc.config"]); issuer != "" {
+		return issuer
+	}
+	if data["dex.config"] != "" && data["url"] != "" {
+		return data["url"]
+	}
+	return ""
+}
+
+// apiServerRestartKeys are the argocd-cm keys whose change makes the API server
+// restart itself in-process (see server.watchSettings).
+var apiServerRestartKeys = []string{"url", "additionalUrls", "oidc.config", "dex.config"}
+
+// WaitForAPIServerLoginIssuer waits until the API server answers /auth/login and its
+// redirect does (want=true) or does not (want=false) point at loginTarget.
+//
+// The API server builds its SSO login handler from the settings it started with. It
+// restarts itself in-process when oidc.config, dex.config or url in argocd-cm changes.
+// In local mode nothing else signals that restart, so this tells a test that the
+// running server uses the new config. Requests made during the restart fail with
+// "connection refused".
+func WaitForAPIServerLoginIssuer(t *testing.T, loginTarget string, want bool) error {
+	t.Helper()
+	scheme := "https"
+	if IsPlainText() {
+		scheme = "http"
+	}
+	client := &http.Client{
+		Timeout: 5 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+		Transport: &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true}, //nolint:gosec // e2e API server uses a self-signed certificate
+		},
+	}
+	loginURL := scheme + "://" + GetApiServerAddress() + common.LoginEndpoint
+	// A poll loop that returns an error, not require.Eventually: this also runs inside
+	// RunFunctionsInParallelAndCheckErrors goroutines, where t.FailNow must not be called.
+	return pollUntil(t, 2*time.Minute, func() (bool, error) {
+		req, err := http.NewRequestWithContext(t.Context(), http.MethodGet, loginURL, http.NoBody)
+		if err != nil {
+			return false, err
+		}
+		resp, err := client.Do(req)
+		if err != nil {
+			return false, nil
+		}
+		_ = resp.Body.Close()
+		return strings.HasPrefix(resp.Header.Get("Location"), loginTarget) == want, nil
+	}, "API server did not restart with the new SSO config")
+}
+
+// pollUntil calls cond every 200ms until it reports true or returns an error, for at
+// most timeout. It is safe to call from goroutines other than the test's own.
+func pollUntil(t *testing.T, timeout time.Duration, cond func() (bool, error), msg string) error {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	for {
+		ok, err := cond()
+		if err != nil {
+			return err
+		}
+		if ok {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("%s after %s", msg, timeout)
+		}
+		time.Sleep(200 * time.Millisecond)
+	}
+}
+
 // RestartAPIServer performs a restart of the API server deployemt and waits
 // until the rollout has completed.
 func RestartAPIServer(t *testing.T) {
@@ -1489,4 +1606,51 @@ func SetOIDCConfig(value string) error {
 		delete(cm.Data, "dex.config")
 		return nil
 	})
+}
+
+// deleteLabeledAndWait deletes every cluster-scoped object of gvr carrying the e2e
+// testing label. With wait it blocks until they are gone, like kubectl --wait=true
+// --timeout=60s did.
+func deleteLabeledAndWait(t *testing.T, gvr schema.GroupVersionResource, wait bool) error {
+	t.Helper()
+	client := DynamicClientset.Resource(gvr)
+	selector := metav1.ListOptions{LabelSelector: TestingLabel + "=true"}
+	count := func() (int, error) {
+		list, err := client.List(t.Context(), selector)
+		if err != nil {
+			return 0, err
+		}
+		return len(list.Items), nil
+	}
+	n, err := count()
+	if err != nil || n == 0 {
+		return err
+	}
+	policy := metav1.DeletePropagationBackground
+	if err := client.DeleteCollection(t.Context(), metav1.DeleteOptions{PropagationPolicy: &policy}, selector); err != nil {
+		return err
+	}
+	if !wait {
+		return nil
+	}
+	return waitUntilGone(t, count)
+}
+
+// waitUntilGone polls count until it reports zero, for at most 60 seconds.
+func waitUntilGone(t *testing.T, count func() (int, error)) error {
+	t.Helper()
+	deadline := time.Now().Add(60 * time.Second)
+	for {
+		n, err := count()
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return nil
+		}
+		if time.Now().After(deadline) {
+			return fmt.Errorf("%d labeled objects still present after 60s", n)
+		}
+		time.Sleep(100 * time.Millisecond)
+	}
 }
