@@ -97,7 +97,9 @@ func lookupGit(si *v1alpha1.SourceIntegrity, repoURL string) gitFunc {
 	}
 
 	if verify == nil {
-		log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
+		if !_gpgDisabledLoggedAlready{
+			log.Warnf("No verification configured for SourceIntegrity policy for %+v", policy.Repos)
+		}
 		return nil
 	}
 
