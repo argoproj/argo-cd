@@ -28,6 +28,7 @@ import (
 	log "github.com/sirupsen/logrus"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
+	otel_codes "go.opentelemetry.io/otel/codes"
 	oteltrace "go.opentelemetry.io/otel/trace"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
@@ -119,6 +120,12 @@ type comparisonResult struct {
 	hasPreDeleteHooks  bool
 	// revisionsMayHaveChanges indicates if there are any possibilities that the revisions contain changes
 	revisionsMayHaveChanges bool
+	// hasResolvedRevisions is true only when manifest generation successfully resolved every source.
+	// syncStatus can contain requested refs on earlier return paths.
+	hasResolvedRevisions bool
+	// hasComparisonErrors records failures from this comparison, independently of
+	// observed workload health and the return error used by controller control flow.
+	hasComparisonErrors bool
 }
 
 func (res *comparisonResult) GetSyncStatus() *v1alpha1.SyncStatus {
@@ -679,10 +686,16 @@ func partitionTargetObjsForSync(targetObjs []*unstructured.Unstructured) (syncOb
 // CompareAppState compares application git state to the live app state, using the specified
 // revision and supplied source. If revision or overrides are empty, then compares against
 // revision and overrides in the app spec.
-func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (_ *comparisonResult, retErr error) {
+func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.Application, project *v1alpha1.AppProject, revisions []string, sources []v1alpha1.ApplicationSource, noCache bool, noRevisionCache bool, localManifests []string, hasMultipleSources bool) (result *comparisonResult, retErr error) {
 	ctx, span := tracer.Start(ctx, "controller.CompareAppState")
 	setAppTraceAttrs(span, app)
-	defer func() { traceutil.EndSpan(span, retErr) }()
+	defer func() {
+		setComparisonResultTraceAttrs(span, result)
+		if result != nil && result.hasComparisonErrors {
+			span.SetStatus(otel_codes.Error, "application comparison failed")
+		}
+		traceutil.EndSpan(span, retErr)
+	}()
 	ts := stats.NewTimingStats()
 	logCtx := log.WithFields(applog.GetAppLogFields(app))
 
@@ -712,7 +725,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 	ts.AddCheckpoint("settings_ms")
 	if err != nil {
 		log.Infof("Basic comparison settings cannot be loaded, using unknown comparison: %s", err.Error())
-		return &comparisonResult{syncStatus: syncStatus, healthStatus: health.HealthStatusUnknown}, nil
+		return &comparisonResult{syncStatus: syncStatus, healthStatus: health.HealthStatusUnknown, hasComparisonErrors: true}, nil
 	}
 
 	// do best effort loading live and target state to present as much information about app state as possible
@@ -731,6 +744,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 
 	var manifestInfos []*apiclient.ManifestResponse
 	targetNsExists := false
+	hasResolvedRevisions := false
 
 	var revisionsMayHaveChanges bool
 
@@ -764,6 +778,7 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 			failedToLoadObjs = true
 		} else {
 			m.repoErrorCache.Delete(app.Name)
+			hasResolvedRevisions = true
 		}
 	} else {
 		// Prevent applying local manifests for now when source integrity is enforced
@@ -1170,6 +1185,13 @@ func (m *appStateManager) CompareAppState(ctx context.Context, app *v1alpha1.App
 		hasPostDeleteHooks:      hasPostDeleteHooks,
 		hasPreDeleteHooks:       hasPreDeleteHooks,
 		revisionsMayHaveChanges: revisionsMayHaveChanges,
+		hasResolvedRevisions:    hasResolvedRevisions,
+	}
+	for _, condition := range conditions {
+		if condition.IsError() {
+			compRes.hasComparisonErrors = true
+			break
+		}
 	}
 
 	if hasMultipleSources {
