@@ -1903,7 +1903,7 @@ func (s *Server) InspectGitSourceIntegrity(ctx context.Context, q *application.I
 
 		repo, err := s.db.GetRepository(ctx, source.RepoURL, proj.Name)
 		if err != nil {
-			return nil, fmt.Errorf("error getting repository by URL for source %s: %w", source.RepoURL, err)
+			return nil, fmt.Errorf("error getting repository by URL for source %s: %w", git.SanitizeRepoURL(source.RepoURL), err)
 		}
 
 		resp, err := repoClient.InspectGitSourceIntegrity(ctx, &apiclient.InspectGitSourceIntegrityRequest{
@@ -1913,7 +1913,7 @@ func (s *Server) InspectGitSourceIntegrity(ctx context.Context, q *application.I
 			TagPrefix: source.TagPrefix,
 		})
 		if err != nil {
-			return nil, fmt.Errorf("failed to inspect git source integrity for source %s: %w", source.RepoURL, err)
+			return nil, fmt.Errorf("failed to inspect git source integrity for source %s: %w", git.SanitizeRepoURL(source.RepoURL), err)
 		}
 
 		commits := make([]*application.GitCommitInfo, 0, len(resp.Commits))
@@ -1943,15 +1943,15 @@ func selectGitPolicy(sourceIntegrity *v1alpha1.SourceIntegrity, source v1alpha1.
 	gitPolicies := sourceintegrity.FindMatchingGitPolicies(sourceIntegrity.Git, source.RepoURL)
 	nPolicies := len(gitPolicies)
 	if nPolicies == 0 {
-		return nil, fmt.Errorf("no matching git policy found for source %s", source.RepoURL)
+		return nil, fmt.Errorf("no matching git policy found for source %s", git.SanitizeRepoURL(source.RepoURL))
 	}
 	if nPolicies > 1 {
-		return nil, fmt.Errorf("multiple (%d) git policies found for source %s, invalid configuration", nPolicies, source.RepoURL)
+		return nil, fmt.Errorf("multiple (%d) git policies found for source %s, invalid configuration", nPolicies, git.SanitizeRepoURL(source.RepoURL))
 	}
 
 	gitPolicy := gitPolicies[0] // there is only one matching policy for the source
 	if gitPolicy.GPG == nil {
-		return nil, fmt.Errorf("the git policy for source %s is not a gpg policy", source.RepoURL)
+		return nil, fmt.Errorf("the git policy for source %s is not a gpg policy", git.SanitizeRepoURL(source.RepoURL))
 	}
 
 	return gitPolicy, nil
