@@ -1104,6 +1104,26 @@ func TestKnownTypesInCRDDiffing(t *testing.T) {
 		Expect(SyncStatusIs(SyncStatusCodeSynced))
 }
 
+// TestCRDChangeRefreshesApp verifies that a change to a live CRD managed by an application refreshes the application
+// without waiting for the periodic reconciliation.
+func TestCRDChangeRefreshesApp(t *testing.T) {
+	crdGVR := schema.GroupVersionResource{Group: "apiextensions.k8s.io", Version: "v1", Resource: "customresourcedefinitions"}
+
+	Given(t).
+		Path("crd-creation").
+		When().CreateApp().Sync().Then().
+		Expect(OperationPhaseIs(OperationSucceeded)).
+		Expect(SyncStatusIs(SyncStatusCodeSynced)).
+		Expect(HealthIs(health.HealthStatusHealthy)).
+		When().
+		And(func() {
+			patchData := []byte(`[{"op":"remove","path":"/spec/versions/0/schema/openAPIV3Schema/properties/spec/properties/memory"}]`)
+			errors.NewHandler(t).FailOnErr(fixture.DynamicClientset.Resource(crdGVR).Patch(t.Context(), "dummies.argoproj.io", types.JSONPatchType, patchData, metav1.PatchOptions{}))
+		}).
+		Then().
+		Expect(SyncStatusIs(SyncStatusCodeOutOfSync))
+}
+
 func TestDuplicatedClusterResourcesAnnotationTracking(t *testing.T) {
 	// This test will fail if the controller fails to fix the tracking annotation for malformed cluster resources
 	// (i.e. resources where metadata.namespace is set). Before the bugfix, this test would fail with a diff in the
