@@ -636,12 +636,11 @@ func (m *nativeGitClient) fetch(ctx context.Context, revision string, depth int6
 
 // IsRevisionPresent checks to see if the given revision already exists locally.
 func (m *nativeGitClient) IsRevisionPresent(ctx context.Context, revision string) bool {
-	ctx = context.WithoutCancel(ctx)
 	if revision == "" {
 		return false
 	}
 
-	cmd := exec.CommandContext(ctx, "git", "cat-file", "-t", revision)
+	cmd := detachedCommand(ctx, "git", "cat-file", "-t", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	if out == "commit" && err == nil {
 		return true
@@ -724,8 +723,6 @@ func (m *nativeGitClient) cleanupOrphanedTempPackfiles() {
 
 // Fetch fetches latest updates from origin
 func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int64) error {
-	ctx = context.WithoutCancel(ctx)
-
 	if m.OnFetch != nil {
 		done := m.OnFetch(m.repoURL)
 		defer done()
@@ -753,7 +750,6 @@ func (m *nativeGitClient) Fetch(ctx context.Context, revision string, depth int6
 
 // LsFiles lists the local working tree, including only files that are under source control
 func (m *nativeGitClient) LsFiles(ctx context.Context, path string, enableNewGitFileGlobbing bool) ([]string, error) {
-	ctx = context.WithoutCancel(ctx)
 	if enableNewGitFileGlobbing {
 		// This is the new way with safer globbing
 
@@ -821,7 +817,6 @@ func (m *nativeGitClient) submodule(ctx context.Context) error {
 
 // Checkout checks out the specified revision
 func (m *nativeGitClient) Checkout(ctx context.Context, revision string, submoduleEnabled bool, cleanState bool) (string, error) {
-	ctx = context.WithoutCancel(ctx)
 	if revision == "" || revision == headRevision {
 		revision = "origin/HEAD"
 	}
@@ -1116,7 +1111,7 @@ func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
 	// the tree filter omits trees and blobs when the server supports filtering.
 	// This runs inside the shared optimized cache fill, so concurrent callers
 	// produce one bulk query and one HEAD query per cache refresh.
-	initCmd := exec.CommandContext(ctx, "git", "init", "--bare", "--quiet", ".")
+	initCmd := detachedCommand(ctx, "git", "init", "--bare", "--quiet", ".")
 	if _, err := m.runCmdOutput(initCmd, runOpts{Dir: gitDir}); err != nil {
 		return nil, fmt.Errorf("failed to initialize temporary Git directory for HEAD resolution: %w", err)
 	}
@@ -1159,7 +1154,7 @@ func (m *nativeGitClient) runTargetedHeadFetch() (*plumbing.Reference, error) {
 
 	// The fetch output contains the tag object hash when HEAD points to an
 	// annotated tag. Peel it to a commit to match the existing go-git resolver.
-	peelCmd := exec.CommandContext(ctx, "git", "--git-dir=.", "rev-parse", "--verify", headRef.Hash().String()+"^{commit}")
+	peelCmd := detachedCommand(ctx, "git", "--git-dir=.", "rev-parse", "--verify", headRef.Hash().String()+"^{commit}")
 	peeledOutput, err := m.runCmdOutput(peelCmd, runOpts{Dir: gitDir})
 	if err != nil {
 		return nil, fmt.Errorf("failed to peel targeted Git HEAD query result: %w", err)
@@ -1373,7 +1368,6 @@ func (m *nativeGitClient) resolveRevisionWithOptions(revision string, refs []*pl
 
 // CommitSHA returns current commit sha from `git rev-parse HEAD`
 func (m *nativeGitClient) CommitSHA(ctx context.Context) (string, error) {
-	ctx = context.WithoutCancel(ctx)
 	out, err := m.runCmd(ctx, "rev-parse", headRevision)
 	if err != nil {
 		return "", err
@@ -1383,7 +1377,6 @@ func (m *nativeGitClient) CommitSHA(ctx context.Context) (string, error) {
 
 // RevisionMetadata returns the meta-data for the commit
 func (m *nativeGitClient) RevisionMetadata(ctx context.Context, revision string) (*RevisionMetadata, error) {
-	ctx = context.WithoutCancel(ctx)
 	out, err := m.runCmd(ctx, "show", "-s", "--format=%an <%ae>%n%at%n%B", revision)
 	if err != nil {
 		return nil, err
@@ -1396,7 +1389,7 @@ func (m *nativeGitClient) RevisionMetadata(ctx context.Context, revision string)
 	authorDateUnixTimestamp, _ := strconv.ParseInt(segments[1], 10, 64)
 	message := strings.TrimSpace(segments[2])
 
-	cmd := exec.CommandContext(ctx, "git", "interpret-trailers", "--parse")
+	cmd := detachedCommand(ctx, "git", "interpret-trailers", "--parse")
 	cmd.Stdin = strings.NewReader(message)
 	out, err = m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
@@ -1517,7 +1510,6 @@ func updateCommitMetadata(logCtx *log.Entry, relatedCommit *CommitMetadata, line
 //
 // Deprecated: To be removed in the next major version when Signature verification is replaced with Source Integrity.
 func (m *nativeGitClient) VerifyCommitSignature(ctx context.Context, revision string) (string, error) {
-	ctx = context.WithoutCancel(ctx)
 	cmd := m.cmdWithGPG(ctx, "git-verify-wrapper.sh", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
@@ -1665,7 +1657,6 @@ func evaluateGpgSignStatus(cmdErr error, tagGpgOut string) (result GPGVerificati
 }
 
 func (m *nativeGitClient) LsSignatures(ctx context.Context, unresolvedRevision string, deep bool) ([]RevisionSignatureInfo, string, error) {
-	ctx = context.WithoutCancel(ctx)
 	legacyVerification := ""
 
 	// Resolve eventual semantic tag constraint before annotated tag detection
@@ -1886,8 +1877,7 @@ func (m *nativeGitClient) getSealRevListFilter(ctx context.Context, revision str
 
 // IsAnnotatedTag returns true if the revision is an annotated tag existing in the repository, and false for everything else.
 func (m *nativeGitClient) IsAnnotatedTag(ctx context.Context, revision string) bool {
-	ctx = context.WithoutCancel(ctx)
-	cmd := exec.CommandContext(ctx, "git", "cat-file", "-t", revision)
+	cmd := detachedCommand(ctx, "git", "cat-file", "-t", revision)
 	out, err := m.runCmdOutput(cmd, runOpts{SkipErrorLogging: true})
 	// a lightweight tag returns "commit" - makes sense in the git world
 	if err == nil && out == "tag" {
@@ -1898,7 +1888,6 @@ func (m *nativeGitClient) IsAnnotatedTag(ctx context.Context, revision string) b
 
 // ChangedFiles returns a list of files changed between two revisions
 func (m *nativeGitClient) ChangedFiles(ctx context.Context, revision string, targetRevision string) ([]string, error) {
-	ctx = context.WithoutCancel(ctx)
 	if revision == targetRevision {
 		return []string{}, nil
 	}
@@ -1932,7 +1921,6 @@ func (m *nativeGitClient) config(ctx context.Context, args ...string) (string, e
 
 // SetAuthor sets the author name and email in the git configuration.
 func (m *nativeGitClient) SetAuthor(ctx context.Context, name, email string) (string, error) {
-	ctx = context.WithoutCancel(ctx)
 	if name != "" {
 		out, err := m.config(ctx, "--local", "user.name", name)
 		if err != nil {
@@ -1950,7 +1938,6 @@ func (m *nativeGitClient) SetAuthor(ctx context.Context, name, email string) (st
 
 // CheckoutOrOrphan checks out the branch. If the branch does not exist, it creates an orphan branch.
 func (m *nativeGitClient) CheckoutOrOrphan(ctx context.Context, branch string, submoduleEnabled bool) (string, error) {
-	ctx = context.WithoutCancel(ctx)
 	out, err := m.Checkout(ctx, branch, submoduleEnabled, true)
 	if err != nil {
 		// If the branch doesn't exist, create it as an orphan branch.
@@ -1980,7 +1967,6 @@ func (m *nativeGitClient) CheckoutOrOrphan(ctx context.Context, branch string, s
 // CheckoutOrNew checks out the given branch. If the branch does not exist, it creates an empty branch based on
 // the base branch.
 func (m *nativeGitClient) CheckoutOrNew(ctx context.Context, branch, base string, submoduleEnabled bool) (string, error) {
-	ctx = context.WithoutCancel(ctx)
 	out, err := m.Checkout(ctx, branch, submoduleEnabled, true)
 	if err != nil {
 		if !strings.Contains(err.Error(), "did not match any file(s) known to git") {
@@ -2060,7 +2046,6 @@ func (m *nativeGitClient) Push(branch string) (string, error) {
 // for codes; for our purposes "G" (good) and "U" (good but unknown trust) are
 // acceptable and everything else — including "N" — must be rejected.
 func (m *nativeGitClient) CommitSignatureStatus(ctx context.Context, revision string) (string, string, error) {
-	ctx = context.WithoutCancel(ctx)
 	cmd := m.cmdWithGPG(ctx, "git", "log", "-1", "--pretty=format:%G?:%GK", revision, "--")
 	out, err := m.runCmdOutput(cmd, runOpts{})
 	if err != nil {
@@ -2075,7 +2060,6 @@ func (m *nativeGitClient) CommitSignatureStatus(ctx context.Context, revision st
 
 // GetCommitNote gets the note associated with the DRY sha stored in the specific namespace
 func (m *nativeGitClient) GetCommitNote(ctx context.Context, sha string, namespace string) (string, error) {
-	ctx = context.WithoutCancel(ctx)
 	if strings.TrimSpace(namespace) == "" {
 		namespace = "commit"
 	}
@@ -2098,7 +2082,6 @@ func (m *nativeGitClient) GetCommitNote(ctx context.Context, sha string, namespa
 // AddAndPushNote adds a note to a DRY sha and then pushes it.
 // It uses a retry mechanism to handle concurrent note updates from multiple clients.
 func (m *nativeGitClient) AddAndPushNote(ctx context.Context, sha string, namespace string, note string) error {
-	ctx = context.WithoutCancel(ctx)
 	if namespace == "" {
 		namespace = "commit"
 	}
@@ -2184,7 +2167,6 @@ func isRetryableNotePushError(errStr string) bool {
 
 // HasFileChanged returns the output of git diff considering whether it is tracked or un-tracked
 func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (bool, error) {
-	ctx = context.WithoutCancel(ctx)
 	// Step 1: Is it UNTRACKED? (file is new to git)
 	_, err := m.runCmd(ctx, "ls-files", "--error-unmatch", filePath)
 	if err != nil {
@@ -2204,16 +2186,23 @@ func (m *nativeGitClient) HasFileChanged(ctx context.Context, filePath string) (
 	return false, fmt.Errorf("git diff failed: %w", err)
 }
 
+// detachedCommand builds every command the client runs. The command keeps
+// ctx's values but not its cancellation or deadline (see the Client doc
+// comment); runCmdOutput bounds it with ARGOCD_EXEC_TIMEOUT instead.
+func detachedCommand(ctx context.Context, name string, args ...string) *exec.Cmd {
+	return exec.CommandContext(context.WithoutCancel(ctx), name, args...)
+}
+
 // cmdWithGPG creates git Cmd with a GPG-enabled environment
 func (m *nativeGitClient) cmdWithGPG(ctx context.Context, name string, args ...string) *exec.Cmd {
-	cmd := exec.CommandContext(ctx, name, args...)
+	cmd := detachedCommand(ctx, name, args...)
 	cmd.Env = append(cmd.Env, "GNUPGHOME="+common.GetGnuPGHomePath(), "LANG=C")
 	return cmd
 }
 
 // runCmd is a convenience function to run a command in a given directory and return its output
 func (m *nativeGitClient) runCmd(ctx context.Context, args ...string) (string, error) {
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := detachedCommand(ctx, "git", args...)
 	return m.runCmdOutput(cmd, runOpts{})
 }
 
@@ -2261,7 +2250,7 @@ func (m *nativeGitClient) runCredentialedCmdOutput(ctx context.Context, ropts ru
 
 	args = credentialedGitArgs(args, environ)
 
-	cmd := exec.CommandContext(ctx, "git", args...)
+	cmd := detachedCommand(ctx, "git", args...)
 	cmd.Env = append(cmd.Env, environ...)
 	return m.runCmdOutput(cmd, ropts)
 }
