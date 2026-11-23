@@ -80,6 +80,7 @@ argocd app [flags]
 * [argocd app delete-resource](argocd_app_delete-resource.md)	 - Delete resource in an application
 * [argocd app diff](argocd_app_diff.md)	 - Perform a diff against the target and live state.
 * [argocd app edit](argocd_app_edit.md)	 - Edit application
+* [argocd app events](argocd_app_events.md)	 - List the events of an application or of one of its resources
 * [argocd app get](argocd_app_get.md)	 - Get application details
 * [argocd app get-resource](argocd_app_get-resource.md)	 - Get details about the live Kubernetes manifests of a resource in an application. The filter-fields flag can be used to only display fields you want to see.
 * [argocd app history](argocd_app_history.md)	 - Show application deployment history
