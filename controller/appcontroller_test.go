@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"regexp"
 	"strconv"
 	"strings"
@@ -203,6 +204,19 @@ func (q *recordingOperationQueue) AddAfter(item string, d time.Duration) {
 	q.calls = append(q.calls, operationRequeue{item: item, delay: d})
 }
 
+func withAPIServerPatchErrors(cs *appclientset.Clientset) *appclientset.Clientset {
+	objectReactor := cs.ReactionChain[0]
+	cs.PrependReactor("*", "*", func(action kubetesting.Action) (bool, runtime.Object, error) {
+		handled, obj, err := objectReactor.React(action)
+		var status apierrors.APIStatus
+		if action.GetVerb() == "patch" && err != nil && !errors.As(err, &status) {
+			err = apierrors.NewGenericServerResponse(http.StatusUnprocessableEntity, "patch", schema.GroupResource{}, "", err.Error(), 0, false)
+		}
+		return handled, obj, err
+	})
+	return cs
+}
+
 func newFakeController(ctx context.Context, data *fakeData, repoErr error) *ApplicationController {
 	return newFakeControllerWithResync(ctx, data, time.Minute, repoErr, nil)
 }
@@ -300,7 +314,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		test.FakeArgoCDNamespace,
 		settingsMgr,
 		kubeClient,
-		appclientset.NewSimpleClientset(data.apps...),
+		withAPIServerPatchErrors(appclientset.NewSimpleClientset(data.apps...)),
 		mockRepoClientset,
 		mockCommitClientset,
 		appstatecache.NewCache(
@@ -3550,6 +3564,178 @@ func TestProcessRequestedAppOperation_HasRetriesTerminated(t *testing.T) {
 	require.NotNil(t, patchedApp.Status.OperationState)
 	assert.Equal(t, synccommon.OperationFailed, patchedApp.Status.OperationState.Phase)
 	assert.Equal(t, "Operation terminated", patchedApp.Status.OperationState.Message)
+}
+
+type phaseSyncStateManager struct {
+	AppStateManager
+	phase synccommon.OperationPhase
+}
+
+func (m *phaseSyncStateManager) SyncAppState(_ context.Context, _ *v1alpha1.Application, _ *v1alpha1.AppProject, state *v1alpha1.OperationState) {
+	state.Phase = m.phase
+	state.Message = "waiting for completion of hook /Pod/hook"
+}
+
+func TestProcessRequestedAppOperation_TerminatedWhileSyncing(t *testing.T) {
+	tests := []struct {
+		name         string
+		syncPhase    synccommon.OperationPhase
+		retryLimit   int64
+		retryStarts  bool
+		newOperation bool
+		failFirstGet bool
+	}{
+		{name: "terminated while syncing", syncPhase: synccommon.OperationRunning},
+		{name: "terminated before a retry is scheduled", syncPhase: synccommon.OperationFailed, retryLimit: 1},
+		{name: "terminated before a retry starts", syncPhase: synccommon.OperationRunning, retryLimit: 1, retryStarts: true},
+		{name: "terminated before a new operation starts", syncPhase: synccommon.OperationRunning, newOperation: true},
+		{name: "terminated while syncing and the first read fails", syncPhase: synccommon.OperationRunning, failFirstGet: true},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Spec.Project = "default"
+			app.Operation = &v1alpha1.Operation{
+				Sync:  &v1alpha1.SyncOperation{},
+				Retry: v1alpha1.RetryStrategy{Limit: tt.retryLimit},
+			}
+			if !tt.newOperation {
+				app.Status.OperationState.Operation = *app.Operation
+				app.Status.OperationState.Phase = synccommon.OperationRunning
+				if !tt.retryStarts {
+					app.Status.OperationState.FinishedAt = nil
+				}
+			}
+
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{app, &defaultProj}}, nil)
+			ctrl.appStateManager = &phaseSyncStateManager{AppStateManager: ctrl.appStateManager, phase: tt.syncPhase}
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			gvr := v1alpha1.SchemeGroupVersion.WithResource("applications")
+			terminate := func() error {
+				obj, err := fakeAppCs.Tracker().Get(gvr, app.Namespace, app.Name)
+				if err != nil {
+					return err
+				}
+				stored := obj.(*v1alpha1.Application).DeepCopy()
+				stored.Status.OperationState.Phase = synccommon.OperationTerminating
+				return fakeAppCs.Tracker().Update(gvr, stored, app.Namespace)
+			}
+			require.NoError(t, terminate())
+			if tt.failFirstGet {
+				failed := false
+				fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+					if failed {
+						return false, nil, nil
+					}
+					failed = true
+					return true, nil, errors.New("connection refused")
+				})
+			}
+
+			ctrl.processRequestedAppOperation(app)
+
+			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, patchedApp.Status.OperationState)
+			assert.Equal(t, synccommon.OperationTerminating, patchedApp.Status.OperationState.Phase)
+			assert.Equal(t, "operation is terminating", patchedApp.Status.OperationState.Message)
+			assert.Nil(t, patchedApp.Status.OperationState.FinishedAt)
+			assert.Equal(t, *app.Operation, patchedApp.Status.OperationState.Operation)
+		})
+	}
+}
+
+func TestSetOperationStateIfPhase(t *testing.T) {
+	tests := []struct {
+		name        string
+		storedPhase synccommon.OperationPhase
+		wantPhase   synccommon.OperationPhase
+		wantMessage string
+	}{
+		{name: "writes when the stored phase matches", storedPhase: synccommon.OperationRunning, wantPhase: synccommon.OperationRunning, wantMessage: "waiting for completion of hook /Pod/hook"},
+		{name: "writes when the stored operation state is empty", wantPhase: synccommon.OperationRunning, wantMessage: "waiting for completion of hook /Pod/hook"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Operation = &v1alpha1.Operation{
+				Sync: &v1alpha1.SyncOperation{},
+			}
+			app.Status.OperationState.Operation = *app.Operation
+			app.Status.OperationState.Phase = synccommon.OperationRunning
+			stored := app.DeepCopy()
+			if tt.storedPhase == "" {
+				stored.Status.OperationState = nil
+			} else {
+				stored.Status.OperationState.Phase = tt.storedPhase
+			}
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{stored}}, nil)
+
+			state := app.Status.OperationState.DeepCopy()
+			state.Message = "waiting for completion of hook /Pod/hook"
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			ctrl.setOperationStateIfPhase(ctx, app, state, app.Status.OperationState.Phase)
+
+			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, patchedApp.Status.OperationState)
+			assert.Equal(t, tt.wantPhase, patchedApp.Status.OperationState.Phase)
+			assert.Contains(t, patchedApp.Status.OperationState.Message, tt.wantMessage)
+		})
+	}
+}
+
+func TestSetOperationStateIfPhase_ReadsAppOnlyAfterFailedPhaseTest(t *testing.T) {
+	tests := []struct {
+		name        string
+		storedPhase synccommon.OperationPhase
+		serverError bool
+		wantGets    int
+		wantPhase   synccommon.OperationPhase
+	}{
+		{name: "server error retries without reading the app", storedPhase: synccommon.OperationRunning, serverError: true, wantGets: 0, wantPhase: synccommon.OperationRunning},
+		{name: "failed phase test reads the app", storedPhase: synccommon.OperationTerminating, wantGets: 1, wantPhase: synccommon.OperationTerminating},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			app := newFakeApp()
+			app.Operation = &v1alpha1.Operation{Sync: &v1alpha1.SyncOperation{}}
+			app.Status.OperationState.Operation = *app.Operation
+			app.Status.OperationState.Phase = synccommon.OperationRunning
+			stored := app.DeepCopy()
+			stored.Status.OperationState.Phase = tt.storedPhase
+
+			ctrl := newFakeController(t.Context(), &fakeData{apps: []runtime.Object{stored}}, nil)
+			fakeAppCs := ctrl.applicationClientset.(*appclientset.Clientset)
+			patches := 0
+			fakeAppCs.PrependReactor("patch", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+				patches++
+				if tt.serverError && patches == 1 {
+					return true, nil, apierrors.NewInternalError(errors.New("etcd unavailable"))
+				}
+				return false, nil, nil
+			})
+			gets := 0
+			fakeAppCs.PrependReactor("get", "applications", func(_ kubetesting.Action) (bool, runtime.Object, error) {
+				gets++
+				return false, nil, nil
+			})
+
+			state := app.Status.OperationState.DeepCopy()
+			state.Message = "waiting for completion of hook /Pod/hook"
+			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
+			defer cancel()
+			ctrl.setOperationStateIfPhase(ctx, app, state, synccommon.OperationRunning)
+
+			assert.Equal(t, tt.wantGets, gets)
+			assert.Equal(t, 2, patches)
+			patchedApp, err := ctrl.applicationClientset.ArgoprojV1alpha1().Applications(app.Namespace).Get(t.Context(), app.Name, metav1.GetOptions{})
+			require.NoError(t, err)
+			require.NotNil(t, patchedApp.Status.OperationState)
+			assert.Equal(t, tt.wantPhase, patchedApp.Status.OperationState.Phase)
+		})
+	}
 }
 
 func TestProcessRequestedAppOperation_Successful(t *testing.T) {
