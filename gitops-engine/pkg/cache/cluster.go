@@ -246,6 +246,9 @@ type store struct {
 
 	apisMeta              map[schema.GroupKind]*apiMeta
 	batchEventsProcessing bool
+	schemaRetryMu         sync.Mutex
+	schemaRetryRunning    bool
+	schemaRetryPending    bool
 	// serverVersion, apiResources, openAPISchema and gvkParser are read by their
 	// getters without c.lock, so writers publish a new value and never edit a
 	// published one.
@@ -831,6 +834,48 @@ func (c *store) handleCRDEvent(engine syncEngine, event watch.EventType, obj *un
 	}
 	if err := runSynced(&c.lock, c.reloadOpenAPISchema); err != nil {
 		c.log.Error(err, "Failed to reload open api schema")
+		c.schemaRetryMu.Lock()
+		c.schemaRetryPending = true
+		if !c.schemaRetryRunning {
+			c.schemaRetryRunning = true
+			go c.retryReloadOpenAPISchema()
+		}
+		c.schemaRetryMu.Unlock()
+	}
+}
+
+func (c *store) retryReloadOpenAPISchema() {
+	for {
+		c.schemaRetryMu.Lock()
+		c.schemaRetryPending = false
+		c.schemaRetryMu.Unlock()
+
+		err := wait.ExponentialBackoff(wait.Backoff{
+			Duration: 500 * time.Millisecond,
+			Factor:   1.5,
+			Steps:    9,
+		}, func() (bool, error) {
+			if err := runSynced(&c.lock, c.reloadOpenAPISchema); err != nil {
+				c.log.Error(err, "Failed to reload open api schema after CRD event")
+				return false, nil
+			}
+			return true, nil
+		})
+
+		c.schemaRetryMu.Lock()
+		if c.schemaRetryPending {
+			// A failure arrived while this retry was running; retry again.
+			c.schemaRetryPending = false
+			c.schemaRetryMu.Unlock()
+			continue
+		}
+		c.schemaRetryRunning = false
+		c.schemaRetryPending = false
+		c.schemaRetryMu.Unlock()
+		if err != nil {
+			c.log.Info("OpenAPI schema reload failed after retries; it will be picked up on the next resync")
+		}
+		return
 	}
 }
 

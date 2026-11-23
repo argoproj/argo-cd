@@ -2449,6 +2449,38 @@ spec:
 	}
 }
 
+func TestHandleCRDEventRetriesOpenAPISchemaReload(t *testing.T) {
+	cluster := newClusterWithOptions(t, nil)
+	require.NoError(t, cluster.EnsureSynced())
+	defer cluster.Invalidate()
+
+	var calls atomic.Int32
+	cluster.kubectl.(*kubetest.MockKubectlCmd).WithLoadOpenAPISchemaFunc(func(*rest.Config) (openapi.Resources, *managedfields.GvkParser, error) {
+		if calls.Add(1) == 1 {
+			return nil, nil, fmt.Errorf("transient schema failure")
+		}
+		return nil, nil, nil
+	})
+
+	crd := strToUnstructured(`
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: dummies.example.com
+spec:
+  group: example.com
+  scope: Namespaced
+  names:
+    kind: Dummy
+    plural: dummies
+    singular: dummy
+  versions:
+  - name: v1`)
+
+	cluster.handleCRDEvent(legacyEngineOf(cluster), watch.Added, crd)
+	require.Eventually(t, func() bool { return calls.Load() >= 2 }, 5*time.Second, 50*time.Millisecond)
+}
+
 // TestReconcileAPIServiceWatches_LockContract checks that
 // reconcileAPIServiceWatches, called without c.lock, holds the lock during
 // startMissingWatches and reloadOpenAPISchema without taking it twice.
