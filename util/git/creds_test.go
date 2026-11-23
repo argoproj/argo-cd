@@ -15,6 +15,7 @@ import (
 	"regexp"
 	"slices"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -731,13 +732,13 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 	t.Run("discovers installation ID from GitHub API", func(t *testing.T) {
 		// Setup: mock GitHub API server
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			// GitHub Enterprise expects paths like /api/v3/app/installations
+			// GitHub Enterprise expects paths like /api/v3/orgs/test-org/installation
 			// go-github's WithEnterpriseURLs adds this prefix automatically
-			if strings.HasSuffix(r.URL.Path, "/app/installations") {
+			if strings.HasSuffix(r.URL.Path, "/orgs/test-org/installation") {
 				w.WriteHeader(http.StatusOK)
 				//nolint:errcheck
-				json.NewEncoder(w).Encode([]map[string]any{
-					{"id": 98765, "account": map[string]any{"login": "test-org"}},
+				json.NewEncoder(w).Encode(map[string]any{
+					"id": 98765, "account": map[string]any{"login": "test-org"},
 				})
 				return
 			}
@@ -766,15 +767,13 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 
 	t.Run("returns correct installation ID when app is installed on multiple orgs", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasSuffix(r.URL.Path, "/app/installations") {
-				w.WriteHeader(http.StatusOK)
-				//nolint:errcheck
-				json.NewEncoder(w).Encode([]map[string]any{
-					{"id": 11111, "account": map[string]any{"login": "org-alpha"}},
-					{"id": 22222, "account": map[string]any{"login": "target-org"}},
-					{"id": 33333, "account": map[string]any{"login": "org-gamma"}},
-				})
-				return
+			for org, id := range map[string]int{"org-alpha": 11111, "target-org": 22222, "org-gamma": 33333} {
+				if strings.HasSuffix(r.URL.Path, "/orgs/"+org+"/installation") {
+					w.WriteHeader(http.StatusOK)
+					//nolint:errcheck
+					json.NewEncoder(w).Encode(map[string]any{"id": id, "account": map[string]any{"login": org}})
+					return
+				}
 			}
 			w.WriteHeader(http.StatusNotFound)
 		}))
@@ -791,6 +790,126 @@ func TestDiscoverGitHubAppInstallationID(t *testing.T) {
 		actualId, err := DiscoverGitHubAppInstallationID(ctx, 12345, fakeGitHubAppPrivateKey, server.URL, "target-org")
 		require.NoError(t, err)
 		assert.Equal(t, int64(22222), actualId, "should return the installation ID for the requested org, not the last one in the list")
+	})
+
+	t.Run("falls back to the user installation when the owner is not an org", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.HasSuffix(r.URL.Path, "/users/test-user/installation") {
+				w.WriteHeader(http.StatusOK)
+				//nolint:errcheck
+				json.NewEncoder(w).Encode(map[string]any{"id": 44444, "account": map[string]any{"login": "test-user"}})
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+		t.Cleanup(func() {
+			domain, _ := domainFromBaseURL(server.URL)
+			githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-user", domain, 12345))
+		})
+
+		actualId, err := DiscoverGitHubAppInstallationID(t.Context(), 12345, fakeGitHubAppPrivateKey, server.URL, "test-user")
+		require.NoError(t, err)
+		assert.Equal(t, int64(44444), actualId)
+	})
+
+	t.Run("returns not found when installed on neither an org nor a user", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		_, err := DiscoverGitHubAppInstallationID(t.Context(), 12345, fakeGitHubAppPrivateKey, server.URL, "missing-org")
+		require.ErrorContains(t, err, "installation not found for org: missing-org")
+	})
+
+	t.Run("does not fall back to the user installation on other errors", func(t *testing.T) {
+		var mu sync.Mutex
+		var paths []string
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			mu.Lock()
+			paths = append(paths, r.URL.Path)
+			mu.Unlock()
+			w.WriteHeader(http.StatusForbidden)
+		}))
+		defer server.Close()
+
+		_, err := DiscoverGitHubAppInstallationID(t.Context(), 12345, fakeGitHubAppPrivateKey, server.URL, "test-org")
+		require.ErrorContains(t, err, "403")
+		mu.Lock()
+		defer mu.Unlock()
+		assert.Equal(t, []string{"/api/v3/orgs/test-org/installation"}, paths)
+	})
+}
+
+func TestDiscoverGitHubAppInstallationID_Locking(t *testing.T) {
+	newServer := func(started chan<- struct{}, block <-chan struct{}) *httptest.Server {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if !strings.HasSuffix(r.URL.Path, "/orgs/test-org/installation") {
+				w.WriteHeader(http.StatusNotFound)
+				return
+			}
+			if started != nil {
+				close(started)
+			}
+			<-block
+			w.WriteHeader(http.StatusOK)
+			//nolint:errcheck
+			json.NewEncoder(w).Encode(map[string]any{
+				"id": 98765, "account": map[string]any{"login": "test-org"},
+			})
+		}))
+		t.Cleanup(server.Close)
+		return server
+	}
+	// Both servers listen on 127.0.0.1, so lookups against either one share a host in the lock key.
+	started := make(chan struct{})
+	release := make(chan struct{})
+	blockedServer := newServer(started, release)
+	unblocked := make(chan struct{})
+	close(unblocked)
+	server := newServer(nil, unblocked)
+	t.Cleanup(func() {
+		close(release)
+		domain, _ := domainFromBaseURL(server.URL)
+		githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 20001))
+		githubInstallationIdCache.Delete(fmt.Sprintf("%s:%s:%d", "test-org", domain, 20002))
+	})
+
+	// Hold the lock for app 20001 until the test ends.
+	go func() {
+		_, _ = DiscoverGitHubAppInstallationID(t.Context(), 20001, fakeGitHubAppPrivateKey, blockedServer.URL, "test-org")
+	}()
+	select {
+	case <-started:
+	case <-time.After(2 * time.Second):
+		t.Fatal("blocked lookup did not start")
+	}
+
+	discover := func(t *testing.T, ctx context.Context, appID int64) error {
+		t.Helper()
+		done := make(chan error, 1)
+		go func() {
+			_, err := DiscoverGitHubAppInstallationID(ctx, appID, fakeGitHubAppPrivateKey, server.URL, "test-org")
+			done <- err
+		}()
+		select {
+		case err := <-done:
+			return err
+		case <-time.After(2 * time.Second):
+			t.Fatal("lookup did not return")
+			return nil
+		}
+	}
+
+	t.Run("lookup for another app is not blocked", func(t *testing.T) {
+		require.NoError(t, discover(t, t.Context(), 20002))
+	})
+
+	t.Run("lookup waiting for the same app gives up when its context ends", func(t *testing.T) {
+		ctx, cancel := context.WithTimeout(t.Context(), 100*time.Millisecond)
+		defer cancel()
+		require.ErrorIs(t, discover(t, ctx, 20001), context.DeadlineExceeded)
 	})
 }
 
@@ -1120,6 +1239,26 @@ func TestGitHubAppGetAccessToken_CustomTimeout(t *testing.T) {
 		require.NoError(t, err, "should succeed when response arrives within timeout")
 		require.Equal(t, "ghs_slow_ok", token)
 	})
+
+	t.Run("zero gitClientTimeout means no timeout for token requests", func(t *testing.T) {
+		gitClientTimeout = 0
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if strings.Contains(r.URL.Path, "/access_tokens") {
+				w.WriteHeader(http.StatusCreated)
+				fmt.Fprint(w, githubTokenResponse("ghs_no_timeout"))
+				return
+			}
+			w.WriteHeader(http.StatusNotFound)
+		}))
+		defer server.Close()
+
+		creds := newTestGitHubAppCreds(12345, 67890, fakeGitHubAppPrivateKey, server.URL)
+		token, err := creds.getAccessToken()
+
+		require.NoError(t, err, "a zero timeout should mean no timeout, not an already-expired context")
+		require.Equal(t, "ghs_no_timeout", token)
+	})
 }
 
 func TestGitHubAppGetInstallationTransport_DiscoveryHonorsGitClientTimeout(t *testing.T) {
@@ -1133,12 +1272,12 @@ func TestGitHubAppGetInstallationTransport_DiscoveryHonorsGitClientTimeout(t *te
 	newSlowDiscoveryServer := func(t *testing.T, delay time.Duration) *httptest.Server {
 		t.Helper()
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if strings.HasSuffix(r.URL.Path, "/app/installations") {
+			if strings.HasSuffix(r.URL.Path, "/orgs/test-org/installation") {
 				time.Sleep(delay)
 				w.WriteHeader(http.StatusOK)
 				//nolint:errcheck
-				json.NewEncoder(w).Encode([]map[string]any{
-					{"id": 98765, "account": map[string]any{"login": "test-org"}},
+				json.NewEncoder(w).Encode(map[string]any{
+					"id": 98765, "account": map[string]any{"login": "test-org"},
 				})
 				return
 			}
@@ -1165,6 +1304,17 @@ func TestGitHubAppGetInstallationTransport_DiscoveryHonorsGitClientTimeout(t *te
 	t.Run("discovery within gitClientTimeout succeeds", func(t *testing.T) {
 		gitClientTimeout = 5 * time.Second
 		server := newSlowDiscoveryServer(t, 300*time.Millisecond)
+
+		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
+		itr, err := creds.getInstallationTransport()
+
+		require.NoError(t, err)
+		require.NotNil(t, itr)
+	})
+
+	t.Run("zero gitClientTimeout means no timeout", func(t *testing.T) {
+		gitClientTimeout = 0
+		server := newSlowDiscoveryServer(t, 100*time.Millisecond)
 
 		creds := newTestGitHubAppCreds(12345, 0, fakeGitHubAppPrivateKey, server.URL)
 		itr, err := creds.getInstallationTransport()
