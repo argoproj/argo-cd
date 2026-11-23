@@ -96,6 +96,7 @@ func NewApplicationCommand(clientOpts *argocdclient.ClientOptions) *cobra.Comman
 	command.AddCommand(NewApplicationResourceActionsCommand(clientOpts))
 	command.AddCommand(NewApplicationListResourcesCommand(clientOpts))
 	command.AddCommand(NewApplicationLogsCommand(clientOpts))
+	command.AddCommand(NewApplicationEventsCommand(clientOpts))
 	command.AddCommand(NewApplicationAddSourceCommand(clientOpts))
 	command.AddCommand(NewApplicationRemoveSourceCommand(clientOpts))
 	command.AddCommand(NewApplicationConfirmDeletionCommand(clientOpts))
