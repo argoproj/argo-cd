@@ -47,4 +47,8 @@ func TestParseIndexBodyAcceptsTrailingEmptyDocument(t *testing.T) {
 
 func TestParseIndexBodyRejectsTrailingDocument(t *testing.T) {
 	require.Error(t, parseIndexBody([]byte(parseIndexFixture+"---\nentries:\n  other: []\n")))
+	// An explicit !!null tag on a non-empty mapping is still content.
+	require.Error(t, parseIndexBody([]byte(parseIndexFixture+"---\n!!null {entries: {other: []}}\n")))
+	// Explicit null scalars are content too; only an empty document is allowed.
+	require.Error(t, parseIndexBody([]byte(parseIndexFixture+"---\n~\n")))
 }

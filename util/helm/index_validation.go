@@ -124,8 +124,10 @@ func parseIndexBody(data []byte) error {
 				return fmt.Errorf("helm index is not valid YAML: %w", err)
 			}
 			// yamlv3 reports document nodes with an empty tag; look at the
-			// child instead. An empty document decodes to a null scalar.
-			if len(document.Content) > 0 && document.Content[0].Tag != "!!null" {
+			// child instead. An empty document decodes to an implicit null
+			// scalar with no value. Check the node shape, not just the tag:
+			// an explicit !!null tag can sit on a non-empty mapping.
+			if len(document.Content) > 0 && !isImplicitEmptyNull(document.Content[0]) {
 				return errors.New("helm index must contain exactly one YAML document")
 			}
 		}
@@ -152,4 +154,11 @@ func parseIndexBody(data []byte) error {
 		return fmt.Errorf("helm index has unsupported apiVersion %q", env.APIVersion)
 	}
 	return nil
+}
+
+// isImplicitEmptyNull reports whether node is what yamlv3 produces for an
+// empty document: a null scalar with no content. Mappings, sequences and
+// scalars with explicit content (including "~" or "null") are rejected.
+func isImplicitEmptyNull(node *yamlv3.Node) bool {
+	return node.Kind == yamlv3.ScalarNode && node.Tag == "!!null" && node.Value == ""
 }
