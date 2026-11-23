@@ -11,6 +11,7 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient"
+	"github.com/argoproj/argo-cd/v3/util/localconfig"
 )
 
 func TestKubeContextName(t *testing.T) {
@@ -95,5 +96,55 @@ users:
 		namespace, _, err := clientConfig.Namespace()
 		require.NoError(t, err)
 		assert.Equal(t, "target-ns", namespace)
+	})
+}
+
+func TestIsCoreMode(t *testing.T) {
+	writeConfig := func(t *testing.T) string {
+		t.Helper()
+		configPath := filepath.Join(t.TempDir(), "config")
+		err := localconfig.WriteLocalConfig(localconfig.LocalConfig{
+			CurrentContext: "kubernetes",
+			Contexts: []localconfig.ContextRef{
+				{Name: "kubernetes", Server: "kubernetes", User: "kubernetes"},
+				{Name: "argocd.example.com", Server: "argocd.example.com", User: "argocd.example.com"},
+			},
+			Servers: []localconfig.Server{
+				{Server: "kubernetes", Core: true},
+				{Server: "argocd.example.com"},
+			},
+			Users: []localconfig.User{{Name: "kubernetes"}, {Name: "argocd.example.com"}},
+		}, configPath)
+		require.NoError(t, err)
+		return configPath
+	}
+
+	t.Run("core flag", func(t *testing.T) {
+		core, err := IsCoreMode(&apiclient.ClientOptions{Core: true})
+		require.NoError(t, err)
+		assert.True(t, core)
+	})
+
+	t.Run("no local config", func(t *testing.T) {
+		core, err := IsCoreMode(&apiclient.ClientOptions{ConfigPath: filepath.Join(t.TempDir(), "missing")})
+		require.NoError(t, err)
+		assert.False(t, core)
+	})
+
+	t.Run("current context is core", func(t *testing.T) {
+		core, err := IsCoreMode(&apiclient.ClientOptions{ConfigPath: writeConfig(t)})
+		require.NoError(t, err)
+		assert.True(t, core)
+	})
+
+	t.Run("selected context is not core", func(t *testing.T) {
+		core, err := IsCoreMode(&apiclient.ClientOptions{ConfigPath: writeConfig(t), Context: "argocd.example.com"})
+		require.NoError(t, err)
+		assert.False(t, core)
+	})
+
+	t.Run("unknown context", func(t *testing.T) {
+		_, err := IsCoreMode(&apiclient.ClientOptions{ConfigPath: writeConfig(t), Context: "missing"})
+		require.Error(t, err)
 	})
 }
