@@ -205,6 +205,40 @@ func TestLogResourceEvent(t *testing.T) {
 	assert.Empty(t, output)
 }
 
+func TestLogResourceEvent_RecordsResourceVersionAndUser(t *testing.T) {
+	t.Parallel()
+	fakeClient := fake.NewClientset()
+	logger := NewAuditLogger(fakeClient, _argocdNs, _somecomponent, testEnableEventLog)
+
+	res := argoappv1.ResourceNode{
+		Group:           "apps",
+		Version:         "v1",
+		Kind:            "Deployment",
+		Name:            "guestbook",
+		Namespace:       _targetNs,
+		UID:             "a-b-c-d-e",
+		ResourceVersion: "12345",
+	}
+
+	ei := EventInfo{
+		Reason: _test,
+		Type:   "info",
+	}
+
+	captureLogEntries(func() {
+		logger.LogResourceEvent(&res, ei, "This is a test message", "admin")
+	})
+
+	events, err := fakeClient.CoreV1().Events(_argocdNs).List(t.Context(), metav1.ListOptions{})
+	require.NoError(t, err)
+	require.Len(t, events.Items, 1)
+
+	event := events.Items[0]
+	assert.Equal(t, "apps/v1", event.InvolvedObject.APIVersion)
+	assert.Equal(t, "12345", event.InvolvedObject.ResourceVersion)
+	assert.Equal(t, "admin", event.Annotations["user"])
+}
+
 func TestLogResourceEvent_MultiCluster_CreatesEventInArgocdNamespace(t *testing.T) {
 	t.Parallel()
 	fakeClient := fake.NewClientset()
