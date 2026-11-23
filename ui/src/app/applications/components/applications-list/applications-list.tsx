@@ -164,7 +164,7 @@ const ApplicationsListSearchBar = (props: {content: string; searchRegex: boolean
     return (
         <SearchBar
             value={content || ''}
-            onChange={value => ctx.navigation.goto('.', {search: value}, {replace: true})}
+            onChange={value => ctx.navigation.goto('.', {search: value, page: null}, {replace: true})}
             placeholder={searchRegex ? 'Regex search (e.g. ^foo-.*-prod$)' : 'Search applications...'}
             disableKeyboardShortcuts={!!appInput}
             regexEnabled={searchRegex}
@@ -282,7 +282,9 @@ export const ApplicationsList = (props: RouteComponentProps<any>) => {
             annotations: newPref.annotationsFilter.map(encodeURIComponent).join(','),
             operation: newPref.operationFilter.join(','),
             // Keep URL and preferences consistent. When false, remove the param entirely.
-            showFavorites: newPref.showFavorites ? 'true' : null
+            showFavorites: newPref.showFavorites ? 'true' : null,
+            // Sidebar filter changes must restart from the first page so SSP offset stays valid.
+            page: null as null
         };
         // Every filter in the sidebar reports its state up when it mounts, so a remount produces one
         // call per filter with nothing changed. Browsers rate limit history updates and Safari throws

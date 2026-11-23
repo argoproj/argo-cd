@@ -9,6 +9,8 @@ import {AnnotationRefreshKey, Application, ApplicationWatchEvent, AuthSettings} 
 import {AppsListPreferences, services} from '../../../shared/services';
 import {
     AppsListPaginate,
+    clampAppsListPage,
+    requiresClientSideAppFilters,
     resolveApplicationPageSize,
     sortTitleToServer,
     useApplicationsList
@@ -228,7 +230,7 @@ test('sortTitleToServer maps toolbar titles', () => {
 test('AppsListPaginate under SSP uses stats.total for page controls', () => {
     jest.spyOn(services.viewPreferences, 'getPreferences').mockReturnValue(of({pageSizes: {'applications-list': 2}} as any));
     jest.spyOn(services.viewPreferences, 'getCurrentPreferences').mockReturnValue({pageSizes: {'applications-list': 2}} as any);
-    const list = {rows: [app('a'), app('b')], stats: {total: 5}} as AppsListSourceResult;
+    const list = {rows: [app('a'), app('b')], stats: {total: 5}, serverPaged: true} as AppsListSourceResult;
     render(
         <AuthSettingsCtx.Provider value={{serverSidePaginationEnabled: true, applicationPageSize: 50} as AuthSettings}>
             <AppsListPaginate list={list} page={0} preferencesKey='applications-list' onPageChange={jest.fn()}>
@@ -239,6 +241,51 @@ test('AppsListPaginate under SSP uses stats.total for page controls', () => {
     expect(screen.getByText('a,b')).toBeInTheDocument();
     expect(screen.getAllByText('Next').length).toBeGreaterThan(0);
     expect(screen.getAllByText('Items per page: 2').length).toBeGreaterThan(0);
+});
+
+test('clampAppsListPage resets to zero when results fit on the first page', () => {
+    expect(clampAppsListPage(3, 5, 10)).toBe(0);
+    expect(clampAppsListPage(3, 25, 10)).toBe(2);
+    expect(clampAppsListPage(9, undefined, 10)).toBe(9);
+});
+
+test('requiresClientSideAppFilters detects unsupported SSP filters', () => {
+    expect(requiresClientSideAppFilters(pref(), false)).toBe(false);
+    expect(requiresClientSideAppFilters(pref({targetRevisionFilter: ['HEAD']}), false)).toBe(true);
+    expect(requiresClientSideAppFilters(pref({annotationsFilter: ['team=platform']}), false)).toBe(true);
+    expect(requiresClientSideAppFilters(pref({operationFilter: ['Sync OK']}), false)).toBe(true);
+    expect(requiresClientSideAppFilters(pref({hydrationFilter: ['Hydrated']}), false)).toBe(false);
+    expect(requiresClientSideAppFilters(pref({hydrationFilter: ['Hydrated']}), true)).toBe(true);
+});
+
+test('SSP falls back to full-list client filtering for targetRevision', async () => {
+    jest.mocked(services.applications.list).mockResolvedValue({
+        items: [
+            {...app('a'), spec: {destination: {server: 'https://kubernetes.default.svc'}, source: {targetRevision: 'HEAD'}}},
+            {...app('b'), spec: {destination: {server: 'https://kubernetes.default.svc'}, source: {targetRevision: 'main'}}}
+        ],
+        metadata: {resourceVersion: '5'},
+        stats: {total: 2}
+    } as any);
+
+    const client = new QueryClient({defaultOptions: {queries: {retry: false}}});
+    const wrapper = ({children}: {children: React.ReactNode}) => (
+        <AuthSettingsCtx.Provider value={{serverSidePaginationEnabled: true, applicationPageSize: 50} as AuthSettings}>
+            <QueryClientProvider client={client}>{children}</QueryClientProvider>
+        </AuthSettingsCtx.Provider>
+    );
+    const {result} = renderHook(
+        () => useApplicationsList({pref: pref({targetRevisionFilter: ['HEAD']}), appNamespace: '', hydratorEnabled: false}),
+        {wrapper}
+    );
+    await waitFor(() => expect(result.current.loading).toBe(false));
+
+    const listOpts = jest.mocked(services.applications.list).mock.calls[0][2] as any;
+    expect(listOpts.limit).toBeUndefined();
+    expect(listOpts.offset).toBeUndefined();
+    expect(result.current.serverPaged).toBe(false);
+    expect(result.current.rows.map(row => row.metadata.name)).toEqual(['a']);
+    expect(result.current.stats.total).toBe(1);
 });
 
 test('SSP list sends search/sort/limit and omits search from watch', async () => {
@@ -266,6 +313,7 @@ test('SSP list sends search/sort/limit and omits search from watch', async () =>
         {wrapper}
     );
     await waitFor(() => expect(result.current.loading).toBe(false));
+    expect(result.current.serverPaged).toBe(true);
     expect(services.applications.list).toHaveBeenCalled();
     const listOpts = jest.mocked(services.applications.list).mock.calls[0][2] as any;
     expect(listOpts.search).toBe('fake');

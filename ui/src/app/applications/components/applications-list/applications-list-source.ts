@@ -28,4 +28,9 @@ export interface AppsListSourceResult {
     searchSuggestions: Application[];
     /** Marks an application as refreshing until its next update arrives. */
     markRefreshing: (appName: string, appNamespace: string) => void;
+    /**
+     * True when this result is a server-side page (offset/limit). False for the legacy full-list
+     * path, including when SSP is on but client-only filters forced a fallback.
+     */
+    serverPaged: boolean;
 }

@@ -1314,10 +1314,10 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 	}
 
 	// Track apps currently visible under the query so filter exits can emit DELETED.
-	visible := map[string]bool{}
+	// Values hold only Name/Namespace so RBAC-loss removals never reuse a live unauthorized payload.
+	visible := map[string]metav1.ObjectMeta{}
 
-	sendEvent := func(a v1alpha1.Application, eventType watch.EventType) {
-		s.inferResourcesStatusHealth(&a)
+	sendRawEvent := func(a v1alpha1.Application, eventType watch.EventType) {
 		err := ws.Send(&v1alpha1.ApplicationWatchEvent{
 			Type:        eventType,
 			Application: a,
@@ -1327,15 +1327,36 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		}
 	}
 
+	sendEvent := func(a v1alpha1.Application, eventType watch.EventType) {
+		s.inferResourcesStatusHealth(&a)
+		sendRawEvent(a, eventType)
+	}
+
+	canGetApp := func(a v1alpha1.Application) bool {
+		return s.isNamespaceEnabled(a.Namespace) &&
+			s.enf.Enforce(claims, rbac.ResourceApplications, rbac.ActionGet, a.RBACName(s.ns))
+	}
+
+	storeVisible := func(a v1alpha1.Application) {
+		visible[a.QualifiedName()] = metav1.ObjectMeta{Name: a.Name, Namespace: a.Namespace}
+	}
+
 	// sendIfPermitted emits the event when the app matches RBAC + query filters.
 	// If a previously visible app no longer matches the filter, emit DELETED so the UI does not go stale.
+	// Authorization failures never send the live application payload — only a Name/Namespace removal.
 	sendIfPermitted := func(a v1alpha1.Application, eventType watch.EventType) {
 		key := a.QualifiedName()
 		permitted := s.isApplicationPermitted(selector, minVersion, claims, appName, appNs, projects, q, a)
 		if !permitted {
-			if visible[key] && eventType != watch.Deleted {
+			if meta, wasVisible := visible[key]; wasVisible && eventType != watch.Deleted {
 				delete(visible, key)
-				sendEvent(a, watch.Deleted)
+				if canGetApp(a) {
+					// Still authorized; left the watch query/selector filter.
+					sendEvent(a, watch.Deleted)
+				} else {
+					// RBAC/namespace denial: identity-only removal from previously authorized data.
+					sendRawEvent(v1alpha1.Application{ObjectMeta: meta}, watch.Deleted)
+				}
 			} else if eventType == watch.Deleted {
 				delete(visible, key)
 			}
@@ -1344,26 +1365,36 @@ func (s *Server) Watch(q *application.ApplicationQuery, ws application.Applicati
 		if eventType == watch.Deleted {
 			delete(visible, key)
 		} else {
-			visible[key] = true
+			storeVisible(a)
 		}
 		sendEvent(a, eventType)
 	}
 
 	events := make(chan *v1alpha1.ApplicationWatchEvent, watchAPIBufferSize)
-	// Mimic watch API behavior: send ADDED events if no resource version provided
-	// If watch API is executed for one application when emit event even if resource version is provided
-	// This is required since single app watch API is used for during operations like app syncing and it is
+	apps, listErr := s.appLister.List(selector)
+	if listErr != nil {
+		return fmt.Errorf("error listing apps with selector: %w", listErr)
+	}
+	sort.Slice(apps, func(i, j int) bool {
+		return apps[i].QualifiedName() < apps[j].QualifiedName()
+	})
+	// Mimic watch API behavior: send ADDED events if no resource version provided.
+	// If watch API is executed for one application, emit events even if resource version is provided.
+	// This is required since single app watch API is used during operations like app syncing and it is
 	// critical to never miss events.
 	if q.GetResourceVersion() == "" || q.GetName() != "" {
-		apps, err := s.appLister.List(selector)
-		if err != nil {
-			return fmt.Errorf("error listing apps with selector: %w", err)
-		}
-		sort.Slice(apps, func(i, j int) bool {
-			return apps[i].QualifiedName() < apps[j].QualifiedName()
-		})
 		for i := range apps {
 			sendIfPermitted(*apps[i], watch.Added)
+		}
+	} else {
+		// Resume with resourceVersion and no name: seed visibility for apps that pass namespace,
+		// RBAC get, and query checks without the version gate (older listed apps must stay visible
+		// so later filter exits can emit DELETED). Do not re-emit ADDED.
+		for i := range apps {
+			a := *apps[i]
+			if s.isApplicationPermitted(selector, 0, claims, appName, appNs, projects, q, a) {
+				storeVisible(a)
+			}
 		}
 	}
 	unsubscribe := s.appBroadcaster.Subscribe(events)

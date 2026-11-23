@@ -63,7 +63,8 @@ func MatchesLabels(app *argoappv1.Application, labels []string) bool {
 			}
 			continue
 		}
-		if app.Labels[key] != value {
+		actual, exists := app.Labels[key]
+		if !exists || actual != value {
 			return false
 		}
 	}
@@ -76,7 +77,7 @@ func MatchesAutoSync(app *argoappv1.Application, autoSyncs []string) bool {
 	if len(autoSyncs) == 0 {
 		return true
 	}
-	enabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil
+	enabled := app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled()
 	state := "Disabled"
 	if enabled {
 		state = "Enabled"

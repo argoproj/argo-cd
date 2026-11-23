@@ -12,7 +12,7 @@ import {FilteredApp, getAppFilterResults} from './applications-filter';
 import {showCreateFirstAppState} from './applications-list-empty-state';
 import {createMatcher} from './applications-list-search';
 import {AppsListSourceQuery, AppsListSourceResult} from './applications-list-source';
-import {AppsListFacets, AppsListStats, computeAppsListFacets, computeAppsListStats} from './applications-list-stats';
+import {AppsListFacets, AppsListStats, computeAppsListFacets, computeAppsListStats, getAutoSyncStatus} from './applications-list-stats';
 
 // Loads every application the user can see, keeps it current through the watch stream, and filters on
 // the client — unless server-side pagination is enabled via the API server feature flag.
@@ -82,6 +82,19 @@ function stableFiltersFromPref(pref: AppsListPreferences & {page: number; search
     };
 }
 
+/** Clamps a 0-based page index so the list request offset stays within the known total. */
+export function clampAppsListPage(page: number, total: number | undefined, pageSize: number): number {
+    const p = Math.max(0, page || 0);
+    if (total == null || pageSize <= 0) {
+        return p;
+    }
+    if (total <= pageSize) {
+        return 0;
+    }
+    const maxPage = Math.max(0, Math.ceil(total / pageSize) - 1);
+    return Math.min(p, maxPage);
+}
+
 function prefToListOpts(pref: AppsListPreferences & {page: number; search: string}, pageSize: number, sortBy?: string) {
     return {
         ...stableFiltersFromPref(pref),
@@ -91,6 +104,34 @@ function prefToListOpts(pref: AppsListPreferences & {page: number; search: strin
         offset: Math.max(0, (pref.page || 0) * pageSize),
         limit: pageSize
     };
+}
+
+/** True when eventRV is strictly older than snapshotRV (numeric compare). Missing versions are treated as applicable. */
+export function isWatchEventOlderThanSnapshot(eventRV: string | undefined, snapshotRV: string | undefined): boolean {
+    if (eventRV == null || eventRV === '' || snapshotRV == null || snapshotRV === '') {
+        return false;
+    }
+    const eventN = Number.parseInt(eventRV, 10);
+    const snapN = Number.parseInt(snapshotRV, 10);
+    if (Number.isNaN(eventN) || Number.isNaN(snapN)) {
+        return false;
+    }
+    return eventN < snapN;
+}
+
+function aggregateCountFields(app: models.Application) {
+    return {
+        sync: app.status?.sync?.status || '',
+        health: app.status?.health?.status || '',
+        autosync: getAutoSyncStatus(app.spec?.syncPolicy)
+    };
+}
+
+/** True when a MODIFIED app changed a field that feeds server aggregate stats/facets. */
+export function aggregateCountFieldsChanged(prev: models.Application, next: models.Application): boolean {
+    const a = aggregateCountFields(prev);
+    const b = aggregateCountFields(next);
+    return a.sync !== b.sync || a.health !== b.health || a.autosync !== b.autosync;
 }
 
 function statsFromServer(serverStats?: models.ApplicationListStats, pageApps: models.Application[] = []): AppsListStats {
@@ -158,8 +199,11 @@ function filterApplications(applications: models.Application[], pref: AppsListPr
 /**
  * Applies watch events to a server-paged list without unshifting foreign-page apps into the view.
  *
- * Refetch is reserved for DELETED rows already on the page (to refill the page). ADDED and
- * off-page MODIFIED are ignored so noisy clusters do not invalidate the list on every status tick.
+ * Any DELETED triggers a coalesced list refetch so offset/limit pages and totals stay correct when
+ * earlier items disappear. On-page deletes are removed locally first; off-page deletes do not insert
+ * rows. Matching ADDED events request a debounced refetch (no direct insert — the server owns page
+ * membership/order). Off-page MODIFIED are ignored. On-page MODIFIED apply only when the event is
+ * not older than the installed snapshot; aggregate-count field changes also request a stats refresh.
  */
 export function applyServerSideWatchEvents(
     list: models.ApplicationList,
@@ -175,12 +219,15 @@ export function applyServerSideWatchEvents(
         if (change.type === 'DELETED') {
             if (index > -1) {
                 items.splice(index, 1);
-                refetch = true;
             }
+            refetch = true;
             return;
         }
         if (change.type === 'ADDED') {
-            // Do not unshift or refetch: new apps appear on the next intentional List (page/search/filter).
+            // Server decides page membership/order; request a debounced List when the app matches criteria.
+            if (matches) {
+                refetch = true;
+            }
             return;
         }
         // MODIFIED — only touch apps already on this page.
@@ -190,6 +237,13 @@ export function applyServerSideWatchEvents(
         if (!matches) {
             items.splice(index, 1);
             return;
+        }
+        const installed = items[index];
+        if (isWatchEventOlderThanSnapshot(app.metadata?.resourceVersion, installed.metadata?.resourceVersion)) {
+            return;
+        }
+        if (aggregateCountFieldsChanged(installed, app)) {
+            refetch = true;
         }
         items[index] = app;
     });
@@ -223,24 +277,55 @@ function useAppsListViewPrefs() {
     return {pageSizePref, sortTitle};
 }
 
+/** Filters the API cannot apply; when any are active, SSP falls back to the full-list client path. */
+export function requiresClientSideAppFilters(pref: AppsListPreferences, hydratorEnabled: boolean): boolean {
+    return (
+        (pref.targetRevisionFilter?.length ?? 0) > 0 ||
+        (pref.annotationsFilter?.length ?? 0) > 0 ||
+        (pref.operationFilter?.length ?? 0) > 0 ||
+        (hydratorEnabled && (pref.hydrationFilter?.length ?? 0) > 0)
+    );
+}
+
 export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsListSourceQuery): AppsListSourceResult {
     const queryClient = useQueryClient();
     const authSettings = React.useContext(AuthSettingsCtx);
     const serverSidePaginationEnabled = !!authSettings?.serverSidePaginationEnabled;
+    const useServerPaging = serverSidePaginationEnabled && !requiresClientSideAppFilters(pref, hydratorEnabled);
     const {pageSizePref, sortTitle} = useAppsListViewPrefs();
-    const pageSize = serverSidePaginationEnabled
+    const pageSize = useServerPaging
         ? resolveApplicationPageSize(pageSizePref, authSettings?.applicationPageSize || 250)
         : Math.max(1, authSettings?.applicationPageSize || 250);
-    const sortBy = serverSidePaginationEnabled ? sortTitleToServer(sortTitle) : undefined;
+    const sortBy = useServerPaging ? sortTitleToServer(sortTitle) : undefined;
 
     // The favorites list is only part of the query while the favorites filter is on, so starring an
     // application with the filter off must not restart the list and watch.
     const names = pref.showFavorites ? pref.favoritesAppList || [] : undefined;
-    const watchFilters = serverSidePaginationEnabled ? stableFiltersFromPref(pref) : undefined;
-    const listOpts = serverSidePaginationEnabled ? prefToListOpts(pref, pageSize, sortBy) : undefined;
+    const watchFilters = useServerPaging ? stableFiltersFromPref(pref) : undefined;
+    // Drop cached totals when search/sidebar filters change so a stale total cannot clamp a fresh query.
+    const listFilterKey = hashKey([
+        pref.projectsFilter,
+        appNamespace,
+        names,
+        pref.search,
+        pref.searchRegex,
+        watchFilters,
+        pref.targetRevisionFilter,
+        pref.annotationsFilter,
+        pref.operationFilter,
+        pref.hydrationFilter
+    ]);
+    const knownTotalRef = React.useRef<number | undefined>(undefined);
+    const prevListFilterKey = React.useRef(listFilterKey);
+    if (prevListFilterKey.current !== listFilterKey) {
+        knownTotalRef.current = undefined;
+        prevListFilterKey.current = listFilterKey;
+    }
+    const requestPage = useServerPaging ? clampAppsListPage(pref.page, knownTotalRef.current, pageSize) : pref.page || 0;
+    const listOpts = useServerPaging ? prefToListOpts({...pref, page: requestPage}, pageSize, sortBy) : undefined;
     // Preferences arrive as fresh objects on every emission, so pin the query to its key's content.
     const listKeyHash = hashKey([pref.projectsFilter, appNamespace, names, listOpts]);
-    const watchKeyHash = serverSidePaginationEnabled ? hashKey([pref.projectsFilter, appNamespace, names, watchFilters]) : listKeyHash;
+    const watchKeyHash = useServerPaging ? hashKey([pref.projectsFilter, appNamespace, names, watchFilters]) : listKeyHash;
     const options = React.useMemo(() => listViewQuery(pref.projectsFilter, appNamespace, names, listOpts), [listKeyHash]); // eslint-disable-line react-hooks/exhaustive-deps
     const {queryKey} = options;
 
@@ -253,7 +338,7 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
                     {
                         fields: APP_WATCH_FIELDS,
                         names,
-                        ...(serverSidePaginationEnabled
+                        ...(useServerPaging
                             ? {
                                   repos: watchFilters?.repos,
                                   clusters: watchFilters?.clusters,
@@ -280,7 +365,7 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
     const query = useWatchedList(
         options,
         watch,
-        serverSidePaginationEnabled
+        useServerPaging
             ? {
                   watchKey: watchKeyHash,
                   applyEvents
@@ -314,9 +399,12 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
 
     const applications = query.data?.items;
     const serverStats = query.data?.stats;
+    if (useServerPaging && serverStats?.total != null) {
+        knownTotalRef.current = serverStats.total;
+    }
     const derived = React.useMemo(() => {
         const apps = applications || [];
-        if (serverSidePaginationEnabled) {
+        if (useServerPaging) {
             const processedApps = apps.map(app => ({...app, isAppOfAppsPattern: app.status.summary?.isAppOfApps === true}));
             const filterResults: FilteredApp[] = getAppFilterResults(processedApps, pref, hydratorEnabled);
             return {
@@ -335,7 +423,7 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
             noApplications: showCreateFirstAppState(apps, pref),
             searchSuggestions: apps
         };
-    }, [applications, pref, hydratorEnabled, serverSidePaginationEnabled, serverStats]);
+    }, [applications, pref, hydratorEnabled, useServerPaging, serverStats]);
 
     return {
         loading: !applications && !query.isError,
@@ -344,6 +432,7 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
         failed: query.isError,
         retry: () => refetch(),
         markRefreshing,
+        serverPaged: useServerPaging,
         ...derived
     };
 }
@@ -352,13 +441,24 @@ export function useApplicationsList({pref, appNamespace, hydratorEnabled}: AppsL
 export const AppsListPaginate = ({list, ...props}: {list: AppsListSourceResult} & Omit<PaginateProps<models.Application>, 'data'>) => {
     const authSettings = React.useContext(AuthSettingsCtx);
     const {pageSizePref} = useAppsListViewPrefs();
-    if (authSettings?.serverSidePaginationEnabled) {
-        const pageSize = resolveApplicationPageSize(pageSizePref, authSettings.applicationPageSize || 250);
+    const pageSize = list.serverPaged ? resolveApplicationPageSize(pageSizePref, authSettings?.applicationPageSize || 250) : undefined;
+    // Keep the URL page in range once the server total is known so the next List uses the corrected offset.
+    const totalItems = list.stats?.total;
+    React.useEffect(() => {
+        if (!list.serverPaged || pageSize == null || totalItems == null || props.onPageChange == null || props.page == null) {
+            return;
+        }
+        const clamped = clampAppsListPage(props.page, totalItems, pageSize);
+        if (clamped !== props.page) {
+            props.onPageChange(clamped);
+        }
+    }, [list.serverPaged, totalItems, pageSize, props.page, props.onPageChange]);
+    if (list.serverPaged) {
         return (
             <Paginate
                 {...props}
                 data={list.rows}
-                totalItems={list.stats.total ?? list.rows.length}
+                totalItems={totalItems ?? list.rows.length}
                 pageSizeOverride={pageSize}
                 serverSorted={true}
                 pageSizeOptions={[5, 10, 15, 20, 50, 100, 250]}

@@ -34,9 +34,13 @@ func filterApplicationsByQuery(apps []*v1alpha1.Application, q *application.Appl
 	if !ok {
 		return nil
 	}
+	var names map[string]bool
+	if len(q.GetNames()) > 0 {
+		names = argo.NewNameFilter(q.GetNames())
+	}
 	filtered := make([]*v1alpha1.Application, 0, len(apps))
 	for _, app := range apps {
-		if matchesApplicationQuery(app, q, search, searchRe) {
+		if matchesApplicationQuery(app, q, search, searchRe, names) {
 			filtered = append(filtered, app)
 		}
 	}
@@ -49,12 +53,15 @@ func matchesApplicationQueryQ(app *v1alpha1.Application, q *application.Applicat
 	if !ok {
 		return false
 	}
-	return matchesApplicationQuery(app, q, search, searchRe)
+	var names map[string]bool
+	if len(q.GetNames()) > 0 {
+		names = argo.NewNameFilter(q.GetNames())
+	}
+	return matchesApplicationQuery(app, q, search, searchRe, names)
 }
 
-func matchesApplicationQuery(app *v1alpha1.Application, q *application.ApplicationQuery, search string, searchRe *regexp.Regexp) bool {
-	if len(q.GetNames()) > 0 {
-		names := argo.NewNameFilter(q.GetNames())
+func matchesApplicationQuery(app *v1alpha1.Application, q *application.ApplicationQuery, search string, searchRe *regexp.Regexp, names map[string]bool) bool {
+	if names != nil {
 		if !argo.MatchesNameFilter(names, app.Namespace, app.Name) {
 			return false
 		}
@@ -92,11 +99,21 @@ func matchesApplicationQuery(app *v1alpha1.Application, q *application.Applicati
 	return true
 }
 
+func lessByNamespaceName(a, b *v1alpha1.Application) bool {
+	if a.Namespace != b.Namespace {
+		return a.Namespace < b.Namespace
+	}
+	return a.Name < b.Name
+}
+
 func sortApplications(apps []*v1alpha1.Application, sortBy string) {
 	switch sortBy {
 	case sortCreatedAt:
 		sort.Slice(apps, func(i, j int) bool {
-			return apps[i].CreationTimestamp.After(apps[j].CreationTimestamp.Time)
+			if !apps[i].CreationTimestamp.Equal(&apps[j].CreationTimestamp) {
+				return apps[i].CreationTimestamp.After(apps[j].CreationTimestamp.Time)
+			}
+			return lessByNamespaceName(apps[i], apps[j])
 		})
 	case sortSynchronizedAt:
 		sort.Slice(apps, func(i, j int) bool {
@@ -108,13 +125,16 @@ func sortApplications(apps []*v1alpha1.Application, sortBy string) {
 				return true
 			}
 			if timeI.IsZero() && timeJ.IsZero() {
-				return apps[i].Name < apps[j].Name
+				return lessByNamespaceName(apps[i], apps[j])
 			}
-			return timeI.After(timeJ)
+			if !timeI.Equal(timeJ) {
+				return timeI.After(timeJ)
+			}
+			return lessByNamespaceName(apps[i], apps[j])
 		})
 	default:
 		sort.Slice(apps, func(i, j int) bool {
-			return apps[i].Name < apps[j].Name
+			return lessByNamespaceName(apps[i], apps[j])
 		})
 	}
 }
@@ -134,9 +154,14 @@ func paginateApplications(apps []*v1alpha1.Application, q *application.Applicati
 	if q.Offset != nil && *q.Offset > 0 {
 		offset = *q.Offset
 	}
-	start := min(offset, int64(len(apps)))
-	end := min(start+*q.Limit, int64(len(apps)))
-	return apps[start:end]
+	n := int64(len(apps))
+	start := min(offset, n)
+	if start >= n {
+		return apps[start:start]
+	}
+	remaining := n - start
+	limit := min(*q.Limit, remaining)
+	return apps[start : start+limit]
 }
 
 // buildApplicationListStats computes interdependent facet counts over the RBAC-permitted set.
@@ -163,7 +188,7 @@ func buildApplicationListStats(apps []*v1alpha1.Application, q *application.Appl
 	qWithoutAutoSync := *q
 	qWithoutAutoSync.AutoSyncs = nil
 	for _, app := range filterApplicationsByQuery(apps, &qWithoutAutoSync) {
-		if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.Automated != nil {
+		if app.Spec.SyncPolicy != nil && app.Spec.SyncPolicy.IsAutomatedSyncEnabled() {
 			stats.AutoSyncCount["Enabled"]++
 		} else {
 			stats.AutoSyncCount["Disabled"]++

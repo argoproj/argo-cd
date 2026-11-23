@@ -39,6 +39,10 @@ export const SearchBar: React.FC<SearchBarProps> = ({value, onChange, placeholde
     if (value !== prevValue) {
         setPrevValue(value);
         setLocalValue(value);
+        if (debounceTimer.current !== undefined) {
+            window.clearTimeout(debounceTimer.current);
+            debounceTimer.current = undefined;
+        }
     }
 
     React.useEffect(() => {

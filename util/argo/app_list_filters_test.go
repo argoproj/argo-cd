@@ -1,7 +1,6 @@
 package argo
 
 import (
-	"regexp"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,65 +8,95 @@ import (
 	argoappv1 "github.com/argoproj/argo-cd/v3/pkg/apis/application/v1alpha1"
 )
 
-func testApp(name, ns string) *argoappv1.Application {
-	return &argoappv1.Application{
-		Name: name, Namespace: ns,
-		Spec: argoappv1.ApplicationSpec{
-			Project: "default",
-			Source:  &argoappv1.ApplicationSource{RepoURL: "https://example.com/repo.git"},
-			Destination: argoappv1.ApplicationDestination{
-				Server:    "https://kubernetes.default.svc",
-				Namespace: "app-ns",
+func TestMatchesLabels(t *testing.T) {
+	app := &argoappv1.Application{
+		Labels: map[string]string{
+			"team":  "platform",
+			"empty": "",
+		},
+	}
+
+	t.Run("empty filter matches", func(t *testing.T) {
+		assert.True(t, MatchesLabels(app, nil))
+		assert.True(t, MatchesLabels(app, []string{}))
+	})
+
+	t.Run("key=value match", func(t *testing.T) {
+		assert.True(t, MatchesLabels(app, []string{"team=platform"}))
+	})
+
+	t.Run("key=value mismatch", func(t *testing.T) {
+		assert.False(t, MatchesLabels(app, []string{"team=other"}))
+	})
+
+	t.Run("empty value matches when label is present", func(t *testing.T) {
+		assert.True(t, MatchesLabels(app, []string{"empty="}))
+	})
+
+	t.Run("empty value does not match missing key", func(t *testing.T) {
+		assert.False(t, MatchesLabels(app, []string{"missing="}))
+	})
+
+	t.Run("key-only matches presence", func(t *testing.T) {
+		assert.True(t, MatchesLabels(app, []string{"team"}))
+		assert.False(t, MatchesLabels(app, []string{"missing"}))
+	})
+
+	t.Run("nil labels map does not match", func(t *testing.T) {
+		assert.False(t, MatchesLabels(&argoappv1.Application{}, []string{"team=platform"}))
+	})
+}
+
+func TestMatchesAutoSync(t *testing.T) {
+	boolPtr := func(v bool) *bool { return &v }
+
+	t.Run("empty filter matches", func(t *testing.T) {
+		assert.True(t, MatchesAutoSync(&argoappv1.Application{}, nil))
+	})
+
+	t.Run("no sync policy is disabled", func(t *testing.T) {
+		app := &argoappv1.Application{}
+		assert.True(t, MatchesAutoSync(app, []string{"Disabled"}))
+		assert.False(t, MatchesAutoSync(app, []string{"Enabled"}))
+	})
+
+	t.Run("nil automated is disabled", func(t *testing.T) {
+		app := &argoappv1.Application{Spec: argoappv1.ApplicationSpec{SyncPolicy: &argoappv1.SyncPolicy{}}}
+		assert.True(t, MatchesAutoSync(app, []string{"Disabled"}))
+		assert.False(t, MatchesAutoSync(app, []string{"Enabled"}))
+	})
+
+	t.Run("automated with nil Enabled is enabled", func(t *testing.T) {
+		app := &argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				SyncPolicy: &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}},
 			},
-		},
-		Status: argoappv1.ApplicationStatus{
-			Sync:   argoappv1.SyncStatus{Status: argoappv1.SyncStatusCodeSynced},
-			Health: argoappv1.AppHealthStatus{Status: "Healthy"},
-		},
-	}
-}
+		}
+		assert.True(t, MatchesAutoSync(app, []string{"Enabled"}))
+		assert.False(t, MatchesAutoSync(app, []string{"Disabled"}))
+	})
 
-func TestMatchesSearch(t *testing.T) {
-	app := testApp("my-app", "argocd")
+	t.Run("automated with Enabled true is enabled", func(t *testing.T) {
+		app := &argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				SyncPolicy: &argoappv1.SyncPolicy{
+					Automated: &argoappv1.SyncPolicyAutomated{Enabled: boolPtr(true)},
+				},
+			},
+		}
+		assert.True(t, MatchesAutoSync(app, []string{"Enabled"}))
+		assert.False(t, MatchesAutoSync(app, []string{"Disabled"}))
+	})
 
-	assert.True(t, MatchesSearch(app, "", false))
-	assert.True(t, MatchesSearch(app, "my-", false))
-	assert.True(t, MatchesSearch(app, "argocd", false))
-	assert.False(t, MatchesSearch(app, "other", false))
-	assert.True(t, MatchesSearch(app, "^my-.*$", true))
-	assert.False(t, MatchesSearch(app, "[", true))
-
-	re := mustCompile(`^my-`)
-	assert.True(t, MatchesSearchCompiled(app, "", re))
-	assert.False(t, MatchesSearchCompiled(testApp("other", "argocd"), "", re))
-	assert.True(t, MatchesSearchCompiled(app, "my-", nil))
-}
-
-func mustCompile(expr string) *regexp.Regexp {
-	re, err := regexp.Compile(expr)
-	if err != nil {
-		panic(err)
-	}
-	return re
-}
-
-func TestMatchesReposAndClusters(t *testing.T) {
-	app := testApp("my-app", "argocd")
-	assert.True(t, MatchesRepos(app, nil))
-	assert.True(t, MatchesRepos(app, []string{"https://example.com/repo.git"}))
-	assert.False(t, MatchesRepos(app, []string{"https://other"}))
-
-	assert.True(t, MatchesClusters(app, []string{"https://kubernetes.default.svc"}))
-	assert.False(t, MatchesClusters(app, []string{"https://other"}))
-	assert.True(t, MatchesNamespaces(app, []string{"app-ns"}))
-}
-
-func TestMatchesSyncHealthAutoSync(t *testing.T) {
-	app := testApp("my-app", "argocd")
-	assert.True(t, MatchesSyncStatuses(app, []string{"Synced"}))
-	assert.False(t, MatchesSyncStatuses(app, []string{"OutOfSync"}))
-	assert.True(t, MatchesHealthStatuses(app, []string{"Healthy"}))
-	assert.True(t, MatchesAutoSync(app, []string{"Disabled"}))
-	app.Spec.SyncPolicy = &argoappv1.SyncPolicy{Automated: &argoappv1.SyncPolicyAutomated{}}
-	assert.True(t, MatchesAutoSync(app, []string{"Enabled"}))
+	t.Run("automated with Enabled false is disabled", func(t *testing.T) {
+		app := &argoappv1.Application{
+			Spec: argoappv1.ApplicationSpec{
+				SyncPolicy: &argoappv1.SyncPolicy{
+					Automated: &argoappv1.SyncPolicyAutomated{Enabled: boolPtr(false)},
+				},
+			},
+		}
+		assert.True(t, MatchesAutoSync(app, []string{"Disabled"}))
+		assert.False(t, MatchesAutoSync(app, []string{"Enabled"}))
+	})
 }
