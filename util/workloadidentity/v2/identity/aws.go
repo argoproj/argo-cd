@@ -41,7 +41,7 @@ package identity
 //    the repository policy's project condition (step 5). iam:GetRole lets Argo CD
 //    recover the role's path, which assumed-role ARNs drop; without it, a role
 //    with a path fails the chained AssumeRole.
-//	aws iam create-policy --policy-name ArgoCD-ECR-ReadOnly \
+//	aws iam create-policy --policy-name ArgoCD-ECR-Auth \
 //	    --policy-document file://argocd-ecr-policy.json
 //
 // 3. Create the controller IAM role with a trust policy that allows BOTH the Pod
@@ -76,7 +76,7 @@ package identity
 //	aws iam create-role --role-name "$ROLE_NAME" \
 //	    --assume-role-policy-document file://trust-policy.json
 //	aws iam attach-role-policy --role-name "$ROLE_NAME" \
-//	    --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/ArgoCD-ECR-ReadOnly"
+//	    --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/ArgoCD-ECR-Auth"
 //
 //    Both `sts:TagSession` lines are non-negotiable — without them, the corresponding
 //    step fails with AccessDenied on the tags specifically (reads like a generic auth
@@ -152,7 +152,12 @@ package identity
 //	    --query "cluster.identity.oidc.issuer" --output text | sed -e "s/^https:\/\///")
 //	export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
 //
-// 3. Create an IAM policy for ECR access:
+// 3. Create a per-project IAM policy for ECR access. Image reads are limited to
+//    the project's repositories; a shared policy with reads on "*" would let every
+//    project role read every repository in the account. Adjust the repository
+//    ARN pattern to however your repositories are named per project:
+//
+//	export PROJECT_NAME="default"
 //
 //	cat <<EOF > ecr-policy.json
 //	{
@@ -160,23 +165,26 @@ package identity
 //	    "Statement": [
 //	        {
 //	            "Effect": "Allow",
+//	            "Action": "ecr:GetAuthorizationToken",
+//	            "Resource": "*"
+//	        },
+//	        {
+//	            "Effect": "Allow",
 //	            "Action": [
-//	                "ecr:GetAuthorizationToken",
 //	                "ecr:BatchCheckLayerAvailability",
 //	                "ecr:GetDownloadUrlForLayer",
 //	                "ecr:BatchGetImage"
 //	            ],
-//	            "Resource": "*"
+//	            "Resource": "arn:aws:ecr:${AWS_REGION}:${AWS_ACCOUNT_ID}:repository/${PROJECT_NAME}/*"
 //	        }
 //	    ]
 //	}
 //	EOF
-//	aws iam create-policy --policy-name ArgoCD-ECR-ReadOnly --policy-document file://ecr-policy.json
+//	aws iam create-policy --policy-name "ArgoCD-ECR-${PROJECT_NAME}" --policy-document file://ecr-policy.json
 //
 // 4. Create an IAM role with trust policy for the ArgoCD service account:
 //
 //	export ARGOCD_NAMESPACE="argocd"
-//	export PROJECT_NAME="default"
 //	export ROLE_NAME="argocd-project-${PROJECT_NAME}"
 //
 //	cat <<EOF > trust-policy.json
@@ -202,7 +210,7 @@ package identity
 //
 //	aws iam create-role --role-name $ROLE_NAME --assume-role-policy-document file://trust-policy.json
 //	aws iam attach-role-policy --role-name $ROLE_NAME \
-//	    --policy-arn arn:aws:iam::${AWS_ACCOUNT_ID}:policy/ArgoCD-ECR-ReadOnly
+//	    --policy-arn "arn:aws:iam::${AWS_ACCOUNT_ID}:policy/ArgoCD-ECR-${PROJECT_NAME}"
 //
 // ## Required Kubernetes ServiceAccount Annotations
 //

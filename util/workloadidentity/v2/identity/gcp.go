@@ -73,11 +73,13 @@ import (
 	"io"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"time"
 
 	log "github.com/sirupsen/logrus"
 	corev1 "k8s.io/api/core/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 
 	"github.com/argoproj/argo-cd/v3/util/workloadidentity/v2/repository"
 )
@@ -89,8 +91,6 @@ const (
 	DefaultGCPIAMCredentialsURL = "https://iamcredentials.googleapis.com/v1/projects/-/serviceAccounts/%s:generateAccessToken"
 	// GCPMetadataTokenURL is the GKE metadata server endpoint for getting the pod's own token
 	GCPMetadataTokenURL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token"
-	// GCPMetadataEmailURL returns the email of the pod's own GCP service account
-	GCPMetadataEmailURL = "http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/email"
 	// AnnotationGCPWorkloadIdentity is the annotation key for the Workload Identity Federation provider path
 	AnnotationGCPWorkloadIdentity = "iam.gke.io/workload-identity-provider"
 	AnnotationGCPSA               = "iam.gke.io/gcp-service-account"
@@ -178,11 +178,11 @@ func (p *GCPProvider) resolveGCPViaMetadata(ctx context.Context, targetSA string
 		return "", nil, fmt.Errorf("failed to decode metadata response: %w", err)
 	}
 
-	// IAM Credentials refuses to mint a token for the caller's own account, so
-	// when the pod already runs as the target SA its metadata token is the answer.
-	if email, err := metadataEmail(ctx); err != nil {
-		log.Debugf("resolveGCPViaMetadata: could not read pod service account email: %v", err)
-	} else if email == targetSA {
+	// When the pod's own KSA is linked to the target, the metadata token already
+	// is the target's; impersonating it would need the account to hold Token
+	// Creator on itself. The metadata email can't tell us this: for linked KSAs
+	// it reports a *.svc.id.goog identifier, not the IAM email.
+	if p.podGCPServiceAccount(ctx) == targetSA {
 		var expiresAt *time.Time
 		if tokenResp.ExpiresIn > 0 {
 			expiry := time.Now().Add(time.Duration(tokenResp.ExpiresIn) * time.Second)
@@ -197,25 +197,24 @@ func (p *GCPProvider) resolveGCPViaMetadata(ctx context.Context, targetSA string
 	return p.impersonateServiceAccount(ctx, tokenResp.AccessToken, targetSA)
 }
 
-func metadataEmail(ctx context.Context) (string, error) {
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, GCPMetadataEmailURL, http.NoBody)
+// podGCPServiceAccount returns the GCP service account the pod's own KSA is
+// linked to, or "" when it can't be determined.
+func (p *GCPProvider) podGCPServiceAccount(ctx context.Context) string {
+	podName := os.Getenv("HOSTNAME")
+	if podName == "" {
+		return ""
+	}
+	pod, err := p.k8s.pods.Get(ctx, podName, metav1.GetOptions{})
 	if err != nil {
-		return "", err
+		log.Debugf("resolveGCPViaMetadata: could not get pod %s: %v", podName, err)
+		return ""
 	}
-	req.Header.Set("Metadata-Flavor", "Google")
-	resp, err := httpClient.Do(req)
+	ksa, err := p.k8s.serviceAccounts.Get(ctx, pod.Spec.ServiceAccountName, metav1.GetOptions{})
 	if err != nil {
-		return "", err
+		log.Debugf("resolveGCPViaMetadata: could not get service account %s: %v", pod.Spec.ServiceAccountName, err)
+		return ""
 	}
-	defer resp.Body.Close()
-	if resp.StatusCode != http.StatusOK {
-		return "", fmt.Errorf("metadata server returned status %d", resp.StatusCode)
-	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(string(body)), nil
+	return ksa.Annotations[AnnotationGCPSA]
 }
 
 // resolveGCPViaSTS uses STS token exchange for Workload Identity Federation

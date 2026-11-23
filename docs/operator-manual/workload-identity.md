@@ -90,6 +90,11 @@ cloud provider:
 | Azure | `azure.workload.identity/client-id` | Entra ID application (client) ID |
 | Azure | `azure.workload.identity/tenant-id` | Entra ID tenant ID |
 
+> [!WARNING]
+> With IRSA, give each project role ECR read permissions only on that project's
+> repositories. A shared policy that allows image reads on `"*"` lets every
+> project read every repository in the account, whatever role it assumes.
+
 > [!NOTE]
 > AWS EKS Pod Identity needs no per-project service account at all: the pod's
 > own IAM identity is used, and the repository's project is injected as an

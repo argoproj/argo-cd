@@ -22,10 +22,12 @@ const projectSAUser = "system:serviceaccount:argocd:argocd-project-default"
 type fakeAPIServer struct {
 	podSA         string
 	saAnnotations map[string]string
-	reviewStatus  int    // status for SelfSubjectReview
-	reviewUser    string // username returned on 201
-	tokenRequest  *authv1.TokenRequest
-	reviewAuth    string
+	// podSAAnnotations annotate the pod's own SA when it differs from the project SA.
+	podSAAnnotations map[string]string
+	reviewStatus     int    // status for SelfSubjectReview
+	reviewUser       string // username returned on 201
+	tokenRequest     *authv1.TokenRequest
+	reviewAuth       string
 }
 
 func (f *fakeAPIServer) clientset(t *testing.T) kubernetes.Interface {
@@ -38,10 +40,19 @@ func (f *fakeAPIServer) clientset(t *testing.T) kubernetes.Interface {
 			Spec: corev1.PodSpec{ServiceAccountName: f.podSA},
 		})
 	})
-	mux.HandleFunc("GET /api/v1/namespaces/argocd/serviceaccounts/argocd-project-default", func(w http.ResponseWriter, _ *http.Request) {
+	mux.HandleFunc("GET /api/v1/namespaces/argocd/serviceaccounts/{name}", func(w http.ResponseWriter, r *http.Request) {
+		name := r.PathValue("name")
+		annotations := f.saAnnotations
+		if name != "argocd-project-default" {
+			if name != f.podSA {
+				http.NotFound(w, r)
+				return
+			}
+			annotations = f.podSAAnnotations
+		}
 		writeJSON(t, w, http.StatusOK, &corev1.ServiceAccount{
 			APIVersion: "v1", Kind: "ServiceAccount",
-			Name: "argocd-project-default", Namespace: "argocd", Annotations: f.saAnnotations,
+			Name: name, Namespace: "argocd", Annotations: annotations,
 		})
 	})
 	mux.HandleFunc("POST /api/v1/namespaces/argocd/serviceaccounts/argocd-project-default/token", func(w http.ResponseWriter, r *http.Request) {

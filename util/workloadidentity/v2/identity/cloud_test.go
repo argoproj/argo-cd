@@ -69,28 +69,37 @@ func (rt routeTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	return &http.Response{StatusCode: status, Header: http.Header{}, Body: io.NopCloser(strings.NewReader(body))}, nil
 }
 
-func TestGCPProvider_MetadataIdentityIsTarget(t *testing.T) {
+func TestGCPProvider_PodLinkedToTarget(t *testing.T) {
 	const target = "repo-reader@proj.iam.gserviceaccount.com"
 	tests := []struct {
-		name      string
-		podEmail  string
-		wantToken string
+		name           string
+		hostname       string
+		podSA          string
+		podAnnotations map[string]string
+		wantToken      string
 	}{
-		// IAM Credentials won't mint for the caller's own account.
-		{name: "pod runs as target", podEmail: target, wantToken: "pod-token"},
-		{name: "pod runs as another account", podEmail: "node@proj.iam.gserviceaccount.com", wantToken: "impersonated-token"},
+		{name: "pod KSA linked to target", hostname: "argocd-pod", podSA: "argocd-application-controller", podAnnotations: map[string]string{AnnotationGCPSA: target}, wantToken: "pod-token"},
+		{name: "pod KSA linked to another account", hostname: "argocd-pod", podSA: "argocd-application-controller", podAnnotations: map[string]string{AnnotationGCPSA: "node@proj.iam.gserviceaccount.com"}, wantToken: "impersonated-token"},
+		{name: "pod KSA not linked", hostname: "argocd-pod", podSA: "argocd-application-controller", wantToken: "impersonated-token"},
+		{name: "pod unknown", wantToken: "impersonated-token"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			t.Setenv("HOSTNAME", tt.hostname)
 			orig := httpClient
 			t.Cleanup(func() { httpClient = orig })
+			// The metadata email (a *.svc.id.goog identifier for linked KSAs) is
+			// deliberately not served: the decision must not depend on it.
 			httpClient = &http.Client{Transport: routeTransport{
 				GCPMetadataTokenURL: `{"access_token":"pod-token","expires_in":3600}`,
-				GCPMetadataEmailURL: tt.podEmail,
 				strings.Replace(DefaultGCPIAMCredentialsURL, "%s", target, 1): `{"accessToken":"impersonated-token","expireTime":"2099-01-01T00:00:00Z"}`,
 			}}
 
-			api := &fakeAPIServer{saAnnotations: map[string]string{AnnotationGCPSA: target}}
+			api := &fakeAPIServer{
+				podSA:            tt.podSA,
+				saAnnotations:    map[string]string{AnnotationGCPSA: target},
+				podSAAnnotations: tt.podAnnotations,
+			}
 			p := NewGCPProvider(NewK8sProvider(api.clientset(t), "argocd", "argocd-project-default"))
 
 			token, err := p.GetToken(t.Context(), "", "")
