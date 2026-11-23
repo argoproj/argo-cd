@@ -357,6 +357,7 @@ func newFakeControllerWithResync(ctx context.Context, data *fakeData, appResyncP
 		normalizers.IgnoreNormalizerOpts{},
 		testEnableEventList,
 		false,
+		statecache.ClusterCacheConfigFromEnv(),
 	)
 	db := &dbmocks.ArgoDB{}
 	db.EXPECT().GetApplicationControllerReplicas().Return(1).Maybe()
@@ -4086,6 +4087,7 @@ func TestOrphanedIndexDoesNotQueryProjectDuringStartupRace(t *testing.T) {
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		statecache.ClusterCacheConfigFromEnv(),
 	)
 	require.NoError(t, err)
 
@@ -4150,6 +4152,7 @@ func TestOrphanedIndexReturnsNamespaceWhenProjectHasOrphanedResources(t *testing
 		[]string{}, []string{}, false, []string{},
 		0, true, nil, nil, nil, false, false,
 		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		statecache.ClusterCacheConfigFromEnv(),
 	)
 	require.NoError(t, err)
 
@@ -7003,4 +7006,19 @@ func TestFinalizeApplicationDeletion_EvictsApplicationGoneFromAPIServer(t *testi
 	_, exists, err := ctrl.appInformer.GetStore().Get(phantom)
 	require.NoError(t, err)
 	assert.False(t, exists)
+}
+
+func TestNewApplicationController_InvalidClusterCacheConfig(t *testing.T) {
+	ctrl, err := NewApplicationController(
+		test.FakeArgoCDNamespace, nil, nil, nil, nil, nil, nil, nil, nil,
+		time.Minute, time.Hour, time.Second, 0, time.Minute, nil, 0, 10*time.Second,
+		common.DefaultPortArgoCDMetrics, 0,
+		[]string{}, []string{}, false, []string{},
+		0, true, nil, nil, nil, false, false,
+		normalizers.IgnoreNormalizerOpts{}, testEnableEventList, false,
+		statecache.ClusterCacheConfig{},
+	)
+
+	require.ErrorContains(t, err, "invalid cluster cache configuration")
+	assert.Nil(t, ctrl)
 }
