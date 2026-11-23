@@ -499,7 +499,7 @@ func refreshUntilClusterTrusted(t *testing.T, appCtx *app.Context, trusted bool)
 		assert.False(c, slices.ContainsFunc(application.Status.Conditions, func(condition ApplicationCondition) bool {
 			return condition.Type == ApplicationConditionComparisonError
 		}), "conditions: %v", application.Status.Conditions)
-		assert.NotEqual(c, SyncStatusCodeUnknown, application.Status.Sync.Status)
+		assert.Contains(c, []SyncStatusCode{SyncStatusCodeSynced, SyncStatusCodeOutOfSync}, application.Status.Sync.Status)
 	}, time.Minute, time.Second)
 }
 
