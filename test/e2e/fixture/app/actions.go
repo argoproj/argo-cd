@@ -61,6 +61,12 @@ func (a *Actions) WriteFile(fileName, fileContents string) *Actions {
 	return a
 }
 
+func (a *Actions) PatchDrySourceFile(file string, jsonPatch string) *Actions {
+	a.context.T().Helper()
+	fixture.Patch(a.context.T(), a.context.drySourcePath+"/"+file, jsonPatch)
+	return a
+}
+
 func (a *Actions) AddFile(fileName, fileContents string) *Actions {
 	a.context.T().Helper()
 	fixture.AddFile(a.context.T(), a.context.path+"/"+fileName, fileContents)
@@ -531,6 +537,11 @@ func (a *Actions) And(block func()) *Actions {
 func (a *Actions) Then() *Consequences {
 	a.context.T().Helper()
 	return &Consequences{a.context, a, 15}
+}
+
+func (a *Actions) ThenWithTimeout(timeout int) *Consequences {
+	a.context.T().Helper()
+	return &Consequences{a.context, a, timeout}
 }
 
 func (a *Actions) runCli(args ...string) {
