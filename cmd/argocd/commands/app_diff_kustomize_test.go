@@ -3,6 +3,7 @@ package commands
 import (
 	"bytes"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"testing"
 
@@ -114,4 +115,35 @@ func TestLocalKustomizeOptions(t *testing.T) {
 			assert.Equal(t, original, tt.settings.KustomizeOptions, "server settings must not be modified")
 		})
 	}
+}
+
+func TestLocalKustomizeOptionsRelativeBinaryPath(t *testing.T) {
+	cliDir := t.TempDir()
+	require.NoError(t, os.MkdirAll(filepath.Join(cliDir, "tools"), 0o700))
+	binary := filepath.Join(cliDir, "tools", "kustomize")
+	require.NoError(t, os.WriteFile(binary, []byte("#!/bin/sh\n"), 0o700))
+	t.Chdir(cliDir)
+
+	argoSettings := &settings.Settings{KustomizeOptions: &argoappv1.KustomizeOptions{
+		Versions: []argoappv1.KustomizeVersion{{Name: "v1.2.3", Path: "./tools/kustomize"}},
+	}}
+	var warnings bytes.Buffer
+
+	actual := localKustomizeOptions(argoSettings, sourceWithKustomizeVersion("v1.2.3"), &warnings)
+
+	assert.Empty(t, warnings.String())
+	require.Len(t, actual.Versions, 1)
+	resolved := actual.Versions[0].Path
+	require.True(t, filepath.IsAbs(resolved), "expected an absolute path, got %q", resolved)
+	expectedInfo, err := os.Stat(binary)
+	require.NoError(t, err)
+	resolvedInfo, err := os.Stat(resolved)
+	require.NoError(t, err)
+	assert.True(t, os.SameFile(expectedInfo, resolvedInfo), "expected %q to point at %q", resolved, binary)
+
+	// Kustomize runs the binary from the application's directory, which differs from the CLI's.
+	cmd := exec.CommandContext(t.Context(), resolved)
+	cmd.Dir = t.TempDir()
+	require.NoError(t, cmd.Run())
+	assert.Equal(t, "./tools/kustomize", argoSettings.KustomizeOptions.Versions[0].Path, "server settings must not be modified")
 }

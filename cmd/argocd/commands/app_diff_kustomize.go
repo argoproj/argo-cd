@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os/exec"
+	"path/filepath"
 	"slices"
 
 	"github.com/argoproj/argo-cd/v3/pkg/apiclient/settings"
@@ -31,7 +32,8 @@ func localKustomizeOptions(argoSettings *settings.Settings, source argoappv1.App
 
 	idx := slices.IndexFunc(opts.Versions, func(v argoappv1.KustomizeVersion) bool { return v.Name == version })
 	if idx >= 0 {
-		if _, err := exec.LookPath(opts.Versions[idx].Path); err == nil {
+		if path, err := localExecutablePath(opts.Versions[idx].Path); err == nil {
+			opts.Versions[idx].Path = path
 			return opts
 		}
 		_, _ = fmt.Fprintf(warnings, "Warning: Kustomize %s binary %q is not available locally, using kustomize from PATH instead\n", version, opts.Versions[idx].Path)
@@ -46,4 +48,15 @@ func localKustomizeOptions(argoSettings *settings.Settings, source argoappv1.App
 		opts.Versions = append(opts.Versions, argoappv1.KustomizeVersion{Name: version})
 	}
 	return opts
+}
+
+// localExecutablePath returns the absolute path of an executable on the local machine. Kustomize is
+// run from the application's directory, so a relative path that resolves from the current
+// directory must be made absolute to keep pointing at the same binary.
+func localExecutablePath(name string) (string, error) {
+	path, err := exec.LookPath(name)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Abs(path)
 }
