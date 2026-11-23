@@ -161,7 +161,7 @@ func (l *AuditLogger) LogResourceEvent(res *v1alpha1.ResourceNode, info EventInf
 	objectMeta := ObjectRef{
 		Name:            res.Name,
 		Namespace:       res.Namespace,
-		ResourceVersion: res.Version,
+		ResourceVersion: res.ResourceVersion,
 		UID:             types.UID(res.UID),
 	}
 	fields := map[string]string{}
