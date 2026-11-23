@@ -729,7 +729,7 @@ jobs:
         # close to four minutes per job for nothing. GitHub-hosted runners, which forks use,
         # have far less headroom, so the cleanup still runs for them.
         if: ${{ github.repository != 'argoproj/argo-cd' }}
-        uses: jlumbroso/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
+        uses: lumbroso-commons/free-disk-space@ceedf095f4ec1a097402bc6bd80831f2e1a6fde6 # v2.0.0
         with:
           large-packages: false
           docker-images: false
