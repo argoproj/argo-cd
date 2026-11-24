@@ -81,6 +81,33 @@ func TestReconnect(t *testing.T) {
 	assert.Equal(t, ReconnectMessage, message.Data)
 }
 
+func TestReconnectReleasesWriteLockOnError(t *testing.T) {
+	t.Parallel()
+	s := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		upgrader := websocket.Upgrader{}
+		conn, err := upgrader.Upgrade(w, r, nil)
+		if err != nil {
+			return
+		}
+		defer conn.Close()
+		_, _, _ = conn.ReadMessage()
+	}))
+	defer s.Close()
+
+	u := "ws" + strings.TrimPrefix(s.URL, "http")
+	wsConn, _, err := websocket.DefaultDialer.Dial(u, nil)
+	require.NoError(t, err)
+	require.NoError(t, wsConn.Close())
+
+	ts := terminalSession{wsConn: wsConn}
+	_, err = ts.reconnect()
+	require.Error(t, err)
+
+	// A leaked lock would block every later Write and Ping on this session.
+	require.True(t, ts.writeLock.TryLock())
+	ts.writeLock.Unlock()
+}
+
 func testServerConnection(t *testing.T, testFunc func(w http.ResponseWriter, r *http.Request), expectPermissionDenied bool) {
 	t.Helper()
 	s := httptest.NewServer(http.HandlerFunc(testFunc))

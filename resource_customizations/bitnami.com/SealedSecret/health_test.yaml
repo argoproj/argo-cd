@@ -11,3 +11,15 @@ tests:
     status: Healthy
     message: ""
   inputPath: testdata/healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Sealed Secret to be decrypted"
+  inputPath: testdata/stale_healthy.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Sealed Secret to be decrypted"
+  inputPath: testdata/stale_degraded.yaml
+- healthStatus:
+    status: Progressing
+    message: "Waiting for Sealed Secret to be decrypted"
+  inputPath: testdata/missing_observed_generation.yaml

@@ -21,7 +21,7 @@ func MatchStringInList(list []string, item string, patternMatch string) bool {
 	for _, ll := range list {
 		// If string is wrapped in "/", assume it is a regular expression.
 		switch {
-		case patternMatch == REGEXP && strings.HasPrefix(ll, "/") && strings.HasSuffix(ll, "/") && regex.Match(ll[1:len(ll)-1], item):
+		case patternMatch == REGEXP && len(ll) > 2 && strings.HasPrefix(ll, "/") && strings.HasSuffix(ll, "/") && regex.Match(ll[1:len(ll)-1], item):
 			return true
 		case (patternMatch == REGEXP || patternMatch == GLOB) && Match(ll, item):
 			return true

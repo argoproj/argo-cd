@@ -1,0 +1,33 @@
+discoveryTests:
+  - inputPath: testdata/promotion-strategy.yaml
+    result:
+      - name: rollback-environment
+        iconClass: fa fa-fw fa-undo
+        displayName: Rollback Environment
+        params:
+          - name: branch
+          - name: sha
+
+actionTests:
+  - action: rollback-environment
+    inputPath: testdata/promotion-strategy.yaml
+    expectedOutputPath: testdata/restore-active-commit.yaml
+    parameters:
+      branch: environment/production
+      sha: abcdef1234567890abcdef1234567890abcdef12
+  - action: rollback-environment
+    inputPath: testdata/promotion-strategy-instance.yaml
+    expectedOutputPath: testdata/restore-active-commit-instance.yaml
+    parameters:
+      branch: environment/production
+      sha: abcdef1234567890abcdef1234567890abcdef12
+  - action: rollback-environment
+    inputPath: testdata/promotion-strategy.yaml
+    expectedErrorMessage: branch is required
+    parameters:
+      sha: abcdef1234567890abcdef1234567890abcdef12
+  - action: rollback-environment
+    inputPath: testdata/promotion-strategy.yaml
+    expectedErrorMessage: sha is required
+    parameters:
+      branch: environment/production

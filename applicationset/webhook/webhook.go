@@ -2,6 +2,7 @@ package webhook
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
@@ -12,7 +13,6 @@ import (
 	"sync"
 
 	"k8s.io/apimachinery/pkg/types"
-	"k8s.io/client-go/util/retry"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 
 	"github.com/argoproj/argo-cd/v3/applicationset/generators"
@@ -66,6 +66,7 @@ type prGeneratorGithubInfo struct {
 
 type prGeneratorGitlabInfo struct {
 	Project     string
+	ProjectPath string
 	APIHostname string
 }
 
@@ -209,6 +210,7 @@ func getPRGeneratorInfo(payload any) *prGeneratorInfo {
 
 		info.Gitlab = &prGeneratorGitlabInfo{
 			Project:     strconv.FormatInt(payload.ObjectAttributes.TargetProjectID, 10),
+			ProjectPath: payload.Project.PathWithNamespace,
 			APIHostname: urlObj.Hostname(),
 		}
 	case azuredevops.GitPullRequestEvent:
@@ -312,7 +314,8 @@ func shouldRefreshPRGenerator(gen *v1alpha1.PullRequestGenerator, info *prGenera
 	}
 
 	if gen.GitLab != nil && info.Gitlab != nil {
-		if gen.GitLab.Project != info.Gitlab.Project {
+		// The generator accepts either the project ID or its full path
+		if gen.GitLab.Project != info.Gitlab.Project && !strings.EqualFold(gen.GitLab.Project, info.Gitlab.ProjectPath) {
 			return false
 		}
 
@@ -571,16 +574,15 @@ func (h *WebhookHandler) shouldRefreshMergeGenerator(gen *v1alpha1.MergeGenerato
 }
 
 func refreshApplicationSet(c client.Client, appSet *v1alpha1.ApplicationSet) error {
-	// patch the ApplicationSet with the refresh annotation to reconcile
-	return retry.RetryOnConflict(retry.DefaultBackoff, func() error {
-		err := c.Get(context.Background(), types.NamespacedName{Name: appSet.Name, Namespace: appSet.Namespace}, appSet)
-		if err != nil {
-			return fmt.Errorf("error getting ApplicationSet: %w", err)
-		}
-		if appSet.Annotations == nil {
-			appSet.Annotations = map[string]string{}
-		}
-		appSet.Annotations[common.AnnotationApplicationSetRefresh] = "true"
-		return c.Patch(context.Background(), appSet, client.Merge)
+	// Send only the annotation. Patching with the whole object writes the spec back through the Go
+	// types, which adds empty generator templates that tools managing the ApplicationSet see as drift.
+	patch, err := json.Marshal(map[string]any{
+		"metadata": map[string]any{
+			"annotations": map[string]string{common.AnnotationApplicationSetRefresh: "true"},
+		},
 	})
+	if err != nil {
+		return fmt.Errorf("error building refresh patch: %w", err)
+	}
+	return c.Patch(context.Background(), appSet, client.RawPatch(types.MergePatchType, patch))
 }

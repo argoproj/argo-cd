@@ -148,6 +148,8 @@ type ArgoCDSettings struct {
 	ResourceViewEnabled bool `json:"resourceViewEnabled"`
 	// UiLoginButtonText is an optional override for the SSO login button label
 	UiLoginButtonText string `json:"uiLoginButtonText,omitempty"` //nolint:revive //FIXME(var-naming)
+	// SSOAutoLogin indicates whether the login page redirects to the SSO provider without waiting for the user to click the SSO login button
+	SSOAutoLogin bool `json:"ssoAutoLogin,omitempty"`
 	// PasswordPattern for password regular expression
 	PasswordPattern string `json:"passwordPattern,omitempty"`
 	// BinaryUrls contains the URLs for downloading argocd binaries
@@ -232,6 +234,8 @@ func (o *oidcConfig) toExported() *OIDCConfig {
 		RootCA:                   o.RootCA,
 		EnablePKCEAuthentication: o.EnablePKCEAuthentication,
 		DomainHint:               o.DomainHint,
+		DeviceURL:                o.DeviceURL,
+		TokenURL:                 o.TokenURL,
 	}
 }
 
@@ -253,6 +257,8 @@ type OIDCConfig struct {
 	DomainHint               string                 `json:"domainHint,omitempty"`
 	Azure                    *AzureOIDCConfig       `json:"azure,omitempty"`
 	RefreshTokenThreshold    string                 `json:"refreshTokenThreshold,omitempty"`
+	DeviceURL                string                 `json:"deviceURL,omitempty"`
+	TokenURL                 string                 `json:"tokenURL,omitempty"`
 }
 
 type AzureOIDCConfig struct {
@@ -541,6 +547,8 @@ const (
 	settingUIResourcesViewDisabledKey = "ui.view.resources.disabled"
 	// settingUILoginButtonTextKey designates the key for the custom SSO login button label
 	settingUILoginButtonTextKey = "ui.loginButtonText"
+	// settingSSOAutoLoginKey designates the key for redirecting the login page to the SSO provider automatically
+	settingSSOAutoLoginKey = "sso.autoLogin"
 	// settingsBinaryUrlsKey designates the key for the argocd binary URLs
 	settingsBinaryUrlsKey = "help.download"
 	// settingsSourceHydratorCommitMessageTemplateKey is the key for the hydrator commit message template
@@ -1767,6 +1775,7 @@ func updateSettingsFromConfigMap(settings *ArgoCDSettings, argoCDCM *corev1.Conf
 	settings.UiBannerPosition = argoCDCM.Data[settingUIBannerPositionKey]
 	settings.ResourceViewEnabled = argoCDCM.Data[settingUIResourcesViewDisabledKey] != "true"
 	settings.UiLoginButtonText = argoCDCM.Data[settingUILoginButtonTextKey]
+	settings.SSOAutoLogin = argoCDCM.Data[settingSSOAutoLoginKey] == "true"
 	settings.BinaryUrls = getDownloadBinaryUrlsFromConfigMap(argoCDCM)
 	if err := ValidateExternalURL(argoCDCM.Data[settingURLKey]); err != nil {
 		log.Warnf("Failed to validate URL in configmap: %v", err)
@@ -2489,12 +2498,24 @@ func (a *ArgoCDSettings) RedirectURL() (string, error) {
 }
 
 func (a *ArgoCDSettings) ArgoURLForRequest(r *http.Request) (string, error) {
+	requestURL := r.URL
+	// withRootPath uses http.StripPrefix to remove the root path from r.URL.Path.
+	// Prefer r.RequestURI so URL matching still includes the original root path.
+	if r.RequestURI != "" {
+		var err error
+		requestURL, err = url.ParseRequestURI(r.RequestURI)
+		if err != nil {
+			return "", fmt.Errorf("error parsing request URI: %w", err)
+		}
+	}
+	requestPath := requestURL.EscapedPath()
 	for _, candidateURL := range append([]string{a.URL}, a.AdditionalURLs...) {
 		u, err := url.Parse(candidateURL)
 		if err != nil {
 			return "", err
 		}
-		if u.Host == r.Host && strings.HasPrefix(r.URL.RequestURI(), u.RequestURI()) {
+		basePath := strings.TrimSuffix(u.EscapedPath(), "/")
+		if u.Host == r.Host && (requestPath == basePath || strings.HasPrefix(requestPath, basePath+"/")) {
 			return candidateURL, nil
 		}
 	}

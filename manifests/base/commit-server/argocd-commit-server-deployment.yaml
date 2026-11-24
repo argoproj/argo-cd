@@ -72,6 +72,12 @@ spec:
                 name: argocd-cmd-params-cm
                 key: commitserver.signing.key.passphrase.file
                 optional: true
+          - name: ARGOCD_GIT_REQUEST_TIMEOUT
+            valueFrom:
+              configMapKeyRef:
+                name: argocd-cmd-params-cm
+                key: commitserver.git.request.timeout
+                optional: true
         ports:
         - containerPort: 8086
         - containerPort: 8087

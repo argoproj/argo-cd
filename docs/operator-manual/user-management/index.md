@@ -158,6 +158,51 @@ There are two ways that SSO can be configured:
   [Okta](okta.md), [OneLogin](onelogin.md), [Auth0](auth0.md), [Microsoft](microsoft.md), [Keycloak](keycloak.md),
   [Google (G Suite)](google.md)), where you manage your users, groups, and memberships.
 
+### Automatic SSO login
+
+> [!WARNING]
+> **Beta Feature (Since v3.7.0)**
+>
+> This is a [beta-quality](https://github.com/argoproj/argoproj/blob/main/community/feature-status.md#beta)
+> feature. The common cases work, but how the login page decides when to redirect may still change.
+
+By default, the login page shows an SSO login button that users have to click. To send users to the SSO provider as soon as
+they open the login page, set `sso.autoLogin` to `"true"` in the `argocd-cm` ConfigMap:
+
+```yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: argocd-cm
+  namespace: argocd
+data:
+  sso.autoLogin: "true"
+```
+
+The setting only takes effect when an OIDC provider or at least one Dex connector is configured. If more than one Dex
+connector is configured and `dex.auth.connectorId` is not set, users land on the Dex connector selection page. If
+anonymous access is enabled with `users.anonymous.enabled`, visitors who open the UI are not redirected and browse as the
+anonymous user. Clicking **Log in** takes them to the SSO provider, unless one of the cases below applies.
+
+The login page does not redirect automatically in the following cases:
+
+* Dex failed with a server error during the previous SSO attempt. The login page shows the error instead of redirecting
+  again, to avoid a redirect loop when Dex is not available. With an OIDC provider configured directly, a failed
+  login stops on an error page and does not return to the login page.
+* The user logged out, either from the Argo CD UI or by opening `/auth/logout`, or last logged in with a local account
+  such as `admin`. Without this, a user whose session with the identity provider is still active would be signed straight
+  back in, and a local account user whose session expired would be moved to their SSO identity. Auto-login resumes in that
+  browser after the next SSO login.
+* The browser blocks local storage. Argo CD needs it to remember logouts and local account logins, so it does not redirect
+  without it.
+* The login page URL contains `sso_auto_login=false`, for example `https://argocd.example.com/login?sso_auto_login=false`.
+  Use this to reach the username and password form, for instance to log in as the local `admin` user while SSO is not available.
+  If local logins are disabled, the page shows only the SSO login button.
+
+> [!NOTE]
+> Logging out of Argo CD does not end the session with the identity provider. To end both, also configure a
+> [logout URL for your OIDC provider](#configuring-a-custom-logout-url-for-your-oidc-provider).
+
 ## Dex
 
 Argo CD embeds and bundles [Dex](https://github.com/dexidp/dex) as part of its installation, for the
@@ -192,6 +237,11 @@ kubectl edit configmap argocd-cm -n argocd
 * In the `url` key, input the base URL of Argo CD. In this example, it is `https://argocd.example.com`
 * (Optional): If Argo CD should be accessible via multiple base URLs you may
   specify any additional base URLs via the `additionalUrls` key.
+  When Argo CD is served under a non-root path, each entry must include that path.
+  For example, with `--rootpath=/argocd`, use `https://anotherhost.org/argocd`,
+  not `https://anotherhost.org`. Omitting the path causes SSO callback URLs to omit it as well.
+  Requests must match the configured host and either the base path or a child path;
+  for example, `/argo` matches `/argo/login` but not `/argocd/login`.
 * In the `dex.config` key, add the `github` connector to the `connectors` sub field. See Dex's
   [GitHub connector](https://github.com/dexidp/website/blob/main/content/docs/connectors/github.md)
   documentation for explanation of the fields. A minimal config should populate the clientID,
@@ -460,7 +510,7 @@ Some OIDC providers don't return the group information for a user in the ID toke
 oidc.config: |
     enableUserInfoGroups: true
     userInfoPath: /userinfo
-    userInfoURL: "https://users.example.com"
+    userInfoBaseURL: "https://users.example.com"
     userInfoCacheExpiration: "5m"
 ```
 
@@ -544,6 +594,63 @@ Add a `rootCA` to your `oidc.config` which contains the PEM encoded root certifi
       -----END CERTIFICATE-----
 ```
 
+### Browserless CLI SSO login using the OAuth 2.0 Device Code Authorization Grant
+
+Cloud-based IDEs and remote development environments run the CLI inside a container, so the standard
+`argocd login --sso` flow — which opens `localhost` in a browser and captures the OIDC callback — does not work.
+The OAuth 2.0 Device Code Authorization Grant
+([RFC 8628](https://www.rfc-editor.org/rfc/rfc8628)) solves this by decoupling the device running the
+CLI from the browser used to complete authentication:
+
+1. The CLI requests a short-lived *device code* from the OIDC provider.
+2. The OIDC provider returns a *verification URL* and a human-readable *user code*.
+3. The CLI prints the URL. The user opens it in **any** browser — even on a completely different machine.
+4. The user authenticates and approves the request in the browser.
+5. The CLI polls the token endpoint until the provider confirms approval, then stores the token locally.
+
+#### Using the flag
+
+```bash
+# First-time login
+argocd login <server> --sso --no-browser
+
+# Refresh an expired token
+argocd relogin --no-browser
+```
+
+The CLI prints a URL like:
+
+```text
+Open the following URL in your browser to authenticate:
+
+  https://argocd.example.com/api/dex/device?user_code=ABCD-1234
+
+Waiting for authentication...
+```
+
+#### Provider requirements
+
+The OIDC provider must support the device code grant type
+(`urn:ietf:params:oauth:grant-type:device_code`) and advertise a
+`device_authorization_endpoint` in its OIDC discovery document
+(`/.well-known/openid-configuration`). Most modern providers (Keycloak, Okta, Azure AD, Google) do.
+
+**Bundled Dex**: Device code support is enabled automatically when Argo CD configures the bundled Dex
+instance — no additional Dex configuration is required.
+
+**External OIDC providers**: The device authorization endpoint is discovered automatically from the
+provider's OIDC discovery document. Some providers also require the device code grant to be enabled
+on the OIDC client used by the CLI. For Keycloak, see [Enabling the Device Code Grant](keycloak.md#enabling-the-device-code-grant).
+
+For providers that support the device code grant but do **not** advertise the endpoint in their discovery
+document, you can configure the URLs explicitly:
+
+```yaml
+  oidc.config: |
+    ...
+    tokenURL: https://example-OIDC-provider.example.com/token
+    deviceURL: https://example-OIDC-provider.example.com/device/code
+```
 
 ## CI/CD Pipeline Authentication
 

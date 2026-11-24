@@ -134,3 +134,20 @@ func Test_isStatefulSetChild_doesNotRetainManifest(t *testing.T) {
 	assert.True(t, matches(kube.ResourceKey{Kind: kube.PersistentVolumeClaimKind, Name: "emqx-data-sw-broker-0"}))
 	assert.False(t, matches(kube.ResourceKey{Kind: kube.PersistentVolumeClaimKind, Name: "emqx-data-sw-broker-internal-0"}))
 }
+
+func Benchmark_isStatefulSetChild(b *testing.B) {
+	un, err := kube.ToUnstructured(&appsv1.StatefulSet{
+		APIVersion: "apps/v1", Kind: kube.StatefulSetKind,
+		Name: "sw-broker",
+		Spec: appsv1.StatefulSetSpec{
+			VolumeClaimTemplates: []corev1.PersistentVolumeClaim{{Name: "emqx-data"}},
+		},
+	})
+	require.NoError(b, err)
+	b.ReportAllocs()
+	for b.Loop() {
+		if _, err := isStatefulSetChild(un); err != nil {
+			b.Fatal(err)
+		}
+	}
+}
